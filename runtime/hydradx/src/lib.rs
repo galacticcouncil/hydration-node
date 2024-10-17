@@ -40,6 +40,8 @@ pub mod xcm;
 
 pub use assets::*;
 pub use governance::*;
+use pallet_asset_registry::AssetType;
+use pallet_currencies_rpc_runtime_api::AccountData;
 pub use system::*;
 pub use xcm::*;
 
@@ -62,8 +64,10 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
+use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
 pub use hex_literal::hex;
+use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
@@ -108,7 +112,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 263,
+	spec_version: 264,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -266,7 +270,10 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	(pallet_collator_selection::migration::v2::MigrationToV2<Runtime>,),
+	(
+		pallet_collator_selection::migration::v2::MigrationToV2<Runtime>,
+		SetCodeForErc20Precompile,
+	),
 >;
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
@@ -545,6 +552,86 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_currencies_rpc_runtime_api::CurrenciesApi<
+		Block,
+		AssetId,
+		AccountId,
+		Balance,
+	> for Runtime {
+		fn account(asset_id: AssetId, who: AccountId) -> AccountData<Balance> {
+			if asset_id == NativeAssetId::get() {
+				let data = System::account(&who).data;
+				AccountData {
+					free: data.free,
+					reserved: data.reserved,
+					frozen: data.frozen,
+				}
+			} else if matches!(AssetRegistry::asset_type(asset_id), Some(AssetKind::Erc20)) {
+				AccountData {
+					free: Self::free_balance(asset_id, who),
+					..Default::default()
+				}
+			} else {
+				let data = Tokens::accounts(who, asset_id);
+				AccountData {
+					free: data.free,
+					reserved: data.reserved,
+					frozen: data.frozen,
+				}
+			}
+		}
+
+		fn accounts(who: AccountId) -> Vec<(AssetId, AccountData<Balance>)> {
+			let mut result = Vec::new();
+
+			let balance = System::account(&who).data;
+			result.push((
+				NativeAssetId::get(),
+				AccountData {
+					free: balance.free,
+					reserved: balance.reserved,
+					frozen: balance.frozen,
+				}
+			));
+
+			result.extend(
+				orml_tokens::Accounts::<Runtime>::iter_prefix(&who)
+					.map(|(asset_id, data)| (
+						asset_id,
+						AccountData {
+							free: data.free,
+							reserved: data.reserved,
+							frozen: data.frozen,
+						}
+					))
+			);
+
+			result.extend(
+				pallet_asset_registry::Assets::<Runtime>::iter()
+					.filter(|(_, info)| info.asset_type == AssetType::Erc20)
+					.filter_map(|(asset_id, _)| {
+						let free = Self::free_balance(asset_id, who.clone());
+						if free > 0 {
+							Some((
+								asset_id,
+								AccountData {
+									free,
+									..Default::default()
+								}
+							))
+						} else {
+							None
+						}
+					})
+			);
+
+			result
+		}
+
+		fn free_balance(asset_id: AssetId, who: AccountId) -> Balance {
+			Currencies::free_balance(asset_id, &who)
+		}
+	}
 
 	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
 		fn account_nonce(account: AccountId) -> Index {
@@ -659,7 +746,7 @@ impl_runtime_apis! {
 						};
 
 			// don't allow calling EVM RPC or Runtime API from a bound address
-			if EVMAccounts::bound_account_id(from).is_some() {
+			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
 				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
 			};
 
@@ -740,9 +827,9 @@ impl_runtime_apis! {
 				};
 
 			// don't allow calling EVM RPC or Runtime API from a bound address
-			if EVMAccounts::bound_account_id(from).is_some() {
+			if !estimate && EVMAccounts::bound_account_id(from).is_some() {
 				return Err(pallet_evm_accounts::Error::<Runtime>::BoundAddressCannotBeUsed.into())
-				};
+			};
 
 			// the address needs to have a permission to deploy smart contract
 			if !EVMAccounts::can_deploy_contracts(from) {

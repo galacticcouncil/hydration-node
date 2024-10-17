@@ -9,13 +9,13 @@ use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Enc
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
+use hydradx_runtime::evm::Function;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	evm::precompiles::{
-		handle::EvmDataWriter,
-		multicurrency::{Action, MultiCurrencyPrecompile},
-		Address, Bytes, EvmAddress, HydraDXPrecompiles,
+		handle::EvmDataWriter, multicurrency::MultiCurrencyPrecompile, Address, Bytes, HydraDXPrecompiles,
 	},
 	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
 	TransactionPause, EVM,
@@ -153,7 +153,7 @@ mod account_conversion {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+			let data = EvmDataWriter::new_with_selector(Function::BalanceOf)
 				.write(Address::from(evm_address))
 				.build();
 
@@ -164,7 +164,7 @@ mod account_conversion {
 					caller: evm_address,
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -196,7 +196,7 @@ mod account_conversion {
 			//Arrange
 			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 
-			let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+			let data = EvmDataWriter::new_with_selector(Function::BalanceOf)
 				.write(Address::from(evm_address))
 				.build();
 
@@ -207,7 +207,7 @@ mod account_conversion {
 					caller: evm_address,
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -353,6 +353,38 @@ mod account_conversion {
 				),
 				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::BoundAddressCannotBeUsed
 			);
+		});
+	}
+
+	#[test]
+	fn estimation_of_evm_call_should_be_accepted_even_from_bound_address() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let data =
+				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+					.to_vec();
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)),);
+
+			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+
+			//Act & Assert
+			assert_ok!(hydradx_runtime::Runtime::call(
+				evm_address,   // from
+				DISPATCH_ADDR, // to
+				data,          // data
+				U256::from(1000u64),
+				U256::from(100000u64),
+				None,
+				None,
+				None,
+				true,
+				None,
+			));
 		});
 	}
 }
@@ -573,6 +605,9 @@ mod standard_precompiles {
 
 mod currency_precompile {
 	use super::*;
+	use fp_evm::ExitRevert::Reverted;
+	use fp_evm::PrecompileFailure;
+	use frame_support::assert_noop;
 	use pretty_assertions::assert_eq;
 
 	type AllHydraDXPrecompile = HydraDXPrecompiles<hydradx_runtime::Runtime>;
@@ -584,7 +619,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::Name).build();
+			let data = EvmDataWriter::new_with_selector(Function::Name).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -593,7 +628,7 @@ mod currency_precompile {
 					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -620,7 +655,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::Name).build();
+			let data = EvmDataWriter::new_with_selector(Function::Name).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -629,7 +664,7 @@ mod currency_precompile {
 					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: H160::from(hex!("00000000000000000000000000000001ffffffff")),
+				code_address: H160::from(hex!("00000000000000000000000000000001ffffffff")),
 				is_static: true,
 			};
 
@@ -653,7 +688,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::Name).build();
+			let data = EvmDataWriter::new_with_selector(Function::Name).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -662,7 +697,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -701,7 +736,7 @@ mod currency_precompile {
 			)
 			.unwrap();
 
-			let data = EvmDataWriter::new_with_selector(Action::Symbol).build();
+			let data = EvmDataWriter::new_with_selector(Function::Symbol).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -710,7 +745,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -749,7 +784,7 @@ mod currency_precompile {
 			)
 			.unwrap();
 
-			let data = EvmDataWriter::new_with_selector(Action::Decimals).build();
+			let data = EvmDataWriter::new_with_selector(Function::Decimals).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -758,7 +793,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -788,7 +823,7 @@ mod currency_precompile {
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::TotalSupply).build();
+			let data = EvmDataWriter::new_with_selector(Function::TotalSupply).build();
 
 			let mut handle = MockHandle {
 				input: data,
@@ -797,7 +832,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -834,7 +869,7 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::BalanceOf)
+			let data = EvmDataWriter::new_with_selector(Function::BalanceOf)
 				.write(Address::from(evm_address()))
 				.build();
 
@@ -845,7 +880,7 @@ mod currency_precompile {
 					caller: alice_evm_addr(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -882,7 +917,7 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::Transfer)
+			let data = EvmDataWriter::new_with_selector(Function::Transfer)
 				.write(Address::from(evm_address2()))
 				.write(U256::from(86u128 * UNITS))
 				.build();
@@ -894,7 +929,50 @@ mod currency_precompile {
 					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			//Act
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			//Assert
+			assert_eq!(result.unwrap().exit_status, ExitSucceed::Returned);
+			assert_balance!(evm_account2(), HDX, 86u128 * UNITS);
+		});
+	}
+
+	#[test]
+	fn precompile_with_code_transfer_should_work() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			pallet_evm::AccountCodes::<hydradx_runtime::Runtime>::insert(
+				native_asset_ethereum_address(),
+				&hex!["365f5f375f5f365f73bebebebebebebebebebebebebebebebebebebebe5af43d5f5f3e5f3d91602a57fd5bf3"][..],
+			);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_account(),
+				HDX,
+				100 * UNITS as i128,
+			));
+
+			let data = EvmDataWriter::new_with_selector(Function::Transfer)
+				.write(Address::from(evm_address2()))
+				.write(U256::from(86u128 * UNITS))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
 				is_static: false,
 			};
 
@@ -920,7 +998,7 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::Approve)
+			let data = EvmDataWriter::new_with_selector(Function::Approve)
 				.write(Address::from(evm_address2()))
 				.write(U256::from(50u128 * UNITS))
 				.build();
@@ -932,7 +1010,7 @@ mod currency_precompile {
 					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -950,24 +1028,24 @@ mod currency_precompile {
 	}
 
 	#[test]
-	fn precompile_for_currency_allowance_should_fail_as_not_supported() {
+	fn precompile_for_currency_allowance_should_return_zero_for_not_approved_contract() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			//Arrange
-			let data = EvmDataWriter::new_with_selector(Action::Allowance)
-				.write(Address::from(evm_address()))
+			let data = EvmDataWriter::new_with_selector(Function::Allowance)
 				.write(Address::from(evm_address2()))
+				.write(Address::from(evm_address()))
 				.build();
 
 			let mut handle = MockHandle {
 				input: data,
 				context: Context {
-					address: evm_address(),
-					caller: native_asset_ethereum_address(),
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
 				is_static: true,
 			};
 
@@ -977,15 +1055,101 @@ mod currency_precompile {
 			//Assert
 			assert_eq!(
 				result,
-				Err(PrecompileFailure::Error {
-					exit_status: pallet_evm::ExitError::Other("not supported".into())
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000000"].to_vec()
 				})
 			);
 		});
 	}
 
 	#[test]
-	fn precompile_for_transfer_from_should_fail_as_not_supported() {
+	fn precompile_for_currency_allowance_should_return_max_for_approved_contract() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			assert_ok!(EVMAccounts::approve_contract(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_address(),
+			));
+
+			let data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(evm_address2()))
+				.write(Address::from(evm_address()))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			//Act
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			//Assert
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["00000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"].to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_currency_allowance_should_return_zero_for_disapproved_contract() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			assert_ok!(EVMAccounts::approve_contract(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_address(),
+			));
+			let data = EvmDataWriter::new_with_selector(Function::Allowance)
+				.write(Address::from(evm_address2()))
+				.write(Address::from(evm_address()))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: evm_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
+				is_static: true,
+			};
+
+			//Act
+			assert_ok!(EVMAccounts::disapprove_contract(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_address(),
+			));
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			//Assert
+			assert_eq!(
+				result,
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000000"].to_vec()
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn precompile_for_transfer_from_should_fail_for_not_approved_contract() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -997,7 +1161,7 @@ mod currency_precompile {
 				100 * UNITS as i128,
 			));
 
-			let data = EvmDataWriter::new_with_selector(Action::TransferFrom)
+			let data = EvmDataWriter::new_with_selector(Function::TransferFrom)
 				.write(Address::from(evm_address()))
 				.write(Address::from(evm_address2()))
 				.write(U256::from(50u128 * UNITS))
@@ -1006,25 +1170,73 @@ mod currency_precompile {
 			let mut handle = MockHandle {
 				input: data,
 				context: Context {
-					address: evm_address(),
-					caller: evm_address(),
+					address: native_asset_ethereum_address(),
+					caller: native_asset_ethereum_address(),
 					apparent_value: U256::from(0),
 				},
-				core_address: native_asset_ethereum_address(),
+				code_address: native_asset_ethereum_address(),
+				is_static: false,
+			};
+
+			//Act & Assert
+			assert_noop!(
+				CurrencyPrecompile::execute(&mut handle),
+				PrecompileFailure::Revert {
+					exit_status: Reverted,
+					output: "Not approved contract".as_bytes().to_vec()
+				}
+			);
+			assert_balance!(evm_account2(), HDX, 0);
+		});
+	}
+
+	#[test]
+	fn precompile_for_transfer_from_is_allowed_for_approved_contract() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			assert_ok!(EVMAccounts::approve_contract(
+				hydradx_runtime::RuntimeOrigin::root(),
+				native_asset_ethereum_address(),
+			));
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				evm_account(),
+				HDX,
+				100 * UNITS as i128,
+			));
+
+			let data = EvmDataWriter::new_with_selector(Function::TransferFrom)
+				.write(Address::from(evm_address()))
+				.write(Address::from(evm_address2()))
+				.write(U256::from(50u128 * UNITS))
+				.build();
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: native_asset_ethereum_address(),
+					caller: native_asset_ethereum_address(),
+					apparent_value: U256::from(0),
+				},
+				code_address: native_asset_ethereum_address(),
 				is_static: false,
 			};
 
 			//Act
 			let result = CurrencyPrecompile::execute(&mut handle);
-
-			//Assert
+			// Assert
+			assert_ok!(result.clone());
 			assert_eq!(
 				result,
-				Err(PrecompileFailure::Error {
-					exit_status: pallet_evm::ExitError::Other("not supported".into())
+				Ok(PrecompileOutput {
+					exit_status: ExitSucceed::Returned,
+					output: hex!["0000000000000000000000000000000000000000000000000000000000000001"].to_vec(),
 				})
 			);
-			assert_balance!(evm_account2(), HDX, 0);
+			assert_balance!(evm_account2(), HDX, 50u128 * UNITS);
 		});
 	}
 
@@ -1034,7 +1246,6 @@ mod currency_precompile {
 	}
 
 	pub fn alice_evm_addr() -> H160 {
-		//H160::from(hex_literal::hex!("1000000000000000000000000000000000000001"))
 		account_to_default_evm_address(&ALICE)
 	}
 
@@ -1567,27 +1778,37 @@ pub fn gas_price() -> U256 {
 	U256::from(hydradx_runtime::evm::DEFAULT_BASE_FEE_PER_GAS)
 }
 
-fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
-	MockHandle {
-		input: data,
-		context: Context {
-			address: DISPATCH_ADDR,
-			caller: evm_address(),
-			apparent_value: U256::zero(),
-		},
-		core_address: DISPATCH_ADDR,
-		is_static: true,
+impl MockHandle {
+	pub fn new_dispatch(sender: H160, data: Vec<u8>) -> Self {
+		Self {
+			input: data,
+			context: Context {
+				address: DISPATCH_ADDR,
+				caller: sender,
+				apparent_value: U256::zero(),
+			},
+			code_address: DISPATCH_ADDR,
+			is_static: true,
+		}
 	}
+}
+
+pub fn create_dispatch_handle(data: Vec<u8>) -> MockHandle {
+	MockHandle::new_dispatch(evm_address(), data)
 }
 
 pub fn native_asset_ethereum_address() -> H160 {
 	H160::from(hex!("0000000000000000000000000000000100000000"))
 }
 
+pub fn dai_ethereum_address() -> H160 {
+	H160::from(hex!("0000000000000000000000000000000100000002"))
+}
+
 pub struct MockHandle {
 	pub input: Vec<u8>,
 	pub context: Context,
-	pub core_address: H160,
+	pub code_address: H160,
 	pub is_static: bool,
 }
 
@@ -1628,7 +1849,7 @@ impl PrecompileHandle for MockHandle {
 	}
 
 	fn code_address(&self) -> H160 {
-		self.core_address
+		self.code_address
 	}
 
 	fn input(&self) -> &[u8] {

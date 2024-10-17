@@ -1,4 +1,8 @@
-pub trait InspectEvmAccounts<AccountId, EvmAddress> {
+use codec::{Decode, Encode};
+use frame_support::sp_runtime::app_crypto::sp_core::{H160, U256};
+use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
+use sp_std::vec::Vec;
+pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the account is EVM truncated account.
 	fn is_evm_account(account_id: AccountId) -> bool;
 
@@ -17,4 +21,64 @@ pub trait InspectEvmAccounts<AccountId, EvmAddress> {
 
 	/// Returns `True` if the address is allowed to deploy smart contracts.
 	fn can_deploy_contracts(evm_address: EvmAddress) -> bool;
+
+	/// Returns `True` if the address is allowed to manage balances and tokens.
+	fn is_approved_contract(address: EvmAddress) -> bool;
+}
+
+pub type EvmAddress = H160;
+
+#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug)]
+pub struct CallContext {
+	pub contract: EvmAddress,
+	/// msg.sender
+	pub sender: EvmAddress,
+	/// tx.origin
+	pub origin: EvmAddress,
+}
+
+impl CallContext {
+	pub fn new(contract: EvmAddress, sender: EvmAddress, origin: EvmAddress) -> Self {
+		Self {
+			contract,
+			sender,
+			origin,
+		}
+	}
+
+	pub fn new_call(contract: EvmAddress, sender: EvmAddress) -> Self {
+		Self {
+			contract,
+			sender,
+			origin: sender,
+		}
+	}
+
+	pub fn new_view(contract: EvmAddress) -> Self {
+		Self {
+			contract,
+			sender: EvmAddress::default(),
+			origin: EvmAddress::default(),
+		}
+	}
+}
+
+pub trait EVM<EvmResult> {
+	fn call(context: CallContext, data: Vec<u8>, value: U256, gas: u64) -> EvmResult;
+	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> EvmResult;
+}
+
+/// ERC20 interface adapter
+pub trait ERC20 {
+	type Balance;
+
+	fn name(context: CallContext) -> Option<Vec<u8>>;
+	fn symbol(context: CallContext) -> Option<Vec<u8>>;
+	fn decimals(context: CallContext) -> Option<u8>;
+	fn total_supply(context: CallContext) -> Self::Balance;
+	fn balance_of(context: CallContext, address: EvmAddress) -> Self::Balance;
+	fn allowance(context: CallContext, owner: EvmAddress, spender: EvmAddress) -> Self::Balance;
+	fn approve(context: CallContext, spender: EvmAddress, value: Self::Balance) -> DispatchResult;
+	fn transfer(context: CallContext, to: EvmAddress, value: Self::Balance) -> DispatchResult;
+	fn transfer_from(context: CallContext, from: EvmAddress, to: EvmAddress, value: Self::Balance) -> DispatchResult;
 }
