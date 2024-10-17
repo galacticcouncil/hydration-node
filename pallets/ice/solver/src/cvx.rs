@@ -265,7 +265,7 @@ where
 
 		//let settings = DefaultSettings::default();
 		let settings = DefaultSettingsBuilder::default()
-			.verbose(false)
+			.verbose(true)
 			.time_limit(f64::INFINITY)
 			.max_iter(1000000)
 			.build()

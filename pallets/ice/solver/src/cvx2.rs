@@ -219,8 +219,6 @@ where
 		let mut tkns: Vec<T::AssetId> = vec![1u32.into()];
 		tkns.extend(asset_ids.iter().cloned());
 
-		let reserve_map = asset_ids.iter().zip(asset_reserves.iter()).collect::<BTreeMap<_, _>>();
-
 		let fee_match = 0.0005;
 
 		let mut spot_prices = vec![1.];
@@ -231,6 +229,10 @@ where
 			.map(|(r, h)| h / r)
 			.collect();
 		spot_prices.extend(omnipool_spot_price.iter().cloned());
+
+		let s = spot_prices[1];
+		dbg!(s);
+		dbg!(s.fract());
 
 		// Setup Variables
 
@@ -387,9 +389,8 @@ where
 
 		dbg!(&b);
 
-		//let settings = DefaultSettings::default();
 		let settings = DefaultSettingsBuilder::default()
-			.verbose(false)
+			.verbose(true)
 			.time_limit(f64::INFINITY)
 			.max_iter(200)
 			.build()
@@ -399,6 +400,7 @@ where
 
 		let status = solver.solution.status;
 		dbg!(status);
+		dbg!(solver.solution.obj_val);
 
 		let x = solver.solution.x;
 
