@@ -22,6 +22,9 @@ type CvxSolverWithMockOmnipool =
 type CvxSolverWithOmnipool =
 	ice_solver::cvx::CVXSolver<hydradx_runtime::Runtime, Router, Router, PriceP, OmnipoolDataProvider>;
 
+type CvxSolver2WithOmnipool =
+	ice_solver::cvx2::CVXSolver2<hydradx_runtime::Runtime, Router, Router, PriceP, OmnipoolDataProvider>;
+
 pub(crate) fn solve_intents_with<S: ICESolver<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>>(
 	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>,
 ) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()>
@@ -40,27 +43,50 @@ struct OmnipoolDataProvider;
 
 impl OmnipoolInfo<AssetId> for OmnipoolDataProvider {
 	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>> {
-		let mut assets = vec![];
-		for (asset_id, state) in Omnipool::omnipool_state() {
-			if asset_id != 0 && asset_id != 27 {
-				//continue;
+		if let Some(filter_assets) = filter {
+			let mut assets = vec![];
+
+			for asset_id in filter_assets {
+				let state = Omnipool::load_asset_state(asset_id).unwrap();
+				let decimals = hydradx_runtime::AssetRegistry::decimals(asset_id).unwrap();
+				let details = hydradx_runtime::AssetRegistry::assets(asset_id).unwrap();
+				let symbol = details.symbol.unwrap();
+				let s = String::from_utf8(symbol.to_vec()).unwrap();
+				let fees = hydradx_runtime::DynamicFees::current_fees(asset_id).unwrap();
+				assets.push(OmnipoolAssetInfo {
+					asset_id,
+					reserve: state.reserve,
+					hub_reserve: state.hub_reserve,
+					decimals,
+					fee: fees.asset_fee,
+					hub_fee: fees.protocol_fee,
+					symbol: s,
+				});
 			}
-			let decimals = hydradx_runtime::AssetRegistry::decimals(asset_id).unwrap();
-			let details = hydradx_runtime::AssetRegistry::assets(asset_id).unwrap();
-			let symbol = details.symbol.unwrap();
-			let s = String::from_utf8(symbol.to_vec()).unwrap();
-			let fees = hydradx_runtime::DynamicFees::current_fees(asset_id).unwrap();
-			assets.push(OmnipoolAssetInfo {
-				asset_id,
-				reserve: state.reserve,
-				hub_reserve: state.hub_reserve,
-				decimals,
-				fee: fees.asset_fee,
-				hub_fee: fees.protocol_fee,
-				symbol: s,
-			});
+			assets
+		} else {
+			let mut assets = vec![];
+			for (asset_id, state) in Omnipool::omnipool_state() {
+				if asset_id != 0 && asset_id != 27 {
+					//continue;
+				}
+				let decimals = hydradx_runtime::AssetRegistry::decimals(asset_id).unwrap();
+				let details = hydradx_runtime::AssetRegistry::assets(asset_id).unwrap();
+				let symbol = details.symbol.unwrap();
+				let s = String::from_utf8(symbol.to_vec()).unwrap();
+				let fees = hydradx_runtime::DynamicFees::current_fees(asset_id).unwrap();
+				assets.push(OmnipoolAssetInfo {
+					asset_id,
+					reserve: state.reserve,
+					hub_reserve: state.hub_reserve,
+					decimals,
+					fee: fees.asset_fee,
+					hub_fee: fees.protocol_fee,
+					symbol: s,
+				});
+			}
+			assets
 		}
-		assets
 	}
 }
 
@@ -287,7 +313,7 @@ fn solver_should_find_solution_with_matching_intents() {
 		);
 
 		let intents = vec![intent1, intent2];
-		let (resolved, trades, score) = solve_intents_with::<CvxSolverWithOmnipool>(intents).unwrap();
+		let (resolved, trades, score) = solve_intents_with::<CvxSolver2WithOmnipool>(intents).unwrap();
 
 		assert_eq!(
 			resolved.to_vec(),

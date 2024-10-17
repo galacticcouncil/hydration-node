@@ -183,3 +183,16 @@ where
 		})
 	}
 }
+
+#[macro_export]
+macro_rules! rational_to_f64 {
+	($x:expr, $y:expr) => {
+		FixedU128::from_rational($x, $y).to_float()
+	};
+}
+#[macro_export]
+macro_rules! to_f64_by_decimals {
+	($x:expr, $y:expr) => {
+		FixedU128::from_rational($x, 10u128.pow($y as u32)).to_float()
+	};
+}

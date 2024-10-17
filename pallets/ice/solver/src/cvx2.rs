@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::traits::{ICESolver, OmnipoolAssetInfo, OmnipoolInfo};
-use crate::SolverSolution;
+use crate::{rational_to_f64, to_f64_by_decimals, SolverSolution};
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
@@ -12,6 +12,51 @@ use std::collections::{BTreeSet, HashMap};
 use clarabel::algebra::*;
 use clarabel::solver::*;
 use sp_runtime::FixedU128;
+
+fn calculate_scaling<T: pallet_ice::Config>(
+	intents: &[(IntentId, Intent<T::AccountId, T::AssetId>)],
+	intent_amounts: &[(f64, f64)],
+	asset_ids: &[T::AssetId],
+	omnipool_reserves: &[f64],
+	omnipool_hub_reserves: &[f64],
+) -> HashMap<T::AssetId, f64>
+where
+	T::AssetId: From<u32> + sp_std::hash::Hash,
+{
+	let mut scaling = HashMap::new();
+	scaling.insert(1u32.into(), f64::INFINITY);
+
+	for (idx, (_, intent)) in intents.iter().enumerate() {
+		if intent.swap.asset_in != 1u32.into() {
+			let a = intent.swap.asset_in;
+			let sq = intent_amounts[idx].0;
+			scaling.entry(a).and_modify(|v| *v = v.max(sq)).or_insert(sq);
+		}
+		if intent.swap.asset_out != 1u32.into() {
+			let a = intent.swap.asset_out;
+			let sq = intent_amounts[idx].1;
+			scaling.entry(a).and_modify(|v| *v = v.max(sq)).or_insert(sq);
+		}
+	}
+
+	for ((asset_id, reserve), hub_reserve) in asset_ids
+		.iter()
+		.zip(omnipool_reserves.iter())
+		.zip(omnipool_hub_reserves.iter())
+	{
+		scaling
+			.entry(*asset_id)
+			.and_modify(|v| *v = v.min(*reserve))
+			.or_insert(1.0);
+		let scalar = (scaling.get(asset_id).unwrap() * *hub_reserve) / *reserve;
+		scaling
+			.entry(1u32.into())
+			.and_modify(|v| *v = v.min(scalar))
+			.or_insert(scalar);
+	}
+
+	scaling
+}
 
 fn calculate_tau_phi<T: pallet_ice::Config>(
 	intents: &[(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)],
@@ -31,7 +76,11 @@ where
 			.iter()
 			.position(|&tkn| tkn == intent.1.swap.asset_out)
 			.unwrap();
+		tau.set_entry((sell_i, j), 1.);
+		let s = scaling.get(&intent.1.swap.asset_in).unwrap() / scaling.get(&intent.1.swap.asset_out).unwrap();
+		phi.set_entry((buy_i, j), s);
 
+		/*
 		if let Some(scaling) = scaling.get(&intent.1.swap.asset_in) {
 			tau.set_entry((sell_i, j), *scaling);
 			phi.set_entry((buy_i, j), *scaling);
@@ -39,6 +88,8 @@ where
 			tau.set_entry((sell_i, j), 1.);
 			phi.set_entry((buy_i, j), 1.);
 		}
+
+		 */
 	}
 	(tau, phi)
 }
@@ -98,24 +149,31 @@ where
 	(asset_ids, asset_reserves, hub_reserves, fees, hub_fees, decimals)
 }
 
-fn prepare_intent_data<T: pallet_ice::Config>(intents: &[Intent<T::AccountId, T::AssetId>]) -> (Vec<T::AssetId>, Vec<f64>) {
+fn prepare_intent_data<T: pallet_ice::Config>(
+	intents: &[(IntentId, Intent<T::AccountId, T::AssetId>)],
+) -> (Vec<T::AssetId>, Vec<f64>)
+where
+	T::AssetId: sp_std::hash::Hash + From<u32>,
+{
 	let mut asset_ids = BTreeSet::new();
 	let mut intent_prices = Vec::new();
-	for intent in intents {
+	for (_, intent) in intents {
 		if intent.swap.asset_in != 1u32.into() {
 			asset_ids.insert(intent.swap.asset_in);
 		}
-		if intent.swap.asset_out != 1u32.into() { //note: this should never happened, as it is not allowed to buy lrna!
+		if intent.swap.asset_out != 1u32.into() {
+			//note: this should never happened, as it is not allowed to buy lrna!
 			asset_ids.insert(intent.swap.asset_out);
-		}else{
+		} else {
 			debug_assert!(false, "It is not allowed to buy lrna!");
 		}
 		let amount_in = intent.swap.amount_in;
 		let amount_out = intent.swap.amount_out;
-		let price = FixedU128::from_rational(amount_out , amount_in).to_float();
+		//let price = FixedU128::from_rational(amount_out , amount_in).to_float();
+		let price = rational_to_f64!(amount_out, amount_in);
 		intent_prices.push(price);
 	}
-	(asset_ids.iter().collect(), intent_prices)
+	(asset_ids.iter().cloned().collect(), intent_prices)
 }
 
 pub struct CVXSolver2<T, R, RP, PP, OI>(sp_std::marker::PhantomData<(T, R, RP, PP, OI)>);
@@ -141,30 +199,53 @@ where
 	fn solve(
 		intents: Vec<(IntentId, Intent<T::AccountId, <T as pallet_ice::Config>::AssetId>)>,
 	) -> Result<Self::Solution, Self::Error> {
-		let omnipool_data = OI::assets(None);
+		// Prepare intent and omnipool data
 
-		let (asset_ids,
-			asset_reserves,
-			hub_reserves,
-			fees,
-			lrna_fees,
-			decimals) = prepare_omnipool_data::<T>(omnipool_data);
+		let (intent_asset_ids, intent_prices) = prepare_intent_data::<T>(&intents);
+		let omnipool_data = OI::assets(Some(intent_asset_ids));
+
+		let (asset_ids, asset_reserves, hub_reserves, fees, lrna_fees, decimals) =
+			prepare_omnipool_data::<T>(omnipool_data);
+
+		let mut converted_intent_amounts: Vec<(f64, f64)> = Vec::new();
+
+		for (_, intent) in intents.iter() {
+			let amount_in = to_f64_by_decimals!(intent.swap.amount_in, *decimals.get(&intent.swap.asset_in).unwrap());
+			let amount_out =
+				to_f64_by_decimals!(intent.swap.amount_out, *decimals.get(&intent.swap.asset_out).unwrap());
+			converted_intent_amounts.push((amount_in, amount_out));
+		}
 
 		let mut tkns: Vec<T::AssetId> = vec![1u32.into()];
 		tkns.extend(asset_ids.iter().cloned());
 
 		let reserve_map = asset_ids.iter().zip(asset_reserves.iter()).collect::<BTreeMap<_, _>>();
 
+		let fee_match = 0.0005;
+
+		let mut spot_prices = vec![1.];
+
+		let omnipool_spot_price: Vec<f64> = asset_reserves
+			.iter()
+			.zip(hub_reserves.iter())
+			.map(|(r, h)| h / r)
+			.collect();
+		spot_prices.extend(omnipool_spot_price.iter().cloned());
+
+		// Setup Variables
+
 		let n = asset_ids.len();
 		let m = intents.len();
 		let k = 4 * n + m;
 
-		//calculate tau, phi
-		let mut scaling: HashMap<T::AssetId, f64> = asset_ids
-			.iter()
-			.map(|&tkn| (tkn, **reserve_map.get(&tkn).unwrap()))
-			.collect();
-		scaling.insert(1u32.into(), hub_reserves.sum());
+		//calculate scaling, tau, phi
+		let scaling = calculate_scaling::<T>(
+			&intents,
+			&converted_intent_amounts,
+			&asset_ids,
+			&asset_reserves,
+			&hub_reserves,
+		);
 		let (tau, phi) = calculate_tau_phi::<T>(&intents, &tkns, &scaling);
 
 		//#----------------------------#
@@ -172,22 +253,36 @@ where
 		//#----------------------------#
 		let P: CscMatrix<f64> = CscMatrix::zeros((k, k));
 
-		let delta_lrna_coefs = hub_reserves.clone();
-		let lambda_lrna_coefs = lrna_fees
+		let delta_lrna_coefs = vec![1.; n];
+		let lambda_lrna_coefs = vec![-1.; n];
+		let delta_ceofs = omnipool_spot_price.clone();
+		let lambda_coefs: Vec<f64> = fees
 			.iter()
-			.enumerate()
-			.map(|(i, l)| hub_reserves[i] * (l - 1.))
-			.collect::<Vec<_>>();
-		let zero_coefs = vec![0.; 2 * n];
+			.zip(omnipool_spot_price.iter())
+			.map(|(f, sp)| (*f - 1.) * *sp)
+			.collect();
 		let mut d_coefs = Vec::new();
-		for i in 0..m {
-			let v = tau.get_entry((0, i)).unwrap_or(0.);
-			d_coefs.push(-v);
+		for j in 0..m {
+			let mut v = 0.;
+			for i in 0..n + 1 {
+				let p = phi.get_entry((i, j)).unwrap_or(0.);
+				let ip = intent_prices[j];
+				let t = tau.get_entry((i, j)).unwrap_or(0.);
+				let sp = spot_prices[i];
+
+				let a = p * ip - t;
+				let a = a * sp;
+
+				v += a;
+			}
+			d_coefs.push(v);
 		}
+
 		let mut q = Vec::new();
 		q.extend(delta_lrna_coefs);
 		q.extend(lambda_lrna_coefs);
-		q.extend(zero_coefs);
+		q.extend(delta_ceofs);
+		q.extend(lambda_coefs);
 		q.extend(d_coefs);
 
 		//#----------------------------#
@@ -198,20 +293,6 @@ where
 		A1.negate();
 		let b1: Vec<f64> = vec![0.; k];
 		let cone1 = NonnegativeConeT(k);
-
-		let convert_to_f64 = |a: Balance, dec: u8| -> f64 {
-			let factor = 10u128.pow(dec as u32);
-			// FixedU128::from_rational(a, factor).to_float() -> this gives slightly different results but it should be more precise?!!
-			a as f64 / factor as f64
-		};
-
-		let mut converted_intent_amounts: Vec<(f64, f64)> = Vec::new();
-
-		for (_, intent) in intents.iter() {
-			let amount_in = convert_to_f64(intent.swap.amount_in, *decimals.get(&intent.swap.asset_in).unwrap());
-			let amount_out = convert_to_f64(intent.swap.amount_out, *decimals.get(&intent.swap.asset_out).unwrap());
-			converted_intent_amounts.push((amount_in, amount_out));
-		}
 
 		// intents cannot sell more than they have
 		let amm_coefs = CscMatrix::zeros((m, 4 * n));
@@ -226,37 +307,43 @@ where
 		let cone2 = NonnegativeConeT(m);
 
 		//leftover must be higher than required fees
-		let A30 = CscMatrix::from(&[q.clone()]);
+
+		let delta_lrna_coefs = vec![1.; n];
+		let lambda_lrna_coefs: Vec<f64> = lrna_fees.iter().map(|f| f - 1.).collect();
+		let zero_ceofs = vec![0.; 2 * n];
+		let mut d_coefs = Vec::new();
+		for i in 0..m {
+			let v = tau.get_entry((0, i)).unwrap_or(0.);
+			d_coefs.push(-v);
+		}
+		let mut q1 = Vec::new();
+		q1.extend(delta_lrna_coefs);
+		q1.extend(lambda_lrna_coefs);
+		q1.extend(zero_ceofs);
+		q1.extend(d_coefs);
+
+		let A30 = CscMatrix::from(&[q1.clone()]);
 		let b30 = vec![0.];
 
 		// other assets
-		let intent_prices = converted_intent_amounts
-			.iter()
-			.map(|intent| intent.1 / intent.0)
-			.collect::<Vec<_>>();
-
 		let lrna_coefs = CscMatrix::zeros((n, 2 * n));
-		let delta_coefs = diags(n, n, asset_reserves.to_vec());
-		let lambda_coefs = diags(
-			n,
-			n,
-			asset_reserves
-				.iter()
-				.enumerate()
-				.map(|(i, f)| f * (fees[i] - 1.))
-				.collect(),
-		);
+		let delta_coefs = CscMatrix::identity(n);
+		let lambda_coefs = diags(n, n, fees.iter().map(|f| f - fee_match - 1.).collect());
 
 		let d = (1..n + 1)
 			.map(|i| {
 				(0..m)
 					.map(|j| {
-						phi.get_entry((i, j)).unwrap_or(0.) * intent_prices[j] - tau.get_entry((i, j)).unwrap_or(0.)
+						let p = phi.get_entry((i, j)).unwrap_or(0.);
+						let ip = intent_prices[j];
+						let t = tau.get_entry((i, j)).unwrap_or(0.);
+						(p * ip) / (1. - fee_match) - t
 					})
 					.collect::<Vec<_>>()
 			})
 			.collect::<Vec<_>>();
 		let d_coefs = CscMatrix::from(&d);
+
 		let A31 = CscMatrix::hcat(&lrna_coefs, &delta_coefs);
 		let A31 = CscMatrix::hcat(&A31, &lambda_coefs);
 		let A31 = CscMatrix::hcat(&A31, &d_coefs);
@@ -268,11 +355,20 @@ where
 		let mut A4 = CscMatrix::zeros((3 * n, k));
 		let b4 = vec![1.; 3 * n];
 		let mut cones4 = Vec::new();
+
+		let lrna_scaling = scaling.get(&1u32.into()).cloned().unwrap();
 		for i in 0..n {
-			A4.set_entry((3 * i, i), -1.);
-			A4.set_entry((3 * i, n + i), 1.);
-			A4.set_entry((3 * i + 1, 2 * n + i), -1.);
-			A4.set_entry((3 * i + 1, 3 * n + i), 1.);
+			let reserve = asset_reserves[i];
+			let hub_reserve = hub_reserves[i];
+			let asset_scaling = scaling.get(&asset_ids[i]).cloned().unwrap();
+
+			let v = -lrna_scaling / hub_reserve;
+			let v1 = -asset_scaling / reserve;
+
+			A4.set_entry((3 * i, i), v);
+			A4.set_entry((3 * i, n + i), -v);
+			A4.set_entry((3 * i + 1, 2 * n + i), v1);
+			A4.set_entry((3 * i + 1, 3 * n + i), -v1);
 			cones4.push(PowerConeT(0.5));
 		}
 		let A = CscMatrix::vcat(&A1, &A2);
@@ -289,11 +385,13 @@ where
 		let mut cones = vec![cone1, cone2, cone3];
 		cones.extend(cones4);
 
+		dbg!(&b);
+
 		//let settings = DefaultSettings::default();
 		let settings = DefaultSettingsBuilder::default()
 			.verbose(false)
 			.time_limit(f64::INFINITY)
-			.max_iter(1000000)
+			.max_iter(200)
 			.build()
 			.unwrap();
 		let mut solver = DefaultSolver::new(&P, &q, &A, &b, &cones, settings);
@@ -308,7 +406,7 @@ where
 		let mut exec_intent_deltas = vec![0.; intents.len()];
 		for i in 0..n {
 			let tkn = asset_ids[i];
-			new_amm_deltas.insert(tkn, (x[2 * n + i] - x[3 * n + i]) * asset_reserves[i]);
+			new_amm_deltas.insert(tkn, (x[2 * n + i] - x[3 * n + i]) * scaling.get(&tkn).unwrap());
 		}
 		for i in 0..intents.len() {
 			exec_intent_deltas[i] = -x[4 * n + i] * scaling[&intents[i].1.swap.asset_in];
