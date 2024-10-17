@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-claims'
-version = '3.4.10'
+version = '3.4.11'
 description = 'HydraDX Claims Module'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -21,7 +21,7 @@ lazy_static = { workspace = true }
 rustc-hex = { workspace = true }
 
 # Substrate dependencies
-frame-benchmarking = { workspace = true, optional = true}
+frame-benchmarking = { workspace = true, optional = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-io = { workspace = true }
@@ -38,19 +38,19 @@ sp-core = { workspace = true }
 [features]
 default = ['std']
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
 ]
 std = [
-  'codec/std',
-  'frame-support/std',
-  'frame-system/std',
-  'primitives/std',
-  'rustc-hex/std',
-  'serde/std',
-  'scale-info/std',
-  'pallet-balances/std',
-  'frame-benchmarking/std'
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'primitives/std',
+    'rustc-hex/std',
+    'serde/std',
+    'scale-info/std',
+    'pallet-balances/std',
+    'frame-benchmarking/std'
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = ["frame-support/try-runtime"]

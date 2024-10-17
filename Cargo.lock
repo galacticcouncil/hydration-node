@@ -941,7 +941,7 @@ name = "binary-merkle-tree"
 version = "13.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch2#77fcc2b7dbe98a1c589ff699e1c3c37bf2d516bd"
 dependencies = [
- "hash-db 0.16.0",
+ "hash-db",
  "log",
 ]
 
@@ -3237,31 +3237,13 @@ dependencies = [
 
 [[package]]
 name = "ethereum"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a89fb87a9e103f71b903b80b670200b54cc67a07578f070681f1fffb7396fb7"
-dependencies = [
- "bytes",
- "ethereum-types",
- "hash-db 0.15.2",
- "hash256-std-hasher",
- "parity-scale-codec",
- "rlp",
- "scale-info",
- "serde",
- "sha3",
- "triehash",
-]
-
-[[package]]
-name = "ethereum"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e04d24d20b8ff2235cffbf242d5092de3aa45f77c5270ddbfadd2778ca13fea"
 dependencies = [
  "bytes",
  "ethereum-types",
- "hash-db 0.16.0",
+ "hash-db",
  "hash256-std-hasher",
  "parity-scale-codec",
  "rlp",
@@ -3327,35 +3309,15 @@ dependencies = [
 
 [[package]]
 name = "evm"
-version = "0.36.0"
-source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
-dependencies = [
- "auto_impl",
- "environmental",
- "ethereum 0.14.0",
- "evm-core 0.36.0",
- "evm-gasometer 0.36.0",
- "evm-runtime 0.36.0",
- "log",
- "parity-scale-codec",
- "primitive-types",
- "rlp",
- "scale-info",
- "serde",
- "sha3",
-]
-
-[[package]]
-name = "evm"
 version = "0.41.1"
 source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.11.0#84c8e431b653888493a2b81d6443cdce05f07c52"
 dependencies = [
  "auto_impl",
  "environmental",
- "ethereum 0.15.0",
- "evm-core 0.41.0",
- "evm-gasometer 0.41.0",
- "evm-runtime 0.41.0",
+ "ethereum",
+ "evm-core",
+ "evm-gasometer",
+ "evm-runtime",
  "log",
  "parity-scale-codec",
  "primitive-types",
@@ -3367,17 +3329,6 @@ dependencies = [
 
 [[package]]
 name = "evm-core"
-version = "0.36.0"
-source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
-dependencies = [
- "parity-scale-codec",
- "primitive-types",
- "scale-info",
- "serde",
-]
-
-[[package]]
-name = "evm-core"
 version = "0.41.0"
 source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.11.0#84c8e431b653888493a2b81d6443cdce05f07c52"
 dependencies = [
@@ -3389,36 +3340,13 @@ dependencies = [
 
 [[package]]
 name = "evm-gasometer"
-version = "0.36.0"
-source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
-dependencies = [
- "environmental",
- "evm-core 0.36.0",
- "evm-runtime 0.36.0",
- "primitive-types",
-]
-
-[[package]]
-name = "evm-gasometer"
 version = "0.41.0"
 source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkadot-v1.11.0#84c8e431b653888493a2b81d6443cdce05f07c52"
 dependencies = [
  "environmental",
- "evm-core 0.41.0",
- "evm-runtime 0.41.0",
+ "evm-core",
+ "evm-runtime",
  "primitive-types",
-]
-
-[[package]]
-name = "evm-runtime"
-version = "0.36.0"
-source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
-dependencies = [
- "auto_impl",
- "environmental",
- "evm-core 0.36.0",
- "primitive-types",
- "sha3",
 ]
 
 [[package]]
@@ -3428,7 +3356,7 @@ source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkado
 dependencies = [
  "auto_impl",
  "environmental",
- "evm-core 0.41.0",
+ "evm-core",
  "primitive-types",
  "sha3",
 ]
@@ -3600,9 +3528,9 @@ name = "fc-rpc"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
- "ethereum 0.15.0",
+ "ethereum",
  "ethereum-types",
- "evm 0.41.1",
+ "evm",
  "fc-api",
  "fc-mapping-sync",
  "fc-rpc-core",
@@ -3654,7 +3582,7 @@ name = "fc-rpc-core"
 version = "1.1.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
- "ethereum 0.15.0",
+ "ethereum",
  "ethereum-types",
  "jsonrpsee",
  "rlp",
@@ -3669,7 +3597,7 @@ name = "fc-storage"
 version = "1.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
- "ethereum 0.15.0",
+ "ethereum",
  "ethereum-types",
  "fp-rpc",
  "fp-storage",
@@ -3870,7 +3798,7 @@ name = "fp-consensus"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
- "ethereum 0.15.0",
+ "ethereum",
  "parity-scale-codec",
  "sp-core",
  "sp-runtime",
@@ -3881,7 +3809,7 @@ name = "fp-ethereum"
 version = "1.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
- "ethereum 0.15.0",
+ "ethereum",
  "ethereum-types",
  "fp-evm",
  "frame-support",
@@ -3893,7 +3821,7 @@ name = "fp-evm"
 version = "3.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
- "evm 0.41.1",
+ "evm",
  "frame-support",
  "num_enum",
  "parity-scale-codec",
@@ -3908,7 +3836,7 @@ name = "fp-rpc"
 version = "3.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
- "ethereum 0.15.0",
+ "ethereum",
  "ethereum-types",
  "fp-evm",
  "parity-scale-codec",
@@ -4615,12 +4543,6 @@ dependencies = [
 
 [[package]]
 name = "hash-db"
-version = "0.15.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d23bd4e7b5eda0d0f3a307e8b381fdc8ba9000f26fbe912250c0a4cc3956364a"
-
-[[package]]
-name = "hash-db"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e7d7786361d7425ae2fe4f9e407eb0efaa0840f5212d109cc018c40c35c6ab4"
@@ -4853,7 +4775,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.0.1"
+version = "14.0.2"
 dependencies = [
  "async-trait",
  "clap 4.5.4",
@@ -4946,7 +4868,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.6"
+version = "1.3.7"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4996,7 +4918,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "262.0.0"
+version = "264.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5007,7 +4929,7 @@ dependencies = [
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
  "ethabi",
- "evm 0.41.1",
+ "evm",
  "fp-evm",
  "fp-rpc",
  "fp-self-contained",
@@ -5019,6 +4941,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "hex",
  "hex-literal",
  "hydra-dx-math",
  "hydradx-adapters",
@@ -5046,6 +4969,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
  "pallet-democracy 4.3.2",
  "pallet-duster",
@@ -5105,6 +5029,7 @@ dependencies = [
  "primitives",
  "scale-info",
  "serde",
+ "serde_json",
  "smallvec",
  "sp-api",
  "sp-block-builder",
@@ -5132,7 +5057,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.7.1"
+version = "3.7.2"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6577,7 +6502,7 @@ version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "808b50db46293432a45e63bc15ea51e0ab4c0a1647b8eb114e31a3e698dd6fbe"
 dependencies = [
- "hash-db 0.16.0",
+ "hash-db",
 ]
 
 [[package]]
@@ -6758,12 +6683,12 @@ dependencies = [
 
 [[package]]
 name = "module-evm-utility"
-version = "2.21.1"
+version = "2.21.2"
 dependencies = [
- "ethereum 0.14.0",
- "evm 0.36.0",
- "evm-gasometer 0.36.0",
- "evm-runtime 0.36.0",
+ "ethereum",
+ "evm",
+ "evm-gasometer",
+ "evm-runtime",
  "sha3",
  "sp-std",
 ]
@@ -7606,11 +7531,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.2.5"
+version = "3.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hex-literal",
  "hydradx-traits",
  "log",
  "orml-tokens",
@@ -7926,7 +7852,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-claims"
-version = "3.4.10"
+version = "3.4.11"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8026,10 +7952,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "2.1.2"
+version = "3.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hydradx-traits",
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
@@ -8044,8 +7971,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-currencies-rpc-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-core",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-dca"
-version = "1.6.1"
+version = "1.6.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8122,7 +8060,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.2.6"
+version = "3.2.7"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8146,7 +8084,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-evm-fee"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8276,9 +8214,9 @@ version = "4.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
  "environmental",
- "ethereum 0.15.0",
+ "ethereum",
  "ethereum-types",
- "evm 0.41.1",
+ "evm",
  "fp-consensus",
  "fp-ethereum",
  "fp-evm",
@@ -8299,13 +8237,13 @@ version = "6.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-v1.11.0#45d16ae4c8b32e26fdab8353b704fd59ea0ddb8c"
 dependencies = [
  "environmental",
- "evm 0.41.1",
+ "evm",
  "fp-account",
  "fp-evm",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hash-db 0.16.0",
+ "hash-db",
  "hex",
  "hex-literal",
  "impl-trait-for-tuples",
@@ -8320,7 +8258,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8379,7 +8317,7 @@ name = "pallet-evm-precompile-call-permit"
 version = "0.1.2"
 dependencies = [
  "derive_more",
- "evm 0.41.1",
+ "evm",
  "fp-evm",
  "frame-support",
  "frame-system",
@@ -8455,7 +8393,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-genesis-history"
-version = "2.1.3"
+version = "2.1.4"
 dependencies = [
  "derive_more",
  "frame-support",
@@ -8852,7 +8790,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8874,7 +8812,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9009,7 +8947,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-referrals"
-version = "1.2.6"
+version = "1.2.7"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9060,7 +8998,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.6.1"
+version = "2.6.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9334,7 +9272,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.1.1"
+version = "10.1.2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9550,7 +9488,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.5.2"
+version = "6.5.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11201,7 +11139,7 @@ dependencies = [
  "affix",
  "derive_more",
  "environmental",
- "evm 0.41.1",
+ "evm",
  "fp-evm",
  "frame-support",
  "frame-system",
@@ -11332,7 +11270,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.0.4"
+version = "6.1.0"
 dependencies = [
  "frame-support",
  "hex-literal",
@@ -12259,7 +12197,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.7"
+version = "1.24.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12270,6 +12208,7 @@ dependencies = [
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
  "cumulus-test-relay-sproof-builder",
+ "ethabi",
  "fp-evm",
  "fp-rpc",
  "frame-benchmarking",
@@ -12279,12 +12218,15 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
+ "hex",
  "hex-literal",
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
  "libsecp256k1",
+ "module-evm-utility-macro",
+ "num_enum",
  "orml-tokens",
  "orml-traits",
  "orml-unknown-tokens",
@@ -12348,6 +12290,7 @@ dependencies = [
  "rococo-runtime",
  "sc-consensus-grandpa",
  "scraper",
+ "serde_json",
  "sp-api",
  "sp-authority-discovery",
  "sp-block-builder",
@@ -12838,7 +12781,7 @@ name = "sc-client-db"
 version = "0.35.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch2#77fcc2b7dbe98a1c589ff699e1c3c37bf2d516bd"
 dependencies = [
- "hash-db 0.16.0",
+ "hash-db",
  "kvdb",
  "kvdb-memorydb",
  "kvdb-rocksdb",
@@ -14549,7 +14492,7 @@ name = "sp-api"
 version = "26.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch2#77fcc2b7dbe98a1c589ff699e1c3c37bf2d516bd"
 dependencies = [
- "hash-db 0.16.0",
+ "hash-db",
  "log",
  "parity-scale-codec",
  "scale-info",
@@ -14777,7 +14720,7 @@ dependencies = [
  "dyn-clonable",
  "ed25519-zebra 3.1.0",
  "futures",
- "hash-db 0.16.0",
+ "hash-db",
  "hash256-std-hasher",
  "impl-serde",
  "itertools 0.10.5",
@@ -15132,7 +15075,7 @@ name = "sp-state-machine"
 version = "0.35.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch2#77fcc2b7dbe98a1c589ff699e1c3c37bf2d516bd"
 dependencies = [
- "hash-db 0.16.0",
+ "hash-db",
  "log",
  "parity-scale-codec",
  "parking_lot 0.12.3",
@@ -15240,7 +15183,7 @@ version = "29.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch2#77fcc2b7dbe98a1c589ff699e1c3c37bf2d516bd"
 dependencies = [
  "ahash 0.8.6",
- "hash-db 0.16.0",
+ "hash-db",
  "lazy_static",
  "memory-db",
  "nohash-hasher",
@@ -16376,7 +16319,7 @@ version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff28e0f815c2fea41ebddf148e008b077d2faddb026c9555b29696114d602642"
 dependencies = [
- "hash-db 0.16.0",
+ "hash-db",
  "hashbrown 0.13.2",
  "log",
  "rustc-hex",
@@ -16389,7 +16332,7 @@ version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c992b4f40c234a074d48a757efeabb1a6be88af84c0c23f7ca158950cb0ae7f"
 dependencies = [
- "hash-db 0.16.0",
+ "hash-db",
  "log",
  "rustc-hex",
  "smallvec",
@@ -16401,17 +16344,7 @@ version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4ed310ef5ab98f5fa467900ed906cb9232dd5376597e00fd4cba2a449d06c0b"
 dependencies = [
- "hash-db 0.16.0",
-]
-
-[[package]]
-name = "triehash"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1631b201eb031b563d2e85ca18ec8092508e262a3196ce9bd10a67ec87b9f5c"
-dependencies = [
- "hash-db 0.15.2",
- "rlp",
+ "hash-db",
 ]
 
 [[package]]
