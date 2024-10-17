@@ -326,9 +326,7 @@ fn solver_should_find_solution_with_one_intent() {
 		);
 
 		let intents = vec![intent1];
-		let solved =
-			ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, OmnipoolDataProvider>::solve(intents)
-				.unwrap();
+		let (resolved, trades, score) = solve_intents_with::<CvxSolverWithOmnipool>(intents).unwrap();
 
 		assert_eq!(
 			solved.intents,
