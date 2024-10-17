@@ -6,7 +6,7 @@ use hydradx_adapters::OraclePriceProvider;
 use hydradx_runtime::{
 	Currencies, EmaOracle, Omnipool, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT,
 };
-use ice_solver::traits::{ICESolver, OmnipoolAssetInfo, OmnipoolInfo};
+use ice_solver::traits::{ICESolver, IceSolution, OmnipoolAssetInfo, OmnipoolInfo};
 use orml_traits::MultiCurrency;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
 use primitives::{AccountId, AssetId, Moment};
@@ -17,14 +17,22 @@ use xcm_emulator::TestExt;
 type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
-pub(crate) fn solve_intents(
-	intents: Vec<(IntentId, pallet_ice::types::Intent<AccountId, AssetId>)>,
-) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()> {
-	let solved =
-		ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, MockOmniInfo>::solve(intents)?;
-	let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-	let trades = BoundedTrades::try_from(solved.trades).unwrap();
-	Ok((resolved_intents, trades, solved.score))
+type CvxSolverWithMockOmnipool =
+	ice_solver::cvx::CVXSolver<hydradx_runtime::Runtime, Router, Router, PriceP, MockOmniInfo>;
+type CvxSolverWithOmnipool =
+	ice_solver::cvx::CVXSolver<hydradx_runtime::Runtime, Router, Router, PriceP, OmnipoolDataProvider>;
+
+pub(crate) fn solve_intents_with<S: ICESolver<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>>(
+	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>,
+) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()>
+where
+	S::Solution: IceSolution<AssetId>,
+{
+	let solution = S::solve(intents).map_err(|_| ())?;
+	let score = solution.score();
+	let resolved_intents = BoundedResolvedIntents::try_from(solution.resolved_intents()).unwrap();
+	let trades = BoundedTrades::try_from(solution.trades()).unwrap();
+	Ok((resolved_intents, trades, score))
 }
 
 use hydradx_traits::registry::Inspect;
@@ -189,12 +197,10 @@ fn test_specific_mock_scenario() {
 	);
 
 	let intents = vec![intent1, intent2, intent3, intent4];
-	let solved =
-		ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, MockOmniInfo>::solve(intents)
-			.unwrap();
+	let (resolved, trades, score) = solve_intents_with::<CvxSolverWithMockOmnipool>(intents).unwrap();
 
 	assert_eq!(
-		solved.intents,
+		resolved.to_vec(),
 		vec![
 			pallet_ice::types::ResolvedIntent {
 				intent_id: 1,
@@ -253,8 +259,8 @@ fn solver_should_find_solution_with_matching_intents() {
 				swap: Swap {
 					asset_in: 0,
 					asset_out: 27,
-					amount_in: 100_000_000_000_000_000,
-					amount_out: 1244217394417859,
+					amount_in: 100_000_000_000_000,
+					amount_out: 1_149_000_000_000,
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
@@ -270,8 +276,8 @@ fn solver_should_find_solution_with_matching_intents() {
 				swap: Swap {
 					asset_in: 27,
 					asset_out: 0,
-					amount_out: 100_000_000_000_000_000,
-					amount_in: 1244217394417859,
+					amount_out: 100_000_000_000_000,
+					amount_in: 1_150_000_000_000,
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
@@ -282,12 +288,10 @@ fn solver_should_find_solution_with_matching_intents() {
 		);
 
 		let intents = vec![intent1, intent2];
-		let solved =
-			ice_solver::cvx::CVXSolver::<hydradx_runtime::Runtime, Router, Router, PriceP, OmnipoolDataProvider>::solve(intents)
-				.unwrap();
+		let (resolved, trades, score) = solve_intents_with::<CvxSolverWithOmnipool>(intents).unwrap();
 
 		assert_eq!(
-			solved.intents,
+			resolved.to_vec(),
 			vec![pallet_ice::types::ResolvedIntent {
 				intent_id: 1,
 				amount_in: 100_000_000_000_000_000,

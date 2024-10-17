@@ -1,4 +1,4 @@
-use pallet_ice::types::Balance;
+use pallet_ice::types::{Balance, ResolvedIntent, TradeInstruction};
 use sp_runtime::traits::Bounded;
 use sp_runtime::{FixedU128, Permill};
 
@@ -48,4 +48,10 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 
 pub trait OmnipoolInfo<AssetId> {
 	fn assets() -> Vec<OmnipoolAssetInfo<AssetId>>;
+}
+
+pub trait IceSolution<AssetId> {
+	fn resolved_intents(&self) -> Vec<ResolvedIntent>;
+	fn trades(self) -> Vec<TradeInstruction<AssetId>>;
+	fn score(&self) -> u64;
 }

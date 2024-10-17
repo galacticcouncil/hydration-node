@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::traits::ICESolver;
+use crate::traits::{ICESolver, IceSolution};
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
@@ -10,6 +10,7 @@ use sp_runtime::Saturating;
 use sp_std::collections::btree_map::BTreeMap;
 
 pub mod cvx;
+pub mod cvx2;
 pub mod traits;
 
 pub struct SolverSolution<AssetId> {
@@ -17,6 +18,21 @@ pub struct SolverSolution<AssetId> {
 	pub trades: Vec<TradeInstruction<AssetId>>,
 	pub score: u64,
 }
+
+impl<AssetId> IceSolution<AssetId> for SolverSolution<AssetId> {
+	fn resolved_intents(&self) -> Vec<ResolvedIntent> {
+		self.intents.clone()
+	}
+
+	fn trades(self) -> Vec<TradeInstruction<AssetId>> {
+		self.trades
+	}
+
+	fn score(&self) -> u64 {
+		self.score
+	}
+}
+
 // IMPORTANT: This is NOT a real solver!!
 // This is a simple solver that just sells all assets for LRNA and then buys back the assets that are needed.
 // Used for testing purposes only.
