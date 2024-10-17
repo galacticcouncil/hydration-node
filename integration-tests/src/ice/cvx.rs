@@ -39,7 +39,7 @@ use hydradx_traits::registry::Inspect;
 struct OmnipoolDataProvider;
 
 impl OmnipoolInfo<AssetId> for OmnipoolDataProvider {
-	fn assets() -> Vec<OmnipoolAssetInfo<AssetId>> {
+	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>> {
 		let mut assets = vec![];
 		for (asset_id, state) in Omnipool::omnipool_state() {
 			if asset_id != 0 && asset_id != 27 {
@@ -91,7 +91,7 @@ fn print_python(assets: &[OmnipoolAssetInfo<AssetId>]) {
 struct MockOmniInfo;
 
 impl OmnipoolInfo<AssetId> for MockOmniInfo {
-	fn assets() -> Vec<OmnipoolAssetInfo<AssetId>> {
+	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>> {
 		vec![
 			OmnipoolAssetInfo {
 				asset_id: 0,

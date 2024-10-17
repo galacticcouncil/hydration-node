@@ -47,7 +47,7 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 }
 
 pub trait OmnipoolInfo<AssetId> {
-	fn assets() -> Vec<OmnipoolAssetInfo<AssetId>>;
+	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>>;
 }
 
 pub trait IceSolution<AssetId> {
