@@ -1,4 +1,5 @@
 use pallet_ice::types::{Balance, ResolvedIntent, TradeInstruction};
+use serde::Deserialize;
 use sp_runtime::traits::Bounded;
 use sp_runtime::{FixedU128, Permill};
 
@@ -9,7 +10,7 @@ pub trait ICESolver<Intent> {
 	fn solve(intents: Vec<Intent>) -> Result<Self::Solution, Self::Error>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct OmnipoolAssetInfo<AssetId> {
 	pub symbol: String,
 	pub asset_id: AssetId,
@@ -43,6 +44,14 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 			Permill::max_value().deconstruct() as u128,
 		)
 		.to_float()
+	}
+	#[cfg(test)]
+	pub fn reserve_no_decimals(&self) -> Balance {
+		self.reserve / 10u128.pow(self.decimals as u32)
+	}
+	#[cfg(test)]
+	pub fn hub_reserve_no_decimals(&self) -> Balance {
+		self.hub_reserve / 10u128.pow(12u32)
 	}
 }
 

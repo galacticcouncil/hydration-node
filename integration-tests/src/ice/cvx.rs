@@ -67,9 +67,6 @@ impl OmnipoolInfo<AssetId> for OmnipoolDataProvider {
 		} else {
 			let mut assets = vec![];
 			for (asset_id, state) in Omnipool::omnipool_state() {
-				if asset_id != 0 && asset_id != 27 {
-					//continue;
-				}
 				let decimals = hydradx_runtime::AssetRegistry::decimals(asset_id).unwrap();
 				let details = hydradx_runtime::AssetRegistry::assets(asset_id).unwrap();
 				let symbol = details.symbol.unwrap();
@@ -88,6 +85,27 @@ impl OmnipoolInfo<AssetId> for OmnipoolDataProvider {
 			assets
 		}
 	}
+}
+
+fn print_json_str(assets: &[OmnipoolAssetInfo<AssetId>]) {
+	// dump assets info in json format
+	let mut json = String::from("[");
+	for asset in assets {
+		json.push_str(&format!(
+			r#"{{"asset_id": {}, "reserve": {}, "hub_reserve": {}, "decimals": {}, "fee": {}, "hub_fee": {}, "symbol": "{}"}}"#,
+			asset.asset_id,
+			asset.reserve,
+			asset.hub_reserve,
+			asset.decimals,
+			asset.fee.deconstruct(),
+			asset.hub_fee.deconstruct(),
+			asset.symbol
+		));
+		json.push_str(",");
+	}
+	json.pop();
+	json.push_str("]");
+	println!("{}", json);
 }
 
 /*
@@ -275,6 +293,9 @@ fn test_omnipool_snapshot() {
 fn solver_should_find_solution_with_matching_intents() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
+
+		let d = OmnipoolDataProvider::assets(None);
+		print_json_str(&d);
 
 		let deadline: Moment = NOW + 43_200_000;
 		let intent1 = (
