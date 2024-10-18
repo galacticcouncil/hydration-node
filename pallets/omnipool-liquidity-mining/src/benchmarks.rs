@@ -552,7 +552,12 @@ benchmarks! {
 
 		set_period::<T>(400);
 
-	}: _(RawOrigin::Signed(lp1), deposit_id, 10)
+	}: {
+		//We fire and forget as claim rewards is disabled
+		let _ = crate::Pallet::<T>::claim_rewards(RawOrigin::Signed(lp1).into(), deposit_id, 10);
+	} verify {
+
+	}
 
 	withdraw_shares {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
@@ -578,5 +583,93 @@ benchmarks! {
 		set_period::<T>(400);
 	}: _(RawOrigin::Signed(lp1), deposit_id, yield_farm_id)
 
+	join_farms {
+		let c in 1..get_max_entries::<T>();
+
+		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner2 = create_funded_account::<T>("owner2", 1, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner3 = create_funded_account::<T>("owner3", 2, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner4 = create_funded_account::<T>("owner4", 3, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner5 = create_funded_account::<T>("owner5", 4, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+
+		let deposit_id = 1;
+
+		initialize_omnipool::<T>()?;
+
+		//gId: 1, yId: 2
+		initialize_global_farm::<T>(owner.clone())?;
+		initialize_yield_farm::<T>(owner, 1, BTC.into())?;
+
+		//gId: 3, yId: 4
+		initialize_global_farm::<T>(owner2.clone())?;
+		initialize_yield_farm::<T>(owner2, 3, BTC.into())?;
+
+		//gId: 5, yId: 6
+		initialize_global_farm::<T>(owner3.clone())?;
+		initialize_yield_farm::<T>(owner3, 5, BTC.into())?;
+
+		//gId: 7, yId: 8
+		initialize_global_farm::<T>(owner4.clone())?;
+		initialize_yield_farm::<T>(owner4, 7, BTC.into())?;
+
+		//gId: 9, yId: 10
+		initialize_global_farm::<T>(owner5.clone())?;
+		initialize_yield_farm::<T>(owner5, 9, BTC.into())?;
+
+		let lp1 = create_funded_account::<T>("lp_1", 5, 10 * BTC_ONE, BTC.into());
+		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 10 * BTC_ONE)?;
+
+		set_period::<T>(200);
+		let farms_entries = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms = farms_entries[0..c as usize].to_vec();
+
+	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap(), lp1_position_id)
+
+	add_liquidity_and_join_farms {
+		let c in 1..get_max_entries::<T>();
+
+		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner2 = create_funded_account::<T>("owner2", 1, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner3 = create_funded_account::<T>("owner3", 2, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner4 = create_funded_account::<T>("owner4", 3, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner5 = create_funded_account::<T>("owner5", 4, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+
+		let deposit_id = 1;
+
+		initialize_omnipool::<T>()?;
+
+		//gId: 1, yId: 2
+		initialize_global_farm::<T>(owner.clone())?;
+		initialize_yield_farm::<T>(owner, 1, BTC.into())?;
+
+		//gId: 3, yId: 4
+		initialize_global_farm::<T>(owner2.clone())?;
+		initialize_yield_farm::<T>(owner2, 3, BTC.into())?;
+
+		//gId: 5, yId: 6
+		initialize_global_farm::<T>(owner3.clone())?;
+		initialize_yield_farm::<T>(owner3, 5, BTC.into())?;
+
+		//gId: 7, yId: 8
+		initialize_global_farm::<T>(owner4.clone())?;
+		initialize_yield_farm::<T>(owner4, 7, BTC.into())?;
+
+		//gId: 9, yId: 10
+		initialize_global_farm::<T>(owner5.clone())?;
+		initialize_yield_farm::<T>(owner5, 9, BTC.into())?;
+
+		let lp1 = create_funded_account::<T>("lp_1", 5, 10 * BTC_ONE, BTC.into());
+
+		set_period::<T>(200);
+		let farms_entries = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms = farms_entries[0..c as usize].to_vec();
+
+	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap(), BTC.into(), 10 * BTC_ONE)
+
+
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
+}
+
+fn get_max_entries<T: crate::pallet::Config>() -> u32 {
+	T::MaxFarmEntriesPerDeposit::get()
 }
