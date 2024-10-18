@@ -27,7 +27,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{NativeAssetId, LRNA};
+use crate::{DotAssetId, NativeAssetId, XykPaymentAssetSupport, LRNA};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
@@ -149,8 +149,10 @@ impl pallet_evm::Config for crate::Runtime {
 		evm_fee::DepositEvmFeeToTreasury,
 		FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
 		WethAssetId,
-		ConvertAmount<ShortOraclePrice>,
+		ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 		FungibleCurrencies<crate::Runtime>, // Multi currency support
+		XykPaymentAssetSupport,
+		DotAssetId,
 	>;
 	type OnCreate = ();
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
@@ -160,7 +162,7 @@ impl pallet_evm::Config for crate::Runtime {
 		pallet_evm::runner::stack::Runner<Self>, // Evm runner that we wrap
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			crate::Runtime,
-			ConvertAmount<ShortOraclePrice>,
+			ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 			FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
 			FungibleCurrencies<crate::Runtime>,        // Account balance inspector
 		>,
