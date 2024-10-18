@@ -795,7 +795,6 @@ pub mod pallet {
 
 			T::XykAddLiquidity::add_liquidity(origin.clone(), asset_a, asset_b, amount_a, amount_b_max_limit)?;
 
-			let amm_pool_id = T::AMM::get_pair_id(asset_pair);
 			let share_token = T::AMM::get_share_token(asset_pair);
 			let shares_amount = T::Currencies::free_balance(share_token, &who);
 
