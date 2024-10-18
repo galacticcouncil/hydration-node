@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "14.0.1"
+version = "14.0.2"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -29,12 +29,12 @@ futures = { workspace = true }
 async-trait = { workspace = true }
 
 # local dependencies
-hydradx-runtime = { workspace = true , features = ["std"] }
+hydradx-runtime = { workspace = true, features = ["std"] }
 primitives = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
-frame-benchmarking-cli = { workspace = true , optional = true }
+frame-benchmarking-cli = { workspace = true, optional = true }
 pallet-transaction-payment-rpc = { workspace = true }
 sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
@@ -118,13 +118,13 @@ fp-consensus = { workspace = true }
 
 [features]
 default = [
-  "frame-benchmarking-cli",
+    "frame-benchmarking-cli",
 ]
 runtime-benchmarks = [
-  "hydradx-runtime/runtime-benchmarks",
-  "frame-benchmarking-cli",
-  "polkadot-service/runtime-benchmarks",
-  "polkadot-cli/runtime-benchmarks",
+    "hydradx-runtime/runtime-benchmarks",
+    "frame-benchmarking-cli",
+    "polkadot-service/runtime-benchmarks",
+    "polkadot-cli/runtime-benchmarks",
 ]
 try-runtime = [
     "hydradx-runtime/try-runtime",

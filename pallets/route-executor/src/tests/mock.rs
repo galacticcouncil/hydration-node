@@ -26,7 +26,7 @@ use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, TradeExecution};
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::FixedU128;
@@ -137,6 +137,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }

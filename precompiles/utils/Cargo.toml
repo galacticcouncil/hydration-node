@@ -2,7 +2,7 @@
 name = "precompile-utils"
 description = "Utils to write EVM precompiles."
 edition = "2021"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["PureStake"]
 repository = "https://github.com/PureStake/moonbeam"
 

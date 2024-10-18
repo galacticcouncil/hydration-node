@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::evm::Erc20Currency;
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
@@ -44,6 +45,7 @@ use primitives::constants::{
 };
 use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
 
+use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
@@ -367,6 +369,8 @@ impl pallet_currencies::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type Erc20Currency = Erc20Currency<Runtime>;
+	type BoundErc20 = AssetRegistry;
 	type GetNativeCurrencyId = NativeAssetId;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
@@ -438,6 +442,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type MinStringLimit = MinRegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type RegExternalWeightMultiplier = RegExternalWeightMultiplier;
+	type RegisterAssetHook = SetCodeForErc20Precompile;
 	type WeightInfo = weights::pallet_asset_registry::HydraWeight<Runtime>;
 }
 

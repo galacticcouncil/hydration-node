@@ -42,6 +42,12 @@ impl From<AssetLocation> for Option<Location> {
 	}
 }
 
+impl From<AssetLocation> for MultiLocation {
+	fn from(location: AssetLocation) -> Self {
+		location.0
+	}
+}
+
 impl TryFrom<Location> for AssetLocation {
 	type Error = ();
 
