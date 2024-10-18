@@ -21,7 +21,7 @@ orml-traits = { workspace = true }
 hydradx-traits = { workspace = true }
 primitives = { workspace = true }
 hydra-dx-math = { workspace = true }
-pallet-xyk = {workspace = true}
+pallet-xyk = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
