@@ -900,8 +900,9 @@ pub mod pallet {
 		/// - `position_id`: id of the omnipool position to be deposited into the liquidity mining.
 		///
 		/// Emits `SharesDeposited` event for the first farm entry
-		/// Emits `SharesRedeposited` event for each farm entry after the first one		#[pallet::call_index(13)]
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
+		/// Emits `SharesRedeposited` event for each farm entry after the first one
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::join_farms(farm_entries.len() as u32))]
 		pub fn join_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
@@ -946,8 +947,9 @@ pub mod pallet {
 		/// - `amount`: amount of the asset to be deposited into the liquidity mining.
 		///
 		/// Emits `SharesDeposited` event for the first farm entry
-		/// Emits `SharesRedeposited` event for each farm entry after the first one		#[pallet::call_index(14)]
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())] //TODO: add proper weight, dynamic one based on farm
+		/// Emits `SharesRedeposited` event for each farm entry after the first one
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))]
 		pub fn add_liquidity_and_join_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,

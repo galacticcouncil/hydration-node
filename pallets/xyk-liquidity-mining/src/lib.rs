@@ -775,6 +775,7 @@ pub mod pallet {
 		///
 		/// Emits `SharesDeposited` event for the first farm entry
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
+		#[pallet::call_index(13)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))]
 		pub fn add_liquidity_and_join_farms(
 			origin: OriginFor<T>,

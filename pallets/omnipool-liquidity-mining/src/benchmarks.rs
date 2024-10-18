@@ -620,7 +620,7 @@ benchmarks! {
 		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		set_period::<T>(200);
-		let farms_entries = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
 
 	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap(), lp1_position_id)
@@ -661,7 +661,7 @@ benchmarks! {
 		let lp1 = create_funded_account::<T>("lp_1", 5, 10 * BTC_ONE, BTC.into());
 
 		set_period::<T>(200);
-		let farms_entries = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
 
 	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap(), BTC.into(), 10 * BTC_ONE)
