@@ -19,7 +19,7 @@
 
 use crate::{assert_nft_owner, omnipool_init::hydra_run_to_block, polkadot_test_net::*};
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::assert_ok;
 use hydradx_traits::{liquidity_mining::PriceAdjustment, AMM};
 use pallet_asset_registry::AssetType;
 use warehouse_liquidity_mining::{
@@ -545,94 +545,6 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 }
 
 #[test]
-fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		let global_farm_1_id = 1;
-		let global_farm_2_id = 2;
-		let yield_farm_1_id = 3;
-		let yield_farm_2_id = 4;
-
-		let asset_pair = AssetPair {
-			asset_in: PEPE,
-			asset_out: ACA,
-		};
-
-		//Arrange
-		let xyk_share_id = create_xyk_pool(
-			asset_pair.asset_in,
-			10_000_000 * UNITS,
-			asset_pair.asset_out,
-			100_000_000 * UNITS,
-		);
-		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
-
-		set_relaychain_block_number(100);
-		create_global_farm(None, PEPE, None);
-		create_global_farm(None, ACA, None);
-
-		set_relaychain_block_number(200);
-		create_yield_farm(global_farm_1_id, asset_pair, None);
-		create_yield_farm(global_farm_2_id, asset_pair, None);
-
-		set_relaychain_block_number(400);
-		let deposit_id = 1;
-		assert_ok!(XYKLiquidityMining::deposit_shares(
-			RuntimeOrigin::signed(DAVE.into()),
-			global_farm_1_id,
-			yield_farm_1_id,
-			asset_pair,
-			dave_shares_balance,
-		));
-
-		set_relaychain_block_number(500);
-		assert_ok!(XYKLiquidityMining::redeposit_shares(
-			RuntimeOrigin::signed(DAVE.into()),
-			global_farm_2_id,
-			yield_farm_2_id,
-			asset_pair,
-			deposit_id
-		));
-
-		//Act 1 - claim rewards for 2-nd yield-farm-entry
-		set_relaychain_block_number(600);
-		assert_ok!(XYKLiquidityMining::claim_rewards(
-			RuntimeOrigin::signed(DAVE.into()),
-			deposit_id,
-			yield_farm_2_id
-		));
-
-		//Assert
-		//NOTE: can't assert state in the deposit because fields are private
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_004_254_545_454_545_u128
-		);
-
-		//Act & assert 2 - claim rewards in the same period for same yield-farm-entry should not work.
-		assert_noop!(
-			XYKLiquidityMining::claim_rewards(RuntimeOrigin::signed(DAVE.into()), deposit_id, yield_farm_2_id),
-			warehouse_liquidity_mining::Error::<hydradx_runtime::Runtime, Instance2>::DoubleClaimInPeriod
-		);
-
-		//Act 3 - claim rewards for differnt yield-farm-entry in the same period should work.
-		assert_ok!(XYKLiquidityMining::claim_rewards(
-			RuntimeOrigin::signed(DAVE.into()),
-			deposit_id,
-			yield_farm_1_id
-		));
-
-		//Assert
-		//NOTE: can't assert state in the deposit because fields are private
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_015_921_212_121_211_u128
-		);
-	});
-}
-
-#[test]
 fn withdraw_shares_should_work_when_deposit_exists() {
 	TestNet::reset();
 
@@ -845,14 +757,8 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 		);
 
 		set_relaychain_block_number(700);
-		//Arrange - claim before withdraw
-		assert_ok!(XYKLiquidityMining::claim_rewards(
-			RuntimeOrigin::signed(DAVE.into()),
-			deposit_id,
-			yield_farm_1_id,
-		));
 
-		//Act 2 - claim and withdraw should in the same period should work.
+		//Act
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
@@ -977,14 +883,8 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 		);
 
 		set_relaychain_block_number(700);
-		//Arrange - claim before withdraw
-		assert_ok!(XYKLiquidityMining::claim_rewards(
-			RuntimeOrigin::signed(DAVE.into()),
-			deposit_id,
-			yield_farm_1_id,
-		));
 
-		//Act 2 - claim and withdraw should in the same period should work.
+		//Act
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
@@ -1084,10 +984,11 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 
 		set_relaychain_block_number(600);
 
-		assert_ok!(XYKLiquidityMining::claim_rewards(
+		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
-			yield_farm_1_id
+			yield_farm_1_id,
+			asset_pair
 		));
 
 		//Assert
@@ -1205,10 +1106,11 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		let dave_bonds_balance = Currencies::free_balance(bond_id, &DAVE.into());
 
-		assert_ok!(XYKLiquidityMining::claim_rewards(
+		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
-			yield_farm_1_id
+			yield_farm_1_id,
+			asset_pair
 		));
 
 		//Assert

@@ -356,7 +356,6 @@ impl liq_mining::Config for Test {
 }
 
 pub const LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
-use frame_support::traits::fungible::Balanced;
 pub struct XykAddLiquidityMock;
 
 impl XykAddLiquidity<OriginFor<Test>, AssetId, Balance> for XykAddLiquidityMock {
