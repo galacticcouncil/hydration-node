@@ -180,6 +180,7 @@ impl omnipool_liquidity_mining::Config for Test {
 	type OracleSource = OracleSource;
 	type OraclePeriod = PeriodOracle;
 	type PriceOracle = DummyOracle;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type WeightInfo = ();
 }
 
@@ -261,8 +262,6 @@ impl pallet_ema_oracle::Config for Test {
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 	type WeightInfo = ();
 }
 
@@ -583,6 +582,8 @@ impl ExtBuilder {
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
 use hydra_dx_math::ema::EmaPrice;
 
+pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -808,7 +809,7 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 
 	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
 		if Whitelist::contains(account) {
-			return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
+			return Ok(());
 		}
 
 		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
