@@ -450,7 +450,6 @@ fn add_liquidity_and_join_farms_should_work_for_multiple_farms() {
 			(global_farm_2_id, yield_farm_2_id),
 			(global_farm_3_id, yield_farm_3_id),
 		];
-		let id = CHARLIE;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_and_join_farms(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			farms.try_into().unwrap(),

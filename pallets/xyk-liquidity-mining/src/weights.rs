@@ -62,8 +62,8 @@ pub trait WeightInfo {
 	fn claim_rewards() -> Weight;
 	fn withdraw_shares() -> Weight;
 	fn resume_yield_farm() -> Weight;
-	fn join_farms() -> Weight;	
-	fn add_liquidity_and_join_farms() -> Weight;
+	fn join_farms(c: u32) -> Weight;	
+	fn add_liquidity_and_join_farms(c: u32) -> Weight;
 }
 
 /// Weights for `pallet_xyk_liquidity_mining` using the HydraDX node and recommended hardware.
@@ -470,14 +470,20 @@ impl WeightInfo for () {
 	/// Proof: `Uniques::Account` (`max_values`: None, `max_size`: Some(112), added: 2587, mode: `MaxEncodedLen`)
 	/// Storage: `XYKWarehouseLM::Deposit` (r:0 w:1)
 	/// Proof: `XYKWarehouseLM::Deposit` (`max_values`: None, `max_size`: Some(413), added: 2888, mode: `MaxEncodedLen`)
-	fn join_farms() -> Weight {
+	/// The range of component `c` is `[1, 5]`.
+	fn join_farms(c: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `10124`
-		//  Estimated: `26820`
-		// Minimum execution time: 403_000_000 picoseconds.
-		Weight::from_parts(408_000_000, 26820)
-			.saturating_add(RocksDbWeight::get().reads(45_u64))
-			.saturating_add(RocksDbWeight::get().writes(23_u64))
+		//  Measured:  `6761 + c * (672 ±0)`
+		//  Estimated: `13905 + c * (2701 ±0)`
+		// Minimum execution time: 152_000_000 picoseconds.
+		Weight::from_parts(106_887_792, 13905)
+			// Standard Error: 127_268
+			.saturating_add(Weight::from_parts(59_200_876, 0).saturating_mul(c.into()))
+			.saturating_add(RocksDbWeight::get().reads(20_u64))
+			.saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(c.into())))
+			.saturating_add(RocksDbWeight::get().writes(8_u64))
+			.saturating_add(RocksDbWeight::get().writes((3_u64).saturating_mul(c.into())))
+			.saturating_add(Weight::from_parts(0, 2701).saturating_mul(c.into()))
 	}
 	/// Storage: `XYK::ShareToken` (r:1 w:0)
 	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
@@ -527,13 +533,19 @@ impl WeightInfo for () {
 	/// Proof: `Uniques::Account` (`max_values`: None, `max_size`: Some(112), added: 2587, mode: `MaxEncodedLen`)
 	/// Storage: `XYKWarehouseLM::Deposit` (r:0 w:1)
 	/// Proof: `XYKWarehouseLM::Deposit` (`max_values`: None, `max_size`: Some(413), added: 2888, mode: `MaxEncodedLen`)
-	fn add_liquidity_and_join_farms() -> Weight {
+	/// The range of component `c` is `[1, 5]`.
+	fn add_liquidity_and_join_farms(c: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `10675`
-		//  Estimated: `31986`
-		// Minimum execution time: 574_000_000 picoseconds.
-		Weight::from_parts(583_000_000, 31986)
-			.saturating_add(RocksDbWeight::get().reads(56_u64))
-			.saturating_add(RocksDbWeight::get().writes(33_u64))
+		//  Measured:  `7312 + c * (672 ±0)`
+		//  Estimated: `19071 + c * (2701 ±0)`
+		// Minimum execution time: 302_000_000 picoseconds.
+		Weight::from_parts(290_210_922, 19071)
+			// Standard Error: 1_390_381
+			.saturating_add(Weight::from_parts(69_970_268, 0).saturating_mul(c.into()))
+			.saturating_add(RocksDbWeight::get().reads(31_u64))
+			.saturating_add(RocksDbWeight::get().reads((5_u64).saturating_mul(c.into())))
+			.saturating_add(RocksDbWeight::get().writes(18_u64))
+			.saturating_add(RocksDbWeight::get().writes((3_u64).saturating_mul(c.into())))
+			.saturating_add(Weight::from_parts(0, 2701).saturating_mul(c.into()))
 	}
 }

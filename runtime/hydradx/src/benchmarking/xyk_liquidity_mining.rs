@@ -19,6 +19,8 @@ use crate::{
 	XYKWarehouseLM, XYK,
 };
 
+use sp_core::Get;
+
 use super::*;
 
 use frame_benchmarking::{account, BenchmarkError};
@@ -502,6 +504,8 @@ runtime_benchmarks! {
 	}: _(RawOrigin::Signed(fowner), gfarm_id, yfarm_id1, pair, FixedU128::from(12_452))
 
 	join_farms {
+		let c in 1..get_max_entries::<Runtime>();
+
 		let pair = AssetPair {
 			asset_in: register_external_asset(b"TKN1".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?,
 			asset_out: register_external_asset(b"TKN2".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?
@@ -557,12 +561,15 @@ runtime_benchmarks! {
 		//Deposit into the global-farm so it will be updated
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
 
-		let farms = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms_entries = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms = farms_entries[0..c as usize].to_vec();
 
 		run_to_block(400);
 	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap(),pair,  10 * ONE)
 
 	add_liquidity_and_join_farms {
+		let c in 1..get_max_entries::<Runtime>();
+
 		let pair = AssetPair {
 			asset_in: register_external_asset(b"TKN1".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?,
 			asset_out: register_external_asset(b"TKN2".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?
@@ -617,7 +624,8 @@ runtime_benchmarks! {
 		//Deposit into the global-farm so it will be updated
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
 
-		let farms = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms_entries = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms = farms_entries[0..c as usize].to_vec();
 
 		run_to_block(400);
 	}: _(RawOrigin::Signed(lp1),pair.asset_in, pair.asset_out, 1 * ONE, 10 * ONE, farms.try_into().unwrap())
@@ -674,6 +682,10 @@ fn create_xyk_pool(caller: AccountId, asset_a: u32, asset_b: u32) {
 		0u128,
 		false,
 	));
+}
+
+fn get_max_entries<T: pallet_xyk_liquidity_mining::Config>() -> u32 {
+	T::MaxFarmEntriesPerDeposit::get()
 }
 
 #[cfg(test)]
