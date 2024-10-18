@@ -116,7 +116,8 @@ where
 				(converted, account_fee_currency, price)
 			} else {
 				//In case of insufficient asset we buy DOT with insufficient asset, and using that DOT and amount as fee currency
-				let Some((_, eth_dot_price)) = C::convert((EvmFeeAsset::get(), dot, fee.unique_saturated_into()))
+				let Some((fee_in_dot, eth_dot_price)) =
+					C::convert((EvmFeeAsset::get(), dot, fee.unique_saturated_into()))
 				else {
 					return Err(Error::<T>::WithdrawFailed);
 				};
@@ -125,9 +126,6 @@ where
 				else {
 					return Err(Error::<T>::WithdrawFailed);
 				};
-
-				let fee_in_dot: Balance = convert_fee_with_price(fee.unique_saturated_into(), eth_dot_price_as_fixed)
-					.ok_or(Error::<T>::WithdrawFailed)?;
 
 				let amount_in =
 					SwappablePaymentAssetSupport::calculate_in_given_out(account_fee_currency, dot, fee_in_dot)
