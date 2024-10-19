@@ -137,7 +137,7 @@ fn add_liquidity_and_join_farms_should_work_with_single_yield_farm() {
 				.add_yield_farm_entry(YieldFarmEntry::new(
 					gc_g_farm_id,
 					gc_y_farm_id,
-					1_300_000_000_000_0,
+					13_000_000_000_000,
 					FixedU128::zero(),
 					1,
 					0,

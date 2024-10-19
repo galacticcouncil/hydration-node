@@ -561,7 +561,7 @@ runtime_benchmarks! {
 		//Deposit into the global-farm so it will be updated
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
 
-		let farms_entries = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
 
 		run_to_block(400);
@@ -624,11 +624,11 @@ runtime_benchmarks! {
 		//Deposit into the global-farm so it will be updated
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
 
-		let farms_entries = vec![(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
 
 		run_to_block(400);
-	}: _(RawOrigin::Signed(lp1),pair.asset_in, pair.asset_out, 1 * ONE, 10 * ONE, farms.try_into().unwrap())
+	}: _(RawOrigin::Signed(lp1),pair.asset_in, pair.asset_out, ONE, 10 * ONE, farms.try_into().unwrap())
 }
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
