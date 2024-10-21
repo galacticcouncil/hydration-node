@@ -12,8 +12,12 @@ use sp_std::collections::btree_map::BTreeMap;
 
 pub mod cvx;
 pub mod cvx2;
+pub mod omni;
+#[cfg(test)]
+mod tests;
 pub mod traits;
 
+#[derive(Debug, PartialEq)]
 pub struct SolverSolution<AssetId> {
 	pub intents: Vec<ResolvedIntent>,
 	pub trades: Vec<TradeInstruction<AssetId>>,

@@ -16,6 +16,11 @@ hydradx-traits = {workspace = true}
 
 #totsu = "0.10.2"
 clarabel = "0"
+serde = { version = "1.0.210", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1.0.129"
+rand = "0.8.5"
 
 
 [features]
