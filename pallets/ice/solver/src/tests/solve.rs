@@ -39,7 +39,7 @@ fn solver_should_find_solution_for_one_intent() {
 
 #[test]
 fn solver_should_find_solution_with_twenty_intents() {
-	let intents = generate_random_intents(1000, DataProvider::assets(None));
+	let intents = generate_random_intents(10000, DataProvider::assets(None));
 	let solution = OmniSolver::<u64, AssetId, DataProvider>::solve(intents).unwrap();
 	dbg!(solution.intents.len());
 }
