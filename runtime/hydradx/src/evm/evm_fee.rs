@@ -24,13 +24,12 @@ use frame_support::traits::{Get, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
-use orml_traits::arithmetic::One;
 use pallet_evm::{AddressMapping, Error};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::Convert;
-use sp_runtime::{FixedPointNumber, FixedPointOperand, FixedU128, Rounding};
+use sp_runtime::{Rounding};
 use sp_std::marker::PhantomData;
 use {
 	frame_support::traits::OnUnbalanced,
@@ -118,11 +117,6 @@ where
 				//In case of insufficient asset we buy DOT with insufficient asset, and using that DOT and amount as fee currency
 				let Some((fee_in_dot, eth_dot_price)) =
 					C::convert((EvmFeeAsset::get(), dot, fee.unique_saturated_into()))
-				else {
-					return Err(Error::<T>::WithdrawFailed);
-				};
-
-				let Some(eth_dot_price_as_fixed) = FixedU128::checked_from_rational(eth_dot_price.n, eth_dot_price.d)
 				else {
 					return Err(Error::<T>::WithdrawFailed);
 				};
@@ -244,15 +238,6 @@ where
 		}
 	}
 }
-
-fn convert_fee_with_price<B>(fee: B, price: FixedU128) -> Option<B>
-where
-	B: FixedPointOperand + Ord + One,
-{
-	// Make sure that the fee is never less than 1
-	price.checked_mul_int(fee).map(|f| f.max(One::one()))
-}
-
 pub struct DepositEvmFeeToTreasury;
 impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	// this is called for substrate-based transactions
