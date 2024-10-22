@@ -955,6 +955,34 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Withdraw LP shares from all specified yield farms with reward claiming if possible.
+		///
+		/// This function will attempt to withdraw shares and claim rewards (if available) from all
+		/// specified yield farms for a given deposit.
+		///
+		/// Parameters:
+		/// - `origin`: account owner of deposit(nft).
+		/// - `deposit_id`: nft id representing deposit in the yield farms.
+		/// - `yield_farm_ids`: vector of yield farm identifiers to withdraw shares from.
+		/// - `asset_pair`: asset pair identifying yield farms in global farms.
+		///
+		/// Emits:
+		/// * `RewardClaimed` for each successful claim
+		/// * `SharesWithdrawn` for each successful withdrawal
+		/// * `DepositDestroyed` if the deposit is fully withdrawn
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())] //TODO: add benchmark
+		pub fn exit_farms(
+			origin: OriginFor<T>,
+			yield_farm_ids: BoundedVec<(DepositId, YieldFarmId, AssetPair), T::MaxFarmEntriesPerDeposit>,
+		) -> DispatchResult {
+			for (deposit_id, yield_farm_id, asset_pair) in yield_farm_ids {
+				Self::withdraw_shares(origin.clone(), deposit_id, yield_farm_id, asset_pair)?;
+			}
+
+			Ok(())
+		}
 	}
 }
 

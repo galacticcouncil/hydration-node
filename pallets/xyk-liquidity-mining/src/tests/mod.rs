@@ -49,6 +49,7 @@ pub mod claim_rewards;
 pub mod create_global_farm;
 pub mod create_yield_farm;
 pub mod deposit_shares;
+pub mod exit_farms;
 pub mod get_token_value_of_lp_shares;
 pub mod join_farms;
 pub mod mock;
