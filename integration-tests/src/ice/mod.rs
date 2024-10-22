@@ -6,14 +6,15 @@ mod solution;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
+use hydra_dx_math::ratio::Ratio;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_runtime::{
 	Currencies, EmaOracle, Omnipool, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT,
 };
-use ice_solver::traits::{ICESolver, IceSolution, OmnipoolAssetInfo, OmnipoolInfo};
+use ice_solver::traits::{ICESolver, IceSolution, OmnipoolAssetInfo, OmnipoolInfo, Routing};
 use orml_traits::MultiCurrency;
-use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
+use pallet_ice::types::{Balance, BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
 use primitives::{AccountId, AssetId, Moment};
 use sp_core::crypto::AccountId32;
 use xcm_emulator::TestExt;
@@ -24,7 +25,9 @@ type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
 use hydradx_traits::registry::Inspect;
-struct OmnipoolDataProvider;
+use hydradx_traits::router::Trade;
+
+pub(crate) struct OmnipoolDataProvider;
 
 impl OmnipoolInfo<AssetId> for OmnipoolDataProvider {
 	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>> {
@@ -69,6 +72,24 @@ impl OmnipoolInfo<AssetId> for OmnipoolDataProvider {
 			}
 			assets
 		}
+	}
+}
+
+pub(crate) struct SolverRoutingSupport;
+
+impl Routing<AssetId> for SolverRoutingSupport {
+	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>> {
+		vec![]
+	}
+	fn calculate_amount_out(route: &[Trade<AssetId>], amount_in: Balance) -> Result<Balance, ()> {
+		Ok(0)
+	}
+	fn calculate_amount_in(route: &[Trade<AssetId>], amount_out: Balance) -> Result<Balance, ()> {
+		Ok(0)
+	}
+	// should return price Hub/Asset
+	fn hub_asset_price(asset: AssetId) -> Result<Ratio, ()> {
+		Ok(Ratio::one())
 	}
 }
 
