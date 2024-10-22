@@ -29,7 +29,7 @@ use pallet_transaction_multi_payment::{DepositAll, DepositFee};
 use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::Convert;
-use sp_runtime::{Rounding};
+use sp_runtime::Rounding;
 use sp_std::marker::PhantomData;
 use {
 	frame_support::traits::OnUnbalanced,
