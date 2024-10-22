@@ -128,35 +128,17 @@ fn test_omnipool_snapshot() {
 	});
 }
 
-pub(crate) fn submit_intents(intents: Vec<(AccountId, Swap<AssetId>, Moment)>) -> Vec<IntentId> {
+pub(crate) fn submit_intents(intents: Vec<Intent<AccountId, AssetId>>) -> Vec<IntentId> {
 	let mut intent_ids = Vec::new();
-	for (who, swap, deadline) in intents {
+	for intent in intents {
+		let deadline = intent.deadline;
 		let increment_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::next_incremental_id();
-		assert_ok!(ICE::submit_intent(
-			RuntimeOrigin::signed(who.clone()),
-			Intent {
-				who,
-				swap,
-				deadline,
-				partial: false,
-				on_success: None,
-				on_failure: None,
-			}
-		));
+		assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(intent.who.clone()), intent,));
 		let intent_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, increment_id);
 		intent_ids.push(intent_id);
 	}
 
 	intent_ids
-}
-
-pub(crate) fn solve_intents(
-	intents: Vec<(IntentId, pallet_ice::types::Intent<AccountId, AssetId>)>,
-) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()> {
-	let solved = ice_solver::SimpleSolver::<hydradx_runtime::Runtime, Router, Router, PriceP>::solve(intents)?;
-	let resolved_intents = BoundedResolvedIntents::try_from(solved.intents).unwrap();
-	let trades = BoundedTrades::try_from(solved.trades).unwrap();
-	Ok((resolved_intents, trades, solved.score))
 }
 
 /*

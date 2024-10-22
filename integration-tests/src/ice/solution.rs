@@ -5,10 +5,12 @@ use hydradx_runtime::{Currencies, Omnipool, Router, System, ICE};
 use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
-use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades};
+use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent};
 use sp_core::crypto::AccountId32;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::SignedExtension;
+
+type IceSimpleSolver = ice_solver::SimpleSolver<hydradx_runtime::Runtime, Router, Router, PriceP>;
 
 #[test]
 fn submit_solution_should_work() {
@@ -22,20 +24,25 @@ fn submit_solution_should_work() {
 		let deadline: Moment = NOW + 43_200_000;
 		let initial_dai_balance = Currencies::free_balance(DAI, &AccountId32::from(BOB));
 
-		let intent_ids = submit_intents(vec![(
-			BOB.into(),
-			Swap {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: 1_000_000_000_000,
-				//amount_out: 8973613312776918,
-				amount_out: 8973613212776918,
-				swap_type: pallet_ice::types::SwapType::ExactIn,
-			},
-			deadline,
-		)]);
+		let intent_ids = submit_intents(vec![
+			(Intent {
+				who: BOB.into(),
+				swap: Swap {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: 1_000_000_000_000,
+					//amount_out: 8973613312776918,
+					amount_out: 8973613212776918,
+					swap_type: pallet_ice::types::SwapType::ExactIn,
+				},
+				deadline,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			}),
+		]);
 
-		let (intents, trades, score) = solve_intents(vec![(
+		let (intents, trades, score) = solve_intents_with::<IceSimpleSolver>(vec![(
 			intent_ids[0],
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)])
@@ -90,20 +97,25 @@ fn execute_one_intent_solution_should_work_when_swapping_stable_asset_with_omnip
 
 		let deadline: Moment = NOW + 43_200_000;
 
-		let intent_ids = submit_intents(vec![(
-			BOB.into(),
-			Swap {
-				asset_in: HDX,
-				asset_out: assets[0],
-				amount_in: 1_000_000_000_000,
-				//amount_out: 26117,
-				amount_out: 25117,
-				swap_type: pallet_ice::types::SwapType::ExactIn,
-			},
-			deadline,
-		)]);
+		let intent_ids = submit_intents(vec![
+			(Intent {
+				who: BOB.into(),
+				swap: Swap {
+					asset_in: HDX,
+					asset_out: assets[0],
+					amount_in: 1_000_000_000_000,
+					//amount_out: 26117,
+					amount_out: 25117,
+					swap_type: pallet_ice::types::SwapType::ExactIn,
+				},
+				deadline,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			}),
+		]);
 
-		let (intents, trades, score) = solve_intents(vec![(
+		let (intents, trades, score) = solve_intents_with::<IceSimpleSolver>(vec![(
 			intent_ids[0],
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)])
@@ -146,9 +158,9 @@ fn execute_two_intents_solution_should_work() {
 		let deadline: Moment = NOW + 43_200_000;
 
 		let intent_ids = submit_intents(vec![
-			(
-				BOB.into(),
-				Swap {
+			Intent {
+				who: BOB.into(),
+				swap: Swap {
 					asset_in: HDX,
 					asset_out: DAI,
 					amount_in: 1_000_000_000_000,
@@ -156,10 +168,13 @@ fn execute_two_intents_solution_should_work() {
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
-			),
-			(
-				ALICE.into(),
-				Swap {
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			},
+			Intent {
+				who: ALICE.into(),
+				swap: Swap {
 					asset_in: HDX,
 					asset_out: DAI,
 					amount_in: 1_000_000_000_000,
@@ -167,10 +182,13 @@ fn execute_two_intents_solution_should_work() {
 					swap_type: pallet_ice::types::SwapType::ExactIn,
 				},
 				deadline,
-			),
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			},
 		]);
 
-		let (intents, trades, score) = solve_intents(vec![
+		let (intents, trades, score) = solve_intents_with::<IceSimpleSolver>(vec![
 			(
 				intent_ids[0],
 				pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
