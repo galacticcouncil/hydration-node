@@ -1,3 +1,5 @@
+use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::router::Trade;
 use pallet_ice::types::{Balance, ResolvedIntent, TradeInstruction};
 use serde::Deserialize;
 use sp_runtime::traits::Bounded;
@@ -63,4 +65,12 @@ pub trait IceSolution<AssetId> {
 	fn resolved_intents(&self) -> Vec<ResolvedIntent>;
 	fn trades(self) -> Vec<TradeInstruction<AssetId>>;
 	fn score(&self) -> u64;
+}
+
+pub trait Routing<AssetId> {
+	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>>;
+	fn calculate_amount_out(route: &[Trade<AssetId>], amount_in: Balance) -> Result<Balance, ()>;
+	fn calculate_amount_in(route: &[Trade<AssetId>], amount_out: Balance) -> Result<Balance, ()>;
+	// should return price Hub/Asset
+	fn hub_asset_price(asset: AssetId) -> Result<Ratio, ()>;
 }

@@ -1,13 +1,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::traits::{ICESolver, OmnipoolAssetInfo, OmnipoolInfo};
-use crate::{rational_to_f64, SolverSolution, to_f64_by_decimals};
+use crate::traits::{ICESolver, OmnipoolAssetInfo, OmnipoolInfo, Routing};
+use crate::{rational_to_f64, to_f64_by_decimals, SolverSolution};
 use pallet_ice::types::{Balance, BoundedRoute, Intent, IntentId, ResolvedIntent, TradeInstruction};
-use std::collections::{BTreeSet, HashMap};
-use sp_runtime::FixedU128;
+use sp_runtime::{FixedU128, Saturating};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt::Debug;
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
+use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::price::PriceProvider;
+use hydradx_traits::router::{AssetPair, RouteProvider};
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 
 fn calculate_scaling<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
@@ -96,7 +101,7 @@ fn round_solution(intents: &[(f64, f64)], intent_deltas: Vec<f64>, tolerance: f6
 		// don't leave dust in intent due to rounding error
 		if intents[i].0 + intent_deltas[i] < tolerance * intents[i].0 {
 			deltas.push(-(intents[i].0));
-			// don't trade dust amount due to rounding error
+		// don't trade dust amount due to rounding error
 		} else if -intent_deltas[i] <= tolerance * intents[i].0 {
 			deltas.push(0.);
 		} else {
@@ -134,7 +139,7 @@ fn prepare_omnipool_data<AssetId>(
 	HashMap<AssetId, u8>,
 )
 where
-	AssetId: sp_std::hash::Hash+ Copy + Clone + Eq + Ord,
+	AssetId: sp_std::hash::Hash + Copy + Clone + Eq + Ord,
 {
 	let asset_ids = info.iter().map(|i| i.asset_id).collect::<Vec<_>>();
 	let asset_reserves = info.iter().map(|i| i.reserve_as_f64()).collect::<Vec<_>>();
@@ -149,7 +154,7 @@ fn prepare_intent_data<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
 ) -> (Vec<AssetId>, Vec<f64>)
 where
-	AssetId: sp_std::hash::Hash + From<u32>+ Copy + Clone + Eq + Ord,
+	AssetId: sp_std::hash::Hash + From<u32> + Copy + Clone + Eq + Ord,
 {
 	let mut asset_ids = BTreeSet::new();
 	let mut intent_prices = Vec::new();
@@ -172,18 +177,19 @@ where
 	(asset_ids.iter().cloned().collect(), intent_prices)
 }
 
-pub struct OmniSolver<AccountId, AssetId, OI>(sp_std::marker::PhantomData<(AccountId, AssetId, OI)>);
+pub struct OmniSolver<AccountId, AssetId, OI, R>(sp_std::marker::PhantomData<(AccountId, AssetId, OI, R)>);
 
-impl<AccountId, AssetId, OI> ICESolver<(IntentId, Intent<AccountId, AssetId>)> for OmniSolver<AccountId, AssetId, OI>
+impl<AccountId, AssetId, OI, R> ICESolver<(IntentId, Intent<AccountId, AssetId>)>
+	for OmniSolver<AccountId, AssetId, OI, R>
 where
-	AssetId: From<u32> + sp_std::hash::Hash + PartialEq + Eq + Ord + Clone + Copy,
+	AssetId: From<u32> + sp_std::hash::Hash + PartialEq + Eq + Ord + Clone + Copy + Debug,
 	OI: OmnipoolInfo<AssetId>,
+	R: Routing<AssetId>,
 {
 	type Solution = SolverSolution<AssetId>;
 	type Error = ();
 
 	fn solve(intents: Vec<(IntentId, Intent<AccountId, AssetId>)>) -> Result<Self::Solution, Self::Error> {
-
 		// Prepare intent and omnipool data
 
 		let (intent_asset_ids, intent_prices) = prepare_intent_data::<AccountId, AssetId>(&intents);
@@ -411,6 +417,12 @@ where
 			(a * factor as f64) as Balance
 		};
 
+		// figure out trades and score
+		// this could be probably extracted from here and simplified
+
+		let mut amounts_in: BTreeMap<AssetId, Balance> = BTreeMap::new();
+		let mut amounts_out: BTreeMap<AssetId, Balance> = BTreeMap::new();
+
 		for (i, intent) in intents.iter().enumerate() {
 			if intent_deltas[i].0 != 0. && intent_deltas[i].1 != 0. {
 				let resolved_intent = ResolvedIntent {
@@ -424,16 +436,83 @@ where
 						decimals.get(&intent.1.swap.asset_out).unwrap().clone(),
 					),
 				};
+				amounts_in
+					.entry(intent.1.swap.asset_in)
+					.and_modify(|e| *e += resolved_intent.amount_in)
+					.or_insert(resolved_intent.amount_in);
+				amounts_out
+					.entry(intent.1.swap.asset_out)
+					.and_modify(|e| *e += resolved_intent.amount_out)
+					.or_insert(resolved_intent.amount_out);
 				resolved_intents.push(resolved_intent);
 			}
 		}
 
-		//TODO: figure trades and score
+		let mut lrna_aquired = 0u128;
+
+		let mut matched_amounts = Vec::new();
+		let mut trades_instructions = Vec::new();
+
+		// Sell all for lrna
+		for (asset_id, amount) in amounts_in.iter() {
+			let amount_out = *amounts_out.get(asset_id).unwrap_or(&0u128);
+
+			matched_amounts.push((*asset_id, (*amount).min(amount_out)));
+
+			if *amount > amount_out {
+				let route = R::get_route(*asset_id, 1u32.into());
+				let diff = amount.saturating_sub(amount_out);
+
+				let lrna_bought = R::calculate_amount_in(&route, diff)?;
+				lrna_aquired.saturating_accrue(lrna_bought);
+				trades_instructions.push(TradeInstruction::SwapExactIn {
+					asset_in: *asset_id,
+					asset_out: 1u32.into(),                       // LRNA
+					amount_in: amount.saturating_sub(amount_out), //Swap only difference
+					amount_out: lrna_bought,
+					route: BoundedRoute::try_from(route).unwrap(),
+				});
+			}
+		}
+
+		let mut lrna_sold = 0u128;
+
+		for (asset_id, amount) in amounts_out {
+			let amount_in = *amounts_in.get(&asset_id).unwrap_or(&0u128);
+
+			if amount > amount_in {
+				let route = R::get_route(1u32.into(), asset_id);
+				let diff = amount.saturating_sub(amount_in);
+				let lrna_in = R::calculate_amount_out(&route, diff)?;
+				lrna_sold.saturating_accrue(lrna_in);
+				trades_instructions.push(TradeInstruction::SwapExactOut {
+					asset_in: 1u32.into(), // LRNA
+					asset_out: asset_id,
+					amount_in: lrna_in,
+					amount_out: amount.saturating_sub(amount_in), //Swap only difference
+					route: BoundedRoute::try_from(route).unwrap(),
+				});
+			}
+		}
+		assert!(
+			lrna_aquired >= lrna_sold,
+			"lrna_aquired < lrna_sold ({} < {})",
+			lrna_aquired,
+			lrna_sold
+		);
+
+		let mut score = resolved_intents.len() as u128 * 1_000_000_000_000;
+		for (asset_id, amount) in matched_amounts {
+			let price = R::hub_asset_price(asset_id)?;
+			let h = multiply_by_rational_with_rounding(amount, price.n, price.d, sp_runtime::Rounding::Up).unwrap();
+			score.saturating_accrue(h);
+		}
+		let score = (score / 1_000_000) as u64;
 
 		let solution = SolverSolution {
 			intents: resolved_intents,
-			trades: vec![],
-			score: 0,
+			trades: trades_instructions,
+			score,
 		};
 
 		Ok(solution)

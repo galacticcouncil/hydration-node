@@ -1,7 +1,9 @@
 mod solve;
 
-use crate::traits::{OmnipoolAssetInfo, OmnipoolInfo};
-use pallet_ice::types::{Intent, Swap, SwapType};
+use crate::traits::{OmnipoolAssetInfo, OmnipoolInfo, Routing};
+use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::router::Trade;
+use pallet_ice::types::{Balance, Intent, Swap, SwapType};
 use rand::Rng;
 use sp_runtime::{FixedPointNumber, FixedU128};
 
@@ -91,4 +93,24 @@ fn test_generate_intents() {
 	let intents = generate_random_intents(10, d);
 	//dbg!(&intents);
 	assert_eq!(intents.len(), 10);
+}
+
+pub(crate) struct MockRouting;
+
+impl Routing<AssetId> for MockRouting {
+	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>> {
+		vec![]
+	}
+
+	fn calculate_amount_out(route: &[Trade<AssetId>], amount_in: Balance) -> Result<Balance, ()> {
+		Ok(0)
+	}
+
+	fn calculate_amount_in(route: &[Trade<AssetId>], amount_out: Balance) -> Result<Balance, ()> {
+		Ok(0)
+	}
+
+	fn hub_asset_price(asset: AssetId) -> Result<Ratio, ()> {
+		Ok(Ratio::one())
+	}
 }

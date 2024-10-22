@@ -1,5 +1,5 @@
 use crate::omni::OmniSolver;
-use crate::tests::{generate_random_intents, AssetId, DataProvider};
+use crate::tests::{generate_random_intents, AssetId, DataProvider, MockRouting};
 use crate::traits::{ICESolver, OmnipoolInfo};
 use crate::SolverSolution;
 use orml_traits::parameters::frame_support::traits::Len;
@@ -24,7 +24,7 @@ fn solver_should_find_solution_for_one_intent() {
 			on_failure: None,
 		},
 	)];
-	let solution = OmniSolver::<u64, AssetId, DataProvider>::solve(intents).unwrap();
+	let solution = OmniSolver::<u64, AssetId, DataProvider, MockRouting>::solve(intents).unwrap();
 	let expected_solution = SolverSolution::<AssetId> {
 		intents: vec![ResolvedIntent {
 			intent_id: 0,
@@ -40,6 +40,6 @@ fn solver_should_find_solution_for_one_intent() {
 #[test]
 fn solver_should_find_solution_with_twenty_intents() {
 	let intents = generate_random_intents(10000, DataProvider::assets(None));
-	let solution = OmniSolver::<u64, AssetId, DataProvider>::solve(intents).unwrap();
+	let solution = OmniSolver::<u64, AssetId, DataProvider, MockRouting>::solve(intents).unwrap();
 	dbg!(solution.intents.len());
 }
