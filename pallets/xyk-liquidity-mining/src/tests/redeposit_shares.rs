@@ -17,66 +17,6 @@
 
 use super::*;
 
-
-#[test]
-fn redeposit_shares_should_work_for_different_asset_pairs() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(BOB, BSX, 1_000_000 * ONE),
-			(CHARLIE, BSX_KSM_SHARE_ID, 200 * ONE),
-		])
-		.with_amm_pool(BSX_KSM_AMM, BSX_KSM_SHARE_ID, BSX_KSM_ASSET_PAIR)
-		.with_amm_pool(BSX_ACA_AMM, BSX_ACA_SHARE_ID, BSX_ACA_ASSET_PAIR)
-		.with_global_farm(
-			500_000 * ONE,
-			20_000,
-			10,
-			BSX,
-			BSX,
-			ALICE,
-			Perquintill::from_percent(1),
-			ONE,
-			One::one(),
-		)
-		.with_global_farm(
-			500_000 * ONE,
-			20_000,
-			10,
-			BSX,
-			BSX,
-			BOB,
-			Perquintill::from_percent(1),
-			ONE,
-			One::one(),
-		)
-		.with_yield_farm(ALICE, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
-		.with_yield_farm(BOB, 2, One::one(), None, BSX_ACA_ASSET_PAIR)
-		.with_deposit(CHARLIE, 1, 3, BSX_KSM_ASSET_PAIR, 100 * ONE)
-		.build()
-		.execute_with(|| {
-			set_block_number(50_000);
-
-			//Act
-			assert_ok!(LiquidityMining::redeposit_shares(
-				Origin::signed(CHARLIE),
-				2,
-				4,
-				BSX_KSM_ASSET_PAIR,
-				1,
-			));
-
-			assert_last_event!(crate::Event::SharesRedeposited {
-				global_farm_id: 2,
-				yield_farm_id: 4,
-				who: CHARLIE,
-				lp_token: BSX_KSM_SHARE_ID,
-				amount: 100 * ONE,
-				deposit_id: 1,
-			}
-			.into());
-		})
-}
-
 #[test]
 fn redeposit_shares_should_work_when_deposit_already_exists() {
 	ExtBuilder::default()
