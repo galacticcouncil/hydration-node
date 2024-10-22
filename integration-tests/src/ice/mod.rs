@@ -12,6 +12,8 @@ use hydradx_adapters::OraclePriceProvider;
 use hydradx_runtime::{
 	Currencies, EmaOracle, Omnipool, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT,
 };
+use hydradx_traits::price::PriceProvider;
+use hydradx_traits::router::AssetPair;
 use ice_solver::traits::{ICESolver, IceSolution, OmnipoolAssetInfo, OmnipoolInfo, Routing};
 use orml_traits::MultiCurrency;
 use pallet_ice::types::{Balance, BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
@@ -25,7 +27,7 @@ type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
 use hydradx_traits::registry::Inspect;
-use hydradx_traits::router::Trade;
+use hydradx_traits::router::{RouteProvider, RouterT, Trade};
 
 pub(crate) struct OmnipoolDataProvider;
 
@@ -75,21 +77,34 @@ impl OmnipoolInfo<AssetId> for OmnipoolDataProvider {
 	}
 }
 
-pub(crate) struct SolverRoutingSupport;
+pub(crate) struct SolverRoutingSupport<R, RP, PP>(sp_std::marker::PhantomData<(R, RP, PP)>);
 
-impl Routing<AssetId> for SolverRoutingSupport {
+impl<R, RP, PP> Routing<AssetId> for SolverRoutingSupport<R, RP, PP>
+where
+	R: RouterT<
+		RuntimeOrigin,
+		AssetId,
+		Balance,
+		hydradx_traits::router::Trade<AssetId>,
+		hydradx_traits::router::AmountInAndOut<Balance>,
+	>,
+	RP: RouteProvider<AssetId>,
+	PP: PriceProvider<AssetId, Price = Ratio>,
+{
 	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>> {
-		vec![]
+		RP::get_route(AssetPair::<AssetId>::new(asset_a, asset_b))
 	}
 	fn calculate_amount_out(route: &[Trade<AssetId>], amount_in: Balance) -> Result<Balance, ()> {
-		Ok(0)
+		let sold = R::calculate_sell_trade_amounts(&route, amount_in).unwrap();
+		Ok(sold.last().unwrap().amount_out)
 	}
 	fn calculate_amount_in(route: &[Trade<AssetId>], amount_out: Balance) -> Result<Balance, ()> {
-		Ok(0)
+		let r = R::calculate_buy_trade_amounts(&route, amount_out).unwrap();
+		Ok(r.last().unwrap().amount_in)
 	}
 	// should return price Hub/Asset
-	fn hub_asset_price(asset: AssetId) -> Result<Ratio, ()> {
-		Ok(Ratio::one())
+	fn hub_asset_price(asset_id: AssetId) -> Result<Ratio, ()> {
+		PP::get_price(1u32.into(), asset_id).ok_or(())
 	}
 }
 

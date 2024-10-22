@@ -463,7 +463,7 @@ where
 				let route = R::get_route(*asset_id, 1u32.into());
 				let diff = amount.saturating_sub(amount_out);
 
-				let lrna_bought = R::calculate_amount_in(&route, diff)?;
+				let lrna_bought = R::calculate_amount_out(&route, diff)?;
 				lrna_aquired.saturating_accrue(lrna_bought);
 				trades_instructions.push(TradeInstruction::SwapExactIn {
 					asset_in: *asset_id,
@@ -483,7 +483,7 @@ where
 			if amount > amount_in {
 				let route = R::get_route(1u32.into(), asset_id);
 				let diff = amount.saturating_sub(amount_in);
-				let lrna_in = R::calculate_amount_out(&route, diff)?;
+				let lrna_in = R::calculate_amount_in(&route, diff)?;
 				lrna_sold.saturating_accrue(lrna_in);
 				trades_instructions.push(TradeInstruction::SwapExactOut {
 					asset_in: 1u32.into(), // LRNA
