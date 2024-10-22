@@ -937,7 +937,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		//Generate documentation similar we have for other extrinsics
 		/// This function allows user to add liquidity then use that shares to join multiple farms.
 		///
 		/// Parameters:
@@ -963,6 +962,34 @@ pub mod pallet {
 				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), asset, amount, Balance::MIN)?;
 
 			Self::join_farms(origin, farm_entries, position_id)?;
+
+			Ok(())
+		}
+
+
+		/// Exit from all specified yield farms
+		///
+		/// This function will attempt to withdraw shares and claim rewards (if available) from all
+		/// specified yield farms for a given deposit.
+		///
+		/// Parameters:
+		/// - `origin`: account owner of deposit(nft).
+		/// - `farm_entries`: tuple of (deposit_id, yield_farm_id) that represent a farm entry.
+		///
+		/// Emits:
+		/// * `RewardClaimed` for each successful claim
+		/// * `SharesWithdrawn` for each successful withdrawal
+		/// * `DepositDestroyed` if the deposit is fully withdrawn
+		///
+		#[pallet::call_index(15)]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())]//TODO: add proper benchmark
+		pub fn exit_farms(
+			origin: OriginFor<T>,
+			farm_entries: BoundedVec<(DepositId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
+		) -> DispatchResult {
+			for (deposit_id, yield_farm_id) in farm_entries.iter() {
+				Self::withdraw_shares(origin.clone(), *deposit_id, *yield_farm_id)?;
+			}
 
 			Ok(())
 		}
