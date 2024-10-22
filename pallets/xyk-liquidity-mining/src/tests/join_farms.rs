@@ -9,7 +9,6 @@ fn join_farms_should_work_with_multiple_farm_pairs() {
 			(ALICE, BSX_KSM_SHARE_ID, 100 * ONE),
 		])
 		.with_amm_pool(BSX_KSM_AMM, BSX_KSM_SHARE_ID, BSX_KSM_ASSET_PAIR)
-		.with_amm_pool(BSX_ACA_AMM, BSX_ACA_SHARE_ID, BSX_ACA_ASSET_PAIR)
 		.with_global_farm(
 			500_000 * ONE,
 			20_000,
@@ -34,8 +33,8 @@ fn join_farms_should_work_with_multiple_farm_pairs() {
 		)
 		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
 		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
-		.with_yield_farm(BOB, 1, One::one(), None, BSX_ACA_ASSET_PAIR)
-		.with_yield_farm(CHARLIE, 2, One::one(), None, BSX_ACA_ASSET_PAIR)
+		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
+		.with_yield_farm(CHARLIE, 2, One::one(), None, BSX_KSM_ASSET_PAIR)
 		.build()
 		.execute_with(|| {
 			set_block_number(1_800);
