@@ -932,6 +932,104 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 	});
 }
 
+#[test]
+fn exit_farms_should_work_for_multiple_farms() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let global_farm_3_id = 3;
+		let yield_farm_1_id = 4;
+		let yield_farm_2_id = 5;
+		let yield_farm_3_id = 6;
+
+		//Arrange
+		init_omnipool();
+		seed_lm_pot();
+
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
+		set_relaychain_block_number(100);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
+		create_global_farm(None, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, ETH);
+		create_yield_farm(global_farm_2_id, ETH);
+		create_yield_farm(global_farm_2_id, DOT);
+
+		set_relaychain_block_number(300);
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CHARLIE.into(),
+			ETH,
+			10_000 * UNITS as i128,
+		));
+
+		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, 1_000 * UNITS);
+		assert_nft_owner!(
+			hydradx_runtime::OmnipoolCollectionId::get(),
+			position_id,
+			CHARLIE.into()
+		);
+
+		set_relaychain_block_number(350);
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CHARLIE.into(),
+			DOT,
+			10_000 * UNITS as i128,
+		));
+
+		let position_id2 = omnipool_add_liquidity(CHARLIE.into(), DOT, 1 * UNITS);
+		assert_nft_owner!(
+			hydradx_runtime::OmnipoolCollectionId::get(),
+			position_id2,
+			CHARLIE.into()
+		);
+
+		set_relaychain_block_number(400);
+		let deposit_id = 1;
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			global_farm_1_id,
+			yield_farm_1_id,
+			position_id
+		));
+
+		//Act
+		set_relaychain_block_number(500);
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			global_farm_2_id,
+			yield_farm_2_id,
+			deposit_id
+		));
+
+		let deposit_id2 = 2;
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			global_farm_2_id,
+			yield_farm_3_id,
+			position_id2
+		));
+
+		//Act
+		let farm_entries = vec![(deposit_id, yield_farm_1_id), (deposit_id, yield_farm_2_id), (deposit_id2, yield_farm_3_id)];
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::exit_farms(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			farm_entries.try_into().unwrap()
+		));
+
+		assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).is_none());
+		assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id2).is_none());
+	});
+}
+
 fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
