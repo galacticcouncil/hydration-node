@@ -1726,6 +1726,57 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 	});
 }
 
+#[test]
+fn evm_account_always_pays_with_weth_for_evm_call() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		// Arrange
+		let evm_address = EVMAccounts::evm_address(&evm_account());
+		assert!(EVMAccounts::is_evm_account(evm_account()));
+		assert_eq!(
+			hydradx_runtime::MultiTransactionPayment::account_currency(&evm_account()),
+			0
+		);
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			evm_account().into(),
+			WETH,
+			to_ether(1),
+			0,
+		));
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account().into(),
+			HDX,
+			0,
+		));
+		let mut padded_evm_address = [0u8; 32];
+		padded_evm_address[..20].copy_from_slice(&evm_address.as_bytes());
+
+		// Act
+		assert_ok!(EVM::call(
+			hydradx_runtime::RuntimeOrigin::signed(padded_evm_address.into()),
+			evm_address,
+			hydradx_runtime::evm::precompiles::IDENTITY,
+			vec![].into(),
+			U256::zero(),
+			1000000,
+			U256::from(1000000000),
+			None,
+			Some(U256::zero()),
+			[].into()
+		));
+
+		// Assert
+		assert_ne!(
+			Tokens::free_balance(WETH, &evm_account()),
+			to_ether(1),
+			"ether balance should be touched"
+		);
+	});
+}
+
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	hydradx_run_to_next_block();
