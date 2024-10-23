@@ -1672,6 +1672,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 fn substrate_account_should_pay_gas_with_payment_currency() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
 		// Arrange
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
@@ -1689,6 +1690,14 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 			to_ether(1),
 			0,
 		));
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			HDX,
+			100_000_000_000_000,
+		));
+
+		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
 
 		// Act
 		assert_ok!(EVM::call(
@@ -1710,6 +1719,10 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 			to_ether(1),
 			"ether balance shouldn't be touched"
 		);
+
+		let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+		let diff = initial_alice_hdx_balance - alice_hdx_balance;
+		assert!(diff > 0);
 	});
 }
 
