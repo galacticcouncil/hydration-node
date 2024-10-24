@@ -1,0 +1,36 @@
+[package]
+name = "ice-solver2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hydra-dx-math = { workspace =  true}
+pallet-ice = { workspace = true}
+pallet-omnipool = { workspace = true}
+sp-std = {workspace = true}
+sp-runtime = {workspace = true}
+orml-traits = {workspace = true}
+hydradx-traits = {workspace = true}
+
+#totsu = "0.10.2"
+clarabel = "0"
+serde = { version = "1.0.210", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1.0.129"
+rand = "0.8.5"
+
+
+[features]
+default = ["std"]
+std = [
+    "hydra-dx-math/std",
+    "pallet-ice/std",
+    "sp-std/std",
+    "pallet-omnipool/std",
+    "sp-runtime/std",
+    "orml-traits/std",
+    "hydradx-traits/std"
+]

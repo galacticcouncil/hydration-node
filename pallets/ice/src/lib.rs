@@ -24,10 +24,15 @@ use hydradx_traits::router::RouterT;
 use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use scale_info::TypeInfo;
+use sp_core::offchain::Duration;
+use sp_runtime::offchain::storage_lock::StorageLock;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member, Zero};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
+
+pub const SOLVER_LOCK: &[u8] = b"hydradx/ice/lock/";
+pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -101,6 +106,8 @@ pub mod pallet {
 
 		/// Price provider
 		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
+
+		type Solver: ICESolver<Intent<Self::AccountId, Self::AssetId>, Solution = SolverSolution<Self::AssetId>>;
 
 		/// Pallet id.
 		#[pallet::constant]
@@ -208,6 +215,16 @@ pub mod pallet {
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			SolutionScore::<T>::kill();
 			SolutionExecuted::<T>::kill();
+		}
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			// limit the cases when the offchain worker run
+			if sp_io::offchain::is_validator() {
+				Self::sette_intents(block_number);
+			}
 		}
 	}
 
@@ -430,5 +447,32 @@ impl<T: Config> Pallet<T> {
 			T::ProposalBond::get(),
 			Preservation::Expendable,
 		)
+	}
+
+	fn settle_intents(block_number: BlockNumberFor<T>) {
+
+		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
+		let mut lock = StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(SOLVER_LOCK, lock_expiration);
+
+
+		if let Ok(_guard) = lock.try_lock() {
+			// Get list of current intents,
+			let mut intents: Vec<(IntentId, Intent<T::AccountId, T::AssetId>)> = Intents::<T>::iter().collect();
+			intents.sort_by_key(|(_, intent)| intent.deadline);
+
+			// Retain non-expired intents
+			let now = T::TimestampProvider::now();
+			intents.retain(|(_, intent)| intent.deadline > now);
+
+			// Compute solution using solver
+			let Ok(solution) = T::Solver::solve(intents) else {
+				//TODO: log error
+				return;
+			};
+			
+
+
+
+		}
 	}
 }

@@ -1,3 +1,4 @@
+workspace = { members = ["support"] }
 [package]
 name = "pallet-ice"
 version = "1.0.0"
@@ -32,7 +33,6 @@ frame-system = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
-
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
