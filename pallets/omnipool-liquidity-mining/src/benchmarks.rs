@@ -35,6 +35,7 @@ const DAI: AssetId = 2;
 const BSX: AssetId = 1_000_001;
 const ETH: AssetId = 1_000_002;
 const BTC: AssetId = 1_000_003;
+const DOT: AssetId = 1_000_004;
 
 const G_FARM_TOTAL_REWARDS: Balance = 10_000_000 * ONE;
 const REWARD_CURRENCY: AssetId = HDX;
@@ -169,6 +170,20 @@ where
 		))
 	})?;
 
+	let name = b"DOT".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(T::AssetRegistry::register_sufficient_asset(
+			None,
+			Some(name),
+			AssetKind::Token,
+			Balance::one(),
+			None,
+			None,
+			None,
+			None,
+		))
+	})?;
+
 	// Create account for token provider and set balance
 	let owner: T::AccountId = account("owner", 0, 1);
 
@@ -178,6 +193,7 @@ where
 	<T as pallet_omnipool::Config>::Currency::update_balance(BSX.into(), &acc, token_amount as i128)?;
 	<T as pallet_omnipool::Config>::Currency::update_balance(ETH.into(), &acc, token_amount as i128)?;
 	<T as pallet_omnipool::Config>::Currency::update_balance(BTC.into(), &acc, token_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(DOT.into(), &acc, token_amount as i128)?;
 
 	// Add the token to the pool
 	OmnipoolPallet::<T>::add_token(
@@ -199,6 +215,14 @@ where
 	OmnipoolPallet::<T>::add_token(
 		RawOrigin::Root.into(),
 		BTC.into(),
+		token_price,
+		Permill::from_percent(100),
+		owner.clone(),
+	)?;
+
+	OmnipoolPallet::<T>::add_token(
+		RawOrigin::Root.into(),
+		DOT.into(),
 		token_price,
 		Permill::from_percent(100),
 		owner,
@@ -665,6 +689,69 @@ benchmarks! {
 		let farms = farms_entries[0..c as usize].to_vec();
 
 	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap(), BTC.into(), 10 * BTC_ONE)
+
+	exit_farms {
+		let c in 1..get_max_entries::<T>();
+
+		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner2 = create_funded_account::<T>("owner2", 1, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner3 = create_funded_account::<T>("owner3", 2, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner4 = create_funded_account::<T>("owner4", 3, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner5 = create_funded_account::<T>("owner5", 4, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+
+		let deposit_id = 1;
+
+		initialize_omnipool::<T>()?;
+
+		//gId: 1, yId: 2
+		initialize_global_farm::<T>(owner.clone())?;
+		initialize_yield_farm::<T>(owner, 1, BTC.into())?;
+
+		//gId: 3, yId: 4
+		initialize_global_farm::<T>(owner2.clone())?;
+		initialize_yield_farm::<T>(owner2, 3, DOT.into())?;
+
+		//gId: 5, yId: 6
+		initialize_global_farm::<T>(owner3.clone())?;
+		initialize_yield_farm::<T>(owner3, 5, DAI.into())?;
+
+		//gId: 7, yId: 8
+		initialize_global_farm::<T>(owner4.clone())?;
+		initialize_yield_farm::<T>(owner4, 7, ETH.into())?;
+
+		//gId: 9, yId: 10
+		initialize_global_farm::<T>(owner5.clone())?;
+		initialize_yield_farm::<T>(owner5, 9, BSX.into())?;
+
+		let lp1 = create_funded_account::<T>("lp_1", 5, 10 * BTC_ONE, BTC.into());
+		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), (1 * BTC_ONE).into())?;
+
+		fund::<T>(lp1.clone(), DOT.into(), 1_000 * ONE).unwrap();
+		let lp2_position_id = omnipool_add_liquidity::<T>(lp1.clone(), DOT.into(), (1 * ONE).into())?;
+
+		fund::<T>(lp1.clone(), DAI.into(), 1_000 * ONE).unwrap();
+		let lp3_position_id = omnipool_add_liquidity::<T>(lp1.clone(), DAI.into(), (1 * ONE).into())?;
+
+		fund::<T>(lp1.clone(), ETH.into(), 1_000 * ONE).unwrap();
+		let lp4_position_id = omnipool_add_liquidity::<T>(lp1.clone(), ETH.into(), (1 * ONE).into())?;
+
+		fund::<T>(lp1.clone(), BSX.into(), 1_000 * ONE).unwrap();
+		let lp5_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BSX.into(), (1 * ONE).into())?;
+
+		set_period::<T>(200);
+
+		lm_deposit_shares::<T>(lp1.clone(), 1, 2, lp1_position_id)?;
+		lm_deposit_shares::<T>(lp1.clone(), 3, 4, lp2_position_id)?;
+		lm_deposit_shares::<T>(lp1.clone(), 5, 6, lp3_position_id)?;
+		lm_deposit_shares::<T>(lp1.clone(), 7, 8, lp4_position_id)?;
+		lm_deposit_shares::<T>(lp1.clone(), 9, 10, lp5_position_id)?;
+
+		let farm_entries = vec![(1, 2), (2,4), (3,6), (4,8), (5, 10)];
+		let farms = farm_entries[0..c as usize].to_vec();
+
+		set_period::<T>(250);
+	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap())
+
 
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);

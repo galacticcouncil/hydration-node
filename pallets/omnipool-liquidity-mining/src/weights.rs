@@ -64,6 +64,8 @@ pub trait WeightInfo {
 	fn withdraw_shares() -> Weight;	
 	fn join_farms(c: u32) -> Weight;	
 	fn add_liquidity_and_join_farms(c: u32) -> Weight;
+
+	fn exit_farms(c: u32) -> Weight;
 }
 
 /// Weights for pallet_omnipool_liquidity_mining using the hydraDX node and recommended hardware.
@@ -443,5 +445,45 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(24_u64))
 			.saturating_add(RocksDbWeight::get().writes((2_u64).saturating_mul(c.into())))
 			.saturating_add(Weight::from_parts(0, 2680).saturating_mul(c.into()))
+	}
+
+	/// Storage: `Uniques::Asset` (r:10 w:10)
+	/// Proof: `Uniques::Asset` (`max_values`: None, `max_size`: Some(146), added: 2621, mode: `MaxEncodedLen`)
+	/// Storage: `OmnipoolLiquidityMining::OmniPositionId` (r:5 w:5)
+	/// Proof: `OmnipoolLiquidityMining::OmniPositionId` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `Omnipool::Positions` (r:5 w:0)
+	/// Proof: `Omnipool::Positions` (`max_values`: None, `max_size`: Some(100), added: 2575, mode: `MaxEncodedLen`)
+	/// Storage: `OmnipoolWarehouseLM::Deposit` (r:5 w:5)
+	/// Proof: `OmnipoolWarehouseLM::Deposit` (`max_values`: None, `max_size`: Some(385), added: 2860, mode: `MaxEncodedLen`)
+	/// Storage: `OmnipoolWarehouseLM::YieldFarm` (r:5 w:5)
+	/// Proof: `OmnipoolWarehouseLM::YieldFarm` (`max_values`: None, `max_size`: Some(198), added: 2673, mode: `MaxEncodedLen`)
+	/// Storage: `OmnipoolWarehouseLM::GlobalFarm` (r:5 w:5)
+	/// Proof: `OmnipoolWarehouseLM::GlobalFarm` (`max_values`: None, `max_size`: Some(205), added: 2680, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:8 w:8)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::Class` (r:2 w:1)
+	/// Proof: `Uniques::Class` (`max_values`: None, `max_size`: Some(190), added: 2665, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::Account` (r:0 w:15)
+	/// Proof: `Uniques::Account` (`max_values`: None, `max_size`: Some(112), added: 2587, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::ItemPriceOf` (r:0 w:10)
+	/// Proof: `Uniques::ItemPriceOf` (`max_values`: None, `max_size`: Some(113), added: 2588, mode: `MaxEncodedLen`)
+	/// The range of component `c` is `[1, 5]`.
+	fn exit_farms(c: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `4030 + c * (835 ±0)`
+		//  Estimated: `8799 + c * (5242 ±0)`
+		// Minimum execution time: 232_855_000 picoseconds.
+		Weight::from_parts(52_168_423, 8799)
+			// Standard Error: 104_322
+			.saturating_add(Weight::from_parts(185_804_196, 0).saturating_mul(c.into()))
+			.saturating_add(RocksDbWeight::get().reads(8_u64))
+			.saturating_add(RocksDbWeight::get().reads((8_u64).saturating_mul(c.into())))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+			.saturating_add(RocksDbWeight::get().writes((12_u64).saturating_mul(c.into())))
+			.saturating_add(Weight::from_parts(0, 5242).saturating_mul(c.into()))
 	}
 }

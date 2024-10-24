@@ -765,8 +765,15 @@ impl AggregatedPriceOracle<AssetId, BlockNumber, OraclePrice> for DummyOracle {
 				},
 				0,
 			)),
+			DAI => Ok((
+				OraclePrice {
+					n: 650_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
 			//Tokens used in benchmarks
-			1_000_001..=1_000_003 => Ok((
+			1_000_001..=1_000_004 => Ok((
 				OraclePrice {
 					n: 1_000_000_000_000_000_000,
 					d: 1_000_000_000_000_000_000,

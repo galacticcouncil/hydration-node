@@ -531,4 +531,60 @@ impl<T: frame_system::Config> pallet_xyk_liquidity_mining::WeightInfo for HydraW
 			.saturating_add(T::DbWeight::get().writes((3_u64).saturating_mul(c.into())))
 			.saturating_add(Weight::from_parts(0, 2701).saturating_mul(c.into()))
 	}
+
+	/// Storage: `Uniques::Asset` (r:5 w:5)
+	/// Proof: `Uniques::Asset` (`max_values`: None, `max_size`: Some(146), added: 2621, mode: `MaxEncodedLen`)
+	/// Storage: `XYK::ShareToken` (r:1 w:0)
+	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `XYKWarehouseLM::Deposit` (r:5 w:5)
+	/// Proof: `XYKWarehouseLM::Deposit` (`max_values`: None, `max_size`: Some(413), added: 2888, mode: `MaxEncodedLen`)
+	/// Storage: `XYKWarehouseLM::YieldFarm` (r:5 w:5)
+	/// Proof: `XYKWarehouseLM::YieldFarm` (`max_values`: None, `max_size`: Some(226), added: 2701, mode: `MaxEncodedLen`)
+	/// Storage: `XYKWarehouseLM::GlobalFarm` (r:5 w:5)
+	/// Proof: `XYKWarehouseLM::GlobalFarm` (`max_values`: None, `max_size`: Some(205), added: 2680, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:9 w:9)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Oracles` (r:1 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	/// Storage: `Router::SkipEd` (r:1 w:0)
+	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	/// Storage: `Duster::AccountBlacklist` (r:7 w:0)
+	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
+	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:8 w:2)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `XYK::PoolAssets` (r:1 w:0)
+	/// Proof: `XYK::PoolAssets` (`max_values`: None, `max_size`: Some(56), added: 2531, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::Class` (r:1 w:1)
+	/// Proof: `Uniques::Class` (`max_values`: None, `max_size`: Some(190), added: 2665, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
+	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `Balances::Locks` (r:1 w:1)
+	/// Proof: `Balances::Locks` (`max_values`: None, `max_size`: Some(1299), added: 3774, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::ExistentialDepositCounter` (r:1 w:1)
+	/// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
+	/// Storage: `Balances::Freezes` (r:1 w:0)
+	/// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::Account` (r:0 w:5)
+	/// Proof: `Uniques::Account` (`max_values`: None, `max_size`: Some(112), added: 2587, mode: `MaxEncodedLen`)
+	/// Storage: `Uniques::ItemPriceOf` (r:0 w:5)
+	/// Proof: `Uniques::ItemPriceOf` (`max_values`: None, `max_size`: Some(113), added: 2588, mode: `MaxEncodedLen`)
+	/// The range of component `c` is `[1, 5]`.
+	fn exit_farms(c: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `7678 + c * (874 ±0)`
+		//  Estimated: `11322 + c * (2888 ±0)`
+		// Minimum execution time: 277_699_000 picoseconds.
+		Weight::from_parts(77_674_907, 11322)
+			// Standard Error: 411_899
+			.saturating_add(Weight::from_parts(202_700_122, 0).saturating_mul(c.into()))
+			.saturating_add(T::DbWeight::get().reads(17_u64))
+			.saturating_add(T::DbWeight::get().reads((7_u64).saturating_mul(c.into())))
+			.saturating_add(T::DbWeight::get().writes(5_u64))
+			.saturating_add(T::DbWeight::get().writes((7_u64).saturating_mul(c.into())))
+			.saturating_add(Weight::from_parts(0, 2888).saturating_mul(c.into()))
+	}
 }
