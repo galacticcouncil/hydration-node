@@ -147,7 +147,7 @@ impl pallet_evm::Config for crate::Runtime {
 	type GasWeightMapping = FixedHydraGasWeightMapping<Self>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,
-		FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
+		FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<crate::Runtime>>, // Get account's fee payment asset
 		WethAssetId,
 		ConvertAmount<ShortOraclePrice>,
 		FungibleCurrencies<crate::Runtime>, // Multi currency support
@@ -161,8 +161,8 @@ impl pallet_evm::Config for crate::Runtime {
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			crate::Runtime,
 			ConvertAmount<ShortOraclePrice>,
-			FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
-			FungibleCurrencies<crate::Runtime>,        // Account balance inspector
+			FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<crate::Runtime>>, // Get account's fee payment asset
+			FungibleCurrencies<crate::Runtime>,                                     // Account balance inspector
 		>,
 	>;
 	type RuntimeEvent = crate::RuntimeEvent;
