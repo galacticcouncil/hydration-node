@@ -152,6 +152,7 @@ pub mod pallet {
 		/// AssetRegistry used to retrieve information about asset.
 		type AssetRegistry: RegistryInspect<AssetId = AssetId>;
 
+		/// Max farm entries per deposit.
 		type MaxFarmEntriesPerDeposit: Get<u32>;
 
 		/// Weight information for extrinsic in this module.
@@ -787,7 +788,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmsSpecified);
-			//TODO: write in channel if we need withdraw all?!
 
 			let asset_pair = AssetPair {
 				asset_in: asset_a,
@@ -971,7 +971,7 @@ pub mod pallet {
 		/// * `DepositDestroyed` if the deposit is fully withdrawn
 		///
 		#[pallet::call_index(14)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())] //TODO: add benchmark
+		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32))]
 		pub fn exit_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(DepositId, YieldFarmId, AssetPair), T::MaxFarmEntriesPerDeposit>,

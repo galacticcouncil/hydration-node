@@ -982,7 +982,7 @@ pub mod pallet {
 		/// * `DepositDestroyed` if the deposit is fully withdrawn
 		///
 		#[pallet::call_index(15)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())]//TODO: add proper benchmark
+		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32))]
 		pub fn exit_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(DepositId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
