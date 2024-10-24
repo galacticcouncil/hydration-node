@@ -1019,7 +1019,11 @@ fn exit_farms_should_work_for_multiple_farms() {
 		));
 
 		//Act
-		let farm_entries = vec![(deposit_id, yield_farm_1_id), (deposit_id, yield_farm_2_id), (deposit_id2, yield_farm_3_id)];
+		let farm_entries = vec![
+			(deposit_id, yield_farm_1_id),
+			(deposit_id, yield_farm_2_id),
+			(deposit_id2, yield_farm_3_id),
+		];
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::exit_farms(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			farm_entries.try_into().unwrap()

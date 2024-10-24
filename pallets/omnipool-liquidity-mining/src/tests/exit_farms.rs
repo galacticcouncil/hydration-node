@@ -101,7 +101,7 @@ fn exit_farm_should_work_for_multiple_farm_entries() {
 					reward_currency: HDX,
 					deposit_id
 				}
-					.into()
+				.into()
 			));
 
 			assert!(has_event(
@@ -112,7 +112,7 @@ fn exit_farm_should_work_for_multiple_farm_entries() {
 					amount: 2_000_000_000_000_000,
 					deposit_id
 				}
-					.into()
+				.into()
 			));
 
 			assert!(has_event(
@@ -124,7 +124,7 @@ fn exit_farm_should_work_for_multiple_farm_entries() {
 					reward_currency: HDX,
 					deposit_id
 				}
-					.into()
+				.into()
 			));
 
 			assert!(has_event(
@@ -135,7 +135,7 @@ fn exit_farm_should_work_for_multiple_farm_entries() {
 					amount: 2_000_000_000_000_000,
 					deposit_id
 				}
-					.into()
+				.into()
 			));
 
 			assert_last_event!(crate::Event::DepositDestroyed { who: LP1, deposit_id }.into());
@@ -222,10 +222,10 @@ fn exit_farm_should_fail_with_no_origin() {
 
 			//Act and assert
 			let farm_entries = vec![(deposit_id, gc_y_farm_id), (deposit_id, charlie_y_farm_id)];
-			assert_noop!(OmnipoolMining::exit_farms(
-				RuntimeOrigin::none(),
-				farm_entries.try_into().unwrap()
-			), BadOrigin);
+			assert_noop!(
+				OmnipoolMining::exit_farms(RuntimeOrigin::none(), farm_entries.try_into().unwrap()),
+				BadOrigin
+			);
 		});
 }
 
@@ -298,9 +298,9 @@ fn exit_farm_should_fail_with_non_nft_owner() {
 
 			//Act and assert
 			let farm_entries = vec![(deposit_id, gc_y_farm_id), (deposit_id, charlie_y_farm_id)];
-			assert_noop!(OmnipoolMining::exit_farms(
-				RuntimeOrigin::signed(LP2),
-				farm_entries.try_into().unwrap()
-			), Error::<Test>::Forbidden);
+			assert_noop!(
+				OmnipoolMining::exit_farms(RuntimeOrigin::signed(LP2), farm_entries.try_into().unwrap()),
+				Error::<Test>::Forbidden
+			);
 		});
 }

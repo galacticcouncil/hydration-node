@@ -966,7 +966,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-
 		/// Exit from all specified yield farms
 		///
 		/// This function will attempt to withdraw shares and claim rewards (if available) from all

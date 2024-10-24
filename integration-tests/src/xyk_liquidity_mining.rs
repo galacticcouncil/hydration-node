@@ -1198,7 +1198,11 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 			dave_shares_balance2,
 		));
 
-		let exit_entries = vec![(deposit_id, yield_farm_1_id, asset_pair), (deposit_id, yield_farm_2_id, asset_pair), (deposit_id2, yield_farm_3_id, asset_pair2)];
+		let exit_entries = vec![
+			(deposit_id, yield_farm_1_id, asset_pair),
+			(deposit_id, yield_farm_2_id, asset_pair),
+			(deposit_id2, yield_farm_3_id, asset_pair2),
+		];
 		assert_ok!(XYKLiquidityMining::exit_farms(
 			RuntimeOrigin::signed(DAVE.into()),
 			exit_entries.try_into().unwrap()
@@ -1208,13 +1212,19 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 		assert!(XYKWarehouseLM::deposit(deposit_id).is_none());
 		assert!(XYKWarehouseLM::deposit(deposit_id2).is_none());
 
-		assert_eq!(Currencies::free_balance(xyk_share_id, &DAVE.into()), dave_shares_balance);
+		assert_eq!(
+			Currencies::free_balance(xyk_share_id, &DAVE.into()),
+			dave_shares_balance
+		);
 		assert_eq!(
 			Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id()),
-			 Balance::zero()
+			Balance::zero()
 		);
 
-		assert_eq!(Currencies::free_balance(xyk_share_id2, &DAVE.into()), dave_shares_balance2);
+		assert_eq!(
+			Currencies::free_balance(xyk_share_id2, &DAVE.into()),
+			dave_shares_balance2
+		);
 		assert_eq!(
 			Currencies::free_balance(xyk_share_id2, &XYKLiquidityMining::account_id()),
 			Balance::zero()
