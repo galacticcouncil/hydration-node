@@ -93,7 +93,11 @@ use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
 use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
+use crate::traits::ShouldAllow;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_system::ensure_signed;
+use frame_system::pallet_prelude::OriginFor;
+use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
@@ -123,7 +127,7 @@ pub type NFTCollectionIdOf<T> =
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks, ShouldAllow};
+	use crate::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
@@ -620,125 +624,7 @@ pub mod pallet {
 			amount: Balance,
 			min_shares_limit: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin.clone())?;
-
-			ensure!(
-				amount >= T::MinimumPoolLiquidity::get(),
-				Error::<T>::InsufficientLiquidity
-			);
-
-			ensure!(
-				T::Currency::ensure_can_withdraw(asset, &who, amount).is_ok(),
-				Error::<T>::InsufficientBalance
-			);
-
-			let asset_state = Self::load_asset_state(asset)?;
-
-			ensure!(
-				asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
-				Error::<T>::NotAllowed
-			);
-
-			T::PriceBarrier::ensure_price(
-				&who,
-				T::HubAssetId::get(),
-				asset,
-				EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
-			)
-			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
-
-			let current_imbalance = <HubAssetImbalance<T>>::get();
-			let current_hub_asset_liquidity =
-				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-
-			//
-			// Calculate add liquidity state changes
-			//
-			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
-				&(&asset_state).into(),
-				amount,
-				I129 {
-					value: current_imbalance.value,
-					negative: current_imbalance.negative,
-				},
-				current_hub_asset_liquidity,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			ensure!(
-				*state_changes.asset.delta_shares >= min_shares_limit,
-				Error::<T>::SlippageLimit
-			);
-
-			let new_asset_state = asset_state
-				.delta_update(&state_changes.asset)
-				.ok_or(ArithmeticError::Overflow)?;
-
-			let hub_reserve_ratio = FixedU128::checked_from_rational(
-				new_asset_state.hub_reserve,
-				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
-					.checked_add(*state_changes.asset.delta_hub_reserve)
-					.ok_or(ArithmeticError::Overflow)?,
-			)
-			.ok_or(ArithmeticError::DivisionByZero)?;
-
-			ensure!(
-				hub_reserve_ratio <= new_asset_state.weight_cap(),
-				Error::<T>::AssetWeightCapExceeded
-			);
-
-			// Create LP position with given shares
-			let lp_position = Position::<Balance, T::AssetId> {
-				asset_id: asset,
-				amount,
-				shares: *state_changes.asset.delta_shares,
-				// Note: position needs price after asset state is updated.
-				price: (new_asset_state.hub_reserve, new_asset_state.reserve),
-			};
-
-			let instance_id = Self::create_and_mint_position_instance(&who)?;
-
-			<Positions<T>>::insert(instance_id, lp_position);
-
-			Self::deposit_event(Event::PositionCreated {
-				position_id: instance_id,
-				owner: who.clone(),
-				asset,
-				amount,
-				shares: *state_changes.asset.delta_shares,
-				price: new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
-			});
-
-			T::Currency::transfer(
-				asset,
-				&who,
-				&Self::protocol_account(),
-				*state_changes.asset.delta_reserve,
-			)?;
-
-			debug_assert_eq!(*state_changes.asset.delta_reserve, amount);
-
-			// Callback hook info
-			let info: AssetInfo<T::AssetId, Balance> =
-				AssetInfo::new(asset, &asset_state, &new_asset_state, &state_changes.asset, false);
-
-			Self::update_imbalance(state_changes.delta_imbalance)?;
-
-			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
-
-			Self::set_asset_state(asset, new_asset_state);
-
-			Self::deposit_event(Event::LiquidityAdded {
-				who,
-				asset_id: asset,
-				amount,
-				position_id: instance_id,
-			});
-
-			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
-
-			#[cfg(feature = "try-runtime")]
-			Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state));
+			let _ = Self::do_add_liquidity_with_limit(origin, asset, amount, min_shares_limit)?;
 
 			Ok(())
 		}
@@ -2157,6 +2043,135 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 		Ok(())
+	}
+
+	#[require_transactional]
+	pub fn do_add_liquidity_with_limit(
+		origin: OriginFor<T>,
+		asset: T::AssetId,
+		amount: Balance,
+		min_shares_limit: Balance,
+	) -> Result<T::PositionItemId, DispatchError> {
+		let who = ensure_signed(origin.clone())?;
+
+		ensure!(
+			amount >= T::MinimumPoolLiquidity::get(),
+			Error::<T>::InsufficientLiquidity
+		);
+
+		ensure!(
+			T::Currency::ensure_can_withdraw(asset, &who, amount).is_ok(),
+			Error::<T>::InsufficientBalance
+		);
+
+		let asset_state = Self::load_asset_state(asset)?;
+
+		ensure!(
+			asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
+			Error::<T>::NotAllowed
+		);
+
+		T::PriceBarrier::ensure_price(
+			&who,
+			T::HubAssetId::get(),
+			asset,
+			EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
+		)
+		.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
+
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+		//
+		// Calculate add liquidity state changes
+		//
+		let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
+			&(&asset_state).into(),
+			amount,
+			I129 {
+				value: current_imbalance.value,
+				negative: current_imbalance.negative,
+			},
+			current_hub_asset_liquidity,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(
+			*state_changes.asset.delta_shares >= min_shares_limit,
+			Error::<T>::SlippageLimit
+		);
+
+		let new_asset_state = asset_state
+			.delta_update(&state_changes.asset)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		let hub_reserve_ratio = FixedU128::checked_from_rational(
+			new_asset_state.hub_reserve,
+			T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
+				.checked_add(*state_changes.asset.delta_hub_reserve)
+				.ok_or(ArithmeticError::Overflow)?,
+		)
+		.ok_or(ArithmeticError::DivisionByZero)?;
+
+		ensure!(
+			hub_reserve_ratio <= new_asset_state.weight_cap(),
+			Error::<T>::AssetWeightCapExceeded
+		);
+
+		// Create LP position with given shares
+		let lp_position = Position::<Balance, T::AssetId> {
+			asset_id: asset,
+			amount,
+			shares: *state_changes.asset.delta_shares,
+			// Note: position needs price after asset state is updated.
+			price: (new_asset_state.hub_reserve, new_asset_state.reserve),
+		};
+
+		let instance_id = Self::create_and_mint_position_instance(&who)?;
+
+		<Positions<T>>::insert(instance_id, lp_position);
+
+		Self::deposit_event(Event::PositionCreated {
+			position_id: instance_id,
+			owner: who.clone(),
+			asset,
+			amount,
+			shares: *state_changes.asset.delta_shares,
+			price: new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
+		});
+
+		T::Currency::transfer(
+			asset,
+			&who,
+			&Self::protocol_account(),
+			*state_changes.asset.delta_reserve,
+		)?;
+
+		debug_assert_eq!(*state_changes.asset.delta_reserve, amount);
+
+		// Callback hook info
+		let info: AssetInfo<T::AssetId, Balance> =
+			AssetInfo::new(asset, &asset_state, &new_asset_state, &state_changes.asset, false);
+
+		Self::update_imbalance(state_changes.delta_imbalance)?;
+
+		Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
+
+		Self::set_asset_state(asset, new_asset_state);
+
+		Self::deposit_event(Event::LiquidityAdded {
+			who,
+			asset_id: asset,
+			amount,
+			position_id: instance_id,
+		});
+
+		T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
+		#[cfg(feature = "try-runtime")]
+		Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state));
+
+		Ok(instance_id)
 	}
 
 	#[cfg(feature = "try-runtime")]
