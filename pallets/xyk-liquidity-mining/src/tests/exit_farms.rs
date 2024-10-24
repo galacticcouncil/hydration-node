@@ -73,7 +73,7 @@ fn exit_farms_should_work_for_all_joined_farms() {
 						who: ALICE,
 						claimed: 20_000_000 * ONE,
 						reward_currency: BSX,
-						deposit_id: deposit_id,
+						deposit_id,
 					}
 					.into(),
 				),
@@ -103,7 +103,7 @@ fn exit_farms_should_work_for_all_joined_farms() {
 						who: ALICE,
 						claimed: 20_000_000 * ONE,
 						reward_currency: BSX,
-						deposit_id: deposit_id,
+						deposit_id,
 					}
 					.into(),
 				),

@@ -686,7 +686,7 @@ runtime_benchmarks! {
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 7, 8, pair, 10 * ONE)?;
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 9, 10, pair, 10 * ONE)?;
 
-		let farm_entries = vec![(1, yfarm_id1, pair), (2, 4, pair), (3, 6, pair), (4, 8, pair), (5, 10, pair)];
+		let farm_entries = [(1, yfarm_id1, pair), (2, 4, pair), (3, 6, pair), (4, 8, pair), (5, 10, pair)];
 		let farms = farm_entries[0..c as usize].to_vec();
 
 		run_to_block(400);

@@ -724,19 +724,19 @@ benchmarks! {
 		initialize_yield_farm::<T>(owner5, 9, BSX.into())?;
 
 		let lp1 = create_funded_account::<T>("lp_1", 5, 10 * BTC_ONE, BTC.into());
-		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), (1 * BTC_ONE).into())?;
+		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), BTC_ONE)?;
 
 		fund::<T>(lp1.clone(), DOT.into(), 1_000 * ONE).unwrap();
-		let lp2_position_id = omnipool_add_liquidity::<T>(lp1.clone(), DOT.into(), (1 * ONE).into())?;
+		let lp2_position_id = omnipool_add_liquidity::<T>(lp1.clone(), DOT.into(), ONE)?;
 
 		fund::<T>(lp1.clone(), DAI.into(), 1_000 * ONE).unwrap();
-		let lp3_position_id = omnipool_add_liquidity::<T>(lp1.clone(), DAI.into(), (1 * ONE).into())?;
+		let lp3_position_id = omnipool_add_liquidity::<T>(lp1.clone(), DAI.into(), ONE)?;
 
 		fund::<T>(lp1.clone(), ETH.into(), 1_000 * ONE).unwrap();
-		let lp4_position_id = omnipool_add_liquidity::<T>(lp1.clone(), ETH.into(), (1 * ONE).into())?;
+		let lp4_position_id = omnipool_add_liquidity::<T>(lp1.clone(), ETH.into(), ONE)?;
 
 		fund::<T>(lp1.clone(), BSX.into(), 1_000 * ONE).unwrap();
-		let lp5_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BSX.into(), (1 * ONE).into())?;
+		let lp5_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BSX.into(), ONE)?;
 
 		set_period::<T>(200);
 
@@ -746,7 +746,7 @@ benchmarks! {
 		lm_deposit_shares::<T>(lp1.clone(), 7, 8, lp4_position_id)?;
 		lm_deposit_shares::<T>(lp1.clone(), 9, 10, lp5_position_id)?;
 
-		let farm_entries = vec![(1, 2), (2,4), (3,6), (4,8), (5, 10)];
+		let farm_entries = [(1, 2), (2,4), (3,6), (4,8), (5, 10)];
 		let farms = farm_entries[0..c as usize].to_vec();
 
 		set_period::<T>(250);

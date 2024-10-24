@@ -66,7 +66,6 @@ fn exit_farm_should_work_for_multiple_farm_entries() {
 			let charlie_y_farm_id = 4;
 			let omnipool_position_id = 2;
 			let deposit_id = 1;
-			let asset_in_position = KSM;
 
 			//Arrange
 			assert_ok!(OmnipoolMining::deposit_shares(
@@ -203,7 +202,6 @@ fn exit_farm_should_fail_with_no_origin() {
 			let charlie_y_farm_id = 4;
 			let omnipool_position_id = 2;
 			let deposit_id = 1;
-			let asset_in_position = KSM;
 
 			//Arrange
 			assert_ok!(OmnipoolMining::deposit_shares(
@@ -280,7 +278,6 @@ fn exit_farm_should_fail_with_non_nft_owner() {
 			let charlie_y_farm_id = 4;
 			let omnipool_position_id = 2;
 			let deposit_id = 1;
-			let asset_in_position = KSM;
 
 			//Arrange
 			assert_ok!(OmnipoolMining::deposit_shares(
