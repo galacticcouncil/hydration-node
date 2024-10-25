@@ -5241,7 +5241,6 @@ dependencies = [
  "orml-traits",
  "pallet-ice",
  "rand",
- "serde_json",
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
 ]
@@ -8505,7 +8504,6 @@ dependencies = [
  "parity-scale-codec",
  "pretty_assertions",
  "scale-info",
- "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",

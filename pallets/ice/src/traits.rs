@@ -2,7 +2,7 @@ use crate::types::{Balance, ResolvedIntent};
 use frame_support::weights::Weight;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::Trade;
-use serde::Deserialize;
+//use serde::Deserialize;
 use sp_runtime::traits::Bounded;
 use sp_runtime::{FixedU128, Permill};
 
@@ -37,7 +37,7 @@ pub trait Solver<Intent> {
 	fn solve(intents: Vec<Intent>) -> Result<Vec<ResolvedIntent>, Self::Error>;
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct OmnipoolAssetInfo<AssetId> {
 	pub asset_id: AssetId,
 	pub reserve: Balance,
