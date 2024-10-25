@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-extern crate core;
 
 use crate::{rational_to_f64, to_f64_by_decimals, SolverSolution};
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Routing, Solver};

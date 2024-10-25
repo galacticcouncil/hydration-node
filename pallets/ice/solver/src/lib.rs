@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-extern crate core;
 
 use crate::traits::IceSolution;
 use hydra_dx_math::ratio::Ratio;

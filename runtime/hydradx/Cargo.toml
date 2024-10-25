@@ -332,6 +332,7 @@ std = [
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
     "pallet-ice/std",
+    "ice-solver/std",
 ]
 try-runtime = [
     "frame-try-runtime",
