@@ -1,6 +1,6 @@
 [package]
 name = "pallet-asset-registry"
-version = "3.2.4"
+version = "3.3.0"
 description = "Pallet for asset registry management"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -14,10 +14,10 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
-codec = { default-features = false, features = ["derive", "max-encoded-len"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
-primitive-types = { default-features = false, version = "0.12.0" }
-serde = { features = ["derive"], optional = true, version = "1.0.137" }
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
+primitive-types = { workspace = true }
+serde = { workspace = true, optional = true }
 log = { workspace = true }
 
 # ORML dependencies
@@ -37,35 +37,36 @@ hydradx-traits = { workspace = true }
 # Optionals
 frame-benchmarking = { workspace = true, optional = true }
 sp-api = { workspace = true, optional = true }
+polkadot-xcm = { workspace = true }
 
 [dev-dependencies]
 orml-tokens = { workspace = true }
 sp-io = { workspace = true }
-polkadot-xcm = { workspace = true }
 test-utils = { workspace = true }
-pretty_assertions = "1.2.1"
+pretty_assertions = { workspace = true }
+hex-literal = { workspace = true }
 
 [features]
 default = ["std"]
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-system/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
 ]
 std = [
-  "serde/std",
-  "codec/std",
-  "frame-support/std",
-  "frame-system/std",
-  "sp-runtime/std",
-  "sp-core/std",
-  "sp-std/std",
-  "hydradx-traits/std",
-  "sp-api/std",
-  "frame-benchmarking/std",
-  "scale-info/std",
-  "polkadot-xcm/std",
-  "orml-tokens/std",
+    "serde/std",
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "hydradx-traits/std",
+    "sp-api/std",
+    "frame-benchmarking/std",
+    "scale-info/std",
+    "polkadot-xcm/std",
+    "orml-tokens/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
 

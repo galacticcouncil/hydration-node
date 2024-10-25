@@ -30,7 +30,7 @@ use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle};
 use orml_traits::{parameter_type_with_key, GetByKey};
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use primitive_types::U128;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
@@ -91,22 +91,22 @@ lazy_static::lazy_static! {
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
-	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
+	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_OUT_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
 	pub static MIN_BUDGET: RefCell<Balance> = RefCell::new(*ORIGINAL_MIN_BUDGET_IN_NATIVE);
-	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
-	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
-	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
+	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = const { RefCell::new(vec![]) };
+	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = const { RefCell::new(vec![]) };
+	pub static SET_OMNIPOOL_ON: RefCell<bool> = const { RefCell::new(true) };
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
-	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static CALCULATED_AMOUNT_OUT_FOR_SELL: RefCell<Balance> = RefCell::new(*AMOUNT_OUT_FOR_OMNIPOOL_SELL);
-	pub static USE_PROD_RANDOMNESS: RefCell<bool> = RefCell::new(false);
+	pub static USE_PROD_RANDOMNESS: RefCell<bool> = const { RefCell::new(false) };
 	pub static PARENT_HASH: RefCell<Option<Hash>> = RefCell::new(Some([
 			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
 			135, 250, 171, 69, 205, 241, 47, 227, 168,
@@ -190,6 +190,11 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 pub type Amount = i128;
@@ -338,6 +343,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }

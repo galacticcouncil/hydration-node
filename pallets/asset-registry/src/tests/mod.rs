@@ -4,6 +4,7 @@ use crate::*;
 use frame_support::{assert_noop, assert_ok};
 
 mod create_trait;
+mod evm;
 mod inspect_trait;
 pub(crate) mod mock;
 mod mutate_trait;

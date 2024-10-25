@@ -1,6 +1,6 @@
 [package]
 name = "pallet-evm-accounts"
-version = "1.1.2"
+version = "1.2.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -13,10 +13,10 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+scale-info = { workspace = true }
+codec = { workspace = true }
+
 hydradx-traits = { workspace = true }
-# parity
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 
 frame-support = { workspace = true }
 frame-system = { workspace = true }
@@ -34,23 +34,23 @@ frame-benchmarking = { workspace = true }
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
 test-utils = { workspace = true }
-hex-literal = "0.4.1"
+hex-literal = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
-	"codec/std",
-	"scale-info/std",
-	"sp-std/std",
-	"sp-core/std",
-	"sp-io/std",
-	"frame-support/std",
-	"frame-system/std",
-	"orml-tokens/std",
-	"frame-benchmarking/std",
+    "codec/std",
+    "scale-info/std",
+    "sp-std/std",
+    "sp-core/std",
+    "sp-io/std",
+    "frame-support/std",
+    "frame-system/std",
+    "orml-tokens/std",
+    "frame-benchmarking/std",
 ]
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"sp-io",
+    "frame-benchmarking/runtime-benchmarks",
+    "sp-io",
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = ["frame-support/try-runtime"]

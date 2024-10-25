@@ -47,10 +47,15 @@ pub use pallet::*;
 pub use crate::types::{AssetDetails, Balance, Name, Symbol};
 use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
+use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	registry::{Create, Inspect, Mutate},
-	AssetKind,
+	AssetKind, BoundErc20, RegisterAssetHook,
 };
+use orml_traits::GetByKey;
+use polkadot_xcm::v3::Junction::AccountKey20;
+use polkadot_xcm::v3::Junctions::X1;
+use polkadot_xcm::v3::MultiLocation;
 use sp_runtime::TransactionOutcome;
 
 /// Default value of existential deposit. This value is used if existential deposit wasn't
@@ -109,6 +114,9 @@ pub mod pallet {
 		/// Weight multiplier for `register_external` extrinsic
 		#[pallet::constant]
 		type RegExternalWeightMultiplier: Get<u64>;
+
+		/// Hook executed after new asset is registered
+		type RegisterAssetHook: RegisterAssetHook<Self::AssetId>;
 
 		/// Weight information for the extrinsics
 		type WeightInfo: WeightInfo;
@@ -600,6 +608,8 @@ impl<T: Config> Pallet<T> {
 			Self::do_set_location(asset_id, loc)?;
 		}
 
+		T::RegisterAssetHook::on_register_asset(asset_id);
+
 		Self::deposit_event(Event::Registered {
 			asset_id,
 			asset_name: details.name.clone(),
@@ -624,8 +634,6 @@ impl<T: Config> Pallet<T> {
 		Self::location_assets(location)
 	}
 }
-
-use orml_traits::GetByKey;
 
 // Return Existential deposit of an asset
 impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
@@ -754,6 +762,25 @@ impl<T: Config> Create<Balance> for Pallet<T> {
 
 				Self::do_register_asset(None, &details, location)
 			}
+		}
+	}
+}
+
+impl<T> BoundErc20 for Pallet<T>
+where
+	T: Config,
+	T::AssetNativeLocation: Into<MultiLocation>,
+{
+	fn contract_address(id: Self::AssetId) -> Option<EvmAddress> {
+		if Self::asset_type(id)? == AssetKind::Erc20 {
+			let location: MultiLocation = Self::asset_to_location(id).unwrap_or_default().into();
+			if let X1(AccountKey20 { key, .. }) = location.interior {
+				Some(key.into())
+			} else {
+				Some(Default::default())
+			}
+		} else {
+			None
 		}
 	}
 }
