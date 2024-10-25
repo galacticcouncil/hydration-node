@@ -25,7 +25,7 @@ where
 				//TODO: unwraps?!
 				let state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_id.into()).unwrap();
 				let decimals = pallet_asset_registry::Pallet::<T>::decimals(asset_id.into()).unwrap();
-				let (asset_fee, hub_fee)= pallet_dynamic_fees::Pallet::<T>::get_fee(asset_id);
+				let (asset_fee, hub_fee) = pallet_dynamic_fees::Pallet::<T>::get_fee(asset_id);
 				assets.push(OmnipoolAssetInfo {
 					asset_id: asset_id.into(),
 					reserve: state.reserve,
@@ -40,7 +40,7 @@ where
 			let mut assets = vec![];
 			for (asset_id, state) in pallet_omnipool::Pallet::<T>::omnipool_state() {
 				let decimals = pallet_asset_registry::Pallet::<T>::decimals(asset_id.into()).unwrap();
-				let (asset_fee, hub_fee)= pallet_dynamic_fees::Pallet::<T>::get_fee(asset_id);
+				let (asset_fee, hub_fee) = pallet_dynamic_fees::Pallet::<T>::get_fee(asset_id);
 				assets.push(OmnipoolAssetInfo {
 					asset_id: asset_id.into(),
 					reserve: state.reserve,

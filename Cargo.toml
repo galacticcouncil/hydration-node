@@ -45,7 +45,6 @@ members = [
   'runtime-mock',
   "pallets/ice",
   "pallets/ice/solver",
-  "pallets/ice/solver2",
 ]
 
 resolver = "2"
@@ -109,7 +108,6 @@ pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false}
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false}
 pallet-ice = { path = "pallets/ice", default-features = false}
 ice-solver = { path = "pallets/ice/solver", default-features = false}
-ice-solver2 = { path = "pallets/ice/solver2", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

@@ -1,4 +1,4 @@
-use crate::types::Balance;
+use crate::types::{Balance, ResolvedIntent};
 use frame_support::weights::Weight;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::Trade;
@@ -32,10 +32,9 @@ impl<RuntimeCall, Route> IceWeightBounds<RuntimeCall, Route> for () {
 }
 
 pub trait Solver<Intent> {
-	type ResolvedIntent;
 	type Error;
 
-	fn solve(intents: Vec<Intent>) -> Result<Vec<Self::ResolvedIntent>, Self::Error>;
+	fn solve(intents: Vec<Intent>) -> Result<Vec<ResolvedIntent>, Self::Error>;
 }
 
 #[derive(Debug, Deserialize)]

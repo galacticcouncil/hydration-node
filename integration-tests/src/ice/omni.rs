@@ -1,7 +1,8 @@
-use crate::ice::{solve_intents_with, submit_intents, OmnipoolDataProvider, SolverRoutingSupport, PATH_TO_SNAPSHOT};
+use crate::ice::{solve_intents_with, submit_intents, PATH_TO_SNAPSHOT};
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
+use hydradx_adapters::ice::{IceRoutingSupport, OmnipoolDataProvider};
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_runtime::{
@@ -17,11 +18,11 @@ use sp_runtime::traits::BlockNumberProvider;
 type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
-type OmniSolverWithOmnipool = ice_solver2::omni::OmniSolver<
+type OmniSolverWithOmnipool = ice_solver::omni::OmniSolver<
 	AccountId,
 	AssetId,
-	OmnipoolDataProvider,
-	SolverRoutingSupport<Router, Router, PriceP>,
+	OmnipoolDataProvider<hydradx_runtime::Runtime>,
+	IceRoutingSupport<Router, Router, PriceP, hydradx_runtime::RuntimeOrigin>,
 >;
 
 #[test]
@@ -49,7 +50,10 @@ fn solver_should_find_solution_with_one_intent() {
 		);
 
 		let intents = vec![intent1];
-		let (resolved, trades, score) = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
+		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
+
+		let trades = BoundedTrades::new();
+		let score = 0;
 
 		assert_eq!(
 			resolved.to_vec(),
@@ -119,7 +123,9 @@ fn execute_solution_should_work_with_solved_intents() {
 			intent_ids[0],
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)];
-		let (resolved, trades, score) = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
+		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
+		let trades = BoundedTrades::new();
+		let score = 0;
 
 		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),

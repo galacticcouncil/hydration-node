@@ -108,11 +108,7 @@ pub mod pallet {
 		/// Price provider
 		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
 
-		type Solver: traits::Solver<
-			(IntentId, Intent<Self::AccountId, Self::AssetId>),
-			ResolvedIntent = ResolvedIntent,
-			Error = (),
-		>;
+		type Solver: traits::Solver<(IntentId, Intent<Self::AccountId, Self::AssetId>), Error = ()>;
 
 		/// Pallet id.
 		#[pallet::constant]

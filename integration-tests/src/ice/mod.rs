@@ -1,6 +1,5 @@
 mod intents;
 mod omni;
-mod solution;
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
@@ -13,24 +12,24 @@ use hydradx_runtime::{
 };
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::AssetPair;
-use ice_solver::traits::{ICESolver, IceSolution, OmnipoolAssetInfo, OmnipoolInfo, Routing};
+use ice_solver::traits::IceSolution;
 use orml_traits::MultiCurrency;
-use pallet_ice::types::{Balance, BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
+use pallet_ice::traits::Solver;
+use pallet_ice::types::{Balance, BoundedResolvedIntents, BoundedTrades, Intent, IntentId, ResolvedIntent as RI, Swap};
 use primitives::{AccountId, AssetId, Moment};
 use sp_core::crypto::AccountId32;
 use xcm_emulator::TestExt;
 
 const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2024-10-18";
 
-pub(crate) fn solve_intents_with<S: Solver<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>, ResolvedIntent = ResolvedIntent>(
+pub(crate) fn solve_intents_with<S: Solver<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>>(
 	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>,
-) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()>
-{
-	let solution = S::solve(intents).map_err(|_| ())?;
-	let score = solution.score();
-	let resolved_intents = BoundedResolvedIntents::try_from(solution.resolved_intents()).unwrap();
-	let trades = BoundedTrades::try_from(solution.trades()).unwrap();
-	Ok((resolved_intents, trades, score))
+) -> Result<BoundedResolvedIntents, ()> {
+	let result = S::solve(intents).map_err(|_| ())?;
+	let resolved_intents = BoundedResolvedIntents::try_from(result).unwrap();
+	//let trades = BoundedTrades::try_from(solution.trades()).unwrap();
+	//let score = solution.score();
+	Ok(resolved_intents)
 }
 
 #[test]

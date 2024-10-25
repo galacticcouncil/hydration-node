@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 hydra-dx-math = { workspace =  true}
 pallet-ice = { workspace = true}
-pallet-omnipool = { workspace = true}
 sp-std = {workspace = true}
 sp-runtime = {workspace = true}
 orml-traits = {workspace = true}
@@ -16,7 +15,7 @@ hydradx-traits = {workspace = true}
 
 #totsu = "0.10.2"
 clarabel = "0"
-serde = { version = "1.0.210", features = ["derive"] }
+#serde = { version = "1.0.210", features = ["derive"] }
 
 [dev-dependencies]
 serde_json = "1.0.129"
@@ -29,8 +28,8 @@ std = [
     "hydra-dx-math/std",
     "pallet-ice/std",
     "sp-std/std",
-    "pallet-omnipool/std",
     "sp-runtime/std",
     "orml-traits/std",
-    "hydradx-traits/std"
+    "hydradx-traits/std",
+    "clarabel/default",
 ]
