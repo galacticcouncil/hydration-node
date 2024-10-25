@@ -1,11 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::{rational_to_f64, to_f64_by_decimals, SolverSolution};
+use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Routing, Solver};
 use pallet_ice::types::{Balance, BoundedRoute, Intent, IntentId, ResolvedIntent, TradeInstruction};
-use pallet_ice::traits::{OmnipoolInfo, OmnipoolAssetInfo, Solver};
-use sp_runtime::{FixedU128, Saturating};
-use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::fmt::Debug;
+use sp_runtime::{FixedU128, SaturatedConversion, Saturating};
+use sp_std::vec::Vec;
+use sp_std::collections::btree_map::BTreeMap;
+use sp_std::collections::btree_set::BTreeSet;
+use sp_std::vec;
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
@@ -20,11 +22,11 @@ fn calculate_scaling<AccountId, AssetId>(
 	asset_ids: &[AssetId],
 	omnipool_reserves: &[f64],
 	omnipool_hub_reserves: &[f64],
-) -> HashMap<AssetId, f64>
+) -> BTreeMap<AssetId, f64>
 where
 	AssetId: From<u32> + sp_std::hash::Hash + Copy + Clone + Eq + Ord,
 {
-	let mut scaling = HashMap::new();
+	let mut scaling = BTreeMap::new();
 	scaling.insert(1u32.into(), f64::INFINITY);
 
 	for (idx, (_, intent)) in intents.iter().enumerate() {
@@ -62,7 +64,7 @@ where
 fn calculate_tau_phi<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
 	asset_ids: &[AssetId],
-	scaling: &HashMap<AssetId, f64>,
+	scaling: &BTreeMap<AssetId, f64>,
 ) -> (CscMatrix, CscMatrix)
 where
 	AssetId: From<u32> + sp_std::hash::Hash + Copy + Clone + Eq + Ord,
@@ -136,7 +138,7 @@ fn prepare_omnipool_data<AssetId>(
 	Vec<f64>,
 	Vec<f64>,
 	Vec<f64>,
-	HashMap<AssetId, u8>,
+	BTreeMap<AssetId, u8>,
 )
 where
 	AssetId: sp_std::hash::Hash + Copy + Clone + Eq + Ord,
@@ -146,7 +148,7 @@ where
 	let hub_reserves = info.iter().map(|i| i.hub_reserve_as_f64()).collect::<Vec<_>>();
 	let fees = info.iter().map(|i| i.fee_as_f64()).collect::<Vec<_>>();
 	let hub_fees = info.iter().map(|i| i.hub_fee_as_f64()).collect::<Vec<_>>();
-	let decimals = info.iter().map(|i| (i.asset_id, i.decimals)).collect::<HashMap<_, _>>();
+	let decimals = info.iter().map(|i| (i.asset_id, i.decimals)).collect::<BTreeMap<_, _>>();
 	(asset_ids, asset_reserves, hub_reserves, fees, hub_fees, decimals)
 }
 
@@ -179,17 +181,18 @@ where
 
 pub struct OmniSolver<AccountId, AssetId, OI, R>(sp_std::marker::PhantomData<(AccountId, AssetId, OI, R)>);
 
-impl<AccountId, AssetId, OI, R> Solver<(IntentId, Intent<AccountId, AssetId>)>
-	for OmniSolver<AccountId, AssetId, OI, R>
+impl<AccountId, AssetId, OI, R> Solver<(IntentId, Intent<AccountId, AssetId>)> for OmniSolver<AccountId, AssetId, OI, R>
 where
-	AssetId: From<u32> + sp_std::hash::Hash + PartialEq + Eq + Ord + Clone + Copy + Debug,
+	AssetId: From<u32> + sp_std::hash::Hash + PartialEq + Eq + Ord + Clone + Copy + core::fmt::Debug,
 	OI: OmnipoolInfo<AssetId>,
 	R: Routing<AssetId>,
 {
 	type ResolvedIntent = ResolvedIntent;
 	type Error = ();
 
-	fn solve(intents: impl Iterator<Item = (IntentId, Intent<AccountId, AssetId>)>) -> Result<Vec<Self::ResolvedIntent>, Self::Error> {
+	fn solve(
+		intents: Vec<(IntentId, Intent<AccountId, AssetId>)>,
+	) -> Result<Vec<Self::ResolvedIntent>, Self::Error> {
 		// Prepare intent and omnipool data
 
 		let (intent_asset_ids, intent_prices) = prepare_intent_data::<AccountId, AssetId>(&intents);
@@ -222,8 +225,6 @@ where
 		spot_prices.extend(omnipool_spot_price.iter().cloned());
 
 		let s = spot_prices[1];
-		dbg!(s);
-		dbg!(s.fract());
 
 		// Setup Variables
 
@@ -389,13 +390,9 @@ where
 
 		let status = solver.solution.status;
 		let solve_time = solver.solution.solve_time;
-		dbg!(status);
-		dbg!(solve_time);
-		dbg!(solver.solution.obj_val);
-
 		let x = solver.solution.x;
 
-		let mut new_amm_deltas = HashMap::new();
+		let mut new_amm_deltas = BTreeMap::new();
 		let mut exec_intent_deltas = vec![0.; intents.len()];
 		for i in 0..n {
 			let tkn = asset_ids[i];
@@ -509,11 +506,14 @@ where
 		}
 		let score = (score / 1_000_000) as u64;
 
+		/*
 		let solution = SolverSolution {
 			intents: resolved_intents,
 			trades: trades_instructions,
 			score,
 		};
+
+		 */
 
 		Ok(resolved_intents)
 	}

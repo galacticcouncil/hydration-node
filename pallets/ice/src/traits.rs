@@ -1,10 +1,10 @@
+use crate::types::Balance;
 use frame_support::weights::Weight;
-use sp_runtime::{FixedU128, Permill};
-use sp_runtime::traits::Bounded;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::Trade;
 use serde::Deserialize;
-use crate::types::Balance;
+use sp_runtime::traits::Bounded;
+use sp_runtime::{FixedU128, Permill};
 
 pub trait IceWeightBounds<RuntimeCall, Route> {
 	fn transfer_weight() -> Weight;
@@ -35,9 +35,8 @@ pub trait Solver<Intent> {
 	type ResolvedIntent;
 	type Error;
 
-	fn solve(intents: impl Iterator<Item = Intent>) -> Result<Vec<Self::ResolvedIntent>, Self::Error>;
+	fn solve(intents: Vec<Intent>) -> Result<Vec<Self::ResolvedIntent>, Self::Error>;
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct OmnipoolAssetInfo<AssetId> {
@@ -63,7 +62,7 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 			self.fee.deconstruct() as u128,
 			Permill::max_value().deconstruct() as u128,
 		)
-			.to_float()
+		.to_float()
 	}
 
 	pub fn hub_fee_as_f64(&self) -> f64 {
@@ -71,7 +70,7 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 			self.hub_fee.deconstruct() as u128,
 			Permill::max_value().deconstruct() as u128,
 		)
-			.to_float()
+		.to_float()
 	}
 	#[cfg(test)]
 	pub fn reserve_no_decimals(&self) -> Balance {
@@ -86,7 +85,6 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 pub trait OmnipoolInfo<AssetId> {
 	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>>;
 }
-
 
 pub trait Routing<AssetId> {
 	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>>;

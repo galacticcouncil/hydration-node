@@ -1,4 +1,3 @@
-mod cvx;
 mod intents;
 mod omni;
 mod solution;
@@ -23,11 +22,9 @@ use xcm_emulator::TestExt;
 
 const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2024-10-18";
 
-pub(crate) fn solve_intents_with<S: ICESolver<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>>(
+pub(crate) fn solve_intents_with<S: Solver<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>, ResolvedIntent = ResolvedIntent>(
 	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>,
 ) -> Result<(BoundedResolvedIntents, BoundedTrades<AssetId>, u64), ()>
-where
-	S::Solution: IceSolution<AssetId>,
 {
 	let solution = S::solve(intents).map_err(|_| ())?;
 	let score = solution.score();

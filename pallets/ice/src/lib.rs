@@ -10,6 +10,7 @@ pub mod types;
 pub mod validity;
 mod weights;
 
+use crate::traits::Solver;
 use crate::types::{Balance, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier};
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
@@ -30,7 +31,6 @@ use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member, Zero};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
-use crate::traits::Solver;
 
 pub const SOLVER_LOCK: &[u8] = b"hydradx/ice/lock/";
 pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
@@ -108,7 +108,11 @@ pub mod pallet {
 		/// Price provider
 		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
 
-		type Solver: traits::Solver<(IntentId, Intent<Self::AccountId, Self::AssetId>), ResolvedIntent = ResolvedIntent, Error = ()>;
+		type Solver: traits::Solver<
+			(IntentId, Intent<Self::AccountId, Self::AssetId>),
+			ResolvedIntent = ResolvedIntent,
+			Error = (),
+		>;
 
 		/// Pallet id.
 		#[pallet::constant]
@@ -448,9 +452,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn settle_intents(block_number: BlockNumberFor<T>) {
-
 		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
-		let mut lock = StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(SOLVER_LOCK, lock_expiration);
+		let mut lock =
+			StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(SOLVER_LOCK, lock_expiration);
 
 		if let Ok(_guard) = lock.try_lock() {
 			// Get list of current intents,
@@ -462,7 +466,7 @@ impl<T: Config> Pallet<T> {
 			intents.retain(|(_, intent)| intent.deadline > now);
 
 			// Compute solution using solver
-			let Ok(solution) = T::Solver::solve(intents.into_iter()) else {
+			let Ok(solution) = T::Solver::solve(intents) else {
 				//TODO: log error
 				return;
 			};

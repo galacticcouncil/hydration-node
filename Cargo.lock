@@ -12099,7 +12099,7 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
- "ice-solver",
+ "ice-solver2",
  "libsecp256k1",
  "orml-tokens",
  "orml-traits",

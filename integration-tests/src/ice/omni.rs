@@ -17,7 +17,7 @@ use sp_runtime::traits::BlockNumberProvider;
 type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
-type OmniSolverWithOmnipool = ice_solver::omni::OmniSolver<
+type OmniSolverWithOmnipool = ice_solver2::omni::OmniSolver<
 	AccountId,
 	AssetId,
 	OmnipoolDataProvider,

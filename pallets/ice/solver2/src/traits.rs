@@ -4,6 +4,7 @@ use pallet_ice::types::{Balance, ResolvedIntent, TradeInstruction};
 use serde::Deserialize;
 use sp_runtime::traits::Bounded;
 use sp_runtime::{FixedU128, Permill};
+use sp_std::vec::Vec;
 
 pub trait IceSolution<AssetId> {
 	fn resolved_intents(&self) -> Vec<ResolvedIntent>;

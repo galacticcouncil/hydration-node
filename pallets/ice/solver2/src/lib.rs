@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate core;
 
-use crate::traits::{ICESolver, IceSolution};
+use crate::traits::IceSolution;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
@@ -9,9 +9,8 @@ use pallet_ice::types::{Balance, BoundedRoute, Intent, IntentId, ResolvedIntent,
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::Saturating;
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
 
-pub mod cvx;
-pub mod cvx2;
 pub mod omni;
 #[cfg(test)]
 mod tests;
@@ -36,4 +35,17 @@ impl<AssetId> IceSolution<AssetId> for SolverSolution<AssetId> {
 	fn score(&self) -> u64 {
 		self.score
 	}
+}
+
+#[macro_export]
+macro_rules! rational_to_f64 {
+	($x:expr, $y:expr) => {
+		FixedU128::from_rational($x, $y).to_float()
+	};
+}
+#[macro_export]
+macro_rules! to_f64_by_decimals {
+	($x:expr, $y:expr) => {
+		FixedU128::from_rational($x, 10u128.pow($y as u32)).to_float()
+	};
 }
