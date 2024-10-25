@@ -126,6 +126,10 @@ pub mod pallet {
 		/// The origin which can manage whiltelist.
 		type BlacklistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Default account for `reward_account` and `dust_account` in genesis config.
+		#[pallet::constant]
+		type TreasuryAccountId: Get<Self::AccountId>;
+
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
 	}
@@ -145,26 +149,8 @@ pub mod pallet {
 				AccountBlacklist::<T>::insert(account_id, ());
 			});
 
-			if self.reward_account.is_none() {
-				panic!("Reward account is not set in genesis config");
-			}
-
-			if self.dust_account.is_none() {
-				panic!("Dust account is not set in genesis config");
-			}
-
-			RewardAccount::<T>::put(
-				&self
-					.reward_account
-					.clone()
-					.expect("Reward account is not set in genesis config"),
-			);
-			DustAccount::<T>::put(
-				&self
-					.dust_account
-					.clone()
-					.expect("Dust account is not set in genesis config"),
-			);
+			RewardAccount::<T>::put(&self.reward_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
+			DustAccount::<T>::put(&self.dust_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
 		}
 	}
 

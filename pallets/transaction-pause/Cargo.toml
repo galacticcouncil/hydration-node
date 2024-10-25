@@ -1,12 +1,12 @@
 [package]
 name = "pallet-transaction-pause"
-version = "1.0.3"
+version = "1.0.4"
 authors = ["Acala Developers", "GalacticCouncil"]
 edition = "2021"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { workspace = true }
+scale-info = { workspace = true }
 sp-runtime = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
@@ -21,9 +21,9 @@ sp-api = { workspace = true, optional = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 pallet-balances = { workspace = true }
-orml-tokens = { workspace = true, features=["std"] }
-orml-traits = { workspace = true, features=["std"] }
-smallvec = "1.9.0"
+orml-tokens = { workspace = true, features = ["std"] }
+orml-traits = { workspace = true, features = ["std"] }
+smallvec = { workspace = true }
 
 [features]
 default = ["std"]

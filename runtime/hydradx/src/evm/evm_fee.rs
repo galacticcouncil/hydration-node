@@ -22,6 +22,7 @@ use crate::{Runtime, TreasuryAccount};
 use frame_support::traits::tokens::{Fortitude, Precision};
 use frame_support::traits::{Get, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee};
@@ -134,7 +135,7 @@ where
 		corrected_fee: U256,
 		_base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
-	) -> Result<Self::LiquidityInfo, Error<T>> {
+	) -> Self::LiquidityInfo {
 		if let Some(paid) = already_withdrawn {
 			let account_id = T::AddressMapping::into_account_id(*who);
 
@@ -177,9 +178,9 @@ where
 				asset_id: paid.asset_id,
 				price: paid.price,
 			});
-			return Ok(None);
+			return None;
 		}
-		Ok(None)
+		None
 	}
 
 	fn pay_priority_fee(tip: Self::LiquidityInfo) {
@@ -208,19 +209,26 @@ impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	}
 }
 
-pub struct FeeCurrencyOverrideOrDefault<EC>(PhantomData<EC>);
+pub struct FeeCurrencyOverrideOrDefault<EC, EI>(PhantomData<(EC, EI)>);
 
-impl<EC> AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault<EC>
+impl<EC, EI> AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault<EC, EI>
 where
 	EC: Get<AssetId>,
+	EI: InspectEvmAccounts<AccountId>,
 {
 	type AssetId = AssetId;
 
 	fn get(a: &AccountId) -> Self::AssetId {
-		let maybe_override = pallet_transaction_multi_payment::Pallet::<Runtime>::tx_fee_currency_override(a);
-		match maybe_override {
-			Some(currency) => currency,
-			None => EC::get(),
+		// Check if account has fee currency override set - used eg. by dispatch_permit
+		if let Some(currency) = pallet_transaction_multi_payment::Pallet::<Runtime>::tx_fee_currency_override(a) {
+			currency
+		} else {
+			// if account is evm account - default to given EC, otherwise use account currency or default to HDX.
+			if EI::is_evm_account(a.clone()) {
+				EC::get()
+			} else {
+				pallet_transaction_multi_payment::Pallet::<Runtime>::account_currency(a)
+			}
 		}
 	}
 }

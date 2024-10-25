@@ -39,7 +39,7 @@ use hydradx_traits::{
 };
 use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -75,20 +75,20 @@ pub const ONE: Balance = 1_000_000_000_000;
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 thread_local! {
-	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
-	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_PRICE_DIFF: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
-	pub static WITHDRAWAL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
+	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_OUT_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_PRICE_DIFF: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
+	pub static WITHDRAWAL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 }
 
 construct_runtime!(
@@ -129,6 +129,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -226,6 +231,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }

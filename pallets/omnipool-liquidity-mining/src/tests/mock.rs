@@ -89,15 +89,15 @@ pub const LM_COLLECTION_ID: u128 = 1;
 thread_local! {
 	pub static NFTS: RefCell<HashMap<(CollectionId, ItemId), AccountId>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
-	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
+	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_OUT_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
 
-	 pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
+	 pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 }
 
 construct_runtime!(
@@ -155,6 +155,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {

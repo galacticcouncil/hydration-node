@@ -267,7 +267,7 @@ impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayCh
 	type BlockNumber = polkadot_parachain::primitives::RelayChainBlockNumber;
 
 	fn current_block_number() -> Self::BlockNumber {
-		let maybe_data = cumulus_pallet_parachain_system::Pallet::<T>::validation_data();
+		let maybe_data = cumulus_pallet_parachain_system::ValidationData::<T>::get();
 
 		if let Some(data) = maybe_data {
 			data.relay_parent_number
@@ -300,7 +300,7 @@ where
 	Runtime: cumulus_pallet_parachain_system::Config,
 {
 	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		let validation_data = cumulus_pallet_parachain_system::ValidationData::<Runtime>::get();
 		match validation_data {
 			Some(data) => Some(data.parent_head.hash()),
 			None => None,

@@ -1,6 +1,6 @@
 [package]
 name = "pallet-dynamic-evm-fee"
-version = "1.0.2"
+version = "1.0.4"
 description = "Storing and mutating the dynamic fee for EVM transactions."
 authors = ["GalacticCoucil"]
 edition = "2021"
@@ -11,8 +11,8 @@ repository = "https://github.com/galacticcouncil/warehouse"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { workspace = true }
+scale-info = { workspace = true }
 log = { workspace = true }
 
 # ORML dependencies
@@ -29,7 +29,7 @@ frame-system = { workspace = true }
 sp-api = { workspace = true }
 sp-std = { workspace = true }
 sp-runtime = { workspace = true }
-sp-core = { workspace = true}
+sp-core = { workspace = true }
 
 # Evm dependencies
 pallet-evm = { workspace = true }
@@ -40,8 +40,8 @@ sp-io = { workspace = true, optional = true }
 
 [dev-dependencies]
 pallet-currencies = { workspace = true }
-orml-tokens = { workspace = true, features=["std"] }
-pallet-balances = { workspace = true, features=["std"] }
+orml-tokens = { workspace = true, features = ["std"] }
+pallet-balances = { workspace = true, features = ["std"] }
 test-utils = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 frame-benchmarking = { workspace = true }

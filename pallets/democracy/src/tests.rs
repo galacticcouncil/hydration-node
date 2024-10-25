@@ -118,6 +118,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 parameter_types! {
 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
@@ -337,8 +342,8 @@ pub struct OnRemoveVoteData {
 }
 
 thread_local! {
-	static ON_VOTE_DATA: RefCell<Vec<OnVoteData>> = RefCell::new(vec![]);
-	static ON_REMOVE_VOTE_DATA: RefCell<Vec<OnRemoveVoteData>> = RefCell::new(vec![]);
+	static ON_VOTE_DATA: RefCell<Vec<OnVoteData>> = const { RefCell::new(vec![]) };
+	static ON_REMOVE_VOTE_DATA: RefCell<Vec<OnRemoveVoteData>> = const { RefCell::new(vec![]) };
 	pub static REMOVE_VOTE_LOCKED_AMOUNT: RefCell<HashMap<u64, u64>> = RefCell::new(HashMap::default());
 }
 
