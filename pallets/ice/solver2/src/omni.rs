@@ -1,8 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::traits::{ICESolver, OmnipoolAssetInfo, OmnipoolInfo, Routing};
 use crate::{rational_to_f64, to_f64_by_decimals, SolverSolution};
 use pallet_ice::types::{Balance, BoundedRoute, Intent, IntentId, ResolvedIntent, TradeInstruction};
+use pallet_ice::traits::{OmnipoolInfo, OmnipoolAssetInfo, Solver};
 use sp_runtime::{FixedU128, Saturating};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Debug;
@@ -179,17 +179,17 @@ where
 
 pub struct OmniSolver<AccountId, AssetId, OI, R>(sp_std::marker::PhantomData<(AccountId, AssetId, OI, R)>);
 
-impl<AccountId, AssetId, OI, R> ICESolver<(IntentId, Intent<AccountId, AssetId>)>
+impl<AccountId, AssetId, OI, R> Solver<(IntentId, Intent<AccountId, AssetId>)>
 	for OmniSolver<AccountId, AssetId, OI, R>
 where
 	AssetId: From<u32> + sp_std::hash::Hash + PartialEq + Eq + Ord + Clone + Copy + Debug,
 	OI: OmnipoolInfo<AssetId>,
 	R: Routing<AssetId>,
 {
-	type Solution = SolverSolution<AssetId>;
+	type ResolvedIntent = ResolvedIntent;
 	type Error = ();
 
-	fn solve(intents: Vec<(IntentId, Intent<AccountId, AssetId>)>) -> Result<Self::Solution, Self::Error> {
+	fn solve(intents: impl Iterator<Item = (IntentId, Intent<AccountId, AssetId>)>) -> Result<Vec<Self::ResolvedIntent>, Self::Error> {
 		// Prepare intent and omnipool data
 
 		let (intent_asset_ids, intent_prices) = prepare_intent_data::<AccountId, AssetId>(&intents);
@@ -515,6 +515,6 @@ where
 			score,
 		};
 
-		Ok(solution)
+		Ok(resolved_intents)
 	}
 }

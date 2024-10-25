@@ -1,4 +1,10 @@
 use frame_support::weights::Weight;
+use sp_runtime::{FixedU128, Permill};
+use sp_runtime::traits::Bounded;
+use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::router::Trade;
+use serde::Deserialize;
+use crate::types::Balance;
 
 pub trait IceWeightBounds<RuntimeCall, Route> {
 	fn transfer_weight() -> Weight;
@@ -23,4 +29,69 @@ impl<RuntimeCall, Route> IceWeightBounds<RuntimeCall, Route> for () {
 	fn call_weight(_call: &RuntimeCall) -> Weight {
 		Weight::zero()
 	}
+}
+
+pub trait Solver<Intent> {
+	type ResolvedIntent;
+	type Error;
+
+	fn solve(intents: impl Iterator<Item = Intent>) -> Result<Vec<Self::ResolvedIntent>, Self::Error>;
+}
+
+
+#[derive(Debug, Deserialize)]
+pub struct OmnipoolAssetInfo<AssetId> {
+	pub asset_id: AssetId,
+	pub reserve: Balance,
+	pub hub_reserve: Balance,
+	pub decimals: u8,
+	pub fee: Permill,
+	pub hub_fee: Permill,
+}
+
+impl<AssetId> OmnipoolAssetInfo<AssetId> {
+	pub fn reserve_as_f64(&self) -> f64 {
+		FixedU128::from_rational(self.reserve, 10u128.pow(self.decimals as u32)).to_float()
+	}
+
+	pub fn hub_reserve_as_f64(&self) -> f64 {
+		FixedU128::from_rational(self.hub_reserve, 10u128.pow(12u32)).to_float()
+	}
+
+	pub fn fee_as_f64(&self) -> f64 {
+		FixedU128::from_rational(
+			self.fee.deconstruct() as u128,
+			Permill::max_value().deconstruct() as u128,
+		)
+			.to_float()
+	}
+
+	pub fn hub_fee_as_f64(&self) -> f64 {
+		FixedU128::from_rational(
+			self.hub_fee.deconstruct() as u128,
+			Permill::max_value().deconstruct() as u128,
+		)
+			.to_float()
+	}
+	#[cfg(test)]
+	pub fn reserve_no_decimals(&self) -> Balance {
+		self.reserve / 10u128.pow(self.decimals as u32)
+	}
+	#[cfg(test)]
+	pub fn hub_reserve_no_decimals(&self) -> Balance {
+		self.hub_reserve / 10u128.pow(12u32)
+	}
+}
+
+pub trait OmnipoolInfo<AssetId> {
+	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>>;
+}
+
+
+pub trait Routing<AssetId> {
+	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>>;
+	fn calculate_amount_out(route: &[Trade<AssetId>], amount_in: Balance) -> Result<Balance, ()>;
+	fn calculate_amount_in(route: &[Trade<AssetId>], amount_out: Balance) -> Result<Balance, ()>;
+	// should return price Hub/Asset
+	fn hub_asset_price(asset: AssetId) -> Result<Ratio, ()>;
 }

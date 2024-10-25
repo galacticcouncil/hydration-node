@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 hydra-dx-math = { workspace =  true}
 pallet-ice = { workspace = true}
-pallet-omnipool = { workspace = true}
 sp-std = {workspace = true}
 sp-runtime = {workspace = true}
 orml-traits = {workspace = true}
@@ -29,7 +28,6 @@ std = [
     "hydra-dx-math/std",
     "pallet-ice/std",
     "sp-std/std",
-    "pallet-omnipool/std",
     "sp-runtime/std",
     "orml-traits/std",
     "hydradx-traits/std"

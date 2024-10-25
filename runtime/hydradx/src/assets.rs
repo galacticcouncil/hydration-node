@@ -18,11 +18,7 @@
 use super::*;
 use crate::system::NativeAssetId;
 
-use hydradx_adapters::{
-	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider,
-	StableswapHooksAdapter, VestingInfo,
-};
+use hydradx_adapters::{AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter, OracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo};
 
 pub use hydradx_traits::{
 	registry::Inspect,
@@ -543,6 +539,7 @@ parameter_types! {
 	pub const MaxIntentDuration: Moment = 86_400_000; //1day
 	pub const IceProposalBond: Balance = 1_000_000_00_000_000_000_000;
 	pub ICENamedReserveId: NamedReserveIdentifier = *b"iceinten";
+	pub const IceOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 pub struct IceWeigher<R>(PhantomData<R>);
@@ -567,6 +564,9 @@ impl<R: AmmTradeWeights<Trade<AssetId>>> IceWeightBounds<RuntimeCall, Vec<Trade<
 	}
 }
 
+type IcePriceP =
+	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, IceOraclePeriod>;
+
 impl pallet_ice::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -581,6 +581,9 @@ impl pallet_ice::Config for Runtime {
 	type Weigher = IceWeigher<RouterWeightInfo>;
 	type PriceProvider =
 		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
+	type Solver = ice_solver2::omni::OmniSolver<AccountId, AssetId, hydradx_adapters::ice::OmnipoolDataProvider<Runtime>,
+		IceRoutingSupport<Router, Router, IcePriceP, RuntimeOrigin>
+	>;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
 	type ProposalBond = IceProposalBond;
@@ -1379,6 +1382,8 @@ use pallet_referrals::{FeeDistribution, Level};
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
+use hydradx_adapters::ice::IceRoutingSupport;
+use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);

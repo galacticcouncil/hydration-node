@@ -42,6 +42,7 @@ pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-ice = { workspace = true }
+ice-solver2 = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }

@@ -30,6 +30,7 @@ use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member, Zero};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
+use crate::traits::Solver;
 
 pub const SOLVER_LOCK: &[u8] = b"hydradx/ice/lock/";
 pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
@@ -39,7 +40,7 @@ pub mod pallet {
 	use super::*;
 	use crate::engine::ICEEngine;
 	use crate::traits::IceWeightBounds;
-	use crate::types::{BoundedResolvedIntents, BoundedTrades, TradeInstruction};
+	use crate::types::{BoundedResolvedIntents, BoundedTrades, ResolvedIntent, TradeInstruction};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
@@ -107,7 +108,7 @@ pub mod pallet {
 		/// Price provider
 		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
 
-		type Solver: ICESolver<Intent<Self::AccountId, Self::AssetId>, Solution = SolverSolution<Self::AssetId>>;
+		type Solver: traits::Solver<(IntentId, Intent<Self::AccountId, Self::AssetId>), ResolvedIntent = ResolvedIntent, Error = ()>;
 
 		/// Pallet id.
 		#[pallet::constant]
@@ -216,14 +217,11 @@ pub mod pallet {
 			SolutionScore::<T>::kill();
 			SolutionExecuted::<T>::kill();
 		}
-	}
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			// limit the cases when the offchain worker run
 			if sp_io::offchain::is_validator() {
-				Self::sette_intents(block_number);
+				Self::settle_intents(block_number);
 			}
 		}
 	}
@@ -454,7 +452,6 @@ impl<T: Config> Pallet<T> {
 		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
 		let mut lock = StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(SOLVER_LOCK, lock_expiration);
 
-
 		if let Ok(_guard) = lock.try_lock() {
 			// Get list of current intents,
 			let mut intents: Vec<(IntentId, Intent<T::AccountId, T::AssetId>)> = Intents::<T>::iter().collect();
@@ -465,14 +462,10 @@ impl<T: Config> Pallet<T> {
 			intents.retain(|(_, intent)| intent.deadline > now);
 
 			// Compute solution using solver
-			let Ok(solution) = T::Solver::solve(intents) else {
+			let Ok(solution) = T::Solver::solve(intents.into_iter()) else {
 				//TODO: log error
 				return;
 			};
-			
-
-
-
-		}
+		};
 	}
 }

@@ -68,6 +68,7 @@ pub mod xcm_execute_filter;
 #[cfg(test)]
 mod tests;
 pub mod xyk;
+pub mod ice;
 
 /// Weight trader that accepts multiple assets as weight fee payment.
 ///

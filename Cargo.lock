@@ -5047,6 +5047,7 @@ dependencies = [
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
+ "ice-solver2",
  "log",
  "module-evm-utility-macro",
  "num_enum 0.5.11",
@@ -5240,6 +5241,22 @@ dependencies = [
  "orml-traits",
  "pallet-ice",
  "pallet-omnipool",
+ "rand",
+ "serde",
+ "serde_json",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.2)",
+]
+
+[[package]]
+name = "ice-solver2"
+version = "0.1.0"
+dependencies = [
+ "clarabel",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-traits",
+ "pallet-ice",
  "rand",
  "serde",
  "serde_json",
@@ -8506,6 +8523,7 @@ dependencies = [
  "parity-scale-codec",
  "pretty_assertions",
  "scale-info",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
