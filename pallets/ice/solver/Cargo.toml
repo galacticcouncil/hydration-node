@@ -11,7 +11,7 @@ sp-runtime = {workspace = true}
 orml-traits = {workspace = true}
 hydradx-traits = {workspace = true}
 
-clarabel = "0"
+clarabel = { version = "0" , default-features = false, features = ["wasm", "serde"] }
 
 [dev-dependencies]
 rand = "0.8.5"
