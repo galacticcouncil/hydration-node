@@ -29,8 +29,8 @@ frame-system = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
-sp-core = { workspace = true, optional = true }
-sp-io = { workspace = true, optional = true }
+sp-core = { workspace = true}
+sp-io = { workspace = true}
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
@@ -59,7 +59,5 @@ std = [
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
-    "sp-core",
-    "sp-io",
 ]
 try-runtime = [ "frame-support/try-runtime" ]

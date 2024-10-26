@@ -1581,8 +1581,6 @@ checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 [[package]]
 name = "clarabel"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83e62eacd93b899251364a22bd4dca0f293f8175d05311e42bbf6dbb5edcc762"
 dependencies = [
  "amd",
  "cfg-if",
@@ -1591,8 +1589,6 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "num-traits",
- "serde",
- "serde_json",
  "thiserror",
  "web-time",
 ]
@@ -5250,6 +5246,7 @@ dependencies = [
  "orml-traits",
  "pallet-ice",
  "rand 0.8.5",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]

@@ -5,6 +5,8 @@ use hydradx_traits::Inspect;
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Routing};
 use primitives::{AssetId, Balance};
 use sp_runtime::Permill;
+use sp_std::vec::Vec;
+use sp_std::vec;
 
 pub struct OmnipoolDataProvider<T>(sp_std::marker::PhantomData<T>);
 

@@ -7,11 +7,12 @@ edition = "2021"
 hydra-dx-math = { workspace =  true}
 pallet-ice = { workspace = true}
 sp-std = {workspace = true}
+sp-io = {workspace = true}
 sp-runtime = {workspace = true}
 orml-traits = {workspace = true}
 hydradx-traits = {workspace = true}
 
-clarabel = { version = "0" , default-features = false, features = ["wasm", "serde"] }
+clarabel = { path ="../../../../clarabel", version = "0" , default-features = false }
 
 [dev-dependencies]
 rand = "0.8.5"
@@ -22,7 +23,9 @@ std = [
     "hydra-dx-math/std",
     "pallet-ice/std",
     "sp-std/std",
+    "sp-io/std",
     "sp-runtime/std",
     "orml-traits/std",
     "hydradx-traits/std",
+    "clarabel/wasm"
 ]
