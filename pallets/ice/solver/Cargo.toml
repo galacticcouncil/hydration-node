@@ -12,7 +12,7 @@ sp-std = {workspace = true}
 sp-runtime = {workspace = true}
 hydradx-traits = {workspace = true}
 
-clarabel = { path ="../../../../clarabel", version = "0" , default-features = false, features = ["wasm"] }
+clarabel = { git ="https://github.com/enthusiastmartin/Clarabel.rs", branch = "feat/no-std" , default-features = false, features = ["wasm"] }
 
 [dev-dependencies]
 rand = { version = "0.8.5", default-features = false }

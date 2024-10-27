@@ -1581,6 +1581,7 @@ checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 [[package]]
 name = "clarabel"
 version = "0.9.0"
+source = "git+https://github.com/enthusiastmartin/Clarabel.rs?branch=feat/no-std#aee720d45252cdca5859834c89c34f41aa36fddc"
 dependencies = [
  "amd",
  "cfg-if",
