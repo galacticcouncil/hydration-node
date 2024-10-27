@@ -3,29 +3,25 @@ name = "ice-solver"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [dependencies]
-hydra-dx-math = { workspace =  true}
 pallet-ice = { workspace = true}
 sp-std = {workspace = true}
-sp-io = {workspace = true}
 sp-runtime = {workspace = true}
-orml-traits = {workspace = true}
 hydradx-traits = {workspace = true}
 
-clarabel = { path ="../../../../clarabel", version = "0" , default-features = false }
+clarabel = { path ="../../../../clarabel", version = "0" , default-features = false, features = ["wasm"] }
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = { version = "0.8.5", default-features = false }
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
-    "hydra-dx-math/std",
-    "pallet-ice/std",
-    "sp-std/std",
-    "sp-io/std",
-    "sp-runtime/std",
-    "orml-traits/std",
-    "hydradx-traits/std",
-    "clarabel/wasm"
+	"hydradx-traits/std",
+	"pallet-ice/std",
+	"sp-runtime/std",
+	"sp-std/std",
 ]

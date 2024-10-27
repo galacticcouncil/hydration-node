@@ -1,8 +1,4 @@
-use hydra_dx_math::ratio::Ratio;
-use hydradx_traits::router::Trade;
 use pallet_ice::types::{Balance, ResolvedIntent, TradeInstruction};
-use sp_runtime::traits::Bounded;
-use sp_runtime::{FixedU128, Permill};
 use sp_std::vec::Vec;
 
 pub trait IceSolution<AssetId> {

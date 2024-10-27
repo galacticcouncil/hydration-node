@@ -12,9 +12,6 @@ use sp_std::vec::Vec;
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
-use hydra_dx_math::ratio::Ratio;
-use hydradx_traits::price::PriceProvider;
-use hydradx_traits::router::{AssetPair, RouteProvider};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 
 fn calculate_scaling<AccountId, AssetId>(
