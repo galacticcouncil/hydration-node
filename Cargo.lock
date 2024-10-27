@@ -1589,7 +1589,7 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "num-traits",
- "thiserror",
+ "thiserror-no-std",
  "web-time",
 ]
 
@@ -5049,7 +5049,6 @@ dependencies = [
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
- "ice-solver",
  "log",
  "module-evm-utility-macro",
  "num_enum",
@@ -5241,12 +5240,9 @@ name = "ice-solver"
 version = "0.1.0"
 dependencies = [
  "clarabel",
- "hydra-dx-math",
  "hydradx-traits",
- "orml-traits",
  "pallet-ice",
  "rand 0.8.5",
- "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -16001,6 +15997,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.61",
+]
+
+[[package]]
+name = "thiserror-impl-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58e6318948b519ba6dc2b442a6d0b904ebfb8d411a3ad3e07843615a72249758"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "thiserror-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3ad459d94dd517257cc96add8a43190ee620011bb6e6cdc82dafd97dfafafea"
+dependencies = [
+ "thiserror-impl-no-std",
 ]
 
 [[package]]

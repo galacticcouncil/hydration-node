@@ -32,6 +32,8 @@ frame-benchmarking = { workspace = true, optional = true }
 sp-core = { workspace = true}
 sp-io = { workspace = true}
 
+#clarabel = { path ="../../../clarabel", version = "0" , default-features = false, features = ["wasm"] }
+
 [dev-dependencies]
 pretty_assertions = "1.2.1"
 orml-tokens = {workspace = true}
