@@ -17,7 +17,7 @@ use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
-	Balances, Currencies, DotAssetId, EVMAccounts, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin,
+	Balances, Currencies, DotAssetId, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin,
 	Tokens, XykPaymentAssetSupport,
 };
 use hydradx_traits::AssetKind;
