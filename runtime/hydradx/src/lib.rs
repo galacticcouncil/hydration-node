@@ -184,6 +184,7 @@ construct_runtime!(
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
+		Liquidation: pallet_liquidation = 76,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -304,6 +305,7 @@ mod benches {
 		[pallet_evm_accounts, EVMAccounts]
 		[pallet_otc, OTC]
 		[pallet_otc_settlements, OtcSettlements]
+		[pallet_liquidation, Liquidation]
 		[pallet_state_trie_migration, StateTrieMigration]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]

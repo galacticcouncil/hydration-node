@@ -33,6 +33,7 @@ pub mod utils;
 mod vesting;
 mod xyk;
 mod xyk_liquidity_mining;
+mod liquidation;
 
 #[macro_export]
 macro_rules! assert_balance {

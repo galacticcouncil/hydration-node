@@ -1,0 +1,86 @@
+[package]
+name = 'pallet-liquidation'
+version = '1.0.0'
+description = 'A pallet for money market liquidations'
+authors = ['GalacticCouncil']
+edition = '2021'
+license = 'Apache 2.0'
+repository = "https://github.com/galacticcouncil/Hydradx-node"
+
+[dependencies]
+# parity
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
+log = { workspace = true }
+
+# primitives
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-arithmetic = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+evm = { workspace = true, features = ["with-codec"] }
+module-evm-utility-macro = { workspace = true }
+num_enum = { workspace = true, default-features = false }
+ethabi = { workspace = true }
+
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+
+# Optional imports for benchmarking
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+hydra-dx-math = { workspace = true }
+pallet-omnipool = { workspace = true }
+pallet-asset-registry = { workspace = true }
+pallet-route-executor = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-currencies = { workspace = true }
+pallet-evm-accounts = { workspace = true }
+sp-api = { workspace = true }
+orml-traits = { workspace = true }
+orml-tokens = { workspace = true, features = ["std"] }
+hex-literal = { workspace = true }
+proptest = { workspace = true }
+pretty_assertions = { workspace = true }
+test-utils = { workspace = true }
+parking_lot = { workspace = true }
+
+[features]
+default = ['std']
+std = [
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'sp-runtime/std',
+    'sp-core/std',
+    'sp-io/std',
+    'sp-std/std',
+    'sp-arithmetic/std',
+    'sp-api/std',
+    'scale-info/std',
+    'orml-tokens/std',
+    'orml-traits/std',
+    'hydradx-traits/std',
+    'hydra-dx-math/std',
+    'frame-benchmarking/std',
+    'pallet-balances/std',
+    'pallet-currencies/std',
+    'pallet-route-executor/std',
+    'pallet-omnipool/std',
+    'pallet-asset-registry/std',
+    'pallet-evm-accounts/std',
+]
+
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

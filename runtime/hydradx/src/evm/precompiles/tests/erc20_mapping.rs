@@ -1,6 +1,7 @@
-use crate::evm::precompiles::erc20_mapping::{Erc20Mapping, HydraErc20Mapping};
+use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hex_literal::hex;
 use primitive_types::H160;
+use hydradx_traits::evm::Erc20Mapping;
 
 macro_rules! encode {
 	($asset_id:expr) => {{

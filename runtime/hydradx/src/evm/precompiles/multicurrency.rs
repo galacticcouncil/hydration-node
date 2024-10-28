@@ -24,7 +24,7 @@ use crate::evm::precompiles::revert;
 use crate::{
 	evm::{
 		precompiles::{
-			erc20_mapping::{Erc20Mapping, HydraErc20Mapping},
+			erc20_mapping::HydraErc20Mapping,
 			handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt},
 			substrate::RuntimeHelper,
 			succeed, Address, Output,
@@ -35,7 +35,7 @@ use crate::{
 };
 use codec::EncodeLike;
 use frame_support::traits::{IsType, OriginTrait};
-use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::evm::{Erc20Mapping, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};

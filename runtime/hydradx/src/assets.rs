@@ -1581,6 +1581,27 @@ impl pallet_referrals::Config for Runtime {
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
+
+parameter_types! {
+	pub const MoneyMarketContract: evm::EvmAddress = evm::EvmAddress::zero(); // TODO:
+}
+
+impl pallet_liquidation::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = FungibleCurrencies<Runtime>;
+	type Evm = evm::Executor<Runtime>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Router = Router;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Router = pallet_route_executor::DummyRouter<Runtime>;
+	type MoneyMarketContract = MoneyMarketContract;
+	type EvmAccounts = EVMAccounts;
+	type Erc20Mapping = evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	type ProfitReceiver = TreasuryAccount;
+	type RouterWeightInfo = RouterWeightInfo;
+	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where

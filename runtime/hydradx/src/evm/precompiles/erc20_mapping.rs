@@ -22,22 +22,15 @@
 use crate::evm::EvmAddress;
 use crate::Runtime;
 use hex_literal::hex;
-use hydradx_traits::RegisterAssetHook;
+use hydradx_traits::{evm::Erc20Mapping, RegisterAssetHook};
 use primitive_types::H160;
 use primitives::AssetId;
-
-/// A mapping between AssetId and Erc20 EVM address.
-pub trait Erc20Mapping {
-	fn encode_evm_address(asset_id: AssetId) -> Option<EvmAddress>;
-
-	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId>;
-}
 
 pub struct HydraErc20Mapping;
 
 /// Erc20Mapping logic for HydraDX
 /// The asset id (with type u32) is encoded in the last 4 bytes of EVM address
-impl Erc20Mapping for HydraErc20Mapping {
+impl Erc20Mapping<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> Option<EvmAddress> {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 
