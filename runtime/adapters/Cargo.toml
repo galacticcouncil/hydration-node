@@ -8,7 +8,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/warehouse/tree/master/adapters"
 
 [dependencies]
-codec = {workspace = true }
+codec = { workspace = true }
 log = { workspace = true }
 scale-info = { workspace = true }
 

@@ -33,7 +33,7 @@ use hydradx_traits::{
 	OraclePeriod, PriceOracle,
 };
 use orml_traits::{parameter_type_with_key, GetByKey};
-use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
+use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::offchain::{
 	testing::PoolState, testing::TestOffchainExt, testing::TestTransactionPoolExt, OffchainDbExt, OffchainWorkerExt,
@@ -252,6 +252,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
 }
@@ -303,6 +305,7 @@ impl pallet_asset_registry::Config for Test {
 	type MinStringLimit = MinRegistryStringLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
+	type RegisterAssetHook = ();
 	type WeightInfo = ();
 }
 

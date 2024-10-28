@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "262.0.0"
+version = "267.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -76,6 +76,7 @@ pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-asset-registry = { workspace = true }
 pallet-collator-rewards = { workspace = true }
 pallet-currencies = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
@@ -165,7 +166,9 @@ pallet-evm-precompile-blake2 = { workspace = true }
 pallet-evm-precompile-call-permit = { workspace = true }
 precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
-ethabi = {  workspace = true }
+ethabi = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
@@ -280,6 +283,7 @@ std = [
     "pallet-genesis-history/std",
     "pallet-asset-registry/std",
     "pallet-currencies/std",
+    "pallet-currencies-rpc-runtime-api/std",
     "pallet-omnipool/std",
     "pallet-circuit-breaker/std",
     "pallet-transaction-pause/std",

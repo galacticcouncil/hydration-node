@@ -134,6 +134,12 @@ polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
 rococo-runtime = { workspace = true }
+module-evm-utility-macro = { workspace = true }
+num_enum = { workspace = true }
+
+ethabi = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = {  workspace = true }

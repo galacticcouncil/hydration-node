@@ -33,7 +33,7 @@ frame-benchmarking = { workspace = true, optional = true }
 [dev-dependencies]
 sp-api = { workspace = true }
 sp-io = { workspace = true }
-orml-tokens = { workspace = true, features=["std"] }
+orml-tokens = { workspace = true, features = ["std"] }
 proptest = { workspace = true }
 pretty_assertions = { workspace = true }
 test-utils = { workspace = true }
@@ -41,23 +41,23 @@ test-utils = { workspace = true }
 [features]
 default = ['std']
 std = [
-  'codec/std',
-  'frame-support/std',
-  'frame-system/std',
-  'sp-runtime/std',
-  'sp-core/std',
-  'sp-io/std',
-  'sp-std/std',
-  'scale-info/std',
-  'orml-tokens/std',
-  'orml-traits/std',
-  'hydradx-traits/std',
-  'frame-benchmarking/std'
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'sp-runtime/std',
+    'sp-core/std',
+    'sp-io/std',
+    'sp-std/std',
+    'scale-info/std',
+    'orml-tokens/std',
+    'orml-traits/std',
+    'hydradx-traits/std',
+    'frame-benchmarking/std'
 ]
 
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-system/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

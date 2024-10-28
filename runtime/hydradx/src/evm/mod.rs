@@ -20,6 +20,7 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
+use crate::evm::gas_to_weight_mapping::FixedHydraGasWeightMapping;
 use crate::evm::runner::WrapRunner;
 use crate::origins::GeneralAdmin;
 use crate::types::ShortOraclePrice;
@@ -46,12 +47,18 @@ use pallet_evm::EnsureAddressTruncated;
 use pallet_transaction_payment::Multiplier;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
-
 mod accounts_conversion;
+mod erc20_currency;
 mod evm_fee;
+mod executor;
+mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;
 mod runner;
+
+pub use erc20_currency::Erc20Currency;
+pub use erc20_currency::Function;
+pub use executor::Executor;
 
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
@@ -99,6 +106,7 @@ impl Get<AssetId> for WethAssetId {
 	}
 }
 
+pub type EvmAddress = sp_core::H160;
 type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
 
 parameter_types! {
@@ -138,10 +146,10 @@ impl pallet_evm::Config for crate::Runtime {
 	type Currency = WethCurrency;
 	type FeeCalculator = crate::DynamicEvmFee;
 	type FindAuthor = FindAuthorTruncated<crate::Runtime, Aura>;
-	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
+	type GasWeightMapping = FixedHydraGasWeightMapping<Self>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,
-		FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
+		FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<crate::Runtime>>, // Get account's fee payment asset
 		WethAssetId,
 		ConvertAmount<ShortOraclePrice>,
 		FungibleCurrencies<crate::Runtime>, // Multi currency support
@@ -155,8 +163,8 @@ impl pallet_evm::Config for crate::Runtime {
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			crate::Runtime,
 			ConvertAmount<ShortOraclePrice>,
-			FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
-			FungibleCurrencies<crate::Runtime>,        // Account balance inspector
+			FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<crate::Runtime>>, // Get account's fee payment asset
+			FungibleCurrencies<crate::Runtime>,                                     // Account balance inspector
 		>,
 	>;
 	type RuntimeEvent = crate::RuntimeEvent;
@@ -185,11 +193,13 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 	}
 }
 
+type EvmAccounts<T> = pallet_evm_accounts::Pallet<T>;
+
 impl pallet_evm_accounts::Config for crate::Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
-	type FeeMultiplier = sp_core::ConstU32<50>;
 	type EvmNonceProvider = EvmNonceProvider;
 	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type FeeMultiplier = sp_core::ConstU32<50>;
 	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<crate::Runtime>;
 }
 

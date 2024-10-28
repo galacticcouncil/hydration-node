@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-traits"
-version = "3.7.1"
+version = "3.7.2"
 description = "Shared traits"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -8,10 +8,10 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/warehouse/tree/master/traits"
 
 [dependencies]
-codec = {  workspace = true }
-scale-info = {  workspace = true }
-serde = {  workspace = true }
-impl-trait-for-tuples = {  workspace = true }
+codec = { workspace = true }
+scale-info = { workspace = true }
+serde = { workspace = true }
+impl-trait-for-tuples = { workspace = true }
 sp-arithmetic = { workspace = true }
 
 # Substrate dependencies
