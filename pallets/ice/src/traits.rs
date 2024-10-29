@@ -59,17 +59,17 @@ pub struct OmnipoolAssetInfo<AssetId> {
 
 impl<AssetId> OmnipoolAssetInfo<AssetId> {
 	pub fn reserve_as_f64(&self) -> f64 {
-		0.
+		self.reserve as f64 / 10u128.pow(self.decimals as u32) as f64
 		//FixedU128::from_rational(self.reserve, 10u128.pow(self.decimals as u32)).to_float()
 	}
 
 	pub fn hub_reserve_as_f64(&self) -> f64 {
-		0.
+		self.hub_reserve as f64 / 10u128.pow(12u32) as f64
 		//FixedU128::from_rational(self.hub_reserve, 10u128.pow(12u32)).to_float()
 	}
 
 	pub fn fee_as_f64(&self) -> f64 {
-		0.
+		self.fee.deconstruct() as f64 / Permill::max_value().deconstruct() as f64
 		/*
 		FixedU128::from_rational(
 			self.fee.deconstruct() as u128,
@@ -81,7 +81,8 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 	}
 
 	pub fn hub_fee_as_f64(&self) -> f64 {
-		0.
+		self.hub_fee.deconstruct() as f64 / Permill::max_value().deconstruct() as f64
+		
 		/*
 		FixedU128::from_rational(
 			self.hub_fee.deconstruct() as u128,

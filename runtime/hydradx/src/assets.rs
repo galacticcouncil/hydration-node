@@ -590,15 +590,12 @@ impl pallet_ice::Config for Runtime {
 	type Weigher = IceWeigher<RouterWeightInfo>;
 	type PriceProvider =
 		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
-	/*
 	type Solver = ice_solver::omni::OmniSolver<
 		AccountId,
 		AssetId,
 		hydradx_adapters::ice::OmnipoolDataProvider<Runtime>,
 		IceRoutingSupport<Router, Router, IcePriceP, RuntimeOrigin>,
 	>;
-	 */
-	type Solver = NoopSolver;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
 	type ProposalBond = IceProposalBond;
