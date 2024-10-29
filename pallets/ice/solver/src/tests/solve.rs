@@ -1,8 +1,6 @@
 use crate::omni::OmniSolver;
-use crate::tests::{generate_random_intents, AssetId, DataProvider, MockRouting};
-use crate::traits::{ICESolver, OmnipoolInfo};
-use crate::SolverSolution;
-use orml_traits::parameters::frame_support::traits::Len;
+use crate::tests::{generate_random_intents, AssetId, DataProvider};
+use pallet_ice::traits::{OmnipoolInfo, Solver};
 use pallet_ice::types::{Intent, ResolvedIntent, Swap, SwapType};
 
 #[test]
@@ -24,22 +22,18 @@ fn solver_should_find_solution_for_one_intent() {
 			on_failure: None,
 		},
 	)];
-	let solution = OmniSolver::<u64, AssetId, DataProvider, MockRouting>::solve(intents).unwrap();
-	let expected_solution = SolverSolution::<AssetId> {
-		intents: vec![ResolvedIntent {
-			intent_id: 0,
-			amount_in: 98465458599392,
-			amount_out: 1131368119307,
-		}],
-		trades: vec![],
-		score: 0,
-	};
+	let (solution, _) = OmniSolver::<u64, AssetId, DataProvider>::solve(intents).unwrap();
+	let expected_solution = vec![ResolvedIntent {
+		intent_id: 0,
+		amount_in: 98465458599392,
+		amount_out: 1131368119307,
+	}];
 	assert_eq!(solution, expected_solution);
 }
 
 #[test]
 fn solver_should_find_solution_with_twenty_intents() {
 	let intents = generate_random_intents(10000, DataProvider::assets(None));
-	let solution = OmniSolver::<u64, AssetId, DataProvider, MockRouting>::solve(intents).unwrap();
-	dbg!(solution.intents.len());
+	let (solution, _) = OmniSolver::<u64, AssetId, DataProvider>::solve(intents).unwrap();
+	dbg!(solution.len());
 }

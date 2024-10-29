@@ -1577,6 +1577,7 @@ checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
 [[package]]
 name = "clarabel"
 version = "0.9.0"
+source = "git+https://github.com/enthusiastmartin/Clarabel.rs?branch=feat/sp-support#d03fb3b94bf76447984143c3ba11c9d02dba496f"
 dependencies = [
  "amd",
  "cfg-if",
@@ -5280,6 +5281,7 @@ dependencies = [
  "hydradx-traits",
  "pallet-ice",
  "rand 0.8.5",
+ "serde_json",
  "sp-runtime",
  "sp-std",
 ]
@@ -14933,7 +14935,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#9584dbda9ed5fc91b1837f35f401659239fdaff1"
+source = "git+https://github.com/paritytech/polkadot-sdk#5e8a96a4968b69efdfbc63712ec68c5af325faf9"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",

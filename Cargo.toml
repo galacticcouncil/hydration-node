@@ -104,7 +104,7 @@ toml = "0.5"
 trie-db = "0.28.0"
 trybuild = "1.0"
 
-clarabel = { path = "../Clarabel.rs" , default-features = false }
+clarabel = { git = "https://github.com/enthusiastmartin/Clarabel.rs" ,  branch = "feat/sp-support", default-features = false }
 
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
