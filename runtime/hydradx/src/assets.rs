@@ -573,8 +573,8 @@ impl<R: AmmTradeWeights<Trade<AssetId>>> IceWeightBounds<RuntimeCall, Vec<Trade<
 	}
 }
 
-type IcePriceP = OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, IceOraclePeriod>;
-use pallet_ice::traits::NoopSolver;
+type IcePriceProvider =
+	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, IceOraclePeriod>;
 
 impl pallet_ice::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -588,13 +588,13 @@ impl pallet_ice::Config for Runtime {
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = Router;
 	type Weigher = IceWeigher<RouterWeightInfo>;
-	type PriceProvider =
-		OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, ReferralsOraclePeriod>;
+	type PriceProvider = IcePriceProvider;
+	type RoutingSupport = IceRoutingSupport<Router, Router, IcePriceProvider, RuntimeOrigin>;
 	type Solver = ice_solver::omni::OmniSolver<
 		AccountId,
 		AssetId,
 		hydradx_adapters::ice::OmnipoolDataProvider<Runtime>,
-		IceRoutingSupport<Router, Router, IcePriceP, RuntimeOrigin>,
+		IceRoutingSupport<Router, Router, IcePriceProvider, RuntimeOrigin>,
 	>;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;

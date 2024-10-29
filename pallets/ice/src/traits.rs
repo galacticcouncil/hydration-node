@@ -5,8 +5,8 @@ use hydradx_traits::router::Trade;
 //use serde::Deserialize;
 use sp_runtime::traits::Bounded;
 use sp_runtime::{FixedU128, Permill};
-use sp_std::vec::Vec;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 pub trait IceWeightBounds<RuntimeCall, Route> {
 	fn transfer_weight() -> Weight;
@@ -82,7 +82,7 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 
 	pub fn hub_fee_as_f64(&self) -> f64 {
 		self.hub_fee.deconstruct() as f64 / Permill::max_value().deconstruct() as f64
-		
+
 		/*
 		FixedU128::from_rational(
 			self.hub_fee.deconstruct() as u128,

@@ -12,6 +12,7 @@ use hydradx_runtime::{
 use hydradx_traits::router::{PoolType, Trade};
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
 use pallet_ice::Call::submit_intent;
+use pallet_omnipool::types::Tradability;
 use primitives::{AccountId, AssetId, Moment};
 use sp_runtime::traits::BlockNumberProvider;
 
@@ -30,48 +31,49 @@ fn solver_should_find_solution_with_one_intent() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
 
-		let deadline: Moment = NOW + 43_200_000;
-		let intent1 = (
-			1u128,
-			Intent {
-				who: BOB.into(),
-				swap: Swap {
-					asset_in: 0,
-					asset_out: 27,
-					amount_in: 100_000_000_000_000,
-					amount_out: 1149711278057,
-					swap_type: pallet_ice::types::SwapType::ExactIn,
-				},
-				deadline,
-				partial: false,
-				on_success: None,
-				on_failure: None,
+		let deadline: Moment = Timestamp::now() + 43_200_000;
+		let intent_ids = submit_intents(vec![Intent {
+			who: BOB.into(),
+			swap: Swap {
+				asset_in: 0,
+				asset_out: 27,
+				amount_in: 100_000_000_000_000,
+				amount_out: 1149711278057,
+				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
-		);
+			deadline,
+			partial: true,
+			on_success: None,
+			on_failure: None,
+		}]);
 
-		let intents = vec![intent1];
+		let intents = vec![(
+			intent_ids[0],
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
+		)];
+
 		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
 
-		let trades = BoundedTrades::new();
-		let score = 0;
+		let (trades, score) =
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
 
 		assert_eq!(
 			resolved.to_vec(),
 			vec![pallet_ice::types::ResolvedIntent {
-				intent_id: 1,
-				amount_in: 99973005585447,
-				amount_out: 1149400920228,
+				intent_id: 796899343984252629811200000,
+				amount_in: 99853645824127,
+				amount_out: 1148028627591,
 			},]
 		);
 
 		assert_eq!(
-			trades.to_vec(),
+			trades,
 			vec![
 				pallet_ice::types::TradeInstruction::SwapExactIn {
 					asset_in: 0,
 					asset_out: 1,
-					amount_in: 99973005585447,
-					amount_out: 17588098635,
+					amount_in: 99853645824127,
+					amount_out: 17567099869,
 					route: pallet_ice::types::BoundedRoute::try_from(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: 0,
@@ -82,8 +84,8 @@ fn solver_should_find_solution_with_one_intent() {
 				pallet_ice::types::TradeInstruction::SwapExactOut {
 					asset_in: 1,
 					asset_out: 27,
-					amount_in: 16180720855,
-					amount_out: 1149400920228,
+					amount_in: 16161402305,
+					amount_out: 1148028627591,
 					route: pallet_ice::types::BoundedRoute::try_from(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: 1,
@@ -94,7 +96,7 @@ fn solver_should_find_solution_with_one_intent() {
 			]
 		);
 
-		assert_eq!(score, 0);
+		assert_eq!(score, 1000000);
 	});
 }
 
@@ -102,6 +104,11 @@ fn solver_should_find_solution_with_one_intent() {
 fn execute_solution_should_work_with_solved_intents() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
+		assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
+			hydradx_runtime::RuntimeOrigin::root(),
+			LRNA,
+			Tradability::SELL | Tradability::BUY
+		));
 
 		let deadline: Moment = Timestamp::now() + 43_200_000;
 		let intent_ids = submit_intents(vec![Intent {
@@ -114,7 +121,7 @@ fn execute_solution_should_work_with_solved_intents() {
 				swap_type: pallet_ice::types::SwapType::ExactIn,
 			},
 			deadline,
-			partial: false,
+			partial: true,
 			on_success: None,
 			on_failure: None,
 		}]);
@@ -124,13 +131,14 @@ fn execute_solution_should_work_with_solved_intents() {
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
 		)];
 		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
-		let trades = BoundedTrades::new();
-		let score = 0;
+
+		let (trades, score) =
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
 
 		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
 			resolved,
-			trades,
+			BoundedTrades::try_from(trades).unwrap(),
 			score,
 			System::current_block_number()
 		));

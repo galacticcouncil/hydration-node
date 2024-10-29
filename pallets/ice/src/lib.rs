@@ -10,8 +10,12 @@ pub mod types;
 pub mod validity;
 mod weights;
 
+use crate::traits::Routing;
 use crate::traits::Solver;
-use crate::types::{Balance, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier};
+use crate::types::{
+	Balance, BoundedRoute, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, ResolvedIntent,
+	TradeInstruction,
+};
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
@@ -26,9 +30,12 @@ use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use scale_info::TypeInfo;
 use sp_core::offchain::Duration;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::offchain::storage_lock::StorageLock;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::traits::{MaybeSerializeDeserialize, Member, Zero};
+use sp_runtime::Saturating;
+use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -107,6 +114,8 @@ pub mod pallet {
 
 		/// Price provider
 		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
+
+		type RoutingSupport: Routing<Self::AssetId>;
 
 		type Solver: traits::Solver<(IntentId, Intent<Self::AccountId, Self::AssetId>), Error = ()>;
 
@@ -467,5 +476,86 @@ impl<T: Config> Pallet<T> {
 				return;
 			};
 		};
+	}
+
+	pub fn calculate_trades_and_score(
+		resolved_intents: &[ResolvedIntent],
+	) -> Result<(Vec<TradeInstruction<T::AssetId>>, u64), ()> {
+		let mut amounts_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+		let mut amounts_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+
+		for resolved_intent in resolved_intents.iter() {
+			let intent = Intents::<T>::get(resolved_intent.intent_id).ok_or(())?;
+			amounts_in
+				.entry(intent.swap.asset_in)
+				.and_modify(|e| *e += resolved_intent.amount_in)
+				.or_insert(resolved_intent.amount_in);
+			amounts_out
+				.entry(intent.swap.asset_out)
+				.and_modify(|e| *e += resolved_intent.amount_out)
+				.or_insert(resolved_intent.amount_out);
+		}
+
+		let mut lrna_aquired = 0u128;
+
+		let mut matched_amounts = Vec::new();
+		let mut trades_instructions = Vec::new();
+
+		// Sell all for lrna
+		for (asset_id, amount) in amounts_in.iter() {
+			let amount_out = *amounts_out.get(asset_id).unwrap_or(&0u128);
+
+			matched_amounts.push((*asset_id, (*amount).min(amount_out)));
+
+			if *amount > amount_out {
+				let route = T::RoutingSupport::get_route(*asset_id, T::HubAssetId::get());
+				let diff = amount.saturating_sub(amount_out);
+
+				let lrna_bought = T::RoutingSupport::calculate_amount_out(&route, diff)?;
+				lrna_aquired.saturating_accrue(lrna_bought);
+				trades_instructions.push(TradeInstruction::SwapExactIn {
+					asset_in: *asset_id,
+					asset_out: T::HubAssetId::get(),
+					amount_in: amount.saturating_sub(amount_out), //Swap only difference
+					amount_out: lrna_bought,
+					route: BoundedRoute::try_from(route).unwrap(),
+				});
+			}
+		}
+
+		let mut lrna_sold = 0u128;
+
+		for (asset_id, amount) in amounts_out {
+			let amount_in = *amounts_in.get(&asset_id).unwrap_or(&0u128);
+
+			if amount > amount_in {
+				let route = T::RoutingSupport::get_route(T::HubAssetId::get(), asset_id);
+				let diff = amount.saturating_sub(amount_in);
+				let lrna_in = T::RoutingSupport::calculate_amount_in(&route, diff)?;
+				lrna_sold.saturating_accrue(lrna_in);
+				trades_instructions.push(TradeInstruction::SwapExactOut {
+					asset_in: T::HubAssetId::get(),
+					asset_out: asset_id,
+					amount_in: lrna_in,
+					amount_out: amount.saturating_sub(amount_in), //Swap only difference
+					route: BoundedRoute::try_from(route).unwrap(),
+				});
+			}
+		}
+		assert!(
+			lrna_aquired >= lrna_sold,
+			"lrna_aquired < lrna_sold ({} < {})",
+			lrna_aquired,
+			lrna_sold
+		);
+
+		let mut score = resolved_intents.len() as u128 * 1_000_000_000_000;
+		for (asset_id, amount) in matched_amounts {
+			let price = T::RoutingSupport::hub_asset_price(asset_id)?;
+			let h = multiply_by_rational_with_rounding(amount, price.n, price.d, sp_runtime::Rounding::Up).unwrap();
+			score.saturating_accrue(h);
+		}
+		let score = (score / 1_000_000) as u64;
+		Ok((trades_instructions, score))
 	}
 }
