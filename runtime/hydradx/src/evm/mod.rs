@@ -164,7 +164,7 @@ impl pallet_evm::Config for crate::Runtime {
 			crate::Runtime,
 			ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 			FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<crate::Runtime>>, // Get account's fee payment asset
-			FungibleCurrencies<crate::Runtime>,        // Account balance inspector
+			FungibleCurrencies<crate::Runtime>,                                     // Account balance inspector
 		>,
 	>;
 	type RuntimeEvent = crate::RuntimeEvent;

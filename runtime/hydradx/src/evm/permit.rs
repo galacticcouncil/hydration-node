@@ -1,4 +1,5 @@
 use crate::evm::precompiles;
+use crate::ExtrinsicBaseWeight;
 use evm::ExitReason;
 use fp_evm::FeeCalculator;
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo, RawOrigin};
@@ -16,7 +17,6 @@ use sp_io::hashing::keccak_256;
 use sp_runtime::traits::{One, UniqueSaturatedInto};
 use sp_runtime::DispatchResult;
 use sp_std::vec::Vec;
-use crate::{ExtrinsicBaseWeight};
 
 pub struct EvmPermitHandler<R>(sp_std::marker::PhantomData<R>);
 
@@ -165,10 +165,12 @@ where
 
 	fn dispatch_weight(gas_limit: u64) -> Weight {
 		let without_base_extrinsic_weight = true;
-		let weight = <R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(gas_limit, without_base_extrinsic_weight);
+		let weight =
+			<R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(gas_limit, without_base_extrinsic_weight);
 
-		// As GasWeightMapping implementation does not exclude the weight-with-swap (only the frame_system::constants::ExtrinsicBaseWeight), therefore we need to substract it manually
-		weight.saturating_sub(ExtrinsicBaseWeight::get())
+		// As GasWeightMapping implementation does not include/exclude the weight-with-swap (only the frame_system::constants::ExtrinsicBaseWeight)
+		// therefore we need to add it manually here
+		weight.saturating_add(ExtrinsicBaseWeight::get())
 	}
 
 	fn permit_nonce(account: H160) -> U256 {
