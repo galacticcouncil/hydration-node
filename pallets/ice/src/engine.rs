@@ -404,9 +404,10 @@ fn ensure_intent_price<T: Config>(intent: &Intent<T::AccountId, T::AssetId>, res
 	let realized = FixedU128::from_rational(resolved_out, resolved_in);
 	let expected = FixedU128::from_rational(amount_out, amount_in);
 
-	if realized < expected {
-		return false;
+	if realized >= expected {
+		return true;
+	} else {
+		let diff = expected - realized;
+		diff <= FixedU128::from_rational(1, 1000)
 	}
-	let diff = realized - expected;
-	diff <= FixedU128::from_rational(1, 1000)
 }
