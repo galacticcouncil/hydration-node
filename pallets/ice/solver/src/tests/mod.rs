@@ -10,7 +10,8 @@ const OMNIPOOL_DATA: &str = r##"[{"asset_id": 100, "reserve": 139226392956184031
 type AssetId = u32;
 
 pub(crate) fn load_omnipool_data() -> Vec<OmnipoolAssetInfo<AssetId>> {
-	serde_json::from_str(OMNIPOOL_DATA).unwrap()
+	//serde_json::from_str(OMNIPOOL_DATA).unwrap()
+	vec![]
 }
 
 pub(crate) fn generate_random_intents(

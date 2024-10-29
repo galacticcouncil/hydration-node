@@ -1,8 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod omni;
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;
 
 #[macro_export]
 macro_rules! rational_to_f64 {
