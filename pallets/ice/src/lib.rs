@@ -13,8 +13,8 @@ mod weights;
 use crate::traits::Routing;
 use crate::traits::Solver;
 use crate::types::{
-	Balance, BoundedRoute, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier, ResolvedIntent,
-	TradeInstruction,
+	Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Intent, IntentId, Moment,
+	NamedReserveIdentifier, ResolvedIntent, TradeInstruction,
 };
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
@@ -24,6 +24,7 @@ use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::Time;
 use frame_support::{dispatch::DispatchResult, traits::Get};
 use frame_support::{Blake2_128Concat, Parameter};
+use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
 use frame_system::pallet_prelude::*;
 use hydradx_traits::router::RouterT;
 use orml_traits::NamedMultiReservableCurrency;
@@ -47,7 +48,7 @@ pub mod pallet {
 	use super::*;
 	use crate::engine::ICEEngine;
 	use crate::traits::IceWeightBounds;
-	use crate::types::{BoundedResolvedIntents, BoundedTrades, ResolvedIntent, TradeInstruction};
+	use crate::types::{BoundedResolvedIntents, BoundedTrades, TradeInstruction};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
@@ -59,7 +60,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset type.
@@ -324,6 +325,8 @@ pub mod pallet {
 			Ok(())
 		}
 
+		//TODO: smae as sumbit, but unsigned,
+		// please merge into one
 		#[pallet::call_index(2)]
 		#[pallet::weight( {
 			let mut w = T::WeightInfo::submit_solution();
@@ -378,6 +381,8 @@ pub mod pallet {
 		}
 	}
 }
+
+//TODO: add validate unsigned to allow only validators
 
 impl<T: Config> Pallet<T> {
 	/// Holding account
@@ -471,13 +476,25 @@ impl<T: Config> Pallet<T> {
 			intents.retain(|(_, intent)| intent.deadline > now);
 
 			// Compute solution using solver
-			let Ok(solution) = T::Solver::solve(intents) else {
+			let Ok((solution, metadata)) = T::Solver::solve(intents) else {
 				//TODO: log error
 				return;
 			};
+
+			let (trades, score) = Self::calculate_trades_and_score(&solution).unwrap();
+
+			let call = Call::propose_solution {
+				intents: BoundedResolvedIntents::truncate_from(solution),
+				trades: BoundedTrades::truncate_from(trades),
+				score,
+				block: block_number.saturating_add(1u32.into()),
+			};
+			let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 		};
 	}
 
+	//TODO: this simply sell all for lrna, and buy assets with lrna.
+	// this should really optimized to find the best route and amount to swap using one swap instead of two (to lrna/fromlrna)
 	pub fn calculate_trades_and_score(
 		resolved_intents: &[ResolvedIntent],
 	) -> Result<(Vec<TradeInstruction<T::AssetId>>, u64), ()> {

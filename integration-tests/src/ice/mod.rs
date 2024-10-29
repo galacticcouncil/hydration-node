@@ -12,7 +12,6 @@ use hydradx_runtime::{
 };
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::AssetPair;
-use ice_solver::traits::IceSolution;
 use orml_traits::MultiCurrency;
 use pallet_ice::traits::Solver;
 use pallet_ice::types::{Balance, BoundedResolvedIntents, BoundedTrades, Intent, IntentId, ResolvedIntent as RI, Swap};
@@ -25,7 +24,7 @@ const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2024-10-18";
 pub(crate) fn solve_intents_with<S: Solver<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>>(
 	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>,
 ) -> Result<BoundedResolvedIntents, ()> {
-	let result = S::solve(intents).map_err(|_| ())?;
+	let (result, metadata) = S::solve(intents).map_err(|_| ())?;
 	let resolved_intents = BoundedResolvedIntents::try_from(result).unwrap();
 	//let trades = BoundedTrades::try_from(solution.trades()).unwrap();
 	//let score = solution.score();

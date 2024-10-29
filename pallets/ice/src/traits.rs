@@ -2,9 +2,8 @@ use crate::types::{Balance, ResolvedIntent};
 use frame_support::weights::Weight;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::Trade;
-//use serde::Deserialize;
 use sp_runtime::traits::Bounded;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::Permill;
 use sp_std::vec;
 use sp_std::vec::Vec;
 
@@ -34,16 +33,18 @@ impl<RuntimeCall, Route> IceWeightBounds<RuntimeCall, Route> for () {
 }
 
 pub trait Solver<Intent> {
+	type Metadata;
 	type Error;
 
-	fn solve(intents: Vec<Intent>) -> Result<Vec<ResolvedIntent>, Self::Error>;
+	fn solve(intents: Vec<Intent>) -> Result<(Vec<ResolvedIntent>, Self::Metadata), Self::Error>;
 }
 pub struct NoopSolver;
 impl<Intent> Solver<Intent> for NoopSolver {
+	type Metadata = ();
 	type Error = ();
 
-	fn solve(_intents: Vec<Intent>) -> Result<Vec<ResolvedIntent>, Self::Error> {
-		Ok(vec![])
+	fn solve(_intents: Vec<Intent>) -> Result<(Vec<ResolvedIntent>, Self::Metadata), Self::Error> {
+		Ok((vec![], ()))
 	}
 }
 
@@ -57,40 +58,22 @@ pub struct OmnipoolAssetInfo<AssetId> {
 	pub hub_fee: Permill,
 }
 
+//TODO: this should not be aware of any f64 conversions! job for solver only
 impl<AssetId> OmnipoolAssetInfo<AssetId> {
 	pub fn reserve_as_f64(&self) -> f64 {
 		self.reserve as f64 / 10u128.pow(self.decimals as u32) as f64
-		//FixedU128::from_rational(self.reserve, 10u128.pow(self.decimals as u32)).to_float()
 	}
 
 	pub fn hub_reserve_as_f64(&self) -> f64 {
 		self.hub_reserve as f64 / 10u128.pow(12u32) as f64
-		//FixedU128::from_rational(self.hub_reserve, 10u128.pow(12u32)).to_float()
 	}
 
 	pub fn fee_as_f64(&self) -> f64 {
 		self.fee.deconstruct() as f64 / Permill::max_value().deconstruct() as f64
-		/*
-		FixedU128::from_rational(
-			self.fee.deconstruct() as u128,
-			Permill::max_value().deconstruct() as u128,
-		)
-		.to_float()
-
-		 */
 	}
 
 	pub fn hub_fee_as_f64(&self) -> f64 {
 		self.hub_fee.deconstruct() as f64 / Permill::max_value().deconstruct() as f64
-
-		/*
-		FixedU128::from_rational(
-			self.hub_fee.deconstruct() as u128,
-			Permill::max_value().deconstruct() as u128,
-		)
-		.to_float()
-
-		 */
 	}
 	#[cfg(test)]
 	pub fn reserve_no_decimals(&self) -> Balance {
@@ -102,6 +85,7 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 	}
 }
 
+//TODO: this should be extended to support other than omnipool assets.
 pub trait OmnipoolInfo<AssetId> {
 	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>>;
 }
