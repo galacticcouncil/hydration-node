@@ -1,5 +1,5 @@
 use super::*;
-use crate::engine::ICEEngine;
+use crate::engine::ICEExecutor;
 use crate::tests::{ExtBuilder, ICE};
 use crate::types::{
 	BoundedInstructions, BoundedResolvedIntents, BoundedRoute, BoundedTrades, Instruction, Intent, ResolvedIntent,
@@ -51,7 +51,7 @@ fn preparee_solution_should_work_when_solution_contains_one_intent_swap_exact_in
 				vec![],
 			);
 
-			let r = ICEEngine::<Test>::prepare_solution(intents, trades, 1000000);
+			let r = ICEExecutor::<Test>::prepare_solution(intents, trades, 1000000);
 			assert_ok!(r);
 		});
 }
@@ -97,7 +97,7 @@ fn preparee_solution_should_return_correct_result_when_solution_is_valid() {
 				}],
 			);
 
-			let r = ICEEngine::<Test>::prepare_solution(intents, trades, 1000000);
+			let r = ICEExecutor::<Test>::prepare_solution(intents, trades, 1000000);
 			assert_ok!(&r);
 			let solution = r.unwrap();
 			let expected_intents = BoundedResolvedIntents::try_from(vec![ResolvedIntent {

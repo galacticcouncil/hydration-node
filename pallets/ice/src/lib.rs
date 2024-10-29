@@ -46,7 +46,7 @@ pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::engine::ICEEngine;
+	use crate::engine::ICEExecutor;
 	use crate::traits::IceWeightBounds;
 	use crate::types::{BoundedResolvedIntents, BoundedTrades, TradeInstruction};
 	use frame_support::traits::fungibles::Mutate;
@@ -311,9 +311,9 @@ pub mod pallet {
 				Error::<T>::InvalidBlockNumber
 			);
 
-			match ICEEngine::<T>::prepare_solution(intents, trades, score) {
+			match ICEExecutor::<T>::prepare_solution(intents, trades, score) {
 				Ok(solution) => {
-					ICEEngine::<T>::execute_solution(solution)?;
+					ICEExecutor::<T>::execute_solution(solution)?;
 					Self::clear_expired_intents();
 					Self::deposit_event(Event::SolutionExecuted { who });
 					SolutionExecuted::<T>::set(true);
@@ -366,9 +366,9 @@ pub mod pallet {
 				Error::<T>::InvalidBlockNumber
 			);
 
-			match ICEEngine::<T>::prepare_solution(intents, trades, score) {
+			match ICEExecutor::<T>::prepare_solution(intents, trades, score) {
 				Ok(solution) => {
-					ICEEngine::<T>::execute_solution(solution)?;
+					ICEExecutor::<T>::execute_solution(solution)?;
 					Self::clear_expired_intents();
 					//Self::deposit_event(Event::SolutionExecuted { who });
 					SolutionExecuted::<T>::set(true);
