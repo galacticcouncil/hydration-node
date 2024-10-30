@@ -687,7 +687,9 @@ pub mod pallet {
 			yield_farm_id: YieldFarmId,
 			position_id: T::PositionItemId,
 		) -> DispatchResult {
-			Self::do_deposit_shares(origin, global_farm_id, yield_farm_id, position_id)?;
+			let who = ensure_signed(origin)?;
+
+			Self::do_deposit_shares(who, global_farm_id, yield_farm_id, position_id)?;
 
 			Ok(())
 		}
@@ -913,7 +915,7 @@ pub mod pallet {
 
 			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmEntriesSpecified)?;
 			let (deposit_id, lp_position) =
-				Self::do_deposit_shares(origin.clone(), *global_farm_id, *yield_farm_id, position_id)?;
+				Self::do_deposit_shares(who.clone(), *global_farm_id, *yield_farm_id, position_id)?;
 
 			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
 				T::LiquidityMiningHandler::redeposit_lp_shares(
@@ -1081,13 +1083,11 @@ impl<T: Config> Pallet<T> {
 
 	#[require_transactional]
 	fn do_deposit_shares(
-		origin: OriginFor<T>,
+		who: T::AccountId,
 		global_farm_id: GlobalFarmId,
 		yield_farm_id: YieldFarmId,
 		position_id: T::PositionItemId,
 	) -> Result<(DepositId, OmniPosition<Balance, T::AssetId>), DispatchError> {
-		let who = ensure_signed(origin)?;
-
 		let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 
 		ensure!(
