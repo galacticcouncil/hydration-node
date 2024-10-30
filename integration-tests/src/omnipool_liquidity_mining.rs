@@ -1001,7 +1001,6 @@ fn exit_farms_should_work_for_multiple_farms() {
 			position_id
 		));
 
-		//Act
 		set_relaychain_block_number(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),

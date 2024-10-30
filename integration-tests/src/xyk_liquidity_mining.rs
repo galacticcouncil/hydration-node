@@ -361,6 +361,8 @@ fn join_farms_should_work_with_multiple_farm_entries() {
 			(global_farm_3_id, yield_farm_3_id),
 		];
 		let deposit_id = 1;
+
+		//Act
 		assert_ok!(XYKLiquidityMining::join_farms(
 			RuntimeOrigin::signed(DAVE.into()),
 			farms.try_into().unwrap(),
@@ -368,7 +370,6 @@ fn join_farms_should_work_with_multiple_farm_entries() {
 			dave_shares_balance,
 		));
 
-		//Act
 		set_relaychain_block_number(500);
 
 		let deposit = XYKWarehouseLM::deposit(deposit_id).unwrap();
