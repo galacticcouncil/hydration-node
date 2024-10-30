@@ -58,12 +58,6 @@ pub struct ResolvedIntent {
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Solution<AccountId, AssetId> {
-	pub intents: BoundedResolvedIntents,
-	pub instructions: BoundedInstructions<AccountId, AssetId>,
-}
-
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Instruction<AccountId, AssetId> {
 	TransferIn {
 		who: AccountId,
