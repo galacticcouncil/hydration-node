@@ -1178,7 +1178,6 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 			dave_shares_balance,
 		));
 
-		//Act
 		set_relaychain_block_number(500);
 		assert_ok!(XYKLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(DAVE.into()),
