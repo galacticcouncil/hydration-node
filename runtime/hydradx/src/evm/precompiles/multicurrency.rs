@@ -74,6 +74,7 @@ where
 
 			handle.check_function_modifier(match selector {
 				Function::Transfer => FunctionModifier::NonPayable,
+				Function::TransferFrom => FunctionModifier::NonPayable,
 				_ => FunctionModifier::View,
 			})?;
 
