@@ -417,7 +417,7 @@ runtime_benchmarks! {
 		run_to_block(400);
 		let lp1_rew_curr_balance = Currencies::free_balance(pair.asset_out, &lp1);
 	} : {
-		//We just fire and forget as claiming temporary disabled
+		//We just fire and forget as claiming is disabled
 		let _ = XYKLiquidityMining::claim_rewards(RawOrigin::Signed(lp1.clone()).into(), lp1_deposit_id, yfarm_id1);
 	}
 	verify {
