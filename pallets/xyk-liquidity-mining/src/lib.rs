@@ -707,8 +707,9 @@ pub mod pallet {
 			shares_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			let amm_share_token = T::AMM::get_share_token(asset_pair);
 
-			Self::do_deposit_shares(who, global_farm_id, yield_farm_id, asset_pair, shares_amount)?;
+			Self::do_deposit_shares(who, global_farm_id, yield_farm_id, asset_pair,amm_share_token, shares_amount)?;
 
 			Ok(())
 		}
@@ -738,10 +739,10 @@ pub mod pallet {
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmsSpecified);
 
 			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmsSpecified)?;
-			let deposit_id =
-				Self::do_deposit_shares(who.clone(), *global_farm_id, *yield_farm_id, asset_pair, shares_amount)?;
-
 			let amm_share_token = T::AMM::get_share_token(asset_pair);
+			let deposit_id =
+				Self::do_deposit_shares(who.clone(), *global_farm_id, *yield_farm_id, asset_pair, amm_share_token, shares_amount)?;
+
 			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
 				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
 					global_farm_id,
@@ -1058,11 +1059,10 @@ impl<T: Config> Pallet<T> {
 		global_farm_id: GlobalFarmId,
 		yield_farm_id: YieldFarmId,
 		asset_pair: AssetPair,
+		amm_share_token: AssetId,
 		shares_amount: Balance,
 	) -> Result<DepositId, DispatchError> {
 		let amm_pool_id = Self::ensure_xyk(asset_pair)?;
-
-		let amm_share_token = T::AMM::get_share_token(asset_pair);
 
 		ensure!(
 			T::Currencies::ensure_can_withdraw(amm_share_token, &who, shares_amount).is_ok(),
