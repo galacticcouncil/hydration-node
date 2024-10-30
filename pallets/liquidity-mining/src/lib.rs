@@ -138,8 +138,6 @@ pub(crate) const MIN_DEPOSIT: Balance = 1_000;
 /// Min value farm's owner can set as yield-farm's `multiplier`
 pub(crate) const MIN_YIELD_FARM_MULTIPLIER: FixedU128 = FixedU128::from_inner(1_000_000_000_000_000);
 
-pub const MAX_NUMBER_OF_FARMS_TO_JOIN: u32 = 5;
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
