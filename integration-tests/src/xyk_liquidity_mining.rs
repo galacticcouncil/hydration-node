@@ -489,7 +489,6 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			farms.try_into().unwrap(),
 		));
 
-		//Act
 		set_relaychain_block_number(500);
 
 		let deposit = XYKWarehouseLM::deposit(deposit_id).unwrap();
