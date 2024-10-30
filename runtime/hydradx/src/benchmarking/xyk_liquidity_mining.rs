@@ -621,7 +621,7 @@ runtime_benchmarks! {
 		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 5, 6, pair, lp1_deposit_id)?;
 		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 7, 8, pair, lp1_deposit_id)?;
 
-		//Deposit into the global-farm so it will be updated
+		//Deposit into the yield-farm so it will be updated
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
 
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
