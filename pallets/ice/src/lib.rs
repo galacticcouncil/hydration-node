@@ -12,7 +12,7 @@ mod weights;
 use crate::traits::Routing;
 use crate::traits::Solver;
 use crate::types::{
-	Balance, BoundedInstructions, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId,
+	Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId,
 	Instruction, Intent, IntentId, Moment, NamedReserveIdentifier, ResolvedIntent, Swap, SwapType, TradeInstruction,
 	TradeInstructionTransform,
 };
