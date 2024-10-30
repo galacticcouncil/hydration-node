@@ -609,7 +609,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		set_relaychain_block_number(700);
 
-		let bob_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
+		let charlie_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
 		//Act 2 - claim and withdraw should in the same period should work.
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
@@ -619,8 +619,8 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Assert
 		//NOTE: withdraw shares claims rewards automatically
-		let bob_hdx_balance = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
-		assert!(bob_hdx_balance > bob_hdx_balance_0);
+		let charlie_new_hdx_balance = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
+		assert!(charlie_new_hdx_balance > charlie_hdx_balance_0);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
 		//position should be unlocked.
