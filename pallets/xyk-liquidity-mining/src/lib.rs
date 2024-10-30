@@ -706,7 +706,9 @@ pub mod pallet {
 			asset_pair: AssetPair,
 			shares_amount: Balance,
 		) -> DispatchResult {
-			Self::do_deposit_shares(origin, global_farm_id, yield_farm_id, asset_pair, shares_amount)?;
+			let who = ensure_signed(origin)?;
+
+			Self::do_deposit_shares(who, global_farm_id, yield_farm_id, asset_pair, shares_amount)?;
 
 			Ok(())
 		}
@@ -732,12 +734,12 @@ pub mod pallet {
 			asset_pair: AssetPair,
 			shares_amount: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin.clone())?;
+			let who = ensure_signed(origin)?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmsSpecified);
 
 			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmsSpecified)?;
 			let deposit_id =
-				Self::do_deposit_shares(origin, *global_farm_id, *yield_farm_id, asset_pair, shares_amount)?;
+				Self::do_deposit_shares(who.clone(), *global_farm_id, *yield_farm_id, asset_pair, shares_amount)?;
 
 			let amm_share_token = T::AMM::get_share_token(asset_pair);
 			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
@@ -1052,13 +1054,12 @@ impl<T: Config> Pallet<T> {
 
 	#[require_transactional]
 	fn do_deposit_shares(
-		origin: OriginFor<T>,
+		who: T::AccountId,
 		global_farm_id: GlobalFarmId,
 		yield_farm_id: YieldFarmId,
 		asset_pair: AssetPair,
 		shares_amount: Balance,
 	) -> Result<DepositId, DispatchError> {
-		let who = ensure_signed(origin)?;
 		let amm_pool_id = Self::ensure_xyk(asset_pair)?;
 
 		let amm_share_token = T::AMM::get_share_token(asset_pair);
