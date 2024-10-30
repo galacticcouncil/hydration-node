@@ -1,19 +1,14 @@
 #![cfg(test)]
 
-use ethabi::ethereum_types::H160;
-use fp_evm::ExitSucceed;
 use crate::polkadot_test_net::*;
 
 use frame_support::{
-    assert_noop, assert_ok,
+    assert_ok,
     sp_runtime::RuntimeDebug,
 };
 use hex_literal::hex;
 use orml_traits::currency::MultiCurrency;
-use orml_traits::MultiCurrencyExtended;
-use sp_runtime::{FixedPointNumber, SaturatedConversion};
-use sp_runtime::{FixedU128, Permill};
-use xcm_emulator::TestExt;
+use sp_runtime::SaturatedConversion;
 use hydradx_traits::evm::EvmAddress;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use fp_evm::ExitReason::Succeed;
@@ -36,6 +31,7 @@ pub enum Function {
     GetPool = "getPool()",
     GetReservesList = "getReservesList()",
     Supply = "supply(address,uint256,address,uint16)",
+    Withdraw = "withdraw(address,uint256,address)",
 }
 
 #[test]
@@ -64,9 +60,14 @@ fn liquidation() {
         let dot_asset = HydraErc20Mapping::decode_evm_address(dot_asset_address).unwrap();
 
         let amount: Balance = 1_000_000 * 10_000_000_000; // 1M DOT, 10 decimals
-        let supply: Balance = 1_000 * 10_000_000_000; // 1M DOT, 10 decimals
-        assert_ok!(Currencies::deposit(dot_asset, &ALICE.into(), amount));
+        let supply: Balance = 50000000000;
 
+        assert_ok!(Currencies::deposit(dot_asset, &ALICE.into(), amount));
+        assert_ok!(Currencies::deposit(HDX, &ALICE.into(), amount));
+        assert_ok!(Currencies::deposit(WETH, &ALICE.into(), 100_000 * amount));
+
+        assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+        assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pap_contract));
         assert_ok!(
 			EVMAccounts::bind_evm_address(
 				RuntimeOrigin::signed(ALICE.into()),
@@ -80,8 +81,14 @@ fn liquidation() {
         data.extend_from_slice(H256::from_uint(&U256::from(supply.saturated_into::<u128>())).as_bytes());
         data.extend_from_slice(H256::from(alice_evm_address).as_bytes());
         data.extend_from_slice(H256::zero().as_bytes());
+
+        println!("asset        {:X?}", H256::from(dot_asset_address).as_bytes());
+        println!("amount       {:X?}", H256::from_uint(&U256::from(supply.saturated_into::<u128>())).as_bytes());
+        println!("onBehalfOf   {:X?}", H256::from(alice_evm_address).as_bytes());
+        println!("referralCode {:X?}", H256::zero().as_bytes());
+
         let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 100_000);
-        println!("---- {:?}", res);
+        println!("---- {:X?}", res);
         println!("---- {:X?}", value);
         assert_eq!(res, Succeed(Returned));
     });
