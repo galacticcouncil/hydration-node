@@ -480,6 +480,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 		];
 		let deposit_id = 1;
 		let liquidity_amount = 5_000_000 * UNITS;
+                //Act
 		assert_ok!(XYKLiquidityMining::add_liquidity_and_join_farms(
 			RuntimeOrigin::signed(BOB.into()),
 			PEPE,
