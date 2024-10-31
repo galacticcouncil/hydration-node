@@ -358,7 +358,7 @@ impl liq_mining::Config for Test {
 pub const LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
 pub struct XykAddLiquidityMock;
 
-impl XykAddLiquidity<OriginFor<Test>, AssetId, Balance> for XykAddLiquidityMock {
+impl AmmAddLiquidity<OriginFor<Test>, AssetId, Balance> for XykAddLiquidityMock {
 	fn add_liquidity(
 		_origin: OriginFor<Test>,
 		asset_a: AssetId,
@@ -426,7 +426,7 @@ where
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
-use hydradx_traits::XykAddLiquidity;
+use hydradx_traits::AmmAddLiquidity;
 
 pub struct DummyNFT;
 

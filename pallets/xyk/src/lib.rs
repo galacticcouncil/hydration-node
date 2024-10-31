@@ -40,7 +40,7 @@ use sp_std::{vec, vec::Vec};
 
 use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
-use hydradx_traits::XykAddLiquidity;
+use hydradx_traits::AmmAddLiquidity;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 #[cfg(test)]
@@ -1123,7 +1123,7 @@ impl<T: Config> AMMPosition<AssetId, Balance> for Pallet<T> {
 	}
 }
 
-impl<T: Config> XykAddLiquidity<OriginFor<T>, AssetId, Balance> for Pallet<T> {
+impl<T: Config> AmmAddLiquidity<OriginFor<T>, AssetId, Balance> for Pallet<T> {
 	fn add_liquidity(
 		origin: OriginFor<T>,
 		asset_a: AssetId,

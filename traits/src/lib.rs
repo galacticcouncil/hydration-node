@@ -277,7 +277,7 @@ pub trait AMMPosition<AssetId, Balance> {
 }
 
 /// Implementers of this trait are able to add liquidity to their AMM pool.
-pub trait XykAddLiquidity<Origin, AssetId, Balance> {
+pub trait AmmAddLiquidity<Origin, AssetId, Balance> {
 	fn add_liquidity(
 		origin: Origin,
 		asset_a: AssetId,
