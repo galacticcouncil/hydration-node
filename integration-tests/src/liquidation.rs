@@ -26,6 +26,7 @@ pub enum Function {
 	GetReservesList = "getReservesList()",
 	Supply = "supply(address,uint256,address,uint16)",
 	Withdraw = "withdraw(address,uint256,address)",
+	Borrow = "borrow(address,uint256,uint256,uint16,address)",
 }
 
 #[test]
@@ -41,7 +42,6 @@ fn liquidation() {
 
 		let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
 		let pool_contract: EvmAddress = EvmAddress::from(H256::from_slice(&value));
-		println!("POOL contract: {:X?}", pool_contract);
 		assert_eq!(res, Succeed(Returned));
 
 		let data = Into::<u32>::into(Function::GetReservesList).to_be_bytes().to_vec();
@@ -72,18 +72,23 @@ fn liquidation() {
 		data.extend_from_slice(H256::from(alice_evm_address).as_bytes());
 		data.extend_from_slice(H256::zero().as_bytes());
 
-		println!("asset        {:X?}", H256::from(dot_asset_address).as_bytes());
-		println!(
-			"amount       {:X?}",
-			H256::from_uint(&U256::from(supply.saturated_into::<u128>())).as_bytes()
-		);
-		println!("onBehalfOf   {:X?}", H256::from(alice_evm_address).as_bytes());
-		println!("referralCode {:X?}", H256::zero().as_bytes());
-		println!("data         {:X?}", hex::encode(data.clone()));
-
-		let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 100_000);
-		println!("---- {:X?}", res);
-		println!("---- {:X?}", hex::encode(value));
+		println!("---------- {:?}", hydradx_runtime::Currencies::free_balance(dot_asset, &ALICE.into()));
+		let (res, _value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
 		assert_eq!(res, Succeed(Returned));
+
+
+		let borrow: Balance = 10000000000;
+		let mut data = Into::<u32>::into(Function::Borrow).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(dot_asset_address).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(borrow.saturated_into::<u128>())).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(2u32.saturated_into::<u128>())).as_bytes());
+		data.extend_from_slice(H256::zero().as_bytes());
+		data.extend_from_slice(H256::from(alice_evm_address).as_bytes());
+		println!("---------- {:?}", hydradx_runtime::Currencies::free_balance(dot_asset, &ALICE.into()));
+		let (res, _value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
+		println!("---------- {:?}", hydradx_runtime::Currencies::free_balance(dot_asset, &ALICE.into()));
+		assert_eq!(res, Succeed(Returned));
+
+
 	});
 }
