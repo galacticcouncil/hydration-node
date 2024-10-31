@@ -9,7 +9,28 @@ fn add_liquidity_and_join_farms_should_work() {
 			(ALICE, BSX_KSM_SHARE_ID, share_amount),
 		])
 		.with_amm_pool(BSX_KSM_AMM, BSX_KSM_SHARE_ID, BSX_KSM_ASSET_PAIR)
-		.with_amm_pool(BSX_ACA_AMM, BSX_ACA_SHARE_ID, BSX_ACA_ASSET_PAIR)
+		.with_global_farm(
+			500_000 * ONE,
+			20_000,
+			10,
+			BSX,
+			BSX,
+			BOB,
+			Perquintill::from_percent(1),
+			ONE,
+			One::one(),
+		)
+		.with_global_farm(
+			500_000 * ONE,
+			20_000,
+			10,
+			BSX,
+			BSX,
+			BOB,
+			Perquintill::from_percent(1),
+			ONE,
+			One::one(),
+		)
 		.with_global_farm(
 			500_000 * ONE,
 			20_000,
@@ -22,12 +43,12 @@ fn add_liquidity_and_join_farms_should_work() {
 			One::one(),
 		)
 		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
-		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
-		.with_yield_farm(BOB, 1, One::one(), None, BSX_ACA_ASSET_PAIR)
+		.with_yield_farm(BOB, 2, One::one(), None, BSX_KSM_ASSET_PAIR)
+		.with_yield_farm(BOB, 3, One::one(), None, BSX_KSM_ASSET_PAIR)
 		.build()
 		.execute_with(|| {
 			set_block_number(1_800);
-			let farm_entries = vec![(BSX_FARM, 2), (BSX_FARM, 3), (BSX_FARM, 4)];
+			let farm_entries = vec![(1, 4), (2, 5), (3, 6)];
 
 			// Act
 			assert_ok!(LiquidityMining::add_liquidity_and_join_farms(
@@ -54,25 +75,25 @@ fn add_liquidity_and_join_farms_should_work() {
 			expect_events(vec![
 				crate::Event::SharesDeposited {
 					global_farm_id: 1,
-					yield_farm_id: 2,
-					who: ALICE,
-					lp_token: BSX_KSM_SHARE_ID,
-					amount: share_amount,
-					deposit_id: 1,
-				}
-				.into(),
-				crate::Event::SharesRedeposited {
-					global_farm_id: 1,
-					yield_farm_id: 3,
-					who: ALICE,
-					lp_token: BSX_KSM_SHARE_ID,
-					amount: share_amount,
-					deposit_id: 1,
-				}
-				.into(),
-				crate::Event::SharesRedeposited {
-					global_farm_id: 1,
 					yield_farm_id: 4,
+					who: ALICE,
+					lp_token: BSX_KSM_SHARE_ID,
+					amount: share_amount,
+					deposit_id: 1,
+				}
+				.into(),
+				crate::Event::SharesRedeposited {
+					global_farm_id: 2,
+					yield_farm_id: 5,
+					who: ALICE,
+					lp_token: BSX_KSM_SHARE_ID,
+					amount: share_amount,
+					deposit_id: 1,
+				}
+				.into(),
+				crate::Event::SharesRedeposited {
+					global_farm_id: 3,
+					yield_farm_id: 6,
 					who: ALICE,
 					lp_token: BSX_KSM_SHARE_ID,
 					amount: share_amount,
@@ -101,8 +122,6 @@ fn add_liquidity_and_join_farms_should_fail_when_origin_is_not_signed() {
 			One::one(),
 		)
 		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
-		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
-		.with_yield_farm(BOB, 1, One::one(), None, BSX_ACA_ASSET_PAIR)
 		.build()
 		.execute_with(|| {
 			set_block_number(1_800);
@@ -140,9 +159,19 @@ fn add_liquidity_and_join_farms_should_fail_when_no_yield_farm_specified() {
 			ONE,
 			One::one(),
 		)
+		.with_global_farm(
+			500_000 * ONE,
+			20_000,
+			10,
+			BSX,
+			BSX,
+			BOB,
+			Perquintill::from_percent(1),
+			ONE,
+			One::one(),
+		)
 		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
-		.with_yield_farm(BOB, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
-		.with_yield_farm(BOB, 1, One::one(), None, BSX_ACA_ASSET_PAIR)
+		.with_yield_farm(BOB, 2, One::one(), None, BSX_KSM_ASSET_PAIR)
 		.build()
 		.execute_with(|| {
 			set_block_number(1_800);

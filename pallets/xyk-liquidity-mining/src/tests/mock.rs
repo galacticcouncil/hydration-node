@@ -179,7 +179,7 @@ pub struct DymmyGlobalFarm {
 
 #[derive(Clone, Debug)]
 pub struct DummyYieldFarm {
-	_global_farm_id: u32,
+	global_farm_id: u32,
 	multiplier: FarmMultiplier,
 	amm_pool_id: AccountId,
 	_assets: Vec<AssetId>,
@@ -619,10 +619,21 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 		let farm_id = get_next_farm_id();
 
 		YIELD_FARMS.with(|v| {
+			let mut p = v.borrow_mut();
+			let yield_farm = p.iter_mut().find(|(_, farm)| farm.amm_pool_id == amm_pool_id && farm.global_farm_id == global_farm_id);
+
+			if yield_farm.is_some() {
+				return Err(sp_runtime::DispatchError::Other("Yield Farm already exists in global farm"));
+			}
+
+			Ok::<(), Self::Error>(())
+		}).unwrap();
+
+		YIELD_FARMS.with(|v| {
 			v.borrow_mut().insert(
 				farm_id,
 				DummyYieldFarm {
-					_global_farm_id: global_farm_id,
+					global_farm_id,
 					multiplier,
 					amm_pool_id,
 					_assets: assets,
