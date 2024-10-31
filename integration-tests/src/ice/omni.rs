@@ -64,32 +64,18 @@ fn solver_should_find_solution_with_one_intent() {
 
 		assert_eq!(
 			trades,
-			vec![
-				pallet_ice::types::TradeInstruction::SwapExactIn {
+			vec![pallet_ice::types::TradeInstruction::SwapExactIn {
+				asset_in: 0,
+				asset_out: 27,
+				amount_in: 99853645824127,
+				amount_out: 1148028627591,
+				route: pallet_ice::types::BoundedRoute::try_from(vec![Trade {
+					pool: PoolType::Omnipool,
 					asset_in: 0,
-					asset_out: 1,
-					amount_in: 99853645824127,
-					amount_out: 17567099869,
-					route: pallet_ice::types::BoundedRoute::try_from(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: 0,
-						asset_out: 1,
-					}])
-					.unwrap()
-				},
-				pallet_ice::types::TradeInstruction::SwapExactOut {
-					asset_in: 1,
 					asset_out: 27,
-					amount_in: 16161402305,
-					amount_out: 1148028627591,
-					route: pallet_ice::types::BoundedRoute::try_from(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: 1,
-						asset_out: 27,
-					}])
-					.unwrap()
-				}
-			]
+				}])
+				.unwrap()
+			},]
 		);
 
 		assert_eq!(score, 1000000);
