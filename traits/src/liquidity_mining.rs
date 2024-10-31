@@ -1,4 +1,3 @@
-use frame_support::dispatch::DispatchResult;
 use sp_arithmetic::{FixedU128, Perquintill};
 use sp_std::vec::Vec;
 
@@ -185,14 +184,4 @@ pub trait PriceAdjustment<GlobalFarm> {
 
 pub trait Inspect<AccountId> {
 	fn pot_account() -> Option<AccountId>;
-}
-
-pub trait XykAddLiquidity<Origin, AssetId, Balance> {
-	fn add_liquidity(
-		origin: Origin,
-		asset_a: AssetId,
-		asset_b: AssetId,
-		amount_a: Balance,
-		amount_b_max_limit: Balance,
-	) -> DispatchResult;
 }

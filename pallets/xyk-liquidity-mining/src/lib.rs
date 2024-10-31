@@ -73,7 +73,7 @@ type PeriodOf<T> = BlockNumberFor<T>;
 pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::BlockNumberFor;
-	use hydradx_traits::liquidity_mining::XykAddLiquidity;
+	use hydradx_traits::XykAddLiquidity;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);

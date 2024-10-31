@@ -426,7 +426,7 @@ where
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
-use hydradx_traits::liquidity_mining::XykAddLiquidity;
+use hydradx_traits::XykAddLiquidity;
 
 pub struct DummyNFT;
 

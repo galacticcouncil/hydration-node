@@ -40,7 +40,7 @@ use sp_std::{vec, vec::Vec};
 
 use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
-use hydradx_traits::liquidity_mining::XykAddLiquidity;
+use hydradx_traits::XykAddLiquidity;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 #[cfg(test)]
