@@ -105,7 +105,7 @@ fn sell_insufficient_amount_fails() {
 }
 
 #[test]
-fn hub_asset_buy_not_allowed_by_default() {
+fn hub_asset_buy_not_allowed() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),

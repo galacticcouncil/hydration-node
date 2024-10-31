@@ -264,7 +264,6 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
-	type HubAssetTradeAllowedFor = Everything;
 }
 
 pub struct WithdrawFeePriceOracle;

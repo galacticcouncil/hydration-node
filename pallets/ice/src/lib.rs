@@ -12,9 +12,8 @@ mod weights;
 use crate::traits::Routing;
 use crate::traits::Solver;
 use crate::types::{
-	Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId,
-	Instruction, Intent, IntentId, Moment, NamedReserveIdentifier, ResolvedIntent, Swap, SwapType, TradeInstruction,
-	TradeInstructionTransform,
+	Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Instruction, Intent, IntentId,
+	Moment, NamedReserveIdentifier, ResolvedIntent, Swap, SwapType, TradeInstruction, TradeInstructionTransform,
 };
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;

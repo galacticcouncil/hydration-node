@@ -492,15 +492,6 @@ parameter_types! {
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
 }
 
-pub struct AllowedHubAssetTraders;
-
-impl Contains<AccountId> for AllowedHubAssetTraders {
-	fn contains(a: &AccountId) -> bool {
-		*a == pallet_ice::Pallet::<Runtime>::holding_account()
-			|| *a == pallet_route_executor::Pallet::<Runtime>::router_account() //TODO: remove router account - this is problem in setting route with lrna!
-	}
-}
-
 impl pallet_omnipool::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -539,7 +530,6 @@ impl pallet_omnipool::Config for Runtime {
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
-	type HubAssetTradeAllowedFor = AllowedHubAssetTraders;
 }
 
 parameter_types! {

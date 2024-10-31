@@ -218,7 +218,7 @@ where
 	}
 }
 
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct I129<Balance> {
 	pub value: Balance,
 	pub negative: bool,

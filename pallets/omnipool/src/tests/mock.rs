@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use crate as pallet_omnipool;
 
 use crate::traits::ExternalPriceProvider;
-use frame_support::traits::{ConstU128, Contains, Everything};
+use frame_support::traits::{ConstU128, Everything};
 use frame_support::weights::Weight;
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
@@ -55,7 +55,6 @@ pub const ASSET_WITHOUT_ED: AssetId = 1001;
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
-pub const HUB_ASSET_TRADER: u64 = 4;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -207,7 +206,6 @@ impl Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
-	type HubAssetTradeAllowedFor = AllowedHubAssetTraders;
 }
 
 pub struct ExtBuilder {
@@ -728,13 +726,5 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		let to_take = percentage.mul_floor(amount);
 		Tokens::withdraw(asset, &fee_account, to_take)?;
 		Ok(to_take)
-	}
-}
-
-pub struct AllowedHubAssetTraders;
-
-impl Contains<AccountId> for AllowedHubAssetTraders {
-	fn contains(a: &AccountId) -> bool {
-		*a == HUB_ASSET_TRADER
 	}
 }
