@@ -618,16 +618,22 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 	) -> Result<u32, Self::Error> {
 		let farm_id = get_next_farm_id();
 
-		YIELD_FARMS.with(|v| {
-			let mut p = v.borrow_mut();
-			let yield_farm = p.iter_mut().find(|(_, farm)| farm.amm_pool_id == amm_pool_id && farm.global_farm_id == global_farm_id);
+		YIELD_FARMS
+			.with(|v| {
+				let mut p = v.borrow_mut();
+				let yield_farm = p
+					.iter_mut()
+					.find(|(_, farm)| farm.amm_pool_id == amm_pool_id && farm.global_farm_id == global_farm_id);
 
-			if yield_farm.is_some() {
-				return Err(sp_runtime::DispatchError::Other("Yield Farm already exists in global farm"));
-			}
+				if yield_farm.is_some() {
+					return Err(sp_runtime::DispatchError::Other(
+						"Yield Farm already exists in global farm",
+					));
+				}
 
-			Ok::<(), Self::Error>(())
-		}).unwrap();
+				Ok::<(), Self::Error>(())
+			})
+			.unwrap();
 
 		YIELD_FARMS.with(|v| {
 			v.borrow_mut().insert(

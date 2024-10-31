@@ -481,7 +481,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 		];
 		let deposit_id = 1;
 		let liquidity_amount = 5_000_000 * UNITS;
-                //Act
+		//Act
 		assert_ok!(XYKLiquidityMining::add_liquidity_and_join_farms(
 			RuntimeOrigin::signed(BOB.into()),
 			PEPE,
@@ -1203,7 +1203,7 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 			(deposit_id, yield_farm_2_id, asset_pair),
 			(deposit_id2, yield_farm_3_id, asset_pair2),
 		];
-                //Act
+		//Act
 		assert_ok!(XYKLiquidityMining::exit_farms(
 			RuntimeOrigin::signed(DAVE.into()),
 			exit_entries.try_into().unwrap()

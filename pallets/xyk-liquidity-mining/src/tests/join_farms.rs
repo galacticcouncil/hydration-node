@@ -62,7 +62,7 @@ fn join_farms_should_work_with_multiple_farm_pairs() {
 			set_block_number(1_800);
 			let deposited_amount = 50 * ONE;
 			let global_farm_2 = 2;
-			let farm_entries = vec![(BSX_FARM, 5), (BSX_FARM, 6), (BSX_FARM, 7), (global_farm_2,8)];
+			let farm_entries = vec![(BSX_FARM, 5), (BSX_FARM, 6), (BSX_FARM, 7), (global_farm_2, 8)];
 
 			// Act
 			assert_ok!(LiquidityMining::join_farms(

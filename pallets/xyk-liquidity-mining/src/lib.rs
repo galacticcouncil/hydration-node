@@ -73,8 +73,8 @@ type PeriodOf<T> = BlockNumberFor<T>;
 pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::BlockNumberFor;
-	use hydradx_traits::AmmAddLiquidity;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
+	use hydradx_traits::AmmAddLiquidity;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
@@ -709,7 +709,14 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let amm_share_token = T::AMM::get_share_token(asset_pair);
 
-			Self::do_deposit_shares(who, global_farm_id, yield_farm_id, asset_pair,amm_share_token, shares_amount)?;
+			Self::do_deposit_shares(
+				who,
+				global_farm_id,
+				yield_farm_id,
+				asset_pair,
+				amm_share_token,
+				shares_amount,
+			)?;
 
 			Ok(())
 		}
@@ -740,8 +747,14 @@ pub mod pallet {
 
 			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmsSpecified)?;
 			let amm_share_token = T::AMM::get_share_token(asset_pair);
-			let deposit_id =
-				Self::do_deposit_shares(who.clone(), *global_farm_id, *yield_farm_id, asset_pair, amm_share_token, shares_amount)?;
+			let deposit_id = Self::do_deposit_shares(
+				who.clone(),
+				*global_farm_id,
+				*yield_farm_id,
+				asset_pair,
+				amm_share_token,
+				shares_amount,
+			)?;
 
 			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
 				let (redeposited_amount, _) = T::LiquidityMiningHandler::redeposit_lp_shares(
