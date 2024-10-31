@@ -12467,6 +12467,7 @@ dependencies = [
  "pretty_assertions",
  "primitives",
  "proptest",
+ "rand 0.8.5",
  "rococo-runtime",
  "sc-consensus-grandpa",
  "scraper",

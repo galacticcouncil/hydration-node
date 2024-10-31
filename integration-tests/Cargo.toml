@@ -9,6 +9,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
+rand = { version = "0.8.5", default-features = false }
 hex-literal = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { workspace = true }

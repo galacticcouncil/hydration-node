@@ -1,3 +1,4 @@
+use crate::ice::generator::generate_random_intents;
 use crate::ice::{solve_intents_with, submit_intents, PATH_TO_SNAPSHOT};
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
@@ -10,10 +11,12 @@ use hydradx_runtime::{
 	LRNA as LRNAT,
 };
 use hydradx_traits::router::{PoolType, Trade};
+use pallet_ice::traits::OmnipoolInfo;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
 use pallet_ice::Call::submit_intent;
 use pallet_omnipool::types::Tradability;
 use primitives::{AccountId, AssetId, Moment};
+use sp_core::crypto::AccountId32;
 use sp_runtime::traits::BlockNumberProvider;
 
 type PriceP =
@@ -28,7 +31,7 @@ fn solver_should_find_solution_with_one_intent() {
 		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
 
 		let deadline: Moment = Timestamp::now() + 43_200_000;
-		let intent_ids = submit_intents(vec![Intent {
+		let intents = submit_intents(vec![Intent {
 			who: BOB.into(),
 			swap: Swap {
 				asset_in: 0,
@@ -42,11 +45,6 @@ fn solver_should_find_solution_with_one_intent() {
 			on_success: None,
 			on_failure: None,
 		}]);
-
-		let intents = vec![(
-			intent_ids[0],
-			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
-		)];
 
 		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
 
@@ -87,7 +85,7 @@ fn execute_solution_should_work_with_one_intent() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		hydradx_runtime::Balances::set_balance(&BOB.into(), 200_000_000_000_000);
 		let deadline: Moment = Timestamp::now() + 43_200_000;
-		let intent_ids = submit_intents(vec![Intent {
+		let intents = submit_intents(vec![Intent {
 			who: BOB.into(),
 			swap: Swap {
 				asset_in: 0,
@@ -102,10 +100,6 @@ fn execute_solution_should_work_with_one_intent() {
 			on_failure: None,
 		}]);
 
-		let intents = vec![(
-			intent_ids[0],
-			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
-		)];
 		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
 
 		let (trades, score) =
@@ -133,7 +127,7 @@ fn execute_solution_should_work_with_two_intents() {
 		));
 
 		let deadline: Moment = Timestamp::now() + 43_200_000;
-		let intent_ids = submit_intents(vec![
+		let intents = submit_intents(vec![
 			Intent {
 				who: BOB.into(),
 				swap: Swap {
@@ -164,18 +158,41 @@ fn execute_solution_should_work_with_two_intents() {
 			},
 		]);
 
-		let intents = vec![
-			(
-				intent_ids[0],
-				pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[0]).unwrap(),
-			),
-			(
-				intent_ids[1],
-				pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_ids[1]).unwrap(),
-			),
-		];
 		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
 
+		let (trades, score) =
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
+
+		assert_ok!(ICE::submit_solution(
+			RuntimeOrigin::signed(BOB.into()),
+			resolved,
+			BoundedTrades::try_from(trades).unwrap(),
+			score,
+			System::current_block_number()
+		));
+	});
+}
+
+#[test]
+fn execute_solution_should_work_with_multiple_intents() {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let deadline: Moment = Timestamp::now() + 43_200_000;
+		let intents = generate_random_intents(
+			2,
+			OmnipoolDataProvider::<hydradx_runtime::Runtime>::assets(None),
+			deadline,
+		);
+		for intent in intents.iter() {
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				intent.who.clone().into(),
+				intent.swap.asset_in,
+				intent.swap.amount_in as i128,
+			));
+		}
+		let intents = submit_intents(intents);
+		dbg!(&intents);
+		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
 		dbg!(&resolved);
 
 		let (trades, score) =

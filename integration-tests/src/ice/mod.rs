@@ -1,3 +1,4 @@
+pub(crate) mod generator;
 mod intents;
 mod omni;
 
@@ -53,40 +54,18 @@ fn test_omnipool_snapshot() {
 	});
 }
 
-pub(crate) fn submit_intents(intents: Vec<Intent<AccountId, AssetId>>) -> Vec<IntentId> {
+pub(crate) fn submit_intents(intents: Vec<Intent<AccountId, AssetId>>) -> Vec<(IntentId, Intent<AccountId, AssetId>)> {
 	let mut intent_ids = Vec::new();
 	for intent in intents {
 		let deadline = intent.deadline;
 		let increment_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::next_incremental_id();
-		assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(intent.who.clone()), intent,));
+		assert_ok!(ICE::submit_intent(
+			RuntimeOrigin::signed(intent.who.clone()),
+			intent.clone()
+		));
 		let intent_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, increment_id);
-		intent_ids.push(intent_id);
+		intent_ids.push((intent_id, intent));
 	}
 
 	intent_ids
 }
-
-/*
-
-fn print_json_str(assets: &[OmnipoolAssetInfo<AssetId>]) {
-	// dump assets info in json format
-	let mut json = String::from("[");
-	for asset in assets {
-		json.push_str(&format!(
-			r#"{{"asset_id": {}, "reserve": {}, "hub_reserve": {}, "decimals": {}, "fee": {}, "hub_fee": {}, "symbol": "{}"}}"#,
-			asset.asset_id,
-			asset.reserve,
-			asset.hub_reserve,
-			asset.decimals,
-			asset.fee.deconstruct(),
-			asset.hub_fee.deconstruct(),
-			asset.symbol
-		));
-		json.push_str(",");
-	}
-	json.pop();
-	json.push_str("]");
-	println!("{}", json);
-}
-
- */
