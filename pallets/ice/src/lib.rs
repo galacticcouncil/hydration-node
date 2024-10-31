@@ -515,8 +515,6 @@ impl<T: Config> Pallet<T> {
 				.or_insert(resolved_intent.amount_out);
 		}
 
-		let mut lrna_aquired = 0u128;
-
 		let mut matched_amounts = Vec::new();
 		let mut trades_instructions = Vec::new();
 
