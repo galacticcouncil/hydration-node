@@ -1,9 +1,18 @@
+use hydra_dx_math::omnipool::types::AssetReserveState;
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo};
 use pallet_ice::types::{Intent, Swap, SwapType};
-use primitives::{AccountId, AssetId, Moment};
+use primitives::{AccountId, AssetId, Balance, Moment};
 use rand::Rng;
 use sp_core::crypto::AccountId32;
 use sp_runtime::{FixedPointNumber, FixedU128};
+
+fn to_asset_reserve_state(s: &OmnipoolAssetInfo<AssetId>) -> AssetReserveState<Balance> {
+	AssetReserveState {
+		reserve: s.reserve,
+		hub_reserve: s.hub_reserve,
+		..Default::default()
+	}
+}
 
 pub(crate) fn generate_random_intents(
 	c: u32,
@@ -18,12 +27,18 @@ pub(crate) fn generate_random_intents(
 			let reserve_in = data[idx_in].reserve;
 			let reserve_out = data[idx_out].reserve;
 			let amount_in = rng.gen_range(1..reserve_in / 4);
-			let lrna_in = FixedU128::from_rational(amount_in, reserve_in)
-				.checked_mul_int(data[idx_in].hub_reserve)
-				.unwrap();
-			let amount_out = FixedU128::from_rational(reserve_out, data[idx_out].hub_reserve)
-				.checked_mul_int(lrna_in)
-				.unwrap();
+
+			let s_in = to_asset_reserve_state(&data[idx_in]);
+			let s_out = to_asset_reserve_state(&data[idx_out]);
+			let r = hydra_dx_math::omnipool::calculate_sell_state_changes(
+				&s_in,
+				&s_out,
+				amount_in,
+				data[idx_out].fee,
+				data[idx_in].hub_fee,
+				0,
+			);
+			let amount_out = *r.unwrap().asset_out.delta_reserve;
 			return (data[idx_in].asset_id, data[idx_out].asset_id, amount_in, amount_out);
 		}
 	};
