@@ -140,7 +140,7 @@ serde_json = { workspace = true }
 hex = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = {  workspace = true }
+pretty_assertions = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }

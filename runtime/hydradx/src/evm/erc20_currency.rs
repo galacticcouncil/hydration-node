@@ -1,9 +1,9 @@
 use crate::evm::executor::{CallResult, Executor};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
+use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
-use evm::{ExitReason, ExitSucceed};
 use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
 use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -174,11 +174,25 @@ fn decode_integer(value: Vec<u8>) -> Option<U256> {
 	U256::checked_from(value.as_slice())
 }
 
+fn decode_bool(value: Vec<u8>) -> Option<bool> {
+	if value.len() != 32 {
+		return None;
+	}
+	let mut bytes = [0u8; 32];
+	U256::from(1).to_big_endian(&mut bytes);
+	Some(value == bytes)
+}
+
 fn handle_result(result: CallResult) -> DispatchResult {
 	let (exit_reason, value) = result;
 	match exit_reason {
-		ExitReason::Succeed(ExitSucceed::Returned) => Ok(()),
-		ExitReason::Succeed(ExitSucceed::Stopped) => Ok(()),
+		ExitReason::Succeed(_) => {
+			if Some(false) == decode_bool(value) {
+				Err(DispatchError::Other("evm: erc20 transfer returned false"))
+			} else {
+				Ok(())
+			}
+		}
 		_ => Err(DispatchError::Other(&*Box::leak(
 			format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
 		))),
