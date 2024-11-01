@@ -12,7 +12,7 @@ use hydradx_runtime::{
 };
 use hydradx_traits::router::{PoolType, Trade};
 use pallet_ice::traits::OmnipoolInfo;
-use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap};
+use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap, SwapType};
 use pallet_ice::Call::submit_intent;
 use pallet_omnipool::types::Tradability;
 use primitives::{AccountId, AssetId, Moment};
@@ -182,6 +182,7 @@ fn execute_solution_should_work_with_multiple_intents() {
 			OmnipoolDataProvider::<hydradx_runtime::Runtime>::assets(None),
 			deadline,
 		);
+		dbg!(&intents);
 		for intent in intents.iter() {
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -205,5 +206,37 @@ fn execute_solution_should_work_with_multiple_intents() {
 			score,
 			System::current_block_number()
 		));
+	});
+}
+
+#[test]
+fn solve_should_not_return_solution_when_intent_at_exact_spot_price() {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let deadline: Moment = Timestamp::now() + 43_200_000;
+		let intents: Vec<Intent<AccountId, AssetId>> = vec![Intent {
+			who: ALICE.into(),
+			swap: Swap {
+				asset_in: 16,
+				asset_out: 28,
+				amount_in: 1001497604662274886037302,
+				amount_out: 1081639587746551400027,
+				swap_type: SwapType::ExactIn,
+			},
+			deadline: 43200000,
+			partial: true,
+			on_success: None,
+			on_failure: None,
+		}];
+		for intent in intents.iter() {
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				intent.who.clone().into(),
+				intent.swap.asset_in,
+				intent.swap.amount_in as i128,
+			));
+		}
+		let intents = submit_intents(intents);
+		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
+		assert_eq!(resolved.len(), 0);
 	});
 }
