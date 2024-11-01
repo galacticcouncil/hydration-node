@@ -352,13 +352,11 @@ impl liq_mining::Config for Test {
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry<Test>;
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
-	type XykAddLiquidity = XykAddLiquidityMock;
 }
 
 pub const LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
-pub struct XykAddLiquidityMock;
 
-impl AMMAddLiquidity<OriginFor<Test>, AssetId, Balance> for XykAddLiquidityMock {
+impl AMMAddLiquidity<OriginFor<Test>, AssetId, Balance> for DummyAMM {
 	fn add_liquidity(
 		_origin: OriginFor<Test>,
 		asset_a: AssetId,

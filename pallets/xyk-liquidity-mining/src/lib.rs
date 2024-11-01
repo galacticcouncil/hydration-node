@@ -114,9 +114,8 @@ pub mod pallet {
 
 		/// AMM helper functions.
 		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
-			+ AMMPosition<AssetId, Balance, Error = DispatchError>;
-
-		type XykAddLiquidity: AMMAddLiquidity<OriginFor<Self>, AssetId, Balance>;
+			+ AMMPosition<AssetId, Balance, Error = DispatchError>
+			+ AMMAddLiquidity<OriginFor<Self>, AssetId, Balance>;
 
 		/// The origin account that can create new liquidity mining program.
 		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -810,7 +809,7 @@ pub mod pallet {
 				asset_out: asset_b,
 			};
 
-			T::XykAddLiquidity::add_liquidity(origin.clone(), asset_a, asset_b, amount_a, amount_b_max_limit)?;
+			T::AMM::add_liquidity(origin.clone(), asset_a, asset_b, amount_a, amount_b_max_limit)?;
 
 			let share_token = T::AMM::get_share_token(asset_pair);
 			let shares_amount = T::Currencies::free_balance(share_token, &who);
