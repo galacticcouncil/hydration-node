@@ -74,7 +74,7 @@ pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::BlockNumberFor;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
-	use hydradx_traits::AmmAddLiquidity;
+	use hydradx_traits::AMMAddLiquidity;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
@@ -116,7 +116,7 @@ pub mod pallet {
 		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
 			+ AMMPosition<AssetId, Balance, Error = DispatchError>;
 
-		type XykAddLiquidity: AmmAddLiquidity<OriginFor<Self>, AssetId, Balance>;
+		type XykAddLiquidity: AMMAddLiquidity<OriginFor<Self>, AssetId, Balance>;
 
 		/// The origin account that can create new liquidity mining program.
 		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
