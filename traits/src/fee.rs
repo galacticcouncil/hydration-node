@@ -6,29 +6,29 @@ pub trait InspectTransactionFeeCurrency<AssetId> {
 }
 
 ///Enabling trading of assets that are swappable but not part of AcceptedCurrencies of multi payment pallet
-pub trait SwappablePaymentAssetTrader<AccountId, AssetId, Amount>: InspectTransactionFeeCurrency<AssetId> {
+pub trait SwappablePaymentAssetTrader<AccountId, AssetId, Balance>: InspectTransactionFeeCurrency<AssetId> {
 	fn is_trade_supported(from: AssetId, into: AssetId) -> bool;
 
-	fn calculate_fee_amount(swap_amount: Amount) -> Result<Amount, DispatchError>;
+	fn calculate_fee_amount(swap_amount: Balance) -> Result<Balance, DispatchError>;
 
 	fn calculate_in_given_out(
 		insuff_asset_id: AssetId,
 		asset_out: AssetId,
-		asset_out_amount: Amount,
-	) -> Result<Amount, DispatchError>;
+		asset_out_amount: Balance,
+	) -> Result<Balance, DispatchError>;
 
 	fn calculate_out_given_in(
 		asset_in: AssetId,
 		asset_out: AssetId,
-		asset_in_amount: Amount,
-	) -> Result<Amount, DispatchError>;
+		asset_in_amount: Balance,
+	) -> Result<Balance, DispatchError>;
 
 	fn buy(
 		origin: &AccountId,
 		asset_in: AssetId,
 		asset_out: AssetId,
-		amount: Amount,
-		max_limit: Amount,
+		amount: Balance,
+		max_limit: Balance,
 		dest: &AccountId,
 	) -> DispatchResult;
 }
