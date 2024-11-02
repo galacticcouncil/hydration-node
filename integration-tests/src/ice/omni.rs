@@ -312,3 +312,76 @@ fn execute_solution_should_work_when_transfer_are_below_existential_deposit() {
 		));
 	});
 }
+
+#[test]
+fn execute_solution_should_work_with_three_not_matched_intents() {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let deadline: Moment = Timestamp::now() + 43_200_000;
+		let intents: Vec<Intent<AccountId, AssetId>> = vec![
+			Intent {
+				who: ALICE.into(),
+				swap: Swap {
+					asset_in: 33,
+					asset_out: 27,
+					amount_in: 132653831770276356107540,
+					amount_out: 20603223703468376,
+					swap_type: SwapType::ExactIn,
+				},
+				deadline: 43200000,
+				partial: true,
+				on_success: None,
+				on_failure: None,
+			},
+			Intent {
+				who: BOB.into(),
+				swap: Swap {
+					asset_in: 9,
+					asset_out: 31,
+					amount_in: 3717269212068780311876590,
+					amount_out: 23878885199132385026397556,
+					swap_type: SwapType::ExactIn,
+				},
+				deadline: 43200000,
+				partial: true,
+				on_success: None,
+				on_failure: None,
+			},
+			Intent {
+				who: CHARLIE.into(),
+				swap: Swap {
+					asset_in: 8,
+					asset_out: 12,
+					amount_in: 377054246311395353,
+					amount_out: 24475091286281977,
+					swap_type: SwapType::ExactIn,
+				},
+				deadline: 43200000,
+				partial: true,
+				on_success: None,
+				on_failure: None,
+			},
+		];
+		for intent in intents.iter() {
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				intent.who.clone().into(),
+				intent.swap.asset_in,
+				intent.swap.amount_in as i128,
+			));
+		}
+		let intents = submit_intents(intents);
+		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
+		dbg!(&resolved);
+
+		let (trades, score) =
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
+
+		assert_ok!(ICE::submit_solution(
+			RuntimeOrigin::signed(BOB.into()),
+			resolved,
+			BoundedTrades::try_from(trades).unwrap(),
+			score,
+			System::current_block_number()
+		));
+	});
+}
