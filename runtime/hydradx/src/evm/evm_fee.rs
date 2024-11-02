@@ -104,8 +104,6 @@ where
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let account_fee_currency = AccountCurrency::get(&account_id);
 
-		let dot = DotAssetId::get();
-
 		let (converted, fee_currency, price) =
 			if SwappablePaymentAssetSupport::is_transaction_fee_currency(account_fee_currency) {
 				let Some((converted, price)) =
@@ -116,6 +114,7 @@ where
 				(converted, account_fee_currency, price)
 			} else {
 				//In case of insufficient asset we buy DOT with insufficient asset, and using that DOT and amount as fee currency
+				let dot = DotAssetId::get();
 				let Some((fee_in_dot, eth_dot_price)) =
 					C::convert((EvmFeeAsset::get(), dot, fee.unique_saturated_into()))
 				else {
