@@ -109,10 +109,9 @@ where
 				Rounding::Up,
 			)?;
 
-			let price = EmaPrice {
-				n: amount_in_to_currency,
-				d: amount,
-			};
+			debug_assert!(amount_in_to_currency > 0, "amount in to-currency should be positive");
+			debug_assert!(amount > 0, "amount in out-currency should be positive");
+			let price = EmaPrice::new(amount_in_to_currency, amount);
 
 			return Some((amount_in_to_currency, price));
 		} else if from_currency_is_tx_fee_asset && !to_currency_is_tx_fee_asset {
@@ -125,10 +124,10 @@ where
 			)?;
 			let amount_in_to_currency =
 				SwappablePaymentAssetSupport::calculate_in_given_out(to_currency, dot, amount_in_dot).ok()?;
-			let price = EmaPrice {
-				n: amount_in_to_currency,
-				d: amount,
-			};
+
+			debug_assert!(amount_in_to_currency > 0, "amount in to-currency should be positive");
+			debug_assert!(amount > 0, "amount in out-currency should be positive");
+			let price = EmaPrice::new(amount_in_to_currency, amount);
 			Some((amount_in_to_currency, price))
 		} else {
 			//Not supported when both asset is insufficient asset
