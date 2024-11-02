@@ -66,7 +66,7 @@ where
 	}
 }
 
-pub struct ConvertAmount<PriceProv, SwappablePaymentAssetSupport, DotAssetId>(
+pub struct ConvertBalance<PriceProv, SwappablePaymentAssetSupport, DotAssetId>(
 	sp_std::marker::PhantomData<(PriceProv, SwappablePaymentAssetSupport, DotAssetId)>,
 );
 
@@ -76,7 +76,7 @@ pub struct ConvertAmount<PriceProv, SwappablePaymentAssetSupport, DotAssetId>(
 // Output: Option<(converted_amount, price)>
 impl<PriceProv, SwappablePaymentAssetSupport, DotAssetId>
 	Convert<(AssetId, AssetId, Balance), Option<(Balance, EmaPrice)>>
-	for crate::price::ConvertAmount<PriceProv, SwappablePaymentAssetSupport, DotAssetId>
+	for crate::price::ConvertBalance<PriceProv, SwappablePaymentAssetSupport, DotAssetId>
 where
 	PriceProv: PriceProvider<AssetId, Price = EmaPrice>,
 	SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<AccountId, AssetId, Balance>,

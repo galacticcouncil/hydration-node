@@ -10,7 +10,7 @@ use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
 use hydra_dx_math::types::Ratio;
-use hydradx_adapters::price::ConvertAmount;
+use hydradx_adapters::price::ConvertBalance;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::types::ShortOraclePrice;
 use hydradx_runtime::AssetRegistry;
@@ -911,9 +911,8 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 				false
 			));
 
-			//
 			//Convert insufficient to sufficient (WETH)
-			type Convert = ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
+			type Convert = ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
 
 			let insufficient_amount = 10 * UNITS;
 			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount)).unwrap();
@@ -1045,7 +1044,7 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 			));
 
 			//Convert sufficient (WETH) to insufficient
-			type Convert = ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
+			type Convert = ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
 
 			let weth_amount = 10 * UNITS;
 			let amount_in_insufficient_asset = Convert::convert((WETH, insufficient_asset, weth_amount)).unwrap();

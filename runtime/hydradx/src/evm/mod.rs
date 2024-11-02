@@ -36,7 +36,7 @@ use frame_support::{
 	ConsensusEngineId,
 };
 use hex_literal::hex;
-use hydradx_adapters::price::ConvertAmount;
+use hydradx_adapters::price::ConvertBalance;
 use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
@@ -149,7 +149,7 @@ impl pallet_evm::Config for crate::Runtime {
 		evm_fee::DepositEvmFeeToTreasury,
 		FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<crate::Runtime>>, // Get account's fee payment asset
 		WethAssetId,
-		ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
+		ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 		FungibleCurrencies<crate::Runtime>, // Multi currency support
 		XykPaymentAssetSupport,
 		DotAssetId,
@@ -162,7 +162,7 @@ impl pallet_evm::Config for crate::Runtime {
 		pallet_evm::runner::stack::Runner<Self>, // Evm runner that we wrap
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			crate::Runtime,
-			ConvertAmount<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
+			ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 			FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<crate::Runtime>>, // Get account's fee payment asset
 			FungibleCurrencies<crate::Runtime>,                                     // Account balance inspector
 		>,
