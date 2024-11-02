@@ -57,8 +57,7 @@ where
 		price_weight.saturating_accrue(pallet_ema_oracle::Pallet::<T>::get_price_weight().saturating_mul(2));
 
 		//2 reads as we are checking if from and to assets are transaction fee currencies
-		let is_transaction_fee_currency_check_weight = T::DbWeight::get().reads(2);
-		price_weight.saturating_accrue(is_transaction_fee_currency_check_weight);
+		price_weight.saturating_accrue(T::DbWeight::get().reads(2));
 
 		let Some((converted, _)) = C::convert((from_currency, to_currency, account_balance)) else {
 			return (0, price_weight);
