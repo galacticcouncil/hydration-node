@@ -179,7 +179,7 @@ pub struct DymmyGlobalFarm {
 
 #[derive(Clone, Debug)]
 pub struct DummyYieldFarm {
-	_global_farm_id: u32,
+	global_farm_id: u32,
 	multiplier: FarmMultiplier,
 	amm_pool_id: AccountId,
 	_assets: Vec<AssetId>,
@@ -351,6 +351,32 @@ impl liq_mining::Config for Test {
 	type LiquidityMiningHandler = DummyLiquidityMining;
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry<Test>;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+}
+
+pub const LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
+
+impl AMMAddLiquidity<OriginFor<Test>, AssetId, Balance> for DummyAMM {
+	fn add_liquidity(
+		_origin: OriginFor<Test>,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		_amount_a: Balance,
+		_amount_b_max_limit: Balance,
+	) -> DispatchResult {
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let share_token = DummyAMM::get_share_token(asset_pair);
+
+		Tokens::deposit(
+			share_token,
+			&LiquidityMining::account_id(),
+			LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT,
+		)?;
+		Ok(())
+	}
 }
 
 use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
@@ -398,6 +424,8 @@ where
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
+use hydradx_traits::AMMAddLiquidity;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -588,11 +616,28 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 	) -> Result<u32, Self::Error> {
 		let farm_id = get_next_farm_id();
 
+		YIELD_FARMS
+			.with(|v| {
+				let mut p = v.borrow_mut();
+				let yield_farm = p
+					.iter_mut()
+					.find(|(_, farm)| farm.amm_pool_id == amm_pool_id && farm.global_farm_id == global_farm_id);
+
+				if yield_farm.is_some() {
+					return Err(sp_runtime::DispatchError::Other(
+						"Yield Farm already exists in global farm",
+					));
+				}
+
+				Ok::<(), Self::Error>(())
+			})
+			.unwrap();
+
 		YIELD_FARMS.with(|v| {
 			v.borrow_mut().insert(
 				farm_id,
 				DummyYieldFarm {
-					_global_farm_id: global_farm_id,
+					global_farm_id,
 					multiplier,
 					amm_pool_id,
 					_assets: assets,
