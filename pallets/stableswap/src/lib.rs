@@ -878,6 +878,91 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset()
+		.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
+		#[transactional]
+		pub fn remove_liquidity(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			share_amount: Balance,
+			min_amounts_out: Vec<AssetAmount<T::AssetId>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			//TODO: ensure all asset in pool are allowed to be removed.
+
+			ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
+
+			let current_share_balance = T::Currency::free_balance(pool_id, &who);
+			ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
+			ensure!(
+				current_share_balance == share_amount
+					|| current_share_balance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
+				Error::<T>::InsufficientShareBalance
+			);
+
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let pool_account = Self::pool_account(pool_id);
+			let initial_reserves = pool
+				.reserves_with_decimals::<T>(&pool_account)
+				.ok_or(Error::<T>::UnknownDecimals)?;
+			let share_issuance = T::Currency::total_issuance(pool_id);
+
+			ensure!(
+				share_issuance == share_amount
+					|| share_issuance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
+				Error::<T>::InsufficientLiquidityRemaining
+			);
+
+			let amplification = Self::get_amplification(&pool);
+
+			//we want to ensure that given amounts are correct. We will remove them from the map as we go.
+			// We first ensure the length , and if any asset is not found later on, we can return an error.
+			ensure!(min_amounts_out.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
+
+			// convert vec of min amounts to btree map
+			let mut min_amounts_out: BTreeMap<T::AssetId, Balance> =
+				min_amounts_out.into_iter().map(|v| (v.asset_id, v.amount)).collect();
+
+			let mut amounts = Vec::with_capacity(pool.assets.len());
+
+			// 1. Calculate amount of each asset
+			// 2. ensure min amount is respected
+			// 3. transfer amount to user
+			for asset_id in pool.assets.iter() {
+				let min_amount = min_amounts_out.remove(asset_id).ok_or(Error::<T>::IncorrectAssets)?;
+				let reserve = T::Currency::free_balance(*asset_id, &pool_account);
+
+				let amount = reserve * share_amount / share_issuance; //TODO: safe math, bob!
+				ensure!(amount >= min_amount, Error::<T>::SlippageLimit);
+				T::Currency::transfer(*asset_id, &pool_account, &who, amount)?;
+				amounts.push(AssetAmount {
+					asset_id: *asset_id,
+					amount,
+				});
+			}
+
+			// Burn shares
+			T::Currency::withdraw(pool_id, &who, share_amount)?;
+
+			// All done and updated. let's call the on_liquidity_changed hook.
+			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
+
+			Self::deposit_event(Event::LiquidityRemoved {
+				pool_id,
+				who,
+				shares: share_amount,
+				amounts,
+				fee: Balance::zero(),
+			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
