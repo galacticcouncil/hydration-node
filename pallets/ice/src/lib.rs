@@ -518,46 +518,78 @@ impl<T: Config> Pallet<T> {
 		let mut matched_amounts = Vec::new();
 		let mut trades_instructions = Vec::new();
 
-		let mut delta_in: BTreeMap<T::AssetId, Balance> = amounts_in.clone();
-		let mut delta_out: BTreeMap<T::AssetId, Balance> = amounts_out.clone();
+		let mut delta_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+		let mut delta_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
 
 		// Calculate deltas to trade
-		for (asset_id, amount_out) in amounts_out.iter() {
-			if let Some((_, amount_in)) = amounts_in.get_key_value(asset_id) {
-				if *amount_out == *amount_in {
+		for (asset_id, amount_out) in amounts_out.into_iter() {
+			if let Some((_, amount_in)) = amounts_in.remove_entry(&asset_id) {
+				if amount_out == amount_in {
 					// nothing to trade here, all matched
-					matched_amounts.push((*asset_id, *amount_out));
-				} else if *amount_out > *amount_in {
+					matched_amounts.push((asset_id, amount_out));
+				} else if amount_out > amount_in {
 					// there is something left to buy
-					matched_amounts.push((*asset_id, *amount_out - *amount_in));
-					delta_out.insert(*asset_id, *amount_out - *amount_in);
+					matched_amounts.push((asset_id, amount_in));
+					delta_out.insert(asset_id, amount_out - amount_in);
 				} else {
 					// there is something left to sell
-					matched_amounts.push((*asset_id, *amount_in - *amount_out));
-					delta_in.insert(*asset_id, *amount_in - *amount_out);
+					matched_amounts.push((asset_id, amount_out));
+					delta_in.insert(asset_id, amount_in - amount_out);
 				}
 			} else {
 				// there is no sell of this asset, only buy
-				delta_out.insert(*asset_id, *amount_out);
+				delta_out.insert(asset_id, amount_out);
 			}
 		}
 
-		// delta_in count should equal to delta_out count.
-		debug_assert_eq!(delta_in.len(), delta_out.len());
+		for (asset_id, amount_in) in amounts_in.into_iter() {
+			delta_in.insert(asset_id, amount_in);
+		}
 
-		// Try to figure out what trades to do for deltas
-		// TODO: this might need some adjustments, as it might no be possible to sell exact amount of asset in for asset out - might try different pair if more assets
-		for ((asset_out, amount_out), (asset_in, amount_in)) in delta_out.iter().zip(delta_in.iter()) {
-			let route = T::RoutingSupport::get_route(*asset_in, *asset_out);
-			let amount_bought = T::RoutingSupport::calculate_amount_out(&route, *amount_in)?;
-			debug_assert!(amount_bought >= *amount_out);
-			trades_instructions.push(TradeInstruction::SwapExactIn {
-				asset_in: *asset_in,
-				asset_out: *asset_out,
-				amount_in: *amount_in,
-				amount_out: *amount_out,
-				route: BoundedRoute::try_from(route).unwrap(),
-			});
+		loop {
+			let Some((asset_out, mut amount_out)) = delta_out.pop_first() else {
+				break;
+			};
+			for (asset_in, amount_in) in delta_in.iter_mut() {
+				if *amount_in == 0u128 {
+					continue;
+				}
+				let route = T::RoutingSupport::get_route(*asset_in, asset_out);
+
+				// Calculate the amount we can buy with the amount in we have
+				let possible_out_amount = T::RoutingSupport::calculate_amount_out(&route, *amount_in)?;
+
+				if possible_out_amount >= amount_out {
+					// do exact buy
+					let a_in = T::RoutingSupport::calculate_amount_in(&route, amount_out)?;
+					trades_instructions.push(TradeInstruction::SwapExactOut {
+						asset_in: *asset_in,
+						asset_out: asset_out,
+						amount_in: a_in,
+						amount_out: amount_out,
+						route: BoundedRoute::try_from(route).unwrap(),
+					});
+					*amount_in -= a_in;
+					amount_out = 0u128;
+					//after this, we sorted the asset_out, we can move one
+					break;
+				} else {
+					// do max sell
+					trades_instructions.push(TradeInstruction::SwapExactIn {
+						asset_in: *asset_in,
+						asset_out: asset_out,
+						amount_in: *amount_in,
+						amount_out: possible_out_amount,
+						route: BoundedRoute::try_from(route).unwrap(),
+					});
+					*amount_in = 0u128;
+					amount_out -= possible_out_amount;
+					//after this, we need another asset_in to buy the rest
+				}
+			}
+
+			// esnure we sorted asset out before moving on
+			debug_assert!(amount_out == 0u128);
 		}
 
 		let score = Self::score_solution(resolved_intents.len() as u128, matched_amounts).map_err(|_| ())?;
@@ -682,7 +714,10 @@ impl<T: Config> Pallet<T> {
 		let mut matched_amounts = Vec::new();
 		for (asset_id, amount) in amounts_in.iter() {
 			let amount_out = amounts_out.get(asset_id).unwrap_or(&0u128);
-			matched_amounts.push((*asset_id, *(amount.min(amount_out))));
+			let matched_amount = (*amount).min(*amount_out);
+			if matched_amount > 0u128 {
+				matched_amounts.push((*asset_id, matched_amount));
+			}
 		}
 
 		let mut instructions = Vec::new();

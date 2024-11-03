@@ -82,6 +82,55 @@ where
 	}
 	(tau, phi)
 }
+fn convert_to_balance(a: f64, dec: u8) -> Balance {
+	let factor = 10u128.pow(dec as u32);
+	(a * factor as f64) as Balance
+}
+
+// note that intent_deltas are < 0
+fn prepare_resolved_intents<AccountId, AssetId>(
+	intents: &[(u128, Intent<AccountId, AssetId>)],
+	asset_decimals: &BTreeMap<AssetId, u8>,
+	converted_intent_amounts: &[(f64, f64)],
+	intent_deltas: &[f64],
+	intent_prices: &[f64],
+	tolerance: f64,
+) -> Vec<ResolvedIntent>
+where
+	AssetId: sp_std::hash::Hash + Copy + Clone + Eq + Ord,
+{
+	let mut resolved_intents = Vec::new();
+
+	for (idx, delta_in) in intent_deltas.iter().enumerate() {
+		debug_assert!(converted_intent_amounts[idx].0 >= -delta_in, "delta in is too high!");
+		let accepted_tolerance_amount = converted_intent_amounts[idx].0 * tolerance;
+		let remainder = converted_intent_amounts[idx].0 + delta_in; // note that delta in is < 0
+		let (amount_in, amount_out) = if remainder < accepted_tolerance_amount {
+			// Do not leave dust, resolve the whole intent amount
+			(intents[idx].1.swap.amount_in, intents[idx].1.swap.amount_out)
+		} else if -delta_in <= accepted_tolerance_amount {
+			// Do not trade dust
+			(0u128, 0u128)
+		} else {
+			// just resolve solver amounts
+			let amount_in = -delta_in;
+			let amount_out = intent_prices[idx] * amount_in;
+			(
+				convert_to_balance(amount_in, *asset_decimals.get(&intents[idx].1.swap.asset_in).unwrap()),
+				convert_to_balance(amount_out, *asset_decimals.get(&intents[idx].1.swap.asset_out).unwrap()),
+			)
+		};
+
+		let resolved_intent = ResolvedIntent {
+			intent_id: intents[idx].0,
+			amount_in,
+			amount_out,
+		};
+		resolved_intents.push(resolved_intent);
+	}
+
+	resolved_intents
+}
 
 fn round_solution(intents: &[(f64, f64)], intent_deltas: Vec<f64>, tolerance: f64) -> Vec<f64> {
 	let mut deltas = Vec::new();
@@ -386,6 +435,17 @@ where
 			exec_intent_deltas[i] = -x[4 * n + i] * scaling[&intents[i].1.swap.asset_in];
 		}
 
+		let resolved_intents = prepare_resolved_intents(
+			&intents,
+			&decimals,
+			&converted_intent_amounts,
+			&exec_intent_deltas,
+			&intent_prices,
+			0.0001,
+		);
+
+		/*
+
 		let sell_deltas = round_solution(&converted_intent_amounts, exec_intent_deltas, 0.0001);
 
 		let intent_deltas = add_buy_deltas(&intent_prices, sell_deltas);
@@ -414,6 +474,8 @@ where
 				resolved_intents.push(resolved_intent);
 			}
 		}
+
+		 */
 
 		Ok((resolved_intents, ()))
 	}

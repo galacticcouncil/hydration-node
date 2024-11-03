@@ -11,6 +11,7 @@ use hydradx_runtime::{
 	LRNA as LRNAT,
 };
 use hydradx_traits::router::{PoolType, Trade};
+use orml_traits::MultiCurrency;
 use pallet_ice::traits::OmnipoolInfo;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap, SwapType};
 use pallet_ice::Call::submit_intent;
@@ -442,19 +443,47 @@ fn execute_solution_should_work_with_three_matched_intents() {
 				intent.swap.amount_in as i128,
 			));
 		}
-		let intents = submit_intents(intents);
-		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
-		dbg!(&resolved);
+		let intents2 = submit_intents(intents);
 
+		let intent_balances = intents2
+			.clone()
+			.into_iter()
+			.map(|(intent_id, intent)| {
+				(
+					intent_id,
+					(intent.swap.amount_in, 0u128),
+					(intent.swap.asset_in.clone(), intent.swap.asset_out.clone()),
+					intent.who.clone(),
+				)
+			})
+			.collect::<Vec<_>>();
+		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents2).unwrap();
 		let (trades, score) =
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
 
 		assert_ok!(ICE::submit_solution(
 			RuntimeOrigin::signed(BOB.into()),
-			resolved,
+			resolved.clone(),
 			BoundedTrades::try_from(trades).unwrap(),
 			score,
 			System::current_block_number()
 		));
+
+		// Check that the balances are correct
+		for resolved_intent in resolved.iter() {
+			let (initial_balance_in, initial_balance_out, asset_in, asset_out, who) = intent_balances
+				.iter()
+				.find(|(intent_id, a, b, c)| *intent_id == resolved_intent.intent_id)
+				.map(|(_, (a, b), (x, y), c)| (*a, *b, *x, *y, c.clone()))
+				.unwrap();
+			assert_eq!(
+				Currencies::total_balance(asset_in, &who),
+				initial_balance_in - resolved_intent.amount_in
+			);
+			assert_eq!(
+				Currencies::total_balance(asset_out, &who),
+				initial_balance_out + resolved_intent.amount_out
+			);
+		}
 	});
 }
