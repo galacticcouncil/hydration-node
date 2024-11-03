@@ -58,6 +58,7 @@ use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{registry::Inspect, AccountIdFor};
 pub use pallet::*;
+use sp_core::U256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
@@ -928,6 +929,8 @@ pub mod pallet {
 
 			let mut amounts = Vec::with_capacity(pool.assets.len());
 
+			let issuance_u256 = U256::from(share_issuance);
+			let share_amount_u256 = U256::from(share_amount);
 			// 1. Calculate amount of each asset
 			// 2. ensure min amount is respected
 			// 3. transfer amount to user
@@ -935,7 +938,12 @@ pub mod pallet {
 				let min_amount = min_amounts_out.remove(asset_id).ok_or(Error::<T>::IncorrectAssets)?;
 				let reserve = T::Currency::free_balance(*asset_id, &pool_account);
 
-				let amount = reserve * share_amount / share_issuance; //TODO: safe math, bob!
+				let amount = U256::from(reserve)
+					.checked_mul(share_amount_u256)
+					.ok_or(ArithmeticError::Overflow)?
+					.checked_div(issuance_u256)
+					.ok_or(ArithmeticError::Overflow)?
+					.as_u128();
 				ensure!(amount >= min_amount, Error::<T>::SlippageLimit);
 				T::Currency::transfer(*asset_id, &pool_account, &who, amount)?;
 				amounts.push(AssetAmount {
