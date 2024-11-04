@@ -1,7 +1,7 @@
 use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, Error};
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, BoundedVec};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -1063,7 +1063,7 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_shares() {
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				shares,
-				min_amounts,
+				BoundedVec::try_from(min_amounts).unwrap(),
 			));
 
 			let amount_a_received = Tokens::free_balance(asset_a, &BOB);

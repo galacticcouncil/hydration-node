@@ -887,11 +887,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
 			share_amount: Balance,
-			min_amounts_out: Vec<AssetAmount<T::AssetId>>,
+			min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
-			//TODO: ensure all asset in pool are allowed to be removed.
 
 			ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
 

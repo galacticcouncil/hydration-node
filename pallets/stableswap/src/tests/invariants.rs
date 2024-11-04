@@ -1,6 +1,6 @@
 use crate::tests::*;
 use crate::types::{AssetAmount, PoolInfo};
-use frame_support::assert_ok;
+use frame_support::{assert_ok, BoundedVec};
 use sp_runtime::{FixedU128, Permill};
 use std::cmp::Ordering;
 use std::num::NonZeroU16;
@@ -1288,7 +1288,7 @@ proptest! {
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					delta_s,
-					min_amounts,
+					BoundedVec::try_from(min_amounts).unwrap(),
 				));
 				let a_final = Tokens::free_balance(asset_a, &pool_account);
 				let delta_a = a_initial - a_final;
