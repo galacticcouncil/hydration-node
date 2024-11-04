@@ -1118,7 +1118,6 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_remaining_share
 		)
 		.build()
 		.execute_with(|| {
-
 			System::set_block_number(1);
 
 			let pool_id = get_pool_id_at(0);
