@@ -938,7 +938,7 @@ pub mod pallet {
 
 				// Special case when withdrawing all remaining pool shares, so we can directly send all the remaining assets to the user.
 				let amount = if share_amount == share_issuance {
-					// no need to ensure the min amounts in this case
+					ensure!(reserve >= min_amount, Error::<T>::SlippageLimit);
 					reserve
 				} else {
 					let amount =

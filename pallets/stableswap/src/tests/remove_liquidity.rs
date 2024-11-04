@@ -1,6 +1,6 @@
 use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
-use crate::{assert_balance, Error, Pools};
+use crate::{assert_balance, Error, Event, Pools};
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use sp_runtime::Permill;
@@ -1118,6 +1118,9 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_remaining_share
 		)
 		.build()
 		.execute_with(|| {
+
+			System::set_block_number(1);
+
 			let pool_id = get_pool_id_at(0);
 
 			let amount_added = 200 * ONE;
@@ -1183,9 +1186,35 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_remaining_share
 			assert_balance!(ALICE, asset_b, pool_b_balance);
 			assert_balance!(ALICE, asset_c, pool_c_balance);
 
-			// Ensure that has been removed
+			// Ensure that pool has been removed
 			// Ensure that pool account has been removed from dust list
 			assert!(Pools::<Test>::get(pool_id).is_none());
 			assert!(!Whitelist::contains(&pool_account));
+
+			// Ensure events are emitted
+			expect_events(vec![
+				Event::PoolDestroyed { pool_id }.into(),
+				Event::LiquidityRemoved {
+					pool_id,
+					who: ALICE,
+					shares,
+					amounts: vec![
+						AssetAmount {
+							asset_id: asset_a,
+							amount: pool_a_balance,
+						},
+						AssetAmount {
+							asset_id: asset_b,
+							amount: pool_b_balance,
+						},
+						AssetAmount {
+							asset_id: asset_c,
+							amount: pool_c_balance,
+						},
+					],
+					fee: 0u128,
+				}
+				.into(),
+			]);
 		});
 }
