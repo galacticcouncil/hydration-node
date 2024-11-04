@@ -896,11 +896,6 @@ pub mod pallet {
 
 			let current_share_balance = T::Currency::free_balance(pool_id, &who);
 			ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
-			ensure!(
-				current_share_balance == share_amount
-					|| current_share_balance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
-				Error::<T>::InsufficientShareBalance
-			);
 
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let pool_account = Self::pool_account(pool_id);
@@ -908,12 +903,6 @@ pub mod pallet {
 				.reserves_with_decimals::<T>(&pool_account)
 				.ok_or(Error::<T>::UnknownDecimals)?;
 			let share_issuance = T::Currency::total_issuance(pool_id);
-
-			ensure!(
-				share_issuance == share_amount
-					|| share_issuance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
-				Error::<T>::InsufficientLiquidityRemaining
-			);
 
 			// We want to ensure that given min amounts are correct. It must contain all pool assets.
 			// We convert vec of min amounts to a map.
@@ -959,19 +948,14 @@ pub mod pallet {
 			T::Currency::withdraw(pool_id, &who, share_amount)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
-			// TODO: liquidity change hook does not work when we are removing all liquidity.
-			// it is tricky to update the hooks as it works with share prices of each asset, which is not possible to calculate with total issuance == 0.
-			// we should consider to introduce new hook to inform that this pool is being removed.
 			if share_amount != share_issuance {
 				Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 			} else {
+				// Remove the pool.
 				Pools::<T>::remove(pool_id);
 				let _ = AssetTradability::<T>::clear_prefix(pool_id, MAX_ASSETS_IN_POOL, None);
 				T::DustAccountHandler::remove_account(&Self::pool_account(pool_id))?;
-
 				Self::deposit_event(Event::PoolDestroyed { pool_id });
-
-				//TODO: consider adding hooks to clean up oracle!?
 			}
 
 			Self::deposit_event(Event::LiquidityRemoved {
