@@ -25,6 +25,7 @@ pub use hydradx_traits::{
 	router::{Filler, TradeOperation},
 	IncrementalIdProvider,
 };
+use sp_std::vec::Vec;
 pub use primitives::IncrementalId as IncrementalIdType;
 
 #[cfg(test)]

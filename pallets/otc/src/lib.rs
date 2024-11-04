@@ -42,6 +42,7 @@ use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
 use sp_runtime::Permill;
+use sp_std::vec;
 
 #[cfg(test)]
 mod tests;
