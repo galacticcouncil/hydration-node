@@ -165,6 +165,13 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(23_u64))
 			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
+
+	fn remove_liquidity() -> Weight {
+		Weight::from_parts(945_590_000, 19071)
+			.saturating_add(T::DbWeight::get().reads(23_u64))
+			.saturating_add(T::DbWeight::get().writes(7_u64))
+	}
+
 	/// Storage: `Stableswap::AssetTradability` (r:1 w:0)
 	/// Proof: `Stableswap::AssetTradability` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
 	/// Storage: `Stableswap::Pools` (r:1 w:0)
