@@ -882,8 +882,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(10)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset()
-		.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
 		#[transactional]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
@@ -916,14 +915,14 @@ pub mod pallet {
 				Error::<T>::InsufficientLiquidityRemaining
 			);
 
-			//we want to ensure that given amounts are correct. We will remove them from the map as we go.
+			// We want to ensure that given min amounts are correct. It must contain all pool assets.
+			// We convert vec of min amounts to a map.
 			// We first ensure the length , and if any asset is not found later on, we can return an error.
 			ensure!(min_amounts_out.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
-
-			// convert vec of min amounts to btree map
 			let mut min_amounts_out: BTreeMap<T::AssetId, Balance> =
 				min_amounts_out.into_iter().map(|v| (v.asset_id, v.amount)).collect();
 
+			// Store the amount of each asset that is transferred. Used as info in the event.
 			let mut amounts = Vec::with_capacity(pool.assets.len());
 
 			// 1. Calculate amount of each asset
@@ -960,7 +959,7 @@ pub mod pallet {
 			T::Currency::withdraw(pool_id, &who, share_amount)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
-			// TODO: liquidity change hooks does not work when we are removing all liquidity.
+			// TODO: liquidity change hook does not work when we are removing all liquidity.
 			// it is tricky to update the hooks as it works with share prices of each asset, which is not possible to calculate with total issuance == 0.
 			// we should consider to introduce new hook to inform that this pool is being removed.
 			if share_amount != share_issuance {
