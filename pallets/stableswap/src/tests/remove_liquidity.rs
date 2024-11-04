@@ -1074,7 +1074,8 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_shares() {
 			assert_balance!(BOB, asset_c, 75_206_785_577_717u128);
 			assert_balance!(BOB, pool_id, 0u128);
 
-			let total_received = amount_a_received + amount_b_received + amount_c_received;
-			dbg!(total_received);
+			assert_balance!(pool_account, asset_a, 300 * ONE - amount_a_received);
+			assert_balance!(pool_account, asset_b, 200 * ONE - amount_b_received);
+			assert_balance!(pool_account, asset_c, 300 * ONE - amount_c_received);
 		});
 }

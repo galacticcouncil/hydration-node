@@ -58,7 +58,6 @@ use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{registry::Inspect, AccountIdFor};
 pub use pallet::*;
-use sp_core::U256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
@@ -917,8 +916,6 @@ pub mod pallet {
 				Error::<T>::InsufficientLiquidityRemaining
 			);
 
-			let amplification = Self::get_amplification(&pool);
-
 			//we want to ensure that given amounts are correct. We will remove them from the map as we go.
 			// We first ensure the length , and if any asset is not found later on, we can return an error.
 			ensure!(min_amounts_out.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
@@ -929,22 +926,21 @@ pub mod pallet {
 
 			let mut amounts = Vec::with_capacity(pool.assets.len());
 
-			let issuance_u256 = U256::from(share_issuance);
-			let share_amount_u256 = U256::from(share_amount);
 			// 1. Calculate amount of each asset
 			// 2. ensure min amount is respected
 			// 3. transfer amount to user
 			for asset_id in pool.assets.iter() {
+				ensure!(
+					Self::is_asset_allowed(pool_id, *asset_id, Tradability::REMOVE_LIQUIDITY),
+					Error::<T>::NotAllowed
+				);
 				let min_amount = min_amounts_out.remove(asset_id).ok_or(Error::<T>::IncorrectAssets)?;
 				let reserve = T::Currency::free_balance(*asset_id, &pool_account);
 
-				let amount = U256::from(reserve)
-					.checked_mul(share_amount_u256)
-					.ok_or(ArithmeticError::Overflow)?
-					.checked_div(issuance_u256)
-					.ok_or(ArithmeticError::Overflow)?
-					.as_u128();
+				let amount = hydra_dx_math::stableswap::calculate_liquidity_out(reserve, share_amount, share_issuance)
+					.ok_or(ArithmeticError::Overflow)?;
 				ensure!(amount >= min_amount, Error::<T>::SlippageLimit);
+
 				T::Currency::transfer(*asset_id, &pool_account, &who, amount)?;
 				amounts.push(AssetAmount {
 					asset_id: *asset_id,

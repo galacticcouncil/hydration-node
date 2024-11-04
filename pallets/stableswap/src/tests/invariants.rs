@@ -1205,3 +1205,109 @@ proptest! {
 			});
 	}
 }
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn add_remove_multi_asset_liquidity_invariants(
+		pool in balanced_pool(3),
+		liquidity_to_add in reserve(),
+		amplification in some_amplification(),
+	) {
+		let trade_fee = Permill::from_percent(0);
+
+		let assets_to_register: Vec<(Vec<u8>, u32, u8)> = pool.iter().enumerate().map(|(asset_id, v)| ( asset_id.to_string().into_bytes(), asset_id as u32, v.decimals)).collect();
+
+		// use 0 amounts
+		let min_amounts = assets_to_register.iter().map(|(_, asset_id, _)| {
+					AssetAmount::new(*asset_id, 0)
+				}).collect::<Vec<_>>();
+
+		let pool_assets: Vec<AssetId> = assets_to_register.iter().map(|(_, asset_id, _)| *asset_id).collect();
+		let initial_liquidity: Vec<AssetAmount<AssetId>> = pool.iter().enumerate().map(|(asset_id, v)| AssetAmount::new(asset_id as AssetId, v.amount)).collect();
+		let mut endowed_accounts: Vec<(AccountId, AssetId, hydra_dx_math::types::Balance)> = pool.iter().enumerate().map(|(asset_id, v)| (ALICE, asset_id as u32, v.amount)).collect();
+
+		let (_, asset_a, dec)= assets_to_register.first().unwrap().clone();
+		let added_liquidity = to_precision(liquidity_to_add , dec);
+		endowed_accounts.push((BOB, asset_a, added_liquidity * 1000));
+
+		ExtBuilder::default()
+			.with_endowed_accounts(endowed_accounts)
+			.with_registered_assets(assets_to_register)
+			.with_pool(
+				ALICE,
+				PoolInfo::<AssetId, u64> {
+					assets: pool_assets.try_into().unwrap(),
+					initial_amplification: amplification,
+					final_amplification: amplification,
+					initial_block: 0,
+					final_block: 0,
+					fee: trade_fee,
+				},
+				InitialLiquidity{ account: ALICE,
+				assets:	initial_liquidity,}
+			)
+			.build()
+			.execute_with(|| {
+				let pool_id = get_pool_id_at(0);
+				let pool_account = pool_account(pool_id);
+
+				let pool = Pools::<Test>::get(pool_id).unwrap();
+				let initial_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
+				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into()).unwrap();
+
+				let share_price_initial = get_share_price(pool_id, 0);
+				let initial_shares = Tokens::total_issuance(pool_id);
+				assert_ok!(Stableswap::add_liquidity(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					vec![
+					AssetAmount::new(asset_a, added_liquidity),
+				]
+				));
+				let final_shares = Tokens::total_issuance(pool_id);
+				let delta_s = final_shares - initial_shares;
+				let exec_price = FixedU128::from_rational(added_liquidity , delta_s);
+				assert!(share_price_initial <= exec_price);
+
+				let pool = Pools::<Test>::get(pool_id).unwrap();
+				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
+				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into()).unwrap();
+				assert!(intermediate_d > initial_d);
+
+				let d = U256::from(initial_d) ;
+				let d_plus = U256::from(intermediate_d) ;
+				let s = U256::from(initial_shares) ;
+				let s_plus = U256::from(final_shares) ;
+				assert!(d_plus * s >= d * s_plus);
+				assert!(d * s_plus >= (d_plus - 10u128.pow(18)) * s);
+
+				let share_price_initial = get_share_price(pool_id, 0);
+				let a_initial = Tokens::free_balance(asset_a, &pool_account);
+				assert_ok!(Stableswap::remove_liquidity(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					delta_s,
+					min_amounts,
+				));
+				let a_final = Tokens::free_balance(asset_a, &pool_account);
+				let delta_a = a_initial - a_final;
+				let exec_price = FixedU128::from_rational(delta_a, delta_s);
+				assert!(share_price_initial >= exec_price);
+
+				let final_shares = Tokens::total_issuance(pool_id);
+				let pool = Pools::<Test>::get(pool_id).unwrap();
+				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
+				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into()).unwrap();
+				assert!(final_d < intermediate_d);
+
+				let d = d_plus;
+				let d_plus = U256::from(final_d);
+				let s = s_plus;
+				let s_plus = U256::from(final_shares);
+				assert!(d * (s_plus + 10u128.pow(18) )  >= d_plus * s);
+				assert!(d_plus * s >= d * s_plus);
+
+			});
+	}
+}
