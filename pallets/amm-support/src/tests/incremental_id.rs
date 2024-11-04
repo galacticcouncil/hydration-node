@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::Event;
-use hydradx_traits::router::{Filler, TradeOperation};
+use hydradx_traits::router::{AssetType, ExecutionType, Filler, TradeOperation};
 
 #[test]
 fn event_id_should_be_incremented() {
@@ -34,32 +34,84 @@ fn event_id_should_be_incremented() {
 }
 
 #[test]
+fn stack_should_be_populated_when_pushed() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(AmmSupport::push(ExecutionType::Router(1)));
+		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1)]);
+		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1)]);
+
+		assert_ok!(AmmSupport::push(ExecutionType::Router(2)));
+		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1), ExecutionType::Router(2)]);
+		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1), ExecutionType::Router(2)]);
+
+		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
+		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1), ExecutionType::Router(2), ExecutionType::ICE(3)]);
+		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1), ExecutionType::Router(2), ExecutionType::ICE(3)]);
+	});
+}
+
+#[test]
+fn stack_should_not_panic_when_full() {
+	ExtBuilder::default().build().execute_with(|| {
+		for id in 0..MAX_STACK_SIZE {
+			assert_ok!(AmmSupport::push(ExecutionType::Router(id)));
+		}
+
+		assert_err!(
+			AmmSupport::push(ExecutionType::Router(MAX_STACK_SIZE)),
+			Error::<Test>::MaxStackSizeReached
+		);
+	});
+}
+
+#[test]
+fn stack_should_be_reduced_when_poped() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(AmmSupport::push(ExecutionType::Router(1)));
+		assert_ok!(AmmSupport::push(ExecutionType::Router(2)));
+		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
+
+		assert_ok!(AmmSupport::pop(), ExecutionType::ICE(3));
+		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1), ExecutionType::Router(2)]);
+		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1), ExecutionType::Router(2)]);
+
+		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
+		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1), ExecutionType::Router(2), ExecutionType::ICE(3)]);
+		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1), ExecutionType::Router(2), ExecutionType::ICE(3)]);
+	});
+}
+
+#[test]
+fn pop_from_empty_stack_should_not_panic() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_err!(AmmSupport::pop(),
+			Error::<Test>::EmptyStack
+		);
+	});
+}
+
+#[test]
 fn event_should_be_deposited() {
 	ExtBuilder::default().build().execute_with(|| {
 		AmmSupport::deposit_trade_event(
 			ALICE,
 			BOB,
 			Filler::Omnipool,
-			TradeOperation::Sell,
-			HDX,
-			DOT,
-			1_000_000,
-			2_000_000,
-			vec![(HDX, 1_000, ALICE), (DOT, 2_000, BOB)],
-			Some(7),
+			TradeOperation::ExactIn,
+			vec![(AssetType::Fungible(HDX), 1_000_000)],
+			vec![(AssetType::Fungible(DOT), 2_000_000)],
+			vec![Fee::new(HDX, 1_000, ALICE), Fee::new(DOT, 2_000, BOB)],
 		);
 
 		expect_events(vec![Event::Swapped {
 			swapper: ALICE,
 			filler: BOB,
 			filler_type: Filler::Omnipool,
-			operation: TradeOperation::Sell,
-			asset_in: HDX,
-			asset_out: DOT,
-			amount_in: 1_000_000,
-			amount_out: 2_000_000,
-			fees: vec![(HDX, 1_000, ALICE), (DOT, 2_000, BOB)],
-			event_id: Some(7),
+			operation: TradeOperation::ExactIn,
+			inputs: vec![(AssetType::Fungible(HDX), 1_000_000)],
+			outputs: vec![(AssetType::Fungible(DOT), 2_000_000)],
+			fees: vec![Fee::new(HDX, 1_000, ALICE), Fee::new(DOT, 2_000, BOB)],
+			operation_id: vec![],
 		}
 		.into()]);
 	});

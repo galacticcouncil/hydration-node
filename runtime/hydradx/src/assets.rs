@@ -1207,6 +1207,7 @@ impl pallet_route_executor::Config for Runtime {
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type BatchIdProvider = AmmSupport;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type OperationIdProvider = AmmSupport;
 }
 
 parameter_types! {

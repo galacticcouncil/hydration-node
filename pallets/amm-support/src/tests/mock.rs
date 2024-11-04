@@ -16,9 +16,10 @@
 // limitations under the License.
 
 use crate as pallet_amm_support;
+pub use crate::*;
 
-use frame_support::{
-	construct_runtime,
+pub use frame_support::{
+	assert_ok, assert_err, construct_runtime,
 	sp_runtime::{
 		traits::{BlakeTwo256, IdentityLookup},
 		BuildStorage,

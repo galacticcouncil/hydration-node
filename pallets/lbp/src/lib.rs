@@ -36,7 +36,9 @@ use frame_support::{
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
-use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
+use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM,
+	router::{AssetType, Fee},
+};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
 use pallet_amm_support::IncrementalIdType;
 
@@ -1134,13 +1136,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 			transfer.origin.clone(),
 			pool_account,
 			pallet_amm_support::Filler::LBP,
-			pallet_amm_support::TradeOperation::Sell,
-			transfer.assets.asset_in,
-			transfer.assets.asset_out,
-			transfer.amount,
-			transfer.amount_b,
-			vec![(transfer.fee.0, transfer.fee.1, pool.fee_collector)],
-			event_id,
+			pallet_amm_support::TradeOperation::ExactIn,
+			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
+			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
+			vec![Fee{ asset: transfer.fee.0, amount: transfer.fee.1, recipient: pool.fee_collector}],
 		);
 
 		Ok(())
@@ -1289,13 +1288,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 			transfer.origin.clone(),
 			pool_account,
 			pallet_amm_support::Filler::LBP,
-			pallet_amm_support::TradeOperation::Buy,
-			transfer.assets.asset_in,
-			transfer.assets.asset_out,
-			transfer.amount,
-			transfer.amount_b,
-			vec![(transfer.fee.0, transfer.fee.1, pool.fee_collector)],
-			event_id,
+			pallet_amm_support::TradeOperation::ExactOut,
+			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
+			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
+			vec![Fee{ asset: transfer.fee.0, amount: transfer.fee.1, recipient: pool.fee_collector}],
 		);
 
 		Ok(())

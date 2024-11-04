@@ -1,3 +1,5 @@
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
@@ -61,9 +63,31 @@ pub trait RouteProvider<AssetId> {
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+pub struct Fee<AssetId, Balance, AccountId> {
+	pub asset: AssetId,
+	pub amount: Balance,
+	pub recipient: AccountId
+}
+impl<AssetId, Balance, AccountId> Fee<AssetId, Balance, AccountId> {
+	pub fn new(asset: AssetId, amount: Balance, recipient: AccountId) -> Self {
+		Self {asset, amount, recipient}
+	}
+}
+
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+pub enum ExecutionType<IncrementalId> {
+	Router(IncrementalId),
+	DCA(IncrementalId),
+	ICE(IncrementalId),
+	Batch(IncrementalId),
+}
+
+#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum TradeOperation {
-	Sell,
-	Buy,
+	ExactIn,
+	ExactOut,
+	Limit,
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
@@ -75,13 +99,27 @@ pub enum PoolType<AssetId> {
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum Filler {
+pub enum AssetType<AssetId, NFTId> {
+    Fungible(AssetId),
+    NFT(NFTId),
+}
+
+pub type OtcOrderId = u32;
+
+#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+pub enum Filler<AssetId, OtcOrderId> {
 	Omnipool,
-	Stableswap,
-	XYK,
-	LBP,
-	OTC,
-	ICE,
+	Stableswap(AssetId),	// asset id
+	XYK(AssetId),	// share token
+	LBP, // ???? LBP(AssetId),	// share token
+	OTC(OtcOrderId),
+	// ICE(solution_id/block id),      swapper: alice, filler: solver
+}
+
+pub trait ExecutionTypeStack<IncrementalId> {
+	fn push(execution_type: ExecutionType<IncrementalId>) -> DispatchResult;
+	fn pop() -> Result<ExecutionType<IncrementalId>, DispatchError>;
+	fn get() -> Vec<ExecutionType<IncrementalId>>;
 }
 
 #[derive(Debug, PartialEq, Eq)]

@@ -59,7 +59,10 @@ use frame_system::{
 	ensure_signed,
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
-use hydradx_traits::{registry::Inspect, AccountIdFor};
+use hydradx_traits::{
+	registry::Inspect, AccountIdFor,
+	router::{AssetType, Fee},
+};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -857,14 +860,11 @@ impl<T: Config> Pallet<T> {
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who,
 			pool_account.clone(),
-			pallet_amm_support::Filler::Stableswap,
-			pallet_amm_support::TradeOperation::Sell,
-			asset_in.into(),
-			asset_out.into(),
-			amount_in,
-			amount_out,
-			vec![(asset_out.into(), fee_amount, pool_account)],
-			event_id,
+			pallet_amm_support::Filler::Stableswap(pool_id.clone().into()),
+			pallet_amm_support::TradeOperation::ExactIn,
+			vec![(AssetType::Fungible(asset_in.into()), amount_in)],
+			vec![(AssetType::Fungible(asset_out.into()), amount_out)],
+			vec![Fee{ asset: asset_out.into(), amount: fee_amount, recipient: pool_account}],
 		);
 
 		#[cfg(feature = "try-runtime")]
@@ -934,14 +934,11 @@ impl<T: Config> Pallet<T> {
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who,
 			pool_account.clone(),
-			pallet_amm_support::Filler::Stableswap,
-			pallet_amm_support::TradeOperation::Buy,
-			asset_in.into(),
-			asset_out.into(),
-			amount_in,
-			amount_out,
-			vec![(asset_in.into(), fee_amount, pool_account)],
-			event_id,
+			pallet_amm_support::Filler::Stableswap(pool_id.clone().into()),
+			pallet_amm_support::TradeOperation::ExactOut,
+			vec![(AssetType::Fungible(asset_in.into()), amount_in)],
+			vec![(AssetType::Fungible(asset_out.into()), amount_out)],
+			vec![Fee{ asset: asset_in.into(), amount: fee_amount, recipient: pool_account}],
 		);
 
 		#[cfg(feature = "try-runtime")]

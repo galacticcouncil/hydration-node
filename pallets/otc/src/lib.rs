@@ -37,7 +37,7 @@
 use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::*, require_transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::Inspect;
+use hydradx_traits::{Inspect, router::{AssetType, Fee}};
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
@@ -58,7 +58,7 @@ pub use weights::WeightInfo;
 pub use pallet::*;
 
 pub type Balance = u128;
-pub type OrderId = u32;
+pub type OrderId = hydradx_traits::router::OtcOrderId;
 pub type NamedReserveIdentifier = [u8; 8];
 
 pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"otcorder";
@@ -309,18 +309,14 @@ pub mod pallet {
 					fee,
 				});
 
-				// TODO: order_id is missing
 				pallet_amm_support::Pallet::<T>::deposit_trade_event(
 					who,
 					order.owner.clone(),
-					pallet_amm_support::Filler::OTC,
-					pallet_amm_support::TradeOperation::Sell,
-					order.asset_in.into(),
-					order.asset_out.into(),
-					amount_in,
-					amount_out,
-					vec![(order.asset_out.into(), fee, T::FeeReceiver::get())],
-					None,
+					pallet_amm_support::Filler::OTC(order_id),
+					pallet_amm_support::TradeOperation::ExactIn,
+					vec![(AssetType::Fungible(order.asset_in.into()), amount_in)],
+					vec![(AssetType::Fungible(order.asset_out.into()), amount_out)],
+					vec![Fee{ asset: order.asset_out.into(), amount: fee, recipient: T::FeeReceiver::get()}],
 				);
 
 				Ok(())
@@ -355,18 +351,14 @@ pub mod pallet {
 				fee,
 			});
 
-			// TODO: order_id is missing
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
 				order.owner,
-				pallet_amm_support::Filler::OTC,
-				pallet_amm_support::TradeOperation::Sell,
-				order.asset_in.into(),
-				order.asset_out.into(),
-				order.amount_in,
-				order.amount_out,
-				vec![(order.asset_out.into(), fee, T::FeeReceiver::get())],
-				None,
+				pallet_amm_support::Filler::OTC(order_id),
+				pallet_amm_support::TradeOperation::ExactIn,
+				vec![(AssetType::Fungible(order.asset_in.into()), order.amount_in)],
+				vec![(AssetType::Fungible(order.asset_out.into()), order.amount_out)],
+				vec![Fee{ asset: order.asset_out.into(), amount: fee, recipient: T::FeeReceiver::get()}],
 			);
 
 			Ok(())

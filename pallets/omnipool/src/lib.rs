@@ -97,6 +97,7 @@ use sp_std::prelude::*;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
+use hydradx_traits::router::{AssetType, Fee};
 use orml_traits::{GetByKey, MultiCurrency};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
@@ -1675,20 +1676,13 @@ impl<T: Config> Pallet<T> {
 			who.clone(),
 			Self::protocol_account(),
 			pallet_amm_support::Filler::Omnipool,
-			pallet_amm_support::TradeOperation::Sell,
-			asset_in.into(),
-			asset_out.into(),
-			amount,
-			*state_changes.asset_out.delta_reserve,
+			pallet_amm_support::TradeOperation::ExactIn,
+			vec![(AssetType::Fungible(asset_in.into()), amount)],
+			vec![(AssetType::Fungible(asset_out.into()), *state_changes.asset_out.delta_reserve)],
 			vec![
-				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
-				(
-					T::HubAssetId::get().into(),
-					state_changes.fee.protocol_fee,
-					Self::protocol_account(),
-				),
+				Fee{ asset: asset_out.into(), amount: state_changes.fee.asset_fee, recipient: Self::protocol_account()},
+				Fee{ asset: T::HubAssetId::get().into(), amount: state_changes.fee.protocol_fee, recipient: Self::protocol_account()}
 			],
-			event_id,
 		);
 
 		#[cfg(feature = "try-runtime")]
@@ -1884,20 +1878,13 @@ impl<T: Config> Pallet<T> {
 			who.clone(),
 			Self::protocol_account(),
 			pallet_amm_support::Filler::Omnipool,
-			pallet_amm_support::TradeOperation::Buy,
-			asset_in.into(),
-			asset_out.into(),
-			*state_changes.asset_in.delta_reserve,
-			*state_changes.asset_out.delta_reserve,
+			pallet_amm_support::TradeOperation::ExactOut,
+			vec![(AssetType::Fungible(asset_in.into()), *state_changes.asset_in.delta_reserve)],
+			vec![(AssetType::Fungible(asset_out.into()), *state_changes.asset_out.delta_reserve)],
 			vec![
-				(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account()),
-				(
-					T::HubAssetId::get().into(),
-					state_changes.fee.protocol_fee,
-					Self::protocol_account(),
-				),
+				Fee{ asset: asset_out.into(), amount: state_changes.fee.asset_fee, recipient: Self::protocol_account()},
+				Fee{ asset: T::HubAssetId::get().into(), amount: state_changes.fee.protocol_fee, recipient: Self::protocol_account()}
 			],
-			event_id,
 		);
 
 		#[cfg(feature = "try-runtime")]
@@ -2017,13 +2004,12 @@ impl<T: Config> Pallet<T> {
 			who.clone(),
 			Self::protocol_account(),
 			pallet_amm_support::Filler::Omnipool,
-			pallet_amm_support::TradeOperation::Sell,
-			T::HubAssetId::get().into(),
-			asset_out.into(),
-			*state_changes.asset.delta_hub_reserve,
-			*state_changes.asset.delta_reserve,
-			vec![(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account())],
-			event_id,
+			pallet_amm_support::TradeOperation::ExactIn,
+			vec![(AssetType::Fungible(T::HubAssetId::get().into()), *state_changes.asset.delta_hub_reserve)],
+			vec![(AssetType::Fungible(asset_out.into()), *state_changes.asset.delta_reserve)],
+			vec![
+				Fee{ asset: asset_out.into(), amount: state_changes.fee.asset_fee, recipient: Self::protocol_account()}
+			],
 		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
@@ -2139,13 +2125,12 @@ impl<T: Config> Pallet<T> {
 			who.clone(),
 			Self::protocol_account(),
 			pallet_amm_support::Filler::Omnipool,
-			pallet_amm_support::TradeOperation::Buy,
-			T::HubAssetId::get().into(),
-			asset_out.into(),
-			*state_changes.asset.delta_hub_reserve,
-			*state_changes.asset.delta_reserve,
-			vec![(asset_out.into(), state_changes.fee.asset_fee, Self::protocol_account())],
-			event_id,
+			pallet_amm_support::TradeOperation::ExactOut,
+			vec![(AssetType::Fungible(T::HubAssetId::get().into()), *state_changes.asset.delta_hub_reserve)],
+			vec![(AssetType::Fungible(asset_out.into()), *state_changes.asset.delta_reserve)],
+			vec![
+				Fee{ asset: asset_out.into(), amount: state_changes.fee.asset_fee, recipient: Self::protocol_account()}
+			],
 		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;

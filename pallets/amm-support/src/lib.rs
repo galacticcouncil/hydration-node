@@ -20,19 +20,46 @@
 type AssetId = u32;
 type Balance = u128;
 
-use frame_support::sp_runtime::{ArithmeticError, DispatchError};
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
+use frame_support::sp_runtime::app_crypto::sp_core;
 pub use hydradx_traits::{
-	router::{Filler, TradeOperation},
+	router::{AssetType, ExecutionType, ExecutionTypeStack, Fee, Filler, TradeOperation, OtcOrderId},
 	IncrementalIdProvider,
 };
 use sp_std::vec::Vec;
+use sp_core::{ConstU32, RuntimeDebug};
 pub use primitives::IncrementalId as IncrementalIdType;
+use primitives::ItemId as NftId;
 
 #[cfg(test)]
 mod tests;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+
+pub const MAX_STACK_SIZE: u32 = 10;
+
+#[derive(RuntimeDebug, Encode, Decode, Default, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub struct ExecutionIdStack(BoundedVec<ExecutionType<IncrementalIdType>, ConstU32<MAX_STACK_SIZE>>);
+impl ExecutionIdStack {
+	fn push(& mut self, execution_type: ExecutionType<IncrementalIdType>) -> Result<(), ()> {
+		self.0.try_push(execution_type).map_err(|_| ())
+	}
+
+	fn pop(& mut self) -> Result<ExecutionType<IncrementalIdType>, ()> {
+		self.0.pop().ok_or(())
+	}
+
+	fn get(self) -> Vec<ExecutionType<IncrementalIdType>> {
+		self.0.into_inner()
+	}
+
+	fn is_empty(&self) -> bool {
+		self.0.is_empty()
+	}
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -56,9 +83,19 @@ pub mod pallet {
 	#[pallet::getter(fn incremental_id)]
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
-	#[pallet::error]
-	pub enum Error<T> {}
+	// TODO:
+	#[pallet::storage]
+	/// Next available incremental ID
+	#[pallet::getter(fn id_stack)]
+	pub(super) type IdStack<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
+	#[pallet::error]
+	pub enum Error<T> {
+		MaxStackSizeReached,
+		EmptyStack,
+	}
+
+	// on initialize - clear operation_id stack if not empty
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -66,14 +103,12 @@ pub mod pallet {
 		Swapped {
 			swapper: T::AccountId,
 			filler: T::AccountId,
-			filler_type: Filler,
+			filler_type: Filler<AssetId, OtcOrderId>,
 			operation: TradeOperation,
-			asset_in: AssetId,
-			asset_out: AssetId,
-			amount_in: Balance,
-			amount_out: Balance,
-			fees: Vec<(AssetId, Balance, T::AccountId)>, // (asset, fee amount, fee recipient)
-			event_id: Option<u32>,
+			inputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
+			outputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
+			fees: Vec<Fee<AssetId, Balance, T::AccountId>>,
+			operation_id: Vec<ExecutionType<IncrementalIdType>>,
 		},
 	}
 
@@ -95,30 +130,43 @@ impl<T: Config> Pallet<T> {
 	pub fn deposit_trade_event(
 		swapper: T::AccountId,
 		filler: T::AccountId,
-		filler_type: Filler,
+		filler_type: Filler<AssetId, OtcOrderId>,
 		operation: TradeOperation,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		amount_out: Balance,
-		fees: Vec<(AssetId, Balance, T::AccountId)>,
-		event_id: Option<IncrementalIdType>,
+		inputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
+		outputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
+		fees: Vec<Fee<AssetId, Balance, T::AccountId>>,
 	) {
 		Self::deposit_event(Event::<T>::Swapped {
 			swapper,
 			filler,
 			filler_type,
 			operation,
-			asset_in,
-			asset_out,
-			amount_in,
-			amount_out,
+			inputs,
+			outputs,
 			fees,
-			event_id,
+			operation_id: <Self as ExecutionTypeStack<IncrementalIdType>>::get(),
 		});
 	}
 }
 
+impl<T: Config> ExecutionTypeStack<IncrementalIdType> for Pallet<T> {
+	fn push(execution_type: ExecutionType<IncrementalIdType>) -> DispatchResult {
+		IdStack::<T>::try_mutate(|stack| -> DispatchResult {
+			stack.push(execution_type).map_err(|_| Error::<T>::MaxStackSizeReached.into())
+		})
+	}
+
+	fn pop() -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
+		IdStack::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
+			stack.pop().map_err(|_| Error::<T>::EmptyStack.into())
+		}
+		)
+	}
+
+	fn get() -> Vec<ExecutionType<IncrementalIdType>> {
+		IdStack::<T>::get().get()
+	}
+}
 impl<T: Config> IncrementalIdProvider<IncrementalIdType> for Pallet<T> {
 	fn next_id() -> Result<IncrementalIdType, DispatchError> {
 		Self::next_incremental_id()

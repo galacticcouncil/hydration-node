@@ -53,7 +53,7 @@ fn router_weights_should_be_non_zero() {
 
 mod router_different_pools_tests {
 	use super::*;
-	use hydradx_traits::router::PoolType;
+	use hydradx_traits::router::{ExecutionType, PoolType};
 
 	#[test]
 	fn route_should_fail_when_route_is_not_consistent() {
@@ -157,32 +157,28 @@ mod router_different_pools_tests {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_amm_support::Filler::LBP,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: DAI,
-					asset_out: LRNA,
-					amount_in: 9980000000,
-					amount_out: 5640664064,
-					fees: vec![(
-						DAI,
-						20000000,
-						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(DAI), 9980000000)],
+					outputs: vec![(AssetType::Fungible(LRNA), 5640664064)],
+					fees: vec![
+						Fee::new(DAI, 20000000, LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
 							.unwrap()
-							.fee_collector,
-					)],
-					event_id: Some(0),
+							.fee_collector),
+					],
+					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: LRNA,
-					asset_out: HDX,
-					amount_in: 5640664064,
-					amount_out: 4682924837974,
-					fees: vec![(HDX, 11736653730, Omnipool::protocol_account())],
-					event_id: Some(0),
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(LRNA), 5640664064)],
+					outputs: vec![(AssetType::Fungible(HDX), 4682924837974)],
+					fees: vec![
+						Fee::new(HDX, 11736653730, Omnipool::protocol_account()),
+					],
+					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -191,21 +187,20 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type: pallet_amm_support::Filler::XYK,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: HDX,
-					asset_out: DOT,
-					amount_in: 4682924837974,
-					amount_out: 2230008413831,
-					fees: vec![(
-						DOT,
-						6710155707,
-						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+					filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}))),
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), 4682924837974)],
+					outputs: vec![(AssetType::Fungible(DOT), 2230008413831)],
+					fees: vec![
+						Fee::new(DOT, 6710155707, XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						}),
-					)],
-					event_id: Some(0),
+						})),
+					],
+					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -280,20 +275,16 @@ mod router_different_pools_tests {
 					pallet_amm_support::Event::Swapped {
 						swapper: BOB.into(),
 						filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
-						filler_type: pallet_amm_support::Filler::LBP,
-						operation: pallet_amm_support::TradeOperation::Sell,
-						asset_in: DAI,
-						asset_out: HDX,
-						amount_in: 9980000000,
-						amount_out: 5640664064,
-						fees: vec![(
-							DAI,
-							20000000,
-							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
+						filler_type: Filler::LBP,
+						operation: TradeOperation::ExactIn,
+						inputs: vec![(AssetType::Fungible(DAI), 9980000000)],
+						outputs: vec![(AssetType::Fungible(HDX), 5640664064)],
+						fees: vec![
+							Fee::new(DAI, 20000000, LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
 								.unwrap()
-								.fee_collector,
-						)],
-						event_id: Some(0),
+								.fee_collector),
+						],
+						operation_id: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_amm_support::Event::Swapped {
@@ -302,21 +293,20 @@ mod router_different_pools_tests {
 							asset_in: HDX,
 							asset_out: stable_asset_1,
 						}),
-						filler_type: pallet_amm_support::Filler::XYK,
-						operation: pallet_amm_support::TradeOperation::Sell,
+						filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: stable_asset_1,
-						amount_in: 5640664064,
-						amount_out: 2811712439,
-						fees: vec![(
-							stable_asset_1,
-							8460516,
-							XYK::get_pair_id(pallet_xyk::types::AssetPair {
+					}))),
+						operation: pallet_amm_support::TradeOperation::ExactIn,
+						inputs: vec![(AssetType::Fungible(HDX), 5640664064)],
+						outputs: vec![(AssetType::Fungible(stable_asset_1), 2811712439)],
+						fees: vec![
+							Fee::new(stable_asset_1, 8460516, XYK::get_pair_id(pallet_xyk::types::AssetPair {
 								asset_in: HDX,
 								asset_out: stable_asset_1,
-							}),
-						)],
-						event_id: Some(0),
+							})),
+						],
+						operation_id: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_amm_support::Event::Swapped {
@@ -325,21 +315,17 @@ mod router_different_pools_tests {
 							&stable_pool_id,
 							Some(pallet_stableswap::POOL_IDENTIFIER),
 						),
-						filler_type: pallet_amm_support::Filler::Stableswap,
-						operation: pallet_amm_support::TradeOperation::Sell,
-						asset_in: stable_asset_1,
-						asset_out: stable_asset_2,
-						amount_in: 2811712439,
-						amount_out: 2783595233,
-						fees: vec![(
-							stable_asset_2,
-							28117123,
-							<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+						filler_type: pallet_amm_support::Filler::Stableswap(stable_pool_id),
+						operation: TradeOperation::ExactIn,
+						inputs: vec![(AssetType::Fungible(stable_asset_1), 2811712439)],
+						outputs: vec![(AssetType::Fungible(stable_asset_2), 2783595233)],
+						fees: vec![
+							Fee::new(stable_asset_2, 28117123, <Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
 								&stable_pool_id,
 								Some(pallet_stableswap::POOL_IDENTIFIER),
-							),
-						)],
-						event_id: Some(0),
+							)),
+						],
+						operation_id: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_route_executor::Event::Executed {
@@ -412,32 +398,28 @@ mod router_different_pools_tests {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_amm_support::Filler::LBP,
-					operation: pallet_amm_support::TradeOperation::Buy,
-					asset_in: DAI,
-					asset_out: LRNA,
-					amount_in: 4362157193,
-					amount_out: 2465566245,
-					fees: vec![(
-						DAI,
-						8741796,
-						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+						inputs: vec![(AssetType::Fungible(DAI), 4362157193)],
+						outputs: vec![(AssetType::Fungible(LRNA), 2465566245)],
+						fees: vec![
+							Fee::new(DAI, 8741796, LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
 							.unwrap()
-							.fee_collector,
-					)],
-					event_id: Some(0),
+							.fee_collector),
+						],
+						operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
-					operation: pallet_amm_support::TradeOperation::Buy,
-					asset_in: LRNA,
-					asset_out: HDX,
-					amount_in: 2465566245,
-					amount_out: 2046938775509,
-					fees: vec![(HDX, 5130172370, Omnipool::protocol_account())],
-					event_id: Some(0),
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(LRNA), 2465566245)],
+					outputs: vec![(AssetType::Fungible(HDX), 2046938775509)],
+					fees: vec![
+						Fee::new(HDX, 5130172370, Omnipool::protocol_account()),
+					],
+					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -446,21 +428,20 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type: pallet_amm_support::Filler::XYK,
-					operation: pallet_amm_support::TradeOperation::Buy,
-					asset_in: HDX,
-					asset_out: DOT,
-					amount_in: 1000000000000,
-					amount_out: 2040816326531,
-					fees: vec![(
-						HDX,
-						6122448978,
-						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+					filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}))),
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(HDX), 1000000000000)],
+					outputs: vec![(AssetType::Fungible(DOT), 2040816326531)],
+					fees: vec![
+						Fee::new(HDX, 6122448978, XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						}),
-					)],
-					event_id: Some(0),
+						})),
+					],
+					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -536,19 +517,15 @@ mod router_different_pools_tests {
 						swapper: BOB.into(),
 						filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
 						filler_type: pallet_amm_support::Filler::LBP,
-						operation: pallet_amm_support::TradeOperation::Buy,
-						asset_in: DAI,
-						asset_out: HDX,
-						amount_in: 3746042043754,
-						amount_out: 2067851065323,
-						fees: vec![(
-							DAI,
-							7507098284,
-							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
+						operation: pallet_amm_support::TradeOperation::ExactOut,
+						inputs: vec![(AssetType::Fungible(DAI), 3746042043754)],
+						outputs: vec![(AssetType::Fungible(HDX), 2067851065323)],
+						fees: vec![
+							Fee::new(DAI, 7507098284, LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
 								.unwrap()
-								.fee_collector,
-						)],
-						event_id: Some(0),
+								.fee_collector),
+						],
+						operation_id: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_amm_support::Event::Swapped {
@@ -557,21 +534,20 @@ mod router_different_pools_tests {
 							asset_in: HDX,
 							asset_out: stable_asset_1,
 						}),
-						filler_type: pallet_amm_support::Filler::XYK,
-						operation: pallet_amm_support::TradeOperation::Buy,
+						filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: stable_asset_1,
-						amount_in: 1010010000114,
-						amount_out: 2061666067122,
-						fees: vec![(
-							HDX,
-							6184998201,
-							XYK::get_pair_id(pallet_xyk::types::AssetPair {
+					}))),
+						operation: pallet_amm_support::TradeOperation::ExactOut,
+						inputs: vec![(AssetType::Fungible(HDX), 1010010000114)],
+						outputs: vec![(AssetType::Fungible(stable_asset_1), 2061666067122)],
+						fees: vec![
+							Fee::new(HDX, 6184998201, XYK::get_pair_id(pallet_xyk::types::AssetPair {
 								asset_in: HDX,
 								asset_out: stable_asset_1,
-							}),
-						)],
-						event_id: Some(0),
+							})),
+						],
+						operation_id: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_amm_support::Event::Swapped {
@@ -580,21 +556,17 @@ mod router_different_pools_tests {
 							&stable_pool_id,
 							Some(pallet_stableswap::POOL_IDENTIFIER),
 						),
-						filler_type: pallet_amm_support::Filler::Stableswap,
-						operation: pallet_amm_support::TradeOperation::Buy,
-						asset_in: stable_asset_1,
-						asset_out: stable_asset_2,
-						amount_in: 1010010000114,
-						amount_out: 1000000000000,
-						fees: vec![(
-							stable_asset_1,
-							10000099012,
-							<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+						filler_type: pallet_amm_support::Filler::Stableswap(stable_pool_id),
+						operation: pallet_amm_support::TradeOperation::ExactOut,
+						inputs: vec![(AssetType::Fungible(stable_asset_1), 1010010000114)],
+						outputs: vec![(AssetType::Fungible(stable_asset_2), 1000000000000)],
+						fees: vec![
+							Fee::new(stable_asset_1, 10000099012, <Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
 								&stable_pool_id,
 								Some(pallet_stableswap::POOL_IDENTIFIER),
-							),
-						)],
-						event_id: Some(0),
+							)),
+						],
+						operation_id: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_route_executor::Event::Executed {
@@ -664,21 +636,20 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type: pallet_amm_support::Filler::XYK,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: HDX,
-					asset_out: DOT,
-					amount_in: 10000000000,
-					amount_out: 4984501549,
-					fees: vec![(
-						DOT,
-						14998500,
-						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+					filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}))),
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), 10000000000)],
+						outputs: vec![(AssetType::Fungible(DOT), 4984501549)],
+						fees: vec![
+							Fee::new(DOT, 14998500, XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						}),
-					)],
-					event_id: Some(0),
+						})),
+						],
+						operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -687,21 +658,20 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type: pallet_amm_support::Filler::XYK,
-					operation: pallet_amm_support::TradeOperation::Buy,
-					asset_in: HDX,
-					asset_out: DOT,
-					amount_in: 10000000000,
-					amount_out: 20007996198,
-					fees: vec![(
-						HDX,
-						60023988,
-						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+					filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}))),
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(HDX), 10000000000)],
+						outputs: vec![(AssetType::Fungible(DOT), 20007996198)],
+						fees: vec![
+							Fee::new(HDX, 60023988, XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						}),
-					)],
-					event_id: Some(1),
+						})),
+						],
+						operation_id: vec![ExecutionType::Router(1)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -710,21 +680,20 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type: pallet_amm_support::Filler::XYK,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: HDX,
-					asset_out: DOT,
-					amount_in: 10000000000,
-					amount_out: 4981510054,
-					fees: vec![(
-						DOT,
-						14989497,
-						XYK::get_pair_id(pallet_xyk::types::AssetPair {
-							asset_in: HDX,
-							asset_out: DOT,
-						}),
-					)],
-					event_id: Some(2),
+					filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}))),
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), 10000000000)],
+					outputs: vec![(AssetType::Fungible(DOT), 4981510054)],
+					fees: vec![
+						Fee::new(DOT, 14989497, XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					})),
+					],
+					operation_id: vec![ExecutionType::Router(2)],
 				}
 				.into(),
 			]);
@@ -2393,16 +2362,14 @@ mod omnipool_router_tests {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: HDX,
-					asset_out: DAI,
-					amount_in: amount_to_sell,
-					amount_out,
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
+					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
 					fees: vec![
-						(DAI, 667155563986401, Omnipool::protocol_account()),
-						(LRNA, 6007435, Omnipool::protocol_account()),
+						Fee::new(DAI, 667155563986401, Omnipool::protocol_account()),
+						Fee::new(LRNA, 6007435, Omnipool::protocol_account()),
 					],
-					event_id: Some(0),
+					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -2454,16 +2421,14 @@ mod omnipool_router_tests {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: HDX,
-					asset_out: DAI,
-					amount_in: amount_to_sell,
-					amount_out,
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
+					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
 					fees: vec![
-						(DAI, 667155563986401, Omnipool::protocol_account()),
-						(LRNA, 6007435, Omnipool::protocol_account()),
+						Fee::new(DAI, 667155563986401, Omnipool::protocol_account()),
+						Fee::new(LRNA, 6007435, Omnipool::protocol_account()),
 					],
-					event_id: None,
+					operation_id: vec![],
 				}
 				.into(),
 			]);
@@ -2616,16 +2581,14 @@ mod omnipool_router_tests {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
-					operation: pallet_amm_support::TradeOperation::Buy,
-					asset_in: HDX,
-					asset_out: DAI,
-					amount_in,
-					amount_out: amount_to_buy,
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(HDX), amount_in)],
+					outputs: vec![(AssetType::Fungible(DAI), amount_to_buy)],
 					fees: vec![
-						(DAI, 2506265665, Omnipool::protocol_account()),
-						(LRNA, 22, Omnipool::protocol_account()),
+						Fee::new(DAI, 2506265665, Omnipool::protocol_account()),
+						Fee::new(LRNA, 22, Omnipool::protocol_account()),
 					],
-					event_id: Some(0),
+					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -2677,16 +2640,14 @@ mod omnipool_router_tests {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
-					operation: pallet_amm_support::TradeOperation::Buy,
-					asset_in: HDX,
-					asset_out: DAI,
-					amount_in,
-					amount_out: amount_to_buy,
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(HDX), amount_in)],
+					outputs: vec![(AssetType::Fungible(DAI), amount_to_buy)],
 					fees: vec![
-						(DAI, 2_506_265_665, Omnipool::protocol_account()),
-						(LRNA, 22, Omnipool::protocol_account()),
+						Fee::new(DAI, 2_506_265_665, Omnipool::protocol_account()),
+						Fee::new(LRNA, 22, Omnipool::protocol_account()),
 					],
-					event_id: None,
+					operation_id: vec![],
 				}
 				.into(),
 			]);
@@ -2966,19 +2927,15 @@ mod lbp_router_tests {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
 					filler_type: pallet_amm_support::Filler::LBP,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: HDX,
-					asset_out: DAI,
-					amount_in: amount_to_sell - fee,
-					amount_out: received_amount_out,
-					fees: vec![(
-						HDX,
-						fee,
-						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell - fee)],
+					outputs: vec![(AssetType::Fungible(DAI), received_amount_out)],
+					fees: vec![
+						Fee::new(HDX, fee, LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
 							.unwrap()
-							.fee_collector,
-					)],
-					event_id: Some(0),
+							.fee_collector),
+					],
+					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -3024,19 +2981,15 @@ mod lbp_router_tests {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
 					filler_type: pallet_amm_support::Filler::LBP,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: HDX,
-					asset_out: DAI,
-					amount_in: 9_980_000_000_000,
-					amount_out: received_amount_out,
-					fees: vec![(
-						HDX,
-						20_000_000_000,
-						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), 9_980_000_000_000)],
+					outputs: vec![(AssetType::Fungible(DAI), received_amount_out)],
+					fees: vec![
+						Fee::new(HDX, 20_000_000_000, LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
 							.unwrap()
-							.fee_collector,
-					)],
-					event_id: None,
+							.fee_collector),
+					],
+					operation_id: vec![],
 				}
 				.into(),
 			]);
