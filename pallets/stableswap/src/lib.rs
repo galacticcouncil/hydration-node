@@ -231,7 +231,7 @@ pub mod pallet {
 			state: Tradability,
 		},
 
-		/// AAmplification of a pool has been scheduled to change.
+		/// Amplification of a pool has been scheduled to change.
 		AmplificationChanging {
 			pool_id: T::AssetId,
 			current_amplification: NonZeroU16,
@@ -239,6 +239,8 @@ pub mod pallet {
 			start_block: BlockNumberFor<T>,
 			end_block: BlockNumberFor<T>,
 		},
+		/// A pool has been destroyed.
+		PoolDestroyed { pool_id: T::AssetId },
 	}
 
 	#[pallet::error]
@@ -935,9 +937,17 @@ pub mod pallet {
 				let min_amount = min_amounts_out.remove(asset_id).ok_or(Error::<T>::IncorrectAssets)?;
 				let reserve = T::Currency::free_balance(*asset_id, &pool_account);
 
-				let amount = hydra_dx_math::stableswap::calculate_liquidity_out(reserve, share_amount, share_issuance)
-					.ok_or(ArithmeticError::Overflow)?;
-				ensure!(amount >= min_amount, Error::<T>::SlippageLimit);
+				// Special case when withdrawing all remaining pool shares, so we can directly send all the remaining assets to the user.
+				let amount = if share_amount == share_issuance {
+					// no need to ensure the min amounts in this case
+					reserve
+				} else {
+					let amount =
+						hydra_dx_math::stableswap::calculate_liquidity_out(reserve, share_amount, share_issuance)
+							.ok_or(ArithmeticError::Overflow)?;
+					ensure!(amount >= min_amount, Error::<T>::SlippageLimit);
+					amount
+				};
 
 				T::Currency::transfer(*asset_id, &pool_account, &who, amount)?;
 				amounts.push(AssetAmount {
@@ -950,7 +960,20 @@ pub mod pallet {
 			T::Currency::withdraw(pool_id, &who, share_amount)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
-			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
+			// TODO: liquidity change hooks does not work when we are removing all liquidity.
+			// it is tricky to update the hooks as it works with share prices of each asset, which is not possible to calculate with total issuance == 0.
+			// we should consider to introduce new hook to inform that this pool is being removed.
+			if share_amount != share_issuance {
+				Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
+			} else {
+				Pools::<T>::remove(pool_id);
+				let _ = AssetTradability::<T>::clear_prefix(pool_id, MAX_ASSETS_IN_POOL, None);
+				T::DustAccountHandler::remove_account(&Self::pool_account(pool_id))?;
+
+				Self::deposit_event(Event::PoolDestroyed { pool_id });
+
+				//TODO: consider adding hooks to clean up oracle!?
+			}
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
