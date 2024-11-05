@@ -681,16 +681,16 @@ runtime_benchmarks! {
 		run_to_block(200);
 
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), gfarm_id1, yfarm_id1, pair, 10 * ONE)?;
-		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 3, 4, pair, 10 * ONE)?;
-		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 5, 6, pair, 10 * ONE)?;
-		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 7, 8, pair, 10 * ONE)?;
-		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 9, 10, pair, 10 * ONE)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 3, 4, pair, lp1_deposit_id)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 5, 6, pair, lp1_deposit_id)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 7, 8, pair, lp1_deposit_id)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 9, 10, pair, lp1_deposit_id)?;
 
-		let farm_entries = [(1, yfarm_id1, pair), (2, 4, pair), (3, 6, pair), (4, 8, pair), (5, 10, pair)];
+		let farm_entries = [yfarm_id1, 4, 6, 8, 10];
 		let farms = farm_entries[0..c as usize].to_vec();
 
 		run_to_block(400);
-	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap())
+	}: _(RawOrigin::Signed(lp1),lp1_deposit_id, pair, farms.try_into().unwrap())
 }
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
