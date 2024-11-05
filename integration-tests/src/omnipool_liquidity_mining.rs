@@ -939,7 +939,6 @@ fn exit_farms_should_work_for_multiple_farms() {
 	Hydra::execute_with(|| {
 		let global_farm_1_id = 1;
 		let global_farm_2_id = 2;
-		let global_farm_3_id = 3;
 		let yield_farm_1_id = 4;
 		let yield_farm_2_id = 5;
 		let yield_farm_3_id = 6;
