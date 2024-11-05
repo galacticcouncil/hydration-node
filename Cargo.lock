@@ -4883,7 +4883,6 @@ dependencies = [
  "orml-utilities",
  "orml-vesting",
  "orml-xcm-support",
- "pallet-amm-support",
  "pallet-asset-registry",
  "pallet-balances",
  "pallet-bonds",
@@ -4919,7 +4918,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "268.0.0"
+version = "269.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4958,7 +4957,6 @@ dependencies = [
  "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
- "pallet-amm-support",
  "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",
@@ -7498,22 +7496,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
-name = "pallet-amm-support"
-version = "1.0.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "parity-scale-codec",
- "primitives",
- "scale-info",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-asset-conversion"
 version = "10.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch2#77fcc2b7dbe98a1c589ff699e1c3c37bf2d516bd"
@@ -7854,7 +7836,6 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "pallet-balances",
  "pallet-omnipool",
  "parity-scale-codec",
@@ -8016,7 +7997,6 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "pallet-balances",
  "pallet-currencies",
  "pallet-ema-oracle",
@@ -8508,7 +8488,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.10.0"
+version = "4.8.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8517,7 +8497,6 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "parity-scale-codec",
  "primitive-types",
  "proptest",
@@ -8546,7 +8525,6 @@ dependencies = [
  "pallet-balances",
  "parity-scale-codec",
  "pretty_assertions",
- "primitives",
  "proptest",
  "rand 0.8.5",
  "scale-info",
@@ -8758,7 +8736,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.5.0"
+version = "4.3.6"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8770,7 +8748,6 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "pallet-balances",
  "parity-scale-codec",
  "pretty_assertions",
@@ -8786,7 +8763,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8796,7 +8773,6 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "pallet-balances",
  "pallet-ema-oracle",
  "pallet-liquidity-mining",
@@ -8815,7 +8791,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.2.0"
+version = "2.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8823,7 +8799,6 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "parity-scale-codec",
  "pretty_assertions",
  "proptest",
@@ -8848,7 +8823,6 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "pallet-asset-registry",
  "pallet-balances",
  "pallet-currencies",
@@ -9025,7 +8999,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.8.0"
+version = "2.6.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9035,12 +9009,10 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "pallet-balances",
  "pallet-currencies",
  "parity-scale-codec",
  "pretty_assertions",
- "primitives",
  "scale-info",
  "serde",
  "sp-core",
@@ -9127,7 +9099,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.8.0"
+version = "3.6.5"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -9137,7 +9109,6 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "parity-scale-codec",
  "proptest",
  "scale-info",
@@ -9518,7 +9489,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.6.0"
+version = "6.6.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9528,7 +9499,6 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
- "pallet-amm-support",
  "pallet-asset-registry",
  "parity-scale-codec",
  "primitive-types",
@@ -9545,7 +9515,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12229,7 +12199,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.24.0"
+version = "1.25.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12266,7 +12236,6 @@ dependencies = [
  "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
- "pallet-amm-support",
  "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",

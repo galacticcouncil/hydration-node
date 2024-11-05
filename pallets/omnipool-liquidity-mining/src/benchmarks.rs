@@ -739,48 +739,37 @@ benchmarks! {
 
 		//gId: 3, yId: 4
 		initialize_global_farm::<T>(owner2.clone())?;
-		initialize_yield_farm::<T>(owner2, 3, DOT.into())?;
+		initialize_yield_farm::<T>(owner2, 3, BTC.into())?;
 
 		//gId: 5, yId: 6
 		initialize_global_farm::<T>(owner3.clone())?;
-		initialize_yield_farm::<T>(owner3, 5, DAI.into())?;
+		initialize_yield_farm::<T>(owner3, 5, BTC.into())?;
 
 		//gId: 7, yId: 8
 		initialize_global_farm::<T>(owner4.clone())?;
-		initialize_yield_farm::<T>(owner4, 7, ETH.into())?;
+		initialize_yield_farm::<T>(owner4, 7, BTC.into())?;
 
 		//gId: 9, yId: 10
 		initialize_global_farm::<T>(owner5.clone())?;
-		initialize_yield_farm::<T>(owner5, 9, BSX.into())?;
+		initialize_yield_farm::<T>(owner5, 9, BTC.into())?;
 
 		let lp1 = create_funded_account::<T>("lp_1", 5, 10 * BTC_ONE, BTC.into());
 		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), BTC_ONE)?;
 
-		fund::<T>(lp1.clone(), DOT.into(), 1_000 * ONE).unwrap();
-		let lp2_position_id = omnipool_add_liquidity::<T>(lp1.clone(), DOT.into(), ONE)?;
-
-		fund::<T>(lp1.clone(), DAI.into(), 1_000 * ONE).unwrap();
-		let lp3_position_id = omnipool_add_liquidity::<T>(lp1.clone(), DAI.into(), ONE)?;
-
-		fund::<T>(lp1.clone(), ETH.into(), 1_000 * ONE).unwrap();
-		let lp4_position_id = omnipool_add_liquidity::<T>(lp1.clone(), ETH.into(), ONE)?;
-
-		fund::<T>(lp1.clone(), BSX.into(), 1_000 * ONE).unwrap();
-		let lp5_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BSX.into(), ONE)?;
-
 		set_period::<T>(200);
 
 		lm_deposit_shares::<T>(lp1.clone(), 1, 2, lp1_position_id)?;
-		lm_deposit_shares::<T>(lp1.clone(), 3, 4, lp2_position_id)?;
-		lm_deposit_shares::<T>(lp1.clone(), 5, 6, lp3_position_id)?;
-		lm_deposit_shares::<T>(lp1.clone(), 7, 8, lp4_position_id)?;
-		lm_deposit_shares::<T>(lp1.clone(), 9, 10, lp5_position_id)?;
+		crate::Pallet::<T>::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 3, 4, deposit_id)?;
+		crate::Pallet::<T>::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 5, 6, deposit_id)?;
+		crate::Pallet::<T>::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 7, 8, deposit_id)?;
+		crate::Pallet::<T>::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 9, 10, deposit_id)?;
 
-		let farm_entries = [(1, 2), (2,4), (3,6), (4,8), (5, 10)];
+		let deposit_id = 1;
+		let farm_entries = [2,4,6,8,10];
 		let farms = farm_entries[0..c as usize].to_vec();
 
 		set_period::<T>(250);
-	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap())
+	}: _(RawOrigin::Signed(lp1),deposit_id, farms.try_into().unwrap())
 
 
 
