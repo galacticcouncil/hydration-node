@@ -85,9 +85,10 @@ fn exit_farm_should_work_for_multiple_farm_entries() {
 			set_block_number(1_000);
 
 			//Act
-			let farm_entries = vec![(deposit_id, gc_y_farm_id), (deposit_id, charlie_y_farm_id)];
+			let farm_entries = vec![gc_y_farm_id, charlie_y_farm_id];
 			assert_ok!(OmnipoolMining::exit_farms(
 				RuntimeOrigin::signed(LP1),
+				deposit_id,
 				farm_entries.try_into().unwrap()
 			));
 
@@ -221,9 +222,9 @@ fn exit_farm_should_fail_with_no_origin() {
 			set_block_number(1_000);
 
 			//Act and assert
-			let farm_entries = vec![(deposit_id, gc_y_farm_id), (deposit_id, charlie_y_farm_id)];
+			let farm_entries = vec![gc_y_farm_id, charlie_y_farm_id];
 			assert_noop!(
-				OmnipoolMining::exit_farms(RuntimeOrigin::none(), farm_entries.try_into().unwrap()),
+				OmnipoolMining::exit_farms(RuntimeOrigin::none(),deposit_id, farm_entries.try_into().unwrap()),
 				BadOrigin
 			);
 		});
@@ -297,9 +298,9 @@ fn exit_farm_should_fail_with_non_nft_owner() {
 			set_block_number(1_000);
 
 			//Act and assert
-			let farm_entries = vec![(deposit_id, gc_y_farm_id), (deposit_id, charlie_y_farm_id)];
+			let farm_entries = vec![gc_y_farm_id, charlie_y_farm_id];
 			assert_noop!(
-				OmnipoolMining::exit_farms(RuntimeOrigin::signed(LP2), farm_entries.try_into().unwrap()),
+				OmnipoolMining::exit_farms(RuntimeOrigin::signed(LP2), deposit_id, farm_entries.try_into().unwrap()),
 				Error::<Test>::Forbidden
 			);
 		});
