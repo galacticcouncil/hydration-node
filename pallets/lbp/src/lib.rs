@@ -40,7 +40,6 @@ use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBa
 	router::{AssetType, Fee},
 };
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
-use pallet_amm_support::IncrementalIdType;
 
 use scale_info::TypeInfo;
 
@@ -735,13 +734,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _, _>>::sell(
+			<Self as AMM<_, _, _, _>>::sell(
 				&who,
 				AssetPair { asset_in, asset_out },
 				amount,
 				max_limit,
 				false,
-				None,
 			)?;
 
 			Ok(())
@@ -773,7 +771,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, false, None)?;
+			<Self as AMM<_, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, false)?;
 
 			Ok(())
 		}
@@ -944,7 +942,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalIdType> for Pallet<T> {
+impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T> {
 	fn exists(assets: AssetPair) -> bool {
 		let pair_account = Self::pair_account_from_assets(assets.asset_in, assets.asset_out);
 		<PoolData<T>>::contains_key(&pair_account)
@@ -1114,7 +1112,6 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 
 	fn execute_sell(
 		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
-		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		Self::execute_trade(transfer)?;
 
@@ -1266,7 +1263,6 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>, IncrementalI
 	fn execute_buy(
 		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>,
 		_destination: Option<&T::AccountId>,
-		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		Self::execute_trade(transfer)?;
 

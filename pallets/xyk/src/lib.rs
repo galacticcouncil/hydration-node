@@ -41,7 +41,6 @@ use sp_std::{vec, vec::Vec};
 use crate::types::{Amount, AssetId, AssetPair, Balance};
 use hydra_dx_math::ratio::Ratio;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_amm_support::IncrementalIdType;
 
 #[cfg(test)]
 mod tests;
@@ -644,14 +643,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _, _>>::sell(
-				&who,
-				AssetPair { asset_in, asset_out },
-				amount,
-				max_limit,
-				discount,
-				None,
-			)?;
+			<Self as AMM<_, _, _, _>>::sell(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
 
 			Ok(())
 		}
@@ -675,14 +667,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _, _>>::buy(
-				&who,
-				AssetPair { asset_in, asset_out },
-				amount,
-				max_limit,
-				discount,
-				None,
-			)?;
+			<Self as AMM<_, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
 
 			Ok(())
 		}
@@ -723,7 +708,7 @@ impl<T: Config> Pallet<T> {
 }
 
 // Implementation of AMM API which makes possible to plug the AMM pool into the exchange pallet.
-impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType> for Pallet<T> {
+impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	fn exists(assets: AssetPair) -> bool {
 		<ShareToken<T>>::contains_key(&Self::get_pair_id(assets))
 	}
@@ -874,7 +859,6 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType
 	#[transactional]
 	fn execute_sell(
 		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
-		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
@@ -1051,7 +1035,6 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance, IncrementalIdType
 	fn execute_buy(
 		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
 		destination: Option<&T::AccountId>,
-		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 

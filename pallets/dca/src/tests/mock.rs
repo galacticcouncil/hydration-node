@@ -23,7 +23,6 @@ use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
 use frame_support::PalletId;
-use primitives::IncrementalId;
 
 use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
@@ -403,7 +402,7 @@ pub const CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY: Balance = 10 * ONE;
 pub struct OmniPool;
 pub struct Xyk;
 
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId> for OmniPool {
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -448,7 +447,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
-		_event_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::Omnipool) {
 			return Err(ExecutorError::NotSupported);
@@ -488,7 +486,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
-		_event_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::Omnipool) {
 			return Err(ExecutorError::NotSupported);

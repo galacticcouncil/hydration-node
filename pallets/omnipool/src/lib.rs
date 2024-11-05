@@ -116,7 +116,6 @@ pub mod weights;
 use crate::traits::{AssetInfo, OmnipoolHooks};
 use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
 pub use pallet::*;
-use pallet_amm_support::IncrementalIdType;
 pub use weights::WeightInfo;
 
 /// NFT class id type of provided nft implementation
@@ -1044,7 +1043,185 @@ pub mod pallet {
 			amount: Balance,
 			min_buy_amount: Balance,
 		) -> DispatchResult {
-			Self::do_sell(origin, asset_in, asset_out, amount, min_buy_amount, None)
+			let who = ensure_signed(origin.clone())?;
+
+			ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
+
+			ensure!(
+				amount >= T::MinimumTradingLimit::get(),
+				Error::<T>::InsufficientTradingAmount
+			);
+
+			ensure!(
+				T::Currency::ensure_can_withdraw(asset_in, &who, amount).is_ok(),
+				Error::<T>::InsufficientBalance
+			);
+
+			// Special handling when one of the asset is Hub Asset
+			// Math is simplified and asset_in is actually part of asset_out state in this case
+			if asset_in == T::HubAssetId::get() {
+				return Self::sell_hub_asset(origin, &who, asset_out, amount, min_buy_amount);
+			}
+
+			if asset_out == T::HubAssetId::get() {
+				return Self::sell_asset_for_hub_asset(&who, asset_in, amount, min_buy_amount);
+			}
+
+			let asset_in_state = Self::load_asset_state(asset_in)?;
+			let asset_out_state = Self::load_asset_state(asset_out)?;
+
+			ensure!(
+				Self::allow_assets(&asset_in_state, &asset_out_state),
+				Error::<T>::NotAllowed
+			);
+
+			ensure!(
+				amount
+					<= asset_in_state
+						.reserve
+						.checked_div(T::MaxInRatio::get())
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+				Error::<T>::MaxInRatioExceeded
+			);
+
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+
+			let (asset_fee, _) = T::Fee::get(&asset_out);
+			let (_, protocol_fee) = T::Fee::get(&asset_in);
+
+			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
+				&(&asset_in_state).into(),
+				&(&asset_out_state).into(),
+				amount,
+				asset_fee,
+				protocol_fee,
+				current_imbalance.value,
+			)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				*state_changes.asset_out.delta_reserve > Balance::zero(),
+				Error::<T>::ZeroAmountOut
+			);
+
+			ensure!(
+				*state_changes.asset_out.delta_reserve >= min_buy_amount,
+				Error::<T>::BuyLimitNotReached
+			);
+
+			ensure!(
+				*state_changes.asset_out.delta_reserve
+					<= asset_out_state
+						.reserve
+						.checked_div(T::MaxOutRatio::get())
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: let's be safe. this can only fail if MaxOutRatio is zero.
+				Error::<T>::MaxOutRatioExceeded
+			);
+
+			let new_asset_in_state = asset_in_state
+				.delta_update(&state_changes.asset_in)
+				.ok_or(ArithmeticError::Overflow)?;
+			let new_asset_out_state = asset_out_state
+				.delta_update(&state_changes.asset_out)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_reserve, amount,
+				"delta_reserve_in is not equal to given amount in"
+			);
+
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&Self::protocol_account(),
+				*state_changes.asset_in.delta_reserve,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&Self::protocol_account(),
+				&who,
+				*state_changes.asset_out.delta_reserve,
+			)?;
+
+			// Hub liquidity update - work out difference between in and amount so only one update is needed.
+			let delta_hub_asset = state_changes
+				.asset_in
+				.delta_hub_reserve
+				.merge(
+					state_changes
+						.asset_out
+						.delta_hub_reserve
+						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
+						.ok_or(ArithmeticError::Overflow)?,
+				)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			match delta_hub_asset {
+				BalanceUpdate::Increase(val) if val == Balance::zero() => {
+					// nothing to do if zero.
+				}
+				BalanceUpdate::Increase(_) => {
+					// trade can only burn some. This would be a bug.
+					return Err(Error::<T>::HubAssetUpdateError.into());
+				}
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				}
+			};
+
+			// Callback hook info
+			let info_in: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_in,
+				&asset_in_state,
+				&new_asset_in_state,
+				&state_changes.asset_in,
+				false,
+			);
+
+			let info_out: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_out,
+				&asset_out_state,
+				&new_asset_out_state,
+				&state_changes.asset_out,
+				false,
+			);
+
+			Self::update_imbalance(state_changes.delta_imbalance)?;
+
+			Self::set_asset_state(asset_in, new_asset_in_state);
+			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
+
+			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
+
+			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
+
+			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
+				state_changes.fee.protocol_fee
+			);
+
+			Self::deposit_event(Event::SellExecuted {
+				who,
+				asset_in,
+				asset_out,
+				amount_in: amount,
+				amount_out: *state_changes.asset_out.delta_reserve,
+				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
+				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
+				asset_fee_amount: state_changes.fee.asset_fee,
+				protocol_fee_amount: state_changes.fee.protocol_fee,
+			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant(
+				(asset_in, asset_in_state, new_asset_in_state),
+				(asset_out, asset_out_state, new_asset_out_state),
+			);
+
+			Ok(())
 		}
 
 		/// Execute a swap of `asset_out` for `asset_in`.
@@ -1077,7 +1254,179 @@ pub mod pallet {
 			amount: Balance,
 			max_sell_amount: Balance,
 		) -> DispatchResult {
-			Self::do_buy(origin, asset_out, asset_in, amount, max_sell_amount, None)
+			let who = ensure_signed(origin.clone())?;
+
+			ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
+
+			ensure!(
+				amount >= T::MinimumTradingLimit::get(),
+				Error::<T>::InsufficientTradingAmount
+			);
+
+			// Special handling when one of the asset is Hub Asset
+			if asset_out == T::HubAssetId::get() {
+				return Self::buy_hub_asset(&who, asset_in, amount, max_sell_amount);
+			}
+
+			if asset_in == T::HubAssetId::get() {
+				return Self::buy_asset_for_hub_asset(origin, &who, asset_out, amount, max_sell_amount);
+			}
+
+			let asset_in_state = Self::load_asset_state(asset_in)?;
+			let asset_out_state = Self::load_asset_state(asset_out)?;
+
+			ensure!(
+				Self::allow_assets(&asset_in_state, &asset_out_state),
+				Error::<T>::NotAllowed
+			);
+
+			ensure!(asset_out_state.reserve >= amount, Error::<T>::InsufficientLiquidity);
+
+			ensure!(
+				amount
+					<= asset_out_state
+						.reserve
+						.checked_div(T::MaxOutRatio::get())
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: Let's be safe. this can only fail if MaxOutRatio is zero.
+				Error::<T>::MaxOutRatioExceeded
+			);
+
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+
+			let (asset_fee, _) = T::Fee::get(&asset_out);
+			let (_, protocol_fee) = T::Fee::get(&asset_in);
+			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
+				&(&asset_in_state).into(),
+				&(&asset_out_state).into(),
+				amount,
+				asset_fee,
+				protocol_fee,
+				current_imbalance.value,
+			)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				T::Currency::ensure_can_withdraw(asset_in, &who, *state_changes.asset_in.delta_reserve).is_ok(),
+				Error::<T>::InsufficientBalance
+			);
+
+			ensure!(
+				*state_changes.asset_in.delta_reserve <= max_sell_amount,
+				Error::<T>::SellLimitExceeded
+			);
+
+			ensure!(
+				*state_changes.asset_in.delta_reserve
+					<= asset_in_state
+						.reserve
+						.checked_div(T::MaxInRatio::get())
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+				Error::<T>::MaxInRatioExceeded
+			);
+
+			let new_asset_in_state = asset_in_state
+				.delta_update(&state_changes.asset_in)
+				.ok_or(ArithmeticError::Overflow)?;
+			let new_asset_out_state = asset_out_state
+				.delta_update(&state_changes.asset_out)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			debug_assert_eq!(
+				*state_changes.asset_out.delta_reserve, amount,
+				"delta_reserve_out is not equal to given amount out"
+			);
+
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&Self::protocol_account(),
+				*state_changes.asset_in.delta_reserve,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&Self::protocol_account(),
+				&who,
+				*state_changes.asset_out.delta_reserve,
+			)?;
+
+			// Hub liquidity update - work out difference between in and amount so only one update is needed.
+			let delta_hub_asset = state_changes
+				.asset_in
+				.delta_hub_reserve
+				.merge(
+					state_changes
+						.asset_out
+						.delta_hub_reserve
+						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
+						.ok_or(ArithmeticError::Overflow)?,
+				)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			match delta_hub_asset {
+				BalanceUpdate::Increase(val) if val == Balance::zero() => {
+					// nothing to do if zero.
+				}
+				BalanceUpdate::Increase(_) => {
+					// trade can only burn some. This would be a bug.
+					return Err(Error::<T>::HubAssetUpdateError.into());
+				}
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				}
+			};
+
+			// Callback hook info
+			let info_in: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_in,
+				&asset_in_state,
+				&new_asset_in_state,
+				&state_changes.asset_in,
+				false,
+			);
+
+			let info_out: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_out,
+				&asset_out_state,
+				&new_asset_out_state,
+				&state_changes.asset_out,
+				false,
+			);
+
+			Self::update_imbalance(state_changes.delta_imbalance)?;
+			Self::set_asset_state(asset_in, new_asset_in_state);
+			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
+
+			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
+
+			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
+
+			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
+				state_changes.fee.protocol_fee
+			);
+
+			Self::deposit_event(Event::BuyExecuted {
+				who,
+				asset_in,
+				asset_out,
+				amount_in: *state_changes.asset_in.delta_reserve,
+				amount_out: *state_changes.asset_out.delta_reserve,
+				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
+				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
+				asset_fee_amount: state_changes.fee.asset_fee,
+				protocol_fee_amount: state_changes.fee.protocol_fee,
+			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_trade_invariant(
+				(asset_in, asset_in_state, new_asset_in_state),
+				(asset_out, asset_out_state, new_asset_out_state),
+			);
+
+			Ok(())
 		}
 
 		/// Update asset's tradable state.
@@ -1486,416 +1835,6 @@ impl<T: Config> Pallet<T> {
 		asset_in.tradable.contains(Tradability::SELL) && asset_out.tradable.contains(Tradability::BUY)
 	}
 
-	fn do_sell(
-		origin: OriginFor<T>,
-		asset_in: T::AssetId,
-		asset_out: T::AssetId,
-		amount: Balance,
-		min_buy_amount: Balance,
-		event_id: Option<IncrementalIdType>,
-	) -> DispatchResult {
-		let who = ensure_signed(origin.clone())?;
-
-		ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
-
-		ensure!(
-			amount >= T::MinimumTradingLimit::get(),
-			Error::<T>::InsufficientTradingAmount
-		);
-
-		ensure!(
-			T::Currency::ensure_can_withdraw(asset_in, &who, amount).is_ok(),
-			Error::<T>::InsufficientBalance
-		);
-
-		// Special handling when one of the asset is Hub Asset
-		// Math is simplified and asset_in is actually part of asset_out state in this case
-		if asset_in == T::HubAssetId::get() {
-			return Self::sell_hub_asset(origin, &who, asset_out, amount, min_buy_amount, event_id);
-		}
-
-		if asset_out == T::HubAssetId::get() {
-			return Self::sell_asset_for_hub_asset(&who, asset_in, amount, min_buy_amount);
-		}
-
-		let asset_in_state = Self::load_asset_state(asset_in)?;
-		let asset_out_state = Self::load_asset_state(asset_out)?;
-
-		ensure!(
-			Self::allow_assets(&asset_in_state, &asset_out_state),
-			Error::<T>::NotAllowed
-		);
-
-		ensure!(
-			amount
-				<= asset_in_state
-					.reserve
-					.checked_div(T::MaxInRatio::get())
-					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
-			Error::<T>::MaxInRatioExceeded
-		);
-
-		let current_imbalance = <HubAssetImbalance<T>>::get();
-
-		let (asset_fee, _) = T::Fee::get(&asset_out);
-		let (_, protocol_fee) = T::Fee::get(&asset_in);
-
-		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
-			&(&asset_in_state).into(),
-			&(&asset_out_state).into(),
-			amount,
-			asset_fee,
-			protocol_fee,
-			current_imbalance.value,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
-
-		ensure!(
-			*state_changes.asset_out.delta_reserve > Balance::zero(),
-			Error::<T>::ZeroAmountOut
-		);
-
-		ensure!(
-			*state_changes.asset_out.delta_reserve >= min_buy_amount,
-			Error::<T>::BuyLimitNotReached
-		);
-
-		ensure!(
-			*state_changes.asset_out.delta_reserve
-				<= asset_out_state
-					.reserve
-					.checked_div(T::MaxOutRatio::get())
-					.ok_or(ArithmeticError::DivisionByZero)?, // Note: let's be safe. this can only fail if MaxOutRatio is zero.
-			Error::<T>::MaxOutRatioExceeded
-		);
-
-		let new_asset_in_state = asset_in_state
-			.delta_update(&state_changes.asset_in)
-			.ok_or(ArithmeticError::Overflow)?;
-		let new_asset_out_state = asset_out_state
-			.delta_update(&state_changes.asset_out)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		debug_assert_eq!(
-			*state_changes.asset_in.delta_reserve, amount,
-			"delta_reserve_in is not equal to given amount in"
-		);
-
-		T::Currency::transfer(
-			asset_in,
-			&who,
-			&Self::protocol_account(),
-			*state_changes.asset_in.delta_reserve,
-		)?;
-		T::Currency::transfer(
-			asset_out,
-			&Self::protocol_account(),
-			&who,
-			*state_changes.asset_out.delta_reserve,
-		)?;
-
-		// Hub liquidity update - work out difference between in and amount so only one update is needed.
-		let delta_hub_asset = state_changes
-			.asset_in
-			.delta_hub_reserve
-			.merge(
-				state_changes
-					.asset_out
-					.delta_hub_reserve
-					.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
-					.ok_or(ArithmeticError::Overflow)?,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		match delta_hub_asset {
-			BalanceUpdate::Increase(val) if val == Balance::zero() => {
-				// nothing to do if zero.
-			}
-			BalanceUpdate::Increase(_) => {
-				// trade can only burn some. This would be a bug.
-				return Err(Error::<T>::HubAssetUpdateError.into());
-			}
-			BalanceUpdate::Decrease(amount) => {
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-			}
-		};
-
-		// Callback hook info
-		let info_in: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
-			asset_in,
-			&asset_in_state,
-			&new_asset_in_state,
-			&state_changes.asset_in,
-			false,
-		);
-
-		let info_out: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
-			asset_out,
-			&asset_out_state,
-			&new_asset_out_state,
-			&state_changes.asset_out,
-			false,
-		);
-
-		Self::update_imbalance(state_changes.delta_imbalance)?;
-
-		Self::set_asset_state(asset_in, new_asset_in_state);
-		Self::set_asset_state(asset_out, new_asset_out_state);
-
-		T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
-
-		Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
-
-		Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
-
-		debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
-		debug_assert_eq!(
-			*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
-			state_changes.fee.protocol_fee
-		);
-
-		// TODO: Deprecated, remove when ready
-		Self::deposit_event(Event::SellExecuted {
-			who: who.clone(),
-			asset_in,
-			asset_out,
-			amount_in: amount,
-			amount_out: *state_changes.asset_out.delta_reserve,
-			hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
-			hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-			asset_fee_amount: state_changes.fee.asset_fee,
-			protocol_fee_amount: state_changes.fee.protocol_fee,
-		});
-
-		Self::deposit_event(Event::HubAmountUpdated {
-			hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
-			hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-		});
-
-		pallet_amm_support::Pallet::<T>::deposit_trade_event(
-			who.clone(),
-			Self::protocol_account(),
-			pallet_amm_support::Filler::Omnipool,
-			pallet_amm_support::TradeOperation::ExactIn,
-			vec![(AssetType::Fungible(asset_in.into()), amount)],
-			vec![(AssetType::Fungible(asset_out.into()), *state_changes.asset_out.delta_reserve)],
-			vec![
-				Fee{ asset: asset_out.into(), amount: state_changes.fee.asset_fee, recipient: Self::protocol_account()},
-				Fee{ asset: T::HubAssetId::get().into(), amount: state_changes.fee.protocol_fee, recipient: Self::protocol_account()}
-			],
-		);
-
-		#[cfg(feature = "try-runtime")]
-		Self::ensure_trade_invariant(
-			(asset_in, asset_in_state, new_asset_in_state),
-			(asset_out, asset_out_state, new_asset_out_state),
-		);
-
-		Ok(())
-	}
-
-	fn do_buy(
-		origin: OriginFor<T>,
-		asset_out: T::AssetId,
-		asset_in: T::AssetId,
-		amount: Balance,
-		max_sell_amount: Balance,
-		event_id: Option<IncrementalIdType>,
-	) -> DispatchResult {
-		let who = ensure_signed(origin.clone())?;
-
-		ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
-
-		ensure!(
-			amount >= T::MinimumTradingLimit::get(),
-			Error::<T>::InsufficientTradingAmount
-		);
-
-		// Special handling when one of the asset is Hub Asset
-		if asset_out == T::HubAssetId::get() {
-			return Self::buy_hub_asset(&who, asset_in, amount, max_sell_amount);
-		}
-
-		if asset_in == T::HubAssetId::get() {
-			return Self::buy_asset_for_hub_asset(origin, &who, asset_out, amount, max_sell_amount, event_id);
-		}
-
-		let asset_in_state = Self::load_asset_state(asset_in)?;
-		let asset_out_state = Self::load_asset_state(asset_out)?;
-
-		ensure!(
-			Self::allow_assets(&asset_in_state, &asset_out_state),
-			Error::<T>::NotAllowed
-		);
-
-		ensure!(asset_out_state.reserve >= amount, Error::<T>::InsufficientLiquidity);
-
-		ensure!(
-			amount
-				<= asset_out_state
-					.reserve
-					.checked_div(T::MaxOutRatio::get())
-					.ok_or(ArithmeticError::DivisionByZero)?, // Note: Let's be safe. this can only fail if MaxOutRatio is zero.
-			Error::<T>::MaxOutRatioExceeded
-		);
-
-		let current_imbalance = <HubAssetImbalance<T>>::get();
-
-		let (asset_fee, _) = T::Fee::get(&asset_out);
-		let (_, protocol_fee) = T::Fee::get(&asset_in);
-		let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
-			&(&asset_in_state).into(),
-			&(&asset_out_state).into(),
-			amount,
-			asset_fee,
-			protocol_fee,
-			current_imbalance.value,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
-
-		ensure!(
-			T::Currency::ensure_can_withdraw(asset_in, &who, *state_changes.asset_in.delta_reserve).is_ok(),
-			Error::<T>::InsufficientBalance
-		);
-
-		ensure!(
-			*state_changes.asset_in.delta_reserve <= max_sell_amount,
-			Error::<T>::SellLimitExceeded
-		);
-
-		ensure!(
-			*state_changes.asset_in.delta_reserve
-				<= asset_in_state
-					.reserve
-					.checked_div(T::MaxInRatio::get())
-					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
-			Error::<T>::MaxInRatioExceeded
-		);
-
-		let new_asset_in_state = asset_in_state
-			.delta_update(&state_changes.asset_in)
-			.ok_or(ArithmeticError::Overflow)?;
-		let new_asset_out_state = asset_out_state
-			.delta_update(&state_changes.asset_out)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		debug_assert_eq!(
-			*state_changes.asset_out.delta_reserve, amount,
-			"delta_reserve_out is not equal to given amount out"
-		);
-
-		T::Currency::transfer(
-			asset_in,
-			&who,
-			&Self::protocol_account(),
-			*state_changes.asset_in.delta_reserve,
-		)?;
-		T::Currency::transfer(
-			asset_out,
-			&Self::protocol_account(),
-			&who,
-			*state_changes.asset_out.delta_reserve,
-		)?;
-
-		// Hub liquidity update - work out difference between in and amount so only one update is needed.
-		let delta_hub_asset = state_changes
-			.asset_in
-			.delta_hub_reserve
-			.merge(
-				state_changes
-					.asset_out
-					.delta_hub_reserve
-					.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
-					.ok_or(ArithmeticError::Overflow)?,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		match delta_hub_asset {
-			BalanceUpdate::Increase(val) if val == Balance::zero() => {
-				// nothing to do if zero.
-			}
-			BalanceUpdate::Increase(_) => {
-				// trade can only burn some. This would be a bug.
-				return Err(Error::<T>::HubAssetUpdateError.into());
-			}
-			BalanceUpdate::Decrease(amount) => {
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-			}
-		};
-
-		// Callback hook info
-		let info_in: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
-			asset_in,
-			&asset_in_state,
-			&new_asset_in_state,
-			&state_changes.asset_in,
-			false,
-		);
-
-		let info_out: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
-			asset_out,
-			&asset_out_state,
-			&new_asset_out_state,
-			&state_changes.asset_out,
-			false,
-		);
-
-		Self::update_imbalance(state_changes.delta_imbalance)?;
-		Self::set_asset_state(asset_in, new_asset_in_state);
-		Self::set_asset_state(asset_out, new_asset_out_state);
-
-		T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
-
-		Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
-
-		Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
-
-		debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
-		debug_assert_eq!(
-			*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
-			state_changes.fee.protocol_fee
-		);
-
-		// TODO: Deprecated, remove when ready
-		Self::deposit_event(Event::BuyExecuted {
-			who: who.clone(),
-			asset_in,
-			asset_out,
-			amount_in: *state_changes.asset_in.delta_reserve,
-			amount_out: *state_changes.asset_out.delta_reserve,
-			hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
-			hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-			asset_fee_amount: state_changes.fee.asset_fee,
-			protocol_fee_amount: state_changes.fee.protocol_fee,
-		});
-
-		Self::deposit_event(Event::HubAmountUpdated {
-			hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
-			hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-		});
-
-		pallet_amm_support::Pallet::<T>::deposit_trade_event(
-			who.clone(),
-			Self::protocol_account(),
-			pallet_amm_support::Filler::Omnipool,
-			pallet_amm_support::TradeOperation::ExactOut,
-			vec![(AssetType::Fungible(asset_in.into()), *state_changes.asset_in.delta_reserve)],
-			vec![(AssetType::Fungible(asset_out.into()), *state_changes.asset_out.delta_reserve)],
-			vec![
-				Fee{ asset: asset_out.into(), amount: state_changes.fee.asset_fee, recipient: Self::protocol_account()},
-				Fee{ asset: T::HubAssetId::get().into(), amount: state_changes.fee.protocol_fee, recipient: Self::protocol_account()}
-			],
-		);
-
-		#[cfg(feature = "try-runtime")]
-		Self::ensure_trade_invariant(
-			(asset_in, asset_in_state, new_asset_in_state),
-			(asset_out, asset_out_state, new_asset_out_state),
-		);
-
-		Ok(())
-	}
-
 	/// Swap hub asset for asset_out.
 	/// Special handling of sell trade where asset in is Hub Asset.
 	fn sell_hub_asset(
@@ -1904,7 +1843,6 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount: Balance,
 		limit: Balance,
-		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		ensure!(
 			HubAssetTradability::<T>::get().contains(Tradability::SELL),
@@ -2025,7 +1963,6 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount: Balance,
 		limit: Balance,
-		event_id: Option<IncrementalIdType>,
 	) -> DispatchResult {
 		ensure!(
 			HubAssetTradability::<T>::get().contains(Tradability::SELL),

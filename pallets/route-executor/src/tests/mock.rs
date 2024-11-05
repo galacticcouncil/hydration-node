@@ -28,7 +28,6 @@ use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, TradeE
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter};
 use pretty_assertions::assert_eq;
-use primitives::IncrementalId;
 use sp_core::H256;
 use sp_runtime::FixedU128;
 use sp_runtime::{
@@ -340,7 +339,7 @@ type OriginForRuntime = OriginFor<Test>;
 
 macro_rules! impl_fake_executor {
 	($pool_struct:ident, $pool_type: pat, $sell_calculation_result: expr, $buy_calculation_result: expr) => {
-		impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId> for $pool_struct {
+		impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for $pool_struct {
 			type Error = DispatchError;
 
 			fn calculate_sell(
@@ -384,7 +383,6 @@ macro_rules! impl_fake_executor {
 				asset_out: AssetId,
 				amount_in: Balance,
 				_min_limit: Balance,
-				_event_id: Option<IncrementalId>,
 			) -> Result<(), ExecutorError<Self::Error>> {
 				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 				if !matches!(pool_type, $pool_type) {
@@ -423,7 +421,6 @@ macro_rules! impl_fake_executor {
 				asset_out: AssetId,
 				amount_out: Balance,
 				_max_limit: Balance,
-				_event_id: Option<IncrementalId>,
 			) -> Result<(), ExecutorError<Self::Error>> {
 				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 

@@ -24,7 +24,6 @@ use frame_support::{dispatch, parameter_types, traits::Contains, traits::Everyth
 use frame_system as system;
 use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Inspect, AMMTransfer, AssetKind, AMM};
 use orml_traits::GetByKey;
-use primitives::IncrementalId;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
@@ -173,7 +172,7 @@ thread_local! {
 	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
 }
 
-impl AMM<AccountId, AssetId, AssetPair, Balance, IncrementalId> for Amm {
+impl AMM<AccountId, AssetId, AssetPair, Balance> for Amm {
 	fn get_max_out_ratio() -> u128 {
 		0_u32.into()
 	}
@@ -210,14 +209,12 @@ impl AMM<AccountId, AssetId, AssetPair, Balance, IncrementalId> for Amm {
 	fn execute_buy(
 		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
 		_destination: Option<&AccountId>,
-		_event_id: Option<IncrementalId>,
 	) -> dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
 
 	fn execute_sell(
 		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		_event_id: Option<IncrementalId>,
 	) -> frame_support::dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}

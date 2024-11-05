@@ -110,7 +110,6 @@ pub mod pallet {
 			Self::AccountId,
 			Self::AssetId,
 			Self::Balance,
-			IncrementalId,
 			Error = DispatchError,
 		>;
 
@@ -278,7 +277,6 @@ pub mod pallet {
 					trade.asset_out,
 					trade_amount.amount_out,
 					trade_amount.amount_in,
-					Some(next_event_id),
 				);
 
 				handle_execution_error!(execution_result);
@@ -518,7 +516,6 @@ impl<T: Config> Pallet<T> {
 				trade.asset_out,
 				trade_amount.amount_in,
 				trade_amount.amount_out,
-				Some(next_event_id),
 			);
 
 			handle_execution_error!(execution_result);
