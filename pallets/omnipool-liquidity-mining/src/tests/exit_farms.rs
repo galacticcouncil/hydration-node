@@ -224,7 +224,7 @@ fn exit_farm_should_fail_with_no_origin() {
 			//Act and assert
 			let farm_entries = vec![gc_y_farm_id, charlie_y_farm_id];
 			assert_noop!(
-				OmnipoolMining::exit_farms(RuntimeOrigin::none(),deposit_id, farm_entries.try_into().unwrap()),
+				OmnipoolMining::exit_farms(RuntimeOrigin::none(), deposit_id, farm_entries.try_into().unwrap()),
 				BadOrigin
 			);
 		});

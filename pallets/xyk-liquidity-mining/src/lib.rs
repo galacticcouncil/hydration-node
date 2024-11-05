@@ -993,7 +993,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
 			asset_pair: AssetPair,
-			farm_entries: BoundedVec< YieldFarmId,T::MaxFarmEntriesPerDeposit>,
+			farm_entries: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
 			for yield_farm_id in farm_entries {
 				Self::withdraw_shares(origin.clone(), deposit_id, yield_farm_id, asset_pair)?;

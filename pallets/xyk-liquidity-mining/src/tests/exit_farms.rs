@@ -201,7 +201,12 @@ fn exit_farms_should_fail_with_no_origin() {
 			//Act and assert
 			let yield_farms = vec![3, 4];
 			assert_noop!(
-				LiquidityMining::exit_farms(Origin::none(), deposit_id, BSX_KSM_ASSET_PAIR, yield_farms.try_into().unwrap(),),
+				LiquidityMining::exit_farms(
+					Origin::none(),
+					deposit_id,
+					BSX_KSM_ASSET_PAIR,
+					yield_farms.try_into().unwrap(),
+				),
 				BadOrigin
 			);
 		});
@@ -268,7 +273,12 @@ fn exit_farms_should_fail_with_non_nft_owner() {
 			//Act and assert
 			let yield_farms = vec![3, 4];
 			assert_noop!(
-				LiquidityMining::exit_farms(Origin::signed(BOB), deposit_id, BSX_KSM_ASSET_PAIR,  yield_farms.try_into().unwrap()),
+				LiquidityMining::exit_farms(
+					Origin::signed(BOB),
+					deposit_id,
+					BSX_KSM_ASSET_PAIR,
+					yield_farms.try_into().unwrap()
+				),
 				Error::<Test>::NotDepositOwner
 			);
 		});
