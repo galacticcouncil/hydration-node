@@ -35,7 +35,8 @@ use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
-	AssetType, Fee, ExecutionType, ExecutionTypeStack, AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
+	AmmTradeWeights, AmountInAndOut, AssetType, ExecutionType, ExecutionTypeStack, ExecutorError, Fee, PoolType,
+	RouterT, Trade, TradeExecution,
 };
 use hydradx_traits::IncrementalIdProvider;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};

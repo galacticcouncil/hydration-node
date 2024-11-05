@@ -41,12 +41,32 @@ fn stack_should_be_populated_when_pushed() {
 		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1)]);
 
 		assert_ok!(AmmSupport::push(ExecutionType::Router(2)));
-		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1), ExecutionType::Router(2)]);
-		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1), ExecutionType::Router(2)]);
+		assert_eq!(
+			AmmSupport::get(),
+			vec![ExecutionType::Router(1), ExecutionType::Router(2)]
+		);
+		assert_eq!(
+			AmmSupport::id_stack().0.into_inner(),
+			vec![ExecutionType::Router(1), ExecutionType::Router(2)]
+		);
 
 		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
-		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1), ExecutionType::Router(2), ExecutionType::ICE(3)]);
-		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1), ExecutionType::Router(2), ExecutionType::ICE(3)]);
+		assert_eq!(
+			AmmSupport::get(),
+			vec![
+				ExecutionType::Router(1),
+				ExecutionType::Router(2),
+				ExecutionType::ICE(3)
+			]
+		);
+		assert_eq!(
+			AmmSupport::id_stack().0.into_inner(),
+			vec![
+				ExecutionType::Router(1),
+				ExecutionType::Router(2),
+				ExecutionType::ICE(3)
+			]
+		);
 	});
 }
 
@@ -72,21 +92,39 @@ fn stack_should_be_reduced_when_poped() {
 		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
 
 		assert_ok!(AmmSupport::pop(), ExecutionType::ICE(3));
-		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1), ExecutionType::Router(2)]);
-		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1), ExecutionType::Router(2)]);
+		assert_eq!(
+			AmmSupport::get(),
+			vec![ExecutionType::Router(1), ExecutionType::Router(2)]
+		);
+		assert_eq!(
+			AmmSupport::id_stack().0.into_inner(),
+			vec![ExecutionType::Router(1), ExecutionType::Router(2)]
+		);
 
 		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
-		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1), ExecutionType::Router(2), ExecutionType::ICE(3)]);
-		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1), ExecutionType::Router(2), ExecutionType::ICE(3)]);
+		assert_eq!(
+			AmmSupport::get(),
+			vec![
+				ExecutionType::Router(1),
+				ExecutionType::Router(2),
+				ExecutionType::ICE(3)
+			]
+		);
+		assert_eq!(
+			AmmSupport::id_stack().0.into_inner(),
+			vec![
+				ExecutionType::Router(1),
+				ExecutionType::Router(2),
+				ExecutionType::ICE(3)
+			]
+		);
 	});
 }
 
 #[test]
 fn pop_from_empty_stack_should_not_panic() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_err!(AmmSupport::pop(),
-			Error::<Test>::EmptyStack
-		);
+		assert_err!(AmmSupport::pop(), Error::<Test>::EmptyStack);
 	});
 }
 

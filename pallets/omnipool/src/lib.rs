@@ -1097,7 +1097,7 @@ pub mod pallet {
 				protocol_fee,
 				current_imbalance.value,
 			)
-				.ok_or(ArithmeticError::Overflow)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
 				*state_changes.asset_out.delta_reserve > Balance::zero(),
@@ -1303,7 +1303,7 @@ pub mod pallet {
 				protocol_fee,
 				current_imbalance.value,
 			)
-				.ok_or(ArithmeticError::Overflow)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
 				T::Currency::ensure_can_withdraw(asset_in, &who, *state_changes.asset_in.delta_reserve).is_ok(),
@@ -1943,11 +1943,19 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_amm_support::Filler::Omnipool,
 			pallet_amm_support::TradeOperation::ExactIn,
-			vec![(AssetType::Fungible(T::HubAssetId::get().into()), *state_changes.asset.delta_hub_reserve)],
-			vec![(AssetType::Fungible(asset_out.into()), *state_changes.asset.delta_reserve)],
-			vec![
-				Fee{ asset: asset_out.into(), amount: state_changes.fee.asset_fee, recipient: Self::protocol_account()}
-			],
+			vec![(
+				AssetType::Fungible(T::HubAssetId::get().into()),
+				*state_changes.asset.delta_hub_reserve,
+			)],
+			vec![(
+				AssetType::Fungible(asset_out.into()),
+				*state_changes.asset.delta_reserve,
+			)],
+			vec![Fee {
+				asset: asset_out.into(),
+				amount: state_changes.fee.asset_fee,
+				recipient: Self::protocol_account(),
+			}],
 		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
@@ -2063,11 +2071,19 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_amm_support::Filler::Omnipool,
 			pallet_amm_support::TradeOperation::ExactOut,
-			vec![(AssetType::Fungible(T::HubAssetId::get().into()), *state_changes.asset.delta_hub_reserve)],
-			vec![(AssetType::Fungible(asset_out.into()), *state_changes.asset.delta_reserve)],
-			vec![
-				Fee{ asset: asset_out.into(), amount: state_changes.fee.asset_fee, recipient: Self::protocol_account()}
-			],
+			vec![(
+				AssetType::Fungible(T::HubAssetId::get().into()),
+				*state_changes.asset.delta_hub_reserve,
+			)],
+			vec![(
+				AssetType::Fungible(asset_out.into()),
+				*state_changes.asset.delta_reserve,
+			)],
+			vec![Fee {
+				asset: asset_out.into(),
+				amount: state_changes.fee.asset_fee,
+				recipient: Self::protocol_account(),
+			}],
 		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;

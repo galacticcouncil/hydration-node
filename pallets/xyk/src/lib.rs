@@ -33,8 +33,9 @@ use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
+	router::{AssetType, Fee},
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
-	OnTradeHandler, AMM, router::{AssetType, Fee},
+	OnTradeHandler, AMM,
 };
 use sp_std::{vec, vec::Vec};
 
@@ -857,9 +858,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	/// Perform necessary storage/state changes.
 	/// Note : the execution should not return error as everything was previously verified and validated.
 	#[transactional]
-	fn execute_sell(
-		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
-	) -> DispatchResult {
+	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
 		if transfer.discount && transfer.discount_amount > 0u128 {
@@ -913,7 +912,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			pallet_amm_support::TradeOperation::ExactIn,
 			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
 			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
-			vec![Fee{ asset: transfer.fee.0, amount: transfer.fee.1, recipient: pair_account}],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				recipient: pair_account,
+			}],
 		);
 
 		Ok(())
@@ -1089,7 +1092,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			pallet_amm_support::TradeOperation::ExactOut,
 			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
 			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
-			vec![Fee{ asset: transfer.fee.0, amount: transfer.fee.1, recipient: pair_account}],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				recipient: pair_account,
+			}],
 		);
 
 		Ok(())

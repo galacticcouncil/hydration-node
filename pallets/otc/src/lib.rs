@@ -37,7 +37,10 @@
 use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::*, require_transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::{Inspect, router::{AssetType, Fee}};
+use hydradx_traits::{
+	router::{AssetType, Fee},
+	Inspect,
+};
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
@@ -316,7 +319,11 @@ pub mod pallet {
 					pallet_amm_support::TradeOperation::ExactIn,
 					vec![(AssetType::Fungible(order.asset_in.into()), amount_in)],
 					vec![(AssetType::Fungible(order.asset_out.into()), amount_out)],
-					vec![Fee{ asset: order.asset_out.into(), amount: fee, recipient: T::FeeReceiver::get()}],
+					vec![Fee {
+						asset: order.asset_out.into(),
+						amount: fee,
+						recipient: T::FeeReceiver::get(),
+					}],
 				);
 
 				Ok(())
@@ -358,7 +365,11 @@ pub mod pallet {
 				pallet_amm_support::TradeOperation::ExactIn,
 				vec![(AssetType::Fungible(order.asset_in.into()), order.amount_in)],
 				vec![(AssetType::Fungible(order.asset_out.into()), order.amount_out)],
-				vec![Fee{ asset: order.asset_out.into(), amount: fee, recipient: T::FeeReceiver::get()}],
+				vec![Fee {
+					asset: order.asset_out.into(),
+					amount: fee,
+					recipient: T::FeeReceiver::get(),
+				}],
 			);
 
 			Ok(())

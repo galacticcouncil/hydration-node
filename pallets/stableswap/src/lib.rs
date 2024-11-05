@@ -59,9 +59,7 @@ use frame_system::{
 	ensure_signed,
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
-use hydradx_traits::{
-	registry::Inspect, AccountIdFor,
-};
+use hydradx_traits::{registry::Inspect, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -779,7 +777,8 @@ pub mod pallet {
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
 
-			Ok(())		}
+			Ok(())
+		}
 
 		/// Execute a swap of `asset_in` for `asset_out`.
 		///
@@ -857,7 +856,8 @@ pub mod pallet {
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
 
-			Ok(())		}
+			Ok(())
+		}
 
 		#[pallet::call_index(9)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]

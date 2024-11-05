@@ -36,8 +36,9 @@ use frame_support::{
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
-use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM,
+use hydradx_traits::{
 	router::{AssetType, Fee},
+	AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM,
 };
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
 
@@ -734,13 +735,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_, _, _, _>>::sell(
-				&who,
-				AssetPair { asset_in, asset_out },
-				amount,
-				max_limit,
-				false,
-			)?;
+			<Self as AMM<_, _, _, _>>::sell(&who, AssetPair { asset_in, asset_out }, amount, max_limit, false)?;
 
 			Ok(())
 		}
@@ -1110,9 +1105,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 		}
 	}
 
-	fn execute_sell(
-		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
-	) -> DispatchResult {
+	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
 		Self::execute_trade(transfer)?;
 
 		// TODO: Deprecated, remove when ready
@@ -1136,7 +1129,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			pallet_amm_support::TradeOperation::ExactIn,
 			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
 			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
-			vec![Fee{ asset: transfer.fee.0, amount: transfer.fee.1, recipient: pool.fee_collector}],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				recipient: pool.fee_collector,
+			}],
 		);
 
 		Ok(())
@@ -1287,7 +1284,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			pallet_amm_support::TradeOperation::ExactOut,
 			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
 			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
-			vec![Fee{ asset: transfer.fee.0, amount: transfer.fee.1, recipient: pool.fee_collector}],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				recipient: pool.fee_collector,
+			}],
 		);
 
 		Ok(())

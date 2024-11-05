@@ -19,7 +19,7 @@ use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
 pub use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	registry::Mutate,
-	router::{Filler, AssetType, TradeOperation, ExecutionType, Fee},
+	router::{AssetType, ExecutionType, Fee, Filler, TradeOperation},
 };
 use pallet_referrals::{FeeDistribution, Level};
 pub use polkadot_primitives::v6::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};

@@ -21,17 +21,17 @@ type AssetId = u32;
 type Balance = u128;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
-use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
 use frame_support::sp_runtime::app_crypto::sp_core;
+use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
 pub use hydradx_traits::{
-	router::{AssetType, ExecutionType, ExecutionTypeStack, Fee, Filler, TradeOperation, OtcOrderId},
+	router::{AssetType, ExecutionType, ExecutionTypeStack, Fee, Filler, OtcOrderId, TradeOperation},
 	IncrementalIdProvider,
 };
-use sp_std::vec::Vec;
-use sp_core::{ConstU32, RuntimeDebug};
 pub use primitives::IncrementalId as IncrementalIdType;
 use primitives::ItemId as NftId;
+use scale_info::TypeInfo;
+use sp_core::{ConstU32, RuntimeDebug};
+use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod tests;
@@ -44,11 +44,11 @@ pub const MAX_STACK_SIZE: u32 = 10;
 #[derive(RuntimeDebug, Encode, Decode, Default, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct ExecutionIdStack(BoundedVec<ExecutionType<IncrementalIdType>, ConstU32<MAX_STACK_SIZE>>);
 impl ExecutionIdStack {
-	fn push(& mut self, execution_type: ExecutionType<IncrementalIdType>) -> Result<(), ()> {
+	fn push(&mut self, execution_type: ExecutionType<IncrementalIdType>) -> Result<(), ()> {
 		self.0.try_push(execution_type).map_err(|_| ())
 	}
 
-	fn pop(& mut self) -> Result<ExecutionType<IncrementalIdType>, ()> {
+	fn pop(&mut self) -> Result<ExecutionType<IncrementalIdType>, ()> {
 		self.0.pop().ok_or(())
 	}
 
@@ -152,15 +152,16 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> ExecutionTypeStack<IncrementalIdType> for Pallet<T> {
 	fn push(execution_type: ExecutionType<IncrementalIdType>) -> DispatchResult {
 		IdStack::<T>::try_mutate(|stack| -> DispatchResult {
-			stack.push(execution_type).map_err(|_| Error::<T>::MaxStackSizeReached.into())
+			stack
+				.push(execution_type)
+				.map_err(|_| Error::<T>::MaxStackSizeReached.into())
 		})
 	}
 
 	fn pop() -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
 		IdStack::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
 			stack.pop().map_err(|_| Error::<T>::EmptyStack.into())
-		}
-		)
+		})
 	}
 
 	fn get() -> Vec<ExecutionType<IncrementalIdType>> {
