@@ -446,7 +446,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					outputs: vec![(AssetType::Fungible(200), buy_amount)],
 					fees: vec![
 						Fee::new(200, 5555555555556, Omnipool::protocol_account()),
-						Fee::new(1, 0, Omnipool::protocol_account()),
+						Fee::new(LRNA, 0, Omnipool::protocol_account()),
 					],
 					operation_id: vec![],
 				}
@@ -507,7 +507,7 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 					outputs: vec![(AssetType::Fungible(200), buy_amount)],
 					fees: vec![
 						Fee::new(200, 0, Omnipool::protocol_account()),
-						Fee::new(1, 5698005698005, Omnipool::protocol_account()),
+						Fee::new(LRNA, 5698005698005, Omnipool::protocol_account()),
 					],
 					operation_id: vec![],
 				}
@@ -567,7 +567,7 @@ fn sell_should_get_same_amount() {
 					outputs: vec![(AssetType::Fungible(200), buy_amount)],
 					fees: vec![
 						Fee::new(200, 5555555555556, Omnipool::protocol_account()),
-						Fee::new(1, 0, Omnipool::protocol_account()),
+						Fee::new(LRNA, 0, Omnipool::protocol_account()),
 					],
 					operation_id: vec![],
 				}

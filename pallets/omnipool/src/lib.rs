@@ -1204,7 +1204,7 @@ pub mod pallet {
 			);
 
 			Self::deposit_event(Event::SellExecuted {
-				who,
+				who: who.clone(),
 				asset_in,
 				asset_out,
 				amount_in: amount,
@@ -1214,6 +1214,27 @@ pub mod pallet {
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
+
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who,
+				Self::protocol_account(),
+				pallet_amm_support::Filler::Omnipool,
+				pallet_amm_support::TradeOperation::ExactIn,
+				vec![(
+					AssetType::Fungible(asset_in.into()),
+					amount,
+				)],
+				vec![(
+					AssetType::Fungible(asset_out.into()),
+					*state_changes.asset_out.delta_reserve,
+				)],
+				vec![Fee {
+					asset: asset_out.into(),
+					amount: state_changes.fee.asset_fee,
+					recipient: Self::protocol_account(),
+				},
+				Fee::new(T::HubAssetId::get().into(), state_changes.fee.protocol_fee, Self::protocol_account())],
+			);
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1409,7 +1430,7 @@ pub mod pallet {
 			);
 
 			Self::deposit_event(Event::BuyExecuted {
-				who,
+				who: who.clone(),
 				asset_in,
 				asset_out,
 				amount_in: *state_changes.asset_in.delta_reserve,
@@ -1419,6 +1440,27 @@ pub mod pallet {
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
+
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who,
+				Self::protocol_account(),
+				pallet_amm_support::Filler::Omnipool,
+				pallet_amm_support::TradeOperation::ExactOut,
+				vec![(
+					AssetType::Fungible(asset_in.into()),
+					*state_changes.asset_in.delta_reserve,
+				)],
+				vec![(
+					AssetType::Fungible(asset_out.into()),
+					*state_changes.asset_out.delta_reserve,
+				)],
+				vec![Fee {
+					asset: asset_out.into(),
+					amount: state_changes.fee.asset_fee,
+					recipient: Self::protocol_account(),
+				},
+					 Fee::new(T::HubAssetId::get().into(), state_changes.fee.protocol_fee, Self::protocol_account())],
+			);
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
