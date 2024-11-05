@@ -24,7 +24,8 @@ pub use crate::mock::*;
 use frame_support::{assert_ok, assert_storage_noop};
 use hydradx_traits::Inspect;
 use orml_traits::MultiCurrency;
-
+use hydradx_traits::router::Fee;
+use hydradx_traits::router::AssetType;
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
@@ -302,13 +303,11 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 				swapper: OtcSettlements::account_id(),
 				filler: otc.owner,
 				filler_type: pallet_amm_support::Filler::OTC(otc_id),
-				operation: pallet_amm_support::TradeOperation::Sell,
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: 2413749694825193,
-				amount_out: 4948186874391645,
-				fees: vec![(DAI, 49481868743917, <Test as pallet_otc::Config>::FeeReceiver::get())],
-				event_id: None,
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(HDX), 2413749694825193)],
+				outputs: vec![(AssetType::Fungible(DAI), 4948186874391645)],
+				fees: vec![Fee::new(DAI, 49481868743917, <Test as pallet_otc::Config>::FeeReceiver::get())],
+				operation_id: vec![],
 			}
 			.into(),
 		]);

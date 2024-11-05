@@ -371,6 +371,7 @@ impl pallet_route_executor::Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type BatchIdProvider = AmmSupport;
+	type OperationIdProvider = AmmSupport;
 	type WeightInfo = ();
 }
 
@@ -534,7 +535,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
 pub const XYK_BUY_CALCULATION_RESULT: Balance = ONE / 3;
 
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId> for Xyk {
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -570,7 +571,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
-		_event_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);
@@ -603,7 +603,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance, IncrementalId
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
-		_event_id: Option<IncrementalId>,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);

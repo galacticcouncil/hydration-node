@@ -19,6 +19,7 @@ use frame_support::{assert_noop, assert_ok};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
 use pretty_assertions::assert_eq;
+use hydradx_traits::router::{AssetType, Fee};
 
 #[test]
 fn complete_fill_order_should_work() {
@@ -83,13 +84,11 @@ fn complete_fill_order_should_work() {
 				swapper: BOB,
 				filler: ALICE,
 				filler_type: pallet_amm_support::Filler::OTC(0),
-				operation: pallet_amm_support::TradeOperation::Sell,
-				asset_in: DAI,
-				asset_out: HDX,
-				amount_in: 20 * ONE,
-				amount_out: 100 * ONE,
-				fees: vec![(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
-				event_id: None,
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(DAI), 20 * ONE)],
+				outputs: vec![(AssetType::Fungible(HDX), 100 * ONE)],
+				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
+				operation_id: vec![],
 			}
 			.into(),
 		]);
@@ -147,9 +146,10 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 			TREASURY_INITIAL_BALANCE + fee
 		);
 
+		let order_id = 0;
 		expect_events(vec![
 			Event::Filled {
-				order_id: 0,
+				order_id,
 				who: BOB,
 				amount_in: 20 * ONE,
 				amount_out: 100 * ONE,
@@ -159,14 +159,12 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 			pallet_amm_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type: pallet_amm_support::Filler::OTC,
-				operation: pallet_amm_support::TradeOperation::Sell,
-				asset_in: DAI,
-				asset_out: HDX,
-				amount_in: 20 * ONE,
-				amount_out: 100 * ONE,
-				fees: vec![(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
-				event_id: None,
+				filler_type: pallet_amm_support::Filler::OTC(order_id),
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(DAI), 20 * ONE)],
+				outputs: vec![(AssetType::Fungible(HDX), 100 * ONE)],
+				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
+				operation_id: vec![],
 			}
 			.into(),
 		]);
@@ -236,6 +234,7 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 			TREASURY_INITIAL_BALANCE + fee
 		);
 
+		let order_id = 0;
 		expect_events(vec![
 			Event::Filled {
 				order_id: 0,
@@ -248,13 +247,11 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 			pallet_amm_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type: pallet_amm_support::Filler::OTC,
-				operation: pallet_amm_support::TradeOperation::Sell,
-				asset_in: DAI,
-				asset_out: HDX,
-				amount_in: 20 * ONE,
-				amount_out: 100 * ONE,
-				fees: vec![(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
+				filler_type: pallet_amm_support::Filler::OTC(order_id),
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(DAI), 20 * ONE)],
+				outputs: vec![(AssetType::Fungible(HDX), 100 * ONE)],
+				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
 				operation_id: vec![],
 			}
 			.into(),

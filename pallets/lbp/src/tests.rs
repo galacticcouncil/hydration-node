@@ -1968,7 +1968,6 @@ fn execute_buy_should_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
-		let event_id = Some(7);
 		assert_ok!(LBPPallet::execute_buy(&t, None));
 
 		assert_eq!(Currency::free_balance(asset_in, &ALICE), 999_998_991_999_000);

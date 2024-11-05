@@ -94,10 +94,15 @@ fn discount_sell_fees_should_work() {
 			400_000_000_000_000,
 		));
 
-		let pair_account = XYK::get_pair_id(AssetPair {
+		let pair = AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
-		});
+		};
+
+
+		let pair_account = XYK::get_pair_id(pair);
+
+		let share_token = XYK::get_share_token(pair);
 		let native_pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: HDX,
@@ -145,14 +150,12 @@ fn discount_sell_fees_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK,
-				operation: pallet_amm_support::TradeOperation::Sell,
-				asset_in: asset_a,
-				asset_out: asset_b,
-				amount_in: 10_000_000,
-				amount_out: 19_986_006,
-				fees: vec![(asset_b, 13_993, pair_account)],
-				event_id: None,
+				filler_type: pallet_amm_support::Filler::XYK(share_token),
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(asset_a), 10_000_000)],
+				outputs: vec![(AssetType::Fungible(asset_b), 19_986_006)],
+				fees: vec![Fee::new(asset_b, 13_993, pair_account)],
+				operation_id: vec![],
 			}
 			.into(),
 		]);

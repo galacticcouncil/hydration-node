@@ -342,6 +342,7 @@ impl pallet_route_executor::Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type BatchIdProvider = AmmSupport;
 	type WeightInfo = ();
+	type OperationIdProvider = AmmSupport;
 }
 
 pub struct MockedEdCalculator;
