@@ -978,7 +978,9 @@ pub mod pallet {
 		///
 		/// Parameters:
 		/// - `origin`: account owner of deposit(nft).
-		/// - `farm_entries`: tuple of (deposit_id, yield_farm_id,asset_pair) that represent a farm entry.
+		/// - `deposit_id`: nft id representing deposit in the yield farm.
+		/// - `asset_pair`: asset pair identifying yield farm(s) in global farm(s).
+		/// - `farm_entries`: id(s) of yield farm(s) to exit from.
 		///
 		/// Emits:
 		/// * `RewardClaimed` for each successful claim
@@ -989,9 +991,11 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32))]
 		pub fn exit_farms(
 			origin: OriginFor<T>,
-			farm_entries: BoundedVec<(DepositId, YieldFarmId, AssetPair), T::MaxFarmEntriesPerDeposit>,
+			deposit_id: DepositId,
+			asset_pair: AssetPair,
+			farm_entries: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
-			for (deposit_id, yield_farm_id, asset_pair) in farm_entries {
+			for yield_farm_id in farm_entries {
 				Self::withdraw_shares(origin.clone(), deposit_id, yield_farm_id, asset_pair)?;
 			}
 

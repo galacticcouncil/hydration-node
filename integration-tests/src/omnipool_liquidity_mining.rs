@@ -958,7 +958,7 @@ fn exit_farms_should_work_for_multiple_farms() {
 		set_relaychain_block_number(200);
 		create_yield_farm(global_farm_1_id, ETH);
 		create_yield_farm(global_farm_2_id, ETH);
-		create_yield_farm(global_farm_2_id, DOT);
+		create_yield_farm(global_farm_3_id, ETH);
 
 		set_relaychain_block_number(300);
 
@@ -973,22 +973,6 @@ fn exit_farms_should_work_for_multiple_farms() {
 		assert_nft_owner!(
 			hydradx_runtime::OmnipoolCollectionId::get(),
 			position_id,
-			CHARLIE.into()
-		);
-
-		set_relaychain_block_number(350);
-
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			CHARLIE.into(),
-			DOT,
-			10_000 * UNITS as i128,
-		));
-
-		let position_id2 = omnipool_add_liquidity(CHARLIE.into(), DOT, 1 * UNITS);
-		assert_nft_owner!(
-			hydradx_runtime::OmnipoolCollectionId::get(),
-			position_id2,
 			CHARLIE.into()
 		);
 
@@ -1009,27 +993,22 @@ fn exit_farms_should_work_for_multiple_farms() {
 			deposit_id
 		));
 
-		let deposit_id2 = 2;
-		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
-			global_farm_2_id,
+			global_farm_3_id,
 			yield_farm_3_id,
-			position_id2
+			deposit_id
 		));
 
 		//Act
-		let farm_entries = vec![
-			(deposit_id, yield_farm_1_id),
-			(deposit_id, yield_farm_2_id),
-			(deposit_id2, yield_farm_3_id),
-		];
+		let farm_entries = vec![yield_farm_1_id, yield_farm_2_id, yield_farm_3_id];
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::exit_farms(
 			RuntimeOrigin::signed(CHARLIE.into()),
+			deposit_id,
 			farm_entries.try_into().unwrap()
 		));
 
 		assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).is_none());
-		assert!(hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id2).is_none());
 	});
 }
 
