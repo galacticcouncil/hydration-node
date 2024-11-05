@@ -26,6 +26,7 @@ use frame_support::sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
+use sp_core::H160;
 
 pub mod constants;
 
@@ -59,6 +60,8 @@ pub type Signature = MultiSignature;
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+pub type EvmAddress = H160;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...

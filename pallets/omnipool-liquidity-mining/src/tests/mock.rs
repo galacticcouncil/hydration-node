@@ -89,15 +89,15 @@ pub const LM_COLLECTION_ID: u128 = 1;
 thread_local! {
 	pub static NFTS: RefCell<HashMap<(CollectionId, ItemId), AccountId>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
-	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
+	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_OUT_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
 
-	 pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
+	 pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 }
 
 construct_runtime!(
@@ -156,6 +156,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {
@@ -176,6 +181,7 @@ impl omnipool_liquidity_mining::Config for Test {
 	type OracleSource = OracleSource;
 	type OraclePeriod = PeriodOracle;
 	type PriceOracle = DummyOracle;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type WeightInfo = ();
 }
 
@@ -583,6 +589,8 @@ impl ExtBuilder {
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
 use hydra_dx_math::ema::EmaPrice;
 
+pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -762,8 +770,15 @@ impl AggregatedPriceOracle<AssetId, BlockNumber, OraclePrice> for DummyOracle {
 				},
 				0,
 			)),
+			DAI => Ok((
+				OraclePrice {
+					n: 650_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
 			//Tokens used in benchmarks
-			1_000_001..=1_000_003 => Ok((
+			1_000_001..=1_000_004 => Ok((
 				OraclePrice {
 					n: 1_000_000_000_000_000_000,
 					d: 1_000_000_000_000_000_000,
@@ -808,7 +823,7 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 
 	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
 		if Whitelist::contains(account) {
-			return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
+			return Ok(());
 		}
 
 		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));

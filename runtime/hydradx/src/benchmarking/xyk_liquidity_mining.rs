@@ -19,6 +19,8 @@ use crate::{
 	XYKWarehouseLM, XYK,
 };
 
+use sp_core::Get;
+
 use super::*;
 
 use frame_benchmarking::{account, BenchmarkError};
@@ -414,9 +416,11 @@ runtime_benchmarks! {
 
 		run_to_block(400);
 		let lp1_rew_curr_balance = Currencies::free_balance(pair.asset_out, &lp1);
-	}: _(RawOrigin::Signed(lp1.clone()), lp1_deposit_id, yfarm_id1)
+	} : {
+		//We just fire and forget as claiming is disabled
+		let _ = XYKLiquidityMining::claim_rewards(RawOrigin::Signed(lp1.clone()).into(), lp1_deposit_id, yfarm_id1);
+	}
 	verify {
-		assert!(Currencies::free_balance(pair.asset_out, &lp1).gt(&lp1_rew_curr_balance));
 	}
 
 	withdraw_shares {
@@ -498,6 +502,195 @@ runtime_benchmarks! {
 
 		run_to_block(400);
 	}: _(RawOrigin::Signed(fowner), gfarm_id, yfarm_id1, pair, FixedU128::from(12_452))
+
+	join_farms {
+		let c in 1..get_max_entries::<Runtime>();
+
+		let pair = AssetPair {
+			asset_in: register_external_asset(b"TKN1".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?,
+			asset_out: register_external_asset(b"TKN2".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?
+		};
+
+		let fowner1 = funded_account("fowner1", 0, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner2 = funded_account("fowner2", 1, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner3 = funded_account("fowner3", 2, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner4 = funded_account("fowner4", 3, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner5 = funded_account("fowner5", 4, &[HDX, pair.asset_in, pair.asset_out]);
+
+
+		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
+		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
+		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
+
+		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
+		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
+		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
+		xyk_add_liquidity(lp2.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
+
+		let lp1_deposit_id = 1;
+		let gfarm_id1 = 1;
+		let yfarm_id1 = 2;
+
+		//gId: 1, yId: 2
+		create_gfarm(fowner1.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner1, 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 3, yId: 4
+		create_gfarm(fowner2.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner2, 3, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 5, yId: 6
+		create_gfarm(fowner3.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner3, 5, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 7, yId: 8
+		create_gfarm(fowner4.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner4, 7, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 9, yId: 10
+		create_gfarm(fowner5.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner5, 9, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		run_to_block(200);
+
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), gfarm_id1, yfarm_id1, pair, 10 * ONE)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 3, 4, pair, lp1_deposit_id)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 5, 6, pair, lp1_deposit_id)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 7, 8, pair, lp1_deposit_id)?;
+
+		//Deposit into the global-farm so it will be updated
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
+
+		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms = farms_entries[0..c as usize].to_vec();
+
+		run_to_block(400);
+	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap(),pair,  10 * ONE)
+
+	add_liquidity_and_join_farms {
+		let c in 1..get_max_entries::<Runtime>();
+
+		let pair = AssetPair {
+			asset_in: register_external_asset(b"TKN1".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?,
+			asset_out: register_external_asset(b"TKN2".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?
+		};
+
+		let fowner1 = funded_account("fowner1", 0, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner2 = funded_account("fowner2", 1, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner3 = funded_account("fowner3", 2, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner4 = funded_account("fowner4", 3, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner5 = funded_account("fowner5", 4, &[HDX, pair.asset_in, pair.asset_out]);
+
+		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
+		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
+		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
+
+		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
+		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
+		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
+		xyk_add_liquidity(lp2.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
+
+		let lp1_deposit_id = 1;
+		let gfarm_id1 = 1;
+		let yfarm_id1 = 2;
+
+		//gId: 1, yId: 2
+		create_gfarm(fowner1.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner1, 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 3, yId: 4
+		create_gfarm(fowner2.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner2, 3, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 5, yId: 6
+		create_gfarm(fowner3.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner3, 5, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 7, yId: 8
+		create_gfarm(fowner4.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner4, 7, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 9, yId: 10
+		create_gfarm(fowner5.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner5, 9, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		run_to_block(200);
+
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), gfarm_id1, yfarm_id1, pair, 10 * ONE)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 3, 4, pair, lp1_deposit_id)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 5, 6, pair, lp1_deposit_id)?;
+		XYKLiquidityMining::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 7, 8, pair, lp1_deposit_id)?;
+
+		//Deposit into the yield-farm so it will be updated
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
+
+		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
+		let farms = farms_entries[0..c as usize].to_vec();
+
+		run_to_block(400);
+	}: _(RawOrigin::Signed(lp1),pair.asset_in, pair.asset_out, ONE, 10 * ONE, farms.try_into().unwrap())
+
+	exit_farms {
+		let c in 1..get_max_entries::<Runtime>();
+
+		let pair = AssetPair {
+			asset_in: register_external_asset(b"TKN1".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?,
+			asset_out: register_external_asset(b"TKN2".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?
+		};
+
+		let fowner1 = funded_account("fowner1", 0, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner2 = funded_account("fowner2", 1, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner3 = funded_account("fowner3", 2, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner4 = funded_account("fowner4", 3, &[HDX, pair.asset_in, pair.asset_out]);
+		let fowner5 = funded_account("fowner5", 4, &[HDX, pair.asset_in, pair.asset_out]);
+
+
+		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
+		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
+		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
+
+		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
+		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
+		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
+		xyk_add_liquidity(lp2.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
+
+		let lp1_deposit_id = 1;
+		let gfarm_id1 = 1;
+		let yfarm_id1 = 2;
+
+		//gId: 1, yId: 2
+		create_gfarm(fowner1.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner1, 1, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 3, yId: 4
+		create_gfarm(fowner2.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner2, 3, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 5, yId: 6
+		create_gfarm(fowner3.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner3, 5, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 7, yId: 8
+		create_gfarm(fowner4.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner4, 7, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		//gId: 9, yId: 10
+		create_gfarm(fowner5.clone(), pair.asset_in, pair.asset_out, 9_000_000 * ONE)?;
+		create_yfarm(fowner5, 9, pair, FixedU128::from_inner(500_000_000_000_000_000_u128))?;
+
+		run_to_block(200);
+
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), gfarm_id1, yfarm_id1, pair, 10 * ONE)?;
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 3, 4, pair, 10 * ONE)?;
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 5, 6, pair, 10 * ONE)?;
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 7, 8, pair, 10 * ONE)?;
+		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp1.clone()).into(), 9, 10, pair, 10 * ONE)?;
+
+		let farm_entries = [(1, yfarm_id1, pair), (2, 4, pair), (3, 6, pair), (4, 8, pair), (5, 10, pair)];
+		let farms = farm_entries[0..c as usize].to_vec();
+
+		run_to_block(400);
+	}: _(RawOrigin::Signed(lp1), farms.try_into().unwrap())
 }
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
@@ -551,6 +744,10 @@ fn create_xyk_pool(caller: AccountId, asset_a: u32, asset_b: u32) {
 		0u128,
 		false,
 	));
+}
+
+fn get_max_entries<T: pallet_xyk_liquidity_mining::Config>() -> u32 {
+	T::MaxFarmEntriesPerDeposit::get()
 }
 
 #[cfg(test)]

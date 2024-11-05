@@ -35,6 +35,7 @@ pub enum AssetType {
 	StableSwap,
 	Bond,
 	External,
+	Erc20,
 }
 
 impl From<AssetKind> for AssetType {
@@ -45,6 +46,7 @@ impl From<AssetKind> for AssetType {
 			AssetKind::StableSwap => Self::StableSwap,
 			AssetKind::Bond => Self::Bond,
 			AssetKind::External => Self::External,
+			AssetKind::Erc20 => Self::Erc20,
 		}
 	}
 }
@@ -57,6 +59,7 @@ impl From<AssetType> for AssetKind {
 			AssetType::StableSwap => Self::StableSwap,
 			AssetType::Bond => Self::Bond,
 			AssetType::External => Self::External,
+			AssetType::Erc20 => Self::Erc20,
 		}
 	}
 }

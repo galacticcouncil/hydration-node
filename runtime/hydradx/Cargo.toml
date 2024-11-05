@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "260.0.0"
+version = "268.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -13,13 +13,13 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
-hex-literal = "0.4.1"
-serde = { features = ["derive"], optional = true, version = "1.0.136" }
-codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-smallvec = "1.9.0"
+hex-literal = { workspace = true }
+serde = { workspace = true, optional = true }
+codec = { workspace = true }
+scale-info = { workspace = true }
+smallvec = { workspace = true }
 log = { workspace = true }
-num_enum = { version = "0.5.1", default-features = false }
+num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
 
 # local dependencies
@@ -74,6 +74,7 @@ pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-asset-registry = { workspace = true }
 pallet-collator-rewards = { workspace = true }
 pallet-currencies = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
@@ -118,6 +119,7 @@ polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
 polkadot-runtime-common = { workspace = true }
+xcm-fee-payment-runtime-api = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -161,7 +163,9 @@ pallet-evm-precompile-blake2 = { workspace = true }
 pallet-evm-precompile-call-permit = { workspace = true }
 precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
-ethabi = { version = "18.0.0", default-features = false }
+ethabi = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
@@ -235,6 +239,7 @@ std = [
     "staging-parachain-info/std",
     "pallet-xcm/std",
     "polkadot-xcm/std",
+    "xcm-fee-payment-runtime-api/std",
     "xcm-executor/std",
     "xcm-builder/std",
     "orml-tokens/std",
@@ -272,6 +277,7 @@ std = [
     "pallet-genesis-history/std",
     "pallet-asset-registry/std",
     "pallet-currencies/std",
+    "pallet-currencies-rpc-runtime-api/std",
     "pallet-omnipool/std",
     "pallet-circuit-breaker/std",
     "pallet-transaction-pause/std",

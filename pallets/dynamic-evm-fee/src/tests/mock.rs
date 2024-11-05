@@ -29,7 +29,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
 use sp_runtime::{
@@ -59,9 +59,9 @@ pub const HIGH_ED: Balance = 5;
 pub const DEFAULT_ETH_HDX_ORACLE_PRICE: Ratio = Ratio::new(8945857934143137845, FixedU128::DIV);
 
 thread_local! {
-	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = RefCell::new(Weight::zero());
-	static MULTIPLIER: RefCell<Multiplier> = RefCell::new(Multiplier::from_rational(1,1000));
-	static ETH_HDX_ORACLE_PRICE: RefCell<Ratio> = RefCell::new(DEFAULT_ETH_HDX_ORACLE_PRICE);
+	static EXTRINSIC_BASE_WEIGHT: RefCell<Weight> = const { RefCell::new(Weight::zero()) };
+	static MULTIPLIER: RefCell<Multiplier> = const { RefCell::new(Multiplier::from_rational(1,1000)) };
+	static ETH_HDX_ORACLE_PRICE: RefCell<Ratio> = const { RefCell::new(DEFAULT_ETH_HDX_ORACLE_PRICE) };
 }
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -118,6 +118,11 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 pub struct MultiplierProviderMock;
@@ -222,6 +227,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = HdxAssetId;
 	type WeightInfo = ();
 }

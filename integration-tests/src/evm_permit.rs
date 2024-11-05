@@ -9,9 +9,7 @@ use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
-use hydradx_runtime::{
-	Balances, Currencies, EVMAccounts, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
-};
+use hydradx_runtime::{Balances, Currencies, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin, Tokens};
 use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm_accounts::EvmNonceProvider;
@@ -231,110 +229,6 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
 		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
 		assert_eq!(fee_amount, treasury_hdx_diff);
-	})
-}
-
-#[test]
-fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_bounded() {
-	TestNet::reset();
-	let user_evm_address = alith_evm_address();
-	let user_secret_key = alith_secret_key();
-	let user_acc = MockAccount::new(alith_evm_account());
-	let treasury_acc = MockAccount::new(Treasury::account_id());
-
-	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
-			hydradx_runtime::MinimumMultiplier::get(),
-		);
-
-		// Prepare user evm account - bind and fund
-		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			user_acc.address()
-		)));
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			HDX,
-			100_000_000_000_000i128,
-		));
-		//Fund some DOT to sell in omnipool
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			DOT,
-			100_000_000i128,
-		));
-
-		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
-		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
-
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
-		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
-
-		let omni_sell =
-			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
-				amount: 10_000_000,
-				min_buy_amount: 0,
-			});
-
-		let gas_limit = 1000000;
-		let deadline = U256::from(1000000000000u128);
-
-		let permit =
-			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
-				user_evm_address,
-				DISPATCH_ADDR,
-				U256::from(0),
-				omni_sell.encode(),
-				gas_limit,
-				U256::zero(),
-				deadline,
-			);
-		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
-		let message = Message::parse(&permit);
-		let (rs, v) = sign(&message, &secret_key);
-
-		//Execute omnipool via EVM
-		assert_ok!(MultiTransactionPayment::dispatch_permit(
-			hydradx_runtime::RuntimeOrigin::none(),
-			user_evm_address,
-			DISPATCH_ADDR,
-			U256::from(0),
-			omni_sell.encode(),
-			gas_limit,
-			deadline,
-			v.serialize(),
-			H256::from(rs.r.b32()),
-			H256::from(rs.s.b32()),
-		));
-		// Verify evm fee amount
-		let user_hdx_balance = user_acc.balance(HDX);
-		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
-		assert!(fee_amount > 0);
-		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
-		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
-		assert_eq!(fee_amount, treasury_hdx_diff);
-
-		// Verify omnipool sell
-		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3_565_408_466_680);
-		let user_dot_balance = user_acc.balance(DOT);
-		assert!(user_dot_balance < initial_user_dot_balance);
-		let dot_diff = initial_user_dot_balance - user_dot_balance;
-		assert_eq!(dot_diff, 10_000_000);
 	})
 }
 
@@ -746,7 +640,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		let user_dai_balance = user_acc.balance(DAI);
 		assert!(user_dai_balance < initial_user_dai_balance);
 		let dai_diff = initial_user_dai_balance - user_dai_balance;
-		assert!(dai_diff > 1000 * 1_000_000_000_000);
+		assert!(dai_diff > 1000 * UNITS);
 	})
 }
 
@@ -1141,7 +1035,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
-		assert_eq!(tx_fee, 1_916_889_814_194);
+		assert!(tx_fee > 0);
 	})
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-dca'
-version = "1.6.0"
+version = "1.6.2"
 description = 'A pallet to manage DCA scheduling'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -9,12 +9,12 @@ repository = "https://github.com/galacticcouncil/warehouse/tree/master/route-exe
 
 [dependencies]
 
-log = { version = "0.4.17", default-features = false }
-rand = { version = "0.8.4", default-features = false }
+log = { workspace = true }
+rand = { workspace = true }
 
 # parity
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+scale-info = { workspace = true }
+codec = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -50,18 +50,18 @@ primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 pallet-route-executor = { workspace = true }
-smallvec = "1.9.0"
+smallvec = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-amm-support = { workspace = true }
 pallet-currencies = { workspace = true }
-lazy_static = { features = ["spin_no_std"], version = "1.4.0", default-features = false }
+lazy_static = { workspace = true }
 sp-api = { workspace = true }
 sp-tracing = { workspace = true }
 orml-tokens = { workspace = true }
-pretty_assertions = "1.2.1"
+pretty_assertions = { workspace = true }
 test-utils = { workspace = true }
-test-case = "2.2.2"
-primitive-types = { version = "0.12.0", default-features = false }
+test-case = { workspace = true }
+primitive-types = { workspace = true }
 
 [features]
 default = ['std']

@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::evm::Erc20Currency;
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
@@ -44,6 +45,7 @@ use primitives::constants::{
 };
 use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
 
+use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
@@ -367,6 +369,8 @@ impl pallet_currencies::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type Erc20Currency = Erc20Currency<Runtime>;
+	type BoundErc20 = AssetRegistry;
 	type GetNativeCurrencyId = NativeAssetId;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
@@ -438,6 +442,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type MinStringLimit = MinRegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type RegExternalWeightMultiplier = RegExternalWeightMultiplier;
+	type RegisterAssetHook = SetCodeForErc20Precompile;
 	type WeightInfo = weights::pallet_asset_registry::HydraWeight<Runtime>;
 }
 
@@ -610,6 +615,7 @@ impl pallet_duster::Config for Runtime {
 	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
 	type BlacklistUpdateOrigin = SuperMajorityTechCommittee;
+	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
 
@@ -659,6 +665,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type OracleSource = OmnipoolLMOracleSource;
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type WeightInfo = weights::pallet_omnipool_liquidity_mining::HydraWeight<Runtime>;
 }
 
@@ -706,6 +713,7 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type NonDustableWhitelistHandler = Duster;
 	type AMM = XYK;
 	type AssetRegistry = AssetRegistry;
+	type MaxFarmEntriesPerDeposit = XYKLmMaxEntriesPerDeposit;
 	type WeightInfo = weights::pallet_xyk_liquidity_mining::HydraWeight<Runtime>;
 }
 
@@ -720,7 +728,7 @@ where
 	Runtime: cumulus_pallet_parachain_system::Config,
 {
 	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		let validation_data = cumulus_pallet_parachain_system::ValidationData::<Runtime>::get();
 		match validation_data {
 			Some(data) => Some(data.parent_head.hash()),
 			None => None,

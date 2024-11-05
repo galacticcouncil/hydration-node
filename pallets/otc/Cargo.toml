@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-otc'
-version = '2.1.0'
+version = '2.2.0'
 description = 'A pallet for trustless over-the-counter trading'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -9,8 +9,8 @@ repository = "https://github.com/galacticcouncil/Hydradx-node"
 
 [dependencies]
 # parity
-codec = { package = "parity-scale-codec", version = "3.4.0", features = ["derive", "max-encoded-len"], default-features = false }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
@@ -34,9 +34,9 @@ frame-benchmarking = { workspace = true, optional = true }
 [dev-dependencies]
 sp-api = { workspace = true }
 sp-io = { workspace = true }
-orml-tokens = { workspace = true, features=["std"] }
-proptest = "1.0.0"
-pretty_assertions = "1.2.1"
+orml-tokens = { workspace = true, features = ["std"] }
+proptest = { workspace = true }
+pretty_assertions = { workspace = true }
 test-utils = { workspace = true }
 
 [features]
@@ -54,12 +54,12 @@ std = [
   'orml-traits/std',
   'hydradx-traits/std',
   'frame-benchmarking/std',
-  "pallet-amm-support/std",
+    "pallet-amm-support/std"
 ]
 
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-system/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
