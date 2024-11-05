@@ -300,6 +300,7 @@ pub mod pallet {
 				first_trade.amount_in,
 			)?;
 
+			//TODO: we want to deprecate it once unified events are working fine
 			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,

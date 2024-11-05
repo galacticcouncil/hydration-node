@@ -113,9 +113,9 @@ pub type OtcOrderId = u32;
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum Filler<AssetId, OtcOrderId> {
 	Omnipool,
-	Stableswap(AssetId), // asset id
+	Stableswap(AssetId), // pool id
 	XYK(AssetId),        // share token
-	LBP,                 // ???? LBP(AssetId),	// share token
+	LBP,
 	OTC(OtcOrderId),
 	// ICE(solution_id/block id),      swapper: alice, filler: solver
 }
