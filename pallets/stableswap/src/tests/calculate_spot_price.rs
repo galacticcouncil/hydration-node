@@ -57,7 +57,6 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_6_decimals() {
 				asset_b,
 				sell_amount,
 				0,
-				None,
 			));
 
 			let expected = 9;
@@ -130,7 +129,6 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 				asset_b,
 				sell_amount,
 				0,
-				None,
 			));
 
 			let expected = 994999;
@@ -207,7 +205,6 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 				asset_b,
 				sell_amount,
 				0,
-				None,
 			));
 
 			let expected = 991;
@@ -293,7 +290,6 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 				pool_id,
 				sell_amount,
 				0,
-				None,
 			));
 
 			let expected = 986999999;
@@ -369,7 +365,6 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 				pool_id,
 				sell_amount,
 				0,
-				None,
 			));
 
 			let expected = 984938537439245;
@@ -436,7 +431,6 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 				asset_b,
 				sell_amount,
 				0,
-				None,
 			));
 
 			let expected = 989999901;
@@ -512,7 +506,6 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 				asset_b,
 				sell_amount,
 				0,
-				None,
 			));
 
 			let expected = 968488820;
@@ -599,7 +592,6 @@ mod invariants {
 					asset_b,
 					sell_amount,
 					0,
-					None,
 				));
 
 				assert_balance!(BOB, pool_id, bob_share_balance - sell_amount);
@@ -667,7 +659,6 @@ mod invariants {
 					pool_id,
 					sell_amount,
 					0,
-					None,
 				));
 
 

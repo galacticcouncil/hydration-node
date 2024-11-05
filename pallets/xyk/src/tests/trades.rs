@@ -3,6 +3,7 @@ use crate::{AMMTransfer, Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
+use hydradx_traits::router::{AssetType, Fee};
 
 use crate::types::AssetPair;
 
@@ -73,14 +74,12 @@ fn sell_test() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK,
-				operation: pallet_amm_support::TradeOperation::Sell,
-				asset_in: asset_a,
-				asset_out: asset_b,
-				amount_in: 456444678,
-				amount_out: 1363483591788,
-				fees: vec![(asset_b, 2732432046, pair_account)],
-				event_id: None,
+				filler_type: pallet_amm_support::Filler::XYK(share_token),
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(asset_a), 456444678)],
+				outputs: vec![(AssetType::Fungible(asset_b), 1363483591788)],
+				fees: vec![Fee::new(asset_b, 2732432046, pair_account)],
+				operation_id: vec![],
 			}
 			.into(),
 		]);
@@ -107,6 +106,9 @@ fn execute_sell_should_use_event_id() {
 			asset_out: asset_b,
 		});
 
+
+		let share_token = XYK::share_token(pair_account);
+
 		let t = AMMTransfer {
 			origin: user_1,
 			assets: AssetPair {
@@ -121,7 +123,7 @@ fn execute_sell_should_use_event_id() {
 		};
 
 		let event_id = Some(7);
-		assert_ok!(XYK::execute_sell(&t, event_id,));
+		assert_ok!(XYK::execute_sell(&t));
 
 		expect_events(vec![
 			Event::SellExecuted {
@@ -138,14 +140,12 @@ fn execute_sell_should_use_event_id() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK,
-				operation: pallet_amm_support::TradeOperation::Sell,
-				asset_in: asset_a,
-				asset_out: asset_b,
-				amount_in: 456444678,
-				amount_out: 1363483591788,
-				fees: vec![(asset_b, 2732432046, pair_account)],
-				event_id,
+				filler_type: pallet_amm_support::Filler::XYK(share_token),
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(asset_a), 456444678)],
+				outputs: vec![(AssetType::Fungible(asset_b), 1363483591788)],
+				fees: vec![Fee::new(asset_b, 2732432046, pair_account)],
+				operation_id: vec![],
 			}
 			.into(),
 		]);
@@ -447,14 +447,12 @@ fn sell_with_correct_fees_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: user_1,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK,
-				operation: pallet_amm_support::TradeOperation::Sell,
-				asset_in: asset_a,
-				asset_out: asset_b,
-				amount_in: 100_000,
-				amount_out: 19_762_378,
-				fees: vec![(asset_b, 39_602, pair_account)],
-				event_id: None,
+				filler_type: pallet_amm_support::Filler::XYK(share_token),
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(asset_a), 100_000)],
+				outputs: vec![(AssetType::Fungible(asset_b), 19_762_378)],
+				fees: vec![Fee::new(asset_b, 39_602, pair_account)],
+				operation_id: vec![],
 			}
 			.into(),
 		]);
@@ -667,14 +665,12 @@ fn single_buy_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: user_1,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK,
-				operation: pallet_amm_support::TradeOperation::Buy,
-				asset_in: asset_b,
-				asset_out: asset_a,
-				amount_in: 6_666_666,
-				amount_out: 22_068_963_235,
-				fees: vec![(asset_b, 44_137_926, pair_account)],
-				event_id: None,
+				filler_type: pallet_amm_support::Filler::XYK(share_token),
+				operation: pallet_amm_support::TradeOperation::ExactOut,
+				inputs: vec![(AssetType::Fungible(asset_b), 6_666_666)],
+				outputs: vec![(AssetType::Fungible(asset_a), 22_068_963_235)],
+				fees: vec![Fee::new(asset_b, 44_137_926, pair_account)],
+				operation_id: vec![],
 			}
 			.into(),
 		]);

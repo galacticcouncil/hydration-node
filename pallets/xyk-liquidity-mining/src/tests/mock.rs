@@ -198,7 +198,7 @@ pub struct DummyFarmEntry {
 
 pub struct DummyAMM;
 
-impl AMM<AccountId, AssetId, AssetPair, Balance, IncrementalId> for DummyAMM {
+impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
 	fn get_max_out_ratio() -> u128 {
 		0_u32.into()
 	}

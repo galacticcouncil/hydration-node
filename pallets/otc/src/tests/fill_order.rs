@@ -82,7 +82,7 @@ fn complete_fill_order_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type: pallet_amm_support::Filler::OTC,
+				filler_type: pallet_amm_support::Filler::OTC(0),
 				operation: pallet_amm_support::TradeOperation::Sell,
 				asset_in: DAI,
 				asset_out: HDX,
@@ -255,7 +255,7 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 				amount_in: 20 * ONE,
 				amount_out: 100 * ONE,
 				fees: vec![(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
-				event_id: None,
+				operation_id: vec![],
 			}
 			.into(),
 		]);

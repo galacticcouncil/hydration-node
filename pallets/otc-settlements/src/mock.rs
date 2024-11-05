@@ -158,6 +158,7 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type BatchIdProvider = AmmSupport;
+	type OperationIdProvider = AmmSupport;
 	type WeightInfo = ();
 }
 

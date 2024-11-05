@@ -5,6 +5,7 @@ use std::num::NonZeroU16;
 
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
+use hydradx_traits::router::{AssetType, Fee};
 
 #[test]
 fn sell_should_work_when_correct_input_provided() {
@@ -68,14 +69,12 @@ fn sell_should_work_when_correct_input_provided() {
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type: pallet_amm_support::Filler::Stableswap,
-					operation: pallet_amm_support::TradeOperation::Sell,
-					asset_in: asset_a,
-					asset_out: asset_b,
-					amount_in: 30000000000000,
-					amount_out: 29902625420922,
-					fees: vec![(asset_b, 0, pool_account)],
-					event_id: None,
+					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(asset_a), 30000000000000)],
+					outputs: vec![(AssetType::Fungible(asset_b), 29902625420922)],
+					fees: vec![Fee::new(asset_b, 0, pool_account)],
+					operation_id: vec![],
 				}
 				.into(),
 			]);
@@ -144,14 +143,12 @@ fn buy_should_work_when_correct_input_provided() {
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type: pallet_amm_support::Filler::Stableswap,
-					operation: pallet_amm_support::TradeOperation::Buy,
-					asset_in: asset_a,
-					asset_out: asset_b,
-					amount_in: 30098072706882,
-					amount_out: 30000000000000,
-					fees: vec![(asset_a, 0, pool_account)],
-					event_id: None,
+					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(asset_a), 30098072706882)],
+					outputs: vec![(AssetType::Fungible(asset_b), 30000000000000)],
+					fees: vec![Fee::new(asset_a, 0, pool_account)],
+					operation_id: vec![],
 				}
 				.into(),
 			]);

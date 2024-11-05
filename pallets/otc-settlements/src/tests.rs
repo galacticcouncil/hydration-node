@@ -301,7 +301,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 			pallet_amm_support::Event::Swapped {
 				swapper: OtcSettlements::account_id(),
 				filler: otc.owner,
-				filler_type: pallet_amm_support::Filler::OTC,
+				filler_type: pallet_amm_support::Filler::OTC(otc_id),
 				operation: pallet_amm_support::TradeOperation::Sell,
 				asset_in: HDX,
 				asset_out: DAI,
