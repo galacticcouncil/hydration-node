@@ -1,9 +1,9 @@
 pub use super::mock::*;
 use crate::{AMMTransfer, Error, Event};
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::router::{AssetType, Fee};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
-use hydradx_traits::router::{AssetType, Fee};
 
 use crate::types::AssetPair;
 
@@ -105,7 +105,6 @@ fn execute_sell_should_use_event_id() {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-
 
 		let share_token = XYK::share_token(pair_account);
 

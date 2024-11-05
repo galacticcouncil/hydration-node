@@ -1,9 +1,9 @@
 pub use super::mock::*;
 use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::router::{AssetType, Fee};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
-use hydradx_traits::router::{AssetType, Fee};
 
 use crate::types::AssetPair;
 
@@ -98,7 +98,6 @@ fn discount_sell_fees_should_work() {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		};
-
 
 		let pair_account = XYK::get_pair_id(pair);
 

@@ -4,8 +4,8 @@ use crate::{assert_balance, to_precision, Error, Event};
 use std::num::NonZeroU16;
 
 use frame_support::{assert_noop, assert_ok};
-use sp_runtime::Permill;
 use hydradx_traits::router::{AssetType, Fee};
+use sp_runtime::Permill;
 
 #[test]
 fn sell_should_work_when_correct_input_provided() {

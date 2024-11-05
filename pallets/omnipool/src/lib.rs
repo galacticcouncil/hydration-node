@@ -1104,20 +1104,23 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::Filler::Omnipool,
 				pallet_amm_support::TradeOperation::ExactIn,
-				vec![(
-					AssetType::Fungible(asset_in.into()),
-					amount,
-				)],
+				vec![(AssetType::Fungible(asset_in.into()), amount)],
 				vec![(
 					AssetType::Fungible(asset_out.into()),
 					*state_changes.asset_out.delta_reserve,
 				)],
-				vec![Fee {
-					asset: asset_out.into(),
-					amount: state_changes.fee.asset_fee,
-					recipient: Self::protocol_account(),
-				},
-				Fee::new(T::HubAssetId::get().into(), state_changes.fee.protocol_fee, Self::protocol_account())],
+				vec![
+					Fee {
+						asset: asset_out.into(),
+						amount: state_changes.fee.asset_fee,
+						recipient: Self::protocol_account(),
+					},
+					Fee::new(
+						T::HubAssetId::get().into(),
+						state_changes.fee.protocol_fee,
+						Self::protocol_account(),
+					),
+				],
 			);
 
 			#[cfg(feature = "try-runtime")]
@@ -1338,12 +1341,18 @@ pub mod pallet {
 					AssetType::Fungible(asset_out.into()),
 					*state_changes.asset_out.delta_reserve,
 				)],
-				vec![Fee {
-					asset: asset_out.into(),
-					amount: state_changes.fee.asset_fee,
-					recipient: Self::protocol_account(),
-				},
-					 Fee::new(T::HubAssetId::get().into(), state_changes.fee.protocol_fee, Self::protocol_account())],
+				vec![
+					Fee {
+						asset: asset_out.into(),
+						amount: state_changes.fee.asset_fee,
+						recipient: Self::protocol_account(),
+					},
+					Fee::new(
+						T::HubAssetId::get().into(),
+						state_changes.fee.protocol_fee,
+						Self::protocol_account(),
+					),
+				],
 			);
 
 			#[cfg(feature = "try-runtime")]

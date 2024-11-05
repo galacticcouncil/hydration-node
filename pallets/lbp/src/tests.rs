@@ -1889,10 +1889,7 @@ fn execute_sell_should_not_work() {
 		assert_eq!(Currency::free_balance(KUSD, &KUSD_BSX_POOL_ID), 1_000_000_000);
 		assert_eq!(Currency::free_balance(BSX, &KUSD_BSX_POOL_ID), 2_000_000_000);
 
-		assert_noop!(
-			LBPPallet::execute_sell(&t),
-			orml_tokens::Error::<Test>::BalanceTooLow
-		);
+		assert_noop!(LBPPallet::execute_sell(&t), orml_tokens::Error::<Test>::BalanceTooLow);
 
 		assert_eq!(Currency::free_balance(KUSD, &ALICE), 999_999_000_000_000);
 		assert_eq!(Currency::free_balance(BSX, &ALICE), 999_998_000_000_000);

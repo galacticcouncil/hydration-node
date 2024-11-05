@@ -7,6 +7,7 @@ use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
 };
+use hydradx_traits::router::AssetType;
 use hydradx_traits::router::RouteSpotPriceProvider;
 use hydradx_traits::{
 	registry::Create,
@@ -20,7 +21,6 @@ use pallet_omnipool::types::Tradability;
 use pallet_omnipool::weights::WeightInfo as OmnipoolWeights;
 use pallet_route_executor::AmmTradeWeights;
 use std::convert::Into;
-use hydradx_traits::router::AssetType;
 
 use hydradx_traits::router::AssetPair as Pair;
 use primitives::AssetId;

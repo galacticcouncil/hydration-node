@@ -16,10 +16,10 @@ use crate as otc;
 use crate::tests::mock::*;
 use crate::Event;
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::router::{AssetType, Fee};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
 use pretty_assertions::assert_eq;
-use hydradx_traits::router::{AssetType, Fee};
 
 #[test]
 fn complete_fill_order_should_work() {
