@@ -1788,6 +1788,19 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 			.map_err(|_err| ArithmeticError::Overflow.into())
 	}
 
+	fn calculate_out_given_in(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		asset_in_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		let asset_pair_account = XYK::get_pair_id(AssetPair::new(asset_in, asset_out));
+		let in_reserve = Currencies::free_balance(asset_in, &asset_pair_account.clone());
+		let out_reserve = Currencies::free_balance(asset_out, &asset_pair_account);
+
+		hydra_dx_math::xyk::calculate_out_given_in(in_reserve, out_reserve, asset_in_amount)
+			.map_err(|_err| ArithmeticError::Overflow.into())
+	}
+
 	fn buy(
 		origin: &AccountId,
 		asset_in: AssetId,
