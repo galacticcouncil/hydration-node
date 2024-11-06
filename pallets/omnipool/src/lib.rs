@@ -1099,6 +1099,11 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
+			Self::deposit_event(Event::HubAmountUpdated {
+				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
+				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
+			});
+
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
 				Self::protocol_account(),
@@ -1326,6 +1331,11 @@ pub mod pallet {
 				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
+			});
+
+			Self::deposit_event(crate::pallet::Event::HubAmountUpdated {
+				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
+				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
 			});
 
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
