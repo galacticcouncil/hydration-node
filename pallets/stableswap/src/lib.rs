@@ -209,6 +209,7 @@ pub mod pallet {
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
 		/// Deprecated. Replaced by pallet_amm_support::Swapped
+		//TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			pool_id: T::AssetId,
@@ -767,7 +768,6 @@ pub mod pallet {
 			//All done and updated. Let's call on_trade hook.
 			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
 
-			//TODO: Remove once we migrated completely to Swapped event
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
 				pool_id,
@@ -861,7 +861,6 @@ pub mod pallet {
 			//All done and updated. Let's call on_trade_hook.
 			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
 
-			//TODO: remove once we migrated completely to Swapped event
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
 				pool_id,
