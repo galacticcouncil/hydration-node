@@ -11,7 +11,9 @@
     "/dns/hydration.boot.stake.plus/tcp/30332/wss/p2p/12D3KooWGZaDfqPyzVxhA3k1qv72P7xqYTJS8W9U7GWUEdXYhtUU",
     "/dns/hydration.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWBJMG8LCh6pLYbGapA3SNzjhQWE87ieGux41jKQrrf5js",
     "/dns/hydration-boot-ng.dwellir.com/tcp/443/wss/p2p/12D3KooWMNf1YGh3rxaiWPjzQ1UKQxKq2WSjAKdrSgdcYaFH4ie5",
-    "/dns/hydration-boot-ng.dwellir.com/tcp/30366/p2p/12D3KooWMNf1YGh3rxaiWPjzQ1UKQxKq2WSjAKdrSgdcYaFH4ie5"
+    "/dns/hydration-boot-ng.dwellir.com/tcp/30366/p2p/12D3KooWMNf1YGh3rxaiWPjzQ1UKQxKq2WSjAKdrSgdcYaFH4ie5",
+    "/dns/hydration-bootnode.radiumblock.com/tcp/30333/p2p/12D3KooWCtrMH4H2p5XkGHkU7K4CcbSmErouNuN3j7Bysj4a8hJX",
+    "/dns/hydration-bootnode.radiumblock.com/tcp/30336/wss/p2p/12D3KooWCtrMH4H2p5XkGHkU7K4CcbSmErouNuN3j7Bysj4a8hJX"
   ],
   "telemetryEndpoints": [
     [

@@ -42,6 +42,12 @@ impl From<AssetLocation> for Option<Location> {
 	}
 }
 
+impl From<AssetLocation> for MultiLocation {
+	fn from(location: AssetLocation) -> Self {
+		location.0
+	}
+}
+
 impl TryFrom<Location> for AssetLocation {
 	type Error = ();
 
@@ -322,7 +328,7 @@ impl pallet_message_queue::Config for Runtime {
 	type HeapSize = MessageQueueHeapSize;
 	type MaxStale = MessageQueueMaxStale;
 	type ServiceWeight = MessageQueueServiceWeight;
-	type IdleMaxServiceWeight = MessageQueueServiceWeight;
+	type IdleMaxServiceWeight = ();
 }
 
 pub struct CurrencyIdConvert;

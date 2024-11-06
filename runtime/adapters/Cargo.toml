@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "1.3.6"
+version = "1.3.7"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -8,7 +8,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/warehouse/tree/master/adapters"
 
 [dependencies]
-codec = {workspace = true }
+codec = { workspace = true }
 log = { workspace = true }
 scale-info = { workspace = true }
 

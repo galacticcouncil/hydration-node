@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.23.7"
+version = "1.25.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -132,9 +132,15 @@ polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
 rococo-runtime = { workspace = true }
+module-evm-utility-macro = { workspace = true }
+num_enum = { workspace = true }
+
+ethabi = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = {  workspace = true }
+pretty_assertions = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }

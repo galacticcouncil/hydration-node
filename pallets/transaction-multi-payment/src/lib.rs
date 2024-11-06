@@ -153,7 +153,7 @@ pub mod pallet {
 		type EvmAssetId: Get<AssetIdOf<Self>>;
 
 		/// EVM Accounts info
-		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId, sp_core::H160>;
+		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId>;
 
 		type EvmPermit: EVMPermit;
 

@@ -19,6 +19,8 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::evm::erc20_currency::Function;
+use crate::evm::precompiles::revert;
 use crate::{
 	evm::{
 		precompiles::{
@@ -32,41 +34,32 @@ use crate::{
 	Currencies,
 };
 use codec::EncodeLike;
-use frame_support::traits::OriginTrait;
+use frame_support::traits::{IsType, OriginTrait};
+use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::registry::Inspect as InspectRegistry;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
 use primitive_types::H160;
 use primitives::{AssetId, Balance};
-use sp_runtime::{traits::Dispatchable, RuntimeDebug};
-use sp_std::{marker::PhantomData, prelude::*};
+use sp_runtime::traits::Dispatchable;
+use sp_std::marker::PhantomData;
 
-#[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
-#[repr(u32)]
-pub enum Action {
-	Name = "name()",
-	Symbol = "symbol()",
-	Decimals = "decimals()",
-	TotalSupply = "totalSupply()",
-	BalanceOf = "balanceOf(address)",
-	Allowance = "allowance(address,address)",
-	Transfer = "transfer(address,uint256)",
-	Approve = "approve(address,uint256)",
-	TransferFrom = "transferFrom(address,address,uint256)",
-}
 pub struct MultiCurrencyPrecompile<Runtime>(PhantomData<Runtime>);
 
 impl<Runtime> Precompile for MultiCurrencyPrecompile<Runtime>
 where
-	Runtime: frame_system::Config + pallet_evm::Config + pallet_asset_registry::Config + pallet_currencies::Config,
+	Runtime: frame_system::Config
+		+ pallet_evm::Config
+		+ pallet_asset_registry::Config
+		+ pallet_currencies::Config
+		+ pallet_evm_accounts::Config,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
-	<Runtime as pallet_asset_registry::Config>::AssetId: core::convert::From<AssetId>,
+	<Runtime as pallet_asset_registry::Config>::AssetId: From<AssetId>,
 	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
 	pallet_currencies::Pallet<Runtime>: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
-	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
+	<Runtime as frame_system::Config>::AccountId:
+		From<sp_runtime::AccountId32> + IsType<sp_runtime::AccountId32> + AsRef<[u8; 32]>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 {
 	fn execute(handle: &mut impl PrecompileHandle) -> pallet_evm::PrecompileResult {
@@ -80,20 +73,21 @@ where
 			};
 
 			handle.check_function_modifier(match selector {
-				Action::Transfer => FunctionModifier::NonPayable,
+				Function::Transfer => FunctionModifier::NonPayable,
+				Function::TransferFrom => FunctionModifier::NonPayable,
 				_ => FunctionModifier::View,
 			})?;
 
 			return match selector {
-				Action::Name => Self::name(asset_id, handle),
-				Action::Symbol => Self::symbol(asset_id, handle),
-				Action::Decimals => Self::decimals(asset_id, handle),
-				Action::TotalSupply => Self::total_supply(asset_id, handle),
-				Action::BalanceOf => Self::balance_of(asset_id, handle),
-				Action::Transfer => Self::transfer(asset_id, handle),
-				Action::Allowance => Self::not_supported(asset_id, handle),
-				Action::Approve => Self::not_supported(asset_id, handle),
-				Action::TransferFrom => Self::not_supported(asset_id, handle),
+				Function::Name => Self::name(asset_id, handle),
+				Function::Symbol => Self::symbol(asset_id, handle),
+				Function::Decimals => Self::decimals(asset_id, handle),
+				Function::TotalSupply => Self::total_supply(asset_id, handle),
+				Function::BalanceOf => Self::balance_of(asset_id, handle),
+				Function::Transfer => Self::transfer(asset_id, handle),
+				Function::Allowance => Self::allowance(handle),
+				Function::Approve => Self::not_supported(),
+				Function::TransferFrom => Self::transfer_from(asset_id, handle),
 			};
 		}
 		Err(PrecompileFailure::Revert {
@@ -105,12 +99,17 @@ where
 
 impl<Runtime> MultiCurrencyPrecompile<Runtime>
 where
-	Runtime: frame_system::Config + pallet_evm::Config + pallet_asset_registry::Config + pallet_currencies::Config,
+	Runtime: frame_system::Config
+		+ pallet_evm::Config
+		+ pallet_asset_registry::Config
+		+ pallet_currencies::Config
+		+ pallet_evm_accounts::Config,
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
-	<Runtime as pallet_asset_registry::Config>::AssetId: core::convert::From<AssetId>,
+	<Runtime as pallet_asset_registry::Config>::AssetId: From<AssetId>,
 	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
 	pallet_currencies::Pallet<Runtime>: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
-	<Runtime as frame_system::Config>::AccountId: core::convert::From<sp_runtime::AccountId32>,
+	<Runtime as frame_system::Config>::AccountId:
+		From<sp_runtime::AccountId32> + IsType<sp_runtime::AccountId32> + AsRef<[u8; 32]>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 {
 	fn name(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
@@ -240,7 +239,67 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	fn not_supported(_: AssetId, _: &mut impl PrecompileHandle) -> PrecompileResult {
+	fn allowance(handle: &mut impl PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Parse input
+		let mut input = handle.read_input()?;
+		input.expect_arguments(2)?;
+
+		let _owner: H160 = input.read::<Address>()?.into();
+		let spender: H160 = input.read::<Address>()?.into();
+
+		let allowance =
+			if <pallet_evm_accounts::Pallet<Runtime> as InspectEvmAccounts<Runtime::AccountId>>::is_approved_contract(
+				spender,
+			) {
+				u128::MAX
+			} else {
+				0
+			};
+
+		let encoded = Output::encode_uint::<u128>(allowance);
+		Ok(succeed(encoded))
+	}
+
+	fn transfer_from(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Parse input
+		let mut input = handle.read_input()?;
+		input.expect_arguments(3)?;
+
+		let origin: H160 = handle.context().caller;
+		let from: H160 = input.read::<Address>()?.into();
+		let to: H160 = input.read::<Address>()?.into();
+		let amount = input.read::<Balance>()?;
+
+		let from = ExtendedAddressMapping::into_account_id(from);
+		let to = ExtendedAddressMapping::into_account_id(to);
+
+		log::debug!(target: "evm", "multicurrency: transferFrom from: {:?}, to: {:?}, amount: {:?}", from, to, amount);
+
+		if <pallet_evm_accounts::Pallet<Runtime> as InspectEvmAccounts<Runtime::AccountId>>::is_approved_contract(
+			origin,
+		) {
+			<pallet_currencies::Pallet<Runtime> as MultiCurrency<Runtime::AccountId>>::transfer(
+				asset_id,
+				&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
+				&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
+				amount,
+			)
+			.map_err(|e| PrecompileFailure::Revert {
+				exit_status: ExitRevert::Reverted,
+				output: Into::<&str>::into(e).as_bytes().to_vec(),
+			})?;
+
+			Ok(succeed(EvmDataWriter::new().write(true).build()))
+		} else {
+			Err(revert("Not approved contract"))
+		}
+	}
+
+	fn not_supported() -> PrecompileResult {
 		Err(PrecompileFailure::Error {
 			exit_status: pallet_evm::ExitError::Other("not supported".into()),
 		})

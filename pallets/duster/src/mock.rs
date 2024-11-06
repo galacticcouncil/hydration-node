@@ -4,7 +4,7 @@ use frame_support::parameter_types;
 use frame_support::traits::{Everything, Nothing, OnKilledAccount};
 
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 
 use crate::Config;
 use frame_system as system;
@@ -155,6 +155,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
