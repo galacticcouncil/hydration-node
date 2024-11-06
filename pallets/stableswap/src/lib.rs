@@ -107,6 +107,7 @@ pub mod pallet {
 	use sp_runtime::ArithmeticError;
 	use sp_runtime::Permill;
 	use sp_std::num::NonZeroU16;
+	use hydradx_traits::router::{AssetType, Fee};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -766,8 +767,9 @@ pub mod pallet {
 			//All done and updated. Let's call on_trade hook.
 			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
 
+			//TODO: Remove once we migrated completely to Swapped event
 			Self::deposit_event(Event::SellExecuted {
-				who,
+				who: who.clone(),
 				pool_id,
 				asset_in,
 				asset_out,
@@ -775,6 +777,20 @@ pub mod pallet {
 				amount_out,
 				fee: fee_amount,
 			});
+
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who,
+				pool_account.clone(),
+				pallet_amm_support::Filler::Stableswap(pool_id.into()),
+				pallet_amm_support::TradeOperation::ExactIn,
+				vec![(AssetType::Fungible(asset_in.into()), amount_in)],
+				vec![(AssetType::Fungible(asset_out.into()), amount_out)],
+				vec![Fee {
+					asset: asset_out.into(),
+					amount: fee_amount,
+					recipient: pool_account,
+				}],
+			);
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
@@ -845,8 +861,9 @@ pub mod pallet {
 			//All done and updated. Let's call on_trade_hook.
 			Self::call_on_trade_hook(pool_id, asset_in, asset_out, &initial_reserves)?;
 
+			//TODO: remove once we migrated completely to Swapped event
 			Self::deposit_event(Event::BuyExecuted {
-				who,
+				who: who.clone(),
 				pool_id,
 				asset_in,
 				asset_out,
@@ -854,6 +871,20 @@ pub mod pallet {
 				amount_out,
 				fee: fee_amount,
 			});
+
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who,
+				pool_account.clone(),
+				pallet_amm_support::Filler::Stableswap(pool_id.into()),
+				pallet_amm_support::TradeOperation::ExactOut,
+				vec![(AssetType::Fungible(asset_in.into()), amount_in)],
+				vec![(AssetType::Fungible(asset_out.into()), amount_out)],
+				vec![Fee {
+					asset: asset_in.into(),
+					amount: fee_amount,
+					recipient: pool_account,
+				}],
+			);
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);

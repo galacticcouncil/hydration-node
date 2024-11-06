@@ -121,7 +121,6 @@ fn execute_sell_should_use_event_id() {
 			fee: (asset_b, 2732432046),
 		};
 
-		let event_id = Some(7);
 		assert_ok!(XYK::execute_sell(&t));
 
 		expect_events(vec![
