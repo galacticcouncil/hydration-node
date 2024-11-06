@@ -242,6 +242,17 @@ pub fn calculate_shares_for_amount<const D: u8>(
 	Balance::try_from(share_amount).ok()
 }
 
+pub fn calculate_liquidity_out(reserve: Balance, share_amount: Balance, share_issuance: Balance) -> Option<Balance> {
+	let issuance_u256 = U256::from(share_issuance);
+	let share_amount_u256 = U256::from(share_amount);
+	Some(
+		U256::from(reserve)
+			.checked_mul(share_amount_u256)?
+			.checked_div(issuance_u256)?
+			.as_u128(),
+	)
+}
+
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
 /// Returns amount of asset to be withdrawn and fee amount. Note that fee amount is not deducted from amount of asset to be withdrawn.
 pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
