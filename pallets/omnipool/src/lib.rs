@@ -1883,6 +1883,8 @@ impl<T: Config> Pallet<T> {
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
+		//No need to deposit `HubAmountUpdated` event as hub amounts are zero
+
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
@@ -2010,6 +2012,8 @@ impl<T: Config> Pallet<T> {
 			asset_fee_amount: state_changes.fee.asset_fee,
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
+
+		//No need to deposit `HubAmountUpdated` event as hub amounts are zero
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
