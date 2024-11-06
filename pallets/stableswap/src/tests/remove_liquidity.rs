@@ -1,7 +1,8 @@
 use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
-use crate::{assert_balance, Error};
-use frame_support::{assert_noop, assert_ok};
+use crate::{assert_balance, Error, Event, Pools};
+use frame_support::traits::Contains;
+use frame_support::{assert_noop, assert_ok, BoundedVec};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -990,5 +991,229 @@ fn removing_liquidity_with_exact_amount_should_apply_fee() {
 			assert_eq!(shares_left, 968209693349892648);
 			let balance = Tokens::free_balance(asset_a, &BOB);
 			assert_eq!(balance, 1988517979234162416);
+		});
+}
+
+#[test]
+fn remove_multi_asset_liquidity_should_work_when_withdrawing_some_shares() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 200 * ONE),
+			(ALICE, asset_a, 100 * ONE),
+			(ALICE, asset_b, 200 * ONE),
+			(ALICE, asset_c, 300 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 200 * ONE),
+					AssetAmount::new(asset_c, 300 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 200 * ONE;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![AssetAmount::new(asset_a, amount_added),]
+			));
+
+			let shares = Tokens::free_balance(pool_id, &BOB);
+
+			let min_amounts = vec![
+				AssetAmount {
+					asset_id: asset_a,
+					amount: 0,
+				},
+				AssetAmount {
+					asset_id: asset_b,
+					amount: 0,
+				},
+				AssetAmount {
+					asset_id: asset_c,
+					amount: 0,
+				},
+			];
+
+			assert_ok!(Stableswap::remove_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				shares,
+				BoundedVec::try_from(min_amounts).unwrap(),
+			));
+
+			let amount_a_received = Tokens::free_balance(asset_a, &BOB);
+			let amount_b_received = Tokens::free_balance(asset_b, &BOB);
+			let amount_c_received = Tokens::free_balance(asset_c, &BOB);
+			assert_balance!(BOB, asset_a, 75_206_785_577_717u128);
+			assert_balance!(BOB, asset_b, 50_137_857_051_811u128);
+			assert_balance!(BOB, asset_c, 75_206_785_577_717u128);
+			assert_balance!(BOB, pool_id, 0u128);
+
+			assert_balance!(pool_account, asset_a, 300 * ONE - amount_a_received);
+			assert_balance!(pool_account, asset_b, 200 * ONE - amount_b_received);
+			assert_balance!(pool_account, asset_c, 300 * ONE - amount_c_received);
+		});
+}
+
+#[test]
+fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_remaining_shares() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 200 * ONE),
+			(ALICE, asset_a, 100 * ONE),
+			(ALICE, asset_b, 200 * ONE),
+			(ALICE, asset_c, 300 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 200 * ONE),
+					AssetAmount::new(asset_c, 300 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			System::set_block_number(1);
+
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 200 * ONE;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![AssetAmount::new(asset_a, amount_added),]
+			));
+
+			let shares = Tokens::free_balance(pool_id, &BOB);
+
+			let min_amounts = vec![
+				AssetAmount {
+					asset_id: asset_a,
+					amount: 0,
+				},
+				AssetAmount {
+					asset_id: asset_b,
+					amount: 0,
+				},
+				AssetAmount {
+					asset_id: asset_c,
+					amount: 0,
+				},
+			];
+
+			assert_ok!(Stableswap::remove_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				shares,
+				BoundedVec::try_from(min_amounts.clone()).unwrap(),
+			));
+
+			let amount_a_received = Tokens::free_balance(asset_a, &BOB);
+			let amount_b_received = Tokens::free_balance(asset_b, &BOB);
+			let amount_c_received = Tokens::free_balance(asset_c, &BOB);
+			assert_balance!(BOB, asset_a, 75_206_785_577_717u128);
+			assert_balance!(BOB, asset_b, 50_137_857_051_811u128);
+			assert_balance!(BOB, asset_c, 75_206_785_577_717u128);
+			assert_balance!(BOB, pool_id, 0u128);
+
+			assert_balance!(pool_account, asset_a, 300 * ONE - amount_a_received);
+			assert_balance!(pool_account, asset_b, 200 * ONE - amount_b_received);
+			assert_balance!(pool_account, asset_c, 300 * ONE - amount_c_received);
+
+			let pool_a_balance = Tokens::free_balance(asset_a, &pool_account);
+			let pool_b_balance = Tokens::free_balance(asset_b, &pool_account);
+			let pool_c_balance = Tokens::free_balance(asset_c, &pool_account);
+
+			// Alice has all remaining shares and should receive all remaining reserve amounts
+			let shares = Tokens::free_balance(pool_id, &ALICE);
+			assert_ok!(Stableswap::remove_liquidity(
+				RuntimeOrigin::signed(ALICE),
+				pool_id,
+				shares,
+				BoundedVec::try_from(min_amounts).unwrap(),
+			));
+
+			assert_balance!(ALICE, asset_a, pool_a_balance);
+			assert_balance!(ALICE, asset_b, pool_b_balance);
+			assert_balance!(ALICE, asset_c, pool_c_balance);
+
+			// Ensure that pool has been removed
+			// Ensure that pool account has been removed from dust list
+			assert!(Pools::<Test>::get(pool_id).is_none());
+			assert!(!Whitelist::contains(&pool_account));
+
+			// Ensure events are emitted
+			expect_events(vec![
+				Event::PoolDestroyed { pool_id }.into(),
+				Event::LiquidityRemoved {
+					pool_id,
+					who: ALICE,
+					shares,
+					amounts: vec![
+						AssetAmount {
+							asset_id: asset_a,
+							amount: pool_a_balance,
+						},
+						AssetAmount {
+							asset_id: asset_b,
+							amount: pool_b_balance,
+						},
+						AssetAmount {
+							asset_id: asset_c,
+							amount: pool_c_balance,
+						},
+					],
+					fee: 0u128,
+				}
+				.into(),
+			]);
 		});
 }

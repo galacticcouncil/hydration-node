@@ -441,3 +441,7 @@ pub(crate) fn last_liquidity_changed_hook_state() -> Option<(AssetId, PoolState<
 pub(crate) fn last_trade_hook_state() -> Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)> {
 	LAST_TRADE_HOOK.with(|v| v.borrow().clone())
 }
+
+pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
