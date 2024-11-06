@@ -2395,6 +2395,11 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
 			expect_hydra_last_events(vec![
+				pallet_omnipool::Event::HubAmountUpdated {
+					hub_amount_in: 12014871681,
+					hub_amount_out: 12008864246,
+					operation_id: vec![ExecutionType::Router(0)],
+				}.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
@@ -2452,6 +2457,7 @@ mod omnipool_router_tests {
 				pallet_omnipool::Event::HubAmountUpdated {
 					hub_amount_in: 12014871681,
 					hub_amount_out: 12008864246,
+					operation_id: vec![]
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -2614,6 +2620,11 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
 			expect_hydra_last_events(vec![
+				pallet_omnipool::Event::HubAmountUpdated {
+					hub_amount_in: 45135,
+					hub_amount_out: 45113,
+					operation_id: vec![ExecutionType::Router(0)],
+				}.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
@@ -2671,6 +2682,7 @@ mod omnipool_router_tests {
 				pallet_omnipool::Event::HubAmountUpdated {
 					hub_amount_in: 45135,
 					hub_amount_out: 45113,
+					operation_id: vec![]
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {

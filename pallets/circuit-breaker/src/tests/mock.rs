@@ -230,6 +230,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type OperationIdProvider = AmmSupport;
 }
 
 impl pallet_amm_support::Config for Test {

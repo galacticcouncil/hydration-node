@@ -217,6 +217,7 @@ impl pallet_omnipool::Config for Test {
 	);
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
+	type OperationIdProvider = AmmSupport;
 }
 
 pub struct FeeProvider;

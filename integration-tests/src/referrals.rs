@@ -355,6 +355,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 			pallet_omnipool::Event::HubAmountUpdated {
 				hub_amount_in: 1_209_746_177,
 				hub_amount_out: 1_209_141_304,
+				operation_id: vec![],
 			}
 			.into(),
 			pallet_amm_support::Event::Swapped {
@@ -413,6 +414,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			pallet_omnipool::Event::HubAmountUpdated {
 				hub_amount_in: 45_222_713_080,
 				hub_amount_out: 45_200_101_724,
+				operation_id: vec![],
 			}
 			.into(),
 			pallet_amm_support::Event::Swapped {

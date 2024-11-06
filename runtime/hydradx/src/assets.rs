@@ -530,6 +530,7 @@ impl pallet_omnipool::Config for Runtime {
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
+	type OperationIdProvider = AmmSupport;
 }
 
 pub struct CircuitBreakerWhitelist;

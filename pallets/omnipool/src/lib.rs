@@ -93,13 +93,13 @@ use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
 use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
 use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
-
+use hydradx_traits::router::ExecutionTypeStack;
 use crate::traits::ShouldAllow;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{AssetType, Fee};
+use hydradx_traits::router::{AssetType, Fee, ExecutionType};
 use orml_traits::{GetByKey, MultiCurrency};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
@@ -136,6 +136,7 @@ pub mod pallet {
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 	use orml_traits::GetByKey;
+	use pallet_amm_support::IncrementalIdType;
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -233,6 +234,9 @@ pub mod pallet {
 
 		/// Oracle price provider. Provides price for given asset. Used in remove liquidity to support calculation of dynamic withdrawal fee.
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
+
+		/// Operation id provider for unified events
+		type OperationIdProvider: ExecutionTypeStack<IncrementalIdType>;
 	}
 
 	#[pallet::storage]
@@ -371,6 +375,7 @@ pub mod pallet {
 		HubAmountUpdated {
 			hub_amount_in: Balance,
 			hub_amount_out: Balance,
+			operation_id: Vec<ExecutionType<IncrementalIdType>>
 		},
 	}
 
@@ -1102,6 +1107,7 @@ pub mod pallet {
 			Self::deposit_event(Event::HubAmountUpdated {
 				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
 				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
+				operation_id: T::OperationIdProvider::get()
 			});
 
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
@@ -1336,6 +1342,7 @@ pub mod pallet {
 			Self::deposit_event(crate::pallet::Event::HubAmountUpdated {
 				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
 				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
+				operation_id: T::OperationIdProvider::get()
 			});
 
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(

@@ -130,8 +130,10 @@ pub mod pallet {
 		/// Origin able to set route without validation
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Event id provider for unified events
 		type BatchIdProvider: IncrementalIdProvider<IncrementalId>;
 
+		/// Operation id provider for unified events
 		type OperationIdProvider: ExecutionTypeStack<IncrementalIdType>;
 
 		/// Weight information for the extrinsics.
