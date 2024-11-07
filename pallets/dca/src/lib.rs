@@ -123,7 +123,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
-	use hydradx_traits::router::{ExecutionTypeStack};
+	use hydradx_traits::router::ExecutionTypeStack;
 	use hydradx_traits::{IncrementalIdProvider, NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
