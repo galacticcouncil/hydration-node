@@ -709,6 +709,7 @@ impl Config for Test {
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct MockedInsufficientAssetSupport;

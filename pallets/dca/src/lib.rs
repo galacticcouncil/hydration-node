@@ -78,12 +78,14 @@ use frame_system::{
 };
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{inverse_route, RouteProvider};
+use hydradx_traits::router::{inverse_route, ExecutionType, ExecutionTypeStack, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
+use hydradx_traits::{IncrementalIdProvider, NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
+use pallet_amm_support::IncrementalIdType;
+use primitives::IncrementalId;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
@@ -121,7 +123,8 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
-	use hydradx_traits::{NativePriceOracle, PriceOracle};
+	use hydradx_traits::router::{ExecutionTypeStack};
+	use hydradx_traits::{IncrementalIdProvider, NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
 
@@ -300,6 +303,9 @@ pub mod pallet {
 		/// Named reserve identifier to store named reserves for orders of each users
 		#[pallet::constant]
 		type NamedReserveId: Get<NamedReserveIdentifier>;
+
+		/// Support for depositing unified events
+		type AmmUnifiedEventSupport: IncrementalIdProvider<IncrementalId> + ExecutionTypeStack<IncrementalIdType>;
 
 		/// Convert a weight value into a deductible fee
 		type WeightToFee: WeightToFee<Balance = Balance>;
@@ -693,9 +699,11 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
+		T::AmmUnifiedEventSupport::push(ExecutionType::DCA(next_event_id))?;
 
-		match &schedule.order {
+		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		let trade_result = match &schedule.order {
 			Order::Sell {
 				asset_in,
 				asset_out,
@@ -778,7 +786,11 @@ impl<T: Config> Pallet<T> {
 					amount_out: *amount_out,
 				})
 			}
-		}
+		};
+
+		T::AmmUnifiedEventSupport::pop()?;
+
+		trade_result
 	}
 
 	fn replan_or_complete(

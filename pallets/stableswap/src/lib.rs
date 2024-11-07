@@ -103,11 +103,11 @@ pub mod pallet {
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
+	use hydradx_traits::router::{AssetType, Fee};
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 	use sp_runtime::ArithmeticError;
 	use sp_runtime::Permill;
 	use sp_std::num::NonZeroU16;
-	use hydradx_traits::router::{AssetType, Fee};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);

@@ -37,7 +37,7 @@ mod omnipool {
 	use super::*;
 	use frame_support::assert_ok;
 	use hydradx_runtime::{DCA, XYK};
-	use hydradx_traits::router::{PoolType, Trade};
+	use hydradx_traits::router::{ExecutionType, PoolType, Trade};
 	use hydradx_traits::AssetKind;
 	use sp_runtime::{FixedU128, TransactionOutcome};
 
@@ -198,6 +198,61 @@ mod omnipool {
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_in - fee);
+		});
+	}
+
+	#[test]
+	fn buy_schedule_execution_should_emit_swapped_events() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+
+			let dca_budget = 1000 * UNITS;
+			let amount_out = 100 * UNITS;
+			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, amount_out, dca_budget);
+			create_schedule(ALICE, schedule1);
+
+			//Act
+			run_to_block2(11, 12);
+
+			//Assert
+			let swapped_events = get_last_swapped_events();
+			pretty_assertions::assert_eq!(
+				*swapped_events.last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: ALICE.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(HDX), 140421094367051)],
+					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
+					fees: vec![
+						Fee::new(DAI, 250626566417, Omnipool::protocol_account()),
+						Fee::new(LRNA, 35105272718, Omnipool::protocol_account()),
+					],
+					operation_id: vec![ExecutionType::DCA(0), ExecutionType::Router(1)],
+				})
+			);
+
+			run_to_block2(13, 17);
+			let swapped_events = get_last_swapped_events();
+			pretty_assertions::assert_eq!(
+				*swapped_events.last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: ALICE.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(HDX), 140421107716515)],
+					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
+					fees: vec![
+						Fee::new(DAI, 250626566417, Omnipool::protocol_account()),
+						Fee::new(LRNA, 35105274224, Omnipool::protocol_account()),
+					],
+					operation_id: vec![ExecutionType::DCA(2), ExecutionType::Router(3)],
+				})
+			);
 		});
 	}
 
@@ -585,6 +640,69 @@ mod omnipool {
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
+		});
+	}
+
+	#[test]
+	fn sell_schedule_execution_should_emit_swapped_event() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let alice_init_hdx_balance = 5000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RuntimeOrigin::root(),
+				ALICE.into(),
+				alice_init_hdx_balance,
+			));
+
+			let dca_budget = 1100 * UNITS;
+			let amount_to_sell = 100 * UNITS;
+			let schedule1 =
+				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, DAI, amount_to_sell);
+			create_schedule(ALICE, schedule1);
+
+			//Act
+			run_to_block2(11, 12);
+
+			//Assert
+			let swapped_events = get_last_swapped_events();
+			pretty_assertions::assert_eq!(
+				*swapped_events.last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: ALICE.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
+					outputs: vec![(AssetType::Fungible(DAI), 71214372624126)],
+					fees: vec![
+						Fee::new(DAI, 178482136903, Omnipool::protocol_account()),
+						Fee::new(LRNA, 24999999579, Omnipool::protocol_account()),
+					],
+					operation_id: vec![ExecutionType::DCA(0), ExecutionType::Router(1)],
+				})
+			);
+
+			run_to_block2(13, 17);
+
+			let swapped_events = get_last_swapped_events();
+			pretty_assertions::assert_eq!(
+				*swapped_events.last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: ALICE.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
+					outputs: vec![(AssetType::Fungible(DAI), 71214367826179)],
+					fees: vec![
+						Fee::new(DAI, 178482124878, Omnipool::protocol_account()),
+						Fee::new(LRNA, 24999998680, Omnipool::protocol_account()),
+					],
+					operation_id: vec![ExecutionType::DCA(2), ExecutionType::Router(3)],
+				})
+			);
 		});
 	}
 
@@ -4036,6 +4154,13 @@ pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 	}
 }
 
+pub fn run_to_block2(from: BlockNumber, to: BlockNumber) {
+	for b in from..=to {
+		do_trade_to_populate_oracle(DAI, HDX, UNITS);
+		set_relaychain_block_number(b);
+	}
+}
+
 pub fn check_if_no_failed_events() {
 	let failed_events = count_failed_trade_events();
 	assert_eq!(0, failed_events);
@@ -4068,6 +4193,20 @@ pub fn get_last_schedule_ids_from_trade_executed_events() -> Vec<u32> {
 	}
 
 	schedule_ids
+}
+
+pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
+	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
+	let mut swapped_events = vec![];
+
+	for event in last_events {
+		let e = event.clone();
+		if let RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped { .. }) = e {
+			swapped_events.push(e);
+		}
+	}
+
+	swapped_events
 }
 
 pub fn count_failed_trade_events() -> u32 {

@@ -84,27 +84,27 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use crate::traits::ShouldAllow;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
+use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
-use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
-use sp_std::ops::{Add, Sub};
-use sp_std::prelude::*;
-use hydradx_traits::router::ExecutionTypeStack;
-use crate::traits::ShouldAllow;
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{AssetType, Fee, ExecutionType};
+use hydradx_traits::router::ExecutionTypeStack;
+use hydradx_traits::router::{AssetType, ExecutionType, Fee};
 use orml_traits::{GetByKey, MultiCurrency};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
 use scale_info::TypeInfo;
+use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
+use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_std::ops::{Add, Sub};
+use sp_std::prelude::*;
 
 #[cfg(test)]
 mod tests;
@@ -375,7 +375,7 @@ pub mod pallet {
 		HubAmountUpdated {
 			hub_amount_in: Balance,
 			hub_amount_out: Balance,
-			operation_id: Vec<ExecutionType<IncrementalIdType>>
+			operation_id: Vec<ExecutionType<IncrementalIdType>>,
 		},
 	}
 
@@ -1107,7 +1107,7 @@ pub mod pallet {
 			Self::deposit_event(Event::HubAmountUpdated {
 				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
 				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-				operation_id: T::OperationIdProvider::get()
+				operation_id: T::OperationIdProvider::get(),
 			});
 
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
@@ -1342,7 +1342,7 @@ pub mod pallet {
 			Self::deposit_event(crate::pallet::Event::HubAmountUpdated {
 				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
 				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-				operation_id: T::OperationIdProvider::get()
+				operation_id: T::OperationIdProvider::get(),
 			});
 
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
