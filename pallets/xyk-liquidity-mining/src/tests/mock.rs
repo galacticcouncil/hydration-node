@@ -356,14 +356,14 @@ impl liq_mining::Config for Test {
 
 pub const LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
 
-impl AMMAddLiquidity<OriginFor<Test>, AssetId, Balance> for DummyAMM {
+impl AMMAddLiquidity<AccountId, AssetId, Balance> for DummyAMM {
 	fn add_liquidity(
-		_origin: OriginFor<Test>,
+		_origin: AccountId,
 		asset_a: AssetId,
 		asset_b: AssetId,
 		_amount_a: Balance,
 		_amount_b_max_limit: Balance,
-	) -> DispatchResult {
+	) -> Result<Balance, DispatchError> {
 		let asset_pair = AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
@@ -375,7 +375,7 @@ impl AMMAddLiquidity<OriginFor<Test>, AssetId, Balance> for DummyAMM {
 			&LiquidityMining::account_id(),
 			LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT,
 		)?;
-		Ok(())
+		Ok(LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT)
 	}
 }
 
