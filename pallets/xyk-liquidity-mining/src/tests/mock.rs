@@ -368,13 +368,7 @@ impl AMMAddLiquidity<AccountId, AssetId, Balance> for DummyAMM {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		};
-		let share_token = DummyAMM::get_share_token(asset_pair);
 
-		Tokens::deposit(
-			share_token,
-			&LiquidityMining::account_id(),
-			LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT,
-		)?;
 		Ok(LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT)
 	}
 }
