@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
-#![cfg_attr(not(feature = "std"), no_std)]
-extern crate core;
+//#![cfg_attr(not(feature = "std"), no_std)]
+//extern crate core;
 
 use crate::{rational_to_f64, to_f64_by_decimals};
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Solver};
@@ -121,6 +121,9 @@ where
 			)
 		};
 
+		if amount_in ==0 || amount_out == 0 {
+			continue;
+		}
 		let resolved_intent = ResolvedIntent {
 			intent_id: intents[idx].0,
 			amount_in,
@@ -424,6 +427,8 @@ where
 		let status = solver.solution.status;
 		let solve_time = solver.solution.solve_time;
 		let x = solver.solution.x;
+		println!("status: {:?}", status);
+		println!("time: {:?}", solve_time);
 
 		let mut new_amm_deltas = BTreeMap::new();
 		let mut exec_intent_deltas = vec![0.; intents.len()];

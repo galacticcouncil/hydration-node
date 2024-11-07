@@ -105,6 +105,9 @@ toml = "0.5"
 trie-db = "0.28.0"
 trybuild = "1.0"
 
+#clarabel = { git = "https://github.com/enthusiastmartin/Clarabel.rs" ,  branch = "feat/sp-support", default-features = false }
+clarabel = { version = "0"}
+
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
@@ -148,7 +151,7 @@ pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false 
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false}
-ice-solver = { path = "pallets/ice/solver", default-features = false}
+ice-solver = { path = "pallets/ice/solver"}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

@@ -25,5 +25,4 @@ std = [
 	"pallet-ice/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"clarabel/std",
 ]

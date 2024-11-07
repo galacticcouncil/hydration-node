@@ -14,11 +14,12 @@ use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
 use pallet_ice::traits::OmnipoolInfo;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap, SwapType};
-use pallet_ice::Call::submit_intent;
+//use pallet_ice::Call::submit_intent;
 use pallet_omnipool::types::Tradability;
 use primitives::{AccountId, AssetId, Moment};
 use sp_core::crypto::AccountId32;
-use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::traits::{BlockNumberProvider, Dispatchable};
+use frame_support::dispatch::GetDispatchInfo;
 
 type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
@@ -179,11 +180,11 @@ fn execute_solution_should_work_with_multiple_intents() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let deadline: Moment = Timestamp::now() + 43_200_000;
 		let intents = generate_random_intents(
-			5,
+			129,
 			OmnipoolDataProvider::<hydradx_runtime::Runtime>::assets(None),
 			deadline,
 		);
-		dbg!(&intents);
+		//dbg!(&intents);
 		for intent in intents.iter() {
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -194,18 +195,21 @@ fn execute_solution_should_work_with_multiple_intents() {
 		}
 		let intents = submit_intents(intents);
 		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
-		dbg!(&resolved);
+		dbg!(&resolved.len());
 
 		let (trades, score) =
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
 
-		assert_ok!(ICE::submit_solution(
-			RuntimeOrigin::signed(BOB.into()),
-			resolved,
-			BoundedTrades::try_from(trades).unwrap(),
+		let c = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution{
+			intents: resolved,
+			trades: BoundedTrades::try_from(trades).unwrap(),
 			score,
-			System::current_block_number()
-		));
+			block: System::current_block_number()
+		});
+		let info = c.get_dispatch_info();
+		dbg!(info);
+
+		//assert_ok!(c.dispatch());
 	});
 }
 
@@ -299,7 +303,7 @@ fn execute_solution_should_work_when_transfer_are_below_existential_deposit() {
 		}
 		let intents = submit_intents(intents);
 		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
-		dbg!(&resolved);
+		//dbg!(&resolved);
 
 		let (trades, score) =
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
@@ -372,7 +376,7 @@ fn execute_solution_should_work_with_three_not_matched_intents() {
 		}
 		let intents = submit_intents(intents);
 		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
-		dbg!(&resolved);
+		//dbg!(&resolved);
 
 		let (trades, score) =
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();

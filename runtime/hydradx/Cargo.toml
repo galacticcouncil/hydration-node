@@ -59,7 +59,7 @@ pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-ice = { workspace = true }
-ice-solver = { workspace = true }
+#ice-solver = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -344,7 +344,7 @@ std = [
     "pallet-referenda/std",
     "pallet-whitelist/std",
     "pallet-ice/std",
-    "ice-solver/std",
+    #"ice-solver/std",
 ]
 try-runtime = [
     "frame-try-runtime",

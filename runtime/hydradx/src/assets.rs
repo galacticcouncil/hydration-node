@@ -583,8 +583,8 @@ impl pallet_ice::Config for Runtime {
 	type Weigher = IceWeigher<RouterWeightInfo>;
 	type PriceProvider = IcePriceProvider;
 	type RoutingSupport = IceRoutingSupport<Router, Router, IcePriceProvider, RuntimeOrigin>;
-	type Solver =
-		ice_solver::omni::OmniSolver<AccountId, AssetId, hydradx_adapters::ice::OmnipoolDataProvider<Runtime>>;
+	//type Solver =
+//		ice_solver::omni::OmniSolver<AccountId, AssetId, hydradx_adapters::ice::OmnipoolDataProvider<Runtime>>;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
 	type ProposalBond = IceProposalBond;
