@@ -549,7 +549,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 
 		//assert LM deposit
 		assert_nft_owner!(hydradx_runtime::XYKLmCollectionId::get(), 1, BOB.into());
-		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), existing_shares);//User only have the shares they had before
+		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), existing_shares); //User only have the shares they had before
 		assert_eq!(
 			Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id()),
 			50000000000000000000
