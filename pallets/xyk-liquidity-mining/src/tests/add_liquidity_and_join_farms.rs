@@ -65,7 +65,7 @@ fn add_liquidity_and_join_farms_should_work() {
 			// Check if LP tokens are locked
 			assert_eq!(
 				Tokens::total_balance(BSX_KSM_SHARE_ID, &LiquidityMining::account_id()),
-				share_amount + LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT
+				ADD_LIQUIDITY_XYK_SHARE_AMOUNT
 			);
 
 			// Check if NFT is minted
@@ -78,7 +78,7 @@ fn add_liquidity_and_join_farms_should_work() {
 					yield_farm_id: 4,
 					who: ALICE,
 					lp_token: BSX_KSM_SHARE_ID,
-					amount: share_amount,
+					amount: ADD_LIQUIDITY_XYK_SHARE_AMOUNT,
 					deposit_id: 1,
 				}
 				.into(),
@@ -87,7 +87,7 @@ fn add_liquidity_and_join_farms_should_work() {
 					yield_farm_id: 5,
 					who: ALICE,
 					lp_token: BSX_KSM_SHARE_ID,
-					amount: share_amount,
+					amount: ADD_LIQUIDITY_XYK_SHARE_AMOUNT,
 					deposit_id: 1,
 				}
 				.into(),
@@ -96,7 +96,7 @@ fn add_liquidity_and_join_farms_should_work() {
 					yield_farm_id: 6,
 					who: ALICE,
 					lp_token: BSX_KSM_SHARE_ID,
-					amount: share_amount,
+					amount: ADD_LIQUIDITY_XYK_SHARE_AMOUNT,
 					deposit_id: 1,
 				}
 				.into(),
