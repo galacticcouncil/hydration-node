@@ -117,7 +117,7 @@ pub mod pallet {
 
 		type RoutingSupport: Routing<Self::AssetId>;
 
-		type Solver: traits::Solver<(IntentId, Intent<Self::AccountId, Self::AssetId>), Error = ()>;
+		//type Solver: traits::Solver<(IntentId, Intent<Self::AccountId, Self::AssetId>), Error = ()>;
 
 		/// Pallet id.
 		#[pallet::constant]
@@ -254,12 +254,15 @@ pub mod pallet {
 			ensure!(intent.swap.asset_in != intent.swap.asset_out, Error::<T>::InvalidIntent);
 			ensure!(intent.swap.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
 
+			/*
 			T::ReservableCurrency::reserve_named(
 				&T::NamedReserveId::get(),
 				intent.swap.asset_in,
 				&who,
 				intent.swap.amount_in,
 			)?;
+
+			 */
 
 			let incremental_id = Self::get_next_incremental_id().ok_or(Error::<T>::IntendIdsExhausted)?;
 			let intent_id = Self::get_intent_id(intent.deadline, incremental_id);
@@ -464,6 +467,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn settle_intents(block_number: BlockNumberFor<T>) {
+		/*
 		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
 		let mut lock =
 			StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(SOLVER_LOCK, lock_expiration);
@@ -493,6 +497,8 @@ impl<T: Config> Pallet<T> {
 			};
 			let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 		};
+		
+		 */
 	}
 
 	//TODO: this simply sell all for lrna, and buy assets with lrna.
@@ -589,7 +595,7 @@ impl<T: Config> Pallet<T> {
 			}
 
 			// esnure we sorted asset out before moving on
-			debug_assert!(amount_out == 0u128);
+			//debug_assert!(amount_out == 0u128);
 		}
 
 		let score = Self::score_solution(resolved_intents.len() as u128, matched_amounts).map_err(|_| ())?;

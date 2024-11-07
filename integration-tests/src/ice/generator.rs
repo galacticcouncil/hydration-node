@@ -24,6 +24,9 @@ pub(crate) fn generate_random_intents(
 		loop {
 			let idx_in = rng.gen_range(0..data.len());
 			let idx_out = rng.gen_range(0..data.len());
+			if idx_in == idx_out {
+				continue;
+			}
 			let reserve_in = data[idx_in].reserve;
 			let reserve_out = data[idx_out].reserve;
 			let amount_in = rng.gen_range(1..reserve_in / 4);
