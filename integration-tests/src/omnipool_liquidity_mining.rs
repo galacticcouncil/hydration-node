@@ -441,6 +441,13 @@ fn add_liquidity_and_join_farms_should_work_for_multiple_farms() {
 			10_000 * UNITS as i128,
 		));
 
+		//Add some liquidiity to make sure that it does not interfere with the new liquidty add
+		assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			ETH,
+			100 * UNITS,
+		));
+
 		let position_id = hydradx_runtime::Omnipool::next_position_id();
 
 		set_relaychain_block_number(400);

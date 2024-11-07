@@ -474,6 +474,18 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			10_000_0000 * UNITS as i128,
 		));
 
+		//Add some liquidity unrelated to make sure some existing shares are not effected
+		assert_ok!(XYK::add_liquidity(
+			RuntimeOrigin::signed(BOB.into()),
+			asset_pair.asset_in,
+			asset_pair.asset_out,
+			100 * UNITS,
+			100000 * UNITS
+		));
+
+		let existing_shares = 1000 * UNITS;
+		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), existing_shares);
+
 		let farms = vec![
 			(global_farm_1_id, yield_farm_1_id),
 			(global_farm_2_id, yield_farm_2_id),
@@ -537,7 +549,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 
 		//assert LM deposit
 		assert_nft_owner!(hydradx_runtime::XYKLmCollectionId::get(), 1, BOB.into());
-		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), Balance::zero());
+		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), existing_shares); //User only have the shares they had before
 		assert_eq!(
 			Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id()),
 			50000000000000000000
