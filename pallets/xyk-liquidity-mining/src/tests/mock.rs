@@ -354,22 +354,17 @@ impl liq_mining::Config for Test {
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 }
 
-pub const LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
+pub const ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
 
 impl AMMAddLiquidity<AccountId, AssetId, Balance> for DummyAMM {
 	fn add_liquidity(
 		_origin: AccountId,
-		asset_a: AssetId,
-		asset_b: AssetId,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
 		_amount_a: Balance,
 		_amount_b_max_limit: Balance,
 	) -> Result<Balance, DispatchError> {
-		let asset_pair = AssetPair {
-			asset_in: asset_a,
-			asset_out: asset_b,
-		};
-
-		Ok(LOCKED_XYK_ADD_LIQUIDITY_XYK_SHARE_AMOUNT)
+		Ok(ADD_LIQUIDITY_XYK_SHARE_AMOUNT)
 	}
 }
 
