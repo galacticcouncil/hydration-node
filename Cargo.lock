@@ -4893,7 +4893,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "8.1.3"
+version = "8.2.0"
 dependencies = [
  "approx",
  "criterion",
@@ -5007,7 +5007,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.7"
+version = "1.3.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5058,7 +5058,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "267.0.0"
+version = "270.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5199,7 +5199,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.7.2"
+version = "3.8.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8146,7 +8146,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.6.2"
+version = "1.6.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8699,7 +8699,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.4.2"
+version = "4.4.3"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8922,7 +8922,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.3.4"
+version = "4.3.6"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8949,7 +8949,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.2.1"
+version = "2.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8972,6 +8972,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -9284,7 +9285,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "3.6.5"
+version = "4.0.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -9458,7 +9459,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.1.2"
+version = "10.1.3"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9674,7 +9675,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.5.3"
+version = "6.6.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9700,7 +9701,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.1.14"
+version = "1.3.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9720,6 +9721,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -12375,7 +12377,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.23.7"
+version = "1.25.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",

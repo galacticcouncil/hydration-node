@@ -54,6 +54,7 @@ pub trait WeightInfo {
 	fn add_liquidity() -> Weight;
 	fn add_liquidity_shares() -> Weight;
 	fn remove_liquidity_one_asset() -> Weight;
+	fn remove_liquidity() -> Weight;
 	fn withdraw_asset_amount() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
@@ -173,6 +174,16 @@ impl WeightInfo for () {
 	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:0 w:1)
 	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	fn remove_liquidity_one_asset() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `3571`
+		//  Estimated: `19071`
+		// Minimum execution time: 942_225_000 picoseconds.
+		Weight::from_parts(945_590_000, 19071)
+			.saturating_add(RocksDbWeight::get().reads(23_u64))
+			.saturating_add(RocksDbWeight::get().writes(7_u64))
+	}
+
+	fn remove_liquidity() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3571`
 		//  Estimated: `19071`

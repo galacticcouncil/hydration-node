@@ -723,6 +723,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type OracleSource = OmnipoolLMOracleSource;
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type WeightInfo = weights::pallet_omnipool_liquidity_mining::HydraWeight<Runtime>;
 }
 
@@ -770,6 +771,7 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type NonDustableWhitelistHandler = Duster;
 	type AMM = XYK;
 	type AssetRegistry = AssetRegistry;
+	type MaxFarmEntriesPerDeposit = XYKLmMaxEntriesPerDeposit;
 	type WeightInfo = weights::pallet_xyk_liquidity_mining::HydraWeight<Runtime>;
 }
 
@@ -1839,6 +1841,19 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 		let in_reserve = Currencies::free_balance(insuff_asset_id, &asset_pair_account.clone());
 
 		hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, asset_out_amount)
+			.map_err(|_err| ArithmeticError::Overflow.into())
+	}
+
+	fn calculate_out_given_in(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		asset_in_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		let asset_pair_account = XYK::get_pair_id(AssetPair::new(asset_in, asset_out));
+		let in_reserve = Currencies::free_balance(asset_in, &asset_pair_account.clone());
+		let out_reserve = Currencies::free_balance(asset_out, &asset_pair_account);
+
+		hydra_dx_math::xyk::calculate_out_given_in(in_reserve, out_reserve, asset_in_amount)
 			.map_err(|_err| ArithmeticError::Overflow.into())
 	}
 
