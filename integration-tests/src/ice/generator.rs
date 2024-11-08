@@ -48,7 +48,9 @@ pub(crate) fn generate_random_intents(
 
 	let mut intents = Vec::new();
 	for i in 0..c {
-		let who: [u8; 32] = [i as u8; 32];
+		let mut who: [u8; 32] = [0u8; 32];
+		let b = i.to_be_bytes();
+		who[..b.len()].copy_from_slice(&b);
 		let (asset_in, asset_out, amount_in, amount_out) = random_pair();
 		intents.push(Intent {
 			who: who.into(),

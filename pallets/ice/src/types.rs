@@ -7,9 +7,8 @@ use sp_runtime::BoundedVec;
 use sp_std::vec::Vec;
 
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
-pub const MAX_RESOLVED_INTENTS: u32 = 128;
-pub const MAX_PRICES: u32 = 128;
-pub const MAX_INSTRUCTIONS: u32 = 128;
+pub const MAX_RESOLVED_INTENTS: u32 = 20_000;
+pub const MAX_INSTRUCTIONS: u32 = 50_000;
 
 pub type NamedReserveIdentifier = [u8; 8];
 pub type Balance = u128;
