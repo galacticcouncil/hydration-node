@@ -46,8 +46,8 @@ members = [
     'precompiles/call-permit',
     'runtime-mock',
     'pallets/ice',
-    'pallets/ice/solver'
-]
+    'pallets/ice/solver',
+    "hydration-solver"]
 
 resolver = "2"
 
@@ -56,6 +56,9 @@ codec = { package = "parity-scale-codec", version = "3.6.1", default-features = 
 scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
 serde = { version = "1.0.197", default-features = false }
 primitive-types = { version = "0.12.0", default-features = false }
+
+#futures = { version = "0.3.31" }
+tracing = { version = "0.1.37", default-features = false }
 
 affix = "0.1.2"
 approx = "0.5.1"
@@ -152,6 +155,7 @@ pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false}
 ice-solver = { path = "pallets/ice/solver"}
+hydration-solver = { path = "hydration-solver"}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

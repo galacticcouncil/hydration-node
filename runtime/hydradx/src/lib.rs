@@ -673,6 +673,12 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_ice::api::ICEApi<Block, AccountId, AssetId> for Runtime{
+		fn intents(_header: &<Block as BlockT>::Header) -> Vec<(pallet_ice::types::IntentId, pallet_ice::types::Intent<AccountId, AssetId>)> {
+			pallet_ice::Pallet::<Runtime>::get_valid_intents()
+		}
+	}
+
 	// Frontier RPC support
 	impl fp_rpc::EthereumRuntimeRPCApi<Block> for Runtime {
 		fn chain_id() -> u64 {

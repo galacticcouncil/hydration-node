@@ -15,11 +15,11 @@ use orml_traits::MultiCurrency;
 use pallet_ice::traits::OmnipoolInfo;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades, Intent, IntentId, Swap, SwapType};
 //use pallet_ice::Call::submit_intent;
+use frame_support::dispatch::GetDispatchInfo;
 use pallet_omnipool::types::Tradability;
 use primitives::{AccountId, AssetId, Moment};
 use sp_core::crypto::AccountId32;
 use sp_runtime::traits::{BlockNumberProvider, Dispatchable};
-use frame_support::dispatch::GetDispatchInfo;
 
 type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
@@ -200,13 +200,11 @@ fn execute_solution_should_work_with_multiple_intents() {
 		let (trades, score) =
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
 
-		dbg!(trades.len());
-
-		let c = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution{
+		let c = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution {
 			intents: resolved,
 			trades: BoundedTrades::try_from(trades).unwrap(),
 			score,
-			block: System::current_block_number()
+			block: System::current_block_number(),
 		});
 		let info = c.get_dispatch_info();
 		dbg!(info);
@@ -491,5 +489,67 @@ fn execute_solution_should_work_with_three_matched_intents() {
 				initial_balance_out + resolved_intent.amount_out
 			);
 		}
+	});
+}
+
+#[test]
+fn haha() {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		/*
+		let deadline: Moment = Timestamp::now() + 43_200_000;
+		let intents = generate_random_intents(
+			129,
+			OmnipoolDataProvider::<hydradx_runtime::Runtime>::assets(None),
+			deadline,
+		);
+		//dbg!(&intents);
+		for intent in intents.iter() {
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				intent.who.clone().into(),
+				intent.swap.asset_in,
+				intent.swap.amount_in as i128,
+			));
+		}
+		let intents = submit_intents(intents);
+		let resolved = solve_intents_with::<OmniSolverWithOmnipool>(intents).unwrap();
+		dbg!(&resolved.len());
+
+		let (trades, score) =
+			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
+
+		let c = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution{
+			intents: resolved,
+			trades: BoundedTrades::try_from(trades).unwrap(),
+			score,
+			block: System::current_block_number()
+		});
+		let info = c.get_dispatch_info();
+		dbg!(info);
+
+		//assert_ok!(c.dispatch());S
+
+		 */
+		let c = hydradx_runtime::RuntimeCall::Router(pallet_route_executor::Call::<hydradx_runtime::Runtime>::sell {
+			asset_in: 0,
+			asset_out: 20,
+			amount_in: 100_000_000_000_000,
+			min_amount_out: 0,
+			route: vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: 0,
+				asset_out: 20,
+			}],
+		});
+		let info = c.get_dispatch_info();
+		dbg!(info);
+		let c = hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+			asset_in: 0,
+			asset_out: 20,
+			amount: 100_000_000_000_000,
+			min_buy_amount: 0,
+		});
+		let info = c.get_dispatch_info();
+		dbg!(info);
 	});
 }

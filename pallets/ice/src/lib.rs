@@ -2,6 +2,7 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod api;
 #[cfg(test)]
 mod tests;
 pub mod traits;
@@ -466,6 +467,17 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
+	pub fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId, T::AssetId>)> {
+		let mut intents: Vec<(IntentId, Intent<T::AccountId, T::AssetId>)> = Intents::<T>::iter().collect();
+		intents.sort_by_key(|(_, intent)| intent.deadline);
+
+		// Retain non-expired intents
+		let now = T::TimestampProvider::now();
+		intents.retain(|(_, intent)| intent.deadline > now);
+
+		intents
+	}
+
 	fn settle_intents(block_number: BlockNumberFor<T>) {
 		/*
 		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
@@ -497,7 +509,7 @@ impl<T: Config> Pallet<T> {
 			};
 			let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 		};
-		
+
 		 */
 	}
 
