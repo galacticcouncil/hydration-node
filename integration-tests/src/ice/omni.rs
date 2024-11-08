@@ -180,11 +180,11 @@ fn execute_solution_should_work_with_multiple_intents() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let deadline: Moment = Timestamp::now() + 43_200_000;
 		let intents = generate_random_intents(
-			129,
+			10_000,
 			OmnipoolDataProvider::<hydradx_runtime::Runtime>::assets(None),
 			deadline,
 		);
-		//dbg!(&intents);
+		dbg!(intents.len());
 		for intent in intents.iter() {
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -199,6 +199,8 @@ fn execute_solution_should_work_with_multiple_intents() {
 
 		let (trades, score) =
 			pallet_ice::Pallet::<hydradx_runtime::Runtime>::calculate_trades_and_score(&resolved.to_vec()).unwrap();
+
+		dbg!(trades.len());
 
 		let c = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::<hydradx_runtime::Runtime>::submit_solution{
 			intents: resolved,
