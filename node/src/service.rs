@@ -38,6 +38,7 @@ use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 
 use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use hydration_solver::HydrationSolver;
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
@@ -357,6 +358,12 @@ async fn start_node_impl(
 		ethereum_config.fee_history_limit,
 		sync_service.clone(),
 		pubsub_notification_sinks,
+	);
+
+	task_manager.spawn_essential_handle().spawn(
+		"ice-solver",
+		None,
+		HydrationSolver::<_, _, ParachainBackend>::run(client.clone()),
 	);
 
 	let announce_block = {

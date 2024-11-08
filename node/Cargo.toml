@@ -31,6 +31,7 @@ async-trait = { workspace = true }
 # local dependencies
 hydradx-runtime = { workspace = true, features = ["std"] }
 primitives = { workspace = true }
+hydration-solver = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }

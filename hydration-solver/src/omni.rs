@@ -1,14 +1,9 @@
 #![allow(non_snake_case)]
-//#![cfg_attr(not(feature = "std"), no_std)]
-//extern crate core;
 
 use crate::{rational_to_f64, to_f64_by_decimals};
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Solver};
 use pallet_ice::types::{Balance, Intent, IntentId, ResolvedIntent};
-use sp_std::collections::btree_map::BTreeMap;
-use sp_std::collections::btree_set::BTreeSet;
-use sp_std::vec;
-use sp_std::vec::Vec;
+use std::collections::{BTreeMap, BTreeSet};
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
@@ -21,7 +16,7 @@ fn calculate_scaling<AccountId, AssetId>(
 	omnipool_hub_reserves: &[f64],
 ) -> BTreeMap<AssetId, f64>
 where
-	AssetId: From<u32> + sp_std::hash::Hash + Copy + Clone + Eq + Ord,
+	AssetId: From<u32> + std::hash::Hash + Copy + Clone + Eq + Ord,
 {
 	let mut scaling = BTreeMap::new();
 	scaling.insert(1u32.into(), f64::INFINITY);
@@ -64,7 +59,7 @@ fn calculate_tau_phi<AccountId, AssetId>(
 	scaling: &BTreeMap<AssetId, f64>,
 ) -> (CscMatrix, CscMatrix)
 where
-	AssetId: From<u32> + sp_std::hash::Hash + Copy + Clone + Eq + Ord,
+	AssetId: From<u32> + std::hash::Hash + Copy + Clone + Eq + Ord,
 {
 	let n = asset_ids.len();
 	let m = intents.len();
@@ -97,7 +92,7 @@ fn prepare_resolved_intents<AccountId, AssetId>(
 	tolerance: f64,
 ) -> Vec<ResolvedIntent>
 where
-	AssetId: sp_std::hash::Hash + Copy + Clone + Eq + Ord,
+	AssetId: std::hash::Hash + Copy + Clone + Eq + Ord,
 {
 	let mut resolved_intents = Vec::new();
 
@@ -179,7 +174,7 @@ fn prepare_omnipool_data<AssetId>(
 	BTreeMap<AssetId, u8>,
 )
 where
-	AssetId: sp_std::hash::Hash + Copy + Clone + Eq + Ord,
+	AssetId: std::hash::Hash + Copy + Clone + Eq + Ord,
 {
 	let asset_ids = info.iter().map(|i| i.asset_id).collect::<Vec<_>>();
 	let asset_reserves = info.iter().map(|i| i.reserve_as_f64()).collect::<Vec<_>>();
@@ -197,7 +192,7 @@ fn prepare_intent_data<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
 ) -> (Vec<AssetId>, Vec<f64>)
 where
-	AssetId: sp_std::hash::Hash + From<u32> + Copy + Clone + Eq + Ord,
+	AssetId: std::hash::Hash + From<u32> + Copy + Clone + Eq + Ord,
 {
 	let mut asset_ids = BTreeSet::new();
 	let mut intent_prices = Vec::new();
@@ -219,11 +214,11 @@ where
 	(asset_ids.iter().cloned().collect(), intent_prices)
 }
 
-pub struct OmniSolver<AccountId, AssetId, OI>(sp_std::marker::PhantomData<(AccountId, AssetId, OI)>);
+pub struct OmniSolver<AccountId, AssetId, OI>(std::marker::PhantomData<(AccountId, AssetId, OI)>);
 
 impl<AccountId, AssetId, OI> Solver<(IntentId, Intent<AccountId, AssetId>)> for OmniSolver<AccountId, AssetId, OI>
 where
-	AssetId: From<u32> + sp_std::hash::Hash + PartialEq + Eq + Ord + Clone + Copy + core::fmt::Debug,
+	AssetId: From<u32> + std::hash::Hash + PartialEq + Eq + Ord + Clone + Copy + core::fmt::Debug,
 	OI: OmnipoolInfo<AssetId>,
 {
 	type Metadata = ();

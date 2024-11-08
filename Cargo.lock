@@ -4949,6 +4949,7 @@ dependencies = [
  "hex-literal",
  "hydra-dx-build-script-utils",
  "hydradx-runtime",
+ "hydration-solver",
  "jsonrpsee",
  "log",
  "pallet-transaction-payment-rpc",
@@ -5209,6 +5210,21 @@ dependencies = [
  "serde",
  "sp-arithmetic",
  "sp-std",
+]
+
+[[package]]
+name = "hydration-solver"
+version = "0.1.0"
+dependencies = [
+ "clarabel",
+ "futures",
+ "pallet-ice",
+ "primitives",
+ "sc-client-api",
+ "sp-api",
+ "sp-core",
+ "sp-runtime",
+ "tracing",
 ]
 
 [[package]]
@@ -8748,6 +8764,7 @@ dependencies = [
  "parity-scale-codec",
  "pretty_assertions",
  "scale-info",
+ "sp-api",
  "sp-core",
  "sp-io",
  "sp-runtime",
