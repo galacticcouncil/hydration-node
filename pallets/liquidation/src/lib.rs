@@ -42,7 +42,6 @@ use sp_arithmetic::{
 	ArithmeticError,
 };
 use sp_runtime::{
-	SaturatedConversion,
 	traits::{AccountIdConversion, CheckedConversion},
 };
 use ethabi::ethereum_types::BigEndianHash;
@@ -194,6 +193,7 @@ pub mod pallet {
 			let pallet_acc = Self::account_id();
 
 			let debt_asset_initial_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
+			let collateral_asset_initial_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
 
 			// mint borrow asset
 			<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
@@ -213,14 +213,16 @@ pub mod pallet {
 			);
 			//
 			let value = U256::zero(); // TODO
-			let gas = 200_000; // TODO
-			let (exit_reason, _value) = T::Evm::call(context, data, value, gas);
+			let gas = 500_000;
+			let (exit_reason, value) = T::Evm::call(context, data, value, gas);
 			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+				log::debug!(target: "liquidation",
+					"Evm execution failed. Reason: {:?}", value);
 				return Err(Error::<T>::EvmExecutionFailed.into());
 			}
 
 			// swap collateral asset for borrow asset
-			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
+			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc).checked_sub(collateral_asset_initial_balance).ok_or(ArithmeticError::Overflow)?;
 			T::Router::sell(
 				RawOrigin::Signed(pallet_acc.clone()).into(),
 				collateral_asset,
@@ -262,16 +264,16 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn account_id() -> T::AccountId {
+	pub fn account_id() -> T::AccountId {
 		PALLET_ID.into_account_truncating()
 	}
 
-	fn encode_liquidation_call_data(collateral_asset: EvmAddress, debt_asset: EvmAddress, user: EvmAddress, debt_to_cover: Balance, receive_atoken: bool) -> Vec<u8> {
+	pub fn encode_liquidation_call_data(collateral_asset: EvmAddress, debt_asset: EvmAddress, user: EvmAddress, debt_to_cover: Balance, receive_atoken: bool) -> Vec<u8> {
 		let mut data = Into::<u32>::into(Function::LiquidationCall).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(collateral_asset).as_bytes());
 		data.extend_from_slice(H256::from(debt_asset).as_bytes());
 		data.extend_from_slice(H256::from(user).as_bytes());
-		data.extend_from_slice(H256::from_uint(&U256::from(debt_to_cover.saturated_into::<u128>())).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(debt_to_cover)).as_bytes());
 		let mut buffer = [0u8; 32];
 		if receive_atoken {
 			buffer[31] = 1;
@@ -287,28 +289,19 @@ impl<T: Config> Pallet<T> {
 		}
 		let data = data.clone();
 
-		let function_u32: u32 = u32::from_be_bytes(data[0..4].try_into().unwrap());
-		let function: Function = Function::try_from(function_u32).unwrap();
-		if function != Function::LiquidationCall {
-			return None;
+		let function_u32: u32 = u32::from_be_bytes(data[0..4].try_into().ok()?);
+		let function = Function::try_from(function_u32).ok()?;
+		if function == Function::LiquidationCall {
+			let collateral_asset = EvmAddress::from(H256::from_slice(&data[4..36]));
+			let debt_asset = EvmAddress::from(H256::from_slice(&data[36..68]));
+			let user = EvmAddress::from(H256::from_slice(&data[68..100]));
+			let debt_to_cover = Balance::try_from(U256::checked_from(&data[100..132])?).ok()?;
+			let receive_atoken = !H256::from_slice(&data[132..164]).is_zero();
+
+			Some((collateral_asset, debt_asset, user, debt_to_cover, receive_atoken))
+		} else {
+			None
 		}
-
-		let collateral_asset_h256 = H256::from_slice(&data[4..36]);
-		let collateral_asset = EvmAddress::from(collateral_asset_h256);
-
-		let debt_asset_h256 = H256::from_slice(&data[36..68]);
-		let debt_asset = EvmAddress::from(debt_asset_h256);
-
-		let user_h256 = H256::from_slice(&data[68..100]);
-		let user = EvmAddress::from(user_h256);
-
-		let debt_to_cover_u256 = U256::checked_from(&data[100..132])?;
-		let debt_to_cover = Balance::try_from(debt_to_cover_u256).ok()?;
-
-		let receive_atoken_h256 = H256::from_slice(&data[132..164]);
-		let receive_atoken = !receive_atoken_h256.is_zero();
-
-		Some((collateral_asset, debt_asset, user, debt_to_cover, receive_atoken))
 	}
 }
 

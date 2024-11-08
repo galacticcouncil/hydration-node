@@ -1583,7 +1583,7 @@ impl pallet_referrals::Config for Runtime {
 
 
 parameter_types! {
-	pub const MoneyMarketContract: evm::EvmAddress = evm::EvmAddress::zero(); // TODO:
+	pub MoneyMarketContract: evm::EvmAddress = evm::EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice()); // TODO:
 }
 
 impl pallet_liquidation::Config for Runtime {
