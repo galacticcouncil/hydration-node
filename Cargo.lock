@@ -5217,8 +5217,13 @@ name = "hydration-solver"
 version = "0.1.0"
 dependencies = [
  "clarabel",
+ "frame-system",
  "futures",
+ "hydradx-adapters",
+ "pallet-asset-registry",
+ "pallet-dynamic-fees",
  "pallet-ice",
+ "pallet-omnipool",
  "primitives",
  "rand 0.8.5",
  "sc-client-api",

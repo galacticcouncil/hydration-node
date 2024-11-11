@@ -363,7 +363,7 @@ async fn start_node_impl(
 	task_manager.spawn_essential_handle().spawn(
 		"ice-solver",
 		None,
-		HydrationSolver::<_, _, ParachainBackend>::run(client.clone()),
+		HydrationSolver::<hydradx_runtime::Runtime, _, _, ParachainBackend>::run(client.clone()),
 	);
 
 	let announce_block = {
