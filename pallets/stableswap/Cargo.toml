@@ -48,6 +48,7 @@ sp-tracing = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
 proptest = { workspace = true }
 test-utils = { workspace = true }
+pretty_assertions = "1.4.0"
 
 [features]
 default = ['std']

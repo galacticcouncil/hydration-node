@@ -76,6 +76,7 @@ use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
+use hydradx_traits::router::{AssetType, Fee};
 pub use weights::WeightInfo;
 
 #[cfg(test)]
@@ -617,11 +618,26 @@ pub mod pallet {
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
-				who,
+				who: who.clone(),
 				shares: share_amount,
 				amounts: vec![AssetAmount { asset_id, amount }],
 				fee,
 			});
+
+			//TODO: ask Martin to double check it
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who,
+				pool_account.clone(),
+				pallet_amm_support::Filler::Stableswap(pool_id.into()),
+				pallet_amm_support::TradeOperation::ExactIn,
+				vec![(AssetType::Fungible(pool_id.into()), share_amount)],
+				vec![(AssetType::Fungible(asset_id.into()), amount)],
+				vec![Fee {
+					asset: pool_id.into(),
+					amount: fee,
+					recipient: pool_account,
+				}],
+			);
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
@@ -699,11 +715,21 @@ pub mod pallet {
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				pool_id,
-				who,
+				who: who.clone(),
 				shares,
 				amounts: vec![AssetAmount { asset_id, amount }],
 				fee: 0u128, // dev note: figure out the actual fee amount in this case. For now, we dont need it.
 			});
+
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who,
+				pool_account.clone(),
+				pallet_amm_support::Filler::Stableswap(pool_id.into()),
+				pallet_amm_support::TradeOperation::ExactOut,
+				vec![(AssetType::Fungible(pool_id.into()), shares)],
+				vec![(AssetType::Fungible(asset_id.into()), amount)],
+				vec![],
+			);
 
 			Ok(())
 		}
@@ -1225,6 +1251,18 @@ impl<T: Config> Pallet<T> {
 		#[cfg(feature = "try-runtime")]
 		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
 
+		let inputs = assets.iter().map(|asset| (AssetType::Fungible(asset.asset_id.into()), asset.amount)).collect();
+
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			pool_account.clone(),
+			pallet_amm_support::Filler::Stableswap(pool_id.into()),
+			pallet_amm_support::TradeOperation::ExactIn,
+			inputs,
+			vec![(AssetType::Fungible(pool_id.into()), share_amount)],
+			vec![],//TODO: ask Martin what will be the fee?
+		);
+
 		Ok(share_amount)
 	}
 
@@ -1254,7 +1292,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(!reserve.amount.is_zero(), Error::<T>::InvalidInitialLiquidity);
 		}
 
-		let (amount_in, _) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+		let (amount_in, fee) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			shares,
 			asset_idx,
@@ -1279,6 +1317,21 @@ impl<T: Config> Pallet<T> {
 
 		//All done and update. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
+
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			pool_account.clone(),
+			pallet_amm_support::Filler::Stableswap(pool_id.into()),
+			pallet_amm_support::TradeOperation::ExactOut,
+			vec![(AssetType::Fungible(asset_id.into()), amount_in)],
+			vec![(AssetType::Fungible(pool_id.into()), shares)],
+			vec![Fee {
+				asset: pool_id.into(),
+				amount: fee,
+				recipient: pool_account,
+			}],
+		);
+
 
 		Ok(amount_in)
 	}

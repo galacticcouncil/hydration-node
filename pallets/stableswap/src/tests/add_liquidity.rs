@@ -4,6 +4,7 @@ use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
+use hydradx_traits::router::{AssetType, Fee};
 
 #[test]
 fn add_initial_liquidity_should_work_when_called_first_time() {
@@ -50,6 +51,23 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			assert_balance!(BOB, pool_id, 200 * ONE * 1_000_000);
 			assert_balance!(pool_account, asset_a, 100 * ONE);
 			assert_balance!(pool_account, asset_b, 100 * ONE);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![
+						(AssetType::Fungible(asset_a), 100 * ONE),
+						(AssetType::Fungible(asset_b),  100 * ONE),
+					],
+					outputs: vec![(AssetType::Fungible(pool_id), 200000000 * ONE)],
+					fees: vec![],
+					operation_id: vec![],
+				})
+			)
 		});
 }
 
@@ -634,6 +652,23 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 
 			let used = Tokens::free_balance(asset_a, &BOB);
 			assert_eq!(used, 0);
+
+			let pool_account = pool_account(pool_id);
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![
+						(AssetType::Fungible(asset_a), 2000000000000000003),
+					],
+					outputs: vec![(AssetType::Fungible(pool_id), 1947597621401945851)],
+					fees: vec![Fee::new(pool_id, 0, pool_account)],
+					operation_id: vec![],
+				})
+			)
 		});
 }
 

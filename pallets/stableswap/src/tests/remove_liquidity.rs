@@ -5,6 +5,7 @@ use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
+use hydradx_traits::router::{AssetType, Fee};
 
 #[test]
 fn remove_liquidity_should_work_when_withdrawing_all_shares() {
@@ -71,6 +72,22 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 			assert_balance!(BOB, pool_id, 0u128);
 			assert_balance!(pool_account, asset_a, 100 * ONE + amount_added);
 			assert_balance!(pool_account, asset_c, 300 * ONE - amount_received);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![
+						(AssetType::Fungible(pool_id), 200516043533380244763),
+					],
+					outputs: vec![(AssetType::Fungible(asset_c),  199999999999999)],
+					fees: vec![Fee::new(pool_id, 0, pool_account)],
+					operation_id: vec![],
+				})
+			);
 		});
 }
 
@@ -848,10 +865,28 @@ fn removing_liquidity_with_exact_amount_should_work() {
 			));
 
 			// ASSERT
+
 			let received = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(received, 0);
 			let balance = Tokens::free_balance(asset_a, &BOB);
 			assert_eq!(balance, 1_999_999_999_999_999_999);
+
+			let pool_account = pool_account(pool_id);
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_amm_support::Filler::Stableswap(4),
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(pool_id), 1947597621401945851)],
+					outputs: vec![
+						(AssetType::Fungible(asset_a), 1999999999999999999),
+					],
+					fees: vec![],
+					operation_id: vec![],
+				})
+			);
 		});
 }
 

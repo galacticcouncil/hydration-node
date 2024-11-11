@@ -452,3 +452,27 @@ pub(crate) fn last_trade_hook_state() -> Option<(AssetId, AssetId, AssetId, Pool
 pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
+
+pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
+	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
+	let mut swapped_events = vec![];
+
+	for event in last_events {
+		let e = event.clone();
+		if let RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped { .. }) = e {
+			swapped_events.push(e);
+		}
+	}
+
+	swapped_events
+}
+
+pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
+	frame_system::Pallet::<Test>::events()
+		.into_iter()
+		.rev()
+		.take(n)
+		.rev()
+		.map(|e| e.event)
+		.collect()
+}

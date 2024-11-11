@@ -9139,6 +9139,7 @@ dependencies = [
  "orml-traits",
  "pallet-amm-support",
  "parity-scale-codec",
+ "pretty_assertions",
  "proptest",
  "scale-info",
  "serde",
