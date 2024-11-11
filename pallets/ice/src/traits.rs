@@ -48,7 +48,7 @@ impl<Intent> Solver<Intent> for NoopSolver {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Deserialize)]
 pub struct OmnipoolAssetInfo<AssetId> {
 	pub asset_id: AssetId,
 	pub reserve: Balance,

@@ -445,12 +445,10 @@ where
 		);
 
 		/*
-
 		let sell_deltas = round_solution(&converted_intent_amounts, exec_intent_deltas, 0.0001);
 
 		let intent_deltas = add_buy_deltas(&intent_prices, sell_deltas);
 
-		// Construct the solution
 		let mut resolved_intents = Vec::new();
 
 		let convert_to_balance = |a: f64, dec: u8| -> Balance {
@@ -474,7 +472,6 @@ where
 				resolved_intents.push(resolved_intent);
 			}
 		}
-
 		 */
 
 		Ok((resolved_intents, ()))

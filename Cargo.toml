@@ -46,7 +46,6 @@ members = [
     'precompiles/call-permit',
     'runtime-mock',
     'pallets/ice',
-    'pallets/ice/solver',
     "hydration-solver"]
 
 resolver = "2"
@@ -154,7 +153,6 @@ pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false 
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false}
-ice-solver = { path = "pallets/ice/solver"}
 hydration-solver = { path = "hydration-solver"}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }

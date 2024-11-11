@@ -25,7 +25,7 @@ type PriceP =
 	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
 
 type OmniSolverWithOmnipool =
-	ice_solver::omni::OmniSolver<AccountId, AssetId, OmnipoolDataProvider<hydradx_runtime::Runtime>>;
+	hydration_solver::omni::OmniSolver<AccountId, AssetId, OmnipoolDataProvider<hydradx_runtime::Runtime>>;
 
 #[test]
 fn solver_should_find_solution_with_one_intent() {
