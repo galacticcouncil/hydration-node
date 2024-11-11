@@ -1891,7 +1891,7 @@ impl<T: Config> Pallet<T> {
 		});
 
 		//No need to deposit `HubAmountUpdated` event as hub amounts are zero
-
+		//No protocol fee in case of selling hub asset
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
@@ -2021,7 +2021,7 @@ impl<T: Config> Pallet<T> {
 		});
 
 		//No need to deposit `HubAmountUpdated` event as hub amounts are zero
-
+		//No protocol fee in case of buying asset for hub asset
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
