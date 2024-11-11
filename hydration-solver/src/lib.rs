@@ -6,25 +6,32 @@ mod tests;
 use futures::future::ready;
 use futures::StreamExt;
 use pallet_ice::api::ICEApi;
+use pallet_ice::traits::Solver;
+use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades};
 use primitives::{AccountId, AssetId};
 use sc_client_api::{Backend, BlockchainEvents};
 use sp_api::ProvideRuntimeApi;
 use sp_core::offchain::storage::OffchainDb;
+use sp_runtime::Permill;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 const LOG_TARGET: &str = "ice-solver";
 
-pub struct HydrationSolver<RA, B, BE>(PhantomData<(RA, B, BE)>);
+pub struct HydrationSolver<T, RA, B, BE>(PhantomData<(T, RA, B, BE)>);
 
-impl<RA, Block, BE> HydrationSolver<RA, Block, BE>
+impl<T, RA, Block, BE> HydrationSolver<T, RA, Block, BE>
 where
 	Block: sp_runtime::traits::Block,
 	RA: ProvideRuntimeApi<Block>,
 	RA::Api: pallet_ice::api::ICEApi<Block, AccountId, AssetId>,
 	BE: Backend<Block> + 'static,
 	RA: BlockchainEvents<Block> + 'static,
+	T: pallet_ice::Config
+		+ pallet_omnipool::Config<AssetId = AssetId>
+		+ pallet_asset_registry::Config<AssetId = AssetId>
+		+ pallet_dynamic_fees::Config<Fee = Permill, AssetId = AssetId>,
 {
 	//pub async fn run<BE: BlockchainEvents<Block>>(client: Arc<BE>) {
 	pub async fn run(client: Arc<RA>) {
@@ -36,10 +43,34 @@ where
 
 		while let Some(notification) = notification_st.next().await {
 			tracing::debug!(target: LOG_TARGET, "notification: {:?}", notification);
+			let block_number: primitives::BlockNumber = 1; //TODO: get block number somehow
 			if notification.is_new_best {
 				tracing::debug!(target: LOG_TARGET, "is best");
 				let runtime = client.runtime_api();
-				let intents = runtime.intents(notification.hash, &notification.header);
+				let intents = runtime.intents(notification.hash, &notification.header).unwrap();
+
+				// Compute solution using solver
+				let Ok((resolved_intents, metadata)) =
+					omni::OmniSolver::<AccountId, AssetId, hydradx_adapters::ice::OmnipoolDataProvider<T>>::solve(
+						intents,
+					)
+				else {
+					//TODO: log error
+					return;
+				};
+
+				let (trades, score) = pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
+
+				let call = pallet_ice::Call::propose_solution {
+					intents: BoundedResolvedIntents::truncate_from(resolved_intents),
+					trades: BoundedTrades::truncate_from(trades),
+					score,
+					block: block_number.saturating_add(1u32.into()).into(),
+				};
+				let _ =
+					frame_system::offchain::SubmitTransaction::<T, pallet_ice::Call<T>>::submit_unsigned_transaction(
+						call.into(),
+					);
 			}
 		}
 	}
