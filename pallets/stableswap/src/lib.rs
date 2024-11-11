@@ -476,6 +476,7 @@ pub mod pallet {
 		/// - `assets`: asset id and liquidity amount provided
 		///
 		/// Emits `LiquidityAdded` event when successful.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
@@ -513,6 +514,7 @@ pub mod pallet {
 		/// - `max_asset_amount`: slippage limit. Max amount of asset.
 		///
 		/// Emits `LiquidityAdded` event when successful.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_shares()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
@@ -552,6 +554,7 @@ pub mod pallet {
 		/// - 'min_amount_out': minimum amount to receive
 		///
 		/// Emits `LiquidityRemoved` event when successful.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
@@ -657,6 +660,7 @@ pub mod pallet {
 		/// - 'max_share_amount': Slippage limit. Max amount of shares to burn.
 		///
 		/// Emits `LiquidityRemoved` event when successful.
+		/// Emits `pallet_amm_support::Swapped` event when successful.
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_asset_amount()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
