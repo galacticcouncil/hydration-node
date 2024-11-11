@@ -2,9 +2,9 @@ use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::router::{AssetType, Fee};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
-use hydradx_traits::router::{AssetType, Fee};
 
 #[test]
 fn add_initial_liquidity_should_work_when_called_first_time() {
@@ -61,7 +61,7 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![
 						(AssetType::Fungible(asset_a), 100 * ONE),
-						(AssetType::Fungible(asset_b),  100 * ONE),
+						(AssetType::Fungible(asset_b), 100 * ONE),
 					],
 					outputs: vec![(AssetType::Fungible(pool_id), 200000000 * ONE)],
 					fees: vec![],
@@ -661,9 +661,7 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 					filler: pool_account,
 					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
 					operation: pallet_amm_support::TradeOperation::ExactOut,
-					inputs: vec![
-						(AssetType::Fungible(asset_a), 2000000000000000003),
-					],
+					inputs: vec![(AssetType::Fungible(asset_a), 2000000000000000003),],
 					outputs: vec![(AssetType::Fungible(pool_id), 1947597621401945851)],
 					fees: vec![Fee::new(pool_id, 0, pool_account)],
 					operation_id: vec![],

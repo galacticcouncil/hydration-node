@@ -74,9 +74,9 @@ pub mod weights;
 use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::router::{AssetType, Fee};
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
-use hydradx_traits::router::{AssetType, Fee};
 pub use weights::WeightInfo;
 
 #[cfg(test)]
@@ -1251,7 +1251,10 @@ impl<T: Config> Pallet<T> {
 		#[cfg(feature = "try-runtime")]
 		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
 
-		let inputs = assets.iter().map(|asset| (AssetType::Fungible(asset.asset_id.into()), asset.amount)).collect();
+		let inputs = assets
+			.iter()
+			.map(|asset| (AssetType::Fungible(asset.asset_id.into()), asset.amount))
+			.collect();
 
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
@@ -1260,7 +1263,7 @@ impl<T: Config> Pallet<T> {
 			pallet_amm_support::TradeOperation::ExactIn,
 			inputs,
 			vec![(AssetType::Fungible(pool_id.into()), share_amount)],
-			vec![],//TODO: ask Martin what will be the fee?
+			vec![], //TODO: ask Martin what will be the fee?
 		);
 
 		Ok(share_amount)
@@ -1331,7 +1334,6 @@ impl<T: Config> Pallet<T> {
 				recipient: pool_account,
 			}],
 		);
-
 
 		Ok(amount_in)
 	}

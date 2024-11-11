@@ -3,9 +3,9 @@ use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, Error, Event, Pools};
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
+use hydradx_traits::router::{AssetType, Fee};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
-use hydradx_traits::router::{AssetType, Fee};
 
 #[test]
 fn remove_liquidity_should_work_when_withdrawing_all_shares() {
@@ -80,10 +80,8 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 					filler: pool_account,
 					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
 					operation: pallet_amm_support::TradeOperation::ExactIn,
-					inputs: vec![
-						(AssetType::Fungible(pool_id), 200516043533380244763),
-					],
-					outputs: vec![(AssetType::Fungible(asset_c),  199999999999999)],
+					inputs: vec![(AssetType::Fungible(pool_id), 200516043533380244763),],
+					outputs: vec![(AssetType::Fungible(asset_c), 199999999999999)],
 					fees: vec![Fee::new(pool_id, 0, pool_account)],
 					operation_id: vec![],
 				})
@@ -880,9 +878,7 @@ fn removing_liquidity_with_exact_amount_should_work() {
 					filler_type: pallet_amm_support::Filler::Stableswap(4),
 					operation: pallet_amm_support::TradeOperation::ExactOut,
 					inputs: vec![(AssetType::Fungible(pool_id), 1947597621401945851)],
-					outputs: vec![
-						(AssetType::Fungible(asset_a), 1999999999999999999),
-					],
+					outputs: vec![(AssetType::Fungible(asset_a), 1999999999999999999),],
 					fees: vec![],
 					operation_id: vec![],
 				})
