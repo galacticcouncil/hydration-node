@@ -378,8 +378,7 @@ impl pallet_route_executor::Config for Test {
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
-	type BatchIdProvider = AmmSupport;
-	type OperationIdProvider = AmmSupport;
+	type AmmUnifiedEventSupport = AmmSupport;
 	type WeightInfo = ();
 }
 

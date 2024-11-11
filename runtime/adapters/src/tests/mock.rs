@@ -348,9 +348,8 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
-	type BatchIdProvider = AmmSupport;
+	type AmmUnifiedEventSupport = AmmSupport;
 	type WeightInfo = ();
-	type OperationIdProvider = AmmSupport;
 }
 
 pub struct MockedEdCalculator;
