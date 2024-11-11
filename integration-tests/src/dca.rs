@@ -214,7 +214,7 @@ mod omnipool {
 			create_schedule(ALICE, schedule1);
 
 			//Act
-			run_to_block2(11, 12);
+			run_to_block(11, 12);
 
 			//Assert
 			let swapped_events = get_last_swapped_events();
@@ -235,7 +235,7 @@ mod omnipool {
 				})
 			);
 
-			run_to_block2(13, 17);
+			run_to_block(13, 17);
 			let swapped_events = get_last_swapped_events();
 			pretty_assertions::assert_eq!(
 				*swapped_events.last().unwrap(),
@@ -663,7 +663,7 @@ mod omnipool {
 			create_schedule(ALICE, schedule1);
 
 			//Act
-			run_to_block2(11, 12);
+			run_to_block(11, 12);
 
 			//Assert
 			let swapped_events = get_last_swapped_events();
@@ -684,7 +684,7 @@ mod omnipool {
 				})
 			);
 
-			run_to_block2(13, 17);
+			run_to_block(13, 17);
 
 			let swapped_events = get_last_swapped_events();
 			pretty_assertions::assert_eq!(
@@ -4150,16 +4150,9 @@ pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 	for b in from..=to {
 		do_trade_to_populate_oracle(DAI, HDX, UNITS);
 		set_relaychain_block_number(b);
-		do_trade_to_populate_oracle(DAI, HDX, UNITS);
 	}
 }
 
-pub fn run_to_block2(from: BlockNumber, to: BlockNumber) {
-	for b in from..=to {
-		do_trade_to_populate_oracle(DAI, HDX, UNITS);
-		set_relaychain_block_number(b);
-	}
-}
 
 pub fn check_if_no_failed_events() {
 	let failed_events = count_failed_trade_events();
