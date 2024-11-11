@@ -16,5 +16,14 @@ pallet-ice = {workspace = true, default-features = false}
 primitives = {workspace = true}
 clarabel = {workspace = true}
 
+[dev-dependencies]
+rand = { version = "0.8.5", default-features = false }
+serde_json = {workspace = true}
 
-
+[features]
+default = ["sp-runtime/std",
+    "sp-core/std",
+    "sp-api/std",
+    "pallet-ice/std",
+    "primitives/std",
+]

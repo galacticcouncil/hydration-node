@@ -5220,7 +5220,9 @@ dependencies = [
  "futures",
  "pallet-ice",
  "primitives",
+ "rand 0.8.5",
  "sc-client-api",
+ "serde_json",
  "sp-api",
  "sp-core",
  "sp-runtime",
@@ -5288,19 +5290,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "ice-solver"
-version = "0.1.0"
-dependencies = [
- "clarabel",
- "hydradx-traits",
- "pallet-ice",
- "rand 0.8.5",
- "serde_json",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -8764,6 +8753,7 @@ dependencies = [
  "parity-scale-codec",
  "pretty_assertions",
  "scale-info",
+ "serde",
  "sp-api",
  "sp-core",
  "sp-io",
@@ -12557,7 +12547,7 @@ dependencies = [
  "hydradx-adapters",
  "hydradx-runtime",
  "hydradx-traits",
- "ice-solver",
+ "hydration-solver",
  "libsecp256k1",
  "module-evm-utility-macro",
  "num_enum",
