@@ -18,6 +18,7 @@ mod exchange_asset;
 mod fee_calculation;
 mod global_account_derivation;
 mod insufficient_assets_ed;
+mod liquidation;
 mod multi_payment;
 mod non_native_fee;
 mod omnipool_init;
@@ -33,7 +34,6 @@ pub mod utils;
 mod vesting;
 mod xyk;
 mod xyk_liquidity_mining;
-mod liquidation;
 
 #[macro_export]
 macro_rules! assert_balance {

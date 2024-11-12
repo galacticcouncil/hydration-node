@@ -61,7 +61,6 @@ where
 	T: pallet_asset_registry::Config,
 	AssetId: From<<T as pallet_asset_registry::Config>::AssetId>,
 	<T as pallet_asset_registry::Config>::AssetId: From<AssetId>,
-
 {
 	use frame_support::storage::with_transaction;
 	use sp_runtime::TransactionOutcome;
@@ -79,9 +78,10 @@ where
 			None,
 			None,
 		))
-	// When running as a benchmarking test, this fails because the asses is already registered.
-	// Set it to the asset id configured in the mock file
-	}).unwrap_or(3u32.into());
+		// When running as a benchmarking test, this fails because the asses is already registered.
+		// Set it to the asset id configured in the mock file
+	})
+	.unwrap_or(3u32.into());
 
 	Ok(dot.into())
 }

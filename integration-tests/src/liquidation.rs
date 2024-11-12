@@ -9,20 +9,20 @@ use fp_evm::{
 use frame_support::{assert_ok, sp_runtime::RuntimeDebug};
 use hex_literal::hex;
 use hydradx_runtime::{
-	AssetId, Balance, EVMAccounts, RuntimeOrigin, Treasury, Liquidation, Currencies, Router,
-	evm::{Executor, precompiles::{
-		erc20_mapping::HydraErc20Mapping,
-		handle::EvmDataWriter,
-	}},
+	evm::{
+		precompiles::{erc20_mapping::HydraErc20Mapping, handle::EvmDataWriter},
+		Executor,
+	},
+	AssetId, Balance, Currencies, EVMAccounts, Liquidation, Router, RuntimeOrigin, Treasury,
 };
 use hydradx_traits::{
-	evm::{CallContext, EvmAddress, Erc20Mapping, EVM},
+	evm::{CallContext, Erc20Mapping, EvmAddress, EVM},
 	router::{AssetPair, RouteProvider},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::currency::MultiCurrency;
 use sp_core::{H256, U256};
-use sp_runtime::{SaturatedConversion, traits::CheckedConversion};
+use sp_runtime::{traits::CheckedConversion, SaturatedConversion};
 
 const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 
@@ -104,13 +104,20 @@ pub fn get_user_account_data(mm_pool: EvmAddress, user: EvmAddress) -> (U256, U2
 	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 
 	let total_collateral_base = U256::checked_from(&value[0..32]).unwrap();
-	let total_debt_base = U256::checked_from(&value[32.. 64]).unwrap();
+	let total_debt_base = U256::checked_from(&value[32..64]).unwrap();
 	let available_borrows_base = U256::checked_from(&value[64..96]).unwrap();
 	let current_liquidation_threshold = U256::checked_from(&value[96..128]).unwrap();
 	let ltv = U256::checked_from(&value[128..160]).unwrap();
 	let health_factor = U256::checked_from(&value[160..192]).unwrap();
 
-	(total_collateral_base, total_debt_base, available_borrows_base, current_liquidation_threshold, ltv, health_factor)
+	(
+		total_collateral_base,
+		total_debt_base,
+		available_borrows_base,
+		current_liquidation_threshold,
+		ltv,
+		health_factor,
+	)
 }
 
 pub fn update_oracle_price(asset_pair: &str, price: U256) {
@@ -182,15 +189,34 @@ fn liquidation_should_work() {
 
 		let collateral_weth_amount: Balance = 10 * WETH_UNIT;
 		let collateral_dot_amount = 5_000 * DOT_UNIT;
-		supply(pool_contract, alice_evm_address, weth_asset_address, collateral_weth_amount );
-		supply(pool_contract, alice_evm_address, dot_asset_address, collateral_dot_amount);
+		supply(
+			pool_contract,
+			alice_evm_address,
+			weth_asset_address,
+			collateral_weth_amount,
+		);
+		supply(
+			pool_contract,
+			alice_evm_address,
+			dot_asset_address,
+			collateral_dot_amount,
+		);
 
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount);
-		assert_eq!(Currencies::free_balance(WETH, &ALICE.into()), ALICE_INITIAL_WETH_BALANCE - collateral_weth_amount);
+		assert_eq!(
+			Currencies::free_balance(DOT, &ALICE.into()),
+			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount
+		);
+		assert_eq!(
+			Currencies::free_balance(WETH, &ALICE.into()),
+			ALICE_INITIAL_WETH_BALANCE - collateral_weth_amount
+		);
 
 		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
 		borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount + borrow_dot_amount);
+		assert_eq!(
+			Currencies::free_balance(DOT, &ALICE.into()),
+			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount + borrow_dot_amount
+		);
 
 		let (price, timestamp) = get_oracle_price("DOT/USD");
 		let price = price.as_u128() * 5;
@@ -215,7 +241,14 @@ fn liquidation_should_work() {
 			asset_out: DOT,
 		});
 
-		assert_ok!(Liquidation::liquidate(RuntimeOrigin::signed(BOB.into()), WETH, DOT, alice_evm_address, borrow_dot_amount, route));
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(BOB.into()),
+			WETH,
+			DOT,
+			alice_evm_address,
+			borrow_dot_amount,
+			route
+		));
 
 		assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
 		assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
@@ -226,4 +259,3 @@ fn liquidation_should_work() {
 		assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);
 	});
 }
-

@@ -26,10 +26,10 @@ use hydradx_adapters::{
 };
 
 pub use hydradx_traits::{
+	evm::CallContext,
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
-	evm::CallContext,
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
@@ -1582,19 +1582,24 @@ impl pallet_referrals::Config for Runtime {
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
-
 parameter_types! {
 	pub MoneyMarketContract: evm::EvmAddress = evm::EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice()); // TODO:
 }
 
 pub struct DummyEvm;
-impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm{
+impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
 	fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_liquidation::CallResult {
-		(pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned), vec![])
+		(
+			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			vec![],
+		)
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_liquidation::CallResult {
-		(pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned), vec![])
+		(
+			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			vec![],
+		)
 	}
 }
 impl pallet_liquidation::Config for Runtime {

@@ -23,29 +23,21 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-	PalletId, pallet_prelude::*,
-	traits::tokens::{Fortitude, Precision, Preservation},
-	traits::fungibles::{Inspect, Mutate},
-};
-use frame_system::{
-	ensure_signed, RawOrigin,
-	pallet_prelude::OriginFor,
-};
-use hydradx_traits::{
-	router::{
-		AssetPair, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade,
-	},
-	evm::{CallContext, EVM, EvmAddress, Erc20Mapping, InspectEvmAccounts},
-};
-use sp_arithmetic::{
-	ArithmeticError,
-};
-use sp_runtime::{
-	traits::{AccountIdConversion, CheckedConversion},
-};
 use ethabi::ethereum_types::BigEndianHash;
+use frame_support::{
+	pallet_prelude::*,
+	traits::fungibles::{Inspect, Mutate},
+	traits::tokens::{Fortitude, Precision, Preservation},
+	PalletId,
+};
+use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
+use hydradx_traits::{
+	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
+	router::{AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouterT, Trade},
+};
+use sp_arithmetic::ArithmeticError;
 use sp_core::crypto::AccountId32;
+use sp_runtime::traits::{AccountIdConversion, CheckedConversion};
 use sp_std::vec;
 use sp_std::vec::Vec;
 
@@ -60,9 +52,9 @@ pub mod weights;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
-pub use pallet::*;
 use evm::ExitReason;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+pub use pallet::*;
 use sp_core::{H256, U256};
 
 pub type Balance = u128;
@@ -81,8 +73,8 @@ pub enum Function {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use evm::ExitSucceed;
 	use super::*;
+	use evm::ExitSucceed;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -208,8 +200,10 @@ pub mod pallet {
 			let caller_evm_account = T::EvmAccounts::evm_address(&pallet_acc);
 			let mm_contract_address = T::MoneyMarketContract::get();
 			let context = CallContext::new_call(mm_contract_address, caller_evm_account);
-			let collateral_asset_evm_address = T::Erc20Mapping::encode_evm_address(collateral_asset).ok_or(Error::<T>::AssetConversionFailed)?;
-			let debt_asset_evm_address = T::Erc20Mapping::encode_evm_address(debt_asset).ok_or(Error::<T>::AssetConversionFailed)?;
+			let collateral_asset_evm_address =
+				T::Erc20Mapping::encode_evm_address(collateral_asset).ok_or(Error::<T>::AssetConversionFailed)?;
+			let debt_asset_evm_address =
+				T::Erc20Mapping::encode_evm_address(debt_asset).ok_or(Error::<T>::AssetConversionFailed)?;
 			let data = Self::encode_liquidation_call_data(
 				collateral_asset_evm_address,
 				debt_asset_evm_address,
@@ -228,7 +222,9 @@ pub mod pallet {
 			}
 
 			// swap collateral asset for borrow asset
-			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc).checked_sub(collateral_asset_initial_balance).ok_or(ArithmeticError::Overflow)?;
+			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc)
+				.checked_sub(collateral_asset_initial_balance)
+				.ok_or(ArithmeticError::Overflow)?;
 			T::Router::sell(
 				RawOrigin::Signed(pallet_acc.clone()).into(),
 				collateral_asset,
@@ -240,14 +236,24 @@ pub mod pallet {
 
 			//burn
 			let debt_asset_final_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
-			let debt_asset_earned = debt_asset_final_balance.checked_sub(debt_asset_initial_balance).ok_or(ArithmeticError::Overflow)?;
+			let debt_asset_earned = debt_asset_final_balance
+				.checked_sub(debt_asset_initial_balance)
+				.ok_or(ArithmeticError::Overflow)?;
 			// ensure that we get back at least the amount we minted
 			ensure!(debt_asset_earned >= debt_to_cover, ArithmeticError::Overflow);
 
-			<T as Config>::Currency::burn_from(debt_asset, &pallet_acc, debt_to_cover, Precision::Exact, Fortitude::Force)?;
+			<T as Config>::Currency::burn_from(
+				debt_asset,
+				&pallet_acc,
+				debt_to_cover,
+				Precision::Exact,
+				Fortitude::Force,
+			)?;
 
 			// transfer remaining balance
-			let transferable_amount = debt_asset_final_balance.checked_sub(debt_to_cover).ok_or(ArithmeticError::Overflow)?;
+			let transferable_amount = debt_asset_final_balance
+				.checked_sub(debt_to_cover)
+				.ok_or(ArithmeticError::Overflow)?;
 			<T as Config>::Currency::transfer(
 				debt_asset,
 				&pallet_acc,
@@ -275,7 +281,13 @@ impl<T: Config> Pallet<T> {
 		PALLET_ID.into_account_truncating()
 	}
 
-	pub fn encode_liquidation_call_data(collateral_asset: EvmAddress, debt_asset: EvmAddress, user: EvmAddress, debt_to_cover: Balance, receive_atoken: bool) -> Vec<u8> {
+	pub fn encode_liquidation_call_data(
+		collateral_asset: EvmAddress,
+		debt_asset: EvmAddress,
+		user: EvmAddress,
+		debt_to_cover: Balance,
+		receive_atoken: bool,
+	) -> Vec<u8> {
 		let mut data = Into::<u32>::into(Function::LiquidationCall).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(collateral_asset).as_bytes());
 		data.extend_from_slice(H256::from(debt_asset).as_bytes());
@@ -312,4 +324,3 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 }
-

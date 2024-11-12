@@ -1,12 +1,12 @@
-use ethabi::ethereum_types::H160;
-use evm::{ExitError, ExitSucceed};
 use crate as pallet_liquidation;
 use crate::*;
+use ethabi::ethereum_types::H160;
+use evm::{ExitError, ExitSucceed};
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
-		traits::{BlakeTwo256, IdentityLookup, IdentifyAccount, Verify},
-		BuildStorage, Permill, FixedU128, MultiSignature,
+		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+		BuildStorage, FixedU128, MultiSignature, Permill,
 	},
 	traits::{
 		tokens::nonfungibles::{Create, Inspect, Mutate},
@@ -14,6 +14,7 @@ use frame_support::{
 	},
 };
 use frame_system::{EnsureRoot, EnsureSigned};
+use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
 use hydradx_traits::{
 	router::{PoolType, RefundEdCalculator},
@@ -23,7 +24,6 @@ use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::H256;
-use hex_literal::hex;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -83,7 +83,7 @@ impl EVM<CallResult> for EvmMock {
 					let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
 
 					if collateral_asset.is_none() || debt_asset.is_none() {
-						return (ExitReason::Error(ExitError::DesignatedInvalid), vec![])
+						return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
 					};
 
 					let collateral_asset = collateral_asset.unwrap();
@@ -93,14 +93,24 @@ impl EVM<CallResult> for EvmMock {
 					let contract_addr = EvmAccounts::account_id(context.contract);
 					let amount = data.3;
 
-					let first_transfer_result = Currencies::transfer(RuntimeOrigin::signed(caller.clone()), contract_addr.clone(), debt_asset, amount);
-					let second_transfer_result = Currencies::transfer(RuntimeOrigin::signed(contract_addr), caller, collateral_asset, 2 * amount);
+					let first_transfer_result = Currencies::transfer(
+						RuntimeOrigin::signed(caller.clone()),
+						contract_addr.clone(),
+						debt_asset,
+						amount,
+					);
+					let second_transfer_result = Currencies::transfer(
+						RuntimeOrigin::signed(contract_addr),
+						caller,
+						collateral_asset,
+						2 * amount,
+					);
 
 					if first_transfer_result.is_err() || second_transfer_result.is_err() {
-						return (ExitReason::Error(ExitError::DesignatedInvalid), vec![])
+						return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
 					}
-				},
-				None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![])
+				}
+				None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]),
 			}
 
 			(ExitReason::Succeed(ExitSucceed::Returned), vec![])
@@ -162,7 +172,6 @@ impl Config for Test {
 	type RouterWeightInfo = ();
 	type WeightInfo = ();
 }
-
 
 parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;

@@ -3,13 +3,13 @@
 #![allow(clippy::bool_assert_comparison)]
 
 pub use crate::tests::mock::*;
-use frame_support::{assert_ok, assert_noop};
-use orml_traits::MultiCurrency;
+use crate::Event;
+use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
 };
-use crate::Event;
+use orml_traits::MultiCurrency;
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
@@ -38,16 +38,10 @@ fn liquidation_should_transfer_profit_to_treasury() {
 		let hdx_contract_balance_before = Currencies::free_balance(HDX, &MONEY_MARKET);
 		let dot_contract_balance_before = Currencies::free_balance(DOT, &MONEY_MARKET);
 
-		assert_ok!(
-			EvmAccounts::bind_evm_address(
-				RuntimeOrigin::signed(Liquidation::account_id()),
-			)
-		);
-		assert_ok!(
-			EvmAccounts::bind_evm_address(
-				RuntimeOrigin::signed(MONEY_MARKET),
-			)
-		);
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(
+			Liquidation::account_id()
+		),));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(ALICE),
@@ -71,8 +65,14 @@ fn liquidation_should_transfer_profit_to_treasury() {
 		assert_eq!(Currencies::free_balance(HDX, &TreasuryAccount::get()), 0);
 		assert!(Currencies::free_balance(DOT, &TreasuryAccount::get()) > 0);
 
-		assert_eq!(Currencies::free_balance(HDX, &MONEY_MARKET), hdx_contract_balance_before - 2 * debt_to_cover);
-		assert_eq!(Currencies::free_balance(DOT, &MONEY_MARKET), dot_contract_balance_before + debt_to_cover);
+		assert_eq!(
+			Currencies::free_balance(HDX, &MONEY_MARKET),
+			hdx_contract_balance_before - 2 * debt_to_cover
+		);
+		assert_eq!(
+			Currencies::free_balance(DOT, &MONEY_MARKET),
+			dot_contract_balance_before + debt_to_cover
+		);
 
 		expect_last_events(vec![Event::Liquidated {
 			liquidator: ALICE,
@@ -97,28 +97,22 @@ fn liquidation_should_fail_if_not_profitable() {
 			asset_out: HDX,
 		});
 
-		assert_ok!(
-			EvmAccounts::bind_evm_address(
-				RuntimeOrigin::signed(Liquidation::account_id()),
-			)
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(
+			Liquidation::account_id()
+		),));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
+
+		assert_noop!(
+			Liquidation::liquidate(
+				RuntimeOrigin::signed(ALICE),
+				DOT,
+				HDX,
+				bob_evm_address,
+				debt_to_cover,
+				route,
+			),
+			sp_runtime::ArithmeticError::Overflow
 		);
-		assert_ok!(
-			EvmAccounts::bind_evm_address(
-				RuntimeOrigin::signed(MONEY_MARKET),
-			)
-		);
-
-		assert_noop!(Liquidation::liquidate(
-			RuntimeOrigin::signed(ALICE),
-			DOT,
-			HDX,
-			bob_evm_address,
-			debt_to_cover,
-			route,
-		),
-		sp_runtime::ArithmeticError::Overflow);
-
-
 	});
 }
 
@@ -135,8 +129,16 @@ fn pallet_balance_should_be_zero_after_execution() {
 		});
 
 		// set pallet's balance to non-zero value
-		assert_ok!(Currencies::deposit(HDX, &Liquidation::account_id(), initial_pallet_balance));
-		assert_ok!(Currencies::deposit(DOT, &Liquidation::account_id(), initial_pallet_balance));
+		assert_ok!(Currencies::deposit(
+			HDX,
+			&Liquidation::account_id(),
+			initial_pallet_balance
+		));
+		assert_ok!(Currencies::deposit(
+			DOT,
+			&Liquidation::account_id(),
+			initial_pallet_balance
+		));
 
 		let hdx_total_issuance = Currencies::total_issuance(HDX);
 		let dot_total_issuance = Currencies::total_issuance(DOT);
@@ -147,16 +149,10 @@ fn pallet_balance_should_be_zero_after_execution() {
 		let hdx_contract_balance_before = Currencies::free_balance(HDX, &MONEY_MARKET);
 		let dot_contract_balance_before = Currencies::free_balance(DOT, &MONEY_MARKET);
 
-		assert_ok!(
-			EvmAccounts::bind_evm_address(
-				RuntimeOrigin::signed(Liquidation::account_id()),
-			)
-		);
-		assert_ok!(
-			EvmAccounts::bind_evm_address(
-				RuntimeOrigin::signed(MONEY_MARKET),
-			)
-		);
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(
+			Liquidation::account_id()
+		),));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(ALICE),
@@ -182,8 +178,14 @@ fn pallet_balance_should_be_zero_after_execution() {
 		assert_eq!(Currencies::free_balance(HDX, &TreasuryAccount::get()), 0);
 		assert!(Currencies::free_balance(DOT, &TreasuryAccount::get()) > 0);
 
-		assert_eq!(Currencies::free_balance(HDX, &MONEY_MARKET), hdx_contract_balance_before - 2 * debt_to_cover);
-		assert_eq!(Currencies::free_balance(DOT, &MONEY_MARKET), dot_contract_balance_before + debt_to_cover);
+		assert_eq!(
+			Currencies::free_balance(HDX, &MONEY_MARKET),
+			hdx_contract_balance_before - 2 * debt_to_cover
+		);
+		assert_eq!(
+			Currencies::free_balance(DOT, &MONEY_MARKET),
+			dot_contract_balance_before + debt_to_cover
+		);
 
 		expect_last_events(vec![Event::Liquidated {
 			liquidator: ALICE,
@@ -193,6 +195,6 @@ fn pallet_balance_should_be_zero_after_execution() {
 			debt_to_cover,
 			profit: 2_976_143_141_153_081 + initial_pallet_balance, // profit + pallet's balance before execution
 		}
-			.into()]);
+		.into()]);
 	});
 }
