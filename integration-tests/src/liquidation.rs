@@ -152,13 +152,6 @@ pub fn get_oracle_price(asset_pair: &str) -> (U256, U256) {
 	(price, timestamp)
 }
 
-pub fn liquidation_call(mm_pool: EvmAddress, caller: EvmAddress, collateral_asset: EvmAddress, debt_asset: EvmAddress, user: EvmAddress, debt_to_cover: Balance, receive_atoken: bool) {
-	let context = CallContext::new_call(mm_pool, caller);
-	let data = Liquidation::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, receive_atoken);
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
-	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
-}
-
 #[test]
 fn liquidation_should_work() {
 	TestNet::reset();
@@ -195,36 +188,27 @@ fn liquidation_should_work() {
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount);
 		assert_eq!(Currencies::free_balance(WETH, &ALICE.into()), ALICE_INITIAL_WETH_BALANCE - collateral_weth_amount);
 
-		// println!("dot oracle price: {:?} {:?}", get_oracle_price("DOT/USD").0,  get_oracle_price("DOT/USD").1);
-		// println!("eth oracle price: {:?} {:?}", get_oracle_price("WETH/USD").0, get_oracle_price("WETH/USD").1);
-
 		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
 		borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount + borrow_dot_amount);
-
-		// let old_user_data = get_user_account_data(pool_contract, alice_evm_address);
 
 		let (price, timestamp) = get_oracle_price("DOT/USD");
 		let price = price.as_u128() * 5;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
-		data.extend_from_slice(&timestamp.to_be_bytes().to_vec());
+		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price("DOT/USD", U256::checked_from(&data[0..32]).unwrap());
 
 		let (price, timestamp) = get_oracle_price("WETH/USD");
 		let price = price.as_u128() / 5;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
-		data.extend_from_slice(&timestamp.to_be_bytes().to_vec());
+		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price("WETH/USD", U256::checked_from(&data[0..32]).unwrap());
 
-		// println!("dot oracle price: {:?} {:?}", get_oracle_price("DOT/USD").0,  get_oracle_price("DOT/USD").1);
-		// println!("eth oracle price: {:?} {:?}", get_oracle_price("WETH/USD").0, get_oracle_price("WETH/USD").1);
-
+		// ensure that the health_factor < 1
 		let user_data = get_user_account_data(pool_contract, alice_evm_address);
-		assert!(user_data.5 < U256::from(1_000_000_000_000_000_000u128)); // health_factor < 1
-		// println!("account data: {:?}", old_user_data);
-		// println!("account data: {:?}", user_data);
+		assert!(user_data.5 < U256::from(1_000_000_000_000_000_000u128));
 
 		let route = Router::get_route(AssetPair {
 			asset_in: WETH,

@@ -34,6 +34,8 @@ hydradx-traits = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
+pallet-evm-accounts = { workspace = true, optional = true }
+pallet-asset-registry = { workspace = true, optional = true }
 
 [dev-dependencies]
 hydra-dx-math = { workspace = true }
@@ -42,7 +44,6 @@ pallet-asset-registry = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }
-pallet-evm-accounts = { workspace = true }
 sp-api = { workspace = true }
 orml-traits = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
@@ -76,11 +77,14 @@ std = [
     'pallet-omnipool/std',
     'pallet-asset-registry/std',
     'pallet-evm-accounts/std',
+    'pallet-asset-registry/std',
 ]
 
 runtime-benchmarks = [
     "frame-benchmarking",
     "frame-system/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
+    "pallet-evm-accounts/frame-benchmarking",
+    "pallet-asset-registry/frame-benchmarking",
 ]
 try-runtime = ["frame-support/try-runtime"]

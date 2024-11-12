@@ -1,2 +1,2 @@
-mod mock;
+pub mod mock;
 mod liquidation;

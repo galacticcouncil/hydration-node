@@ -14,43 +14,74 @@
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::assert_ok;
 use frame_support::traits::fungibles::Mutate;
 use frame_system::RawOrigin;
+use hydradx_traits::{router::AssetPair, AssetKind, Create};
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const HDX: u32 = 0;
-pub const DAI: u32 = 2;
 
 benchmarks! {
 	where_clause { where
-		AssetIdOf<T>: From<u32>,
-		<T as crate::Config>::Currency: Mutate<T::AccountId, AssetId = AssetIdOf<T>, Balance = Balance>,
-		T: crate::Config + pallet_otc::Config,
+		AssetId: From<u32>,
+		<T as Config>::Currency: Mutate<T::AccountId, AssetId = AssetId, Balance = Balance>,
+		T: Config,
+		T: pallet_evm_accounts::Config,
+		T: pallet_asset_registry::Config,
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+		AssetId: From<<T as pallet_asset_registry::Config>::AssetId>,
+		<T as pallet_asset_registry::Config>::AssetId: From<AssetId>,
 	}
-	settle_otc_order {
-		let account: T::AccountId = account("acc", 1, 1);
 
-		<T as crate::Config>::Currency::mint_into(HDX.into(), &account, 1_000_000_000 * ONE)?;
-		<T as crate::Config>::Currency::mint_into(DAI.into(), &account, 1_000_000_000 * ONE)?;
+	liquidate {
+		let hdx = 0;
+		let dot = seed_registry::<T>()?;
+		let caller: T::AccountId = account("acc", 1, 1);
+		pallet_evm_accounts::Pallet::<T>::bind_evm_address(RawOrigin::Signed(Pallet::<T>::account_id()).into())?;
+		let evm_address = pallet_evm_accounts::Pallet::<T>::evm_address(&caller);
 
-		assert_ok!(
-			pallet_otc::Pallet::<T>::place_order(RawOrigin::Signed(account).into(), HDX.into(), DAI.into(), 100_000_000 * ONE, 202_020_001 * ONE, true)
-		);
+		<T as Config>::Currency::set_balance(hdx.into(), &Pallet::<T>::account_id(), 1_000_000_000 * ONE);
+		<T as Config>::Currency::set_balance(dot.into(), &Pallet::<T>::account_id(), 1_000_000_000 * ONE);
 
-		let route = <T as crate::Config>::Router::get_route(AssetPair {
-			asset_in: DAI.into(),
-			asset_out: HDX.into(),
+		let mm_contract_address = T::MoneyMarketContract::get();
+		let mm_account = pallet_evm_accounts::Pallet::<T>::account_id(mm_contract_address);
+		<T as Config>::Currency::set_balance(hdx.into(), &mm_account, 1_000_000_000 * ONE);
+
+		let route = <T as Config>::Router::get_route(AssetPair {
+			asset_in: hdx.into(),
+			asset_out: dot.into(),
 		});
 
-  }:  _(RawOrigin::None, 0u32, 2 * ONE, route)
+  }:  _(RawOrigin::Signed(caller), hdx, dot, evm_address, 100 * ONE, route)
+
+	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
 }
 
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use crate::mock::*;
-	use frame_benchmarking::impl_benchmark_test_suite;
+fn seed_registry<T: Config>() -> Result<AssetId, DispatchError>
+where
+	T: pallet_asset_registry::Config,
+	AssetId: From<<T as pallet_asset_registry::Config>::AssetId>,
+	<T as pallet_asset_registry::Config>::AssetId: From<AssetId>,
 
-	impl_benchmark_test_suite!(Pallet, super::ExtBuilder::default().build().0, super::Test);
+{
+	use frame_support::storage::with_transaction;
+	use sp_runtime::TransactionOutcome;
+
+	// Register new asset in asset registry
+	let name = b"DOT".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
+	let dot = with_transaction(|| {
+		TransactionOutcome::Commit(pallet_asset_registry::Pallet::<T>::register_sufficient_asset(
+			None,
+			Some(name),
+			AssetKind::Token,
+			ONE,
+			None,
+			None,
+			None,
+			None,
+		))
+	// When running as a benchmarking test, this fails because the asses is already registered.
+	// Set it to the asset id configured in the mock file
+	}).unwrap_or(3u32.into());
+
+	Ok(dot.into())
 }

@@ -34,7 +34,7 @@ use frame_system::{
 };
 use hydradx_traits::{
 	router::{
-		AmmTradeWeights, AmountInAndOut, RouteProvider, RouteSpotPriceProvider, RouterT, Trade,
+		AssetPair, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade,
 	},
 	evm::{CallContext, EVM, EvmAddress, Erc20Mapping, InspectEvmAccounts},
 };
@@ -52,8 +52,8 @@ use sp_std::vec::Vec;
 #[cfg(test)]
 mod tests;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarks;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarks;
 
 pub mod weights;
 
@@ -100,8 +100,7 @@ pub mod pallet {
 
 		/// Router implementation.
 		type Router: RouteProvider<AssetId>
-			+ RouterT<Self::RuntimeOrigin, AssetId, Balance, Trade<AssetId>, AmountInAndOut<Balance>>
-			+ RouteSpotPriceProvider<AssetId>;
+			+ RouterT<Self::RuntimeOrigin, AssetId, Balance, Trade<AssetId>, AmountInAndOut<Balance>>;
 
 		/// Money market contract address
 		type MoneyMarketContract: Get<EvmAddress>;
@@ -133,6 +132,7 @@ pub mod pallet {
 			debt_asset: AssetId,
 			collateral_asset: AssetId,
 			debt_to_cover: Balance,
+			profit: Balance,
 		},
 	}
 
@@ -146,18 +146,12 @@ pub mod pallet {
 		InvalidRoute,
 		/// Initial and final balance are different
 		BalanceInconsistency,
-		/// Trade amount higher than necessary
-		TradeAmountTooHigh,
-		/// Trade amount lower than necessary
-		TradeAmountTooLow,
-		/// Price for a route is not available
-		PriceNotAvailable,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
 	where
-		T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
 		/// Close an existing OTC arbitrage opportunity.
 		///
@@ -180,7 +174,10 @@ pub mod pallet {
 		/// Emits `Executed` event when successful.
 		///
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::liquidate())]
+		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
+			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
+			.saturating_add(<T as Config>::RouterWeightInfo::get_route_weight())
+		)]
 		pub fn liquidate(
 			origin: OriginFor<T>,
 			collateral_asset: AssetId,
@@ -191,6 +188,15 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let pallet_acc = Self::account_id();
+
+			ensure!(
+				route
+					== T::Router::get_route(AssetPair {
+						asset_in: collateral_asset,
+						asset_out: debt_asset,
+					}),
+				Error::<T>::InvalidRoute
+			);
 
 			let debt_asset_initial_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
 			let collateral_asset_initial_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
@@ -236,7 +242,7 @@ pub mod pallet {
 			let debt_asset_final_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
 			let debt_asset_earned = debt_asset_final_balance.checked_sub(debt_asset_initial_balance).ok_or(ArithmeticError::Overflow)?;
 			// ensure that we get back at least the amount we minted
-			ensure!(debt_asset_earned >= debt_to_cover,ArithmeticError::Overflow);
+			ensure!(debt_asset_earned >= debt_to_cover, ArithmeticError::Overflow);
 
 			<T as Config>::Currency::burn_from(debt_asset, &pallet_acc, debt_to_cover, Precision::Exact, Fortitude::Force)?;
 
@@ -256,6 +262,7 @@ pub mod pallet {
 				debt_asset,
 				collateral_asset,
 				debt_to_cover,
+				profit: transferable_amount,
 			});
 
 			Ok(())
@@ -283,6 +290,7 @@ impl<T: Config> Pallet<T> {
 		data
 	}
 
+	#[allow(dead_code)]
 	fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress, EvmAddress, Balance, bool)> {
 		if data.len() != 164 {
 			return None;

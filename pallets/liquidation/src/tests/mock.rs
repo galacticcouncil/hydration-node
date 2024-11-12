@@ -38,8 +38,6 @@ pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
-pub const KSM: AssetId = 4;
-pub const BTC: AssetId = 5;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const ALICE_HDX_INITIAL_BALANCE: Balance = 1_000_000_000_000 * ONE;
@@ -314,26 +312,6 @@ parameter_types! {
 	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 }
 
-pub struct AllowPools;
-
-impl hydradx_traits::CanCreatePool<AssetId> for AllowPools {
-	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		true
-	}
-}
-
-pub struct AssetPairAccountIdTest;
-impl hydradx_traits::AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
-	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
-		let mut a = asset_a as u128;
-		let mut b = asset_b as u128;
-		if a > b {
-			std::mem::swap(&mut a, &mut b)
-		}
-		(a * 1000 + b) as u64
-	}
-}
-
 parameter_types! {
 	#[derive(PartialEq, Debug)]
 	pub RegistryStringLimit: u32 = 100;
@@ -357,20 +335,6 @@ impl pallet_asset_registry::Config for Test {
 	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
 	type RegisterAssetHook = ();
 	type WeightInfo = ();
-}
-
-pub struct DummyDuster;
-
-impl hydradx_traits::pools::DustRemovalAccountWhitelist<AccountId> for DummyDuster {
-	type Error = DispatchError;
-
-	fn add_account(_account: &AccountId) -> Result<(), Self::Error> {
-		unimplemented!()
-	}
-
-	fn remove_account(_account: &AccountId) -> Result<(), Self::Error> {
-		unimplemented!()
-	}
 }
 
 impl pallet_omnipool::Config for Test {
@@ -466,19 +430,9 @@ impl pallet_evm_accounts::Config for Test {
 	type WeightInfo = ();
 }
 
-pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
-where
-	RuntimeCall: From<C>,
-{
-	type OverarchingCall = RuntimeCall;
-	type Extrinsic = Extrinsic;
-}
-
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	init_pool: Option<(FixedU128, FixedU128)>,
-	omnipool_liquidity: Vec<(AccountId, AssetId, Balance)>, //who, asset, amount/
 }
 
 impl Default for ExtBuilder {
@@ -487,22 +441,17 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![
 				(ALICE, HDX, ALICE_HDX_INITIAL_BALANCE),
 				(MONEY_MARKET, HDX, 1_000_000_000_000 * ONE),
-				(ALICE, LRNA, 1_000_000_000_000 * ONE),
+				(MONEY_MARKET, DOT, 1_000_000_000_000 * ONE),
 				(ALICE, DAI, 1_000_000_000_000_000_000 * ONE),
 				(ALICE, DOT, ALICE_DOT_INITIAL_BALANCE),
-				(ALICE, KSM, 1_000_000_000_000 * ONE),
-				(ALICE, BTC, 1_000_000_000_000 * ONE),
 				(BOB, HDX, 1_000_000_000 * ONE),
-				(BOB, DAI, 1_000_000_000 * ONE),
+				(BOB, DOT, 1_000_000_000 * ONE),
 				(Omnipool::protocol_account(), HDX, 1_000_000 * ONE),
 				(Omnipool::protocol_account(), LRNA, 1_000_000 * ONE),
 				(Omnipool::protocol_account(), DAI, 1_000_000 * ONE),
 				(Omnipool::protocol_account(), DOT, 1_000_000 * ONE),
-				(Omnipool::protocol_account(), KSM, 1_000_000 * ONE),
-				(Omnipool::protocol_account(), BTC, 1_000_000 * ONE),
 			],
 			init_pool: Some((FixedU128::from_float(0.5), FixedU128::from(1))),
-			omnipool_liquidity: vec![(ALICE, KSM, 5_000 * ONE)],
 		}
 	}
 }
@@ -538,24 +487,6 @@ impl ExtBuilder {
 				Some(12),
 				None::<Balance>,
 				true,
-			),
-			(
-				Some(KSM),
-				Some::<BoundedVec<u8, RegistryStringLimit>>(b"KSM".to_vec().try_into().unwrap()),
-				10_000,
-				Some::<BoundedVec<u8, RegistryStringLimit>>(b"KSM".to_vec().try_into().unwrap()),
-				Some(12),
-				None::<Balance>,
-				true,
-			),
-			(
-				Some(BTC),
-				Some::<BoundedVec<u8, RegistryStringLimit>>(b"BTC".to_vec().try_into().unwrap()),
-				10_000,
-				Some::<BoundedVec<u8, RegistryStringLimit>>(b"BTC".to_vec().try_into().unwrap()),
-				Some(12),
-				None::<Balance>,
-				false,
 			),
 		];
 
@@ -617,24 +548,6 @@ impl ExtBuilder {
 					Permill::from_percent(100),
 					Omnipool::protocol_account(),
 				));
-				assert_ok!(Omnipool::add_token(
-					RuntimeOrigin::root(),
-					KSM,
-					stable_price,
-					Permill::from_percent(100),
-					Omnipool::protocol_account(),
-				));
-				assert_ok!(Omnipool::add_token(
-					RuntimeOrigin::root(),
-					BTC,
-					stable_price,
-					Permill::from_percent(100),
-					Omnipool::protocol_account(),
-				));
-
-				for p in self.omnipool_liquidity {
-					assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(p.0), p.1, p.2));
-				}
 			});
 		}
 
