@@ -187,7 +187,7 @@ impl Config for Test {
 
 parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
-		pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 pub struct MockedEdCalculator;
@@ -390,7 +390,7 @@ impl Inspect<AccountId> for DummyNFT {
 	type CollectionId = u32;
 
 	fn owner(_class: &Self::CollectionId, _instance: &Self::ItemId) -> Option<AccountId> {
-		todo!()
+		unimplemented!()
 	}
 }
 
@@ -420,11 +420,11 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 	type Error = DispatchError;
 
 	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
-		todo!()
+		unimplemented!()
 	}
 
 	fn get_price_weight() -> Weight {
-		todo!()
+		unimplemented!()
 	}
 }
 
@@ -445,7 +445,7 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProviderMock {
 
 impl pallet_evm_accounts::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type FeeMultiplier = sp_core::ConstU32<10>;
+	type FeeMultiplier = ConstU32<10>;
 	type EvmNonceProvider = EvmNonceProviderMock;
 	type ControllerOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();

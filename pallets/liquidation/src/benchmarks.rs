@@ -39,16 +39,16 @@ benchmarks! {
 		pallet_evm_accounts::Pallet::<T>::bind_evm_address(RawOrigin::Signed(Pallet::<T>::account_id()).into())?;
 		let evm_address = pallet_evm_accounts::Pallet::<T>::evm_address(&caller);
 
-		<T as Config>::Currency::set_balance(hdx.into(), &Pallet::<T>::account_id(), 1_000_000_000 * ONE);
-		<T as Config>::Currency::set_balance(dot.into(), &Pallet::<T>::account_id(), 1_000_000_000 * ONE);
+		<T as Config>::Currency::set_balance(hdx, &Pallet::<T>::account_id(), 1_000_000_000 * ONE);
+		<T as Config>::Currency::set_balance(dot, &Pallet::<T>::account_id(), 1_000_000_000 * ONE);
 
 		let mm_contract_address = T::MoneyMarketContract::get();
 		let mm_account = pallet_evm_accounts::Pallet::<T>::account_id(mm_contract_address);
-		<T as Config>::Currency::set_balance(hdx.into(), &mm_account, 1_000_000_000 * ONE);
+		<T as Config>::Currency::set_balance(hdx, &mm_account, 1_000_000_000 * ONE);
 
 		let route = <T as Config>::Router::get_route(AssetPair {
-			asset_in: hdx.into(),
-			asset_out: dot.into(),
+			asset_in: hdx,
+			asset_out: dot,
 		});
 
   }:  _(RawOrigin::Signed(caller), hdx, dot, evm_address, 100 * ONE, route)

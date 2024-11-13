@@ -203,7 +203,6 @@ pub mod pallet {
 			<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
 
 			// liquidation
-			// TODO: bound pallet address
 			let pallet_evm_account = T::EvmAccounts::evm_address(&pallet_acc);
 			let mm_contract_address = T::MoneyMarketContract::get();
 
