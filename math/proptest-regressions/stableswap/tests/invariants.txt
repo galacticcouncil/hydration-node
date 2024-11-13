@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 25c9d46027af5640b9cce25c1970d5378de64752dd1c9520f5757251db333d27 # shrinks to pool = [AssetReserve { amount: 368323000000, decimals: 6 }, AssetReserve { amount: 380987625000000, decimals: 6 }, AssetReserve { amount: 488969232000000, decimals: 6 }, AssetReserve { amount: 12656000000, decimals: 6 }], amount = 241, amp = 6682, (idx_in, idx_out) = (1, 3)
 cc b8acd18b42aad7c2bf2fb1869de4f133a49e05a5fd165865f781cadd006488c9
+cc b8ffdc09a03ed41698bc59c46d68585ee05e238c14fd8d53d3b7fb0cedfabe3b
