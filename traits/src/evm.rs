@@ -89,10 +89,3 @@ pub trait Erc20Mapping<AssetId> {
 
 	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId>;
 }
-
-/// Money market liquidation interface adapter
-pub trait Liquidation {
-	type Balance;
-
-	fn liquidate(context: CallContext, to: EvmAddress, value: Self::Balance) -> DispatchResult;
-}
