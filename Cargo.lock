@@ -8532,6 +8532,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-balances",
  "pallet-currencies",
+ "pallet-evm",
  "pallet-evm-accounts",
  "pallet-omnipool",
  "pallet-route-executor",

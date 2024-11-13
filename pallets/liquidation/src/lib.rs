@@ -47,6 +47,7 @@ use sp_std::{vec, vec::Vec};
 use ethabi::ethereum_types::BigEndianHash;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use evm::{ExitReason, ExitSucceed};
+use pallet_evm::GasWeightMapping;
 
 #[cfg(test)]
 mod tests;
@@ -102,6 +103,13 @@ pub mod pallet {
 
 		/// Mapping between AssetId and ERC20 address.
 		type Erc20Mapping: Erc20Mapping<AssetId>;
+
+		/// Gas to Weight conversion.
+		type GasWeightMapping: GasWeightMapping;
+
+		/// The gas limit for the execution of the liquidation call.
+		#[pallet::constant]
+		type GasLimit: Get<u64>;
 
 		/// Account who receives the profit.
 		#[pallet::constant]
@@ -164,7 +172,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
 			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
 			.saturating_add(<T as Config>::RouterWeightInfo::get_route_weight())
-		// TODO: gas to weight
+			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
 		)]
 		pub fn liquidate(
 			origin: OriginFor<T>,
@@ -214,7 +222,7 @@ pub mod pallet {
 
 			// EVM call
 			let value = U256::zero();
-			let gas = 500_000;
+			let gas = T::GasLimit::get();
 			let (exit_reason, value) = T::Evm::call(context, data, value, gas);
 			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 				log::debug!(target: "liquidation",

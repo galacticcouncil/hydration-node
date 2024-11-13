@@ -1584,6 +1584,7 @@ impl pallet_referrals::Config for Runtime {
 
 parameter_types! {
 	pub MoneyMarketContract: evm::EvmAddress = evm::EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice()); // TODO:
+	pub const LiquidationGasLimit: u64 = 1_000_000;
 }
 
 pub struct DummyEvm;
@@ -1616,6 +1617,8 @@ impl pallet_liquidation::Config for Runtime {
 	type MoneyMarketContract = MoneyMarketContract;
 	type EvmAccounts = EVMAccounts;
 	type Erc20Mapping = evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type GasLimit = LiquidationGasLimit;
 	type ProfitReceiver = TreasuryAccount;
 	type RouterWeightInfo = RouterWeightInfo;
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;

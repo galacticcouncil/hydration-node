@@ -24,6 +24,7 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 
 evm = { workspace = true, features = ["with-codec"] }
+pallet-evm = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
@@ -76,6 +77,7 @@ std = [
     'pallet-asset-registry/std',
     'pallet-evm-accounts/std',
     'pallet-asset-registry/std',
+    'pallet-evm/std',
 ]
 
 runtime-benchmarks = [

@@ -64,6 +64,7 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub MoneyMarketContract: EvmAddress = EvmAddress::from_slice(&[9; 20]);
+	pub const LiquidationGasLimit: u64 = 1_000_000;
 }
 
 parameter_type_with_key! {
@@ -160,6 +161,15 @@ pub fn is_asset_address(address: H160) -> bool {
 	&address.to_fixed_bytes()[0..16] == asset_address_prefix
 }
 
+pub struct DummyGasWeightMapping;
+impl pallet_evm::GasWeightMapping for DummyGasWeightMapping {
+	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
+		Weight::zero()
+	}
+	fn weight_to_gas(_weight: Weight) -> u64 {
+		0
+	}
+}
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Test>;
@@ -168,6 +178,8 @@ impl Config for Test {
 	type MoneyMarketContract = MoneyMarketContract;
 	type EvmAccounts = EvmAccounts;
 	type Erc20Mapping = HydraErc20Mapping;
+	type GasWeightMapping = DummyGasWeightMapping;
+	type GasLimit = LiquidationGasLimit;
 	type ProfitReceiver = TreasuryAccount;
 	type RouterWeightInfo = ();
 	type WeightInfo = ();
