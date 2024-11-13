@@ -3,8 +3,10 @@
 #![allow(clippy::bool_assert_comparison)]
 
 pub use crate::tests::mock::*;
-use crate::Event;
-use frame_support::{assert_noop, assert_ok};
+use crate::{Error, Event};
+use frame_support::{
+	assert_noop, assert_ok,
+};
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
@@ -18,6 +20,7 @@ pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 #[test]
 fn liquidation_should_transfer_profit_to_treasury() {
 	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
 		let bob_evm_address = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover = 1_000 * ONE;
 
@@ -43,6 +46,7 @@ fn liquidation_should_transfer_profit_to_treasury() {
 		),));
 		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
 
+		// Act
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(ALICE),
 			HDX, // collateral
@@ -52,6 +56,7 @@ fn liquidation_should_transfer_profit_to_treasury() {
 			route,
 		));
 
+		// Assert
 		// total issuance should not change
 		assert_eq!(hdx_total_issuance, Currencies::total_issuance(HDX));
 		assert_eq!(dot_total_issuance, Currencies::total_issuance(DOT));
@@ -89,6 +94,7 @@ fn liquidation_should_transfer_profit_to_treasury() {
 #[test]
 fn liquidation_should_fail_if_not_profitable() {
 	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
 		let bob_evm_address = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover = 1_000 * ONE;
 
@@ -102,6 +108,7 @@ fn liquidation_should_fail_if_not_profitable() {
 		),));
 		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
 
+		// Act & Assert
 		assert_noop!(
 			Liquidation::liquidate(
 				RuntimeOrigin::signed(ALICE),
@@ -111,14 +118,15 @@ fn liquidation_should_fail_if_not_profitable() {
 				debt_to_cover,
 				route,
 			),
-			sp_runtime::ArithmeticError::Overflow
+			Error::<Test>::NotProfitable
 		);
 	});
 }
 
 #[test]
-fn pallet_balance_should_be_zero_after_execution() {
+fn initial_pallet_balance_should_not_change_after_execution() {
 	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
 		let bob_evm_address = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover = 1_000 * ONE;
 		let initial_pallet_balance = 10_000 * ONE;
@@ -154,6 +162,7 @@ fn pallet_balance_should_be_zero_after_execution() {
 		),));
 		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
 
+		// Act
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(ALICE),
 			HDX, // collateral
@@ -163,6 +172,7 @@ fn pallet_balance_should_be_zero_after_execution() {
 			route,
 		));
 
+		// Assert
 		// total issuance should not change
 		assert_eq!(hdx_total_issuance, Currencies::total_issuance(HDX));
 		assert_eq!(dot_total_issuance, Currencies::total_issuance(DOT));
@@ -170,9 +180,7 @@ fn pallet_balance_should_be_zero_after_execution() {
 		assert_eq!(hdx_alice_balance_before, Currencies::free_balance(HDX, &ALICE));
 		assert_eq!(dot_alice_balance_before, Currencies::free_balance(DOT, &ALICE));
 
-		// All debt asset balance should be transferred to Treasury
-		assert!(Currencies::free_balance(DOT, &Liquidation::account_id()) == 0);
-		// Collateral asset balance is unchanged
+		assert!(Currencies::free_balance(DOT, &Liquidation::account_id()) == initial_pallet_balance);
 		assert!(Currencies::free_balance(HDX, &Liquidation::account_id()) == initial_pallet_balance);
 
 		assert_eq!(Currencies::free_balance(HDX, &TreasuryAccount::get()), 0);
@@ -193,7 +201,7 @@ fn pallet_balance_should_be_zero_after_execution() {
 			debt_asset: DOT,
 			collateral_asset: HDX,
 			debt_to_cover,
-			profit: 2_976_143_141_153_081 + initial_pallet_balance, // profit + pallet's balance before execution
+			profit: 2_976_143_141_153_081,
 		}
 		.into()]);
 	});

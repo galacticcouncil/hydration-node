@@ -164,6 +164,7 @@ fn liquidation_should_work() {
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
 		// PoolAddressesProvider contract
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
 
@@ -241,6 +242,7 @@ fn liquidation_should_work() {
 			asset_out: DOT,
 		});
 
+		// Act
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),
 			WETH,
@@ -250,6 +252,7 @@ fn liquidation_should_work() {
 			route
 		));
 
+		// Assert
 		assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
 		assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
 

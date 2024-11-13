@@ -13,22 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Pallet (Money market) Liquidation
+//! # Liquidation (Money market) pallet
 //!
 //! ## Description
+//! The pallet uses mechanism similar to a flash loan to liquidate a MM position.
 //!
 //! ## Notes
+//! The pallet requires the money market contract to be deployed and enabled.
 //!
-//! ## Dispatachable functions
+//! ## Dispatchable functions
+//! * `liquidate` - Liquidates an existing MM position. Performs flash loan to get funds.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use ethabi::ethereum_types::BigEndianHash;
 use frame_support::{
 	pallet_prelude::*,
 	traits::fungibles::{Inspect, Mutate},
 	traits::tokens::{Fortitude, Precision, Preservation},
 	PalletId,
+	sp_runtime::traits::{AccountIdConversion, CheckedConversion},
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::{
@@ -36,10 +39,14 @@ use hydradx_traits::{
 	router::{AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouterT, Trade},
 };
 use sp_arithmetic::ArithmeticError;
-use sp_core::crypto::AccountId32;
-use sp_runtime::traits::{AccountIdConversion, CheckedConversion};
-use sp_std::vec;
-use sp_std::vec::Vec;
+use sp_core::{
+	H256, U256,
+	crypto::AccountId32,
+};
+use sp_std::{vec, vec::Vec};
+use ethabi::ethereum_types::BigEndianHash;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use evm::{ExitReason, ExitSucceed};
 
 #[cfg(test)]
 mod tests;
@@ -48,21 +55,14 @@ mod tests;
 mod benchmarks;
 
 pub mod weights;
-
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
-use evm::ExitReason;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
 pub use pallet::*;
-use sp_core::{H256, U256};
 
 pub type Balance = u128;
 pub type AssetId = u32;
-pub type NamedReserveIdentifier = [u8; 8];
 pub type CallResult = (ExitReason, Vec<u8>);
-
-pub const PALLET_ID: PalletId = PalletId(*b"lqdation");
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -74,7 +74,6 @@ pub enum Function {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use evm::ExitSucceed;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -84,20 +83,21 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Named reservable multi currency.
+		/// Multi currency.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
-		/// EVM handler
+		/// EVM handler.
 		type Evm: EVM<CallResult>;
 
 		/// Router implementation.
 		type Router: RouteProvider<AssetId>
 			+ RouterT<Self::RuntimeOrigin, AssetId, Balance, Trade<AssetId>, AmountInAndOut<Balance>>;
 
-		/// Money market contract address
+		/// Money market contract address.
+		#[pallet::constant]
 		type MoneyMarketContract: Get<EvmAddress>;
 
-		/// EVM address converter
+		/// EVM address converter.
 		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
 
 		/// Mapping between AssetId and ERC20 address.
@@ -117,7 +117,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A trade has been executed
+		/// Money market position has been liquidated
 		Liquidated {
 			liquidator: T::AccountId,
 			evm_address: EvmAddress,
@@ -136,8 +136,8 @@ pub mod pallet {
 		EvmExecutionFailed,
 		/// Provided route doesn't match the existing route
 		InvalidRoute,
-		/// Initial and final balance are different
-		BalanceInconsistency,
+		/// Liquidation was not profitable enough to repay flash loan
+		NotProfitable
 	}
 
 	#[pallet::call]
@@ -145,30 +145,26 @@ pub mod pallet {
 	where
 		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
-		/// Close an existing OTC arbitrage opportunity.
+		/// Liquidates an existing money market position.
 		///
-		/// Executes a trade between an OTC order and some route.
-		/// If the OTC order is partially fillable, the extrinsic fails if the existing arbitrage
-		/// opportunity is not closed or reduced after the trade.
-		/// If the OTC order is not partially fillable, fails if there is no profit after the trade.
-		///
-		/// `Origin` calling this extrinsic is not paying or receiving anything.
-		///
-		/// The profit made by closing the arbitrage is transferred to `FeeReceiver`.
+		/// Performs a flash loan to get funds to pay for the debt.
+		/// Received collateral is swapped and the profit is transferred to `FeeReceiver`.
 		///
 		/// Parameters:
-		/// - `origin`: Signed or unsigned origin. Unsigned origin doesn't pay the TX fee,
-		/// 			but can be submitted only by a collator.
-		/// - `otc_id`: ID of the OTC order with existing arbitrage opportunity.
-		/// - `amount`: Amount necessary to close the arb.
+		/// - `origin`: Signed origin.
+		/// - `collateral_asset`: Asset ID used as collateral in the MM position.
+		/// - `debt_asset`: Asset ID used as debt in the MM position.
+		/// - `user`: EVM address of the MM position that we want to liquidate.
+		/// - `debt_to_cover`: Amount of debt we want to liquidate.
 		/// - `route`: The route we trade against. Required for the fee calculation.
 		///
-		/// Emits `Executed` event when successful.
+		/// Emits `Liquidated` event when successful.
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
 			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
 			.saturating_add(<T as Config>::RouterWeightInfo::get_route_weight())
+		// TODO: gas to weight
 		)]
 		pub fn liquidate(
 			origin: OriginFor<T>,
@@ -181,6 +177,8 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let pallet_acc = Self::account_id();
 
+			// `route` needs to be provided in order to calculate correct TX fee.
+			// Ensure that the provided route matches the route we get from the router.
 			ensure!(
 				route
 					== T::Router::get_route(AssetPair {
@@ -197,9 +195,11 @@ pub mod pallet {
 			<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
 
 			// liquidation
-			let caller_evm_account = T::EvmAccounts::evm_address(&pallet_acc);
+			// TODO: bound pallet address
+			let pallet_evm_account = T::EvmAccounts::evm_address(&pallet_acc);
 			let mm_contract_address = T::MoneyMarketContract::get();
-			let context = CallContext::new_call(mm_contract_address, caller_evm_account);
+
+			let context = CallContext::new_call(mm_contract_address, pallet_evm_account);
 			let collateral_asset_evm_address =
 				T::Erc20Mapping::encode_evm_address(collateral_asset).ok_or(Error::<T>::AssetConversionFailed)?;
 			let debt_asset_evm_address =
@@ -209,10 +209,11 @@ pub mod pallet {
 				debt_asset_evm_address,
 				user,
 				debt_to_cover,
-				false, // TODO
+				false,
 			);
-			//
-			let value = U256::zero(); // TODO
+
+			// EVM call
+			let value = U256::zero();
 			let gas = 500_000;
 			let (exit_reason, value) = T::Evm::call(context, data, value, gas);
 			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
@@ -239,8 +240,11 @@ pub mod pallet {
 			let debt_asset_earned = debt_asset_final_balance
 				.checked_sub(debt_asset_initial_balance)
 				.ok_or(ArithmeticError::Overflow)?;
-			// ensure that we get back at least the amount we minted
-			ensure!(debt_asset_earned >= debt_to_cover, ArithmeticError::Overflow);
+
+			// ensure that we got back at least the amount we minted
+			let transferable_amount = debt_asset_earned
+				.checked_sub(debt_to_cover)
+				.ok_or(Error::<T>::NotProfitable)?;
 
 			<T as Config>::Currency::burn_from(
 				debt_asset,
@@ -250,10 +254,7 @@ pub mod pallet {
 				Fortitude::Force,
 			)?;
 
-			// transfer remaining balance
-			let transferable_amount = debt_asset_final_balance
-				.checked_sub(debt_to_cover)
-				.ok_or(ArithmeticError::Overflow)?;
+			// transfer frofit to `FeeReceiver`
 			<T as Config>::Currency::transfer(
 				debt_asset,
 				&pallet_acc,
@@ -278,7 +279,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	pub fn account_id() -> T::AccountId {
-		PALLET_ID.into_account_truncating()
+		PalletId(*b"lqdation").into_account_truncating()
 	}
 
 	pub fn encode_liquidation_call_data(
