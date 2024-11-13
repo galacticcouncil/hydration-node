@@ -29,8 +29,8 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
-pub mod weights;
 mod migration;
+pub mod weights;
 
 mod assets;
 pub mod evm;
@@ -265,8 +265,14 @@ pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, Run
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = fp_self_contained::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra, H160>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem, migration::OnRuntimeUpgradeMigration>;
+pub type Executive = frame_executive::Executive<
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllPalletsWithSystem,
+	migration::OnRuntimeUpgradeMigration,
+>;
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
 where

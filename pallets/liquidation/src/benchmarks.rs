@@ -62,10 +62,7 @@ where
 	AssetId: From<<T as pallet_asset_registry::Config>::AssetId>,
 	<T as pallet_asset_registry::Config>::AssetId: From<AssetId>,
 {
-	use frame_support::{
-		storage::with_transaction,
-		sp_runtime::TransactionOutcome,
-	};
+	use frame_support::{sp_runtime::TransactionOutcome, storage::with_transaction};
 
 	// Register new asset in asset registry
 	let name = b"DOT".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;

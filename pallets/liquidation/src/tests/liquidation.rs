@@ -4,9 +4,7 @@
 
 pub use crate::tests::mock::*;
 use crate::{Error, Event};
-use frame_support::{
-	assert_noop, assert_ok,
-};
+use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},

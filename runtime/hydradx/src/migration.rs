@@ -15,50 +15,46 @@
 
 use super::*;
 use frame_support::{
-    traits::OnRuntimeUpgrade,
-    weights::Weight,
-    dispatch::{GetDispatchInfo, RawOrigin},
+	dispatch::{GetDispatchInfo, RawOrigin},
+	traits::OnRuntimeUpgrade,
+	weights::Weight,
 };
 pub struct OnRuntimeUpgradeMigration;
 use super::Runtime;
 
-pub fn bind_pallet_account() -> Weight
-{
-    match EVMAccounts::bind_evm_address(RawOrigin::Signed(Liquidation::account_id()).into()) {
-        Ok(_) => {
-            log::info!(
-			target: "runtime::pallet_liquidation",
-			"Migration to v1 for Liquidation pallet"
-		);
-        },
-        Err(error) => {
-            log::info!(
-			target: "runtime::pallet_liquidation",
-			"Migration to v1 for Liquidation pallet failed: {:?}", error
-		);
-        }
-    }
+pub fn bind_pallet_account() -> Weight {
+	match EVMAccounts::bind_evm_address(RawOrigin::Signed(Liquidation::account_id()).into()) {
+		Ok(_) => {
+			log::info!(
+				target: "runtime::pallet_liquidation",
+				"Migration to v1 for Liquidation pallet"
+			);
+		}
+		Err(error) => {
+			log::info!(
+				target: "runtime::pallet_liquidation",
+				"Migration to v1 for Liquidation pallet failed: {:?}", error
+			);
+		}
+	}
 
-    let call = pallet_evm_accounts::Call::<Runtime>::bind_evm_address {
-    };
-    
-    call.get_dispatch_info().weight
+	let call = pallet_evm_accounts::Call::<Runtime>::bind_evm_address {};
+
+	call.get_dispatch_info().weight
 }
 
-
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
-    #[cfg(feature = "try-runtime")]
-    fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
-        Ok(vec![])
-    }
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+		Ok(vec![])
+	}
 
-    fn on_runtime_upgrade() -> Weight
-    {
-        bind_pallet_account()
-    }
+	fn on_runtime_upgrade() -> Weight {
+		bind_pallet_account()
+	}
 
-    #[cfg(feature = "try-runtime")]
-    fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
-        Ok(())
-    }
-    }
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
+		Ok(())
+	}
+}

@@ -26,28 +26,25 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use ethabi::ethereum_types::BigEndianHash;
+use evm::{ExitReason, ExitSucceed};
 use frame_support::{
 	pallet_prelude::*,
+	sp_runtime::traits::{AccountIdConversion, CheckedConversion},
 	traits::fungibles::{Inspect, Mutate},
 	traits::tokens::{Fortitude, Precision, Preservation},
 	PalletId,
-	sp_runtime::traits::{AccountIdConversion, CheckedConversion},
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::{
 	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouterT, Trade},
 };
-use sp_arithmetic::ArithmeticError;
-use sp_core::{
-	H256, U256,
-	crypto::AccountId32,
-};
-use sp_std::{vec, vec::Vec};
-use ethabi::ethereum_types::BigEndianHash;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use evm::{ExitReason, ExitSucceed};
 use pallet_evm::GasWeightMapping;
+use sp_arithmetic::ArithmeticError;
+use sp_core::{crypto::AccountId32, H256, U256};
+use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
 mod tests;
@@ -145,7 +142,7 @@ pub mod pallet {
 		/// Provided route doesn't match the existing route
 		InvalidRoute,
 		/// Liquidation was not profitable enough to repay flash loan
-		NotProfitable
+		NotProfitable,
 	}
 
 	#[pallet::call]
