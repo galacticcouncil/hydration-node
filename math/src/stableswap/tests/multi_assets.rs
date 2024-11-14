@@ -1,11 +1,10 @@
-use sp_arithmetic::Permill;
-
-use crate::stableswap::*;
-use crate::stableswap::types::AssetReserve;
-use crate::types::{Balance};
-
 const D_ITERATIONS: u8 = 128;
 const Y_ITERATIONS: u8 = 64;
+
+use crate::stableswap::types::AssetReserve;
+use crate::stableswap::*;
+use crate::types::Balance;
+use sp_arithmetic::Permill;
 
 const MAX_BALANCES: usize = 5;
 
@@ -85,7 +84,7 @@ fn calculate_in_given_out_should_fail_when_asset_idx_is_incorrect() {
 fn calculate_share_for_amount_should_return_correct_shares() {
 	let amp = 100_u128;
 
-	let balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000_000_000_000_000, 12))).collect::<Vec<_>>();
+	let balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
 
 	let amount: Balance = 100_000_000_000_000;
 	let issuance: Balance = 20_000_000_000_000_000_000_000;
@@ -95,7 +94,6 @@ fn calculate_share_for_amount_should_return_correct_shares() {
 
 	assert_eq!(result.0, 40001593768209443008);
 
-	let balances = balances.iter().map(|(_,amounts)| amounts.clone()).collect::<Vec<_>>();
 	let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 		&balances,
 		result.0,
@@ -114,8 +112,7 @@ fn calculate_share_for_amount_should_return_correct_shares_when_fee_applied() {
 
 	let fee = Permill::from_float(0.001);
 
-	//let balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
-	let balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000_000_000_000_000, 12))).collect::<Vec<_>>();
+	let balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
 
 	let amount: Balance = 100_000_000_000_000;
 	let issuance: Balance = 20_000_000_000_000_000_000_000;
@@ -124,7 +121,6 @@ fn calculate_share_for_amount_should_return_correct_shares_when_fee_applied() {
 
 	assert_eq!(result.0, 40021594667568399481);
 
-	let balances = balances.iter().map(|(_,amounts)| amounts.clone()).collect::<Vec<_>>();
 	let result =
 		calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(&balances, result.0, 0, issuance, amp, fee).unwrap();
 	assert_eq!(result, (99999975001371, 50023249592));
@@ -135,8 +131,8 @@ fn calculate_shares_should_work_when_correct_input_provided() {
 	let amp = 100_u128;
 
 	let initial_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
-	let mut updated_balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000, 12))).collect::<Vec<_>>();
-	updated_balances[2].1.amount += 5000u128;
+	let mut updated_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
+	updated_balances[2].amount += 5000u128;
 
 	let issuance: Balance = 100_000;
 
@@ -150,31 +146,12 @@ fn calculate_shares_should_work_when_correct_input_provided() {
 }
 
 #[test]
-fn calculate_shares_should_return_fees_for_all_assets() {
-	let amp = 100_u128;
-
-	let initial_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
-	let mut updated_balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000, 12))).collect::<Vec<_>>();
-	updated_balances[2].1.amount += 5000u128;
-
-	let issuance: Balance = 100_000;
-
-	let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance, Permill::from_percent(1));
-
-	assert!(result.is_some());
-
-	let result = result.unwrap();
-
-	assert_eq!(result.1, vec![(1,3), (2,3), (3,12), (4,3), (5,3)]);
-}
-
-#[test]
 fn calculate_shares_should_work_when_share_issuance_is_zero() {
 	let amp = 100_u128;
 
 	let initial_balances = [AssetReserve::new(0, 12); MAX_BALANCES];
-	let mut updated_balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000, 12))).collect::<Vec<_>>();
-	updated_balances[2].1.amount += 5000u128;
+	let mut updated_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
+	updated_balances[2].amount += 5000u128;
 
 	let issuance: Balance = 0;
 
@@ -192,8 +169,8 @@ fn calculate_shares_should_fail_when_balances_len_is_not_equal() {
 	let amp = 100_u128;
 
 	let initial_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES + 1];
-	let mut updated_balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000, 12))).collect::<Vec<_>>();
-	updated_balances[2].1.amount += 5000u128;
+	let mut updated_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
+	updated_balances[2].amount += 5000u128;
 
 	let issuance: Balance = 100_000;
 
@@ -207,8 +184,8 @@ fn calculate_shares_should_fail_when_updated_balances_are_less() {
 	let amp = 100_u128;
 
 	let initial_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
-	let mut updated_balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000, 12))).collect::<Vec<_>>();
-	updated_balances[2].1.amount -= 5000u128;
+	let mut updated_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
+	updated_balances[2].amount -= 5000u128;
 
 	let issuance: Balance = 100_000;
 
@@ -381,13 +358,12 @@ fn calculate_withdraw_should_return_correct_amount_when_removing_provided_shares
 	let fee = Permill::from_percent(0);
 
 	let initial_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
-	let mut updated_balances_for_calculate_shares = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000, 12))).collect::<Vec<_>>();
-	updated_balances_for_calculate_shares[2].1.amount += 5000u128;
-	let updated_balances = updated_balances_for_calculate_shares.iter().map(|(_,amounts)| amounts.clone()).collect::<Vec<_>>();
+	let mut updated_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
+	updated_balances[2].amount += 5000u128;
 
 	let issuance: Balance = 100_000;
 
-	let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances_for_calculate_shares, amp, issuance, Permill::zero());
+	let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance, Permill::zero());
 	let shares = result.unwrap().0;
 
 	let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
@@ -723,14 +699,13 @@ fn calculate_exact_amount_of_shares() {
 	let asset_idx = 2;
 
 	let initial_balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
-	let mut updated_balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000_000_000_000_000, 12))).collect::<Vec<_>>();
-	updated_balances[asset_idx].1.amount += 1_000_000_000_000_000u128;
+	let mut updated_balances = initial_balances;
+	updated_balances[asset_idx].amount += 1_000_000_000_000_000u128;
 
 	let issuance: Balance = 20_000_000_000_000_000_000_000;
 
 	let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance, Permill::zero());
-	let shares = result.unwrap().0;
-	assert_eq!(shares, 399850144492663029649);
+	assert_eq!(result.unwrap().0, 399850144492663029649);
 	let result = calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 		&initial_balances,
 		399850144492663029649,
@@ -749,8 +724,8 @@ fn calculate_exact_amount_of_shares_with_fee() {
 	let asset_idx = 2;
 
 	let initial_balances = [AssetReserve::new(10_000_000_000_000_000, 12); MAX_BALANCES];
-	let mut updated_balances = (0..MAX_BALANCES).map(|i| ((i+1) as u32, AssetReserve::new(10_000_000_000_000_000, 12))).collect::<Vec<_>>();
-	updated_balances[asset_idx].1.amount += 1_000_000_000_000_000u128;
+	let mut updated_balances = initial_balances;
+	updated_balances[asset_idx].amount += 1_000_000_000_000_000u128;
 
 	let issuance: Balance = 20_000_000_000_000_000_000_000;
 
@@ -761,8 +736,7 @@ fn calculate_exact_amount_of_shares_with_fee() {
 		issuance,
 		Permill::from_percent(0),
 	);
-	let shares = result.unwrap().0;
-	assert_eq!(shares, 399850144492663029649);
+	assert_eq!(result.unwrap().0, 399850144492663029649);
 	let result = calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 		&initial_balances,
 		399850144492663029649,
@@ -830,4 +804,29 @@ fn share_price_calculation_should_work_with_6_decimals() {
 		result,
 		Some((279206572581786940496760242, 279158579738033226972960348441675415837))
 	);
+}
+
+#[test]
+fn calculate_shares_should_return_fees_for_all_assets() {
+	let amp = 100_u128;
+
+	let initial_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
+	let mut updated_balances = [AssetReserve::new(10_000, 12); MAX_BALANCES];
+	updated_balances[2].amount += 5000u128;
+
+	let issuance: Balance = 100_000;
+
+	let result = calculate_shares::<D_ITERATIONS>(
+		&initial_balances,
+		&updated_balances,
+		amp,
+		issuance,
+		Permill::from_percent(1),
+	);
+
+	assert!(result.is_some());
+
+	let result = result.unwrap();
+
+	assert_eq!(result.1, vec![(3), (3), (12), (3), (3)]);
 }

@@ -106,18 +106,13 @@ where
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::AssetNotInPool.into()))?;
 					let pool_account = Self::pool_account(pool_id);
 					let balances = pool
-						.asset_reserves_with_decimals::<T>(&pool_account)
+						.reserves_with_decimals::<T>(&pool_account)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
 
 					let pool = Pools::<T>::get(pool_id)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
-
-					let balances = balances
-						.iter()
-						.map(|r| (r.0.into(), r.1))
-						.collect::<Vec<(u32, AssetReserve)>>();
 
 					let (shares_amount, _fees) =
 						hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(

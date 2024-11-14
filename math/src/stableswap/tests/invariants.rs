@@ -404,8 +404,7 @@ proptest! {
 
 		let issuance = balances.iter().sum();
 		let amount = to_precision(amount, pool[0].decimals);
-		let pool_with_id = pool.iter().map(|v| (1u32,v.clone())).collect::<Vec<_>>();
-		let result = calculate_shares_for_amount::<D_ITERATIONS>(&pool_with_id[..], 0, amount, amp, issuance, Permill::zero()).unwrap();
+		let result = calculate_shares_for_amount::<D_ITERATIONS>(&pool, 0, amount, amp, issuance, Permill::zero()).unwrap();
 
 		let received =
 		calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(&pool, result.0, 0, issuance, amp, Permill::zero())

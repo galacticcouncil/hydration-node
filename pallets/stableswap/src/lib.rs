@@ -685,19 +685,15 @@ pub mod pallet {
 			let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 			let pool_account = Self::pool_account(pool_id);
 			let initial_reserves = pool
-				.asset_reserves_with_decimals::<T>(&pool_account)
+				.reserves_with_decimals::<T>(&pool_account)
 				.ok_or(Error::<T>::UnknownDecimals)?;
 
-			let initial_reserves = initial_reserves
-				.iter()
-				.map(|r| (r.0.into(), r.1))
-				.collect::<Vec<(u32, AssetReserve)>>();
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
 
 			// Calculate how much shares user needs to provide to receive `amount` of asset.
 			let (shares, fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
-				&initial_reserves[..],
+				&initial_reserves,
 				asset_idx,
 				amount,
 				amplification,
@@ -720,7 +716,6 @@ pub mod pallet {
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
-			let initial_reserves = initial_reserves.iter().map(|r| r.1).collect::<Vec<_>>();
 			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
@@ -733,7 +728,8 @@ pub mod pallet {
 
 			let fees = fees
 				.iter()
-				.map(|(asset_id, balance)| Fee::new(*asset_id, *balance, pool_account.clone()))
+				.zip(pool.assets.iter())
+				.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, pool_account.clone()))
 				.collect::<Vec<_>>();
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
@@ -1217,23 +1213,21 @@ impl<T: Config> Pallet<T> {
 			});
 			if let Some(liq_added) = added_assets.remove(pool_asset) {
 				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
-				updated_reserves.push((
-					(*pool_asset).into(),
+				updated_reserves.push(
 					AssetReserve {
 						amount: inc_reserve,
 						decimals,
 					},
-				));
+				);
 				added_amounts.push(liq_added);
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push((
-					(*pool_asset).into(),
+				updated_reserves.push(
 					AssetReserve {
 						amount: reserve,
 						decimals,
 					},
-				));
+				);
 				added_amounts.push(0);
 			}
 		}
@@ -1277,7 +1271,8 @@ impl<T: Config> Pallet<T> {
 			.collect();
 		let fees = fees
 			.iter()
-			.map(|(asset_id, balance)| Fee::new(*asset_id, *balance, pool_account.clone()))
+			.zip(pool.assets.iter())
+			.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, pool_account.clone()))
 			.collect::<Vec<_>>();
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
@@ -1422,22 +1417,20 @@ impl<T: Config> Pallet<T> {
 			});
 			if let Some(liq_added) = added_assets.remove(pool_asset) {
 				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
-				updated_reserves.push((
-					(*pool_asset).into(),
+				updated_reserves.push(
 					AssetReserve {
 						amount: inc_reserve,
 						decimals,
 					},
-				));
+				);
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push((
-					(*pool_asset).into(),
+				updated_reserves.push(
 					AssetReserve {
 						amount: reserve,
 						decimals,
 					},
-				));
+				);
 			}
 		}
 
