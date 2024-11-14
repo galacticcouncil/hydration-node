@@ -41,8 +41,13 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::EnsureRoot;
+use pallet_utility::{BatchPostHook, BatchPreHook};
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use scale_info::TypeInfo;
+use sp_runtime::{ArithmeticError, DispatchResult};
+use hydradx_traits::router::ExecutionType;
+use hydradx_traits::IncrementalIdProvider;
+use pallet_amm_support::ExecutionTypeStack;
 
 pub struct CallFilter;
 impl Contains<RuntimeCall> for CallFilter {
@@ -305,7 +310,30 @@ impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type PalletsOrigin = OriginCaller;
+	type BatchPreHook = PushBatchExecutionTypeForUnifiedEvent;
+	type BatchPostHook = PopBatchExecutionTypeForUnifiedEvent;
 	type WeightInfo = weights::pallet_utility::HydraWeight<Runtime>;
+}
+
+pub struct PushBatchExecutionTypeForUnifiedEvent;
+
+impl BatchPreHook for PushBatchExecutionTypeForUnifiedEvent {
+	fn on_batch_start() -> DispatchResult {
+		let next_event_id = AmmSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
+		AmmSupport::push(ExecutionType::Batch(next_event_id))?;
+
+		Ok(())
+	}
+}
+
+pub struct PopBatchExecutionTypeForUnifiedEvent;
+
+impl BatchPostHook for PopBatchExecutionTypeForUnifiedEvent {
+	fn on_batch_end() -> DispatchResult {
+		AmmSupport::pop()?;
+
+		Ok(())
+	}
 }
 
 parameter_types! {

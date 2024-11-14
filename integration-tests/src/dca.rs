@@ -4188,20 +4188,6 @@ pub fn get_last_schedule_ids_from_trade_executed_events() -> Vec<u32> {
 	schedule_ids
 }
 
-pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
-	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
-	let mut swapped_events = vec![];
-
-	for event in last_events {
-		let e = event.clone();
-		if let RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped { .. }) = e {
-			swapped_events.push(e);
-		}
-	}
-
-	swapped_events
-}
-
 pub fn count_failed_trade_events() -> u32 {
 	count_dca_event!(pallet_dca::Event::TradeFailed { .. })
 }

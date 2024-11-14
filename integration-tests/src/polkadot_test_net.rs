@@ -15,7 +15,7 @@ use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 pub use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
+use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeEvent, RuntimeOrigin};
 pub use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	registry::Mutate,
@@ -896,4 +896,19 @@ pub fn assert_xcm_message_processing_passed() {
 		r.event,
 		hydradx_runtime::RuntimeEvent::MessageQueue(pallet_message_queue::Event::Processed { success: true, .. })
 	)));
+}
+
+
+pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
+	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
+	let mut swapped_events = vec![];
+
+	for event in last_events {
+		let e = event.clone();
+		if let RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped { .. }) = e {
+			swapped_events.push(e);
+		}
+	}
+
+	swapped_events
 }

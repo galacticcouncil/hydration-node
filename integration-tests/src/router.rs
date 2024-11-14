@@ -5957,7 +5957,7 @@ mod sell_all {
 	}
 }
 
-fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {
+pub fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {
 	assert_ok!(Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
 		DAVE.into(),
@@ -6013,7 +6013,7 @@ fn start_lbp_campaign() {
 	set_relaychain_block_number(LBP_SALE_START + 1);
 }
 
-fn create_xyk_pool(asset_a: u32, asset_b: u32) {
+pub fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	assert_ok!(XYK::create_pool(
 		RuntimeOrigin::signed(ALICE.into()),
 		asset_a,
