@@ -3,15 +3,17 @@
 use crate::{rational_to_f64, to_f64_by_decimals};
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Solver};
 use pallet_ice::types::{Intent, IntentId, ResolvedIntent};
+use primitives::{AccountId, AssetId, Balance};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ptr::null;
-use primitives::{AccountId, AssetId, Balance};
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
-use numpy::ndarray::{Array1, Array2};
+use highs::Problem;
+use numpy::ndarray::{Array, Array1, Array2, Array3, ArrayBase, OwnedRepr};
+use numpy::{Ix1, Ix2, Ix3};
 //use highs::
-use crate::problem::{FLOAT_INF, ICEProblem, ProblemStatus, FloatType};
+use crate::problem::{FloatType, ICEProblem, ProblemStatus, FLOAT_INF};
 
 fn calculate_scaling<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
@@ -234,20 +236,19 @@ where
 		let omnipool_data = OI::assets(None); //TODO: get only needed assets, but the list is from the next line
 		let problem = ICEProblem::new(intents, omnipool_data);
 
-		let (n,m,r) = (problem.n, problem.m, problem.r);
+		let (n, m, r) = (problem.n, problem.m, problem.r);
 
 		let inf = FLOAT_INF;
 
 		let k_milp = 4 * n + m + r;
-		let Z_L = -inf;
-		let Z_U = inf;
-		let current_status = ProblemStatus::NotSolved;
+		let mut Z_L = -inf;
+		let mut Z_U = inf;
+		let mut best_status = ProblemStatus::NotSolved;
 
-		let mut y_best: Vec<FloatType> = Vec::new();
-		let best_intent_deltas: Vec<FloatType> = Vec::new(); // m size
-		let best_amm_deltas: Vec<FloatType> = Vec::new(); // n size
+		let mut y_best: Vec<usize> = Vec::new();
+		let mut best_intent_deltas: Vec<FloatType> = Vec::new(); // m size
+		let mut best_amm_deltas: Vec<FloatType> = Vec::new(); // n size
 		let milp_ob = -inf;
-
 
 		// Force small 	trades to execute
 		// note this comes from initial solution which we skip for now
@@ -259,7 +260,8 @@ where
 			mandatory_indicators[i] = 1;
 		}
 
-		let bk: Vec<usize> = mandatory_indicators.iter()
+		let bk: Vec<usize> = mandatory_indicators
+			.iter()
 			.enumerate()
 			.filter(|&(_, &val)| val == 1)
 			.map(|(idx, _)| idx + 4 * n + m)
@@ -273,6 +275,80 @@ where
 		let new_a_upper = Array1::from_elem(1, inf);
 		let new_a_lower = Array1::from_elem(1, bk.len() as f64);
 
+		let mut Z_U_archive = vec![];
+		let mut Z_L_archive = vec![];
+		let indicators = problem.get_indicators();
+		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
+
+		for _i in 0..5 {
+			// Set up problem with current indicators
+			problem.set_up_problem(Some(&indicators));
+			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) = _find_good_solution_unrounded(&problem, true);
+
+			if obj < Z_U && dual_obj <= 0.0 {
+				Z_U = obj;
+				y_best = indicators.clone();
+				best_amm_deltas = amm_deltas.clone();
+				best_intent_deltas = intent_deltas.clone();
+				best_status = status;
+			}
+
+			/*
+			if status != "PrimalInfeasible" && status != "DualInfeasible" {
+				x_list = numpy::ndarray::stack![numpy::ndarray::Axis(0), x_list, x.view()];
+			}
+
+			 */
+			x_list = numpy::ndarray::stack![numpy::ndarray::Axis(0), x_list, x.view()];
+
+			// Get new cone constraint from current indicators
+			let BK: Vec<usize> = indicators
+				.iter()
+				.enumerate()
+				.filter(|&(_, &val)| val == 1)
+				.map(|(idx, _)| idx + 4 * n + m)
+				.collect();
+			let NK: Vec<usize> = indicators
+				.iter()
+				.enumerate()
+				.filter(|&(_, &val)| val == 0)
+				.map(|(idx, _)| idx + 4 * n + m)
+				.collect();
+			let mut IC_A = Array2::<f64>::zeros((1, k_milp));
+			for &i in &BK {
+				IC_A[[0, i]] = 1.0;
+			}
+			for &i in &NK {
+				IC_A[[0, i]] = -1.0;
+			}
+			let IC_upper = Array1::from_elem(1, (BK.len() - 1) as f64);
+			let IC_lower = Array1::from_elem(1, -FLOAT_INF);
+
+			// Add cone constraint to A, A_upper, A_lower
+			let A = numpy::ndarray::stack![numpy::ndarray::Axis(0), new_a.view(), IC_A.view()];
+			let A_upper = numpy::ndarray::concatenate![numpy::ndarray::Axis(0), new_a_upper.view(), IC_upper.view()];
+			let A_lower = numpy::ndarray::concatenate![numpy::ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
+
+			// Do MILP solve
+			problem.set_up_problem(None);
+			let (
+				amm_deltas,
+				partial_intent_deltas,
+				indicators,
+				new_a,
+				new_a_upper,
+				new_a_lower,
+				milp_obj,
+				valid,
+				milp_status,
+			) = _solve_inclusion_problem(&problem, &x_list, Z_U, -FLOAT_INF, &A, &A_upper, &A_lower);
+			Z_L = Z_L.max(milp_obj);
+			Z_U_archive.push(Z_U);
+			Z_L_archive.push(Z_L);
+			if !valid {
+				break;
+			}
+		}
 
 		/*
 		let (intent_asset_ids, intent_prices) = prepare_intent_data::<AccountId, AssetId>(&intents);
@@ -523,4 +599,40 @@ where
 		 */
 		Err(())
 	}
+}
+
+fn _solve_inclusion_problem(
+	p0: &ICEProblem,
+	p1: &ArrayBase<OwnedRepr<f64>, Ix2>,
+	p2: FloatType,
+	p3: FloatType,
+	p4: &Array<f64, Ix3>,
+	p5: &Array<FloatType, Ix1>,
+	p6: &Array<f64, Ix1>,
+) -> (
+	Vec<FloatType>,
+	Vec<FloatType>,
+	Vec<FloatType>,
+	Array2<f64>,
+	Array1<FloatType>,
+	Array1<FloatType>,
+	FloatType,
+	bool,
+	ProblemStatus,
+) {
+	todo!()
+}
+
+fn _find_good_solution_unrounded(
+	p0: &ICEProblem,
+	p1: bool,
+) -> (
+	Vec<FloatType>,
+	Vec<FloatType>,
+	Array2<f64>,
+	FloatType,
+	FloatType,
+	ProblemStatus,
+) {
+	todo!()
 }

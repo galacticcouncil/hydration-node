@@ -1,9 +1,9 @@
 pub mod omni;
 
+mod problem;
 #[cfg(test)]
 mod tests;
 mod v3;
-mod problem;
 
 use futures::future::ready;
 use futures::StreamExt;
@@ -50,10 +50,7 @@ where
 				//tracing::debug!(target: LOG_TARGET, "is best");
 				println!("is best");
 				let chain_info = client.usage_info().chain;
-				println!(
-					"chain info: {:?}",
-					chain_info.best_number,
-				);
+				println!("chain info: {:?}", chain_info.best_number,);
 				let runtime = client.runtime_api();
 				if let Ok(intents) = runtime.intents(notification.hash, &notification.header) {
 					// Compute solution using solver
@@ -65,24 +62,24 @@ where
 						//TODO: log error
 						return;
 					};
-					let (trades, score) = pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
+					let (trades, score) =
+						pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
 					println!("found solution ,submit it pls");
 
-				/*
-				let call = pallet_ice::Call::propose_solution {
-					intents: BoundedResolvedIntents::truncate_from(resolved_intents),
-					trades: BoundedTrades::truncate_from(trades),
-					score,
-					block: block_number.saturating_add(1u32.into()).into(),
-				};
-				let _ =
-					frame_system::offchain::SubmitTransaction::<T, pallet_ice::Call<T>>::submit_unsigned_transaction(
-						call.into(),
-					);
+					/*
+					let call = pallet_ice::Call::propose_solution {
+						intents: BoundedResolvedIntents::truncate_from(resolved_intents),
+						trades: BoundedTrades::truncate_from(trades),
+						score,
+						block: block_number.saturating_add(1u32.into()).into(),
+					};
+					let _ =
+						frame_system::offchain::SubmitTransaction::<T, pallet_ice::Call<T>>::submit_unsigned_transaction(
+							call.into(),
+						);
 
-				 */
-
+					 */
 				}
 			}
 		}
