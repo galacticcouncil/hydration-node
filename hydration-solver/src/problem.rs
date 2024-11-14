@@ -4,7 +4,13 @@ use pallet_ice::traits::OmnipoolAssetInfo;
 use pallet_ice::types::{Intent, IntentId};
 use primitives::{AccountId, AssetId, Balance};
 
-type FloatType = f64;
+pub type FloatType = f64;
+pub const FLOAT_INF: FloatType = FloatType::INFINITY;
+
+pub enum ProblemStatus {
+    NotSolved,
+    Solved,
+}
 
 pub struct ICEProblem{
     pub intent_ids: Vec<IntentId>,
