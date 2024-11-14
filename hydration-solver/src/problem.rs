@@ -13,6 +13,8 @@ pub const FLOAT_INF: FloatType = FloatType::INFINITY;
 pub enum ProblemStatus {
 	NotSolved,
 	Solved,
+	PrimalInfeasible,
+	DualInfeasible,
 }
 
 pub struct ICEProblem {
