@@ -2,6 +2,8 @@ pub mod omni;
 
 #[cfg(test)]
 mod tests;
+mod v3;
+mod problem;
 
 use futures::future::ready;
 use futures::StreamExt;

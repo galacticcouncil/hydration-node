@@ -2,11 +2,14 @@
 
 use crate::{rational_to_f64, to_f64_by_decimals};
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Solver};
-use pallet_ice::types::{Balance, Intent, IntentId, ResolvedIntent};
+use pallet_ice::types::{Intent, IntentId, ResolvedIntent};
 use std::collections::{BTreeMap, BTreeSet};
+use primitives::{AccountId, AssetId, Balance};
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
+//use highs::
+use crate::problem::ICEProblem;
 
 fn calculate_scaling<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
@@ -214,11 +217,10 @@ where
 	(asset_ids.iter().cloned().collect(), intent_prices)
 }
 
-pub struct SolverV3<AccountId, AssetId, OI>(std::marker::PhantomData<(AccountId, AssetId, OI)>);
+pub struct SolverV3<OI>(std::marker::PhantomData<OI>);
 
-impl<AccountId, AssetId, OI> Solver<(IntentId, Intent<AccountId, AssetId>)> for SolverV3<AccountId, AssetId, OI>
+impl<OI> Solver<(IntentId, Intent<AccountId, AssetId>)> for SolverV3<OI>
 where
-	AssetId: From<u32> + std::hash::Hash + PartialEq + Eq + Ord + Clone + Copy + core::fmt::Debug,
 	OI: OmnipoolInfo<AssetId>,
 {
 	type Metadata = ();
@@ -227,10 +229,13 @@ where
 	fn solve(
 		intents: Vec<(IntentId, Intent<AccountId, AssetId>)>,
 	) -> Result<(Vec<ResolvedIntent>, Self::Metadata), Self::Error> {
-		// Prepare intent and omnipool data
+		let omnipool_data = OI::assets(None); //TODO: get only needed assets, but the list is from the next line
+		let problem = ICEProblem::new(intents, omnipool_data);
 
+		let (n,m,r) = (problem.n, problem.m, problem.r);
+
+		/*
 		let (intent_asset_ids, intent_prices) = prepare_intent_data::<AccountId, AssetId>(&intents);
-		let omnipool_data = OI::assets(Some(intent_asset_ids));
 
 		let (asset_ids, asset_reserves, hub_reserves, fees, lrna_fees, decimals) =
 			prepare_omnipool_data::<AssetId>(omnipool_data);
@@ -475,5 +480,7 @@ where
 		 */
 
 		Ok((resolved_intents, ()))
+		 */
+		Err(())
 	}
 }
