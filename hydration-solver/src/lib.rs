@@ -53,20 +53,19 @@ where
 					chain_info.best_number,
 				);
 				let runtime = client.runtime_api();
-				let intents = runtime.intents(notification.hash, &notification.header).unwrap();
+				if let Ok(intents) = runtime.intents(notification.hash, &notification.header) {
+					// Compute solution using solver
+					let Ok((resolved_intents, metadata)) =
+						omni::OmniSolver::<AccountId, AssetId, hydradx_adapters::ice::OmnipoolDataProvider<T>>::solve(
+							intents,
+						)
+					else {
+						//TODO: log error
+						return;
+					};
+					let (trades, score) = pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
-				tracing::debug!(target: LOG_TARGET, "found {} intents", intents.len());
-				// Compute solution using solver
-				let Ok((resolved_intents, metadata)) =
-					omni::OmniSolver::<AccountId, AssetId, hydradx_adapters::ice::OmnipoolDataProvider<T>>::solve(
-						intents,
-					)
-				else {
-					//TODO: log error
-					return;
-				};
-
-				let (trades, score) = pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
+					println!("found solution ,submit it pls");
 
 				/*
 				let call = pallet_ice::Call::propose_solution {
@@ -81,6 +80,8 @@ where
 					);
 
 				 */
+
+				}
 			}
 		}
 	}
