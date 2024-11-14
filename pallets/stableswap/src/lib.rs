@@ -690,7 +690,7 @@ pub mod pallet {
 
 			let initial_reserves = initial_reserves
 				.iter()
-				.map(|(r)| (r.0.into(), r.1))
+				.map(|r| (r.0.into(), r.1))
 				.collect::<Vec<(u32, AssetReserve)>>();
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
@@ -731,6 +731,10 @@ pub mod pallet {
 				fee: 0u128, // dev note: figure out the actual fee amount in this case. For now, we dont need it.
 			});
 
+			let fees = fees
+				.iter()
+				.map(|(asset_id, balance)| Fee::new(*asset_id, *balance, pool_account.clone()))
+				.collect::<Vec<_>>();
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
 				pool_account.clone(),
@@ -738,7 +742,7 @@ pub mod pallet {
 				pallet_amm_support::TradeOperation::ExactOut,
 				vec![(AssetType::Fungible(pool_id.into()), shares)],
 				vec![(AssetType::Fungible(asset_id.into()), amount)],
-				vec![],
+				fees,
 			);
 
 			Ok(())

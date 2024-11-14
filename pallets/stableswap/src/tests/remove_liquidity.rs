@@ -868,21 +868,6 @@ fn removing_liquidity_with_exact_amount_should_work() {
 			assert_eq!(received, 0);
 			let balance = Tokens::free_balance(asset_a, &BOB);
 			assert_eq!(balance, 1_999_999_999_999_999_999);
-
-			let pool_account = pool_account(pool_id);
-			pretty_assertions::assert_eq!(
-				*get_last_swapped_events().last().unwrap(),
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
-					swapper: BOB,
-					filler: pool_account,
-					filler_type: pallet_amm_support::Filler::Stableswap(4),
-					operation: pallet_amm_support::TradeOperation::ExactOut,
-					inputs: vec![(AssetType::Fungible(pool_id), 1947597621401945851)],
-					outputs: vec![(AssetType::Fungible(asset_a), 1999999999999999999),],
-					fees: vec![],
-					operation_id: vec![],
-				})
-			);
 		});
 }
 
@@ -1024,6 +1009,92 @@ fn removing_liquidity_with_exact_amount_should_apply_fee() {
 			assert_eq!(balance, 1988517979234162416);
 		});
 }
+
+#[test]
+fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 3_000_000_000_000_000_003),
+			(ALICE, asset_a, 52425995641788588073263117),
+			(ALICE, asset_b, 52033213790329),
+			(ALICE, asset_c, 119135337044269),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 6)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 6)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(2000).unwrap(),
+				final_amplification: NonZeroU16::new(2000).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(1),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 52425995641788588073263117),
+					AssetAmount::new(asset_b, 52033213790329),
+					AssetAmount::new(asset_c, 119135337044269),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+			let amount = 2_000_000_000_000_000_000;
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			let desired_shares = 1947597621401945851;
+			assert_ok!(Stableswap::add_liquidity_shares(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				desired_shares,
+				asset_a,
+				amount * 2, // add liquidity for shares uses slightly more
+			));
+			let received = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(received, desired_shares);
+			let balance = Tokens::free_balance(asset_a, &BOB);
+			let amount_used = 3_000_000_000_000_000_003 - balance;
+			assert_eq!(amount_used, 2011482020765837587);
+			// ACT
+			assert_ok!(Stableswap::withdraw_asset_amount(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_a,
+				1_000_000_000_000_000_000,
+				desired_shares,
+			));
+
+			// ASSERT
+			let shares_left = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(shares_left, 968209693349892648);
+			let balance = Tokens::free_balance(asset_a, &BOB);
+			assert_eq!(balance, 1988517979234162416);
+			let pool_account = pool_account(pool_id);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_amm_support::Filler::Stableswap(4),
+					operation: pallet_amm_support::TradeOperation::ExactOut,
+					inputs: vec![(AssetType::Fungible(pool_id), 979387928052053203)],
+					outputs: vec![(AssetType::Fungible(asset_a), 1000000000000000000),],
+					fees: vec![Fee::new(asset_a, 2870505165609705, pool_account), Fee::new(asset_b, 872, pool_account), Fee::new(asset_c, 1998, pool_account)],
+					operation_id: vec![],
+				})
+			);
+		});
+}
+
 
 #[test]
 fn remove_multi_asset_liquidity_should_work_when_withdrawing_some_shares() {
