@@ -11,7 +11,7 @@ use crate::data::process_omnipool_data;
 use clarabel::algebra::*;
 use clarabel::solver::*;
 use highs::Problem;
-use ndarray::{Array, Array1, Array2, Array3, ArrayBase, Ix1, Ix2, Ix3, OwnedRepr};
+use ndarray::{Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, OwnedRepr};
 //use highs::
 use crate::problem::{FloatType, ICEProblem, ProblemStatus, FLOAT_INF};
 
@@ -409,8 +409,8 @@ fn solve_inclusion_problem(
 	bool,
 	String,
 ) {
-	let asset_list = &p.asset_list;
-	let tkn_list = vec!["LRNA".to_string()]
+	let asset_list = p.asset_ids.clone();
+	let tkn_list = vec![1u32]
 		.into_iter()
 		.chain(asset_list.iter().cloned())
 		.collect::<Vec<_>>();
@@ -638,7 +638,7 @@ fn solve_inclusion_problem(
 	let mut new_amm_deltas = BTreeMap::new();
 	let mut exec_partial_intent_deltas = vec![None; m];
 
-	for (i, tkn) in asset_list.iter().enumerate() {
+	for (i, tkn) in tkn_list.iter().enumerate() {
 		new_amm_deltas.insert(tkn.clone(), x_expanded[n + i] * scaling[tkn]);
 	}
 
@@ -870,7 +870,6 @@ fn find_solution_unrounded(
 
 	let full_intents = &p.full_intents;
 	let partial_intents = &p.partial_intents;
-	let state = &p.omnipool;
 	let asset_list = &p.asset_list;
 	let (n, m, r) = (p.n, p.m, p.r);
 
