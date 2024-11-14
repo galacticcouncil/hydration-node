@@ -11,8 +11,7 @@ use crate::data::process_omnipool_data;
 use clarabel::algebra::*;
 use clarabel::solver::*;
 use highs::Problem;
-use numpy::ndarray::{Array, Array1, Array2, Array3, ArrayBase, OwnedRepr};
-use numpy::{Ix1, Ix2, Ix3};
+use ndarray::{Array, Array1, Array2, Array3, ArrayBase, OwnedRepr, Ix1, Ix2, Ix3};
 //use highs::
 use crate::problem::{FloatType, ICEProblem, ProblemStatus, FLOAT_INF};
 
@@ -300,7 +299,7 @@ where
 			//TODO: figure out this
 			/*
 			if status != "PrimalInfeasible" && status != "DualInfeasible" {
-				x_list = numpy::ndarray::stack![numpy::ndarray::Axis(0), x_list, x.view()];
+				x_list = ndarray::stack![ndarray::Axis(0), x_list, x.view()];
 			}
 			 */
 
@@ -328,9 +327,9 @@ where
 			let IC_lower = Array1::from_elem(1, -FLOAT_INF);
 
 			// Add cone constraint to A, A_upper, A_lower
-			let A = numpy::ndarray::stack![numpy::ndarray::Axis(0), new_a.view(), IC_A.view()];
-			let A_upper = numpy::ndarray::concatenate![numpy::ndarray::Axis(0), new_a_upper.view(), IC_upper.view()];
-			let A_lower = numpy::ndarray::concatenate![numpy::ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
+			let A = ndarray::stack![ndarray::Axis(0), new_a.view(), IC_A.view()];
+			let A_upper = ndarray::concatenate![ndarray::Axis(0), new_a_upper.view(), IC_upper.view()];
+			let A_lower = ndarray::concatenate![ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
 
 			// Do MILP solve
 			problem.set_up_problem(None);
