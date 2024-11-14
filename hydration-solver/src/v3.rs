@@ -7,6 +7,7 @@ use primitives::{AccountId, AssetId, Balance};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ptr::null;
 
+use crate::data::process_omnipool_data;
 use clarabel::algebra::*;
 use clarabel::solver::*;
 use highs::Problem;
@@ -14,6 +15,8 @@ use numpy::ndarray::{Array, Array1, Array2, Array3, ArrayBase, OwnedRepr};
 use numpy::{Ix1, Ix2, Ix3};
 //use highs::
 use crate::problem::{FloatType, ICEProblem, ProblemStatus, FLOAT_INF};
+
+const ROUND_TOLERANCE: FloatType = 0.0001;
 
 fn calculate_scaling<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
@@ -234,7 +237,8 @@ where
 		intents: Vec<(IntentId, Intent<AccountId, AssetId>)>,
 	) -> Result<(Vec<ResolvedIntent>, Self::Metadata), Self::Error> {
 		let omnipool_data = OI::assets(None); //TODO: get only needed assets, but the list is from the next line
-		let problem = ICEProblem::new(intents, omnipool_data);
+		let data = process_omnipool_data(omnipool_data);
+		let problem = ICEProblem::new(intents, data);
 
 		let (n, m, r) = (problem.n, problem.m, problem.r);
 
@@ -283,7 +287,7 @@ where
 		for _i in 0..5 {
 			// Set up problem with current indicators
 			problem.set_up_problem(Some(&indicators));
-			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) = _find_good_solution_unrounded(&problem, true);
+			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) = find_good_solution_unrounded(&problem, true);
 
 			if obj < Z_U && dual_obj <= 0.0 {
 				Z_U = obj;
@@ -293,13 +297,12 @@ where
 				best_status = status;
 			}
 
+			//TODO: figure out this
 			/*
 			if status != "PrimalInfeasible" && status != "DualInfeasible" {
 				x_list = numpy::ndarray::stack![numpy::ndarray::Axis(0), x_list, x.view()];
 			}
-
 			 */
-			x_list = numpy::ndarray::stack![numpy::ndarray::Axis(0), x_list, x.view()];
 
 			// Get new cone constraint from current indicators
 			let BK: Vec<usize> = indicators
@@ -341,7 +344,7 @@ where
 				milp_obj,
 				valid,
 				milp_status,
-			) = _solve_inclusion_problem(&problem, &x_list, Z_U, -FLOAT_INF, &A, &A_upper, &A_lower);
+			) = solve_inclusion_problem(&problem, &x_list, Z_U, -FLOAT_INF, &A, &A_upper, &A_lower);
 			Z_L = Z_L.max(milp_obj);
 			Z_U_archive.push(Z_U);
 			Z_L_archive.push(Z_L);
@@ -349,259 +352,45 @@ where
 				break;
 			}
 		}
+		if best_status != ProblemStatus::Solved {
+			// no solution found
+			return Err(());
+		}
 
 		/*
-		let (intent_asset_ids, intent_prices) = prepare_intent_data::<AccountId, AssetId>(&intents);
 
-		let (asset_ids, asset_reserves, hub_reserves, fees, lrna_fees, decimals) =
-			prepare_omnipool_data::<AssetId>(omnipool_data);
+		let sell_deltas = round_solution(&problem.partial_intents, best_intent_deltas);
 
-		let mut converted_intent_amounts: Vec<(f64, f64)> = Vec::new();
-
-		for (_, intent) in intents.iter() {
-			let amount_in = to_f64_by_decimals!(intent.swap.amount_in, *decimals.get(&intent.swap.asset_in).unwrap());
-			let amount_out =
-				to_f64_by_decimals!(intent.swap.amount_out, *decimals.get(&intent.swap.asset_out).unwrap());
-			converted_intent_amounts.push((amount_in, amount_out));
-		}
-
-		let mut tkns: Vec<AssetId> = vec![1u32.into()];
-		tkns.extend(asset_ids.iter().cloned());
-
-		let fee_match = 0.0005;
-
-		let mut spot_prices = vec![1.];
-
-		let omnipool_spot_price: Vec<f64> = asset_reserves
-			.iter()
-			.zip(hub_reserves.iter())
-			.map(|(r, h)| h / r)
-			.collect();
-		spot_prices.extend(omnipool_spot_price.iter().cloned());
-
-		// Setup Variables
-		let n = asset_ids.len();
-		let m = intents.len();
-		let k = 4 * n + m;
-
-		//calculate scaling, tau, phi
-		let scaling = calculate_scaling::<AccountId, AssetId>(
-			&intents,
-			&converted_intent_amounts,
-			&asset_ids,
-			&asset_reserves,
-			&hub_reserves,
-		);
-		let (tau, phi) = calculate_tau_phi::<AccountId, AssetId>(&intents, &tkns, &scaling);
-
-		//#----------------------------#
-		//#          OBJECTIVE         #
-		//#----------------------------#
-		let P: CscMatrix<f64> = CscMatrix::zeros((k, k));
-
-		let delta_lrna_coefs = vec![1.; n];
-		let lambda_lrna_coefs = vec![-1.; n];
-		let delta_ceofs = omnipool_spot_price.clone();
-		let lambda_coefs: Vec<f64> = fees
-			.iter()
-			.zip(omnipool_spot_price.iter())
-			.map(|(f, sp)| (*f - 1.) * *sp)
-			.collect();
-		let mut d_coefs = Vec::new();
-		for j in 0..m {
-			let mut v = 0.;
-			for i in 0..n + 1 {
-				let p = phi.get_entry((i, j)).unwrap_or(0.);
-				let ip = intent_prices[j];
-				let t = tau.get_entry((i, j)).unwrap_or(0.);
-				let sp = spot_prices[i];
-
-				let a = p * ip - t;
-				let a = a * sp;
-
-				v += a;
-			}
-			d_coefs.push(v);
-		}
-
-		let mut q = Vec::new();
-		q.extend(delta_lrna_coefs);
-		q.extend(lambda_lrna_coefs);
-		q.extend(delta_ceofs);
-		q.extend(lambda_coefs);
-		q.extend(d_coefs);
-
-		//#----------------------------#
-		//#        CONSTRAINTS         #
-		//#----------------------------#
-
-		let mut A1: CscMatrix<f64> = CscMatrix::identity(k);
-		A1.negate();
-		let b1: Vec<f64> = vec![0.; k];
-		let cone1 = NonnegativeConeT(k);
-
-		// intents cannot sell more than they have
-		let amm_coefs = CscMatrix::zeros((m, 4 * n));
-		let d_coefs = CscMatrix::identity(m);
-		let A2 = CscMatrix::hcat(&amm_coefs, &d_coefs);
-		let b2 = intents
+		let partial_deltas_with_buys = add_buy_deltas(&problem.partial_intents, sell_deltas);
+		let full_deltas_with_buys = problem
+			.full_intents
 			.iter()
 			.enumerate()
-			.map(|(idx, intent)| (converted_intent_amounts[idx].0, intent.1.swap.asset_in))
-			.map(|(amount, asset_in)| amount / scaling[&asset_in])
-			.collect::<Vec<_>>();
-		let cone2 = NonnegativeConeT(m);
-
-		//leftover must be higher than required fees
-
-		let delta_lrna_coefs = vec![1.; n];
-		let lambda_lrna_coefs: Vec<f64> = lrna_fees.iter().map(|f| f - 1.).collect();
-		let zero_ceofs = vec![0.; 2 * n];
-		let mut d_coefs = Vec::new();
-		for i in 0..m {
-			let v = tau.get_entry((0, i)).unwrap_or(0.);
-			d_coefs.push(-v);
-		}
-		let mut q1 = Vec::new();
-		q1.extend(delta_lrna_coefs);
-		q1.extend(lambda_lrna_coefs);
-		q1.extend(zero_ceofs);
-		q1.extend(d_coefs);
-
-		let A30 = CscMatrix::from(&[q1.clone()]);
-		let b30 = vec![0.];
-
-		// other assets
-		let lrna_coefs = CscMatrix::zeros((n, 2 * n));
-		let delta_coefs = CscMatrix::identity(n);
-		let lambda_coefs = diags(n, n, fees.iter().map(|f| f - fee_match - 1.).collect());
-
-		let d = (1..n + 1)
-			.map(|i| {
-				(0..m)
-					.map(|j| {
-						let p = phi.get_entry((i, j)).unwrap_or(0.);
-						let ip = intent_prices[j];
-						let t = tau.get_entry((i, j)).unwrap_or(0.);
-						(p * ip) / (1. - fee_match) - t
-					})
-					.collect::<Vec<_>>()
+			.map(|(l, _)| {
+				if y_best[l] == 1 {
+					[-problem.full_intents[l].sell_quantity, problem.full_intents[l].buy_quantity]
+				} else {
+					[0., 0.]
+				}
 			})
 			.collect::<Vec<_>>();
-		let d_coefs = CscMatrix::from(&d);
-
-		let A31 = CscMatrix::hcat(&lrna_coefs, &delta_coefs);
-		let A31 = CscMatrix::hcat(&A31, &lambda_coefs);
-		let A31 = CscMatrix::hcat(&A31, &d_coefs);
-		let b31 = vec![0.; n];
-		let A3 = CscMatrix::vcat(&A30, &A31);
-		let cone3 = NonnegativeConeT(n + 1);
-
-		// AMM invariants must not go down
-		let mut A4 = CscMatrix::zeros((3 * n, k));
-		let b4 = vec![1.; 3 * n];
-		let mut cones4 = Vec::new();
-
-		let lrna_scaling = scaling.get(&1u32.into()).cloned().unwrap();
-		for i in 0..n {
-			let reserve = asset_reserves[i];
-			let hub_reserve = hub_reserves[i];
-			let asset_scaling = scaling.get(&asset_ids[i]).cloned().unwrap();
-
-			let v = -lrna_scaling / hub_reserve;
-			let v1 = -asset_scaling / reserve;
-
-			A4.set_entry((3 * i, i), v);
-			A4.set_entry((3 * i, n + i), -v);
-			A4.set_entry((3 * i + 1, 2 * n + i), v1);
-			A4.set_entry((3 * i + 1, 3 * n + i), -v1);
-			cones4.push(PowerConeT(0.5));
+		let mut deltas = vec![None; m + r];
+		for (i, delta) in problem.partial_indices.iter().enumerate() {
+			deltas[problem.partial_indices[i]] = partial_deltas_with_buys[i];
 		}
-		let A = CscMatrix::vcat(&A1, &A2);
-		let A = CscMatrix::vcat(&A, &A3);
-		let A = CscMatrix::vcat(&A, &A4);
-
-		let mut b = Vec::new();
-		b.extend(b1);
-		b.extend(b2);
-		b.extend(b30);
-		b.extend(b31);
-		b.extend(b4);
-
-		let mut cones = vec![cone1, cone2, cone3];
-		cones.extend(cones4);
-
-		let settings = DefaultSettingsBuilder::default()
-			.verbose(false)
-			.time_limit(f64::INFINITY)
-			.max_iter(200)
-			.build()
-			.unwrap();
-		let mut solver = DefaultSolver::new(&P, &q, &A, &b, &cones, settings);
-		solver.solve();
-
-		let status = solver.solution.status;
-		let solve_time = solver.solution.solve_time;
-		let x = solver.solution.x;
-		println!("status: {:?}", status);
-		println!("time: {:?}", solve_time);
-
-		let mut new_amm_deltas = BTreeMap::new();
-		let mut exec_intent_deltas = vec![0.; intents.len()];
-		for i in 0..n {
-			let tkn = asset_ids[i];
-			new_amm_deltas.insert(tkn, (x[2 * n + i] - x[3 * n + i]) * scaling.get(&tkn).unwrap());
+		for (i, delta) in problem.full_indices.iter().enumerate() {
+			deltas[problem.full_indices[i]] = full_deltas_with_buys[i];
 		}
-		for i in 0..intents.len() {
-			exec_intent_deltas[i] = -x[4 * n + i] * scaling[&intents[i].1.swap.asset_in];
-		}
+		let (deltas_final, obj) = add_small_trades(&problem, deltas);
 
-		let resolved_intents = prepare_resolved_intents(
-			&intents,
-			&decimals,
-			&converted_intent_amounts,
-			&exec_intent_deltas,
-			&intent_prices,
-			0.0001,
-		);
 
-		/*
-		let sell_deltas = round_solution(&converted_intent_amounts, exec_intent_deltas, 0.0001);
-
-		let intent_deltas = add_buy_deltas(&intent_prices, sell_deltas);
-
-		let mut resolved_intents = Vec::new();
-
-		let convert_to_balance = |a: f64, dec: u8| -> Balance {
-			let factor = 10u128.pow(dec as u32);
-			(a * factor as f64) as Balance
-		};
-
-		for (i, intent) in intents.iter().enumerate() {
-			if intent_deltas[i].0 != 0. && intent_deltas[i].1 != 0. {
-				let resolved_intent = ResolvedIntent {
-					intent_id: intent.0,
-					amount_in: convert_to_balance(
-						-intent_deltas[i].0,
-						decimals.get(&intent.1.swap.asset_in).unwrap().clone(),
-					),
-					amount_out: convert_to_balance(
-						intent_deltas[i].1,
-						decimals.get(&intent.1.swap.asset_out).unwrap().clone(),
-					),
-				};
-				resolved_intents.push(resolved_intent);
-			}
-		}
 		 */
 
-		Ok((resolved_intents, ()))
-		 */
 		Err(())
 	}
 }
 
-fn _solve_inclusion_problem(
+fn  solve_inclusion_problem(
 	p0: &ICEProblem,
 	p1: &ArrayBase<OwnedRepr<f64>, Ix2>,
 	p2: FloatType,
@@ -623,7 +412,7 @@ fn _solve_inclusion_problem(
 	todo!()
 }
 
-fn _find_good_solution_unrounded(
+fn find_good_solution_unrounded(
 	p0: &ICEProblem,
 	p1: bool,
 ) -> (

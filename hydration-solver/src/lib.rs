@@ -1,5 +1,6 @@
 pub mod omni;
 
+mod data;
 mod problem;
 #[cfg(test)]
 mod tests;
