@@ -141,7 +141,7 @@ pub fn calculate_shares<const D: u8>(
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
+	let updated_d = calculate_d::<D>(updated_reserves, amplification)?.checked_sub(2_u128)?;
 	if updated_d < initial_d {
 		return None;
 	}
@@ -219,7 +219,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 		})
 		.collect::<Option<Vec<AssetReserve>>>()?;
 
-	let initial_d = calculate_d::<D>(&initial_reserves, amplification)?;
+	let initial_d = calculate_d::<D>(initial_reserves, amplification)?;
 	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?;
 	let (d1, d0) = to_u256!(updated_d, initial_d);
 	let mut fees = vec![];
@@ -822,11 +822,11 @@ pub fn calculate_spot_price(
 				}
 			}
 
-			let updated_reserves: &Vec<AssetReserve> =
+			let update_reserves: &Vec<AssetReserve> =
 				&updated_reserves.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
 			let (shares_for_min_trade, _fees) = calculate_shares::<MAX_D_ITERATIONS>(
 				&reserves,
-				updated_reserves,
+				update_reserves,
 				amplification,
 				share_issuance,
 				fee.unwrap_or(Permill::zero()),
