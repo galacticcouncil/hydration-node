@@ -3,11 +3,11 @@
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 
-use crate::{assert_balance};
+use crate::assert_balance;
 use hydradx_runtime::LBP;
 use hydradx_runtime::XYK;
-use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_runtime::{Currencies, Omnipool, Runtime, RuntimeEvent};
+use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_traits::router::PoolType;
 use xcm_emulator::TestExt;
 
@@ -222,4 +222,3 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 fn start_lbp_campaign() {
 	set_relaychain_block_number(crate::router::LBP_SALE_START + 1);
 }
-

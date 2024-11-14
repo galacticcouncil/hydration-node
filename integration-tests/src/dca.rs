@@ -4153,7 +4153,6 @@ pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 	}
 }
 
-
 pub fn check_if_no_failed_events() {
 	let failed_events = count_failed_trade_events();
 	assert_eq!(0, failed_events);

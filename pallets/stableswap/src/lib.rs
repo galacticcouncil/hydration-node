@@ -1213,21 +1213,17 @@ impl<T: Config> Pallet<T> {
 			});
 			if let Some(liq_added) = added_assets.remove(pool_asset) {
 				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
-				updated_reserves.push(
-					AssetReserve {
-						amount: inc_reserve,
-						decimals,
-					},
-				);
+				updated_reserves.push(AssetReserve {
+					amount: inc_reserve,
+					decimals,
+				});
 				added_amounts.push(liq_added);
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(
-					AssetReserve {
-						amount: reserve,
-						decimals,
-					},
-				);
+				updated_reserves.push(AssetReserve {
+					amount: reserve,
+					decimals,
+				});
 				added_amounts.push(0);
 			}
 		}
@@ -1417,20 +1413,16 @@ impl<T: Config> Pallet<T> {
 			});
 			if let Some(liq_added) = added_assets.remove(pool_asset) {
 				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
-				updated_reserves.push(
-					AssetReserve {
-						amount: inc_reserve,
-						decimals,
-					},
-				);
+				updated_reserves.push(AssetReserve {
+					amount: inc_reserve,
+					decimals,
+				});
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(
-					AssetReserve {
-						amount: reserve,
-						decimals,
-					},
-				);
+				updated_reserves.push(AssetReserve {
+					amount: reserve,
+					decimals,
+				});
 			}
 		}
 

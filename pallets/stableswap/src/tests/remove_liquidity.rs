@@ -1088,13 +1088,16 @@ fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
 					operation: pallet_amm_support::TradeOperation::ExactOut,
 					inputs: vec![(AssetType::Fungible(pool_id), 979387928052053203)],
 					outputs: vec![(AssetType::Fungible(asset_a), 1000000000000000000),],
-					fees: vec![Fee::new(asset_a, 2870505165609705, pool_account), Fee::new(asset_b, 872, pool_account), Fee::new(asset_c, 1998, pool_account)],
+					fees: vec![
+						Fee::new(asset_a, 2870505165609705, pool_account),
+						Fee::new(asset_b, 872, pool_account),
+						Fee::new(asset_c, 1998, pool_account)
+					],
 					operation_id: vec![],
 				})
 			);
 		});
 }
-
 
 #[test]
 fn remove_multi_asset_liquidity_should_work_when_withdrawing_some_shares() {

@@ -55,7 +55,6 @@ impl ExecutionIdStack {
 	fn get(self) -> Vec<ExecutionType<IncrementalIdType>> {
 		self.0.into_inner()
 	}
-
 }
 
 #[frame_support::pallet]

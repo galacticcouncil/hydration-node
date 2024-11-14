@@ -898,7 +898,6 @@ pub fn assert_xcm_message_processing_passed() {
 	)));
 }
 
-
 pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
 	let mut swapped_events = vec![];

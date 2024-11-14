@@ -822,8 +822,7 @@ pub fn calculate_spot_price(
 				}
 			}
 
-			let update_reserves: &Vec<AssetReserve> =
-				&updated_reserves.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+			let update_reserves: &Vec<AssetReserve> = &updated_reserves.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
 			let (shares_for_min_trade, _fees) = calculate_shares::<MAX_D_ITERATIONS>(
 				&reserves,
 				update_reserves,
