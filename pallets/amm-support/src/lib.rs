@@ -56,9 +56,6 @@ impl ExecutionIdStack {
 		self.0.into_inner()
 	}
 
-	fn is_empty(&self) -> bool {
-		self.0.is_empty()
-	}
 }
 
 #[frame_support::pallet]

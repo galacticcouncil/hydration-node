@@ -6,7 +6,6 @@ use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
 use sp_std::vec;
-use sp_std::vec::Vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
 where

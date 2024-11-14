@@ -162,7 +162,7 @@ pub fn calculate_shares<const D: u8>(
 				let ideal_balance = d1.checked_mul(initial_reserve)?.checked_div(d0)?;
 				let diff = Balance::try_from(updated_reserve.abs_diff(ideal_balance)).ok()?;
 				let fee_amount = fee.checked_mul_int(diff)?;
-				fees.push(fee_amount.into());
+				fees.push(fee_amount);
 				Some(AssetReserve::new(
 					asset_reserve.amount.saturating_sub(fee_amount),
 					asset_reserve.decimals,
@@ -231,7 +231,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 			let ideal_balance = d1.checked_mul(initial_reserve)?.checked_div(d0)?;
 			let diff = Balance::try_from(updated_reserve.abs_diff(ideal_balance)).ok()?;
 			let fee_amount = fee.checked_mul_int(diff)?;
-			fees.push(fee_amount.into());
+			fees.push(fee_amount);
 			Some(AssetReserve::new(
 				asset_reserve.amount.saturating_sub(fee_amount),
 				asset_reserve.decimals,
