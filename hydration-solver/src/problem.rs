@@ -1,3 +1,5 @@
+use crate::data::AssetData;
+use crate::to_f64_by_decimals;
 use clarabel::algebra::CscMatrix;
 use pallet_ice::traits::OmnipoolAssetInfo;
 use pallet_ice::types::{Intent, IntentId};
@@ -7,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub type FloatType = f64;
 pub const FLOAT_INF: FloatType = FloatType::INFINITY;
 
+#[derive(PartialEq, Eq)]
 pub enum ProblemStatus {
 	NotSolved,
 	Solved,
@@ -15,14 +18,16 @@ pub enum ProblemStatus {
 pub struct ICEProblem {
 	pub intent_ids: Vec<IntentId>,
 	pub intents: Vec<Intent<AccountId, AssetId>>,
-	pub omnipool_data: Vec<OmnipoolAssetInfo<AssetId>>,
+	pub intent_amounts: Vec<(FloatType, FloatType)>,
+
+	pub pool_data: BTreeMap<AssetId, AssetData>,
 
 	pub n: usize, // number of assets in intents
 	pub m: usize, // number of partial intents
 	pub r: usize, // number of full intents
 
 	pub asset_ids: Vec<AssetId>,
-	pub partial_sell_amounts: Vec<Balance>,
+	pub partial_sell_amounts: Vec<FloatType>,
 	pub partial_indices: Vec<usize>,
 	pub full_indices: Vec<usize>,
 }
@@ -42,10 +47,11 @@ pub struct Params {
 impl ICEProblem {
 	pub fn new(
 		intents_and_ids: Vec<(IntentId, Intent<AccountId, AssetId>)>,
-		omnipool_data: Vec<OmnipoolAssetInfo<AssetId>>,
+		pool_data: BTreeMap<AssetId, AssetData>,
 	) -> Self {
 		let mut intents = Vec::with_capacity(intents_and_ids.len());
 		let mut intent_ids = Vec::with_capacity(intents_and_ids.len());
+		let mut intent_amounts = Vec::with_capacity(intents_and_ids.len());
 		let mut partial_sell_amounts = Vec::new();
 		let mut partial_indices = Vec::new();
 		let mut full_indices = Vec::new();
@@ -56,9 +62,21 @@ impl ICEProblem {
 
 		for (idx, (intent_id, intent)) in intents_and_ids.iter().enumerate() {
 			intent_ids.push(*intent_id);
+
+			let amount_in = to_f64_by_decimals!(
+				intent.swap.amount_in,
+				pool_data.get(&intent.swap.asset_in).unwrap().decimals
+			);
+			let amount_out = to_f64_by_decimals!(
+				intent.swap.amount_out,
+				pool_data.get(&intent.swap.asset_out).unwrap().decimals
+			);
+
+			intent_amounts.push((amount_in, amount_out));
+
 			if intent.partial {
 				partial_indices.push(idx);
-				partial_sell_amounts.push(intent.swap.amount_in);
+				partial_sell_amounts.push(amount_in);
 			} else {
 				full_indices.push(idx);
 			}
@@ -80,7 +98,8 @@ impl ICEProblem {
 		ICEProblem {
 			intent_ids,
 			intents,
-			omnipool_data,
+			intent_amounts,
+			pool_data,
 			n,
 			m,
 			r,
