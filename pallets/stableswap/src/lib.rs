@@ -685,14 +685,16 @@ pub mod pallet {
 			let asset_idx = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
 			let pool_account = Self::pool_account(pool_id);
 			let initial_reserves = pool
-				.reserves_with_decimals::<T>(&pool_account)
+				.asset_reserves_with_decimals::<T>(&pool_account)
 				.ok_or(Error::<T>::UnknownDecimals)?;
+
+			let initial_reserves = initial_reserves.iter().map(|(r)| (r.0.into(), r.1)).collect::<Vec<(u32, AssetReserve)>>();
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
 
 			// Calculate how much shares user needs to provide to receive `amount` of asset.
-			let shares = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
-				&initial_reserves,
+			let (shares, fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
+				&initial_reserves[..],
 				asset_idx,
 				amount,
 				amplification,
@@ -715,6 +717,7 @@ pub mod pallet {
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
 
 			// All done and updated. let's call the on_liquidity_changed hook.
+			let initial_reserves = initial_reserves.iter().map(|r| r.1).collect::<Vec<_>>();
 			Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
@@ -1207,17 +1210,23 @@ impl<T: Config> Pallet<T> {
 			});
 			if let Some(liq_added) = added_assets.remove(pool_asset) {
 				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
-				updated_reserves.push(AssetReserve {
-					amount: inc_reserve,
-					decimals,
-				});
+				updated_reserves.push((
+					(*pool_asset).into(),
+					AssetReserve {
+						amount: inc_reserve,
+						decimals,
+					},
+				));
 				added_amounts.push(liq_added);
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(AssetReserve {
-					amount: reserve,
-					decimals,
-				});
+				updated_reserves.push((
+					(*pool_asset).into(),
+					AssetReserve {
+						amount: reserve,
+						decimals,
+					},
+				));
 				added_amounts.push(0);
 			}
 		}
@@ -1226,7 +1235,7 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
+		let (share_amount, fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves,
 			amplification,
@@ -1259,7 +1268,10 @@ impl<T: Config> Pallet<T> {
 			.iter()
 			.map(|asset| (AssetType::Fungible(asset.asset_id.into()), asset.amount))
 			.collect();
-
+		let fees = fees
+			.iter()
+			.map(|(asset_id, balance)| Fee::new(*asset_id, *balance, pool_account.clone()))
+			.collect::<Vec<_>>();
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			pool_account.clone(),
@@ -1267,7 +1279,7 @@ impl<T: Config> Pallet<T> {
 			pallet_amm_support::TradeOperation::ExactIn,
 			inputs,
 			vec![(AssetType::Fungible(pool_id.into()), share_amount)],
-			vec![], //TODO: ask Martin what will be the fee?
+			fees,
 		);
 
 		Ok(share_amount)
@@ -1403,24 +1415,30 @@ impl<T: Config> Pallet<T> {
 			});
 			if let Some(liq_added) = added_assets.remove(pool_asset) {
 				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
-				updated_reserves.push(AssetReserve {
-					amount: inc_reserve,
-					decimals,
-				});
+				updated_reserves.push((
+					(*pool_asset).into(),
+					AssetReserve {
+						amount: inc_reserve,
+						decimals,
+					},
+				));
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(AssetReserve {
-					amount: reserve,
-					decimals,
-				});
+				updated_reserves.push((
+					(*pool_asset).into(),
+					AssetReserve {
+						amount: reserve,
+						decimals,
+					},
+				));
 			}
 		}
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let share_amount = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
+		let (share_amount, _fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
-			&updated_reserves,
+			&updated_reserves[..],
 			amplification,
 			share_issuance,
 			pool.fee,

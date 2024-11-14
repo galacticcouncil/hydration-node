@@ -1,10 +1,12 @@
-const D_ITERATIONS: u8 = 128;
-const Y_ITERATIONS: u8 = 64;
+use sp_arithmetic::Permill;
+
+use crate::stableswap::*;
+use crate::stableswap::types::AssetReserve;
 
 use super::*;
-use crate::stableswap::types::AssetReserve;
-use crate::stableswap::*;
-use sp_arithmetic::Permill;
+
+const D_ITERATIONS: u8 = 128;
+const Y_ITERATIONS: u8 = 64;
 
 #[test]
 fn test_d() {
@@ -103,12 +105,12 @@ fn test_shares() {
 	let amp = 100u128;
 
 	let initial_reserves = &[AssetReserve::new(0, 12); 2];
-	let updated_reserves = &[AssetReserve::new(1000 * ONE, 12), AssetReserve::new(500, 12)];
+	let updated_reserves = &[(1, AssetReserve::new(1000 * ONE, 12)),(2, AssetReserve::new(500, 12))];
 
 	let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128, Permill::zero());
 
 	assert!(result.is_some());
-	assert_eq!(result.unwrap(), 736626243363217809);
+	assert_eq!(result.unwrap().0, 736626243363217809);
 }
 #[test]
 fn remove_one_asset_should_work() {

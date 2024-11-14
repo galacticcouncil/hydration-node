@@ -51,6 +51,59 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			assert_balance!(BOB, pool_id, 200 * ONE * 1_000_000);
 			assert_balance!(pool_account, asset_a, 100 * ONE);
 			assert_balance!(pool_account, asset_b, 100 * ONE);
+		});
+}
+
+#[test]
+fn add_liquidity_should_emit_swapped_events() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 2_000_000_000_000_000_000),
+			(ALICE, asset_a, 52425995641788588073263117),
+			(ALICE, asset_b, 52033213790329),
+			(ALICE, asset_c, 119135337044269),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 6)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 6)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(2000).unwrap(),
+				final_amplification: NonZeroU16::new(2000).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_float(0.0001),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 52425995641788588073263117),
+					AssetAmount::new(asset_b, 52033213790329),
+					AssetAmount::new(asset_c, 119135337044269),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+			let amount = 2_000_000_000_000_000_000;
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![AssetAmount::new(asset_a, amount),]
+			));
+
+			let received = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(received, 1947487201901031408);
+
+			let pool_account = pool_account(pool_id);
 
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
@@ -59,12 +112,13 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 					filler: pool_account,
 					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
 					operation: pallet_amm_support::TradeOperation::ExactIn,
-					inputs: vec![
-						(AssetType::Fungible(asset_a), 100 * ONE),
-						(AssetType::Fungible(asset_b), 100 * ONE),
+					inputs: vec![(AssetType::Fungible(asset_a), 2000000000000000000),],
+					outputs: vec![(AssetType::Fungible(pool_id), 1947487201901031408)],
+					fees: vec![
+						Fee::new(asset_a, 57410103828678, pool_account),
+						Fee::new(asset_b, 17, pool_account),
+						Fee::new(asset_c, 39, pool_account)
 					],
-					outputs: vec![(AssetType::Fungible(pool_id), 200000000 * ONE)],
-					fees: vec![],
 					operation_id: vec![],
 				})
 			)

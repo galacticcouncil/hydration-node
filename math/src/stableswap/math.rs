@@ -125,12 +125,12 @@ pub fn calculate_in_given_out_with_fee<const D: u8, const Y: u8>(
 /// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
 pub fn calculate_shares<const D: u8>(
 	initial_reserves: &[AssetReserve],
-	updated_reserves: &[AssetReserve],
+	updated_asset_reserves: &[(AssetId, AssetReserve)],
 	amplification: Balance,
 	share_issuance: Balance,
 	fee: Permill,
-) -> Option<Balance> {
-	if initial_reserves.len() != updated_reserves.len() {
+) -> Option<(Balance, Vec<(AssetId, Balance)>)> {
+	if initial_reserves.len() != updated_asset_reserves.len() {
 		return None;
 	}
 	let n_coins = initial_reserves.len();
@@ -141,7 +141,8 @@ pub fn calculate_shares<const D: u8>(
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d::<D>(updated_reserves, amplification)?.checked_sub(2_u128)?;
+	let updated_reserves = updated_asset_reserves.iter().map(|(_,r)|r.clone()).collect::<Vec<_>>();
+	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
 	if updated_d < initial_d {
 		return None;
 	}
@@ -152,18 +153,20 @@ pub fn calculate_shares<const D: u8>(
 
 	let (d0, d1) = to_u256!(initial_d, updated_d);
 
+	let mut fees  = vec![];
 	let adjusted_reserves = if share_issuance > 0 {
-		updated_reserves
+		updated_asset_reserves
 			.iter()
 			.enumerate()
 			.map(|(idx, asset_reserve)| -> Option<AssetReserve> {
-				let (initial_reserve, updated_reserve) = to_u256!(initial_reserves[idx].amount, asset_reserve.amount);
+				let (initial_reserve, updated_reserve) = to_u256!(initial_reserves[idx].amount, asset_reserve.1.amount);
 				let ideal_balance = d1.checked_mul(initial_reserve)?.checked_div(d0)?;
 				let diff = Balance::try_from(updated_reserve.abs_diff(ideal_balance)).ok()?;
 				let fee_amount = fee.checked_mul_int(diff)?;
+				fees.push((asset_reserve.0, fee_amount.into()));
 				Some(AssetReserve::new(
-					asset_reserve.amount.saturating_sub(fee_amount),
-					asset_reserve.decimals,
+					asset_reserve.1.amount.saturating_sub(fee_amount),
+					asset_reserve.1.decimals,
 				))
 			})
 			.collect::<Option<Vec<AssetReserve>>>()?
@@ -174,24 +177,26 @@ pub fn calculate_shares<const D: u8>(
 
 	if share_issuance == 0 {
 		// if first liquidity added
-		Some(updated_d)
+		Some((updated_d, fees))
 	} else {
 		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, adjusted_d.checked_sub(initial_d)?, initial_d);
 		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
-		Balance::try_from(share_amount).ok()
+		let shares_amount = Balance::try_from(share_amount).ok()?;
+
+		Some((shares_amount, fees))
 	}
 }
 
 /// Calculate amount of shares to be given to LP after LP provided liquidity of one asset with given amount.
 pub fn calculate_shares_for_amount<const D: u8>(
-	initial_reserves: &[AssetReserve],
+	initial_asset_reserves: &[(AssetId, AssetReserve)],
 	asset_idx: usize,
 	amount: Balance,
 	amplification: Balance,
 	share_issuance: Balance,
 	fee: Permill,
-) -> Option<Balance> {
-	let n_coins = initial_reserves.len();
+) -> Option<(Balance, Vec<(AssetId, Balance)>)> {
+	let n_coins = initial_asset_reserves.len();
 	if n_coins <= 1 {
 		return None;
 	}
@@ -203,32 +208,36 @@ pub fn calculate_shares_for_amount<const D: u8>(
 		.checked_mul(&FixedU128::from(n_coins as u128))?
 		.checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
 
-	let updated_reserves: Vec<AssetReserve> = initial_reserves
+	let updated_asset_reserves: Vec<(AssetId, AssetReserve)> = initial_asset_reserves
 		.iter()
 		.enumerate()
-		.map(|(idx, v)| -> Option<AssetReserve> {
+		.map(|(idx, v)| -> Option<(AssetId, AssetReserve)> {
 			if idx == asset_idx {
-				Some(AssetReserve::new(v.amount.checked_sub(amount)?, v.decimals))
+				Some((v.0, AssetReserve::new(v.1.amount.checked_sub(amount)?, v.1.decimals)))
 			} else {
-				Some(*v)
+				Some((v.0, v.1))
 			}
 		})
-		.collect::<Option<Vec<AssetReserve>>>()?;
+		.collect::<Option<Vec<(AssetId, AssetReserve)>>>()?;
 
-	let initial_d = calculate_d::<D>(initial_reserves, amplification)?;
+	let initial_reserves = initial_asset_reserves.iter().map(|(_,r)|r.clone()).collect::<Vec<_>>();
+	let updated_reserves = updated_asset_reserves.iter().map(|(_,r)|r.clone()).collect::<Vec<_>>();
+	let initial_d = calculate_d::<D>(&initial_reserves, amplification)?;
 	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?;
 	let (d1, d0) = to_u256!(updated_d, initial_d);
-	let adjusted_reserves: Vec<AssetReserve> = updated_reserves
+	let mut fees = vec![];
+	let adjusted_reserves: Vec<AssetReserve> = updated_asset_reserves
 		.iter()
 		.enumerate()
 		.map(|(idx, asset_reserve)| -> Option<AssetReserve> {
-			let (initial_reserve, updated_reserve) = to_u256!(initial_reserves[idx].amount, asset_reserve.amount);
+			let (initial_reserve, updated_reserve) = to_u256!(initial_reserves[idx].amount, asset_reserve.1.amount);
 			let ideal_balance = d1.checked_mul(initial_reserve)?.checked_div(d0)?;
 			let diff = Balance::try_from(updated_reserve.abs_diff(ideal_balance)).ok()?;
 			let fee_amount = fee.checked_mul_int(diff)?;
+			fees.push((asset_reserve.0, fee_amount.into()));
 			Some(AssetReserve::new(
-				asset_reserve.amount.saturating_sub(fee_amount),
-				asset_reserve.decimals,
+				asset_reserve.1.amount.saturating_sub(fee_amount),
+				asset_reserve.1.decimals,
 			))
 		})
 		.collect::<Option<Vec<AssetReserve>>>()?;
@@ -239,7 +248,9 @@ pub fn calculate_shares_for_amount<const D: u8>(
 		.checked_mul(d_diff)?
 		.checked_div(d0)?
 		.checked_add(U256::one())?;
-	Balance::try_from(share_amount).ok()
+	let shares = Balance::try_from(share_amount).ok()?;
+
+	Some((shares, fees))
 }
 
 pub fn calculate_liquidity_out(reserve: Balance, share_amount: Balance, share_issuance: Balance) -> Option<Balance> {
@@ -793,8 +804,8 @@ pub fn calculate_spot_price(
 		}
 		(SHARE_ASSET, STABLE_ASSET) => {
 			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
-			let shares = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
-				&reserves,
+			let (shares, _fees) = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
+				&asset_reserves,
 				asset_out_idx,
 				min_trade_amount,
 				amplification,
@@ -814,10 +825,9 @@ pub fn calculate_spot_price(
 				}
 			}
 
-			let update_reserves: &Vec<AssetReserve> = &updated_reserves.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
-			let shares_for_min_trade = calculate_shares::<MAX_D_ITERATIONS>(
+			let (shares_for_min_trade, _fees) = calculate_shares::<MAX_D_ITERATIONS>(
 				&reserves,
-				update_reserves,
+				&updated_reserves[..],
 				amplification,
 				share_issuance,
 				fee.unwrap_or(Permill::zero()),
