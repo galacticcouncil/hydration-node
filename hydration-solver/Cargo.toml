@@ -21,6 +21,8 @@ pallet-asset-registry = {workspace = true, default-features = false}
 hydradx-adapters = {workspace = true, default-features = false}
 frame-system = {workspace = true, default-features = false}
 
+highs = "1.6.1"
+
 [dev-dependencies]
 rand = { version = "0.8.5", default-features = false }
 serde_json = {workspace = true}
