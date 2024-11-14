@@ -4,12 +4,14 @@ use crate::{rational_to_f64, to_f64_by_decimals};
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Solver};
 use pallet_ice::types::{Intent, IntentId, ResolvedIntent};
 use std::collections::{BTreeMap, BTreeSet};
+use std::ptr::null;
 use primitives::{AccountId, AssetId, Balance};
 
 use clarabel::algebra::*;
 use clarabel::solver::*;
+use numpy::ndarray::{Array1, Array2};
 //use highs::
-use crate::problem::ICEProblem;
+use crate::problem::{FLOAT_INF, ICEProblem, ProblemStatus, FloatType};
 
 fn calculate_scaling<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
@@ -233,6 +235,44 @@ where
 		let problem = ICEProblem::new(intents, omnipool_data);
 
 		let (n,m,r) = (problem.n, problem.m, problem.r);
+
+		let inf = FLOAT_INF;
+
+		let k_milp = 4 * n + m + r;
+		let Z_L = -inf;
+		let Z_U = inf;
+		let current_status = ProblemStatus::NotSolved;
+
+		let mut y_best: Vec<FloatType> = Vec::new();
+		let best_intent_deltas: Vec<FloatType> = Vec::new(); // m size
+		let best_amm_deltas: Vec<FloatType> = Vec::new(); // n size
+		let milp_ob = -inf;
+
+
+		// Force small 	trades to execute
+		// note this comes from initial solution which we skip for now
+		// so nothing is mandatory just yet, but let;s prepare
+
+		let exec_indices: Vec<usize> = vec![];
+		let mut mandatory_indicators = vec![0; r];
+		for &i in &exec_indices {
+			mandatory_indicators[i] = 1;
+		}
+
+		let bk: Vec<usize> = mandatory_indicators.iter()
+			.enumerate()
+			.filter(|&(_, &val)| val == 1)
+			.map(|(idx, _)| idx + 4 * n + m)
+			.collect();
+
+		let mut new_a = Array2::<f64>::zeros((1, k_milp));
+		for &i in &bk {
+			new_a[[0, i]] = 1.0;
+		}
+
+		let new_a_upper = Array1::from_elem(1, inf);
+		let new_a_lower = Array1::from_elem(1, bk.len() as f64);
+
 
 		/*
 		let (intent_asset_ids, intent_prices) = prepare_intent_data::<AccountId, AssetId>(&intents);

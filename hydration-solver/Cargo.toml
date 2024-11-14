@@ -22,6 +22,7 @@ hydradx-adapters = {workspace = true, default-features = false}
 frame-system = {workspace = true, default-features = false}
 
 highs = "1.6.1"
+numpy = "0.22.1"
 
 [dev-dependencies]
 rand = { version = "0.8.5", default-features = false }
