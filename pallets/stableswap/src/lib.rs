@@ -688,7 +688,10 @@ pub mod pallet {
 				.asset_reserves_with_decimals::<T>(&pool_account)
 				.ok_or(Error::<T>::UnknownDecimals)?;
 
-			let initial_reserves = initial_reserves.iter().map(|(r)| (r.0.into(), r.1)).collect::<Vec<(u32, AssetReserve)>>();
+			let initial_reserves = initial_reserves
+				.iter()
+				.map(|(r)| (r.0.into(), r.1))
+				.collect::<Vec<(u32, AssetReserve)>>();
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
 

@@ -56,26 +56,33 @@ where
 		self.assets.len() >= 2 && has_unique_elements(&mut self.assets.iter())
 	}
 
-	pub(crate) fn asset_reserves_with_decimals<T: Config>(&self, account: &T::AccountId) -> Option<Vec<(AssetId, AssetReserve)>>
-		where
-			T::AssetId: Into<u32>, <T as Config>::AssetId: From<AssetId>
+	pub(crate) fn asset_reserves_with_decimals<T: Config>(
+		&self,
+		account: &T::AccountId,
+	) -> Option<Vec<(AssetId, AssetReserve)>>
+	where
+		T::AssetId: Into<u32>,
+		<T as Config>::AssetId: From<AssetId>,
 	{
 		self.assets
 			.iter()
 			.map(|asset| {
 				let reserve = T::Currency::free_balance((*asset).into(), account);
 				let decimals = Pallet::<T>::retrieve_decimals((*asset).into())?;
-				Some((*asset, AssetReserve {
-					amount: reserve,
-					decimals,
-				}))
+				Some((
+					*asset,
+					AssetReserve {
+						amount: reserve,
+						decimals,
+					},
+				))
 			})
 			.collect()
 	}
 
 	pub(crate) fn reserves_with_decimals<T: Config>(&self, account: &T::AccountId) -> Option<Vec<AssetReserve>>
-		where
-			T::AssetId: From<AssetId>,
+	where
+		T::AssetId: From<AssetId>,
 	{
 		self.assets
 			.iter()

@@ -113,17 +113,21 @@ where
 					let pool = Pools::<T>::get(pool_id)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 
-					let balances = balances.iter().map(|(r)| (r.0.into(), r.1)).collect::<Vec<(u32, AssetReserve)>>();
+					let balances = balances
+						.iter()
+						.map(|(r)| (r.0.into(), r.1))
+						.collect::<Vec<(u32, AssetReserve)>>();
 
-					let (shares_amount, _fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
-						&balances,
-						asset_idx,
-						amount_out,
-						amplification,
-						share_issuance,
-						pool.fee,
-					)
-					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					let (shares_amount, _fees) =
+						hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
+							&balances,
+							asset_idx,
+							amount_out,
+							amplification,
+							share_issuance,
+							pool.fee,
+						)
+						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(shares_amount)
 				} else {
