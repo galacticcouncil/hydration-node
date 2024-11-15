@@ -11,6 +11,7 @@ pub(crate) struct AssetData {
 	pub hub_reserve: FloatType,
 	pub fee: FloatType,
 	pub protocol_fee: FloatType,
+	pub hub_price: FloatType,
 }
 
 pub(crate) fn process_omnipool_data(info: Vec<OmnipoolAssetInfo<AssetId>>) -> BTreeMap<AssetId, AssetData> {
@@ -22,6 +23,7 @@ pub(crate) fn process_omnipool_data(info: Vec<OmnipoolAssetInfo<AssetId>>) -> BT
 		let hub_reserve = asset.hub_reserve_as_f64();
 		let fee = asset.fee_as_f64();
 		let protocol_fee = asset.hub_fee_as_f64();
+		let hub_price = if reserve > 0. { hub_reserve / reserve } else { 0. };
 		let asset_data = AssetData {
 			asset_id,
 			decimals,
@@ -29,6 +31,7 @@ pub(crate) fn process_omnipool_data(info: Vec<OmnipoolAssetInfo<AssetId>>) -> BT
 			hub_reserve,
 			fee,
 			protocol_fee,
+			hub_price,
 		};
 		r.insert(asset_id, asset_data);
 	}

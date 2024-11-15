@@ -13,7 +13,7 @@ use clarabel::solver::*;
 use highs::Problem;
 use ndarray::{Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, OwnedRepr};
 //use highs::
-use crate::problem::{FloatType, ICEProblem, ProblemStatus, FLOAT_INF};
+use crate::problem::{AmmApprox, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
 
 const ROUND_TOLERANCE: FloatType = 0.0001;
 
@@ -284,8 +284,8 @@ where
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
 		for _i in 0..5 {
-			// Set up problem with current indicators
-			problem.set_up_problem(Some(&indicators));
+			let params = SetupParams::new().with_indicators(indicators.clone());
+			problem.set_up_problem(params);
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
 				find_good_solution_unrounded(&problem, true, true, true, true);
 
@@ -333,7 +333,7 @@ where
 			let A_lower = ndarray::concatenate![ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
 
 			// Do MILP solve
-			problem.set_up_problem(None);
+			problem.set_up_problem(SetupParams::new());
 			let (
 				amm_deltas,
 				partial_intent_deltas,
@@ -675,10 +675,11 @@ fn find_good_solution_unrounded(
 	allow_loss: bool,
 ) -> (Vec<f64>, Vec<f64>, Array2<f64>, f64, f64, ProblemStatus) {
 	let (n, m, r) = (p.n, p.m, p.r);
-	if p.I.iter().sum::<f64>() + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
+	if p.indicators.len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
+		// nothing to execute
 		return (
-			vec![0.0; p.asset_list.len()],
-			vec![0.0; p.partial_intents.len()],
+			vec![0.0; p.asset_ids.len()],
+			vec![0.0; p.partial_indices.len()],
 			Array2::zeros((4 * n + m, 1)),
 			0.0,
 			0.0,
@@ -689,6 +690,7 @@ fn find_good_solution_unrounded(
 	let (mut amm_deltas, mut intent_deltas, mut x, mut obj, mut dual_obj, mut status) =
 		find_solution_unrounded(p, allow_loss);
 
+	// if partial trade size is much higher than executed trade, lower trade max
 	let mut trade_pcts: Vec<f64> = if scale_trade_max {
 		p.partial_sell_maxs
 			.iter()
@@ -700,24 +702,30 @@ fn find_good_solution_unrounded(
 	};
 	trade_pcts.extend(vec![1.0; r]);
 
-	let mut force_amm_approx: Option<BTreeMap<AssetId, &str>> = None;
+	// adjust AMM constraint approximation based on percent of Omnipool liquidity traded with AMM
+	let mut force_amm_approx: Option<BTreeMap<AssetId, AmmApprox>> = None;
 	let mut approx_adjusted_ct = 0;
 
 	if approx_amm_eqs && status != ProblemStatus::PrimalInfeasible && status != ProblemStatus::DualInfeasible {
-		force_amm_approx = Some(p.asset_list.iter().map(|&tkn| (tkn, "full")).collect());
+		force_amm_approx = Some(p.asset_ids.iter().map(|&tkn| (tkn, AmmApprox::Full)).collect());
 		let amm_pcts: BTreeMap<_, _> = p
-			.asset_list
+			.asset_ids
 			.iter()
-			.map(|&tkn| (tkn, (amm_deltas[tkn] / p.omnipool.liquidity[&tkn]).abs()))
+			.map(|&tkn| {
+				(
+					tkn,
+					(amm_deltas.get(&tkn).unwrap() / p.get_asset_pool_data(tkn).reserve).abs(),
+				)
+			})
 			.collect();
 
-		for &tkn in &p.asset_list {
+		for &tkn in &p.asset_ids {
 			if let Some(force_amm_approx) = force_amm_approx.as_mut() {
 				if amm_pcts[&tkn] <= 1e-6 {
-					force_amm_approx.insert(tkn, "linear");
+					force_amm_approx.insert(tkn, AmmApprox::Linear);
 					approx_adjusted_ct += 1;
 				} else if amm_pcts[&tkn] <= 1e-3 {
-					force_amm_approx.insert(tkn, "quadratic");
+					force_amm_approx.insert(tkn, AmmApprox::Quadratic);
 					approx_adjusted_ct += 1;
 				}
 			}
@@ -741,23 +749,34 @@ fn find_good_solution_unrounded(
 		let (new_maxes, zero_ct) = if trade_pcts
 			.iter()
 			.cloned()
-			.cloned()
 			.min_by(|a, b| a.partial_cmp(b).unwrap())
 			.unwrap() < 0.1
 		{
-			scale_down_partial_intents(p, &trade_pcts, 10)
+			scale_down_partial_intents(p, &trade_pcts, 10.)
 		} else {
-			(None, 0)
+			(vec![], 0)
 		};
 
-		p.set_up_problem(new_maxes.as_ref(), false, force_amm_approx.as_ref());
+		let mut params = SetupParams::new()
+			.with_sell_maxes(new_maxes)
+			.with_clear_indicators(false);
+		let params = if force_amm_approx.is_some() {
+			params.with_force_amm_approx(force_amm_approx.unwrap())
+		} else {
+			params
+		};
+		p.set_up_problem(params);
 
 		if zero_ct == m {
+			// all partial intents have been eliminated from execution
 			break;
 		}
 
 		let (new_amm_deltas, new_intent_deltas, new_x, new_obj, new_dual_obj, new_status) =
 			find_solution_unrounded(p, allow_loss);
+
+		// need to check if amm_deltas stayed within their reasonable approximation bounds
+		// if not, we may want to discard the "solution"
 
 		amm_deltas = new_amm_deltas;
 		intent_deltas = new_intent_deltas;
@@ -778,39 +797,44 @@ fn find_good_solution_unrounded(
 
 		if approx_amm_eqs && status != ProblemStatus::PrimalInfeasible && status != ProblemStatus::DualInfeasible {
 			let amm_pcts: BTreeMap<_, _> = p
-				.asset_list
+				.asset_ids
 				.iter()
-				.map(|&tkn| (tkn, (amm_deltas[tkn] / p.omnipool.liquidity[&tkn]).abs()))
+				.map(|&tkn| {
+					(
+						tkn,
+						(amm_deltas.get(&tkn).unwrap() / p.get_asset_pool_data(tkn).reserve).abs(),
+					)
+				})
 				.collect();
 
 			approx_adjusted_ct = 0;
-			for &tkn in &p.asset_list {
+			for &tkn in &p.asset_ids {
 				if let Some(force_amm_approx) = force_amm_approx.as_mut() {
 					match force_amm_approx[&tkn] {
-						"linear" => {
+						AmmApprox::Linear => {
 							if amm_pcts[&tkn] > 1e-3 {
-								force_amm_approx.insert(tkn, "full");
+								force_amm_approx.insert(tkn, AmmApprox::Full);
 								approx_adjusted_ct += 1;
 							} else if amm_pcts[&tkn] > 2e-6 {
-								force_amm_approx.insert(tkn, "quadratic");
+								force_amm_approx.insert(tkn, AmmApprox::Quadratic);
 								approx_adjusted_ct += 1;
 							}
 						}
-						"quadratic" => {
+						AmmApprox::Quadratic => {
 							if amm_pcts[&tkn] > 2e-3 {
-								force_amm_approx.insert(tkn, "full");
+								force_amm_approx.insert(tkn, AmmApprox::Full);
 								approx_adjusted_ct += 1;
 							} else if amm_pcts[&tkn] <= 1e-6 {
-								force_amm_approx.insert(tkn, "linear");
+								force_amm_approx.insert(tkn, AmmApprox::Linear);
 								approx_adjusted_ct += 1;
 							}
 						}
 						_ => {
 							if amm_pcts[&tkn] <= 1e-6 {
-								force_amm_approx.insert(tkn, "linear");
+								force_amm_approx.insert(tkn, AmmApprox::Linear);
 								approx_adjusted_ct += 1;
 							} else if amm_pcts[&tkn] <= 1e-3 {
-								force_amm_approx.insert(tkn, "quadratic");
+								force_amm_approx.insert(tkn, AmmApprox::Quadratic);
 								approx_adjusted_ct += 1;
 							}
 						}
@@ -820,9 +844,15 @@ fn find_good_solution_unrounded(
 		}
 	}
 
+	// once solution is found, re-run with directional flags
 	if do_directional_run {
 		let flags = get_directional_flags(&amm_deltas);
-		p.set_up_problem(Some(&flags), false, false, false);
+		let params = SetupParams::new()
+			.with_flags(flags)
+			.with_clear_indicators(false)
+			.with_clear_sell_maxes(false)
+			.with_clear_amm_approx(false);
+		p.set_up_problem(params);
 		let (new_amm_deltas, new_intent_deltas, new_x, new_obj, new_dual_obj, new_status) =
 			find_solution_unrounded(p, allow_loss);
 
@@ -853,14 +883,10 @@ fn find_solution_unrounded(
 	p: &ICEProblem,
 	allow_loss: bool,
 ) -> (BTreeMap<AssetId, f64>, Vec<f64>, Array2<f64>, f64, f64, ProblemStatus) {
-	if p.I.is_none() {
-		panic!("I is None");
-	}
-	let I = p.I.as_ref().unwrap();
-	if I.iter().sum::<f64>() + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
+	if p.get_indicators().len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
 		return (
-			p.asset_list.iter().map(|&tkn| (tkn, 0.0)).collect(),
-			vec![0.0; p.partial_intents.len()],
+			p.asset_ids.iter().map(|&tkn| (tkn, 0.0)).collect(),
+			vec![0.0; p.partial_indices.len()],
 			Array2::zeros((4 * p.n + p.m, 1)),
 			0.0,
 			0.0,
@@ -868,12 +894,12 @@ fn find_solution_unrounded(
 		);
 	}
 
-	let full_intents = &p.full_intents;
-	let partial_intents = &p.partial_intents;
-	let asset_list = &p.asset_list;
+	//let full_intents = &p.full_intents;
+	let partial_intents = &p.partial_indices; // TODO: should not be actual intents?!
+	let asset_list = &p.asset_ids;
 	let (n, m, r) = (p.n, p.m, p.r);
 
-	if partial_intents.len() + I.iter().sum::<f64>() as usize == 0 {
+	if partial_intents.len() + p.get_indicators().len() == 0 {
 		return (
 			asset_list.iter().map(|&tkn| (tkn, 0.0)).collect(),
 			vec![],
@@ -929,7 +955,7 @@ fn find_solution_unrounded(
 	let mut A3 = -profit_A.slice(s![.., ..4 * n + m]).to_owned();
 	let mut I_coefs = -profit_A.slice(s![.., 4 * n + m..]).to_owned();
 	if allow_loss {
-		let profit_i = p.asset_list.iter().position(|&x| x == p.tkn_profit).unwrap() + 1;
+		let profit_i = p.asset_ids.iter().position(|&x| x == p.tkn_profit).unwrap() + 1;
 		A3.remove_index(Axis(0), profit_i);
 		I_coefs.remove_index(Axis(0), profit_i);
 	}
@@ -1105,8 +1131,10 @@ fn scale_down_partial_intents(p: &ICEProblem, trade_pcts: &[f64], scale: f64) ->
 		let mut new_sell_max = m / scale;
 
 		if old_sell_quantity < new_sell_max {
-			let tkn = p.partial_intents[i].tkn_sell;
-			let sell_amt_lrna_value = new_sell_max * p.omnipool.price(tkn);
+			let partial_intent_idx = p.partial_indices[i];
+			let intent = p.intents[partial_intent_idx].clone();
+			let tkn = intent.swap.asset_in;
+			let sell_amt_lrna_value = new_sell_max * p.get_asset_pool_data(tkn).hub_price;
 
 			if sell_amt_lrna_value < p.min_partial {
 				new_sell_max = 0.0;
@@ -1119,7 +1147,7 @@ fn scale_down_partial_intents(p: &ICEProblem, trade_pcts: &[f64], scale: f64) ->
 	(intent_sell_maxs, zero_ct)
 }
 
-fn get_directional_flags(amm_deltas: &BTreeMap<AssetId, f64>) -> BTreeMap<AssetId, i32> {
+fn get_directional_flags(amm_deltas: &BTreeMap<AssetId, f64>) -> BTreeMap<AssetId, i8> {
 	let mut flags = BTreeMap::new();
 	for (&tkn, &delta) in amm_deltas.iter() {
 		let flag = if delta > 0.0 {
