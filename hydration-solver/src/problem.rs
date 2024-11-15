@@ -3,9 +3,9 @@ use crate::to_f64_by_decimals;
 use clarabel::algebra::CscMatrix;
 use clarabel::solver::SolverStatus;
 use ndarray::{Array1, Array2};
-use pallet_ice::traits::OmnipoolAssetInfo;
 use pallet_ice::types::{Intent, IntentId};
-use primitives::{AccountId, AssetId, Balance};
+use primitives::{AccountId, AssetId};
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub type FloatType = f64;
@@ -21,7 +21,14 @@ pub enum ProblemStatus {
 
 impl From<SolverStatus> for ProblemStatus {
 	fn from(value: SolverStatus) -> Self {
-		todo!()
+		match value {
+			SolverStatus::Solved => ProblemStatus::Solved,
+			SolverStatus::AlmostSolved => ProblemStatus::Solved,
+			SolverStatus::PrimalInfeasible => ProblemStatus::PrimalInfeasible,
+			SolverStatus::DualInfeasible => ProblemStatus::DualInfeasible,
+			SolverStatus::Unsolved => ProblemStatus::NotSolved,
+			_ => panic!("Unexpected solver status"),
+		}
 	}
 }
 
@@ -52,6 +59,13 @@ pub struct ICEProblem {
 	pub force_amm_approx: Option<BTreeMap<AssetId, AmmApprox>>,
 
 	pub step_params: Option<StepParams>,
+	pub fee_match: FloatType,
+}
+
+impl ICEProblem {
+	pub(crate) fn get_partial_intent_prices(&self) -> Vec<FloatType> {
+		todo!()
+	}
 }
 
 impl ICEProblem {
@@ -66,39 +80,84 @@ impl ICEProblem {
 		self.full_indices.iter().map(|&idx| self.intent_amounts[idx]).collect()
 	}
 
-	pub(crate) fn get_amm_approx(&self, p0: AssetId) -> AmmApprox {
-		todo!()
+	pub(crate) fn get_amm_approx(&self, asset_id: AssetId) -> AmmApprox {
+		*self.force_amm_approx.as_ref().unwrap().get(&asset_id).unwrap()
 	}
-}
 
-impl ICEProblem {
-	pub(crate) fn scale_obj_amt(&self, p0: FloatType) -> FloatType {
-		todo!()
+	pub(crate) fn scale_obj_amt(&self, amt: FloatType) -> FloatType {
+		let scaling = self.get_scaling();
+		amt * scaling[&self.tkn_profit]
 	}
-}
 
-impl ICEProblem {
 	pub(crate) fn get_epsilon_tkn(&self) -> BTreeMap<AssetId, FloatType> {
-		todo!()
+		//python: return {t: max([abs(self._max_in[t]), abs(self._max_out[t])]) / self.omnipool.liquidity[t] for t in self.asset_list}
+		let mut r = BTreeMap::new();
+		for asset_id in self.asset_ids.iter() {
+			let max_in = self.get_max_in()[&asset_id];
+			let max_out = self.get_max_out()[&asset_id];
+			let liquidity = self.get_asset_pool_data(*asset_id).reserve;
+			let epsilon = max_in.abs().max(max_out.abs()) / liquidity;
+			r.insert(*asset_id, epsilon);
+		}
+		r
 	}
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Copy, Clone)]
 pub enum Direction {
 	Sell,
 	Buy,
+	Both,
 	Neither,
 }
 
 impl ICEProblem {
 	pub(crate) fn get_omnipool_directions(&self) -> BTreeMap<AssetId, Direction> {
-		todo!()
+		self.step_params
+			.as_ref()
+			.unwrap()
+			.omnipool_directions
+			.as_ref()
+			.unwrap()
+			.clone()
 	}
 }
 
 impl ICEProblem {
-	pub(crate) fn get_real_x(&self, p0: Vec<f64>) -> Vec<FloatType> {
-		todo!()
+	pub fn get_real_x(&self, x: Vec<FloatType>) -> Vec<FloatType> {
+		let n = self.n;
+		let m = self.m;
+		let r = self.r;
+		assert!(x.len() == 4 * n + m || x.len() == 4 * n + m + r);
+
+		let scaling = self.get_scaling();
+		let real_yi: Vec<FloatType> = (0..n).map(|i| x[i] * scaling[&1u32]).collect(); // Assuming 1u32 represents 'LRNA'
+		let real_xi: Vec<FloatType> = self
+			.asset_ids
+			.iter()
+			.enumerate()
+			.map(|(i, &tkn)| x[n + i] * scaling[&tkn])
+			.collect();
+		let real_lrna_lambda: Vec<FloatType> = (0..n).map(|i| x[2 * n + i] * scaling[&1u32]).collect();
+		let real_lambda: Vec<FloatType> = self
+			.asset_ids
+			.iter()
+			.enumerate()
+			.map(|(i, &tkn)| x[3 * n + i] * scaling[&tkn])
+			.collect();
+		let real_d: Vec<FloatType> = self
+			.partial_indices
+			.iter()
+			.enumerate()
+			.map(|(j, &idx)| x[4 * n + j] * scaling[&self.intents[idx].swap.asset_in])
+			.collect();
+
+		let mut real_x = [real_yi, real_xi, real_lrna_lambda, real_lambda, real_d].concat();
+		if x.len() == 4 * n + m + r {
+			let real_I: Vec<FloatType> = (0..r).map(|l| x[4 * n + m + l]).collect();
+			real_x.extend(real_I);
+		}
+		real_x
 	}
 }
 
@@ -307,6 +366,7 @@ impl ICEProblem {
 			directional_flags: None,
 			force_amm_approx: None,
 			step_params: None,
+			fee_match: 0.0005,
 		}
 	}
 
@@ -410,14 +470,16 @@ impl ICEProblem {
 
 #[derive(Default, Clone)]
 pub struct StepParams {
-	pub known_flow: Option<BTreeMap<AssetId, FloatType>>,
+	pub known_flow: Option<BTreeMap<AssetId, (FloatType, FloatType)>>,
 	pub max_in: Option<BTreeMap<AssetId, FloatType>>,
 	pub max_out: Option<BTreeMap<AssetId, FloatType>>,
 	pub min_in: Option<BTreeMap<AssetId, FloatType>>,
 	pub min_out: Option<BTreeMap<AssetId, FloatType>>,
 	pub scaling: Option<BTreeMap<AssetId, FloatType>>,
-	pub tau: Option<CscMatrix>,
-	pub phi: Option<CscMatrix>,
+	pub omnipool_directions: Option<BTreeMap<AssetId, Direction>>,
+	pub tau: Option<Vec<FloatType>>,
+	pub phi: Option<Vec<FloatType>>,
+	pub q: Option<Vec<FloatType>>,
 }
 
 impl StepParams {
@@ -436,13 +498,247 @@ impl StepParams {
 	fn set_amm_coefs(&mut self, problem: &ICEProblem) {
 		todo!()
 	}
-	fn set_omnipool_directions(&mut self, problem: &ICEProblem) {
-		todo!()
-	}
 	fn set_tau_phi(&mut self, problem: &ICEProblem) {
 		todo!()
 	}
-	fn set_coefficients(&mut self, problem: &ICEProblem) {
-		todo!()
+}
+
+impl StepParams {
+	pub fn set_omnipool_directions(&mut self, problem: &ICEProblem) {
+		let mut known_intent_directions = BTreeMap::new();
+		known_intent_directions.insert(problem.tkn_profit, Direction::Both);
+
+		for (j, &idx) in problem.partial_indices.iter().enumerate() {
+			let intent = &problem.intents[idx];
+			if problem.partial_sell_maxs[j] > 0.0 {
+				let tkn_sell = intent.swap.asset_in;
+				let tkn_buy = intent.swap.asset_out;
+
+				match known_intent_directions.entry(tkn_sell) {
+					Entry::Vacant(e) => {
+						e.insert(Direction::Sell);
+					}
+					Entry::Occupied(mut e) => {
+						if *e.get() == Direction::Buy {
+							e.insert(Direction::Both);
+						}
+					}
+				}
+
+				match known_intent_directions.entry(tkn_buy) {
+					Entry::Vacant(e) => {
+						e.insert(Direction::Buy);
+					}
+					Entry::Occupied(mut e) => {
+						if *e.get() == Direction::Sell {
+							e.insert(Direction::Both);
+						}
+					}
+				}
+			}
+		}
+
+		for &tkn in problem.asset_ids.iter() {
+			let known_flow = problem.step_params.as_ref().unwrap().known_flow.as_ref().unwrap();
+			let flow_in = known_flow[&tkn].0;
+			let flow_out = known_flow[&tkn].1;
+
+			if flow_in > flow_out {
+				match known_intent_directions.entry(tkn) {
+					Entry::Vacant(e) => {
+						e.insert(Direction::Sell);
+					}
+					Entry::Occupied(mut e) => {
+						if *e.get() == Direction::Buy {
+							e.insert(Direction::Both);
+						}
+					}
+				}
+			} else if flow_in < flow_out {
+				match known_intent_directions.entry(tkn) {
+					Entry::Vacant(e) => {
+						e.insert(Direction::Buy);
+					}
+					Entry::Occupied(mut e) => {
+						if *e.get() == Direction::Sell {
+							e.insert(Direction::Both);
+						}
+					}
+				}
+			} else if flow_in > 0.0 {
+				match known_intent_directions.entry(tkn) {
+					Entry::Vacant(e) => {
+						e.insert(Direction::Buy);
+					}
+					Entry::Occupied(mut e) => {
+						if *e.get() == Direction::Sell {
+							e.insert(Direction::Both);
+						}
+					}
+				}
+			}
+		}
+
+		let mut omnipool_directions = BTreeMap::new();
+		for &tkn in problem.asset_ids.iter() {
+			if let Some(&flag) = problem.directional_flags.as_ref().unwrap().get(&tkn) {
+				match flag {
+					-1 => {
+						omnipool_directions.insert(tkn, Direction::Sell);
+					}
+					1 => {
+						omnipool_directions.insert(tkn, Direction::Buy);
+					}
+					0 => {
+						omnipool_directions.insert(tkn, Direction::Neither);
+					}
+					_ => {}
+				}
+			} else if let Some(&direction) = known_intent_directions.get(&tkn) {
+				match direction {
+					Direction::Sell => {
+						omnipool_directions.insert(tkn, Direction::Buy);
+					}
+					Direction::Buy => {
+						omnipool_directions.insert(tkn, Direction::Sell);
+					}
+					_ => {}
+				}
+			} else {
+				omnipool_directions.insert(tkn, Direction::Neither);
+			}
+		}
+
+		self.omnipool_directions = Some(omnipool_directions);
+	}
+}
+
+impl StepParams {
+	pub fn set_coefficients(&mut self, problem: &ICEProblem) {
+		// profit calculations
+		let n = problem.n;
+		let m = problem.m;
+		let r = problem.r;
+
+		// y_i are net LRNA into Omnipool
+		let profit_lrna_y_coefs = vec![-1.0; n];
+		// x_i are net assets into Omnipool
+		let profit_lrna_x_coefs = vec![0.0; n];
+		// lrna_lambda_i are LRNA amounts coming out of Omnipool
+		let profit_lrna_lrna_lambda_coefs: Vec<FloatType> = problem
+			.asset_ids
+			.iter()
+			.map(|&tkn| -problem.get_asset_pool_data(tkn).protocol_fee)
+			.collect();
+		let profit_lrna_lambda_coefs = vec![0.0; n];
+		let profit_lrna_d_coefs: Vec<FloatType> = self.tau.as_ref().unwrap()[..m].to_vec();
+
+		let sell_amts: Vec<FloatType> = problem
+			.full_indices
+			.iter()
+			.map(|&idx| problem.intent_amounts[idx].0)
+			.collect();
+		let profit_lrna_I_coefs: Vec<FloatType> = self.tau.as_ref().unwrap()[m..]
+			.to_vec()
+			.iter()
+			.zip(sell_amts.iter())
+			.map(|(&tau, &sell_amt)| tau * sell_amt / problem.get_scaling()[&1u32])
+			.collect();
+		let mut profit_lrna_coefs = vec![];
+		profit_lrna_coefs.extend(profit_lrna_y_coefs);
+		profit_lrna_coefs.extend(profit_lrna_x_coefs);
+		profit_lrna_coefs.extend(profit_lrna_lrna_lambda_coefs);
+		profit_lrna_coefs.extend(profit_lrna_lambda_coefs);
+		profit_lrna_coefs.extend(profit_lrna_d_coefs);
+		profit_lrna_coefs.extend(profit_lrna_I_coefs);
+
+		// leftover must be higher than required fees
+		let fees: Vec<FloatType> = problem
+			.asset_ids
+			.iter()
+			.map(|&tkn| problem.get_asset_pool_data(tkn).fee)
+			.collect();
+		let partial_intent_prices: Vec<FloatType> = problem.get_partial_intent_prices();
+		let profit_y_coefs = vec![vec![0.0; n]; n];
+		let profit_x_coefs = -Array2::<FloatType>::eye(n);
+		let profit_lrna_lambda_coefs = vec![vec![0.0; n]; n];
+		let profit_lambda_coefs = -Array2::<FloatType>::from_diag(&Array1::from(
+			fees.iter().map(|&fee| fee - problem.fee_match).collect::<Vec<_>>(),
+		));
+		let scaling_vars: Vec<FloatType> = problem
+			.partial_indices
+			.iter()
+			.enumerate()
+			.map(|(j, &idx)| {
+				let intent = &problem.intents[idx];
+				partial_intent_prices[j] * problem.get_scaling()[&intent.swap.asset_in]
+					/ problem.get_scaling()[&intent.swap.asset_out]
+			})
+			.collect();
+		let vars_scaled = scaling_vars
+			.iter()
+			.map(|&v| v * 1.0 / (1.0 - problem.fee_match))
+			.collect::<Vec<_>>();
+		let scaled_phi = self.phi.as_ref().unwrap()[1..m]
+			.to_owned()
+			.iter()
+			.zip(vars_scaled.iter())
+			.map(|(phi, &var)| phi * var)
+			.collect::<Vec<_>>();
+		let profit_d_coefs = (self.tau.as_ref().unwrap()[1..m]
+			.to_owned()
+			.iter()
+			.zip(scaled_phi.iter())
+			.map(|(tau, &phi)| tau * phi))
+		.collect::<Vec<_>>();
+
+		let buy_amts: Vec<FloatType> = problem
+			.full_indices
+			.iter()
+			.map(|&idx| problem.intent_amounts[idx].1)
+			.collect();
+		let buy_scaled = buy_amts
+			.iter()
+			.map(|&v| v * 1.0 / (1.0 - problem.fee_match))
+			.collect::<Vec<_>>();
+		let scaled_phi = self.phi.as_ref().unwrap()[m..]
+			.to_owned()
+			.iter()
+			.zip(buy_scaled.iter())
+			.map(|(&phi, &buy)| phi * buy)
+			.collect::<Vec<_>>();
+		let scaled_tau: Vec<FloatType> = self.tau.as_ref().unwrap()[m..]
+			.to_owned()
+			.iter()
+			.zip(sell_amts.iter())
+			.map(|(tau, &sell)| tau * sell)
+			.collect();
+
+		let scaled_tau = ndarray::Array::from(scaled_tau);
+		let scaled_phi = ndarray::Array::from(scaled_phi);
+		let unscaled_diff = scaled_tau - scaled_phi;
+		let scalars: Vec<FloatType> = problem
+			.asset_ids
+			.iter()
+			.map(|&tkn| problem.get_scaling()[&tkn])
+			.collect();
+		let I_coefs = (unscaled_diff / Array2::from_diag(&Array1::from(scalars))).to_owned();
+
+		//TODO: this pls
+		/*
+		let profit_A_LRNA = Array2::from_shape_vec((1, profit_lrna_coefs.len()), profit_lrna_coefs).unwrap();
+		let profit_A_assets = Array2::from_shape_vec((n, n * 6), vec![]).unwrap()
+			.hstack(&profit_y_coefs)
+			.hstack(&profit_x_coefs)
+			.hstack(&profit_lrna_lambda_coefs)
+			.hstack(&profit_lambda_coefs)
+			.hstack(&profit_d_coefs)
+			.hstack(&I_coefs);
+
+		self.profit_A = Some(profit_A_LRNA.vstack(&profit_A_assets));
+
+		let profit_i = problem.asset_ids.iter().position(|&tkn| tkn == problem.tkn_profit).unwrap();
+		self.q = Some(self.profit_A.as_ref().unwrap().row(profit_i + 1).to_vec());
+		 */
 	}
 }
