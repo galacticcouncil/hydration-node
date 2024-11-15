@@ -16,6 +16,7 @@ use ndarray::{Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, Own
 use crate::problem::{AmmApprox, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
 
 const ROUND_TOLERANCE: FloatType = 0.0001;
+const LRNA: AssetId = 1;
 
 fn calculate_scaling<AccountId, AssetId>(
 	intents: &[(IntentId, Intent<AccountId, AssetId>)],
@@ -237,7 +238,7 @@ where
 	) -> Result<(Vec<ResolvedIntent>, Self::Metadata), Self::Error> {
 		let omnipool_data = OI::assets(None); //TODO: get only needed assets, but the list is from the next line
 		let data = process_omnipool_data(omnipool_data);
-		let problem = ICEProblem::new(intents, data);
+		let mut problem = ICEProblem::new(intents, data);
 
 		let (n, m, r) = (problem.n, problem.m, problem.r);
 
@@ -344,7 +345,15 @@ where
 				milp_obj,
 				valid,
 				milp_status,
-			) = solve_inclusion_problem(&problem, &x_list, Z_U, -FLOAT_INF, &A, &A_upper, &A_lower);
+			) = solve_inclusion_problem(
+				&problem,
+				Some(x_list.clone()),
+				Some(Z_U),
+				Some(-FLOAT_INF),
+				Some(A),
+				Some(A_upper),
+				Some(A_lower),
+			);
 			Z_L = Z_L.max(milp_obj);
 			Z_U_archive.push(Z_U);
 			Z_L_archive.push(Z_L);
@@ -435,30 +444,45 @@ fn solve_inclusion_problem(
 	let mut min_x_d = BTreeMap::new();
 
 	for tkn in asset_list {
-		max_lambda_d.insert(tkn.clone(), p.omnipool.liquidity[tkn] / scaling[tkn] / 2.0);
-		max_lrna_lambda_d.insert(tkn.clone(), p.omnipool.lrna[tkn] / scaling["LRNA"] / 2.0);
-		max_y_d.insert(tkn.clone(), max_lrna_lambda_d[tkn]);
-		min_y_d.insert(tkn.clone(), -max_lrna_lambda_d[tkn]);
-		max_x_d.insert(tkn.clone(), max_lambda_d[tkn]);
-		min_x_d.insert(tkn.clone(), -max_lambda_d[tkn]);
+		max_lambda_d.insert(
+			tkn.clone(),
+			p.get_asset_pool_data(tkn).reserve / scaling.get(&tkn).unwrap() / 2.0,
+		);
+		max_lrna_lambda_d.insert(
+			tkn.clone(),
+			p.get_asset_pool_data(tkn).hub_reserve / scaling.get(&LRNA).unwrap() / 2.0,
+		);
+		max_y_d.insert(tkn.clone(), *max_lrna_lambda_d.get(&tkn).unwrap());
+		min_y_d.insert(tkn.clone(), -max_lrna_lambda_d.get(&tkn).unwrap());
+		max_x_d.insert(tkn.clone(), *max_lambda_d.get(&tkn).unwrap());
+		min_x_d.insert(tkn.clone(), -max_lambda_d.get(&tkn).unwrap());
 	}
 
 	let max_in = p.get_max_in();
 	let max_out = p.get_max_out();
 
 	for tkn in asset_list {
-		if tkn != &p.tkn_profit {
-			max_x_d.insert(tkn.clone(), max_in[tkn] / scaling[tkn] * 2.0);
-			min_x_d.insert(tkn.clone(), -max_out[tkn] / scaling[tkn] * 2.0);
-			max_lambda_d.insert(tkn.clone(), -min_x_d[tkn]);
-			let max_y_unscaled =
-				max_out[tkn] * p.omnipool.lrna[tkn] / (p.omnipool.liquidity[tkn] - max_out[tkn]) + max_in["LRNA"];
-			max_y_d.insert(tkn.clone(), max_y_unscaled / scaling["LRNA"]);
+		if tkn != p.tkn_profit {
+			max_x_d.insert(
+				tkn.clone(),
+				max_in.get(&tkn).unwrap() / scaling.get(&tkn).unwrap() * 2.0,
+			);
+			min_x_d.insert(
+				tkn.clone(),
+				-max_out.get(&tkn).unwrap() / scaling.get(&tkn).unwrap() * 2.0,
+			);
+			max_lambda_d.insert(tkn.clone(), -min_x_d.get(&tkn).unwrap());
+			let max_y_unscaled = max_out.get(&tkn).unwrap() * p.get_asset_pool_data(tkn).hub_reserve
+				/ (p.get_asset_pool_data(tkn).reserve - max_out.get(&tkn).unwrap())
+				+ max_in.get(LRNA).unwrap();
+			max_y_d.insert(tkn.clone(), max_y_unscaled / scaling.get(&LRNA).unwrap());
 			min_y_d.insert(
 				tkn.clone(),
-				-max_in[tkn] * p.omnipool.lrna[tkn] / (p.omnipool.liquidity[tkn] + max_in[tkn]) / scaling["LRNA"],
+				-max_in.get(&tkn).unwrap() * p.get_asset_pool_data(tkn).hub_reserve
+					/ (p.get_asset_pool_data(tkn).reserve + max_in.get(&tkn).unwrap())
+					/ scaling.get(&LRNA).unwrap(),
 			);
-			max_lrna_lambda_d.insert(tkn.clone(), -min_y_d[tkn]);
+			max_lrna_lambda_d.insert(tkn.clone(), -min_y_d.get(&tkn).unwrap());
 		}
 	}
 
@@ -501,7 +525,7 @@ fn solve_inclusion_problem(
 		max_x.view(),
 		max_lrna_lambda.view(),
 		max_lambda.view(),
-		partial_intent_sell_amts.view(),
+		partial_intent_sell_amts,
 		Array1::ones(r).view()
 	];
 
@@ -511,8 +535,8 @@ fn solve_inclusion_problem(
 	for (i, tkn) in asset_list.iter().enumerate() {
 		let lrna_c = p.get_amm_lrna_coefs();
 		let asset_c = p.get_amm_asset_coefs();
-		S[[i, i]] = -lrna_c[tkn];
-		S[[i, n + i]] = -asset_c[tkn];
+		S[[i, i]] = -lrna_c.get(&tkn).unwrap();
+		S[[i, n + i]] = -asset_c.get(&tkn).unwrap();
 	}
 
 	if let Some(x_list) = x_list {
@@ -588,9 +612,10 @@ fn solve_inclusion_problem(
 	start.push(0);
 	for i in 0..A.shape()[0] {
 		let row_nonzeros = A
-			.row(i)
-			.indexed_iter()
-			.filter(|(_, &v)| v != 0.0)
+			.rows()
+			.into_iter()
+			.enumerate()
+			.filter(|(idx, v)| *idx == i && v[0] != 0.0) //TODO: check the python code and verify
 			.map(|(j, _)| j)
 			.collect::<Vec<_>>();
 		nonzeros.extend(&row_nonzeros);
@@ -936,7 +961,7 @@ fn find_solution_unrounded(
 
 	let diff_coefs = Array2::<f64>::zeros((2 * n + m, 2 * n));
 	let nonzero_coefs = -Array2::<f64>::eye(2 * n + m);
-	let A1 = concatenate![Axis(1), diff_coefs, nonzero_coefs];
+	let A1 = ndarray::concatenate![Axis(1), diff_coefs, nonzero_coefs];
 	let rows_to_keep: Vec<usize> = (0..2 * n + m)
 		.filter(|&i| indices_to_keep.contains(&(2 * n + i)))
 		.collect();
@@ -946,7 +971,7 @@ fn find_solution_unrounded(
 
 	let amm_coefs = Array2::<f64>::zeros((m, 4 * n));
 	let d_coefs = Array2::<f64>::eye(m);
-	let A2 = concatenate![Axis(1), amm_coefs, d_coefs];
+	let A2 = ndarray::concatenate![Axis(1), amm_coefs, d_coefs];
 	let b2 = Array1::from(p.get_partial_sell_maxs_scaled());
 	let A2_trimmed = A2.select(Axis(1), &indices_to_keep);
 	let cone2 = NonnegativeConeT::new(A2_trimmed.shape()[0]);
@@ -1011,7 +1036,7 @@ fn find_solution_unrounded(
 				A4i[[1, i]] = -p.get_amm_lrna_coefs()[&tkn];
 				A4i[[1, n + i]] = -p.get_amm_asset_coefs()[&tkn];
 				A4i[[2, n + i]] = -p.get_amm_asset_coefs()[&tkn];
-				(A4i, array![1.0, 0.0, 0.0], PowerConeT::new(0.5))
+				(A4i, ndarray::array![1.0, 0.0, 0.0], PowerConeT::new(0.5))
 			}
 			_ => {
 				let mut A4i = Array2::<f64>::zeros((3, k));
@@ -1021,8 +1046,8 @@ fn find_solution_unrounded(
 			}
 		};
 
-		A4 = concatenate![Axis(0), A4, A4i];
-		b4 = concatenate![Axis(0), b4, b4i];
+		A4 = ndarray::concatenate![Axis(0), A4, A4i];
+		b4 = ndarray::concatenate![Axis(0), b4, b4i];
 		cones4.push(cone);
 	}
 
@@ -1040,7 +1065,7 @@ fn find_solution_unrounded(
 			A5i[[0, 2 * n + i]] = -1.0;
 			A5i[[1, n + i]] = -1.0;
 			A5i[[1, 3 * n + i]] = -1.0;
-			A5 = concatenate![Axis(0), A5, A5i];
+			A5 = ndarray::concatenate![Axis(0), A5, A5i];
 		} else {
 			let mut A6i = Array2::<f64>::zeros((2, k));
 			let mut A7i = Array2::<f64>::zeros((1, k));
@@ -1055,8 +1080,8 @@ fn find_solution_unrounded(
 				A7i[[0, i]] = 1.0;
 				A7i[[0, 2 * n + i]] = 1.0;
 			}
-			A6 = concatenate![Axis(0), A6, A6i];
-			A7 = concatenate![Axis(0), A7, A7i];
+			A6 = ndarray::concatenate![Axis(0), A6, A6i];
+			A7 = ndarray::concatenate![Axis(0), A7, A7i];
 		}
 	}
 
@@ -1071,7 +1096,7 @@ fn find_solution_unrounded(
 	let cone6 = NonnegativeConeT::new(A6.shape()[0]);
 	let cone7 = ZeroConeT::new(A7.shape()[0]);
 
-	let A = concatenate![
+	let A = ndarray::concatenate![
 		Axis(0),
 		A1_trimmed,
 		A2_trimmed,
@@ -1082,7 +1107,7 @@ fn find_solution_unrounded(
 		A7_trimmed
 	];
 	let A_sparse = CscMatrix::from(&A);
-	let b = concatenate![Axis(0), b1, b2, b3, b4, b5, b6, b7];
+	let b = ndarray::concatenate![Axis(0), b1, b2, b3, b4, b5, b6, b7];
 	let cones = vec![cone1, cone2, cone3]
 		.into_iter()
 		.chain(cones4.into_iter())
@@ -1090,11 +1115,15 @@ fn find_solution_unrounded(
 		.collect::<Vec<_>>();
 
 	let settings = DefaultSettings::default();
-	let mut solver = DefaultSolver::new(P_trimmed, q_trimmed, A_sparse, b, cones, settings);
-	let solution = solver.solve().unwrap();
-	let x = solution.x;
-	let z = solution.z;
-	let s = solution.s;
+	let mut solver = DefaultSolver::new(&P_trimmed, &q_trimmed, &A_sparse, &b.to_vec(), &cones, settings);
+	solver.solve();
+	let x = solver.solution.x;
+	let status = solver.solution.status;
+	let solve_time = solver.solution.solve_time;
+	let obj_value = solver.solution.obj_val;
+	let obj_value_dual = solver.solution.obj_val_dual;
+	println!("status: {:?}", status);
+	println!("time: {:?}", solve_time);
 
 	let mut new_amm_deltas = BTreeMap::new();
 	let mut exec_intent_deltas = vec![0.0; partial_intents.len()];
@@ -1116,8 +1145,8 @@ fn find_solution_unrounded(
 		new_amm_deltas,
 		exec_intent_deltas,
 		Array2::from_shape_vec((k, 1), x_expanded).unwrap(),
-		p.scale_obj_amt(solution.obj_val + obj_offset),
-		p.scale_obj_amt(solution.obj_val_dual + obj_offset),
+		p.scale_obj_amt(obj_value + obj_offset),
+		p.scale_obj_amt(obj_value_dual + obj_offset),
 		solution.status.into(),
 	)
 }

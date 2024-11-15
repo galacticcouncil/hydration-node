@@ -1,6 +1,7 @@
 use crate::data::AssetData;
 use crate::to_f64_by_decimals;
 use clarabel::algebra::CscMatrix;
+use ndarray::{Array1, Array2};
 use pallet_ice::traits::OmnipoolAssetInfo;
 use pallet_ice::types::{Intent, IntentId};
 use primitives::{AccountId, AssetId, Balance};
@@ -35,8 +36,38 @@ pub struct ICEProblem {
 
 	pub asset_ids: Vec<AssetId>,
 	pub partial_sell_maxs: Vec<FloatType>,
+	pub initial_sell_maxs: Vec<FloatType>,
 	pub partial_indices: Vec<usize>,
 	pub full_indices: Vec<usize>,
+
+	pub directional_flags: Option<BTreeMap<AssetId, i8>>,
+	pub force_amm_approx: Option<BTreeMap<AssetId, AmmApprox>>,
+
+	pub step_params: Option<StepParams>,
+}
+
+impl ICEProblem {
+	pub(crate) fn get_q(&self) -> Array2<FloatType> {
+		todo!()
+	}
+}
+
+impl ICEProblem {
+	pub(crate) fn get_profit_A(&self) -> Array2<FloatType> {
+		todo!()
+	}
+}
+
+impl ICEProblem {
+	pub(crate) fn get_amm_asset_coefs(&self) -> &BTreeMap<AssetId, FloatType> {
+		todo!()
+	}
+}
+
+impl ICEProblem {
+	pub(crate) fn get_amm_lrna_coefs(&self) -> &BTreeMap<AssetId, FloatType> {
+		todo!()
+	}
 }
 
 pub struct SetupParams {
@@ -104,18 +135,6 @@ impl SetupParams {
 }
 
 impl ICEProblem {
-	pub(crate) fn set_up_problem(&self, params: SetupParams) {
-		todo!()
-	}
-}
-
-pub struct Params {
-	pub scaling: BTreeMap<AssetId, FloatType>,
-	pub tau: CscMatrix,
-	pub phi: CscMatrix,
-}
-
-impl ICEProblem {
 	pub fn new(
 		intents_and_ids: Vec<(IntentId, Intent<AccountId, AssetId>)>,
 		pool_data: BTreeMap<AssetId, AssetData>,
@@ -170,6 +189,8 @@ impl ICEProblem {
 		// so we intened to resolve all full intents
 		let indicators = vec![1usize; r];
 
+		let initial_sell_maxs = partial_sell_amounts.clone();
+
 		ICEProblem {
 			tkn_profit: 0u32, // HDX
 			intent_ids,
@@ -183,8 +204,12 @@ impl ICEProblem {
 			indicators,
 			asset_ids: asset_ids.into_iter().collect(),
 			partial_sell_maxs: partial_sell_amounts,
+			initial_sell_maxs,
 			partial_indices,
 			full_indices,
+			directional_flags: None,
+			force_amm_approx: None,
+			step_params: None,
 		}
 	}
 
@@ -194,5 +219,129 @@ impl ICEProblem {
 
 	pub(crate) fn get_asset_pool_data(&self, asset_id: AssetId) -> &AssetData {
 		self.pool_data.get(&asset_id).unwrap()
+	}
+
+	pub(crate) fn set_up_problem(&mut self, params: SetupParams) {
+		if let Some(new_indicators) = params.indicators {
+			debug_assert_eq!(new_indicators.len(), self.r);
+			self.indicators = new_indicators;
+		} else if params.clear_indicators {
+			self.indicators = vec![1usize; self.r]; //reest to original
+		}
+		if let Some(new_maxes) = params.sell_maxes {
+			self.partial_sell_maxs = new_maxes;
+		} else if params.clear_sell_maxes {
+			self.partial_sell_maxs = self.initial_sell_maxs.clone();
+		}
+		if let Some(new_flags) = params.flags {
+			self.directional_flags = Some(new_flags);
+		} else {
+			self.directional_flags = None;
+		}
+		if let Some(new_force_amm_approx) = params.force_amm_approx {
+			self.force_amm_approx = Some(new_force_amm_approx);
+		} else if params.clear_amm_approx {
+			self.force_amm_approx = None;
+		}
+		self.recalculate(params.rescale)
+	}
+
+	fn recalculate(&mut self, rescale: bool) {
+		let mut step_params = StepParams::default();
+		step_params.set_known_flow(self);
+		step_params.set_max_in_out(self);
+		step_params.set_bounds(self);
+		if rescale {
+			step_params.set_scaling(self);
+			step_params.set_amm_coefs(self);
+		}
+		step_params.set_omnipool_directions(self);
+		step_params.set_tau_phi(self);
+		step_params.set_coefficients(self);
+		self.step_params = Some(step_params);
+	}
+
+	pub(crate) fn get_scaling(&self) -> &BTreeMap<AssetId, FloatType> {
+		self.step_params.as_ref().unwrap().scaling.as_ref().unwrap()
+	}
+
+	pub(crate) fn get_max_in(&self) -> &BTreeMap<AssetId, FloatType> {
+		self.step_params.as_ref().unwrap().max_in.as_ref().unwrap()
+	}
+
+	pub(crate) fn get_max_out(&self) -> &BTreeMap<AssetId, FloatType> {
+		self.step_params.as_ref().unwrap().max_out.as_ref().unwrap()
+	}
+
+	pub(crate) fn get_partial_sell_maxs_scaled(&self) -> Vec<FloatType> {
+		let mut partial_sell_maxes = self.partial_sell_maxs.clone();
+		for (j, &idx) in self.partial_indices.iter().enumerate() {
+			let intent = &self.intents[idx];
+			let tkn = intent.swap.asset_in;
+			if tkn != 1u32 {
+				let liquidity = self.pool_data.get(&tkn).unwrap().reserve;
+				partial_sell_maxes[j] = partial_sell_maxes[j].min(liquidity / 2.0);
+			}
+		}
+		let scaling = self.get_scaling();
+		partial_sell_maxes
+			.iter()
+			.enumerate()
+			.map(|(j, &max)| max / scaling[&self.intents[self.partial_indices[j]].swap.asset_in])
+			.collect()
+	}
+
+	pub fn get_scaled_bounds(
+		&self,
+	) -> (
+		ndarray::Array1<FloatType>,
+		ndarray::Array1<FloatType>,
+		ndarray::Array1<FloatType>,
+		ndarray::Array1<FloatType>,
+		ndarray::Array1<FloatType>,
+		ndarray::Array1<FloatType>,
+		ndarray::Array1<FloatType>,
+		ndarray::Array1<FloatType>,
+	) {
+		todo!()
+	}
+}
+
+#[derive(Default)]
+pub struct StepParams {
+	pub known_flow: Option<BTreeMap<AssetId, FloatType>>,
+	pub max_in: Option<BTreeMap<AssetId, FloatType>>,
+	pub max_out: Option<BTreeMap<AssetId, FloatType>>,
+	pub min_in: Option<BTreeMap<AssetId, FloatType>>,
+	pub min_out: Option<BTreeMap<AssetId, FloatType>>,
+	pub scaling: Option<BTreeMap<AssetId, FloatType>>,
+	pub tau: Option<CscMatrix>,
+	pub phi: Option<CscMatrix>,
+}
+
+impl StepParams {
+	fn set_known_flow(&mut self, problem: &ICEProblem) {
+		todo!()
+	}
+	fn set_max_in_out(&mut self, problem: &ICEProblem) {
+		todo!()
+	}
+	fn set_bounds(&mut self, problem: &ICEProblem) {
+		todo!()
+	}
+	fn set_scaling(&mut self, problem: &ICEProblem) {
+		todo!()
+	}
+	fn set_amm_coefs(&mut self, problem: &ICEProblem) {
+		todo!()
+	}
+	fn set_omnipool_directions(&mut self, problem: &ICEProblem) {
+		todo!()
+	}
+	fn set_tau_phi(&mut self, problem: &ICEProblem) {
+		todo!()
+	}
+	fn set_coefficients(&mut self, problem: &ICEProblem) {
+		todo!()
 	}
 }
