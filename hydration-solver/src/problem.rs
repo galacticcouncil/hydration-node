@@ -1,6 +1,7 @@
 use crate::data::AssetData;
 use crate::to_f64_by_decimals;
 use clarabel::algebra::CscMatrix;
+use clarabel::solver::SolverStatus;
 use ndarray::{Array1, Array2};
 use pallet_ice::traits::OmnipoolAssetInfo;
 use pallet_ice::types::{Intent, IntentId};
@@ -18,6 +19,13 @@ pub enum ProblemStatus {
 	DualInfeasible,
 }
 
+impl From<SolverStatus> for ProblemStatus {
+	fn from(value: SolverStatus) -> Self {
+		todo!()
+	}
+}
+
+#[derive(Clone)]
 pub struct ICEProblem {
 	pub tkn_profit: AssetId,
 	pub intent_ids: Vec<IntentId>,
@@ -47,7 +55,44 @@ pub struct ICEProblem {
 }
 
 impl ICEProblem {
-	pub(crate) fn get_q(&self) -> Array2<FloatType> {
+	pub(crate) fn get_amm_approx(&self, p0: AssetId) -> AmmApprox {
+		todo!()
+	}
+}
+
+impl ICEProblem {
+	pub(crate) fn scale_obj_amt(&self, p0: FloatType) -> FloatType {
+		todo!()
+	}
+}
+
+impl ICEProblem {
+	pub(crate) fn get_epsilon_tkn(&self) -> BTreeMap<AssetId, FloatType> {
+		todo!()
+	}
+}
+
+#[derive(Eq, PartialEq)]
+pub enum Direction {
+	Sell,
+	Buy,
+	Neither,
+}
+
+impl ICEProblem {
+	pub(crate) fn get_omnipool_directions(&self) -> BTreeMap<AssetId, Direction> {
+		todo!()
+	}
+}
+
+impl ICEProblem {
+	pub(crate) fn get_real_x(&self, p0: Vec<f64>) -> Vec<FloatType> {
+		todo!()
+	}
+}
+
+impl ICEProblem {
+	pub(crate) fn get_q(&self) -> Vec<FloatType> {
 		todo!()
 	}
 }
@@ -70,6 +115,45 @@ impl ICEProblem {
 	}
 }
 
+impl ICEProblem {
+	pub fn get_scaled_x(&self, x: Vec<FloatType>) -> Vec<FloatType> {
+		let n = self.n;
+		let m = self.m;
+		let r = self.r;
+		assert!(x.len() == 4 * n + m || x.len() == 4 * n + m + r);
+
+		let scaling = self.get_scaling();
+		let scaled_yi: Vec<FloatType> = (0..n).map(|i| x[i] / scaling[&1u32]).collect(); // Assuming 1u32 represents 'LRNA'
+		let scaled_xi: Vec<FloatType> = self
+			.asset_ids
+			.iter()
+			.enumerate()
+			.map(|(i, &tkn)| x[n + i] / scaling[&tkn])
+			.collect();
+		let scaled_lrna_lambda: Vec<FloatType> = (0..n).map(|i| x[2 * n + i] / scaling[&1u32]).collect();
+		let scaled_lambda: Vec<FloatType> = self
+			.asset_ids
+			.iter()
+			.enumerate()
+			.map(|(i, &tkn)| x[3 * n + i] / scaling[&tkn])
+			.collect();
+		let scaled_d: Vec<FloatType> = self
+			.partial_indices
+			.iter()
+			.enumerate()
+			.map(|(j, &idx)| x[4 * n + j] / scaling[&self.intents[idx].swap.asset_in])
+			.collect();
+
+		let mut scaled_x = [scaled_yi, scaled_xi, scaled_lrna_lambda, scaled_lambda, scaled_d].concat();
+		if x.len() == 4 * n + m + r {
+			let scaled_I: Vec<FloatType> = (0..r).map(|l| x[4 * n + m + l]).collect();
+			scaled_x.extend(scaled_I);
+		}
+		scaled_x
+	}
+}
+
+#[derive(Clone)]
 pub struct SetupParams {
 	pub indicators: Option<Vec<usize>>,
 	pub flags: Option<BTreeMap<AssetId, i8>>,
@@ -81,10 +165,12 @@ pub struct SetupParams {
 	pub clear_amm_approx: bool,
 }
 
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum AmmApprox {
 	Linear,
 	Quadratic,
 	Full,
+	None,
 }
 
 impl SetupParams {
@@ -261,6 +347,10 @@ impl ICEProblem {
 		self.step_params = Some(step_params);
 	}
 
+	pub(crate) fn get_intent(&self, idx: usize) -> &Intent<AccountId, AssetId> {
+		&self.intents[idx]
+	}
+
 	pub(crate) fn get_scaling(&self) -> &BTreeMap<AssetId, FloatType> {
 		self.step_params.as_ref().unwrap().scaling.as_ref().unwrap()
 	}
@@ -307,7 +397,7 @@ impl ICEProblem {
 	}
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct StepParams {
 	pub known_flow: Option<BTreeMap<AssetId, FloatType>>,
 	pub max_in: Option<BTreeMap<AssetId, FloatType>>,
