@@ -1,4 +1,5 @@
 mod solve;
+mod v3;
 
 use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo};
 use pallet_ice::types::{Intent, Swap, SwapType};
