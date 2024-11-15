@@ -55,6 +55,17 @@ pub struct ICEProblem {
 }
 
 impl ICEProblem {
+	pub(crate) fn get_partial_intents_amounts(&self) -> Vec<(FloatType, FloatType)> {
+		self.partial_indices
+			.iter()
+			.map(|&idx| self.intent_amounts[idx])
+			.collect()
+	}
+
+	pub(crate) fn get_full_intents_amounts(&self) -> Vec<(FloatType, FloatType)> {
+		self.full_indices.iter().map(|&idx| self.intent_amounts[idx]).collect()
+	}
+
 	pub(crate) fn get_amm_approx(&self, p0: AssetId) -> AmmApprox {
 		todo!()
 	}

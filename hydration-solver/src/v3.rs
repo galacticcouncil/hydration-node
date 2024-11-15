@@ -156,11 +156,12 @@ fn round_solution(intents: &[(f64, f64)], intent_deltas: Vec<f64>, tolerance: f6
 	deltas
 }
 
-fn add_buy_deltas(intent_prices: &[f64], sell_deltas: Vec<f64>) -> Vec<(f64, f64)> {
+fn add_buy_deltas(intents: Vec<(FloatType, FloatType)>, sell_deltas: Vec<FloatType>) -> Vec<(FloatType, FloatType)> {
 	let mut deltas = Vec::new();
-	for i in 0..intent_prices.len() {
-		let b = -sell_deltas[i] * intent_prices[i];
-		deltas.push((sell_deltas[i], b));
+	for (i, (amount_in, amount_out)) in intents.iter().enumerate() {
+		let sell_delta = sell_deltas[i];
+		let buy_delta = -sell_delta * amount_out / amount_in;
+		deltas.push((sell_delta, buy_delta));
 	}
 	deltas
 }
@@ -367,34 +368,34 @@ where
 			return Err(());
 		}
 
-		/*
+		let sell_deltas = round_solution(
+			&problem.get_partial_intents_amounts(),
+			best_intent_deltas,
+			ROUND_TOLERANCE,
+		);
+		let partial_deltas_with_buys = add_buy_deltas(problem.get_partial_intents_amounts(), sell_deltas);
 
-		let sell_deltas = round_solution(&problem.partial_intents, best_intent_deltas);
-
-		let partial_deltas_with_buys = add_buy_deltas(&problem.partial_intents, sell_deltas);
 		let full_deltas_with_buys = problem
-			.full_intents
+			.get_full_intents_amounts()
 			.iter()
 			.enumerate()
-			.map(|(l, _)| {
+			.map(|(l, (amount_in, amount_out))| {
 				if y_best[l] == 1 {
-					[-problem.full_intents[l].sell_quantity, problem.full_intents[l].buy_quantity]
+					(-amount_in, *amount_out)
 				} else {
-					[0., 0.]
+					(0., 0.)
 				}
 			})
 			.collect::<Vec<_>>();
+
 		let mut deltas = vec![None; m + r];
 		for (i, delta) in problem.partial_indices.iter().enumerate() {
-			deltas[problem.partial_indices[i]] = partial_deltas_with_buys[i];
+			deltas[problem.partial_indices[i]] = Some(partial_deltas_with_buys[i]);
 		}
 		for (i, delta) in problem.full_indices.iter().enumerate() {
-			deltas[problem.full_indices[i]] = full_deltas_with_buys[i];
+			deltas[problem.full_indices[i]] = Some(full_deltas_with_buys[i]);
 		}
-		let (deltas_final, obj) = add_small_trades(&problem, deltas);
-
-
-		 */
+		//let (deltas_final, obj) = add_small_trades(&problem, deltas);
 
 		Err(())
 	}
@@ -609,6 +610,7 @@ fn solve_inclusion_problem(
 		A8_lower.view()
 	];
 
+	//TODO: add hihgs support
 	/*
 	let mut nonzeros = Vec::new();
 	let mut start = Vec::with_capacity(A.shape()[0] + 1);
