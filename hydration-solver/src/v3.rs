@@ -10,10 +10,10 @@ use std::ptr::null;
 use crate::data::process_omnipool_data;
 use clarabel::algebra::*;
 use clarabel::solver::*;
-use highs::Problem;
-use ndarray::{Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, OwnedRepr};
+use highs::{Problem, RowProblem};
+use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, OwnedRepr};
 //use highs::
-use crate::problem::{AmmApprox, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
+use crate::problem::{AmmApprox, Direction, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
 
 const ROUND_TOLERANCE: FloatType = 0.0001;
 const LRNA: AssetId = 1;
@@ -251,7 +251,7 @@ where
 
 		let mut y_best: Vec<usize> = Vec::new();
 		let mut best_intent_deltas: Vec<FloatType> = Vec::new(); // m size
-		let mut best_amm_deltas: Vec<FloatType> = Vec::new(); // n size
+		let mut best_amm_deltas: BTreeMap<AssetId, FloatType> = BTreeMap::new(); // n size
 		let milp_ob = -inf;
 
 		// Force small 	trades to execute
@@ -329,7 +329,8 @@ where
 			let IC_lower = Array1::from_elem(1, -FLOAT_INF);
 
 			// Add cone constraint to A, A_upper, A_lower
-			let A = ndarray::stack![ndarray::Axis(0), new_a.view(), IC_A.view()];
+			//let A = ndarray::stack![ndarray::Axis(0), new_a.view(), IC_A.view()]; //TODO: check if stack can be replaced with concatenate here
+			let A = ndarray::concatenate![ndarray::Axis(0), new_a.view(), IC_A.view()];
 			let A_upper = ndarray::concatenate![ndarray::Axis(0), new_a_upper.view(), IC_upper.view()];
 			let A_lower = ndarray::concatenate![ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
 
@@ -443,26 +444,26 @@ fn solve_inclusion_problem(
 	let mut max_x_d = BTreeMap::new();
 	let mut min_x_d = BTreeMap::new();
 
-	for tkn in asset_list {
+	for tkn in asset_list.iter() {
 		max_lambda_d.insert(
 			tkn.clone(),
-			p.get_asset_pool_data(tkn).reserve / scaling.get(&tkn).unwrap() / 2.0,
+			p.get_asset_pool_data(*tkn).reserve / scaling.get(tkn).unwrap() / 2.0,
 		);
 		max_lrna_lambda_d.insert(
 			tkn.clone(),
-			p.get_asset_pool_data(tkn).hub_reserve / scaling.get(&LRNA).unwrap() / 2.0,
+			p.get_asset_pool_data(*tkn).hub_reserve / scaling.get(&LRNA).unwrap() / 2.0,
 		);
-		max_y_d.insert(tkn.clone(), *max_lrna_lambda_d.get(&tkn).unwrap());
-		min_y_d.insert(tkn.clone(), -max_lrna_lambda_d.get(&tkn).unwrap());
-		max_x_d.insert(tkn.clone(), *max_lambda_d.get(&tkn).unwrap());
-		min_x_d.insert(tkn.clone(), -max_lambda_d.get(&tkn).unwrap());
+		max_y_d.insert(tkn.clone(), *max_lrna_lambda_d.get(tkn).unwrap());
+		min_y_d.insert(tkn.clone(), -max_lrna_lambda_d.get(tkn).unwrap());
+		max_x_d.insert(tkn.clone(), *max_lambda_d.get(tkn).unwrap());
+		min_x_d.insert(tkn.clone(), -max_lambda_d.get(tkn).unwrap());
 	}
 
 	let max_in = p.get_max_in();
 	let max_out = p.get_max_out();
 
-	for tkn in asset_list {
-		if tkn != p.tkn_profit {
+	for tkn in asset_list.iter() {
+		if *tkn != p.tkn_profit {
 			max_x_d.insert(
 				tkn.clone(),
 				max_in.get(&tkn).unwrap() / scaling.get(&tkn).unwrap() * 2.0,
@@ -472,14 +473,14 @@ fn solve_inclusion_problem(
 				-max_out.get(&tkn).unwrap() / scaling.get(&tkn).unwrap() * 2.0,
 			);
 			max_lambda_d.insert(tkn.clone(), -min_x_d.get(&tkn).unwrap());
-			let max_y_unscaled = max_out.get(&tkn).unwrap() * p.get_asset_pool_data(tkn).hub_reserve
-				/ (p.get_asset_pool_data(tkn).reserve - max_out.get(&tkn).unwrap())
-				+ max_in.get(LRNA).unwrap();
+			let max_y_unscaled = max_out.get(&tkn).unwrap() * p.get_asset_pool_data(*tkn).hub_reserve
+				/ (p.get_asset_pool_data(*tkn).reserve - max_out.get(&tkn).unwrap())
+				+ max_in.get(&LRNA).unwrap();
 			max_y_d.insert(tkn.clone(), max_y_unscaled / scaling.get(&LRNA).unwrap());
 			min_y_d.insert(
 				tkn.clone(),
-				-max_in.get(&tkn).unwrap() * p.get_asset_pool_data(tkn).hub_reserve
-					/ (p.get_asset_pool_data(tkn).reserve + max_in.get(&tkn).unwrap())
+				-max_in.get(&tkn).unwrap() * p.get_asset_pool_data(*tkn).hub_reserve
+					/ (p.get_asset_pool_data(*tkn).reserve + max_in.get(&tkn).unwrap())
 					/ scaling.get(&LRNA).unwrap(),
 			);
 			max_lrna_lambda_d.insert(tkn.clone(), -min_y_d.get(&tkn).unwrap());
@@ -502,14 +503,14 @@ fn solve_inclusion_problem(
 	min_lambda[profit_i] = 0.0;
 	min_lrna_lambda[profit_i] = 0.0;
 
-	min_y = min_y - 1.1 * min_y.abs();
-	min_x = min_x - 1.1 * min_x.abs();
-	min_lrna_lambda = min_lrna_lambda - 1.1 * min_lrna_lambda.abs();
-	min_lambda = min_lambda - 1.1 * min_lambda.abs();
-	max_y = max_y + 1.1 * max_y.abs();
-	max_x = max_x + 1.1 * max_x.abs();
-	max_lrna_lambda = max_lrna_lambda + 1.1 * max_lrna_lambda.abs();
-	max_lambda = max_lambda + 1.1 * max_lambda.abs();
+	min_y = min_y.clone() - 1.1 * min_y.abs();
+	min_x = min_x.clone() - 1.1 * min_x.abs();
+	min_lrna_lambda = min_lrna_lambda.clone() - 1.1 * min_lrna_lambda.abs();
+	min_lambda = min_lambda.clone() - 1.1 * min_lambda.abs();
+	max_y = max_y.clone() + 1.1 * max_y.abs();
+	max_x = max_x.clone() + 1.1 * max_x.abs();
+	max_lrna_lambda = max_lrna_lambda.clone() + 1.1 * max_lrna_lambda.abs();
+	max_lambda = max_lambda.clone() + 1.1 * max_lambda.abs();
 
 	let lower = ndarray::concatenate![
 		Axis(0),
@@ -540,7 +541,7 @@ fn solve_inclusion_problem(
 	}
 
 	if let Some(x_list) = x_list {
-		for x in x_list.outer_iter() {
+		for x in x_list.iter() {
 			for (i, tkn) in asset_list.iter().enumerate() {
 				if x[i] != 0.0 || x[n + i] != 0.0 {
 					let mut S_row = Array2::<f64>::zeros((1, k));
@@ -555,7 +556,8 @@ fn solve_inclusion_problem(
 					let g_neg =
 						lrna_c[tkn] * x[i] + asset_c[tkn] * x[n + i] + lrna_c[tkn] * asset_c[tkn] * x[i] * x[n + i];
 					S_row_upper[0] = grad_dot_x + g_neg;
-					S = ndarray::stack![Axis(0), S.view(), S_row.view()];
+					//S = ndarray::stack![Axis(0), S.view(), S_row.view()];
+					S = ndarray::concatenate![Axis(0), S.view(), S_row.view()]; //TODO: check if stack can be replaced with concatenate here
 					S_upper = ndarray::concatenate![Axis(0), S_upper.view(), S_row_upper.view()];
 				}
 			}
@@ -580,7 +582,8 @@ fn solve_inclusion_problem(
 
 	let mut A8 = Array2::<f64>::zeros((1, k));
 	let q = p.get_q();
-	A8.row_mut(0).assign(&(-q));
+	let q_a = ndarray::Array1::from(q.clone());
+	A8.row_mut(0).assign(&(-q_a));
 	let A8_upper = Array1::from_elem(1, upper_bound / scaling[&p.tkn_profit]);
 	let A8_lower = Array1::from_elem(1, lower_bound / scaling[&p.tkn_profit]);
 
@@ -606,6 +609,7 @@ fn solve_inclusion_problem(
 		A8_lower.view()
 	];
 
+	/*
 	let mut nonzeros = Vec::new();
 	let mut start = Vec::with_capacity(A.shape()[0] + 1);
 	let mut a = Vec::new();
@@ -658,7 +662,14 @@ fn solve_inclusion_problem(
 	let info = h.get_info();
 	let basis = h.get_basis();
 
+	let value_valid = solution.value_valid,
+	let status  = status.to_string(),
 	let x_expanded = solution.col_value;
+	 */
+	//TODO: remove when highs is implemented
+	let value_valid = true;
+	let status = "Solved";
+	let x_expanded = vec![0.];
 
 	let mut new_amm_deltas = BTreeMap::new();
 	let mut exec_partial_intent_deltas = vec![None; m];
@@ -668,7 +679,8 @@ fn solve_inclusion_problem(
 	}
 
 	for i in 0..m {
-		exec_partial_intent_deltas[i] = Some(-x_expanded[4 * n + i] * scaling[&p.partial_intents[i].tkn_sell]);
+		exec_partial_intent_deltas[i] =
+			Some(-x_expanded[4 * n + i] * scaling[&p.get_intent(p.partial_indices[i]).swap.asset_in]);
 	}
 
 	let exec_full_intent_flags = (0..r)
@@ -686,26 +698,27 @@ fn solve_inclusion_problem(
 		save_A,
 		save_A_upper,
 		save_A_lower,
-		-q.dot(&x_expanded) * scaling[&p.tkn_profit],
-		solution.value_valid,
+		-q.clone().dot(&x_expanded) * scaling[&p.tkn_profit],
+		value_valid,
 		status.to_string(),
 	)
 }
 
 fn find_good_solution_unrounded(
-	p: &ICEProblem,
+	problem: &ICEProblem,
 	scale_trade_max: bool,
 	approx_amm_eqs: bool,
 	do_directional_run: bool,
 	allow_loss: bool,
-) -> (Vec<f64>, Vec<f64>, Array2<f64>, f64, f64, ProblemStatus) {
+) -> (BTreeMap<AssetId, f64>, Vec<f64>, Vec<f64>, f64, f64, ProblemStatus) {
+	let mut p: ICEProblem = problem.clone();
 	let (n, m, r) = (p.n, p.m, p.r);
 	if p.indicators.len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
 		// nothing to execute
 		return (
-			vec![0.0; p.asset_ids.len()],
+			BTreeMap::new(),
 			vec![0.0; p.partial_indices.len()],
-			Array2::zeros((4 * n + m, 1)),
+			vec![],
 			0.0,
 			0.0,
 			ProblemStatus::Solved,
@@ -713,7 +726,7 @@ fn find_good_solution_unrounded(
 	}
 
 	let (mut amm_deltas, mut intent_deltas, mut x, mut obj, mut dual_obj, mut status) =
-		find_solution_unrounded(p, allow_loss);
+		find_solution_unrounded(&p, allow_loss);
 
 	// if partial trade size is much higher than executed trade, lower trade max
 	let mut trade_pcts: Vec<f64> = if scale_trade_max {
@@ -777,16 +790,16 @@ fn find_good_solution_unrounded(
 			.min_by(|a, b| a.partial_cmp(b).unwrap())
 			.unwrap() < 0.1
 		{
-			scale_down_partial_intents(p, &trade_pcts, 10.)
+			scale_down_partial_intents(&p, &trade_pcts, 10.)
 		} else {
 			(vec![], 0)
 		};
 
-		let mut params = SetupParams::new()
+		let params = SetupParams::new()
 			.with_sell_maxes(new_maxes)
 			.with_clear_indicators(false);
-		let params = if force_amm_approx.is_some() {
-			params.with_force_amm_approx(force_amm_approx.unwrap())
+		let params = if let Some(force_amm_approx) = force_amm_approx.as_ref() {
+			params.with_force_amm_approx(force_amm_approx.clone())
 		} else {
 			params
 		};
@@ -798,7 +811,7 @@ fn find_good_solution_unrounded(
 		}
 
 		let (new_amm_deltas, new_intent_deltas, new_x, new_obj, new_dual_obj, new_status) =
-			find_solution_unrounded(p, allow_loss);
+			find_solution_unrounded(&p, allow_loss);
 
 		// need to check if amm_deltas stayed within their reasonable approximation bounds
 		// if not, we may want to discard the "solution"
@@ -879,7 +892,7 @@ fn find_good_solution_unrounded(
 			.with_clear_amm_approx(false);
 		p.set_up_problem(params);
 		let (new_amm_deltas, new_intent_deltas, new_x, new_obj, new_dual_obj, new_status) =
-			find_solution_unrounded(p, allow_loss);
+			find_solution_unrounded(&p, allow_loss);
 
 		amm_deltas = new_amm_deltas;
 		intent_deltas = new_intent_deltas;
@@ -890,17 +903,10 @@ fn find_good_solution_unrounded(
 	}
 
 	if status == ProblemStatus::PrimalInfeasible || status == ProblemStatus::DualInfeasible {
-		return (
-			vec![0.0; n],
-			vec![0.0; m],
-			Array2::zeros((4 * n + m, 1)),
-			0.0,
-			0.0,
-			status,
-		);
+		return (BTreeMap::new(), vec![0.0; m], vec![], 0.0, 0.0, status);
 	}
 
-	let x_unscaled = p.get_real_x(&x);
+	let x_unscaled = p.get_real_x(x.iter().cloned().collect());
 	(amm_deltas, intent_deltas, x_unscaled, obj, dual_obj, status)
 }
 
@@ -922,6 +928,7 @@ fn find_solution_unrounded(
 	//let full_intents = &p.full_intents;
 	let partial_intents = &p.partial_indices; // TODO: should not be actual intents?!
 	let asset_list = &p.asset_ids;
+	let indicators = p.get_indicators();
 	let (n, m, r) = (p.n, p.m, p.r);
 
 	if partial_intents.len() + p.get_indicators().len() == 0 {
@@ -940,13 +947,13 @@ fn find_solution_unrounded(
 	let mut indices_to_keep: Vec<usize> = (0..k).collect();
 
 	for &tkn in directions.keys() {
-		if directions[&tkn] == "sell" || directions[&tkn] == "neither" {
+		if directions[&tkn] == Direction::Sell || directions[&tkn] == Direction::Neither {
 			indices_to_keep.retain(|&i| i != 2 * n + asset_list.iter().position(|&x| x == tkn).unwrap());
 		}
-		if directions[&tkn] == "buy" || directions[&tkn] == "neither" {
+		if directions[&tkn] == Direction::Buy || directions[&tkn] == Direction::Neither {
 			indices_to_keep.retain(|&i| i != 3 * n + asset_list.iter().position(|&x| x == tkn).unwrap());
 		}
-		if directions[&tkn] == "neither" {
+		if directions[&tkn] == Direction::Neither {
 			indices_to_keep.retain(|&i| i != asset_list.iter().position(|&x| x == tkn).unwrap());
 			indices_to_keep.retain(|&i| i != n + asset_list.iter().position(|&x| x == tkn).unwrap());
 		}
@@ -954,9 +961,13 @@ fn find_solution_unrounded(
 
 	let k_real = indices_to_keep.len();
 	let P_trimmed = CscMatrix::zeros((k_real, k_real));
-	let q_all = p.get_q();
-	let objective_I_coefs = -q_all.slice(s![4 * n + m..]);
-	let q = -q_all.slice(s![..4 * n + m]);
+	let q_all = ndarray::Array::from(p.get_q());
+
+	//TODO: need to apply "-" but it does not work atm
+	//let objective_I_coefs = -q_all.slice(s![4 * n + m..]);
+	//let q = -q_all.slice(s![..4 * n + m]);
+	let objective_I_coefs = q_all.slice(s![4 * n + m..]);
+	let q = q_all.slice(s![..4 * n + m]);
 	let q_trimmed: Vec<f64> = indices_to_keep.iter().map(|&i| q[i]).collect();
 
 	let diff_coefs = Array2::<f64>::zeros((2 * n + m, 2 * n));
@@ -967,18 +978,23 @@ fn find_solution_unrounded(
 		.collect();
 	let A1_trimmed = A1.select(Axis(0), &rows_to_keep).select(Axis(1), &indices_to_keep);
 	let b1 = Array1::<f64>::zeros(A1_trimmed.shape()[0]);
-	let cone1 = NonnegativeConeT::new(A1_trimmed.shape()[0]);
+	let cone1 = NonnegativeConeT(A1_trimmed.shape()[0]);
 
 	let amm_coefs = Array2::<f64>::zeros((m, 4 * n));
 	let d_coefs = Array2::<f64>::eye(m);
 	let A2 = ndarray::concatenate![Axis(1), amm_coefs, d_coefs];
 	let b2 = Array1::from(p.get_partial_sell_maxs_scaled());
 	let A2_trimmed = A2.select(Axis(1), &indices_to_keep);
-	let cone2 = NonnegativeConeT::new(A2_trimmed.shape()[0]);
+	let cone2 = NonnegativeConeT(A2_trimmed.shape()[0]);
 
 	let profit_A = p.get_profit_A();
-	let mut A3 = -profit_A.slice(s![.., ..4 * n + m]).to_owned();
-	let mut I_coefs = -profit_A.slice(s![.., 4 * n + m..]).to_owned();
+
+	//TODO: need to apply "-" but it does not work atm
+	//let mut A3 = -profit_A.slice(s![.., ..4 * n + m]).to_owned();
+	//let mut I_coefs = -profit_A.slice(s![.., 4 * n + m..]).to_owned();
+
+	let mut A3 = profit_A.slice(s![.., ..4 * n + m]).to_owned();
+	let mut I_coefs = profit_A.slice(s![.., 4 * n + m..]).to_owned();
 	if allow_loss {
 		let profit_i = p.asset_ids.iter().position(|&x| x == p.tkn_profit).unwrap() + 1;
 		A3.remove_index(Axis(0), profit_i);
@@ -988,9 +1004,11 @@ fn find_solution_unrounded(
 	let b3 = if r == 0 {
 		Array1::<f64>::zeros(A3_trimmed.shape()[0])
 	} else {
-		-I_coefs.dot(I)
+		//TODO: this is trange to convert indicators to f64 - verify if we should use f64 for indicators
+		let r: ndarray::Array1<FloatType> = ndarray::Array::from(indicators).iter().map(|v| *v as f64).collect();
+		-I_coefs.dot(&r)
 	};
-	let cone3 = NonnegativeConeT::new(A3_trimmed.shape()[0]);
+	let cone3 = NonnegativeConeT(A3_trimmed.shape()[0]);
 
 	let mut A4 = Array2::<f64>::zeros((0, k));
 	let mut b4 = Array1::<f64>::zeros(0);
@@ -1000,16 +1018,16 @@ fn find_solution_unrounded(
 	for i in 0..n {
 		let tkn = asset_list[i];
 		let approx = p.get_amm_approx(tkn);
-		let approx = if approx == "none" && epsilon_tkn[&tkn] <= 1e-6 && tkn != p.tkn_profit {
-			"linear"
-		} else if approx == "none" && epsilon_tkn[&tkn] <= 1e-3 {
-			"quadratic"
+		let approx = if approx == AmmApprox::None && epsilon_tkn[&tkn] <= 1e-6 && tkn != p.tkn_profit {
+			AmmApprox::Linear
+		} else if approx == AmmApprox::None && epsilon_tkn[&tkn] <= 1e-3 {
+			AmmApprox::Quadratic
 		} else {
 			approx
 		};
 
 		let (A4i, b4i, cone) = match approx {
-			"linear" => {
+			AmmApprox::Linear => {
 				if !directions.contains_key(&tkn) {
 					let c1 = 1.0 / (1.0 + epsilon_tkn[&tkn]);
 					let c2 = 1.0 / (1.0 - epsilon_tkn[&tkn]);
@@ -1018,9 +1036,9 @@ fn find_solution_unrounded(
 					A4i[[0, n + i]] = -p.get_amm_asset_coefs()[&tkn] * c1;
 					A4i[[1, i]] = -p.get_amm_lrna_coefs()[&tkn];
 					A4i[[1, n + i]] = -p.get_amm_asset_coefs()[&tkn] * c2;
-					(A4i, Array1::<f64>::zeros(2), NonnegativeConeT::new(2))
+					(A4i, Array1::<f64>::zeros(2), NonnegativeConeT(2))
 				} else {
-					let c = if directions[&tkn] == "sell" {
+					let c = if directions[&tkn] == Direction::Sell {
 						1.0 / (1.0 - epsilon_tkn[&tkn])
 					} else {
 						1.0 / (1.0 + epsilon_tkn[&tkn])
@@ -1028,21 +1046,21 @@ fn find_solution_unrounded(
 					let mut A4i = Array2::<f64>::zeros((1, k));
 					A4i[[0, i]] = -p.get_amm_lrna_coefs()[&tkn];
 					A4i[[0, n + i]] = -p.get_amm_asset_coefs()[&tkn] * c;
-					(A4i, Array1::<f64>::zeros(1), ZeroConeT::new(1))
+					(A4i, Array1::<f64>::zeros(1), ZeroConeT(1))
 				}
 			}
-			"quadratic" => {
+			AmmApprox::Quadratic => {
 				let mut A4i = Array2::<f64>::zeros((3, k));
 				A4i[[1, i]] = -p.get_amm_lrna_coefs()[&tkn];
 				A4i[[1, n + i]] = -p.get_amm_asset_coefs()[&tkn];
 				A4i[[2, n + i]] = -p.get_amm_asset_coefs()[&tkn];
-				(A4i, ndarray::array![1.0, 0.0, 0.0], PowerConeT::new(0.5))
+				(A4i, ndarray::array![1.0, 0.0, 0.0], PowerConeT(0.5))
 			}
 			_ => {
 				let mut A4i = Array2::<f64>::zeros((3, k));
 				A4i[[0, i]] = -p.get_amm_lrna_coefs()[&tkn];
 				A4i[[1, n + i]] = -p.get_amm_asset_coefs()[&tkn];
-				(A4i, Array1::<f64>::ones(3), PowerConeT::new(0.5))
+				(A4i, Array1::<f64>::ones(3), PowerConeT(0.5))
 			}
 		};
 
@@ -1069,7 +1087,7 @@ fn find_solution_unrounded(
 		} else {
 			let mut A6i = Array2::<f64>::zeros((2, k));
 			let mut A7i = Array2::<f64>::zeros((1, k));
-			if directions[&tkn] == "sell" {
+			if directions[&tkn] == Direction::Sell {
 				A6i[[0, i]] = -1.0;
 				A6i[[1, n + i]] = 1.0;
 				A7i[[0, n + i]] = 1.0;
@@ -1092,9 +1110,9 @@ fn find_solution_unrounded(
 	let b5 = Array1::<f64>::zeros(A5.shape()[0]);
 	let b6 = Array1::<f64>::zeros(A6.shape()[0]);
 	let b7 = Array1::<f64>::zeros(A7.shape()[0]);
-	let cone5 = NonnegativeConeT::new(A5.shape()[0]);
-	let cone6 = NonnegativeConeT::new(A6.shape()[0]);
-	let cone7 = ZeroConeT::new(A7.shape()[0]);
+	let cone5 = NonnegativeConeT(A5.shape()[0]);
+	let cone6 = NonnegativeConeT(A6.shape()[0]);
+	let cone7 = ZeroConeT(A7.shape()[0]);
 
 	let A = ndarray::concatenate![
 		Axis(0),
@@ -1106,7 +1124,7 @@ fn find_solution_unrounded(
 		A6_trimmed,
 		A7_trimmed
 	];
-	let A_sparse = CscMatrix::from(&A);
+	let A_sparse = CscMatrix::from(&[A]);
 	let b = ndarray::concatenate![Axis(0), b1, b2, b3, b4, b5, b6, b7];
 	let cones = vec![cone1, cone2, cone3]
 		.into_iter()
@@ -1131,7 +1149,7 @@ fn find_solution_unrounded(
 	for (i, &index) in indices_to_keep.iter().enumerate() {
 		x_expanded[index] = x[i];
 	}
-	let x_scaled = p.get_real_x(&x_expanded);
+	let x_scaled = p.get_real_x(x_expanded.clone());
 	for i in 0..n {
 		let tkn = asset_list[i];
 		new_amm_deltas.insert(tkn, x_scaled[n + i]);
@@ -1140,14 +1158,22 @@ fn find_solution_unrounded(
 		exec_intent_deltas[j] = -x_scaled[4 * n + j];
 	}
 
-	let obj_offset = if let Some(I) = I { objective_I_coefs.dot(I) } else { 0.0 };
+	/*
+	//TODO: check when to use indicators
+	let obj_offset = if let Some(I) = p.get_indicators() {
+		objective_I_coefs.dot(I) }
+	else { 0.0 };
+
+	 */
+	let obj_offset = 0.0;
+
 	(
 		new_amm_deltas,
 		exec_intent_deltas,
 		Array2::from_shape_vec((k, 1), x_expanded).unwrap(),
 		p.scale_obj_amt(obj_value + obj_offset),
 		p.scale_obj_amt(obj_value_dual + obj_offset),
-		solution.status.into(),
+		status.into(),
 	)
 }
 
