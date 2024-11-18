@@ -58,7 +58,7 @@ pub struct ICEProblem {
 	pub directional_flags: Option<BTreeMap<AssetId, i8>>,
 	pub force_amm_approx: Option<BTreeMap<AssetId, AmmApprox>>,
 
-	pub step_params: Option<StepParams>,
+	pub step_params: StepParams,
 	pub fee_match: FloatType,
 }
 
@@ -121,13 +121,7 @@ pub enum Direction {
 
 impl ICEProblem {
 	pub(crate) fn get_omnipool_directions(&self) -> BTreeMap<AssetId, Direction> {
-		self.step_params
-			.as_ref()
-			.unwrap()
-			.omnipool_directions
-			.as_ref()
-			.unwrap()
-			.clone()
+		self.step_params.omnipool_directions.as_ref().unwrap().clone()
 	}
 }
 
@@ -171,25 +165,25 @@ impl ICEProblem {
 
 impl ICEProblem {
 	pub(crate) fn get_q(&self) -> Vec<FloatType> {
-		self.step_params.as_ref().unwrap().q.as_ref().cloned().unwrap()
+		self.step_params.q.as_ref().cloned().unwrap()
 	}
 }
 
 impl ICEProblem {
 	pub(crate) fn get_profit_A(&self) -> Array2<FloatType> {
-		self.step_params.as_ref().unwrap().profit_a.as_ref().cloned().unwrap()
+		self.step_params.profit_a.as_ref().cloned().unwrap()
 	}
 }
 
 impl ICEProblem {
 	pub(crate) fn get_amm_asset_coefs(&self) -> &BTreeMap<AssetId, FloatType> {
-		self.step_params.as_ref().unwrap().amm_asset_coefs.as_ref().unwrap()
+		self.step_params.amm_asset_coefs.as_ref().unwrap()
 	}
 }
 
 impl ICEProblem {
 	pub(crate) fn get_amm_lrna_coefs(&self) -> &BTreeMap<AssetId, FloatType> {
-		self.step_params.as_ref().unwrap().amm_lrna_coefs.as_ref().unwrap()
+		self.step_params.amm_lrna_coefs.as_ref().unwrap()
 	}
 }
 
@@ -373,7 +367,7 @@ impl ICEProblem {
 			full_indices,
 			directional_flags: None,
 			force_amm_approx: None,
-			step_params: None,
+			step_params: StepParams::default(),
 			fee_match: 0.0005,
 		}
 	}
@@ -423,7 +417,7 @@ impl ICEProblem {
 		step_params.set_omnipool_directions(self);
 		step_params.set_tau_phi(self);
 		step_params.set_coefficients(self);
-		self.step_params = Some(step_params);
+		self.step_params = step_params;
 	}
 
 	pub(crate) fn get_intent(&self, idx: usize) -> &Intent<AccountId, AssetId> {
@@ -431,15 +425,15 @@ impl ICEProblem {
 	}
 
 	pub(crate) fn get_scaling(&self) -> &BTreeMap<AssetId, FloatType> {
-		self.step_params.as_ref().unwrap().scaling.as_ref().unwrap()
+		self.step_params.scaling.as_ref().unwrap()
 	}
 
 	pub(crate) fn get_max_in(&self) -> &BTreeMap<AssetId, FloatType> {
-		self.step_params.as_ref().unwrap().max_in.as_ref().unwrap()
+		self.step_params.max_in.as_ref().unwrap()
 	}
 
 	pub(crate) fn get_max_out(&self) -> &BTreeMap<AssetId, FloatType> {
-		self.step_params.as_ref().unwrap().max_out.as_ref().unwrap()
+		self.step_params.max_out.as_ref().unwrap()
 	}
 
 	pub(crate) fn get_partial_sell_maxs_scaled(&self) -> Vec<FloatType> {
@@ -475,14 +469,14 @@ impl ICEProblem {
 		let scaling = self.get_scaling();
 		let lrna_scaling = scaling[&1u32.into()]; // Assuming 1u32 represents 'LRNA'
 
-		let min_y = self.step_params.as_ref().unwrap().min_y.as_ref().unwrap();
-		let max_y = self.step_params.as_ref().unwrap().max_y.as_ref().unwrap();
-		let min_x = self.step_params.as_ref().unwrap().min_x.as_ref().unwrap();
-		let max_x = self.step_params.as_ref().unwrap().max_x.as_ref().unwrap();
-		let min_lrna_lambda = self.step_params.as_ref().unwrap().min_lrna_lambda.as_ref().unwrap();
-		let max_lrna_lambda = self.step_params.as_ref().unwrap().max_lrna_lambda.as_ref().unwrap();
-		let min_lambda = self.step_params.as_ref().unwrap().min_lambda.as_ref().unwrap();
-		let max_lambda = self.step_params.as_ref().unwrap().max_lambda.as_ref().unwrap();
+		let min_y = self.step_params.min_y.as_ref().unwrap();
+		let max_y = self.step_params.max_y.as_ref().unwrap();
+		let min_x = self.step_params.min_x.as_ref().unwrap();
+		let max_x = self.step_params.max_x.as_ref().unwrap();
+		let min_lrna_lambda = self.step_params.min_lrna_lambda.as_ref().unwrap();
+		let max_lrna_lambda = self.step_params.max_lrna_lambda.as_ref().unwrap();
+		let min_lambda = self.step_params.min_lambda.as_ref().unwrap();
+		let max_lambda = self.step_params.max_lambda.as_ref().unwrap();
 
 		let scaled_min_y = ndarray::Array1::from(min_y.iter().map(|&val| val / lrna_scaling).collect::<Vec<_>>());
 		let scaled_max_y = ndarray::Array1::from(max_y.iter().map(|&val| val / lrna_scaling).collect::<Vec<_>>());
@@ -578,7 +572,7 @@ impl StepParams {
 		known_flow.insert(1u32.into(), (0.0, 0.0)); // Assuming 1u32 represents 'LRNA'
 
 		// Update known_flow based on full intents
-		if let Some(I) = &problem.step_params.as_ref().unwrap().q {
+		if let Some(I) = &problem.step_params.q {
 			assert_eq!(I.len(), problem.full_indices.len());
 			for (i, &idx) in problem.full_indices.iter().enumerate() {
 				if I[i] > 0.5 {
@@ -629,7 +623,7 @@ impl StepParams {
 			//*max_out.get_mut(&tkn_buy).unwrap() += if buy_quantity != 0.0 { buy_quantity.next_after(FloatType::INFINITY) } else { 0.0 };
 		}
 
-		if problem.step_params.as_ref().unwrap().q.is_none() {
+		if problem.step_params.q.is_none() {
 			for &idx in problem.full_indices.iter() {
 				let intent = &problem.intents[idx];
 				let (sell_quantity, buy_quantity) = problem.intent_amounts[idx];
@@ -821,7 +815,7 @@ impl StepParams {
 		}
 
 		for &tkn in problem.asset_ids.iter() {
-			let known_flow = problem.step_params.as_ref().unwrap().known_flow.as_ref().unwrap();
+			let known_flow = problem.step_params.known_flow.as_ref().unwrap();
 			let flow_in = known_flow[&tkn].0;
 			let flow_out = known_flow[&tkn].1;
 
