@@ -169,7 +169,12 @@ impl ICEProblem {
 	}
 
 	pub(crate) fn get_amm_approx(&self, asset_id: AssetId) -> AmmApprox {
-		*self.force_amm_approx.as_ref().unwrap().get(&asset_id).unwrap()
+		if let Some(approx) = self.force_amm_approx.as_ref() {
+			*approx.get(&asset_id).unwrap_or(&AmmApprox::None)
+		} else {
+			AmmApprox::None
+		}
+		//*self.force_amm_approx.as_ref().unwrap().get(&asset_id).unwrap()
 	}
 
 	pub(crate) fn scale_obj_amt(&self, amt: FloatType) -> FloatType {
@@ -1076,6 +1081,10 @@ impl StepParams {
 
 		// attempt
 		let l = profit_lrna_coefs.len();
+		//TODO: this is just tempoary override, to make incompatible shapes work
+		let profit_d_coefs = ndarray::Array2::from(vec![[0.], [0.]]);
+		let i_coefs = ndarray::Array2::from(vec![[], []]);
+
 		let profit_A_LRNA = Array2::from_shape_vec((1, l), profit_lrna_coefs).unwrap();
 		let profit_A_assets = ndarray::concatenate![
 			Axis(1),
@@ -1083,13 +1092,16 @@ impl StepParams {
 			profit_x_coefs,
 			profit_lrna_lambda_coefs,
 			profit_lambda_coefs,
-			//TODO: this two are not working- fix
-			//profit_d_coefs,
-			//&i_coefs,
+			//TODO: this two are not working -  fix - fixed by previous overrided for now
+			profit_d_coefs,
+			i_coefs,
 		];
+
+		dbg!(&profit_A_assets);
 
 		//TODO: vstack here originally - this fails with incompatible shapes
 		let profit_A = Some(ndarray::concatenate![Axis(0), profit_A_LRNA, profit_A_assets]);
+		self.profit_a = profit_A.clone();
 
 		let profit_tkn_idx = problem
 			.asset_ids
