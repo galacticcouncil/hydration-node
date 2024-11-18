@@ -1,6 +1,6 @@
 use crate::data::AssetData;
 use crate::to_f64_by_decimals;
-use clarabel::algebra::CscMatrix;
+use clarabel::algebra::{BlockConcatenate, CscMatrix};
 use clarabel::solver::SolverStatus;
 use ndarray::{Array1, Array2};
 use pallet_ice::types::{Intent, IntentId};
@@ -64,7 +64,15 @@ pub struct ICEProblem {
 
 impl ICEProblem {
 	pub(crate) fn get_partial_intent_prices(&self) -> Vec<FloatType> {
-		todo!()
+		let mut prices = Vec::new();
+		//TODO: verify whether it should amountout/ amount in or amount in / amount out
+		for &idx in self.partial_indices.iter() {
+			let intent = &self.intents[idx];
+			let tkn = intent.swap.asset_in;
+			let price = intent.swap.amount_out as f64 / intent.swap.amount_in as f64;
+			prices.push(price);
+		}
+		prices
 	}
 }
 
@@ -163,25 +171,25 @@ impl ICEProblem {
 
 impl ICEProblem {
 	pub(crate) fn get_q(&self) -> Vec<FloatType> {
-		todo!()
+		self.step_params.as_ref().unwrap().q.as_ref().cloned().unwrap()
 	}
 }
 
 impl ICEProblem {
 	pub(crate) fn get_profit_A(&self) -> Array2<FloatType> {
-		todo!()
+		self.step_params.as_ref().unwrap().profit_a.as_ref().cloned().unwrap()
 	}
 }
 
 impl ICEProblem {
 	pub(crate) fn get_amm_asset_coefs(&self) -> &BTreeMap<AssetId, FloatType> {
-		todo!()
+		self.step_params.as_ref().unwrap().amm_asset_coefs.as_ref().unwrap()
 	}
 }
 
 impl ICEProblem {
 	pub(crate) fn get_amm_lrna_coefs(&self) -> &BTreeMap<AssetId, FloatType> {
-		todo!()
+		self.step_params.as_ref().unwrap().amm_lrna_coefs.as_ref().unwrap()
 	}
 }
 
@@ -464,7 +472,71 @@ impl ICEProblem {
 		ndarray::Array1<FloatType>,
 		ndarray::Array1<FloatType>,
 	) {
-		todo!()
+		let scaling = self.get_scaling();
+		let lrna_scaling = scaling[&1u32.into()]; // Assuming 1u32 represents 'LRNA'
+
+		let min_y = self.step_params.as_ref().unwrap().min_y.as_ref().unwrap();
+		let max_y = self.step_params.as_ref().unwrap().max_y.as_ref().unwrap();
+		let min_x = self.step_params.as_ref().unwrap().min_x.as_ref().unwrap();
+		let max_x = self.step_params.as_ref().unwrap().max_x.as_ref().unwrap();
+		let min_lrna_lambda = self.step_params.as_ref().unwrap().min_lrna_lambda.as_ref().unwrap();
+		let max_lrna_lambda = self.step_params.as_ref().unwrap().max_lrna_lambda.as_ref().unwrap();
+		let min_lambda = self.step_params.as_ref().unwrap().min_lambda.as_ref().unwrap();
+		let max_lambda = self.step_params.as_ref().unwrap().max_lambda.as_ref().unwrap();
+
+		let scaled_min_y = ndarray::Array1::from(min_y.iter().map(|&val| val / lrna_scaling).collect::<Vec<_>>());
+		let scaled_max_y = ndarray::Array1::from(max_y.iter().map(|&val| val / lrna_scaling).collect::<Vec<_>>());
+		let scaled_min_x = ndarray::Array1::from(
+			self.asset_ids
+				.iter()
+				.enumerate()
+				.map(|(i, &tkn)| min_x[i] / scaling[&tkn])
+				.collect::<Vec<_>>(),
+		);
+		let scaled_max_x = ndarray::Array1::from(
+			self.asset_ids
+				.iter()
+				.enumerate()
+				.map(|(i, &tkn)| max_x[i] / scaling[&tkn])
+				.collect::<Vec<_>>(),
+		);
+		let scaled_min_lrna_lambda = ndarray::Array1::from(
+			min_lrna_lambda
+				.iter()
+				.map(|&val| val / lrna_scaling)
+				.collect::<Vec<_>>(),
+		);
+		let scaled_max_lrna_lambda = ndarray::Array1::from(
+			max_lrna_lambda
+				.iter()
+				.map(|&val| val / lrna_scaling)
+				.collect::<Vec<_>>(),
+		);
+		let scaled_min_lambda = ndarray::Array1::from(
+			self.asset_ids
+				.iter()
+				.enumerate()
+				.map(|(i, &tkn)| min_lambda[i] / scaling[&tkn])
+				.collect::<Vec<_>>(),
+		);
+		let scaled_max_lambda = ndarray::Array1::from(
+			self.asset_ids
+				.iter()
+				.enumerate()
+				.map(|(i, &tkn)| max_lambda[i] / scaling[&tkn])
+				.collect::<Vec<_>>(),
+		);
+
+		(
+			scaled_min_y,
+			scaled_max_y,
+			scaled_min_x,
+			scaled_max_x,
+			scaled_min_lrna_lambda,
+			scaled_max_lrna_lambda,
+			scaled_min_lambda,
+			scaled_max_lambda,
+		)
 	}
 }
 
@@ -477,29 +549,239 @@ pub struct StepParams {
 	pub min_out: Option<BTreeMap<AssetId, FloatType>>,
 	pub scaling: Option<BTreeMap<AssetId, FloatType>>,
 	pub omnipool_directions: Option<BTreeMap<AssetId, Direction>>,
-	pub tau: Option<Vec<FloatType>>,
-	pub phi: Option<Vec<FloatType>>,
+	pub tau: Option<CscMatrix>,
+	pub phi: Option<CscMatrix>,
 	pub q: Option<Vec<FloatType>>,
+	pub profit_a: Option<Array2<FloatType>>,
+	min_x: Option<Vec<FloatType>>,
+	max_x: Option<Vec<FloatType>>,
+	min_lambda: Option<Vec<FloatType>>,
+	max_lambda: Option<Vec<FloatType>>,
+	min_y: Option<Vec<FloatType>>,
+	max_y: Option<Vec<FloatType>>,
+	min_lrna_lambda: Option<Vec<FloatType>>,
+	max_lrna_lambda: Option<Vec<FloatType>>,
+	amm_lrna_coefs: Option<BTreeMap<AssetId, FloatType>>,
+	amm_asset_coefs: Option<BTreeMap<AssetId, FloatType>>,
 }
 
 impl StepParams {
 	fn set_known_flow(&mut self, problem: &ICEProblem) {
-		todo!()
+		let mut known_flow: BTreeMap<AssetId, (FloatType, FloatType)> = BTreeMap::new();
+
+		// Initialize known_flow with zero values for all assets
+		for &asset_id in problem.asset_ids.iter() {
+			known_flow.insert(asset_id, (0.0, 0.0));
+		}
+
+		// Add LRNA to known_flow
+		known_flow.insert(1u32.into(), (0.0, 0.0)); // Assuming 1u32 represents 'LRNA'
+
+		// Update known_flow based on full intents
+		if let Some(I) = &problem.step_params.as_ref().unwrap().q {
+			assert_eq!(I.len(), problem.full_indices.len());
+			for (i, &idx) in problem.full_indices.iter().enumerate() {
+				if I[i] > 0.5 {
+					let intent = &problem.intents[idx];
+					let (sell_quantity, buy_quantity) = problem.intent_amounts[idx];
+					let tkn_sell = intent.swap.asset_in;
+					let tkn_buy = intent.swap.asset_out;
+
+					let entry = known_flow.entry(tkn_sell).or_insert((0.0, 0.0));
+					entry.0 = entry.0 + sell_quantity;
+
+					let entry = known_flow.entry(tkn_buy).or_insert((0.0, 0.0));
+					entry.1 = entry.1 + buy_quantity;
+				}
+			}
+		}
+
+		self.known_flow = Some(known_flow);
 	}
 	fn set_max_in_out(&mut self, problem: &ICEProblem) {
-		todo!()
+		let mut max_in: BTreeMap<AssetId, FloatType> = BTreeMap::new();
+		let mut max_out: BTreeMap<AssetId, FloatType> = BTreeMap::new();
+		let mut min_in: BTreeMap<AssetId, FloatType> = BTreeMap::new();
+		let mut min_out: BTreeMap<AssetId, FloatType> = BTreeMap::new();
+
+		for &asset_id in problem.asset_ids.iter() {
+			max_in.insert(asset_id, 0.0);
+			max_out.insert(asset_id, 0.0);
+			min_in.insert(asset_id, 0.0);
+			min_out.insert(asset_id, 0.0);
+		}
+
+		max_in.insert(1u32.into(), 0.0); // Assuming 1u32 represents 'LRNA'
+		max_out.insert(1u32.into(), 0.0);
+		min_in.insert(1u32.into(), 0.0);
+		min_out.insert(1u32.into(), 0.0);
+
+		for (i, &idx) in problem.partial_indices.iter().enumerate() {
+			let intent = &problem.intents[idx];
+			let (amount_in, amount_out) = problem.intent_amounts[idx];
+			let tkn_sell = intent.swap.asset_in;
+			let tkn_buy = intent.swap.asset_out;
+			let sell_quantity = problem.partial_sell_maxs[i];
+			let buy_quantity = amount_out / amount_in * sell_quantity;
+
+			*max_in.get_mut(&tkn_sell).unwrap() += sell_quantity;
+			//TODO: this pls
+			//*max_out.get_mut(&tkn_buy).unwrap() += if buy_quantity != 0.0 { buy_quantity.next_after(FloatType::INFINITY) } else { 0.0 };
+		}
+
+		if problem.step_params.as_ref().unwrap().q.is_none() {
+			for &idx in problem.full_indices.iter() {
+				let intent = &problem.intents[idx];
+				let (sell_quantity, buy_quantity) = problem.intent_amounts[idx];
+				let tkn_sell = intent.swap.asset_in;
+				let tkn_buy = intent.swap.asset_out;
+
+				*max_in.get_mut(&tkn_sell).unwrap() += sell_quantity;
+				*max_out.get_mut(&tkn_buy).unwrap() += buy_quantity;
+			}
+		}
+
+		for (&tkn, &(in_flow, out_flow)) in self.known_flow.as_ref().unwrap().iter() {
+			*max_in.get_mut(&tkn).unwrap() += in_flow - out_flow;
+			*min_in.get_mut(&tkn).unwrap() += in_flow - out_flow;
+			*max_out.get_mut(&tkn).unwrap() -= in_flow - out_flow;
+			*min_out.get_mut(&tkn).unwrap() -= in_flow - out_flow;
+		}
+
+		let fees: BTreeMap<AssetId, FloatType> = problem
+			.asset_ids
+			.iter()
+			.map(|&tkn| (tkn, problem.get_asset_pool_data(tkn).fee))
+			.collect();
+
+		for &tkn in problem.asset_ids.iter() {
+			*max_in.get_mut(&tkn).unwrap() = max_in[&tkn].max(0.0);
+			*min_in.get_mut(&tkn).unwrap() = min_in[&tkn].max(0.0);
+			*max_out.get_mut(&tkn).unwrap() = (max_out[&tkn] / (1.0 - fees[&tkn])).max(0.0);
+			*min_out.get_mut(&tkn).unwrap() = (min_out[&tkn] / (1.0 - fees[&tkn])).max(0.0);
+		}
+
+		*max_out.get_mut(&1u32.into()).unwrap() = 0.0; // Assuming 1u32 represents 'LRNA'
+		*min_out.get_mut(&1u32.into()).unwrap() = 0.0;
+		*max_in.get_mut(&1u32.into()).unwrap() = max_in[&1u32.into()].max(0.0);
+		*min_in.get_mut(&1u32.into()).unwrap() = min_in[&1u32.into()].max(0.0);
+
+		self.max_in = Some(max_in);
+		self.max_out = Some(max_out);
+		self.min_in = Some(min_in);
+		self.min_out = Some(min_out);
 	}
 	fn set_bounds(&mut self, problem: &ICEProblem) {
-		todo!()
+		let n = problem.asset_ids.len();
+		let mut min_x = vec![0.0; n];
+		let mut max_x = vec![0.0; n];
+		let mut min_lambda = vec![0.0; n];
+		let mut max_lambda = vec![0.0; n];
+		let mut min_y = vec![0.0; n];
+		let mut max_y = vec![0.0; n];
+		let mut min_lrna_lambda = vec![0.0; n];
+		let mut max_lrna_lambda = vec![0.0; n];
+
+		for (i, &tkn) in problem.asset_ids.iter().enumerate() {
+			min_x[i] = self.min_in.as_ref().unwrap()[&tkn] - self.max_out.as_ref().unwrap()[&tkn];
+			max_x[i] = self.max_in.as_ref().unwrap()[&tkn] - self.min_out.as_ref().unwrap()[&tkn];
+			min_lambda[i] = (-max_x[i]).max(0.0);
+			max_lambda[i] = (-min_x[i]).max(0.0);
+
+			let omnipool_data = problem.get_asset_pool_data(tkn);
+			let min_y_val = -omnipool_data.hub_reserve * max_x[i] / (max_x[i] + omnipool_data.reserve);
+			min_y[i] = min_y_val - 0.1 * min_y_val.abs();
+			let max_y_val = -omnipool_data.hub_reserve * min_x[i] / (min_x[i] + omnipool_data.reserve);
+			max_y[i] = max_y_val + 0.1 * max_y_val.abs();
+			min_lrna_lambda[i] = (-max_y[i]).max(0.0);
+			max_lrna_lambda[i] = (-min_y[i]).max(0.0);
+		}
+
+		let profit_i = problem
+			.asset_ids
+			.iter()
+			.position(|&tkn| tkn == problem.tkn_profit)
+			.unwrap();
+		let profit_tkn_data = problem.get_asset_pool_data(problem.tkn_profit);
+		min_x[profit_i] = -profit_tkn_data.reserve;
+		max_lambda[profit_i] = (-min_x[profit_i]).max(0.0);
+		min_y[profit_i] = -profit_tkn_data.hub_reserve;
+		max_lrna_lambda[profit_i] = (-min_y[profit_i]).max(0.0);
+
+		self.min_x = Some(min_x);
+		self.max_x = Some(max_x);
+		self.min_lambda = Some(min_lambda);
+		self.max_lambda = Some(max_lambda);
+		self.min_y = Some(min_y);
+		self.max_y = Some(max_y);
+		self.min_lrna_lambda = Some(min_lrna_lambda);
+		self.max_lrna_lambda = Some(max_lrna_lambda);
 	}
 	fn set_scaling(&mut self, problem: &ICEProblem) {
-		todo!()
+		let mut scaling: BTreeMap<AssetId, FloatType> = BTreeMap::new();
+
+		// Initialize scaling with zero values for all assets
+		for &asset_id in problem.asset_ids.iter() {
+			scaling.insert(asset_id, 0.0);
+		}
+
+		// Initialize scaling for LRNA
+		scaling.insert(1u32.into(), 0.0); // Assuming 1u32 represents 'LRNA'
+
+		for &tkn in problem.asset_ids.iter() {
+			let max_in = self.max_in.as_ref().unwrap()[&tkn];
+			let max_out = self.max_out.as_ref().unwrap()[&tkn];
+			scaling.insert(tkn, max_in.max(max_out));
+
+			if scaling[&tkn] == 0.0 && tkn != problem.tkn_profit {
+				scaling.insert(tkn, 1.0);
+			}
+
+			// Set scaling for LRNA equal to scaling for asset, adjusted by spot price
+			let omnipool_data = problem.get_asset_pool_data(tkn);
+			let scalar = scaling[&tkn] * omnipool_data.hub_reserve / omnipool_data.reserve;
+			scaling.insert(1u32.into(), scaling[&1u32.into()].max(scalar));
+
+			// Raise scaling for tkn_profit to scaling for asset, adjusted by spot price, if needed
+			//TODO: this pls
+			//let scalar_profit = scaling[&tkn] * problem.get_amm_approx(tkn).price(problem, tkn, problem.tkn_profit);
+			//scaling.insert(problem.tkn_profit, scaling[&problem.tkn_profit].max(scalar_profit));
+		}
+
+		self.scaling = Some(scaling);
 	}
 	fn set_amm_coefs(&mut self, problem: &ICEProblem) {
-		todo!()
+		let mut amm_lrna_coefs: BTreeMap<AssetId, FloatType> = BTreeMap::new();
+		let mut amm_asset_coefs: BTreeMap<AssetId, FloatType> = BTreeMap::new();
+
+		let scaling = self.scaling.as_ref().unwrap();
+		for &tkn in problem.asset_ids.iter() {
+			let omnipool_data = problem.get_asset_pool_data(tkn);
+			amm_lrna_coefs.insert(tkn, scaling[&1u32.into()] / omnipool_data.hub_reserve); // Assuming 1u32 represents 'LRNA'
+			amm_asset_coefs.insert(tkn, scaling[&tkn] / omnipool_data.reserve);
+		}
+
+		self.amm_lrna_coefs = Some(amm_lrna_coefs);
+		self.amm_asset_coefs = Some(amm_asset_coefs);
 	}
+
 	fn set_tau_phi(&mut self, problem: &ICEProblem) {
-		todo!()
+		let n = problem.asset_ids.len();
+		let m = problem.partial_indices.len();
+		let r = problem.full_indices.len();
+
+		let mut tau1 = CscMatrix::zeros((n + 1, m));
+		let mut phi1 = CscMatrix::zeros((n + 1, m));
+		let mut tau2 = CscMatrix::zeros((n + 1, r));
+		let mut phi2 = CscMatrix::zeros((n + 1, r));
+
+		//TODO: This pls - missing implementation
+
+		let tau = CscMatrix::hcat(&tau1, &tau2);
+		let phi = CscMatrix::hcat(&phi1, &phi2);
+
+		self.tau = Some(tau);
+		self.phi = Some(phi);
 	}
 }
 
@@ -631,14 +913,20 @@ impl StepParams {
 			.map(|&tkn| -problem.get_asset_pool_data(tkn).protocol_fee)
 			.collect();
 		let profit_lrna_lambda_coefs = vec![0.0; n];
-		let profit_lrna_d_coefs: Vec<FloatType> = self.tau.as_ref().unwrap()[..m].to_vec();
+		let tau = self.tau.as_ref().unwrap();
+		let mut all_taus = Vec::new();
+		for i in 0..tau.n {
+			all_taus.push(tau.get_entry((0, i)).unwrap());
+		}
+		let profit_lrna_d_coefs = all_taus[..m].to_vec();
+		//let profit_lrna_d_coefs: Vec<FloatType> = self.tau.as_ref().unwrap()[..m].to_vec();
 
 		let sell_amts: Vec<FloatType> = problem
 			.full_indices
 			.iter()
 			.map(|&idx| problem.intent_amounts[idx].0)
 			.collect();
-		let profit_lrna_I_coefs: Vec<FloatType> = self.tau.as_ref().unwrap()[m..]
+		let profit_lrna_I_coefs: Vec<FloatType> = all_taus[m..]
 			.to_vec()
 			.iter()
 			.zip(sell_amts.iter())
@@ -651,6 +939,9 @@ impl StepParams {
 		profit_lrna_coefs.extend(profit_lrna_lambda_coefs);
 		profit_lrna_coefs.extend(profit_lrna_d_coefs);
 		profit_lrna_coefs.extend(profit_lrna_I_coefs);
+
+		//TODO: this pls
+		/*
 
 		// leftover must be higher than required fees
 		let fees: Vec<FloatType> = problem
@@ -685,12 +976,13 @@ impl StepParams {
 			.zip(vars_scaled.iter())
 			.map(|(phi, &var)| phi * var)
 			.collect::<Vec<_>>();
-		let profit_d_coefs = (self.tau.as_ref().unwrap()[1..m]
+		let profit_d_coefs = self.tau.as_ref().unwrap()[1..m]
 			.to_owned()
 			.iter()
 			.zip(scaled_phi.iter())
-			.map(|(tau, &phi)| tau * phi))
+			.map(|(tau, &phi)| tau * phi)
 		.collect::<Vec<_>>();
+
 
 		let buy_amts: Vec<FloatType> = problem
 			.full_indices
@@ -724,8 +1016,6 @@ impl StepParams {
 			.collect();
 		let I_coefs = (unscaled_diff / Array2::from_diag(&Array1::from(scalars))).to_owned();
 
-		//TODO: this pls
-		/*
 		let profit_A_LRNA = Array2::from_shape_vec((1, profit_lrna_coefs.len()), profit_lrna_coefs).unwrap();
 		let profit_A_assets = Array2::from_shape_vec((n, n * 6), vec![]).unwrap()
 			.hstack(&profit_y_coefs)
