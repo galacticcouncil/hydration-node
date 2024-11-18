@@ -2,7 +2,8 @@ use crate::data::AssetData;
 use crate::to_f64_by_decimals;
 use clarabel::algebra::{BlockConcatenate, CscMatrix};
 use clarabel::solver::SolverStatus;
-use ndarray::{Array1, Array2};
+use float_next_after::NextAfter;
+use ndarray::{Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, OwnedRepr};
 use pallet_ice::types::{Intent, IntentId};
 use primitives::{AccountId, AssetId};
 use std::collections::btree_map::Entry;
@@ -63,6 +64,86 @@ pub struct ICEProblem {
 }
 
 impl ICEProblem {
+	pub fn new(
+		intents_and_ids: Vec<(IntentId, Intent<AccountId, AssetId>)>,
+		pool_data: BTreeMap<AssetId, AssetData>,
+	) -> Self {
+		let mut intents = Vec::with_capacity(intents_and_ids.len());
+		let mut intent_ids = Vec::with_capacity(intents_and_ids.len());
+		let mut intent_amounts = Vec::with_capacity(intents_and_ids.len());
+		let mut partial_sell_amounts = Vec::new();
+		let mut partial_indices = Vec::new();
+		let mut full_indices = Vec::new();
+		let mut asset_ids = BTreeSet::new();
+
+		let asset_profit = 0u32.into(); //HDX
+		asset_ids.insert(asset_profit);
+
+		for (idx, (intent_id, intent)) in intents_and_ids.iter().enumerate() {
+			intent_ids.push(*intent_id);
+			intents.push(intent.clone());
+
+			let amount_in = to_f64_by_decimals!(
+				intent.swap.amount_in,
+				pool_data.get(&intent.swap.asset_in).unwrap().decimals
+			);
+			let amount_out = to_f64_by_decimals!(
+				intent.swap.amount_out,
+				pool_data.get(&intent.swap.asset_out).unwrap().decimals
+			);
+
+			intent_amounts.push((amount_in, amount_out));
+
+			if intent.partial {
+				partial_indices.push(idx);
+				partial_sell_amounts.push(amount_in);
+			} else {
+				full_indices.push(idx);
+			}
+			if intent.swap.asset_in != 1u32 {
+				asset_ids.insert(intent.swap.asset_in);
+			}
+			if intent.swap.asset_out != 1u32 {
+				//note: this should never happened, as it is not allowed to buy lrna!
+				asset_ids.insert(intent.swap.asset_out);
+			} else {
+				debug_assert!(false, "It is not allowed to buy lrna!");
+			}
+		}
+
+		let n = asset_ids.len();
+		let m = partial_indices.len();
+		let r = full_indices.len();
+
+		// this comes from the initial solution which we skipped,
+		// so we intened to resolve all full intents
+		let indicators = vec![1usize; r];
+
+		let initial_sell_maxs = partial_sell_amounts.clone();
+
+		ICEProblem {
+			tkn_profit: 0u32, // HDX
+			intent_ids,
+			intents,
+			intent_amounts,
+			pool_data,
+			min_partial: 1.,
+			n,
+			m,
+			r,
+			indicators,
+			asset_ids: asset_ids.into_iter().collect(),
+			partial_sell_maxs: partial_sell_amounts,
+			initial_sell_maxs,
+			partial_indices,
+			full_indices,
+			directional_flags: None,
+			force_amm_approx: None,
+			step_params: StepParams::default(),
+			fee_match: 0.0005,
+		}
+	}
+
 	pub(crate) fn get_partial_intent_prices(&self) -> Vec<FloatType> {
 		let mut prices = Vec::new();
 		//TODO: verify whether it should amountout/ amount in or amount in / amount out
@@ -111,7 +192,7 @@ impl ICEProblem {
 	}
 }
 
-#[derive(Eq, PartialEq, Copy, Clone)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Direction {
 	Sell,
 	Buy,
@@ -293,91 +374,30 @@ impl SetupParams {
 }
 
 impl ICEProblem {
-	pub fn new(
-		intents_and_ids: Vec<(IntentId, Intent<AccountId, AssetId>)>,
-		pool_data: BTreeMap<AssetId, AssetData>,
-	) -> Self {
-		let mut intents = Vec::with_capacity(intents_and_ids.len());
-		let mut intent_ids = Vec::with_capacity(intents_and_ids.len());
-		let mut intent_amounts = Vec::with_capacity(intents_and_ids.len());
-		let mut partial_sell_amounts = Vec::new();
-		let mut partial_indices = Vec::new();
-		let mut full_indices = Vec::new();
-		let mut asset_ids = BTreeSet::new();
-
-		let asset_profit = 0u32.into(); //HDX
-		asset_ids.insert(asset_profit);
-
-		for (idx, (intent_id, intent)) in intents_and_ids.iter().enumerate() {
-			intent_ids.push(*intent_id);
-
-			let amount_in = to_f64_by_decimals!(
-				intent.swap.amount_in,
-				pool_data.get(&intent.swap.asset_in).unwrap().decimals
-			);
-			let amount_out = to_f64_by_decimals!(
-				intent.swap.amount_out,
-				pool_data.get(&intent.swap.asset_out).unwrap().decimals
-			);
-
-			intent_amounts.push((amount_in, amount_out));
-
-			if intent.partial {
-				partial_indices.push(idx);
-				partial_sell_amounts.push(amount_in);
-			} else {
-				full_indices.push(idx);
-			}
-			if intent.swap.asset_in != 1u32 {
-				asset_ids.insert(intent.swap.asset_in);
-			}
-			if intent.swap.asset_out != 1u32 {
-				//note: this should never happened, as it is not allowed to buy lrna!
-				asset_ids.insert(intent.swap.asset_out);
-			} else {
-				debug_assert!(false, "It is not allowed to buy lrna!");
-			}
-		}
-
-		let n = asset_ids.len();
-		let m = partial_indices.len();
-		let r = full_indices.len();
-
-		// this comes from the initial solution which we skipped,
-		// so we intened to resolve all full intents
-		let indicators = vec![1usize; r];
-
-		let initial_sell_maxs = partial_sell_amounts.clone();
-
-		ICEProblem {
-			tkn_profit: 0u32, // HDX
-			intent_ids,
-			intents,
-			intent_amounts,
-			pool_data,
-			min_partial: 1.,
-			n,
-			m,
-			r,
-			indicators,
-			asset_ids: asset_ids.into_iter().collect(),
-			partial_sell_maxs: partial_sell_amounts,
-			initial_sell_maxs,
-			partial_indices,
-			full_indices,
-			directional_flags: None,
-			force_amm_approx: None,
-			step_params: StepParams::default(),
-			fee_match: 0.0005,
-		}
-	}
-
 	pub(crate) fn get_indicators(&self) -> Vec<usize> {
 		self.indicators.clone()
 	}
 
 	pub(crate) fn get_asset_pool_data(&self, asset_id: AssetId) -> &AssetData {
 		self.pool_data.get(&asset_id).unwrap()
+	}
+
+	pub(crate) fn price(&self, asset_a: AssetId, asset_b: AssetId) -> FloatType {
+		let da = self.get_asset_pool_data(asset_a);
+		let db = self.get_asset_pool_data(asset_a);
+		if asset_a == asset_b {
+			1.0
+		} else if asset_b == 1u32 {
+			da.hub_price
+		} else if asset_a == 1u32 {
+			1. / db.hub_price
+		} else {
+			let da_hub_reserve = da.hub_reserve;
+			let da_reserve = da.reserve;
+			let db_hub_reserve = db.hub_reserve;
+			let db_reserve = db.reserve;
+			da_hub_reserve / da_reserve / db_hub_reserve * db_reserve
+		}
 	}
 
 	pub(crate) fn set_up_problem(&mut self, params: SetupParams) {
@@ -402,7 +422,8 @@ impl ICEProblem {
 		} else if params.clear_amm_approx {
 			self.force_amm_approx = None;
 		}
-		self.recalculate(params.rescale)
+		self.recalculate(params.rescale);
+		dbg!("{:?}", &self.step_params);
 	}
 
 	fn recalculate(&mut self, rescale: bool) {
@@ -534,7 +555,7 @@ impl ICEProblem {
 	}
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct StepParams {
 	pub known_flow: Option<BTreeMap<AssetId, (FloatType, FloatType)>>,
 	pub max_in: Option<BTreeMap<AssetId, FloatType>>,
@@ -543,8 +564,8 @@ pub struct StepParams {
 	pub min_out: Option<BTreeMap<AssetId, FloatType>>,
 	pub scaling: Option<BTreeMap<AssetId, FloatType>>,
 	pub omnipool_directions: Option<BTreeMap<AssetId, Direction>>,
-	pub tau: Option<CscMatrix>,
-	pub phi: Option<CscMatrix>,
+	pub tau: Option<Array2<FloatType>>,
+	pub phi: Option<Array2<FloatType>>,
 	pub q: Option<Vec<FloatType>>,
 	pub profit_a: Option<Array2<FloatType>>,
 	min_x: Option<Vec<FloatType>>,
@@ -619,8 +640,11 @@ impl StepParams {
 			let buy_quantity = amount_out / amount_in * sell_quantity;
 
 			*max_in.get_mut(&tkn_sell).unwrap() += sell_quantity;
-			//TODO: this pls
-			//*max_out.get_mut(&tkn_buy).unwrap() += if buy_quantity != 0.0 { buy_quantity.next_after(FloatType::INFINITY) } else { 0.0 };
+			*max_out.get_mut(&tkn_buy).unwrap() += if buy_quantity != 0.0 {
+				buy_quantity.next_after(FloatType::INFINITY)
+			} else {
+				0.0
+			};
 		}
 
 		if problem.step_params.q.is_none() {
@@ -737,9 +761,8 @@ impl StepParams {
 			scaling.insert(1u32.into(), scaling[&1u32.into()].max(scalar));
 
 			// Raise scaling for tkn_profit to scaling for asset, adjusted by spot price, if needed
-			//TODO: this pls
-			//let scalar_profit = scaling[&tkn] * problem.get_amm_approx(tkn).price(problem, tkn, problem.tkn_profit);
-			//scaling.insert(problem.tkn_profit, scaling[&problem.tkn_profit].max(scalar_profit));
+			let scalar_profit = scaling[&tkn] * problem.price(tkn, problem.tkn_profit);
+			scaling.insert(problem.tkn_profit, scaling[&problem.tkn_profit].max(scalar_profit));
 		}
 
 		self.scaling = Some(scaling);
@@ -757,25 +780,6 @@ impl StepParams {
 
 		self.amm_lrna_coefs = Some(amm_lrna_coefs);
 		self.amm_asset_coefs = Some(amm_asset_coefs);
-	}
-
-	fn set_tau_phi(&mut self, problem: &ICEProblem) {
-		let n = problem.asset_ids.len();
-		let m = problem.partial_indices.len();
-		let r = problem.full_indices.len();
-
-		let mut tau1 = CscMatrix::zeros((n + 1, m));
-		let mut phi1 = CscMatrix::zeros((n + 1, m));
-		let mut tau2 = CscMatrix::zeros((n + 1, r));
-		let mut phi2 = CscMatrix::zeros((n + 1, r));
-
-		//TODO: This pls - missing implementation
-
-		let tau = CscMatrix::hcat(&tau1, &tau2);
-		let phi = CscMatrix::hcat(&phi1, &phi2);
-
-		self.tau = Some(tau);
-		self.phi = Some(phi);
 	}
 }
 
@@ -815,7 +819,7 @@ impl StepParams {
 		}
 
 		for &tkn in problem.asset_ids.iter() {
-			let known_flow = problem.step_params.known_flow.as_ref().unwrap();
+			let known_flow = self.known_flow.as_ref().unwrap();
 			let flow_in = known_flow[&tkn].0;
 			let flow_out = known_flow[&tkn].1;
 
@@ -856,32 +860,34 @@ impl StepParams {
 		}
 
 		let mut omnipool_directions = BTreeMap::new();
-		for &tkn in problem.asset_ids.iter() {
-			if let Some(&flag) = problem.directional_flags.as_ref().unwrap().get(&tkn) {
-				match flag {
-					-1 => {
-						omnipool_directions.insert(tkn, Direction::Sell);
+		if let Some(directions) = problem.directional_flags.as_ref() {
+			for &tkn in problem.asset_ids.iter() {
+				if let Some(&flag) = directions.get(&tkn) {
+					match flag {
+						-1 => {
+							omnipool_directions.insert(tkn, Direction::Sell);
+						}
+						1 => {
+							omnipool_directions.insert(tkn, Direction::Buy);
+						}
+						0 => {
+							omnipool_directions.insert(tkn, Direction::Neither);
+						}
+						_ => {}
 					}
-					1 => {
-						omnipool_directions.insert(tkn, Direction::Buy);
+				} else if let Some(&direction) = known_intent_directions.get(&tkn) {
+					match direction {
+						Direction::Sell => {
+							omnipool_directions.insert(tkn, Direction::Buy);
+						}
+						Direction::Buy => {
+							omnipool_directions.insert(tkn, Direction::Sell);
+						}
+						_ => {}
 					}
-					0 => {
-						omnipool_directions.insert(tkn, Direction::Neither);
-					}
-					_ => {}
+				} else {
+					omnipool_directions.insert(tkn, Direction::Neither);
 				}
-			} else if let Some(&direction) = known_intent_directions.get(&tkn) {
-				match direction {
-					Direction::Sell => {
-						omnipool_directions.insert(tkn, Direction::Buy);
-					}
-					Direction::Buy => {
-						omnipool_directions.insert(tkn, Direction::Sell);
-					}
-					_ => {}
-				}
-			} else {
-				omnipool_directions.insert(tkn, Direction::Neither);
 			}
 		}
 
@@ -889,7 +895,51 @@ impl StepParams {
 	}
 }
 
+type A1T = ArrayBase<OwnedRepr<FloatType>, Ix1>;
+
 impl StepParams {
+	fn set_tau_phi(&mut self, problem: &ICEProblem) {
+		let n = problem.asset_ids.len();
+		let m = problem.partial_indices.len();
+		let r = problem.full_indices.len();
+
+		let mut tau1 = ndarray::Array2::zeros((n + 1, m + r));
+		let mut phi1 = ndarray::Array2::zeros((n + 1, m + r));
+		//let mut tau2 = ndarray::Array2::zeros((n + 1, r));
+		//let mut phi2 = ndarray::Array2::zeros((n + 1, r));
+
+		let mut tkn_list = vec![1u32];
+		tkn_list.extend(problem.asset_ids.iter().cloned());
+
+		for (j, &idx) in problem.partial_indices.iter().enumerate() {
+			let intent = &problem.intents[idx];
+			let tkn_sell = intent.swap.asset_in;
+			let tkn_buy = intent.swap.asset_out;
+			let tkn_sell_idx = tkn_list.iter().position(|&tkn| tkn == tkn_sell).unwrap();
+			let tkn_buy_idx = tkn_list.iter().position(|&tkn| tkn == tkn_buy).unwrap();
+			tau1[(tkn_sell_idx, j)] = 1.;
+			phi1[(tkn_buy_idx, j)] = 1.;
+			//tau1.set_entry((tkn_sell_idx, j), 1.);
+			//phi1.set_entry((tkn_buy_idx, j), 1.);
+		}
+		for (l, &idx) in problem.full_indices.iter().enumerate() {
+			let intent = &problem.intents[idx];
+			let tkn_sell = intent.swap.asset_in;
+			let tkn_buy = intent.swap.asset_out;
+			let tkn_sell_idx = tkn_list.iter().position(|&tkn| tkn == tkn_sell).unwrap();
+			let tkn_buy_idx = tkn_list.iter().position(|&tkn| tkn == tkn_buy).unwrap();
+			tau1[(tkn_sell_idx, l + m)] = 1.;
+			phi1[(tkn_buy_idx, l + m)] = 1.;
+			//tau2[(tkn_sell_idx, l)] = 1.;
+			//phi2[(tkn_buy_idx, l)] = 1.;
+			//tau2.set_entry((tkn_sell_idx, l), 1.);
+			//phi2.set_entry((tkn_buy_idx, l), 1.);
+		}
+
+		self.tau = Some(tau1);
+		self.phi = Some(phi1);
+	}
+
 	pub fn set_coefficients(&mut self, problem: &ICEProblem) {
 		// profit calculations
 		let n = problem.n;
@@ -897,35 +947,46 @@ impl StepParams {
 		let r = problem.r;
 
 		// y_i are net LRNA into Omnipool
-		let profit_lrna_y_coefs = vec![-1.0; n];
+		let profit_lrna_y_coefs: ArrayBase<OwnedRepr<FloatType>, Ix1> = -ndarray::Array1::ones(n);
 		// x_i are net assets into Omnipool
-		let profit_lrna_x_coefs = vec![0.0; n];
+		let profit_lrna_x_coefs: ArrayBase<OwnedRepr<FloatType>, Ix1> = ndarray::Array1::zeros(n);
 		// lrna_lambda_i are LRNA amounts coming out of Omnipool
-		let profit_lrna_lrna_lambda_coefs: Vec<FloatType> = problem
-			.asset_ids
-			.iter()
-			.map(|&tkn| -problem.get_asset_pool_data(tkn).protocol_fee)
-			.collect();
-		let profit_lrna_lambda_coefs = vec![0.0; n];
-		let tau = self.tau.as_ref().unwrap();
-		let mut all_taus = Vec::new();
-		for i in 0..tau.n {
-			all_taus.push(tau.get_entry((0, i)).unwrap());
-		}
-		let profit_lrna_d_coefs = all_taus[..m].to_vec();
-		//let profit_lrna_d_coefs: Vec<FloatType> = self.tau.as_ref().unwrap()[..m].to_vec();
+		let profit_lrna_lrna_lambda_coefs: A1T = ndarray::Array::from(
+			problem
+				.asset_ids
+				.iter()
+				.map(|&tkn| -problem.get_asset_pool_data(tkn).protocol_fee)
+				.collect::<Vec<_>>(),
+		);
+
+		let profit_lrna_lambda_coefs: A1T = ndarray::Array1::zeros(n);
+
+		let lrna_d_coefs = self.tau.as_ref().unwrap().row(0).clone().to_vec();
+		let profit_lrna_d_coefs = ndarray::Array::from(lrna_d_coefs[..m].to_vec());
 
 		let sell_amts: Vec<FloatType> = problem
 			.full_indices
 			.iter()
 			.map(|&idx| problem.intent_amounts[idx].0)
 			.collect();
-		let profit_lrna_I_coefs: Vec<FloatType> = all_taus[m..]
+		let profit_lrna_I_coefs: Vec<FloatType> = lrna_d_coefs[m..]
 			.to_vec()
 			.iter()
 			.zip(sell_amts.iter())
 			.map(|(&tau, &sell_amt)| tau * sell_amt / problem.get_scaling()[&1u32])
 			.collect();
+
+		/*
+		let profit_lrna_coefs = ndarray::concatenate![
+			Axis(0),
+			profit_lrna_y_coefs,
+			profit_lrna_x_coefs,
+			profit_lrna_lrna_lambda_coefs,
+			profit_lrna_lambda_coefs,
+			profit_lrna_d_coefs,
+			profit_lrna_I_coefs
+		];
+		 */
 		let mut profit_lrna_coefs = vec![];
 		profit_lrna_coefs.extend(profit_lrna_y_coefs);
 		profit_lrna_coefs.extend(profit_lrna_x_coefs);
@@ -934,50 +995,51 @@ impl StepParams {
 		profit_lrna_coefs.extend(profit_lrna_d_coefs);
 		profit_lrna_coefs.extend(profit_lrna_I_coefs);
 
-		//TODO: this pls
-		/*
-
 		// leftover must be higher than required fees
 		let fees: Vec<FloatType> = problem
 			.asset_ids
 			.iter()
 			.map(|&tkn| problem.get_asset_pool_data(tkn).fee)
 			.collect();
+
 		let partial_intent_prices: Vec<FloatType> = problem.get_partial_intent_prices();
-		let profit_y_coefs = vec![vec![0.0; n]; n];
+		let profit_y_coefs = ndarray::Array2::zeros((n, n));
 		let profit_x_coefs = -Array2::<FloatType>::eye(n);
-		let profit_lrna_lambda_coefs = vec![vec![0.0; n]; n];
+		let profit_lrna_lambda_coefs = ndarray::Array2::zeros((n, n));
 		let profit_lambda_coefs = -Array2::<FloatType>::from_diag(&Array1::from(
 			fees.iter().map(|&fee| fee - problem.fee_match).collect::<Vec<_>>(),
 		));
+		let scaling = self.scaling.as_ref().unwrap();
 		let scaling_vars: Vec<FloatType> = problem
 			.partial_indices
 			.iter()
 			.enumerate()
 			.map(|(j, &idx)| {
 				let intent = &problem.intents[idx];
-				partial_intent_prices[j] * problem.get_scaling()[&intent.swap.asset_in]
-					/ problem.get_scaling()[&intent.swap.asset_out]
+				partial_intent_prices[j] * scaling[&intent.swap.asset_in] / scaling[&intent.swap.asset_out]
 			})
 			.collect();
 		let vars_scaled = scaling_vars
 			.iter()
 			.map(|&v| v * 1.0 / (1.0 - problem.fee_match))
 			.collect::<Vec<_>>();
-		let scaled_phi = self.phi.as_ref().unwrap()[1..m]
-			.to_owned()
-			.iter()
-			.zip(vars_scaled.iter())
-			.map(|(phi, &var)| phi * var)
-			.collect::<Vec<_>>();
-		let profit_d_coefs = self.tau.as_ref().unwrap()[1..m]
-			.to_owned()
-			.iter()
-			.zip(scaled_phi.iter())
-			.map(|(tau, &phi)| tau * phi)
-		.collect::<Vec<_>>();
 
+		let phi = self.phi.as_ref().unwrap();
+		let mut scaled_phi = Vec::new();
+		for idx in 0..problem.asset_ids.len() {
+			let r: A1T = ndarray::Array1::from(phi.row(idx + 1).to_vec());
+			let s = r.clone() * ndarray::Array::from(vars_scaled.clone());
+			scaled_phi.push(s);
+		}
 
+		let tau = self.tau.as_ref().unwrap();
+		let mut profit_d_coefs = Vec::new();
+		for idx in 0..problem.asset_ids.len() {
+			let r = ndarray::Array1::from(tau.row(idx + 1).iter().map(|v| *v).collect::<Vec<_>>());
+			let s = scaled_phi[idx].clone();
+			let v = r - s;
+			profit_d_coefs.push(v);
+		}
 		let buy_amts: Vec<FloatType> = problem
 			.full_indices
 			.iter()
@@ -987,30 +1049,51 @@ impl StepParams {
 			.iter()
 			.map(|&v| v * 1.0 / (1.0 - problem.fee_match))
 			.collect::<Vec<_>>();
-		let scaled_phi = self.phi.as_ref().unwrap()[m..]
-			.to_owned()
-			.iter()
-			.zip(buy_scaled.iter())
-			.map(|(&phi, &buy)| phi * buy)
-			.collect::<Vec<_>>();
-		let scaled_tau: Vec<FloatType> = self.tau.as_ref().unwrap()[m..]
-			.to_owned()
-			.iter()
-			.zip(sell_amts.iter())
-			.map(|(tau, &sell)| tau * sell)
-			.collect();
+
+		let phi = self.phi.as_ref().unwrap();
+		let mut scaled_phi = Vec::new();
+		for idx in 0..problem.asset_ids.len() {
+			let r: A1T = ndarray::Array1::from(phi.row(idx + 1).to_vec());
+			let s = r.clone() * ndarray::Array::from(buy_scaled.clone());
+			scaled_phi.push(s);
+		}
+		let tau = self.tau.as_ref().unwrap();
+		let mut scaled_tau = Vec::new();
+		for idx in 0..problem.asset_ids.len() {
+			let r = ndarray::Array1::from(tau.row(idx + 1).iter().map(|v| *v).collect::<Vec<_>>());
+			let s = ndarray::Array1::from(sell_amts.clone());
+			let v = r * s;
+			scaled_tau.push(v);
+		}
 
 		let scaled_tau = ndarray::Array::from(scaled_tau);
 		let scaled_phi = ndarray::Array::from(scaled_phi);
 		let unscaled_diff = scaled_tau - scaled_phi;
-		let scalars: Vec<FloatType> = problem
-			.asset_ids
-			.iter()
-			.map(|&tkn| problem.get_scaling()[&tkn])
-			.collect();
-		let I_coefs = (unscaled_diff / Array2::from_diag(&Array1::from(scalars))).to_owned();
+		let scalars: Vec<FloatType> = problem.asset_ids.iter().map(|&tkn| scaling[&tkn]).collect();
 
-		let profit_A_LRNA = Array2::from_shape_vec((1, profit_lrna_coefs.len()), profit_lrna_coefs).unwrap();
+		let scalars = ndarray::Array1::from(scalars);
+
+		let i_coefs = (unscaled_diff / Array2::from_diag(&Array1::from(scalars))).to_owned();
+
+		// attempt
+		let l = profit_lrna_coefs.len();
+		let profit_A_LRNA = Array2::from_shape_vec((1, l), profit_lrna_coefs).unwrap();
+		let profit_A_assets = Array2::from_shape_vec(
+			(n, n),
+			vec![
+				profit_y_coefs,
+				profit_x_coefs,
+				profit_lrna_lambda_coefs,
+				profit_lambda_coefs,
+				//&profit_d_coefs,
+				//&i_coefs,
+			],
+		)
+		.unwrap();
+
+		//TODO: this pls - first attempt above already
+		/*
+
 		let profit_A_assets = Array2::from_shape_vec((n, n * 6), vec![]).unwrap()
 			.hstack(&profit_y_coefs)
 			.hstack(&profit_x_coefs)
