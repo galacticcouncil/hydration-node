@@ -330,8 +330,7 @@ where
 			let IC_lower = Array1::from_elem(1, -FLOAT_INF);
 
 			// Add cone constraint to A, A_upper, A_lower
-			//let A = ndarray::stack![ndarray::Axis(0), new_a.view(), IC_A.view()]; //TODO: check if stack can be replaced with concatenate here
-			let A = ndarray::concatenate![ndarray::Axis(0), new_a.view(), IC_A.view()];
+			let A = ndarray::concatenate![ndarray::Axis(1), new_a.view(), IC_A.view()];
 			let A_upper = ndarray::concatenate![ndarray::Axis(0), new_a_upper.view(), IC_upper.view()];
 			let A_lower = ndarray::concatenate![ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
 
@@ -557,8 +556,8 @@ fn solve_inclusion_problem(
 					let g_neg =
 						lrna_c[tkn] * x[i] + asset_c[tkn] * x[n + i] + lrna_c[tkn] * asset_c[tkn] * x[i] * x[n + i];
 					S_row_upper[0] = grad_dot_x + g_neg;
-					//S = ndarray::stack![Axis(0), S.view(), S_row.view()];
-					S = ndarray::concatenate![Axis(0), S.view(), S_row.view()]; //TODO: check if stack can be replaced with concatenate here
+					//TODO: vstack orgiinally -> can we concatenate here ? axis(0) or axis(1)
+					S = ndarray::concatenate![Axis(0), S.view(), S_row.view()];
 					S_upper = ndarray::concatenate![Axis(0), S_upper.view(), S_row_upper.view()];
 				}
 			}
@@ -592,7 +591,8 @@ fn solve_inclusion_problem(
 	let old_A_upper = old_A_upper.unwrap_or_else(|| Array1::<f64>::zeros(0));
 	let old_A_lower = old_A_lower.unwrap_or_else(|| Array1::<f64>::zeros(0));
 
-	let A = ndarray::stack![Axis(0), old_A.view(), S.view(), A3.view(), A5.view(), A8.view()];
+	// TODO: vstack originally - can we do concatenate here ? axis(0) or axis(1)
+	let A = ndarray::concatenate![Axis(0), old_A.view(), S.view(), A3.view(), A5.view(), A8.view()];
 	let A_upper = ndarray::concatenate![
 		Axis(0),
 		old_A_upper.view(),

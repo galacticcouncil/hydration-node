@@ -1070,41 +1070,32 @@ impl StepParams {
 		let unscaled_diff = scaled_tau - scaled_phi;
 		let scalars: Vec<FloatType> = problem.asset_ids.iter().map(|&tkn| scaling[&tkn]).collect();
 
+		// TODO: this is originally scalars[:, no.newaxis]
 		let scalars = ndarray::Array1::from(scalars);
-
 		let i_coefs = (unscaled_diff / Array2::from_diag(&Array1::from(scalars))).to_owned();
 
 		// attempt
 		let l = profit_lrna_coefs.len();
 		let profit_A_LRNA = Array2::from_shape_vec((1, l), profit_lrna_coefs).unwrap();
-		let profit_A_assets = Array2::from_shape_vec(
-			(n, n),
-			vec![
-				profit_y_coefs,
-				profit_x_coefs,
-				profit_lrna_lambda_coefs,
-				profit_lambda_coefs,
-				//&profit_d_coefs,
-				//&i_coefs,
-			],
-		)
-		.unwrap();
+		let profit_A_assets = ndarray::concatenate![
+			Axis(1),
+			profit_y_coefs,
+			profit_x_coefs,
+			profit_lrna_lambda_coefs,
+			profit_lambda_coefs,
+			//TODO: this two are not working- fix
+			//profit_d_coefs,
+			//&i_coefs,
+		];
 
-		//TODO: this pls - first attempt above already
-		/*
+		//TODO: vstack here originally - this fails with incompatible shapes
+		let profit_A = Some(ndarray::concatenate![Axis(0), profit_A_LRNA, profit_A_assets]);
 
-		let profit_A_assets = Array2::from_shape_vec((n, n * 6), vec![]).unwrap()
-			.hstack(&profit_y_coefs)
-			.hstack(&profit_x_coefs)
-			.hstack(&profit_lrna_lambda_coefs)
-			.hstack(&profit_lambda_coefs)
-			.hstack(&profit_d_coefs)
-			.hstack(&I_coefs);
-
-		self.profit_A = Some(profit_A_LRNA.vstack(&profit_A_assets));
-
-		let profit_i = problem.asset_ids.iter().position(|&tkn| tkn == problem.tkn_profit).unwrap();
-		self.q = Some(self.profit_A.as_ref().unwrap().row(profit_i + 1).to_vec());
-		 */
+		let profit_tkn_idx = problem
+			.asset_ids
+			.iter()
+			.position(|&tkn| tkn == problem.tkn_profit)
+			.unwrap();
+		self.q = Some(profit_A.as_ref().unwrap().row(profit_tkn_idx + 1).to_vec());
 	}
 }
