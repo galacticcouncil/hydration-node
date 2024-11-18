@@ -146,7 +146,6 @@ impl ICEProblem {
 
 	pub(crate) fn get_partial_intent_prices(&self) -> Vec<FloatType> {
 		let mut prices = Vec::new();
-		//TODO: verify whether it should amountout/ amount in or amount in / amount out
 		for &idx in self.partial_indices.iter() {
 			let intent = &self.intents[idx];
 			let tkn = intent.swap.asset_in;

@@ -928,12 +928,12 @@ fn find_solution_unrounded(
 	}
 
 	//let full_intents = &p.full_intents;
-	let partial_intents = &p.partial_indices; // TODO: should not be actual intents?!
+	let partial_intents_len = p.partial_indices.len();
 	let asset_list = &p.asset_ids;
 	let indicators = p.get_indicators();
 	let (n, m, r) = (p.n, p.m, p.r);
 
-	if partial_intents.len() + p.get_indicators().len() == 0 {
+	if partial_intents_len + p.get_indicators().len() == 0 {
 		return (
 			asset_list.iter().map(|&tkn| (tkn, 0.0)).collect(),
 			vec![],
@@ -1146,7 +1146,7 @@ fn find_solution_unrounded(
 	println!("time: {:?}", solve_time);
 
 	let mut new_amm_deltas = BTreeMap::new();
-	let mut exec_intent_deltas = vec![0.0; partial_intents.len()];
+	let mut exec_intent_deltas = vec![0.0; partial_intents_len];
 	let mut x_expanded = vec![0.0; k];
 	for (i, &index) in indices_to_keep.iter().enumerate() {
 		x_expanded[index] = x[i];
@@ -1156,7 +1156,7 @@ fn find_solution_unrounded(
 		let tkn = asset_list[i];
 		new_amm_deltas.insert(tkn, x_scaled[n + i]);
 	}
-	for j in 0..partial_intents.len() {
+	for j in 0..partial_intents_len {
 		exec_intent_deltas[j] = -x_scaled[4 * n + j];
 	}
 
