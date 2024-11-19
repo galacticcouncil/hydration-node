@@ -18,6 +18,9 @@ use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
 
+/// Execution gas limit.
+const GAS_LIMIT: u64 = 400_000;
+
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -118,7 +121,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), 200_000))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	// Calls the transfer method on an ERC20 contract using the given context.
@@ -129,7 +132,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), 200_000))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	fn transfer_from(context: CallContext, from: EvmAddress, to: EvmAddress, value: Balance) -> DispatchResult {
@@ -141,7 +144,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), 200_000))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 }
 
@@ -188,14 +191,18 @@ fn handle_result(result: CallResult) -> DispatchResult {
 	match exit_reason {
 		ExitReason::Succeed(_) => {
 			if Some(false) == decode_bool(value) {
+				log::error!(target: "evm", "evm transfer returned false");
 				Err(DispatchError::Other("evm: erc20 transfer returned false"))
 			} else {
 				Ok(())
 			}
 		}
-		_ => Err(DispatchError::Other(&*Box::leak(
-			format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
-		))),
+		e @ _ => {
+			log::error!(target: "evm", "evm call failed with : {:?}, value {:?}", e, value);
+			Err(DispatchError::Other(&*Box::leak(
+				format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
+			)))
+		},
 	}
 }
 
