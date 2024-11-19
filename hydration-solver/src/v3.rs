@@ -613,7 +613,6 @@ fn solve_inclusion_problem(
 					let g_neg =
 						lrna_c[tkn] * x[i] + asset_c[tkn] * x[n + i] + lrna_c[tkn] * asset_c[tkn] * x[i] * x[n + i];
 					S_row_upper[0] = grad_dot_x + g_neg;
-					//TODO: vstack orgiinally -> can we concatenate here ? axis(0) or axis(1)
 					S = ndarray::concatenate![Axis(0), S.view(), S_row.view()];
 					S_upper = ndarray::concatenate![Axis(0), S_upper.view(), S_row_upper.view()];
 				}
@@ -1077,12 +1076,12 @@ fn find_solution_unrounded(
 	let b3 = if r == 0 {
 		Array1::<f64>::zeros(A3_trimmed.shape()[0])
 	} else {
-		//TODO: this is trange to convert indicators to f64 - verify if we should use f64 for indicators
 		let indicators = if let Some(inds) = p.get_indicators() {
 			inds
 		} else {
 			vec![0; r]
 		};
+		//TODO: this is trange to convert indicators to f64 - verify if we should use f64 for indicators
 		let r: ndarray::Array1<FloatType> = ndarray::Array::from(indicators).iter().map(|v| *v as f64).collect();
 		-I_coefs.dot(&r)
 	};
