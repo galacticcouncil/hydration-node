@@ -5,6 +5,7 @@ use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Solver};
 use pallet_ice::types::{Intent, IntentId, ResolvedIntent};
 use primitives::{AccountId, AssetId, Balance};
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Neg;
 use std::ptr::null;
 
 use crate::data::process_omnipool_data;
@@ -964,13 +965,14 @@ fn find_solution_unrounded(
 	let k_real = indices_to_keep.len();
 	let P_trimmed = CscMatrix::zeros((k_real, k_real));
 	let q_all = ndarray::Array::from(p.get_q());
-	dbg!(&q_all);
 
 	//TODO: need to apply "-" but it does not work atm
-	//let objective_I_coefs = -q_all.slice(s![4 * n + m..]);
-	//let q = -q_all.slice(s![..4 * n + m]);
 	let objective_I_coefs = q_all.slice(s![4 * n + m..]);
+	let objective_I_coefs = objective_I_coefs.neg();
 	let q = q_all.slice(s![..4 * n + m]);
+	let q = q.neg();
+	dbg!(&q);
+
 	let q_trimmed: Vec<f64> = indices_to_keep.iter().map(|&i| q[i]).collect();
 
 	let diff_coefs = Array2::<f64>::zeros((2 * n + m, 2 * n));
@@ -992,18 +994,25 @@ fn find_solution_unrounded(
 
 	let profit_A = p.get_profit_A();
 
-	//TODO: need to apply "-" but it does not work atm
-	//let mut A3 = -profit_A.slice(s![.., ..4 * n + m]).to_owned();
-	//let mut I_coefs = -profit_A.slice(s![.., 4 * n + m..]).to_owned();
+	dbg!(&profit_A);
 
-	let mut A3 = profit_A.slice(s![.., ..4 * n + m]).to_owned();
-	let mut I_coefs = profit_A.slice(s![.., 4 * n + m..]).to_owned();
+	let A3 = profit_A.slice(s![.., ..4 * n + m]).to_owned();
+	let mut A3 = A3.neg();
+	let I_coefs = profit_A.slice(s![.., 4 * n + m..]).to_owned();
+	let mut I_coefs = I_coefs.neg();
+
+	dbg!(allow_loss);
 	if allow_loss {
 		let profit_i = p.asset_ids.iter().position(|&x| x == p.tkn_profit).unwrap() + 1;
 		A3.remove_index(Axis(0), profit_i);
 		I_coefs.remove_index(Axis(0), profit_i);
 	}
 	let A3_trimmed = A3.select(Axis(1), &indices_to_keep);
+
+	dbg!(&A3);
+	dbg!(&I_coefs);
+	dbg!(&A3_trimmed);
+
 	let b3 = if r == 0 {
 		Array1::<f64>::zeros(A3_trimmed.shape()[0])
 	} else {
@@ -1012,15 +1021,19 @@ fn find_solution_unrounded(
 		-I_coefs.dot(&r)
 	};
 	let cone3 = NonnegativeConeT(A3_trimmed.shape()[0]);
+	dbg!(&b3);
+	dbg!(&cone3);
 
+	dbg!(k);
 	let mut A4 = Array2::<f64>::zeros((0, k));
 	let mut b4 = Array1::<f64>::zeros(0);
 	let mut cones4 = vec![];
 	let epsilon_tkn = p.get_epsilon_tkn();
+	dbg!(&epsilon_tkn);
 
 	for i in 0..n {
 		let tkn = asset_list[i];
-		let approx = p.get_amm_approx(tkn);
+		let approx = p.get_amm_approx(tkn); //TODO: this initial approx doesn not match
 		let approx = if approx == AmmApprox::None && epsilon_tkn[&tkn] <= 1e-6 && tkn != p.tkn_profit {
 			AmmApprox::Linear
 		} else if approx == AmmApprox::None && epsilon_tkn[&tkn] <= 1e-3 {
@@ -1068,11 +1081,17 @@ fn find_solution_unrounded(
 		};
 
 		A4 = ndarray::concatenate![Axis(0), A4, A4i];
+		//b4.append(Axis(0),(&b4i).into());
 		b4 = ndarray::concatenate![Axis(0), b4, b4i];
 		cones4.push(cone);
 	}
 
 	let A4_trimmed = A4.select(Axis(1), &indices_to_keep);
+
+	dbg!(&A4);
+	dbg!(&A4_trimmed);
+	dbg!(&b4);
+	dbg!(&cones4);
 
 	let mut A5 = Array2::<f64>::zeros((0, k));
 	let mut A6 = Array2::<f64>::zeros((0, k));
@@ -1110,6 +1129,13 @@ fn find_solution_unrounded(
 	let A6_trimmed = A6.select(Axis(1), &indices_to_keep);
 	let A7_trimmed = A7.select(Axis(1), &indices_to_keep);
 
+	dbg!(&A5);
+	dbg!(&A6);
+	dbg!(&A7);
+	dbg!(&A5_trimmed);
+	dbg!(&A6_trimmed);
+	dbg!(&A7_trimmed);
+
 	let b5 = Array1::<f64>::zeros(A5.shape()[0]);
 	let b6 = Array1::<f64>::zeros(A6.shape()[0]);
 	let b7 = Array1::<f64>::zeros(A7.shape()[0]);
@@ -1117,6 +1143,7 @@ fn find_solution_unrounded(
 	let cone6 = NonnegativeConeT(A6.shape()[0]);
 	let cone7 = ZeroConeT(A7.shape()[0]);
 
+	/*
 	let A = ndarray::concatenate![
 		Axis(0),
 		A1_trimmed,
@@ -1127,7 +1154,92 @@ fn find_solution_unrounded(
 		A6_trimmed,
 		A7_trimmed
 	];
-	let A_sparse = CscMatrix::from(&[A]);
+
+	 */
+	println!("---->>>----");
+	// convert a1_trimmed to vec of vec<f64>, note that to_vec does not exist
+	let shape = A1_trimmed.shape();
+	let mut a_vec = Vec::new();
+	for idx in 0..shape[0] {
+		let a1_q = A1_trimmed.select(Axis(0), &[idx]);
+		let (v, _) = a1_q.into_raw_vec_and_offset();
+		a_vec.push(v);
+	}
+	let A1_trimmed = a_vec;
+	let A1_trimmed = CscMatrix::from(&A1_trimmed);
+
+	// convert a2 trimmed
+	let shape = A2_trimmed.shape();
+	let mut a_vec = Vec::new();
+	for idx in 0..shape[0] {
+		let a2_q = A2_trimmed.select(Axis(0), &[idx]);
+		let (v, _) = a2_q.into_raw_vec_and_offset();
+		a_vec.push(v);
+	}
+	let A2_trimmed = a_vec;
+	let A2_trimmed = CscMatrix::from(&A2_trimmed);
+
+	// convert a3 trimmed
+	let shape = A3_trimmed.shape();
+	let mut a_vec = Vec::new();
+	for idx in 0..shape[0] {
+		let a3_q = A3_trimmed.select(Axis(0), &[idx]);
+		let (v, _) = a3_q.into_raw_vec_and_offset();
+		a_vec.push(v);
+	}
+	let A3_trimmed = a_vec;
+	let A3_trimmed = CscMatrix::from(&A3_trimmed);
+
+	// convert a4 trimmed
+	let shape = A4_trimmed.shape();
+	let mut a_vec = Vec::new();
+	for idx in 0..shape[0] {
+		let a4_q = A4_trimmed.select(Axis(0), &[idx]);
+		let (v, _) = a4_q.into_raw_vec_and_offset();
+		a_vec.push(v);
+	}
+	let A4_trimmed = a_vec;
+	let A4_trimmed = CscMatrix::from(&A4_trimmed);
+
+	// Convert a5 trimmed
+	let shape = A5_trimmed.shape();
+	let mut a_vec = Vec::new();
+	for idx in 0..shape[0] {
+		let a5_q = A5_trimmed.select(Axis(0), &[idx]);
+		let (v, _) = a5_q.into_raw_vec_and_offset();
+		a_vec.push(v);
+	}
+	let A5_trimmed = a_vec;
+	let A5_trimmed = CscMatrix::from(&A5_trimmed);
+
+	// Convert a6 trimmed
+	let shape = A6_trimmed.shape();
+	let mut a_vec = Vec::new();
+	for idx in 0..shape[0] {
+		let a6_q = A6_trimmed.select(Axis(0), &[idx]);
+		let (v, _) = a6_q.into_raw_vec_and_offset();
+		a_vec.push(v);
+	}
+	let A6_trimmed = a_vec;
+	let A6_trimmed = CscMatrix::from(&A6_trimmed);
+
+	// Convert a7 trimmed
+	let shape = A7_trimmed.shape();
+	let mut a_vec = Vec::new();
+	for idx in 0..shape[0] {
+		let a7_q = A7_trimmed.select(Axis(0), &[idx]);
+		let (v, _) = a7_q.into_raw_vec_and_offset();
+		a_vec.push(v);
+	}
+	let A7_trimmed = a_vec;
+	let A7_trimmed = CscMatrix::from(&A7_trimmed);
+
+	let A = CscMatrix::vcat(&A1_trimmed, &A2_trimmed);
+	let A = CscMatrix::vcat(&A, &A3_trimmed);
+	let A = CscMatrix::vcat(&A, &A4_trimmed);
+	let A = CscMatrix::vcat(&A, &A5_trimmed);
+	let A = CscMatrix::vcat(&A, &A6_trimmed);
+	let A = CscMatrix::vcat(&A, &A7_trimmed);
 	let b = ndarray::concatenate![Axis(0), b1, b2, b3, b4, b5, b6, b7];
 	let cones = vec![cone1, cone2, cone3]
 		.into_iter()
@@ -1136,7 +1248,7 @@ fn find_solution_unrounded(
 		.collect::<Vec<_>>();
 
 	let settings = DefaultSettings::default();
-	let mut solver = DefaultSolver::new(&P_trimmed, &q_trimmed, &A_sparse, &b.to_vec(), &cones, settings);
+	let mut solver = DefaultSolver::new(&P_trimmed, &q_trimmed, &A, &b.to_vec(), &cones, settings);
 	solver.solve();
 	let x = solver.solution.x;
 	let status = solver.solution.status;

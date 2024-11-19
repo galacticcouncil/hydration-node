@@ -322,7 +322,7 @@ pub struct SetupParams {
 	pub clear_amm_approx: bool,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum AmmApprox {
 	Linear,
 	Quadratic,
