@@ -175,7 +175,6 @@ impl ICEProblem {
 		} else {
 			AmmApprox::None
 		}
-		//*self.force_amm_approx.as_ref().unwrap().get(&asset_id).unwrap()
 	}
 
 	pub(crate) fn scale_obj_amt(&self, amt: FloatType) -> FloatType {
@@ -184,7 +183,6 @@ impl ICEProblem {
 	}
 
 	pub(crate) fn get_epsilon_tkn(&self) -> BTreeMap<AssetId, FloatType> {
-		//python: return {t: max([abs(self._max_in[t]), abs(self._max_out[t])]) / self.omnipool.liquidity[t] for t in self.asset_list}
 		let mut r = BTreeMap::new();
 		for asset_id in self.asset_ids.iter() {
 			let max_in = self.get_max_in()[&asset_id];
