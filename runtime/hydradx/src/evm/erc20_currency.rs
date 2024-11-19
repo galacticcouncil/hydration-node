@@ -202,7 +202,7 @@ fn handle_result(result: CallResult) -> DispatchResult {
 			Err(DispatchError::Other(&*Box::leak(
 				format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
 			)))
-		},
+		}
 	}
 }
 
