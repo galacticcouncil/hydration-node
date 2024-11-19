@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub type FloatType = f64;
 pub const FLOAT_INF: FloatType = FloatType::INFINITY;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum ProblemStatus {
 	NotSolved,
 	Solved,
@@ -427,7 +427,7 @@ impl ICEProblem {
 			self.force_amm_approx = None;
 		}
 		self.recalculate(params.rescale);
-		dbg!("{:?}", &self.step_params);
+		//dbg!("{:?}", &self.step_params);
 	}
 
 	fn recalculate(&mut self, rescale: bool) {
@@ -1099,8 +1099,6 @@ impl StepParams {
 			profit_d_coefs,
 			i_coefs,
 		];
-
-		dbg!(&profit_A_assets);
 
 		//TODO: vstack here originally - this fails with incompatible shapes
 		let profit_A = Some(ndarray::concatenate![Axis(0), profit_A_LRNA, profit_A_assets]);

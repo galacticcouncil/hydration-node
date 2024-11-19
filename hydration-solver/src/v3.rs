@@ -287,10 +287,19 @@ where
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
 		for _i in 0..5 {
+			println!("----->Solve iteration: {}", _i);
 			let params = SetupParams::new().with_indicators(indicators.clone());
 			problem.set_up_problem(params);
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
 				find_good_solution_unrounded(&problem, true, true, true, true);
+
+			println!("->>>>>solve iteration done: {}", _i);
+			dbg!(&amm_deltas);
+			dbg!(&intent_deltas);
+			dbg!(&x);
+			dbg!(&obj);
+			dbg!(&dual_obj);
+			dbg!(&status);
 
 			if obj < Z_U && dual_obj <= 0.0 {
 				Z_U = obj;
@@ -300,12 +309,11 @@ where
 				best_status = status;
 			}
 
-			//TODO: figure out this
-			/*
-			if status != "PrimalInfeasible" && status != "DualInfeasible" {
-				x_list = ndarray::stack![ndarray::Axis(0), x_list, x.view()];
+			if status != ProblemStatus::PrimalInfeasible && status != ProblemStatus::DualInfeasible {
+				//TODO: verify if this is correct
+				let x2 = Array2::from_shape_vec((1, 4 * n + m), x).unwrap();
+				x_list = ndarray::concatenate![Axis(0), x_list, x2];
 			}
-			 */
 
 			// Get new cone constraint from current indicators
 			let BK: Vec<usize> = indicators
@@ -773,7 +781,8 @@ fn find_good_solution_unrounded(
 		}
 	}
 
-	for _ in 0..100 {
+	for iteration in 0..100 {
+		println!("--> found good solution {}",iteration)
 		let trade_pcts_nonzero: Vec<_> = trade_pcts.iter().filter(|&&x| x > 0.0).collect();
 		if (trade_pcts_nonzero.is_empty()
 			|| trade_pcts_nonzero
@@ -966,13 +975,10 @@ fn find_solution_unrounded(
 	let P_trimmed = CscMatrix::zeros((k_real, k_real));
 	let q_all = ndarray::Array::from(p.get_q());
 
-	//TODO: need to apply "-" but it does not work atm
 	let objective_I_coefs = q_all.slice(s![4 * n + m..]);
 	let objective_I_coefs = objective_I_coefs.neg();
 	let q = q_all.slice(s![..4 * n + m]);
 	let q = q.neg();
-	dbg!(&q);
-
 	let q_trimmed: Vec<f64> = indices_to_keep.iter().map(|&i| q[i]).collect();
 
 	let diff_coefs = Array2::<f64>::zeros((2 * n + m, 2 * n));
@@ -994,24 +1000,17 @@ fn find_solution_unrounded(
 
 	let profit_A = p.get_profit_A();
 
-	dbg!(&profit_A);
-
 	let A3 = profit_A.slice(s![.., ..4 * n + m]).to_owned();
 	let mut A3 = A3.neg();
 	let I_coefs = profit_A.slice(s![.., 4 * n + m..]).to_owned();
 	let mut I_coefs = I_coefs.neg();
 
-	dbg!(allow_loss);
 	if allow_loss {
 		let profit_i = p.asset_ids.iter().position(|&x| x == p.tkn_profit).unwrap() + 1;
 		A3.remove_index(Axis(0), profit_i);
 		I_coefs.remove_index(Axis(0), profit_i);
 	}
 	let A3_trimmed = A3.select(Axis(1), &indices_to_keep);
-
-	dbg!(&A3);
-	dbg!(&I_coefs);
-	dbg!(&A3_trimmed);
 
 	let b3 = if r == 0 {
 		Array1::<f64>::zeros(A3_trimmed.shape()[0])
@@ -1021,15 +1020,10 @@ fn find_solution_unrounded(
 		-I_coefs.dot(&r)
 	};
 	let cone3 = NonnegativeConeT(A3_trimmed.shape()[0]);
-	dbg!(&b3);
-	dbg!(&cone3);
-
-	dbg!(k);
 	let mut A4 = Array2::<f64>::zeros((0, k));
 	let mut b4 = Array1::<f64>::zeros(0);
 	let mut cones4 = vec![];
 	let epsilon_tkn = p.get_epsilon_tkn();
-	dbg!(&epsilon_tkn);
 
 	for i in 0..n {
 		let tkn = asset_list[i];
@@ -1088,11 +1082,6 @@ fn find_solution_unrounded(
 
 	let A4_trimmed = A4.select(Axis(1), &indices_to_keep);
 
-	dbg!(&A4);
-	dbg!(&A4_trimmed);
-	dbg!(&b4);
-	dbg!(&cones4);
-
 	let mut A5 = Array2::<f64>::zeros((0, k));
 	let mut A6 = Array2::<f64>::zeros((0, k));
 	let mut A7 = Array2::<f64>::zeros((0, k));
@@ -1129,13 +1118,6 @@ fn find_solution_unrounded(
 	let A6_trimmed = A6.select(Axis(1), &indices_to_keep);
 	let A7_trimmed = A7.select(Axis(1), &indices_to_keep);
 
-	dbg!(&A5);
-	dbg!(&A6);
-	dbg!(&A7);
-	dbg!(&A5_trimmed);
-	dbg!(&A6_trimmed);
-	dbg!(&A7_trimmed);
-
 	let b5 = Array1::<f64>::zeros(A5.shape()[0]);
 	let b6 = Array1::<f64>::zeros(A6.shape()[0]);
 	let b7 = Array1::<f64>::zeros(A7.shape()[0]);
@@ -1156,7 +1138,6 @@ fn find_solution_unrounded(
 	];
 
 	 */
-	println!("---->>>----");
 	// convert a1_trimmed to vec of vec<f64>, note that to_vec does not exist
 	let shape = A1_trimmed.shape();
 	let mut a_vec = Vec::new();
@@ -1247,7 +1228,7 @@ fn find_solution_unrounded(
 		.chain(vec![cone5, cone6, cone7].into_iter())
 		.collect::<Vec<_>>();
 
-	let settings = DefaultSettings::default();
+	let settings = DefaultSettingsBuilder::default().verbose(false).build().unwrap();
 	let mut solver = DefaultSolver::new(&P_trimmed, &q_trimmed, &A, &b.to_vec(), &cones, settings);
 	solver.solve();
 	let x = solver.solution.x;
