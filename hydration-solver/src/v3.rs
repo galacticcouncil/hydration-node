@@ -281,19 +281,20 @@ where
 		let new_a_upper = Array1::from_elem(1, inf);
 		let new_a_lower = Array1::from_elem(1, bk.len() as f64);
 
-		let mut Z_U_archive = vec![];
-		let mut Z_L_archive = vec![];
+		//TODO: uncomment when enable MILP
+		//let mut Z_U_archive = vec![];
+		//let mut Z_L_archive = vec![];
 		let indicators = problem.get_indicators().unwrap_or_default();
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
 		for _i in 0..5 {
-			println!("----->Solve iteration: {}", _i);
+			println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Solve iteration: {}", _i);
 			let params = SetupParams::new().with_indicators(indicators.clone());
 			problem.set_up_problem(params);
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
 				find_good_solution_unrounded(&problem, true, true, true, true);
 
-			println!("->>>>>solve iteration done: {}", _i);
+			println!("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration done: {}", _i);
 			dbg!(&amm_deltas);
 			dbg!(&intent_deltas);
 			dbg!(&x);
@@ -302,6 +303,7 @@ where
 			dbg!(&status);
 
 			if obj < Z_U && dual_obj <= 0.0 {
+				println!("updating best");
 				Z_U = obj;
 				y_best = indicators.clone();
 				best_amm_deltas = amm_deltas.clone();
@@ -335,7 +337,7 @@ where
 			for &i in &NK {
 				IC_A[[0, i]] = -1.0;
 			}
-			let IC_upper = Array1::from_elem(1, (BK.len() - 1) as f64);
+			let IC_upper = Array1::from_elem(1, BK.len() as f64 - 1.);
 			let IC_lower = Array1::from_elem(1, -FLOAT_INF);
 
 			// Add cone constraint to A, A_upper, A_lower
@@ -343,7 +345,11 @@ where
 			let A_upper = ndarray::concatenate![ndarray::Axis(0), new_a_upper.view(), IC_upper.view()];
 			let A_lower = ndarray::concatenate![ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
 
-			// Do MILP solve
+			// TODO: since we dont have milp we can break here.
+			break;
+
+			// TODO: enable MILP solve
+			/*
 			problem.set_up_problem(SetupParams::new());
 			let (
 				amm_deltas,
@@ -370,6 +376,7 @@ where
 			if !valid {
 				break;
 			}
+			 */
 		}
 		if best_status != ProblemStatus::Solved {
 			// no solution found
@@ -403,9 +410,50 @@ where
 		for (i, delta) in problem.full_indices.iter().enumerate() {
 			deltas[problem.full_indices[i]] = Some(full_deltas_with_buys[i]);
 		}
+
 		//let (deltas_final, obj) = add_small_trades(&problem, deltas);
 
-		Err(())
+		// Construct resolved intents
+
+		let mut resolved_intents = Vec::new();
+
+		for (idx, intent_delta) in deltas.iter().enumerate() {
+			if let Some((delta_in, delta_out)) = intent_delta {
+				let intent = &problem.intents[idx];
+				let converted_intent_amount = problem.intent_amounts[idx];
+				debug_assert!(converted_intent_amount.0 > -delta_in, "delta in is too high!");
+
+				let accepted_tolerance_amount = converted_intent_amount.0 * ROUND_TOLERANCE;
+				let remainder = converted_intent_amount.0 + delta_in; // note that delta in is < 0
+				let (amount_in, amount_out) = if remainder < accepted_tolerance_amount {
+					// Do not leave dust, resolve the whole intent amount
+					(intent.swap.amount_in, intent.swap.amount_out)
+				} else if -delta_in <= accepted_tolerance_amount {
+					// Do not trade dust
+					(0u128, 0u128)
+				} else {
+					// just resolve solver amounts
+					let amount_in = -delta_in;
+					let amount_out = *delta_out;
+					(
+						convert_to_balance(amount_in, problem.get_asset_pool_data(intent.swap.asset_in).decimals),
+						convert_to_balance(amount_out, problem.get_asset_pool_data(intent.swap.asset_out).decimals),
+					)
+				};
+
+				if amount_in == 0 || amount_out == 0 {
+					continue;
+				}
+				let resolved_intent = ResolvedIntent {
+					intent_id: problem.intent_ids[idx],
+					amount_in,
+					amount_out,
+				};
+				resolved_intents.push(resolved_intent);
+			}
+		}
+
+		Ok((resolved_intents, ()))
 	}
 }
 
@@ -600,6 +648,8 @@ fn solve_inclusion_problem(
 	let old_A_upper = old_A_upper.unwrap_or_else(|| Array1::<f64>::zeros(0));
 	let old_A_lower = old_A_lower.unwrap_or_else(|| Array1::<f64>::zeros(0));
 
+	//TODO: add hihgs support
+	/*
 	// TODO: vstack originally - can we do concatenate here ? axis(0) or axis(1)
 	let A = ndarray::concatenate![Axis(0), old_A.view(), S.view(), A3.view(), A5.view(), A8.view()];
 	let A_upper = ndarray::concatenate![
@@ -619,8 +669,6 @@ fn solve_inclusion_problem(
 		A8_lower.view()
 	];
 
-	//TODO: add hihgs support
-	/*
 	let mut nonzeros = Vec::new();
 	let mut start = Vec::with_capacity(A.shape()[0] + 1);
 	let mut a = Vec::new();
@@ -739,6 +787,13 @@ fn find_good_solution_unrounded(
 	let (mut amm_deltas, mut intent_deltas, mut x, mut obj, mut dual_obj, mut status) =
 		find_solution_unrounded(&p, allow_loss);
 
+	dbg!(&amm_deltas);
+	dbg!(&intent_deltas);
+	dbg!(&x);
+	dbg!(&obj);
+	dbg!(&dual_obj);
+	dbg!(&status);
+
 	// if partial trade size is much higher than executed trade, lower trade max
 	let mut trade_pcts: Vec<f64> = if scale_trade_max {
 		p.partial_sell_maxs
@@ -782,8 +837,11 @@ fn find_good_solution_unrounded(
 	}
 
 	for iteration in 0..100 {
+		println!("-------------");
 		println!("--> found good solution {}", iteration);
 		let trade_pcts_nonzero: Vec<_> = trade_pcts.iter().filter(|&&x| x > 0.0).collect();
+		dbg!(&trade_pcts_nonzero);
+		dbg!(approx_adjusted_ct);
 		if (trade_pcts_nonzero.is_empty()
 			|| trade_pcts_nonzero
 				.iter()
@@ -804,23 +862,28 @@ fn find_good_solution_unrounded(
 		{
 			scale_down_partial_intents(&p, &trade_pcts, 10.)
 		} else {
-			(vec![], 0)
+			(None, 0)
 		};
-
-		let params = SetupParams::new()
-			.with_sell_maxes(new_maxes)
-			.with_clear_indicators(false);
-		let params = if let Some(force_amm_approx) = force_amm_approx.as_ref() {
-			params.with_force_amm_approx(force_amm_approx.clone())
-		} else {
-			params
-		};
-		p.set_up_problem(params);
+		dbg!(zero_ct);
+		dbg!(&new_maxes);
 
 		if zero_ct == m {
 			// all partial intents have been eliminated from execution
 			break;
 		}
+
+		let params = SetupParams::new().with_clear_indicators(false);
+		let params = if let Some(force_amm_approx) = force_amm_approx.as_ref() {
+			params.with_force_amm_approx(force_amm_approx.clone())
+		} else {
+			params
+		};
+		let params = if let Some(nm) = new_maxes {
+			params.with_sell_maxes(nm)
+		} else {
+			params
+		};
+		p.set_up_problem(params);
 
 		let (new_amm_deltas, new_intent_deltas, new_x, new_obj, new_dual_obj, new_status) =
 			find_solution_unrounded(&p, allow_loss);
@@ -1222,7 +1285,12 @@ fn find_solution_unrounded(
 	let A = CscMatrix::vcat(&A1_trimmed, &A2_trimmed);
 	let A = CscMatrix::vcat(&A, &A3_trimmed);
 	let A = CscMatrix::vcat(&A, &A4_trimmed);
-	let A = CscMatrix::vcat(&A, &A5_trimmed);
+	//TODO: in some cases it results in A5 with shape 0,0 - so can we just excklude it ?
+	let A = if A5_trimmed.n != 0 {
+		CscMatrix::vcat(&A, &A5_trimmed)
+	} else {
+		A
+	};
 	let A = CscMatrix::vcat(&A, &A6_trimmed);
 	let A = CscMatrix::vcat(&A, &A7_trimmed);
 	let b = ndarray::concatenate![Axis(0), b1, b2, b3, b4, b5, b6, b7];
@@ -1277,7 +1345,7 @@ fn find_solution_unrounded(
 	)
 }
 
-fn scale_down_partial_intents(p: &ICEProblem, trade_pcts: &[f64], scale: f64) -> (Vec<f64>, usize) {
+fn scale_down_partial_intents(p: &ICEProblem, trade_pcts: &[f64], scale: f64) -> (Option<Vec<f64>>, usize) {
 	let mut zero_ct = 0;
 	let mut intent_sell_maxs = p.partial_sell_maxs.clone();
 
@@ -1299,7 +1367,7 @@ fn scale_down_partial_intents(p: &ICEProblem, trade_pcts: &[f64], scale: f64) ->
 		}
 	}
 
-	(intent_sell_maxs, zero_ct)
+	(Some(intent_sell_maxs), zero_ct)
 }
 
 fn get_directional_flags(amm_deltas: &BTreeMap<AssetId, f64>) -> BTreeMap<AssetId, i8> {
