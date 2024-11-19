@@ -197,7 +197,7 @@ fn handle_result(result: CallResult) -> DispatchResult {
 				Ok(())
 			}
 		}
-		e @ _ => {
+		e => {
 			log::error!(target: "evm", "evm call failed with : {:?}, value {:?}", e, value);
 			Err(DispatchError::Other(&*Box::leak(
 				format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
