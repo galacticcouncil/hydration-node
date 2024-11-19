@@ -945,6 +945,7 @@ fn find_solution_unrounded(
 	}
 
 	let directions = p.get_omnipool_directions();
+	dbg!(&directions);
 	let k = 4 * n + m;
 	let mut indices_to_keep: Vec<usize> = (0..k).collect();
 
@@ -962,6 +963,8 @@ fn find_solution_unrounded(
 	}
 
 	let k_real = indices_to_keep.len();
+	dbg!(k_real);
+	dbg!(&indices_to_keep);
 	let P_trimmed = CscMatrix::zeros((k_real, k_real));
 	let q_all = ndarray::Array::from(p.get_q());
 

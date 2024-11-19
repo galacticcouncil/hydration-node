@@ -864,34 +864,37 @@ impl StepParams {
 		}
 
 		let mut omnipool_directions = BTreeMap::new();
-		if let Some(directions) = problem.directional_flags.as_ref() {
-			for &tkn in problem.asset_ids.iter() {
-				if let Some(&flag) = directions.get(&tkn) {
-					match flag {
-						-1 => {
-							omnipool_directions.insert(tkn, Direction::Sell);
-						}
-						1 => {
-							omnipool_directions.insert(tkn, Direction::Buy);
-						}
-						0 => {
-							omnipool_directions.insert(tkn, Direction::Neither);
-						}
-						_ => {}
+		let directions = if let Some(d) = problem.directional_flags.as_ref() {
+			d.clone()
+		} else {
+			BTreeMap::new()
+		};
+		for &tkn in problem.asset_ids.iter() {
+			if let Some(&flag) = directions.get(&tkn) {
+				match flag {
+					-1 => {
+						omnipool_directions.insert(tkn, Direction::Sell);
 					}
-				} else if let Some(&direction) = known_intent_directions.get(&tkn) {
-					match direction {
-						Direction::Sell => {
-							omnipool_directions.insert(tkn, Direction::Buy);
-						}
-						Direction::Buy => {
-							omnipool_directions.insert(tkn, Direction::Sell);
-						}
-						_ => {}
+					1 => {
+						omnipool_directions.insert(tkn, Direction::Buy);
 					}
-				} else {
-					omnipool_directions.insert(tkn, Direction::Neither);
+					0 => {
+						omnipool_directions.insert(tkn, Direction::Neither);
+					}
+					_ => {}
 				}
+			} else if let Some(&direction) = known_intent_directions.get(&tkn) {
+				match direction {
+					Direction::Sell => {
+						omnipool_directions.insert(tkn, Direction::Buy);
+					}
+					Direction::Buy => {
+						omnipool_directions.insert(tkn, Direction::Sell);
+					}
+					_ => {}
+				}
+			} else {
+				omnipool_directions.insert(tkn, Direction::Neither);
 			}
 		}
 
