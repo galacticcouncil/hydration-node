@@ -48,7 +48,7 @@ pub struct ICEProblem {
 
 	pub min_partial: FloatType,
 
-	pub indicators: Vec<usize>,
+	pub indicators: Option<Vec<usize>>,
 
 	pub asset_ids: Vec<AssetId>,
 	pub partial_sell_maxs: Vec<FloatType>,
@@ -117,7 +117,8 @@ impl ICEProblem {
 
 		// this comes from the initial solution which we skipped,
 		// so we intened to resolve all full intents
-		let indicators = vec![1usize; r];
+		//TODO: this should take input as init indicators and if set, do something - check python
+		let indicators = None;
 
 		let initial_sell_maxs = partial_sell_amounts.clone();
 
@@ -378,8 +379,15 @@ impl SetupParams {
 }
 
 impl ICEProblem {
-	pub(crate) fn get_indicators(&self) -> Vec<usize> {
-		self.indicators.clone()
+	pub(crate) fn get_indicators(&self) -> Option<Vec<usize>> {
+		self.indicators.as_ref().cloned()
+	}
+	pub(crate) fn get_indicators_len(&self) -> usize {
+		if let Some(inds) = self.indicators.as_ref() {
+			inds.len()
+		} else {
+			0
+		}
 	}
 
 	pub(crate) fn get_asset_pool_data(&self, asset_id: AssetId) -> &AssetData {
@@ -407,9 +415,9 @@ impl ICEProblem {
 	pub(crate) fn set_up_problem(&mut self, params: SetupParams) {
 		if let Some(new_indicators) = params.indicators {
 			debug_assert_eq!(new_indicators.len(), self.r);
-			self.indicators = new_indicators;
+			self.indicators = Some(new_indicators);
 		} else if params.clear_indicators {
-			self.indicators = vec![1usize; self.r]; //reest to original
+			self.indicators = None;
 		}
 		if let Some(new_maxes) = params.sell_maxes {
 			self.partial_sell_maxs = new_maxes;
@@ -597,10 +605,10 @@ impl StepParams {
 		known_flow.insert(1u32.into(), (0.0, 0.0)); // Assuming 1u32 represents 'LRNA'
 
 		// Update known_flow based on full intents
-		if let Some(I) = &problem.step_params.q {
+		if let Some(I) = &problem.get_indicators() {
 			assert_eq!(I.len(), problem.full_indices.len());
 			for (i, &idx) in problem.full_indices.iter().enumerate() {
-				if I[i] > 0.5 {
+				if I[i] as f64 > 0.5 {
 					let intent = &problem.intents[idx];
 					let (sell_quantity, buy_quantity) = problem.intent_amounts[idx];
 					let tkn_sell = intent.swap.asset_in;

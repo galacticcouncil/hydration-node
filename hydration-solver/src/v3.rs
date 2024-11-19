@@ -283,7 +283,7 @@ where
 
 		let mut Z_U_archive = vec![];
 		let mut Z_L_archive = vec![];
-		let indicators = problem.get_indicators();
+		let indicators = problem.get_indicators().unwrap_or_default();
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
 		for _i in 0..5 {
@@ -724,7 +724,7 @@ fn find_good_solution_unrounded(
 ) -> (BTreeMap<AssetId, f64>, Vec<f64>, Vec<f64>, f64, f64, ProblemStatus) {
 	let mut p: ICEProblem = problem.clone();
 	let (n, m, r) = (p.n, p.m, p.r);
-	if p.indicators.len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
+	if p.get_indicators_len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
 		// nothing to execute
 		return (
 			BTreeMap::new(),
@@ -782,7 +782,7 @@ fn find_good_solution_unrounded(
 	}
 
 	for iteration in 0..100 {
-		println!("--> found good solution {}",iteration)
+		println!("--> found good solution {}", iteration);
 		let trade_pcts_nonzero: Vec<_> = trade_pcts.iter().filter(|&&x| x > 0.0).collect();
 		if (trade_pcts_nonzero.is_empty()
 			|| trade_pcts_nonzero
@@ -926,7 +926,7 @@ fn find_solution_unrounded(
 	p: &ICEProblem,
 	allow_loss: bool,
 ) -> (BTreeMap<AssetId, f64>, Vec<f64>, Array2<f64>, f64, f64, ProblemStatus) {
-	if p.get_indicators().len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
+	if p.get_indicators_len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
 		return (
 			p.asset_ids.iter().map(|&tkn| (tkn, 0.0)).collect(),
 			vec![0.0; p.partial_indices.len()],
@@ -940,10 +940,9 @@ fn find_solution_unrounded(
 	//let full_intents = &p.full_intents;
 	let partial_intents_len = p.partial_indices.len();
 	let asset_list = &p.asset_ids;
-	let indicators = p.get_indicators();
 	let (n, m, r) = (p.n, p.m, p.r);
 
-	if partial_intents_len + p.get_indicators().len() == 0 {
+	if partial_intents_len + p.get_indicators_len() == 0 {
 		return (
 			asset_list.iter().map(|&tkn| (tkn, 0.0)).collect(),
 			vec![],
@@ -1016,6 +1015,11 @@ fn find_solution_unrounded(
 		Array1::<f64>::zeros(A3_trimmed.shape()[0])
 	} else {
 		//TODO: this is trange to convert indicators to f64 - verify if we should use f64 for indicators
+		let indicators = if let Some(inds) = p.get_indicators() {
+			inds
+		} else {
+			vec![0; r]
+		};
 		let r: ndarray::Array1<FloatType> = ndarray::Array::from(indicators).iter().map(|v| *v as f64).collect();
 		-I_coefs.dot(&r)
 	};
