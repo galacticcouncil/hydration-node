@@ -1092,7 +1092,7 @@ impl StepParams {
 
 		// attempt
 		let l = profit_lrna_coefs.len();
-		//TODO: this is just tempoary override, to make incompatible shapes work
+		//TODO: this is just temporary override, to make incompatible shapes work
 		let profit_d_coefs = ndarray::Array2::from(vec![[0.], [0.]]);
 		let i_coefs = ndarray::Array2::from(vec![[], []]);
 
@@ -1103,12 +1103,11 @@ impl StepParams {
 			profit_x_coefs,
 			profit_lrna_lambda_coefs,
 			profit_lambda_coefs,
-			//TODO: this two are not working -  fix - fixed by previous overrided for now
+			//TODO: this two are not working -  fix - fixed by previous overrides for now
 			profit_d_coefs,
 			i_coefs,
 		];
 
-		//TODO: vstack here originally - this fails with incompatible shapes
 		let profit_A = Some(ndarray::concatenate![Axis(0), profit_A_LRNA, profit_A_assets]);
 		self.profit_a = profit_A.clone();
 

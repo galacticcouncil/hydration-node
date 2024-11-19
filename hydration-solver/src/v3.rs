@@ -411,10 +411,10 @@ where
 			deltas[problem.full_indices[i]] = Some(full_deltas_with_buys[i]);
 		}
 
+		//TODO: add this
 		//let (deltas_final, obj) = add_small_trades(&problem, deltas);
 
 		// Construct resolved intents
-
 		let mut resolved_intents = Vec::new();
 
 		for (idx, intent_delta) in deltas.iter().enumerate() {
