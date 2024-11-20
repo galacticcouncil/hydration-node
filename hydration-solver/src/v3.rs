@@ -287,6 +287,7 @@ where
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
 		let mut iter_indicators = indicators.clone();
+		dbg!(&iter_indicators);
 
 		for _i in 0..5 {
 			println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Solve iteration: {}", _i);
@@ -1311,7 +1312,11 @@ fn find_solution_unrounded(
 	let A7_trimmed = a_vec;
 	let A7_trimmed = CscMatrix::from(&A7_trimmed);
 
-	let A = CscMatrix::vcat(&A1_trimmed, &A2_trimmed);
+	let A = if A2_trimmed.n != 0 {
+		CscMatrix::vcat(&A1_trimmed, &A2_trimmed)
+	}else{
+		A1_trimmed
+	};
 	let A = CscMatrix::vcat(&A, &A3_trimmed);
 	let A = CscMatrix::vcat(&A, &A4_trimmed);
 	//TODO: in some cases it results in A5 with shape 0,0 - so can we just excklude it ?
