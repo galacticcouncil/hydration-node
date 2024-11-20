@@ -11,7 +11,7 @@ use std::ptr::null;
 use crate::data::process_omnipool_data;
 use clarabel::algebra::*;
 use clarabel::solver::*;
-use highs::{Problem, RowProblem};
+use highs::{Problem, RowProblem, Sense};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, OwnedRepr};
 //use highs::
 use crate::problem::{AmmApprox, Direction, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
@@ -282,9 +282,9 @@ where
 		let new_a_lower = Array1::from_elem(1, bk.len() as f64);
 
 		//TODO: uncomment when enable MILP
-		//let mut Z_U_archive = vec![];
-		//let mut Z_L_archive = vec![];
-		let indicators = problem.get_indicators().unwrap_or(vec![0;r]);
+		let mut Z_U_archive = vec![];
+		let mut Z_L_archive = vec![];
+		let indicators = problem.get_indicators().unwrap_or(vec![0; r]);
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
 		for _i in 0..5 {
@@ -343,15 +343,10 @@ where
 			let IC_lower = Array1::from_elem(1, -FLOAT_INF);
 
 			// Add cone constraint to A, A_upper, A_lower
-			let A = ndarray::concatenate![ndarray::Axis(1), new_a.view(), IC_A.view()];
+			let A = ndarray::concatenate![ndarray::Axis(0), new_a.view(), IC_A.view()];
 			let A_upper = ndarray::concatenate![ndarray::Axis(0), new_a_upper.view(), IC_upper.view()];
 			let A_lower = ndarray::concatenate![ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
 
-			// TODO: since we dont have milp we can break here.
-			break;
-
-			// TODO: enable MILP solve
-			/*
 			problem.set_up_problem(SetupParams::new());
 			let (
 				amm_deltas,
@@ -372,13 +367,26 @@ where
 				Some(A_upper),
 				Some(A_lower),
 			);
+
+			dbg!(&amm_deltas);
+			dbg!(&partial_intent_deltas);
+			dbg!(&indicators);
+			dbg!(&new_a);
+			dbg!(&new_a_upper);
+			dbg!(&new_a_lower);
+			dbg!(&milp_obj);
+			dbg!(&valid);
+			dbg!(&milp_status);
+
+			panic!("done for now");
+			//TODO: update new values
+
 			Z_L = Z_L.max(milp_obj);
 			Z_U_archive.push(Z_U);
 			Z_L_archive.push(Z_L);
 			if !valid {
 				break;
 			}
-			 */
 		}
 		if best_status != ProblemStatus::Solved {
 			// no solution found
@@ -480,6 +488,16 @@ fn solve_inclusion_problem(
 	bool,
 	String,
 ) {
+	println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>. Solving inclusion problem");
+
+	// dbg the inputs
+	dbg!(&x_real_list);
+	dbg!(&upper_bound);
+	dbg!(&lower_bound);
+	dbg!(&old_A);
+	dbg!(&old_A_upper);
+	dbg!(&old_A_lower);
+
 	let asset_list = p.asset_ids.clone();
 	let tkn_list = vec![1u32]
 		.into_iter()
@@ -651,9 +669,6 @@ fn solve_inclusion_problem(
 	let old_A_upper = old_A_upper.unwrap_or_else(|| Array1::<f64>::zeros(0));
 	let old_A_lower = old_A_lower.unwrap_or_else(|| Array1::<f64>::zeros(0));
 
-	//TODO: add hihgs support
-	/*
-	// TODO: vstack originally - can we do concatenate here ? axis(0) or axis(1)
 	let A = ndarray::concatenate![Axis(0), old_A.view(), S.view(), A3.view(), A5.view(), A8.view()];
 	let A_upper = ndarray::concatenate![
 		Axis(0),
@@ -672,72 +687,65 @@ fn solve_inclusion_problem(
 		A8_lower.view()
 	];
 
-	let mut nonzeros = Vec::new();
-	let mut start = Vec::with_capacity(A.shape()[0] + 1);
-	let mut a = Vec::new();
-	start.push(0);
-	for i in 0..A.shape()[0] {
-		let row_nonzeros = A
-			.rows()
-			.into_iter()
-			.enumerate()
-			.filter(|(idx, v)| *idx == i && v[0] != 0.0) //TODO: check the python code and verify
-			.map(|(j, _)| j)
-			.collect::<Vec<_>>();
-		nonzeros.extend(&row_nonzeros);
-		start.push(nonzeros.len());
-		a.extend(row_nonzeros.iter().map(|&j| A[[i, j]]));
+	let mut pb = highs::RowProblem::new();
+
+	let mut col_cost = vec![];
+	for (idx, &v) in q.iter().enumerate() {
+		let lower_bound = lower[idx];
+		let upper_bound = upper[idx];
+		let x = pb.add_column(v, lower_bound..upper_bound);
+		col_cost.push(x);
 	}
 
-	let mut h = highs::Highs::new();
-	let mut lp = highs::Problem::new();
+	for (idx, row) in A.outer_iter().enumerate() {
+		let v = row.to_vec();
+		// now zip v with col_cost
+		let v = v.iter().zip(col_cost.iter()).map(|(a, b)| (*b, *a)).collect::<Vec<_>>();
+		let lower_bound = A_lower[idx];
+		let upper_bound = A_upper[idx];
+		pb.add_row(lower_bound..upper_bound, v);
+	}
+	let solved = pb.optimise(Sense::Minimise).solve();
+	let status = solved.status();
+	let solution = solved.get_solution();
+	let x_expanded = solution.columns().to_vec();
 
-	lp.num_col = k;
-	lp.num_row = A.shape()[0];
+	let value_valid = true; //TODO: my solution does not have valid_valid like in python!
 
-	lp.col_cost = -q.to_vec();
-	lp.col_lower = lower.to_vec();
-	lp.col_upper = upper.to_vec();
-	lp.row_lower = A_lower.to_vec();
-	lp.row_upper = A_upper.to_vec();
+	//TODO: dont use str here
+	let status = if status == highs::HighsModelStatus::Optimal {
+		"Solved"
+	} else {
+		"Unsolved"
+	};
 
-	lp.a_matrix.format = highs::MatrixFormat::Rowwise;
-	lp.a_matrix.start = start;
-	lp.a_matrix.index = nonzeros;
-	lp.a_matrix.value = a;
+	/*
 
+	//TODO: should we integrality and options ?!! seems to work without that
 	lp.integrality = vec![highs::VarType::Continuous; 4 * n + m]
 		.into_iter()
 		.chain(vec![highs::VarType::Integer; r])
 		.collect();
-
-	h.pass_model(&lp);
 	let options = h.get_options();
 	options.small_matrix_value = 1e-12;
 	options.primal_feasibility_tolerance = 1e-10;
 	options.dual_feasibility_tolerance = 1e-10;
 	options.mip_feasibility_tolerance = 1e-10;
-	h.pass_options(&options);
-	h.run();
 	let status = h.get_model_status();
 	let solution = h.get_solution();
 	let info = h.get_info();
 	let basis = h.get_basis();
-
 	let value_valid = solution.value_valid,
 	let status  = status.to_string(),
 	let x_expanded = solution.col_value;
 	 */
-	//TODO: remove when highs is implemented
-	let value_valid = true;
-	let status = "Solved";
-	let x_expanded = vec![0.];
 
 	let mut new_amm_deltas = BTreeMap::new();
 	let mut exec_partial_intent_deltas = vec![None; m];
 
-	for (i, tkn) in tkn_list.iter().enumerate() {
-		new_amm_deltas.insert(tkn.clone(), x_expanded[n + i] * scaling[tkn]);
+	for i in 0..n {
+		let tkn = tkn_list[i + 1];
+		new_amm_deltas.insert(tkn, x_expanded[n + i] * scaling[&tkn]);
 	}
 
 	for i in 0..m {
@@ -752,6 +760,12 @@ fn solve_inclusion_problem(
 	let save_A = old_A.clone();
 	let save_A_upper = old_A_upper.clone();
 	let save_A_lower = old_A_lower.clone();
+
+	dbg!(&q);
+	let mut t_x = x_expanded.clone();
+	t_x[2] = t_x[1];
+	let m = q.clone().dot(&t_x);
+	dbg!(m);
 
 	(
 		new_amm_deltas,
@@ -782,7 +796,7 @@ fn find_good_solution_unrounded(
 		return (
 			BTreeMap::new(),
 			vec![0.0; p.partial_indices.len()],
-			vec![0.;4 *n + m],
+			vec![0.; 4 * n + m],
 			0.0,
 			0.0,
 			ProblemStatus::Solved,

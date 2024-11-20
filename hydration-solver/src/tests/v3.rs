@@ -9,25 +9,23 @@ pub const ALICE: [u8; 32] = [4u8; 32];
 
 #[test]
 fn solver_should_find_solution_for_one_small_amount_partial_intent() {
-	let intents = vec![
-		(
-			0,
-			Intent {
-				who: ALICE.into(),
-				swap: Swap {
-					asset_in: 0u32,
-					asset_out: 27u32,
-					amount_in: 100_000_000_000_000,
-					amount_out: 1_149_000_000_000,
-					swap_type: SwapType::ExactIn,
-				},
-				deadline: 0,
-				partial: true,
-				on_success: None,
-				on_failure: None,
+	let intents = vec![(
+		0,
+		Intent {
+			who: ALICE.into(),
+			swap: Swap {
+				asset_in: 0u32,
+				asset_out: 27u32,
+				amount_in: 100_000_000_000_000,
+				amount_out: 1_149_000_000_000,
+				swap_type: SwapType::ExactIn,
 			},
-		),
-	];
+			deadline: 0,
+			partial: true,
+			on_success: None,
+			on_failure: None,
+		},
+	)];
 	let (solution, _) = SolverV3::<DataProvider>::solve(intents).unwrap();
 	let expected_solution = vec![ResolvedIntent {
 		intent_id: 0,
@@ -39,25 +37,23 @@ fn solver_should_find_solution_for_one_small_amount_partial_intent() {
 
 #[test]
 fn solver_should_find_solution_for_one_large_amount_partial_intent() {
-	let intents = vec![
-		(
-			0,
-			Intent {
-				who: ALICE.into(),
-				swap: Swap {
-					asset_in: 0u32,
-					asset_out: 27u32,
-					amount_in: 1_000_000_000_000_000_000,
-					amount_out: 1_149_000_000_000_000,
-					swap_type: SwapType::ExactIn,
-				},
-				deadline: 0,
-				partial: true,
-				on_success: None,
-				on_failure: None,
+	let intents = vec![(
+		0,
+		Intent {
+			who: ALICE.into(),
+			swap: Swap {
+				asset_in: 0u32,
+				asset_out: 27u32,
+				amount_in: 1_000_000_000_000_000_000,
+				amount_out: 1_149_000_000_000_000,
+				swap_type: SwapType::ExactIn,
 			},
-		),
-	];
+			deadline: 0,
+			partial: true,
+			on_success: None,
+			on_failure: None,
+		},
+	)];
 	let (solution, _) = SolverV3::<DataProvider>::solve(intents).unwrap();
 	let expected_solution = vec![ResolvedIntent {
 		intent_id: 0,
@@ -69,25 +65,23 @@ fn solver_should_find_solution_for_one_large_amount_partial_intent() {
 
 #[test]
 fn solver_should_find_solution_for_one_large_amount_full_intent() {
-	let intents = vec![
-		(
-			0,
-			Intent {
-				who: ALICE.into(),
-				swap: Swap {
-					asset_in: 0u32,
-					asset_out: 27u32,
-					amount_in: 1_000_000_000_000_000_000,
-					amount_out: 1_149_000_000_000_000,
-					swap_type: SwapType::ExactIn,
-				},
-				deadline: 0,
-				partial: false,
-				on_success: None,
-				on_failure: None,
+	let intents = vec![(
+		0,
+		Intent {
+			who: ALICE.into(),
+			swap: Swap {
+				asset_in: 0u32,
+				asset_out: 27u32,
+				amount_in: 1_000_000_000_000_000_000,
+				amount_out: 1_149_000_000_000_000,
+				swap_type: SwapType::ExactIn,
 			},
-		),
-	];
+			deadline: 0,
+			partial: false,
+			on_success: None,
+			on_failure: None,
+		},
+	)];
 	let (solution, _) = SolverV3::<DataProvider>::solve(intents).unwrap();
 	let expected_solution = vec![ResolvedIntent {
 		intent_id: 0,
