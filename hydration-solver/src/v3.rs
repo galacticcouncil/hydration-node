@@ -296,13 +296,6 @@ where
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
 				find_good_solution_unrounded(&problem, true, true, true, true);
 
-			dbg!(&amm_deltas);
-			dbg!(&intent_deltas);
-			dbg!(&x);
-			dbg!(&obj);
-			dbg!(&dual_obj);
-			dbg!(&status);
-
 			if obj < Z_U && dual_obj <= 0.0 {
 				Z_U = obj;
 				y_best = iter_indicators.clone();
@@ -315,7 +308,6 @@ where
 				//TODO: verify if this is correct
 				let x2 = Array2::from_shape_vec((1, 4 * n + m), x).unwrap();
 				x_list = ndarray::concatenate![Axis(0), x_list, x2];
-				dbg!(&x_list);
 			}
 
 			// Get new cone constraint from current indicators
@@ -357,18 +349,6 @@ where
 					Some(A_upper),
 					Some(A_lower),
 				);
-
-			/*
-			dbg!(&amm_deltas);
-			dbg!(&partial_intent_deltas);
-			dbg!(&indicators);
-			dbg!(&new_a);
-			dbg!(&new_a_upper);
-			dbg!(&new_a_lower);
-			dbg!(&milp_obj);
-			dbg!(&valid);
-
-			 */
 
 			iter_indicators = indicators;
 			new_a = s_new_a;
@@ -692,7 +672,7 @@ fn solve_inclusion_problem(
 	for (idx, &v) in q.iter().enumerate() {
 		let lower_bound = lower[idx];
 		let upper_bound = upper[idx];
-		let x = pb.add_column(v, lower_bound..upper_bound);
+		let x = pb.add_column(-v, lower_bound..upper_bound);
 		col_cost.push(x);
 	}
 
@@ -714,7 +694,7 @@ fn solve_inclusion_problem(
 	let status = solved.status();
 	let solution = solved.get_solution();
 	let x_expanded = solution.columns().to_vec();
-	let value_valid = status == HighsModelStatus::Optimal || status == HighsModelStatus::Infeasible;
+	let value_valid = status != HighsModelStatus::Infeasible;
 
 	/*
 
@@ -758,13 +738,6 @@ fn solve_inclusion_problem(
 	let save_A_upper = old_A_upper.clone();
 	let save_A_lower = old_A_lower.clone();
 
-	//TODO: one v alue is different in x_expanded, hence the result is different in amm_delta,s and milp_obj
-	// if replaces like shown, all is the same
-	let mut t_x = x_expanded.clone();
-	t_x[2] = t_x[1];
-	let m = -q.clone().dot(&t_x);
-	let milp_obj = m * scaling[&p.tkn_profit];
-
 	(
 		new_amm_deltas,
 		exec_partial_intent_deltas,
@@ -772,8 +745,7 @@ fn solve_inclusion_problem(
 		save_A,
 		save_A_upper,
 		save_A_lower,
-		//-q.clone().dot(&x_expanded) * scaling[&p.tkn_profit],
-		milp_obj,
+		-q.clone().dot(&x_expanded) * scaling[&p.tkn_profit],
 		value_valid,
 	)
 }
