@@ -316,6 +316,7 @@ where
 				//TODO: verify if this is correct
 				let x2 = Array2::from_shape_vec((1, 4 * n + m), x).unwrap();
 				x_list = ndarray::concatenate![Axis(0), x_list, x2];
+				dbg!(&x_list);
 			}
 
 			// Get new cone constraint from current indicators
@@ -772,14 +773,16 @@ fn find_good_solution_unrounded(
 	do_directional_run: bool,
 	allow_loss: bool,
 ) -> (BTreeMap<AssetId, f64>, Vec<f64>, Vec<f64>, f64, f64, ProblemStatus) {
+	println!("111111111111111 finding good solution");
 	let mut p: ICEProblem = problem.clone();
 	let (n, m, r) = (p.n, p.m, p.r);
 	if p.get_indicators_len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
 		// nothing to execute
+		println!("nothing to execute");
 		return (
 			BTreeMap::new(),
 			vec![0.0; p.partial_indices.len()],
-			vec![],
+			vec![0.;4 *n + m],
 			0.0,
 			0.0,
 			ProblemStatus::Solved,
@@ -1336,6 +1339,8 @@ fn find_solution_unrounded(
 
 	 */
 	let obj_offset = 0.0;
+
+	dbg!(&x_expanded);
 
 	(
 		new_amm_deltas,

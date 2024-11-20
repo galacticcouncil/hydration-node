@@ -449,9 +449,6 @@ impl ICEProblem {
 		step_params.set_omnipool_directions(self);
 		step_params.set_tau_phi(self);
 		step_params.set_coefficients(self);
-		println!("-------------------");
-		dbg!(&step_params);
-		println!("-------------------");
 		self.step_params = step_params;
 	}
 
