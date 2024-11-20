@@ -296,7 +296,10 @@ where
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
 				find_good_solution_unrounded(&problem, true, true, true, true);
 
+			dbg!(obj, dual_obj);
 			if obj < Z_U && dual_obj <= 0.0 {
+				println!("setting upi best");
+				dbg!(&iter_indicators);
 				Z_U = obj;
 				y_best = iter_indicators.clone();
 				best_amm_deltas = amm_deltas.clone();
@@ -350,6 +353,14 @@ where
 					Some(A_lower),
 				);
 
+			if !valid {
+				println!(
+					"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration breaking validity: {}",
+					_i
+				);
+				break;
+			}
+			dbg!(&indicators);
 			iter_indicators = indicators;
 			new_a = s_new_a;
 			new_a_upper = s_new_a_upper;
@@ -359,18 +370,14 @@ where
 			Z_L_archive.push(Z_L);
 
 			println!("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration done: {}", _i);
-			if !valid {
-				println!(
-					"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration breaking validity: {}",
-					_i
-				);
-				break;
-			}
 		}
 		if best_status != ProblemStatus::Solved {
 			// no solution found
 			return Err(());
 		}
+
+		dbg!(&best_intent_deltas);
+		dbg!(&y_best);
 
 		let sell_deltas = round_solution(
 			&problem.get_partial_intents_amounts(),
@@ -1317,14 +1324,12 @@ fn find_solution_unrounded(
 		exec_intent_deltas[j] = -x_scaled[4 * n + j];
 	}
 
-	/*
-	//TODO: check when to use indicators
 	let obj_offset = if let Some(I) = p.get_indicators() {
-		objective_I_coefs.dot(I) }
-	else { 0.0 };
-
-	 */
-	let obj_offset = 0.0;
+		let v = I.iter().map(|&x| x as f64).collect::<Vec<_>>();
+		objective_I_coefs.to_vec().dot(&v)
+	} else {
+		0.0
+	};
 	(
 		new_amm_deltas,
 		exec_intent_deltas,
