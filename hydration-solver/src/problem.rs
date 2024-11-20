@@ -3,7 +3,7 @@ use crate::to_f64_by_decimals;
 use clarabel::algebra::{BlockConcatenate, CscMatrix};
 use clarabel::solver::SolverStatus;
 use float_next_after::NextAfter;
-use ndarray::{Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, OwnedRepr};
+use ndarray::{s, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, OwnedRepr};
 use pallet_ice::types::{Intent, IntentId};
 use primitives::{AccountId, AssetId};
 use std::collections::btree_map::Entry;
@@ -1038,21 +1038,10 @@ impl StepParams {
 			.collect::<Vec<_>>();
 
 		let phi = self.phi.as_ref().unwrap();
-		let mut scaled_phi = Vec::new();
-		for idx in 0..problem.asset_ids.len() {
-			let r: A1T = ndarray::Array1::from(phi.row(idx + 1).to_vec());
-			let s = r.clone() * ndarray::Array::from(vars_scaled.clone());
-			scaled_phi.push(s);
-		}
-
 		let tau = self.tau.as_ref().unwrap();
-		let mut profit_d_coefs = Vec::new();
-		for idx in 0..problem.asset_ids.len() {
-			let r = ndarray::Array1::from(tau.row(idx + 1).iter().map(|v| *v).collect::<Vec<_>>());
-			let s = scaled_phi[idx].clone();
-			let v = r - s;
-			profit_d_coefs.push(v);
-		}
+		let scaled_phi = phi.slice(s![1.., ..m]).to_owned() * Array2::from_diag(&Array1::from(vars_scaled.clone()));
+		let profit_d_coefs = tau.slice(s![1.., ..m]).to_owned() - scaled_phi;
+
 		let buy_amts: Vec<FloatType> = problem
 			.full_indices
 			.iter()
@@ -1064,36 +1053,16 @@ impl StepParams {
 			.collect::<Vec<_>>();
 
 		let phi = self.phi.as_ref().unwrap();
-		let mut scaled_phi = Vec::new();
-		for idx in 0..problem.asset_ids.len() {
-			let r: A1T = ndarray::Array1::from(phi.row(idx + 1).to_vec());
-			let s = r.clone() * ndarray::Array::from(buy_scaled.clone());
-			scaled_phi.push(s);
-		}
-		let tau = self.tau.as_ref().unwrap();
-		let mut scaled_tau = Vec::new();
-		for idx in 0..problem.asset_ids.len() {
-			let r = ndarray::Array1::from(tau.row(idx + 1).iter().map(|v| *v).collect::<Vec<_>>());
-			let s = ndarray::Array1::from(sell_amts.clone());
-			let v = r * s;
-			scaled_tau.push(v);
-		}
-
-		let scaled_tau = ndarray::Array::from(scaled_tau);
-		let scaled_phi = ndarray::Array::from(scaled_phi);
+		let scaled_phi = phi.slice(s![1.., m..]).to_owned() * &Array1::from(buy_scaled.clone());
+		let scaled_tau = tau.slice(s![1.., m..]).to_owned() * &Array1::from(sell_amts.clone());
 		let unscaled_diff = scaled_tau - scaled_phi;
 		let scalars: Vec<FloatType> = problem.asset_ids.iter().map(|&tkn| scaling[&tkn]).collect();
-
-		// TODO: this is originally scalars[:, no.newaxis]
-		let scalars = ndarray::Array1::from(scalars);
-		let i_coefs = (unscaled_diff / Array2::from_diag(&Array1::from(scalars))).to_owned();
+		let un_size = unscaled_diff.shape()[0];
+		let scalars = Array2::from_shape_vec((un_size, 1), scalars).unwrap();
+		let i_coefs = unscaled_diff / scalars;
 
 		// attempt
 		let l = profit_lrna_coefs.len();
-		//TODO: this is just temporary override, to make incompatible shapes work
-		let profit_d_coefs = ndarray::Array2::from(vec![[0.], [0.]]);
-		let i_coefs = ndarray::Array2::from(vec![[], []]);
-
 		let profit_A_LRNA = Array2::from_shape_vec((1, l), profit_lrna_coefs).unwrap();
 		let profit_A_assets = ndarray::concatenate![
 			Axis(1),
