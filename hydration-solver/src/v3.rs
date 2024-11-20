@@ -414,6 +414,8 @@ where
 		//TODO: add this
 		//let (deltas_final, obj) = add_small_trades(&problem, deltas);
 
+		dbg!(&deltas);
+
 		// Construct resolved intents
 		let mut resolved_intents = Vec::new();
 
@@ -421,7 +423,7 @@ where
 			if let Some((delta_in, delta_out)) = intent_delta {
 				let intent = &problem.intents[idx];
 				let converted_intent_amount = problem.intent_amounts[idx];
-				debug_assert!(converted_intent_amount.0 > -delta_in, "delta in is too high!");
+				debug_assert!(converted_intent_amount.0 >= -delta_in, "delta in is too high!");
 
 				let accepted_tolerance_amount = converted_intent_amount.0 * ROUND_TOLERANCE;
 				let remainder = converted_intent_amount.0 + delta_in; // note that delta in is < 0
