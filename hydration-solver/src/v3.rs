@@ -278,18 +278,19 @@ where
 			new_a[[0, i]] = 1.0;
 		}
 
-		let new_a_upper = Array1::from_elem(1, inf);
-		let new_a_lower = Array1::from_elem(1, bk.len() as f64);
+		let mut new_a_upper = Array1::from_elem(1, inf);
+		let mut new_a_lower = Array1::from_elem(1, bk.len() as f64);
 
-		//TODO: uncomment when enable MILP
 		let mut Z_U_archive = vec![];
 		let mut Z_L_archive = vec![];
 		let indicators = problem.get_indicators().unwrap_or(vec![0; r]);
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
+		let mut iter_indicators = indicators.clone();
+
 		for _i in 0..5 {
 			println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Solve iteration: {}", _i);
-			let params = SetupParams::new().with_indicators(indicators.clone());
+			let params = SetupParams::new().with_indicators(iter_indicators.clone());
 			problem.set_up_problem(params);
 			println!("calling find_good_solution");
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
@@ -304,9 +305,8 @@ where
 			dbg!(&status);
 
 			if obj < Z_U && dual_obj <= 0.0 {
-				println!("updating best");
 				Z_U = obj;
-				y_best = indicators.clone();
+				y_best = iter_indicators.clone();
 				best_amm_deltas = amm_deltas.clone();
 				best_intent_deltas = intent_deltas.clone();
 				best_status = status;
@@ -320,13 +320,13 @@ where
 			}
 
 			// Get new cone constraint from current indicators
-			let BK: Vec<usize> = indicators
+			let BK: Vec<usize> = iter_indicators
 				.iter()
 				.enumerate()
 				.filter(|&(_, &val)| val == 1)
 				.map(|(idx, _)| idx + 4 * n + m)
 				.collect();
-			let NK: Vec<usize> = indicators
+			let NK: Vec<usize> = iter_indicators
 				.iter()
 				.enumerate()
 				.filter(|&(_, &val)| val == 0)
@@ -352,9 +352,9 @@ where
 				amm_deltas,
 				partial_intent_deltas,
 				indicators,
-				new_a,
-				new_a_upper,
-				new_a_lower,
+				s_new_a,
+				s_new_a_upper,
+				s_new_a_lower,
 				milp_obj,
 				valid,
 				milp_status,
@@ -378,9 +378,11 @@ where
 			dbg!(&valid);
 			dbg!(&milp_status);
 
-			panic!("done for now");
-			//TODO: update new values
-
+			//TODO: problem is here
+			iter_indicators = indicators;
+			new_a = s_new_a;
+			new_a_upper = s_new_a_upper;
+			new_a_lower = s_new_a_lower;
 			Z_L = Z_L.max(milp_obj);
 			Z_U_archive.push(Z_U);
 			Z_L_archive.push(Z_L);
@@ -480,7 +482,7 @@ fn solve_inclusion_problem(
 ) -> (
 	BTreeMap<AssetId, f64>,
 	Vec<Option<f64>>,
-	Vec<i32>,
+	Vec<usize>,
 	Array2<f64>,
 	Array1<f64>,
 	Array1<f64>,
@@ -705,7 +707,13 @@ fn solve_inclusion_problem(
 		let upper_bound = A_upper[idx];
 		pb.add_row(lower_bound..upper_bound, v);
 	}
-	let solved = pb.optimise(Sense::Minimise).solve();
+	let mut model = pb.optimise(Sense::Minimise);
+	model.set_option("small_matrix_value", 1e-12);
+	model.set_option("primal_feasibility_tolerance", 1e-10);
+	model.set_option("dual_feasibility_tolerance", 1e-10);
+	model.set_option("mip_feasibility_tolerance", 1e-10);
+
+	let solved = model.solve();
 	let status = solved.status();
 	let solution = solved.get_solution();
 	let x_expanded = solution.columns().to_vec();
@@ -761,6 +769,8 @@ fn solve_inclusion_problem(
 	let save_A_upper = old_A_upper.clone();
 	let save_A_lower = old_A_lower.clone();
 
+	//TODO: one v alue is different in x_expanded, hence the result is different in amm_delta,s and milp_obj
+	// if replaces like shown, all is the same
 	dbg!(&q);
 	let mut t_x = x_expanded.clone();
 	t_x[2] = t_x[1];
