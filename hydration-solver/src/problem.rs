@@ -382,7 +382,7 @@ impl ICEProblem {
 	}
 	pub(crate) fn get_indicators_len(&self) -> usize {
 		if let Some(inds) = self.indicators.as_ref() {
-			inds.len()
+			inds.iter().sum()
 		} else {
 			0
 		}
@@ -1070,7 +1070,6 @@ impl StepParams {
 			profit_x_coefs,
 			profit_lrna_lambda_coefs,
 			profit_lambda_coefs,
-			//TODO: this two are not working -  fix - fixed by previous overrides for now
 			profit_d_coefs,
 			i_coefs,
 		];
