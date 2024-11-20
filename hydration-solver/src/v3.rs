@@ -11,7 +11,7 @@ use std::ptr::null;
 use crate::data::process_omnipool_data;
 use clarabel::algebra::*;
 use clarabel::solver::*;
-use highs::{Problem, RowProblem, Sense};
+use highs::{HighsModelStatus, Problem, RowProblem, Sense};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, OwnedRepr};
 //use highs::
 use crate::problem::{AmmApprox, Direction, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
@@ -287,7 +287,6 @@ where
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
 		let mut iter_indicators = indicators.clone();
-		dbg!(&iter_indicators);
 
 		for _i in 0..5 {
 			println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Solve iteration: {}", _i);
@@ -297,7 +296,6 @@ where
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
 				find_good_solution_unrounded(&problem, true, true, true, true);
 
-			println!("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration done: {}", _i);
 			dbg!(&amm_deltas);
 			dbg!(&intent_deltas);
 			dbg!(&x);
@@ -349,26 +347,18 @@ where
 			let A_lower = ndarray::concatenate![ndarray::Axis(0), new_a_lower.view(), IC_lower.view()];
 
 			problem.set_up_problem(SetupParams::new());
-			let (
-				amm_deltas,
-				partial_intent_deltas,
-				indicators,
-				s_new_a,
-				s_new_a_upper,
-				s_new_a_lower,
-				milp_obj,
-				valid,
-				milp_status,
-			) = solve_inclusion_problem(
-				&problem,
-				Some(x_list.clone()),
-				Some(Z_U),
-				Some(-FLOAT_INF),
-				Some(A),
-				Some(A_upper),
-				Some(A_lower),
-			);
+			let (amm_deltas, partial_intent_deltas, indicators, s_new_a, s_new_a_upper, s_new_a_lower, milp_obj, valid) =
+				solve_inclusion_problem(
+					&problem,
+					Some(x_list.clone()),
+					Some(Z_U),
+					Some(-FLOAT_INF),
+					Some(A),
+					Some(A_upper),
+					Some(A_lower),
+				);
 
+			/*
 			dbg!(&amm_deltas);
 			dbg!(&partial_intent_deltas);
 			dbg!(&indicators);
@@ -377,9 +367,9 @@ where
 			dbg!(&new_a_lower);
 			dbg!(&milp_obj);
 			dbg!(&valid);
-			dbg!(&milp_status);
 
-			//TODO: problem is here
+			 */
+
 			iter_indicators = indicators;
 			new_a = s_new_a;
 			new_a_upper = s_new_a_upper;
@@ -387,7 +377,13 @@ where
 			Z_L = Z_L.max(milp_obj);
 			Z_U_archive.push(Z_U);
 			Z_L_archive.push(Z_L);
+
+			println!("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration done: {}", _i);
 			if !valid {
+				println!(
+					"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration breaking validity: {}",
+					_i
+				);
 				break;
 			}
 		}
@@ -426,7 +422,6 @@ where
 
 		//TODO: add this
 		//let (deltas_final, obj) = add_small_trades(&problem, deltas);
-
 		dbg!(&deltas);
 
 		// Construct resolved intents
@@ -489,17 +484,18 @@ fn solve_inclusion_problem(
 	Array1<f64>,
 	f64,
 	bool,
-	String,
 ) {
 	println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>. Solving inclusion problem");
 
 	// dbg the inputs
+	/*
 	dbg!(&x_real_list);
 	dbg!(&upper_bound);
 	dbg!(&lower_bound);
 	dbg!(&old_A);
 	dbg!(&old_A_upper);
 	dbg!(&old_A_lower);
+	 */
 
 	let asset_list = p.asset_ids.clone();
 	let tkn_list = vec![1u32]
@@ -718,15 +714,7 @@ fn solve_inclusion_problem(
 	let status = solved.status();
 	let solution = solved.get_solution();
 	let x_expanded = solution.columns().to_vec();
-
-	let value_valid = true; //TODO: my solution does not have valid_valid like in python!
-
-	//TODO: dont use str here
-	let status = if status == highs::HighsModelStatus::Optimal {
-		"Solved"
-	} else {
-		"Unsolved"
-	};
+	let value_valid = status == HighsModelStatus::Optimal || status == HighsModelStatus::Infeasible;
 
 	/*
 
@@ -772,11 +760,10 @@ fn solve_inclusion_problem(
 
 	//TODO: one v alue is different in x_expanded, hence the result is different in amm_delta,s and milp_obj
 	// if replaces like shown, all is the same
-	dbg!(&q);
 	let mut t_x = x_expanded.clone();
 	t_x[2] = t_x[1];
-	let m = q.clone().dot(&t_x);
-	dbg!(m);
+	let m = -q.clone().dot(&t_x);
+	let milp_obj = m * scaling[&p.tkn_profit];
 
 	(
 		new_amm_deltas,
@@ -785,9 +772,9 @@ fn solve_inclusion_problem(
 		save_A,
 		save_A_upper,
 		save_A_lower,
-		-q.clone().dot(&x_expanded) * scaling[&p.tkn_profit],
+		//-q.clone().dot(&x_expanded) * scaling[&p.tkn_profit],
+		milp_obj,
 		value_valid,
-		status.to_string(),
 	)
 }
 
@@ -817,12 +804,14 @@ fn find_good_solution_unrounded(
 	let (mut amm_deltas, mut intent_deltas, mut x, mut obj, mut dual_obj, mut status) =
 		find_solution_unrounded(&p, allow_loss);
 
+	/*
 	dbg!(&amm_deltas);
 	dbg!(&intent_deltas);
 	dbg!(&x);
 	dbg!(&obj);
 	dbg!(&dual_obj);
 	dbg!(&status);
+	 */
 
 	// if partial trade size is much higher than executed trade, lower trade max
 	let mut trade_pcts: Vec<f64> = if scale_trade_max {
@@ -870,8 +859,6 @@ fn find_good_solution_unrounded(
 		println!("-------------");
 		println!("--> found good solution {}", iteration);
 		let trade_pcts_nonzero: Vec<_> = trade_pcts.iter().filter(|&&x| x > 0.0).collect();
-		dbg!(&trade_pcts_nonzero);
-		dbg!(approx_adjusted_ct);
 		if (trade_pcts_nonzero.is_empty()
 			|| trade_pcts_nonzero
 				.iter()
@@ -894,8 +881,6 @@ fn find_good_solution_unrounded(
 		} else {
 			(None, 0)
 		};
-		dbg!(zero_ct);
-		dbg!(&new_maxes);
 
 		if zero_ct == m {
 			// all partial intents have been eliminated from execution
@@ -1314,7 +1299,7 @@ fn find_solution_unrounded(
 
 	let A = if A2_trimmed.n != 0 {
 		CscMatrix::vcat(&A1_trimmed, &A2_trimmed)
-	}else{
+	} else {
 		A1_trimmed
 	};
 	let A = CscMatrix::vcat(&A, &A3_trimmed);
@@ -1368,9 +1353,6 @@ fn find_solution_unrounded(
 
 	 */
 	let obj_offset = 0.0;
-
-	dbg!(&x_expanded);
-
 	(
 		new_amm_deltas,
 		exec_intent_deltas,
