@@ -284,13 +284,14 @@ where
 		//TODO: uncomment when enable MILP
 		//let mut Z_U_archive = vec![];
 		//let mut Z_L_archive = vec![];
-		let indicators = problem.get_indicators().unwrap_or_default();
+		let indicators = problem.get_indicators().unwrap_or(vec![0;r]);
 		let mut x_list = Array2::<f64>::zeros((0, 4 * n + m));
 
 		for _i in 0..5 {
 			println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Solve iteration: {}", _i);
 			let params = SetupParams::new().with_indicators(indicators.clone());
 			problem.set_up_problem(params);
+			println!("calling find_good_solution");
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
 				find_good_solution_unrounded(&problem, true, true, true, true);
 
