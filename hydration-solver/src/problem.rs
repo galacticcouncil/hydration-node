@@ -992,7 +992,7 @@ impl StepParams {
 			.iter()
 			.zip(sell_amts.iter())
 			.map(|(&tau, &sell_amt)| tau * sell_amt / self.scaling.as_ref().unwrap()[&1u32])
-			.collect();//TODO: set scaling sets initial value to 0 for lrna;;verify if not division by zero
+			.collect(); //TODO: set scaling sets initial value to 0 for lrna;;verify if not division by zero
 
 		/*
 		let profit_lrna_coefs = ndarray::concatenate![
@@ -1044,13 +1044,13 @@ impl StepParams {
 
 		let phi = self.phi.as_ref().unwrap();
 		let tau = self.tau.as_ref().unwrap();
-		dbg!(m,r,n);
-		dbg!(&phi,&tau);
+		dbg!(m, r, n);
+		dbg!(&phi, &tau);
 		dbg!(&scaling);
 		let profit_d_coefs = if m != 0 {
 			let scaled_phi = phi.slice(s![1.., ..m]).to_owned() * Array2::from_diag(&Array1::from(vars_scaled.clone()));
 			tau.slice(s![1.., ..m]).to_owned() - scaled_phi
-		}else{
+		} else {
 			// empty
 			Array2::zeros((n, m))
 		};
