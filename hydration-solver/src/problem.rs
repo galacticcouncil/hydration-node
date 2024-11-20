@@ -442,7 +442,6 @@ impl ICEProblem {
 		step_params.set_max_in_out(self);
 		step_params.set_bounds(self);
 		if rescale {
-			println!("setting scaling");
 			step_params.set_scaling(self);
 			step_params.set_amm_coefs(self);
 		}
@@ -625,8 +624,6 @@ impl StepParams {
 		self.known_flow = Some(known_flow);
 	}
 	fn set_max_in_out(&mut self, problem: &ICEProblem) {
-		dbg!(&problem.partial_indices);
-		dbg!(&problem.full_indices);
 		let mut max_in: BTreeMap<AssetId, FloatType> = BTreeMap::new();
 		let mut max_out: BTreeMap<AssetId, FloatType> = BTreeMap::new();
 		let mut min_in: BTreeMap<AssetId, FloatType> = BTreeMap::new();
@@ -771,7 +768,6 @@ impl StepParams {
 			// Set scaling for LRNA equal to scaling for asset, adjusted by spot price
 			let omnipool_data = problem.get_asset_pool_data(tkn);
 			let price = problem.price(tkn, problem.tkn_profit);
-			println!("Token: {}, Omnipool price: {:?}", tkn, price);
 			let scalar = scaling[&tkn] * omnipool_data.hub_reserve / omnipool_data.reserve;
 			scaling.insert(1u32.into(), scaling[&1u32.into()].max(scalar));
 
@@ -1044,9 +1040,6 @@ impl StepParams {
 
 		let phi = self.phi.as_ref().unwrap();
 		let tau = self.tau.as_ref().unwrap();
-		dbg!(m, r, n);
-		dbg!(&phi, &tau);
-		dbg!(&scaling);
 		let profit_d_coefs = if m != 0 {
 			let scaled_phi = phi.slice(s![1.., ..m]).to_owned() * Array2::from_diag(&Array1::from(vars_scaled.clone()));
 			tau.slice(s![1.., ..m]).to_owned() - scaled_phi
@@ -1065,24 +1058,14 @@ impl StepParams {
 			.map(|&v| v * 1.0 / (1.0 - problem.fee_match))
 			.collect::<Vec<_>>();
 
-		dbg!(&buy_amts);
-		dbg!(&sell_amts);
-
 		let phi = self.phi.as_ref().unwrap();
 		let scaled_phi = phi.slice(s![1.., m..]).to_owned() * &Array1::from(buy_scaled.clone());
 		let scaled_tau = tau.slice(s![1.., m..]).to_owned() * &Array1::from(sell_amts.clone());
-
-		dbg!(&scaled_phi);
-		dbg!(&scaled_tau);
-
 		let unscaled_diff = scaled_tau - scaled_phi;
 		let scalars: Vec<FloatType> = problem.asset_ids.iter().map(|&tkn| scaling[&tkn]).collect();
-		dbg!(&scalars);
 		let un_size = unscaled_diff.shape()[0];
 		let scalars = Array2::from_shape_vec((un_size, 1), scalars).unwrap();
 		let i_coefs = unscaled_diff / scalars;
-
-		dbg!(&i_coefs);
 
 		// attempt
 		let l = profit_lrna_coefs.len();
