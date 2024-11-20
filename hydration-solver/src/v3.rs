@@ -1084,8 +1084,8 @@ fn find_solution_unrounded(
 			vec![0; r]
 		};
 		//TODO: this is trange to convert indicators to f64 - verify if we should use f64 for indicators
-		let r: ndarray::Array1<FloatType> = ndarray::Array::from(indicators).iter().map(|v| *v as f64).collect();
-		-I_coefs.dot(&r)
+		let r_inds: ndarray::Array1<FloatType> = ndarray::Array::from(indicators).iter().map(|v| *v as f64).collect();
+		-I_coefs.dot(&r_inds)
 	};
 	let cone3 = NonnegativeConeT(A3_trimmed.shape()[0]);
 	let mut A4 = Array2::<f64>::zeros((0, k));
