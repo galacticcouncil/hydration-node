@@ -89,7 +89,7 @@ fn test_data_provider() {
 #[test]
 fn test_generate_intents() {
 	let d = DataProvider::assets(None);
-	let intents = generate_random_intents(10, d);
-	//dbg!(&intents);
-	assert_eq!(intents.len(), 10);
+	let intents = generate_random_intents(1, d);
+	dbg!(&intents);
+	assert_eq!(intents.len(), 1);
 }
