@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { ApiPromise } = require('@polkadot/api');
+const { hexToU8a, u8aToHex } = require('@polkadot/util');
 
 // Define network names
 const NEW_NAME = "Hydration Local Testnet";
@@ -48,11 +49,11 @@ async function updateChainSpec(inputFile, outputFile) {
     const REPLACEMENTS = {
         "0x57f8dc2f5ab09467896f47300f0424385e0621c4869aa60c02be9adcc98a0d1d": AURA_AUTHORITIES_VALUE, // aura.authorities
         "0x3c311d57d4daf52904616cf69648081e5e0621c4869aa60c02be9adcc98a0d1d": AURA_AUTHORITIES_VALUE, // auraExt.authorities
-        "0xcec5070d609dd3497f72bde07fc96ba088dcde934c658227ee1dfafcd6e16903": AURA_AUTHORITIES_VALUE, // Session.validators
+        "0xcec5070d609dd3497f72bde07fc96ba088dcde934c658227ee1dfafcd6e16903": AURA_AUTHORITIES_VALUE, // Session validators
         "0x15464cac3378d46f113cd5b7a4d71c845579297f4dfb9609e7e4c2ebab9ce40a": AURA_AUTHORITIES_VALUE, // CollatorSelection.invulnerables
         "0xaebd463ed9925c488c112434d61debc0ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // Council.members
         "0xed25f63942de25ac5253ba64b5eb64d1ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // TechnicalCommittee.members
-        "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d": SYSTEM_ACCOUNT_VALUE, // System.account
+        "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d": SYSTEM_ACCOUNT_VALUE, // System account
     };
 
     // Define keys to delete
@@ -90,6 +91,22 @@ async function updateChainSpec(inputFile, outputFile) {
         }
     }
 
+    // Process EmaOracleEntry updates
+    console.log('Processing EmaOracleEntry updates...');
+    for (const [key, value] of Object.entries(chainSpec.genesis.raw.top)) {
+        if (key.startsWith("0x5258a12472693b34a3ed25509781e55fb79")) { // Prefix for EmaOracle.Oracles
+            try {
+                const decodedValue = api.createType('EmaOracleEntry', hexToU8a(value));
+                if (decodedValue.updatedAt !== undefined) {
+                    decodedValue.updatedAt = 0; // Set updatedAt to 0
+                    chainSpec.genesis.raw.top[key] = u8aToHex(decodedValue.toU8a());
+                }
+            } catch (err) {
+                console.error(`Error processing EmaOracleEntry for key ${key}:`, err);
+            }
+        }
+    }
+
     // Apply replacements
     for (const [key, value] of Object.entries(REPLACEMENTS)) {
         chainSpec.genesis.raw.top[key] = value;
@@ -109,6 +126,7 @@ async function updateChainSpec(inputFile, outputFile) {
     }
 
     await api.disconnect();
+    console.log('Chain spec update script completed.');
 }
 
 const inputFile = process.argv[2];
