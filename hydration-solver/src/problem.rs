@@ -148,9 +148,8 @@ impl ICEProblem {
 	pub(crate) fn get_partial_intent_prices(&self) -> Vec<FloatType> {
 		let mut prices = Vec::new();
 		for &idx in self.partial_indices.iter() {
-			let intent = &self.intents[idx];
-			let tkn = intent.swap.asset_in;
-			let price = intent.swap.amount_out as f64 / intent.swap.amount_in as f64;
+			let (amount_in, amount_out) = self.intent_amounts[idx];
+			let price = amount_out / amount_in; //TODO: division by zero?!!
 			prices.push(price);
 		}
 		prices
@@ -433,7 +432,6 @@ impl ICEProblem {
 			self.force_amm_approx = None;
 		}
 		self.recalculate(params.rescale);
-		//dbg!("{:?}", &self.step_params);
 	}
 
 	fn recalculate(&mut self, rescale: bool) {
@@ -1033,6 +1031,7 @@ impl StepParams {
 				partial_intent_prices[j] * scaling[&intent.swap.asset_in] / scaling[&intent.swap.asset_out]
 			})
 			.collect();
+
 		let vars_scaled = scaling_vars
 			.iter()
 			.map(|&v| v * 1.0 / (1.0 - problem.fee_match))
@@ -1067,7 +1066,6 @@ impl StepParams {
 		let scalars = Array2::from_shape_vec((un_size, 1), scalars).unwrap();
 		let i_coefs = unscaled_diff / scalars;
 
-		// attempt
 		let l = profit_lrna_coefs.len();
 		let profit_A_LRNA = Array2::from_shape_vec((1, l), profit_lrna_coefs).unwrap();
 		let profit_A_assets = ndarray::concatenate![

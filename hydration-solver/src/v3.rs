@@ -289,17 +289,12 @@ where
 		let mut iter_indicators = indicators.clone();
 
 		for _i in 0..5 {
-			println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Solve iteration: {}", _i);
 			let params = SetupParams::new().with_indicators(iter_indicators.clone());
 			problem.set_up_problem(params);
-			println!("calling find_good_solution");
 			let (amm_deltas, intent_deltas, x, obj, dual_obj, status) =
 				find_good_solution_unrounded(&problem, true, true, true, true);
 
-			dbg!(obj, dual_obj);
 			if obj < Z_U && dual_obj <= 0.0 {
-				println!("setting upi best");
-				dbg!(&iter_indicators);
 				Z_U = obj;
 				y_best = iter_indicators.clone();
 				best_amm_deltas = amm_deltas.clone();
@@ -354,13 +349,8 @@ where
 				);
 
 			if !valid {
-				println!(
-					"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration breaking validity: {}",
-					_i
-				);
 				break;
 			}
-			dbg!(&indicators);
 			iter_indicators = indicators;
 			new_a = s_new_a;
 			new_a_upper = s_new_a_upper;
@@ -368,16 +358,11 @@ where
 			Z_L = Z_L.max(milp_obj);
 			Z_U_archive.push(Z_U);
 			Z_L_archive.push(Z_L);
-
-			println!("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< solve iteration done: {}", _i);
 		}
 		if best_status != ProblemStatus::Solved {
 			// no solution found
 			return Err(());
 		}
-
-		dbg!(&best_intent_deltas);
-		dbg!(&y_best);
 
 		let sell_deltas = round_solution(
 			&problem.get_partial_intents_amounts(),
@@ -409,7 +394,6 @@ where
 
 		//TODO: add this
 		//let (deltas_final, obj) = add_small_trades(&problem, deltas);
-		dbg!(&deltas);
 
 		// Construct resolved intents
 		let mut resolved_intents = Vec::new();
@@ -472,18 +456,6 @@ fn solve_inclusion_problem(
 	f64,
 	bool,
 ) {
-	println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>. Solving inclusion problem");
-
-	// dbg the inputs
-	/*
-	dbg!(&x_real_list);
-	dbg!(&upper_bound);
-	dbg!(&lower_bound);
-	dbg!(&old_A);
-	dbg!(&old_A_upper);
-	dbg!(&old_A_lower);
-	 */
-
 	let asset_list = p.asset_ids.clone();
 	let tkn_list = vec![1u32]
 		.into_iter()
@@ -764,12 +736,10 @@ fn find_good_solution_unrounded(
 	do_directional_run: bool,
 	allow_loss: bool,
 ) -> (BTreeMap<AssetId, f64>, Vec<f64>, Vec<f64>, f64, f64, ProblemStatus) {
-	println!("111111111111111 finding good solution");
 	let mut p: ICEProblem = problem.clone();
 	let (n, m, r) = (p.n, p.m, p.r);
 	if p.get_indicators_len() as f64 + p.partial_sell_maxs.iter().sum::<f64>() == 0.0 {
 		// nothing to execute
-		println!("nothing to execute");
 		return (
 			BTreeMap::new(),
 			vec![0.0; p.partial_indices.len()],
@@ -782,15 +752,6 @@ fn find_good_solution_unrounded(
 
 	let (mut amm_deltas, mut intent_deltas, mut x, mut obj, mut dual_obj, mut status) =
 		find_solution_unrounded(&p, allow_loss);
-
-	/*
-	dbg!(&amm_deltas);
-	dbg!(&intent_deltas);
-	dbg!(&x);
-	dbg!(&obj);
-	dbg!(&dual_obj);
-	dbg!(&status);
-	 */
 
 	// if partial trade size is much higher than executed trade, lower trade max
 	let mut trade_pcts: Vec<f64> = if scale_trade_max {
@@ -835,8 +796,6 @@ fn find_good_solution_unrounded(
 	}
 
 	for iteration in 0..100 {
-		println!("-------------");
-		println!("--> found good solution {}", iteration);
 		let trade_pcts_nonzero: Vec<_> = trade_pcts.iter().filter(|&&x| x > 0.0).collect();
 		if (trade_pcts_nonzero.is_empty()
 			|| trade_pcts_nonzero
@@ -1306,8 +1265,8 @@ fn find_solution_unrounded(
 	let solve_time = solver.solution.solve_time;
 	let obj_value = solver.solution.obj_val;
 	let obj_value_dual = solver.solution.obj_val_dual;
-	println!("status: {:?}", status);
-	println!("time: {:?}", solve_time);
+	//println!("status: {:?}", status);
+	//println!("time: {:?}", solve_time);
 
 	let mut new_amm_deltas = BTreeMap::new();
 	let mut exec_intent_deltas = vec![0.0; partial_intents_len];
