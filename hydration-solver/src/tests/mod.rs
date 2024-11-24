@@ -34,14 +34,10 @@ fn price(
 		let p = FixedU128::from_rational(db.hub_reserve, db.reserve);
 		FixedU128::one() / p
 	} else {
-		let da_hub_reserve = da.hub_reserve;
-		let da_reserve = da.reserve;
-		let db_hub_reserve = db.hub_reserve;
-		let db_reserve = db.reserve;
-		let p = FixedU128::from_rational(da.hub_reserve, da.reserve);
-		let p1 = p / FixedU128::from_rational(db_hub_reserve, 1);
-		let p2 = p / FixedU128::from_rational(db_reserve, 1);
-		p1 * p2
+		let p1 = FixedU128::from_rational(da.reserve, da.hub_reserve);
+		let p2 = FixedU128::from_rational(db.hub_reserve, db.reserve);
+		let r = p1 * p2;
+		r
 	}
 }
 

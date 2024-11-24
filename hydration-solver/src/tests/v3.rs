@@ -163,7 +163,7 @@ fn solver_should_find_solution_for_two_partial_intents() {
 					asset_in: 12,
 					asset_out: 14,
 					amount_in: 9206039265427194,
-					amount_out: 0,
+					amount_out: 1,
 					swap_type: SwapType::ExactIn,
 				},
 				deadline: 0,
@@ -180,7 +180,7 @@ fn solver_should_find_solution_for_two_partial_intents() {
 					asset_in: 28,
 					asset_out: 8,
 					amount_in: 1076105965030805693,
-					amount_out: 0,
+					amount_out: 1,
 					swap_type: SwapType::ExactIn,
 				},
 				deadline: 0,
@@ -211,7 +211,7 @@ fn solver_should_find_solution_for_two_partial_intents() {
 
 #[test]
 fn solver_should_find_solution_for_many_intents() {
-	let intents = generate_random_intents(2, DataProvider::assets(None));
+	let intents = generate_random_intents(10, DataProvider::assets(None));
 	dbg!(&intents);
 	let start = Instant::now();
 	let (solution, _) = SolverV3::<DataProvider>::solve(intents).unwrap();
