@@ -18,6 +18,7 @@ pub enum ProblemStatus {
 	Solved,
 	PrimalInfeasible,
 	DualInfeasible,
+	InsufficientProgress,
 }
 
 impl From<SolverStatus> for ProblemStatus {
@@ -28,7 +29,8 @@ impl From<SolverStatus> for ProblemStatus {
 			SolverStatus::PrimalInfeasible => ProblemStatus::PrimalInfeasible,
 			SolverStatus::DualInfeasible => ProblemStatus::DualInfeasible,
 			SolverStatus::Unsolved => ProblemStatus::NotSolved,
-			_ => panic!("Unexpected solver status"),
+			SolverStatus::InsufficientProgress => ProblemStatus::InsufficientProgress,
+			_ => panic!("Unexpected solver status {:?}", value),
 		}
 	}
 }
@@ -1040,7 +1042,8 @@ impl StepParams {
 		let phi = self.phi.as_ref().unwrap();
 		let tau = self.tau.as_ref().unwrap();
 		let profit_d_coefs = if m != 0 {
-			let scaled_phi = phi.slice(s![1.., ..m]).to_owned() * Array2::from_diag(&Array1::from(vars_scaled.clone()));
+			//TODO: this was originally multiplying by Array2::from_diags() - verify
+			let scaled_phi = phi.slice(s![1.., ..m]).to_owned() * &Array1::from(vars_scaled.clone());
 			tau.slice(s![1.., ..m]).to_owned() - scaled_phi
 		} else {
 			// empty

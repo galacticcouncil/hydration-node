@@ -221,4 +221,6 @@ fn solver_should_find_solution_for_many_intents() {
 		duration,
 		solution.len()
 	);
+
+	dbg!(&solution);
 }
