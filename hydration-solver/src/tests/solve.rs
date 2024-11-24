@@ -1,14 +1,15 @@
 use crate::omni::OmniSolver;
-use crate::tests::{generate_random_intents, AssetId, DataProvider};
+use crate::tests::{generate_random_intents, AssetId, DataProvider, ALICE};
 use pallet_ice::traits::{OmnipoolInfo, Solver};
 use pallet_ice::types::{Intent, ResolvedIntent, Swap, SwapType};
+use sp_core::crypto::AccountId32;
 
 #[test]
 fn solver_should_find_solution_for_one_intent() {
 	let intents = vec![(
 		0,
 		Intent {
-			who: 1,
+			who: ALICE.into(),
 			swap: Swap {
 				asset_in: 0u32,
 				asset_out: 27u32,
@@ -22,7 +23,7 @@ fn solver_should_find_solution_for_one_intent() {
 			on_failure: None,
 		},
 	)];
-	let (solution, _) = OmniSolver::<u64, AssetId, DataProvider>::solve(intents).unwrap();
+	let (solution, _) = OmniSolver::<AccountId32, AssetId, DataProvider>::solve(intents).unwrap();
 	let expected_solution = vec![ResolvedIntent {
 		intent_id: 0,
 		amount_in: 98465458599392,
@@ -34,6 +35,6 @@ fn solver_should_find_solution_for_one_intent() {
 #[test]
 fn solver_should_find_solution_with_twenty_intents() {
 	let intents = generate_random_intents(10000, DataProvider::assets(None));
-	let (solution, _) = OmniSolver::<u64, AssetId, DataProvider>::solve(intents).unwrap();
+	let (solution, _) = OmniSolver::<AccountId32, AssetId, DataProvider>::solve(intents).unwrap();
 	dbg!(solution.len());
 }
