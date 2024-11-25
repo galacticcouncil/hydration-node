@@ -22,7 +22,7 @@ use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_dca::types::{Order, Schedule};
 use pallet_omnipool::types::Tradability;
-use pallet_stableswap::types::AssetAmount;
+use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::ConstU32;

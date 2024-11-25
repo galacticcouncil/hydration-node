@@ -1,5 +1,6 @@
 use crate::tests::mock::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::{PoolInfo};
+use hydradx_traits::stableswap::AssetAmount;
 use crate::{assert_balance, to_precision, Error};
 use std::num::NonZeroU16;
 

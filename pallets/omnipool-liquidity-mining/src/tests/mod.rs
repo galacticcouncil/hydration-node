@@ -45,6 +45,7 @@ pub mod terminate_yield_farm;
 pub mod update_global_farm;
 pub mod update_yield_farm;
 pub mod withdraw_shares;
+pub mod add_liquidity_stableswap_omnipool_and_join_farms;
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);

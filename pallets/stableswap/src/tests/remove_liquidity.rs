@@ -1,6 +1,7 @@
 use crate::tests::mock::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::{PoolInfo};
 use crate::{assert_balance, Error, Event, Pools};
+use hydradx_traits::stableswap::AssetAmount;
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use sp_runtime::Permill;

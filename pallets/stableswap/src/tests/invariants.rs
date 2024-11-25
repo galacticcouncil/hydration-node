@@ -1,5 +1,6 @@
 use crate::tests::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::{PoolInfo};
+use hydradx_traits::stableswap::AssetAmount;
 use frame_support::{assert_ok, BoundedVec};
 use sp_runtime::{FixedU128, Permill};
 use std::cmp::Ordering;

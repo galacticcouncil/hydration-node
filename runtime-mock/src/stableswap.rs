@@ -1,6 +1,6 @@
 use crate::{AccountId, MockedRuntime};
 use hydradx_runtime::RuntimeCall;
-use pallet_stableswap::types::AssetAmount;
+use hydradx_traits::stableswap::AssetAmount;
 use serde::Deserialize;
 use serde::Deserializer;
 use sp_runtime::{FixedPointNumber, FixedU128, Permill};

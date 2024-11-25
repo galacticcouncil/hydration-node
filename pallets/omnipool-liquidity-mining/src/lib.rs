@@ -72,9 +72,10 @@ use primitive_types::U256;
 use primitives::{Balance, ItemId as DepositId};
 use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
 use sp_std::vec;
-
+use hydradx_traits::stableswap::StableswapAddLiquidity;
 pub use pallet::*;
 pub use weights::WeightInfo;
+use hydradx_traits::stableswap::AssetAmount;
 
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type PeriodOf<T> = BlockNumberFor<T>;
@@ -144,6 +145,8 @@ pub mod pallet {
 			LoyaltyCurve = LoyaltyCurve,
 			Period = PeriodOf<Self>,
 		>;
+
+		type Stableswap: StableswapAddLiquidity<Self::AccountId, Self::AssetId, Balance>;
 
 		/// Identifier of oracle data soruce
 		#[pallet::constant]
@@ -993,6 +996,28 @@ pub mod pallet {
 			for yield_farm_id in yield_farm_ids.iter() {
 				Self::withdraw_shares(origin.clone(), deposit_id, *yield_farm_id)?;
 			}
+
+			Ok(())
+		}
+
+		/// TODO: ADD DOC
+		#[pallet::call_index(16)]
+		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32))]//TODO: rebenchmark
+		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
+			origin: OriginFor<T>,
+			stable_pool_id: T::AssetId,
+			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, T::MaxFarmEntriesPerDeposit>,
+			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
+
+			let stablepool_shares = T::Stableswap::add_liquidity(who, stable_pool_id, stable_asset_amounts.to_vec())?;
+
+			let position_id =
+				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), stable_pool_id, stablepool_shares, Balance::MIN)?;
+
+			Self::join_farms(origin, farm_entries, position_id)?;
 
 			Ok(())
 		}

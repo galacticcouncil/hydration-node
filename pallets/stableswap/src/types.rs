@@ -74,28 +74,6 @@ where
 	}
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo, Default)]
-pub struct AssetAmount<AssetId> {
-	pub asset_id: AssetId,
-	pub amount: Balance,
-}
-
-impl<AssetId: Default> AssetAmount<AssetId> {
-	pub fn new(asset_id: AssetId, amount: Balance) -> Self {
-		Self { asset_id, amount }
-	}
-}
-
-impl<AssetId> From<AssetAmount<AssetId>> for u128 {
-	fn from(value: AssetAmount<AssetId>) -> Self {
-		value.amount
-	}
-}
-impl<AssetId> From<&AssetAmount<AssetId>> for u128 {
-	fn from(value: &AssetAmount<AssetId>) -> Self {
-		value.amount
-	}
-}
 
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.

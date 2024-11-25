@@ -662,6 +662,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type NFTCollectionId = OmnipoolLMCollectionId;
 	type NFTHandler = Uniques;
 	type LiquidityMiningHandler = OmnipoolWarehouseLM;
+	type Stableswap = Stableswap;
 	type OracleSource = OmnipoolLMOracleSource;
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;

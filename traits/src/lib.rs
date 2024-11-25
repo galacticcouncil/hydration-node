@@ -27,6 +27,7 @@ pub mod pools;
 pub mod price;
 pub mod registry;
 pub mod router;
+pub mod stableswap;
 
 pub use oracle::*;
 pub use registry::*;
@@ -286,6 +287,7 @@ pub trait AMMAddLiquidity<AccountId, AssetId, Balance> {
 		amount_b_max_limit: Balance,
 	) -> Result<Balance, DispatchError>;
 }
+
 
 /// Provides account's fee payment asset
 pub trait AccountFeeCurrency<AccountId> {

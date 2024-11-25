@@ -2,7 +2,8 @@
 
 use crate::assert_balance;
 use crate::tests::mock::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::{PoolInfo};
+use hydradx_traits::stableswap::AssetAmount;
 use frame_support::assert_ok;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::TradeExecution;
