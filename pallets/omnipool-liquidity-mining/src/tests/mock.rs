@@ -45,7 +45,12 @@ use sp_runtime::{
 
 use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
 
-use hydradx_traits::{oracle::{OraclePeriod, Source}, pools::DustRemovalAccountWhitelist, AssetKind, stableswap::StableswapAddLiquidity};
+use hydradx_traits::{
+	oracle::{OraclePeriod, Source},
+	pools::DustRemovalAccountWhitelist,
+	stableswap::StableswapAddLiquidity,
+	AssetKind,
+};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -187,7 +192,11 @@ pub const STABLESWAP_POOL_ID: u32 = 72;
 pub struct StableswapAddLiquidityStub;
 
 impl StableswapAddLiquidity<AccountId, AssetId, Balance> for StableswapAddLiquidityStub {
-	fn add_liquidity(_who: AccountId, _pool_id: AssetId, _asset_amounts: Vec<AssetAmount<AssetId>>) -> Result<Balance, DispatchError> {
+	fn add_liquidity(
+		_who: AccountId,
+		_pool_id: AssetId,
+		_asset_amounts: Vec<AssetAmount<AssetId>>,
+	) -> Result<Balance, DispatchError> {
 		Ok(SHARES_FROM_STABLESWAP)
 	}
 }

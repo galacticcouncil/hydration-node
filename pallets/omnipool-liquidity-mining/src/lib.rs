@@ -60,11 +60,14 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
 use hydra_dx_math::ema::EmaPrice as Price;
+use hydradx_traits::stableswap::AssetAmount;
+use hydradx_traits::stableswap::StableswapAddLiquidity;
 use hydradx_traits::{
 	liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId},
 	oracle::{AggregatedPriceOracle, OraclePeriod, Source},
 };
 use orml_traits::MultiCurrency;
+pub use pallet::*;
 use pallet_ema_oracle::OracleError;
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
@@ -72,10 +75,7 @@ use primitive_types::U256;
 use primitives::{Balance, ItemId as DepositId};
 use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
 use sp_std::vec;
-use hydradx_traits::stableswap::StableswapAddLiquidity;
-pub use pallet::*;
 pub use weights::WeightInfo;
-use hydradx_traits::stableswap::AssetAmount;
 
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type PeriodOf<T> = BlockNumberFor<T>;
@@ -1000,9 +1000,46 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// TODO: ADD DOC
+		/// This function allows user to add liquidity then use that shares to join multiple farms.
+		///
+		/// Limit protection is applied.
+		///
+		/// Parameters:
+		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
+		/// - `farm_entries`: list of farms to join.
+		/// - `asset`: id of the asset to be deposited into the liquidity mining.
+		/// - `amount`: amount of the asset to be deposited into the liquidity mining.
+		/// - `min_shares_limit`: The min amount of delta share asset the user should receive in the position
+		///
+		/// Emits `SharesDeposited` event for the first farm entry
+		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(16)]
-		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32))]//TODO: rebenchmark
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))] //TODO: add bench? or not needed
+		pub fn add_liquidity_with_limit_and_join_farms(
+			origin: OriginFor<T>,
+			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
+			asset: T::AssetId,
+			amount: Balance,
+			min_shares_limit: Balance,
+		) -> DispatchResult {
+			ensure_signed(origin.clone())?;
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
+
+			let position_id = crate::OmnipoolPallet::<T>::do_add_liquidity_with_limit(
+				origin.clone(),
+				asset,
+				amount,
+				min_shares_limit,
+			)?;
+
+			Self::join_farms(origin, farm_entries, position_id)?;
+
+			Ok(())
+		}
+
+		/// TODO: ADD DOC
+		#[pallet::call_index(17)]
+		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32))] //TODO: rebenchmark
 		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
 			origin: OriginFor<T>,
 			stable_pool_id: T::AssetId,
@@ -1014,8 +1051,12 @@ pub mod pallet {
 
 			let stablepool_shares = T::Stableswap::add_liquidity(who, stable_pool_id, stable_asset_amounts.to_vec())?;
 
-			let position_id =
-				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), stable_pool_id, stablepool_shares, Balance::MIN)?;
+			let position_id = OmnipoolPallet::<T>::do_add_liquidity_with_limit(
+				origin.clone(),
+				stable_pool_id,
+				stablepool_shares,
+				Balance::MIN,
+			)?;
 
 			Self::join_farms(origin, farm_entries, position_id)?;
 
