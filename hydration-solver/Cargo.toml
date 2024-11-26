@@ -25,10 +25,12 @@ highs = "1.6.1"
 #numpy = "0.22.1"
 ndarray = "0.16.1"
 float_next_after= "1.0.0"
+serde = { version = "1.0.197", features = ["derive"] }
 
 [dev-dependencies]
 rand = { version = "0.8.5", default-features = false }
 serde_json = {workspace = true}
+chrono = "0.4.19"
 
 [features]
 default = ["sp-runtime/std",
