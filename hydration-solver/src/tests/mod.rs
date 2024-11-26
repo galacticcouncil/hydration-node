@@ -34,8 +34,8 @@ fn price(
 		let p = FixedU128::from_rational(db.hub_reserve, db.reserve);
 		FixedU128::one() / p
 	} else {
-		let p1 = FixedU128::from_rational(da.reserve, da.hub_reserve);
-		let p2 = FixedU128::from_rational(db.hub_reserve, db.reserve);
+		let p1 = FixedU128::from_rational(db.reserve, db.hub_reserve);
+		let p2 = FixedU128::from_rational(da.hub_reserve, da.reserve);
 		let r = p1 * p2;
 		r
 	}
@@ -62,7 +62,9 @@ pub(crate) fn generate_random_intents(
 				data[idx_in].asset_id,
 				data[idx_out].asset_id,
 			);
-			let amount_out = price.checked_mul_int(amount_in).unwrap();
+			let p = FixedU128::from_float(0.9);
+			let amount_out = p.checked_mul_int(amount_in).unwrap();
+			let amount_out = p.checked_mul_int(amount_out).unwrap();
 			return (data[idx_in].asset_id, data[idx_out].asset_id, amount_in, amount_out);
 		}
 	};
@@ -110,7 +112,6 @@ impl OmnipoolInfo<AssetId> for DataProvider {
 #[test]
 fn test_data_provider() {
 	let d = DataProvider::assets(None);
-	//dbg!(&d);
 	assert_eq!(d.len(), 18);
 	let d = DataProvider::assets(Some(vec![0, 27]));
 	assert_eq!(d.len(), 2);
@@ -122,6 +123,5 @@ fn test_data_provider() {
 fn test_generate_intents() {
 	let d = DataProvider::assets(None);
 	let intents = generate_random_intents(1, d);
-	dbg!(&intents);
 	assert_eq!(intents.len(), 1);
 }

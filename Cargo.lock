@@ -5271,6 +5271,7 @@ dependencies = [
 name = "hydration-solver"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "clarabel",
  "float_next_after",
  "frame-system",
@@ -5285,6 +5286,7 @@ dependencies = [
  "primitives",
  "rand 0.8.5",
  "sc-client-api",
+ "serde",
  "serde_json",
  "sp-api",
  "sp-core",

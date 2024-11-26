@@ -5,7 +5,8 @@ use crate::tests::{generate_random_intents, AssetId, DataProvider};
 use crate::v3::SolverV3;
 use pallet_ice::traits::{OmnipoolInfo, Solver};
 use pallet_ice::types::{Intent, ResolvedIntent, Swap, SwapType};
-use primitives::AccountId;
+use primitives::{AccountId, Balance};
+use serde::Serialize;
 use sp_core::crypto::AccountId32;
 use std::time::Instant;
 
@@ -302,16 +303,50 @@ fn solver_should_find_solution_for_four_intents() {
 
 #[test]
 fn solver_should_find_solution_for_many_intents() {
-	let intents = generate_random_intents(4, DataProvider::assets(None));
-	dbg!(&intents);
-	let start = Instant::now();
-	let (solution, _) = SolverV3::<DataProvider>::solve(intents).unwrap();
-	let duration = start.elapsed();
-	println!(
-		"Time elapsed in solve() is: {:?} - resolved intents {:?}",
-		duration,
-		solution.len()
-	);
+	let intents = generate_random_intents(100, DataProvider::assets(None));
+	println!("Generated intents {:?}", intents.len());
+	let result = std::panic::catch_unwind(|| {
+		let start = Instant::now();
+		let (solution, _) = SolverV3::<DataProvider>::solve(intents.clone()).unwrap();
+		let duration = start.elapsed();
+		println!(
+			"Time elapsed in solve() is: {:?} - resolved intents {:?}",
+			duration,
+			solution.len()
+		);
+	});
 
-	dbg!(&solution);
+	if result.is_err() {
+		let intents = intents
+			.into_iter()
+			.map(|(_, intent)| intent.into())
+			.collect::<Vec<TestEntry>>();
+		let serialized = serde_json::to_string(&intents).unwrap();
+		let filename = format!("testdata/many_intents_{}.json", chrono::Utc::now().timestamp());
+		//write to file
+		std::fs::write(filename, serialized).unwrap();
+		println!("Solver failed to find solution for many intents");
+	}
+	//dbg!(&solution);
+}
+
+#[derive(serde::Serialize)]
+struct TestEntry {
+	asset_in: AssetId,
+	asset_out: AssetId,
+	amount_in: Balance,
+	amount_out: Balance,
+	partial: bool,
+}
+
+impl From<Intent<AccountId32, AssetId>> for TestEntry {
+	fn from(value: Intent<AccountId32, AssetId>) -> Self {
+		Self {
+			asset_in: value.swap.asset_in,
+			asset_out: value.swap.asset_out,
+			amount_in: value.swap.amount_in,
+			amount_out: value.swap.amount_out,
+			partial: value.partial,
+		}
+	}
 }
