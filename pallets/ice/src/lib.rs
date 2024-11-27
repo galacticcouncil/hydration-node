@@ -583,6 +583,7 @@ impl<T: Config> Pallet<T> {
 				if possible_out_amount >= amount_out {
 					// do exact buy
 					let a_in = T::RoutingSupport::calculate_amount_in(&route, amount_out)?;
+					debug_assert!(a_in <= *amount_in);
 					trades_instructions.push(TradeInstruction::SwapExactOut {
 						asset_in: *asset_in,
 						asset_out: asset_out,
@@ -610,7 +611,7 @@ impl<T: Config> Pallet<T> {
 			}
 
 			// esnure we sorted asset out before moving on
-			//debug_assert!(amount_out == 0u128);
+			debug_assert!(amount_out == 0u128);
 		}
 
 		let score = Self::score_solution(resolved_intents.len() as u128, matched_amounts).map_err(|_| ())?;
