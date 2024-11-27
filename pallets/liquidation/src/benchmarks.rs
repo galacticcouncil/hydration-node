@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023  Intergalactic, Limited (GIB). SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2020-2024  Intergalactic, Limited (GIB). SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ where
 			None,
 			None,
 		))
-		// When running as a benchmarking test, this fails because the asses is already registered.
+		// When running as a benchmarking test, this fails because the asset is already registered.
 		// Set it to the asset id configured in the mock file
 	})
 	.unwrap_or(3u32.into());

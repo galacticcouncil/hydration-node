@@ -1,5 +1,5 @@
 // This file is part of HydraDX.
-// Copyright (C) 2020-2023  Intergalactic, Limited (GIB). SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2020-2024  Intergalactic, Limited (GIB). SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -258,7 +258,7 @@ pub mod pallet {
 				Fortitude::Force,
 			)?;
 
-			// transfer frofit to `FeeReceiver`
+			// transfer profit to `FeeReceiver`
 			<T as Config>::Currency::transfer(
 				debt_asset,
 				&pallet_acc,
