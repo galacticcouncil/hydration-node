@@ -73,6 +73,7 @@ pub(crate) fn generate_random_intents(
 	let mut rng = rand::thread_rng();
 	for i in 0..c {
 		let (asset_in, asset_out, amount_in, amount_out) = random_pair();
+		let partial = if i < c / 2 { true } else { false };
 		intents.push((
 			i as u128,
 			Intent {
@@ -85,7 +86,7 @@ pub(crate) fn generate_random_intents(
 					swap_type: SwapType::ExactIn,
 				},
 				deadline: 0,
-				partial: rng.gen_bool(0.5),
+				partial,
 				on_success: None,
 				on_failure: None,
 			},

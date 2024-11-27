@@ -1,12 +1,8 @@
-use crate::data::AssetData;
-use crate::omni::OmniSolver;
-use crate::problem::FloatType;
 use crate::tests::{generate_random_intents, AssetId, DataProvider};
 use crate::v3::SolverV3;
 use pallet_ice::traits::{OmnipoolInfo, Solver};
 use pallet_ice::types::{Intent, ResolvedIntent, Swap, SwapType};
 use primitives::{AccountId, Balance};
-use serde::Serialize;
 use sp_core::crypto::AccountId32;
 use std::time::Instant;
 
@@ -303,7 +299,7 @@ fn solver_should_find_solution_for_four_intents() {
 
 #[test]
 fn solver_should_find_solution_for_many_intents() {
-	let intents = generate_random_intents(10, DataProvider::assets(None));
+	let intents = generate_random_intents(100, DataProvider::assets(None));
 	println!("Generated intents {:?}", intents.len());
 	let result = std::panic::catch_unwind(|| {
 		let start = Instant::now();
@@ -318,8 +314,8 @@ fn solver_should_find_solution_for_many_intents() {
 
 	let filename = if result.is_err() {
 		format!("testdata/failed_{}.json", chrono::Utc::now().timestamp())
-		//write to file
-	}else{
+	//write to file
+	} else {
 		format!("testdata/success_{}.json", chrono::Utc::now().timestamp())
 	};
 	let intents = intents
@@ -335,14 +331,14 @@ fn solver_should_find_solution_for_many_intents() {
 
 #[test]
 fn test_scenario() {
-	let testdata = std::fs::read_to_string("testdata/success_1732718828.json").unwrap();
+	let testdata = std::fs::read_to_string("testdata/success_1732737492.json").unwrap();
 	let intents: Vec<TestEntry> = serde_json::from_str(&testdata).unwrap();
 	let intents: Vec<(u128, Intent<AccountId32, AssetId>)> = intents
 		.into_iter()
 		.enumerate()
 		.map(|(i, entry)| (i as u128, entry.into()))
 		.collect();
-	dbg!(&intents);
+	//dbg!(&intents);
 	dbg!(intents.len());
 	let start = Instant::now();
 	let (solution, _) = SolverV3::<DataProvider>::solve(intents.clone()).unwrap();
@@ -352,8 +348,7 @@ fn test_scenario() {
 		duration,
 		solution.len()
 	);
-
-	dbg!(solution);
+	//dbg!(solution);
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
