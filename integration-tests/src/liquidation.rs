@@ -59,11 +59,6 @@ pub fn get_pool(pap_contract: EvmAddress) -> EvmAddress {
 
 pub fn supply(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) {
 	let context = CallContext::new_call(mm_pool, user);
-	// let mut data = Into::<u32>::into(Function::Supply).to_be_bytes().to_vec();
-	// data.extend_from_slice(H256::from(asset).as_bytes());
-	// data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
-	// data.extend_from_slice(H256::from(user).as_bytes());
-	// data.extend_from_slice(H256::zero().as_bytes());
 	let data = EvmDataWriter::new_with_selector(Function::Supply)
 		.write(asset)
 		.write(amount)
@@ -77,12 +72,6 @@ pub fn supply(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: 
 
 pub fn borrow(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: Balance) {
 	let context = CallContext::new_call(mm_pool, user);
-	// let mut data = Into::<u32>::into(Function::Borrow).to_be_bytes().to_vec();
-	// data.extend_from_slice(H256::from(asset).as_bytes());
-	// data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
-	// data.extend_from_slice(H256::from_uint(&U256::from(2u32)).as_bytes());
-	// data.extend_from_slice(H256::zero().as_bytes());
-	// data.extend_from_slice(H256::from(user).as_bytes());
 	let data = EvmDataWriter::new_with_selector(Function::Borrow)
 		.write(asset)
 		.write(amount)
