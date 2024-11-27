@@ -330,7 +330,27 @@ fn solver_should_find_solution_for_many_intents() {
 	//dbg!(&solution);
 }
 
-#[derive(serde::Serialize)]
+#[test]
+fn test_scenario() {
+	let testdata = std::fs::read_to_string("testdata/many_intents_1732653756.json").unwrap();
+	let intents: Vec<TestEntry> = serde_json::from_str(&testdata).unwrap();
+	let intents: Vec<(u128, Intent<AccountId32, AssetId>)> = intents
+		.into_iter()
+		.enumerate()
+		.map(|(i, entry)| (i as u128, entry.into()))
+		.collect();
+	dbg!(intents.len());
+	let start = Instant::now();
+	let (solution, _) = SolverV3::<DataProvider>::solve(intents.clone()).unwrap();
+	let duration = start.elapsed();
+	println!(
+		"Time elapsed in solve() is: {:?} - resolved intents {:?}",
+		duration,
+		solution.len()
+	);
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 struct TestEntry {
 	asset_in: AssetId,
 	asset_out: AssetId,
@@ -347,6 +367,25 @@ impl From<Intent<AccountId32, AssetId>> for TestEntry {
 			amount_in: value.swap.amount_in,
 			amount_out: value.swap.amount_out,
 			partial: value.partial,
+		}
+	}
+}
+
+impl Into<Intent<AccountId32, AssetId>> for TestEntry {
+	fn into(self) -> Intent<AccountId32, AssetId> {
+		Intent {
+			who: ALICE.into(),
+			swap: Swap {
+				asset_in: self.asset_in,
+				asset_out: self.asset_out,
+				amount_in: self.amount_in,
+				amount_out: self.amount_out,
+				swap_type: SwapType::ExactIn,
+			},
+			deadline: 0,
+			partial: self.partial,
+			on_success: None,
+			on_failure: None,
 		}
 	}
 }
