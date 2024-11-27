@@ -439,6 +439,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		for (intent_id, intent) in to_remove {
+			/*
 			let remainder = T::ReservableCurrency::unreserve_named(
 				&T::NamedReserveId::get(),
 				intent.swap.asset_in,
@@ -446,6 +447,8 @@ impl<T: Config> Pallet<T> {
 				intent.swap.amount_in,
 			); //TODO: add test
 			debug_assert!(remainder.is_zero());
+
+			 */
 			Intents::<T>::remove(intent_id);
 		}
 	}
@@ -782,8 +785,11 @@ impl<T: Config> Pallet<T> {
 		for instruction in instructions {
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
+					/*
 					let r = T::ReservableCurrency::unreserve_named(&T::NamedReserveId::get(), asset_id, &who, amount);
 					ensure!(r == Balance::zero(), crate::Error::<T>::InsufficientReservedBalance);
+
+					 */
 					T::Currency::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;
 				}
 				Instruction::TransferOut { who, asset_id, amount } => {
