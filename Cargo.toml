@@ -43,7 +43,9 @@ members = [
     'pallets/dynamic-evm-fee',
     'pallets/xyk-liquidity-mining',
     'precompiles/call-permit',
-    'runtime-mock'
+    'runtime-mock',
+    'pallets/ice',
+    'pallets/ice/solver'
 ]
 
 resolver = "2"
@@ -51,7 +53,7 @@ resolver = "2"
 [workspace.dependencies]
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
-serde = { version = "1.0.197", default-features = false }
+serde = { version = "=1.0.197", default-features = false }
 primitive-types = { version = "0.12.0", default-features = false }
 
 affix = "0.1.2"
@@ -90,7 +92,7 @@ rand_xoshiro = "0.6.0"
 rug = { version = "1.17.0", features = ["num-traits"] }
 rustc-hex = { version = '2.1.0', default-features = false }
 sha3 = { version = "0.10.6", default-features = false }
-serde_json = { version = "1.0.117", default-features = false }
+serde_json = { version = "=1.0.117", default-features = false }
 slices = "0.2.0"
 smallvec = "1.9.0"
 similar-asserts = "1.1.0"
@@ -101,6 +103,8 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 toml = "0.5"
 trie-db = "0.28.0"
 trybuild = "1.0"
+
+clarabel = { git = "https://github.com/enthusiastmartin/Clarabel.rs" ,  branch = "feat/sp-support", default-features = false }
 
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
@@ -143,6 +147,8 @@ pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-f
 pallet-referrals = { path = "pallets/referrals", default-features = false }
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false }
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
+pallet-ice = { path = "pallets/ice", default-features = false}
+ice-solver = { path = "pallets/ice/solver", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

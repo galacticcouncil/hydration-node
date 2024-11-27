@@ -41,6 +41,8 @@ pallet-referrals = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
+pallet-ice = { workspace = true }
+ice-solver = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -329,6 +331,8 @@ std = [
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
+    "pallet-ice/std",
+    "ice-solver/std",
 ]
 try-runtime = [
     "frame-try-runtime",
