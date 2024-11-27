@@ -306,26 +306,4 @@ impl<T: Config> Pallet<T> {
 
 		data
 	}
-
-	#[allow(dead_code)]
-	fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress, EvmAddress, Balance, bool)> {
-		if data.len() != 164 {
-			return None;
-		}
-		let data = data.clone();
-
-		let function_u32: u32 = u32::from_be_bytes(data[0..4].try_into().ok()?);
-		let function = Function::try_from(function_u32).ok()?;
-		if function == Function::LiquidationCall {
-			let collateral_asset = EvmAddress::from(H256::from_slice(&data[4..36]));
-			let debt_asset = EvmAddress::from(H256::from_slice(&data[36..68]));
-			let user = EvmAddress::from(H256::from_slice(&data[68..100]));
-			let debt_to_cover = Balance::try_from(U256::checked_from(&data[100..132])?).ok()?;
-			let receive_atoken = !H256::from_slice(&data[132..164]).is_zero();
-
-			Some((collateral_asset, debt_asset, user, debt_to_cover, receive_atoken))
-		} else {
-			None
-		}
-	}
 }

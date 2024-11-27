@@ -73,11 +73,32 @@ parameter_type_with_key! {
 	};
 }
 
+fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress, EvmAddress, crate::Balance, bool)> {
+	if data.len() != 164 {
+		return None;
+	}
+	let data = data.clone();
+
+	let function_u32: u32 = u32::from_be_bytes(data[0..4].try_into().ok()?);
+	let function = Function::try_from(function_u32).ok()?;
+	if function == Function::LiquidationCall {
+		let collateral_asset = EvmAddress::from(H256::from_slice(&data[4..36]));
+		let debt_asset = EvmAddress::from(H256::from_slice(&data[36..68]));
+		let user = EvmAddress::from(H256::from_slice(&data[68..100]));
+		let debt_to_cover = Balance::try_from(U256::checked_from(&data[100..132])?).ok()?;
+		let receive_atoken = !H256(data[132..164].try_into().unwrap()).is_zero();
+
+		Some((collateral_asset, debt_asset, user, debt_to_cover, receive_atoken))
+	} else {
+		None
+	}
+}
+
 pub struct EvmMock;
 impl EVM<CallResult> for EvmMock {
 	fn call(context: CallContext, data: Vec<u8>, _value: U256, _gas: u64) -> CallResult {
 		if context.contract == MoneyMarketContract::get() {
-			let maybe_data = Liquidation::decode_liquidation_call_data(data);
+			let maybe_data = decode_liquidation_call_data(data);
 			match maybe_data {
 				Some(data) => {
 					let collateral_asset = HydraErc20Mapping::decode_evm_address(data.0);
