@@ -1248,8 +1248,16 @@ fn find_solution_unrounded(
 	} else {
 		A
 	};
-	let A = CscMatrix::vcat(&A, &A6_trimmed);
-	let A = CscMatrix::vcat(&A, &A7_trimmed);
+	let A = if A6_trimmed.n != 0 {
+		CscMatrix::vcat(&A, &A6_trimmed)
+	} else {
+		A
+	};
+	let A = if A7_trimmed.n != 0 {
+		CscMatrix::vcat(&A, &A7_trimmed)
+	} else {
+		A
+	};
 	let b = ndarray::concatenate![Axis(0), b1, b2, b3, b4, b5, b6, b7];
 	let cones = vec![cone1, cone2, cone3]
 		.into_iter()
