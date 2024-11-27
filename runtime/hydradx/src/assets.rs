@@ -58,6 +58,7 @@ use frame_support::{
 	},
 	BoundedVec, PalletId,
 };
+use crate::Stableswap;
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use hydradx_traits::AMM;
 use orml_traits::{

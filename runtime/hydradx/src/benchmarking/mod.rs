@@ -11,6 +11,7 @@ pub mod tokens;
 pub mod vesting;
 pub mod xyk;
 pub mod xyk_liquidity_mining;
+pub mod omnipool_liquidity_mining;
 
 use crate::{AssetLocation, AssetRegistry, EmaOracle, MultiTransactionPayment, Runtime, System, DOT_ASSET_LOCATION};
 use frame_benchmarking::BenchmarkError;

@@ -19,7 +19,7 @@
 
 use super::*;
 
-use crate::types::AssetAmount;
+use hydradx_traits::stableswap::AssetAmount;
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::traits::EnsureOrigin;

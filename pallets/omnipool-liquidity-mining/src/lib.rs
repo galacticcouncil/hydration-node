@@ -34,9 +34,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(any(feature = "runtime-benchmarks", test))]
-mod benchmarks;
-
 #[cfg(test)]
 mod tests;
 
@@ -1046,7 +1043,7 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event for the first farm entry
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(17)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))] //TODO: add bench? or not needed
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))]//Same benchmark as add_liquidity_and_join_farms since it's the same logic
 		pub fn add_liquidity_with_limit_and_join_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
@@ -1073,7 +1070,7 @@ pub mod pallet {
 		/// This function allows user to add liquidity to stableswap pool,
 		/// then adding the stable shares as liquidity to omnipool
 		/// then use that omnipool shares to join multiple farms.
-		/// 
+		///
 		/// Parameters:
 		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
 		/// - `farm_entries`: list of farms to join.
