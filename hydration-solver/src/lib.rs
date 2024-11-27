@@ -4,7 +4,7 @@ mod data;
 mod problem;
 #[cfg(test)]
 mod tests;
-mod v3;
+pub mod v3;
 
 use futures::future::ready;
 use futures::StreamExt;

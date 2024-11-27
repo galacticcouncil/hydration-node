@@ -12338,6 +12338,7 @@ dependencies = [
  "rococo-runtime",
  "sc-consensus-grandpa",
  "scraper",
+ "serde",
  "serde_json",
  "sp-api",
  "sp-authority-discovery",

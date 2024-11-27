@@ -1,6 +1,7 @@
 pub(crate) mod generator;
 mod intents;
 mod omni;
+mod v3;
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
