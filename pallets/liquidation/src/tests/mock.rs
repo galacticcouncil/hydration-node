@@ -2,6 +2,7 @@ use crate as pallet_liquidation;
 use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
+use frame_support::sp_runtime::traits::CheckedConversion;
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{

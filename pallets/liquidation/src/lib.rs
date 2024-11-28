@@ -30,7 +30,7 @@ use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::{
 	pallet_prelude::*,
-	sp_runtime::traits::{AccountIdConversion, CheckedConversion},
+	sp_runtime::traits::AccountIdConversion,
 	traits::fungibles::{Inspect, Mutate},
 	traits::tokens::{Fortitude, Precision, Preservation},
 	PalletId,
