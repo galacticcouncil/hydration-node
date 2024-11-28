@@ -4,6 +4,7 @@ use frame_support::traits::ConstU32;
 use hydradx_traits::router::Trade;
 use sp_runtime::traits::Convert;
 use sp_runtime::BoundedVec;
+use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
@@ -144,4 +145,9 @@ impl<AssetId> TradeInstruction<AssetId> {
 			},
 		}
 	}
+}
+
+pub(crate) struct SolutionAmounts<AssetId> {
+	pub(crate) amounts_in: BTreeMap<AssetId, Balance>,
+	pub(crate) amounts_out: BTreeMap<AssetId, Balance>,
 }
