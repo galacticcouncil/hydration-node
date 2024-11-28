@@ -14,7 +14,8 @@ use crate::traits::Routing;
 use crate::traits::Solver;
 use crate::types::{
 	Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Instruction, Intent, IntentId,
-	Moment, NamedReserveIdentifier, ResolvedIntent, Swap, SwapType, TradeInstruction, TradeInstructionTransform,
+	Moment, NamedReserveIdentifier, ResolvedIntent, SolutionAmounts, Swap, SwapType, TradeInstruction,
+	TradeInstructionTransform,
 };
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
@@ -316,8 +317,8 @@ pub mod pallet {
 
 			//TODO: hm..clone here is not optimal, do something, bob!
 			match Self::validate_and_prepare_instructions(intents.clone().to_vec(), trades, score) {
-				Ok(instructions) => {
-					Self::execute_instructions(instructions)?;
+				Ok((instructions, amounts)) => {
+					Self::execute_instructions(instructions, amounts)?;
 					Self::update_intents(intents)?;
 					Self::clear_expired_intents(); //TODO: in on finalize!!
 					Self::deposit_event(Event::SolutionExecuted { who });
@@ -372,8 +373,8 @@ pub mod pallet {
 			);
 
 			match Self::validate_and_prepare_instructions(intents.clone().to_vec(), trades, score) {
-				Ok(instructions) => {
-					Self::execute_instructions(instructions)?;
+				Ok((instructions, amounts)) => {
+					Self::execute_instructions(instructions, amounts)?;
 					Self::update_intents(intents)?;
 					Self::clear_expired_intents(); // TODO: on finalize
 							   //Self::deposit_event(Event::SolutionExecuted { who });
@@ -653,7 +654,7 @@ impl<T: Config> Pallet<T> {
 		intents: Vec<ResolvedIntent>,
 		trades: BoundedTrades<T::AssetId>,
 		score: u64,
-	) -> Result<Vec<Instruction<T::AccountId, T::AssetId>>, DispatchError> {
+	) -> Result<(Vec<Instruction<T::AccountId, T::AssetId>>, SolutionAmounts<T::AssetId>), DispatchError> {
 		let mut amounts_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
 		let mut amounts_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
 
@@ -751,7 +752,13 @@ impl<T: Config> Pallet<T> {
 		let calculated_score = Self::score_solution(intents.len() as u128, matched_amounts)?;
 		ensure!(calculated_score == score, Error::<T>::InvalidScore);
 
-		Ok(instructions)
+		Ok((
+			instructions,
+			SolutionAmounts {
+				amounts_in,
+				amounts_out,
+			},
+		))
 	}
 
 	fn ensure_intent_price(intent: &Intent<T::AccountId, T::AssetId>, resolved_intent: &ResolvedIntent) -> bool {
@@ -780,9 +787,40 @@ impl<T: Config> Pallet<T> {
 		diff <= FixedU128::from_rational(1, 1000)
 	}
 
-	fn execute_instructions(instructions: Vec<Instruction<T::AccountId, T::AssetId>>) -> Result<(), DispatchError> {
+	fn execute_instructions(
+		instructions: Vec<Instruction<T::AccountId, T::AssetId>>,
+		amounts: SolutionAmounts<T::AssetId>,
+	) -> Result<(), DispatchError> {
 		let holding_account = crate::Pallet::<T>::holding_account();
 
+		// iterate and act only on TrensferIn instruction
+
+		for instruction in instructions.iter() {
+			match instruction {
+				Instruction::TransferIn { who, asset_id, amount } => {
+					/*
+					let r = T::ReservableCurrency::unreserve_named(&T::NamedReserveId::get(), asset_id, &who, amount);
+					ensure!(r == Balance::zero(), crate::Error::<T>::InsufficientReservedBalance);
+					 */
+					T::Currency::transfer(*asset_id, &who, &holding_account, *amount, Preservation::Expendable)?;
+				}
+				_ => {}
+			}
+		}
+
+		// now do the trades
+		Self::do_trades(amounts.amounts_in, amounts.amounts_out)?;
+
+		for instruction in instructions.iter() {
+			match instruction {
+				Instruction::TransferOut { who, asset_id, amount } => {
+					T::Currency::transfer(*asset_id, &holding_account, &who, *amount, Preservation::Expendable)?;
+				}
+				_ => {}
+			}
+		}
+
+		/*
 		for instruction in instructions {
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
@@ -832,6 +870,7 @@ impl<T: Config> Pallet<T> {
 				}
 			}
 		}
+		 */
 
 		Ok(())
 	}
@@ -878,6 +917,103 @@ impl<T: Config> Pallet<T> {
 				Intents::<T>::insert(resolved_intent.intent_id, new_intent);
 			}
 		}
+		Ok(())
+	}
+
+	pub fn do_trades(
+		amounts_in: BTreeMap<T::AssetId, Balance>,
+		amounts_out: BTreeMap<T::AssetId, Balance>,
+	) -> DispatchResult {
+		let mut amounts_in: BTreeMap<T::AssetId, Balance> = amounts_in;
+
+		let mut matched_amounts = Vec::new();
+
+		let mut delta_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+		let mut delta_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+
+		// Calculate deltas to trade
+		for (asset_id, amount_out) in amounts_out.into_iter() {
+			if let Some((_, amount_in)) = amounts_in.remove_entry(&asset_id) {
+				if amount_out == amount_in {
+					// nothing to trade here, all matched
+					matched_amounts.push((asset_id, amount_out));
+				} else if amount_out > amount_in {
+					// there is something left to buy
+					matched_amounts.push((asset_id, amount_in));
+					delta_out.insert(asset_id, amount_out - amount_in);
+				} else {
+					// there is something left to sell
+					matched_amounts.push((asset_id, amount_out));
+					delta_in.insert(asset_id, amount_in - amount_out);
+				}
+			} else {
+				// there is no sell of this asset, only buy
+				delta_out.insert(asset_id, amount_out);
+			}
+		}
+
+		for (asset_id, amount_in) in amounts_in.into_iter() {
+			delta_in.insert(asset_id, amount_in);
+		}
+
+		let holding_account = crate::Pallet::<T>::holding_account();
+
+		loop {
+			let Some((asset_out, mut amount_out)) = delta_out.pop_first() else {
+				break;
+			};
+			for (asset_in, amount_in) in delta_in.iter_mut() {
+				if *amount_in == 0u128 {
+					continue;
+				}
+				let route = T::RoutingSupport::get_route(*asset_in, asset_out);
+
+				// Calculate the amount we can buy with the amount in we have
+				let possible_out_amount = T::RoutingSupport::calculate_amount_out(&route, *amount_in)
+					.map_err(|_| Error::<T>::IncorrectIntentAmountResolution)?;
+
+				if possible_out_amount >= amount_out {
+					// do exact buy
+					let a_in = T::RoutingSupport::calculate_amount_in(&route, amount_out)
+						.map_err(|_| Error::<T>::IncorrectIntentAmountResolution)?;
+					debug_assert!(a_in <= *amount_in);
+
+					let origin = T::RuntimeOrigin::signed(holding_account.clone());
+					T::TradeExecutor::buy(
+						origin,
+						*asset_in,
+						asset_out,
+						amount_out,
+						a_in, // set as limit in the instruction
+						route.to_vec(),
+					)?;
+
+					*amount_in -= a_in;
+					amount_out = 0u128;
+					//after this, we sorted the asset_out, we can move one
+					break;
+				} else {
+					// do max sell
+					let origin = T::RuntimeOrigin::signed(holding_account.clone());
+					T::TradeExecutor::sell(
+						origin,
+						*asset_in,
+						asset_out,
+						*amount_in,
+						possible_out_amount, // set as limit in the instruction
+						route.to_vec(),
+					)?;
+
+					*amount_in = 0u128;
+					amount_out -= possible_out_amount;
+					//after this, we need another asset_in to buy the rest
+				}
+			}
+
+			// esnure we sorted asset out before moving on
+			debug_assert!(amount_out == 0u128);
+		}
+
 		Ok(())
 	}
 }
