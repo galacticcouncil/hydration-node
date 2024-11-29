@@ -1846,10 +1846,11 @@ pub fn create_yield_farm2() {
 		let lp = BOB;
 		<Currencies as MultiCurrencyExtended<_>>::update_balance(0, &lp.into(), INITIAL_BALANCE as i128).unwrap();
 		assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
-			HDX,
+			BTC,
 			&lp.into(),
 			(10 * BTC_ONE).try_into().unwrap(),
 		));
+
 		let position_id = omnipool_add_liquidity(lp.clone().into(), BTC.into(), 10 * BTC_ONE);
 
 		set_period(100);
@@ -1991,7 +1992,7 @@ fn initialize_omnipool() -> DispatchResult {
 			None,
 		))
 	})?;
-	let name = b"ETH".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
+	/*let name = b"ETH".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
 	with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
 			None,
@@ -2003,8 +2004,8 @@ fn initialize_omnipool() -> DispatchResult {
 			None,
 			None,
 		))
-	})?;
-	let name = b"BTC".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
+	})?;*/
+	/*let name = b"BTC".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
 	with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
 			None,
@@ -2016,9 +2017,9 @@ fn initialize_omnipool() -> DispatchResult {
 			None,
 			None,
 		))
-	})?;
+	})?;*/
 
-	let name = b"DOT".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
+	/*let name = b"DOT".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
 	with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
 			None,
@@ -2030,7 +2031,7 @@ fn initialize_omnipool() -> DispatchResult {
 			None,
 			None,
 		))
-	})?;
+	})?;*/
 
 	// Create account for token provider and set balance
 	let owner: AccountId = ALICE.into();
