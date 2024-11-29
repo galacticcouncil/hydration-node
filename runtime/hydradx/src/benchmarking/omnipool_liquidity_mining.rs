@@ -15,23 +15,23 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
+use crate::benchmarking::{register_asset, register_external_asset};
 use crate::*;
-use frame_benchmarking::{account, BenchmarkError, benchmarks};
+use frame_benchmarking::{account, benchmarks, BenchmarkError};
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_support::traits::{OnFinalize, OnInitialize};
-use frame_system::{RawOrigin};
 use frame_system::pallet_prelude::BlockNumberFor;
-use orml_benchmarking::runtime_benchmarks;
+use frame_system::RawOrigin;
+use hydradx_traits::liquidity_mining::{GlobalFarmId, YieldFarmId};
 use hydradx_traits::registry::{AssetKind, Create};
+use hydradx_traits::stableswap::AssetAmount;
+use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
 use primitives::AssetId;
-use sp_runtime::{DispatchError, DispatchResult, Perquintill, TransactionOutcome};
 use sp_runtime::{traits::One, FixedU128, Permill};
-use hydradx_traits::liquidity_mining::{GlobalFarmId, YieldFarmId};
-use hydradx_traits::stableswap::AssetAmount;
+use sp_runtime::{DispatchError, DispatchResult, Perquintill, TransactionOutcome};
 use warehouse_liquidity_mining::LoyaltyCurve;
-use crate::benchmarking::{register_asset, register_external_asset};
 const ONE: Balance = 1_000_000_000_000;
 const BTC_ONE: Balance = 100_000_000;
 const HDX: AssetId = 0;
@@ -46,7 +46,6 @@ const G_FARM_TOTAL_REWARDS: Balance = 10_000_000 * ONE;
 const REWARD_CURRENCY: AssetId = HDX;
 
 pub const MAX_ASSETS_IN_POOL: u32 = 5;
-
 
 fn fund(to: AccountId, currency: AssetId, amount: Balance) -> DispatchResult {
 	Currencies::deposit(currency, &to, amount)
@@ -70,8 +69,73 @@ fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> Account
 	account
 }
 
-fn initialize_global_farm(owner: AccountId) -> DispatchResult
-{
+fn fund_treasury() -> DispatchResult {
+	let account = Treasury::account_id();
+
+	<Currencies as MultiCurrencyExtended<_>>::update_balance(0, &account, INITIAL_BALANCE as i128).unwrap();
+	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
+		HDX,
+		&account,
+		(10000 * ONE).try_into().unwrap(),
+	));
+
+	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
+		ETH,
+		&account,
+		(10000 * ONE).try_into().unwrap(),
+	));
+
+	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
+		REWARD_CURRENCY,
+		&account,
+		(10000 * ONE).try_into().unwrap(),
+	));
+
+	//<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &treasury, 500_000_000_000_000_000_000i128)?;
+	/*Currencies::update_balance(
+		RawOrigin::Root.into(),
+		treasury.clone(),
+		HDX.into(),
+		500_000_000_000_000_000_000i128 as Amount,
+	)?;
+
+	Currencies::update_balance(
+		RawOrigin::Root.into(),
+		treasury.clone(),
+		ETH.into(),
+		500_000_000_000_000_000_000i128 as Amount,
+	)?;
+
+	Currencies::update_balance(
+		RawOrigin::Root.into(),
+		treasury.clone(),
+		BTC.into(),
+		500_000_000_000_000_000_000i128 as Amount,
+	)?;
+
+	Currencies::update_balance(
+		RawOrigin::Root.into(),
+		treasury.clone(),
+		REWARD_CURRENCY.into(),
+		500_000_000_000_000_000_000i128 as Amount,
+	)?;*/
+
+	Ok(())
+}
+
+fn create_funded_account(name: &'static str, index: u32, balance: Balance, asset: AssetId) -> AccountId {
+	let account: AccountId = account(name, index, 0);
+	//Necessary to pay ED in insufficient asset
+	<Currencies as MultiCurrencyExtended<_>>::update_balance(0, &account, INITIAL_BALANCE as i128).unwrap();
+	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
+		asset,
+		&account,
+		balance.try_into().unwrap(),
+	));
+	account
+}
+
+fn initialize_global_farm(owner: AccountId) -> DispatchResult {
 	OmnipoolLiquidityMining::create_global_farm(
 		RawOrigin::Root.into(),
 		G_FARM_TOTAL_REWARDS,
@@ -87,13 +151,11 @@ fn initialize_global_farm(owner: AccountId) -> DispatchResult
 	seed_lm_pot()
 }
 
-fn initialize_yield_farm(owner: AccountId, id: GlobalFarmId, asset: AssetId) -> DispatchResult
-{
+fn initialize_yield_farm(owner: AccountId, id: GlobalFarmId, asset: AssetId) -> DispatchResult {
 	OmnipoolLiquidityMining::create_yield_farm(RawOrigin::Signed(owner).into(), id, asset, FixedU128::one(), None)
 }
 
-fn initialize_omnipool() -> DispatchResult
-{
+fn initialize_omnipool() -> DispatchResult {
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
@@ -229,8 +291,7 @@ fn initialize_omnipool() -> DispatchResult
 }
 
 //NOTE: This is necessary for oracle to provide price.
-fn do_lrna_hdx_trade() -> DispatchResult
-{
+fn do_lrna_hdx_trade() -> DispatchResult {
 	let trader = funded_account("tmp_trader", 0, &vec![REWARD_CURRENCY.into()]);
 
 	fund(trader.clone(), LRNA.into(), 100 * ONE)?;
@@ -238,18 +299,13 @@ fn do_lrna_hdx_trade() -> DispatchResult
 	Omnipool::sell(RawOrigin::Signed(trader).into(), LRNA.into(), HDX.into(), ONE, 0)
 }
 
-fn seed_lm_pot() -> DispatchResult
-{
+fn seed_lm_pot() -> DispatchResult {
 	let pot = XYKWarehouseLM::pot_account_id().unwrap();
 
 	fund(pot, HDX.into(), 100 * ONE)
 }
 
-fn omnipool_add_liquidity(
-	lp: AccountId,
-	asset: AssetId,
-	amount: Balance,
-) -> Result<u128, DispatchError> {
+fn omnipool_add_liquidity(lp: AccountId, asset: AssetId, amount: Balance) -> Result<u128, DispatchError> {
 	let current_position_id = Omnipool::next_position_id();
 
 	Omnipool::add_liquidity(RawOrigin::Signed(lp).into(), asset, amount)?;
@@ -257,17 +313,11 @@ fn omnipool_add_liquidity(
 	Ok(current_position_id)
 }
 
-fn lm_deposit_shares(
-	who: AccountId,
-	g_id: GlobalFarmId,
-	y_id: YieldFarmId,
-	position_id: ItemId,
-) -> DispatchResult {
+fn lm_deposit_shares(who: AccountId, g_id: GlobalFarmId, y_id: YieldFarmId, position_id: ItemId) -> DispatchResult {
 	OmnipoolLiquidityMining::deposit_shares(RawOrigin::Signed(who).into(), g_id, y_id, position_id)
 }
 
-fn set_period(to: u32)
-{
+fn set_period(to: u32) {
 	//NOTE: predefined global farm has period size = 1 block.
 	while System::block_number() < to {
 		let b = System::block_number();
@@ -312,9 +362,9 @@ runtime_benchmarks! {
 
 	}: _(RawOrigin::Root, global_farm_id, planned_yielding_periods, yield_per_period, min_deposit)
 
-/*
+
 	terminate_global_farm {
-		let owner = create_funded_account("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
+		let owner = funded_account("owner", 0, &[REWARD_CURRENCY.into()]);
 		let global_farm_id = 1;
 		let yield_farm_id = 2;
 
@@ -323,7 +373,7 @@ runtime_benchmarks! {
 		initialize_global_farm(owner.clone())?;
 		initialize_yield_farm(owner.clone(), global_farm_id, BTC.into())?;
 
-		let lp = create_funded_account("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let lp = funded_account("lp_1", 1, &[BTC.into()]);
 		let position_id = omnipool_add_liquidity(lp.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		set_period(100);
@@ -337,6 +387,8 @@ runtime_benchmarks! {
 
 
 	create_yield_farm {
+		fund_treasury().unwrap(); //To prevent BelowMinimum error
+
 		let owner = create_funded_account("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
 		let global_farm_id = 1;
 
@@ -352,9 +404,10 @@ runtime_benchmarks! {
 		lm_deposit_shares(lp, global_farm_id, 2, position_id)?;
 
 		set_period(200);
+
 	}: _(RawOrigin::Signed(owner), global_farm_id, ETH.into(), FixedU128::one(), Some(LoyaltyCurve::default()))
 
-
+/*
 	update_yield_farm {
 		let owner = create_funded_account("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
 		let global_farm_id = 1;
@@ -874,14 +927,14 @@ mod tests {
 			native_decimals: 12,
 			native_symbol: b"HDX".to_vec().try_into().unwrap(),
 		}
-			.assimilate_storage(&mut t)
-			.unwrap();
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		<pallet_omnipool_liquidity_mining::GenesisConfig<crate::Runtime> as BuildStorage>::assimilate_storage(
 			&pallet_omnipool_liquidity_mining::GenesisConfig::<crate::Runtime>::default(),
 			&mut t,
 		)
-			.unwrap();
+		.unwrap();
 
 		sp_io::TestExternalities::new(t)
 	}
