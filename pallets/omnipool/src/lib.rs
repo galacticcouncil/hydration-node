@@ -160,11 +160,11 @@ pub mod pallet {
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
-		/// Origin that can add token, refund refused asset and withdraw protocol liquidity.
+		/// Origin that can add token, refund refused asset, withdraw protocol liquidity and set the weight of assets.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		/// Origin that can change asset's tradability and weight.
-		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		/// Security origin that can set asset's tradability.
+		type UpdateTradabilityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: RegistryInspect<AssetId = Self::AssetId>;
@@ -1318,7 +1318,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			state: Tradability,
 		) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
+			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
 
 			if asset_id == T::HubAssetId::get() {
 				// Atm omnipool does not allow adding/removing liquidity of hub asset.
@@ -1399,7 +1399,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
 		#[transactional]
 		pub fn set_asset_weight_cap(origin: OriginFor<T>, asset_id: T::AssetId, cap: Permill) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
 				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;

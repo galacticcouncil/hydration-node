@@ -164,7 +164,7 @@ impl Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
 

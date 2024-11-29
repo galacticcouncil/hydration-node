@@ -17,7 +17,7 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage, VestingDetails};
+use crate::traits::{ActionData, GetReferendumState, PayablePercentage, VestingDetails};
 use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
 use frame_support::ensure;
 use frame_support::{
@@ -45,6 +45,7 @@ mod tests;
 mod benchmarks;
 
 pub mod integrations;
+pub mod migration;
 pub mod traits;
 pub mod types;
 pub mod weights;
@@ -59,7 +60,7 @@ pub const STAKING_LOCK_ID: LockIdentifier = *b"stk_stks";
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{DemocracyReferendum, Freeze};
+	use crate::traits::Freeze;
 	use crate::types::Voting;
 	use codec::HasCompact;
 	use frame_support::PalletId;
@@ -68,7 +69,7 @@ pub mod pallet {
 	use sp_runtime::traits::AtLeast32BitUnsigned;
 
 	/// Current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -170,7 +171,7 @@ pub mod pallet {
 		type MaxPointsPerAction: GetByKey<Action, u32>;
 
 		/// Democracy referendum state.
-		type ReferendumInfo: DemocracyReferendum;
+		type ReferendumInfo: GetReferendumState<types::ReferendumIndex>;
 
 		/// Provides information about amount of vested tokens.
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
@@ -213,8 +214,8 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::AccountId,
 		Blake2_128Concat,
-		pallet_democracy::ReferendumIndex,
-		crate::types::Vote,
+		types::ReferendumIndex,
+		types::Vote,
 		OptionQuery,
 	>;
 
