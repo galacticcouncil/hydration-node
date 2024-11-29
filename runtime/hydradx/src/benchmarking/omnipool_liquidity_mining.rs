@@ -72,25 +72,9 @@ fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> Account
 fn fund_treasury() -> DispatchResult {
 	let account = Treasury::account_id();
 
-	<Currencies as MultiCurrencyExtended<_>>::update_balance(0, &account, INITIAL_BALANCE as i128).unwrap();
-	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
-		HDX,
-		&account,
-		(10000 * ONE).try_into().unwrap(),
-	));
-
-	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
-		ETH,
-		&account,
-		(10000 * ONE).try_into().unwrap(),
-	));
-
-	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
-		REWARD_CURRENCY,
-		&account,
-		(10000 * ONE).try_into().unwrap(),
-	));
-
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), HDX,  INITIAL_BALANCE as i128).unwrap();
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), ETH,  INITIAL_BALANCE as i128).unwrap();
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), REWARD_CURRENCY,  INITIAL_BALANCE as i128).unwrap();
 	//<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &treasury, 500_000_000_000_000_000_000i128)?;
 	/*Currencies::update_balance(
 		RawOrigin::Root.into(),
@@ -126,13 +110,16 @@ fn fund_treasury() -> DispatchResult {
 fn create_funded_account(name: &'static str, index: u32, balance: Balance, asset: AssetId) -> AccountId {
 	let account: AccountId = account(name, index, 0);
 	//Necessary to pay ED in insufficient asset
-	<Currencies as MultiCurrencyExtended<_>>::update_balance(0, &account, INITIAL_BALANCE as i128).unwrap();
-	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(),DAI,  INITIAL_BALANCE as i128).unwrap();
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(),LRNA, INITIAL_BALANCE as i128).unwrap();
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(),0, INITIAL_BALANCE as i128).unwrap();
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		account.clone(),
 		asset,
-		&account,
 		balance.try_into().unwrap(),
 	));
-	account
+	account.clone()
 }
 
 fn initialize_global_farm(owner: AccountId) -> DispatchResult {
