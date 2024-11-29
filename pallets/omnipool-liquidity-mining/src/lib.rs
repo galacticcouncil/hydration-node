@@ -46,6 +46,7 @@ pub mod weights;
 use frame_support::{
 	ensure,
 	pallet_prelude::{DispatchError, DispatchResult},
+	require_transactional,
 	sp_runtime::traits::{AccountIdConversion, Zero},
 	traits::DefensiveOption,
 	traits::{
@@ -154,6 +155,9 @@ pub mod pallet {
 
 		/// Oracle providing price of LRNA/{Asset} used to calculate `valued_shares`.
 		type PriceOracle: AggregatedPriceOracle<Self::AssetId, BlockNumberFor<Self>, Price, Error = OracleError>;
+
+		/// Maximum number of farm entries per deposit.
+		type MaxFarmEntriesPerDeposit: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -306,6 +310,12 @@ pub mod pallet {
 
 		/// Oracle providing `price_adjustment` could not be found for requested assets.
 		PriceAdjustmentNotAvailable,
+
+		/// The extrinsic is disabled for now.
+		Disabled,
+
+		/// No farms specified to join
+		NoFarmEntriesSpecified,
 	}
 
 	//NOTE: these errors should never happen.
@@ -679,38 +689,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
-
-			ensure!(
-				OmnipoolPallet::<T>::exists(lp_position.asset_id),
-				Error::<T>::AssetNotFound
-			);
-
-			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
-				global_farm_id,
-				yield_farm_id,
-				lp_position.asset_id,
-				lp_position.shares,
-				|_, _, _| -> Result<Balance, DispatchError> { Self::get_position_value_in_hub_asset(&lp_position) },
-			)?;
-
-			Self::lock_lp_position(position_id, deposit_id)?;
-
-			<T as pallet::Config>::NFTHandler::mint_into(
-				&<T as pallet::Config>::NFTCollectionId::get(),
-				&deposit_id,
-				&who,
-			)?;
-
-			Self::deposit_event(Event::SharesDeposited {
-				global_farm_id,
-				yield_farm_id,
-				deposit_id,
-				asset_id: lp_position.asset_id,
-				who,
-				shares_amount: lp_position.shares,
-				position_id,
-			});
+			Self::do_deposit_shares(who, global_farm_id, yield_farm_id, position_id)?;
 
 			Ok(())
 		}
@@ -768,6 +747,8 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Note: This extrinsic is disabled
+		///
 		/// Claim rewards from liquidity mining program for deposit represented by the `deposit_id`.
 		///
 		/// This function calculate user rewards from liquidity mining and transfer rewards to `origin`
@@ -783,27 +764,11 @@ pub mod pallet {
 		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(
-			origin: OriginFor<T>,
-			deposit_id: DepositId,
-			yield_farm_id: YieldFarmId,
+			_origin: OriginFor<T>,
+			_deposit_id: DepositId,
+			_yield_farm_id: YieldFarmId,
 		) -> DispatchResult {
-			let owner = Self::ensure_nft_owner(origin, deposit_id)?;
-
-			let (global_farm_id, reward_currency, claimed, _) =
-				T::LiquidityMiningHandler::claim_rewards(owner.clone(), deposit_id, yield_farm_id)?;
-
-			ensure!(!claimed.is_zero(), Error::<T>::ZeroClaimedRewards);
-
-			Self::deposit_event(Event::RewardClaimed {
-				global_farm_id,
-				yield_farm_id,
-				who: owner,
-				claimed,
-				reward_currency,
-				deposit_id,
-			});
-
-			Ok(())
+			return Err(Error::<T>::Disabled.into());
 		}
 
 		/// This function claim rewards and withdraw LP shares from yield farm. Omnipool position
@@ -928,6 +893,109 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// This function allows user to join multiple farms with a single omnipool position.
+		///
+		/// Parameters:
+		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
+		/// - `farm_entries`: list of farms to join.
+		/// - `position_id`: id of the omnipool position to be deposited into the liquidity mining.
+		///
+		/// Emits `SharesDeposited` event for the first farm entry
+		/// Emits `SharesRedeposited` event for each farm entry after the first one
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::join_farms(farm_entries.len() as u32))]
+		pub fn join_farms(
+			origin: OriginFor<T>,
+			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
+			position_id: T::PositionItemId,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
+
+			let (global_farm_id, yield_farm_id) = farm_entries.first().ok_or(Error::<T>::NoFarmEntriesSpecified)?;
+			let (deposit_id, lp_position) =
+				Self::do_deposit_shares(who.clone(), *global_farm_id, *yield_farm_id, position_id)?;
+
+			for (global_farm_id, yield_farm_id) in farm_entries.into_iter().skip(1) {
+				T::LiquidityMiningHandler::redeposit_lp_shares(
+					global_farm_id,
+					yield_farm_id,
+					deposit_id,
+					|_, _, _| Self::get_position_value_in_hub_asset(&lp_position),
+				)?;
+
+				Self::deposit_event(Event::SharesRedeposited {
+					global_farm_id,
+					yield_farm_id,
+					deposit_id,
+					asset_id: lp_position.asset_id,
+					who: who.clone(),
+					shares_amount: lp_position.shares,
+					position_id,
+				});
+			}
+
+			Ok(())
+		}
+
+		/// This function allows user to add liquidity then use that shares to join multiple farms.
+		///
+		/// Parameters:
+		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
+		/// - `farm_entries`: list of farms to join.
+		/// - `asset`: id of the asset to be deposited into the liquidity mining.
+		/// - `amount`: amount of the asset to be deposited into the liquidity mining.
+		///
+		/// Emits `SharesDeposited` event for the first farm entry
+		/// Emits `SharesRedeposited` event for each farm entry after the first one
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))]
+		pub fn add_liquidity_and_join_farms(
+			origin: OriginFor<T>,
+			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
+			asset: T::AssetId,
+			amount: Balance,
+		) -> DispatchResult {
+			ensure_signed(origin.clone())?;
+			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
+
+			let position_id =
+				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), asset, amount, Balance::MIN)?;
+
+			Self::join_farms(origin, farm_entries, position_id)?;
+
+			Ok(())
+		}
+
+		/// Exit from all specified yield farms
+		///
+		/// This function will attempt to withdraw shares and claim rewards (if available) from all
+		/// specified yield farms for a given deposit.
+		///
+		/// Parameters:
+		/// - `origin`: account owner of deposit(nft).
+		/// - `deposit_id`: id of the deposit to claim rewards for.
+		/// - `yield_farm_ids`: id(s) of yield farm(s) to exit from.
+		///
+		/// Emits:
+		/// * `RewardClaimed` for each successful claim
+		/// * `SharesWithdrawn` for each successful withdrawal
+		/// * `DepositDestroyed` if the deposit is fully withdrawn
+		///
+		#[pallet::call_index(15)]
+		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(yield_farm_ids.len() as u32))]
+		pub fn exit_farms(
+			origin: OriginFor<T>,
+			deposit_id: DepositId,
+			yield_farm_ids: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit>,
+		) -> DispatchResult {
+			for yield_farm_id in yield_farm_ids.iter() {
+				Self::withdraw_shares(origin.clone(), deposit_id, *yield_farm_id)?;
+			}
+
+			Ok(())
+		}
 	}
 }
 
@@ -1013,5 +1081,48 @@ impl<T: Config> Pallet<T> {
 		ensure!(nft_owner == who, Error::<T>::Forbidden);
 
 		Ok(who)
+	}
+
+	#[require_transactional]
+	fn do_deposit_shares(
+		who: T::AccountId,
+		global_farm_id: GlobalFarmId,
+		yield_farm_id: YieldFarmId,
+		position_id: T::PositionItemId,
+	) -> Result<(DepositId, OmniPosition<Balance, T::AssetId>), DispatchError> {
+		let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
+
+		ensure!(
+			OmnipoolPallet::<T>::exists(lp_position.asset_id),
+			Error::<T>::AssetNotFound
+		);
+
+		let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
+			global_farm_id,
+			yield_farm_id,
+			lp_position.asset_id,
+			lp_position.shares,
+			|_, _, _| -> Result<Balance, DispatchError> { Self::get_position_value_in_hub_asset(&lp_position) },
+		)?;
+
+		Self::lock_lp_position(position_id, deposit_id)?;
+
+		<T as pallet::Config>::NFTHandler::mint_into(
+			&<T as pallet::Config>::NFTCollectionId::get(),
+			&deposit_id,
+			&who,
+		)?;
+
+		Self::deposit_event(Event::SharesDeposited {
+			global_farm_id,
+			yield_farm_id,
+			deposit_id,
+			asset_id: lp_position.asset_id,
+			who,
+			shares_amount: lp_position.shares,
+			position_id,
+		});
+
+		Ok((deposit_id, lp_position))
 	}
 }

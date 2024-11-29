@@ -328,6 +328,24 @@ fn account_should_receive_tokens() {
 }
 
 #[test]
+fn erc20_transfer_returning_false_should_be_handled_as_error() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let token = deploy_contract("WeirdToken", deployer());
+
+		assert_noop!(
+			<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
+				token,
+				&AccountId::from(ALICE),
+				&AccountId::from(BOB),
+				100
+			),
+			Other("evm: erc20 transfer returned false")
+		);
+	});
+}
+
+#[test]
 fn bound_erc20_should_have_issuance() {
 	TestNet::reset();
 	Hydra::execute_with(|| {

@@ -1,9 +1,9 @@
 use crate::evm::executor::{CallResult, Executor};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
+use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
-use evm::{ExitReason, ExitSucceed};
 use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
 use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -17,6 +17,9 @@ use sp_runtime::traits::{CheckedConversion, Zero};
 use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
+
+/// Execution gas limit.
+const GAS_LIMIT: u64 = 400_000;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -118,7 +121,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), 200_000))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	// Calls the transfer method on an ERC20 contract using the given context.
@@ -129,7 +132,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), 200_000))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 
 	fn transfer_from(context: CallContext, from: EvmAddress, to: EvmAddress, value: Balance) -> DispatchResult {
@@ -141,7 +144,7 @@ where
 		// amount
 		data.extend_from_slice(H256::from_uint(&U256::from(value.saturated_into::<u128>())).as_bytes());
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), 200_000))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), GAS_LIMIT))
 	}
 }
 
@@ -174,14 +177,32 @@ fn decode_integer(value: Vec<u8>) -> Option<U256> {
 	U256::checked_from(value.as_slice())
 }
 
+fn decode_bool(value: Vec<u8>) -> Option<bool> {
+	if value.len() != 32 {
+		return None;
+	}
+	let mut bytes = [0u8; 32];
+	U256::from(1).to_big_endian(&mut bytes);
+	Some(value == bytes)
+}
+
 fn handle_result(result: CallResult) -> DispatchResult {
 	let (exit_reason, value) = result;
 	match exit_reason {
-		ExitReason::Succeed(ExitSucceed::Returned) => Ok(()),
-		ExitReason::Succeed(ExitSucceed::Stopped) => Ok(()),
-		_ => Err(DispatchError::Other(&*Box::leak(
-			format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
-		))),
+		ExitReason::Succeed(_) => {
+			if Some(false) == decode_bool(value) {
+				log::error!(target: "evm", "evm transfer returned false");
+				Err(DispatchError::Other("evm: erc20 transfer returned false"))
+			} else {
+				Ok(())
+			}
+		}
+		e => {
+			log::error!(target: "evm", "evm call failed with : {:?}, value {:?}", e, value);
+			Err(DispatchError::Other(&*Box::leak(
+				format!("evm:0x{}", hex::encode(value)).into_boxed_str(),
+			)))
+		}
 	}
 }
 

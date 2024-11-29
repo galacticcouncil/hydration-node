@@ -234,7 +234,7 @@ pub mod pallet {
 			state: Tradability,
 		},
 
-		/// AAmplification of a pool has been scheduled to change.
+		/// Amplification of a pool has been scheduled to change.
 		AmplificationChanging {
 			pool_id: T::AssetId,
 			current_amplification: NonZeroU16,
@@ -242,6 +242,8 @@ pub mod pallet {
 			start_block: BlockNumberFor<T>,
 			end_block: BlockNumberFor<T>,
 		},
+		/// A pool has been destroyed.
+		PoolDestroyed { pool_id: T::AssetId },
 	}
 
 	#[pallet::error]
@@ -878,6 +880,97 @@ pub mod pallet {
 				asset_id,
 				state,
 			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
+		#[transactional]
+		pub fn remove_liquidity(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			share_amount: Balance,
+			min_amounts_out: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
+
+			let current_share_balance = T::Currency::free_balance(pool_id, &who);
+			ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
+
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let pool_account = Self::pool_account(pool_id);
+			let initial_reserves = pool
+				.reserves_with_decimals::<T>(&pool_account)
+				.ok_or(Error::<T>::UnknownDecimals)?;
+			let share_issuance = T::Currency::total_issuance(pool_id);
+
+			// We want to ensure that given min amounts are correct. It must contain all pool assets.
+			// We convert vec of min amounts to a map.
+			// We first ensure the length , and if any asset is not found later on, we can return an error.
+			ensure!(min_amounts_out.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
+			let mut min_amounts_out: BTreeMap<T::AssetId, Balance> =
+				min_amounts_out.into_iter().map(|v| (v.asset_id, v.amount)).collect();
+
+			// Store the amount of each asset that is transferred. Used as info in the event.
+			let mut amounts = Vec::with_capacity(pool.assets.len());
+
+			// 1. Calculate amount of each asset
+			// 2. ensure min amount is respected
+			// 3. transfer amount to user
+			for asset_id in pool.assets.iter() {
+				ensure!(
+					Self::is_asset_allowed(pool_id, *asset_id, Tradability::REMOVE_LIQUIDITY),
+					Error::<T>::NotAllowed
+				);
+				let min_amount = min_amounts_out.remove(asset_id).ok_or(Error::<T>::IncorrectAssets)?;
+				let reserve = T::Currency::free_balance(*asset_id, &pool_account);
+
+				// Special case when withdrawing all remaining pool shares, so we can directly send all the remaining assets to the user.
+				let amount = if share_amount == share_issuance {
+					ensure!(reserve >= min_amount, Error::<T>::SlippageLimit);
+					reserve
+				} else {
+					let amount =
+						hydra_dx_math::stableswap::calculate_liquidity_out(reserve, share_amount, share_issuance)
+							.ok_or(ArithmeticError::Overflow)?;
+					ensure!(amount >= min_amount, Error::<T>::SlippageLimit);
+					amount
+				};
+
+				T::Currency::transfer(*asset_id, &pool_account, &who, amount)?;
+				amounts.push(AssetAmount {
+					asset_id: *asset_id,
+					amount,
+				});
+			}
+
+			// Burn shares
+			T::Currency::withdraw(pool_id, &who, share_amount)?;
+
+			// All done and updated. let's call the on_liquidity_changed hook.
+			if share_amount != share_issuance {
+				Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
+			} else {
+				// Remove the pool.
+				Pools::<T>::remove(pool_id);
+				let _ = AssetTradability::<T>::clear_prefix(pool_id, MAX_ASSETS_IN_POOL, None);
+				T::DustAccountHandler::remove_account(&Self::pool_account(pool_id))?;
+				Self::deposit_event(Event::PoolDestroyed { pool_id });
+			}
+
+			Self::deposit_event(Event::LiquidityRemoved {
+				pool_id,
+				who,
+				shares: share_amount,
+				amounts,
+				fee: Balance::zero(),
+			});
+
+			#[cfg(feature = "try-runtime")]
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
 
 			Ok(())
 		}

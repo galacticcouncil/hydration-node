@@ -276,6 +276,17 @@ pub trait AMMPosition<AssetId, Balance> {
 	) -> Result<(Balance, Balance), Self::Error>;
 }
 
+/// Implementers of this trait are able to add liquidity to their AMM pool.
+pub trait AMMAddLiquidity<AccountId, AssetId, Balance> {
+	fn add_liquidity(
+		origin: AccountId,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		amount_a: Balance,
+		amount_b_max_limit: Balance,
+	) -> Result<Balance, DispatchError>;
+}
+
 /// Provides account's fee payment asset
 pub trait AccountFeeCurrency<AccountId> {
 	type AssetId;

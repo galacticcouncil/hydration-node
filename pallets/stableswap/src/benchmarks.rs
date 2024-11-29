@@ -23,6 +23,7 @@ use crate::types::AssetAmount;
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::traits::EnsureOrigin;
+use frame_support::BoundedVec;
 use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::router::{PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
@@ -196,6 +197,60 @@ benchmarks! {
 	verify {
 		assert_eq!(T::Currency::free_balance(pool_id, &lp_provider), 0u128);
 		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &lp_provider), 1_492_491_167_377_362);
+	}
+
+	remove_liquidity{
+		let caller: T::AccountId = account("caller", 0, 1);
+		let lp_provider: T::AccountId = account("provider", 0, 1);
+		let initial_liquidity = 1_000_000_000_000_000_000u128;
+		let liquidity_added = 300_000_000_000_000u128;
+
+		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
+		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
+		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
+		let mut min_amounts = Vec::new();
+		for idx in 0..MAX_ASSETS_IN_POOL {
+			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
+			T::BenchmarkHelper::register_asset(asset_id, 12)?;
+			asset_ids.push(asset_id);
+			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
+			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
+			initial.push(AssetAmount::new(asset_id, initial_liquidity));
+			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+			min_amounts.push(AssetAmount::new(asset_id, 0));
+		}
+		let pool_id: T::AssetId = (1000u32).into();
+		T::BenchmarkHelper::register_asset(pool_id, 18)?;
+
+		let asset_id_to_withdraw: T::AssetId = *asset_ids.last().unwrap();
+		let amplification = 100u16;
+		let trade_fee = Permill::from_percent(1);
+		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
+		crate::Pallet::<T>::create_pool(successful_origin,
+			pool_id,
+			asset_ids,
+			amplification,
+			trade_fee,
+		)?;
+
+		// Worst case is adding additional liquidity and not initial liquidity
+		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
+			pool_id,
+			initial,
+		)?;
+		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
+			pool_id,
+			added_liquidity
+		)?;
+
+		// just make sure that LP provided all his liquidity of this asset
+		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &lp_provider), 0u128);
+		let shares = T::Currency::free_balance(pool_id, &lp_provider);
+
+		//Still the worst case here is when removing some of the liquidity - not all liquidity
+	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, shares, BoundedVec::try_from(min_amounts).unwrap())
+	verify {
+		assert_eq!(T::Currency::free_balance(pool_id, &lp_provider), 0u128);
 	}
 
 	withdraw_asset_amount{

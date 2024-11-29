@@ -738,6 +738,14 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsuffic
 	) -> Result<Balance, DispatchError> {
 		unimplemented!()
 	}
+
+	fn calculate_out_given_in(
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_asset_in_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
 }
 
 pub struct NativePriceOracleMock;

@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.2.2"
+version = "2.4.1"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -53,6 +53,7 @@ sp-io = { workspace = true }
 sp-core = { workspace = true }
 orml-tokens = { workspace = true }
 pretty_assertions = { workspace = true }
+test-utils = { workspace = true }
 
 [features]
 default = ["std"]
