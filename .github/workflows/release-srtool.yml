@@ -1,4 +1,7 @@
 name: GitHub Actions Demo
+env:
+    SUBWASM_VERSION: 0.20.0
+    TOML_CLI_VERSION: 0.2.4
 run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 on: [push]
 jobs:
