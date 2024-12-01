@@ -2,11 +2,11 @@
 
 use crate::assert_balance;
 use crate::tests::mock::*;
-use crate::types::{PoolInfo};
-use hydradx_traits::stableswap::AssetAmount;
+use crate::types::PoolInfo;
 use frame_support::assert_ok;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::TradeExecution;
+use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrencyExtended;
 use proptest::prelude::ProptestConfig;
 use proptest::proptest;

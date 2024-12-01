@@ -1,8 +1,8 @@
 use crate::tests::mock::*;
-use crate::types::{PoolInfo};
-use hydradx_traits::stableswap::AssetAmount;
+use crate::types::PoolInfo;
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::stableswap::AssetAmount;
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 

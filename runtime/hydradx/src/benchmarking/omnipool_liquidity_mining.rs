@@ -20,6 +20,7 @@ use crate::*;
 use frame_benchmarking::{account, benchmarks, BenchmarkError};
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
+use frame_support::traits::EnsureOrigin;
 use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::RawOrigin;
@@ -32,7 +33,6 @@ use primitives::AssetId;
 use sp_runtime::{traits::One, FixedU128, Permill};
 use sp_runtime::{DispatchError, DispatchResult, Perquintill, TransactionOutcome};
 use warehouse_liquidity_mining::LoyaltyCurve;
-use frame_support::traits::EnsureOrigin;
 const ONE: Balance = 1_000_000_000_000;
 const BTC_ONE: Balance = 100_000_000;
 const HDX: AssetId = 0;
@@ -57,10 +57,22 @@ pub const INITIAL_BALANCE: Balance = 10_000_000 * crate::benchmarking::xyk_liqui
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
 	let account: AccountId = account(name, index, 0);
 	//Necessary to pay ED in insufficient asset
-	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), HDX,  500_000_000_000_000_000_000i128).unwrap();
+	Currencies::update_balance(
+		RawOrigin::Root.into(),
+		account.clone(),
+		HDX,
+		500_000_000_000_000_000_000i128,
+	)
+	.unwrap();
 
 	for asset in assets {
-		Currencies::update_balance(RawOrigin::Root.into(), account.clone(), *asset,  500_000_000_000_000_000_000i128).unwrap();
+		Currencies::update_balance(
+			RawOrigin::Root.into(),
+			account.clone(),
+			*asset,
+			500_000_000_000_000_000_000i128,
+		)
+		.unwrap();
 	}
 	account
 }
@@ -68,8 +80,20 @@ fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> Account
 fn fund_treasury() -> DispatchResult {
 	let account = Treasury::account_id();
 
-	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), HDX,  500_000_000_000_000_000_000i128).unwrap();
-	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), REWARD_CURRENCY,  INITIAL_BALANCE as i128).unwrap();
+	Currencies::update_balance(
+		RawOrigin::Root.into(),
+		account.clone(),
+		HDX,
+		500_000_000_000_000_000_000i128,
+	)
+	.unwrap();
+	Currencies::update_balance(
+		RawOrigin::Root.into(),
+		account.clone(),
+		REWARD_CURRENCY,
+		INITIAL_BALANCE as i128,
+	)
+	.unwrap();
 
 	Ok(())
 }
@@ -77,9 +101,9 @@ fn fund_treasury() -> DispatchResult {
 fn create_funded_account(name: &'static str, index: u32, balance: Balance, asset: AssetId) -> AccountId {
 	let account: AccountId = account(name, index, 0);
 	//Necessary to pay ED in insufficient asset
-	Currencies::update_balance(RawOrigin::Root.into(), account.clone(),DAI,  INITIAL_BALANCE as i128).unwrap();
-	Currencies::update_balance(RawOrigin::Root.into(), account.clone(),LRNA, INITIAL_BALANCE as i128).unwrap();
-	Currencies::update_balance(RawOrigin::Root.into(), account.clone(),0, INITIAL_BALANCE as i128).unwrap();
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), DAI, INITIAL_BALANCE as i128).unwrap();
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), LRNA, INITIAL_BALANCE as i128).unwrap();
+	Currencies::update_balance(RawOrigin::Root.into(), account.clone(), 0, INITIAL_BALANCE as i128).unwrap();
 	assert_ok!(Currencies::update_balance(
 		RawOrigin::Root.into(),
 		account.clone(),
@@ -237,7 +261,12 @@ fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult {
 	)?;
 
 	if let Some(asset_id) = additional_asset {
-		Currencies::update_balance(RawOrigin::Root.into(), acc.clone(), asset_id.into(), (token_amount * 100) as Amount)?;
+		Currencies::update_balance(
+			RawOrigin::Root.into(),
+			acc.clone(),
+			asset_id.into(),
+			(token_amount * 100) as Amount,
+		)?;
 		Omnipool::add_token(
 			RawOrigin::Root.into(),
 			asset_id.into(),
@@ -246,7 +275,6 @@ fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult {
 			owner,
 		)?;
 	}
-
 
 	//NOTE: This is necessary for oracle to provide price.
 	set_period(10);
@@ -290,7 +318,9 @@ fn set_period(to: u32) {
 		<frame_system::Pallet<Runtime> as OnFinalize<BlockNumberFor<crate::Runtime>>>::on_finalize(b);
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<crate::Runtime>>>::on_finalize(b);
 
-		<pallet_circuit_breaker::Pallet<Runtime> as OnInitialize<BlockNumberFor<crate::Runtime>>>::on_initialize(b + 1_u32);
+		<pallet_circuit_breaker::Pallet<Runtime> as OnInitialize<BlockNumberFor<crate::Runtime>>>::on_initialize(
+			b + 1_u32,
+		);
 		<frame_system::Pallet<Runtime> as OnInitialize<BlockNumberFor<crate::Runtime>>>::on_initialize(b + 1_u32);
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<crate::Runtime>>>::on_initialize(b + 1_u32);
 
@@ -837,7 +867,7 @@ runtime_benchmarks! {
 		let deposit_id = 1;
 
 		initialize_omnipool(Some(pool_id))?;
-		
+
 		CircuitBreaker::set_add_liquidity_limit(RuntimeOrigin::root(), pool_id, Some((99, 100))).unwrap();
 		let liquidity_added = 100_000_000_000_000_u128;
 		let omni_lp_provider: AccountId = create_funded_account("provider", 1, liquidity_added * 10, pool_id);

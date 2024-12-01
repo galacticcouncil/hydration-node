@@ -46,6 +46,7 @@ use primitives::constants::{
 use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
 
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
+use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
@@ -58,7 +59,6 @@ use frame_support::{
 	},
 	BoundedVec, PalletId,
 };
-use crate::Stableswap;
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use hydradx_traits::AMM;
 use orml_traits::{

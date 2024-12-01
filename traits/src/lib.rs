@@ -288,7 +288,6 @@ pub trait AMMAddLiquidity<AccountId, AssetId, Balance> {
 	) -> Result<Balance, DispatchError>;
 }
 
-
 /// Provides account's fee payment asset
 pub trait AccountFeeCurrency<AccountId> {
 	type AssetId;

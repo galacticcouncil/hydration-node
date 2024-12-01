@@ -6,12 +6,12 @@ pub mod duster;
 pub mod dynamic_evm_fee;
 pub mod multi_payment;
 pub mod omnipool;
+pub mod omnipool_liquidity_mining;
 pub mod route_executor;
 pub mod tokens;
 pub mod vesting;
 pub mod xyk;
 pub mod xyk_liquidity_mining;
-pub mod omnipool_liquidity_mining;
 
 use crate::{AssetLocation, AssetRegistry, EmaOracle, MultiTransactionPayment, Runtime, System, DOT_ASSET_LOCATION};
 use frame_benchmarking::BenchmarkError;
@@ -60,7 +60,7 @@ pub fn register_asset_with_decimals(name: Vec<u8>, deposit: Balance, decimals: u
 			None,
 		))
 	})
-		.map_err(|_| ())
+	.map_err(|_| ())
 }
 
 pub fn register_external_asset(name: Vec<u8>) -> Result<AssetId, ()> {

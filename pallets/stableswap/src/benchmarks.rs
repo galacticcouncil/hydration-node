@@ -19,13 +19,13 @@
 
 use super::*;
 
-use hydradx_traits::stableswap::AssetAmount;
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::traits::EnsureOrigin;
 use frame_support::BoundedVec;
 use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::router::{PoolType, TradeExecution};
+use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use sp_runtime::Permill;

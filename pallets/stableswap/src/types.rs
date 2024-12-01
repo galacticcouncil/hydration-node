@@ -74,7 +74,6 @@ where
 	}
 }
 
-
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
 	#[derive(Encode,Decode, MaxEncodedLen, TypeInfo)]

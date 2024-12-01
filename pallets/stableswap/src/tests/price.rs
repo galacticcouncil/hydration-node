@@ -1,7 +1,7 @@
 use crate::tests::*;
-use crate::types::{PoolInfo};
-use hydradx_traits::stableswap::AssetAmount;
+use crate::types::PoolInfo;
 use frame_support::assert_ok;
+use hydradx_traits::stableswap::AssetAmount;
 use sp_runtime::{FixedU128, Permill};
 use std::num::NonZeroU16;
 
