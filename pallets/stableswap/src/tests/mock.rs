@@ -304,7 +304,7 @@ impl ExtBuilder {
 					assert_ok!(Stableswap::add_liquidity(
 						RuntimeOrigin::signed(initial_liquid.account),
 						pool_id,
-						initial_liquid.assets
+						initial_liquid.assets.try_into().unwrap()
 					));
 				}
 			}

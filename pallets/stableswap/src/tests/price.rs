@@ -182,7 +182,7 @@ fn test_share_price_in_add_remove_liquidity() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount)],
+				vec![AssetAmount::new(asset_a, amount)].try_into().unwrap(),
 			));
 
 			let final_shares = Tokens::total_issuance(pool_id);
@@ -327,7 +327,7 @@ fn test_share_price_case() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount)],
+				vec![AssetAmount::new(asset_a, amount)].try_into().unwrap(),
 			));
 
 			let final_shares = Tokens::total_issuance(pool_id);

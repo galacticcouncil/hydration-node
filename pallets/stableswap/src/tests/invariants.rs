@@ -94,7 +94,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -167,7 +167,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -843,7 +843,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -945,7 +945,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -1264,7 +1264,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;

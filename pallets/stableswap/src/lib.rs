@@ -56,7 +56,7 @@ extern crate core;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AMMAddLiquidity, AccountIdFor};
+use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -476,7 +476,7 @@ pub mod pallet {
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			assets: Vec<AssetAmount<T::AssetId>>,
+			assets: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -1186,7 +1186,7 @@ impl<T: Config> Pallet<T> {
 			pool_id,
 			who: who.clone(),
 			shares: share_amount,
-			assets: assets.clone().to_vec(),
+			assets: assets.to_vec(),
 		});
 
 		Ok(share_amount)
