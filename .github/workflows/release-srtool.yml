@@ -105,3 +105,4 @@ jobs:
           subwasm diff ${{ steps.srtool_build.outputs.wasm }} --chain-b ${{ matrix.chain }} || \
             echo "Subwasm call failed, check the logs. This is likely because ${{ matrix.chain }} is not known by subwasm" | \
             tee ${{ matrix.chain }}-diff.txt
+      - run: echo "🍏 This job's status is ${{ job.status }}."
