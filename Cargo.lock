@@ -8777,6 +8777,7 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-liquidity-mining",
  "pallet-omnipool",
+ "pallet-stableswap",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",

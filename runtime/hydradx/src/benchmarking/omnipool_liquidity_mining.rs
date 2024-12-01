@@ -46,8 +46,6 @@ const DOT: AssetId = 1_000_004;
 const G_FARM_TOTAL_REWARDS: Balance = 10_000_000 * ONE;
 const REWARD_CURRENCY: AssetId = HDX;
 
-pub const MAX_ASSETS_IN_POOL: u32 = 5;
-
 fn fund(to: AccountId, currency: AssetId, amount: Balance) -> DispatchResult {
 	Currencies::deposit(currency, &to, amount)
 }
@@ -789,7 +787,7 @@ runtime_benchmarks! {
 		let mut initial: Vec<AssetAmount<AssetId>> = vec![];
 		let mut added_liquidity: Vec<AssetAmount<AssetId>> = vec![];
 		let mut asset_ids: Vec<AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
+		for idx in 0..pallet_stableswap::MAX_ASSETS_IN_POOL {
 			let name: Vec<u8> = idx.to_ne_bytes().to_vec();
 			let asset_id = register_asset_with_decimals(
 				name,

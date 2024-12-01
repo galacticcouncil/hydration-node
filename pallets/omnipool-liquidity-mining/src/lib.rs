@@ -74,6 +74,8 @@ use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
 use sp_std::vec;
 pub use weights::WeightInfo;
 
+pub const MAX_ASSETS_IN_POOL: u32 = pallet_stableswap::MAX_ASSETS_IN_POOL;
+
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type PeriodOf<T> = BlockNumberFor<T>;
 
@@ -1087,7 +1089,7 @@ pub mod pallet {
 		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
 			origin: OriginFor<T>,
 			stable_pool_id: T::AssetId,
-			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, T::MaxFarmEntriesPerDeposit>, //TODO: This sohuld be max stable asset amounts
+			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
