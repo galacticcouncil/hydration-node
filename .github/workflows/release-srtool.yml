@@ -36,7 +36,7 @@ jobs:
             EXCLUDED_RUNTIMES: ${{ inputs.excluded_runtimes }}:"substrate-test"
 
           run: |
-            ${{ github.workspace }}/.github/scripts/common/lib.sh
+            /.github/scripts/common/lib.sh
             echo "Github workspace: ${{ github.workspace }}"
             echo "Current folder: $(pwd)"; ls -al
             ls -al
