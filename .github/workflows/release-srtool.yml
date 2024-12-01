@@ -32,7 +32,11 @@ jobs:
 
         - name: Scan and get runtimes list
           id: get_runtimes_list
+          env:
+            EXCLUDED_RUNTIMES: ${{ inputs.excluded_runtimes }}:"substrate-test"
+            
           run: |
+            . ./.github/scripts/common/lib.sh
             echo "Github workspace: ${{ github.workspace }}"
             echo "Current folder: $(pwd)"; ls -al
             ls -al
