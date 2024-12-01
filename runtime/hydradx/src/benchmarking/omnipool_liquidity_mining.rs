@@ -778,6 +778,8 @@ runtime_benchmarks! {
 	}: _(RawOrigin::Signed(lp1),deposit_id, farms.try_into().unwrap())
 
 	add_liquidity_stableswap_omnipool_and_join_farms  {
+		let c in 1..get_max_entries();
+
 		//Init stableswap first
 		let caller: AccountId = account("caller", 0, 1);
 		let lp_provider: AccountId = account("provider", 0, 1);
@@ -882,7 +884,7 @@ runtime_benchmarks! {
 
 		set_period(200);
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
-		let farms = farms_entries[0..5 as usize].to_vec();
+		let farms = farms_entries[0..c as usize].to_vec();
 
 	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), farms.try_into().unwrap())
 
