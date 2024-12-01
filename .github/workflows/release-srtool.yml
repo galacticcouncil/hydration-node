@@ -30,6 +30,11 @@ jobs:
               sudo dpkg -i toml.deb
               toml --version; jq --version
 
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+
         - name: Scan and get runtimes list
           id: get_runtimes_list
           env:
@@ -37,18 +42,13 @@ jobs:
           run: |
             . ../.github/scripts/common/lib.sh
 
-            echo "Github workspace: ${{ github.workspace }}"
+            echo "Github workspace: ${{ github.repository }}"
             echo "Current folder: $(pwd)"; ls -al
             ls -al
 
             MATRIX=$(find_runtimes | tee runtimes_list.json)
             echo $MATRIX
             echo "runtime=$MATRIX" >> $GITHUB_OUTPUT
-
-        - name: Checkout
-          uses: actions/checkout@v4
-          with:
-            fetch-depth: 0
 
 
   srtool:
