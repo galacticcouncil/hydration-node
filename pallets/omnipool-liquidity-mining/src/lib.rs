@@ -1015,7 +1015,7 @@ pub mod pallet {
 		/// * `DepositDestroyed` if the deposit is fully withdrawn
 		///
 		#[pallet::call_index(16)]
-		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(yield_farm_ids.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(yield_farm_ids.len() as u32))]//TODO: benchmark
 		pub fn exit_farms_and_remove_liquidity(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -1024,7 +1024,7 @@ pub mod pallet {
 			for yield_farm_id in yield_farm_ids.iter() {
 				Self::withdraw_shares(origin.clone(), deposit_id, *yield_farm_id)?;
 			}
-
+		//TODO: finish
 			let position_id = OmniPositionId::<T>::get(deposit_id)
 				.defensive_ok_or::<Error<T>>(InconsistentStateError::MissingLpPosition.into())?;
 
@@ -1085,11 +1085,11 @@ pub mod pallet {
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		///
 		#[pallet::call_index(18)]
-		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32))] //TODO: rebenchmark
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_stableswap_omnipool_and_join_farms(farm_entries.len() as u32))]
 		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
 			origin: OriginFor<T>,
 			stable_pool_id: T::AssetId,
-			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>, //TODO: This sohuld be max stable asset amounts
+			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;

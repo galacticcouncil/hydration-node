@@ -15,9 +15,9 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::benchmarking::{register_asset, register_asset_with_decimals, register_external_asset};
+use crate::benchmarking::{register_asset, register_asset_with_decimals};
 use crate::*;
-use frame_benchmarking::{account, benchmarks, BenchmarkError};
+use frame_benchmarking::{account, BenchmarkError};
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_support::traits::EnsureOrigin;
@@ -28,7 +28,6 @@ use hydradx_traits::liquidity_mining::{GlobalFarmId, YieldFarmId};
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::stableswap::AssetAmount;
 use orml_benchmarking::runtime_benchmarks;
-use orml_traits::MultiCurrencyExtended;
 use primitives::AssetId;
 use sp_runtime::{traits::One, FixedU128, Permill};
 use sp_runtime::{DispatchError, DispatchResult, Perquintill, TransactionOutcome};
@@ -50,7 +49,6 @@ fn fund(to: AccountId, currency: AssetId, amount: Balance) -> DispatchResult {
 	Currencies::deposit(currency, &to, amount)
 }
 
-const SEED: u32 = 0;
 pub const INITIAL_BALANCE: Balance = 10_000_000 * crate::benchmarking::xyk_liquidity_mining::ONE;
 
 //TODO: this is use in many places, refactor
