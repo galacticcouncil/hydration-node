@@ -46,6 +46,23 @@ pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 	.map_err(|_| ())
 }
 
+pub fn register_asset_with_decimals(name: Vec<u8>, deposit: Balance, decimals: u8) -> Result<AssetId, ()> {
+	let n = name.try_into().map_err(|_| ())?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+			None,
+			Some(n),
+			AssetKind::Token,
+			deposit,
+			None,
+			Some(decimals),
+			None,
+			None,
+		))
+	})
+		.map_err(|_| ())
+}
+
 pub fn register_external_asset(name: Vec<u8>) -> Result<AssetId, ()> {
 	let n = name.try_into().map_err(|_| ())?;
 	with_transaction(|| {

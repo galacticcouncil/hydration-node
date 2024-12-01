@@ -1087,7 +1087,7 @@ pub mod pallet {
 		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
 			origin: OriginFor<T>,
 			stable_pool_id: T::AssetId,
-			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, T::MaxFarmEntriesPerDeposit>,
+			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, T::MaxFarmEntriesPerDeposit>, //TODO: This sohuld be max stable asset amounts
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
