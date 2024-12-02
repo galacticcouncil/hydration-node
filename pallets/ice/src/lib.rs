@@ -256,15 +256,12 @@ pub mod pallet {
 			ensure!(intent.swap.asset_in != intent.swap.asset_out, Error::<T>::InvalidIntent);
 			ensure!(intent.swap.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
 
-			/*
 			T::ReservableCurrency::reserve_named(
 				&T::NamedReserveId::get(),
 				intent.swap.asset_in,
 				&who,
 				intent.swap.amount_in,
 			)?;
-
-			 */
 
 			let incremental_id = Self::get_next_incremental_id().ok_or(Error::<T>::IntendIdsExhausted)?;
 			let intent_id = Self::get_intent_id(intent.deadline, incremental_id);
@@ -440,7 +437,6 @@ impl<T: Config> Pallet<T> {
 		}
 
 		for (intent_id, intent) in to_remove {
-			/*
 			let remainder = T::ReservableCurrency::unreserve_named(
 				&T::NamedReserveId::get(),
 				intent.swap.asset_in,
@@ -448,8 +444,6 @@ impl<T: Config> Pallet<T> {
 				intent.swap.amount_in,
 			); //TODO: add test
 			debug_assert!(remainder.is_zero());
-
-			 */
 			Intents::<T>::remove(intent_id);
 		}
 	}
@@ -798,10 +792,8 @@ impl<T: Config> Pallet<T> {
 		for instruction in instructions.iter() {
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
-					/*
-					let r = T::ReservableCurrency::unreserve_named(&T::NamedReserveId::get(), asset_id, &who, amount);
+					let r = T::ReservableCurrency::unreserve_named(&T::NamedReserveId::get(), *asset_id, &who, *amount);
 					ensure!(r == Balance::zero(), crate::Error::<T>::InsufficientReservedBalance);
-					 */
 					T::Currency::transfer(*asset_id, &who, &holding_account, *amount, Preservation::Expendable)?;
 				}
 				_ => {}
