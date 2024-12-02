@@ -74,8 +74,8 @@ fn v3_scenario() {
 			let intent = pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(resolved_intent.intent_id).unwrap();
 			let asset_in = intent.swap.asset_in;
 			let asset_out = intent.swap.asset_out;
-			let asset_in_balances = Currencies::free_balance(asset_in, &intent.who);
-			let asset_out_balances = Currencies::free_balance(asset_out, &intent.who);
+			let asset_in_balances = Currencies::total_balance(asset_in, &intent.who);
+			let asset_out_balances = Currencies::total_balance(asset_out, &intent.who);
 			let resolved_amount_in = resolved_intent.amount_in;
 			let resolved_amount_out = resolved_intent.amount_out;
 			balances.push((
@@ -111,8 +111,8 @@ fn v3_scenario() {
 		// verify the balances after execution
 		for (asset_in_balances, asset_out_balances, resolved_amount_in, resolved_amount_out, intent) in balances.iter()
 		{
-			let asset_in_balances_after = Currencies::free_balance(intent.swap.asset_in, &intent.who);
-			let asset_out_balances_after = Currencies::free_balance(intent.swap.asset_out, &intent.who);
+			let asset_in_balances_after = Currencies::total_balance(intent.swap.asset_in, &intent.who);
+			let asset_out_balances_after = Currencies::total_balance(intent.swap.asset_out, &intent.who);
 			assert_eq!(asset_in_balances_after, asset_in_balances - resolved_amount_in);
 			assert_eq!(asset_out_balances_after, asset_out_balances + resolved_amount_out);
 		}
