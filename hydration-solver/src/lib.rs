@@ -19,24 +19,29 @@ use sp_runtime::Permill;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use sp_api::__private::BlockT;
+use sp_runtime::traits::{Hash, Header};
+use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
+use sp_runtime::transaction_validity::TransactionSource;
 
 const LOG_TARGET: &str = "ice-solver";
 
-pub struct HydrationSolver<T, RA, B, BE>(PhantomData<(T, RA, B, BE)>);
+pub struct HydrationSolver<T, RA, B, BE, TP>(PhantomData<(T, RA, B, BE, TP)>);
 
-impl<T, RA, Block, BE> HydrationSolver<T, RA, Block, BE>
+impl<T, RA, Block, BE ,TP> HydrationSolver<T, RA, Block, BE, TP>
 where
 	Block: sp_runtime::traits::Block,
 	RA: ProvideRuntimeApi<Block> + UsageProvider<Block>,
 	RA::Api: ICEApi<Block, AccountId, AssetId>,
 	BE: Backend<Block> + 'static,
 	RA: BlockchainEvents<Block> + 'static,
+	TP: MaintainedTransactionPool<Block = Block, Hash = <Block as BlockT>::Hash> + 'static,
 	T: pallet_ice::Config
 		+ pallet_omnipool::Config<AssetId = AssetId>
 		+ pallet_asset_registry::Config<AssetId = AssetId>
 		+ pallet_dynamic_fees::Config<Fee = Permill, AssetId = AssetId>,
 {
-	pub async fn run(client: Arc<RA>) {
+	pub async fn run(client: Arc<RA>, transaction_pool: Arc<TP>) {
 		tracing::debug!(
 			target: LOG_TARGET,
 			"starting solver runner",
@@ -51,6 +56,7 @@ where
 				//tracing::debug!(target: LOG_TARGET, "is best");
 				println!("is best");
 				let chain_info = client.usage_info().chain;
+				let h = notification.header.hash();
 				println!("chain info: {:?}", chain_info.best_number,);
 				let runtime = client.runtime_api();
 				if let Ok(intents) = runtime.intents(notification.hash, &notification.header) {
@@ -67,6 +73,15 @@ where
 						pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
 					println!("found solution ,submit it pls");
+					let call = pallet_ice::Call::propose_solution {
+						intents: BoundedResolvedIntents::truncate_from(resolved_intents),
+						trades: BoundedTrades::truncate_from(trades),
+						score,
+						block: block_number.saturating_add(1u32.into()).into(),
+					};
+
+					transaction_pool.submit_at(h, TransactionSource::Local, vec![call.into()]);
+
 
 					/*
 					let call = pallet_ice::Call::propose_solution {
