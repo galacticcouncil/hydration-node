@@ -13,22 +13,22 @@ use pallet_ice::traits::Solver;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades};
 use primitives::{AccountId, AssetId};
 use sc_client_api::{Backend, BlockchainEvents, UsageProvider};
+use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
 use sp_api::ProvideRuntimeApi;
+use sp_api::__private::BlockT;
 use sp_core::offchain::storage::OffchainDb;
+use sp_runtime::traits::{Extrinsic, Hash, Header};
+use sp_runtime::transaction_validity::TransactionSource;
 use sp_runtime::Permill;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
-use sp_api::__private::BlockT;
-use sp_runtime::traits::{Hash, Header};
-use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
-use sp_runtime::transaction_validity::TransactionSource;
 
 const LOG_TARGET: &str = "ice-solver";
 
 pub struct HydrationSolver<T, RA, B, BE, TP>(PhantomData<(T, RA, B, BE, TP)>);
 
-impl<T, RA, Block, BE ,TP> HydrationSolver<T, RA, Block, BE, TP>
+impl<T, RA, Block, BE, TP> HydrationSolver<T, RA, Block, BE, TP>
 where
 	Block: sp_runtime::traits::Block,
 	RA: ProvideRuntimeApi<Block> + UsageProvider<Block>,
@@ -40,6 +40,7 @@ where
 		+ pallet_omnipool::Config<AssetId = AssetId>
 		+ pallet_asset_registry::Config<AssetId = AssetId>
 		+ pallet_dynamic_fees::Config<Fee = Permill, AssetId = AssetId>,
+	pallet_ice::Call<T>: Into<<<Block as BlockT>::Extrinsic as Extrinsic>::Call>,
 {
 	pub async fn run(client: Arc<RA>, transaction_pool: Arc<TP>) {
 		tracing::debug!(
@@ -73,15 +74,18 @@ where
 						pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
 					println!("found solution ,submit it pls");
-					let call = pallet_ice::Call::propose_solution {
+					let call = pallet_ice::Call::<T>::propose_solution {
 						intents: BoundedResolvedIntents::truncate_from(resolved_intents),
 						trades: BoundedTrades::truncate_from(trades),
 						score,
 						block: block_number.saturating_add(1u32.into()).into(),
 					};
 
-					transaction_pool.submit_at(h, TransactionSource::Local, vec![call.into()]);
+					let uxt = Block::Extrinsic::new(call.into(), None).unwrap();
 
+					let r = transaction_pool.submit_at(h, TransactionSource::Local, vec![uxt]).await;
+
+					println!("submit result: {:?}", r);
 
 					/*
 					let call = pallet_ice::Call::propose_solution {
