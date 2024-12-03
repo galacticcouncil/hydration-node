@@ -43,7 +43,9 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 				vec![
 					AssetAmount::new(asset_a, initial_liquidity_amount),
 					AssetAmount::new(asset_b, initial_liquidity_amount),
-				].try_into().unwrap()
+				]
+				.try_into()
+				.unwrap()
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -92,7 +94,9 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 					vec![
 						AssetAmount::new(asset_a, initial_liquidity_amount),
 						AssetAmount::new(asset_b, initial_liquidity_amount),
-					].try_into().unwrap()
+					]
+					.try_into()
+					.unwrap()
 				),
 				Error::<Test>::InsufficientBalance
 			);
@@ -150,7 +154,9 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 				vec![
 					AssetAmount::new(asset_a, amount_added),
 					AssetAmount::new(asset_b, amount_added),
-				].try_into().unwrap()
+				]
+				.try_into()
+				.unwrap()
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -207,7 +213,9 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 				vec![
 					AssetAmount::new(asset_b, amount_added),
 					AssetAmount::new(asset_a, amount_added),
-				].try_into().unwrap()
+				]
+				.try_into()
+				.unwrap()
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -262,7 +270,9 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 					vec![
 						AssetAmount::new(asset_b, amount_added),
 						AssetAmount::new(asset_a, amount_added),
-					].try_into().unwrap()
+					]
+					.try_into()
+					.unwrap()
 				),
 				Error::<Test>::InsufficientTradingAmount
 			);
@@ -375,7 +385,9 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 					vec![
 						AssetAmount::new(asset_a, amount_added),
 						AssetAmount::new(asset_e, amount_added),
-					].try_into().unwrap()
+					]
+					.try_into()
+					.unwrap()
 				),
 				Error::<Test>::AssetNotInPool
 			);
@@ -425,7 +437,9 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 					vec![
 						AssetAmount::new(asset_a, amount_added),
 						AssetAmount::new(asset_a, amount_added),
-					].try_into().unwrap()
+					]
+					.try_into()
+					.unwrap()
 				),
 				Error::<Test>::IncorrectAssets
 			);
@@ -471,7 +485,9 @@ fn add_initial_liquidity_should_work_when_asset_have_different_decimals() {
 				vec![
 					AssetAmount::new(asset_a, initial_liquidity_amount_a),
 					AssetAmount::new(asset_b, initial_liquidity_amount_b),
-				].try_into().unwrap()
+				]
+				.try_into()
+				.unwrap()
 			));
 
 			assert_balance!(BOB, asset_a, to_precision!(100, dec_a));
