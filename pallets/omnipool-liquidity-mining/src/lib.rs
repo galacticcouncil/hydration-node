@@ -999,38 +999,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Exit from all specified yield farms then removes the linked liquidity
-		///
-		/// This function will attempt to withdraw shares and claim rewards (if available) from all
-		/// specified yield farms for a given deposit.
-		///
-		/// Parameters:
-		/// - `origin`: account owner of deposit(nft).
-		/// - `deposit_id`: id of the deposit to claim rewards for.
-		/// - `yield_farm_ids`: id(s) of yield farm(s) to exit from.
-		///
-		/// Emits:
-		/// * `RewardClaimed` for each successful claim
-		/// * `SharesWithdrawn` for each successful withdrawal
-		/// * `DepositDestroyed` if the deposit is fully withdrawn
-		///
-		#[pallet::call_index(16)]
-		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(yield_farm_ids.len() as u32))]//TODO: benchmark
-		pub fn exit_farms_and_remove_liquidity(
-			origin: OriginFor<T>,
-			deposit_id: DepositId,
-			yield_farm_ids: BoundedVec<YieldFarmId, T::MaxFarmEntriesPerDeposit>,
-		) -> DispatchResult {
-			for yield_farm_id in yield_farm_ids.iter() {
-				Self::withdraw_shares(origin.clone(), deposit_id, *yield_farm_id)?;
-			}
-		//TODO: finish
-			let position_id = OmniPositionId::<T>::get(deposit_id)
-				.defensive_ok_or::<Error<T>>(InconsistentStateError::MissingLpPosition.into())?;
-
-			Ok(())
-		}
-
 		/// This function allows user to add liquidity then use that shares to join multiple farms.
 		///
 		/// Limit protection is applied.
