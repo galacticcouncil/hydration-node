@@ -25,6 +25,7 @@ pallet-dynamic-fees = {workspace = true, default-features = false}
 pallet-asset-registry = {workspace = true, default-features = false}
 hydradx-adapters = {workspace = true, default-features = false}
 frame-system = {workspace = true, default-features = false}
+hydradx-runtime = {workspace = true, default-features = false}
 
 highs = "1.6.1"
 #numpy = "0.22.1"
