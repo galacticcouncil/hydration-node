@@ -5278,6 +5278,7 @@ dependencies = [
  "futures",
  "highs",
  "hydradx-adapters",
+ "hydradx-runtime",
  "ndarray",
  "pallet-asset-registry",
  "pallet-dynamic-fees",
