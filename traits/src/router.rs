@@ -92,6 +92,8 @@ pub enum TradeOperation {
 	ExactIn,
 	ExactOut,
 	Limit,
+	LiquidityAdd,
+	LiquidityRemove,
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
