@@ -117,6 +117,7 @@ pallet-collator-rewards = { path = "pallets/collator-rewards", default-features 
 pallet-currencies = { path = "pallets/currencies", default-features = false }
 pallet-currencies-rpc-runtime-api = { path = "pallets/currencies/rpc/runtime-api", default-features = false }
 pallet-dca = { path = "pallets/dca", default-features = false }
+pallet-dispatcher = { path = "pallets/dispatcher", default-features = false }
 pallet-duster = { path = "pallets/duster", default-features = false }
 pallet-dynamic-fees = { path = "pallets/dynamic-fees", default-features = false }
 pallet-dynamic-evm-fee = { path = "pallets/dynamic-evm-fee", default-features = false }
