@@ -91,7 +91,7 @@ impl Stablepools {
 			.map(|pool| {
 				RuntimeCall::Stableswap(pallet_stableswap::Call::add_liquidity {
 					pool_id: pool.pool_id,
-					assets: pool.get_asset_amounts(),
+					assets: pool.get_asset_amounts().try_into().unwrap(),
 				})
 			})
 			.collect()

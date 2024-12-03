@@ -205,8 +205,6 @@ fn add_liquidity_join_farms_should_fail_when_doesnt_reach_limit() {
 		.execute_with(|| {
 			let gc_g_farm_id = 1;
 			let gc_y_farm_id = 4;
-			let omnipool_position_id = 3;
-			let deposit_id = 1;
 			let asset_in_position = KSM;
 			let amount = 20 * ONE;
 			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
