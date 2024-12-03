@@ -5286,6 +5286,7 @@ dependencies = [
  "primitives",
  "rand 0.8.5",
  "sc-client-api",
+ "sc-transaction-pool-api",
  "serde",
  "serde_json",
  "sp-api",
