@@ -25,19 +25,25 @@
 //  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
 //                  $$$
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 // #[cfg(any(feature = "runtime-benchmarks", test))]
 // mod benchmarks;
 
 pub mod weights;
 pub use weights::WeightInfo;
 
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
     use codec::FullCodec;
     use frame_support::{dispatch::{GetDispatchInfo, PostDispatchInfo}, pallet_prelude::*};
-    use frame_system::{pallet_prelude::OriginFor};
+    use frame_system::{pallet_prelude::*};
     use sp_runtime::traits::Dispatchable;
+    use sp_std::boxed::Box;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
