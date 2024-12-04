@@ -304,7 +304,7 @@ impl ExtBuilder {
 					assert_ok!(Stableswap::add_liquidity(
 						RuntimeOrigin::signed(initial_liquid.account),
 						pool_id,
-						initial_liquid.assets
+						initial_liquid.assets.try_into().unwrap()
 					));
 				}
 			}
@@ -316,8 +316,9 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{AssetAmount, PoolInfo, PoolState, StableswapHooks};
+use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{AccountIdFor, Inspect};
 use sp_runtime::traits::Zero;
 

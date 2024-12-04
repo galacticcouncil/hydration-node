@@ -29,7 +29,7 @@ use frame_support::{assert_noop, assert_ok};
 use xcm_emulator::TestExt;
 
 use frame_support::storage::with_transaction;
-use pallet_stableswap::types::AssetAmount;
+use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use sp_runtime::{
 	traits::{ConstU32, Zero},
@@ -5588,7 +5588,11 @@ pub fn init_stableswap_with_details(
 		fee,
 	)?;
 
-	Stableswap::add_liquidity(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
+	Stableswap::add_liquidity(
+		hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+		pool_id,
+		initial.try_into().unwrap(),
+	)?;
 
 	Ok((pool_id, asset_in, asset_out))
 }

@@ -1,7 +1,7 @@
-use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
@@ -149,15 +149,14 @@ where
 					Self::remove_liquidity_one_asset(who, pool_id, asset_out, amount_in, min_limit)
 						.map_err(ExecutorError::Error)
 				} else if asset_out == pool_id {
-					Self::add_liquidity(
-						who,
-						pool_id,
-						vec![AssetAmount {
-							asset_id: asset_in,
-							amount: amount_in,
-						}],
-					)
-					.map_err(ExecutorError::Error)
+					let asset = vec![AssetAmount {
+						asset_id: asset_in,
+						amount: amount_in,
+					}]
+					.try_into()
+					.map_err(|_| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+
+					Self::add_liquidity(who, pool_id, asset).map_err(ExecutorError::Error)
 				} else {
 					Self::sell(who, pool_id, asset_in, asset_out, amount_in, min_limit).map_err(ExecutorError::Error)
 				}

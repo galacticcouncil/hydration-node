@@ -46,6 +46,7 @@ use primitives::constants::{
 use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
 
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
+use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
@@ -662,6 +663,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type NFTCollectionId = OmnipoolLMCollectionId;
 	type NFTHandler = Uniques;
 	type LiquidityMiningHandler = OmnipoolWarehouseLM;
+	type Stableswap = Stableswap;
 	type OracleSource = OmnipoolLMOracleSource;
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;

@@ -1,6 +1,7 @@
 use crate::tests::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::PoolInfo;
 use frame_support::assert_ok;
+use hydradx_traits::stableswap::AssetAmount;
 use sp_runtime::{FixedU128, Permill};
 use std::num::NonZeroU16;
 
@@ -181,7 +182,7 @@ fn test_share_price_in_add_remove_liquidity() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount)],
+				vec![AssetAmount::new(asset_a, amount)].try_into().unwrap(),
 			));
 
 			let final_shares = Tokens::total_issuance(pool_id);
@@ -326,7 +327,7 @@ fn test_share_price_case() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount)],
+				vec![AssetAmount::new(asset_a, amount)].try_into().unwrap(),
 			));
 
 			let final_shares = Tokens::total_issuance(pool_id);

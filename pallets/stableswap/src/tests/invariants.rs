@@ -1,6 +1,7 @@
 use crate::tests::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::PoolInfo;
 use frame_support::{assert_ok, BoundedVec};
+use hydradx_traits::stableswap::AssetAmount;
 use sp_runtime::{FixedU128, Permill};
 use std::cmp::Ordering;
 use std::num::NonZeroU16;
@@ -93,7 +94,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -166,7 +167,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -842,7 +843,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -944,7 +945,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -1263,7 +1264,7 @@ proptest! {
 					pool_id,
 					vec![
 					AssetAmount::new(asset_a, added_liquidity),
-				]
+				].try_into().unwrap()
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
