@@ -151,6 +151,7 @@ pub mod pallet {
 
 		/// Solution was executed
 		SolutionExecuted { who: T::AccountId },
+		Hurray { score: u64},
 	}
 
 	#[pallet::error]
@@ -357,6 +358,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
+			/*
 			// check if the solution was already executed in this block
 			// This is to prevent multiple solutions to be executed in the same block.
 			// Although it should be handled by the tx validation, it is better to have it here too.
@@ -381,9 +383,31 @@ pub mod pallet {
 					return Err(e);
 				}
 			}
+
+			 */
+			Self::deposit_event(Event::Hurray{ score });
 			Ok(())
 		}
 	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			let valid_tx = |provide| {
+				ValidTransaction::with_tag_prefix("iceice")
+					.and_provides(("solution", 0u32))
+					.priority(100)
+					.longevity(3)
+					.propagate(false)
+					.build()
+			};
+
+			valid_tx(b"settle_otc_order".to_vec())
+		}
+	}
+
 }
 
 //TODO: add validate unsigned to allow only validators

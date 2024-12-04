@@ -17,12 +17,12 @@ use pallet_ice::Call;
 use primitives::{AccountId, AssetId};
 use sc_client_api::{Backend, BlockchainEvents, UsageProvider};
 use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
-use sp_api::ProvideRuntimeApi;
+use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_api::__private::BlockT;
 use sp_core::offchain::storage::OffchainDb;
 use sp_runtime::traits::{Extrinsic, Hash, Header};
 use sp_runtime::transaction_validity::TransactionSource;
-use sp_runtime::Permill;
+use sp_runtime::{Permill, TransactionOutcome};
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -77,7 +77,8 @@ where
 					let (trades, score) =
 						pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
-					println!("found solution ,submit it pls");
+					println!("found solution ,submit it pls 2");
+					runtime.submit_solution(notification.hash, &notification.header, resolved_intents).unwrap();
 					/*
 					let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::propose_solution {
 						intents: BoundedResolvedIntents::truncate_from(resolved_intents),
@@ -87,14 +88,11 @@ where
 						block: block_number.saturating_add(1u32.into()).into(),
 					});
 
+
 					let uxt = Block::Extrinsic::new(call, None).unwrap();
-
 					let r = transaction_pool.submit_at(h, TransactionSource::Local, vec![uxt]).await;
-
 					println!("submit result: {:?}", r);
 					 */
-
-					pallet_ice::Pallet::<T>::send_solution();
 
 					/*
 					let call = pallet_ice::Call::propose_solution {
