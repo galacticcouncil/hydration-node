@@ -677,6 +677,20 @@ impl_runtime_apis! {
 		fn intents(_header: &<Block as BlockT>::Header) -> Vec<(pallet_ice::types::IntentId, pallet_ice::types::Intent<AccountId, AssetId>)> {
 			pallet_ice::Pallet::<Runtime>::get_valid_intents()
 		}
+
+		fn submit_solution(_header: &<Block as BlockT>::Header, _solution: Vec<pallet_ice::types::ResolvedIntent>) -> Result<(), sp_runtime::DispatchError> {
+			log::error!("submitting solution.");
+				let call = RuntimeCall::ICE(pallet_ice::Call::propose_solution {
+						intents: pallet_ice::types::BoundedResolvedIntents::truncate_from(vec![]),
+						trades: pallet_ice::types::BoundedTrades::truncate_from(vec![]),
+						score:0,
+						block: 0u32.into(),
+					});
+			let r = call.dispatch(RuntimeOrigin::none());
+			log::error!("submitting solution done with {:?}.", r);
+			Ok(())
+		}
+
 	}
 
 	// Frontier RPC support
