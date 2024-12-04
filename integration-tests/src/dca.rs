@@ -2522,7 +2522,9 @@ mod stableswap {
 					vec![AssetAmount {
 						asset_id: stable_asset_1,
 						amount: amount_to_sell,
-					}],
+					}]
+					.try_into()
+					.unwrap(),
 				));
 				let alice_pool_id_balance = Currencies::free_balance(pool_id, &AccountId::from(ALICE));
 
@@ -4144,7 +4146,7 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 
 	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
 
-	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
+	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial.try_into().unwrap())?;
 
 	Ok((pool_id, asset_in, asset_out))
 }
@@ -4208,7 +4210,7 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 
 	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
 
-	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
+	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial.try_into().unwrap())?;
 
 	Ok((pool_id, asset_in, asset_out))
 }

@@ -5588,7 +5588,11 @@ pub fn init_stableswap_with_details(
 		fee,
 	)?;
 
-	Stableswap::add_liquidity(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
+	Stableswap::add_liquidity(
+		hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+		pool_id,
+		initial.try_into().unwrap(),
+	)?;
 
 	Ok((pool_id, asset_in, asset_out))
 }
