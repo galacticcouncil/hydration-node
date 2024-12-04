@@ -33,7 +33,7 @@ pub struct HydrationSolver<T, RA, B, BE, TP>(PhantomData<(T, RA, B, BE, TP)>);
 
 impl<T, RA, Block, BE, TP> HydrationSolver<T, RA, Block, BE, TP>
 where
-	Block: sp_runtime::traits::Block<Extrinsic = hydradx_runtime::UncheckedExtrinsic>,
+	Block: sp_runtime::traits::Block,
 	RA: ProvideRuntimeApi<Block> + UsageProvider<Block>,
 	RA::Api: ICEApi<Block, AccountId, AssetId>,
 	//BE: Backend<Block> + 'static,
@@ -78,6 +78,7 @@ where
 						pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
 					println!("found solution ,submit it pls");
+					/*
 					let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::propose_solution {
 						intents: BoundedResolvedIntents::truncate_from(resolved_intents),
 						//trades: BoundedTrades::truncate_from(trades),
@@ -89,7 +90,11 @@ where
 					let uxt = Block::Extrinsic::new(call, None).unwrap();
 
 					let r = transaction_pool.submit_at(h, TransactionSource::Local, vec![uxt]).await;
+
 					println!("submit result: {:?}", r);
+					 */
+
+					pallet_ice::Pallet::<T>::send_solution();
 
 					/*
 					let call = pallet_ice::Call::propose_solution {

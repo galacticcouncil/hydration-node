@@ -23,7 +23,7 @@ use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::{OriginTrait, Time};
-use frame_support::{dispatch::DispatchResult, traits::Get};
+use frame_support::{dispatch::DispatchResult, traits::Get, transactional};
 use frame_support::{Blake2_128Concat, Parameter};
 use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
 use frame_system::pallet_prelude::*;
@@ -1006,6 +1006,19 @@ impl<T: Config> Pallet<T> {
 			debug_assert!(amount_out == 0u128);
 		}
 
+		Ok(())
+	}
+
+	#[transactional]
+	pub fn send_solution() -> DispatchResult {
+		let call = Call::propose_solution {
+			intents: BoundedResolvedIntents::default(),
+			trades: BoundedTrades::default(),
+			score: 0,
+			block: 0u32.into(),
+		};
+
+		let r = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 		Ok(())
 	}
 }
