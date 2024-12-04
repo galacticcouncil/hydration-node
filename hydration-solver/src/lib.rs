@@ -6,11 +6,14 @@ mod problem;
 mod tests;
 pub mod v3;
 
+use frame_system::offchain::SendTransactionTypes;
+use frame_system::pallet_prelude::RuntimeCallFor;
 use futures::future::ready;
 use futures::StreamExt;
 use pallet_ice::api::ICEApi;
 use pallet_ice::traits::Solver;
 use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades};
+use pallet_ice::Call;
 use primitives::{AccountId, AssetId};
 use sc_client_api::{Backend, BlockchainEvents, UsageProvider};
 use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
@@ -23,9 +26,6 @@ use sp_runtime::Permill;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
-use frame_system::offchain::SendTransactionTypes;
-use frame_system::pallet_prelude::RuntimeCallFor;
-use pallet_ice::Call;
 
 const LOG_TARGET: &str = "ice-solver";
 
@@ -36,15 +36,15 @@ where
 	Block: sp_runtime::traits::Block<Extrinsic = hydradx_runtime::UncheckedExtrinsic>,
 	RA: ProvideRuntimeApi<Block> + UsageProvider<Block>,
 	RA::Api: ICEApi<Block, AccountId, AssetId>,
-	BE: Backend<Block> + 'static,
+	//BE: Backend<Block> + 'static,
 	RA: BlockchainEvents<Block> + 'static,
 	TP: MaintainedTransactionPool<Block = Block, Hash = <Block as BlockT>::Hash> + 'static,
 	T: pallet_ice::Config
-	+ frame_system::Config<RuntimeCall = hydradx_runtime::RuntimeCall>
+		+ frame_system::Config<RuntimeCall = hydradx_runtime::RuntimeCall>
 		+ pallet_omnipool::Config<AssetId = AssetId>
 		+ pallet_asset_registry::Config<AssetId = AssetId>
 		+ pallet_dynamic_fees::Config<Fee = Permill, AssetId = AssetId>,
-	//pallet_ice::Call::<T> : Into<frame_system::Call<T>>
+	//pallet_ice::Call::<T> : Into<hydradx_runtime::RuntimeCall>
 {
 	pub async fn run(client: Arc<RA>, transaction_pool: Arc<TP>) {
 		tracing::debug!(
@@ -78,20 +78,20 @@ where
 						pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
 					println!("found solution ,submit it pls");
-					let call = pallet_ice::Call::<T>::propose_solution {
+					let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::propose_solution {
 						intents: BoundedResolvedIntents::truncate_from(resolved_intents),
-						trades: BoundedTrades::truncate_from(trades),
+						//trades: BoundedTrades::truncate_from(trades),
+						trades: BoundedTrades::truncate_from(vec![]),
 						score,
 						block: block_number.saturating_add(1u32.into()).into(),
-					};
+					});
 
-					let s = RuntimeCallFor::<T>::from(call.into());
-					let uxt = Block::Extrinsic::new(s, None).unwrap();
+					let uxt = Block::Extrinsic::new(call, None).unwrap();
 
 					let r = transaction_pool.submit_at(h, TransactionSource::Local, vec![uxt]).await;
 					println!("submit result: {:?}", r);
 
-/*
+					/*
 					let call = pallet_ice::Call::propose_solution {
 						intents: BoundedResolvedIntents::truncate_from(resolved_intents),
 						trades: BoundedTrades::truncate_from(trades),
