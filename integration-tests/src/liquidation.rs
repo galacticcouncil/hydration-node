@@ -159,6 +159,10 @@ fn liquidation_should_work() {
 
 		// get Pool contract address
 		let pool_contract = get_pool(pap_contract);
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract.clone()
+		));
 		let pallet_acc = Liquidation::account_id();
 		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
 		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
@@ -262,6 +266,10 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 
 		// get Pool contract address
 		let pool_contract = get_pool(pap_contract);
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract.clone()
+		));
 		let pallet_acc = Liquidation::account_id();
 		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
 		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);

@@ -91,10 +91,6 @@ pub mod pallet {
 		type Router: RouteProvider<AssetId>
 			+ RouterT<Self::RuntimeOrigin, AssetId, Balance, Trade<AssetId>, AmountInAndOut<Balance>>;
 
-		/// Money market contract address.
-		#[pallet::constant]
-		type MoneyMarketContract: Get<EvmAddress>;
-
 		/// EVM address converter.
 		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
 
@@ -118,6 +114,15 @@ pub mod pallet {
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 	}
+
+	#[pallet::type_value]
+	pub fn DefaultBorrowingContract() -> EvmAddress {
+		EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice())
+	}
+
+	/// Borrowing market contract address
+	#[pallet::storage]
+	pub type BorrowingContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultBorrowingContract>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -189,7 +194,7 @@ pub mod pallet {
 
 			// liquidation call
 			let pallet_address = T::EvmAccounts::evm_address(&pallet);
-			let contract = T::MoneyMarketContract::get();
+			let contract = BorrowingContract::<T>::get();
 
 			let context = CallContext::new_call(contract, pallet_address);
 			let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
@@ -243,6 +248,18 @@ pub mod pallet {
 				debt_to_cover,
 				profit,
 			});
+
+			Ok(())
+		}
+
+		/// Set the borrowing market contract address.
+		///
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::liquidate())]
+		pub fn set_borrowing_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
+			frame_system::ensure_root(origin)?;
+
+			BorrowingContract::<T>::put(contract);
 
 			Ok(())
 		}

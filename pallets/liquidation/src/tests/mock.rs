@@ -64,7 +64,6 @@ frame_support::construct_runtime!(
 );
 
 parameter_types! {
-	pub MoneyMarketContract: EvmAddress = EvmAddress::from_slice(&[9; 20]);
 	pub const LiquidationGasLimit: u64 = 1_000_000;
 }
 
@@ -98,48 +97,44 @@ fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress
 pub struct EvmMock;
 impl EVM<CallResult> for EvmMock {
 	fn call(context: CallContext, data: Vec<u8>, _value: U256, _gas: u64) -> CallResult {
-		if context.contract == MoneyMarketContract::get() {
-			let maybe_data = decode_liquidation_call_data(data);
-			match maybe_data {
-				Some(data) => {
-					let collateral_asset = HydraErc20Mapping::decode_evm_address(data.0);
-					let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
+		let maybe_data = decode_liquidation_call_data(data);
+		match maybe_data {
+			Some(data) => {
+				let collateral_asset = HydraErc20Mapping::decode_evm_address(data.0);
+				let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
 
-					if collateral_asset.is_none() || debt_asset.is_none() {
-						return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
-					};
+				if collateral_asset.is_none() || debt_asset.is_none() {
+					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+				};
 
-					let collateral_asset = collateral_asset.unwrap();
-					let debt_asset = debt_asset.unwrap();
+				let collateral_asset = collateral_asset.unwrap();
+				let debt_asset = debt_asset.unwrap();
 
-					let caller = EvmAccounts::account_id(context.sender);
-					let contract_addr = EvmAccounts::account_id(context.contract);
-					let amount = data.3;
+				let caller = EvmAccounts::account_id(context.sender);
+				let contract_addr = EvmAccounts::account_id(context.contract);
+				let amount = data.3;
 
-					let first_transfer_result = Currencies::transfer(
-						RuntimeOrigin::signed(caller.clone()),
-						contract_addr.clone(),
-						debt_asset,
-						amount,
-					);
-					let second_transfer_result = Currencies::transfer(
-						RuntimeOrigin::signed(contract_addr),
-						caller,
-						collateral_asset,
-						2 * amount,
-					);
+				let first_transfer_result = Currencies::transfer(
+					RuntimeOrigin::signed(caller.clone()),
+					contract_addr.clone(),
+					debt_asset,
+					amount,
+				);
+				let second_transfer_result = Currencies::transfer(
+					RuntimeOrigin::signed(contract_addr),
+					caller,
+					collateral_asset,
+					2 * amount,
+				);
 
-					if first_transfer_result.is_err() || second_transfer_result.is_err() {
-						return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
-					}
+				if first_transfer_result.is_err() || second_transfer_result.is_err() {
+					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
 				}
-				None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]),
 			}
-
-			(ExitReason::Succeed(ExitSucceed::Returned), vec![])
-		} else {
-			(ExitReason::Error(ExitError::DesignatedInvalid), vec![])
+			None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]),
 		}
+
+		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -197,7 +192,6 @@ impl Config for Test {
 	type Currency = FungibleCurrencies<Test>;
 	type Evm = EvmMock;
 	type Router = Router;
-	type MoneyMarketContract = MoneyMarketContract;
 	type EvmAccounts = EvmAccounts;
 	type Erc20Mapping = HydraErc20Mapping;
 	type GasWeightMapping = DummyGasWeightMapping;

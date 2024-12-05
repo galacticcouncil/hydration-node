@@ -14,11 +14,16 @@ use orml_traits::MultiCurrency;
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
+use hydradx_traits::evm::EvmAddress;
 
 #[test]
 fn liquidation_should_transfer_profit_to_treasury() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[9; 20])
+		));
 		let bob_evm_address = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover = 1_000 * ONE;
 
@@ -93,6 +98,10 @@ fn liquidation_should_transfer_profit_to_treasury() {
 fn liquidation_should_work_when_debt_and_collateral_asset_is_same() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[9; 20])
+		));
 		let bob_evm_address = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover = 1_000 * ONE;
 
@@ -128,6 +137,10 @@ fn liquidation_should_work_when_debt_and_collateral_asset_is_same() {
 fn liquidation_should_fail_if_not_profitable() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[9; 20])
+		));
 		let bob_evm_address = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover = 1_000 * ONE;
 
@@ -160,6 +173,10 @@ fn liquidation_should_fail_if_not_profitable() {
 fn initial_pallet_balance_should_not_change_after_execution() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[9; 20])
+		));
 		let bob_evm_address = EvmAccounts::evm_address(&BOB);
 		let debt_to_cover = 1_000 * ONE;
 		let initial_pallet_balance = 10_000 * ONE;

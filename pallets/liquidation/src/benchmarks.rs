@@ -51,7 +51,11 @@ benchmarks! {
 			asset_out: dot,
 		});
 
-  }:  _(RawOrigin::Signed(caller), hdx, dot, evm_address, 100 * ONE, route)
+	}:  _(RawOrigin::Signed(caller), hdx, dot, evm_address, 100 * ONE, route)
+
+	set_borrowing_contract {
+		let address = EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice());
+	}: _(RawOrigin::Root, address)
 
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
 }
