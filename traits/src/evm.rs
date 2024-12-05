@@ -82,3 +82,10 @@ pub trait ERC20 {
 	fn transfer(context: CallContext, to: EvmAddress, value: Self::Balance) -> DispatchResult;
 	fn transfer_from(context: CallContext, from: EvmAddress, to: EvmAddress, value: Self::Balance) -> DispatchResult;
 }
+
+/// A mapping between AssetId and Erc20 EVM address.
+pub trait Erc20Mapping<AssetId> {
+	fn encode_evm_address(asset_id: AssetId) -> EvmAddress;
+
+	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId>;
+}

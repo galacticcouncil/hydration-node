@@ -26,6 +26,7 @@ use hydradx_adapters::{
 };
 
 pub use hydradx_traits::{
+	evm::CallContext,
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
@@ -1581,6 +1582,48 @@ impl pallet_referrals::Config for Runtime {
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
+}
+
+parameter_types! {
+	pub const LiquidationGasLimit: u64 = 4_000_000;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct DummyEvm;
+#[cfg(feature = "runtime-benchmarks")]
+impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
+	fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_liquidation::CallResult {
+		(
+			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			vec![],
+		)
+	}
+
+	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_liquidation::CallResult {
+		(
+			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			vec![],
+		)
+	}
+}
+impl pallet_liquidation::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = FungibleCurrencies<Runtime>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Evm = evm::Executor<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Evm = DummyEvm;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Router = Router;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Router = pallet_route_executor::DummyRouter<Runtime>;
+	type EvmAccounts = EVMAccounts;
+	type Erc20Mapping = evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type GasLimit = LiquidationGasLimit;
+	type ProfitReceiver = TreasuryAccount;
+	type RouterWeightInfo = RouterWeightInfo;
+	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

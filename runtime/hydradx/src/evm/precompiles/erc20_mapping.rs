@@ -22,23 +22,16 @@
 use crate::evm::EvmAddress;
 use crate::Runtime;
 use hex_literal::hex;
-use hydradx_traits::RegisterAssetHook;
+use hydradx_traits::{evm::Erc20Mapping, RegisterAssetHook};
 use primitive_types::H160;
 use primitives::AssetId;
-
-/// A mapping between AssetId and Erc20 EVM address.
-pub trait Erc20Mapping {
-	fn encode_evm_address(asset_id: AssetId) -> Option<EvmAddress>;
-
-	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId>;
-}
 
 pub struct HydraErc20Mapping;
 
 /// Erc20Mapping logic for HydraDX
 /// The asset id (with type u32) is encoded in the last 4 bytes of EVM address
-impl Erc20Mapping for HydraErc20Mapping {
-	fn encode_evm_address(asset_id: AssetId) -> Option<EvmAddress> {
+impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 
 		let mut evm_address_bytes = [0u8; 20];
@@ -49,7 +42,7 @@ impl Erc20Mapping for HydraErc20Mapping {
 			evm_address_bytes[16 + i] = asset_id_bytes[3 - i];
 		}
 
-		Some(EvmAddress::from(evm_address_bytes))
+		EvmAddress::from(evm_address_bytes)
 	}
 
 	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId> {
@@ -76,9 +69,7 @@ pub struct SetCodeForErc20Precompile;
 
 impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {
 	fn on_register_asset(asset_id: AssetId) {
-		if let Some(evm_address) = HydraErc20Mapping::encode_evm_address(asset_id) {
-			pallet_evm::AccountCodes::<Runtime>::insert(evm_address, &hex!["00"][..]);
-		}
+		pallet_evm::AccountCodes::<Runtime>::insert(HydraErc20Mapping::encode_evm_address(asset_id), &hex!["00"][..]);
 	}
 }
 
@@ -88,11 +79,9 @@ impl frame_support::traits::OnRuntimeUpgrade for SetCodeForErc20Precompile {
 		let mut writes = 0;
 		pallet_asset_registry::Assets::<Runtime>::iter().for_each(|(asset_id, _)| {
 			reads += 1;
-			if let Some(evm_address) = HydraErc20Mapping::encode_evm_address(asset_id) {
-				if !pallet_evm::AccountCodes::<Runtime>::contains_key(evm_address) {
-					Self::on_register_asset(asset_id);
-					writes += 1;
-				}
+			if !pallet_evm::AccountCodes::<Runtime>::contains_key(HydraErc20Mapping::encode_evm_address(asset_id)) {
+				Self::on_register_asset(asset_id);
+				writes += 1;
 			}
 		});
 		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(reads, writes)

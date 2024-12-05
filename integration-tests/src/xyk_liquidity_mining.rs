@@ -465,13 +465,13 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			hydradx_runtime::RuntimeOrigin::root(),
 			BOB.into(),
 			PEPE,
-			10_000_0000 * UNITS as i128,
+			100_000_000 * UNITS as i128,
 		));
 		assert_ok!(Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			BOB.into(),
 			ACA,
-			10_000_0000 * UNITS as i128,
+			100_000_000 * UNITS as i128,
 		));
 
 		//Add some liquidity unrelated to make sure some existing shares are not effected
@@ -499,7 +499,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			PEPE,
 			ACA,
 			liquidity_amount,
-			6_000_0000 * UNITS,
+			60_000_000 * UNITS,
 			farms.try_into().unwrap(),
 		));
 
