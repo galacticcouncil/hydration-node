@@ -1588,7 +1588,9 @@ parameter_types! {
 	pub const LiquidationGasLimit: u64 = 4_000_000;
 }
 
+#[cfg(feature = "runtime-benchmarks")]
 pub struct DummyEvm;
+#[cfg(feature = "runtime-benchmarks")]
 impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
 	fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_liquidation::CallResult {
 		(

@@ -5,7 +5,7 @@ description = 'A pallet for money market liquidations'
 authors = ['GalacticCouncil']
 edition = '2021'
 license = 'Apache 2.0'
-repository = "https://github.com/galacticcouncil/Hydradx-node"
+repository = "https://github.com/galacticcouncil/hydration-node"
 
 [dependencies]
 # parity

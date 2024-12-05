@@ -72,6 +72,7 @@ pub enum Function {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::traits::DefensiveOption;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -184,16 +185,16 @@ pub mod pallet {
 			route: Vec<Trade<AssetId>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let pallet = Self::account_id();
+			let pallet_acc = Self::account_id();
 
-			let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet);
-			let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &pallet);
+			let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
+			let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
 
 			// mint debt asset
-			<T as Config>::Currency::mint_into(debt_asset, &pallet, debt_to_cover)?;
+			<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
 
 			// liquidation call
-			let pallet_address = T::EvmAccounts::evm_address(&pallet);
+			let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
 			let contract = BorrowingContract::<T>::get();
 
 			let context = CallContext::new_call(contract, pallet_address);
@@ -201,18 +202,18 @@ pub mod pallet {
 
 			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-				log::debug!(target: "liquidation",
+				log::error!(target: "liquidation",
 					"Evm execution failed. Reason: {:?}", value);
 				return Err(Error::<T>::LiquidationCallFailed.into());
 			}
 
 			// swap collateral if necessary
 			if collateral_asset != debt_asset {
-				let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet)
+				let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc)
 					.checked_sub(collateral_original_balance)
-					.ok_or(ArithmeticError::Underflow)?;
+					.defensive_ok_or(ArithmeticError::Underflow)?;
 				T::Router::sell(
-					RawOrigin::Signed(pallet.clone()).into(),
+					RawOrigin::Signed(pallet_acc.clone()).into(),
 					collateral_asset,
 					debt_asset,
 					collateral_earned,
@@ -222,7 +223,7 @@ pub mod pallet {
 			}
 
 			// burn debt and transfer profit
-			let debt_gained = <T as Config>::Currency::balance(debt_asset, &pallet)
+			let debt_gained = <T as Config>::Currency::balance(debt_asset, &pallet_acc)
 				.checked_sub(debt_original_balance)
 				.ok_or(Error::<T>::NotProfitable)?;
 
@@ -230,11 +231,11 @@ pub mod pallet {
 				.checked_sub(debt_to_cover)
 				.ok_or(Error::<T>::NotProfitable)?;
 
-			<T as Config>::Currency::burn_from(debt_asset, &pallet, debt_to_cover, Precision::Exact, Fortitude::Force)?;
+			<T as Config>::Currency::burn_from(debt_asset, &pallet_acc, debt_to_cover, Precision::Exact, Fortitude::Force)?;
 
 			<T as Config>::Currency::transfer(
 				debt_asset,
-				&pallet,
+				&pallet_acc,
 				&T::ProfitReceiver::get(),
 				profit,
 				Preservation::Expendable,
