@@ -6,7 +6,7 @@ use fp_evm::{
 	ExitReason::Succeed,
 	ExitSucceed::{Returned, Stopped},
 };
-use frame_support::{assert_ok, sp_runtime::RuntimeDebug};
+use frame_support::{assert_noop, assert_ok, sp_runtime::RuntimeDebug};
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{
@@ -160,8 +160,8 @@ fn liquidation_should_work() {
 		// get Pool contract address
 		let pool_contract = get_pool(pap_contract);
 		let pallet_acc = Liquidation::account_id();
-		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT).unwrap();
-		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH).unwrap();
+		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
 
 		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
 		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
@@ -175,7 +175,6 @@ fn liquidation_should_work() {
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
-		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pap_contract));
 
 		let collateral_weth_amount: Balance = 10 * WETH_UNIT;
 		let collateral_dot_amount = 5_000 * DOT_UNIT;
@@ -246,6 +245,94 @@ fn liquidation_should_work() {
 		assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
 
 		assert!(Currencies::free_balance(DOT, &Treasury::account_id()) > treasury_dot_initial_balance);
+
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+		assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);
+	});
+}
+
+#[test]
+fn liquidation_should_revert_correctly_when_evm_call_fails() {
+	TestNet::reset();
+	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
+		// PoolAddressesProvider contract
+		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
+
+		// get Pool contract address
+		let pool_contract = get_pool(pap_contract);
+		let pallet_acc = Liquidation::account_id();
+		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+
+		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
+		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
+
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(pallet_acc.clone()),));
+
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		let collateral_weth_amount: Balance = 10 * WETH_UNIT;
+		let collateral_dot_amount = 5_000 * DOT_UNIT;
+		supply(
+			pool_contract,
+			alice_evm_address,
+			weth_asset_address,
+			collateral_weth_amount,
+		);
+		supply(
+			pool_contract,
+			alice_evm_address,
+			dot_asset_address,
+			collateral_dot_amount,
+		);
+
+		assert_eq!(
+			Currencies::free_balance(DOT, &ALICE.into()),
+			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount
+		);
+		assert_eq!(
+			Currencies::free_balance(WETH, &ALICE.into()),
+			ALICE_INITIAL_WETH_BALANCE - collateral_weth_amount
+		);
+
+		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
+		borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
+		assert_eq!(
+			Currencies::free_balance(DOT, &ALICE.into()),
+			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount + borrow_dot_amount
+		);
+
+		// ensure that the health_factor > 1
+		let user_data = get_user_account_data(pool_contract, alice_evm_address);
+		assert!(user_data.5 > U256::from(1_000_000_000_000_000_000u128));
+
+		let route = Router::get_route(AssetPair {
+			asset_in: WETH,
+			asset_out: DOT,
+		});
+
+		// Act
+		assert_noop!(
+			Liquidation::liquidate(
+				RuntimeOrigin::signed(BOB.into()),
+				WETH,
+				DOT,
+				alice_evm_address,
+				borrow_dot_amount,
+				route
+			),
+			pallet_liquidation::Error::<hydradx_runtime::Runtime>::LiquidationCallFailed
+		);
+
+		// Assert
+		assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
+		assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
 
 		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 		assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);

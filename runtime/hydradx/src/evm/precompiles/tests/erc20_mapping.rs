@@ -5,7 +5,7 @@ use primitive_types::H160;
 
 macro_rules! encode {
 	($asset_id:expr) => {{
-		HydraErc20Mapping::encode_evm_address($asset_id).unwrap()
+		HydraErc20Mapping::encode_evm_address($asset_id)
 	}};
 }
 

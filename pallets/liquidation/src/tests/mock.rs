@@ -149,7 +149,7 @@ impl EVM<CallResult> for EvmMock {
 
 pub struct HydraErc20Mapping;
 impl Erc20Mapping<AssetId> for HydraErc20Mapping {
-	fn encode_evm_address(asset_id: AssetId) -> Option<EvmAddress> {
+	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 
 		let mut evm_address_bytes = [0u8; 20];
@@ -160,7 +160,7 @@ impl Erc20Mapping<AssetId> for HydraErc20Mapping {
 			evm_address_bytes[16 + i] = asset_id_bytes[3 - i];
 		}
 
-		Some(EvmAddress::from(evm_address_bytes))
+		EvmAddress::from(evm_address_bytes)
 	}
 
 	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId> {

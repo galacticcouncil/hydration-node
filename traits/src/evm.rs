@@ -85,7 +85,7 @@ pub trait ERC20 {
 
 /// A mapping between AssetId and Erc20 EVM address.
 pub trait Erc20Mapping<AssetId> {
-	fn encode_evm_address(asset_id: AssetId) -> Option<EvmAddress>;
+	fn encode_evm_address(asset_id: AssetId) -> EvmAddress;
 
 	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId>;
 }

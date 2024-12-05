@@ -90,6 +90,41 @@ fn liquidation_should_transfer_profit_to_treasury() {
 }
 
 #[test]
+fn liquidation_should_work_when_debt_and_collateral_asset_is_same() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let bob_evm_address = EvmAccounts::evm_address(&BOB);
+		let debt_to_cover = 1_000 * ONE;
+
+		let hdx_total_issuance = Currencies::total_issuance(HDX);
+		let hdx_alice_balance_before = Currencies::free_balance(HDX, &ALICE);
+		assert!(Currencies::free_balance(HDX, &Liquidation::account_id()) == 0);
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(
+			Liquidation::account_id()
+		),));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
+
+		// Act
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(ALICE),
+			HDX, // collateral
+			HDX, // debt
+			bob_evm_address,
+			debt_to_cover,
+			vec![],
+		));
+
+		// Assert
+		// total issuance should not change
+		assert_eq!(hdx_total_issuance, Currencies::total_issuance(HDX));
+
+		assert_eq!(hdx_alice_balance_before, Currencies::free_balance(HDX, &ALICE));
+
+		assert!(Currencies::free_balance(HDX, &Liquidation::account_id()) == 0);
+	});
+}
+
+#[test]
 fn liquidation_should_fail_if_not_profitable() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
