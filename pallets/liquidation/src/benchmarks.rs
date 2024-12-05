@@ -42,6 +42,12 @@ benchmarks! {
 		<T as Config>::Currency::set_balance(hdx, &Pallet::<T>::account_id(), 1_000_000_000 * ONE);
 		<T as Config>::Currency::set_balance(dot, &Pallet::<T>::account_id(), 1_000_000_000 * ONE);
 
+		// when this benchmark is executed as a test, it uses EvmMock which simply transfers assets
+		// to/from the provided contract address. Send some funds to the address so it can work.
+		let mm_contract_address = EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice());
+		let mm_account = pallet_evm_accounts::Pallet::<T>::account_id(mm_contract_address);
+		<T as Config>::Currency::set_balance(hdx, &mm_account, 1_000_000_000 * ONE);
+
 		let route = <T as Config>::Router::get_route(AssetPair {
 			asset_in: hdx,
 			asset_out: dot,
