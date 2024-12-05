@@ -231,7 +231,13 @@ pub mod pallet {
 				.checked_sub(debt_to_cover)
 				.ok_or(Error::<T>::NotProfitable)?;
 
-			<T as Config>::Currency::burn_from(debt_asset, &pallet_acc, debt_to_cover, Precision::Exact, Fortitude::Force)?;
+			<T as Config>::Currency::burn_from(
+				debt_asset,
+				&pallet_acc,
+				debt_to_cover,
+				Precision::Exact,
+				Fortitude::Force,
+			)?;
 
 			<T as Config>::Currency::transfer(
 				debt_asset,
