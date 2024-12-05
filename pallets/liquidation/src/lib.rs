@@ -253,9 +253,8 @@ pub mod pallet {
 		}
 
 		/// Set the borrowing market contract address.
-		///
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::liquidate())]
+		#[pallet::weight(<T as Config>::WeightInfo::set_borrowing_contract())]
 		pub fn set_borrowing_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
 			frame_system::ensure_root(origin)?;
 
