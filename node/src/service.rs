@@ -60,6 +60,7 @@ type ParachainClient = TFullClient<
 	WasmExecutor<(
 		cumulus_client_service::ParachainHostFunctions,
 		frame_benchmarking::benchmarking::HostFunctions,
+		primitives::ice::HostFunctions,
 	)>,
 >;
 
