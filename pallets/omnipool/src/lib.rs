@@ -371,14 +371,6 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
-
-		//TODO: DELETE
-		/// Amount of the Hub asset has been updated.
-		HubAmountUpdated {
-			hub_amount_in: Balance,
-			hub_amount_out: Balance,
-			operation_id: Vec<ExecutionType<IncrementalIdType>>,
-		},
 	}
 
 	#[pallet::error]
