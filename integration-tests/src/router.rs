@@ -2402,13 +2402,10 @@ mod omnipool_router_tests {
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
 					outputs: vec![(AssetType::Fungible(LRNA), 12014871681)],
-					fees: vec![
-						Fee::new(LRNA, 6007435, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(LRNA, 6007435, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Router(0)],
 				}
-					.into(),
-
+				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
@@ -2416,9 +2413,7 @@ mod omnipool_router_tests {
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(LRNA), 12008864246)],
 					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
-					fees: vec![
-						Fee::new(DAI, 667155563986401, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(DAI, 667155563986401, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Router(0)],
 				}
 				.into(),
@@ -2469,13 +2464,10 @@ mod omnipool_router_tests {
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
 					outputs: vec![(AssetType::Fungible(LRNA), 12014871681)],
-					fees: vec![
-						Fee::new(LRNA, 6007435, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(LRNA, 6007435, Omnipool::protocol_account())],
 					operation_id: vec![],
 				}
-					.into(),
-
+				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
@@ -2483,12 +2475,10 @@ mod omnipool_router_tests {
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(LRNA), 12008864246)],
 					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
-					fees: vec![
-						Fee::new(DAI, 667155563986401, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(DAI, 667155563986401, Omnipool::protocol_account())],
 					operation_id: vec![],
 				}
-					.into(),
+				.into(),
 			]);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);

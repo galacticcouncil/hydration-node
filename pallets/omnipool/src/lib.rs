@@ -1108,6 +1108,7 @@ pub mod pallet {
 
 			let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
 			T::AmmUnifiedEventSupport::push(ExecutionType::Omnipool(next_event_id))?;
+
 			//Swapped event for AssetA to HubAsset
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who.clone(),
@@ -1355,21 +1356,41 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			Self::deposit_event(crate::pallet::Event::HubAmountUpdated {
-				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
-				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-				operation_id: T::AmmUnifiedEventSupport::get(),
-			});
+			let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
+			T::AmmUnifiedEventSupport::push(ExecutionType::Omnipool(next_event_id))?;
 
-
+			//Swapped even from AssetA to HubAsset
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
-				who,
+				who.clone(),
 				Self::protocol_account(),
 				pallet_amm_support::Filler::Omnipool,
 				pallet_amm_support::TradeOperation::ExactOut,
 				vec![(
 					AssetType::Fungible(asset_in.into()),
 					*state_changes.asset_in.delta_reserve,
+				)],
+				vec![(
+					AssetType::Fungible(T::HubAssetId::get().into()),
+					*state_changes.asset_in.delta_hub_reserve,
+				)],
+				vec![
+					Fee::new(
+						T::HubAssetId::get().into(),
+						state_changes.fee.protocol_fee,
+						Self::protocol_account(),
+					),
+				],
+			);
+
+			//Swapped even from HubAsset to AssetB
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who,
+				Self::protocol_account(),
+				pallet_amm_support::Filler::Omnipool,
+				pallet_amm_support::TradeOperation::ExactOut,
+				vec![(
+					AssetType::Fungible(T::HubAssetId::get().into()),
+					*state_changes.asset_out.delta_hub_reserve,
 				)],
 				vec![(
 					AssetType::Fungible(asset_out.into()),
@@ -1381,13 +1402,10 @@ pub mod pallet {
 						amount: state_changes.fee.asset_fee,
 						recipient: Self::protocol_account(),
 					},
-					Fee::new(
-						T::HubAssetId::get().into(),
-						state_changes.fee.protocol_fee,
-						Self::protocol_account(),
-					),
 				],
 			);
+
+			T::AmmUnifiedEventSupport::pop()?;
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1907,8 +1925,8 @@ impl<T: Config> Pallet<T> {
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
-		//No need to deposit `HubAmountUpdated` event as hub amounts are zero
 		//No protocol fee in case of selling hub asset
+		//TODO: we need to split up too, and in the other place too
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),

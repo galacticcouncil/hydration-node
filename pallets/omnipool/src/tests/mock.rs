@@ -690,6 +690,10 @@ pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
 
+pub fn expect_last_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
+
 pub struct MockHooks;
 
 impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {

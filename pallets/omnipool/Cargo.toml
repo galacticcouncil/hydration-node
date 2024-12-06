@@ -54,6 +54,7 @@ frame-benchmarking = { workspace = true }
 orml-tokens = { workspace = true }
 proptest = { workspace = true }
 pretty_assertions = { workspace = true }
+test-utils = { workspace = true }
 
 [features]
 default = ["std"]

@@ -132,6 +132,7 @@ impl<T: Config> Pallet<T> {
 		outputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
 		fees: Vec<Fee<AssetId, Balance, T::AccountId>>,
 	) {
+		let s = <Self as ExecutionTypeStack<IncrementalIdType>>::get();
 		Self::deposit_event(Event::<T>::Swapped {
 			swapper,
 			filler,
