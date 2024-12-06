@@ -101,7 +101,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight((T::WeightInfo::pause_transaction(), DispatchClass::Operational))]
+		#[pallet::weight((<T as Config>::WeightInfo::pause_transaction(), DispatchClass::Operational))]
 		pub fn pause_transaction(origin: OriginFor<T>, pallet_name: Vec<u8>, function_name: Vec<u8>) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 
