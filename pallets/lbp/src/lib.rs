@@ -28,7 +28,6 @@ use frame_support::sp_runtime::{
 	DispatchError, RuntimeDebug,
 };
 use frame_support::{
-	dispatch,
 	dispatch::DispatchResult,
 	ensure,
 	traits::{EnsureOrigin, Get, LockIdentifier},
@@ -37,7 +36,10 @@ use frame_support::{
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
-use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
+use hydradx_traits::{
+	router::{AssetType, Fee},
+	AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM,
+};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
 
 use scale_info::TypeInfo;
@@ -184,7 +186,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Multi currency for transfer of currencies
@@ -342,6 +344,7 @@ pub mod pallet {
 		},
 
 		/// Sale executed.
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: AssetId,
@@ -353,6 +356,7 @@ pub mod pallet {
 		},
 
 		/// Purchase executed.
+		/// Deprecated. Replaced by pallet_amm_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			asset_out: AssetId,
@@ -718,7 +722,8 @@ pub mod pallet {
 		/// - `amount`: The amount of `asset_in`
 		/// - `max_limit`: minimum amount of `asset_out` / amount of asset_out to be obtained from the pool in exchange for `asset_in`.
 		///
-		/// Emits `SellExecuted` when successful.
+		/// Emits `SellExecuted` when successful. Deprecated.
+		/// Emits `pallet_amm_support::Swapped` when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		pub fn sell(
@@ -748,7 +753,8 @@ pub mod pallet {
 		/// - `amount`: The amount of `asset_out`.
 		/// - `max_limit`: maximum amount of `asset_in` to be sold in exchange for `asset_out`.
 		///
-		/// Emits `BuyExecuted` when successful.
+		/// Emits `BuyExecuted` when successful. Deprecated.
+		/// Emits `pallet_amm_support::Swapped` when successful.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		pub fn buy(
@@ -1102,6 +1108,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
 		Self::execute_trade(transfer)?;
 
+		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::<T>::SellExecuted {
 			who: transfer.origin.clone(),
 			asset_in: transfer.assets.asset_in,
@@ -1111,6 +1118,23 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			fee_asset: transfer.fee.0,
 			fee_amount: transfer.fee.1,
 		});
+
+		let pool_account = Self::get_pair_id(transfer.assets);
+		let pool = <PoolData<T>>::try_get(&pool_account).map_err(|_| Error::<T>::PoolNotFound)?;
+
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
+			transfer.origin.clone(),
+			pool_account,
+			pallet_amm_support::Filler::LBP,
+			pallet_amm_support::TradeOperation::ExactIn,
+			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
+			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				recipient: pool.fee_collector,
+			}],
+		);
 
 		Ok(())
 	}
@@ -1236,9 +1260,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 	fn execute_buy(
 		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, BalanceOf<T>>,
 		_destination: Option<&T::AccountId>,
-	) -> dispatch::DispatchResult {
+	) -> DispatchResult {
 		Self::execute_trade(transfer)?;
 
+		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::<T>::BuyExecuted {
 			who: transfer.origin.clone(),
 			asset_out: transfer.assets.asset_out,
@@ -1248,6 +1273,24 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			fee_asset: transfer.fee.0,
 			fee_amount: transfer.fee.1,
 		});
+
+		let pool_account = Self::get_pair_id(transfer.assets);
+		let pool = <PoolData<T>>::try_get(&pool_account).map_err(|_| Error::<T>::PoolNotFound)?;
+
+		pallet_amm_support::Pallet::<T>::deposit_trade_event(
+			transfer.origin.clone(),
+			pool_account,
+			pallet_amm_support::Filler::LBP,
+			pallet_amm_support::TradeOperation::ExactOut,
+			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
+			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				recipient: pool.fee_collector,
+			}],
+		);
+
 		Ok(())
 	}
 

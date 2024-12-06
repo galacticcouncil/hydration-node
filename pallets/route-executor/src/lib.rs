@@ -35,9 +35,13 @@ use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
-	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
+	AmmTradeWeights, AmountInAndOut, AssetType, ExecutionType, ExecutionTypeStack, ExecutorError, Fee, PoolType,
+	RouterT, Trade, TradeExecution,
 };
+use hydradx_traits::IncrementalIdProvider;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use pallet_amm_support::IncrementalIdType;
+use primitives::IncrementalId;
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
@@ -126,6 +130,9 @@ pub mod pallet {
 		/// Origin able to set route without validation
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// AMM Unified event support
+		type AmmUnifiedEventSupport: IncrementalIdProvider<IncrementalId> + ExecutionTypeStack<IncrementalIdType>;
+
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
@@ -139,6 +146,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
 			amount_out: T::Balance,
+			event_id: IncrementalIdType,
 		},
 		///The route with trades has been successfully executed
 		RouteUpdated { asset_ids: Vec<T::AssetId> },
@@ -254,6 +262,10 @@ pub mod pallet {
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			let route_length = route.len();
+
+			let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
+			T::AmmUnifiedEventSupport::push(ExecutionType::Router(next_event_id))?;
+
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 				let user_balance_of_asset_out_before_trade =
@@ -287,12 +299,16 @@ pub mod pallet {
 				first_trade.amount_in,
 			)?;
 
+			//TODO: we want to deprecate it once unified events are working fine
 			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
 				amount_in: first_trade.amount_in,
 				amount_out,
+				event_id: next_event_id,
 			});
+
+			let _ = T::AmmUnifiedEventSupport::pop()?;
 
 			Ok(())
 		}
@@ -484,6 +500,10 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let route_length = route.len();
+
+		let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
+		T::AmmUnifiedEventSupport::push(ExecutionType::Router(next_event_id))?;
+
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 
@@ -524,7 +544,10 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in,
 			amount_out: last_trade_amount.amount_out,
+			event_id: next_event_id,
 		});
+
+		let _ = T::AmmUnifiedEventSupport::pop()?;
 
 		Ok(())
 	}

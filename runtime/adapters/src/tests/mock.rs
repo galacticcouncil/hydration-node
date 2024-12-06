@@ -101,6 +101,7 @@ construct_runtime!(
 		RouteExecutor: pallet_route_executor,
 		Currencies: pallet_currencies,
 		XYK: pallet_xyk,
+		AmmSupport: pallet_amm_support,
 	}
 );
 
@@ -216,6 +217,7 @@ impl pallet_omnipool::Config for Test {
 	);
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct FeeProvider;
@@ -262,6 +264,10 @@ impl pallet_xyk::Config for Test {
 	type AMMHandler = ();
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = DummyDuster;
+}
+
+impl pallet_amm_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct Whitelist;
@@ -342,6 +348,7 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type AmmUnifiedEventSupport = AmmSupport;
 	type WeightInfo = ();
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "pallet-transaction-multi-payment"
-version = "10.1.3"
+version = "10.1.4"
 description = "Transaction multi currency payment support module"
 authors = ["GalacticCoucil"]
 edition = "2021"
