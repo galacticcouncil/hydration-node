@@ -150,8 +150,12 @@ pub mod pallet {
 		IntentSubmitted(IntentId, Intent<T::AccountId, T::AssetId>),
 
 		/// Solution was executed
-		SolutionExecuted { who: T::AccountId },
-		Hurray { score: u64},
+		SolutionExecuted {
+			who: T::AccountId,
+		},
+		Hurray {
+			score: u64,
+		},
 	}
 
 	#[pallet::error]
@@ -231,10 +235,12 @@ pub mod pallet {
 		}
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			log::error!("Running ice offchain worker");
 			// limit the cases when the offchain worker run
 			if sp_io::offchain::is_validator() {
+				log::error!("Getting solution");
 				let s = primitives::ice::get_solution();
-				Self::settle_intents(block_number);
+				log::error!("Solution {:?}", s);
 			}
 		}
 	}
@@ -386,7 +392,7 @@ pub mod pallet {
 			}
 
 			 */
-			Self::deposit_event(Event::Hurray{ score });
+			Self::deposit_event(Event::Hurray { score });
 			Ok(())
 		}
 	}
@@ -408,7 +414,6 @@ pub mod pallet {
 			valid_tx(b"settle_otc_order".to_vec())
 		}
 	}
-
 }
 
 //TODO: add validate unsigned to allow only validators

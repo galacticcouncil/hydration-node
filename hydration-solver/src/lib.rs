@@ -17,8 +17,8 @@ use pallet_ice::Call;
 use primitives::{AccountId, AssetId};
 use sc_client_api::{Backend, BlockchainEvents, UsageProvider};
 use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
-use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_api::__private::BlockT;
+use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_core::offchain::storage::OffchainDb;
 use sp_runtime::traits::{Extrinsic, Hash, Header};
 use sp_runtime::transaction_validity::TransactionSource;
@@ -79,8 +79,10 @@ where
 						pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
 					println!("found solution ,submit it pls 2");
+					println!("setting solution");
 					sc.set_solution(222u32);
-					runtime.submit_solution(notification.hash, &notification.header, resolved_intents).unwrap();
+					println!("solution set ");
+					//runtime.submit_solution(notification.hash, &notification.header, resolved_intents).unwrap();
 					/*
 					let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::propose_solution {
 						intents: BoundedResolvedIntents::truncate_from(resolved_intents),
