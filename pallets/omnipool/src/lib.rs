@@ -988,7 +988,7 @@ pub mod pallet {
 					<= asset_out_state
 						.reserve
 						.checked_div(T::MaxOutRatio::get())
-						.ok_or(ArithmeticError::DivisionByZero)?, // Note: let's be safe. this can only fail if MaxOutRatio is zero.
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: Let's be safe. this can only fail if MaxOutRatio is zero.
 				Error::<T>::MaxOutRatioExceeded
 			);
 
@@ -1311,7 +1311,7 @@ pub mod pallet {
 		/// Emits `TradableStateUpdated` event when successful.
 		///
 		#[pallet::call_index(7)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
+		#[pallet::weight((T::WeightInfo::set_asset_tradable_state(), DispatchClass::Operational))]
 		#[transactional]
 		pub fn set_asset_tradable_state(
 			origin: OriginFor<T>,
@@ -1735,8 +1735,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-
-		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
 		let (asset_fee, _) = T::Fee::get(&asset_out);
 

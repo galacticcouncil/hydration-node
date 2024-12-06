@@ -53,6 +53,7 @@
 
 extern crate core;
 
+use frame_support::pallet_prelude::DispatchClass;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -63,7 +64,6 @@ use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
-
 mod trade_execution;
 pub mod types;
 pub mod weights;
@@ -855,7 +855,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
+		#[pallet::weight((T::WeightInfo::set_asset_tradable_state(), DispatchClass::Operational))]
 		#[transactional]
 		pub fn set_asset_tradable_state(
 			origin: OriginFor<T>,
