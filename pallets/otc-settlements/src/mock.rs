@@ -352,7 +352,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
-	type OperationIdProvider = AmmSupport;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct DummyNFT;

@@ -2395,22 +2395,29 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
 			expect_hydra_last_events(vec![
-				pallet_omnipool::Event::HubAmountUpdated {
-					hub_amount_in: 12014871681,
-					hub_amount_out: 12008864246,
-					operation_id: vec![ExecutionType::Router(0)],
-				}
-				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
+					outputs: vec![(AssetType::Fungible(LRNA), 12014871681)],
+					fees: vec![
+						Fee::new(LRNA, 6007435, Omnipool::protocol_account()),
+					],
+					operation_id: vec![ExecutionType::Router(0)],
+				}
+					.into(),
+
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(LRNA), 12008864246)],
 					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
 					fees: vec![
 						Fee::new(DAI, 667155563986401, Omnipool::protocol_account()),
-						Fee::new(LRNA, 6007435, Omnipool::protocol_account()),
 					],
 					operation_id: vec![ExecutionType::Router(0)],
 				}
@@ -2455,26 +2462,33 @@ mod omnipool_router_tests {
 					protocol_fee_amount: 6_007_435,
 				}
 				.into(),
-				pallet_omnipool::Event::HubAmountUpdated {
-					hub_amount_in: 12014871681,
-					hub_amount_out: 12008864246,
-					operation_id: vec![],
-				}
-				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
-					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
+					outputs: vec![(AssetType::Fungible(LRNA), 12014871681)],
 					fees: vec![
-						Fee::new(DAI, 667155563986401, Omnipool::protocol_account()),
 						Fee::new(LRNA, 6007435, Omnipool::protocol_account()),
 					],
 					operation_id: vec![],
 				}
-				.into(),
+					.into(),
+
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_amm_support::Filler::Omnipool,
+					operation: pallet_amm_support::TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(LRNA), 12008864246)],
+					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
+					fees: vec![
+						Fee::new(DAI, 667155563986401, Omnipool::protocol_account()),
+					],
+					operation_id: vec![],
+				}
+					.into(),
 			]);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);

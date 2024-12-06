@@ -138,6 +138,7 @@ pub mod pallet {
 	use orml_traits::GetByKey;
 	use pallet_amm_support::IncrementalIdType;
 	use sp_runtime::ArithmeticError;
+	use hydradx_traits::IncrementalIdProvider;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -236,7 +237,7 @@ pub mod pallet {
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
 
 		/// Operation id provider for unified events
-		type OperationIdProvider: ExecutionTypeStack<IncrementalIdType>;
+		type AmmUnifiedEventSupport: IncrementalIdProvider<IncrementalIdType> + ExecutionTypeStack<IncrementalIdType>;
 	}
 
 	#[pallet::storage]
@@ -371,6 +372,7 @@ pub mod pallet {
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
 
+		//TODO: DELETE
 		/// Amount of the Hub asset has been updated.
 		HubAmountUpdated {
 			hub_amount_in: Balance,
@@ -1104,18 +1106,35 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			Self::deposit_event(Event::HubAmountUpdated {
-				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
-				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-				operation_id: T::OperationIdProvider::get(),
-			});
+			let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
+			T::AmmUnifiedEventSupport::push(ExecutionType::Omnipool(next_event_id))?;
+			//Swapped event for AssetA to HubAsset
+			pallet_amm_support::Pallet::<T>::deposit_trade_event(
+				who.clone(),
+				Self::protocol_account(),
+				pallet_amm_support::Filler::Omnipool,
+				pallet_amm_support::TradeOperation::ExactIn,
+				vec![(AssetType::Fungible(asset_in.into()), amount)],
+				vec![(
+					AssetType::Fungible(T::HubAssetId::get().into()),
+					*state_changes.asset_in.delta_hub_reserve,
+				)],
+				vec![
+					Fee::new(
+						T::HubAssetId::get().into(),
+						state_changes.fee.protocol_fee,
+						Self::protocol_account(),
+					),
+				],
+			);
 
+			//Swapped event for HubAsset to AssetB
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
 				Self::protocol_account(),
 				pallet_amm_support::Filler::Omnipool,
 				pallet_amm_support::TradeOperation::ExactIn,
-				vec![(AssetType::Fungible(asset_in.into()), amount)],
+				vec![(AssetType::Fungible(T::HubAssetId::get().into()), *state_changes.asset_out.delta_hub_reserve)],
 				vec![(
 					AssetType::Fungible(asset_out.into()),
 					*state_changes.asset_out.delta_reserve,
@@ -1126,13 +1145,10 @@ pub mod pallet {
 						amount: state_changes.fee.asset_fee,
 						recipient: Self::protocol_account(),
 					},
-					Fee::new(
-						T::HubAssetId::get().into(),
-						state_changes.fee.protocol_fee,
-						Self::protocol_account(),
-					),
 				],
 			);
+
+			T::AmmUnifiedEventSupport::pop()?;
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1342,8 +1358,9 @@ pub mod pallet {
 			Self::deposit_event(crate::pallet::Event::HubAmountUpdated {
 				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
 				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
-				operation_id: T::OperationIdProvider::get(),
+				operation_id: T::AmmUnifiedEventSupport::get(),
 			});
+
 
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,

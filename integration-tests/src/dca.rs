@@ -667,41 +667,65 @@ mod omnipool {
 
 			//Assert
 			let swapped_events = get_last_swapped_events();
+			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
-				*swapped_events.last().unwrap(),
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				last_two_swapped_events,
+				vec![RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 					swapper: ALICE.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
-					outputs: vec![(AssetType::Fungible(DAI), 71214372624126)],
+					outputs: vec![(AssetType::Fungible(LRNA), 49999999159957)],
 					fees: vec![
-						Fee::new(DAI, 178482136903, Omnipool::protocol_account()),
 						Fee::new(LRNA, 24999999579, Omnipool::protocol_account()),
 					],
-					operation_id: vec![ExecutionType::DCA(0), ExecutionType::Router(1)],
-				})
+					operation_id: vec![ExecutionType::DCA(0), ExecutionType::Router(1), ExecutionType::Omnipool(2)],
+				}),
+					 RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+						 swapper: ALICE.into(),
+						 filler: Omnipool::protocol_account(),
+						 filler_type: pallet_amm_support::Filler::Omnipool,
+						 operation: pallet_amm_support::TradeOperation::ExactIn,
+						 inputs: vec![(AssetType::Fungible(LRNA), 49974999160378)],
+						 outputs: vec![(AssetType::Fungible(DAI), 71214372624126)],
+						 fees: vec![
+							 Fee::new(DAI, 178482136903, Omnipool::protocol_account()),
+						 ],
+						 operation_id: vec![ExecutionType::DCA(0), ExecutionType::Router(1), ExecutionType::Omnipool(2)],
+					 })]
 			);
 
 			run_to_block(13, 17);
 
 			let swapped_events = get_last_swapped_events();
+			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
-				*swapped_events.last().unwrap(),
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				last_two_swapped_events,
+				vec![RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 					swapper: ALICE.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::Filler::Omnipool,
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
-					outputs: vec![(AssetType::Fungible(DAI), 71214367826179)],
+					outputs: vec![(AssetType::Fungible(LRNA), 49999997360044)],
 					fees: vec![
-						Fee::new(DAI, 178482124878, Omnipool::protocol_account()),
 						Fee::new(LRNA, 24999998680, Omnipool::protocol_account()),
 					],
-					operation_id: vec![ExecutionType::DCA(2), ExecutionType::Router(3)],
-				})
+					operation_id: vec![ExecutionType::DCA(3), ExecutionType::Router(4), ExecutionType::Omnipool(5)],
+				}),
+					 RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+						 swapper: ALICE.into(),
+						 filler: Omnipool::protocol_account(),
+						 filler_type: pallet_amm_support::Filler::Omnipool,
+						 operation: pallet_amm_support::TradeOperation::ExactIn,
+						 inputs: vec![(AssetType::Fungible(LRNA), 49974997361364)],
+						 outputs: vec![(AssetType::Fungible(DAI), 71214367826179)],
+						 fees: vec![
+							 Fee::new(DAI, 178482124878, Omnipool::protocol_account()),
+						 ],
+						 operation_id: vec![ExecutionType::DCA(3), ExecutionType::Router(4), ExecutionType::Omnipool(5)],
+					 })]
 			);
 		});
 	}

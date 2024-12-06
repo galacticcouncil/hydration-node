@@ -85,6 +85,7 @@ pub enum ExecutionType<IncrementalId> {
 	DCA(IncrementalId),
 	ICE(IncrementalId),
 	Batch(IncrementalId),
+	Omnipool(IncrementalId)
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
