@@ -242,8 +242,15 @@ async fn start_node_impl(
 		.await?;
 
 	let solution = crate::ice::SolutionContainer::new();
-
-	let boxed_solution: Box<dyn sp_externalities::Extension> = Box::new(solution.solution_store());
+	task_manager.spawn_essential_handle().spawn(
+		"ice-solver",
+		None,
+		HydrationSolver::<hydradx_runtime::Runtime, _, Block, ParachainBackend, _, _>::run(
+			client.clone(),
+			transaction_pool.clone(),
+			solution.0.clone(),
+		),
+	);
 
 	if parachain_config.offchain_worker.enabled {
 		use futures::FutureExt;
@@ -259,7 +266,11 @@ async fn start_node_impl(
 				network_provider: Arc::new(network.clone()),
 				is_validator: parachain_config.role.is_authority(),
 				enable_http_requests: false,
-				custom_extensions: move |_| vec![],
+				custom_extensions: move |_| {
+					let boxed_solution: Box<dyn sp_externalities::Extension> =
+						Box::new(primitives::SolutionStoreExt(solution.solution_store()));
+					vec![boxed_solution]
+				},
 			})
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),
@@ -362,16 +373,6 @@ async fn start_node_impl(
 		ethereum_config.fee_history_limit,
 		sync_service.clone(),
 		pubsub_notification_sinks,
-	);
-
-	task_manager.spawn_essential_handle().spawn(
-		"ice-solver",
-		None,
-		HydrationSolver::<hydradx_runtime::Runtime, _, Block, ParachainBackend, _, _>::run(
-			client.clone(),
-			transaction_pool.clone(),
-			solution.0.clone(),
-		),
 	);
 
 	let announce_block = {
