@@ -18,6 +18,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 hydra-dx-build-script-utils = { workspace = true }
 
 [dependencies]
+parking_lot = "0.12.3"
 codec = { workspace = true }
 hex-literal = { workspace = true }
 jsonrpsee = { workspace = true }
@@ -30,6 +31,7 @@ async-trait = { workspace = true }
 
 # local dependencies
 hydradx-runtime = { workspace = true, features = ["std"] }
+hydradx-traits = { workspace = true }
 primitives = { workspace = true }
 hydration-solver = { workspace = true }
 
@@ -75,6 +77,7 @@ sp-keystore = { workspace = true }
 sp-session = { workspace = true }
 sp-offchain = { workspace = true }
 sc-offchain = { workspace = true }
+sp-externalities ={workspace = true}
 sp-io = { workspace = true }
 substrate-prometheus-endpoint = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }

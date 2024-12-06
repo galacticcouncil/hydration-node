@@ -27,6 +27,7 @@ pub mod pools;
 pub mod price;
 pub mod registry;
 pub mod router;
+pub mod ice;
 
 pub use oracle::*;
 pub use registry::*;

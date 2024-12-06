@@ -233,6 +233,7 @@ pub mod pallet {
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			// limit the cases when the offchain worker run
 			if sp_io::offchain::is_validator() {
+				let s = primitives::ice::get_solution();
 				Self::settle_intents(block_number);
 			}
 		}

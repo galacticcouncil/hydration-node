@@ -241,6 +241,10 @@ async fn start_node_impl(
 		})
 		.await?;
 
+	let solution = crate::ice::SolutionContainer::new();
+
+	let boxed_solution: Box<dyn sp_externalities::Extension> = Box::new(solution.solution_store());
+
 	if parachain_config.offchain_worker.enabled {
 		use futures::FutureExt;
 
@@ -363,9 +367,10 @@ async fn start_node_impl(
 	task_manager.spawn_essential_handle().spawn(
 		"ice-solver",
 		None,
-		HydrationSolver::<hydradx_runtime::Runtime, _, Block, ParachainBackend, _>::run(
+		HydrationSolver::<hydradx_runtime::Runtime, _, Block, ParachainBackend, _, _>::run(
 			client.clone(),
 			transaction_pool.clone(),
+			solution.0.clone(),
 		),
 	);
 
