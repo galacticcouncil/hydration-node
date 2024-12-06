@@ -2047,7 +2047,6 @@ impl<T: Config> Pallet<T> {
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
-		//No need to deposit `HubAmountUpdated` event as hub amounts are zero
 		//No protocol fee in case of buying asset for hub asset
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),

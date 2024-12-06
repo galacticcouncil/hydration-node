@@ -2403,7 +2403,7 @@ mod omnipool_router_tests {
 					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
 					outputs: vec![(AssetType::Fungible(LRNA), 12014871681)],
 					fees: vec![Fee::new(LRNA, 6007435, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_id: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -2414,7 +2414,7 @@ mod omnipool_router_tests {
 					inputs: vec![(AssetType::Fungible(LRNA), 12008864246)],
 					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
 					fees: vec![Fee::new(DAI, 667155563986401, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_id: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -2465,7 +2465,7 @@ mod omnipool_router_tests {
 					inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
 					outputs: vec![(AssetType::Fungible(LRNA), 12014871681)],
 					fees: vec![Fee::new(LRNA, 6007435, Omnipool::protocol_account())],
-					operation_id: vec![],
+					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -2476,7 +2476,7 @@ mod omnipool_router_tests {
 					inputs: vec![(AssetType::Fungible(LRNA), 12008864246)],
 					outputs: vec![(AssetType::Fungible(DAI), amount_out)],
 					fees: vec![Fee::new(DAI, 667155563986401, Omnipool::protocol_account())],
-					operation_id: vec![],
+					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
 			]);
