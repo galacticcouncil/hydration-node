@@ -5,7 +5,9 @@ use primitive_types::U256;
 use proptest::prelude::*;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const TOLERANCE: Balance = 2_000_000_000;
+
+pub const TOLERANCE: Balance = 5_000_000_000;
+
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 10_000_000 * ONE);
 

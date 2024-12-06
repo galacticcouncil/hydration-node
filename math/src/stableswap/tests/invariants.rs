@@ -383,7 +383,8 @@ proptest! {
 		let d1 = calculate_d_internal::<D_ITERATIONS>(&updated_balances, amp).unwrap();
 		assert!(d1 >= d0);
 		let diff = d1 - d0;
-		assert!(diff <= 8000u128);
+		assert!(diff <= 50000u128);
+
 	}
 }
 

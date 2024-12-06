@@ -1,22 +1,18 @@
 use super::*;
-use frame_support::{assert_ok, assert_noop};
-use sp_runtime::FixedU128;
 use crate::Tradability;
- 
+use frame_support::{assert_noop, assert_ok};
+use sp_runtime::FixedU128;
 
-
-
-const LRNA: AssetId = 1; 
+const LRNA: AssetId = 1;
 const NON_HUB_ASSET: AssetId = 42;
 const SOME_ASSET_ID: AssetId = 999;
 
-
 fn all_flags() -> Tradability {
-    Tradability::BUY
-        | Tradability::SELL
-        | Tradability::ADD_LIQUIDITY
-        | Tradability::REMOVE_LIQUIDITY
+	Tradability::BUY | Tradability::SELL | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 }
+
+
+
 
 	#[test]
 	fn sell_asset_tradable_state_should_work_when_hub_asset_new_state_contains_sell_or_buy() {
@@ -142,70 +138,65 @@ fn set_asset_tradable_state_should_work_with_no_state_change() {
 		});
 }
 
-
 #[test]
 fn set_asset_tradable_state_should_allow_all_flags() {
-    ExtBuilder::default()
-        .with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-        .with_registered_asset(SOME_ASSET_ID)
-        // Give LP1 the asset first
-        .with_asset_balance_for(LP1, SOME_ASSET_ID, 1_000_000_000_000)
-        // Now add the token from LP1 to Omnipool
-        .with_token(SOME_ASSET_ID, FixedU128::from(1), LP1, 1_000_000_000_000)
-        .build()
-        .execute_with(|| {
-            assert_ok!(Omnipool::set_asset_tradable_state(
-                RuntimeOrigin::root(),
-                SOME_ASSET_ID,
-                all_flags()
-            ));
-        });
+	ExtBuilder::default()
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_registered_asset(SOME_ASSET_ID)
+		// Give LP1 the asset first
+		.with_asset_balance_for(LP1, SOME_ASSET_ID, 1_000_000_000_000)
+		// Now add the token from LP1 to Omnipool
+		.with_token(SOME_ASSET_ID, FixedU128::from(1), LP1, 1_000_000_000_000)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				SOME_ASSET_ID,
+				all_flags()
+			));
+		});
 }
-
 
 #[test]
 fn set_asset_tradable_state_should_allow_all_flags_for_non_hub_asset() {
-    const NON_HUB_ASSET: AssetId = 42;
+	const NON_HUB_ASSET: AssetId = 42;
 
-    ExtBuilder::default()
-        .with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-        .with_registered_asset(NON_HUB_ASSET)
-        .with_asset_balance_for(LP1, NON_HUB_ASSET, 1_000_000_000_000)
-        .with_token(NON_HUB_ASSET, FixedU128::from(1), LP1, 1_000_000_000_000)
-        .build()
-        .execute_with(|| {
-            assert_ok!(Omnipool::set_asset_tradable_state(
-                RuntimeOrigin::root(),
-                NON_HUB_ASSET,
-                all_flags()
-            ));
-        });
+	ExtBuilder::default()
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_registered_asset(NON_HUB_ASSET)
+		.with_asset_balance_for(LP1, NON_HUB_ASSET, 1_000_000_000_000)
+		.with_token(NON_HUB_ASSET, FixedU128::from(1), LP1, 1_000_000_000_000)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				NON_HUB_ASSET,
+				all_flags()
+			));
+		});
 }
-
 
 #[test]
 fn set_asset_tradable_state_should_restrict_hub_asset_flags() {
-    // If you're testing the hub asset (LRNA), you already have it added via .with_initial_pool()
-    // If you're testing another asset instead, ensure it's also added similar to above tests.
-    ExtBuilder::default()
-        .with_initial_pool(FixedU128::from(1), FixedU128::from(1))
-        .build()
-        .execute_with(|| {
-            // For hub asset (LRNA), it's already known and added. Just set flags:
-            assert_ok!(Omnipool::set_asset_tradable_state(
-                RuntimeOrigin::root(),
-                LRNA,
-                Tradability::SELL | Tradability::BUY
-            ));
+	ExtBuilder::default()
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			// For hub asset (LRNA), it's already known and added. Just set flags:
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				LRNA,
+				Tradability::SELL | Tradability::BUY
+			));
 
-            // Attempting to set liquidity flags for the hub asset should fail.
-            assert_noop!(
-                Omnipool::set_asset_tradable_state(
-                    RuntimeOrigin::root(),
-                    LRNA,
-                    Tradability::SELL | Tradability::ADD_LIQUIDITY
-                ),
-                Error::<Test>::InvalidHubAssetTradableState
-            );
-        });
+			// Attempting to set liquidity flags for the hub asset should fail.
+			assert_noop!(
+				Omnipool::set_asset_tradable_state(
+					RuntimeOrigin::root(),
+					LRNA,
+					Tradability::SELL | Tradability::ADD_LIQUIDITY
+				),
+				Error::<Test>::InvalidHubAssetTradableState
+			);
+		});
 }

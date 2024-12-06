@@ -26,9 +26,6 @@ use pallet_omnipool::Tradability;
 // Define the constants that your tests require
 const SOME_ASSET_ID: AssetId = 2;
 
-
-
-
 use crate as pallet_omnipool;
 
 use crate::traits::ExternalPriceProvider;
