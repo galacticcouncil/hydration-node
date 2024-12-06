@@ -29,9 +29,9 @@ use std::sync::Arc;
 
 const LOG_TARGET: &str = "ice-solver";
 
-pub struct HydrationSolver<T, RA, B, BE, TP>(PhantomData<(T, RA, B, BE, TP)>);
+pub struct HydrationSolver<T, RA, B, BE, TP, SC>(PhantomData<(T, RA, B, BE, TP, SC)>);
 
-impl<T, RA, Block, BE, TP> HydrationSolver<T, RA, Block, BE, TP>
+impl<T, RA, Block, BE, TP, SC> HydrationSolver<T, RA, Block, BE, TP, SC>
 where
 	Block: sp_runtime::traits::Block,
 	RA: ProvideRuntimeApi<Block> + UsageProvider<Block>,
@@ -39,6 +39,7 @@ where
 	//BE: Backend<Block> + 'static,
 	RA: BlockchainEvents<Block> + 'static,
 	TP: MaintainedTransactionPool<Block = Block, Hash = <Block as BlockT>::Hash> + 'static,
+	SC: hydradx_traits::ice::SolverSolution<u32>,
 	T: pallet_ice::Config
 		+ frame_system::Config<RuntimeCall = hydradx_runtime::RuntimeCall>
 		+ pallet_omnipool::Config<AssetId = AssetId>
@@ -46,7 +47,7 @@ where
 		+ pallet_dynamic_fees::Config<Fee = Permill, AssetId = AssetId>,
 	//pallet_ice::Call::<T> : Into<hydradx_runtime::RuntimeCall>
 {
-	pub async fn run(client: Arc<RA>, transaction_pool: Arc<TP>) {
+	pub async fn run(client: Arc<RA>, transaction_pool: Arc<TP>, sc: Arc<SC>) {
 		tracing::debug!(
 			target: LOG_TARGET,
 			"starting solver runner",
@@ -78,6 +79,7 @@ where
 						pallet_ice::Pallet::<T>::calculate_trades_and_score(&resolved_intents).unwrap();
 
 					println!("found solution ,submit it pls 2");
+					sc.set_solution(222u32);
 					runtime.submit_solution(notification.hash, &notification.header, resolved_intents).unwrap();
 					/*
 					let call = hydradx_runtime::RuntimeCall::ICE(pallet_ice::Call::propose_solution {

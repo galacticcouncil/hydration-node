@@ -21,6 +21,7 @@ serde = {workspace = true}
 hydradx-traits = { workspace = true }
 hydra-dx-math = {workspace = true}
 orml-traits = { workspace = true }
+primitives = {workspace = true}
 
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
