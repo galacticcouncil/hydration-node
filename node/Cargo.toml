@@ -34,6 +34,8 @@ hydradx-runtime = { workspace = true, features = ["std"] }
 hydradx-traits = { workspace = true }
 primitives = { workspace = true }
 hydration-solver = { workspace = true }
+hydradx-adapters = {workspace = true, default-features = false}
+pallet-ice = {workspace = true, default-features = false}
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }

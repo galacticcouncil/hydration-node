@@ -1,4 +1,8 @@
+use hydradx_runtime::opaque::Block;
+use hydration_solver::{omni, HydrationSolver};
+use pallet_ice::traits::Solver;
 use parking_lot::Mutex;
+use primitives::{AccountId, AssetId};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -24,6 +28,11 @@ impl LocalSolutionStore {
 
 impl primitives::SolutionStore for LocalSolutionStore {
 	fn get_solution(&self) -> u32 {
+		let s = hydration_solver::omni::OmniSolver::<
+			AccountId,
+			AssetId,
+			hydradx_adapters::ice::OmnipoolDataProvider<hydradx_runtime::Runtime>,
+		>::solve(vec![]);
 		*self.0.lock()
 	}
 }
