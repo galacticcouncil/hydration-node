@@ -20,6 +20,14 @@
 use crate::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
+// Make sure you have this import if Tradability is defined in the pallet_omnipool crate:
+use pallet_omnipool::Tradability;
+
+// Define the constants that your tests require
+const SOME_ASSET_ID: AssetId = 2;
+
+
+
 
 use crate as pallet_omnipool;
 
@@ -287,6 +295,15 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
+	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
+        self.registered_assets.push(asset);
+        self
+    }
+
+    pub fn with_asset_balance_for(mut self, account: AccountId, asset_id: AssetId, amount: Balance) -> Self {
+        self.endowed_accounts.push((account, asset_id, amount));
+        self
+    }
 	pub fn with_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
 		self.endowed_accounts = accounts;
 		self
@@ -295,10 +312,7 @@ impl ExtBuilder {
 		self.endowed_accounts.push(account);
 		self
 	}
-	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
-		self.registered_assets.push(asset);
-		self
-	}
+	
 
 	pub fn with_asset_weight_cap(mut self, cap: Permill) -> Self {
 		self.asset_weight_cap = cap;

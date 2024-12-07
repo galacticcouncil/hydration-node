@@ -120,6 +120,7 @@ use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbal
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+
 /// NFT class id type of provided nft implementation
 pub type NFTCollectionIdOf<T> =
 	<<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
@@ -233,6 +234,10 @@ pub mod pallet {
 		/// Oracle price provider. Provides price for given asset. Used in remove liquidity to support calculation of dynamic withdrawal fee.
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
 	}
+	#[pallet::storage]
+	#[pallet::getter(fn tradable_states)]
+	/// Stores the tradable state for each asset
+	pub(super) type TradableStates<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Tradability>;
 
 	#[pallet::storage]
 	/// State of an asset in the omnipool
@@ -1609,6 +1614,9 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	pub fn tradable_state(asset_id: T::AssetId) -> Tradability {
+		TradableStates::<T>::get(asset_id).unwrap_or_default()
+	}
 	/// Protocol account address
 	pub fn protocol_account() -> T::AccountId {
 		PalletId(*b"omnipool").into_account_truncating()
