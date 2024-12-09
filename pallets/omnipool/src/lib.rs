@@ -120,7 +120,6 @@ use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbal
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-
 /// NFT class id type of provided nft implementation
 pub type NFTCollectionIdOf<T> =
 	<<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
@@ -234,10 +233,6 @@ pub mod pallet {
 		/// Oracle price provider. Provides price for given asset. Used in remove liquidity to support calculation of dynamic withdrawal fee.
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
 	}
-	#[pallet::storage]
-	#[pallet::getter(fn tradable_states)]
-	/// Stores the tradable state for each asset
-	pub(super) type TradableStates<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Tradability>;
 
 	#[pallet::storage]
 	/// State of an asset in the omnipool
@@ -993,7 +988,7 @@ pub mod pallet {
 					<= asset_out_state
 						.reserve
 						.checked_div(T::MaxOutRatio::get())
-						.ok_or(ArithmeticError::DivisionByZero)?, // Note: Let's be safe. this can only fail if MaxOutRatio is zero.
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: let's be safe. this can only fail if MaxOutRatio is zero.
 				Error::<T>::MaxOutRatioExceeded
 			);
 
@@ -1316,7 +1311,7 @@ pub mod pallet {
 		/// Emits `TradableStateUpdated` event when successful.
 		///
 		#[pallet::call_index(7)]
-		#[pallet::weight((<T as Config>::WeightInfo::set_asset_tradable_state(), DispatchClass::Operational))]
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
 		pub fn set_asset_tradable_state(
 			origin: OriginFor<T>,
@@ -1614,9 +1609,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn tradable_state(asset_id: T::AssetId) -> Tradability {
-		TradableStates::<T>::get(asset_id).unwrap_or_default()
-	}
 	/// Protocol account address
 	pub fn protocol_account() -> T::AccountId {
 		PalletId(*b"omnipool").into_account_truncating()
@@ -1743,7 +1735,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		let (asset_fee, _) = T::Fee::get(&asset_out);
 
