@@ -16,6 +16,7 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::too_many_arguments)]
 
 type AssetId = u32;
 type Balance = u128;
@@ -122,7 +123,6 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	#[allow(clippy::too_many_arguments)]
 	pub fn deposit_trade_event(
 		swapper: T::AccountId,
 		filler: T::AccountId,
