@@ -230,7 +230,11 @@ mod omnipool {
 						inputs: vec![(AssetType::Fungible(HDX), 140421094367051)],
 						outputs: vec![(AssetType::Fungible(LRNA), 70210545436437)],
 						fees: vec![Fee::new(LRNA, 35105272718, Omnipool::protocol_account()),],
-						operation_id: vec![ExecutionType::DCA(0), ExecutionType::Router(1), ExecutionType::Omnipool(2)]
+						operation_id: vec![
+							ExecutionType::DCA(0),
+							ExecutionType::Router(1),
+							ExecutionType::Omnipool(2)
+						]
 					}),
 					RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 						swapper: ALICE.into(),
@@ -240,7 +244,11 @@ mod omnipool {
 						inputs: vec![(AssetType::Fungible(LRNA), 70175440163719)],
 						outputs: vec![(AssetType::Fungible(DAI), amount_out)],
 						fees: vec![Fee::new(DAI, 250626566417, Omnipool::protocol_account()),],
-						operation_id: vec![ExecutionType::DCA(0), ExecutionType::Router(1), ExecutionType::Omnipool(2)],
+						operation_id: vec![
+							ExecutionType::DCA(0),
+							ExecutionType::Router(1),
+							ExecutionType::Omnipool(2)
+						],
 					})
 				]
 			);
@@ -260,7 +268,11 @@ mod omnipool {
 						inputs: vec![(AssetType::Fungible(HDX), 140421107716515)],
 						outputs: vec![(AssetType::Fungible(LRNA), 70210548448729)],
 						fees: vec![Fee::new(LRNA, 35105274224, Omnipool::protocol_account()),],
-						operation_id: vec![ExecutionType::DCA(3), ExecutionType::Router(4), ExecutionType::Omnipool(5)],
+						operation_id: vec![
+							ExecutionType::DCA(3),
+							ExecutionType::Router(4),
+							ExecutionType::Omnipool(5)
+						],
 					}),
 					RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 						swapper: ALICE.into(),
@@ -270,7 +282,11 @@ mod omnipool {
 						inputs: vec![(AssetType::Fungible(LRNA), 70175443174505)],
 						outputs: vec![(AssetType::Fungible(DAI), amount_out)],
 						fees: vec![Fee::new(DAI, 250626566417, Omnipool::protocol_account()),],
-						operation_id: vec![ExecutionType::DCA(3), ExecutionType::Router(4), ExecutionType::Omnipool(5)],
+						operation_id: vec![
+							ExecutionType::DCA(3),
+							ExecutionType::Router(4),
+							ExecutionType::Omnipool(5)
+						],
 					})
 				]
 			);

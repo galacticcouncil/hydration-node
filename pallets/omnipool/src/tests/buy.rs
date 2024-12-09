@@ -444,9 +444,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_amm_support::TradeOperation::ExactOut,
 					inputs: vec![(AssetType::Fungible(100), expected_sold_amount)],
 					outputs: vec![(AssetType::Fungible(1), 57142857142858)],
-					fees: vec![
-						Fee::new(LRNA, 0, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -457,15 +455,13 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_amm_support::TradeOperation::ExactOut,
 					inputs: vec![(AssetType::Fungible(1), 57142857142858)],
 					outputs: vec![(AssetType::Fungible(200), buy_amount)],
-					fees: vec![
-						Fee::new(200, 5555555555556, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(200, 5555555555556, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
-					.into(),
+				.into(),
 			]);
 
-			let other_buy_amount  = buy_amount  + 100;
+			let other_buy_amount = buy_amount + 100;
 			//We check again to see if the operation id is correct
 			assert_ok!(Omnipool::buy(
 				RuntimeOrigin::signed(LP1),
@@ -487,7 +483,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					asset_fee_amount: 5555555555567,
 					protocol_fee_amount: 0,
 				}
-					.into(),
+				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
@@ -495,12 +491,10 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_amm_support::TradeOperation::ExactOut,
 					inputs: vec![(AssetType::Fungible(100), 65976185738813)],
 					outputs: vec![(AssetType::Fungible(1), 60326770004314)],
-					fees: vec![
-						Fee::new(LRNA, 0, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(1)],
 				}
-					.into(),
+				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
@@ -508,12 +502,10 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_amm_support::TradeOperation::ExactOut,
 					inputs: vec![(AssetType::Fungible(1), 60326770004314)],
 					outputs: vec![(AssetType::Fungible(200), other_buy_amount)],
-					fees: vec![
-						Fee::new(200, 5555555555567, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(200, 5555555555567, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(1)],
 				}
-					.into(),
+				.into(),
 			]);
 		});
 }
@@ -568,9 +560,7 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 					operation: pallet_amm_support::TradeOperation::ExactOut,
 					inputs: vec![(AssetType::Fungible(100), expected_sold_amount)],
 					outputs: vec![(AssetType::Fungible(1), 56980056980057)],
-					fees: vec![
-						Fee::new(LRNA, 5698005698005, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(LRNA, 5698005698005, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -581,16 +571,13 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 					operation: pallet_amm_support::TradeOperation::ExactOut,
 					inputs: vec![(AssetType::Fungible(1), 51282051282052)],
 					outputs: vec![(AssetType::Fungible(200), buy_amount)],
-					fees: vec![
-						Fee::new(200, 0, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(200, 0, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
-					.into(),
+				.into(),
 			]);
 		});
 }
-
 
 #[test]
 fn buy_should_fail_when_buying_more_than_in_pool() {

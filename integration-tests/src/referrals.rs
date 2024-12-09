@@ -359,9 +359,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation: TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(DAI), 26_835_579_541_620_354)],
 				outputs: vec![(AssetType::Fungible(LRNA), 1_209_746_177)],
-				fees: vec![
-					Fee::new(LRNA, 604_873, Omnipool::protocol_account()),
-				],
+				fees: vec![Fee::new(LRNA, 604_873, Omnipool::protocol_account())],
 				operation_id: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
@@ -372,12 +370,10 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation: TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(LRNA), 1_209_141_304)],
 				outputs: vec![(AssetType::Fungible(HDX), 1_000_000_000_000)],
-				fees: vec![
-					Fee::new(HDX, 2_794_789_078, Omnipool::protocol_account()),
-				],
+				fees: vec![Fee::new(HDX, 2_794_789_078, Omnipool::protocol_account())],
 				operation_id: vec![ExecutionType::Omnipool(0)],
 			}
-				.into(),
+			.into(),
 		]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
@@ -424,9 +420,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation: pallet_amm_support::TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(HDX), 37_506_757_329_085)],
 				outputs: vec![(AssetType::Fungible(LRNA), 45_222_713_080)],
-				fees: vec![
-					Fee::new(LRNA, 22_611_356, Omnipool::protocol_account()),
-				],
+				fees: vec![Fee::new(LRNA, 22_611_356, Omnipool::protocol_account())],
 				operation_id: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
@@ -437,12 +431,10 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation: pallet_amm_support::TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(LRNA), 45_200_101_724)],
 				outputs: vec![(AssetType::Fungible(DAI), 1_000_000_000_000_000_000)],
-				fees: vec![
-					Fee::new(DAI, 2_644_977_450_514_458, Omnipool::protocol_account()),
-				],
+				fees: vec![Fee::new(DAI, 2_644_977_450_514_458, Omnipool::protocol_account())],
 				operation_id: vec![ExecutionType::Omnipool(0)],
 			}
-				.into(),
+			.into(),
 		]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
@@ -577,9 +569,9 @@ fn seed_pot_account() {
 	));
 }
 
+use hydradx_traits::router::ExecutionType;
 use scraper::ALICE;
 use sp_core::crypto::Ss58Codec;
-use hydradx_traits::router::ExecutionType;
 
 pub const PARACHAIN_CODES: [(&str, &str); 12] = [
 	("MOONBEAM", "7LCt6dFmtiRrwZv2YyEgQWW3GxsGX3Krmgzv9Xj7GQ9tG2j8"),

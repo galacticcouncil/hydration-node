@@ -702,7 +702,6 @@ fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
 		});
 }
 
-
 #[test]
 fn sell_should_get_same_amount() {
 	ExtBuilder::default()
@@ -744,7 +743,7 @@ fn sell_should_get_same_amount() {
 					asset_fee_amount: 5555555555556,
 					protocol_fee_amount: 0,
 				}
-					.into(),
+				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
@@ -752,12 +751,10 @@ fn sell_should_get_same_amount() {
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(100), expected_sold_amount)],
 					outputs: vec![(AssetType::Fungible(LRNA), 57142857142858)],
-					fees: vec![
-						Fee::new(LRNA, 0, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
-					.into(),
+				.into(),
 				pallet_amm_support::Event::Swapped {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
@@ -765,12 +762,10 @@ fn sell_should_get_same_amount() {
 					operation: pallet_amm_support::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(LRNA), 57142857142858)],
 					outputs: vec![(AssetType::Fungible(200), buy_amount)],
-					fees: vec![
-						Fee::new(200, 5555555555556, Omnipool::protocol_account()),
-					],
+					fees: vec![Fee::new(200, 5555555555556, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
-					.into()
+				.into(),
 			]);
 		});
 }

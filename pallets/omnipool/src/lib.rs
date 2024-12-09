@@ -135,10 +135,10 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+	use hydradx_traits::IncrementalIdProvider;
 	use orml_traits::GetByKey;
 	use pallet_amm_support::IncrementalIdType;
 	use sp_runtime::ArithmeticError;
-	use hydradx_traits::IncrementalIdProvider;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -1112,13 +1112,11 @@ pub mod pallet {
 					AssetType::Fungible(T::HubAssetId::get().into()),
 					*state_changes.asset_in.delta_hub_reserve,
 				)],
-				vec![
-					Fee::new(
-						T::HubAssetId::get().into(),
-						state_changes.fee.protocol_fee,
-						Self::protocol_account(),
-					),
-				],
+				vec![Fee::new(
+					T::HubAssetId::get().into(),
+					state_changes.fee.protocol_fee,
+					Self::protocol_account(),
+				)],
 			);
 
 			//Swapped event for HubAsset to AssetB
@@ -1127,18 +1125,19 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::Filler::Omnipool,
 				pallet_amm_support::TradeOperation::ExactIn,
-				vec![(AssetType::Fungible(T::HubAssetId::get().into()), *state_changes.asset_out.delta_hub_reserve)],
+				vec![(
+					AssetType::Fungible(T::HubAssetId::get().into()),
+					*state_changes.asset_out.delta_hub_reserve,
+				)],
 				vec![(
 					AssetType::Fungible(asset_out.into()),
 					*state_changes.asset_out.delta_reserve,
 				)],
-				vec![
-					Fee {
-						asset: asset_out.into(),
-						amount: state_changes.fee.asset_fee,
-						recipient: Self::protocol_account(),
-					},
-				],
+				vec![Fee {
+					asset: asset_out.into(),
+					amount: state_changes.fee.asset_fee,
+					recipient: Self::protocol_account(),
+				}],
 			);
 
 			T::AmmUnifiedEventSupport::pop()?;
@@ -1365,13 +1364,11 @@ pub mod pallet {
 					AssetType::Fungible(T::HubAssetId::get().into()),
 					*state_changes.asset_in.delta_hub_reserve,
 				)],
-				vec![
-					Fee::new(
-						T::HubAssetId::get().into(),
-						state_changes.fee.protocol_fee,
-						Self::protocol_account(),
-					),
-				],
+				vec![Fee::new(
+					T::HubAssetId::get().into(),
+					state_changes.fee.protocol_fee,
+					Self::protocol_account(),
+				)],
 			);
 
 			//Swapped even from HubAsset to AssetB
@@ -1388,13 +1385,11 @@ pub mod pallet {
 					AssetType::Fungible(asset_out.into()),
 					*state_changes.asset_out.delta_reserve,
 				)],
-				vec![
-					Fee {
-						asset: asset_out.into(),
-						amount: state_changes.fee.asset_fee,
-						recipient: Self::protocol_account(),
-					},
-				],
+				vec![Fee {
+					asset: asset_out.into(),
+					amount: state_changes.fee.asset_fee,
+					recipient: Self::protocol_account(),
+				}],
 			);
 
 			T::AmmUnifiedEventSupport::pop()?;
