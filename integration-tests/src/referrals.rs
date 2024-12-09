@@ -1,4 +1,5 @@
 #![cfg(test)]
+
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
@@ -9,6 +10,7 @@ use primitives::AccountId;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
+use std::vec;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -319,6 +321,36 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 		assert_eq!(external_shares, 1_095_625_113_667);
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
+
+		let swapped_events = get_last_swapped_events();
+		let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
+		pretty_assertions::assert_eq!(
+			*last_two_swapped_events,
+			vec![
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: Filler::Omnipool,
+					operation: TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), 1000000000000)],
+					outputs: vec![(AssetType::Fungible(LRNA), 1205768843)],
+					fees: vec![Fee::new(LRNA, 602884, Omnipool::protocol_account())],
+					operation_id: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: Filler::Omnipool,
+					operation: TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(LRNA), 1205165959)],
+					outputs: vec![(AssetType::Fungible(DAI), 26663424573622008)],
+					fees: vec![Fee::new(DAI, 70524156750724, Omnipool::protocol_account())],
+					operation_id: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+			]
+		);
 	});
 }
 
