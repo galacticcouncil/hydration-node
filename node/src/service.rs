@@ -38,7 +38,6 @@ use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 
 use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
-use hydration_solver::HydrationSolver;
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
@@ -60,7 +59,7 @@ type ParachainClient = TFullClient<
 	WasmExecutor<(
 		cumulus_client_service::ParachainHostFunctions,
 		frame_benchmarking::benchmarking::HostFunctions,
-		primitives::ice::HostFunctions,
+		pallet_ice::api::ice::HostFunctions,
 	)>,
 >;
 
@@ -242,16 +241,7 @@ async fn start_node_impl(
 		})
 		.await?;
 
-	let solution = crate::ice::SolutionContainer::new();
-	task_manager.spawn_essential_handle().spawn(
-		"ice-solver",
-		None,
-		HydrationSolver::<hydradx_runtime::Runtime, _, Block, ParachainBackend, _, _>::run(
-			client.clone(),
-			transaction_pool.clone(),
-			solution.0.clone(),
-		),
-	);
+	let solution = crate::ice_ext::SolverProvider::new();
 
 	if parachain_config.offchain_worker.enabled {
 		use futures::FutureExt;
@@ -269,7 +259,7 @@ async fn start_node_impl(
 				enable_http_requests: false,
 				custom_extensions: move |_| {
 					let boxed_solution: Box<dyn sp_externalities::Extension> =
-						Box::new(primitives::SolutionStoreExt(solution.solution_store()));
+						Box::new(pallet_ice::api::SolverExt(solution.solver_ptr()));
 					vec![boxed_solution]
 				},
 			})

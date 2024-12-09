@@ -25,7 +25,7 @@ mod service;
 
 mod cli;
 mod command;
-mod ice;
+mod ice_ext;
 mod rpc;
 
 fn main() -> sc_cli::Result<()> {

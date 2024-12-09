@@ -8845,8 +8845,10 @@ dependencies = [
  "serde",
  "sp-api",
  "sp-core",
+ "sp-externalities",
  "sp-io",
  "sp-runtime",
+ "sp-runtime-interface",
  "sp-std",
 ]
 
@@ -11706,9 +11708,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core",
- "sp-externalities",
  "sp-runtime",
- "sp-runtime-interface",
  "sp-std",
  "static_assertions",
 ]
