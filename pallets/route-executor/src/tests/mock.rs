@@ -50,6 +50,7 @@ frame_support::construct_runtime!(
 		 Tokens: orml_tokens,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
+		 AmmSupport: pallet_amm_support,
 	 }
 );
 
@@ -143,6 +144,10 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
+impl pallet_amm_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 type Pools = (XYK, StableSwap, OmniPool, LBP);
 
 parameter_types! {
@@ -165,6 +170,7 @@ impl Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type AmmUnifiedEventSupport = AmmSupport;
 	type WeightInfo = ();
 }
 

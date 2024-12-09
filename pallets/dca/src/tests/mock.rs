@@ -79,6 +79,7 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
+		 AmmSupport: pallet_amm_support,
 	 }
 );
 
@@ -264,6 +265,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct WithdrawFeePriceOracle;
@@ -357,6 +359,10 @@ parameter_types! {
 
 }
 
+impl pallet_amm_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 type Pools = (OmniPool, Xyk);
 
 impl pallet_route_executor::Config for Test {
@@ -368,11 +374,12 @@ impl pallet_route_executor::Config for Test {
 	type AMM = Pools;
 	type InspectRegistry = DummyRegistry<Test>;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type WeightInfo = ();
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type AmmUnifiedEventSupport = AmmSupport;
+	type WeightInfo = ();
 }
 
 pub struct MockedEdCalculator;
@@ -701,6 +708,7 @@ impl Config for Test {
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct MockedInsufficientAssetSupport;

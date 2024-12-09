@@ -530,6 +530,7 @@ impl pallet_omnipool::Config for Runtime {
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct CircuitBreakerWhitelist;
@@ -873,6 +874,7 @@ impl pallet_dca::Config for Runtime {
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
 	type SwappablePaymentAssetSupport = XykPaymentAssetSupport;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
@@ -1214,6 +1216,7 @@ impl pallet_route_executor::Config for Runtime {
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 parameter_types! {
@@ -1581,6 +1584,10 @@ impl pallet_referrals::Config for Runtime {
 	type WeightInfo = weights::pallet_referrals::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
+}
+
+impl pallet_amm_support::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

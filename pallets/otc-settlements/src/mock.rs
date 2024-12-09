@@ -74,6 +74,7 @@ frame_support::construct_runtime!(
 		 Omnipool: pallet_omnipool,
 		 Router: pallet_route_executor,
 		 OtcSettlements: pallet_otc_settlements,
+		 AmmSupport: pallet_amm_support,
 	 }
 );
 
@@ -91,17 +92,17 @@ parameter_type_with_key! {
 	};
 }
 
-impl pallet_otc_settlements::Config for Test {
-	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Test>;
+impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = FungibleCurrencies<Test>;
 	type Router = Router;
 	type ProfitReceiver = TreasuryAccount;
 	type MinProfitPercentage = MinProfitPercentage;
 	type PricePrecision = PricePrecision;
 	type MinTradingLimit = MinTradingLimit;
 	type MaxIterations = ConstU32<40>;
-	type WeightInfo = ();
 	type RouterWeightInfo = ();
+	type WeightInfo = ();
 }
 
 impl pallet_otc::Config for Test {
@@ -156,6 +157,7 @@ impl pallet_route_executor::Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type AmmUnifiedEventSupport = AmmSupport;
 	type WeightInfo = ();
 }
 
@@ -258,6 +260,10 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
+impl pallet_amm_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 parameter_types! {
 	pub const MinTradingLimit: Balance = 1_000;
 	pub const MinPoolLiquidity: Balance = 1_000;
@@ -346,6 +352,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct DummyNFT;
