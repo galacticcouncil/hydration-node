@@ -24,6 +24,7 @@ type Balance = u128;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
+use frame_system::pallet_prelude::BlockNumberFor;
 pub use hydradx_traits::{
 	router::{AssetType, ExecutionType, ExecutionTypeStack, Fee, Filler, OtcOrderId, TradeOperation},
 	IncrementalIdProvider,
@@ -33,7 +34,6 @@ use primitives::ItemId as NftId;
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
 use sp_std::vec::Vec;
-
 #[cfg(test)]
 mod tests;
 
@@ -109,6 +109,18 @@ pub mod pallet {
 		},
 	}
 
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			let mut weight: Weight = Weight::zero();
+			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
+
+			<Self as ExecutionTypeStack<IncrementalIdType>>::clear();
+
+			Weight::from_parts(weight.ref_time(), 0)
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {}
 }
@@ -162,6 +174,10 @@ impl<T: Config> ExecutionTypeStack<IncrementalIdType> for Pallet<T> {
 
 	fn get() -> Vec<ExecutionType<IncrementalIdType>> {
 		IdStack::<T>::get().get()
+	}
+
+	fn clear() {
+		IdStack::<T>::kill();
 	}
 }
 impl<T: Config> IncrementalIdProvider<IncrementalIdType> for Pallet<T> {

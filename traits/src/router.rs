@@ -127,6 +127,7 @@ pub trait ExecutionTypeStack<IncrementalId> {
 	fn push(execution_type: ExecutionType<IncrementalId>) -> DispatchResult;
 	fn pop() -> Result<ExecutionType<IncrementalId>, DispatchError>;
 	fn get() -> Vec<ExecutionType<IncrementalId>>;
+	fn clear();
 }
 
 #[derive(Debug, PartialEq, Eq)]
