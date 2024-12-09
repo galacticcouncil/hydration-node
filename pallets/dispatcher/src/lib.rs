@@ -27,14 +27,22 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+pub mod mock;
+
 // #[cfg(any(feature = "runtime-benchmarks", test))]
 // mod benchmarks;
 
 pub mod weights;
+
+use sp_runtime::traits::Dispatchable;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+use frame_support::pallet_prelude::Weight;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -42,8 +50,11 @@ pub mod pallet {
     use codec::FullCodec;
     use frame_support::{dispatch::{GetDispatchInfo, PostDispatchInfo}, pallet_prelude::*};
     use frame_system::{pallet_prelude::*};
-    use sp_runtime::traits::Dispatchable;
+    use sp_runtime::traits::{Dispatchable, Hash};
     use sp_std::boxed::Box;
+
+
+    pub type AccountId = u64;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -61,6 +72,8 @@ pub mod pallet {
 
         type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
         type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+        type TreasuryAccount: Get<Self::AccountId>;
 
         /// The weight information for this pallet.
         type WeightInfo: WeightInfo;
@@ -86,32 +99,37 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
         #[pallet::weight(<T as Config>::WeightInfo::dispatch_as_treasury_manager())]
-        pub fn dispatch_as_treasury_manager(origin: OriginFor<T>, call: Box<<T as Config>::RuntimeCall>,) -> DispatchResult {
+        pub fn dispatch_as_treasury_manager(origin: OriginFor<T>, call: Box<<T as Config>::RuntimeCall>,) -> DispatchResultWithPostInfo {
             T::TreasuryManagerOrigin::ensure_origin(origin)?;
 
-            Ok(())
+            let call_hash = T::Hashing::hash_of(&call).into();
+            let call_len = call.encoded_size() as u32;
+
+            /// TODO: Add call len to weight
+            let actual_weight = Self::do_dispatch(T::TreasuryAccount::get(), call_hash, *call).map(|w| {
+                w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager())
+            });
+
+            Ok(actual_weight.into())
+        }
         }
     }
 }
 
-// impl<T: Config> Pallet<T> {
-//     /// Clean whitelisting/preimage and dispatch call.
-//     ///
-//     /// Return the call actual weight of the dispatched call if there is some.
-//     fn do_dispatch(origin: T::Hash, call: <T as Config>::RuntimeCall) -> Option<Weight> {
-//         WhitelistedCall::<T>::remove(call_hash);
-//
-//         T::Preimages::unrequest(&call_hash);
-//
-//         let result = call.dispatch(frame_system::Origin::<T>::Root.into());
-//
-//         let call_actual_weight = match result {
-//             Ok(call_post_info) => call_post_info.actual_weight,
-//             Err(call_err) => call_err.post_info.actual_weight,
-//         };
-//
-//         Self::deposit_event(Event::<T>::WhitelistedCallDispatched { call_hash, result });
-//
-//         call_actual_weight
-//     }
-// }
+impl<T: Config> Pallet<T> {
+    /// Clean whitelisting/preimage and dispatch call.
+    ///
+    /// Return the call actual weight of the dispatched call if there is some.
+    fn do_dispatch(account: T::AccountId, call_hash: T::Hash, call: <T as Config>::RuntimeCall) -> Option<Weight> {
+        let result = call.dispatch(frame_system::Origin::<T>::Signed(account).into());
+
+        let call_actual_weight = match result {
+            Ok(call_post_info) => call_post_info.actual_weight.clone(),
+            Err(call_err) => call_err.post_info.actual_weight,
+        };
+
+        Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
+
+        call_actual_weight
+    }
+}

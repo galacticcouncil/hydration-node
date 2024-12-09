@@ -26,6 +26,13 @@ frame-system = { workspace = true }
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 
+[dev-dependencies]
+sp-io = { workspace = true }
+hydradx-traits = { workspace = true }
+orml-tokens = { workspace = true }
+orml-traits = { workspace = true }
+test-utils = { workspace = true }
+
 [features]
 default = ['std']
 std = [
@@ -33,8 +40,12 @@ std = [
     'scale-info/std',
     'sp-runtime/std',
     'sp-core/std',
+    'sp-io/std',
     'sp-std/std',
-    'frame-benchmarking/std'
+    'frame-benchmarking/std',
+    'hydradx-traits/std',
+    'orml-tokens/std',
+    'orml-traits/std',
 ]
 
 runtime-benchmarks = [
