@@ -80,7 +80,6 @@ pub mod pallet {
 	#[pallet::getter(fn incremental_id)]
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
-	// TODO:
 	#[pallet::storage]
 	/// Next available incremental ID
 	#[pallet::getter(fn id_stack)]
