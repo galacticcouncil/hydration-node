@@ -18,7 +18,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::sp_runtime::FixedU128;
-use sp_std::sync::Arc;
 
 /// Opaque, encoded, unchecked extrinsic.
 pub use frame_support::sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
@@ -79,27 +78,3 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 
 /// Block type.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
-
-pub trait SolutionStore: Send + Sync {
-	fn get_solution(&self) -> u32;
-}
-
-pub type SolutionPtr = Arc<dyn SolutionStore + Send + 'static>;
-
-#[cfg(feature = "std")]
-sp_externalities::decl_extension! {
-	/// The keystore extension to register/retrieve from the externalities.
-	pub struct SolutionStoreExt(SolutionPtr);
-}
-
-#[cfg(feature = "std")]
-use sp_externalities::{Externalities, ExternalitiesExt};
-use sp_runtime_interface::runtime_interface;
-#[runtime_interface]
-pub trait ICE {
-	fn get_solution(&mut self) -> u32 {
-		self.extension::<SolutionStoreExt>()
-			.expect("SolutionStoreExt is not registered")
-			.get_solution()
-	}
-}

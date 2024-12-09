@@ -29,6 +29,7 @@ use std::sync::Arc;
 
 const LOG_TARGET: &str = "ice-solver";
 
+/*
 pub struct HydrationSolver<T, RA, B, BE, TP, SC>(PhantomData<(T, RA, B, BE, TP, SC)>);
 
 impl<T, RA, Block, BE, TP, SC> HydrationSolver<T, RA, Block, BE, TP, SC>
@@ -116,6 +117,8 @@ where
 		}
 	}
 }
+
+ */
 
 #[macro_export]
 macro_rules! rational_to_f64 {

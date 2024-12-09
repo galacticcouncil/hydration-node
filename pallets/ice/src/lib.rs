@@ -239,7 +239,7 @@ pub mod pallet {
 			// limit the cases when the offchain worker run
 			if sp_io::offchain::is_validator() {
 				log::error!("Getting solution");
-				let s = primitives::ice::get_solution();
+				let s = api::ice::get_solution();
 				log::error!("Solution {:?}", s);
 			}
 		}
