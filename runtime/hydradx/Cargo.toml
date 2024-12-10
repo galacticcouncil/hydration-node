@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "272.0.0"
+version = "273.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -24,6 +24,8 @@ evm = { workspace = true, features = ["with-codec"] }
 
 # local dependencies
 primitives = { workspace = true }
+hydradx-adapters = { workspace = true }
+hydradx-traits = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-genesis-history = { workspace = true }
 pallet-omnipool = { workspace = true }
@@ -41,6 +43,21 @@ pallet-referrals = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
+pallet-relaychain-info = { workspace = true }
+pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
+pallet-asset-registry = { workspace = true }
+pallet-collator-rewards = { workspace = true }
+pallet-currencies = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
+pallet-ema-oracle = { workspace = true }
+pallet-transaction-pause = { workspace = true }
+pallet-duster = { workspace = true }
+warehouse-liquidity-mining = { workspace = true }
+pallet-otc = { workspace = true }
+pallet-otc-settlements = { workspace = true }
+pallet-route-executor = { workspace = true }
+pallet-staking = { workspace = true }
+pallet-liquidation = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -64,24 +81,6 @@ pallet-elections-phragmen = { workspace = true }
 pallet-uniques = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
-
-# Warehouse dependencies
-hydradx-adapters = { workspace = true }
-hydradx-traits = { workspace = true }
-pallet-relaychain-info = { workspace = true }
-pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
-pallet-asset-registry = { workspace = true }
-pallet-collator-rewards = { workspace = true }
-pallet-currencies = { workspace = true }
-pallet-currencies-rpc-runtime-api = { workspace = true }
-pallet-ema-oracle = { workspace = true }
-pallet-transaction-pause = { workspace = true }
-pallet-duster = { workspace = true }
-warehouse-liquidity-mining = { workspace = true }
-pallet-otc = { workspace = true }
-pallet-otc-settlements = { workspace = true }
-pallet-route-executor = { workspace = true }
-pallet-staking = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -218,6 +217,7 @@ runtime-benchmarks = [
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
+    "pallet-liquidation/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -329,6 +329,7 @@ std = [
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
+    "pallet-liquidation/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -400,6 +401,7 @@ try-runtime = [
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",
     "pallet-state-trie-migration/try-runtime",
+    "pallet-liquidation/try-runtime",
 ]
 
 metadata-hash = [
