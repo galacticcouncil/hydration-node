@@ -49,6 +49,7 @@ fn buy_should_work_when_route_has_single_trade() {
 			asset_out: AUSD,
 			amount_in: XYK_BUY_CALCULATION_RESULT,
 			amount_out: amount_to_buy,
+			event_id: 0,
 		}
 		.into()]);
 	});
@@ -78,6 +79,7 @@ fn buy_should_work_with_omnipool_when_no_route_or_onchain_route_exist() {
 			asset_out: DOT,
 			amount_in: OMNIPOOL_BUY_CALCULATION_RESULT,
 			amount_out: amount_to_buy,
+			event_id: 0,
 		}
 		.into()]);
 	});
@@ -137,6 +139,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 				asset_out: HDX,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -294,6 +297,7 @@ fn buy_should_when_route_has_multiple_trades_with_same_pool_type() {
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -347,6 +351,7 @@ fn buy_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -406,6 +411,7 @@ fn buy_should_work_with_onchain_route_when_no_route_specified() {
 				asset_out: KSM,
 				amount_in: XYK_BUY_CALCULATION_RESULT,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});

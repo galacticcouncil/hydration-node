@@ -1,4 +1,5 @@
 #![cfg(test)]
+
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
@@ -9,6 +10,7 @@ use primitives::AccountId;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
+use std::vec;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -319,6 +321,36 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 		assert_eq!(external_shares, 1_095_625_113_667);
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
+
+		let swapped_events = get_last_swapped_events();
+		let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
+		pretty_assertions::assert_eq!(
+			*last_two_swapped_events,
+			vec![
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: Filler::Omnipool,
+					operation: TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(HDX), 1000000000000)],
+					outputs: vec![(AssetType::Fungible(LRNA), 1205768843)],
+					fees: vec![Fee::new(LRNA, 602884, Omnipool::protocol_account())],
+					operation_id: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+				pallet_amm_support::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: Filler::Omnipool,
+					operation: TradeOperation::ExactIn,
+					inputs: vec![(AssetType::Fungible(LRNA), 1205165959)],
+					outputs: vec![(AssetType::Fungible(DAI), 26663424573622008)],
+					fees: vec![Fee::new(DAI, 70524156750724, Omnipool::protocol_account())],
+					operation_id: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+			]
+		);
 	});
 }
 
@@ -339,18 +371,42 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
-			who: BOB.into(),
-			asset_in: DAI,
-			asset_out: HDX,
-			amount_in: 26_835_579_541_620_354,
-			amount_out: 1_000_000_000_000,
-			hub_amount_in: 1_209_746_177,
-			hub_amount_out: 1_209_141_304,
-			asset_fee_amount: 2_794_789_078,
-			protocol_fee_amount: 604_873,
-		}
-		.into()]);
+		expect_hydra_last_events(vec![
+			pallet_omnipool::Event::BuyExecuted {
+				who: BOB.into(),
+				asset_in: DAI,
+				asset_out: HDX,
+				amount_in: 26_835_579_541_620_354,
+				amount_out: 1_000_000_000_000,
+				hub_amount_in: 1_209_746_177,
+				hub_amount_out: 1_209_141_304,
+				asset_fee_amount: 2_794_789_078,
+				protocol_fee_amount: 604_873,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: Filler::Omnipool,
+				operation: TradeOperation::ExactOut,
+				inputs: vec![(AssetType::Fungible(DAI), 26_835_579_541_620_354)],
+				outputs: vec![(AssetType::Fungible(LRNA), 1_209_746_177)],
+				fees: vec![Fee::new(LRNA, 604_873, Omnipool::protocol_account())],
+				operation_id: vec![ExecutionType::Omnipool(0)],
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: Filler::Omnipool,
+				operation: TradeOperation::ExactOut,
+				inputs: vec![(AssetType::Fungible(LRNA), 1_209_141_304)],
+				outputs: vec![(AssetType::Fungible(HDX), 1_000_000_000_000)],
+				fees: vec![Fee::new(HDX, 2_794_789_078, Omnipool::protocol_account())],
+				operation_id: vec![ExecutionType::Omnipool(0)],
+			}
+			.into(),
+		]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
@@ -376,18 +432,42 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
-			who: BOB.into(),
-			asset_in: HDX,
-			asset_out: DAI,
-			amount_in: 37_506_757_329_085,
-			amount_out: 1_000_000_000_000_000_000,
-			hub_amount_in: 45_222_713_080,
-			hub_amount_out: 45_200_101_724,
-			asset_fee_amount: 2_644_977_450_514_458,
-			protocol_fee_amount: 22_611_356,
-		}
-		.into()]);
+		expect_hydra_last_events(vec![
+			pallet_omnipool::Event::BuyExecuted {
+				who: BOB.into(),
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: 37_506_757_329_085,
+				amount_out: 1_000_000_000_000_000_000,
+				hub_amount_in: 45_222_713_080,
+				hub_amount_out: 45_200_101_724,
+				asset_fee_amount: 2_644_977_450_514_458,
+				protocol_fee_amount: 22_611_356,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_amm_support::Filler::Omnipool,
+				operation: pallet_amm_support::TradeOperation::ExactOut,
+				inputs: vec![(AssetType::Fungible(HDX), 37_506_757_329_085)],
+				outputs: vec![(AssetType::Fungible(LRNA), 45_222_713_080)],
+				fees: vec![Fee::new(LRNA, 22_611_356, Omnipool::protocol_account())],
+				operation_id: vec![ExecutionType::Omnipool(0)],
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_amm_support::Filler::Omnipool,
+				operation: pallet_amm_support::TradeOperation::ExactOut,
+				inputs: vec![(AssetType::Fungible(LRNA), 45_200_101_724)],
+				outputs: vec![(AssetType::Fungible(DAI), 1_000_000_000_000_000_000)],
+				fees: vec![Fee::new(DAI, 2_644_977_450_514_458, Omnipool::protocol_account())],
+				operation_id: vec![ExecutionType::Omnipool(0)],
+			}
+			.into(),
+		]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
@@ -521,6 +601,7 @@ fn seed_pot_account() {
 	));
 }
 
+use hydradx_traits::router::ExecutionType;
 use scraper::ALICE;
 use sp_core::crypto::Ss58Codec;
 

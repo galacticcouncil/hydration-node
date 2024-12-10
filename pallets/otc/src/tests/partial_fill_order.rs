@@ -16,6 +16,7 @@ use crate as otc;
 use crate::tests::mock::*;
 use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::router::{AssetType, Fee};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
 use pretty_assertions::assert_eq;
@@ -83,14 +84,32 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 			TREASURY_INITIAL_BALANCE + fee
 		);
 
-		expect_events(vec![Event::PartiallyFilled {
-			order_id: 0,
-			who: BOB,
-			amount_in: 5 * ONE,
-			amount_out: expected_amount_out,
-			fee,
-		}
-		.into()]);
+		let order_id = 0;
+		expect_events(vec![
+			Event::PartiallyFilled {
+				order_id,
+				who: BOB,
+				amount_in: 5 * ONE,
+				amount_out: expected_amount_out,
+				fee,
+			}
+			.into(),
+			pallet_amm_support::Event::Swapped {
+				swapper: BOB,
+				filler: order.owner,
+				filler_type: pallet_amm_support::Filler::OTC(order_id),
+				operation: pallet_amm_support::TradeOperation::ExactIn,
+				inputs: vec![(AssetType::Fungible(order.asset_in), 5 * ONE)],
+				outputs: vec![(AssetType::Fungible(order.asset_out), expected_amount_out)],
+				fees: vec![Fee::new(
+					order.asset_out,
+					fee,
+					<Test as crate::Config>::FeeReceiver::get(),
+				)],
+				operation_id: vec![],
+			}
+			.into(),
+		]);
 	});
 }
 

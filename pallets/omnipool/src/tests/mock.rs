@@ -86,6 +86,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
+		AmmSupport: pallet_amm_support,
 	}
 );
 
@@ -180,6 +181,10 @@ parameter_types! {
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 }
 
+impl pallet_amm_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -206,6 +211,7 @@ impl Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct ExtBuilder {
@@ -682,6 +688,10 @@ impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
 
 pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub fn expect_last_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
 
 pub struct MockHooks;
