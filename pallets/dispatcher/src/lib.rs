@@ -32,8 +32,8 @@ mod tests;
 #[cfg(test)]
 pub mod mock;
 
-// #[cfg(any(feature = "runtime-benchmarks", test))]
-// mod benchmarks;
+#[cfg(any(feature = "runtime-benchmarks", test))]
+mod benchmarking;
 
 pub mod weights;
 
@@ -89,35 +89,33 @@ pub mod pallet {
         AaveManagerCallDispatched { call_hash: T::Hash, result: DispatchResultWithPostInfo },
     }
 
-    #[pallet::error]
-    pub enum Error<T> {
-        /// The preimage of the call hash could not be loaded.
-        UnavailablePreImage,
-    }
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
-        #[pallet::weight(<T as Config>::WeightInfo::dispatch_as_treasury_manager())]
+        #[pallet::weight({
+			let call_weight = call.get_dispatch_info().weight;
+			let call_len = call.encoded_size() as u32;
+
+			T::WeightInfo::dispatch_as_treasury_manager(call_len)
+				.saturating_add(call_weight)
+		})]
         pub fn dispatch_as_treasury_manager(origin: OriginFor<T>, call: Box<<T as Config>::RuntimeCall>,) -> DispatchResultWithPostInfo {
             T::TreasuryManagerOrigin::ensure_origin(origin)?;
 
             let call_hash = T::Hashing::hash_of(&call).into();
             let call_len = call.encoded_size() as u32;
 
-            /// TODO: Add call len to weight
             let actual_weight = Self::do_dispatch(T::TreasuryAccount::get(), call_hash, *call).map(|w| {
-                w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager())
+                w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len))
             });
 
             Ok(actual_weight.into())
-        }
         }
     }
 }
 
 impl<T: Config> Pallet<T> {
-    /// Clean whitelisting/preimage and dispatch call.
+    /// Dispatch the call from the specified account as Signed Origin.
     ///
     /// Return the call actual weight of the dispatched call if there is some.
     fn do_dispatch(account: T::AccountId, call_hash: T::Hash, call: <T as Config>::RuntimeCall) -> Option<Weight> {

@@ -236,4 +236,5 @@ impl pallet_dispatcher::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
+	type TreasuryAccount = TreasuryAccount;
 }
