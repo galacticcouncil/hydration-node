@@ -1,6 +1,3 @@
-use hydration_solver::omni;
-use pallet_ice::traits::Solver;
-use primitives::{AccountId, AssetId};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -26,9 +23,7 @@ impl IceSolver {
 
 impl pallet_ice::api::SolutionProvider for IceSolver {
 	fn get_solution(&self) -> u32 {
-		let s = hydration_solver::omni::OmniSolver::<
-			AccountId,
-			AssetId,
+		let s = hydration_solver::v3::SolverV3::<
 			hydradx_adapters::ice::OmnipoolDataProvider<hydradx_runtime::Runtime>,
 		>::solve(vec![]);
 		234u32
