@@ -11,7 +11,6 @@ pub mod validity;
 mod weights;
 
 use crate::traits::Routing;
-use crate::traits::Solver;
 use crate::types::{
 	Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Instruction, Intent, IntentId,
 	Moment, NamedReserveIdentifier, ResolvedIntent, SolutionAmounts, Swap, SwapType, TradeInstruction,
@@ -118,8 +117,6 @@ pub mod pallet {
 		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
 
 		type RoutingSupport: Routing<Self::AssetId>;
-
-		//type Solver: traits::Solver<(IntentId, Intent<Self::AccountId, Self::AssetId>), Error = ()>;
 
 		/// Pallet id.
 		#[pallet::constant]

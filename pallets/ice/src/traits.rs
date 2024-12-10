@@ -32,22 +32,6 @@ impl<RuntimeCall, Route> IceWeightBounds<RuntimeCall, Route> for () {
 	}
 }
 
-pub trait Solver<Intent> {
-	type Metadata;
-	type Error;
-
-	fn solve(intents: Vec<Intent>) -> Result<(Vec<ResolvedIntent>, Self::Metadata), Self::Error>;
-}
-pub struct NoopSolver;
-impl<Intent> Solver<Intent> for NoopSolver {
-	type Metadata = ();
-	type Error = ();
-
-	fn solve(_intents: Vec<Intent>) -> Result<(Vec<ResolvedIntent>, Self::Metadata), Self::Error> {
-		Ok((vec![], ()))
-	}
-}
-
 #[derive(Debug, serde::Deserialize)]
 pub struct OmnipoolAssetInfo<AssetId> {
 	pub asset_id: AssetId,
