@@ -35,16 +35,16 @@ use frame_system::RawOrigin;
 use crate::Pallet as Dispatcher;
 
 benchmarks! {
-    where_clause { where
-        T: crate::Config,
-    }
+	where_clause { where
+		T: crate::Config,
+	}
 
-    dispatch_as_treasury_manager {
-        let n in 1 .. 10_000;
-        let remark = sp_std::vec![1u8; n as usize];
+	dispatch_as_treasury_manager {
+		let n in 1 .. 10_000;
+		let remark = sp_std::vec![1u8; n as usize];
 
-        let call: T::RuntimeCall = frame_system::Call::remark { remark }.into();
-    }: _(RawOrigin::Root, call)
+		let call: T::RuntimeCall = frame_system::Call::remark { remark }.into();
+	}: _(RawOrigin::Root, call)
 
-    impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
+	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }
