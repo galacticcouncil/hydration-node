@@ -1,45 +1,40 @@
 #![allow(non_snake_case)]
 
+use crate::traits::{OmnipoolAssetInfo, OmnipoolInfo};
+use crate::types::{AssetId, Balance, Intent, IntentId, ResolvedIntent};
 use crate::{rational_to_f64, to_f64_by_decimals};
-use pallet_ice::traits::{OmnipoolAssetInfo, OmnipoolInfo, Solver};
-use pallet_ice::types::{Intent, IntentId, ResolvedIntent};
-use primitives::{AccountId, AssetId, Balance};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Neg;
 use std::ptr::null;
 
 use crate::data::process_omnipool_data;
+use crate::problem::{AmmApprox, Direction, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
 use clarabel::algebra::*;
 use clarabel::solver::*;
 use highs::{HighsModelStatus, Problem, RowProblem, Sense};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, OwnedRepr};
-//use highs::
-use crate::problem::{AmmApprox, Direction, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
 
 const ROUND_TOLERANCE: FloatType = 0.0001;
 const LRNA: AssetId = 1;
 
-fn calculate_scaling<AccountId, AssetId>(
-	intents: &[(IntentId, Intent<AccountId, AssetId>)],
+fn calculate_scaling(
+	intents: &[Intent],
 	intent_amounts: &[(f64, f64)],
 	asset_ids: &[AssetId],
 	omnipool_reserves: &[f64],
 	omnipool_hub_reserves: &[f64],
-) -> BTreeMap<AssetId, f64>
-where
-	AssetId: From<u32> + std::hash::Hash + Copy + Clone + Eq + Ord,
-{
+) -> BTreeMap<AssetId, f64> {
 	let mut scaling = BTreeMap::new();
 	scaling.insert(1u32.into(), f64::INFINITY);
 
-	for (idx, (_, intent)) in intents.iter().enumerate() {
-		if intent.swap.asset_in != 1u32.into() {
-			let a = intent.swap.asset_in;
+	for (idx, intent) in intents.iter().enumerate() {
+		if intent.asset_in != 1u32 {
+			let a = intent.asset_in;
 			let sq = intent_amounts[idx].0;
 			scaling.entry(a).and_modify(|v| *v = v.max(sq)).or_insert(sq);
 		}
-		if intent.swap.asset_out != 1u32.into() {
-			let a = intent.swap.asset_out;
+		if intent.asset_out != 1u32 {
+			let a = intent.asset_out;
 			let sq = intent_amounts[idx].1;
 			scaling.entry(a).and_modify(|v| *v = v.max(sq)).or_insert(sq);
 		}
@@ -55,35 +50,26 @@ where
 			.and_modify(|v| *v = v.min(*reserve))
 			.or_insert(1.0);
 		let scalar = (scaling.get(asset_id).unwrap() * *hub_reserve) / *reserve;
-		scaling
-			.entry(1u32.into())
-			.and_modify(|v| *v = v.min(scalar))
-			.or_insert(scalar);
+		scaling.entry(1u32).and_modify(|v| *v = v.min(scalar)).or_insert(scalar);
 	}
 
 	scaling
 }
 
-fn calculate_tau_phi<AccountId, AssetId>(
-	intents: &[(IntentId, Intent<AccountId, AssetId>)],
+fn calculate_tau_phi(
+	intents: &[Intent],
 	asset_ids: &[AssetId],
 	scaling: &BTreeMap<AssetId, f64>,
-) -> (CscMatrix, CscMatrix)
-where
-	AssetId: From<u32> + std::hash::Hash + Copy + Clone + Eq + Ord,
-{
+) -> (CscMatrix, CscMatrix) {
 	let n = asset_ids.len();
 	let m = intents.len();
 	let mut tau = CscMatrix::zeros((n, m));
 	let mut phi = CscMatrix::zeros((n, m));
 	for (j, intent) in intents.iter().enumerate() {
-		let sell_i = asset_ids.iter().position(|&tkn| tkn == intent.1.swap.asset_in).unwrap();
-		let buy_i = asset_ids
-			.iter()
-			.position(|&tkn| tkn == intent.1.swap.asset_out)
-			.unwrap();
+		let sell_i = asset_ids.iter().position(|&tkn| tkn == intent.asset_in).unwrap();
+		let buy_i = asset_ids.iter().position(|&tkn| tkn == intent.asset_out).unwrap();
 		tau.set_entry((sell_i, j), 1.);
-		let s = scaling.get(&intent.1.swap.asset_in).unwrap() / scaling.get(&intent.1.swap.asset_out).unwrap();
+		let s = scaling.get(&intent.asset_in).unwrap() / scaling.get(&intent.asset_out).unwrap();
 		phi.set_entry((buy_i, j), s);
 	}
 	(tau, phi)
@@ -94,17 +80,14 @@ fn convert_to_balance(a: f64, dec: u8) -> Balance {
 }
 
 // note that intent_deltas are < 0
-fn prepare_resolved_intents<AccountId, AssetId>(
-	intents: &[(u128, Intent<AccountId, AssetId>)],
+fn prepare_resolved_intents(
+	intents: &[Intent],
 	asset_decimals: &BTreeMap<AssetId, u8>,
 	converted_intent_amounts: &[(f64, f64)],
 	intent_deltas: &[f64],
 	intent_prices: &[f64],
 	tolerance: f64,
-) -> Vec<ResolvedIntent>
-where
-	AssetId: std::hash::Hash + Copy + Clone + Eq + Ord,
-{
+) -> Vec<ResolvedIntent> {
 	let mut resolved_intents = Vec::new();
 
 	for (idx, delta_in) in intent_deltas.iter().enumerate() {
@@ -113,7 +96,7 @@ where
 		let remainder = converted_intent_amounts[idx].0 + delta_in; // note that delta in is < 0
 		let (amount_in, amount_out) = if remainder < accepted_tolerance_amount {
 			// Do not leave dust, resolve the whole intent amount
-			(intents[idx].1.swap.amount_in, intents[idx].1.swap.amount_out)
+			(intents[idx].amount_in, intents[idx].amount_out)
 		} else if -delta_in <= accepted_tolerance_amount {
 			// Do not trade dust
 			(0u128, 0u128)
@@ -122,8 +105,8 @@ where
 			let amount_in = -delta_in;
 			let amount_out = intent_prices[idx] * amount_in;
 			(
-				convert_to_balance(amount_in, *asset_decimals.get(&intents[idx].1.swap.asset_in).unwrap()),
-				convert_to_balance(amount_out, *asset_decimals.get(&intents[idx].1.swap.asset_out).unwrap()),
+				convert_to_balance(amount_in, *asset_decimals.get(&intents[idx].asset_in).unwrap()),
+				convert_to_balance(amount_out, *asset_decimals.get(&intents[idx].asset_out).unwrap()),
 			)
 		};
 
@@ -131,7 +114,7 @@ where
 			continue;
 		}
 		let resolved_intent = ResolvedIntent {
-			intent_id: intents[idx].0,
+			intent_id: intents[idx].intent_id,
 			amount_in,
 			amount_out,
 		};
@@ -175,69 +158,17 @@ fn diags(n: usize, m: usize, data: Vec<f64>) -> CscMatrix {
 	res
 }
 
-fn prepare_omnipool_data<AssetId>(
-	info: Vec<OmnipoolAssetInfo<AssetId>>,
-) -> (
-	Vec<AssetId>,
-	Vec<f64>,
-	Vec<f64>,
-	Vec<f64>,
-	Vec<f64>,
-	BTreeMap<AssetId, u8>,
-)
-where
-	AssetId: std::hash::Hash + Copy + Clone + Eq + Ord,
-{
-	let asset_ids = info.iter().map(|i| i.asset_id).collect::<Vec<_>>();
-	let asset_reserves = info.iter().map(|i| i.reserve_as_f64()).collect::<Vec<_>>();
-	let hub_reserves = info.iter().map(|i| i.hub_reserve_as_f64()).collect::<Vec<_>>();
-	let fees = info.iter().map(|i| i.fee_as_f64()).collect::<Vec<_>>();
-	let hub_fees = info.iter().map(|i| i.hub_fee_as_f64()).collect::<Vec<_>>();
-	let decimals = info
-		.iter()
-		.map(|i| (i.asset_id, i.decimals))
-		.collect::<BTreeMap<_, _>>();
-	(asset_ids, asset_reserves, hub_reserves, fees, hub_fees, decimals)
-}
-
-fn prepare_intent_data<AccountId, AssetId>(
-	intents: &[(IntentId, Intent<AccountId, AssetId>)],
-) -> (Vec<AssetId>, Vec<f64>)
-where
-	AssetId: std::hash::Hash + From<u32> + Copy + Clone + Eq + Ord,
-{
-	let mut asset_ids = BTreeSet::new();
-	let mut intent_prices = Vec::new();
-	for (_, intent) in intents {
-		if intent.swap.asset_in != 1u32.into() {
-			asset_ids.insert(intent.swap.asset_in);
-		}
-		if intent.swap.asset_out != 1u32.into() {
-			//note: this should never happened, as it is not allowed to buy lrna!
-			asset_ids.insert(intent.swap.asset_out);
-		} else {
-			debug_assert!(false, "It is not allowed to buy lrna!");
-		}
-		let amount_in = intent.swap.amount_in;
-		let amount_out = intent.swap.amount_out;
-		let price = rational_to_f64!(amount_out, amount_in);
-		intent_prices.push(price);
-	}
-	(asset_ids.iter().cloned().collect(), intent_prices)
+pub struct SolverResult {
+	pub(crate) resolved_intents: Vec<ResolvedIntent>,
 }
 
 pub struct SolverV3<OI>(std::marker::PhantomData<OI>);
 
-impl<OI> Solver<(IntentId, Intent<AccountId, AssetId>)> for SolverV3<OI>
+impl<OI> SolverV3<OI>
 where
 	OI: OmnipoolInfo<AssetId>,
 {
-	type Metadata = ();
-	type Error = ();
-
-	fn solve(
-		intents: Vec<(IntentId, Intent<AccountId, AssetId>)>,
-	) -> Result<(Vec<ResolvedIntent>, Self::Metadata), Self::Error> {
+	pub(crate) fn solve(intents: Vec<Intent>) -> Result<SolverResult, ()> {
 		let omnipool_data = OI::assets(None); //TODO: get only needed assets, but the list is from the next line
 		let data = process_omnipool_data(omnipool_data);
 		let mut problem = ICEProblem::new(intents, data);
@@ -408,7 +339,7 @@ where
 				let remainder = converted_intent_amount.0 + delta_in; // note that delta in is < 0
 				let (amount_in, amount_out) = if remainder < accepted_tolerance_amount {
 					// Do not leave dust, resolve the whole intent amount
-					(intent.swap.amount_in, intent.swap.amount_out)
+					(intent.amount_in, intent.amount_out)
 				} else if -delta_in <= accepted_tolerance_amount {
 					// Do not trade dust
 					(0u128, 0u128)
@@ -417,8 +348,8 @@ where
 					let amount_in = -delta_in;
 					let amount_out = *delta_out;
 					(
-						convert_to_balance(amount_in, problem.get_asset_pool_data(intent.swap.asset_in).decimals),
-						convert_to_balance(amount_out, problem.get_asset_pool_data(intent.swap.asset_out).decimals),
+						convert_to_balance(amount_in, problem.get_asset_pool_data(intent.asset_in).decimals),
+						convert_to_balance(amount_out, problem.get_asset_pool_data(intent.asset_out).decimals),
 					)
 				};
 
@@ -434,7 +365,7 @@ where
 			}
 		}
 
-		Ok((resolved_intents, ()))
+		Ok(SolverResult { resolved_intents })
 	}
 }
 
@@ -706,7 +637,7 @@ fn solve_inclusion_problem(
 
 	for i in 0..m {
 		exec_partial_intent_deltas[i] =
-			Some(-x_expanded[4 * n + i] * scaling[&p.get_intent(p.partial_indices[i]).swap.asset_in]);
+			Some(-x_expanded[4 * n + i] * scaling[&p.get_intent(p.partial_indices[i]).asset_in]);
 	}
 
 	let exec_full_intent_flags = (0..r)
@@ -1318,7 +1249,7 @@ fn scale_down_partial_intents(p: &ICEProblem, trade_pcts: &[f64], scale: f64) ->
 		if old_sell_quantity < new_sell_max {
 			let partial_intent_idx = p.partial_indices[i];
 			let intent = p.intents[partial_intent_idx].clone();
-			let tkn = intent.swap.asset_in;
+			let tkn = intent.asset_in;
 			let sell_amt_lrna_value = new_sell_max * p.get_asset_pool_data(tkn).hub_price;
 
 			if sell_amt_lrna_value < p.min_partial {

@@ -1,11 +1,10 @@
 use crate::data::AssetData;
 use crate::to_f64_by_decimals;
+use crate::types::{AssetId, Intent, IntentId};
 use clarabel::algebra::{BlockConcatenate, CscMatrix};
 use clarabel::solver::SolverStatus;
 use float_next_after::NextAfter;
 use ndarray::{s, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, OwnedRepr};
-use pallet_ice::types::{Intent, IntentId};
-use primitives::{AccountId, AssetId};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -39,7 +38,7 @@ impl From<SolverStatus> for ProblemStatus {
 pub struct ICEProblem {
 	pub tkn_profit: AssetId,
 	pub intent_ids: Vec<IntentId>,
-	pub intents: Vec<Intent<AccountId, AssetId>>,
+	pub intents: Vec<Intent>,
 	pub intent_amounts: Vec<(FloatType, FloatType)>,
 
 	pub pool_data: BTreeMap<AssetId, AssetData>,
@@ -66,10 +65,7 @@ pub struct ICEProblem {
 }
 
 impl ICEProblem {
-	pub fn new(
-		intents_and_ids: Vec<(IntentId, Intent<AccountId, AssetId>)>,
-		pool_data: BTreeMap<AssetId, AssetData>,
-	) -> Self {
+	pub fn new(intents_and_ids: Vec<Intent>, pool_data: BTreeMap<AssetId, AssetData>) -> Self {
 		let mut intents = Vec::with_capacity(intents_and_ids.len());
 		let mut intent_ids = Vec::with_capacity(intents_and_ids.len());
 		let mut intent_amounts = Vec::with_capacity(intents_and_ids.len());
@@ -81,18 +77,12 @@ impl ICEProblem {
 		let asset_profit = 0u32.into(); //HDX
 		asset_ids.insert(asset_profit);
 
-		for (idx, (intent_id, intent)) in intents_and_ids.iter().enumerate() {
-			intent_ids.push(*intent_id);
+		for (idx, intent) in intents_and_ids.iter().enumerate() {
+			intent_ids.push(intent.intent_id);
 			intents.push(intent.clone());
 
-			let amount_in = to_f64_by_decimals!(
-				intent.swap.amount_in,
-				pool_data.get(&intent.swap.asset_in).unwrap().decimals
-			);
-			let amount_out = to_f64_by_decimals!(
-				intent.swap.amount_out,
-				pool_data.get(&intent.swap.asset_out).unwrap().decimals
-			);
+			let amount_in = to_f64_by_decimals!(intent.amount_in, pool_data.get(&intent.asset_in).unwrap().decimals);
+			let amount_out = to_f64_by_decimals!(intent.amount_out, pool_data.get(&intent.asset_out).unwrap().decimals);
 
 			intent_amounts.push((amount_in, amount_out));
 
@@ -102,12 +92,12 @@ impl ICEProblem {
 			} else {
 				full_indices.push(idx);
 			}
-			if intent.swap.asset_in != 1u32 {
-				asset_ids.insert(intent.swap.asset_in);
+			if intent.asset_in != 1u32 {
+				asset_ids.insert(intent.asset_in);
 			}
-			if intent.swap.asset_out != 1u32 {
+			if intent.asset_out != 1u32 {
 				//note: this should never happened, as it is not allowed to buy lrna!
-				asset_ids.insert(intent.swap.asset_out);
+				asset_ids.insert(intent.asset_out);
 			} else {
 				debug_assert!(false, "It is not allowed to buy lrna!");
 			}
@@ -236,7 +226,7 @@ impl ICEProblem {
 			.partial_indices
 			.iter()
 			.enumerate()
-			.map(|(j, &idx)| x[4 * n + j] * scaling[&self.intents[idx].swap.asset_in])
+			.map(|(j, &idx)| x[4 * n + j] * scaling[&self.intents[idx].asset_in])
 			.collect();
 
 		let mut real_x = [real_yi, real_xi, real_lrna_lambda, real_lambda, real_d].concat();
@@ -298,7 +288,7 @@ impl ICEProblem {
 			.partial_indices
 			.iter()
 			.enumerate()
-			.map(|(j, &idx)| x[4 * n + j] / scaling[&self.intents[idx].swap.asset_in])
+			.map(|(j, &idx)| x[4 * n + j] / scaling[&self.intents[idx].asset_in])
 			.collect();
 
 		let mut scaled_x = [scaled_yi, scaled_xi, scaled_lrna_lambda, scaled_lambda, scaled_d].concat();
@@ -451,7 +441,7 @@ impl ICEProblem {
 		self.step_params = step_params;
 	}
 
-	pub(crate) fn get_intent(&self, idx: usize) -> &Intent<AccountId, AssetId> {
+	pub(crate) fn get_intent(&self, idx: usize) -> &Intent {
 		&self.intents[idx]
 	}
 
@@ -471,7 +461,7 @@ impl ICEProblem {
 		let mut partial_sell_maxes = self.partial_sell_maxs.clone();
 		for (j, &idx) in self.partial_indices.iter().enumerate() {
 			let intent = &self.intents[idx];
-			let tkn = intent.swap.asset_in;
+			let tkn = intent.asset_in;
 			if tkn != 1u32 {
 				let liquidity = self.pool_data.get(&tkn).unwrap().reserve;
 				partial_sell_maxes[j] = partial_sell_maxes[j].min(liquidity / 2.0);
@@ -481,7 +471,7 @@ impl ICEProblem {
 		partial_sell_maxes
 			.iter()
 			.enumerate()
-			.map(|(j, &max)| max / scaling[&self.intents[self.partial_indices[j]].swap.asset_in])
+			.map(|(j, &max)| max / scaling[&self.intents[self.partial_indices[j]].asset_in])
 			.collect()
 	}
 
@@ -609,8 +599,8 @@ impl StepParams {
 				if I[i] as f64 > 0.5 {
 					let intent = &problem.intents[idx];
 					let (sell_quantity, buy_quantity) = problem.intent_amounts[idx];
-					let tkn_sell = intent.swap.asset_in;
-					let tkn_buy = intent.swap.asset_out;
+					let tkn_sell = intent.asset_in;
+					let tkn_buy = intent.asset_out;
 
 					let entry = known_flow.entry(tkn_sell).or_insert((0.0, 0.0));
 					entry.0 = entry.0 + sell_quantity;
@@ -644,8 +634,8 @@ impl StepParams {
 		for (i, &idx) in problem.partial_indices.iter().enumerate() {
 			let intent = &problem.intents[idx];
 			let (amount_in, amount_out) = problem.intent_amounts[idx];
-			let tkn_sell = intent.swap.asset_in;
-			let tkn_buy = intent.swap.asset_out;
+			let tkn_sell = intent.asset_in;
+			let tkn_buy = intent.asset_out;
 			let sell_quantity = problem.partial_sell_maxs[i];
 			let buy_quantity = amount_out / amount_in * sell_quantity;
 
@@ -661,8 +651,8 @@ impl StepParams {
 			for &idx in problem.full_indices.iter() {
 				let intent = &problem.intents[idx];
 				let (sell_quantity, buy_quantity) = problem.intent_amounts[idx];
-				let tkn_sell = intent.swap.asset_in;
-				let tkn_buy = intent.swap.asset_out;
+				let tkn_sell = intent.asset_in;
+				let tkn_buy = intent.asset_out;
 
 				*max_in.get_mut(&tkn_sell).unwrap() += sell_quantity;
 				*max_out.get_mut(&tkn_buy).unwrap() += buy_quantity;
@@ -802,8 +792,8 @@ impl StepParams {
 		for (j, &idx) in problem.partial_indices.iter().enumerate() {
 			let intent = &problem.intents[idx];
 			if problem.partial_sell_maxs[j] > 0.0 {
-				let tkn_sell = intent.swap.asset_in;
-				let tkn_buy = intent.swap.asset_out;
+				let tkn_sell = intent.asset_in;
+				let tkn_buy = intent.asset_out;
 
 				match known_intent_directions.entry(tkn_sell) {
 					Entry::Vacant(e) => {
@@ -927,8 +917,8 @@ impl StepParams {
 
 		for (j, &idx) in problem.partial_indices.iter().enumerate() {
 			let intent = &problem.intents[idx];
-			let tkn_sell = intent.swap.asset_in;
-			let tkn_buy = intent.swap.asset_out;
+			let tkn_sell = intent.asset_in;
+			let tkn_buy = intent.asset_out;
 			let tkn_sell_idx = tkn_list.iter().position(|&tkn| tkn == tkn_sell).unwrap();
 			let tkn_buy_idx = tkn_list.iter().position(|&tkn| tkn == tkn_buy).unwrap();
 			tau1[(tkn_sell_idx, j)] = 1.;
@@ -938,8 +928,8 @@ impl StepParams {
 		}
 		for (l, &idx) in problem.full_indices.iter().enumerate() {
 			let intent = &problem.intents[idx];
-			let tkn_sell = intent.swap.asset_in;
-			let tkn_buy = intent.swap.asset_out;
+			let tkn_sell = intent.asset_in;
+			let tkn_buy = intent.asset_out;
 			let tkn_sell_idx = tkn_list.iter().position(|&tkn| tkn == tkn_sell).unwrap();
 			let tkn_buy_idx = tkn_list.iter().position(|&tkn| tkn == tkn_buy).unwrap();
 			tau1[(tkn_sell_idx, l + m)] = 1.;
@@ -1030,7 +1020,7 @@ impl StepParams {
 			.enumerate()
 			.map(|(j, &idx)| {
 				let intent = &problem.intents[idx];
-				partial_intent_prices[j] * scaling[&intent.swap.asset_in] / scaling[&intent.swap.asset_out]
+				partial_intent_prices[j] * scaling[&intent.asset_in] / scaling[&intent.asset_out]
 			})
 			.collect();
 

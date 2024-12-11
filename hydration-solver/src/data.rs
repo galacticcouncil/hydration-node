@@ -1,6 +1,6 @@
 use crate::problem::FloatType;
-use pallet_ice::traits::OmnipoolAssetInfo;
-use primitives::AssetId;
+use crate::traits::OmnipoolAssetInfo;
+use crate::types::AssetId;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy)]
