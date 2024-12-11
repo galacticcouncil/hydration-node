@@ -1,31 +1,12 @@
-pub mod omni;
+//pub mod omni;
 
 mod data;
 mod problem;
 #[cfg(test)]
 mod tests;
+pub mod traits;
+mod types;
 pub mod v3;
-
-use frame_system::offchain::SendTransactionTypes;
-use frame_system::pallet_prelude::RuntimeCallFor;
-use futures::future::ready;
-use futures::StreamExt;
-use pallet_ice::api::ICEApi;
-use pallet_ice::traits::Solver;
-use pallet_ice::types::{BoundedResolvedIntents, BoundedTrades};
-use pallet_ice::Call;
-use primitives::{AccountId, AssetId};
-use sc_client_api::{Backend, BlockchainEvents, UsageProvider};
-use sc_transaction_pool_api::{MaintainedTransactionPool, TransactionPool};
-use sp_api::__private::BlockT;
-use sp_api::{ApiExt, ProvideRuntimeApi};
-use sp_core::offchain::storage::OffchainDb;
-use sp_runtime::traits::{Extrinsic, Hash, Header};
-use sp_runtime::transaction_validity::TransactionSource;
-use sp_runtime::{Permill, TransactionOutcome};
-use std::future::Future;
-use std::marker::PhantomData;
-use std::sync::Arc;
 
 const LOG_TARGET: &str = "ice-solver";
 
