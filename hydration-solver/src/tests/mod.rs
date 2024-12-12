@@ -4,7 +4,7 @@ mod v3;
 
 use crate::data::AssetData;
 use crate::problem::FloatType;
-use crate::traits::{OmnipoolAssetInfo, OmnipoolInfo, TempOmnipoolAssetInfo};
+use crate::traits::{OmnipoolAssetInfo, TempOmnipoolAssetInfo};
 use crate::types::Intent;
 use rand::Rng;
 
@@ -89,7 +89,7 @@ pub(crate) fn generate_random_intents(c: u32, data: Vec<OmnipoolAssetInfo<AssetI
 
 pub(crate) struct DataProvider;
 
-impl OmnipoolInfo<AssetId> for DataProvider {
+impl DataProvider {
 	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>> {
 		let d = load_omnipool_data();
 		if let Some(filtered_assets) = filter {

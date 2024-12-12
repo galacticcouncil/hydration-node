@@ -1,5 +1,4 @@
 use crate::tests::{generate_random_intents, AssetId, DataProvider};
-use crate::traits::OmnipoolInfo;
 use crate::types::*;
 use crate::v3::SolverV3;
 use std::time::Instant;
@@ -9,6 +8,7 @@ pub const ALICE: [u8; 32] = [4u8; 32];
 
 #[test]
 fn solver_should_find_solution_for_one_small_amount_partial_intent() {
+	let data = DataProvider::assets(None);
 	let intents = vec![Intent {
 		intent_id: 0,
 		asset_in: 0u32,
@@ -17,7 +17,7 @@ fn solver_should_find_solution_for_one_small_amount_partial_intent() {
 		amount_out: 1_149_000_000_000,
 		partial: true,
 	}];
-	let solution = SolverV3::<DataProvider>::solve(intents).unwrap();
+	let solution = SolverV3::solve(intents, data).unwrap();
 	let expected_solution = vec![ResolvedIntent {
 		intent_id: 0,
 		amount_in: 100_000_000_000_000,
@@ -28,6 +28,7 @@ fn solver_should_find_solution_for_one_small_amount_partial_intent() {
 
 #[test]
 fn solver_should_find_solution_for_one_large_amount_partial_intent() {
+	let data = DataProvider::assets(None);
 	let intents = vec![Intent {
 		intent_id: 0,
 		asset_in: 0u32,
@@ -36,7 +37,7 @@ fn solver_should_find_solution_for_one_large_amount_partial_intent() {
 		amount_out: 1_149_000_000_000_000,
 		partial: true,
 	}];
-	let solution = SolverV3::<DataProvider>::solve(intents).unwrap();
+	let solution = SolverV3::solve(intents, data).unwrap();
 	let expected_solution = vec![ResolvedIntent {
 		intent_id: 0,
 		amount_in: 1_000_000_000_000_000_000,
@@ -47,6 +48,7 @@ fn solver_should_find_solution_for_one_large_amount_partial_intent() {
 
 #[test]
 fn solver_should_find_solution_for_one_large_amount_full_intent() {
+	let data = DataProvider::assets(None);
 	let intents = vec![Intent {
 		intent_id: 0,
 		asset_in: 0u32,
@@ -55,7 +57,7 @@ fn solver_should_find_solution_for_one_large_amount_full_intent() {
 		amount_out: 1_149_000_000_000_000,
 		partial: false,
 	}];
-	let solution = SolverV3::<DataProvider>::solve(intents).unwrap();
+	let solution = SolverV3::solve(intents, data).unwrap();
 	let expected_solution = vec![ResolvedIntent {
 		intent_id: 0,
 		amount_in: 1_000_000_000_000_000_000,
@@ -66,6 +68,7 @@ fn solver_should_find_solution_for_one_large_amount_full_intent() {
 
 #[test]
 fn solver_should_find_solution_for_two_intents() {
+	let data = DataProvider::assets(None);
 	let intents = vec![
 		Intent {
 			intent_id: 0,
@@ -85,7 +88,7 @@ fn solver_should_find_solution_for_two_intents() {
 		},
 	];
 	let start = Instant::now();
-	let solution = SolverV3::<DataProvider>::solve(intents).unwrap();
+	let solution = SolverV3::solve(intents, data).unwrap();
 	let duration = start.elapsed();
 	println!("Time elapsed in solve() is: {:?}", duration);
 	let expected_solution = vec![
@@ -105,6 +108,7 @@ fn solver_should_find_solution_for_two_intents() {
 
 #[test]
 fn solver_should_find_solution_for_two_partial_intents() {
+	let data = DataProvider::assets(None);
 	let intents = vec![
 		Intent {
 			intent_id: 0,
@@ -124,7 +128,7 @@ fn solver_should_find_solution_for_two_partial_intents() {
 		},
 	];
 	let start = Instant::now();
-	let solution = SolverV3::<DataProvider>::solve(intents).unwrap();
+	let solution = SolverV3::solve(intents, data).unwrap();
 	let duration = start.elapsed();
 	println!("Time elapsed in solve() is: {:?}", duration);
 	let expected_solution = vec![
@@ -144,6 +148,7 @@ fn solver_should_find_solution_for_two_partial_intents() {
 
 #[test]
 fn solver_should_find_solution_for_four_intents() {
+	let data = DataProvider::assets(None);
 	let intents = vec![
 		Intent {
 			intent_id: 0,
@@ -179,7 +184,7 @@ fn solver_should_find_solution_for_four_intents() {
 		},
 	];
 	let start = Instant::now();
-	let solution = SolverV3::<DataProvider>::solve(intents).unwrap();
+	let solution = SolverV3::solve(intents, data).unwrap();
 	let duration = start.elapsed();
 	println!("Time elapsed in solve() is: {:?}", duration);
 	let expected_solution = vec![
@@ -199,11 +204,12 @@ fn solver_should_find_solution_for_four_intents() {
 
 #[test]
 fn solver_should_find_solution_for_many_intents() {
-	let intents = generate_random_intents(100, DataProvider::assets(None));
+	let data = DataProvider::assets(None);
+	let intents = generate_random_intents(100, data.clone());
 	println!("Generated intents {:?}", intents.len());
 	let result = std::panic::catch_unwind(|| {
 		let start = Instant::now();
-		let solution = SolverV3::<DataProvider>::solve(intents.clone()).unwrap();
+		let solution = SolverV3::solve(intents.clone(), data).unwrap();
 		let duration = start.elapsed();
 		println!(
 			"Time elapsed in solve() is: {:?} - resolved intents {:?}",
@@ -231,6 +237,7 @@ fn solver_should_find_solution_for_many_intents() {
 
 #[test]
 fn test_scenario() {
+	let data = DataProvider::assets(None);
 	let testdata = std::fs::read_to_string("testdata/success_1732737492.json").unwrap();
 	let intents: Vec<TestEntry> = serde_json::from_str(&testdata).unwrap();
 	let intents: Vec<Intent> = intents
@@ -241,7 +248,7 @@ fn test_scenario() {
 	//dbg!(&intents);
 	dbg!(intents.len());
 	let start = Instant::now();
-	let solution = SolverV3::<DataProvider>::solve(intents.clone()).unwrap();
+	let solution = SolverV3::solve(intents.clone(), data).unwrap();
 	let duration = start.elapsed();
 	println!(
 		"Time elapsed in solve() is: {:?} - resolved intents {:?}",

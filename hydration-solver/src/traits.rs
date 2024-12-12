@@ -1,9 +1,5 @@
 use crate::types::*;
 
-pub trait OmnipoolInfo<AssetId> {
-	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>>;
-}
-
 #[derive(Debug, serde::Deserialize)]
 pub struct TempOmnipoolAssetInfo<AssetId> {
 	pub asset_id: AssetId,
@@ -14,7 +10,7 @@ pub struct TempOmnipoolAssetInfo<AssetId> {
 	pub hub_fee: u32,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct OmnipoolAssetInfo<AssetId> {
 	pub asset_id: AssetId,
 	pub reserve: Balance,

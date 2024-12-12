@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::traits::{OmnipoolAssetInfo, OmnipoolInfo};
+use crate::traits::OmnipoolAssetInfo;
 use crate::types::{AssetId, Balance, Intent, IntentId, ResolvedIntent};
 use crate::{rational_to_f64, to_f64_by_decimals};
 use std::collections::{BTreeMap, BTreeSet};
@@ -162,15 +162,11 @@ pub struct SolverResult {
 	pub(crate) resolved_intents: Vec<ResolvedIntent>,
 }
 
-pub struct SolverV3<OI>(std::marker::PhantomData<OI>);
+pub struct SolverV3;
 
-impl<OI> SolverV3<OI>
-where
-	OI: OmnipoolInfo<AssetId>,
-{
-	pub(crate) fn solve(intents: Vec<Intent>) -> Result<SolverResult, ()> {
-		let omnipool_data = OI::assets(None); //TODO: get only needed assets, but the list is from the next line
-		let data = process_omnipool_data(omnipool_data);
+impl SolverV3 {
+	pub(crate) fn solve(intents: Vec<Intent>, pool_data: Vec<OmnipoolAssetInfo<AssetId>>) -> Result<SolverResult, ()> {
+		let data = process_omnipool_data(pool_data);
 		let mut problem = ICEProblem::new(intents, data);
 
 		let (n, m, r) = (problem.n, problem.m, problem.r);
