@@ -165,7 +165,7 @@ pub struct SolverResult {
 pub struct SolverV3;
 
 impl SolverV3 {
-	pub(crate) fn solve(intents: Vec<Intent>, pool_data: Vec<OmnipoolAssetInfo<AssetId>>) -> Result<SolverResult, ()> {
+	pub fn solve(intents: Vec<Intent>, pool_data: Vec<OmnipoolAssetInfo<AssetId>>) -> Result<SolverResult, ()> {
 		let data = process_omnipool_data(pool_data);
 		let mut problem = ICEProblem::new(intents, data);
 

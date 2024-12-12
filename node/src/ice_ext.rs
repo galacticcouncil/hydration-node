@@ -1,3 +1,6 @@
+use hydradx_adapters::ice::OmnipoolDataProvider;
+use pallet_ice::traits::OmnipoolInfo;
+use sp_runtime::{PerThing, Permill};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -23,9 +26,21 @@ impl IceSolver {
 
 impl pallet_ice::api::SolutionProvider for IceSolver {
 	fn get_solution(&self) -> u32 {
-		let s = hydration_solver::v3::SolverV3::<
-			hydradx_adapters::ice::OmnipoolDataProvider<hydradx_runtime::Runtime>,
-		>::solve(vec![]);
+		let data = OmnipoolDataProvider::<hydradx_runtime::Runtime>::assets(None);
+		// convert to the format that the solver expects
+		let data = data
+			.into_iter()
+			.map(|v| hydration_solver::traits::OmnipoolAssetInfo {
+				asset_id: v.asset_id,
+				decimals: v.decimals,
+				reserve: v.reserve,
+				hub_reserve: v.hub_reserve,
+				fee: (v.fee.deconstruct(), 1_000_000),
+				hub_fee: (v.hub_fee.deconstruct(), 1_000_000),
+			})
+			.collect();
+
+		let s = hydration_solver::v3::SolverV3::solve(vec![], data);
 		234u32
 	}
 }
