@@ -37,11 +37,9 @@
 use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::*, require_transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::{
-	router::{AssetType, Fee},
-	Inspect,
-};
+use hydradx_traits::Inspect;
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
+use pallet_amm_support::types::{AssetType, Fee};
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
 use sp_runtime::Permill;
@@ -61,7 +59,7 @@ pub use weights::WeightInfo;
 pub use pallet::*;
 
 pub type Balance = u128;
-pub type OrderId = hydradx_traits::router::OtcOrderId;
+pub type OrderId = pallet_amm_support::types::OtcOrderId; //TODO: just use exacty type
 pub type NamedReserveIdentifier = [u8; 8];
 
 pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"otcorder";
@@ -315,8 +313,8 @@ pub mod pallet {
 				pallet_amm_support::Pallet::<T>::deposit_trade_event(
 					who,
 					order.owner.clone(),
-					pallet_amm_support::Filler::OTC(order_id),
-					pallet_amm_support::TradeOperation::ExactIn,
+					pallet_amm_support::types::Filler::OTC(order_id),
+					pallet_amm_support::types::TradeOperation::ExactIn,
 					vec![(AssetType::Fungible(order.asset_in.into()), amount_in)],
 					vec![(AssetType::Fungible(order.asset_out.into()), amount_out)],
 					vec![Fee {
@@ -361,8 +359,8 @@ pub mod pallet {
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
 				order.owner,
-				pallet_amm_support::Filler::OTC(order_id),
-				pallet_amm_support::TradeOperation::ExactIn,
+				pallet_amm_support::types::Filler::OTC(order_id),
+				pallet_amm_support::types::TradeOperation::ExactIn,
 				vec![(AssetType::Fungible(order.asset_in.into()), order.amount_in)],
 				vec![(AssetType::Fungible(order.asset_out.into()), order.amount_out)],
 				vec![Fee {

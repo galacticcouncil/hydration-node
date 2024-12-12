@@ -1,9 +1,9 @@
 pub use super::mock::*;
 use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
-use hydradx_traits::router::{AssetType, Fee};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
+use pallet_amm_support::types::{AssetType, Fee};
 
 use crate::types::AssetPair;
 
@@ -149,8 +149,8 @@ fn discount_sell_fees_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK(share_token),
-				operation: pallet_amm_support::TradeOperation::ExactIn,
+				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
+				operation: pallet_amm_support::types::TradeOperation::ExactIn,
 				inputs: vec![(AssetType::Fungible(asset_a), 10_000_000)],
 				outputs: vec![(AssetType::Fungible(asset_b), 19_986_006)],
 				fees: vec![Fee::new(asset_b, 13_993, pair_account)],
@@ -237,8 +237,8 @@ fn discount_sell_fees_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK(share_token),
-				operation: pallet_amm_support::TradeOperation::ExactIn,
+				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
+				operation: pallet_amm_support::types::TradeOperation::ExactIn,
 				inputs: vec![(AssetType::Fungible(asset_a), 10_000_000)],
 				outputs: vec![(AssetType::Fungible(asset_b), 19_980_009)],
 				fees: vec![Fee::new(asset_b, 19_990, pair_account)],
@@ -320,8 +320,8 @@ fn discount_sell_fees_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK(share_token),
-				operation: pallet_amm_support::TradeOperation::ExactIn,
+				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
+				operation: pallet_amm_support::types::TradeOperation::ExactIn,
 				inputs: vec![(AssetType::Fungible(asset_a), 10_000_000)],
 				outputs: vec![(AssetType::Fungible(asset_b), 19_999_999)],
 				fees: vec![Fee::new(asset_b, 0, pair_account)],
@@ -420,8 +420,8 @@ fn discount_buy_fees_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK(share_token),
-				operation: pallet_amm_support::TradeOperation::ExactOut,
+				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
+				operation: pallet_amm_support::types::TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(asset_b), 10_000_000)],
 				outputs: vec![(AssetType::Fungible(asset_a), 20_000_002)],
 				fees: vec![Fee::new(asset_b, 14_000, pair_account)],
@@ -512,8 +512,8 @@ fn discount_buy_fees_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK(share_token),
-				operation: pallet_amm_support::TradeOperation::ExactOut,
+				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
+				operation: pallet_amm_support::types::TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(asset_b), 10_000_000)],
 				outputs: vec![(AssetType::Fungible(asset_a), 20_000_002)],
 				fees: vec![Fee::new(asset_b, 20_000, pair_account)],
@@ -593,8 +593,8 @@ fn discount_buy_fees_should_work() {
 			pallet_amm_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_amm_support::Filler::XYK(share_token),
-				operation: pallet_amm_support::TradeOperation::ExactOut,
+				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
+				operation: pallet_amm_support::types::TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(asset_b), 10_000_000)],
 				outputs: vec![(AssetType::Fungible(asset_a), 20_000_002)],
 				fees: vec![Fee::new(asset_b, 0, pair_account)],

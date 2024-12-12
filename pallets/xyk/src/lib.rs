@@ -33,10 +33,11 @@ use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
-	router::{AssetType, Fee},
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
 };
+use pallet_amm_support::types::{AssetType, Fee};
+
 use sp_std::{vec, vec::Vec};
 
 use crate::types::{Amount, AssetId, AssetPair, Balance};
@@ -920,8 +921,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
 			pair_account.clone(),
-			pallet_amm_support::Filler::XYK(Self::share_token(&pair_account)),
-			pallet_amm_support::TradeOperation::ExactIn,
+			pallet_amm_support::types::Filler::XYK(Self::share_token(&pair_account)),
+			pallet_amm_support::types::TradeOperation::ExactIn,
 			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
 			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
 			vec![Fee {
@@ -1100,8 +1101,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
 			pair_account.clone(),
-			pallet_amm_support::Filler::XYK(Self::share_token(&pair_account)),
-			pallet_amm_support::TradeOperation::ExactOut,
+			pallet_amm_support::types::Filler::XYK(Self::share_token(&pair_account)),
+			pallet_amm_support::types::TradeOperation::ExactOut,
 			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
 			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
 			vec![Fee {

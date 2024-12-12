@@ -300,7 +300,3 @@ pub trait AccountFeeCurrencyBalanceInCurrency<AssetId, AccountId> {
 	type Output;
 	fn get_balance_in_currency(to_currency: AssetId, account: &AccountId) -> Self::Output;
 }
-
-pub trait IncrementalIdProvider<IncrementalId> {
-	fn next_id() -> Result<IncrementalId, DispatchError>;
-}

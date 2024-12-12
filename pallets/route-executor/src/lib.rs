@@ -35,11 +35,12 @@ use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
-	AmmTradeWeights, AmountInAndOut, AssetType, ExecutionType, ExecutionTypeStack, ExecutorError, Fee, PoolType,
-	RouterT, Trade, TradeExecution,
+	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
-use hydradx_traits::IncrementalIdProvider;
+
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use pallet_amm_support::types::IncrementalIdProvider;
+pub use pallet_amm_support::types::{AssetType, ExecutionType, ExecutionTypeStack, Fee};
 use pallet_amm_support::IncrementalIdType;
 use primitives::IncrementalId;
 use sp_core::U512;

@@ -2,7 +2,7 @@ use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok};
-use hydradx_traits::router::{AssetType, Fee};
+use pallet_amm_support::types::*;
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -110,8 +110,8 @@ fn add_liquidity_should_emit_swapped_events() {
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
-					operation: pallet_amm_support::TradeOperation::LiquidityAdd,
+					filler_type: pallet_amm_support::types::Filler::Stableswap(pool_id),
+					operation: pallet_amm_support::types::TradeOperation::LiquidityAdd,
 					inputs: vec![(AssetType::Fungible(asset_a), 2000000000000000000),],
 					outputs: vec![(AssetType::Fungible(pool_id), 1947487201901031408)],
 					fees: vec![
@@ -713,8 +713,8 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type: pallet_amm_support::Filler::Stableswap(pool_id),
-					operation: pallet_amm_support::TradeOperation::LiquidityAdd,
+					filler_type: pallet_amm_support::types::Filler::Stableswap(pool_id),
+					operation: pallet_amm_support::types::TradeOperation::LiquidityAdd,
 					inputs: vec![(AssetType::Fungible(asset_a), 2000000000000000003),],
 					outputs: vec![(AssetType::Fungible(pool_id), 1947597621401945851)],
 					fees: vec![Fee::new(pool_id, 0, pool_account)],

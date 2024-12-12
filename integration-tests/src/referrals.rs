@@ -5,6 +5,7 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
 use orml_traits::MultiCurrency;
+use pallet_amm_support::types::*;
 use pallet_referrals::{FeeDistribution, ReferralCode};
 use primitives::AccountId;
 use sp_core::crypto::Ss58AddressFormat;
@@ -12,7 +13,6 @@ use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use std::vec;
 use xcm_emulator::TestExt;
-
 #[test]
 fn registering_a_code_should_charge_registration_fee() {
 	Hydra::execute_with(|| {
@@ -448,8 +448,8 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			pallet_amm_support::Event::Swapped {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
-				filler_type: pallet_amm_support::Filler::Omnipool,
-				operation: pallet_amm_support::TradeOperation::ExactOut,
+				filler_type: pallet_amm_support::types::Filler::Omnipool,
+				operation: pallet_amm_support::types::TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(HDX), 37_506_757_329_085)],
 				outputs: vec![(AssetType::Fungible(LRNA), 45_222_713_080)],
 				fees: vec![Fee::new(LRNA, 22_611_356, Omnipool::protocol_account())],
@@ -459,8 +459,8 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			pallet_amm_support::Event::Swapped {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
-				filler_type: pallet_amm_support::Filler::Omnipool,
-				operation: pallet_amm_support::TradeOperation::ExactOut,
+				filler_type: pallet_amm_support::types::Filler::Omnipool,
+				operation: pallet_amm_support::types::TradeOperation::ExactOut,
 				inputs: vec![(AssetType::Fungible(LRNA), 45_200_101_724)],
 				outputs: vec![(AssetType::Fungible(DAI), 1_000_000_000_000_000_000)],
 				fees: vec![Fee::new(DAI, 2_644_977_450_514_458, Omnipool::protocol_account())],
@@ -601,7 +601,7 @@ fn seed_pot_account() {
 	));
 }
 
-use hydradx_traits::router::ExecutionType;
+use pallet_amm_support::types::ExecutionType;
 use scraper::ALICE;
 use sp_core::crypto::Ss58Codec;
 

@@ -11,11 +11,12 @@ use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_traits::router::PoolType;
 use xcm_emulator::TestExt;
 
-use hydradx_traits::router::ExecutionType;
 use hydradx_traits::router::Trade;
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-
+use pallet_amm_support::types::AssetType;
+use pallet_amm_support::types::ExecutionType;
+use pallet_amm_support::types::Fee;
 #[test]
 fn batch_execution_type_should_be_included_in_batch() {
 	TestNet::reset();
@@ -72,8 +73,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
-					filler_type: pallet_amm_support::Filler::LBP,
-					operation: pallet_amm_support::TradeOperation::ExactIn,
+					filler_type: pallet_amm_support::types::Filler::LBP,
+					operation: pallet_amm_support::types::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(DAI), 9980000000)],
 					outputs: vec![(AssetType::Fungible(LRNA), 5640664064)],
 					fees: vec![Fee::new(
@@ -88,8 +89,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::Filler::Omnipool,
-					operation: pallet_amm_support::TradeOperation::ExactIn,
+					filler_type: pallet_amm_support::types::Filler::Omnipool,
+					operation: pallet_amm_support::types::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(LRNA), 5640664064)],
 					outputs: vec![(AssetType::Fungible(HDX), 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
@@ -101,13 +102,13 @@ fn batch_execution_type_should_be_included_in_batch() {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+					filler_type: pallet_amm_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 						pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						},
 					))),
-					operation: pallet_amm_support::TradeOperation::ExactIn,
+					operation: pallet_amm_support::types::TradeOperation::ExactIn,
 					inputs: vec![(AssetType::Fungible(HDX), 4682924837974)],
 					outputs: vec![(AssetType::Fungible(DOT), 2230008413831)],
 					fees: vec![Fee::new(
@@ -196,13 +197,13 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 					asset_in: HDX,
 					asset_out: DOT,
 				}),
-				filler_type: pallet_amm_support::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+				filler_type: pallet_amm_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 					pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,
 					},
 				))),
-				operation: pallet_amm_support::TradeOperation::ExactIn,
+				operation: pallet_amm_support::types::TradeOperation::ExactIn,
 				inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
 				outputs: vec![(AssetType::Fungible(DOT), 4549178628)],
 				fees: vec![Fee::new(

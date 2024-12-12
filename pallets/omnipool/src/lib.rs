@@ -94,9 +94,9 @@ use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::ExecutionTypeStack;
-use hydradx_traits::router::{AssetType, ExecutionType, Fee};
 use orml_traits::{GetByKey, MultiCurrency};
+use pallet_amm_support::types::ExecutionTypeStack;
+use pallet_amm_support::types::{AssetType, ExecutionType, Fee};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
 use scale_info::TypeInfo;
@@ -135,8 +135,8 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
-	use hydradx_traits::IncrementalIdProvider;
 	use orml_traits::GetByKey;
+	use pallet_amm_support::types::IncrementalIdProvider;
 	use pallet_amm_support::IncrementalIdType;
 	use sp_runtime::ArithmeticError;
 
@@ -1105,8 +1105,8 @@ pub mod pallet {
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who.clone(),
 				Self::protocol_account(),
-				pallet_amm_support::Filler::Omnipool,
-				pallet_amm_support::TradeOperation::ExactIn,
+				pallet_amm_support::types::Filler::Omnipool,
+				pallet_amm_support::types::TradeOperation::ExactIn,
 				vec![(AssetType::Fungible(asset_in.into()), amount)],
 				vec![(
 					AssetType::Fungible(T::HubAssetId::get().into()),
@@ -1123,8 +1123,8 @@ pub mod pallet {
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
 				Self::protocol_account(),
-				pallet_amm_support::Filler::Omnipool,
-				pallet_amm_support::TradeOperation::ExactIn,
+				pallet_amm_support::types::Filler::Omnipool,
+				pallet_amm_support::types::TradeOperation::ExactIn,
 				vec![(
 					AssetType::Fungible(T::HubAssetId::get().into()),
 					*state_changes.asset_out.delta_hub_reserve,
@@ -1354,8 +1354,8 @@ pub mod pallet {
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who.clone(),
 				Self::protocol_account(),
-				pallet_amm_support::Filler::Omnipool,
-				pallet_amm_support::TradeOperation::ExactOut,
+				pallet_amm_support::types::Filler::Omnipool,
+				pallet_amm_support::types::TradeOperation::ExactOut,
 				vec![(
 					AssetType::Fungible(asset_in.into()),
 					*state_changes.asset_in.delta_reserve,
@@ -1375,8 +1375,8 @@ pub mod pallet {
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
 				who,
 				Self::protocol_account(),
-				pallet_amm_support::Filler::Omnipool,
-				pallet_amm_support::TradeOperation::ExactOut,
+				pallet_amm_support::types::Filler::Omnipool,
+				pallet_amm_support::types::TradeOperation::ExactOut,
 				vec![(
 					AssetType::Fungible(T::HubAssetId::get().into()),
 					*state_changes.asset_out.delta_hub_reserve,
@@ -1917,8 +1917,8 @@ impl<T: Config> Pallet<T> {
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
-			pallet_amm_support::Filler::Omnipool,
-			pallet_amm_support::TradeOperation::ExactIn,
+			pallet_amm_support::types::Filler::Omnipool,
+			pallet_amm_support::types::TradeOperation::ExactIn,
 			vec![(
 				AssetType::Fungible(T::HubAssetId::get().into()),
 				*state_changes.asset.delta_hub_reserve,
@@ -2046,8 +2046,8 @@ impl<T: Config> Pallet<T> {
 		pallet_amm_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
-			pallet_amm_support::Filler::Omnipool,
-			pallet_amm_support::TradeOperation::ExactOut,
+			pallet_amm_support::types::Filler::Omnipool,
+			pallet_amm_support::types::TradeOperation::ExactOut,
 			vec![(
 				AssetType::Fungible(T::HubAssetId::get().into()),
 				*state_changes.asset.delta_hub_reserve,

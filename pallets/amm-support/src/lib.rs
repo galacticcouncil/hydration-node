@@ -21,14 +21,11 @@
 type AssetId = u32;
 type Balance = u128;
 
+use crate::types::*;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
 use frame_system::pallet_prelude::BlockNumberFor;
-pub use hydradx_traits::{
-	router::{AssetType, ExecutionType, ExecutionTypeStack, Fee, Filler, OtcOrderId, TradeOperation},
-	IncrementalIdProvider,
-};
 pub use primitives::IncrementalId as IncrementalIdType;
 use primitives::ItemId as NftId;
 use scale_info::TypeInfo;
@@ -36,6 +33,8 @@ use sp_core::{ConstU32, RuntimeDebug};
 use sp_std::vec::Vec;
 #[cfg(test)]
 mod tests;
+
+pub mod types;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;

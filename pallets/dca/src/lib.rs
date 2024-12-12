@@ -78,12 +78,13 @@ use frame_system::{
 };
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{inverse_route, ExecutionType, ExecutionTypeStack, RouteProvider};
+use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
+use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
-use hydradx_traits::{IncrementalIdProvider, NativePriceOracle};
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
+use pallet_amm_support::types::{ExecutionType, ExecutionTypeStack, IncrementalIdProvider};
 use pallet_amm_support::IncrementalIdType;
 use primitives::IncrementalId;
 use rand::rngs::StdRng;
@@ -123,9 +124,10 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
-	use hydradx_traits::router::ExecutionTypeStack;
-	use hydradx_traits::{IncrementalIdProvider, NativePriceOracle, PriceOracle};
+	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
+	use pallet_amm_support::types::ExecutionTypeStack;
+	use pallet_amm_support::types::IncrementalIdProvider;
 	use sp_runtime::Percent;
 
 	#[pallet::pallet]

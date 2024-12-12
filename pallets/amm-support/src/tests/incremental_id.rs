@@ -16,9 +16,8 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
+use crate::types::*;
 use crate::Event;
-use hydradx_traits::router::{AssetType, ExecutionType, Filler, TradeOperation};
-
 #[test]
 fn event_id_should_be_incremented() {
 	ExtBuilder::default().build().execute_with(|| {
