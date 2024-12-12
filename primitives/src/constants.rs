@@ -78,6 +78,14 @@ pub mod time {
 	}
 }
 
+pub mod transaction {
+	use frame_support::parameter_types;
+
+	parameter_types! {
+		/// Maximum size of an encoded extrinsic, derived from the max block size
+		pub const MaxExtrinsicSize: u32 = 2 * 1024 * 1024;
+	}
+}
 pub mod chain {
 	pub use crate::{AssetId, Balance};
 	pub use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};

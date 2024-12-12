@@ -29,7 +29,7 @@ use frame_support::sp_runtime::{
 use sp_core::H160;
 
 pub mod constants;
-
+pub mod runtime_api;
 /// An index to a block.
 pub type BlockNumber = u32;
 

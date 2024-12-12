@@ -11318,8 +11318,11 @@ dependencies = [
  "polkadot-primitives",
  "scale-info",
  "serde",
+ "sp-api",
  "sp-core",
+ "sp-runtime",
  "sp-std",
+ "sp-weights",
  "static_assertions",
 ]
 

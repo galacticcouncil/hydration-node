@@ -65,6 +65,7 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
+
 use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
@@ -78,6 +79,12 @@ pub use primitives::{
 };
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_runtime::traits::One;
+
+
+use frame_support::dispatch::GetDispatchInfo;
+use frame_support::BoundedVec;
+use primitives::constants::transaction::MaxExtrinsicSize;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -440,19 +447,7 @@ use sp_core::OpaqueMetadata;
 use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
 
 impl_runtime_apis! {
-	impl sp_api::Core<Block> for Runtime {
-		fn version() -> RuntimeVersion {
-			VERSION
-		}
 
-		fn execute_block(block: Block) {
-			Executive::execute_block(block)
-		}
-
-		fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
-			Executive::initialize_block(header)
-		}
-	}
 
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
@@ -1176,4 +1171,66 @@ impl_runtime_apis! {
 			Default::default()
 		}
 	}
+	impl sp_api::Core<Block> for Runtime {
+		fn version() -> RuntimeVersion {
+			VERSION
+		}
+
+		fn execute_block(block: Block) {
+			Executive::execute_block(block)
+		}
+
+		fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
+			Executive::initialize_block(header)
+		}
+	}
+	impl primitives::runtime_api::FeeEstimationApi<Block, AccountId, AssetId, Balance> for Runtime {
+		fn estimate_fee_payment(weight: Weight, account_id: AccountId) -> (AssetId, Balance) {
+			// Get the currency configured for this account
+			let currency = MultiTransactionPayment::account_currency(&account_id);
+
+			// Convert weight to base fee using native asset calculations
+			let native_fee = TransactionPayment::weight_to_fee(weight);
+
+			// Get the price of the account's currency if applicable
+			let price = MultiTransactionPayment::price(currency).unwrap_or(Price::one());
+
+			// Calculate the final fee in the account's currency
+			let fee_in_currency = price.checked_mul_int(native_fee).unwrap_or(native_fee);
+
+			(currency, fee_in_currency)
+		}
+
+		fn estimate_fee_payment_for_extrinsic(
+			uxt: BoundedVec<u8, MaxExtrinsicSize>,
+			account_id: AccountId,
+		) -> (AssetId, Balance) {
+			use codec::DecodeAll;
+
+			// Decode the extrinsic
+			let uxt = UncheckedExtrinsic::decode_all(&mut &uxt[..])
+				.expect("Invalid extrinsic provided");
+
+			// Get dispatch info for weight calculation
+			let info = <UncheckedExtrinsic as GetDispatchInfo>::get_dispatch_info(&uxt);
+
+			// Calculate length component
+			let len = uxt.encoded_size() as u32;
+			let len_fee = TransactionPayment::length_to_fee(len);
+
+			// Calculate weight component
+			let weight_fee = TransactionPayment::weight_to_fee(info.weight);
+
+			// Total native fee
+			let native_fee = len_fee.saturating_add(weight_fee);
+
+			// Convert to account's preferred currency
+			let currency = MultiTransactionPayment::account_currency(&account_id);
+			let price = MultiTransactionPayment::price(currency).unwrap_or(Price::one());
+			let fee_in_currency = price.checked_mul_int(native_fee).unwrap_or(native_fee);
+
+			(currency, fee_in_currency)
+		}
+	}
+
 }
