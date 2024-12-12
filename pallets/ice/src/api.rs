@@ -3,18 +3,18 @@
 
 extern crate alloc;
 
-use crate::types::{Intent, IntentId, ResolvedIntent};
+use crate::types::{AssetId, Balance, DataRepr, Intent, IntentId, IntentRepr, ResolvedIntent};
 use alloc::vec::Vec;
 use codec::Decode;
 use sp_std::sync::Arc;
 
 sp_api::decl_runtime_apis! {
 	#[api_version(1)]
-	pub trait ICEApi<A, AssetId>
-	where Vec<(IntentId, Intent<A, AssetId>)>: Decode,
+	pub trait ICEApi<A>
+	where Vec<(IntentId, Intent<A>)>: Decode,
 	Vec<ResolvedIntent>: Decode
 	{
-		fn intents(header: &Block::Header) -> Vec<(IntentId, Intent<A, AssetId>)>;
+		fn intents(header: &Block::Header) -> Vec<(IntentId, Intent<A>)>;
 		fn submit_solution(
 			header: &Block::Header,
 			solution: Vec<ResolvedIntent>,
@@ -23,7 +23,7 @@ sp_api::decl_runtime_apis! {
 }
 
 pub trait SolutionProvider: Send + Sync {
-	fn get_solution(&self) -> Vec<ResolvedIntent>;
+	fn get_solution(&self, intents: Vec<IntentRepr>, data: Vec<DataRepr>) -> Vec<ResolvedIntent>;
 }
 
 pub type SolverPtr = Arc<dyn SolutionProvider + Send + 'static>;
@@ -36,13 +36,13 @@ sp_externalities::decl_extension! {
 
 #[cfg(feature = "std")]
 use sp_externalities::{Externalities, ExternalitiesExt};
-use sp_runtime_interface::runtime_interface;
+use sp_runtime_interface::{runtime_interface, RIType};
 
 #[runtime_interface]
 pub trait ICE {
-	fn get_solution(&mut self) -> Vec<ResolvedIntent> {
+	fn get_solution(&mut self, intents: Vec<IntentRepr>, data: Vec<DataRepr>) -> Vec<ResolvedIntent> {
 		self.extension::<SolverExt>()
 			.expect("SolutionStoreExt is not registered")
-			.get_solution()
+			.get_solution(intents, data)
 	}
 }

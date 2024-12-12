@@ -12,9 +12,9 @@ mod weights;
 
 use crate::traits::Routing;
 use crate::types::{
-	Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Instruction, Intent, IntentId,
-	Moment, NamedReserveIdentifier, ResolvedIntent, SolutionAmounts, Swap, SwapType, TradeInstruction,
-	TradeInstructionTransform, AssetId
+	AssetId, Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Instruction, Intent,
+	IntentId, Moment, NamedReserveIdentifier, ResolvedIntent, SolutionAmounts, Swap, SwapType, TradeInstruction,
+	TradeInstructionTransform,
 };
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
@@ -135,7 +135,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// New intent was submitted
-		IntentSubmitted(IntentId, Intent<T::AccountId, AssetId>),
+		IntentSubmitted(IntentId, Intent<T::AccountId>),
 
 		/// Solution was executed
 		SolutionExecuted {
@@ -190,7 +190,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_intent)]
-	pub(super) type Intents<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, Intent<T::AccountId, AssetId>>;
+	pub(super) type Intents<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, Intent<T::AccountId>>;
 
 	#[pallet::storage]
 	/// Intent id sequencer
@@ -229,7 +229,9 @@ pub mod pallet {
 			// limit the cases when the offchain worker run
 			if sp_io::offchain::is_validator() {
 				log::error!("Getting solution");
-				let s = api::ice::get_solution();
+				let intents = vec![];
+				let data = vec![];
+				let s = api::ice::get_solution(intents, data);
 				log::error!("Solution {:?}", s);
 			}
 		}
@@ -239,7 +241,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
-		pub fn submit_intent(origin: OriginFor<T>, intent: Intent<T::AccountId, AssetId>) -> DispatchResult {
+		pub fn submit_intent(origin: OriginFor<T>, intent: Intent<T::AccountId>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let now = T::TimestampProvider::now();
@@ -485,8 +487,8 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
-	pub fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId, AssetId>)> {
-		let mut intents: Vec<(IntentId, Intent<T::AccountId, AssetId>)> = Intents::<T>::iter().collect();
+	pub fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId>)> {
+		let mut intents: Vec<(IntentId, Intent<T::AccountId>)> = Intents::<T>::iter().collect();
 		intents.sort_by_key(|(_, intent)| intent.deadline);
 
 		// Retain non-expired intents
@@ -641,10 +643,7 @@ impl<T: Config> Pallet<T> {
 	// Parameters:
 	// - resolved_intents: number of resolved intents
 	// - matched_amounts: list of matched amounts
-	fn score_solution(
-		resolved_intents: u128,
-		matched_amounts: Vec<(AssetId, Balance)>,
-	) -> Result<u64, DispatchError> {
+	fn score_solution(resolved_intents: u128, matched_amounts: Vec<(AssetId, Balance)>) -> Result<u64, DispatchError> {
 		let mut hub_amount = resolved_intents * 1_000_000_000_000u128;
 
 		for (asset_id, amount) in matched_amounts {
@@ -775,7 +774,7 @@ impl<T: Config> Pallet<T> {
 		))
 	}
 
-	fn ensure_intent_price(intent: &Intent<T::AccountId, AssetId>, resolved_intent: &ResolvedIntent) -> bool {
+	fn ensure_intent_price(intent: &Intent<T::AccountId>, resolved_intent: &ResolvedIntent) -> bool {
 		let amount_in = intent.swap.amount_in;
 		let amount_out = intent.swap.amount_out;
 		let resolved_in = resolved_intent.amount_in;

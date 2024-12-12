@@ -22,22 +22,39 @@ pub type BoundedResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_RESOLV
 pub type BoundedInstructions<AccountId, AssetId> =
 	BoundedVec<Instruction<AccountId, AssetId>, ConstU32<MAX_INSTRUCTIONS>>;
 
+// Unfortunately, we need simple representations of the types to be able to use across the FFI
+// dev: perhaps, it could be possible to implement IntoFFIValue to simplify.
+pub type IntentRepr = (IntentId, AssetId, AssetId, Balance, Balance);
+pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32));
+
 pub type BoundedRoute<AssetId> = BoundedVec<Trade<AssetId>, ConstU32<5>>;
 
 pub type BoundedTrades<AssetId> = BoundedVec<TradeInstruction<AssetId>, ConstU32<MAX_INSTRUCTIONS>>;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Intent<AccountId, AssetId> {
+pub struct Intent<AccountId> {
 	pub who: AccountId,
-	pub swap: Swap<AssetId>,
+	pub swap: Swap,
 	pub deadline: Moment,
 	pub partial: bool,
 	pub on_success: Option<CallData>,
 	pub on_failure: Option<CallData>,
 }
 
+impl<AccountId> Into<IntentRepr> for Intent<AccountId> {
+	fn into(self) -> IntentRepr {
+		(
+			0,
+			self.swap.asset_in,
+			self.swap.asset_out,
+			self.swap.amount_in,
+			self.swap.amount_out,
+		)
+	}
+}
+
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct Swap<AssetId> {
+pub struct Swap {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
 	pub amount_in: Balance,
