@@ -14,7 +14,7 @@ use crate::traits::Routing;
 use crate::types::{
 	Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Instruction, Intent, IntentId,
 	Moment, NamedReserveIdentifier, ResolvedIntent, SolutionAmounts, Swap, SwapType, TradeInstruction,
-	TradeInstructionTransform,
+	TradeInstructionTransform, AssetId
 };
 use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
@@ -47,7 +47,7 @@ pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::IceWeightBounds;
+	use crate::traits::{IceWeightBounds, OmnipoolInfo};
 	use crate::types::{BoundedResolvedIntents, BoundedTrades, TradeInstruction};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
@@ -63,24 +63,13 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Asset type.
-		type AssetId: Member
-			+ Parameter
-			+ Default
-			+ Copy
-			+ Ord
-			+ HasCompact
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ TypeInfo;
-
 		/// Native asset Id
 		#[pallet::constant]
-		type NativeAssetId: Get<Self::AssetId>;
+		type NativeAssetId: Get<AssetId>;
 
 		/// Asset Id of hub asset
 		#[pallet::constant]
-		type HubAssetId: Get<Self::AssetId>;
+		type HubAssetId: Get<AssetId>;
 
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
@@ -93,30 +82,32 @@ pub mod pallet {
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
 		/// TODO: this two currencies could be merged into one, however it would need to implement support in the runtime for this
-		type Currency: Mutate<Self::AccountId, AssetId = Self::AssetId, Balance = types::Balance>;
+		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = types::Balance>;
 
 		type ReservableCurrency: NamedMultiReservableCurrency<
 			Self::AccountId,
 			ReserveIdentifier = NamedReserveIdentifier,
-			CurrencyId = Self::AssetId,
+			CurrencyId = AssetId,
 			Balance = Balance,
 		>;
 
 		type TradeExecutor: RouterT<
 			Self::RuntimeOrigin,
-			Self::AssetId,
+			AssetId,
 			Balance,
-			hydradx_traits::router::Trade<Self::AssetId>,
+			hydradx_traits::router::Trade<AssetId>,
 			hydradx_traits::router::AmountInAndOut<Balance>,
 		>;
 
+		//type DataProvider: crate::traits::OmnipoolInfo<AssetId>;
+
 		/// The means of determining a solution's weight.
-		type Weigher: IceWeightBounds<Self::RuntimeCall, Vec<hydradx_traits::router::Trade<Self::AssetId>>>;
+		type Weigher: IceWeightBounds<Self::RuntimeCall, Vec<hydradx_traits::router::Trade<AssetId>>>;
 
 		/// Price provider
-		type PriceProvider: PriceProvider<Self::AssetId, Price = Ratio>;
+		type PriceProvider: PriceProvider<AssetId, Price = Ratio>;
 
-		type RoutingSupport: Routing<Self::AssetId>;
+		type RoutingSupport: Routing<AssetId>;
 
 		/// Pallet id.
 		#[pallet::constant]
@@ -144,7 +135,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// New intent was submitted
-		IntentSubmitted(IntentId, Intent<T::AccountId, T::AssetId>),
+		IntentSubmitted(IntentId, Intent<T::AccountId, AssetId>),
 
 		/// Solution was executed
 		SolutionExecuted {
@@ -199,7 +190,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_intent)]
-	pub(super) type Intents<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, Intent<T::AccountId, T::AssetId>>;
+	pub(super) type Intents<T: Config> = StorageMap<_, Blake2_128Concat, IntentId, Intent<T::AccountId, AssetId>>;
 
 	#[pallet::storage]
 	/// Intent id sequencer
@@ -233,6 +224,8 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			log::error!("Running ice offchain worker");
+			//let data = T::DataProvider::assets(None);
+			//log::error!("Running ice offchain worker data: {:?}", data.len());
 			// limit the cases when the offchain worker run
 			if sp_io::offchain::is_validator() {
 				log::error!("Getting solution");
@@ -246,7 +239,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
-		pub fn submit_intent(origin: OriginFor<T>, intent: Intent<T::AccountId, T::AssetId>) -> DispatchResult {
+		pub fn submit_intent(origin: OriginFor<T>, intent: Intent<T::AccountId, AssetId>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let now = T::TimestampProvider::now();
@@ -299,7 +292,7 @@ pub mod pallet {
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			intents: BoundedResolvedIntents,
-			trades: BoundedTrades<T::AssetId>,
+			trades: BoundedTrades<AssetId>,
 			score: u64,
 			block: BlockNumberFor<T>,
 		) -> DispatchResult {
@@ -356,7 +349,7 @@ pub mod pallet {
 		pub fn propose_solution(
 			origin: OriginFor<T>,
 			intents: BoundedResolvedIntents,
-			trades: BoundedTrades<T::AssetId>,
+			trades: BoundedTrades<AssetId>,
 			score: u64,
 			block: BlockNumberFor<T>,
 		) -> DispatchResult {
@@ -492,8 +485,8 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
-	pub fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId, T::AssetId>)> {
-		let mut intents: Vec<(IntentId, Intent<T::AccountId, T::AssetId>)> = Intents::<T>::iter().collect();
+	pub fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId, AssetId>)> {
+		let mut intents: Vec<(IntentId, Intent<T::AccountId, AssetId>)> = Intents::<T>::iter().collect();
 		intents.sort_by_key(|(_, intent)| intent.deadline);
 
 		// Retain non-expired intents
@@ -542,9 +535,9 @@ impl<T: Config> Pallet<T> {
 	// this should really optimized to find the best route and amount to swap using one swap instead of two (to lrna/fromlrna)
 	pub fn calculate_trades_and_score(
 		resolved_intents: &[ResolvedIntent],
-	) -> Result<(Vec<TradeInstruction<T::AssetId>>, u64), ()> {
-		let mut amounts_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
-		let mut amounts_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+	) -> Result<(Vec<TradeInstruction<AssetId>>, u64), ()> {
+		let mut amounts_in: BTreeMap<AssetId, Balance> = BTreeMap::new();
+		let mut amounts_out: BTreeMap<AssetId, Balance> = BTreeMap::new();
 
 		for resolved_intent in resolved_intents.iter() {
 			let intent = Intents::<T>::get(resolved_intent.intent_id).ok_or(())?;
@@ -561,8 +554,8 @@ impl<T: Config> Pallet<T> {
 		let mut matched_amounts = Vec::new();
 		let mut trades_instructions = Vec::new();
 
-		let mut delta_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
-		let mut delta_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+		let mut delta_in: BTreeMap<AssetId, Balance> = BTreeMap::new();
+		let mut delta_out: BTreeMap<AssetId, Balance> = BTreeMap::new();
 
 		// Calculate deltas to trade
 		for (asset_id, amount_out) in amounts_out.into_iter() {
@@ -650,7 +643,7 @@ impl<T: Config> Pallet<T> {
 	// - matched_amounts: list of matched amounts
 	fn score_solution(
 		resolved_intents: u128,
-		matched_amounts: Vec<(T::AssetId, Balance)>,
+		matched_amounts: Vec<(AssetId, Balance)>,
 	) -> Result<u64, DispatchError> {
 		let mut hub_amount = resolved_intents * 1_000_000_000_000u128;
 
@@ -673,14 +666,14 @@ impl<T: Config> Pallet<T> {
 	// 5. Ensure score solution is correct
 	fn validate_and_prepare_instructions(
 		intents: Vec<ResolvedIntent>,
-		trades: BoundedTrades<T::AssetId>,
+		trades: BoundedTrades<AssetId>,
 		score: u64,
-	) -> Result<(Vec<Instruction<T::AccountId, T::AssetId>>, SolutionAmounts<T::AssetId>), DispatchError> {
-		let mut amounts_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
-		let mut amounts_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+	) -> Result<(Vec<Instruction<T::AccountId, AssetId>>, SolutionAmounts<AssetId>), DispatchError> {
+		let mut amounts_in: BTreeMap<AssetId, Balance> = BTreeMap::new();
+		let mut amounts_out: BTreeMap<AssetId, Balance> = BTreeMap::new();
 
-		let mut transfers_in: Vec<Instruction<T::AccountId, T::AssetId>> = Vec::new();
-		let mut transfers_out: Vec<Instruction<T::AccountId, T::AssetId>> = Vec::new();
+		let mut transfers_in: Vec<Instruction<T::AccountId, AssetId>> = Vec::new();
+		let mut transfers_out: Vec<Instruction<T::AccountId, AssetId>> = Vec::new();
 
 		for resolved_intent in intents.iter() {
 			let intent = Intents::<T>::get(resolved_intent.intent_id).ok_or(Error::<T>::IntentNotFound)?;
@@ -782,7 +775,7 @@ impl<T: Config> Pallet<T> {
 		))
 	}
 
-	fn ensure_intent_price(intent: &Intent<T::AccountId, T::AssetId>, resolved_intent: &ResolvedIntent) -> bool {
+	fn ensure_intent_price(intent: &Intent<T::AccountId, AssetId>, resolved_intent: &ResolvedIntent) -> bool {
 		let amount_in = intent.swap.amount_in;
 		let amount_out = intent.swap.amount_out;
 		let resolved_in = resolved_intent.amount_in;
@@ -809,8 +802,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn execute_instructions(
-		instructions: Vec<Instruction<T::AccountId, T::AssetId>>,
-		amounts: SolutionAmounts<T::AssetId>,
+		instructions: Vec<Instruction<T::AccountId, AssetId>>,
+		amounts: SolutionAmounts<AssetId>,
 	) -> Result<(), DispatchError> {
 		let holding_account = crate::Pallet::<T>::holding_account();
 
@@ -940,15 +933,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_trades(
-		amounts_in: BTreeMap<T::AssetId, Balance>,
-		amounts_out: BTreeMap<T::AssetId, Balance>,
+		amounts_in: BTreeMap<AssetId, Balance>,
+		amounts_out: BTreeMap<AssetId, Balance>,
 	) -> DispatchResult {
-		let mut amounts_in: BTreeMap<T::AssetId, Balance> = amounts_in;
+		let mut amounts_in: BTreeMap<AssetId, Balance> = amounts_in;
 
 		let mut matched_amounts = Vec::new();
 
-		let mut delta_in: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
-		let mut delta_out: BTreeMap<T::AssetId, Balance> = BTreeMap::new();
+		let mut delta_in: BTreeMap<AssetId, Balance> = BTreeMap::new();
+		let mut delta_out: BTreeMap<AssetId, Balance> = BTreeMap::new();
 
 		// Calculate deltas to trade
 		for (asset_id, amount_out) in amounts_out.into_iter() {

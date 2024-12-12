@@ -4,7 +4,6 @@ use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::Trade;
 use sp_runtime::traits::Bounded;
 use sp_runtime::Permill;
-use sp_std::vec;
 use sp_std::vec::Vec;
 
 pub trait IceWeightBounds<RuntimeCall, Route> {

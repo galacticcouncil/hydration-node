@@ -23,7 +23,7 @@ sp_api::decl_runtime_apis! {
 }
 
 pub trait SolutionProvider: Send + Sync {
-	fn get_solution(&self) -> u32;
+	fn get_solution(&self) -> Vec<ResolvedIntent>;
 }
 
 pub type SolverPtr = Arc<dyn SolutionProvider + Send + 'static>;
@@ -37,9 +37,10 @@ sp_externalities::decl_extension! {
 #[cfg(feature = "std")]
 use sp_externalities::{Externalities, ExternalitiesExt};
 use sp_runtime_interface::runtime_interface;
+
 #[runtime_interface]
 pub trait ICE {
-	fn get_solution(&mut self) -> u32 {
+	fn get_solution(&mut self) -> Vec<ResolvedIntent> {
 		self.extension::<SolverExt>()
 			.expect("SolutionStoreExt is not registered")
 			.get_solution()

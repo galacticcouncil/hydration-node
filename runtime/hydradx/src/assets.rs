@@ -571,7 +571,7 @@ type IcePriceProvider =
 
 impl pallet_ice::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
+	//type AssetId = AssetId;
 	type NativeAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
 	type TimestampProvider = Timestamp;

@@ -25,8 +25,10 @@ impl IceSolver {
 }
 
 impl pallet_ice::api::SolutionProvider for IceSolver {
-	fn get_solution(&self) -> u32 {
+	fn get_solution(&self) -> Vec<pallet_ice::types::ResolvedIntent> {
+		println!("getting data");
 		let data = OmnipoolDataProvider::<hydradx_runtime::Runtime>::assets(None);
+		println!("data {:?}", data.len());
 		// convert to the format that the solver expects
 		let data = data
 			.into_iter()
@@ -41,6 +43,10 @@ impl pallet_ice::api::SolutionProvider for IceSolver {
 			.collect();
 
 		let s = hydration_solver::v3::SolverV3::solve(vec![], data);
-		234u32
+		vec![pallet_ice::types::ResolvedIntent{
+			intent_id: 0,
+			amount_in: 123,
+			amount_out: 123,
+		}]
 	}
 }

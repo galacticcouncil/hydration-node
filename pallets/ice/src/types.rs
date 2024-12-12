@@ -12,6 +12,7 @@ pub const MAX_RESOLVED_INTENTS: u32 = 20_000;
 pub const MAX_INSTRUCTIONS: u32 = 50_000;
 
 pub type NamedReserveIdentifier = [u8; 8];
+pub type AssetId = u32;
 pub type Balance = u128;
 pub type Moment = u64;
 pub type IncrementalIntentId = u64;
