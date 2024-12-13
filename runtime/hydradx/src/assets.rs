@@ -436,7 +436,7 @@ parameter_types! {
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RegistryOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
-	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
