@@ -51,6 +51,7 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_otc.
 pub trait WeightInfo {
     fn dispatch_as_treasury_manager(n: u32,) -> Weight;
+    fn dispatch_as_aave_manager(n: u32,) -> Weight;
 }
 
 /// Weights for pallet_otc using the hydraDX node and recommended hardware.
@@ -66,6 +67,16 @@ impl WeightInfo for () {
     /// Storage: `OTC::Orders` (r:0 w:1)
     /// Proof: `OTC::Orders` (`max_values`: None, `max_size`: Some(93), added: 2568, mode: `MaxEncodedLen`)
     fn dispatch_as_treasury_manager(n: u32,) -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `963`
+        //  Estimated: `6190`
+        // Minimum execution time: 46_446_000 picoseconds.
+        Weight::from_parts(47_816_000, 6190)
+            .saturating_add(RocksDbWeight::get().reads(5_u64))
+            .saturating_add(RocksDbWeight::get().writes(4_u64))
+    }
+
+    fn dispatch_as_aave_manager(n: u32,) -> Weight {
         // Proof Size summary in bytes:
         //  Measured:  `963`
         //  Estimated: `6190`

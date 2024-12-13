@@ -67,4 +67,14 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
             .saturating_add(T::DbWeight::get().reads(3_u64))
             .saturating_add(T::DbWeight::get().writes(2_u64))
     }
+
+    fn dispatch_as_aave_manager(n: u32,) -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `218`
+        //  Estimated: `3556`
+        // Minimum execution time: 23_242_000 picoseconds.
+        Weight::from_parts(23_861_000, 3556)
+            .saturating_add(T::DbWeight::get().reads(3_u64))
+            .saturating_add(T::DbWeight::get().writes(2_u64))
+    }
 }

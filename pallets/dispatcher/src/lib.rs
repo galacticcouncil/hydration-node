@@ -76,6 +76,7 @@ pub mod pallet {
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		type TreasuryAccount: Get<Self::AccountId>;
+		type AaveManagerAccount: Get<Self::AccountId>;
 
 		/// The weight information for this pallet.
 		type WeightInfo: WeightInfo;
@@ -116,8 +117,35 @@ pub mod pallet {
 			let call_hash = T::Hashing::hash_of(&call).into();
 			let call_len = call.encoded_size() as u32;
 
-			let actual_weight = Self::do_dispatch(T::TreasuryAccount::get(), call_hash, *call)
+			let actual_weight = Self::do_dispatch(T::TreasuryAccount::get(), *call)
 				.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len)));
+
+			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
+
+			Ok(actual_weight.into())
+		}
+		
+		#[crate::pallet::call_index(1)]
+		#[crate::pallet::weight({
+			let call_weight = call.get_dispatch_info().weight;
+			let call_len = call.encoded_size() as u32;
+
+			T::WeightInfo::dispatch_as_aave_manager(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_as_aave_manager(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			T::AaveManagerOrigin::ensure_origin(origin)?;
+
+			let call_hash = T::Hashing::hash_of(&call).into();
+			let call_len = call.encoded_size() as u32;
+
+			let actual_weight = Self::do_dispatch(T::AaveManagerAccount::get(), *call)
+				.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len)));
+
+			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
 
 			Ok(actual_weight.into())
 		}
@@ -128,15 +156,13 @@ impl<T: Config> Pallet<T> {
 	/// Dispatch the call from the specified account as Signed Origin.
 	///
 	/// Return the call actual weight of the dispatched call if there is some.
-	fn do_dispatch(account: T::AccountId, call_hash: T::Hash, call: <T as Config>::RuntimeCall) -> Option<Weight> {
+	fn do_dispatch(account: T::AccountId, call: <T as Config>::RuntimeCall) -> Option<Weight> {
 		let result = call.dispatch(frame_system::Origin::<T>::Signed(account).into());
 
 		let call_actual_weight = match result {
 			Ok(call_post_info) => call_post_info.actual_weight.clone(),
 			Err(call_err) => call_err.post_info.actual_weight,
 		};
-
-		Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
 
 		call_actual_weight
 	}

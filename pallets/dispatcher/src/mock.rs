@@ -99,6 +99,7 @@ impl dispatcher::Config for Test {
 	type TreasuryManagerOrigin = EnsureRoot<AccountId>;
 	type AaveManagerOrigin = EnsureRoot<AccountId>;
 	type TreasuryAccount = TreasuryAccount;
+	type AaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
 }
 
