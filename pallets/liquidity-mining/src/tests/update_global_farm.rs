@@ -304,3 +304,41 @@ fn update_global_farm_should_fail_when_yield_period_is_zero() {
 		});
 	});
 }
+
+#[test]
+fn claim_rewards_should_work_after_update_global_farm() {
+	predefined_test_ext_with_deposits().execute_with(|| {
+		let _ = with_transaction(|| {
+			//Arrange
+			let planned_yielding_periods: BlockNumber = 1_000u64;
+			let yield_per_period = Perquintill::from_percent(20);
+			let min_deposit = 20_000;
+
+			set_block_number(100_000);
+
+			//Act
+			assert_ok!(LiquidityMining::update_global_farm(
+				GC_FARM,
+				planned_yielding_periods,
+				yield_per_period,
+				min_deposit,
+			));
+
+			set_block_number(1_000_000);
+
+			//Assert
+			std::assert_eq!(
+				LiquidityMining::claim_rewards(
+					ALICE,
+					PREDEFINED_DEPOSIT_IDS[0],
+					GC_BSX_TKN1_YIELD_FARM_ID,
+					false
+				)
+					.unwrap(),
+				(GC_FARM, BSX, 28495477087879389002, 142022912120610998)
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
