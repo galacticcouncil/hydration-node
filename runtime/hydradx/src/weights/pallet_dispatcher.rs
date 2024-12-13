@@ -58,7 +58,7 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
     /// Proof: `Preimage::StatusFor` (`max_values`: None, `max_size`: Some(91), added: 2566, mode: `MaxEncodedLen`)
     /// Storage: `Preimage::RequestStatusFor` (r:1 w:1)
     /// Proof: `Preimage::RequestStatusFor` (`max_values`: None, `max_size`: Some(91), added: 2566, mode: `MaxEncodedLen`)
-    fn dispatch_as_treasury_manager() -> Weight {
+    fn dispatch_as_treasury_manager(n: u32,) -> Weight {
         // Proof Size summary in bytes:
         //  Measured:  `218`
         //  Estimated: `3556`

@@ -25,14 +25,11 @@
 //  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
 //                  $$$
 
-#![cfg(feature = "runtime-benchmarks")]
+
 use super::*;
 
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
-
-#[cfg(test)]
-use crate::Pallet as Dispatcher;
 
 benchmarks! {
 	where_clause { where
@@ -43,8 +40,17 @@ benchmarks! {
 		let n in 1 .. 10_000;
 		let remark = sp_std::vec![1u8; n as usize];
 
-		let call: T::RuntimeCall = frame_system::Call::remark { remark }.into();
-	}: _(RawOrigin::Root, call)
+		let call: <T as pallet::Config>::RuntimeCall = frame_system::Call::remark { remark }.into();
+	}: _(RawOrigin::Root, Box::new(call))
+
+	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::mock::*;
+	use frame_benchmarking::impl_benchmark_test_suite;
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }
