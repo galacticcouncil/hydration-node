@@ -5008,6 +5008,7 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-lbp",
+ "pallet-liquidation",
  "pallet-liquidity-mining",
  "pallet-message-queue",
  "pallet-multisig",
@@ -5077,7 +5078,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.9.0"
+version = "3.10.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8531,6 +8532,43 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+ "test-utils",
+]
+
+[[package]]
+name = "pallet-liquidation"
+version = "1.0.0"
+dependencies = [
+ "ethabi",
+ "evm",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-asset-registry",
+ "pallet-balances",
+ "pallet-currencies",
+ "pallet-evm",
+ "pallet-evm-accounts",
+ "pallet-omnipool",
+ "pallet-route-executor",
+ "parity-scale-codec",
+ "parking_lot 0.12.3",
+ "pretty_assertions",
+ "proptest",
+ "scale-info",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-std",
  "test-utils",
 ]
 
@@ -12283,6 +12321,7 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-im-online",
  "pallet-lbp",
+ "pallet-liquidation",
  "pallet-liquidity-mining",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",

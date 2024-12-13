@@ -29,6 +29,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
+mod migration;
 pub mod weights;
 
 mod assets;
@@ -190,6 +191,7 @@ construct_runtime!(
 		LBP: pallet_lbp = 73,
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
+		Liquidation: pallet_liquidation = 76,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -270,8 +272,14 @@ pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, Run
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = fp_self_contained::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra, H160>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem, ()>;
+pub type Executive = frame_executive::Executive<
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllPalletsWithSystem,
+	migration::OnRuntimeUpgradeMigration,
+>;
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
 where
@@ -301,6 +309,7 @@ mod benches {
 		[pallet_evm_accounts, EVMAccounts]
 		[pallet_otc, OTC]
 		[pallet_otc_settlements, OtcSettlements]
+		[pallet_liquidation, Liquidation]
 		[pallet_state_trie_migration, StateTrieMigration]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
