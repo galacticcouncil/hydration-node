@@ -29,7 +29,7 @@ use crate as pallet_stableswap;
 
 use crate::Config;
 
-use frame_support::assert_ok;
+use frame_support::{assert_ok, BoundedVec};
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{
@@ -304,7 +304,7 @@ impl ExtBuilder {
 					assert_ok!(Stableswap::add_liquidity(
 						RuntimeOrigin::signed(initial_liquid.account),
 						pool_id,
-						initial_liquid.assets
+						BoundedVec::truncate_from(initial_liquid.assets)
 					));
 				}
 			}

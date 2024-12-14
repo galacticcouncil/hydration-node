@@ -1,3 +1,4 @@
+use frame_support::BoundedVec;
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use hydra_dx_math::stableswap::types::AssetReserve;
@@ -152,10 +153,10 @@ where
 					Self::add_liquidity(
 						who,
 						pool_id,
-						vec![AssetAmount {
+						BoundedVec::truncate_from(vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-						}],
+						}])
 					)
 					.map_err(ExecutorError::Error)
 				} else {
