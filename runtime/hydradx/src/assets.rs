@@ -1645,7 +1645,7 @@ where
 		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
 		let amount_to_receive = price.saturating_mul_int(amount);
 		let min_expected = amount_to_receive
-			.saturating_sub(Permill::from_percent(1).mul_floor(amount_to_receive))
+			.saturating_sub(Permill::from_percent(5).mul_floor(amount_to_receive))
 			.max(1);
 		let balance = Currencies::free_balance(asset_to, &who);
 		let r = Omnipool::sell(
