@@ -3,9 +3,9 @@ use hydradx_runtime::RuntimeCall;
 use pallet_stableswap::types::AssetAmount;
 use serde::Deserialize;
 use serde::Deserializer;
+use sp_core::bounded_vec::BoundedVec;
 use sp_runtime::{FixedPointNumber, FixedU128, Permill};
 use std::fs;
-use sp_core::bounded_vec::BoundedVec;
 
 #[derive(Debug, Deserialize)]
 pub struct AssetReserve {

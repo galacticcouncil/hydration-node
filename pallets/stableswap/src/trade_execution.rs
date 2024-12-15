@@ -1,6 +1,6 @@
-use frame_support::BoundedVec;
 use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
+use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::MultiCurrency;
@@ -156,7 +156,7 @@ where
 						BoundedVec::truncate_from(vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-						}])
+						}]),
 					)
 					.map_err(ExecutorError::Error)
 				} else {
