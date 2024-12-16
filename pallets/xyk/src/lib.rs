@@ -80,7 +80,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Registry support
-		type AssetRegistry: Create<Balance, AssetId = AssetId, Error = DispatchError>;
+		type AssetRegistry: Create<Balance, AssetId = AssetId, AssetKind = AssetKind, Error = DispatchError>;
 
 		/// Share token support
 		type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
@@ -349,7 +349,7 @@ pub mod pallet {
 
 			let share_token = T::AssetRegistry::get_or_register_insufficient_asset(
 				token_name.try_into().map_err(|_| Error::<T>::CannotCreatePool)?,
-				AssetKind::XYK,
+				<T::AssetRegistry as hydradx_traits::registry::Inspect>::AssetKind::XYK,
 				None,
 				None,
 				None,
