@@ -628,8 +628,6 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
 			1_004_254_545_454_545_u128
 		);
-		let dave_hdx_0 = hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into());
-		assert_eq!(dave_hdx_0, 1_004_254_545_454_545_u128);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
 		//yield-farm-entry left)
@@ -656,7 +654,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 			yield_farm_1_id,
 		));
 
-		//Act 2 - claim and withdraw should in the same period should work.
+		//Act 2 - claim and withdraw in the same period should work.
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
