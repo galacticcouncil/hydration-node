@@ -1,0 +1,56 @@
+[package]
+name = "pallet-dispatcher"
+version = "1.0.0"
+authors = ['GalacticCouncil']
+edition = "2021"
+license = "Apache-2.0"
+homepage = 'https://github.com/galacticcouncil/hydration-node'
+repository = 'https://github.com/galacticcouncil/hydration-node'
+description = "Pallet for dispatching calls as specific origins"
+readme = "README.md"
+
+[dependencies]
+# parity
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
+
+# primitives
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+# Optional imports for benchmarking
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+hydradx-traits = { workspace = true }
+orml-tokens = { workspace = true }
+orml-traits = { workspace = true }
+test-utils = { workspace = true }
+
+[features]
+default = ['std']
+std = [
+    'codec/std',
+    'scale-info/std',
+    'sp-runtime/std',
+    'sp-core/std',
+    'sp-io/std',
+    'sp-std/std',
+    'frame-benchmarking/std',
+    'hydradx-traits/std',
+    'orml-tokens/std',
+    'orml-traits/std',
+]
+
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

@@ -229,3 +229,13 @@ impl pallet_referenda::Config for Runtime {
 }
 
 impl origins::pallet_custom_origins::Config for Runtime {}
+
+impl pallet_dispatcher::Config for Runtime {
+	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
+	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
+	type TreasuryAccount = TreasuryAccount;
+	type AaveManagerAccount = TreasuryAccount;
+}

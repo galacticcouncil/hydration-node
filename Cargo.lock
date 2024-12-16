@@ -4973,6 +4973,7 @@ dependencies = [
  "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
  "pallet-democracy 4.3.2",
+ "pallet-dispatcher",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -8061,6 +8062,25 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-dispatcher"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
 ]
 
 [[package]]
