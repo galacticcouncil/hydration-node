@@ -478,7 +478,7 @@ pub mod pallet {
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			assets: Vec<AssetAmount<T::AssetId>>,
+			assets: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -488,7 +488,7 @@ pub mod pallet {
 				pool_id,
 				who,
 				shares,
-				assets,
+				assets: assets.to_vec(),
 			});
 
 			Ok(())

@@ -23,6 +23,7 @@ pub mod pallet_ema_oracle;
 pub mod pallet_evm_accounts;
 pub mod pallet_identity;
 pub mod pallet_lbp;
+pub mod pallet_liquidation;
 pub mod pallet_message_queue;
 pub mod pallet_multisig;
 pub mod pallet_omnipool;
