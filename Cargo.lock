@@ -8805,7 +8805,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.5.1"
+version = "2.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
