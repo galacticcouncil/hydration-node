@@ -660,6 +660,7 @@ impl<T: Config> GetByKey<T::AssetId, Option<Balance>> for XcmRateLimitsInRegistr
 impl<T: Config> Inspect for Pallet<T> {
 	type AssetId = T::AssetId;
 	type Location = T::AssetNativeLocation;
+	type AssetKind = AssetKind;
 
 	fn is_sufficient(id: Self::AssetId) -> bool {
 		match Self::assets(id) {
@@ -676,7 +677,7 @@ impl<T: Config> Inspect for Pallet<T> {
 		Self::assets(id).and_then(|a| a.decimals)
 	}
 
-	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
+	fn asset_type(id: Self::AssetId) -> Option<Self::AssetKind> {
 		Self::assets(id).map(|a| a.asset_type.into())
 	}
 
@@ -715,7 +716,7 @@ impl<T: Config> Create<Balance> for Pallet<T> {
 	fn register_asset(
 		asset_id: Option<Self::AssetId>,
 		name: Option<Self::Name>,
-		kind: AssetKind,
+		kind: Self::AssetKind,
 		existential_deposit: Option<Balance>,
 		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
@@ -738,7 +739,7 @@ impl<T: Config> Create<Balance> for Pallet<T> {
 
 	fn get_or_register_asset(
 		name: Self::Name,
-		kind: AssetKind,
+		kind: Self::AssetKind,
 		existential_deposit: Option<Balance>,
 		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,

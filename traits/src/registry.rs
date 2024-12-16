@@ -33,6 +33,7 @@ pub trait AccountIdFor<Assets> {
 pub trait Inspect {
 	type AssetId: Parameter;
 	type Location: Parameter;
+	type AssetKind;
 
 	fn is_sufficient(id: Self::AssetId) -> bool;
 
@@ -40,7 +41,7 @@ pub trait Inspect {
 
 	fn decimals(id: Self::AssetId) -> Option<u8>;
 
-	fn asset_type(id: Self::AssetId) -> Option<AssetKind>;
+	fn asset_type(id: Self::AssetId) -> Option<Self::AssetKind>;
 
 	fn is_banned(id: Self::AssetId) -> bool;
 
@@ -60,7 +61,7 @@ pub trait Create<Balance>: Inspect {
 	fn register_asset(
 		asset_id: Option<Self::AssetId>,
 		name: Option<Self::Name>,
-		kind: AssetKind,
+		kind: Self::AssetKind,
 		existential_deposit: Option<Balance>,
 		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
@@ -72,7 +73,7 @@ pub trait Create<Balance>: Inspect {
 	fn register_insufficient_asset(
 		asset_id: Option<Self::AssetId>,
 		name: Option<Self::Name>,
-		kind: AssetKind,
+		kind: Self::AssetKind,
 		existential_deposit: Option<Balance>,
 		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
@@ -95,7 +96,7 @@ pub trait Create<Balance>: Inspect {
 	fn register_sufficient_asset(
 		asset_id: Option<Self::AssetId>,
 		name: Option<Self::Name>,
-		kind: AssetKind,
+		kind: Self::AssetKind,
 		existential_deposit: Balance,
 		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
@@ -117,7 +118,7 @@ pub trait Create<Balance>: Inspect {
 
 	fn get_or_register_asset(
 		name: Self::Name,
-		kind: AssetKind,
+		kind: Self::AssetKind,
 		existential_deposit: Option<Balance>,
 		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
@@ -128,7 +129,7 @@ pub trait Create<Balance>: Inspect {
 
 	fn get_or_register_sufficient_asset(
 		name: Self::Name,
-		kind: AssetKind,
+		kind: Self::AssetKind,
 		existential_deposit: Balance,
 		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
@@ -149,7 +150,7 @@ pub trait Create<Balance>: Inspect {
 
 	fn get_or_register_insufficient_asset(
 		name: Self::Name,
-		kind: AssetKind,
+		kind: Self::AssetKind,
 		existential_deposit: Option<Balance>,
 		symbol: Option<Self::Symbol>,
 		decimals: Option<u8>,
