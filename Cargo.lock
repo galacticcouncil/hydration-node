@@ -12262,7 +12262,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.25.3"
+version = "1.25.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
