@@ -9160,7 +9160,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
+<<<<<<< HEAD
 version = "4.0.1"
+=======
+version = "4.1.0"
+>>>>>>> master
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -12388,7 +12392,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
