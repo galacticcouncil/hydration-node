@@ -140,6 +140,9 @@ pub mod pallet {
 		/// The origin which can create a new pool
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Security origin which can set the asset tradable state
+		type UpdateTradabilityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type DustAccountHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
 
@@ -863,7 +866,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			state: Tradability,
 		) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
+			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
 
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let _ = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
