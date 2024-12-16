@@ -419,7 +419,7 @@ impl<T: Config> Pallet<T> {
 			Preservation::Expendable,
 		)?;
 
-		<T as Config>::Currency::burn_from(asset_a, &pallet_acc, amount, Precision::Exact, Fortitude::Force)?;
+		<T as Config>::Currency::burn_from(asset_a, &pallet_acc, amount, Preservation::Expendable, Precision::Exact, Fortitude::Force)?;
 
 		let asset_a_balance_after = <T as Config>::Currency::balance(asset_a, &pallet_acc);
 		let asset_b_balance_after = <T as Config>::Currency::balance(asset_b, &pallet_acc);

@@ -130,4 +130,8 @@ where
 			.map_err(|_| give)
 		}
 	}
+
+	fn quote_exchange_price(_give: &Assets, _want: &Assets, _maximal: bool) -> Option<Assets> {
+		todo!() // TODO:
+	}
 }

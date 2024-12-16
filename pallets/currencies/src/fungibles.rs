@@ -240,11 +240,12 @@ where
 		asset: Self::AssetId,
 		who: &T::AccountId,
 		amount: Self::Balance,
+		preservation: Preservation,
 		precision: Precision,
 		force: Fortitude,
 	) -> Result<Self::Balance, DispatchError> {
 		if asset == T::GetNativeCurrencyId::get() {
-			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::burn_from(who, amount.into(), precision, force)
+			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::burn_from(who, amount.into(), preservation, precision, force)
 				.into()
 		} else {
 			match T::BoundErc20::contract_address(asset) {
@@ -253,6 +254,7 @@ where
 					asset.into(),
 					who,
 					amount.into(),
+					preservation,
 					precision,
 					force,
 				)

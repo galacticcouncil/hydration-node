@@ -219,6 +219,7 @@ impl Config for XcmConfig {
 	type HrmpNewChannelOpenRequestHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type HrmpChannelAcceptedHandler = ();
+	type XcmRecorder = PolkadotXcm;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -234,12 +235,14 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ChannelInfo = ParachainSystem;
 	type VersionWrapper = PolkadotXcm;
+	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
+	type MaxInboundSuspended = MaxInboundSuspended;
+	type MaxActiveOutboundChannels = ConstU32<128>; // TODO:
+	type MaxPageSize = ConstU32<{ 128 * 1024 }>;
 	type ControllerOrigin = MoreThanHalfTechCommittee;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
 	type WeightInfo = weights::cumulus_pallet_xcmp_queue::HydraWeight<Runtime>;
-	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
-	type MaxInboundSuspended = MaxInboundSuspended;
 }
 
 const ASSET_HUB_PARA_ID: u32 = 1000;

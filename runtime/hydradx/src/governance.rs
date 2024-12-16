@@ -106,13 +106,8 @@ impl frame_support::traits::tokens::Pay for PayFromTreasuryAccount {
 
 impl pallet_treasury::Config for Runtime {
 	type Currency = Balances;
-	type ApproveOrigin = TreasuryApproveOrigin;
 	type RejectOrigin = MoreThanHalfCouncil;
 	type RuntimeEvent = RuntimeEvent;
-	type OnSlash = Treasury;
-	type ProposalBond = ProposalBond;
-	type ProposalBondMinimum = ProposalBondMinimum;
-	type ProposalBondMaximum = ProposalBondMaximum;
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
 	type PalletId = TreasuryPalletId;
@@ -395,5 +390,6 @@ impl pallet_tips::Config for Runtime {
 	type TipReportDepositBase = TipReportDepositBase;
 	type MaxTipAmount = MaxTipAmount;
 	type Tippers = Elections;
+	type OnSlash = Treasury;
 	type WeightInfo = weights::pallet_tips::HydraWeight<Runtime>;
 }

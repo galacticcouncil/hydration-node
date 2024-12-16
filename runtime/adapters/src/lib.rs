@@ -900,7 +900,7 @@ where
 {
 	fn get_by_lock(lock_id: LockIdentifier, currency_id: AssetId, who: T::AccountId) -> Balance {
 		if currency_id == NativeAssetId::get() {
-			match pallet_balances::Pallet::<T>::locks(who)
+			match pallet_balances::Pallet::<T>::locks(&who)
 				.into_iter()
 				.find(|lock| lock.id == lock_id)
 			{

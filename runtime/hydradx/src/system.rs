@@ -233,6 +233,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
+	type ConsensusHook = cumulus_pallet_parachain_system::consensus_hook::ExpectParentIncluded; // TODO:
 }
 
 parameter_types! {
