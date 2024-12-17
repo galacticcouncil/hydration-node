@@ -1,5 +1,5 @@
 use crate::{
-	integrations::democracy::StakingDemocracy,
+	integrations::conviction_voting::StakingConvictionVoting,
 	types::{Conviction, Vote},
 };
 
@@ -7,7 +7,8 @@ use super::*;
 
 use frame_system::RawOrigin;
 use mock::Staking;
-use pallet_democracy::{traits::DemocracyHooks, AccountVote};
+use pallet_conviction_voting::traits::VotingHooks;
+use pallet_conviction_voting::AccountVote;
 use pretty_assertions::assert_eq;
 
 //NOTE: Referendums with even indexes are finished.
@@ -337,14 +338,14 @@ fn process_votes_should_work_when_on_vote_is_called() {
 			let position_before = Staking::positions(position_id).unwrap();
 
 			//Act
-			assert_ok!(StakingDemocracy::<Test>::on_vote(
+			assert_ok!(StakingConvictionVoting::<Test>::on_vote(
 				&BOB,
 				7,
 				AccountVote::Standard {
 					balance: 1_000 * ONE,
-					vote: pallet_democracy::Vote {
+					vote: pallet_conviction_voting::Vote {
 						aye: true,
-						conviction: pallet_democracy::Conviction::None
+						conviction: pallet_conviction_voting::Conviction::None
 					}
 				}
 			));
@@ -749,9 +750,9 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 }
 
 #[test]
-fn democracy_hook_vote_cap_should_work() {
+fn conviction_voting_hook_vote_cap_should_work() {
 	//Locks OVERLAY so 1000 tokens lock and 100 tokens lock results in 1000 tokens locked in total.
-	use pallet_democracy::{Conviction as Dconviction, Vote as Dvote};
+	use pallet_conviction_voting::{Conviction as Dconviction, Vote as Dvote};
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HDX, 150_000 * ONE),
@@ -785,7 +786,7 @@ fn democracy_hook_vote_cap_should_work() {
 			assert_eq!(Staking::position_votes(vested_position_id).votes.len(), 0);
 
 			//Act - happy path, user have enough token for staking and vesting.
-			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
 
 			//Assert
 			let staking_votes = Staking::position_votes(vested_position_id).votes;
@@ -798,7 +799,7 @@ fn democracy_hook_vote_cap_should_work() {
 			Tokens::transfer(RuntimeOrigin::signed(VESTED_100K), ALICE, HDX, 1).unwrap();
 
 			//Act
-			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
 
 			//Assert
 			let staking_votes = Staking::position_votes(vested_position_id).votes;
@@ -813,7 +814,7 @@ fn democracy_hook_vote_cap_should_work() {
 			assert_eq!(Tokens::free_balance(HDX, &VESTED_100K), 100_000 * ONE);
 
 			//Act 3
-			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
 
 			//Assert
 			let staking_votes = Staking::position_votes(vested_position_id).votes;
@@ -838,13 +839,13 @@ fn democracy_hook_vote_cap_should_work() {
 			let v = AccountVote::Standard {
 				vote: Dvote {
 					aye: true,
-					conviction: Dconviction::Locked6x,
+					conviction: pallet_conviction_voting::Conviction::Locked6x,
 				},
 				balance: 120_000 * ONE,
 			};
 
 			//Act 4
-			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
 
 			//Assert
 			let staking_votes = Staking::position_votes(vested_position_id).votes;
@@ -869,13 +870,13 @@ fn democracy_hook_vote_cap_should_work() {
 			let v = AccountVote::Standard {
 				vote: Dvote {
 					aye: true,
-					conviction: Dconviction::Locked6x,
+					conviction: pallet_conviction_voting::Conviction::Locked6x,
 				},
 				balance: 100_000 * ONE,
 			};
 
 			//Act 5
-			assert_ok!(StakingDemocracy::<Test>::on_vote(&VESTED_100K, ref_idx, v));
+			assert_ok!(StakingConvictionVoting::<Test>::on_vote(&VESTED_100K, ref_idx, v));
 
 			//Assert
 			let staking_votes = Staking::position_votes(vested_position_id).votes;
