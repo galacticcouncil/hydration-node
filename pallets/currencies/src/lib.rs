@@ -1089,7 +1089,6 @@ pub struct MockBoundErc20<T>(PhantomData<T>);
 impl<T: Config> hydradx_traits::Inspect for MockBoundErc20<T> {
 	type AssetId = CurrencyIdOf<T>;
 	type Location = ();
-	type AssetKind = AssetKind;
 
 	fn is_sufficient(_id: Self::AssetId) -> bool {
 		false
@@ -1103,7 +1102,7 @@ impl<T: Config> hydradx_traits::Inspect for MockBoundErc20<T> {
 		None
 	}
 
-	fn asset_type(_id: Self::AssetId) -> Option<Self::AssetKind> {
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		None
 	}
 
