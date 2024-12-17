@@ -96,7 +96,7 @@ smallvec = "1.9.0"
 similar-asserts = "1.1.0"
 static_assertions = "1.1.0"
 syn = { version = "1.0.98", features = ["extra-traits", "fold", "full", "visit"] }
-test-case = "3.1.0"
+test-case = "2.2.2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 toml = "0.8.19"
 trie-db = "0.29.1"
