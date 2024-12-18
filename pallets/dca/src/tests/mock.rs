@@ -265,7 +265,6 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
-	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct WithdrawFeePriceOracle;
@@ -378,7 +377,6 @@ impl pallet_route_executor::Config for Test {
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
-	type AmmUnifiedEventSupport = AmmSupport;
 	type WeightInfo = ();
 }
 
@@ -708,7 +706,6 @@ impl Config for Test {
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
-	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct MockedInsufficientAssetSupport;

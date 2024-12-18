@@ -210,7 +210,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -305,9 +305,6 @@ pub mod pallet {
 		/// Named reserve identifier to store named reserves for orders of each users
 		#[pallet::constant]
 		type NamedReserveId: Get<NamedReserveIdentifier>;
-
-		/// Support for depositing unified events
-		type AmmUnifiedEventSupport: IncrementalIdProvider<IncrementalId> + ExecutionTypeStack<IncrementalIdType>;
 
 		/// Convert a weight value into a deductible fee
 		type WeightToFee: WeightToFee<Balance = Balance>;
@@ -701,8 +698,7 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
-		T::AmmUnifiedEventSupport::push(ExecutionType::DCA(next_event_id))?;
+		pallet_amm_support::Pallet::<T>::add_to_context(ExecutionType::DCA)?;
 
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 		let trade_result = match &schedule.order {
@@ -790,7 +786,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		T::AmmUnifiedEventSupport::pop()?;
+		pallet_amm_support::Pallet::<T>::remove_from_context()?;
 
 		trade_result
 	}

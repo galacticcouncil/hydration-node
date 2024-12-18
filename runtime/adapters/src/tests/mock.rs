@@ -217,7 +217,6 @@ impl pallet_omnipool::Config for Test {
 	);
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
-	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct FeeProvider;
@@ -348,7 +347,6 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
-	type AmmUnifiedEventSupport = AmmSupport;
 	type WeightInfo = ();
 }
 

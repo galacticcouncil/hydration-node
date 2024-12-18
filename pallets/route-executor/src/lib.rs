@@ -76,7 +76,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_amm_support::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset id type
@@ -130,9 +130,6 @@ pub mod pallet {
 
 		/// Origin able to set route without validation
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// AMM Unified event support
-		type AmmUnifiedEventSupport: IncrementalIdProvider<IncrementalId> + ExecutionTypeStack<IncrementalIdType>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
@@ -264,8 +261,7 @@ pub mod pallet {
 
 			let route_length = route.len();
 
-			let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
-			T::AmmUnifiedEventSupport::push(ExecutionType::Router(next_event_id))?;
+			let next_event_id = pallet_amm_support::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
@@ -309,7 +305,7 @@ pub mod pallet {
 				event_id: next_event_id,
 			});
 
-			let _ = T::AmmUnifiedEventSupport::pop()?;
+			let _ = pallet_amm_support::Pallet::<T>::remove_from_context()?;
 
 			Ok(())
 		}
@@ -502,8 +498,7 @@ impl<T: Config> Pallet<T> {
 
 		let route_length = route.len();
 
-		let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
-		T::AmmUnifiedEventSupport::push(ExecutionType::Router(next_event_id))?;
+		let next_event_id = pallet_amm_support::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
@@ -548,7 +543,7 @@ impl<T: Config> Pallet<T> {
 			event_id: next_event_id,
 		});
 
-		let _ = T::AmmUnifiedEventSupport::pop()?;
+		let _ = pallet_amm_support::Pallet::<T>::remove_from_context()?;
 
 		Ok(())
 	}

@@ -170,7 +170,6 @@ impl Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type AmmUnifiedEventSupport = AmmSupport;
 	type WeightInfo = ();
 }
 

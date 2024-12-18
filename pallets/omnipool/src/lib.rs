@@ -235,9 +235,6 @@ pub mod pallet {
 
 		/// Oracle price provider. Provides price for given asset. Used in remove liquidity to support calculation of dynamic withdrawal fee.
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
-
-		/// Operation id provider for unified events
-		type AmmUnifiedEventSupport: IncrementalIdProvider<IncrementalIdType> + ExecutionTypeStack<IncrementalIdType>;
 	}
 
 	#[pallet::storage]
@@ -1098,8 +1095,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
-			T::AmmUnifiedEventSupport::push(ExecutionType::Omnipool(next_event_id))?;
+			pallet_amm_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
 			//Swapped event for AssetA to HubAsset
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
@@ -1140,7 +1136,7 @@ pub mod pallet {
 				}],
 			);
 
-			T::AmmUnifiedEventSupport::pop()?;
+			pallet_amm_support::Pallet::<T>::remove_from_context()?;
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1347,8 +1343,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			let next_event_id = T::AmmUnifiedEventSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
-			T::AmmUnifiedEventSupport::push(ExecutionType::Omnipool(next_event_id))?;
+			pallet_amm_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
 			//Swapped even from AssetA to HubAsset
 			pallet_amm_support::Pallet::<T>::deposit_trade_event(
@@ -1392,7 +1387,7 @@ pub mod pallet {
 				}],
 			);
 
-			T::AmmUnifiedEventSupport::pop()?;
+			pallet_amm_support::Pallet::<T>::remove_from_context()?;
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(

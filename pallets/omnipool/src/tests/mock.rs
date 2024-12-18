@@ -211,7 +211,6 @@ impl Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
-	type AmmUnifiedEventSupport = AmmSupport;
 }
 
 pub struct ExtBuilder {

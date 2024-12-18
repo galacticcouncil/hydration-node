@@ -318,8 +318,7 @@ pub struct PushBatchExecutionTypeForUnifiedEvent;
 
 impl BatchPreHook for PushBatchExecutionTypeForUnifiedEvent {
 	fn on_batch_start() -> DispatchResult {
-		let next_event_id = AmmSupport::next_id().map_err(|_| ArithmeticError::Overflow)?;
-		AmmSupport::push(ExecutionType::Batch(next_event_id))?;
+		AmmSupport::add_to_context(ExecutionType::Batch)?;
 
 		Ok(())
 	}
@@ -329,7 +328,7 @@ pub struct PopBatchExecutionTypeForUnifiedEvent;
 
 impl BatchPostHook for PopBatchExecutionTypeForUnifiedEvent {
 	fn on_batch_end() -> DispatchResult {
-		AmmSupport::pop()?;
+		AmmSupport::remove_from_context()?;
 
 		Ok(())
 	}

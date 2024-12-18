@@ -22,7 +22,7 @@ and when we push pop, use increase_stack and decrase_decrase
 
 we ExecutionIdIdStack and ExecutionTypeStack does the same,  we dont need the exetionTypeStack trait at all
 
-on_intialize should also directly
+on_intialize should also directly.
 
 we can make storagw=e non-persistent, so we dont need on initialize
 

@@ -79,6 +79,7 @@ pub mod pallet {
 	#[pallet::getter(fn incremental_id)]
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
+	//TODO: add better name
 	#[pallet::storage]
 	/// Next available incremental ID
 	#[pallet::getter(fn id_stack)]
@@ -90,7 +91,6 @@ pub mod pallet {
 		EmptyStack,
 	}
 
-	// on initialize - clear operation_id stack if not empty
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -110,6 +110,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			//TODO: we might not need it if we can make sotrage not persistable
 			let mut weight: Weight = Weight::zero();
 			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
 
@@ -152,6 +153,32 @@ impl<T: Config> Pallet<T> {
 			fees,
 			operation_id: <Self as ExecutionTypeStack<IncrementalIdType>>::get(),
 		});
+	}
+
+	//TODO: rename
+	pub fn add_to_context(execution_type: fn(u32) -> ExecutionType<u32>) -> Result<IncrementalIdType, DispatchError> {
+		//TODO: double check what to do when these can fail, we dont really want failing due to this
+		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
+			let inc_id = *current_id;
+			*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
+			Ok(inc_id)
+		})?;
+
+		IdStack::<T>::try_mutate(|stack| -> DispatchResult {
+			stack
+				.push(execution_type(next_id))
+				.map_err(|_| Error::<T>::MaxStackSizeReached.into())
+		})?;
+
+		Ok(next_id)
+	}
+
+	//TODO: rename to pop context
+	pub fn remove_from_context() -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
+		//TODO: check what to do when it fails, we might dont want to bloc ktrades becase of it
+		IdStack::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
+			stack.pop().map_err(|_| Error::<T>::EmptyStack.into())
+		})
 	}
 }
 
