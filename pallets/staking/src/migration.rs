@@ -17,6 +17,8 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
 
 		let existing_votes = PositionVotes::<T>::iter().count();
 		let processed_votes = ProcessedVotes::<T>::iter().count();
+
+		weight.saturating_accrue(T::DbWeight::get().reads(2));
 		log::info!(
 			target: TARGET,
 			"Clearing '{}' existing votes and '{}' processed votes.",
@@ -24,17 +26,18 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
 			processed_votes
 
 		);
-
-		let existing_votes = PositionVotes::<T>::iter().count();
-		let processed_votes = ProcessedVotes::<T>::iter().count();
-
-		weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
-		let _ = PositionVotes::<T>::clear(existing_votes as u32, None);
-		let _ = ProcessedVotes::<T>::clear(processed_votes as u32, None);
-
-		weight.saturating_accrue(T::DbWeight::get().reads(existing_votes.saturating_add(processed_votes) as u64));
+		if existing_votes.saturating_add(processed_votes) > 500 {
+			log::warn!(
+				target: TARGET,
+				"Migration to v2 will take a long time due to the large number of votes. Ignoring."
+			);
+		} else {
+			let _ = PositionVotes::<T>::clear(existing_votes as u32, None);
+			let _ = ProcessedVotes::<T>::clear(processed_votes as u32, None);
+			weight.saturating_accrue(T::DbWeight::get().reads(existing_votes.saturating_add(processed_votes) as u64));
+		}
 		StorageVersion::new(2).put::<Pallet<T>>();
-		weight = weight.saturating_add(T::DbWeight::get().writes(1));
+		weight.saturating_accrue(T::DbWeight::get().writes(1));
 	} else {
 		log::warn!(
 			target: TARGET,
