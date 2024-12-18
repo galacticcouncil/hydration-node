@@ -35,35 +35,35 @@ fn event_id_should_be_incremented() {
 #[test]
 fn stack_should_be_populated_when_pushed() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AmmSupport::push(ExecutionType::Router(1)));
-		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(1)]);
-		assert_eq!(AmmSupport::id_stack().0.into_inner(), vec![ExecutionType::Router(1)]);
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
+		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(0)]);
+		assert_eq!(AmmSupport::id_stack().into_inner(), vec![ExecutionType::Router(0)]);
 
-		assert_ok!(AmmSupport::push(ExecutionType::Router(2)));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		assert_eq!(
 			AmmSupport::get(),
-			vec![ExecutionType::Router(1), ExecutionType::Router(2)]
+			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 		assert_eq!(
-			AmmSupport::id_stack().0.into_inner(),
-			vec![ExecutionType::Router(1), ExecutionType::Router(2)]
+			AmmSupport::id_stack().into_inner(),
+			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
 		assert_eq!(
 			AmmSupport::get(),
 			vec![
+				ExecutionType::Router(0),
 				ExecutionType::Router(1),
-				ExecutionType::Router(2),
-				ExecutionType::ICE(3)
+				ExecutionType::ICE(2)
 			]
 		);
 		assert_eq!(
-			AmmSupport::id_stack().0.into_inner(),
+			AmmSupport::id_stack().into_inner(),
 			vec![
+				ExecutionType::Router(0),
 				ExecutionType::Router(1),
-				ExecutionType::Router(2),
-				ExecutionType::ICE(3)
+				ExecutionType::ICE(2)
 			]
 		);
 	});
@@ -73,11 +73,11 @@ fn stack_should_be_populated_when_pushed() {
 fn stack_should_not_panic_when_full() {
 	ExtBuilder::default().build().execute_with(|| {
 		for id in 0..MAX_STACK_SIZE {
-			assert_ok!(AmmSupport::push(ExecutionType::Router(id)));
+			assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		}
 
 		assert_err!(
-			AmmSupport::push(ExecutionType::Router(MAX_STACK_SIZE)),
+			AmmSupport::add_to_context(ExecutionType::Router),
 			Error::<Test>::MaxStackSizeReached
 		);
 	});
@@ -86,34 +86,34 @@ fn stack_should_not_panic_when_full() {
 #[test]
 fn stack_should_be_reduced_when_poped() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AmmSupport::push(ExecutionType::Router(1)));
-		assert_ok!(AmmSupport::push(ExecutionType::Router(2)));
-		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
 
-		assert_ok!(AmmSupport::pop(), ExecutionType::ICE(3));
+		assert_ok!(AmmSupport::remove_from_context(), ExecutionType::ICE(2));
 		assert_eq!(
 			AmmSupport::get(),
-			vec![ExecutionType::Router(1), ExecutionType::Router(2)]
+			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 		assert_eq!(
-			AmmSupport::id_stack().0.into_inner(),
-			vec![ExecutionType::Router(1), ExecutionType::Router(2)]
+			AmmSupport::id_stack().into_inner(),
+			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		assert_ok!(AmmSupport::push(ExecutionType::ICE(3)));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
 		assert_eq!(
 			AmmSupport::get(),
 			vec![
+				ExecutionType::Router(0),
 				ExecutionType::Router(1),
-				ExecutionType::Router(2),
 				ExecutionType::ICE(3)
 			]
 		);
 		assert_eq!(
-			AmmSupport::id_stack().0.into_inner(),
+			AmmSupport::id_stack().into_inner(),
 			vec![
+				ExecutionType::Router(0),
 				ExecutionType::Router(1),
-				ExecutionType::Router(2),
 				ExecutionType::ICE(3)
 			]
 		);
@@ -123,7 +123,7 @@ fn stack_should_be_reduced_when_poped() {
 #[test]
 fn pop_from_empty_stack_should_not_panic() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_err!(AmmSupport::pop(), Error::<Test>::EmptyStack);
+		assert_err!(AmmSupport::remove_from_context(), Error::<Test>::EmptyStack);
 	});
 }
 
