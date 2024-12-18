@@ -39,7 +39,6 @@ pub use hydradx_traits::router::{
 };
 
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
-use pallet_amm_support::types::IncrementalIdProvider;
 pub use pallet_amm_support::types::{AssetType, ExecutionType, ExecutionTypeStack, Fee};
 use pallet_amm_support::IncrementalIdType;
 use primitives::IncrementalId;

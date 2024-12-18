@@ -136,7 +136,6 @@ pub mod pallet {
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 	use orml_traits::GetByKey;
-	use pallet_amm_support::types::IncrementalIdProvider;
 	use pallet_amm_support::IncrementalIdType;
 	use sp_runtime::ArithmeticError;
 

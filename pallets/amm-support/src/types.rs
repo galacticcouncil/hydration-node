@@ -9,10 +9,7 @@ use sp_arithmetic::FixedU128;
 use sp_std::vec;
 use sp_std::vec::Vec;
 
-//TODO: we dont need this, delete
-pub trait IncrementalIdProvider<IncrementalId> {
-	fn next_id() -> Result<IncrementalId, DispatchError>;
-}
+
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum AssetType<AssetId, NFTId> {

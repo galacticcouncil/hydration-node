@@ -35,8 +35,6 @@ use frame_support::{
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use pallet_amm_support::types::ExecutionType;
-use pallet_amm_support::types::ExecutionTypeStack;
-use pallet_amm_support::types::IncrementalIdProvider;
 use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_utility::{BatchPostHook, BatchPreHook};
@@ -46,7 +44,7 @@ use primitives::constants::{
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
 use scale_info::TypeInfo;
-use sp_runtime::{ArithmeticError, DispatchResult};
+use sp_runtime::{DispatchResult};
 
 pub struct CallFilter;
 impl Contains<RuntimeCall> for CallFilter {

@@ -205,8 +205,4 @@ impl<T: Config> ExecutionTypeStack<IncrementalIdType> for Pallet<T> {
 		IdStack::<T>::kill();
 	}
 }
-impl<T: Config> IncrementalIdProvider<IncrementalIdType> for Pallet<T> {
-	fn next_id() -> Result<IncrementalIdType, DispatchError> {
-		Self::next_incremental_id()
-	}
-}
+
