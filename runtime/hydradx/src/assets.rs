@@ -17,6 +17,7 @@
 
 use super::*;
 use crate::evm::Erc20Currency;
+use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
@@ -26,6 +27,7 @@ use hydradx_adapters::{
 };
 
 pub use hydradx_traits::{
+	evm::CallContext,
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
@@ -53,8 +55,8 @@ use frame_support::{
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EnsureOrigin, Imbalance, LockIdentifier,
-		NeverEnsureOrigin, OnUnbalanced,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
+		LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
@@ -433,8 +435,8 @@ parameter_types! {
 
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type RegistryOrigin = EnsureRoot<AccountId>;
-	type UpdateOrigin = SuperMajorityTechCommittee;
+	type RegistryOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
 	type AssetId = AssetId;
 	type AssetNativeLocation = AssetLocation;
@@ -462,7 +464,7 @@ impl pallet_uniques::Config for Runtime {
 	type CollectionId = CollectionId;
 	type ItemId = ItemId;
 	type Currency = Balances;
-	type ForceOrigin = MajorityOfCouncil;
+	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	// Standard collection creation is disallowed
 	type CreateOrigin = AsEnsureOriginWithArg<NeverEnsureOrigin<AccountId>>;
 	type Locker = ();
@@ -496,8 +498,9 @@ impl pallet_omnipool::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Currency = Currencies;
-	type AuthorityOrigin = EnsureRoot<AccountId>;
-	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
+	type UpdateTradabilityOrigin =
+		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
@@ -607,7 +610,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type UpdateLimitsOrigin =
+		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
@@ -635,7 +639,7 @@ where
 
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AuthorityOrigin = SuperMajorityTechCommittee;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
@@ -672,7 +676,7 @@ impl pallet_duster::Config for Runtime {
 	type MinCurrencyDeposits = AssetRegistry;
 	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
-	type BlacklistUpdateOrigin = SuperMajorityTechCommittee;
+	type BlacklistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
@@ -715,7 +719,7 @@ parameter_types! {
 impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Currencies;
-	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
 	type PalletId = OmniLMPalletId;
 	type NFTCollectionId = OmnipoolLMCollectionId;
 	type NFTHandler = Uniques;
@@ -763,7 +767,7 @@ parameter_types! {
 impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currencies = Currencies;
-	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type PalletId = XYKLmPalletId;
 	type NFTCollectionId = XYKLmCollectionId;
 	type NFTHandler = Uniques;
@@ -880,7 +884,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
-	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type TerminateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
@@ -1265,7 +1269,7 @@ impl pallet_route_executor::Config for Runtime {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type InspectRegistry = AssetRegistry;
-	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type OraclePeriod = RouteValidationOraclePeriod;
@@ -1442,7 +1446,8 @@ impl pallet_stableswap::Config for Runtime {
 	type Currency = Currencies;
 	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
 	type AssetInspection = AssetRegistry;
-	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, OmnipoolAdmin>;
+	type UpdateTradabilityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeSuperMajority>;
 	type DustAccountHandler = Duster;
 	type Hooks = StableswapHooksAdapter<Runtime>;
 	type MinPoolLiquidity = MinPoolLiquidity;
@@ -1512,9 +1517,13 @@ impl GetByKey<FixedU128, Point> for StakingMinSlash {
 	}
 }
 
+parameter_types! {
+	pub const MaxVotes: u32 = 25;
+}
+
 impl pallet_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AuthorityOrigin = MajorityOfCouncil;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type PeriodLength = PeriodLength;
@@ -1534,7 +1543,10 @@ impl pallet_staking::Config for Runtime {
 	type Collections = FreezableNFT<Runtime, Self::RuntimeOrigin>;
 	type NFTHandler = Uniques;
 	type MaxVotes = MaxVotes;
-	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
+	type ReferendumInfo = pallet_staking::integrations::conviction_voting::ReferendumStatus<
+		Referenda,
+		pallet_conviction_voting::TallyOf<Runtime>,
+	>;
 	type MaxPointsPerAction = PointsPerAction;
 	type Vesting = VestingInfo<Runtime>;
 	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;
@@ -1568,7 +1580,7 @@ impl pallet_lbp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Currencies;
 	type LockedBalance = MultiCurrencyLockedBalance<Runtime, NativeAssetId>;
-	type CreatePoolOrigin = SuperMajorityTechCommittee;
+	type CreatePoolOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type LBPWeightFunction = pallet_lbp::LBPWeightFunction;
 	type AssetPairAccountId = AssetPairAccountId<Self>;
 	type WeightInfo = weights::pallet_lbp::HydraWeight<Runtime>;
@@ -1616,7 +1628,7 @@ parameter_types! {
 
 impl pallet_referrals::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type Convert = ConvertViaOmnipool<Omnipool>;
@@ -1638,6 +1650,48 @@ impl pallet_referrals::Config for Runtime {
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
+parameter_types! {
+	pub const LiquidationGasLimit: u64 = 4_000_000;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct DummyEvm;
+#[cfg(feature = "runtime-benchmarks")]
+impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
+	fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_liquidation::CallResult {
+		(
+			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			vec![],
+		)
+	}
+
+	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_liquidation::CallResult {
+		(
+			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			vec![],
+		)
+	}
+}
+impl pallet_liquidation::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = FungibleCurrencies<Runtime>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Evm = evm::Executor<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Evm = DummyEvm;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Router = Router;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Router = pallet_route_executor::DummyRouter<Runtime>;
+	type EvmAccounts = EVMAccounts;
+	type Erc20Mapping = evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type GasLimit = LiquidationGasLimit;
+	type ProfitReceiver = TreasuryAccount;
+	type RouterWeightInfo = RouterWeightInfo;
+	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
@@ -1657,7 +1711,7 @@ where
 		let price = SP::spot_price(asset_to, asset_from).ok_or(pallet_referrals::Error::<Runtime>::PriceNotFound)?;
 		let amount_to_receive = price.saturating_mul_int(amount);
 		let min_expected = amount_to_receive
-			.saturating_sub(Permill::from_percent(1).mul_floor(amount_to_receive))
+			.saturating_sub(Permill::from_percent(5).mul_floor(amount_to_receive))
 			.max(1);
 		let balance = Currencies::free_balance(asset_to, &who);
 		let r = Omnipool::sell(

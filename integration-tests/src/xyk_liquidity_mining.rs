@@ -465,14 +465,26 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			hydradx_runtime::RuntimeOrigin::root(),
 			BOB.into(),
 			PEPE,
-			10_000_0000 * UNITS as i128,
+			100_000_000 * UNITS as i128,
 		));
 		assert_ok!(Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			BOB.into(),
 			ACA,
-			10_000_0000 * UNITS as i128,
+			100_000_000 * UNITS as i128,
 		));
+
+		//Add some liquidity unrelated to make sure some existing shares are not effected
+		assert_ok!(XYK::add_liquidity(
+			RuntimeOrigin::signed(BOB.into()),
+			asset_pair.asset_in,
+			asset_pair.asset_out,
+			100 * UNITS,
+			100000 * UNITS
+		));
+
+		let existing_shares = 1000 * UNITS;
+		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), existing_shares);
 
 		let farms = vec![
 			(global_farm_1_id, yield_farm_1_id),
@@ -487,7 +499,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			PEPE,
 			ACA,
 			liquidity_amount,
-			6_000_0000 * UNITS,
+			60_000_000 * UNITS,
 			farms.try_into().unwrap(),
 		));
 
@@ -537,7 +549,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 
 		//assert LM deposit
 		assert_nft_owner!(hydradx_runtime::XYKLmCollectionId::get(), 1, BOB.into());
-		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), Balance::zero());
+		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), existing_shares); //User only have the shares they had before
 		assert_eq!(
 			Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id()),
 			50000000000000000000
@@ -612,8 +624,10 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Assert
 		//NOTE: withdraw is claiming rewards automatically
-		let dave_hdx_0 = hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into());
-		assert_eq!(dave_hdx_0, 1_004_254_545_454_545_u128);
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
+			1_004_254_545_454_545_u128
+		);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
 		//yield-farm-entry left)
@@ -633,8 +647,14 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		);
 
 		set_relaychain_block_number(700);
+		//Arrange - claim before withdraw
+		assert_ok!(XYKLiquidityMining::claim_rewards(
+			RuntimeOrigin::signed(DAVE.into()),
+			deposit_id,
+			yield_farm_1_id,
+		));
 
-		//Act 2
+		//Act 2 - claim and withdraw in the same period should work.
 		assert_ok!(XYKLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(DAVE.into()),
 			deposit_id,
@@ -643,10 +663,11 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		));
 
 		//Assert
-		//withdraw_shares claims rewards under the hood
-		let dave_hdx_1 = hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into());
-
-		assert!(dave_hdx_1 > dave_hdx_0);
+		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
+			1_021_616_083_916_083_u128
+		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
 		//position should be unlocked.

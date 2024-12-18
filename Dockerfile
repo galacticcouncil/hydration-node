@@ -1,6 +1,8 @@
 FROM ubuntu:22.04
 LABEL org.opencontainers.image.source = "https://github.com/galacticcouncil/HydraDX-node"
 
+RUN apt-get update && apt-get install -y ca-certificates
+
 RUN useradd -m -u 1000 -U -s /bin/sh -d /hydra hydra && \
 	mkdir -p /hydra/.local/share && \
 	chown -R hydra:hydra /hydra

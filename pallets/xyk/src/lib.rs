@@ -31,7 +31,7 @@
 use frame_support::sp_runtime::{traits::Zero, DispatchError};
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
-use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
@@ -402,92 +402,7 @@ pub mod pallet {
 			amount_b_max_limit: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
-			let asset_pair = AssetPair {
-				asset_in: asset_a,
-				asset_out: asset_b,
-			};
-
-			ensure!(Self::exists(asset_pair), Error::<T>::TokenPoolNotFound);
-
-			ensure!(
-				amount_a >= T::MinTradingLimit::get(),
-				Error::<T>::InsufficientTradingAmount
-			);
-
-			ensure!(!amount_b_max_limit.is_zero(), Error::<T>::ZeroLiquidity);
-
-			ensure!(
-				T::Currency::free_balance(asset_a, &who) >= amount_a,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			let pair_account = Self::get_pair_id(asset_pair);
-
-			let share_token = Self::share_token(&pair_account);
-
-			let account_shares = T::Currency::free_balance(share_token, &who);
-
-			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-			let share_issuance = Self::total_liquidity(&pair_account);
-
-			let amount_b = hydra_dx_math::xyk::calculate_liquidity_in(asset_a_reserve, asset_b_reserve, amount_a)
-				.map_err(|_| Error::<T>::AddAssetAmountInvalid)?;
-
-			ensure!(
-				T::Currency::free_balance(asset_b, &who) >= amount_b,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			ensure!(amount_b <= amount_b_max_limit, Error::<T>::AssetAmountExceededLimit);
-
-			let shares_added = hydra_dx_math::xyk::calculate_shares(asset_a_reserve, amount_a, share_issuance)
-				.ok_or(Error::<T>::Overflow)?;
-
-			ensure!(!shares_added.is_zero(), Error::<T>::InvalidMintedLiquidity);
-
-			// Make sure that account share liquidity is at least MinPoolLiquidity
-			ensure!(
-				account_shares
-					.checked_add(shares_added)
-					.ok_or(Error::<T>::InvalidMintedLiquidity)?
-					>= T::MinPoolLiquidity::get(),
-				Error::<T>::InsufficientLiquidity
-			);
-
-			let liquidity_amount = share_issuance
-				.checked_add(shares_added)
-				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
-
-			T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
-			T::Currency::transfer(asset_b, &who, &pair_account, amount_b)?;
-
-			T::Currency::deposit(share_token, &who, shares_added)?;
-
-			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
-
-			let liquidity_a = T::Currency::total_balance(asset_a, &pair_account);
-			let liquidity_b = T::Currency::total_balance(asset_b, &pair_account);
-			T::AMMHandler::on_liquidity_changed(
-				T::OracleSource::get(),
-				asset_a,
-				asset_b,
-				amount_a,
-				amount_b,
-				liquidity_a,
-				liquidity_b,
-				Ratio::new(liquidity_a, liquidity_b),
-			)
-			.map_err(|(_w, e)| e)?;
-
-			Self::deposit_event(Event::LiquidityAdded {
-				who,
-				asset_a,
-				asset_b,
-				amount_a,
-				amount_b,
-			});
+			Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit)?;
 
 			Ok(())
 		}
@@ -673,6 +588,102 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	fn do_add_liquidity(
+		who: T::AccountId,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		amount_a: Balance,
+		amount_b_max_limit: Balance,
+	) -> Result<Balance, DispatchError> {
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+
+		ensure!(Self::exists(asset_pair), Error::<T>::TokenPoolNotFound);
+
+		ensure!(
+			amount_a >= T::MinTradingLimit::get(),
+			Error::<T>::InsufficientTradingAmount
+		);
+
+		ensure!(!amount_b_max_limit.is_zero(), Error::<T>::ZeroLiquidity);
+
+		ensure!(
+			T::Currency::free_balance(asset_a, &who) >= amount_a,
+			Error::<T>::InsufficientAssetBalance
+		);
+
+		let pair_account = Self::get_pair_id(asset_pair);
+
+		let share_token = Self::share_token(&pair_account);
+
+		let account_shares = T::Currency::free_balance(share_token, &who);
+
+		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
+		let share_issuance = Self::total_liquidity(&pair_account);
+
+		let amount_b = hydra_dx_math::xyk::calculate_liquidity_in(asset_a_reserve, asset_b_reserve, amount_a)
+			.map_err(|_| Error::<T>::AddAssetAmountInvalid)?;
+
+		ensure!(
+			T::Currency::free_balance(asset_b, &who) >= amount_b,
+			Error::<T>::InsufficientAssetBalance
+		);
+
+		ensure!(amount_b <= amount_b_max_limit, Error::<T>::AssetAmountExceededLimit);
+
+		let shares_added = hydra_dx_math::xyk::calculate_shares(asset_a_reserve, amount_a, share_issuance)
+			.ok_or(Error::<T>::Overflow)?;
+
+		ensure!(!shares_added.is_zero(), Error::<T>::InvalidMintedLiquidity);
+
+		// Make sure that account share liquidity is at least MinPoolLiquidity
+		ensure!(
+			account_shares
+				.checked_add(shares_added)
+				.ok_or(Error::<T>::InvalidMintedLiquidity)?
+				>= T::MinPoolLiquidity::get(),
+			Error::<T>::InsufficientLiquidity
+		);
+
+		let liquidity_amount = share_issuance
+			.checked_add(shares_added)
+			.ok_or(Error::<T>::InvalidLiquidityAmount)?;
+
+		T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
+		T::Currency::transfer(asset_b, &who, &pair_account, amount_b)?;
+
+		T::Currency::deposit(share_token, &who, shares_added)?;
+
+		<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
+
+		let liquidity_a = T::Currency::total_balance(asset_a, &pair_account);
+		let liquidity_b = T::Currency::total_balance(asset_b, &pair_account);
+		T::AMMHandler::on_liquidity_changed(
+			T::OracleSource::get(),
+			asset_a,
+			asset_b,
+			amount_a,
+			amount_b,
+			liquidity_a,
+			liquidity_b,
+			Ratio::new(liquidity_a, liquidity_b),
+		)
+		.map_err(|(_w, e)| e)?;
+
+		Self::deposit_event(Event::LiquidityAdded {
+			who,
+			asset_a,
+			asset_b,
+			amount_a,
+			amount_b,
+		});
+
+		Ok(shares_added)
+	}
+
 	/// Return balance of each asset in selected liquidity pool.
 	pub fn get_pool_balances(pool_address: T::AccountId) -> Option<Vec<(AssetId, Balance)>> {
 		let mut balances = Vec::new();
@@ -1123,14 +1134,14 @@ impl<T: Config> AMMPosition<AssetId, Balance> for Pallet<T> {
 	}
 }
 
-impl<T: Config> AMMAddLiquidity<OriginFor<T>, AssetId, Balance> for Pallet<T> {
+impl<T: Config> AMMAddLiquidity<T::AccountId, AssetId, Balance> for Pallet<T> {
 	fn add_liquidity(
-		origin: OriginFor<T>,
+		who: T::AccountId,
 		asset_a: AssetId,
 		asset_b: AssetId,
 		amount_a: Balance,
 		amount_b_max_limit: Balance,
-	) -> DispatchResult {
-		Self::add_liquidity(origin, asset_a, asset_b, amount_a, amount_b_max_limit)
+	) -> Result<Balance, DispatchError> {
+		Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit)
 	}
 }

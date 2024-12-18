@@ -115,7 +115,7 @@ pub mod pallet {
 		/// AMM helper functions.
 		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
 			+ AMMPosition<AssetId, Balance, Error = DispatchError>
-			+ AMMAddLiquidity<OriginFor<Self>, AssetId, Balance>;
+			+ AMMAddLiquidity<Self::AccountId, AssetId, Balance>;
 
 		/// The origin account that can create new liquidity mining program.
 		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -194,9 +194,6 @@ pub mod pallet {
 
 		/// Failed to calculate `pot`'s account.
 		FailToGetPotId,
-
-		/// Extrinsic is disasbled for now
-		Disabled,
 
 		/// No global farm - yield farm pairs specified to join
 		NoFarmsSpecified,
@@ -809,12 +806,9 @@ pub mod pallet {
 				asset_out: asset_b,
 			};
 
-			T::AMM::add_liquidity(origin.clone(), asset_a, asset_b, amount_a, amount_b_max_limit)?;
+			let shares_added = T::AMM::add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit)?;
 
-			let share_token = T::AMM::get_share_token(asset_pair);
-			let shares_amount = T::Currencies::free_balance(share_token, &who);
-
-			Self::join_farms(origin, farm_entries, asset_pair, shares_amount)?;
+			Self::join_farms(origin, farm_entries, asset_pair, shares_added)?;
 
 			Ok(())
 		}
@@ -869,8 +863,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Note: This extrinsic is disabled.
-		///
 		/// Claim rewards from liq. mining for deposit represented by `nft_id`.
 		///
 		/// This function calculate user rewards from liq. mining and transfer rewards to `origin`
@@ -885,11 +877,27 @@ pub mod pallet {
 		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(
-			_origin: OriginFor<T>,
-			_deposit_id: DepositId,
-			_yield_farm_id: YieldFarmId,
+			origin: OriginFor<T>,
+			deposit_id: DepositId,
+			yield_farm_id: YieldFarmId,
 		) -> DispatchResult {
-			return Err(Error::<T>::Disabled.into());
+			let owner = Self::ensure_nft_owner(origin, deposit_id)?;
+
+			let (global_farm_id, reward_currency, claimed, _) =
+				T::LiquidityMiningHandler::claim_rewards(owner.clone(), deposit_id, yield_farm_id)?;
+
+			ensure!(!claimed.is_zero(), Error::<T>::ZeroClaimedRewards);
+
+			Self::deposit_event(Event::RewardClaimed {
+				global_farm_id,
+				yield_farm_id,
+				who: owner,
+				claimed,
+				reward_currency,
+				deposit_id,
+			});
+
+			Ok(())
 		}
 
 		/// Withdraw LP shares from liq. mining with reward claiming if possible.
