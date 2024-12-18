@@ -72,7 +72,7 @@ fn stack_should_be_populated_when_pushed() {
 #[test]
 fn stack_should_not_panic_when_full() {
 	ExtBuilder::default().build().execute_with(|| {
-		for id in 0..MAX_STACK_SIZE {
+		for _id in 0..MAX_STACK_SIZE {
 			assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		}
 

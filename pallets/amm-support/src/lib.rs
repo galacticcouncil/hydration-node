@@ -22,7 +22,7 @@ type AssetId = u32;
 type Balance = u128;
 
 use crate::types::*;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, Encode};
 use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -174,7 +174,4 @@ impl<T: Config> Pallet<T> {
 		IdStack::<T>::get().to_vec()
 	}
 
-	fn clear() {
-		IdStack::<T>::kill();
-	}
 }

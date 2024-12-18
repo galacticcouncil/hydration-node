@@ -95,7 +95,6 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
-use pallet_amm_support::types::ExecutionTypeStack;
 use pallet_amm_support::types::{AssetType, ExecutionType, Fee};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;

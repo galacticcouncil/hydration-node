@@ -1,14 +1,8 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::dispatch::DispatchResultWithPostInfo;
-use frame_support::sp_runtime::{DispatchError, DispatchResult};
-use frame_support::weights::Weight;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::FixedU128;
-use sp_std::vec;
-use sp_std::vec::Vec;
-
 
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
@@ -31,12 +25,6 @@ pub enum Filler<AssetId, OtcOrderId> {
 	             // ICE(solution_id/block id),      swapper: alice, filler: solver
 }
 
-pub trait ExecutionTypeStack<IncrementalId> {
-	fn push(execution_type: ExecutionType<IncrementalId>) -> DispatchResult;
-	fn pop() -> Result<ExecutionType<IncrementalId>, DispatchError>;
-	fn get() -> Vec<ExecutionType<IncrementalId>>;
-	fn clear();
-}
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct Fee<AssetId, Balance, AccountId> {
