@@ -45,6 +45,7 @@ pub fn bind_pallet_account() -> Weight {
 
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	fn on_runtime_upgrade() -> Weight {
-		bind_pallet_account()
+		let w = bind_pallet_account();
+		pallet_staking::migration::migrate_to_v2::<Runtime>().saturating_add(w)
 	}
 }
