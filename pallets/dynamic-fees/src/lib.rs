@@ -105,7 +105,7 @@ pub mod pallet {
 		type Fee: Parameter + MaybeSerializeDeserialize + MaxEncodedLen + PerThing;
 
 		/// Asset id type
-		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + TypeInfo;
 
 		/// Volume provider implementation
 		type Oracle: VolumeProvider<Self::AssetId, Balance>;
@@ -213,6 +213,17 @@ where
 			},
 		);
 		(asset_fee, protocol_fee)
+	}
+
+	pub fn get_fee(asset_id: T::AssetId) -> (T::Fee, T::Fee) {
+		let asset_fee_params = T::AssetFeeParameters::get();
+		let protocol_fee_params = T::ProtocolFeeParameters::get();
+		let entry = Self::current_fees(asset_id).unwrap_or(FeeEntry {
+			asset_fee: asset_fee_params.min_fee,
+			protocol_fee: protocol_fee_params.min_fee,
+			timestamp: BlockNumberFor::<T>::default(),
+		});
+		(entry.asset_fee, entry.protocol_fee)
 	}
 }
 
