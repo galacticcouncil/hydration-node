@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::types::*;
 use crate::Event;
 #[test]
 fn event_id_should_be_incremented() {

@@ -24,7 +24,3 @@ remove nonfungibalbe asset type
 input and output should be tpye instead of tuple, because asset fee is also
 
 having same strucutre for inputs, outputs and fees
-
-next inceremetnal id use overflwoing add
-
-call it context instead of stack

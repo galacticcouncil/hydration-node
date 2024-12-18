@@ -22,14 +22,12 @@ type AssetId = u32;
 type Balance = u128;
 
 use crate::types::*;
-use codec::{Decode, Encode};
 use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use primitives::IncrementalId as IncrementalIdType;
 use primitives::ItemId as NftId;
-use scale_info::TypeInfo;
-use sp_core::{ConstU32, RuntimeDebug};
+use sp_core::{ConstU32};
 use sp_std::vec::Vec;
 #[cfg(test)]
 mod tests;
@@ -65,11 +63,10 @@ pub mod pallet {
 	#[pallet::getter(fn incremental_id)]
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
-	//TODO: add better name
 	#[pallet::storage]
-	/// Next available incremental ID
+	/// Execution context stack
 	#[pallet::getter(fn id_stack)]
-	pub(super) type IdStack<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
+	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -96,11 +93,10 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-			//TODO: we might not need it if we can make sotrage not persistable
 			let mut weight: Weight = Weight::zero();
 			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
 
-			IdStack::<T>::get().clear();
+			ExecutionContext::<T>::kill();
 
 			Weight::from_parts(weight.ref_time(), 0)
 		}
@@ -129,7 +125,7 @@ impl<T: Config> Pallet<T> {
 		outputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
 		fees: Vec<Fee<AssetId, Balance, T::AccountId>>,
 	) {
-		let operation_id = IdStack::<T>::get().to_vec();
+		let operation_id = ExecutionContext::<T>::get().to_vec();
 		Self::deposit_event(Event::<T>::Swapped {
 			swapper,
 			filler,
@@ -151,7 +147,7 @@ impl<T: Config> Pallet<T> {
 			Ok(inc_id)
 		})?;
 
-		IdStack::<T>::try_mutate(|stack| -> DispatchResult {
+		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
 			stack
 				.try_push(execution_type(next_id))
 				.map_err(|_| Error::<T>::MaxStackSizeReached)?;
@@ -165,13 +161,13 @@ impl<T: Config> Pallet<T> {
 	//TODO: rename to pop context
 	pub fn remove_from_context() -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
 		//TODO: check what to do when it fails, we might dont want to bloc ktrades becase of it
-		IdStack::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
+		ExecutionContext::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
 			stack.pop().ok_or(Error::<T>::EmptyStack.into())
 		})
 	}
 
 	fn get() -> Vec<ExecutionType<IncrementalIdType>> {
-		IdStack::<T>::get().to_vec()
+		ExecutionContext::<T>::get().to_vec()
 	}
 
 }
