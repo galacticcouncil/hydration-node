@@ -58,7 +58,7 @@ impl<AssetId, Balance, AccountId> Fee<AssetId, Balance, AccountId> {
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum ExecutionType<IncrementalId> {
 	Router(IncrementalId),
-	DCA(IncrementalId),
+	DCA(IncrementalId), //We might need schedule id. How about otc?
 	ICE(IncrementalId),
 	Batch(IncrementalId),
 	Omnipool(IncrementalId),

@@ -41,22 +41,6 @@ pub use pallet::*;
 
 pub const MAX_STACK_SIZE: u32 = 10;
 
-#[derive(RuntimeDebug, Encode, Decode, Default, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub struct ExecutionIdStack(BoundedVec<ExecutionType<IncrementalIdType>, ConstU32<MAX_STACK_SIZE>>);
-impl ExecutionIdStack {
-	fn push(&mut self, execution_type: ExecutionType<IncrementalIdType>) -> Result<(), ()> {
-		self.0.try_push(execution_type).map_err(|_| ())
-	}
-
-	fn pop(&mut self) -> Result<ExecutionType<IncrementalIdType>, ()> {
-		self.0.pop().ok_or(())
-	}
-
-	fn get(self) -> Vec<ExecutionType<IncrementalIdType>> {
-		self.0.into_inner()
-	}
-}
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -83,7 +67,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Next available incremental ID
 	#[pallet::getter(fn id_stack)]
-	pub(super) type IdStack<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
+	pub(super) type IdStack<T: Config> = StorageValue<_, BoundedVec<ExecutionType<IncrementalIdType>, ConstU32<MAX_STACK_SIZE>>, ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -114,7 +98,7 @@ pub mod pallet {
 			let mut weight: Weight = Weight::zero();
 			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
 
-			<Self as ExecutionTypeStack<IncrementalIdType>>::clear();
+			IdStack::<T>::get().clear();
 
 			Weight::from_parts(weight.ref_time(), 0)
 		}
@@ -143,6 +127,7 @@ impl<T: Config> Pallet<T> {
 		outputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
 		fees: Vec<Fee<AssetId, Balance, T::AccountId>>,
 	) {
+		let operation_id = IdStack::<T>::get().to_vec();
 		Self::deposit_event(Event::<T>::Swapped {
 			swapper,
 			filler,
@@ -151,7 +136,7 @@ impl<T: Config> Pallet<T> {
 			inputs,
 			outputs,
 			fees,
-			operation_id: <Self as ExecutionTypeStack<IncrementalIdType>>::get(),
+			operation_id,
 		});
 	}
 
@@ -166,8 +151,10 @@ impl<T: Config> Pallet<T> {
 
 		IdStack::<T>::try_mutate(|stack| -> DispatchResult {
 			stack
-				.push(execution_type(next_id))
-				.map_err(|_| Error::<T>::MaxStackSizeReached.into())
+				.try_push(execution_type(next_id))
+				.map_err(|_| Error::<T>::MaxStackSizeReached)?;
+
+			Ok(())
 		})?;
 
 		Ok(next_id)
@@ -177,32 +164,15 @@ impl<T: Config> Pallet<T> {
 	pub fn remove_from_context() -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
 		//TODO: check what to do when it fails, we might dont want to bloc ktrades becase of it
 		IdStack::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
-			stack.pop().map_err(|_| Error::<T>::EmptyStack.into())
-		})
-	}
-}
-
-impl<T: Config> ExecutionTypeStack<IncrementalIdType> for Pallet<T> {
-	fn push(execution_type: ExecutionType<IncrementalIdType>) -> DispatchResult {
-		IdStack::<T>::try_mutate(|stack| -> DispatchResult {
-			stack
-				.push(execution_type)
-				.map_err(|_| Error::<T>::MaxStackSizeReached.into())
-		})
-	}
-
-	fn pop() -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
-		IdStack::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
-			stack.pop().map_err(|_| Error::<T>::EmptyStack.into())
+			stack.pop().ok_or(Error::<T>::EmptyStack.into())
 		})
 	}
 
 	fn get() -> Vec<ExecutionType<IncrementalIdType>> {
-		IdStack::<T>::get().get()
+		IdStack::<T>::get().to_vec()
 	}
 
 	fn clear() {
 		IdStack::<T>::kill();
 	}
 }
-
