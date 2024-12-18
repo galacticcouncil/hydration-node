@@ -33,7 +33,7 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
 		let _ = ProcessedVotes::<T>::clear(processed_votes as u32, None);
 
 		weight.saturating_accrue(T::DbWeight::get().reads(existing_votes.saturating_add(processed_votes) as u64));
-		StorageVersion::new(1).put::<Pallet<T>>();
+		StorageVersion::new(2).put::<Pallet<T>>();
 		weight = weight.saturating_add(T::DbWeight::get().writes(1));
 	} else {
 		log::warn!(
