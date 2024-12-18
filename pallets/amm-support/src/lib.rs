@@ -138,7 +138,6 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	//TODO: rename
 	pub fn add_to_context(execution_type: fn(u32) -> ExecutionType<u32>) -> Result<IncrementalIdType, DispatchError> {
 		//TODO: double check what to do when these can fail, we dont really want failing due to this
 		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
@@ -158,7 +157,6 @@ impl<T: Config> Pallet<T> {
 		Ok(next_id)
 	}
 
-	//TODO: rename to pop context
 	pub fn remove_from_context() -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
 		//TODO: check what to do when it fails, we might dont want to bloc ktrades becase of it
 		ExecutionContext::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
