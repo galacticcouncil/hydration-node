@@ -147,7 +147,7 @@ impl<T: Config> Pallet<T> {
 		//TODO: double check what to do when these can fail, we dont really want failing due to this
 		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
 			let inc_id = *current_id;
-			*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
+			*current_id = current_id.overflowing_add(1).0.into();
 			Ok(inc_id)
 		})?;
 
