@@ -41,6 +41,8 @@ pub use pallet::*;
 
 pub const MAX_STACK_SIZE: u32 = 10;
 
+type ExecutionIdStack = BoundedVec<ExecutionType<IncrementalIdType>, ConstU32<MAX_STACK_SIZE>>;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -67,7 +69,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Next available incremental ID
 	#[pallet::getter(fn id_stack)]
-	pub(super) type IdStack<T: Config> = StorageValue<_, BoundedVec<ExecutionType<IncrementalIdType>, ConstU32<MAX_STACK_SIZE>>, ValueQuery>;
+	pub(super) type IdStack<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
