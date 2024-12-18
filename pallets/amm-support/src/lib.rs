@@ -18,8 +18,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::too_many_arguments)]
 
-type AssetId = u32;
-type Balance = u128;
 
 use crate::types::*;
 use frame_support::sp_runtime::app_crypto::sp_core;
@@ -81,11 +79,11 @@ pub mod pallet {
 		Swapped {
 			swapper: T::AccountId,
 			filler: T::AccountId,
-			filler_type: Filler<AssetId, OtcOrderId>,
+			filler_type: Filler,
 			operation: TradeOperation,
-			inputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
-			outputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
-			fees: Vec<Fee<AssetId, Balance, T::AccountId>>,
+			inputs: Vec<(AssetType<NftId>, Balance)>,
+			outputs: Vec<(AssetType<NftId>, Balance)>,
+			fees: Vec<Fee<T::AccountId>>,
 			operation_id: Vec<ExecutionType<IncrementalIdType>>,
 		},
 	}
@@ -119,11 +117,11 @@ impl<T: Config> Pallet<T> {
 	pub fn deposit_trade_event(
 		swapper: T::AccountId,
 		filler: T::AccountId,
-		filler_type: Filler<AssetId, OtcOrderId>,
+		filler_type: Filler,
 		operation: TradeOperation,
-		inputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
-		outputs: Vec<(AssetType<AssetId, NftId>, Balance)>,
-		fees: Vec<Fee<AssetId, Balance, T::AccountId>>,
+		inputs: Vec<(AssetType<NftId>, Balance)>,
+		outputs: Vec<(AssetType<NftId>, Balance)>,
+		fees: Vec<Fee<T::AccountId>>,
 	) {
 		let operation_id = ExecutionContext::<T>::get().to_vec();
 		Self::deposit_event(Event::<T>::Swapped {

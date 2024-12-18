@@ -3,9 +3,11 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
+pub type AssetId = u32;
+pub type Balance = u128;
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum AssetType<AssetId, NFTId> {
+pub enum AssetType<NFTId> {
 	Fungible(AssetId),
 	NFT(NFTId),
 }
@@ -13,7 +15,7 @@ pub enum AssetType<AssetId, NFTId> {
 pub type OtcOrderId = u32;
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum Filler<AssetId, OtcOrderId> {
+pub enum Filler {
 	Omnipool,
 	Stableswap(AssetId), // pool id
 	XYK(AssetId),        // share token
@@ -26,12 +28,12 @@ pub enum Filler<AssetId, OtcOrderId> {
 
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub struct Fee<AssetId, Balance, AccountId> {
+pub struct Fee<AccountId> {
 	pub asset: AssetId,
 	pub amount: Balance,
 	pub recipient: AccountId,
 }
-impl<AssetId, Balance, AccountId> Fee<AssetId, Balance, AccountId> {
+impl<AccountId> Fee<AccountId> {
 	pub fn new(asset: AssetId, amount: Balance, recipient: AccountId) -> Self {
 		Self {
 			asset,

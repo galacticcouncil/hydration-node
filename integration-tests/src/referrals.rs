@@ -5,14 +5,16 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
 use orml_traits::MultiCurrency;
-use pallet_amm_support::types::*;
+use pallet_amm_support::types::{AssetType, TradeOperation};
 use pallet_referrals::{FeeDistribution, ReferralCode};
+use pallet_amm_support::types::Fee;
 use primitives::AccountId;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use std::vec;
 use xcm_emulator::TestExt;
+use pallet_amm_support::types::Filler;
 #[test]
 fn registering_a_code_should_charge_registration_fee() {
 	Hydra::execute_with(|| {
