@@ -184,6 +184,83 @@ fn withdraw_shares_should_work() {
 }
 
 #[test]
+fn withdraw_should_work_when_it_is_in_same_period_as_claim() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, BSX, 1_000_000 * ONE),
+			(CHARLIE, BSX_KSM_SHARE_ID, 200 * ONE),
+		])
+		.with_amm_pool(BSX_KSM_AMM, BSX_KSM_SHARE_ID, BSX_KSM_ASSET_PAIR)
+		.with_global_farm(
+			500_000 * ONE,
+			20_000,
+			10,
+			BSX,
+			BSX,
+			ALICE,
+			Perquintill::from_percent(1),
+			ONE,
+			One::one(),
+		)
+		.with_yield_farm(ALICE, 1, One::one(), None, BSX_KSM_ASSET_PAIR)
+		.with_deposit(CHARLIE, 1, 2, BSX_KSM_ASSET_PAIR, 100 * ONE)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(1_000);
+			assert_ok!(LiquidityMining::claim_rewards(Origin::signed(CHARLIE), 1, 2));
+
+			pretty_assertions::assert_eq!(Tokens::free_balance(BSX_KSM_SHARE_ID, &CHARLIE), 100 * ONE);
+			pretty_assertions::assert_eq!(
+				Tokens::free_balance(BSX_KSM_SHARE_ID, &LiquidityMining::account_id()),
+				100 * ONE
+			);
+
+			//Act
+			assert_ok!(LiquidityMining::withdraw_shares(
+				Origin::signed(CHARLIE),
+				1,
+				2,
+				BSX_KSM_ASSET_PAIR
+			));
+
+			//Assert
+			pretty_assertions::assert_eq!(
+				has_event(
+					crate::Event::SharesWithdrawn {
+						global_farm_id: 1,
+						yield_farm_id: 2,
+						who: CHARLIE,
+						lp_token: BSX_KSM_SHARE_ID,
+						amount: 100 * ONE,
+						deposit_id: 1,
+					}
+					.into(),
+				),
+				true
+			);
+
+			pretty_assertions::assert_eq!(
+				has_event(
+					crate::Event::DepositDestroyed {
+						who: CHARLIE,
+						deposit_id: 1,
+					}
+					.into(),
+				),
+				true
+			);
+
+			//lp shares unlocked
+			pretty_assertions::assert_eq!(Tokens::free_balance(BSX_KSM_SHARE_ID, &CHARLIE), 200 * ONE);
+			pretty_assertions::assert_eq!(
+				Tokens::free_balance(BSX_KSM_SHARE_ID, &LiquidityMining::account_id()),
+				0
+			);
+		});
+}
+
+#[test]
 fn withdraw_shares_should_not_work_when_not_owner() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
