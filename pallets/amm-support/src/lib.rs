@@ -61,7 +61,7 @@ pub mod pallet {
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
 	#[pallet::storage]
-	/// Execution context stack
+	/// Execution context to figure out where the trade is originated from
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
