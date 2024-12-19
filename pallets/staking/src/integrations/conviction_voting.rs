@@ -1,4 +1,4 @@
-use crate::pallet::{PositionVotes, Positions, ProcessedVotes};
+use crate::pallet::{Positions, Votes, VotesRewarded};
 use crate::traits::{GetReferendumState, VestingDetails};
 use crate::types::{Action, Balance, Conviction, ReferendumIndex, Vote};
 use crate::{Config, Error, Pallet};
@@ -68,7 +68,7 @@ where
 				conviction,
 			};
 
-			PositionVotes::<T>::try_mutate(position_id, |voting| -> DispatchResult {
+			Votes::<T>::try_mutate(position_id, |voting| -> DispatchResult {
 				match voting.votes.binary_search_by_key(&ref_index, |value| value.0) {
 					Ok(idx) => {
 						let _ = sp_std::mem::replace(&mut voting.votes[idx], (ref_index, staking_vote));
@@ -94,7 +94,7 @@ where
 			return;
 		};
 
-		let entry = ProcessedVotes::<T>::take(who, ref_index);
+		let entry = VotesRewarded::<T>::take(who, ref_index);
 		if entry.is_some() {
 			// this vote was already processed, just remove it
 			return;
@@ -104,12 +104,12 @@ where
 			if let Some(position) = maybe_position.as_mut() {
 				let max_position_vote = Conviction::max_multiplier().saturating_mul_int(position.stake);
 
-				if let Some(vote_idx) = PositionVotes::<T>::get(position_id)
+				if let Some(vote_idx) = Votes::<T>::get(position_id)
 					.votes
 					.iter()
 					.position(|(idx, _)| *idx == ref_index)
 				{
-					let (ref_idx, vote) = PositionVotes::<T>::get(position_id).votes[vote_idx];
+					let (ref_idx, vote) = Votes::<T>::get(position_id).votes[vote_idx];
 					debug_assert_eq!(ref_idx, ref_index, "Referendum index mismatch");
 					let points =
 						Pallet::<T>::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
@@ -119,7 +119,7 @@ where
 							position.action_points = position.action_points.saturating_add(points);
 						}
 					}
-					PositionVotes::<T>::mutate(position_id, |voting| {
+					Votes::<T>::mutate(position_id, |voting| {
 						voting.votes.remove(vote_idx);
 					});
 				}
@@ -131,16 +131,16 @@ where
 	fn balance_locked_on_unsuccessful_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> Option<Balance> {
 		let position_id = Pallet::<T>::get_user_position_id(who).ok()??;
 
-		if let Some(vote) = ProcessedVotes::<T>::get(who, ref_index) {
+		if let Some(vote) = VotesRewarded::<T>::get(who, ref_index) {
 			return Some(vote.amount);
 		}
 
-		let vote_idx = PositionVotes::<T>::get(position_id)
+		let vote_idx = Votes::<T>::get(position_id)
 			.votes
 			.iter()
 			.position(|(idx, _)| *idx == ref_index)?;
 
-		let (ref_idx, vote) = PositionVotes::<T>::get(position_id).votes[vote_idx];
+		let (ref_idx, vote) = Votes::<T>::get(position_id).votes[vote_idx];
 		debug_assert_eq!(ref_idx, ref_index, "Referendum index mismatch");
 		Some(vote.amount)
 	}
