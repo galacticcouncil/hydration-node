@@ -1848,8 +1848,8 @@ fn execute_sell_should_work() {
 				filler: pool_id,
 				filler_type: pallet_amm_support::types::Filler::LBP,
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(asset_in), amount_in)],
-				outputs: vec![(AssetType::Fungible(asset_out), amount_b)],
+				inputs: vec![Asset::new(asset_in, amount_in)],
+				outputs: vec![Asset::new(asset_out, amount_b)],
 				fees: vec![Fee::new(asset_in, 1_000, pool_data.fee_collector)],
 				operation_id: vec![],
 			}
@@ -1991,8 +1991,8 @@ fn execute_buy_should_work() {
 				filler: pool_id,
 				filler_type: pallet_amm_support::types::Filler::LBP,
 				operation: pallet_amm_support::types::TradeOperation::ExactOut,
-				inputs: vec![(AssetType::Fungible(asset_in), amount_in)],
-				outputs: vec![(AssetType::Fungible(asset_out), amount_b)],
+				inputs: vec![Asset::new(asset_in, amount_in)],
+				outputs: vec![Asset::new(asset_out, amount_b)],
 				fees: vec![Fee::new(asset_in, 1_000, pool_data.fee_collector)],
 				operation_id: vec![],
 			}
@@ -2320,8 +2320,8 @@ fn buy_should_work() {
 				filler: pool_id,
 				filler_type: pallet_amm_support::types::Filler::LBP,
 				operation: pallet_amm_support::types::TradeOperation::ExactOut,
-				inputs: vec![(AssetType::Fungible(asset_in), 17_894_738)],
-				outputs: vec![(AssetType::Fungible(asset_out), 10_000_000)],
+				inputs: vec![Asset::new(asset_in, 17_894_738)],
+				outputs: vec![Asset::new(asset_out, 10_000_000)],
 				fees: vec![Fee::new(asset_in, 35860, pool_data.fee_collector)],
 				operation_id: vec![], // calling buy directly from the pallet doesn't set event_id
 			}
@@ -2465,8 +2465,8 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 				filler: pool_id,
 				filler_type: pallet_amm_support::types::Filler::LBP,
 				operation: pallet_amm_support::types::TradeOperation::ExactOut,
-				inputs: vec![(AssetType::Fungible(asset_in), 17_894_738)],
-				outputs: vec![(AssetType::Fungible(asset_out), 10_000_000)],
+				inputs: vec![Asset::new(asset_in, 17_894_738)],
+				outputs: vec![Asset::new(asset_out, 10_000_000)],
 				fees: vec![Fee::new(asset_in, 35860, pool_data.fee_collector)],
 				operation_id: vec![],
 			}
@@ -2499,8 +2499,8 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 				filler: pool_id,
 				filler_type: pallet_amm_support::types::Filler::LBP,
 				operation: pallet_amm_support::types::TradeOperation::ExactOut,
-				inputs: vec![(AssetType::Fungible(BSX), 5_560_304)],
-				outputs: vec![(AssetType::Fungible(KUSD), 10_000_000)],
+				inputs: vec![Asset::new(BSX, 5_560_304)],
+				outputs: vec![Asset::new(KUSD, 10_000_000)],
 
 				fees: vec![Fee::new(KUSD, 20_000, pool_data.fee_collector)],
 				operation_id: vec![],
@@ -2590,8 +2590,8 @@ fn sell_should_work() {
 				filler: pool_id,
 				filler_type: pallet_amm_support::types::Filler::LBP,
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(asset_in), 9_980_000)],
-				outputs: vec![(AssetType::Fungible(asset_out), 5_605_138)],
+				inputs: vec![Asset::new(asset_in, 9_980_000)],
+				outputs: vec![Asset::new(asset_out, 5_605_138)],
 				fees: vec![Fee::new(asset_in, 20_000, pool_data.fee_collector)],
 				operation_id: vec![],
 			}

@@ -37,7 +37,7 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
 use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
-use pallet_amm_support::types::{AssetType, Fee};
+use pallet_amm_support::types::{Asset, Fee};
 
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
 
@@ -1126,8 +1126,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			pool_account,
 			pallet_amm_support::types::Filler::LBP,
 			pallet_amm_support::types::TradeOperation::ExactIn,
-			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
-			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,
@@ -1281,8 +1281,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			pool_account,
 			pallet_amm_support::types::Filler::LBP,
 			pallet_amm_support::types::TradeOperation::ExactOut,
-			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
-			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,

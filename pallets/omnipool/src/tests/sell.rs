@@ -749,8 +749,8 @@ fn sell_should_get_same_amount() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::types::Filler::Omnipool,
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![(AssetType::Fungible(100), expected_sold_amount)],
-					outputs: vec![(AssetType::Fungible(LRNA), 57142857142858)],
+					inputs: vec![Asset::new(100, expected_sold_amount)],
+					outputs: vec![Asset::new(LRNA, 57142857142858)],
 					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(0)],
 				}
@@ -760,8 +760,8 @@ fn sell_should_get_same_amount() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::types::Filler::Omnipool,
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![(AssetType::Fungible(LRNA), 57142857142858)],
-					outputs: vec![(AssetType::Fungible(200), buy_amount)],
+					inputs: vec![Asset::new(LRNA, 57142857142858)],
+					outputs: vec![Asset::new(200, buy_amount)],
 					fees: vec![Fee::new(200, 5555555555556, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Omnipool(0)],
 				}

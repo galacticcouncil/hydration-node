@@ -18,7 +18,7 @@ use crate::Event;
 use frame_support::{assert_noop, assert_ok};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
-use pallet_amm_support::types::{AssetType, Fee};
+use pallet_amm_support::types::{Asset, Fee};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -85,8 +85,8 @@ fn complete_fill_order_should_work() {
 				filler: ALICE,
 				filler_type: pallet_amm_support::types::Filler::OTC(0),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(DAI), 20 * ONE)],
-				outputs: vec![(AssetType::Fungible(HDX), 100 * ONE)],
+				inputs: vec![Asset::new(DAI, 20 * ONE)],
+				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
 				operation_id: vec![],
 			}
@@ -161,8 +161,8 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 				filler: ALICE,
 				filler_type: pallet_amm_support::types::Filler::OTC(order_id),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(DAI), 20 * ONE)],
-				outputs: vec![(AssetType::Fungible(HDX), 100 * ONE)],
+				inputs: vec![Asset::new(DAI, 20 * ONE)],
+				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
 				operation_id: vec![],
 			}
@@ -249,8 +249,8 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 				filler: ALICE,
 				filler_type: pallet_amm_support::types::Filler::OTC(order_id),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(DAI), 20 * ONE)],
-				outputs: vec![(AssetType::Fungible(HDX), 100 * ONE)],
+				inputs: vec![Asset::new(DAI, 20 * ONE)],
+				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
 				operation_id: vec![],
 			}

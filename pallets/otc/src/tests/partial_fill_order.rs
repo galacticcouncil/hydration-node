@@ -18,7 +18,7 @@ use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
-use pallet_amm_support::types::{AssetType, Fee};
+use pallet_amm_support::types::{Asset, Fee};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -99,8 +99,8 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 				filler: order.owner,
 				filler_type: pallet_amm_support::types::Filler::OTC(order_id),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(order.asset_in), 5 * ONE)],
-				outputs: vec![(AssetType::Fungible(order.asset_out), expected_amount_out)],
+				inputs: vec![Asset::new(order.asset_in, 5 * ONE)],
+				outputs: vec![Asset::new(order.asset_out, expected_amount_out)],
 				fees: vec![Fee::new(
 					order.asset_out,
 					fee,

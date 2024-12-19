@@ -36,7 +36,7 @@ use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
 };
-use pallet_amm_support::types::{AssetType, Fee};
+use pallet_amm_support::types::{Asset, Fee};
 
 use sp_std::{vec, vec::Vec};
 
@@ -923,8 +923,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			pair_account.clone(),
 			pallet_amm_support::types::Filler::XYK(Self::share_token(&pair_account)),
 			pallet_amm_support::types::TradeOperation::ExactIn,
-			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
-			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,
@@ -1103,8 +1103,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			pair_account.clone(),
 			pallet_amm_support::types::Filler::XYK(Self::share_token(&pair_account)),
 			pallet_amm_support::types::TradeOperation::ExactOut,
-			vec![(AssetType::Fungible(transfer.assets.asset_in), transfer.amount)],
-			vec![(AssetType::Fungible(transfer.assets.asset_out), transfer.amount_b)],
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,

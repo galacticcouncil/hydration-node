@@ -24,7 +24,6 @@ use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use primitives::IncrementalId as IncrementalIdType;
-use primitives::ItemId as NftId;
 use sp_core::{ConstU32};
 use sp_std::vec::Vec;
 #[cfg(test)]
@@ -81,8 +80,8 @@ pub mod pallet {
 			filler: T::AccountId,
 			filler_type: Filler,
 			operation: TradeOperation,
-			inputs: Vec<(AssetType<NftId>, Balance)>,
-			outputs: Vec<(AssetType<NftId>, Balance)>,
+			inputs: Vec<Asset>,
+			outputs: Vec<Asset>,
 			fees: Vec<Fee<T::AccountId>>,
 			operation_id: Vec<ExecutionType<IncrementalIdType>>,
 		},
@@ -119,8 +118,8 @@ impl<T: Config> Pallet<T> {
 		filler: T::AccountId,
 		filler_type: Filler,
 		operation: TradeOperation,
-		inputs: Vec<(AssetType<NftId>, Balance)>,
-		outputs: Vec<(AssetType<NftId>, Balance)>,
+		inputs: Vec<Asset>,
+		outputs: Vec<Asset>,
 		fees: Vec<Fee<T::AccountId>>,
 	) {
 		let operation_id = ExecutionContext::<T>::get().to_vec();

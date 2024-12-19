@@ -75,7 +75,7 @@ use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, T
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
-use pallet_amm_support::types::{AssetType, Fee};
+use pallet_amm_support::types::{Asset, Fee};
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
@@ -104,7 +104,7 @@ pub mod pallet {
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
-	use pallet_amm_support::types::{AssetType, Fee};
+	use pallet_amm_support::types::{Fee};
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 	use sp_runtime::ArithmeticError;
 	use sp_runtime::Permill;
@@ -633,8 +633,8 @@ pub mod pallet {
 				pool_account.clone(),
 				pallet_amm_support::types::Filler::Stableswap(pool_id.into()),
 				pallet_amm_support::types::TradeOperation::LiquidityRemove,
-				vec![(AssetType::Fungible(pool_id.into()), share_amount)],
-				vec![(AssetType::Fungible(asset_id.into()), amount)],
+				vec![Asset::new(pool_id.into(), share_amount)],
+				vec![Asset::new(asset_id.into(), amount)],
 				vec![Fee {
 					asset: pool_id.into(),
 					amount: fee,
@@ -736,8 +736,8 @@ pub mod pallet {
 				pool_account.clone(),
 				pallet_amm_support::types::Filler::Stableswap(pool_id.into()),
 				pallet_amm_support::types::TradeOperation::LiquidityRemove,
-				vec![(AssetType::Fungible(pool_id.into()), shares)],
-				vec![(AssetType::Fungible(asset_id.into()), amount)],
+				vec![Asset::new(pool_id.into(), shares)],
+				vec![Asset::new(asset_id.into(), amount)],
 				fees,
 			);
 
@@ -819,8 +819,8 @@ pub mod pallet {
 				pool_account.clone(),
 				pallet_amm_support::types::Filler::Stableswap(pool_id.into()),
 				pallet_amm_support::types::TradeOperation::ExactIn,
-				vec![(AssetType::Fungible(asset_in.into()), amount_in)],
-				vec![(AssetType::Fungible(asset_out.into()), amount_out)],
+				vec![Asset::new(asset_in.into(), amount_in)],
+				vec![Asset::new(asset_out.into(), amount_out)],
 				vec![Fee {
 					asset: asset_out.into(),
 					amount: fee_amount,
@@ -912,8 +912,8 @@ pub mod pallet {
 				pool_account.clone(),
 				pallet_amm_support::types::Filler::Stableswap(pool_id.into()),
 				pallet_amm_support::types::TradeOperation::ExactOut,
-				vec![(AssetType::Fungible(asset_in.into()), amount_in)],
-				vec![(AssetType::Fungible(asset_out.into()), amount_out)],
+				vec![Asset::new(asset_in.into(), amount_in)],
+				vec![Asset::new(asset_out.into(), amount_out)],
 				vec![Fee {
 					asset: asset_in.into(),
 					amount: fee_amount,
@@ -1263,7 +1263,7 @@ impl<T: Config> Pallet<T> {
 
 		let inputs = assets
 			.iter()
-			.map(|asset| (AssetType::Fungible(asset.asset_id.into()), asset.amount))
+			.map(|asset| Asset::new(asset.asset_id.into(), asset.amount))
 			.collect();
 		let fees = fees
 			.iter()
@@ -1276,7 +1276,7 @@ impl<T: Config> Pallet<T> {
 			pallet_amm_support::types::Filler::Stableswap(pool_id.into()),
 			pallet_amm_support::types::TradeOperation::LiquidityAdd,
 			inputs,
-			vec![(AssetType::Fungible(pool_id.into()), share_amount)],
+			vec![Asset::new(pool_id.into(), share_amount)],
 			fees,
 		);
 
@@ -1340,8 +1340,8 @@ impl<T: Config> Pallet<T> {
 			pool_account.clone(),
 			pallet_amm_support::types::Filler::Stableswap(pool_id.into()),
 			pallet_amm_support::types::TradeOperation::LiquidityAdd,
-			vec![(AssetType::Fungible(asset_id.into()), amount_in)],
-			vec![(AssetType::Fungible(pool_id.into()), shares)],
+			vec![Asset::new(asset_id.into(), amount_in)],
+			vec![Asset::new(pool_id.into(), shares)],
 			vec![Fee {
 				asset: pool_id.into(),
 				amount: fee,

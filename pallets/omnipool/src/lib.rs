@@ -95,7 +95,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
-use pallet_amm_support::types::{AssetType, ExecutionType, Fee};
+use pallet_amm_support::types::{Asset, ExecutionType, Fee};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
 use scale_info::TypeInfo;
@@ -1100,11 +1100,10 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::types::Filler::Omnipool,
 				pallet_amm_support::types::TradeOperation::ExactIn,
-				vec![(AssetType::Fungible(asset_in.into()), amount)],
-				vec![(
-					AssetType::Fungible(T::HubAssetId::get().into()),
-					*state_changes.asset_in.delta_hub_reserve,
-				)],
+				vec![Asset::new(asset_in.into(), amount)],
+				vec![Asset::new(T::HubAssetId::get().into(),
+					*state_changes.asset_in.delta_hub_reserve)
+				],
 				vec![Fee::new(
 					T::HubAssetId::get().into(),
 					state_changes.fee.protocol_fee,
@@ -1118,14 +1117,12 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::types::Filler::Omnipool,
 				pallet_amm_support::types::TradeOperation::ExactIn,
-				vec![(
-					AssetType::Fungible(T::HubAssetId::get().into()),
-					*state_changes.asset_out.delta_hub_reserve,
-				)],
-				vec![(
-					AssetType::Fungible(asset_out.into()),
-					*state_changes.asset_out.delta_reserve,
-				)],
+				vec![Asset::new(T::HubAssetId::get().into(),
+					*state_changes.asset_out.delta_hub_reserve)
+				],
+				vec![Asset::new(asset_out.into(),
+					*state_changes.asset_out.delta_reserve)
+				],
 				vec![Fee {
 					asset: asset_out.into(),
 					amount: state_changes.fee.asset_fee,
@@ -1348,14 +1345,13 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::types::Filler::Omnipool,
 				pallet_amm_support::types::TradeOperation::ExactOut,
-				vec![(
-					AssetType::Fungible(asset_in.into()),
-					*state_changes.asset_in.delta_reserve,
-				)],
-				vec![(
-					AssetType::Fungible(T::HubAssetId::get().into()),
-					*state_changes.asset_in.delta_hub_reserve,
-				)],
+				vec![
+					Asset::new(asset_in.into(),
+					*state_changes.asset_in.delta_reserve),
+				],
+				vec![Asset::new(T::HubAssetId::get().into(),
+					*state_changes.asset_in.delta_hub_reserve)
+				],
 				vec![Fee::new(
 					T::HubAssetId::get().into(),
 					state_changes.fee.protocol_fee,
@@ -1369,14 +1365,12 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::types::Filler::Omnipool,
 				pallet_amm_support::types::TradeOperation::ExactOut,
-				vec![(
-					AssetType::Fungible(T::HubAssetId::get().into()),
-					*state_changes.asset_out.delta_hub_reserve,
-				)],
-				vec![(
-					AssetType::Fungible(asset_out.into()),
-					*state_changes.asset_out.delta_reserve,
-				)],
+				vec![Asset::new(T::HubAssetId::get().into(),
+					*state_changes.asset_out.delta_hub_reserve),
+				],
+				vec![Asset::new(asset_out.into(),
+					*state_changes.asset_out.delta_reserve)
+				],
 				vec![Fee {
 					asset: asset_out.into(),
 					amount: state_changes.fee.asset_fee,
@@ -1911,14 +1905,14 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_amm_support::types::Filler::Omnipool,
 			pallet_amm_support::types::TradeOperation::ExactIn,
-			vec![(
-				AssetType::Fungible(T::HubAssetId::get().into()),
-				*state_changes.asset.delta_hub_reserve,
-			)],
-			vec![(
-				AssetType::Fungible(asset_out.into()),
-				*state_changes.asset.delta_reserve,
-			)],
+			vec![
+				Asset::new(T::HubAssetId::get().into(),
+				*state_changes.asset.delta_hub_reserve),
+			],
+			vec![
+				Asset::new(asset_out.into(),
+				*state_changes.asset.delta_reserve),
+			],
 			vec![Fee {
 				asset: asset_out.into(),
 				amount: state_changes.fee.asset_fee,
@@ -2040,14 +2034,14 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_amm_support::types::Filler::Omnipool,
 			pallet_amm_support::types::TradeOperation::ExactOut,
-			vec![(
-				AssetType::Fungible(T::HubAssetId::get().into()),
-				*state_changes.asset.delta_hub_reserve,
-			)],
-			vec![(
-				AssetType::Fungible(asset_out.into()),
-				*state_changes.asset.delta_reserve,
-			)],
+			vec![
+				Asset::new(T::HubAssetId::get().into(),
+				*state_changes.asset.delta_hub_reserve),
+			],
+			vec![
+				Asset::new(asset_out.into(),
+				*state_changes.asset.delta_reserve),
+			],
 			vec![Fee {
 				asset: asset_out.into(),
 				amount: state_changes.fee.asset_fee,

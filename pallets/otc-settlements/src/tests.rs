@@ -24,7 +24,9 @@ pub use crate::mock::*;
 use frame_support::{assert_ok, assert_storage_noop};
 use hydradx_traits::Inspect;
 use orml_traits::MultiCurrency;
-use pallet_amm_support::types::{AssetType, Fee};
+use pallet_amm_support::types::{Fee};
+use pallet_amm_support::types::Asset;
+
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
@@ -303,8 +305,8 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 				filler: otc.owner,
 				filler_type: pallet_amm_support::types::Filler::OTC(otc_id),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(HDX), 2413749694825193)],
-				outputs: vec![(AssetType::Fungible(DAI), 4948186874391645)],
+				inputs: vec![Asset::new(HDX, 2413749694825193)],
+				outputs: vec![Asset::new(DAI, 4948186874391645)],
 				fees: vec![Fee::new(
 					DAI,
 					49481868743917,

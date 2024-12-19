@@ -6,12 +6,6 @@ use serde::{Deserialize, Serialize};
 pub type AssetId = u32;
 pub type Balance = u128;
 
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum AssetType<NFTId> {
-	Fungible(AssetId),
-	NFT(NFTId),
-}
-
 pub type OtcOrderId = u32;
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
@@ -39,6 +33,20 @@ impl<AccountId> Fee<AccountId> {
 			asset,
 			amount,
 			recipient,
+		}
+	}
+}
+
+#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+pub struct Asset {
+	pub asset: AssetId,
+	pub amount: Balance,
+}
+impl Asset {
+	pub fn new(asset: AssetId, amount: Balance) -> Self {
+		Self {
+			asset,
+			amount,
 		}
 	}
 }

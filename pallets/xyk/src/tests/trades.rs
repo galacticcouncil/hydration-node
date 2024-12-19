@@ -3,7 +3,7 @@ use crate::{AMMTransfer, Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
-use pallet_amm_support::types::{AssetType, Fee};
+use pallet_amm_support::types::{Asset, Fee};
 
 use crate::types::AssetPair;
 
@@ -76,8 +76,8 @@ fn sell_test() {
 				filler: pair_account,
 				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(asset_a), 456444678)],
-				outputs: vec![(AssetType::Fungible(asset_b), 1363483591788)],
+				inputs: vec![Asset::new(asset_a, 456444678)],
+				outputs: vec![Asset::new(asset_b, 1363483591788)],
 				fees: vec![Fee::new(asset_b, 2732432046, pair_account)],
 				operation_id: vec![],
 			}
@@ -140,8 +140,8 @@ fn execute_sell_should_use_event_id() {
 				filler: pair_account,
 				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(asset_a), 456444678)],
-				outputs: vec![(AssetType::Fungible(asset_b), 1363483591788)],
+				inputs: vec![Asset::new(asset_a, 456444678)],
+				outputs: vec![Asset::new(asset_b, 1363483591788)],
 				fees: vec![Fee::new(asset_b, 2732432046, pair_account)],
 				operation_id: vec![],
 			}
@@ -447,8 +447,8 @@ fn sell_with_correct_fees_should_work() {
 				filler: pair_account,
 				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(asset_a), 100_000)],
-				outputs: vec![(AssetType::Fungible(asset_b), 19_762_378)],
+				inputs: vec![Asset::new(asset_a, 100_000)],
+				outputs: vec![Asset::new(asset_b, 19_762_378)],
 				fees: vec![Fee::new(asset_b, 39_602, pair_account)],
 				operation_id: vec![],
 			}
@@ -665,8 +665,8 @@ fn single_buy_should_work() {
 				filler: pair_account,
 				filler_type: pallet_amm_support::types::Filler::XYK(share_token),
 				operation: pallet_amm_support::types::TradeOperation::ExactOut,
-				inputs: vec![(AssetType::Fungible(asset_b), 6_666_666)],
-				outputs: vec![(AssetType::Fungible(asset_a), 22_068_963_235)],
+				inputs: vec![Asset::new(asset_b, 6_666_666)],
+				outputs: vec![Asset::new(asset_a, 22_068_963_235)],
 				fees: vec![Fee::new(asset_b, 44_137_926, pair_account)],
 				operation_id: vec![],
 			}

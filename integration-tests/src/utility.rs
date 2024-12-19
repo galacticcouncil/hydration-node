@@ -10,11 +10,11 @@ use hydradx_runtime::{Currencies, Omnipool, Runtime, RuntimeEvent};
 use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_traits::router::PoolType;
 use xcm_emulator::TestExt;
+use pallet_amm_support::types::Asset;
 
 use hydradx_traits::router::Trade;
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use pallet_amm_support::types::AssetType;
 use pallet_amm_support::types::ExecutionType;
 use pallet_amm_support::types::Fee;
 #[test]
@@ -75,8 +75,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_amm_support::types::Filler::LBP,
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![(AssetType::Fungible(DAI), 9980000000)],
-					outputs: vec![(AssetType::Fungible(LRNA), 5640664064)],
+					inputs: vec![Asset::new(DAI, 9980000000)],
+					outputs: vec![Asset::new(LRNA, 5640664064)],
 					fees: vec![Fee::new(
 						DAI,
 						20000000,
@@ -91,8 +91,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::types::Filler::Omnipool,
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![(AssetType::Fungible(LRNA), 5640664064)],
-					outputs: vec![(AssetType::Fungible(HDX), 4682924837974)],
+					inputs: vec![Asset::new(LRNA, 5640664064)],
+					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				}),
@@ -109,8 +109,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 						},
 					))),
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![(AssetType::Fungible(HDX), 4682924837974)],
-					outputs: vec![(AssetType::Fungible(DOT), 2230008413831)],
+					inputs: vec![Asset::new(HDX, 4682924837974)],
+					outputs: vec![Asset::new(DOT, 2230008413831)],
 					fees: vec![Fee::new(
 						DOT,
 						6710155707,
@@ -204,8 +204,8 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 					},
 				))),
 				operation: pallet_amm_support::types::TradeOperation::ExactIn,
-				inputs: vec![(AssetType::Fungible(HDX), amount_to_sell)],
-				outputs: vec![(AssetType::Fungible(DOT), 4549178628)],
+				inputs: vec![Asset::new(HDX, amount_to_sell)],
+				outputs: vec![Asset::new(DOT, 4549178628)],
 				fees: vec![Fee::new(
 					DOT,
 					13688601,
@@ -282,8 +282,8 @@ fn nested_batch_should_represent_embeddedness() {
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_amm_support::types::Filler::LBP,
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![(AssetType::Fungible(DAI), 9980000000)],
-					outputs: vec![(AssetType::Fungible(LRNA), 5640664064)],
+					inputs: vec![Asset::new(DAI, 9980000000)],
+					outputs: vec![Asset::new(LRNA, 5640664064)],
 					fees: vec![Fee::new(
 						DAI,
 						20000000,
@@ -298,8 +298,8 @@ fn nested_batch_should_represent_embeddedness() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_amm_support::types::Filler::Omnipool,
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![(AssetType::Fungible(LRNA), 5640664064)],
-					outputs: vec![(AssetType::Fungible(HDX), 4682924837974)],
+					inputs: vec![Asset::new(LRNA, 5640664064)],
+					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
 					operation_id: vec![ExecutionType::Batch(0), ExecutionType::Batch(1), ExecutionType::Router(2)],
 				}),
@@ -316,8 +316,8 @@ fn nested_batch_should_represent_embeddedness() {
 						},
 					))),
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![(AssetType::Fungible(HDX), 4682924837974)],
-					outputs: vec![(AssetType::Fungible(DOT), 2230008413831)],
+					inputs: vec![Asset::new(HDX, 4682924837974)],
+					outputs: vec![Asset::new(DOT, 2230008413831)],
 					fees: vec![Fee::new(
 						DOT,
 						6710155707,

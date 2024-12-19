@@ -134,8 +134,8 @@ fn event_should_be_deposited() {
 			BOB,
 			Filler::Omnipool,
 			TradeOperation::ExactIn,
-			vec![(AssetType::Fungible(HDX), 1_000_000)],
-			vec![(AssetType::Fungible(DOT), 2_000_000)],
+			vec![Asset::new(HDX, 1_000_000)],
+			vec![Asset::new(DOT, 2_000_000)],
 			vec![Fee::new(HDX, 1_000, ALICE.into()), Fee::new(DOT, 2_000, BOB.into())],
 		);
 
@@ -144,8 +144,8 @@ fn event_should_be_deposited() {
 			filler: BOB,
 			filler_type: Filler::Omnipool,
 			operation: TradeOperation::ExactIn,
-			inputs: vec![(AssetType::Fungible(HDX), 1_000_000)],
-			outputs: vec![(AssetType::Fungible(DOT), 2_000_000)],
+			inputs: vec![Asset::new(HDX, 1_000_000)],
+			outputs: vec![Asset::new(DOT, 2_000_000)],
 			fees: vec![Fee::new(HDX, 1_000, ALICE), Fee::new(DOT, 2_000, BOB)],
 			operation_id: vec![],
 		}

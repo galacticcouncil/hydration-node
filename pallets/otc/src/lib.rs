@@ -39,7 +39,7 @@ use frame_support::{pallet_prelude::*, require_transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::Inspect;
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
-use pallet_amm_support::types::{AssetType, Fee};
+use pallet_amm_support::types::Fee;
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
 use sp_runtime::Permill;
@@ -57,7 +57,7 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-
+use pallet_amm_support::types::Asset;
 pub type Balance = u128;
 pub type OrderId = pallet_amm_support::types::OtcOrderId; //TODO: just use exacty type
 pub type NamedReserveIdentifier = [u8; 8];
@@ -315,8 +315,8 @@ pub mod pallet {
 					order.owner.clone(),
 					pallet_amm_support::types::Filler::OTC(order_id),
 					pallet_amm_support::types::TradeOperation::ExactIn,
-					vec![(AssetType::Fungible(order.asset_in.into()), amount_in)],
-					vec![(AssetType::Fungible(order.asset_out.into()), amount_out)],
+					vec![Asset::new(order.asset_in.into(), amount_in)],
+					vec![Asset::new(order.asset_out.into(), amount_out)],
 					vec![Fee {
 						asset: order.asset_out.into(),
 						amount: fee,
@@ -361,8 +361,8 @@ pub mod pallet {
 				order.owner,
 				pallet_amm_support::types::Filler::OTC(order_id),
 				pallet_amm_support::types::TradeOperation::ExactIn,
-				vec![(AssetType::Fungible(order.asset_in.into()), order.amount_in)],
-				vec![(AssetType::Fungible(order.asset_out.into()), order.amount_out)],
+				vec![Asset::new(order.asset_in.into(), order.amount_in)],
+				vec![Asset::new(order.asset_out.into(), order.amount_out)],
 				vec![Fee {
 					asset: order.asset_out.into(),
 					amount: fee,
