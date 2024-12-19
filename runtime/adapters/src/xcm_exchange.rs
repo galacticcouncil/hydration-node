@@ -1,3 +1,4 @@
+use frame_system::ensure_signed;
 use orml_traits::MultiCurrency;
 use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
@@ -6,6 +7,7 @@ use sp_std::marker::PhantomData;
 use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
 use xcm_executor::AssetsInHolding;
+use pallet_amm_support::types::{ExecutionType, Fee};
 
 /// Implements `AssetExchange` to support the `ExchangeAsset` XCM instruction.
 ///
@@ -27,6 +29,7 @@ where
 	CurrencyIdConvert: Convert<Asset, Option<Runtime::AssetId>>,
 	Currency: MultiCurrency<Runtime::AccountId, CurrencyId = Runtime::AssetId, Balance = Runtime::Balance>,
 	Runtime::Balance: From<u128> + Zero + Into<u128>,
+	Runtime::AssetId: Into<u32>,
 {
 	fn exchange_asset(
 		_origin: Option<&Location>,
@@ -62,7 +65,9 @@ where
 		};
 		let use_onchain_route = vec![];
 
-		if maximal {
+		pallet_amm_support::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange).map_err(|_| give.clone())?;
+
+		let trade_result = if maximal {
 			// sell
 			let Fungible(amount) = given.fun else { return Err(give) };
 			let Fungible(min_buy_amount) = wanted.fun else {
@@ -90,9 +95,10 @@ where
 				);
 				Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
 				let holding: Asset = (wanted.id.clone(), amount_received.into()).into();
+
 				Ok(holding.into())
 			})
-			.map_err(|_| give)
+			.map_err(|_| give.clone())
 		} else {
 			// buy
 			let Fungible(amount) = wanted.fun else { return Err(give) };
@@ -127,7 +133,11 @@ where
 				assets.push(holding);
 				Ok(assets.into())
 			})
-			.map_err(|_| give)
-		}
+			.map_err(|_| give.clone())
+		};
+
+		pallet_amm_support::Pallet::<Runtime>::remove_from_context().map_err(|_| give)?;
+
+		trade_result
 	}
 }

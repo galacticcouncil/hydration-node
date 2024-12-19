@@ -9,8 +9,8 @@ use hydradx_runtime::XYK;
 use hydradx_runtime::{Currencies, Omnipool, Runtime, RuntimeEvent};
 use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_traits::router::PoolType;
-use xcm_emulator::TestExt;
 use pallet_amm_support::types::Asset;
+use xcm_emulator::TestExt;
 
 use hydradx_traits::router::Trade;
 use hydradx_traits::AMM;
@@ -291,7 +291,11 @@ fn nested_batch_should_represent_embeddedness() {
 							.unwrap()
 							.fee_collector,
 					)],
-					operation_id: vec![ExecutionType::Batch(0), ExecutionType::Batch(1), ExecutionType::Router(2)],
+					operation_id: vec![
+						ExecutionType::Batch(0),
+						ExecutionType::Batch(1),
+						ExecutionType::Router(2)
+					],
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
@@ -301,7 +305,11 @@ fn nested_batch_should_represent_embeddedness() {
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Batch(0), ExecutionType::Batch(1), ExecutionType::Router(2)],
+					operation_id: vec![
+						ExecutionType::Batch(0),
+						ExecutionType::Batch(1),
+						ExecutionType::Router(2)
+					],
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
@@ -326,7 +334,11 @@ fn nested_batch_should_represent_embeddedness() {
 							asset_out: DOT,
 						}),
 					)],
-					operation_id: vec![ExecutionType::Batch(0), ExecutionType::Batch(1), ExecutionType::Router(2)],
+					operation_id: vec![
+						ExecutionType::Batch(0),
+						ExecutionType::Batch(1),
+						ExecutionType::Router(2)
+					],
 				})
 			]
 		);
