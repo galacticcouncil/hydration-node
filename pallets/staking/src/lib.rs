@@ -201,11 +201,13 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// List of position votes.
+	#[pallet::getter(fn get_position_votes)]
 	pub(super) type Votes<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
 
 	#[pallet::storage]
 	/// List of processed vote. Used to determine if the vote should be locked in case of voting not in favor.
+	#[pallet::getter(fn processed_votes)]
 	pub(super) type VotesRewarded<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -1019,10 +1021,6 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> Pallet<T> {
 	pub fn get_position(position_id: T::PositionItemId) -> Option<Position<BlockNumberFor<T>>> {
 		Positions::<T>::get(position_id)
-	}
-
-	pub fn get_position_votes(position_id: T::PositionItemId) -> Voting<T::MaxVotes> {
-		Votes::<T>::get(position_id)
 	}
 }
 
