@@ -62,7 +62,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Execution context stack
-	#[pallet::getter(fn id_stack)]
+	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
 	#[pallet::error]
@@ -159,10 +159,6 @@ impl<T: Config> Pallet<T> {
 		ExecutionContext::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
 			stack.pop().ok_or(Error::<T>::EmptyStack.into())
 		})
-	}
-
-	fn get() -> Vec<ExecutionType<IncrementalIdType>> {
-		ExecutionContext::<T>::get().to_vec()
 	}
 
 }

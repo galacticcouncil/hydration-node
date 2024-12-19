@@ -35,22 +35,22 @@ fn event_id_should_be_incremented() {
 fn stack_should_be_populated_when_pushed() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
-		assert_eq!(AmmSupport::get(), vec![ExecutionType::Router(0)]);
-		assert_eq!(AmmSupport::id_stack().into_inner(), vec![ExecutionType::Router(0)]);
+		assert_eq!(AmmSupport::execution_context(), vec![ExecutionType::Router(0)]);
+		assert_eq!(AmmSupport::execution_context().into_inner(), vec![ExecutionType::Router(0)]);
 
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		assert_eq!(
-			AmmSupport::get(),
+			AmmSupport::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 		assert_eq!(
-			AmmSupport::id_stack().into_inner(),
+			AmmSupport::execution_context().into_inner(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
 		assert_eq!(
-			AmmSupport::get(),
+			AmmSupport::execution_context(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
@@ -58,7 +58,7 @@ fn stack_should_be_populated_when_pushed() {
 			]
 		);
 		assert_eq!(
-			AmmSupport::id_stack().into_inner(),
+			AmmSupport::execution_context().into_inner(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
@@ -91,17 +91,17 @@ fn stack_should_be_reduced_when_poped() {
 
 		assert_ok!(AmmSupport::remove_from_context(), ExecutionType::ICE(2));
 		assert_eq!(
-			AmmSupport::get(),
+			AmmSupport::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 		assert_eq!(
-			AmmSupport::id_stack().into_inner(),
+			AmmSupport::execution_context().into_inner(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
 		assert_eq!(
-			AmmSupport::get(),
+			AmmSupport::execution_context(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
@@ -109,7 +109,7 @@ fn stack_should_be_reduced_when_poped() {
 			]
 		);
 		assert_eq!(
-			AmmSupport::id_stack().into_inner(),
+			AmmSupport::execution_context().into_inner(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
