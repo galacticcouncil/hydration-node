@@ -66,7 +66,7 @@ fn generate_votes<T: Config>(position_id: T::PositionItemId, count: u32) {
 		votes: votes.try_into().unwrap(),
 	};
 
-	crate::PositionVotes::<T>::insert(position_id, voting);
+	crate::Votes::<T>::insert(position_id, voting);
 }
 
 fn run_periods<T: Config>(periods: u32) {
