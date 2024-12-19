@@ -17,19 +17,6 @@
 
 use crate::tests::mock::*;
 use crate::Event;
-#[test]
-fn event_id_should_be_incremented() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_eq!(AmmSupport::incremental_id(), 0);
-		assert_eq!(AmmSupport::next_incremental_id().unwrap(), 0);
-
-		assert_eq!(AmmSupport::incremental_id(), 1);
-		assert_eq!(AmmSupport::next_incremental_id().unwrap(), 1);
-
-		assert_eq!(AmmSupport::incremental_id(), 2);
-		assert_eq!(AmmSupport::next_incremental_id().unwrap(), 2);
-	});
-}
 
 #[test]
 fn stack_should_be_populated_when_pushed() {

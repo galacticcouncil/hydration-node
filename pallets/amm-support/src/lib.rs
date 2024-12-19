@@ -104,15 +104,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// Returns next incremental ID and updates the storage.
-	pub fn next_incremental_id() -> Result<IncrementalIdType, DispatchError> {
-		IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
-			let inc_id = *current_id;
-			*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
-			Ok(inc_id)
-		})
-	}
-
 	pub fn deposit_trade_event(
 		swapper: T::AccountId,
 		filler: T::AccountId,
