@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 pub type AssetId = u32;
 pub type Balance = u128;
-
+pub type IncrementalIdType = u32;
 pub type OtcOrderId = u32;
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]

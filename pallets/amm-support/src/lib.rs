@@ -21,11 +21,11 @@
 
 use crate::types::*;
 use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::{ArithmeticError, BoundedVec, DispatchError, DispatchResult};
+use frame_support::sp_runtime::{BoundedVec, DispatchError, DispatchResult};
 use frame_system::pallet_prelude::BlockNumberFor;
-pub use primitives::IncrementalId as IncrementalIdType;
 use sp_core::{ConstU32};
 use sp_std::vec::Vec;
+
 #[cfg(test)]
 mod tests;
 
