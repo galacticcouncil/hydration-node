@@ -36,7 +36,7 @@ pub use pallet::*;
 
 pub const MAX_STACK_SIZE: u32 = 10;
 
-type ExecutionIdStack = BoundedVec<ExecutionType<IncrementalIdType>, ConstU32<MAX_STACK_SIZE>>;
+type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -83,7 +83,7 @@ pub mod pallet {
 			inputs: Vec<Asset>,
 			outputs: Vec<Asset>,
 			fees: Vec<Fee<T::AccountId>>,
-			operation_id: Vec<ExecutionType<IncrementalIdType>>,
+			operation_id: Vec<ExecutionType>,
 		},
 	}
 
@@ -126,7 +126,7 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn add_to_context(execution_type: fn(u32) -> ExecutionType<u32>) -> Result<IncrementalIdType, DispatchError> {
+	pub fn add_to_context(execution_type: fn(u32) -> ExecutionType) -> Result<IncrementalIdType, DispatchError> {
 		//TODO: double check what to do when these can fail, we dont really want failing due to this
 		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
 			let inc_id = *current_id;
@@ -145,9 +145,9 @@ impl<T: Config> Pallet<T> {
 		Ok(next_id)
 	}
 
-	pub fn remove_from_context() -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
+	pub fn remove_from_context() -> Result<ExecutionType, DispatchError> {
 		//TODO: check what to do when it fails, we might dont want to bloc ktrades becase of it
-		ExecutionContext::<T>::try_mutate(|stack| -> Result<ExecutionType<IncrementalIdType>, DispatchError> {
+		ExecutionContext::<T>::try_mutate(|stack| -> Result<ExecutionType, DispatchError> {
 			stack.pop().ok_or(Error::<T>::EmptyStack.into())
 		})
 	}

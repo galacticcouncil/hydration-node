@@ -52,13 +52,13 @@ impl Asset {
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum ExecutionType<IncrementalId> {
-	Router(IncrementalId),
-	DCA(IncrementalId), //We might need schedule id. How about otc?
-	ICE(IncrementalId),
-	Batch(IncrementalId),
-	Omnipool(IncrementalId),
-	XcmExchange(IncrementalId),
+pub enum ExecutionType{
+	Router(IncrementalIdType),
+	DCA(IncrementalIdType), //We might need schedule id. How about otc?
+	ICE(IncrementalIdType),
+	Batch(IncrementalIdType),
+	Omnipool(IncrementalIdType),
+	XcmExchange(IncrementalIdType),
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
