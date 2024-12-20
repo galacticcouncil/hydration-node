@@ -15,7 +15,6 @@ pub enum Filler {
 	XYK(AssetId),        // share token
 	LBP,
 	OTC(OtcOrderId),
-	XcmExchange, //TODO: do we need some info?
 	Xcm(Option<[u8; 32]>), //TODO: VERIFY
 	             // ICE(solution_id/block id),      swapper: alice, filler: solver
 }
