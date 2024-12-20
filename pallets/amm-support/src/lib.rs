@@ -126,7 +126,8 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn add_to_context(execution_type: fn(u32) -> ExecutionType) -> Result<IncrementalIdType, DispatchError> {
+	pub fn add_to_context<F>(execution_type: F) -> Result<IncrementalIdType, DispatchError>
+		where F: FnOnce(u32) -> ExecutionType {
 		//TODO: double check what to do when these can fail, we dont really want failing due to this
 		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
 			let inc_id = *current_id;

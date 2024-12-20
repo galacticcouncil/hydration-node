@@ -7,6 +7,7 @@ pub type AssetId = u32;
 pub type Balance = u128;
 pub type IncrementalIdType = u32;
 pub type OtcOrderId = u32;
+pub type ScheduleId = u32;
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum Filler {
@@ -54,7 +55,7 @@ impl Asset {
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum ExecutionType{
 	Router(IncrementalIdType),
-	DCA(IncrementalIdType), //We might need schedule id. How about otc?
+	DCA(ScheduleId, IncrementalIdType),
 	ICE(IncrementalIdType),
 	Batch(IncrementalIdType),
 	Omnipool(IncrementalIdType),

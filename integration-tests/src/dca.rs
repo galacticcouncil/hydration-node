@@ -211,6 +211,7 @@ mod omnipool {
 
 			let dca_budget = 1000 * UNITS;
 			let amount_out = 100 * UNITS;
+			let schedule_id = 0;
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, amount_out, dca_budget);
 			create_schedule(ALICE, schedule1);
 
@@ -232,7 +233,7 @@ mod omnipool {
 						outputs: vec![Asset::new(LRNA, 70210545436437)],
 						fees: vec![Fee::new(LRNA, 35105272718, Omnipool::protocol_account()),],
 						operation_id: vec![
-							ExecutionType::DCA(0),
+							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						]
@@ -246,7 +247,7 @@ mod omnipool {
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(DAI, 250626566417, Omnipool::protocol_account()),],
 						operation_id: vec![
-							ExecutionType::DCA(0),
+							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
@@ -270,7 +271,7 @@ mod omnipool {
 						outputs: vec![Asset::new(LRNA, 70210548448729)],
 						fees: vec![Fee::new(LRNA, 35105274224, Omnipool::protocol_account()),],
 						operation_id: vec![
-							ExecutionType::DCA(3),
+							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
@@ -284,7 +285,7 @@ mod omnipool {
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(DAI, 250626566417, Omnipool::protocol_account()),],
 						operation_id: vec![
-							ExecutionType::DCA(3),
+							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
@@ -696,6 +697,7 @@ mod omnipool {
 
 			let dca_budget = 1100 * UNITS;
 			let amount_to_sell = 100 * UNITS;
+			let schedule_id = 0;
 			let schedule1 =
 				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, dca_budget, HDX, DAI, amount_to_sell);
 			create_schedule(ALICE, schedule1);
@@ -718,7 +720,7 @@ mod omnipool {
 						outputs: vec![Asset::new(LRNA, 49999999159957)],
 						fees: vec![Fee::new(LRNA, 24999999579, Omnipool::protocol_account()),],
 						operation_id: vec![
-							ExecutionType::DCA(0),
+							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
@@ -732,7 +734,7 @@ mod omnipool {
 						outputs: vec![Asset::new(DAI, 71214372624126)],
 						fees: vec![Fee::new(DAI, 178482136903, Omnipool::protocol_account()),],
 						operation_id: vec![
-							ExecutionType::DCA(0),
+							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
@@ -756,7 +758,7 @@ mod omnipool {
 						outputs: vec![Asset::new(LRNA, 49999997360044)],
 						fees: vec![Fee::new(LRNA, 24999998680, Omnipool::protocol_account()),],
 						operation_id: vec![
-							ExecutionType::DCA(3),
+							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
@@ -770,7 +772,7 @@ mod omnipool {
 						outputs: vec![Asset::new(DAI, 71214367826179)],
 						fees: vec![Fee::new(DAI, 178482124878, Omnipool::protocol_account()),],
 						operation_id: vec![
-							ExecutionType::DCA(3),
+							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
