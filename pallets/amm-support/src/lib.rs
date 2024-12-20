@@ -129,6 +129,7 @@ impl<T: Config> Pallet<T> {
 	where
 		F: FnOnce(u32) -> ExecutionType,
 	{
+		//TODO: create patch 4
 		//TODO: double check what to do when these can fail, we dont really want failing due to this
 		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
 			let inc_id = *current_id;
