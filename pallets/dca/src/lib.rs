@@ -63,6 +63,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::traits::DefensiveOption;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -70,33 +71,32 @@ use frame_support::{
 	transactional,
 	weights::WeightToFee as FrameSupportWeight,
 };
-use frame_support::traits::DefensiveOption;
 use frame_system::{
 	ensure_signed,
-	Origin,
 	pallet_prelude::{BlockNumberFor, OriginFor},
+	Origin,
 };
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
-use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
-use sp_runtime::{
-	ArithmeticError,
-	BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding, traits::{BlockNumberProvider, Saturating},
-};
+use rand::{Rng, SeedableRng};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::CheckedMul;
+use sp_runtime::{
+	traits::{BlockNumberProvider, Saturating},
+	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
+};
 use sp_std::cmp::min;
 use sp_std::vec::Vec;
 
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
+use hydradx_traits::router::{inverse_route, RouteProvider};
+use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
-use hydradx_traits::router::{inverse_route, RouteProvider};
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 pub use pallet::*;
-use pallet_amm_support::types::{ExecutionType,};
+use pallet_amm_support::types::ExecutionType;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -121,8 +121,8 @@ pub mod pallet {
 	use sp_runtime::Percent;
 
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
+	use hydradx_traits::{NativePriceOracle, PriceOracle};
 
 	use super::*;
 

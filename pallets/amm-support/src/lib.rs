@@ -18,12 +18,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::too_many_arguments)]
 
-
 use crate::types::*;
 use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::{BoundedVec, DispatchError, DispatchResult};
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_core::{ConstU32};
+use sp_core::ConstU32;
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -127,7 +126,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn add_to_context<F>(execution_type: F) -> Result<IncrementalIdType, DispatchError>
-		where F: FnOnce(u32) -> ExecutionType {
+	where
+		F: FnOnce(u32) -> ExecutionType,
+	{
 		//TODO: double check what to do when these can fail, we dont really want failing due to this
 		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
 			let inc_id = *current_id;
@@ -152,5 +153,4 @@ impl<T: Config> Pallet<T> {
 			stack.pop().ok_or(Error::<T>::EmptyStack.into())
 		})
 	}
-
 }

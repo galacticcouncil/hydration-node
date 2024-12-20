@@ -1101,9 +1101,10 @@ pub mod pallet {
 				pallet_amm_support::types::Filler::Omnipool,
 				pallet_amm_support::types::TradeOperation::ExactIn,
 				vec![Asset::new(asset_in.into(), amount)],
-				vec![Asset::new(T::HubAssetId::get().into(),
-					*state_changes.asset_in.delta_hub_reserve)
-				],
+				vec![Asset::new(
+					T::HubAssetId::get().into(),
+					*state_changes.asset_in.delta_hub_reserve,
+				)],
 				vec![Fee::new(
 					T::HubAssetId::get().into(),
 					state_changes.fee.protocol_fee,
@@ -1117,12 +1118,11 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::types::Filler::Omnipool,
 				pallet_amm_support::types::TradeOperation::ExactIn,
-				vec![Asset::new(T::HubAssetId::get().into(),
-					*state_changes.asset_out.delta_hub_reserve)
-				],
-				vec![Asset::new(asset_out.into(),
-					*state_changes.asset_out.delta_reserve)
-				],
+				vec![Asset::new(
+					T::HubAssetId::get().into(),
+					*state_changes.asset_out.delta_hub_reserve,
+				)],
+				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
 				vec![Fee {
 					asset: asset_out.into(),
 					amount: state_changes.fee.asset_fee,
@@ -1345,13 +1345,11 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::types::Filler::Omnipool,
 				pallet_amm_support::types::TradeOperation::ExactOut,
-				vec![
-					Asset::new(asset_in.into(),
-					*state_changes.asset_in.delta_reserve),
-				],
-				vec![Asset::new(T::HubAssetId::get().into(),
-					*state_changes.asset_in.delta_hub_reserve)
-				],
+				vec![Asset::new(asset_in.into(), *state_changes.asset_in.delta_reserve)],
+				vec![Asset::new(
+					T::HubAssetId::get().into(),
+					*state_changes.asset_in.delta_hub_reserve,
+				)],
 				vec![Fee::new(
 					T::HubAssetId::get().into(),
 					state_changes.fee.protocol_fee,
@@ -1365,12 +1363,11 @@ pub mod pallet {
 				Self::protocol_account(),
 				pallet_amm_support::types::Filler::Omnipool,
 				pallet_amm_support::types::TradeOperation::ExactOut,
-				vec![Asset::new(T::HubAssetId::get().into(),
-					*state_changes.asset_out.delta_hub_reserve),
-				],
-				vec![Asset::new(asset_out.into(),
-					*state_changes.asset_out.delta_reserve)
-				],
+				vec![Asset::new(
+					T::HubAssetId::get().into(),
+					*state_changes.asset_out.delta_hub_reserve,
+				)],
+				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
 				vec![Fee {
 					asset: asset_out.into(),
 					amount: state_changes.fee.asset_fee,
@@ -1905,14 +1902,11 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_amm_support::types::Filler::Omnipool,
 			pallet_amm_support::types::TradeOperation::ExactIn,
-			vec![
-				Asset::new(T::HubAssetId::get().into(),
-				*state_changes.asset.delta_hub_reserve),
-			],
-			vec![
-				Asset::new(asset_out.into(),
-				*state_changes.asset.delta_reserve),
-			],
+			vec![Asset::new(
+				T::HubAssetId::get().into(),
+				*state_changes.asset.delta_hub_reserve,
+			)],
+			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			vec![Fee {
 				asset: asset_out.into(),
 				amount: state_changes.fee.asset_fee,
@@ -2034,14 +2028,11 @@ impl<T: Config> Pallet<T> {
 			Self::protocol_account(),
 			pallet_amm_support::types::Filler::Omnipool,
 			pallet_amm_support::types::TradeOperation::ExactOut,
-			vec![
-				Asset::new(T::HubAssetId::get().into(),
-				*state_changes.asset.delta_hub_reserve),
-			],
-			vec![
-				Asset::new(asset_out.into(),
-				*state_changes.asset.delta_reserve),
-			],
+			vec![Asset::new(
+				T::HubAssetId::get().into(),
+				*state_changes.asset.delta_hub_reserve,
+			)],
+			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
 			vec![Fee {
 				asset: asset_out.into(),
 				amount: state_changes.fee.asset_fee,

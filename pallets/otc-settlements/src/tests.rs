@@ -24,8 +24,8 @@ pub use crate::mock::*;
 use frame_support::{assert_ok, assert_storage_noop};
 use hydradx_traits::Inspect;
 use orml_traits::MultiCurrency;
-use pallet_amm_support::types::{Fee};
 use pallet_amm_support::types::Asset;
+use pallet_amm_support::types::Fee;
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);

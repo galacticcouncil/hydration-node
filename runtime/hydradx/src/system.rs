@@ -44,7 +44,7 @@ use primitives::constants::{
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
 use scale_info::TypeInfo;
-use sp_runtime::{DispatchResult};
+use sp_runtime::DispatchResult;
 
 pub struct CallFilter;
 impl Contains<RuntimeCall> for CallFilter {

@@ -1,4 +1,5 @@
 use orml_traits::MultiCurrency;
+use pallet_amm_support::types::ExecutionType;
 use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
@@ -6,7 +7,6 @@ use sp_std::marker::PhantomData;
 use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
 use xcm_executor::AssetsInHolding;
-use pallet_amm_support::types::{ExecutionType};
 
 /// Implements `AssetExchange` to support the `ExchangeAsset` XCM instruction.
 ///

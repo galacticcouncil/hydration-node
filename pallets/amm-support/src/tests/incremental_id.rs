@@ -23,7 +23,10 @@ fn stack_should_be_populated_when_pushed() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		assert_eq!(AmmSupport::execution_context(), vec![ExecutionType::Router(0)]);
-		assert_eq!(AmmSupport::execution_context().into_inner(), vec![ExecutionType::Router(0)]);
+		assert_eq!(
+			AmmSupport::execution_context().into_inner(),
+			vec![ExecutionType::Router(0)]
+		);
 
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		assert_eq!(
