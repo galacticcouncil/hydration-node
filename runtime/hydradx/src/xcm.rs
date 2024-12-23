@@ -13,6 +13,7 @@ use frame_support::{
 	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
+use frame_system::unique;
 use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
@@ -421,6 +422,7 @@ pub type LocationToAccountId = (
 	EvmAddressConversion<RelayNetwork>,
 );
 use xcm_executor::traits::ConvertLocation;
+use pallet_amm_support::types::ExecutionType;
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);
@@ -468,3 +470,33 @@ pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	OmnipoolProtocolAccount,
 	TreasuryAccount,
 >;
+
+
+pub struct HydrationSendXcm<Inner>(PhantomData<Inner>);
+impl<Inner: SendXcm> SendXcm for HydrationSendXcm<Inner> {
+	type Ticket = (Inner::Ticket, [u8; 32]);
+
+	fn validate(
+		destination: &mut Option<Location>,
+		message: &mut Option<Xcm<()>>,
+	) -> SendResult<Self::Ticket> {
+		let mut message = message.take().ok_or(SendError::MissingArgument)?;
+		let unique_id = if let Some(SetTopic(id)) = message.last() {
+			*id
+		} else {
+			let unique_id = unique(&message);
+			message.0.push(SetTopic(unique_id));
+			unique_id
+		};
+		let (ticket, assets) = Inner::validate(destination, &mut Some(message))?;
+		Ok(((ticket, unique_id), assets))
+	}
+
+	fn deliver(ticket: Self::Ticket) -> Result<XcmHash, SendError> {
+		let (ticket, unique_id) = ticket;
+		pallet_amm_support::Pallet::<Runtime>::add_to_context(|id| ExecutionType::Xcm(unique_id, id)).map_err(|_| SendError::Transport("Unexpected error at modifying unified events stack"))?;
+		Inner::deliver(ticket)?;
+		pallet_amm_support::Pallet::<Runtime>::remove_from_context().map_err(|_| SendError::Transport("Unexpected error at modifying unified events stack"))?;
+		Ok(unique_id)
+	}
+}

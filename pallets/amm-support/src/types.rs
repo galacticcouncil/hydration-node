@@ -16,7 +16,6 @@ pub enum Filler {
 	XYK(AssetId),        // share token
 	LBP,
 	OTC(OtcOrderId),
-	Xcm(Option<[u8; 32]>), //TODO: VERIFY
 	                       // ICE(solution_id/block id),      swapper: alice, filler: solver
 }
 
@@ -56,6 +55,7 @@ pub enum ExecutionType {
 	Batch(IncrementalIdType),
 	Omnipool(IncrementalIdType),
 	XcmExchange(IncrementalIdType),
+	Xcm([u8; 32], IncrementalIdType),
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
