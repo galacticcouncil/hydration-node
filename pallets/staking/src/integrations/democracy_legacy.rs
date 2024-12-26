@@ -6,6 +6,9 @@ use orml_traits::MultiCurrencyExtended;
 use pallet_democracy::traits::DemocracyHooks;
 use pallet_democracy::{AccountVote, ReferendumIndex};
 use sp_runtime::FixedPointNumber;
+use sp_core::Get;
+use crate::types::Vote;
+
 
 pub struct LegacyStakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 

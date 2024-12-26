@@ -100,7 +100,7 @@ benchmarks! {
 			pool_id,
 			BoundedVec::truncate_from(initial),
 		)?;
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, added_liquidity)
+	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, added_liquidity.try_into().unwrap())
 	verify {
 		assert!(T::Currency::free_balance(pool_id, &lp_provider) > 0u128);
 	}
