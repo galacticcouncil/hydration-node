@@ -16,7 +16,7 @@ mod evm;
 mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
-mod global_account_derivation;
+mod xcm;
 mod insufficient_assets_ed;
 mod multi_payment;
 mod non_native_fee;

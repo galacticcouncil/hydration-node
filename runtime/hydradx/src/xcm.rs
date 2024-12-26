@@ -13,7 +13,6 @@ use frame_support::{
 	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
-use frame_system::unique;
 use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
@@ -224,8 +223,53 @@ impl Config for XcmConfig {
 
 impl cumulus_pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 }
+
+pub struct WithUnifiedEventSupport<Inner>(PhantomData<Inner>);
+
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfig as Config>::RuntimeCall> for WithUnifiedEventSupport<Inner> {
+	type Prepared = <Inner as cumulus_primitives_core::ExecuteXcm<RuntimeCall>>::Prepared;
+
+	fn prepare(message: Xcm<<XcmConfig as Config>::RuntimeCall>) -> Result<Self::Prepared, Xcm<<XcmConfig as Config>::RuntimeCall>> {
+		Inner::prepare(message)
+	}
+
+	fn execute(
+		origin: impl Into<Location>,
+		pre: Self::Prepared,
+		id: &mut XcmHash,
+		weight_credit: XcmWeight,
+	) -> Outcome {
+		let Ok(_) = pallet_amm_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(*id, event_id))
+		else {
+			return Outcome::Error {
+				error: XcmError::FailedToTransactAsset("Unexpected error at modifying unified events stack"),
+			};
+		};
+
+		let outcome = Inner::execute(origin, pre, id, weight_credit);
+
+		let Ok(_) = pallet_amm_support::Pallet::<Runtime>::remove_from_context() else {
+			return Outcome::Error {
+				error: XcmError::FailedToTransactAsset("Unexpected error at modifying unified events stack"),
+			};
+		};
+
+		outcome
+	}
+
+	fn charge_fees(location: impl Into<Location>, fees: Assets) -> XcmResult {
+		Inner::charge_fees(location, fees)
+	}
+}
+
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> XcmAssetTransfers for WithUnifiedEventSupport<Inner> {
+	type IsReserve = <XcmConfig as Config>::IsReserve;
+	type IsTeleporter = <XcmConfig as Config>::IsTeleporter;
+	type AssetTransactor = <XcmConfig as Config>::AssetTransactor;
+}
+
 
 parameter_types! {
 	pub const MaxInboundSuspended: u32 = 1_000;
@@ -262,7 +306,7 @@ impl orml_xtokens::Config for Runtime {
 	type CurrencyIdConvert = CurrencyIdConvert;
 	type AccountIdToLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
@@ -291,7 +335,7 @@ impl pallet_xcm::Config for Runtime {
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
@@ -322,7 +366,7 @@ impl pallet_message_queue::Config for Runtime {
 	type MessageProcessor =
 		pallet_message_queue::mock_helpers::NoopMessageProcessor<cumulus_primitives_core::AggregateMessageOrigin>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MessageProcessor = xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, XcmExecutor<XcmConfig>, RuntimeCall>;
+	type MessageProcessor = xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, WithUnifiedEventSupport<XcmExecutor<XcmConfig>>, RuntimeCall>;
 	type Size = u32;
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
 	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
@@ -421,8 +465,8 @@ pub type LocationToAccountId = (
 	// Convert ETH to local substrate account
 	EvmAddressConversion<RelayNetwork>,
 );
-use xcm_executor::traits::ConvertLocation;
 use pallet_amm_support::types::ExecutionType;
+use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);
@@ -470,33 +514,3 @@ pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	OmnipoolProtocolAccount,
 	TreasuryAccount,
 >;
-
-
-pub struct HydrationSendXcm<Inner>(PhantomData<Inner>);
-impl<Inner: SendXcm> SendXcm for HydrationSendXcm<Inner> {
-	type Ticket = (Inner::Ticket, [u8; 32]);
-
-	fn validate(
-		destination: &mut Option<Location>,
-		message: &mut Option<Xcm<()>>,
-	) -> SendResult<Self::Ticket> {
-		let mut message = message.take().ok_or(SendError::MissingArgument)?;
-		let unique_id = if let Some(SetTopic(id)) = message.last() {
-			*id
-		} else {
-			let unique_id = unique(&message);
-			message.0.push(SetTopic(unique_id));
-			unique_id
-		};
-		let (ticket, assets) = Inner::validate(destination, &mut Some(message))?;
-		Ok(((ticket, unique_id), assets))
-	}
-
-	fn deliver(ticket: Self::Ticket) -> Result<XcmHash, SendError> {
-		let (ticket, unique_id) = ticket;
-		pallet_amm_support::Pallet::<Runtime>::add_to_context(|id| ExecutionType::Xcm(unique_id, id)).map_err(|_| SendError::Transport("Unexpected error at modifying unified events stack"))?;
-		Inner::deliver(ticket)?;
-		pallet_amm_support::Pallet::<Runtime>::remove_from_context().map_err(|_| SendError::Transport("Unexpected error at modifying unified events stack"))?;
-		Ok(unique_id)
-	}
-}
