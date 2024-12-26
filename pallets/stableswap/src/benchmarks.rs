@@ -98,9 +98,9 @@ benchmarks! {
 		// Worst case is adding additional liquidity and not initial liquidity
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, added_liquidity.try_into().unwrap())
+	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, added_liquidity)
 	verify {
 		assert!(T::Currency::free_balance(pool_id, &lp_provider) > 0u128);
 	}
@@ -139,7 +139,7 @@ benchmarks! {
 
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 		let desired_shares = 1198499641600967085948u128;
 	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, desired_shares,asset_id, 1221886049851226)
@@ -183,11 +183,11 @@ benchmarks! {
 		// Worst case is adding additional liquidity and not initial liquidity
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
 			pool_id,
-			added_liquidity.try_into().unwrap()
+			BoundedVec::truncate_from(added_liquidity)
 		)?;
 
 		// just make sure that LP provided all his liquidity of this asset
@@ -236,11 +236,11 @@ benchmarks! {
 		// Worst case is adding additional liquidity and not initial liquidity
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
 			pool_id,
-			added_liquidity.try_into().unwrap()
+			BoundedVec::truncate_from(added_liquidity)
 		)?;
 
 		// just make sure that LP provided all his liquidity of this asset
@@ -288,11 +288,11 @@ benchmarks! {
 		// Worst case is adding additional liquidity and not initial liquidity
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
 			pool_id,
-			added_liquidity.try_into().unwrap()
+			BoundedVec::truncate_from(added_liquidity)
 		)?;
 
 		// just make sure that LP provided all his liquidity of this asset
@@ -338,7 +338,7 @@ benchmarks! {
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 
 		let seller : T::AccountId = account("seller", 0, 1);
@@ -392,7 +392,7 @@ benchmarks! {
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 
 		let buyer: T::AccountId = account("buyer", 0, 1);
@@ -570,7 +570,7 @@ benchmarks! {
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 
 		let seller : T::AccountId = account("seller", 0, 1);
@@ -634,7 +634,7 @@ benchmarks! {
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 
 		let buyer: T::AccountId = account("buyer", 0, 1);
@@ -697,7 +697,7 @@ benchmarks! {
 		)?;
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
-			initial.try_into().unwrap(),
+			BoundedVec::truncate_from(initial),
 		)?;
 
 		let buyer: T::AccountId = account("buyer", 0, 1);

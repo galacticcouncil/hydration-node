@@ -25,7 +25,7 @@ use hydradx_traits::router::AssetPair as Pair;
 use primitives::AssetId;
 use sp_runtime::FixedPointNumber;
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, BoundedVec};
 use xcm_emulator::TestExt;
 
 use frame_support::storage::with_transaction;
@@ -5591,7 +5591,7 @@ pub fn init_stableswap_with_details(
 	Stableswap::add_liquidity(
 		hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 		pool_id,
-		initial.try_into().unwrap(),
+		BoundedVec::truncate_from(initial),
 	)?;
 
 	Ok((pool_id, asset_in, asset_out))

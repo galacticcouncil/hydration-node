@@ -1048,6 +1048,12 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		);
 
 		set_relaychain_block_number(700);
+		//Arrange - claim before withdraw
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			deposit_id,
+			yield_farm_1_id
+		),);
 
 		let charlie_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
 		//Act 2 - claim and withdraw should in the same period should work.
@@ -1058,9 +1064,12 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		));
 
 		//Assert
-		//NOTE: withdraw shares claims rewards automatically
-		let charlie_new_hdx_balance = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
-		assert!(charlie_new_hdx_balance > charlie_hdx_balance_0);
+		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
+
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
+			charlie_hdx_balance_0
+		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
 		//position should be unlocked.
@@ -1839,6 +1848,134 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 			price_adjustment,
 			FixedU128::from_inner(830_817_151_946_084_689_817_u128)
 		);
+	});
+}
+
+#[test]
+fn claim_rewards_should_work_when_farm_is_updated() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let yield_farm_1_id = 2;
+		let yield_farm_2_id = 3;
+
+		//Arrange
+		init_omnipool();
+		seed_lm_pot();
+		//necessary for oracle to have a price.
+		do_lrna_hdx_trade();
+
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
+		set_relaychain_block_number(100);
+		create_global_farm(None, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, ETH);
+		create_yield_farm(global_farm_1_id, DOT);
+
+		set_relaychain_block_number(300);
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CHARLIE.into(),
+			ETH,
+			10_000 * UNITS as i128,
+		));
+
+		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, 1_000 * UNITS);
+		assert_nft_owner!(
+			hydradx_runtime::OmnipoolCollectionId::get(),
+			position_id,
+			CHARLIE.into()
+		);
+
+		set_relaychain_block_number(400);
+		let deposit_id = 1;
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			global_farm_1_id,
+			yield_farm_1_id,
+			position_id
+		));
+
+		set_relaychain_block_number(500);
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			CHARLIE.into(),
+			DOT,
+			10_000 * UNITS as i128,
+		));
+
+		let position_id = omnipool_add_liquidity(CHARLIE.into(), DOT, UNITS);
+		assert_nft_owner!(
+			hydradx_runtime::OmnipoolCollectionId::get(),
+			position_id,
+			CHARLIE.into()
+		);
+
+		set_relaychain_block_number(550);
+		let deposit_id_2 = 2;
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			global_farm_1_id,
+			yield_farm_2_id,
+			position_id
+		));
+
+		//Act - update farm
+		let planned_yielding_periods: BlockNumber = 2_000_000_u32;
+		let yield_per_period = Perquintill::from_parts(550_776_255_707);
+		let min_deposit = 5_000;
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::update_global_farm(
+			RuntimeOrigin::root(),
+			global_farm_1_id,
+			planned_yielding_periods,
+			yield_per_period,
+			min_deposit
+		));
+		//Assert
+		let g_farm =
+			warehouse_liquidity_mining::GlobalFarm::<hydradx_runtime::Runtime, Instance1>::get(global_farm_1_id)
+				.unwrap();
+		assert_eq!(g_farm.planned_yielding_periods, planned_yielding_periods);
+		assert_eq!(g_farm.yield_per_period, yield_per_period);
+		assert_eq!(g_farm.min_deposit, min_deposit);
+
+		let charlie_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
+		//Act 1 - claim rewards for 2-nd yield-farm-entry
+		set_relaychain_block_number(600);
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			deposit_id_2,
+			yield_farm_2_id
+		));
+
+		//Assert
+		//NOTE: can't assert state in the deposit because fields are private
+		let charlie_new_hdx_balance_after_first_claim = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
+		assert!(
+			charlie_new_hdx_balance_after_first_claim > charlie_hdx_balance_0,
+			"Charlie's balance should be increased"
+		);
+		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000030740535405);
+
+		//Act 2 - claim rewards for differnt yield-farm-entry in the same period should work.
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			deposit_id,
+			yield_farm_1_id
+		));
+
+		//Assert
+		//NOTE: can't assert state in the deposit because fields are private
+		let charlie_new_hdx_balance_after_2nd_claim = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
+		assert!(
+			charlie_new_hdx_balance_after_2nd_claim > charlie_new_hdx_balance_after_first_claim,
+			"Charlie's balance should be increased"
+		);
+		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031130694537);
 	});
 }
 

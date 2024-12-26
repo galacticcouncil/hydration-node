@@ -32,7 +32,6 @@ pub fn has_event(event: mock::RuntimeEvent) -> bool {
 pub mod add_liquidity_and_join_farms;
 pub mod add_liquidity_stableswap_omnipool_and_join_farms;
 pub mod add_liquidity_with_limit_and_join_farms;
-pub mod claim_rewards;
 pub mod create_global_farm;
 pub mod create_yield_farm;
 pub mod deposit_shares;

@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "273.0.0"
+version = "276.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -24,6 +24,8 @@ evm = { workspace = true, features = ["with-codec"] }
 
 # local dependencies
 primitives = { workspace = true }
+hydradx-adapters = { workspace = true }
+hydradx-traits = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-genesis-history = { workspace = true }
 pallet-omnipool = { workspace = true }
@@ -41,33 +43,6 @@ pallet-referrals = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
-
-# pallets
-pallet-bags-list = { workspace = true }
-pallet-balances = { workspace = true }
-pallet-transaction-payment = { workspace = true }
-pallet-transaction-payment-rpc-runtime-api = { workspace = true }
-pallet-treasury = { workspace = true }
-pallet-utility = { workspace = true }
-pallet-aura = { workspace = true }
-pallet-session = { workspace = true }
-pallet-timestamp = { workspace = true }
-pallet-preimage = { workspace = true }
-pallet-scheduler = { workspace = true }
-pallet-identity = { workspace = true }
-pallet-collective = { workspace = true }
-pallet-tips = { workspace = true }
-pallet-proxy = { workspace = true }
-pallet-multisig = { workspace = true }
-pallet-democracy = { workspace = true }
-pallet-elections-phragmen = { workspace = true }
-pallet-uniques = { workspace = true }
-pallet-message-queue = { workspace = true }
-pallet-state-trie-migration = { workspace = true }
-
-# Warehouse dependencies
-hydradx-adapters = { workspace = true }
-hydradx-traits = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-asset-registry = { workspace = true }
@@ -82,6 +57,33 @@ pallet-otc = { workspace = true }
 pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
+pallet-liquidation = { workspace = true }
+
+# pallets
+pallet-bags-list = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-conviction-voting = { workspace = true }
+pallet-transaction-payment = { workspace = true }
+pallet-transaction-payment-rpc-runtime-api = { workspace = true }
+pallet-treasury = { workspace = true }
+pallet-utility = { workspace = true }
+pallet-aura = { workspace = true }
+pallet-session = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-preimage = { workspace = true }
+pallet-scheduler = { workspace = true }
+pallet-identity = { workspace = true }
+pallet-collective = { workspace = true }
+pallet-tips = { workspace = true }
+pallet-proxy = { workspace = true }
+pallet-multisig = { workspace = true }
+pallet-referenda = { workspace = true }
+pallet-democracy = { workspace = true }
+pallet-elections-phragmen = { workspace = true }
+pallet-uniques = { workspace = true }
+pallet-whitelist = { workspace = true }
+pallet-message-queue = { workspace = true }
+pallet-state-trie-migration = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -130,6 +132,7 @@ frame-system-rpc-runtime-api = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
 frame-metadata-hash-extension = { workspace = true }
 sp-api = { workspace = true }
+sp-arithmetic = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-genesis-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
@@ -218,6 +221,10 @@ runtime-benchmarks = [
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
+    "pallet-liquidation/runtime-benchmarks",
+    "pallet-conviction-voting/runtime-benchmarks",
+    "pallet-referenda/runtime-benchmarks",
+    "pallet-whitelist/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -295,6 +302,7 @@ std = [
     "pallet-duster/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
+    "sp-arithmetic/std",
     "sp-block-builder/std",
     "sp-genesis-builder/std",
     "sp-consensus-aura/std",
@@ -329,6 +337,10 @@ std = [
     "parachains-common/std",
     "polkadot-runtime-common/std",
     "pallet-state-trie-migration/std",
+    "pallet-liquidation/std",
+    "pallet-conviction-voting/std",
+    "pallet-referenda/std",
+    "pallet-whitelist/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -400,6 +412,10 @@ try-runtime = [
     "pallet-xyk-liquidity-mining/try-runtime",
     "pallet-message-queue/try-runtime",
     "pallet-state-trie-migration/try-runtime",
+    "pallet-liquidation/try-runtime",
+    "pallet-conviction-voting/try-runtime",
+    "pallet-referenda/try-runtime",
+    "pallet-whitelist/try-runtime",
 ]
 
 metadata-hash = [
