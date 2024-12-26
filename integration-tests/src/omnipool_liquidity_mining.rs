@@ -640,7 +640,7 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 			amount: 1_000 * UNITS,
 			position_id: 7,
 		}
-			.into()]);
+		.into()]);
 
 		expect_lm_events(vec![
 			pallet_omnipool_liquidity_mining::Event::SharesDeposited {
@@ -652,7 +652,7 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 				shares_amount: 1_000 * UNITS,
 				position_id: 7,
 			}
-				.into(),
+			.into(),
 			pallet_omnipool_liquidity_mining::Event::SharesRedeposited {
 				global_farm_id: global_farm_2_id,
 				yield_farm_id: yield_farm_2_id,
@@ -662,7 +662,7 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 				shares_amount: 1_000 * UNITS,
 				position_id: 7,
 			}
-				.into(),
+			.into(),
 			pallet_omnipool_liquidity_mining::Event::SharesRedeposited {
 				global_farm_id: global_farm_3_id,
 				yield_farm_id: yield_farm_3_id,
@@ -672,10 +672,8 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 				shares_amount: 1_000 * UNITS,
 				position_id: 7,
 			}
-				.into(),
+			.into(),
 		]);
-
-
 	});
 }
 
@@ -898,7 +896,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 					AssetAmount::new(stable_asset_2, 10 * UNITS),
 				],
 			}
-				.into()]);
+			.into()]);
 
 			let stableswap_shares_amount = 20044549999405;
 			expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
@@ -907,7 +905,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 				amount: stableswap_shares_amount,
 				position_id: 8,
 			}
-				.into()]);
+			.into()]);
 
 			expect_lm_events(vec![
 				pallet_omnipool_liquidity_mining::Event::SharesDeposited {
