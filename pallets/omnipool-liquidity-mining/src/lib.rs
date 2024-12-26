@@ -1047,7 +1047,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Add documentation similar we have for other extrinsics
 		/// This function allows user to add liquidity to stableswap pool,
 		/// then adding the stable shares as liquidity to omnipool
 		/// then use that omnipool shares to join multiple farms.
