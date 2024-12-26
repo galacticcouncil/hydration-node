@@ -633,6 +633,49 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 			.unwrap();
 
 		assert_eq!(deposit, expected_deposit);
+
+		expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
+			who: CHARLIE.into(),
+			asset_id: ETH,
+			amount: 1_000 * UNITS,
+			position_id: 7,
+		}
+			.into()]);
+
+		expect_lm_events(vec![
+			pallet_omnipool_liquidity_mining::Event::SharesDeposited {
+				global_farm_id: global_farm_1_id,
+				yield_farm_id: yield_farm_1_id,
+				deposit_id: 1,
+				asset_id: ETH,
+				who: CHARLIE.into(),
+				shares_amount: 1_000 * UNITS,
+				position_id: 7,
+			}
+				.into(),
+			pallet_omnipool_liquidity_mining::Event::SharesRedeposited {
+				global_farm_id: global_farm_2_id,
+				yield_farm_id: yield_farm_2_id,
+				deposit_id: 1,
+				asset_id: ETH,
+				who: CHARLIE.into(),
+				shares_amount: 1_000 * UNITS,
+				position_id: 7,
+			}
+				.into(),
+			pallet_omnipool_liquidity_mining::Event::SharesRedeposited {
+				global_farm_id: global_farm_3_id,
+				yield_farm_id: yield_farm_3_id,
+				deposit_id: 1,
+				asset_id: ETH,
+				who: CHARLIE.into(),
+				shares_amount: 1_000 * UNITS,
+				position_id: 7,
+			}
+				.into(),
+		]);
+
+
 	});
 }
 
@@ -680,10 +723,7 @@ fn add_liquidity_with_limit_and_join_farms_should_fail_when_reaches_limit() {
 			100 * UNITS,
 		));
 
-		let position_id = hydradx_runtime::Omnipool::next_position_id();
-
 		set_relaychain_block_number(400);
-		let deposit_id = 1;
 		let farms = vec![
 			(global_farm_1_id, yield_farm_1_id),
 			(global_farm_2_id, yield_farm_2_id),
@@ -848,6 +888,60 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 				.unwrap();
 
 			assert_eq!(deposit, expected_deposit);
+
+			expect_stableswap_liquidity_added_events(vec![pallet_stableswap::Event::LiquidityAdded {
+				pool_id: stable_pool_id,
+				who: CHARLIE.into(),
+				shares: 20044549999405,
+				assets: vec![
+					AssetAmount::new(stable_asset_1, 10 * UNITS),
+					AssetAmount::new(stable_asset_2, 10 * UNITS),
+				],
+			}
+				.into()]);
+
+			let stableswap_shares_amount = 20044549999405;
+			expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
+				who: CHARLIE.into(),
+				asset_id: stable_pool_id,
+				amount: stableswap_shares_amount,
+				position_id: 8,
+			}
+				.into()]);
+
+			expect_lm_events(vec![
+				pallet_omnipool_liquidity_mining::Event::SharesDeposited {
+					global_farm_id: global_farm_1_id,
+					yield_farm_id: yield_farm_1_id,
+					deposit_id: 1,
+					asset_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares_amount: stableswap_shares_amount,
+					position_id: 8,
+				}
+				.into(),
+				pallet_omnipool_liquidity_mining::Event::SharesRedeposited {
+					global_farm_id: global_farm_2_id,
+					yield_farm_id: yield_farm_2_id,
+					deposit_id: 1,
+					asset_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares_amount: stableswap_shares_amount,
+					position_id: 8,
+				}
+				.into(),
+				pallet_omnipool_liquidity_mining::Event::SharesRedeposited {
+					global_farm_id: global_farm_3_id,
+					yield_farm_id: yield_farm_3_id,
+					deposit_id: 1,
+					asset_id: stable_pool_id,
+					who: CHARLIE.into(),
+					shares_amount: stableswap_shares_amount,
+					position_id: 8,
+				}
+				.into(),
+			]);
+
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
 	});
@@ -1450,8 +1544,6 @@ fn create_yield_farm(id: GlobalFarmId, asset: AssetId) {
 }
 
 fn omnipool_add_liquidity(lp: AccountId, asset: AssetId, amount: Balance) -> primitives::ItemId {
-	use hydradx_runtime::Omnipool;
-
 	let current_position_id = Omnipool::next_position_id();
 
 	assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(lp), asset, amount));
@@ -1770,6 +1862,67 @@ pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
 	pretty_assertions::assert_eq!(reward_claimed_events, e);
 }
 
+pub fn expect_lm_events(e: Vec<RuntimeEvent>) {
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
+
+	let mut reward_claimed_events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(
+			e,
+			RuntimeEvent::OmnipoolLiquidityMining(
+				pallet_omnipool_liquidity_mining::Event::<hydradx_runtime::Runtime>::RewardClaimed { .. }
+			) | RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::<
+				hydradx_runtime::Runtime,
+			>::SharesDeposited { .. })
+				| RuntimeEvent::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Event::<
+					hydradx_runtime::Runtime,
+				>::SharesRedeposited { .. })
+		) {
+			reward_claimed_events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(reward_claimed_events, e);
+}
+
+pub fn expect_stableswap_liquidity_added_events(e: Vec<RuntimeEvent>) {
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(40);
+
+	let mut events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(
+			e,
+			RuntimeEvent::Stableswap(pallet_stableswap::Event::<hydradx_runtime::Runtime>::LiquidityAdded { .. })
+		) {
+			events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(events, e);
+}
+
+pub fn expect_omnipool_liquidity_added_events(e: Vec<RuntimeEvent>) {
+	let last_events = test_utils::last_events::<hydradx_runtime::RuntimeEvent, hydradx_runtime::Runtime>(10);
+
+	let mut events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(
+			e,
+			RuntimeEvent::Omnipool(pallet_omnipool::Event::<hydradx_runtime::Runtime>::LiquidityAdded { .. })
+		) {
+			events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(events, e);
+}
+
 //TODO: duplicated, remove duplication
 pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let initial_liquidity = 1_000_000_000_000_000_000_000u128;
@@ -1892,35 +2045,6 @@ fn fund_treasury() -> DispatchResult {
 		(10000 * UNITS).try_into().unwrap(),
 	));
 
-	//<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &treasury, 500_000_000_000_000_000_000i128)?;
-	/*Currencies::update_balance(
-		RawOrigin::Root.into(),
-		treasury.clone(),
-		HDX.into(),
-		500_000_000_000_000_000_000i128 as Amount,
-	)?;
-
-	Currencies::update_balance(
-		RawOrigin::Root.into(),
-		treasury.clone(),
-		ETH.into(),
-		500_000_000_000_000_000_000i128 as Amount,
-	)?;
-
-	Currencies::update_balance(
-		RawOrigin::Root.into(),
-		treasury.clone(),
-		BTC.into(),
-		500_000_000_000_000_000_000i128 as Amount,
-	)?;
-
-	Currencies::update_balance(
-		RawOrigin::Root.into(),
-		treasury.clone(),
-		HDX.into(),
-		500_000_000_000_000_000_000i128 as Amount,
-	)?;*/
-
 	Ok(())
 }
 const G_FARM_TOTAL_REWARDS: Balance = 10_000_000 * UNITS;
@@ -1992,46 +2116,6 @@ fn initialize_omnipool() -> DispatchResult {
 			None,
 		))
 	})?;
-	/*let name = b"ETH".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
-	with_transaction(|| {
-		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
-			None,
-			Some(name),
-			AssetKind::Token,
-			Balance::one(),
-			None,
-			None,
-			None,
-			None,
-		))
-	})?;*/
-	/*let name = b"BTC".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
-	with_transaction(|| {
-		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
-			None,
-			Some(name),
-			AssetKind::Token,
-			Balance::one(),
-			None,
-			None,
-			None,
-			None,
-		))
-	})?;*/
-
-	/*let name = b"DOT".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;
-	with_transaction(|| {
-		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
-			None,
-			Some(name),
-			AssetKind::Token,
-			Balance::one(),
-			None,
-			None,
-			None,
-			None,
-		))
-	})?;*/
 
 	// Create account for token provider and set balance
 	let owner: AccountId = ALICE.into();
