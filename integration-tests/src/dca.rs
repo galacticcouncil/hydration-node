@@ -2713,10 +2713,10 @@ mod stableswap {
 				assert_ok!(Stableswap::add_liquidity(
 					RuntimeOrigin::signed(ALICE.into()),
 					pool_id,
-					vec![AssetAmount {
+					BoundedVec::truncate_from(vec![AssetAmount {
 						asset_id: stable_asset_1,
 						amount: amount_to_sell,
-					}],
+					}]),
 				));
 				let alice_pool_id_balance = Currencies::free_balance(pool_id, &AccountId::from(ALICE));
 
@@ -4337,7 +4337,11 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 
 	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
 
-	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
+	Stableswap::add_liquidity(
+		RuntimeOrigin::signed(BOB.into()),
+		pool_id,
+		BoundedVec::truncate_from(initial),
+	)?;
 
 	Ok((pool_id, asset_in, asset_out))
 }
@@ -4401,7 +4405,11 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 
 	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
 
-	Stableswap::add_liquidity(RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
+	Stableswap::add_liquidity(
+		RuntimeOrigin::signed(BOB.into()),
+		pool_id,
+		BoundedVec::truncate_from(initial),
+	)?;
 
 	Ok((pool_id, asset_in, asset_out))
 }

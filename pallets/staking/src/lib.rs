@@ -17,7 +17,7 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage, VestingDetails};
+use crate::traits::{ActionData, GetReferendumState, PayablePercentage, VestingDetails};
 use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
 use frame_support::ensure;
 use frame_support::{
@@ -59,7 +59,7 @@ pub const STAKING_LOCK_ID: LockIdentifier = *b"stk_stks";
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{DemocracyReferendum, Freeze};
+	use crate::traits::Freeze;
 	use crate::types::Voting;
 	use codec::HasCompact;
 	use frame_support::PalletId;
@@ -68,7 +68,7 @@ pub mod pallet {
 	use sp_runtime::traits::AtLeast32BitUnsigned;
 
 	/// Current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
@@ -170,7 +170,7 @@ pub mod pallet {
 		type MaxPointsPerAction: GetByKey<Action, u32>;
 
 		/// Democracy referendum state.
-		type ReferendumInfo: DemocracyReferendum;
+		type ReferendumInfo: GetReferendumState<types::ReferendumIndex>;
 
 		/// Provides information about amount of vested tokens.
 		type Vesting: VestingDetails<Self::AccountId, Balance>;
@@ -201,20 +201,41 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// List of position votes.
-	#[pallet::getter(fn position_votes)]
-	pub(super) type PositionVotes<T: Config> =
+	#[pallet::getter(fn get_position_votes)]
+	pub(super) type Votes<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
 
 	#[pallet::storage]
 	/// List of processed vote. Used to determine if the vote should be locked in case of voting not in favor.
 	#[pallet::getter(fn processed_votes)]
+	pub(super) type VotesRewarded<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		types::ReferendumIndex,
+		types::Vote,
+		OptionQuery,
+	>;
+
+	// The original storage is kept for the following reasons.
+	// 1. To keep legacy staking votes so users don't loose points
+	// 2. To keep processed votes so balances are correctly locked after a legacy vote is removed.
+
+	#[pallet::storage]
+	/// Legacy storage! - Used to handle democracy votes until democracy pallet is fully removed.
+	pub(super) type PositionVotes<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
+
+	#[pallet::storage]
+	/// Legacy storage! - Used to handle democracy processed votes until democracy pallet is fully removed.
 	pub(super) type ProcessedVotes<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::AccountId,
 		Blake2_128Concat,
-		pallet_democracy::ReferendumIndex,
-		crate::types::Vote,
+		types::ReferendumIndex,
+		types::Vote,
 		OptionQuery,
 	>;
 
@@ -447,7 +468,7 @@ pub mod pallet {
 
 			use frame_support::StorageDoubleMap;
 			ensure!(
-				!ProcessedVotes::<T>::contains_prefix(&who),
+				!VotesRewarded::<T>::contains_prefix(&who),
 				Error::<T>::ExistingProcessedVotes
 			);
 
@@ -561,7 +582,7 @@ pub mod pallet {
 
 			use frame_support::StorageDoubleMap;
 			ensure!(
-				!ProcessedVotes::<T>::contains_prefix(&who),
+				!VotesRewarded::<T>::contains_prefix(&who),
 				Error::<T>::ExistingProcessedVotes
 			);
 
@@ -672,11 +693,11 @@ pub mod pallet {
 						.as_mut()
 						.defensive_ok_or::<Error<T>>(InconsistentStateError::PositionNotFound.into())?;
 
-					let voting = PositionVotes::<T>::get(position_id);
+					let voting = Votes::<T>::get(position_id);
 
 					use frame_support::StorageDoubleMap;
 					ensure!(
-						voting.votes.is_empty() && !ProcessedVotes::<T>::contains_prefix(&who),
+						voting.votes.is_empty() && !VotesRewarded::<T>::contains_prefix(&who),
 						Error::<T>::ExistingVotes
 					);
 
@@ -730,7 +751,7 @@ pub mod pallet {
 						unlocked_stake: position.stake,
 					});
 
-					PositionVotes::<T>::remove(position_id);
+					Votes::<T>::remove(position_id);
 					*maybe_position = None;
 
 					Ok(())
@@ -959,7 +980,7 @@ impl<T: Config> Pallet<T> {
 		position_id: T::PositionItemId,
 		position: &mut Position<BlockNumberFor<T>>,
 	) -> DispatchResult {
-		PositionVotes::<T>::mutate(position_id, |voting| {
+		Votes::<T>::mutate(position_id, |voting| {
 			let max_position_vote = Conviction::max_multiplier().saturating_mul_int(position.stake);
 
 			voting.votes.retain(|(ref_idx, vote)| {
@@ -967,7 +988,7 @@ impl<T: Config> Pallet<T> {
 					let points = Self::calculate_points_for_action(Action::DemocracyVote, vote, max_position_vote);
 					position.action_points = position.action_points.saturating_add(points);
 					// We need to keep the vote info to determine if the vote should be locked when removed.
-					ProcessedVotes::<T>::insert(who, *ref_idx, vote);
+					VotesRewarded::<T>::insert(who, *ref_idx, vote);
 					false
 				} else {
 					true
@@ -1000,10 +1021,6 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> Pallet<T> {
 	pub fn get_position(position_id: T::PositionItemId) -> Option<Position<BlockNumberFor<T>>> {
 		Positions::<T>::get(position_id)
-	}
-
-	pub fn get_position_votes(position_id: T::PositionItemId) -> Voting<T::MaxVotes> {
-		PositionVotes::<T>::get(position_id)
 	}
 }
 

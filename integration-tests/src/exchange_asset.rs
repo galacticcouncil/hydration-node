@@ -127,10 +127,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 
 		let last_swapped_events = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
-		let topic_id = [
-			218, 12, 174, 219, 122, 191, 122, 133, 121, 249, 25, 38, 23, 16, 236, 2, 4, 232,
-			184, 111, 154, 26, 180, 68, 160, 59, 227, 99, 52, 246, 247, 115,
-		];
+		let topic_id = [88, 96, 17, 161, 1, 110, 221, 66, 135, 183, 36, 117, 203, 64, 121, 121, 144, 130, 127, 130, 11, 90, 144, 184, 162, 244, 249, 80, 95, 193, 189, 200];
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
 			vec![

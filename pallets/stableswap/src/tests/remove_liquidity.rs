@@ -53,7 +53,7 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added),]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -135,7 +135,7 @@ fn remove_liquidity_should_apply_fee_when_withdrawing_all_shares() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added)]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -260,7 +260,7 @@ fn remove_liquidity_should_fail_when_requested_asset_not_in_pool() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added)]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -316,7 +316,7 @@ fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added)]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -384,7 +384,7 @@ fn verify_remove_liquidity_against_research_impl() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added)]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -450,7 +450,7 @@ fn remove_liquidity_fail_when_desired_min_limit_is_not_reached() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added)]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -510,7 +510,7 @@ fn scenario_add_remove_with_different_decimals() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_c, 20 * one_c)]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_c, 20 * one_c)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -1145,7 +1145,7 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_some_shares() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added),]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
@@ -1234,7 +1234,7 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_remaining_share
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added),]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 
 			let shares = Tokens::free_balance(pool_id, &BOB);

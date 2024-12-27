@@ -255,7 +255,7 @@ impl pallet_omnipool::Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
@@ -373,7 +373,7 @@ impl pallet_route_executor::Config for Test {
 	type AMM = Pools;
 	type InspectRegistry = DummyRegistry<Test>;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
@@ -698,7 +698,7 @@ impl Config for Test {
 	type BumpChance = BumpChance;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type TerminateOrigin = EnsureRoot<Self::AccountId>;
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;

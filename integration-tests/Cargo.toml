@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.26.0"
+version = "1.27.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -41,6 +41,9 @@ pallet-staking = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-evm-accounts = { workspace = true }
+pallet-xyk-liquidity-mining = { workspace = true }
+pallet-transaction-pause = { workspace = true }
+pallet-liquidation = { workspace = true }
 pallet-amm-support = { workspace = true }
 
 pallet-treasury = { workspace = true }
@@ -48,8 +51,8 @@ pallet-democracy = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-elections-phragmen = { workspace = true }
 pallet-tips = { workspace = true }
-pallet-xyk-liquidity-mining = { workspace = true }
-pallet-transaction-pause = { workspace = true }
+pallet-referenda = { workspace = true }
+pallet-conviction-voting = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }
@@ -218,6 +221,7 @@ std = [
     "pallet-dynamic-evm-fee/std",
     "precompile-utils/std",
     "pallet-transaction-pause/std",
+    "pallet-liquidation/std",
     "pallet-amm-support/std",
 ]
 
