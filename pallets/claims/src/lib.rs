@@ -221,7 +221,7 @@ where
 	type AdditionalSigned = ();
 	type Pre = ();
 
-	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> {
+	fn additional_signed(&self) -> Result<(), TransactionValidityError> {
 		Ok(())
 	}
 
@@ -253,8 +253,7 @@ where
 }
 
 impl<T: Config + Send + Sync> ValidateClaim<T> {
-	#[cfg_attr(feature = "cargo-clippy", allow(clippy::new_without_default))]
 	pub fn new() -> Self {
-		Self(sp_std::marker::PhantomData)
+		Self(PhantomData)
 	}
 }

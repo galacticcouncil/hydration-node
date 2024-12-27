@@ -291,7 +291,7 @@ pub fn run() -> sc_cli::Result<()> {
 				let id = ParaId::from(para_id);
 
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v7::AccountId>::into_account_truncating(&id);
+					AccountIdConversion::<polkadot_primitives::v8::AccountId>::into_account_truncating(&id);
 
 				let state_version = Cli::runtime_version().state_version();
 
@@ -373,10 +373,9 @@ impl CliConfiguration<Self> for RelayChainCli {
 		_support_url: &String,
 		_impl_version: &String,
 		_logger_hook: F,
-		_config: &sc_service::Configuration,
 	) -> Result<()>
 	where
-		F: FnOnce(&mut sc_cli::LoggerBuilder, &sc_service::Configuration),
+		F: FnOnce(&mut sc_cli::LoggerBuilder),
 	{
 		unreachable!("PolkadotCli is never initialized; qed");
 	}

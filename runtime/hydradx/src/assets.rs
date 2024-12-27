@@ -28,7 +28,8 @@ use hydradx_adapters::{
 pub use hydradx_traits::{
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
-	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
+	AMM, AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
+	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_omnipool::{
@@ -39,17 +40,18 @@ use pallet_otc::NamedReserveIdentifier;
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
 use primitives::constants::{
-	chain::{OMNIPOOL_SOURCE, XYK_SOURCE},
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
-use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
-
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
-	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
+	sp_runtime::{
+		app_crypto::sp_core::crypto::UncheckedFrom, traits::Zero, ArithmeticError, DispatchError, DispatchResult,
+		FixedPointNumber, Percent,
+	},
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
@@ -59,7 +61,6 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::AMM;
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Happened,
@@ -1312,7 +1313,6 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1674,7 +1674,6 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
-use primitives::constants::chain::CORE_ASSET_ID;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
