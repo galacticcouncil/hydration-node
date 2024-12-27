@@ -30,7 +30,7 @@ use frame_support::BoundedVec;
 use frame_system::EnsureRoot;
 use hydradx_traits::OraclePeriod::{self, *};
 use hydradx_traits::Source;
-use hydradx_traits::{AssetPairAccountIdFor, Liquidity, Volume};
+use hydradx_traits::{Liquidity, Volume};
 use sp_core::H256;
 
 use crate::types::{AssetId, Balance, Price};

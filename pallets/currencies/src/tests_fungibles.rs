@@ -85,13 +85,13 @@ fn fungibles_mutate_trait_should_work() {
 		assert_eq!(PalletBalances::free_balance(&BOB), 10);
 
 		assert_eq!(
-			FungibleCurrencies::<Runtime>::burn_from(X_TOKEN_ID, &ALICE, 4, Precision::Exact, Fortitude::Polite),
+			FungibleCurrencies::<Runtime>::burn_from(X_TOKEN_ID, &ALICE, 4, Preservation::Protect, Precision::Exact, Fortitude::Polite),
 			Ok(4)
 		);
 		assert_eq!(Tokens::free_balance(X_TOKEN_ID, &ALICE), 6);
 
 		assert_eq!(
-			FungibleCurrencies::<Runtime>::burn_from(NATIVE_CURRENCY_ID, &BOB, 4, Precision::Exact, Fortitude::Polite),
+			FungibleCurrencies::<Runtime>::burn_from(NATIVE_CURRENCY_ID, &BOB, 4, Preservation::Protect, Precision::Exact, Fortitude::Polite),
 			Ok(4)
 		);
 		assert_eq!(PalletBalances::free_balance(&BOB), 6);

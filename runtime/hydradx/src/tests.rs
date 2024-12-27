@@ -184,7 +184,7 @@ mod xcm_fee_payment_api_tests {
 	use super::*;
 	use frame_support::assert_ok;
 	use polkadot_xcm::{v4::prelude::*, VersionedAssetId::V4};
-	use xcm_runtime_apis::{runtime_decl_for_xcm_payment_api::XcmPaymentApiV1, Error as XcmPaymentApiError};
+	use xcm_runtime_apis::fees::{runtime_decl_for_xcm_payment_api::XcmPaymentApiV1, Error as XcmPaymentApiError};
 
 	#[test]
 	fn query_acceptable_payment_assets_should_return_native_and_registered_locations() {

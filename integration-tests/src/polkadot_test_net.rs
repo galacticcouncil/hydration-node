@@ -2,7 +2,7 @@
 use frame_support::{
 	assert_ok,
 	sp_runtime::{
-		traits::{AccountIdConversion, Block as BlockT, Dispatchable, HashingFor},
+		traits::{AccountIdConversion, Block as BlockT, Dispatchable},
 		BuildStorage, FixedU128, Permill,
 	},
 	traits::{GetCallMetadata, OnInitialize},
@@ -285,7 +285,6 @@ pub mod rococo {
 	use sp_core::{sr25519, Pair, Public};
 
 	use polkadot_primitives::{AssignmentId, ValidatorId};
-	use polkadot_service::chain_spec::get_authority_id_from_seed;
 	use sc_consensus_grandpa::AuthorityId as GrandpaId;
 	use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 	use sp_consensus_babe::AuthorityId as BabeId;
@@ -790,7 +789,7 @@ pub fn rococo_run_to_block(to: BlockNumber) {
 
 pub fn hydra_live_ext(
 	path_to_snapshot: &str,
-) -> frame_remote_externalities::RemoteExternalities<HashingFor<hydradx_runtime::Block>> {
+) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
 	let ext = tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()
