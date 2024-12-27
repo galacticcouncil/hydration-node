@@ -64,3 +64,15 @@ impl From<DataRepr> for AssetInfo<AssetId> {
 		todo!()
 	}
 }
+
+impl<AccountId> From<Intent<AccountId>> for IntentRepr {
+	fn from(value: Intent<AccountId>) -> Self {
+		(
+			0,
+			value.swap.asset_in,
+			value.swap.asset_out,
+			value.swap.amount_in,
+			value.swap.amount_out,
+		)
+	}
+}

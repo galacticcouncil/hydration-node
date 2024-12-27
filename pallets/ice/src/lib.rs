@@ -225,17 +225,34 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			log::error!("Running ice offchain worker");
-			//let data = T::DataProvider::assets(None);
-			//log::error!("Running ice offchain worker data: {:?}", data.len());
-			// limit the cases when the offchain worker run
-			if sp_io::offchain::is_validator() {
-				log::error!("Getting solution");
-				let intents = vec![];
-				let data = T::AmmStateProvider::state(|_| true);
-				let data = data.into_iter().map(|x| x.into()).collect();
-				let s = api::ice::get_solution(intents, data);
-				log::error!("Solution {:?}", s);
-			}
+			let lock_expiration = Duration::from_millis(crate::LOCK_TIMEOUT_EXPIRATION);
+			let mut lock = StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(
+				crate::SOLVER_LOCK,
+				lock_expiration,
+			);
+			if let Ok(_guard) = lock.try_lock() {
+				if sp_io::offchain::is_validator() {
+					let intents: Vec<crate::api::IntentRepr> = Self::get_intents(block_number)
+						.into_iter()
+						.map(|x| {
+							let mut info: crate::api::IntentRepr = x.1.into();
+							info.0 = x.0;
+							info
+						})
+						.collect();
+					if intents.len() > 0 {
+						let data = T::AmmStateProvider::state(|_| true)
+							.into_iter()
+							.map(|x| x.into())
+							.collect();
+						log::error!("Getting solution");
+						let s = api::ice::get_solution(intents, data);
+						log::error!("Solution {:?}", s);
+
+						// TODO: submit solution
+					}
+				}
+			};
 		}
 	}
 
@@ -500,38 +517,30 @@ impl<T: Config> Pallet<T> {
 		intents
 	}
 
-	fn settle_intents(block_number: BlockNumberFor<T>) {
+	fn get_intents(block_number: BlockNumberFor<T>) -> Vec<(IntentId, Intent<T::AccountId>)> {
+		let mut intents: Vec<(IntentId, Intent<T::AccountId>)> = Intents::<T>::iter().collect();
+		intents.sort_by_key(|(_, intent)| intent.deadline);
+		// Retain non-expired intents
+		let now = T::TimestampProvider::now();
+		intents.retain(|(_, intent)| intent.deadline > now);
+		intents
+
 		/*
-		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
-		let mut lock =
-			StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(SOLVER_LOCK, lock_expiration);
-
-		if let Ok(_guard) = lock.try_lock() {
-			// Get list of current intents,
-			let mut intents: Vec<(IntentId, Intent<T::AccountId, T::AssetId>)> = Intents::<T>::iter().collect();
-			intents.sort_by_key(|(_, intent)| intent.deadline);
-
-			// Retain non-expired intents
-			let now = T::TimestampProvider::now();
-			intents.retain(|(_, intent)| intent.deadline > now);
-
-			// Compute solution using solver
-			let Ok((solution, metadata)) = T::Solver::solve(intents) else {
-				//TODO: log error
-				return;
-			};
-
-			let (trades, score) = Self::calculate_trades_and_score(&solution).unwrap();
-
-			let call = Call::propose_solution {
-				intents: BoundedResolvedIntents::truncate_from(solution),
-				trades: BoundedTrades::truncate_from(trades),
-				score,
-				block: block_number.saturating_add(1u32.into()),
-			};
-			let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
+		// Compute solution using solver
+		let Ok((solution, metadata)) = T::Solver::solve(intents) else {
+			//TODO: log error
+			return;
 		};
 
+		let (trades, score) = Self::calculate_trades_and_score(&solution).unwrap();
+
+		let call = Call::propose_solution {
+			intents: BoundedResolvedIntents::truncate_from(solution),
+			trades: BoundedTrades::truncate_from(trades),
+			score,
+			block: block_number.saturating_add(1u32.into()),
+		};
+		let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 		 */
 	}
 

@@ -37,18 +37,6 @@ pub struct Intent<AccountId> {
 	pub on_failure: Option<CallData>,
 }
 
-impl<AccountId> Into<IntentRepr> for Intent<AccountId> {
-	fn into(self) -> IntentRepr {
-		(
-			0,
-			self.swap.asset_in,
-			self.swap.asset_out,
-			self.swap.amount_in,
-			self.swap.amount_out,
-		)
-	}
-}
-
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Swap {
 	pub asset_in: AssetId,
