@@ -3,12 +3,12 @@
     "provider": "native"
   },
   "relaychain": {
-    "default_command": "../polkadot/target/release/polkadot",
+    "default_command": "../../../polkadot-sdk/target/release/polkadot",
     "chain": "rococo-local",
     "nodes": [
       {
         "name": "alice",
-        "command": "../polkadot/target/release/polkadot",
+        "command": "../../../polkadot-sdk/target/release/polkadot",
         "args": [
           "--pruning=archive"
         ],
@@ -39,11 +39,11 @@
       "id": 2034,
       "cumulus_based": true,
       "chain": "local",
-      "chain_spec_path": "<path - to - chain spec file>",
+      "chain_spec_path": "forked-chainspec.json",
       "collators": [
         {
           "name": "alice",
-          "command": "target/release/hydradx",
+          "command": "../../target/release/hydradx",
           "args": [
             "--pruning=archive",
             "--log=info"
@@ -53,7 +53,11 @@
         },
         {
           "name": "bob",
-          "command": "target/release/hydradx",
+          "command": "../../target/release/hydradx",
+          "args": [
+            "--pruning=archive",
+            "--log=info"
+          ],
           "ws_port": 9989
         }
       ]

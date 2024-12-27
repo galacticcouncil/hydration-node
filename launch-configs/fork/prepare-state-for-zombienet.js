@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { ApiPromise } = require('@polkadot/api');
+const { TypeRegistry } = require('@polkadot/types');
 const { hexToU8a, u8aToHex } = require('@polkadot/util');
 
 // Define network names
@@ -22,26 +22,25 @@ async function updateChainSpec(inputFile, outputFile) {
         process.exit(1);
     }
 
-    const api = await ApiPromise.create({
-        provider: null, // No provider needed
-        types: {
-            EmaOracleEntry: {
-                price: {
-                    n: 'u128',
-                    d: 'u128',
-                },
-                volume: {
-                    aIn: 'u128',
-                    bOut: 'u128',
-                    aOut: 'u128',
-                    bIn: 'u128',
-                },
-                liquidity: {
-                    a: 'u128',
-                    b: 'u128',
-                },
-                updatedAt: 'u64',
+    // Create a new registry with custom types
+    const registry = new TypeRegistry();
+    registry.register({
+        EmaOracleEntry: {
+            price: {
+                n: 'u128',
+                d: 'u128',
             },
+            volume: {
+                aIn: 'u128',
+                bOut: 'u128',
+                aOut: 'u128',
+                bIn: 'u128',
+            },
+            liquidity: {
+                a: 'u128',
+                b: 'u128',
+            },
+            updatedAt: 'u64',
         },
     });
 
@@ -96,7 +95,7 @@ async function updateChainSpec(inputFile, outputFile) {
     for (const [key, value] of Object.entries(chainSpec.genesis.raw.top)) {
         if (key.startsWith("0x5258a12472693b34a3ed25509781e55fb79")) { // Prefix for EmaOracle.Oracles
             try {
-                const decodedValue = api.createType('EmaOracleEntry', hexToU8a(value));
+                const decodedValue = registry.createType('EmaOracleEntry', hexToU8a(value));
                 if (decodedValue.updatedAt !== undefined) {
                     decodedValue.updatedAt = 0; // Set updatedAt to 0
                     chainSpec.genesis.raw.top[key] = u8aToHex(decodedValue.toU8a());
@@ -125,7 +124,6 @@ async function updateChainSpec(inputFile, outputFile) {
         console.error('Error writing the updated chain spec file:', err);
     }
 
-    await api.disconnect();
     console.log('Chain spec update script completed.');
 }
 
