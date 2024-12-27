@@ -136,9 +136,9 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 
 		let swapped_events = get_last_swapped_events();
 		let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
-		let topic_id = 							[
-			237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5,
-			253, 212, 209, 227, 230, 38, 183, 105, 62, 69, 234, 5, 249,
+		let topic_id = [
+			237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5, 253, 212, 209, 227,
+			230, 38, 183, 105, 62, 69, 234, 5, 249,
 		];
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
@@ -151,13 +151,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 					inputs: vec![UnifiedEventAsset::new(HDX, 1000000000000)],
 					outputs: vec![UnifiedEventAsset::new(LRNA, 1201498716)],
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
-					operation_id: vec![
-						ExecutionType::Xcm(
-							topic_id,
-							0
-						),
-						ExecutionType::Omnipool(1)
-					]
+					operation_id: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)]
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 					swapper: account.into(),
@@ -167,13 +161,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
 					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
 					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
-					operation_id: vec![
-						ExecutionType::Xcm(
-							topic_id,
-							0
-						),
-						ExecutionType::Omnipool(1)
-					],
+					operation_id: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)],
 				})
 			]
 		);
@@ -384,10 +372,9 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 
 	// Act
 	Acala::execute_with(|| {
-
 		//We make a big xcm so it results in error
 		const ARRAY_REPEAT_VALUE: cumulus_primitives_core::Instruction<()> = RefundSurplus;
-		let message : cumulus_primitives_core::Xcm<()>  = Xcm([ARRAY_REPEAT_VALUE;10000].to_vec());
+		let message: cumulus_primitives_core::Xcm<()> = Xcm([ARRAY_REPEAT_VALUE; 10000].to_vec());
 
 		let dest_hydradx = Location::new(
 			1,

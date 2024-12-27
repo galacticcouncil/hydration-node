@@ -15,8 +15,8 @@ use frame_support::{
 	traits::{ConstU32, Contains, ContainsPair, EitherOf, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
-use frame_system::EnsureRoot;
 use frame_system::unique;
+use frame_system::EnsureRoot;
 use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
@@ -29,7 +29,12 @@ use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
-use xcm_builder::{AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin, WithUniqueTopic};
+use xcm_builder::{
+	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
+	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
+	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin, WithUniqueTopic,
+};
 use xcm_executor::{Config, XcmExecutor};
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
@@ -227,17 +232,22 @@ impl cumulus_pallet_xcm::Config for Runtime {
 
 pub struct WithUnifiedEventSupport<Inner>(PhantomData<Inner>);
 
-impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfig as Config>::RuntimeCall> for WithUnifiedEventSupport<Inner> {
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfig as Config>::RuntimeCall>
+	for WithUnifiedEventSupport<Inner>
+{
 	type Prepared = <Inner as cumulus_primitives_core::ExecuteXcm<RuntimeCall>>::Prepared;
 
-	fn prepare(message: Xcm<<XcmConfig as Config>::RuntimeCall>) -> Result<Self::Prepared, Xcm<<XcmConfig as Config>::RuntimeCall>> {
+	fn prepare(
+		message: Xcm<<XcmConfig as Config>::RuntimeCall>,
+	) -> Result<Self::Prepared, Xcm<<XcmConfig as Config>::RuntimeCall>> {
 		//We populate the context in `prepare` as we have the xcm message at this point so we can get the unique topic id
 		let unique_id = if let Some(SetTopic(id)) = message.last() {
 			*id
 		} else {
 			unique(&message)
 		};
-		pallet_amm_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id)).map_err(|_| message.clone())?;
+		pallet_amm_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id))
+			.map_err(|_| message.clone())?;
 
 		let prepare_result = Inner::prepare(message);
 
@@ -276,7 +286,6 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> XcmAssetTransfers fo
 	type IsTeleporter = <XcmConfig as Config>::IsTeleporter;
 	type AssetTransactor = <XcmConfig as Config>::AssetTransactor;
 }
-
 
 parameter_types! {
 	pub const MaxInboundSuspended: u32 = 1_000;
@@ -373,7 +382,11 @@ impl pallet_message_queue::Config for Runtime {
 	type MessageProcessor =
 		pallet_message_queue::mock_helpers::NoopMessageProcessor<cumulus_primitives_core::AggregateMessageOrigin>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MessageProcessor = xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, WithUnifiedEventSupport<XcmExecutor<XcmConfig>>, RuntimeCall>;
+	type MessageProcessor = xcm_builder::ProcessXcmMessage<
+		AggregateMessageOrigin,
+		WithUnifiedEventSupport<XcmExecutor<XcmConfig>>,
+		RuntimeCall,
+	>;
 	type Size = u32;
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
 	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;

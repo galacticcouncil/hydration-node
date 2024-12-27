@@ -1,8 +1,8 @@
 use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, to_precision, Error};
-use pallet_amm_support::types::{Asset, Fee};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
+use pallet_amm_support::types::{Asset, Fee};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 

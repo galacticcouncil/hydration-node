@@ -45,10 +45,10 @@ use frame_support::{
 	},
 	PalletId,
 };
-use pallet_utility::BatchHook;
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
 use pallet_amm_support::types::ExecutionType;
+use pallet_utility::BatchHook;
 use scale_info::TypeInfo;
 use sp_runtime::DispatchResult;
 
@@ -398,8 +398,6 @@ impl BatchHook for ManageExecutionTypeForUnifiedEvent {
 		Ok(())
 	}
 }
-
-
 
 parameter_types! {
 	pub const BasicDeposit: Balance = 5 * DOLLARS;
