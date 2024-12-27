@@ -252,7 +252,7 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		let prepare_result = Inner::prepare(message);
 
 		//In case of error we need to clean context as xcm execution won't happen
-		if let Err(_) = prepare_result {
+		if prepare_result.is_err() {
 			let _ = pallet_amm_support::Pallet::<Runtime>::remove_from_context();
 		}
 

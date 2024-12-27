@@ -3,8 +3,6 @@ use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::weights::Weight;
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 use sp_arithmetic::FixedU128;
 use sp_std::vec;
 use sp_std::vec::Vec;

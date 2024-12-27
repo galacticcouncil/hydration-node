@@ -128,10 +128,9 @@ impl<T: Config> Pallet<T> {
 	where
 		F: FnOnce(u32) -> ExecutionType,
 	{
-		//TODO: create patch 4
 		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
 			let inc_id = *current_id;
-			*current_id = current_id.overflowing_add(1).0.into();
+			*current_id = current_id.overflowing_add(1).0;
 			Ok(inc_id)
 		})?;
 
@@ -153,7 +152,7 @@ impl<T: Config> Pallet<T> {
 			//We make it fire and forget, and it should fail only in test and when if wrongly used
 			debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
 
-			if let None = stack.pop() {
+			if stack.pop().is_none() {
 				log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
 			}
 
