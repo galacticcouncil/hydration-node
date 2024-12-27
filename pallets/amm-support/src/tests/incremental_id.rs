@@ -59,27 +59,13 @@ fn stack_should_be_populated_when_pushed() {
 }
 
 #[test]
-fn stack_should_not_panic_when_full() {
-	ExtBuilder::default().build().execute_with(|| {
-		for _id in 0..MAX_STACK_SIZE {
-			assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
-		}
-
-		assert_err!(
-			AmmSupport::add_to_context(ExecutionType::Router),
-			Error::<Test>::MaxStackSizeReached
-		);
-	});
-}
-
-#[test]
 fn stack_should_be_reduced_when_poped() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
 
-		assert_ok!(AmmSupport::remove_from_context(), ExecutionType::ICE(2));
+		AmmSupport::remove_from_context().unwrap();
 		assert_eq!(
 			AmmSupport::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
@@ -106,13 +92,6 @@ fn stack_should_be_reduced_when_poped() {
 				ExecutionType::ICE(3)
 			]
 		);
-	});
-}
-
-#[test]
-fn pop_from_empty_stack_should_not_panic() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_err!(AmmSupport::remove_from_context(), Error::<Test>::EmptyStack);
 	});
 }
 

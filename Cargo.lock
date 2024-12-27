@@ -7504,6 +7504,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-traits",
+ "log",
  "parity-scale-codec",
  "primitives",
  "scale-info",

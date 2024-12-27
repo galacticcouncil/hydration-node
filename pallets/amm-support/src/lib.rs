@@ -33,6 +33,8 @@ pub mod types;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+const LOG_TARGET: &str = "runtime::amm-support";
+
 pub const MAX_STACK_SIZE: u32 = 10;
 
 type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
@@ -66,8 +68,6 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		MaxStackSizeReached,
-		EmptyStack,
 	}
 
 	#[pallet::event]
@@ -130,7 +130,6 @@ impl<T: Config> Pallet<T> {
 		F: FnOnce(u32) -> ExecutionType,
 	{
 		//TODO: create patch 4
-		//TODO: double check what to do when these can fail, we dont really want failing due to this
 		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
 			let inc_id = *current_id;
 			*current_id = current_id.overflowing_add(1).0.into();
@@ -138,9 +137,11 @@ impl<T: Config> Pallet<T> {
 		})?;
 
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
-			stack
-				.try_push(execution_type(next_id))
-				.map_err(|_| Error::<T>::MaxStackSizeReached)?;
+			//We make it fire and forget, and it should fail only in test and when if wrongly used
+			debug_assert_ne!(stack.len(), MAX_STACK_SIZE as usize, "Stack should not be full");
+			if let Err(err) = stack.try_push(execution_type(next_id)) {
+				log::warn!(target: LOG_TARGET, "The max stack size of execution stack has been reached: {:?}", err);
+			}
 
 			Ok(())
 		})?;
@@ -148,16 +149,24 @@ impl<T: Config> Pallet<T> {
 		Ok(next_id)
 	}
 
-	pub fn remove_from_context() -> Result<ExecutionType, DispatchError> {
-		//TODO: check what to do when it fails, we might dont want to bloc ktrades becase of it
-		ExecutionContext::<T>::try_mutate(|stack| -> Result<ExecutionType, DispatchError> {
-			stack.pop().ok_or(Error::<T>::EmptyStack.into())
-		})
+	pub fn remove_from_context() -> DispatchResult {
+		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
+			//We make it fire and forget, and it should fail only in test and when if wrongly used
+			debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
+
+			if let None = stack.pop() {
+				log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
+			}
+
+			Ok(())
+		})?;
+
+		Ok(())
 	}
 
 	pub fn get_context() -> Result<Vec<ExecutionType>, DispatchError> {
-		//TODO: check what to do when it fails, we might dont want to bloc ktrades becase of it
 		let stack = ExecutionContext::<T>::get().to_vec();
+
 		Ok(stack)
 	}
 }

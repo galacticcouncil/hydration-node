@@ -18,6 +18,8 @@ sp-arithmetic = { workspace = true }
 hydradx-traits = { workspace = true }
 primitives = { workspace = true }
 
+log = { workspace = true }
+
 # Substrate dependencies
 sp-std = { workspace = true }
 sp-api = { workspace = true }
