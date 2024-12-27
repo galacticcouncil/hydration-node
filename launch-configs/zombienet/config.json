@@ -3,7 +3,7 @@
     "provider": "native"
   },
   "relaychain": {
-    "default_command": "../../polkadot-sdk/target/release/polkadot",
+    "default_command": "../../../polkadot-sdk/target/release/polkadot",
     "chain": "rococo-dev",
     "nodes": [
       {
@@ -41,13 +41,13 @@
       "collators": [
         {
           "name": "alice",
-          "command": "../target/release/hydradx",
+          "command": "../../target/release/hydradx",
           "wsPort": 9988,
           "flags": ["--alice", "--rpc-cors=all", "--", "--execution=wasm"]
         },
         {
           "name": "bob",
-          "command": "../target/release/hydradx",
+          "command": "../../target/release/hydradx",
           "wsPort": 9989,
           "flags": ["--bob", "--rpc-cors=all", "--", "--execution=wasm"]
         }
