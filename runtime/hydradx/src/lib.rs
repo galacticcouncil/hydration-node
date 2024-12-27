@@ -320,7 +320,7 @@ mod benches {
 
 struct CheckInherents;
 
-#[allow(dead_code)] // TODO:
+#[allow(deprecated)] // TODO:
 impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
 	fn check_inherents(
 		block: &Block,
