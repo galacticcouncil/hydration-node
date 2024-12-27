@@ -36,9 +36,8 @@ pub enum Function {
 	Approve = "approve(address,uint256)",
 	TransferFrom = "transferFrom(address,address,uint256)",
 }
-type BalanceOf<T> = <<T as pallet_evm::Config>::Currency as frame_support::traits::Currency<
-	pallet_evm::AccountIdOf<T>,
->>::Balance;
+type BalanceOf<T> =
+	<<T as pallet_evm::Config>::Currency as frame_support::traits::Currency<pallet_evm::AccountIdOf<T>>>::Balance;
 pub type NonceIdOf<T> = <<T as pallet_evm::Config>::AccountProvider as AccountProvider>::Nonce;
 
 pub struct Erc20Currency<T>(PhantomData<T>);
@@ -278,11 +277,7 @@ where
 		fail!(Error::<T>::NotSupported)
 	}
 
-	fn withdraw(
-		_contract: Self::CurrencyId,
-		_who: &AccountId,
-		_amount: Self::Balance,
-	) -> sp_runtime::DispatchResult {
+	fn withdraw(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
 		fail!(Error::<T>::NotSupported)
 	}
 

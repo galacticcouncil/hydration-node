@@ -28,8 +28,7 @@ pub mod staging;
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use hydradx_runtime::{
-	pallet_claims::EthereumAddress, AccountId, AuraId, Balance, DusterConfig, RegistryStrLimit,
-	Signature, WASM_BINARY,
+	pallet_claims::EthereumAddress, AccountId, AuraId, Balance, DusterConfig, RegistryStrLimit, Signature, WASM_BINARY,
 };
 use primitives::{
 	constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},

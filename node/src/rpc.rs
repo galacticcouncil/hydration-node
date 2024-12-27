@@ -122,11 +122,7 @@ where
 	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut module = RpcExtension::new(());
-	let FullDeps {
-		client,
-		pool,
-		backend,
-	} = deps;
+	let FullDeps { client, pool, backend } = deps;
 
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;

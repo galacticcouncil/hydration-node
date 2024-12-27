@@ -430,7 +430,7 @@ use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
-	fees::Error as XcmPaymentApiError
+	fees::Error as XcmPaymentApiError,
 };
 
 impl_runtime_apis! {

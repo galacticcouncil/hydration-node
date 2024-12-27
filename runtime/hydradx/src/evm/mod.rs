@@ -27,7 +27,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, NativeAssetId, XykPaymentAssetSupport, LRNA, Runtime};
+use crate::{DotAssetId, NativeAssetId, Runtime, XykPaymentAssetSupport, LRNA};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
@@ -95,8 +95,7 @@ pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::M
 pub struct WethAssetId;
 impl Get<AssetId> for WethAssetId {
 	fn get() -> AssetId {
-		let invalid_id =
-			pallet_asset_registry::Pallet::<Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
+		let invalid_id = pallet_asset_registry::Pallet::<Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
 
 		match pallet_asset_registry::Pallet::<Runtime>::location_to_asset(WETH_ASSET_LOCATION) {
 			Some(asset_id) => asset_id,

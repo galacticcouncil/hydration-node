@@ -25,34 +25,15 @@ use hydradx_adapters::{
 	StableswapHooksAdapter, VestingInfo,
 };
 
-pub use hydradx_traits::{
-	registry::Inspect,
-	router::{inverse_route, PoolType, Trade},
-	AMM, AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
-	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
-};
-use pallet_currencies::BasicCurrencyAdapter;
-use pallet_omnipool::{
-	traits::{EnsurePriceWithin, OmnipoolHooks},
-	weights::WeightInfo as OmnipoolWeights,
-};
-use pallet_otc::NamedReserveIdentifier;
-use pallet_stableswap::weights::WeightInfo as StableswapWeights;
-use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
-use primitives::constants::{
-	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
-	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
-	time::DAYS,
-};
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
+	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{
 		app_crypto::sp_core::crypto::UncheckedFrom, traits::Zero, ArithmeticError, DispatchError, DispatchResult,
 		FixedPointNumber, Percent,
 	},
-	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EnsureOrigin, Imbalance, LockIdentifier,
@@ -61,18 +42,38 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+pub use hydradx_traits::{
+	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
+	registry::Inspect,
+	router::{inverse_route, PoolType, Trade},
+	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
+	AMM,
+};
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Happened,
 };
+use pallet_currencies::BasicCurrencyAdapter;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
+use pallet_omnipool::{
+	traits::{EnsurePriceWithin, OmnipoolHooks},
+	weights::WeightInfo as OmnipoolWeights,
+};
+use pallet_otc::NamedReserveIdentifier;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
+use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_staking::{
 	types::{Action, Point},
 	SigmoidPercentage,
 };
+use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
+use primitives::constants::{
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
+	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+	time::DAYS,
+};
 use sp_std::num::NonZeroU16;
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;

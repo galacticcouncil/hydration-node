@@ -101,7 +101,8 @@ pub fn new_partial(
 		.transpose()?;
 
 	let heap_pages = config
-		.executor.default_heap_pages
+		.executor
+		.default_heap_pages
 		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
 			extra_pages: h as _,
 		});
