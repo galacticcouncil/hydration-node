@@ -232,7 +232,7 @@ pub mod pallet {
 			);
 			if let Ok(_guard) = lock.try_lock() {
 				if sp_io::offchain::is_validator() {
-					let intents: Vec<crate::api::IntentRepr> = Self::get_intents(block_number)
+					let intents: Vec<crate::api::IntentRepr> = Self::get_valid_intents()
 						.into_iter()
 						.map(|x| {
 							let mut info: crate::api::IntentRepr = x.1.into();
@@ -259,7 +259,7 @@ pub mod pallet {
 						};
 						let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 
-						// TODO: submit solution
+						// TODO: submit solution as signed tx
 					}
 				}
 			};
@@ -520,140 +520,10 @@ impl<T: Config> Pallet<T> {
 		let mut intents: Vec<(IntentId, Intent<T::AccountId>)> = Intents::<T>::iter().collect();
 		intents.sort_by_key(|(_, intent)| intent.deadline);
 
-		// Retain non-expired intents
 		let now = T::TimestampProvider::now();
 		intents.retain(|(_, intent)| intent.deadline > now);
 
 		intents
-	}
-
-	fn get_intents(block_number: BlockNumberFor<T>) -> Vec<(IntentId, Intent<T::AccountId>)> {
-		let mut intents: Vec<(IntentId, Intent<T::AccountId>)> = Intents::<T>::iter().collect();
-		intents.sort_by_key(|(_, intent)| intent.deadline);
-		// Retain non-expired intents
-		let now = T::TimestampProvider::now();
-		intents.retain(|(_, intent)| intent.deadline > now);
-		intents
-
-		/*
-		// Compute solution using solver
-		let Ok((solution, metadata)) = T::Solver::solve(intents) else {
-			//TODO: log error
-			return;
-		};
-
-		let (trades, score) = Self::calculate_trades_and_score(&solution).unwrap();
-
-		let call = Call::propose_solution {
-			intents: BoundedResolvedIntents::truncate_from(solution),
-			trades: BoundedTrades::truncate_from(trades),
-			score,
-			block: block_number.saturating_add(1u32.into()),
-		};
-		let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
-		 */
-	}
-
-	//TODO: this simply sell all for lrna, and buy assets with lrna.
-	// this should really optimized to find the best route and amount to swap using one swap instead of two (to lrna/fromlrna)
-	pub fn calculate_trades_and_score(
-		resolved_intents: &[ResolvedIntent],
-	) -> Result<(Vec<TradeInstruction<AssetId>>, u64), ()> {
-		let mut amounts_in: BTreeMap<AssetId, Balance> = BTreeMap::new();
-		let mut amounts_out: BTreeMap<AssetId, Balance> = BTreeMap::new();
-
-		for resolved_intent in resolved_intents.iter() {
-			let intent = Intents::<T>::get(resolved_intent.intent_id).ok_or(())?;
-			amounts_in
-				.entry(intent.swap.asset_in)
-				.and_modify(|e| *e += resolved_intent.amount_in)
-				.or_insert(resolved_intent.amount_in);
-			amounts_out
-				.entry(intent.swap.asset_out)
-				.and_modify(|e| *e += resolved_intent.amount_out)
-				.or_insert(resolved_intent.amount_out);
-		}
-
-		let mut matched_amounts = Vec::new();
-		let mut trades_instructions = Vec::new();
-
-		let mut delta_in: BTreeMap<AssetId, Balance> = BTreeMap::new();
-		let mut delta_out: BTreeMap<AssetId, Balance> = BTreeMap::new();
-
-		// Calculate deltas to trade
-		for (asset_id, amount_out) in amounts_out.into_iter() {
-			if let Some((_, amount_in)) = amounts_in.remove_entry(&asset_id) {
-				if amount_out == amount_in {
-					// nothing to trade here, all matched
-					matched_amounts.push((asset_id, amount_out));
-				} else if amount_out > amount_in {
-					// there is something left to buy
-					matched_amounts.push((asset_id, amount_in));
-					delta_out.insert(asset_id, amount_out - amount_in);
-				} else {
-					// there is something left to sell
-					matched_amounts.push((asset_id, amount_out));
-					delta_in.insert(asset_id, amount_in - amount_out);
-				}
-			} else {
-				// there is no sell of this asset, only buy
-				delta_out.insert(asset_id, amount_out);
-			}
-		}
-
-		for (asset_id, amount_in) in amounts_in.into_iter() {
-			delta_in.insert(asset_id, amount_in);
-		}
-
-		loop {
-			let Some((asset_out, mut amount_out)) = delta_out.pop_first() else {
-				break;
-			};
-			for (asset_in, amount_in) in delta_in.iter_mut() {
-				if *amount_in == 0u128 {
-					continue;
-				}
-				let route = T::RoutingSupport::get_route(*asset_in, asset_out);
-
-				// Calculate the amount we can buy with the amount in we have
-				let possible_out_amount = T::RoutingSupport::calculate_amount_out(&route, *amount_in)?;
-
-				if possible_out_amount >= amount_out {
-					// do exact buy
-					let a_in = T::RoutingSupport::calculate_amount_in(&route, amount_out)?;
-					debug_assert!(a_in <= *amount_in);
-					trades_instructions.push(TradeInstruction::SwapExactOut {
-						asset_in: *asset_in,
-						asset_out: asset_out,
-						amount_in: a_in,
-						amount_out: amount_out,
-						route: BoundedRoute::try_from(route).unwrap(),
-					});
-					*amount_in -= a_in;
-					amount_out = 0u128;
-					//after this, we sorted the asset_out, we can move one
-					break;
-				} else {
-					// do max sell
-					trades_instructions.push(TradeInstruction::SwapExactIn {
-						asset_in: *asset_in,
-						asset_out: asset_out,
-						amount_in: *amount_in,
-						amount_out: possible_out_amount,
-						route: BoundedRoute::try_from(route).unwrap(),
-					});
-					*amount_in = 0u128;
-					amount_out -= possible_out_amount;
-					//after this, we need another asset_in to buy the rest
-				}
-			}
-
-			// esnure we sorted asset out before moving on
-			debug_assert!(amount_out == 0u128);
-		}
-
-		let score = Self::score_solution(resolved_intents.len() as u128, matched_amounts).map_err(|_| ())?;
-		Ok((trades_instructions, score))
 	}
 
 	// Calculate score for the solution
@@ -852,58 +722,6 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		/*
-		for instruction in instructions {
-			match instruction {
-				Instruction::TransferIn { who, asset_id, amount } => {
-					/*
-					let r = T::ReservableCurrency::unreserve_named(&T::NamedReserveId::get(), asset_id, &who, amount);
-					ensure!(r == Balance::zero(), crate::Error::<T>::InsufficientReservedBalance);
-
-					 */
-					T::Currency::transfer(asset_id, &who, &holding_account, amount, Preservation::Expendable)?;
-				}
-				Instruction::TransferOut { who, asset_id, amount } => {
-					T::Currency::transfer(asset_id, &holding_account, &who, amount, Preservation::Expendable)?;
-				}
-				Instruction::SwapExactIn {
-					asset_in,
-					asset_out,
-					amount_in,
-					amount_out,
-					route,
-				} => {
-					let origin = T::RuntimeOrigin::signed(holding_account.clone());
-					T::TradeExecutor::sell(
-						origin,
-						asset_in,
-						asset_out,
-						amount_in,
-						amount_out, // set as limit in the instruction
-						route.to_vec(),
-					)?;
-				}
-				Instruction::SwapExactOut {
-					asset_in,
-					asset_out,
-					amount_in,
-					amount_out,
-					route,
-				} => {
-					let origin = T::RuntimeOrigin::signed(holding_account.clone());
-					T::TradeExecutor::buy(
-						origin,
-						asset_in,
-						asset_out,
-						amount_out,
-						amount_in, // set as limit in the instruction
-						route.to_vec(),
-					)?;
-				}
-			}
-		}
-		 */
-
 		Ok(())
 	}
 
@@ -952,10 +770,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn do_trades(
-		amounts_in: BTreeMap<AssetId, Balance>,
-		amounts_out: BTreeMap<AssetId, Balance>,
-	) -> DispatchResult {
+	fn do_trades(amounts_in: BTreeMap<AssetId, Balance>, amounts_out: BTreeMap<AssetId, Balance>) -> DispatchResult {
 		let mut amounts_in: BTreeMap<AssetId, Balance> = amounts_in;
 
 		let mut matched_amounts = Vec::new();
@@ -1046,19 +861,6 @@ impl<T: Config> Pallet<T> {
 			debug_assert!(amount_out == 0u128);
 		}
 
-		Ok(())
-	}
-
-	#[transactional]
-	pub fn send_solution() -> DispatchResult {
-		let call = Call::propose_solution {
-			intents: BoundedResolvedIntents::default(),
-			trades: BoundedTrades::default(),
-			score: 0,
-			block: 0u32.into(),
-		};
-
-		let r = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 		Ok(())
 	}
 }
