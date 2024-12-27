@@ -311,9 +311,6 @@ pub mod pallet {
 		/// Oracle providing `price_adjustment` could not be found for requested assets.
 		PriceAdjustmentNotAvailable,
 
-		/// The extrinsic is disabled for now.
-		Disabled,
-
 		/// No farms specified to join
 		NoFarmEntriesSpecified,
 	}
@@ -747,8 +744,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Note: This extrinsic is disabled
-		///
 		/// Claim rewards from liquidity mining program for deposit represented by the `deposit_id`.
 		///
 		/// This function calculate user rewards from liquidity mining and transfer rewards to `origin`
@@ -764,11 +759,27 @@ pub mod pallet {
 		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(
-			_origin: OriginFor<T>,
-			_deposit_id: DepositId,
-			_yield_farm_id: YieldFarmId,
+			origin: OriginFor<T>,
+			deposit_id: DepositId,
+			yield_farm_id: YieldFarmId,
 		) -> DispatchResult {
-			return Err(Error::<T>::Disabled.into());
+			let owner = Self::ensure_nft_owner(origin, deposit_id)?;
+
+			let (global_farm_id, reward_currency, claimed, _) =
+				T::LiquidityMiningHandler::claim_rewards(owner.clone(), deposit_id, yield_farm_id)?;
+
+			ensure!(!claimed.is_zero(), Error::<T>::ZeroClaimedRewards);
+
+			Self::deposit_event(Event::RewardClaimed {
+				global_farm_id,
+				yield_farm_id,
+				who: owner,
+				claimed,
+				reward_currency,
+				deposit_id,
+			});
+
+			Ok(())
 		}
 
 		/// This function claim rewards and withdraw LP shares from yield farm. Omnipool position

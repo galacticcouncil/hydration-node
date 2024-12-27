@@ -576,12 +576,8 @@ benchmarks! {
 
 		set_period::<T>(400);
 
-	}: {
-		//We fire and forget as claim rewards is disabled
-		let _ = crate::Pallet::<T>::claim_rewards(RawOrigin::Signed(lp1).into(), deposit_id, 10);
-	} verify {
+	}:  _(RawOrigin::Signed(lp1), deposit_id, 10)
 
-	}
 
 	withdraw_shares {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());

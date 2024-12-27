@@ -269,6 +269,27 @@ impl EvmData for Address {
 	}
 }
 
+impl EvmData for H160 {
+	fn read(reader: &mut EvmDataReader) -> EvmResult<Self> {
+		let range = reader.move_cursor(32)?;
+
+		let data = reader
+			.input
+			.get(range)
+			.ok_or_else(|| revert("tried to parse H160 out of bounds"))?;
+
+		Ok(H160::from_slice(&data[12..32]))
+	}
+
+	fn write(writer: &mut EvmDataWriter, value: Self) {
+		H256::write(writer, value.into());
+	}
+
+	fn has_static_size() -> bool {
+		true
+	}
+}
+
 macro_rules! impl_evmdata_for_uints {
 	($($uint:ty, )*) => {
 		$(
