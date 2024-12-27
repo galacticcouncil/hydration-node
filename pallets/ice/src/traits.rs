@@ -31,16 +31,6 @@ impl<RuntimeCall, Route> IceWeightBounds<RuntimeCall, Route> for () {
 	}
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct OmnipoolAssetInfo<AssetId> {
-	pub asset_id: AssetId,
-	pub reserve: Balance,
-	pub hub_reserve: Balance,
-	pub decimals: u8,
-	pub fee: Permill,
-	pub hub_fee: Permill,
-}
-
 //TODO: this should not be aware of any f64 conversions! job for solver only
 impl<AssetId> OmnipoolAssetInfo<AssetId> {
 	pub fn reserve_as_f64(&self) -> f64 {
@@ -71,6 +61,36 @@ impl<AssetId> OmnipoolAssetInfo<AssetId> {
 //TODO: this should be extended to support other than omnipool assets.
 pub trait OmnipoolInfo<AssetId> {
 	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>>;
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct OmnipoolAssetInfo<AssetId> {
+	pub asset_id: AssetId,
+	pub reserve: Balance,
+	pub hub_reserve: Balance,
+	pub decimals: u8,
+	pub fee: Permill,
+	pub hub_fee: Permill,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct StableswapAssetInfo<AssetId> {
+	pub pool_id: AssetId,
+	pub asset_id: AssetId,
+	pub reserve: Balance,
+	pub decimals: u8,
+	pub fee: Permill,
+}
+
+pub enum AssetInfo<AssetId> {
+	Omnipool(OmnipoolAssetInfo<AssetId>),
+	StableSwap(StableswapAssetInfo<AssetId>),
+	XYK,
+}
+
+/// Generic trait to obtain state of all AMMs such as Omnipool, Stableswap, XYK, etc.
+pub trait AmmState<AssetId> {
+	fn state<F: Fn(&AssetId) -> bool>(filter: F) -> Vec<AssetInfo<AssetId>>;
 }
 
 pub trait Routing<AssetId> {

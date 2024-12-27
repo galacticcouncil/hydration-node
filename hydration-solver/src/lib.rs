@@ -5,7 +5,7 @@ mod problem;
 #[cfg(test)]
 mod tests;
 pub mod traits;
-mod types;
+pub mod types;
 pub mod v3;
 
 const LOG_TARGET: &str = "ice-solver";

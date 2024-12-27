@@ -1,18 +1,15 @@
 #![allow(non_snake_case)]
 
-use crate::traits::OmnipoolAssetInfo;
-use crate::types::{AssetId, Balance, Intent, IntentId, ResolvedIntent};
-use crate::{rational_to_f64, to_f64_by_decimals};
-use std::collections::{BTreeMap, BTreeSet};
-use std::ops::Neg;
-use std::ptr::null;
-
 use crate::data::process_omnipool_data;
-use crate::problem::{AmmApprox, Direction, FloatType, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
+use crate::problem::{AmmApprox, Direction, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
+use crate::traits::OmnipoolAssetInfo;
+use crate::types::{AssetId, Balance, FloatType, Intent, ResolvedIntent};
 use clarabel::algebra::*;
 use clarabel::solver::*;
-use highs::{HighsModelStatus, Problem, RowProblem, Sense};
-use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, Ix3, OwnedRepr};
+use highs::{HighsModelStatus, Sense};
+use ndarray::{s, Array1, Array2, Axis};
+use std::collections::BTreeMap;
+use std::ops::Neg;
 
 const ROUND_TOLERANCE: FloatType = 0.0001;
 const LRNA: AssetId = 1;
@@ -165,7 +162,8 @@ pub struct SolverResult {
 pub struct SolverV3;
 
 impl SolverV3 {
-	pub fn solve(intents: Vec<Intent>, pool_data: Vec<OmnipoolAssetInfo<AssetId>>) -> Result<SolverResult, ()> {
+	pub fn solve(intents: Vec<Intent>, pool_data: Vec<crate::types::Asset>) -> Result<SolverResult, ()> {
+		// atm we support only omnipool assets - let's prepare those
 		let data = process_omnipool_data(pool_data);
 		let mut problem = ICEProblem::new(intents, data);
 

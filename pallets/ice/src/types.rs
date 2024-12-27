@@ -1,3 +1,4 @@
+use crate::api::IntentRepr;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{RuntimeDebug, TypeInfo};
 use frame_support::traits::ConstU32;
@@ -21,11 +22,6 @@ pub type CallData = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 pub type BoundedResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_RESOLVED_INTENTS>>;
 pub type BoundedInstructions<AccountId, AssetId> =
 	BoundedVec<Instruction<AccountId, AssetId>, ConstU32<MAX_INSTRUCTIONS>>;
-
-// Unfortunately, we need simple representations of the types to be able to use across the FFI
-// dev: perhaps, it could be possible to implement IntoFFIValue to simplify.
-pub type IntentRepr = (IntentId, AssetId, AssetId, Balance, Balance);
-pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32));
 
 pub type BoundedRoute<AssetId> = BoundedVec<Trade<AssetId>, ConstU32<5>>;
 

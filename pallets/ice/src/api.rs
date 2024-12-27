@@ -3,7 +3,7 @@
 
 extern crate alloc;
 
-use crate::types::{AssetId, Balance, DataRepr, Intent, IntentId, IntentRepr, ResolvedIntent};
+use crate::types::{AssetId, Balance, Intent, IntentId, ResolvedIntent};
 use alloc::vec::Vec;
 use codec::Decode;
 use sp_std::sync::Arc;
@@ -34,6 +34,7 @@ sp_externalities::decl_extension! {
 	pub struct SolverExt(SolverPtr);
 }
 
+use crate::traits::AssetInfo;
 #[cfg(feature = "std")]
 use sp_externalities::{Externalities, ExternalitiesExt};
 use sp_runtime_interface::{runtime_interface, RIType};
@@ -44,5 +45,22 @@ pub trait ICE {
 		self.extension::<SolverExt>()
 			.expect("SolutionStoreExt is not registered")
 			.get_solution(intents, data)
+	}
+}
+
+// Unfortunately, we need simple representations of the types to be able to use across the FFI
+// dev: perhaps, it could be possible to implement IntoFFIValue to simplify.
+pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32));
+pub type IntentRepr = (IntentId, AssetId, AssetId, Balance, Balance);
+
+impl From<AssetInfo<AssetId>> for DataRepr {
+	fn from(value: AssetInfo<AssetId>) -> Self {
+		todo!()
+	}
+}
+
+impl From<DataRepr> for AssetInfo<AssetId> {
+	fn from(value: DataRepr) -> Self {
+		todo!()
 	}
 }

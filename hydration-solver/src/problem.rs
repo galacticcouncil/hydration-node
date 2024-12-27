@@ -1,14 +1,12 @@
 use crate::data::AssetData;
 use crate::to_f64_by_decimals;
-use crate::types::{AssetId, Intent, IntentId};
-use clarabel::algebra::{BlockConcatenate, CscMatrix};
+use crate::types::{AssetId, FloatType, Intent, IntentId};
 use clarabel::solver::SolverStatus;
 use float_next_after::NextAfter;
-use ndarray::{s, Array1, Array2, Array3, ArrayBase, Axis, Ix1, Ix2, OwnedRepr};
+use ndarray::{s, Array1, Array2, ArrayBase, Axis, Ix1, OwnedRepr};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
-pub type FloatType = f64;
 pub const FLOAT_INF: FloatType = FloatType::INFINITY;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]

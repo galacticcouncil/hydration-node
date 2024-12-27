@@ -3,8 +3,8 @@ extern crate rand;
 mod v3;
 
 use crate::data::AssetData;
-use crate::problem::FloatType;
 use crate::traits::{OmnipoolAssetInfo, TempOmnipoolAssetInfo};
+use crate::types::FloatType;
 use crate::types::Intent;
 use rand::Rng;
 

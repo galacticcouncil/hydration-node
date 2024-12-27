@@ -22,9 +22,3 @@ pub trait DustRemovalAccountWhitelist<AccountId> {
 	/// Remove an account from the list.
 	fn remove_account(account: &AccountId) -> Result<(), Self::Error>;
 }
-
-/// Generic AMM trait to obtain AMM state of any AMM such as Uniswap, Sushiswap, XYK, etc.
-pub trait AmmState<AssetId> {
-	type Data;
-	fn state<F: Fn(&AssetId) -> bool>(filter: Option<F>) -> Self::Data;
-}

@@ -571,7 +571,6 @@ type IcePriceProvider =
 
 impl pallet_ice::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	//type AssetId = AssetId;
 	type NativeAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
 	type TimestampProvider = Timestamp;
@@ -580,11 +579,10 @@ impl pallet_ice::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
 	type ReservableCurrency = Currencies;
 	type TradeExecutor = Router;
+	type AmmStateProvider = GlobalAmmState<Runtime>;
 	type Weigher = IceWeigher<RouterWeightInfo>;
 	type PriceProvider = IcePriceProvider;
 	type RoutingSupport = IceRoutingSupport<Router, Router, IcePriceProvider, RuntimeOrigin>;
-	//type Solver =
-	//		ice_solver::omni::OmniSolver<AccountId, AssetId, hydradx_adapters::ice::OmnipoolDataProvider<Runtime>>;
 	type PalletId = ICEPalletId;
 	type MaxCallData = MaxCallData;
 	type ProposalBond = IceProposalBond;
@@ -1368,7 +1366,7 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_adapters::ice::IceRoutingSupport;
+use hydradx_adapters::ice::{GlobalAmmState, IceRoutingSupport};
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 #[cfg(feature = "runtime-benchmarks")]

@@ -10,6 +10,7 @@ pub mod types;
 pub mod validity;
 mod weights;
 
+use crate::traits::AmmState;
 use crate::traits::Routing;
 use crate::types::{
 	AssetId, Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Instruction, Intent,
@@ -99,7 +100,7 @@ pub mod pallet {
 			hydradx_traits::router::AmountInAndOut<Balance>,
 		>;
 
-		//type DataProvider: crate::traits::OmnipoolInfo<AssetId>;
+		type AmmStateProvider: crate::traits::AmmState<AssetId>;
 
 		/// The means of determining a solution's weight.
 		type Weigher: IceWeightBounds<Self::RuntimeCall, Vec<hydradx_traits::router::Trade<AssetId>>>;
@@ -230,7 +231,8 @@ pub mod pallet {
 			if sp_io::offchain::is_validator() {
 				log::error!("Getting solution");
 				let intents = vec![];
-				let data = vec![];
+				let data = T::AmmStateProvider::state(|_| true);
+				let data = data.into_iter().map(|x| x.into()).collect();
 				let s = api::ice::get_solution(intents, data);
 				log::error!("Solution {:?}", s);
 			}
