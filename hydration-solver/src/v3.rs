@@ -163,6 +163,11 @@ pub struct SolverV3;
 
 impl SolverV3 {
 	pub fn solve(intents: Vec<Intent>, pool_data: Vec<crate::types::Asset>) -> Result<SolverResult, ()> {
+		if intents.is_empty() {
+			return Ok(SolverResult {
+				resolved_intents: vec![],
+			});
+		}
 		// atm we support only omnipool assets - let's prepare those
 		let data = process_omnipool_data(pool_data);
 		let mut problem = ICEProblem::new(intents, data);

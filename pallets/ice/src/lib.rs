@@ -240,7 +240,9 @@ pub mod pallet {
 							info
 						})
 						.collect();
-					if intents.len() > 0 {
+					// TODO: chnage this when ready
+					//if intents.len() > 0 {
+					if true {
 						let data = T::AmmStateProvider::state(|_| true)
 							.into_iter()
 							.map(|x| x.into())
@@ -248,6 +250,14 @@ pub mod pallet {
 						log::error!("Getting solution");
 						let s = api::ice::get_solution(intents, data);
 						log::error!("Solution {:?}", s);
+
+						let call = Call::propose_solution {
+							intents: BoundedResolvedIntents::truncate_from(vec![]),
+							trades: BoundedTrades::truncate_from(vec![]),
+							score: 1u64,
+							block: block_number.saturating_add(1u32.into()),
+						};
+						let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 
 						// TODO: submit solution
 					}
