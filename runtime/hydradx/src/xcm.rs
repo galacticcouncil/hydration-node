@@ -13,6 +13,7 @@ use frame_support::{
 	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
+use frame_system::unique;
 use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
@@ -25,12 +26,7 @@ use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
-use xcm_builder::{
-	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
-	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin,
-};
+use xcm_builder::{AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin, WithUniqueTopic};
 use xcm_executor::{Config, XcmExecutor};
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
@@ -232,7 +228,22 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 	type Prepared = <Inner as cumulus_primitives_core::ExecuteXcm<RuntimeCall>>::Prepared;
 
 	fn prepare(message: Xcm<<XcmConfig as Config>::RuntimeCall>) -> Result<Self::Prepared, Xcm<<XcmConfig as Config>::RuntimeCall>> {
-		Inner::prepare(message)
+		//We populate the context in `prepare` as we have the xcm message at this point so we can get the unique topic id
+		let unique_id = if let Some(SetTopic(id)) = message.last() {
+			*id
+		} else {
+			unique(&message)
+		};
+		pallet_amm_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id)).map_err(|_| message.clone())?;
+
+		let prepare_result = Inner::prepare(message);
+
+		//In case of error we need to clean context as xcm execution won't happen
+		if let Err(_) = prepare_result {
+			let _ = pallet_amm_support::Pallet::<Runtime>::remove_from_context();
+		}
+
+		prepare_result
 	}
 
 	fn execute(
@@ -241,13 +252,6 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		id: &mut XcmHash,
 		weight_credit: XcmWeight,
 	) -> Outcome {
-		let Ok(_) = pallet_amm_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(*id, event_id))
-		else {
-			return Outcome::Error {
-				error: XcmError::FailedToTransactAsset("Unexpected error at modifying unified events stack"),
-			};
-		};
-
 		let outcome = Inner::execute(origin, pre, id, weight_credit);
 
 		let Ok(_) = pallet_amm_support::Pallet::<Runtime>::remove_from_context() else {
@@ -443,12 +447,12 @@ impl Convert<AccountId, Location> for AccountIdToMultiLocation {
 
 /// The means for routing XCM messages which are not for local execution into the right message
 /// queues.
-pub type XcmRouter = (
+pub type XcmRouter = WithUniqueTopic<(
 	// Two routers - use UMP to communicate with the relay chain:
 	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
 	// ..and XCMP to communicate with the sibling chains.
 	XcmpQueue,
-);
+)>;
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM

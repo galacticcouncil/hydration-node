@@ -16,7 +16,6 @@ mod evm;
 mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
-mod xcm;
 mod insufficient_assets_ed;
 mod multi_payment;
 mod non_native_fee;
@@ -32,6 +31,7 @@ mod transact_call_filter;
 mod utility;
 pub mod utils;
 mod vesting;
+mod xcm;
 mod xyk;
 mod xyk_liquidity_mining;
 

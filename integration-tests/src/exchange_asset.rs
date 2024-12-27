@@ -127,6 +127,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 
 		let last_swapped_events = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
+		let topic_id = [
+			218, 12, 174, 219, 122, 191, 122, 133, 121, 249, 25, 38, 23, 16, 236, 2, 4, 232,
+			184, 111, 154, 26, 180, 68, 160, 59, 227, 99, 52, 246, 247, 115,
+		];
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
 			vec![
@@ -139,9 +143,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 					outputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 49180327868852)],
 					fees: vec![Fee::new(LRNA::get(), 24590163934, Omnipool::protocol_account()),],
 					operation_id: vec![
-						ExecutionType::XcmExchange(0),
-						ExecutionType::Router(1),
-						ExecutionType::Omnipool(2)
+						ExecutionType::Xcm(topic_id, 0),
+						ExecutionType::XcmExchange(1),
+						ExecutionType::Router(2),
+						ExecutionType::Omnipool(3)
 					],
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
@@ -153,9 +158,10 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 					outputs: vec![pallet_amm_support::types::Asset::new(HDX, 39101207131554396)],
 					fees: vec![Fee::new(HDX, 97998012861039, Omnipool::protocol_account()),],
 					operation_id: vec![
-						ExecutionType::XcmExchange(0),
-						ExecutionType::Router(1),
-						ExecutionType::Omnipool(2)
+						ExecutionType::Xcm(topic_id, 0),
+						ExecutionType::XcmExchange(1),
+						ExecutionType::Router(2),
+						ExecutionType::Omnipool(3)
 					],
 				})
 			]
@@ -184,7 +190,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 					inputs: vec![pallet_amm_support::types::Asset::new(HDX, 1 * UNITS),],
 					outputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 1308673515)],
 					fees: vec![Fee::new(LRNA::get(), 654336, Omnipool::protocol_account()),],
-					operation_id: vec![ExecutionType::Router(3), ExecutionType::Omnipool(4)],
+					operation_id: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 					swapper: ALICE.into(),
@@ -194,7 +200,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 					inputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 1308019179),],
 					outputs: vec![pallet_amm_support::types::Asset::new(ACA, 1348602600)],
 					fees: vec![Fee::new(ACA, 3379957, Omnipool::protocol_account()),],
-					operation_id: vec![ExecutionType::Router(3), ExecutionType::Omnipool(4)],
+					operation_id: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
 				})
 			]
 		);

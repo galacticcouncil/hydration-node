@@ -154,4 +154,10 @@ impl<T: Config> Pallet<T> {
 			stack.pop().ok_or(Error::<T>::EmptyStack.into())
 		})
 	}
+
+	pub fn get_context() -> Result<Vec<ExecutionType>, DispatchError> {
+		//TODO: check what to do when it fails, we might dont want to bloc ktrades becase of it
+		let stack = ExecutionContext::<T>::get().to_vec();
+		Ok(stack)
+	}
 }

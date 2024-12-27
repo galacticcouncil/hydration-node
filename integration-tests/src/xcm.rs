@@ -136,6 +136,10 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 
 		let swapped_events = get_last_swapped_events();
 		let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+		let topic_id = 							[
+			237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5,
+			253, 212, 209, 227, 230, 38, 183, 105, 62, 69, 234, 5, 249,
+		];
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
 			vec![
@@ -149,10 +153,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
 					operation_id: vec![
 						ExecutionType::Xcm(
-							[
-								105, 235, 204, 213, 153, 222, 42, 199, 108, 12, 60, 148, 48, 156, 46, 18, 60, 221, 150,
-								116, 143, 103, 206, 40, 127, 183, 175, 193, 168, 255, 190, 82,
-							],
+							topic_id,
 							0
 						),
 						ExecutionType::Omnipool(1)
@@ -164,14 +165,11 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 					filler_type: pallet_amm_support::types::Filler::Omnipool,
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
-					outputs: vec![UnifiedEventAsset::new(DAI,  26619890727267708)],
-					fees: vec![Fee::new(DAI,  66716518113453, Omnipool::protocol_account()),],
+					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
+					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
 					operation_id: vec![
 						ExecutionType::Xcm(
-							[
-								105, 235, 204, 213, 153, 222, 42, 199, 108, 12, 60, 148, 48, 156, 46, 18, 60, 221, 150,
-								116, 143, 103, 206, 40, 127, 183, 175, 193, 168, 255, 190, 82,
-							],
+							topic_id,
 							0
 						),
 						ExecutionType::Omnipool(1)
@@ -181,7 +179,6 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 		);
 	});
 }
-
 
 #[test]
 fn xcm_call_should_populate_unified_event_call_context() {
@@ -269,7 +266,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 					id: acala_account_id_at_hydra.clone().into(),
 					network: None,
 				}
-					.into(),
+				.into(),
 			},
 		]);
 
@@ -309,8 +306,8 @@ fn xcm_call_should_populate_unified_event_call_context() {
 					operation_id: vec![
 						ExecutionType::Xcm(
 							[
-								105, 235, 204, 213, 153, 222, 42, 199, 108, 12, 60, 148, 48, 156, 46, 18, 60, 221, 150,
-								116, 143, 103, 206, 40, 127, 183, 175, 193, 168, 255, 190, 82,
+								237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5,
+								253, 212, 209, 227, 230, 38, 183, 105, 62, 69, 234, 5, 249,
 							],
 							0
 						),
@@ -323,13 +320,13 @@ fn xcm_call_should_populate_unified_event_call_context() {
 					filler_type: pallet_amm_support::types::Filler::Omnipool,
 					operation: pallet_amm_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
-					outputs: vec![UnifiedEventAsset::new(DAI,  26619890727267708)],
-					fees: vec![Fee::new(DAI,  66716518113453, Omnipool::protocol_account()),],
+					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
+					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
 					operation_id: vec![
 						ExecutionType::Xcm(
 							[
-								105, 235, 204, 213, 153, 222, 42, 199, 108, 12, 60, 148, 48, 156, 46, 18, 60, 221, 150,
-								116, 143, 103, 206, 40, 127, 183, 175, 193, 168, 255, 190, 82,
+								237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5,
+								253, 212, 209, 227, 230, 38, 183, 105, 62, 69, 234, 5, 249,
 							],
 							0
 						),
@@ -338,5 +335,77 @@ fn xcm_call_should_populate_unified_event_call_context() {
 				})
 			]
 		);
+
+		let unified_event_context = pallet_amm_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
+		assert!(unified_event_context.is_empty());
+	});
+}
+
+#[test]
+fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
+	// Arrange
+	TestNet::reset();
+
+	let xcm_interior_at_acala =
+		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::AccountId32 {
+			network: None,
+			id: evm_account().into(),
+		}]));
+
+	let xcm_origin_at_hydra = Location {
+		parents: 1,
+		interior: cumulus_primitives_core::Junctions::X2(Arc::new([
+			cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+			cumulus_primitives_core::Junction::AccountId32 {
+				network: None,
+				id: evm_account().into(),
+			},
+		])),
+	};
+
+	let acala_account_id_at_hydra: AccountId =
+		HashedDescription::<AccountId, DescribeFamily<DescribeAllTerminal>>::convert_location(&xcm_origin_at_hydra)
+			.unwrap();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+
+		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			acala_account_id_at_hydra.clone(),
+			1_000 * UNITS,
+		));
+
+		assert_eq!(
+			hydradx_runtime::Currencies::free_balance(DAI, &AccountId::from(acala_account_id_at_hydra.clone())),
+			0
+		);
+	});
+
+	// Act
+	Acala::execute_with(|| {
+
+		//We make a big xcm so it results in error
+		const ARRAY_REPEAT_VALUE: cumulus_primitives_core::Instruction<()> = RefundSurplus;
+		let message : cumulus_primitives_core::Xcm<()>  = Xcm([ARRAY_REPEAT_VALUE;10000].to_vec());
+
+		let dest_hydradx = Location::new(
+			1,
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(
+				HYDRA_PARA_ID,
+			)])),
+		);
+
+		assert_ok!(hydradx_runtime::PolkadotXcm::send_xcm(
+			xcm_interior_at_acala,
+			dest_hydradx,
+			message
+		));
+	});
+
+	// Assert
+	Hydra::execute_with(|| {
+		let context = pallet_amm_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
+		assert!(context.is_empty())
 	});
 }
