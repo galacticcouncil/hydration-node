@@ -137,11 +137,8 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 		let swapped_events = get_last_swapped_events();
 		let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
 		let topic_id = [
-			162, 58, 237, 167, 26, 250, 26, 161,
-			116, 182, 7, 12, 84, 48, 100, 53,
-			175, 60, 179, 213, 59, 7, 83, 150,
-			136, 112, 126, 15, 199,223,71,230
-
+			162, 58, 237, 167, 26, 250, 26, 161, 116, 182, 7, 12, 84, 48, 100, 53, 175, 60, 179, 213, 59, 7, 83, 150,
+			136, 112, 126, 15, 199, 223, 71, 230,
 		];
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
