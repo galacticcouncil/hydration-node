@@ -1,18 +1,15 @@
-#![cfg(test)]
-use super::*;
-
 use crate as lbp;
 use crate::{
 	types::{AssetId, AssetPair, Balance},
-	AssetPairAccountIdFor, Config,
+	AssetPairAccountIdFor, Config, Pool, WeightCurveType,
 };
 use frame_support::parameter_types;
 use frame_support::traits::{Everything, LockIdentifier, Nothing};
-use hydradx_traits::LockedBalance;
+use hydradx_traits::{AMMTransfer, LockedBalance};
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup, Zero},
 	BuildStorage,
 };
 use std::collections::BTreeMap;

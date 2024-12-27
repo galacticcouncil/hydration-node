@@ -68,7 +68,7 @@ where
 		let evm_currency = WethAssetId::get();
 		let account_id = T::AddressMapping::into_account_id(source);
 		let account_nonce = T::AccountProvider::account_nonce(&account_id.clone().into());
-		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &account_id.into());
+		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &account_id);
 
 		let (source_account, inner_weight) = (
 			Account {

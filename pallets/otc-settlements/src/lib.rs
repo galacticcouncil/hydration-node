@@ -32,6 +32,7 @@
 //! * `settle_otc_order` -  Executes a trade between an OTC order and some route.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(not(feature = "runtime-benchmarks"))]
 use frame_system::RawOrigin;

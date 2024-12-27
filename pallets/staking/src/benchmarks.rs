@@ -29,7 +29,6 @@ const UNIT: u128 = 1_000_000_000_000;
 fn init_staking<T: Config>(non_dustable_balance: Balance) -> DispatchResult
 where
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: crate::pallet::Config,
 {
 	let pot = Pallet::<T>::pot_account_id();
 	let hdx = T::NativeAssetId::get();
@@ -41,7 +40,6 @@ where
 fn add_staking_rewards<T: Config>(rewards: Balance) -> DispatchResult
 where
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: crate::pallet::Config,
 {
 	let pot = Pallet::<T>::pot_account_id();
 	let hdx = T::NativeAssetId::get();
