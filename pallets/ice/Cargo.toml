@@ -21,7 +21,6 @@ serde = {workspace = true}
 hydradx-traits = { workspace = true }
 hydra-dx-math = {workspace = true}
 orml-traits = { workspace = true }
-primitives = {workspace = true}
 
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
@@ -64,6 +63,8 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"sp-api/std",
+	"sp-runtime-interface/std",
+	"sp-externalities/std",
 ]
 runtime-benchmarks = [ "frame-benchmarking/runtime-benchmarks" ]
 try-runtime = [ "frame-support/try-runtime" ]

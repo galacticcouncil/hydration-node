@@ -8657,7 +8657,6 @@ dependencies = [
  "pallet-currencies",
  "parity-scale-codec",
  "pretty_assertions",
- "primitives",
  "scale-info",
  "serde",
  "sp-api",

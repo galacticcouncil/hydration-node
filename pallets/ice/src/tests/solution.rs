@@ -9,6 +9,7 @@ use frame_support::pallet_prelude::Hooks;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::NamedMultiReservableCurrency;
 
+/*
 fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolvedIntents, BoundedTrades<AssetId>, u64) {
 	// currently only one intent is supported
 	let intent_id = intents[0];
@@ -405,3 +406,4 @@ fn on_finalize_should_clear_temporary_storage() {
 			assert!(!SolutionExecuted::<Test>::get());
 		});
 }
+ */

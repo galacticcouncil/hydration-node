@@ -13,7 +13,7 @@ use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
 use orml_traits::{parameter_type_with_key, GetByKey, MultiCurrency};
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::transaction_validity::TransactionPriority;
@@ -74,6 +74,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -122,6 +127,8 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, i128, u32>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
+	type Erc20Currency = MockErc20Currency<Runtime>;
+	type BoundErc20 = MockBoundErc20<Runtime>;
 }
 
 parameter_types! {
@@ -137,6 +144,15 @@ parameter_types! {
 	pub NamedReserveId: NamedReserveIdentifier = *b"iceinten";
 }
 
+pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+where
+	RuntimeCall: From<C>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+}
+
 pub struct DummyTimestampProvider;
 
 impl Time for DummyTimestampProvider {
@@ -145,14 +161,6 @@ impl Time for DummyTimestampProvider {
 	fn now() -> Self::Moment {
 		//TODO: perhaps use some static value which is possible to set as part of test
 		NOW.with(|now| *now.borrow())
-	}
-}
-
-pub struct DummyOrder;
-
-impl GetByKey<RuntimeCall, TransactionPriority> for DummyOrder {
-	fn get(_k: &RuntimeCall) -> TransactionPriority {
-		0
 	}
 }
 
@@ -185,6 +193,8 @@ impl pallet_ice::Config for Test {
 	type SlashReceiver = SlashReceiver;
 	type NamedReserveId = NamedReserveId;
 	type WeightInfo = ();
+	type AmmStateProvider = ();
+	type RoutingSupport = ();
 }
 
 pub struct DummyTradeExecutor;
