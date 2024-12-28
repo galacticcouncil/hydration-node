@@ -2174,6 +2174,17 @@ impl<T: Config> Pallet<T> {
 		Ok(instance_id)
 	}
 
+	pub fn omnipool_state() -> Vec<(T::AssetId, AssetReserveState<Balance>)> {
+		let mut asset_states = Vec::new();
+		for asset_id in Assets::<T>::iter_keys() {
+			let Ok(state) = Self::load_asset_state(asset_id) else {
+				continue;
+			};
+			asset_states.push((asset_id, state));
+		}
+		asset_states
+	}
+
 	#[cfg(feature = "try-runtime")]
 	fn ensure_trade_invariant(
 		asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
