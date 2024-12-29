@@ -24,6 +24,7 @@ fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolved
 	(resolved_intents, score)
 }
 
+#[test]
 fn submit_solution_should_fail_when_solution_is_already_executed() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
@@ -40,6 +41,7 @@ fn submit_solution_should_fail_when_solution_is_already_executed() {
 		});
 }
 
+#[test]
 fn submit_solution_should_fail_when_given_solution_is_not_for_current_block() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
@@ -55,6 +57,7 @@ fn submit_solution_should_fail_when_given_solution_is_not_for_current_block() {
 		});
 }
 
+#[test]
 fn on_finalize_should_clear_temporary_storage() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
@@ -97,28 +100,41 @@ fn on_finalize_should_clear_temporary_storage() {
 		});
 }
 
+#[test]
 fn submit_solution_should_fail_when_block_is_not_correct() {}
 
+#[test]
 fn submit_solution_should_fail_when_resolved_intents_is_empty() {}
+#[test]
 fn submit_should_should_fail_when_resolved_intent_contains_nonexistent_intent() {}
+#[test]
 fn submit_should_should_fail_when_resolved_intent_contains_incorrect_intent_amount_in() {}
+#[test]
 fn submit_should_should_fail_when_resolved_intent_has_incorrect_limit_price() {}
+#[test]
 fn submit_should_should_fail_when_solution_has_incorrect_score() {}
-
+#[test]
 fn submit_solution_should_correct_execute_trades() {}
 
+#[test]
 fn submit_solution_should_update_partial_intents() {}
 
+#[test]
 fn submit_solution_should_clear_expired_intents() {}
 
+#[test]
 fn submit_solution_should_deposit_event() {}
 
+#[test]
 fn submit_solution_should_set_execute_flag() {}
 
+#[test]
 fn submit_solution_should_unreserve_amount_when_intent_is_expired() {}
 
+#[test]
 fn submit_solution_should_execute_on_success_callback_when_intent_is_fully_resolved() {}
 
+#[test]
 fn submit_solution_should_execute_on_failure_callback_when_intent_is_expired() {}
 
 /*
