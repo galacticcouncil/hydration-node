@@ -53,11 +53,13 @@ where
 		_len: usize,
 	) -> TransactionValidity {
 		match call.is_sub_type() {
-			Some(Call::submit_solution { score, block, .. }) => {
+			Some(Call::submit_solution {
+				intents, score, block, ..
+			}) => {
 				if !Pallet::<T>::ensure_proposal_bond(who) {
 					return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment)); //TODO: custom error?
 				}
-				let valid = Pallet::<T>::validate_submission(who, *score, *block);
+				let valid = Pallet::<T>::validate_submission(who, intents, *score, *block);
 				if valid {
 					ValidTransaction::with_tag_prefix("IceSolutionProposal")
 						.and_provides(("solution", *score))

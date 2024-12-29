@@ -337,6 +337,7 @@ pub mod pallet {
 				Error::<T>::InvalidBlockNumber
 			);
 
+			// double-check again, should be done in tx validation
 			ensure!(!intents.is_empty(), Error::<T>::InvalidSolution(Reason::Empty));
 
 			//TODO: hm..clone here is not optimal, do something, bob!
@@ -414,22 +415,34 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	pub fn validate_submission(who: &T::AccountId, score: u64, block: BlockNumberFor<T>) -> bool {
+	pub fn validate_submission(
+		who: &T::AccountId,
+		resolved_intents: &BoundedResolvedIntents,
+		score: u64,
+		block: BlockNumberFor<T>,
+	) -> bool {
 		if block != T::BlockNumberProvider::current_block_number() {
 			return false;
 		}
 
-		//TODO: should accept list of resolved intents too and return error if empty
+		if resolved_intents.is_empty() {
+			return false;
+		}
 
 		if let Some((from, current_score)) = SolutionScore::<T>::get() {
-			//TODO: rework this - looks like a mess
-			if score > current_score {
-				SolutionScore::<T>::put((who, score));
-			}
-			if from == *who {
-				true
-			} else {
-				score > current_score
+			match score.cmp(&current_score) {
+				std::cmp::Ordering::Greater => {
+					SolutionScore::<T>::put((who, score));
+					true
+				}
+				std::cmp::Ordering::Less => false,
+				std::cmp::Ordering::Equal => {
+					// We need to do this, because validate_submission is called multiple times during tx validation
+					// and we want to ensure that the tx is valid.
+					// Note that one could submit same submit_solution call multiple times, and this would mean that
+					// all txs would be valid. However only one would be executed due to SolutionExecuted flag.
+					*who == from
+				}
 			}
 		} else {
 			SolutionScore::<T>::put((who, score));
