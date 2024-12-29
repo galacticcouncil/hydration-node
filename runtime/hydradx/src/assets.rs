@@ -589,6 +589,8 @@ impl pallet_ice::Config for Runtime {
 	type SlashReceiver = TreasuryAccount;
 	type NamedReserveId = ICENamedReserveId;
 	type WeightInfo = ();
+	type AuthorityId = AuraId;
+	type MaxKeys = ConstU32<1_000>;
 }
 
 pub struct CircuitBreakerWhitelist;

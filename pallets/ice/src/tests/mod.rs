@@ -197,6 +197,8 @@ impl pallet_ice::Config for Test {
 	type WeightInfo = ();
 	type RoutingSupport = RoutingSupport;
 	type AmmStateProvider = AmmState;
+	type AuthorityId = sp_runtime::testing::UintAuthorityId;
+	type MaxKeys = ConstU32<10_000>;
 }
 
 pub struct AmmState;

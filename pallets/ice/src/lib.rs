@@ -20,9 +20,9 @@ use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::tokens::{Fortitude, Preservation};
-use frame_support::traits::{OriginTrait, Time};
-use frame_support::Blake2_128Concat;
+use frame_support::traits::{OneSessionHandler, OriginTrait, Time};
 use frame_support::{dispatch::DispatchResult, traits::Get};
+use frame_support::{Blake2_128Concat, BoundedSlice};
 use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
 use frame_system::pallet_prelude::*;
 use hydradx_traits::price::PriceProvider;
@@ -35,7 +35,7 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::offchain::storage_lock::StorageLock;
 use sp_runtime::traits::Zero;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Convert};
-use sp_runtime::{ArithmeticError, FixedU128, Rounding, Saturating};
+use sp_runtime::{ArithmeticError, FixedU128, Rounding, RuntimeAppPublic, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
@@ -61,6 +61,14 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// The identifier type for an authority.
+		type AuthorityId: Member
+			+ Parameter
+			+ sp_runtime::RuntimeAppPublic
+			+ Ord
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
 
 		/// Native asset Id
 		#[pallet::constant]
@@ -125,6 +133,10 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type NamedReserveId: Get<NamedReserveIdentifier>;
+
+		/// The maximum number of keys that can be added.
+		#[pallet::constant]
+		type MaxKeys: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -210,6 +222,10 @@ pub mod pallet {
 	#[pallet::getter(fn solution_executed)]
 	pub(super) type SolutionExecuted<T: Config> = StorageValue<_, bool, ValueQuery, ExecDefault>;
 
+	/// The current set of keys that may submit a solution
+	#[pallet::storage]
+	pub type Keys<T: Config> = StorageValue<_, WeakBoundedVec<T::AuthorityId, T::MaxKeys>, ValueQuery>;
+
 	pub struct ExecDefault;
 
 	impl Get<bool> for ExecDefault {
@@ -232,6 +248,7 @@ pub mod pallet {
 				SOLVER_LOCK,
 				lock_expiration,
 			);
+
 			if let Ok(_guard) = lock.try_lock() {
 				if sp_io::offchain::is_validator() {
 					let intents: Vec<crate::api::IntentRepr> = Self::get_valid_intents()
@@ -430,12 +447,12 @@ impl<T: Config> Pallet<T> {
 
 		if let Some((from, current_score)) = SolutionScore::<T>::get() {
 			match score.cmp(&current_score) {
-				std::cmp::Ordering::Greater => {
+				sp_std::cmp::Ordering::Greater => {
 					SolutionScore::<T>::put((who, score));
 					true
 				}
-				std::cmp::Ordering::Less => false,
-				std::cmp::Ordering::Equal => {
+				sp_std::cmp::Ordering::Less => false,
+				sp_std::cmp::Ordering::Equal => {
 					// We need to do this, because validate_submission is called multiple times during tx validation
 					// and we want to ensure that the tx is valid.
 					// Note that one could submit same submit_solution call multiple times, and this would mean that
@@ -838,4 +855,70 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
+
+	fn initialize_keys(keys: &[T::AuthorityId]) {
+		if !keys.is_empty() {
+			assert!(Keys::<T>::get().is_empty(), "Keys are already initialized!");
+			let bounded_keys = <BoundedSlice<'_, _, T::MaxKeys>>::try_from(keys)
+				.expect("More than the maximum number of keys provided");
+			Keys::<T>::put(bounded_keys);
+		}
+	}
+
+	fn local_authority_keys() -> impl Iterator<Item = (u32, T::AuthorityId)> {
+		// on-chain storage
+		// At index `idx`:
+		// 1. A public key to be used by a validator at index `idx`
+		let authorities = Keys::<T>::get();
+
+		// local keystore
+		// All public (+private) keys currently in the local keystore.
+		let mut local_keys = T::AuthorityId::all();
+
+		local_keys.sort();
+
+		authorities
+			.into_iter()
+			.enumerate()
+			.filter_map(move |(index, authority)| {
+				local_keys
+					.binary_search(&authority)
+					.ok()
+					.map(|location| (index as u32, local_keys[location].clone()))
+			})
+	}
+}
+
+impl<T: Config> sp_runtime::BoundToRuntimeAppPublic for Pallet<T> {
+	type Public = T::AuthorityId;
+}
+
+impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
+	type Key = T::AuthorityId;
+
+	fn on_genesis_session<'a, I: 'a>(validators: I)
+	where
+		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
+	{
+		let keys = validators.map(|x| x.1).collect::<Vec<_>>();
+		Self::initialize_keys(&keys);
+	}
+
+	fn on_new_session<'a, I: 'a>(changed: bool, validators: I, queued_validators: I)
+	where
+		I: Iterator<Item = (&'a T::AccountId, Self::Key)>,
+	{
+		// Remember who the authorities are for the new session.
+		let keys = validators.map(|x| x.1).collect::<Vec<_>>();
+		let bounded_keys = WeakBoundedVec::<_, T::MaxKeys>::force_from(
+			keys,
+			Some(
+				"Warning: The session has more keys than expected. \
+  				A runtime configuration adjustment may be needed.",
+			),
+		);
+		Keys::<T>::put(bounded_keys);
+	}
+
+	fn on_disabled(_validator_index: u32) {}
 }
