@@ -33,7 +33,9 @@ pub mod tracks;
 
 use super::*;
 use crate::governance::{
-	origins::{GeneralAdmin, ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller},
+	origins::{
+		EconomicParameters, GeneralAdmin, ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller,
+	},
 	tracks::TracksInfo,
 };
 use frame_support::{
@@ -229,3 +231,13 @@ impl pallet_referenda::Config for Runtime {
 }
 
 impl origins::pallet_custom_origins::Config for Runtime {}
+
+impl pallet_dispatcher::Config for Runtime {
+	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
+	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
+	type TreasuryAccount = TreasuryAccount;
+	type AaveManagerAccount = TreasuryAccount;
+}
