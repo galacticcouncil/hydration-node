@@ -10,16 +10,18 @@ use frame_support::{construct_runtime, parameter_types, PalletId};
 use frame_system::ensure_signed;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
-use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
+use hydradx_traits::router::{AmountInAndOut, AssetPair, PoolType, RouterT, Trade};
 use orml_traits::{parameter_type_with_key, GetByKey, MultiCurrency};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_ice::traits::*;
 use sp_core::H256;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::transaction_validity::TransactionPriority;
-use sp_runtime::{BuildStorage, DispatchError, DispatchResult};
+use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Rounding};
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 pub(crate) type AssetId = u32;
@@ -37,6 +39,7 @@ pub(crate) const LRNA: AssetId = 1;
 pub const DEFAULT_NOW: Moment = 1689844300000; // unix time in milliseconds
 thread_local! {
 	pub static NOW: RefCell<Moment> = RefCell::new(DEFAULT_NOW);
+	pub static PRICES: RefCell<HashMap<(AssetId, AssetId), (Balance, Balance)>> = RefCell::new(HashMap::new());
 }
 
 construct_runtime!(
@@ -209,15 +212,29 @@ pub struct RoutingSupport;
 
 impl Routing<AssetId> for RoutingSupport {
 	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>> {
-		todo!()
+		vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: asset_a,
+			asset_out: asset_b,
+		}]
 	}
 
 	fn calculate_amount_out(route: &[Trade<AssetId>], amount_in: Balance) -> Result<Balance, ()> {
-		todo!()
+		let price = PRICES.with(|p| {
+			let p = p.borrow();
+			let (a, b) = (route[0].asset_in, route[0].asset_out);
+			p.get(&(a, b)).unwrap().clone()
+		});
+		multiply_by_rational_with_rounding(amount_in, price.1, price.0, Rounding::Up).ok_or(())
 	}
 
 	fn calculate_amount_in(route: &[Trade<AssetId>], amount_out: Balance) -> Result<Balance, ()> {
-		todo!()
+		let price = PRICES.with(|p| {
+			let p = p.borrow();
+			let (a, b) = (route[0].asset_in, route[0].asset_out);
+			p.get(&(a, b)).unwrap().clone()
+		});
+		multiply_by_rational_with_rounding(amount_out, price.0, price.1, Rounding::Up).ok_or(())
 	}
 }
 
@@ -249,14 +266,17 @@ impl RouterT<RuntimeOrigin, AssetId, Balance, Trade<AssetId>, AmountInAndOut<Bal
 	}
 
 	fn buy(
-		_origin: RuntimeOrigin,
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		_amount_out: Balance,
-		_max_amount_in: Balance,
+		origin: RuntimeOrigin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+		max_amount_in: Balance,
 		_route: Vec<Trade<AssetId>>,
 	) -> DispatchResult {
-		unimplemented!()
+		let who = ensure_signed(origin)?;
+		Currencies::withdraw(asset_in, &who, max_amount_in)?;
+		Currencies::deposit(asset_out, &who, amount_out)?;
+		Ok(())
 	}
 
 	fn calculate_sell_trade_amounts(
@@ -316,6 +336,16 @@ impl ExtBuilder {
 		self.native_amounts.push((account, amount));
 		self
 	}
+	pub fn with_prices(self, prices: Vec<((AssetId, AssetId), (Balance, Balance))>) -> Self {
+		PRICES.with(|p| {
+			let mut pm = p.borrow_mut();
+			for ((a, b), (va, vb)) in prices {
+				pm.insert((a, b), (va, vb));
+				pm.insert((b, a), (vb, va));
+			}
+		});
+		self
+	}
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 		orml_tokens::GenesisConfig::<Test> {
@@ -360,5 +390,5 @@ pub(crate) fn mock_solution(intents: Vec<(IntentId, Intent<AccountId>)>) -> (Bou
 
 	//TODO: calculate score
 
-	(BoundedResolvedIntents::truncate_from(resolved_intents), 1)
+	(BoundedResolvedIntents::truncate_from(resolved_intents), 1_000_000)
 }

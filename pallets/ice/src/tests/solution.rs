@@ -86,6 +86,7 @@ fn submit_solution_should_fail_when_given_solution_is_not_for_current_block() {
 fn on_finalize_should_clear_temporary_storage() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.with_prices(vec![((100, 200), (1_000_000_000_000, 2_000_000_000_000))])
 		.build()
 		.execute_with(|| {
 			let swap = Swap {
@@ -262,7 +263,34 @@ fn submit_should_should_fail_when_solution_has_incorrect_score() {
 		});
 }
 #[test]
-fn submit_solution_should_correct_execute_trades() {}
+fn submit_solution_should_correctly_execute_trades() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.with_native_amount(ALICE, 1_000_000_000_000)
+		.with_prices(vec![((100, 200), (1_000_000_000_000, 2_000_000_000_000))])
+		.build()
+		.execute_with(|| {
+			let intent = generate_intent(
+				ALICE,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000_000,
+				false,
+			);
+
+			let inc_id = get_next_intent_id(intent.deadline);
+			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent.clone()));
+
+			let (resolved_intents, score) = mock_solution(vec![(inc_id, intent.clone())]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(ALICE),
+				resolved_intents,
+				score,
+				1
+			),);
+		});
+}
 
 #[test]
 fn submit_solution_should_update_partial_intents() {}
