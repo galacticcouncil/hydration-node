@@ -45,7 +45,7 @@ const SUP_RECIP: Curve = Curve::make_reciprocal(5, 7, percent(1), percent(0), pe
 const SUP_FAST_RECIP: Curve = Curve::make_reciprocal(3, 7, percent(1), percent(0), percent(50));
 const SUP_WHITELISTED_CALLER: Curve = Curve::make_reciprocal(1, 28, percent(3), percent(2), percent(50));
 
-const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9] = [
+const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10] = [
 	(
 		0,
 		pallet_referenda::TrackInfo {
@@ -172,6 +172,20 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 			min_support: SUP_RECIP,
 		},
 	),
+	(
+		9,
+		pallet_referenda::TrackInfo {
+			name: "economic_parameters",
+			max_deciding: 3,
+			decision_deposit: 500_000 * UNITS,
+			prepare_period: 60 * MINUTES,
+			decision_period: 7 * DAYS,
+			confirm_period: 3 * HOURS,
+			min_enactment_period: 10 * MINUTES,
+			min_approval: APP_RECIP,
+			min_support: SUP_RECIP,
+		},
+	),
 ];
 
 pub struct TracksInfo;
@@ -197,6 +211,7 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 				origins::Origin::Spender => Ok(6),
 				origins::Origin::Tipper => Ok(7),
 				origins::Origin::OmnipoolAdmin => Ok(8),
+				origins::Origin::EconomicParameters => Ok(9),
 			}
 		} else {
 			Err(())
