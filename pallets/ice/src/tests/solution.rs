@@ -5,6 +5,7 @@ use crate::types::{BoundedResolvedIntents, Intent, ResolvedIntent, Swap, SwapTyp
 use crate::{Error, Event, Reason};
 use frame_support::pallet_prelude::Hooks;
 use frame_support::{assert_noop, assert_ok};
+use orml_traits::NamedMultiReservableCurrency;
 
 fn generate_intent(
 	who: AccountId,
@@ -336,6 +337,37 @@ fn submit_solution_should_correctly_execute_and_update_partial_intent() {
 			let intent = Intents::<Test>::get(inc_id).unwrap();
 			assert_eq!(intent.swap.amount_in, 100_000_000_000_000 / 2);
 			assert_eq!(intent.swap.amount_out, 200_000_000_000_000 / 2);
+		});
+}
+
+#[test]
+fn submit_solution_should_remove_resolved_intent() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.with_native_amount(ALICE, 1_000_000_000_000)
+		.with_prices(vec![((100, 200), (1_000_000_000_000, 2_000_000_000_000))])
+		.build()
+		.execute_with(|| {
+			let intent = generate_intent(
+				ALICE,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000_000,
+				false,
+			);
+			let inc_id = get_next_intent_id(intent.deadline);
+			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent.clone()));
+
+			let (resolved_intents, score) = mock_solution(vec![(inc_id, intent.clone())]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(ALICE),
+				resolved_intents,
+				score,
+				1
+			));
+			assert!(Intents::<Test>::get(inc_id).is_none());
+			assert_eq!(Currencies::reserved_balance_named(&NamedReserveId::get(), 100, &ALICE), 0);
 		});
 }
 

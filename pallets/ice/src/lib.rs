@@ -393,8 +393,6 @@ pub mod pallet {
 	}
 }
 
-//TODO: add validate unsigned to allow only validators
-
 impl<T: Config> Pallet<T> {
 	/// Holding account
 	pub fn holding_account() -> T::AccountId {
@@ -466,7 +464,7 @@ impl<T: Config> Pallet<T> {
 				intent.swap.asset_in,
 				&intent.who,
 				intent.swap.amount_in,
-			); //TODO: add test
+			);
 			debug_assert!(remainder.is_zero());
 			Intents::<T>::remove(intent_id);
 		}
@@ -700,9 +698,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn update_intents(resolved_intents: BoundedResolvedIntents) -> DispatchResult {
-		//TODO:
-		// handle reserved amounts?? should be already handled in execution
-
 		for resolved_intent in resolved_intents.iter() {
 			// get the intent
 			// if not found - ignore, should not happen
