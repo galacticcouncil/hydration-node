@@ -277,6 +277,8 @@ fn submit_solution_should_correctly_execute_trades() {
 				DEFAULT_NOW + 1_000_000,
 				false,
 			);
+			let asset_in_balance = Currencies::free_balance(100, &ALICE);
+			let asset_out_balance = Currencies::free_balance(200, &ALICE);
 
 			let inc_id = get_next_intent_id(intent.deadline);
 			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent.clone()));
@@ -288,7 +290,11 @@ fn submit_solution_should_correctly_execute_trades() {
 				resolved_intents,
 				score,
 				1
-			),);
+			));
+			let new_asset_a_balance = Currencies::free_balance(100, &ALICE);
+			let new_asset_b_balance = Currencies::free_balance(200, &ALICE);
+			assert_eq!(new_asset_a_balance, asset_in_balance - 100_000_000_000_000);
+			assert_eq!(new_asset_b_balance, asset_out_balance + 200_000_000_000_000);
 		});
 }
 
