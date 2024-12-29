@@ -156,7 +156,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Dispatch the call from the specified account as Signed Origin.
 	///
-	/// Return the call actual weight of the dispatched call if there is some.
+	/// Return the result and the actual weight of the dispatched call if there is some.
 	fn do_dispatch(
 		account: T::AccountId,
 		call: <T as Config>::RuntimeCall,
