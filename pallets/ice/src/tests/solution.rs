@@ -9,6 +9,31 @@ use frame_support::pallet_prelude::Hooks;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::NamedMultiReservableCurrency;
 
+fn generate_intent(
+	who: AccountId,
+	(asset_in, amount_in): (AssetId, Balance),
+	(asset_out, amount_out): (AssetId, Balance),
+	deadline: u64,
+	partial: bool,
+) -> Intent<AccountId> {
+	let swap = Swap {
+		asset_in,
+		asset_out,
+		amount_in,
+		amount_out,
+		swap_type: SwapType::ExactIn,
+	};
+	let intent = Intent {
+		who,
+		swap,
+		deadline,
+		partial,
+		on_success: None,
+		on_failure: None,
+	};
+	intent
+}
+
 fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolvedIntents, u64) {
 	// currently only one intent is supported
 	let intent_id = intents[0];
@@ -146,25 +171,96 @@ fn submit_should_should_fail_when_resolved_intent_contains_nonexistent_intent() 
 			);
 		});
 }
+
 #[test]
 fn submit_should_should_fail_when_resolved_intent_contains_incorrect_intent_amount_in() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
 		.build()
 		.execute_with(|| {
-			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
-			let (resolved_intents, score) = create_solution_for_given_intents(vec![intent_id]);
+			let intent = generate_intent(
+				ALICE,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000_000,
+				false,
+			);
+
+			let inc_id = get_next_intent_id(intent.deadline);
+			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent.clone()));
+
+			let resolved_intents = BoundedResolvedIntents::truncate_from(vec![ResolvedIntent {
+				intent_id: inc_id,
+				amount_in: 200_000_000_000_000,
+				amount_out: 400_000_000_000_000,
+			}]);
 
 			assert_noop!(
-				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, score, 1),
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, 1, 1),
 				Error::<Test>::InvalidSolution(Reason::IntentAmount)
 			);
 		});
 }
+
 #[test]
-fn submit_should_should_fail_when_resolved_intent_has_incorrect_limit_price() {}
+fn submit_should_should_fail_when_resolved_intent_has_incorrect_limit_price() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let intent = generate_intent(
+				ALICE,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000_000,
+				false,
+			);
+
+			let inc_id = get_next_intent_id(intent.deadline);
+			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent.clone()));
+
+			let resolved_intents = BoundedResolvedIntents::truncate_from(vec![ResolvedIntent {
+				intent_id: inc_id,
+				amount_in: 100_000_000_000_000,
+				amount_out: 10_000_000_000_000,
+			}]);
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, 2, 1),
+				Error::<Test>::InvalidSolution(Reason::IntentPrice)
+			);
+		});
+}
 #[test]
-fn submit_should_should_fail_when_solution_has_incorrect_score() {}
+fn submit_should_should_fail_when_solution_has_incorrect_score() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.with_native_amount(ALICE, 1_000_000_000_000)
+		.build()
+		.execute_with(|| {
+			let intent = generate_intent(
+				ALICE,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000_000,
+				false,
+			);
+
+			let inc_id = get_next_intent_id(intent.deadline);
+			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent.clone()));
+
+			let resolved_intents = BoundedResolvedIntents::truncate_from(vec![ResolvedIntent {
+				intent_id: inc_id,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+			}]);
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, 10, 1),
+				Error::<Test>::InvalidSolution(Reason::Score)
+			);
+		});
+}
 #[test]
 fn submit_solution_should_correct_execute_trades() {}
 

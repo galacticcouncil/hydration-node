@@ -26,7 +26,7 @@ pub(crate) type AssetId = u32;
 pub(crate) type AccountId = u64;
 type NamedReserveIdentifier = [u8; 8];
 
-use crate::types::{Balance, IntentId, Moment};
+use crate::types::{Balance, BoundedResolvedIntents, Intent, IntentId, Moment, ResolvedIntent};
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
@@ -339,6 +339,26 @@ impl ExtBuilder {
 	}
 }
 
+pub(crate) fn get_next_intent_id(moment: Moment) -> IntentId {
+	let increment = crate::Pallet::<Test>::next_incremental_id();
+	crate::Pallet::<Test>::get_intent_id(moment, increment)
+}
+
 pub(crate) fn get_intent_id(moment: Moment, increment: u64) -> IntentId {
 	crate::Pallet::<Test>::get_intent_id(moment, increment)
+}
+
+pub(crate) fn mock_solution(intents: Vec<(IntentId, Intent<AccountId>)>) -> (BoundedResolvedIntents, u64) {
+	let resolved_intents = intents
+		.into_iter()
+		.map(|(intent_id, v)| ResolvedIntent {
+			intent_id,
+			amount_in: v.swap.amount_in,
+			amount_out: v.swap.amount_out,
+		})
+		.collect();
+
+	//TODO: calculate score
+
+	(BoundedResolvedIntents::truncate_from(resolved_intents), 1)
 }

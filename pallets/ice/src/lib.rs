@@ -276,6 +276,8 @@ pub mod pallet {
 		pub fn submit_intent(origin: OriginFor<T>, intent: Intent<T::AccountId>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(who == intent.who, Error::<T>::InvalidIntent);
+
 			let now = T::TimestampProvider::now();
 			ensure!(intent.deadline > now, Error::<T>::InvalidDeadline);
 			ensure!(
