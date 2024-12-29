@@ -5,7 +5,6 @@ use frame_support::{
 	assert_ok,
 	sp_runtime::{FixedU128, Permill},
 	traits::{Contains, StorePreimage},
-	weights::Weight,
 };
 use hydradx_runtime::{origins, Preimage};
 use polkadot_xcm::v3::prelude::*;

@@ -381,7 +381,7 @@ impl ExtBuilder {
 					votes: votes.try_into().unwrap(),
 				};
 
-				pallet_staking::PositionVotes::<Test>::insert(position_id, v);
+				pallet_staking::Votes::<Test>::insert(position_id, v);
 			}
 		});
 
