@@ -225,9 +225,9 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			log::error!("Running ice offchain worker");
-			let lock_expiration = Duration::from_millis(crate::LOCK_TIMEOUT_EXPIRATION);
+			let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
 			let mut lock = StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(
-				crate::SOLVER_LOCK,
+				SOLVER_LOCK,
 				lock_expiration,
 			);
 			if let Ok(_guard) = lock.try_lock() {
@@ -240,7 +240,7 @@ pub mod pallet {
 							info
 						})
 						.collect();
-					// TODO: chnage this when ready
+					// TODO: change this when ready
 					//if intents.len() > 0 {
 					if true {
 						let data = T::AmmStateProvider::state(|_| true)
