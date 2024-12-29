@@ -299,7 +299,48 @@ fn submit_solution_should_correctly_execute_trades() {
 }
 
 #[test]
-fn submit_solution_should_update_partial_intents() {}
+fn submit_solution_should_correctly_execute_and_update_partial_intent() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.with_native_amount(ALICE, 1_000_000_000_000)
+		.with_prices(vec![((100, 200), (1_000_000_000_000, 2_000_000_000_000))])
+		.build()
+		.execute_with(|| {
+			let intent = generate_intent(
+				ALICE,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000_000,
+				true,
+			);
+			let asset_in_balance = Currencies::free_balance(100, &ALICE);
+			let asset_out_balance = Currencies::free_balance(200, &ALICE);
+
+			let inc_id = get_next_intent_id(intent.deadline);
+			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent.clone()));
+
+			let resolved = ResolvedIntent {
+				intent_id: inc_id,
+				amount_in: 100_000_000_000_000 / 2,
+				amount_out: 200_000_000_000_000 / 2,
+			};
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(ALICE),
+				BoundedResolvedIntents::truncate_from(vec![resolved]),
+				1_000_000,
+				1
+			));
+			let new_asset_a_balance = Currencies::total_balance(100, &ALICE);
+			let new_asset_b_balance = Currencies::total_balance(200, &ALICE);
+			assert_eq!(new_asset_a_balance, asset_in_balance - 100_000_000_000_000 / 2);
+			assert_eq!(new_asset_b_balance, asset_out_balance + 200_000_000_000_000 / 2);
+
+			let intent = Intents::<Test>::get(inc_id).unwrap();
+			assert_eq!(intent.swap.amount_in, 100_000_000_000_000 / 2);
+			assert_eq!(intent.swap.amount_out, 200_000_000_000_000 / 2);
+		});
+}
 
 #[test]
 fn submit_solution_should_clear_expired_intents() {}

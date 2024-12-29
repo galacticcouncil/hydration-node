@@ -661,7 +661,6 @@ impl<T: Config> Pallet<T> {
 		instructions.extend(transfers_out);
 
 		let calculated_score = Self::score_solution(intents.len() as u128, matched_amounts)?;
-		dbg!(calculated_score);
 		ensure!(calculated_score == score, Error::<T>::InvalidSolution(Reason::Score));
 
 		Ok((
