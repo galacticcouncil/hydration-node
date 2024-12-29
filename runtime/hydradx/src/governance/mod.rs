@@ -33,7 +33,9 @@ pub mod tracks;
 
 use super::*;
 use crate::governance::{
-	origins::{EconomicParameters, GeneralAdmin, ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller},
+	origins::{
+		EconomicParameters, GeneralAdmin, ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller,
+	},
 	tracks::TracksInfo,
 };
 use frame_support::{
