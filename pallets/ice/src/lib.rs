@@ -450,6 +450,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub(crate) fn get_next_incremental_id() -> Option<IncrementalIntentId> {
+		//TODO: we could probaly overflow here and starts from 0 when all ids are used
+		// it does not matter really as intent id uses dealdine, so it will be unique regardless
 		NextIncrementalId::<T>::mutate(|id| -> Option<IncrementalIntentId> {
 			let current_id = *id;
 			*id = id.checked_add(1)?;
