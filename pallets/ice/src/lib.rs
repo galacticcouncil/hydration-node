@@ -308,22 +308,15 @@ pub mod pallet {
 			let intent_count = intents.len() as u64;
 			let transfer_weight = T::Weigher::transfer_weight() * intent_count * 2; // transfer in and out
 			w.saturating_accrue(transfer_weight);
-			for instruction in trades.iter() {
-				match instruction {
-					TradeInstruction::SwapExactIn { route, .. } => {
-						w.saturating_accrue(T::Weigher::sell_weight(route.to_vec()));
-					},
-					TradeInstruction::SwapExactOut { route, .. } => {
-						w.saturating_accrue(T::Weigher::buy_weight(route.to_vec()));
-					}
-				}
-			}
+			//TODO: how do we account weight for trades now ?!! since it is removed
+			// probably we can take the worst case scenario - which is one intent - one trade
+			// number of resolved intent is known
+			// we can consider retrurning unused weight
 			w
 		})]
 		pub fn submit_solution(
 			origin: OriginFor<T>,
 			intents: BoundedResolvedIntents,
-			trades: BoundedTrades<AssetId>,
 			score: u64,
 			block: BlockNumberFor<T>,
 		) -> DispatchResult {
@@ -342,7 +335,8 @@ pub mod pallet {
 			);
 
 			//TODO: hm..clone here is not optimal, do something, bob!
-			match Self::validate_and_prepare_instructions(intents.clone().to_vec(), trades, score) {
+			// TODO: remove trades
+			match Self::validate_and_prepare_instructions(intents.clone().to_vec(), BoundedTrades::default(), score) {
 				Ok((instructions, amounts)) => {
 					Self::execute_instructions(instructions, amounts)?;
 					Self::update_intents(intents)?;

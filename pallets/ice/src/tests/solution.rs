@@ -9,6 +9,104 @@ use frame_support::pallet_prelude::Hooks;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::NamedMultiReservableCurrency;
 
+fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolvedIntents, u64) {
+	// currently only one intent is supported
+	let intent_id = intents[0];
+
+	let resolved_intents = vec![ResolvedIntent {
+		intent_id,
+		amount_in: 100_000_000_000_000,
+		amount_out: 200_000_000_000_000,
+	}];
+	let route = vec![];
+
+	let instructions = vec![TradeInstruction::SwapExactIn {
+		asset_in: 100,
+		asset_out: 200,
+		amount_in: 100_000_000_000_000,
+		amount_out: 200_000_000_000_000,
+		route: BoundedRoute::try_from(route).unwrap(),
+	}];
+
+	let resolved_intents = BoundedResolvedIntents::try_from(resolved_intents).unwrap();
+	let score = 1_000_000u64;
+
+	(resolved_intents, score)
+}
+
+fn submit_solution_should_fail_when_solution_is_already_executed() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			SolutionExecuted::<Test>::put(true);
+			let resolved_intents = BoundedResolvedIntents::default();
+			let score = 1_000_000u64;
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, score, 1),
+				Error::<Test>::AlreadyExecuted
+			);
+		});
+}
+
+fn submit_solution_should_fail_when_given_solution_is_not_for_current_block() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let resolved_intents = BoundedResolvedIntents::default();
+			let score = 1_000_000u64;
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, score, 2),
+				Error::<Test>::InvalidBlockNumber
+			);
+		});
+}
+
+fn on_finalize_should_clear_temporary_storage() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			assert_ok!(ICE::submit_intent(
+				RuntimeOrigin::signed(ALICE),
+				Intent {
+					who: ALICE,
+					swap: swap.clone(),
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: false,
+					on_success: None,
+					on_failure: None,
+				},
+			));
+
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
+
+			let (resolved_intents, score) = create_solution_for_given_intents(vec![intent_id]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(ALICE),
+				resolved_intents,
+				score,
+				1
+			));
+
+			assert!(SolutionExecuted::<Test>::get());
+			ICE::on_finalize(System::block_number());
+			assert_eq!(SolutionScore::<Test>::get(), None);
+			assert!(!SolutionExecuted::<Test>::get());
+		});
+}
+
 /*
 fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolvedIntents, BoundedTrades<AssetId>, u64) {
 	// currently only one intent is supported
