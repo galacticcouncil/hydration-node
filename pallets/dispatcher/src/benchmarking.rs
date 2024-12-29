@@ -29,6 +29,7 @@ use super::*;
 
 use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
+use sp_std::boxed::Box;
 
 benchmarks! {
 	where_clause { where
@@ -42,14 +43,12 @@ benchmarks! {
 		let call: <T as pallet::Config>::RuntimeCall = frame_system::Call::remark { remark }.into();
 	}: _(RawOrigin::Root, Box::new(call))
 
-	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
-}
+	dispatch_as_aave_manager {
+		let n in 1 .. 10_000;
+		let remark = sp_std::vec![1u8; n as usize];
 
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use crate::mock::*;
-	use frame_benchmarking::impl_benchmark_test_suite;
+		let call: <T as pallet::Config>::RuntimeCall = frame_system::Call::remark { remark }.into();
+	}: _(RawOrigin::Root, Box::new(call))
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }

@@ -226,6 +226,7 @@ runtime-benchmarks = [
     "pallet-conviction-voting/runtime-benchmarks",
     "pallet-referenda/runtime-benchmarks",
     "pallet-whitelist/runtime-benchmarks",
+    "pallet-dispatcher/runtime-benchmarks",
 ]
 std = [
     "codec/std",
