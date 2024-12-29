@@ -117,8 +117,4 @@ where
 		let r = R::calculate_buy_trade_amounts(&route, amount_out).unwrap();
 		Ok(r.last().unwrap().amount_in)
 	}
-	// should return price Hub/Asset
-	fn hub_asset_price(asset_id: AssetId) -> Result<Ratio, ()> {
-		PP::get_price(1u32.into(), asset_id).ok_or(())
-	}
 }

@@ -14,6 +14,7 @@ use hydradx_traits::router::{AmountInAndOut, AssetPair, RouterT, Trade};
 use orml_traits::{parameter_type_with_key, GetByKey, MultiCurrency};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_ice::traits::*;
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::transaction_validity::TransactionPriority;
@@ -127,8 +128,8 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, i128, u32>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
-	type Erc20Currency = MockErc20Currency<Runtime>;
-	type BoundErc20 = MockBoundErc20<Runtime>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 }
 
 parameter_types! {
@@ -149,8 +150,8 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
 where
 	RuntimeCall: From<C>,
 {
-	type OverarchingCall = RuntimeCall;
 	type Extrinsic = Extrinsic;
+	type OverarchingCall = RuntimeCall;
 }
 
 pub struct DummyTimestampProvider;
@@ -176,7 +177,6 @@ impl BlockNumberProvider for MockBlockNumberProvider {
 
 impl pallet_ice::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type AssetId = AssetId;
 	type NativeAssetId = NativeAssetId;
 	type HubAssetId = HubAssetId;
 	type TimestampProvider = DummyTimestampProvider;
@@ -193,21 +193,37 @@ impl pallet_ice::Config for Test {
 	type SlashReceiver = SlashReceiver;
 	type NamedReserveId = NamedReserveId;
 	type WeightInfo = ();
-	type AmmStateProvider = ();
-	type RoutingSupport = ();
+	type RoutingSupport = RoutingSupport;
+	type AmmStateProvider = AmmState;
+}
+
+pub struct AmmState;
+
+impl crate::traits::AmmState<AssetId> for AmmState {
+	fn state<F: Fn(&AssetId) -> bool>(filter: F) -> Vec<AssetInfo<AssetId>> {
+		todo!()
+	}
+}
+
+pub struct RoutingSupport;
+
+impl Routing<AssetId> for RoutingSupport {
+	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>> {
+		todo!()
+	}
+
+	fn calculate_amount_out(route: &[Trade<AssetId>], amount_in: Balance) -> Result<Balance, ()> {
+		todo!()
+	}
+
+	fn calculate_amount_in(route: &[Trade<AssetId>], amount_out: Balance) -> Result<Balance, ()> {
+		todo!()
+	}
 }
 
 pub struct DummyTradeExecutor;
 
-impl
-	RouterT<
-		RuntimeOrigin,
-		AssetId,
-		Balance,
-		hydradx_traits::router::Trade<AssetId>,
-		hydradx_traits::router::AmountInAndOut<Balance>,
-	> for DummyTradeExecutor
-{
+impl RouterT<RuntimeOrigin, AssetId, Balance, Trade<AssetId>, AmountInAndOut<Balance>> for DummyTradeExecutor {
 	fn sell(
 		origin: RuntimeOrigin,
 		asset_in: AssetId,
