@@ -4,7 +4,7 @@ use crate::tests::{ExtBuilder, ICE};
 use crate::types::{
 	BoundedResolvedIntents, BoundedRoute, BoundedTrades, Intent, ResolvedIntent, Swap, SwapType, TradeInstruction,
 };
-use crate::Error;
+use crate::{Error, Reason};
 use frame_support::pallet_prelude::Hooks;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::NamedMultiReservableCurrency;
@@ -101,14 +101,66 @@ fn on_finalize_should_clear_temporary_storage() {
 }
 
 #[test]
-fn submit_solution_should_fail_when_block_is_not_correct() {}
+fn submit_solution_should_fail_when_block_is_not_correct() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
+			let (resolved_intents, score) = create_solution_for_given_intents(vec![intent_id]);
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, score, 2),
+				Error::<Test>::InvalidBlockNumber
+			);
+		});
+}
 
 #[test]
-fn submit_solution_should_fail_when_resolved_intents_is_empty() {}
+fn submit_solution_should_fail_when_resolved_intents_is_empty() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let resolved_intents = BoundedResolvedIntents::default();
+			let score = 1_000_000u64;
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, score, 1),
+				Error::<Test>::InvalidSolution(Reason::Empty)
+			);
+		});
+}
 #[test]
-fn submit_should_should_fail_when_resolved_intent_contains_nonexistent_intent() {}
+fn submit_should_should_fail_when_resolved_intent_contains_nonexistent_intent() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
+			let (resolved_intents, score) = create_solution_for_given_intents(vec![intent_id]);
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, score, 1),
+				Error::<Test>::InvalidSolution(Reason::IntentNotFound)
+			);
+		});
+}
 #[test]
-fn submit_should_should_fail_when_resolved_intent_contains_incorrect_intent_amount_in() {}
+fn submit_should_should_fail_when_resolved_intent_contains_incorrect_intent_amount_in() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
+			let (resolved_intents, score) = create_solution_for_given_intents(vec![intent_id]);
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, score, 1),
+				Error::<Test>::InvalidSolution(Reason::IntentAmount)
+			);
+		});
+}
 #[test]
 fn submit_should_should_fail_when_resolved_intent_has_incorrect_limit_price() {}
 #[test]

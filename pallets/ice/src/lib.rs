@@ -147,6 +147,15 @@ pub mod pallet {
 		},
 	}
 
+	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+	pub enum Reason {
+		Empty,
+		Score,
+		IntentNotFound,
+		IntentAmount,
+		IntentPrice,
+	}
+
 	#[pallet::error]
 	pub enum Error<T> {
 		/// No more intent ids available
@@ -154,9 +163,6 @@ pub mod pallet {
 
 		/// Data too long
 		TooLong,
-
-		/// Intent not found
-		IntentNotFound,
 
 		/// Price is missing in provided solution
 		MissingPrice,
@@ -170,23 +176,20 @@ pub mod pallet {
 		/// Insufficient reserved balance
 		InsufficientReservedBalance,
 
-		/// Invalid solution score
-		InvalidScore,
-
-		///
-		IncorrectIntentAmountResolution,
-
-		///
-		InvalidTransferInstruction,
-
-		///
-		IntentLimitPriceViolation,
-
 		/// Solution already executed in this block
 		AlreadyExecuted,
 
 		/// Invalid intent parameters
 		InvalidIntent,
+
+		///
+		InvalidSolution(Reason),
+
+		/// Incorrect intent update
+		InvalidIntentUpdate,
+
+		/// Error in trading - failed to determine route, calculate trading amounts
+		TradingError,
 	}
 
 	#[pallet::storage]
@@ -333,6 +336,8 @@ pub mod pallet {
 				block == T::BlockNumberProvider::current_block_number(),
 				Error::<T>::InvalidBlockNumber
 			);
+
+			ensure!(!intents.is_empty(), Error::<T>::InvalidSolution(Reason::Empty));
 
 			//TODO: hm..clone here is not optimal, do something, bob!
 			// TODO: remove trades
@@ -565,11 +570,12 @@ impl<T: Config> Pallet<T> {
 		let mut transfers_out: Vec<Instruction<T::AccountId, AssetId>> = Vec::new();
 
 		for resolved_intent in intents.iter() {
-			let intent = Intents::<T>::get(resolved_intent.intent_id).ok_or(Error::<T>::IntentNotFound)?;
+			let intent = Intents::<T>::get(resolved_intent.intent_id)
+				.ok_or(Error::<T>::InvalidSolution(Reason::IntentNotFound))?;
 
 			ensure!(
 				Self::ensure_intent_price(&intent, resolved_intent),
-				Error::<T>::IntentLimitPriceViolation
+				Error::<T>::InvalidSolution(Reason::IntentPrice)
 			);
 
 			let is_partial = intent.partial;
@@ -604,16 +610,16 @@ impl<T: Config> Pallet<T> {
 					if is_partial {
 						ensure!(
 							resolved_intent.amount_in <= intent.swap.amount_in,
-							Error::<T>::IncorrectIntentAmountResolution
+							Error::<T>::InvalidSolution(Reason::IntentAmount)
 						);
 					} else {
 						ensure!(
 							resolved_intent.amount_in == intent.swap.amount_in,
-							Error::<T>::IncorrectIntentAmountResolution
+							Error::<T>::InvalidSolution(Reason::IntentAmount)
 						);
 						ensure!(
 							resolved_intent.amount_out >= intent.swap.amount_out,
-							Error::<T>::IncorrectIntentAmountResolution
+							Error::<T>::InvalidSolution(Reason::IntentAmount)
 						);
 					}
 				}
@@ -621,16 +627,16 @@ impl<T: Config> Pallet<T> {
 					if is_partial {
 						ensure!(
 							resolved_intent.amount_out <= intent.swap.amount_out,
-							Error::<T>::IncorrectIntentAmountResolution
+							Error::<T>::InvalidSolution(Reason::IntentAmount)
 						);
 					} else {
 						ensure!(
 							resolved_intent.amount_out == intent.swap.amount_out,
-							Error::<T>::IncorrectIntentAmountResolution
+							Error::<T>::InvalidSolution(Reason::IntentAmount)
 						);
 						ensure!(
 							resolved_intent.amount_in <= intent.swap.amount_in,
-							Error::<T>::IncorrectIntentAmountResolution
+							Error::<T>::InvalidSolution(Reason::IntentAmount)
 						);
 					}
 				}
@@ -653,7 +659,7 @@ impl<T: Config> Pallet<T> {
 		instructions.extend(transfers_out);
 
 		let calculated_score = Self::score_solution(intents.len() as u128, matched_amounts)?;
-		ensure!(calculated_score == score, Error::<T>::InvalidScore);
+		ensure!(calculated_score == score, Error::<T>::InvalidSolution(Reason::Score));
 
 		Ok((
 			instructions,
@@ -729,7 +735,12 @@ impl<T: Config> Pallet<T> {
 		// handle reserved amounts?? should be already handled in execution
 
 		for resolved_intent in resolved_intents.iter() {
-			let intent = Intents::<T>::take(resolved_intent.intent_id).ok_or(crate::Error::<T>::IntentNotFound)?;
+			// get the intent
+			// if not found - ignore, should not happen
+			let Some(intent) = Intents::<T>::take(resolved_intent.intent_id) else {
+				defensive!("Updating intents - intent not found");
+				continue;
+			};
 
 			let is_partial = intent.partial;
 			let asset_in = intent.swap.asset_in;
@@ -745,7 +756,8 @@ impl<T: Config> Pallet<T> {
 
 			// This should be handled by the validation, but just in case
 			if partially_resolved && !is_partial {
-				return Err(Error::<T>::IncorrectIntentAmountResolution.into());
+				defensive!("Partially resolved intent that should not be partial");
+				return Err(Error::<T>::InvalidIntentUpdate.into());
 			}
 
 			if partially_resolved {
@@ -816,12 +828,12 @@ impl<T: Config> Pallet<T> {
 
 				// Calculate the amount we can buy with the amount in we have
 				let possible_out_amount = T::RoutingSupport::calculate_amount_out(&route, *amount_in)
-					.map_err(|_| Error::<T>::IncorrectIntentAmountResolution)?;
+					.map_err(|_| Error::<T>::TradingError)?;
 
 				if possible_out_amount >= amount_out {
 					// do exact buy
 					let a_in = T::RoutingSupport::calculate_amount_in(&route, amount_out)
-						.map_err(|_| Error::<T>::IncorrectIntentAmountResolution)?;
+						.map_err(|_| Error::<T>::TradingError)?;
 					debug_assert!(a_in <= *amount_in);
 
 					let origin = T::RuntimeOrigin::signed(holding_account.clone());
