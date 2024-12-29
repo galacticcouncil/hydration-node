@@ -343,7 +343,68 @@ fn submit_solution_should_correctly_execute_and_update_partial_intent() {
 }
 
 #[test]
-fn submit_solution_should_clear_expired_intents() {}
+fn submit_solution_should_clear_expired_intents() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000), (BOB, 100, 100_000_000_000_000)])
+		.with_native_amount(ALICE, 1_000_000_000_000)
+		.with_prices(vec![((100, 200), (1_000_000_000_000, 2_000_000_000_000))])
+		.build()
+		.execute_with(|| {
+			let intent_to_resolve = generate_intent(
+				ALICE,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000_000,
+				true,
+			);
+
+			let expired_intent = generate_intent(
+				BOB,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000,
+				true,
+			);
+			let bob_asset_in_balance = Currencies::free_balance(100, &BOB);
+			let bob_asset_out_balance = Currencies::free_balance(200, &BOB);
+
+			let alice_inc_id = get_next_intent_id(intent_to_resolve.deadline);
+			assert_ok!(ICE::submit_intent(
+				RuntimeOrigin::signed(ALICE),
+				intent_to_resolve.clone()
+			));
+			let bob_inc_id = get_next_intent_id(expired_intent.deadline);
+			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(BOB), expired_intent.clone()));
+
+			let bob_free = Currencies::free_balance(100, &BOB);
+			assert_eq!(bob_free, bob_asset_in_balance - 100_000_000_000_000);
+
+			let resolved = ResolvedIntent {
+				intent_id: alice_inc_id,
+				amount_in: 100_000_000_000_000 / 2,
+				amount_out: 200_000_000_000_000 / 2,
+			};
+
+			// move time forward
+			NOW.with(|now| {
+				*now.borrow_mut() += 2000;
+			});
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(ALICE),
+				BoundedResolvedIntents::truncate_from(vec![resolved]),
+				1_000_000,
+				1
+			));
+			let intent = Intents::<Test>::get(bob_inc_id);
+			assert!(intent.is_none());
+
+			let bob_free = Currencies::free_balance(100, &BOB);
+			let bob_out = Currencies::free_balance(200, &BOB);
+			assert_eq!(bob_free, bob_asset_in_balance);
+			assert_eq!(bob_out, bob_asset_out_balance);
+		});
+}
 
 #[test]
 fn submit_solution_should_deposit_event() {}
