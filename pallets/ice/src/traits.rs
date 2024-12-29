@@ -1,6 +1,5 @@
-use crate::types::{Balance, ResolvedIntent};
+use crate::types::Balance;
 use frame_support::weights::Weight;
-use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::router::Trade;
 use sp_runtime::traits::Bounded;
 use sp_runtime::Permill;

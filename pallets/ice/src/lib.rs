@@ -13,18 +13,16 @@ mod weights;
 use crate::traits::AmmState;
 use crate::traits::Routing;
 use crate::types::{
-	AssetId, Balance, BoundedResolvedIntents, BoundedRoute, BoundedTrades, IncrementalIntentId, Instruction, Intent,
-	IntentId, Moment, NamedReserveIdentifier, ResolvedIntent, SolutionAmounts, Swap, SwapType, TradeInstruction,
-	TradeInstructionTransform,
+	AssetId, Balance, BoundedResolvedIntents, BoundedTrades, IncrementalIntentId, Instruction, Intent, IntentId,
+	Moment, NamedReserveIdentifier, ResolvedIntent, SolutionAmounts, Swap, SwapType, TradeInstructionTransform,
 };
-use codec::{HasCompact, MaxEncodedLen};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::{Inspect, Mutate};
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::{OriginTrait, Time};
-use frame_support::{dispatch::DispatchResult, traits::Get, transactional};
-use frame_support::{Blake2_128Concat, Parameter};
+use frame_support::Blake2_128Concat;
+use frame_support::{dispatch::DispatchResult, traits::Get};
 use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
 use frame_system::pallet_prelude::*;
 use hydradx_traits::price::PriceProvider;
@@ -35,8 +33,8 @@ use scale_info::TypeInfo;
 use sp_core::offchain::Duration;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::offchain::storage_lock::StorageLock;
+use sp_runtime::traits::Zero;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Convert};
-use sp_runtime::traits::{MaybeSerializeDeserialize, Member, Zero};
 use sp_runtime::{ArithmeticError, FixedU128, Rounding, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
@@ -48,8 +46,8 @@ pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{IceWeightBounds, OmnipoolInfo};
-	use crate::types::{BoundedResolvedIntents, BoundedTrades, TradeInstruction};
+	use crate::traits::IceWeightBounds;
+	use crate::types::{BoundedResolvedIntents, BoundedTrades};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use hydra_dx_math::ratio::Ratio;
@@ -361,59 +359,15 @@ pub mod pallet {
 		//TODO: same as submit, but unsigned,
 		// please merge into one, bob!
 		#[pallet::call_index(2)]
-		#[pallet::weight( {
-			let mut w = T::WeightInfo::submit_solution();
-			let intent_count = intents.len() as u64;
-			let transfer_weight = T::Weigher::transfer_weight() * intent_count * 2; // transfer in and out
-			w.saturating_accrue(transfer_weight);
-			for instruction in trades.iter() {
-			match instruction {
-					TradeInstruction::SwapExactIn { route, .. } => {
-						w.saturating_accrue(T::Weigher::sell_weight(route.to_vec()));
-					},
-					TradeInstruction::SwapExactOut { route, .. } => {
-						w.saturating_accrue(T::Weigher::buy_weight(route.to_vec()));
-					}
-				}
-			}
-			w
-		})]
+		#[pallet::weight(T::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
 		pub fn propose_solution(
 			origin: OriginFor<T>,
-			intents: BoundedResolvedIntents,
-			trades: BoundedTrades<AssetId>,
+			_intents: BoundedResolvedIntents,
+			_trades: BoundedTrades<AssetId>,
 			score: u64,
-			block: BlockNumberFor<T>,
+			_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-
-			/*
-			// check if the solution was already executed in this block
-			// This is to prevent multiple solutions to be executed in the same block.
-			// Although it should be handled by the tx validation, it is better to have it here too.
-			// So we dont slash the user for the tx that should have been rejected.
-			ensure!(!SolutionExecuted::<T>::get(), Error::<T>::AlreadyExecuted);
-
-			// double-check the target block, although it should be done in the tx validation
-			ensure!(
-				block == T::BlockNumberProvider::current_block_number(),
-				Error::<T>::InvalidBlockNumber
-			);
-
-			match Self::validate_and_prepare_instructions(intents.clone().to_vec(), trades, score) {
-				Ok((instructions, amounts)) => {
-					Self::execute_instructions(instructions, amounts)?;
-					Self::update_intents(intents)?;
-					Self::clear_expired_intents(); // TODO: on finalize
-							   //Self::deposit_event(Event::SolutionExecuted { who });
-					SolutionExecuted::<T>::set(true);
-				}
-				Err(e) => {
-					return Err(e);
-				}
-			}
-
-			 */
 			Self::deposit_event(Event::Hurray { score });
 			Ok(())
 		}
@@ -423,8 +377,8 @@ pub mod pallet {
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
-		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			let valid_tx = |provide| {
+		fn validate_unsigned(_source: TransactionSource, _call: &Self::Call) -> TransactionValidity {
+			let valid_tx = || {
 				ValidTransaction::with_tag_prefix("iceice")
 					.and_provides(("solution", 0u32))
 					.priority(100)
@@ -433,7 +387,7 @@ pub mod pallet {
 					.build()
 			};
 
-			valid_tx(b"settle_otc_order".to_vec())
+			valid_tx()
 		}
 	}
 }

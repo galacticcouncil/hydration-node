@@ -1,4 +1,3 @@
-use crate::api::IntentRepr;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{RuntimeDebug, TypeInfo};
 use frame_support::traits::ConstU32;

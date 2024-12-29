@@ -11,14 +11,13 @@ use frame_system::ensure_signed;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::{AmountInAndOut, AssetPair, PoolType, RouterT, Trade};
-use orml_traits::{parameter_type_with_key, GetByKey, MultiCurrency};
+use orml_traits::{parameter_type_with_key, MultiCurrency};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_ice::traits::*;
 use sp_core::H256;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
-use sp_runtime::transaction_validity::TransactionPriority;
 use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Rounding};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -203,7 +202,7 @@ impl pallet_ice::Config for Test {
 pub struct AmmState;
 
 impl crate::traits::AmmState<AssetId> for AmmState {
-	fn state<F: Fn(&AssetId) -> bool>(filter: F) -> Vec<AssetInfo<AssetId>> {
+	fn state<F: Fn(&AssetId) -> bool>(_filter: F) -> Vec<AssetInfo<AssetId>> {
 		todo!()
 	}
 }
@@ -391,4 +390,8 @@ pub(crate) fn mock_solution(intents: Vec<(IntentId, Intent<AccountId>)>) -> (Bou
 	//TODO: calculate score
 
 	(BoundedResolvedIntents::truncate_from(resolved_intents), 1_000_000)
+}
+
+pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
