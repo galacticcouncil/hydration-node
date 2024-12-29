@@ -11,7 +11,7 @@ use sp_runtime::{
 };
 
 #[test]
-fn dispatch_as_treasury_manager_should_work() {
+fn dispatch_as_treasury_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
@@ -23,7 +23,7 @@ fn dispatch_as_treasury_manager_should_work() {
 		let call_hash = BlakeTwo256::hash_of(&call).into();
 		let treasury_balance_before = Tokens::free_balance(HDX, &TreasuryAccount::get());
 
-		assert_ok!(Dispatcher::dispatch_as_treasury_manager(RuntimeOrigin::root(), call));
+		assert_ok!(Dispatcher::dispatch_as_treasury(RuntimeOrigin::root(), call));
 
 		let treasury_balance_after = Tokens::free_balance(HDX, &TreasuryAccount::get());
 
@@ -41,7 +41,7 @@ fn dispatch_as_treasury_manager_should_work() {
 }
 
 #[test]
-fn dispatch_as_treasury_manager_should_fail_when_bad_origin() {
+fn dispatch_as_treasury_should_fail_when_bad_origin() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let call = Box::new(RuntimeCall::System(frame_system::Call::remark_with_event {
@@ -49,7 +49,7 @@ fn dispatch_as_treasury_manager_should_fail_when_bad_origin() {
 		}));
 
 		assert_noop!(
-			Dispatcher::dispatch_as_treasury_manager(RuntimeOrigin::signed(ALICE), call),
+			Dispatcher::dispatch_as_treasury(RuntimeOrigin::signed(ALICE), call),
 			DispatchError::BadOrigin
 		);
 		expect_events(vec![]);

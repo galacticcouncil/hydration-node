@@ -36,7 +36,7 @@ benchmarks! {
 		T: crate::Config,
 	}
 
-	dispatch_as_treasury_manager {
+	dispatch_as_treasury {
 		let n in 1 .. 10_000;
 		let remark = sp_std::vec![1u8; n as usize];
 

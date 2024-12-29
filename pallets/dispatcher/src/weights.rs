@@ -48,7 +48,7 @@ use core::marker::PhantomData;
 
 /// Weight functions needed for duster.
 pub trait WeightInfo {
-    fn dispatch_as_treasury_manager(n: u32) -> Weight;
+    fn dispatch_as_treasury(n: u32) -> Weight;
     fn dispatch_as_aave_manager(n: u32) -> Weight;
 }
 
@@ -56,7 +56,7 @@ pub trait WeightInfo {
 pub struct HydraWeight<T>(PhantomData<T>);
 impl WeightInfo for () {
     /// The range of component `n` is `[1, 10000]`.
-    fn dispatch_as_treasury_manager(n: u32, ) -> Weight {
+    fn dispatch_as_treasury(n: u32, ) -> Weight {
         // Proof Size summary in bytes:
         //  Measured:  `0`
         //  Estimated: `0`

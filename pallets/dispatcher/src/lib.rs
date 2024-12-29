@@ -106,10 +106,10 @@ pub mod pallet {
 			let call_weight = call.get_dispatch_info().weight;
 			let call_len = call.encoded_size() as u32;
 
-			T::WeightInfo::dispatch_as_treasury_manager(call_len)
+			T::WeightInfo::dispatch_as_treasury(call_len)
 				.saturating_add(call_weight)
 		})]
-		pub fn dispatch_as_treasury_manager(
+		pub fn dispatch_as_treasury(
 			origin: OriginFor<T>,
 			call: Box<<T as Config>::RuntimeCall>,
 		) -> DispatchResultWithPostInfo {
@@ -119,7 +119,7 @@ pub mod pallet {
 			let call_len = call.encoded_size() as u32;
 
 			let (result, actual_weight) = Self::do_dispatch(T::TreasuryAccount::get(), *call);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len)));
+			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
 
 			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
 
@@ -144,7 +144,7 @@ pub mod pallet {
 			let call_len = call.encoded_size() as u32;
 
 			let (result, actual_weight) = Self::do_dispatch(T::AaveManagerAccount::get(), *call);
-			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len)));
+			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
 

@@ -53,7 +53,7 @@ pub struct WeightInfo<T>(PhantomData<T>);
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
     /// The range of component `n` is `[1, 10000]`.
-    fn dispatch_as_treasury_manager(n: u32, ) -> Weight {
+    fn dispatch_as_treasury(n: u32, ) -> Weight {
         // Proof Size summary in bytes:
         //  Measured:  `0`
         //  Estimated: `0`
