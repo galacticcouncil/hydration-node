@@ -18,16 +18,6 @@ fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolved
 		amount_in: 100_000_000_000_000,
 		amount_out: 200_000_000_000_000,
 	}];
-	let route = vec![];
-
-	let instructions = vec![TradeInstruction::SwapExactIn {
-		asset_in: 100,
-		asset_out: 200,
-		amount_in: 100_000_000_000_000,
-		amount_out: 200_000_000_000_000,
-		route: BoundedRoute::try_from(route).unwrap(),
-	}];
-
 	let resolved_intents = BoundedResolvedIntents::try_from(resolved_intents).unwrap();
 	let score = 1_000_000u64;
 
@@ -106,6 +96,30 @@ fn on_finalize_should_clear_temporary_storage() {
 			assert!(!SolutionExecuted::<Test>::get());
 		});
 }
+
+fn submit_solution_should_fail_when_block_is_not_correct() {}
+
+fn submit_solution_should_fail_when_resolved_intents_is_empty() {}
+fn submit_should_should_fail_when_resolved_intent_contains_nonexistent_intent() {}
+fn submit_should_should_fail_when_resolved_intent_contains_incorrect_intent_amount_in() {}
+fn submit_should_should_fail_when_resolved_intent_has_incorrect_limit_price() {}
+fn submit_should_should_fail_when_solution_has_incorrect_score() {}
+
+fn submit_solution_should_correct_execute_trades() {}
+
+fn submit_solution_should_update_partial_intents() {}
+
+fn submit_solution_should_clear_expired_intents() {}
+
+fn submit_solution_should_deposit_event() {}
+
+fn submit_solution_should_set_execute_flag() {}
+
+fn submit_solution_should_unreserve_amount_when_intent_is_expired() {}
+
+fn submit_solution_should_execute_on_success_callback_when_intent_is_fully_resolved() {}
+
+fn submit_solution_should_execute_on_failure_callback_when_intent_is_expired() {}
 
 /*
 fn create_solution_for_given_intents(intents: Vec<IntentId>) -> (BoundedResolvedIntents, BoundedTrades<AssetId>, u64) {

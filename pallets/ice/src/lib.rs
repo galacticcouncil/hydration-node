@@ -458,7 +458,10 @@ impl<T: Config> Pallet<T> {
 			return false;
 		}
 
+		//TODO: should accept list of resolved intents too and return error if empty
+
 		if let Some((from, current_score)) = SolutionScore::<T>::get() {
+			//TODO: rework this - looks like a mess
 			if score > current_score {
 				SolutionScore::<T>::put((who, score));
 			}
