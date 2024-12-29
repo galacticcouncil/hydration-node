@@ -151,6 +151,7 @@ pub mod pallet {
 		Score,
 		IntentNotFound,
 		IntentAmount,
+		IntentPartialAmount,
 		IntentPrice,
 	}
 
@@ -582,11 +583,11 @@ impl<T: Config> Pallet<T> {
 					} else {
 						ensure!(
 							resolved_intent.amount_in == intent.swap.amount_in,
-							Error::<T>::InvalidSolution(Reason::IntentAmount)
+							Error::<T>::InvalidSolution(Reason::IntentPartialAmount)
 						);
 						ensure!(
 							resolved_intent.amount_out >= intent.swap.amount_out,
-							Error::<T>::InvalidSolution(Reason::IntentAmount)
+							Error::<T>::InvalidSolution(Reason::IntentPartialAmount)
 						);
 					}
 				}
@@ -599,11 +600,11 @@ impl<T: Config> Pallet<T> {
 					} else {
 						ensure!(
 							resolved_intent.amount_out == intent.swap.amount_out,
-							Error::<T>::InvalidSolution(Reason::IntentAmount)
+							Error::<T>::InvalidSolution(Reason::IntentPartialAmount)
 						);
 						ensure!(
 							resolved_intent.amount_in <= intent.swap.amount_in,
-							Error::<T>::InvalidSolution(Reason::IntentAmount)
+							Error::<T>::InvalidSolution(Reason::IntentPartialAmount)
 						);
 					}
 				}
@@ -699,9 +700,8 @@ impl<T: Config> Pallet<T> {
 
 	fn update_intents(resolved_intents: BoundedResolvedIntents) -> DispatchResult {
 		for resolved_intent in resolved_intents.iter() {
-			// get the intent
-			// if not found - ignore, should not happen
 			let Some(intent) = Intents::<T>::take(resolved_intent.intent_id) else {
+				//we can ignore this case, should not happen
 				defensive!("Updating intents - intent not found");
 				continue;
 			};
@@ -789,6 +789,7 @@ impl<T: Config> Pallet<T> {
 					continue;
 				}
 				let route = T::RoutingSupport::get_route(*asset_in, asset_out);
+				// TODO: when time comes, we would need more sophisticated route selection due to multiple pools
 
 				// Calculate the amount we can buy with the amount in we have
 				let possible_out_amount = T::RoutingSupport::calculate_amount_out(&route, *amount_in)
@@ -798,19 +799,17 @@ impl<T: Config> Pallet<T> {
 					// do exact buy
 					let a_in = T::RoutingSupport::calculate_amount_in(&route, amount_out)
 						.map_err(|_| Error::<T>::TradingError)?;
-					debug_assert!(a_in <= *amount_in);
+
+					if a_in > *amount_in {
+						// this is a bug!
+						defensive!("Trading - amount in is less than expected. Bug!");
+						return Err(Error::<T>::TradingError.into());
+					}
 
 					let origin = T::RuntimeOrigin::signed(holding_account.clone());
-					T::TradeExecutor::buy(
-						origin,
-						*asset_in,
-						asset_out,
-						amount_out,
-						a_in, // set as limit in the instruction
-						route.to_vec(),
-					)?;
+					T::TradeExecutor::buy(origin, *asset_in, asset_out, amount_out, a_in, route.to_vec())?;
 
-					*amount_in -= a_in;
+					*amount_in -= a_in; // this is safe, because of the condition
 					amount_out = 0u128;
 					//after this, we sorted the asset_out, we can move one
 					break;
@@ -822,17 +821,18 @@ impl<T: Config> Pallet<T> {
 						*asset_in,
 						asset_out,
 						*amount_in,
-						possible_out_amount, // set as limit in the instruction
+						possible_out_amount,
 						route.to_vec(),
 					)?;
 
 					*amount_in = 0u128;
-					amount_out -= possible_out_amount;
-					//after this, we need another asset_in to buy the rest
+					amount_out -= possible_out_amount; //this is safe, because of the condition
+					               //after this, we need another asset_in to buy the rest
 				}
 			}
 
-			// esnure we sorted asset out before moving on
+			// ensure we sorted asset out before moving on
+			//TODO: is this really needed? rethink!
 			debug_assert!(amount_out == 0u128);
 		}
 

@@ -182,7 +182,7 @@ fn submit_should_should_fail_when_resolved_intent_contains_incorrect_intent_amou
 				(100, 100_000_000_000_000),
 				(200, 200_000_000_000_000),
 				DEFAULT_NOW + 1_000_000,
-				false,
+				true,
 			);
 
 			let inc_id = get_next_intent_id(intent.deadline);
@@ -367,7 +367,10 @@ fn submit_solution_should_remove_resolved_intent() {
 				1
 			));
 			assert!(Intents::<Test>::get(inc_id).is_none());
-			assert_eq!(Currencies::reserved_balance_named(&NamedReserveId::get(), 100, &ALICE), 0);
+			assert_eq!(
+				Currencies::reserved_balance_named(&NamedReserveId::get(), 100, &ALICE),
+				0
+			);
 		});
 }
 
@@ -495,6 +498,35 @@ fn submit_solution_should_deposit_event() {
 			));
 
 			expect_events(vec![Event::SolutionExecuted { who: ALICE }.into()]);
+		});
+}
+
+#[test]
+fn submit_should_should_fail_when_resolved_intent_contains_partialy_resolved_for_non_partial_intent() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let intent = generate_intent(
+				ALICE,
+				(100, 100_000_000_000_000),
+				(200, 200_000_000_000_000),
+				DEFAULT_NOW + 1_000_000,
+				false,
+			);
+
+			let inc_id = get_next_intent_id(intent.deadline);
+			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent.clone()));
+			let resolved_intents = BoundedResolvedIntents::truncate_from(vec![ResolvedIntent {
+				intent_id: inc_id,
+				amount_in: 100_000_000_000_000 / 2,
+				amount_out: 200_000_000_000_000 / 2,
+			}]);
+
+			assert_noop!(
+				ICE::submit_solution(RuntimeOrigin::signed(ALICE), resolved_intents, 1_000_000, 1),
+				Error::<Test>::InvalidSolution(Reason::IntentPartialAmount)
+			);
 		});
 }
 
