@@ -37,7 +37,8 @@ mod benchmarking;
 
 pub mod weights;
 
-use sp_runtime::traits::Dispatchable;
+use frame_support::dispatch::PostDispatchInfo;
+use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -117,16 +118,16 @@ pub mod pallet {
 			let call_hash = T::Hashing::hash_of(&call).into();
 			let call_len = call.encoded_size() as u32;
 
-			let actual_weight = Self::do_dispatch(T::TreasuryAccount::get(), *call)
-				.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len)));
+			let (result, actual_weight) = Self::do_dispatch(T::TreasuryAccount::get(), *call);
+			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
 
 			Ok(actual_weight.into())
 		}
-		
-		#[crate::pallet::call_index(1)]
-		#[crate::pallet::weight({
+
+		#[pallet::call_index(1)]
+		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().weight;
 			let call_len = call.encoded_size() as u32;
 
@@ -142,8 +143,8 @@ pub mod pallet {
 			let call_hash = T::Hashing::hash_of(&call).into();
 			let call_len = call.encoded_size() as u32;
 
-			let actual_weight = Self::do_dispatch(T::AaveManagerAccount::get(), *call)
-				.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len)));
+			let (result, actual_weight) = Self::do_dispatch(T::AaveManagerAccount::get(), *call);
+			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
 
@@ -156,7 +157,10 @@ impl<T: Config> Pallet<T> {
 	/// Dispatch the call from the specified account as Signed Origin.
 	///
 	/// Return the call actual weight of the dispatched call if there is some.
-	fn do_dispatch(account: T::AccountId, call: <T as Config>::RuntimeCall) -> Option<Weight> {
+	fn do_dispatch(
+		account: T::AccountId,
+		call: <T as Config>::RuntimeCall,
+	) -> (DispatchResultWithInfo<PostDispatchInfo>, Option<Weight>) {
 		let result = call.dispatch(frame_system::Origin::<T>::Signed(account).into());
 
 		let call_actual_weight = match result {
@@ -164,6 +168,6 @@ impl<T: Config> Pallet<T> {
 			Err(call_err) => call_err.post_info.actual_weight,
 		};
 
-		call_actual_weight
+		(result, call_actual_weight)
 	}
 }

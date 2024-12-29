@@ -25,7 +25,6 @@
 //  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
 //                  $$$
 
-
 use super::*;
 
 use frame_benchmarking::benchmarks;
