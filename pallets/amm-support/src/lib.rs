@@ -35,7 +35,7 @@ pub use pallet::*;
 
 const LOG_TARGET: &str = "runtime::amm-support";
 
-pub const MAX_STACK_SIZE: u32 = 10;
+pub const MAX_STACK_SIZE: u32 = 16;
 
 type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
 
