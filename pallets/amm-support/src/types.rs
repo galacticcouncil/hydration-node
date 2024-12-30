@@ -51,7 +51,6 @@ impl Asset {
 pub enum ExecutionType {
 	Router(IncrementalIdType),
 	DCA(ScheduleId, IncrementalIdType),
-	ICE(IncrementalIdType),
 	Batch(IncrementalIdType),
 	Omnipool(IncrementalIdType),
 	XcmExchange(IncrementalIdType),

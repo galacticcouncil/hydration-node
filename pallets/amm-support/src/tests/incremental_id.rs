@@ -38,13 +38,13 @@ fn stack_should_be_populated_when_pushed() {
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::Omnipool));
 		assert_eq!(
 			AmmSupport::execution_context(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
-				ExecutionType::ICE(2)
+				ExecutionType::Omnipool(2)
 			]
 		);
 		assert_eq!(
@@ -52,7 +52,7 @@ fn stack_should_be_populated_when_pushed() {
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
-				ExecutionType::ICE(2)
+				ExecutionType::Omnipool(2)
 			]
 		);
 	});
@@ -63,7 +63,7 @@ fn stack_should_be_reduced_when_poped() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::Omnipool));
 
 		AmmSupport::remove_from_context().unwrap();
 		assert_eq!(
@@ -75,13 +75,13 @@ fn stack_should_be_reduced_when_poped() {
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::ICE));
+		assert_ok!(AmmSupport::add_to_context(ExecutionType::Omnipool));
 		assert_eq!(
 			AmmSupport::execution_context(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
-				ExecutionType::ICE(3)
+				ExecutionType::Omnipool(3)
 			]
 		);
 		assert_eq!(
@@ -89,7 +89,7 @@ fn stack_should_be_reduced_when_poped() {
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
-				ExecutionType::ICE(3)
+				ExecutionType::Omnipool(3)
 			]
 		);
 	});
