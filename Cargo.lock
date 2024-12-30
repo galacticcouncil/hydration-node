@@ -4619,7 +4619,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.8"
+version = "1.3.9"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4648,7 +4648,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 3.1.2",
+ "pallet-staking 4.0.1",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4669,7 +4669,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "272.0.0"
+version = "276.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4719,6 +4719,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
+ "pallet-conviction-voting",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
@@ -4742,6 +4743,7 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-lbp",
+ "pallet-liquidation",
  "pallet-liquidity-mining",
  "pallet-message-queue",
  "pallet-multisig",
@@ -4751,13 +4753,14 @@ dependencies = [
  "pallet-otc-settlements",
  "pallet-preimage",
  "pallet-proxy",
+ "pallet-referenda",
  "pallet-referrals",
  "pallet-relaychain-info",
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 3.1.2",
+ "pallet-staking 4.0.1",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -4768,6 +4771,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-uniques",
  "pallet-utility",
+ "pallet-whitelist",
  "pallet-xcm",
  "pallet-xyk",
  "pallet-xyk-liquidity-mining",
@@ -4783,6 +4787,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "sp-api",
+ "sp-arithmetic",
  "sp-block-builder",
  "sp-consensus-aura",
  "sp-core",
@@ -4808,7 +4813,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.9.0"
+version = "3.10.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7703,7 +7708,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.26"
+version = "1.1.27"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7856,7 +7861,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.6.3"
+version = "1.6.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8391,8 +8396,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-liquidation"
+version = "1.0.1"
+dependencies = [
+ "ethabi",
+ "evm",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-asset-registry",
+ "pallet-balances",
+ "pallet-currencies",
+ "pallet-evm",
+ "pallet-evm-accounts",
+ "pallet-omnipool",
+ "pallet-route-executor",
+ "parity-scale-codec",
+ "parking_lot 0.12.3",
+ "pretty_assertions",
+ "proptest",
+ "scale-info",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-liquidity-mining"
-version = "4.4.3"
+version = "4.4.4"
 dependencies = [
  "fixed",
  "frame-support",
@@ -8606,7 +8648,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.3.6"
+version = "4.3.7"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8633,7 +8675,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.4.0"
+version = "2.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8661,7 +8703,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.0.3"
+version = "2.0.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8683,7 +8725,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8862,7 +8904,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.6.2"
+version = "2.6.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8958,7 +9000,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "4.0.0"
+version = "4.1.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8983,7 +9025,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "3.1.2"
+version = "4.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8993,7 +9035,9 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "pallet-conviction-voting",
  "pallet-democracy 4.3.2",
+ "pallet-referenda",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
@@ -9144,7 +9188,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-pause"
-version = "1.0.4"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9325,7 +9369,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.6.2"
+version = "6.6.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9351,7 +9395,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12028,7 +12072,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.25.1"
+version = "1.26.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12073,6 +12117,7 @@ dependencies = [
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
+ "pallet-conviction-voting",
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.3.2",
@@ -12086,18 +12131,20 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-im-online",
  "pallet-lbp",
+ "pallet-liquidation",
  "pallet-liquidity-mining",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-otc-settlements",
+ "pallet-referenda",
  "pallet-referrals",
  "pallet-relaychain-info",
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 3.1.2",
+ "pallet-staking 4.0.1",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -12151,7 +12198,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
@@ -12161,7 +12208,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 3.1.2",
+ "pallet-staking 4.0.1",
  "primitives",
  "scraper",
  "serde",

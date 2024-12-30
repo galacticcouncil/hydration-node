@@ -125,7 +125,7 @@ pub mod pallet {
 		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
 
 		/// Origin able to set route without validation
-		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type ForceInsertOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
@@ -387,7 +387,7 @@ pub mod pallet {
 
 		/// Force inserts the on-chain route for a given asset pair, so there is no any validation for the route
 		///
-		/// Can only be called by technical origin
+		/// Can only be called by T::ForceInsertOrigin
 		///
 		/// The route is stored in an ordered manner, based on the oder of the ids in the asset pair.
 		///
@@ -407,7 +407,7 @@ pub mod pallet {
 			mut asset_pair: AssetPair<T::AssetId>,
 			mut new_route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResultWithPostInfo {
-			T::TechnicalOrigin::ensure_origin(origin)?;
+			T::ForceInsertOrigin::ensure_origin(origin)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();

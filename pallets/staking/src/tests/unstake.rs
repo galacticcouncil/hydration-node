@@ -524,7 +524,7 @@ fn unstake_should_fail_when_position_has_existing_votes() {
 			set_block_number(1_700_000);
 			let alice_position_id = 0;
 
-			assert!(crate::PositionVotes::<Test>::contains_key(alice_position_id));
+			assert!(crate::Votes::<Test>::contains_key(alice_position_id));
 			//Act
 			assert_noop!(
 				Staking::unstake(RuntimeOrigin::signed(ALICE), alice_position_id),
@@ -557,7 +557,7 @@ fn unstake_should_fail_when_position_has_existing_processed_votes() {
 			set_block_number(1_700_000);
 			let alice_position_id = 0;
 
-			assert!(crate::PositionVotes::<Test>::contains_key(alice_position_id));
+			assert!(crate::Votes::<Test>::contains_key(alice_position_id));
 
 			assert_ok!(Staking::increase_stake(
 				RuntimeOrigin::signed(ALICE),
@@ -565,7 +565,7 @@ fn unstake_should_fail_when_position_has_existing_processed_votes() {
 				10_000 * ONE
 			));
 
-			let voting = PositionVotes::<Test>::get(alice_position_id);
+			let voting = Votes::<Test>::get(alice_position_id);
 			assert!(voting.votes.is_empty());
 
 			//Act

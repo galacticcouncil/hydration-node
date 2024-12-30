@@ -42,6 +42,7 @@ members = [
     'pallets/evm-accounts',
     'pallets/dynamic-evm-fee',
     'pallets/xyk-liquidity-mining',
+    'pallets/liquidation',
     'precompiles/call-permit',
     'runtime-mock'
 ]
@@ -143,6 +144,7 @@ pallet-xyk-liquidity-mining = { path = "pallets/xyk-liquidity-mining", default-f
 pallet-referrals = { path = "pallets/referrals", default-features = false }
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false }
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
+pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
@@ -230,11 +232,13 @@ pallet-authorship = { git = "https://github.com/galacticcouncil/polkadot-sdk", b
 pallet-balances = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-bags-list = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-collective = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
+pallet-conviction-voting = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-elections-phragmen = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-identity = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-multisig = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-preimage = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-proxy = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
+pallet-referenda = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-scheduler = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-session = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-sudo = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
@@ -249,6 +253,7 @@ pallet-utility = { git = "https://github.com/galacticcouncil/polkadot-sdk", bran
 pallet-im-online = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-message-queue = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 pallet-state-trie-migration = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
+pallet-whitelist = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 
 substrate-build-script-utils = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 substrate-frame-rpc-system = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
@@ -358,7 +363,6 @@ westend-runtime = { git = "https://github.com/galacticcouncil/polkadot-sdk", bra
 cumulus-client-pov-recovery = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
-
 
 [patch."https://github.com/moonbeam-foundation/open-runtime-module-library"]
 # ORML dependencies
@@ -681,4 +685,3 @@ westend-runtime = { git = "https://github.com/galacticcouncil/polkadot-sdk", bra
 cumulus-client-pov-recovery = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
-
