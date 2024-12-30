@@ -61,7 +61,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> + CreateSignedTransaction<Call<Self>> {
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The identifier type for an authority.
@@ -244,7 +244,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
-	where <T as frame_system::Config>::AccountId: From<std::vec::Vec<u8>>
+
 	{
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			SolutionScore::<T>::kill();
@@ -293,17 +293,14 @@ pub mod pallet {
 						let b: usize = block_number.saturated_into();
 						let idx = b % authorities.len();
 						let (a_idx, key) = authorities.into_iter().nth(idx).expect("Key;qed");
-						/*
-						let signature = key.sign(&call.encode()).ok_or(Error::FailedSigning).unwrap();
+						let signature = key.sign(&call.encode()).ok_or(Error::<T>::FailedSigning).unwrap();
+
 						let r = SubmitTransaction::<T, Call<T>>::submit_transaction(call.into(), Some(signature));
-						 */
-						let a = key.to_raw_vec();
-						let ac = T::AccountId::from(a.into());
 
 
-						let t = CreateSignedTransaction::<Call<T>>::create_transaction(call.into(), key, ac, None).ok_or(Error::FailedSigning).unwrap();
+						//let t = CreateSignedTransaction::<Call<T>>::create_transaction::<T::AuthorityId>(call.into(), key, ac, None).ok_or(Error::FailedSigning).unwrap();
 
-						let r = SubmitTransaction::<T, Call<T>>::submit_transaction(t.0, t.1);
+						//let r = SubmitTransaction::<T, Call<T>>::submit_transaction(t.0, t.1);
 
 						//TODO: handle failures!!
 
