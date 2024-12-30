@@ -152,3 +152,9 @@ pub(crate) struct SolutionAmounts<AssetId> {
 	pub(crate) amounts_in: BTreeMap<AssetId, Balance>,
 	pub(crate) amounts_out: BTreeMap<AssetId, Balance>,
 }
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum Signer<AccountId> {
+	Account(AccountId),
+	Authority(u32),
+}

@@ -8,23 +8,6 @@ use alloc::vec::Vec;
 use codec::Decode;
 use sp_std::sync::Arc;
 
-/*
-sp_api::decl_runtime_apis! {
-	#[api_version(1)]
-	pub trait ICEApi<A>
-	where Vec<(IntentId, Intent<A>)>: Decode,
-	Vec<ResolvedIntent>: Decode
-	{
-		fn intents(header: &Block::Header) -> Vec<(IntentId, Intent<A>)>;
-		fn submit_solution(
-			header: &Block::Header,
-			solution: Vec<ResolvedIntent>,
-		) -> Result<(), sp_runtime::DispatchError>;
-	}
-}
-
- */
-
 pub trait SolutionProvider: Send + Sync {
 	fn get_solution(&self, intents: Vec<IntentRepr>, data: Vec<DataRepr>) -> Vec<ResolvedIntent>;
 }

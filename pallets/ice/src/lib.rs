@@ -54,7 +54,7 @@ pub mod pallet {
 	use frame_system::offchain::CreateSignedTransaction;
 	use hydra_dx_math::ratio::Ratio;
 	use hydradx_traits::price::PriceProvider;
-	use sp_runtime::traits::BlockNumberProvider;
+	use sp_runtime::traits::{BlockNumberProvider, UniqueSaturatedInto};
 	use types::Balance;
 
 	#[pallet::pallet]
@@ -296,6 +296,7 @@ pub mod pallet {
 							score: 1u64,
 							block,
 							signature,
+							signer: crate::types::Signer::Authority(a_idx)
 						};
 
 						let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
@@ -425,6 +426,7 @@ pub mod pallet {
 			// since signature verification is done in `validate_unsigned`
 			// we can skip doing it here again.
 			_signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
+			_signer: crate::types::Signer<T::AccountId>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			Self::deposit_event(Event::Hurray { score });
@@ -437,16 +439,35 @@ pub mod pallet {
 		type Call = Call<T>;
 
 		fn validate_unsigned(_source: TransactionSource, _call: &Self::Call) -> TransactionValidity {
-			let valid_tx = || {
+			if let Call::propose_solution { intents, score, block, signature, signer } = _call {
+
+				match signer {
+                    crate::types::Signer::Authority(idx) => {
+						let keys = Keys::<T>::get();
+						let aid = keys.get(*idx as usize).unwrap();
+
+						let params = (intents, score, block).encode();
+
+						let signature_valid = aid.verify(&params, signature);
+
+						if !signature_valid {
+							return InvalidTransaction::BadProof.into();
+						}
+					},
+					crate::types::Signer::Account(account) => {
+						todo!()
+					}
+                }
+
 				ValidTransaction::with_tag_prefix("iceice")
-					.and_provides(("solution", 0u32))
-					.priority(100)
+					.priority(u64::MAX)
 					.longevity(3)
 					.propagate(false)
+					.and_provides(("solution", score))
 					.build()
-			};
-
-			valid_tx()
+			} else {
+				InvalidTransaction::Call.into()
+			}
 		}
 	}
 }
