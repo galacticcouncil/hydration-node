@@ -8,6 +8,7 @@ use alloc::vec::Vec;
 use codec::Decode;
 use sp_std::sync::Arc;
 
+/*
 sp_api::decl_runtime_apis! {
 	#[api_version(1)]
 	pub trait ICEApi<A>
@@ -21,6 +22,8 @@ sp_api::decl_runtime_apis! {
 		) -> Result<(), sp_runtime::DispatchError>;
 	}
 }
+
+ */
 
 pub trait SolutionProvider: Send + Sync {
 	fn get_solution(&self, intents: Vec<IntentRepr>, data: Vec<DataRepr>) -> Vec<ResolvedIntent>;

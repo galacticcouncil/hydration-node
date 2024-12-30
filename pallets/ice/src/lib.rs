@@ -35,11 +35,11 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::offchain::storage_lock::StorageLock;
 use sp_runtime::traits::Zero;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Convert};
+use sp_runtime::SaturatedConversion;
 use sp_runtime::{ArithmeticError, FixedU128, Rounding, RuntimeAppPublic, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
-use sp_runtime::SaturatedConversion;
 
 pub const SOLVER_LOCK: &[u8] = b"hydradx/ice/lock/";
 pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
@@ -208,7 +208,7 @@ pub mod pallet {
 		FailedSigning,
 
 		/// Failed to submit transaction
-        		SubmitTransaction,
+		SubmitTransaction,
 	}
 
 	#[pallet::storage]
@@ -243,16 +243,13 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
-
-	{
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			SolutionScore::<T>::kill();
 			SolutionExecuted::<T>::kill();
 		}
 
-		fn offchain_worker(block_number: BlockNumberFor<T>)
-		{
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			log::error!("Running ice offchain worker");
 			let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
 			let mut lock = StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(
@@ -281,11 +278,7 @@ pub mod pallet {
 						let s = api::ice::get_solution(intents, data);
 						log::error!("Solution {:?}", s);
 
-						let call: pallet::Call<T> = Call::submit_solution{
-							intents: BoundedResolvedIntents::truncate_from(vec![]),
-							score: 1u64,
-							block: block_number.saturating_add(1u32.into()),
-						};
+						let block: BlockNumberFor<T> = block_number.saturating_add(1u32.into());
 
 						let authorities = Self::local_authority_keys().collect::<Vec<_>>();
 
@@ -293,10 +286,21 @@ pub mod pallet {
 						let b: usize = block_number.saturated_into();
 						let idx = b % authorities.len();
 						let (a_idx, key) = authorities.into_iter().nth(idx).expect("Key;qed");
-						let signature = key.sign(&call.encode()).ok_or(Error::<T>::FailedSigning).unwrap();
 
-						let r = SubmitTransaction::<T, Call<T>>::submit_transaction(call.into(), Some(signature));
+						let params = (s.clone(), 1u64, block);
 
+						let signature = key.sign(&params.encode()).ok_or(Error::<T>::FailedSigning).unwrap();
+
+						let call: pallet::Call<T> = Call::propose_solution {
+							intents: BoundedResolvedIntents::truncate_from(s),
+							score: 1u64,
+							block,
+							signature,
+						};
+
+						let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
+
+						//let r = SubmitTransaction::<T, Call<T>>::submit_transaction(call.into(), Some(signature));
 
 						//let t = CreateSignedTransaction::<Call<T>>::create_transaction::<T::AuthorityId>(call.into(), key, ac, None).ok_or(Error::FailedSigning).unwrap();
 
@@ -311,10 +315,8 @@ pub mod pallet {
 							score: 1u64,
 							block: block_number.saturating_add(1u32.into()),
 						};
-						let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 
 						 */
-
 					}
 				}
 			};
@@ -418,9 +420,11 @@ pub mod pallet {
 		pub fn propose_solution(
 			origin: OriginFor<T>,
 			_intents: BoundedResolvedIntents,
-			_trades: BoundedTrades<AssetId>,
 			score: u64,
 			_block: BlockNumberFor<T>,
+			// since signature verification is done in `validate_unsigned`
+			// we can skip doing it here again.
+			_signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			Self::deposit_event(Event::Hurray { score });
