@@ -142,7 +142,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 					inputs: vec![pallet_amm_support::types::Asset::new(ACA, 50000000000000),],
 					outputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 49180327868852)],
 					fees: vec![Fee::new(LRNA::get(), 24590163934, Omnipool::protocol_account()),],
-					operation_id: vec![
+					operation_stack: vec![
 						ExecutionType::Xcm(topic_id, 0),
 						ExecutionType::XcmExchange(1),
 						ExecutionType::Router(2),
@@ -157,7 +157,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 					inputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 49155737704918),],
 					outputs: vec![pallet_amm_support::types::Asset::new(HDX, 39101207131554396)],
 					fees: vec![Fee::new(HDX, 97998012861039, Omnipool::protocol_account()),],
-					operation_id: vec![
+					operation_stack: vec![
 						ExecutionType::Xcm(topic_id, 0),
 						ExecutionType::XcmExchange(1),
 						ExecutionType::Router(2),
@@ -190,7 +190,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 					inputs: vec![pallet_amm_support::types::Asset::new(HDX, 1 * UNITS),],
 					outputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 1308673515)],
 					fees: vec![Fee::new(LRNA::get(), 654336, Omnipool::protocol_account()),],
-					operation_id: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
+					operation_stack: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 					swapper: ALICE.into(),
@@ -200,7 +200,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 					inputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 1308019179),],
 					outputs: vec![pallet_amm_support::types::Asset::new(ACA, 1348602600)],
 					fees: vec![Fee::new(ACA, 3379957, Omnipool::protocol_account()),],
-					operation_id: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
+					operation_stack: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
 				})
 			]
 		);

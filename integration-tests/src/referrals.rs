@@ -339,7 +339,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 					inputs: vec![Asset::new(HDX, 1000000000000)],
 					outputs: vec![Asset::new(LRNA, 1205768843)],
 					fees: vec![Fee::new(LRNA, 602884, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Omnipool(0)],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -350,7 +350,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 					inputs: vec![Asset::new(LRNA, 1205165959)],
 					outputs: vec![Asset::new(DAI, 26663424573622008)],
 					fees: vec![Fee::new(DAI, 70524156750724, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Omnipool(0)],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
 			]
@@ -396,7 +396,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				inputs: vec![Asset::new(DAI, 26_835_579_541_620_354)],
 				outputs: vec![Asset::new(LRNA, 1_209_746_177)],
 				fees: vec![Fee::new(LRNA, 604_873, Omnipool::protocol_account())],
-				operation_id: vec![ExecutionType::Omnipool(0)],
+				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
 			pallet_amm_support::Event::Swapped {
@@ -407,7 +407,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				inputs: vec![Asset::new(LRNA, 1_209_141_304)],
 				outputs: vec![Asset::new(HDX, 1_000_000_000_000)],
 				fees: vec![Fee::new(HDX, 2_794_789_078, Omnipool::protocol_account())],
-				operation_id: vec![ExecutionType::Omnipool(0)],
+				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
 		]);
@@ -457,7 +457,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				inputs: vec![Asset::new(HDX, 37_506_757_329_085)],
 				outputs: vec![Asset::new(LRNA, 45_222_713_080)],
 				fees: vec![Fee::new(LRNA, 22_611_356, Omnipool::protocol_account())],
-				operation_id: vec![ExecutionType::Omnipool(0)],
+				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
 			pallet_amm_support::Event::Swapped {
@@ -468,7 +468,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				inputs: vec![Asset::new(LRNA, 45_200_101_724)],
 				outputs: vec![Asset::new(DAI, 1_000_000_000_000_000_000)],
 				fees: vec![Fee::new(DAI, 2_644_977_450_514_458, Omnipool::protocol_account())],
-				operation_id: vec![ExecutionType::Omnipool(0)],
+				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
 		]);

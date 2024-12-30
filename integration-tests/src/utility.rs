@@ -84,7 +84,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 							.unwrap()
 							.fee_collector,
 					)],
-					operation_id: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
+					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
@@ -94,7 +94,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
+					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
@@ -119,7 +119,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 							asset_out: DOT,
 						}),
 					)],
-					operation_id: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
+					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				})
 			]
 		);
@@ -214,7 +214,7 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 						asset_out: DOT,
 					}),
 				)],
-				operation_id: vec![ExecutionType::Batch(2), ExecutionType::Router(3)],
+				operation_stack: vec![ExecutionType::Batch(2), ExecutionType::Router(3)],
 			})
 		);
 	});
@@ -291,7 +291,7 @@ fn nested_batch_should_represent_embeddedness() {
 							.unwrap()
 							.fee_collector,
 					)],
-					operation_id: vec![
+					operation_stack: vec![
 						ExecutionType::Batch(0),
 						ExecutionType::Batch(1),
 						ExecutionType::Router(2)
@@ -305,7 +305,7 @@ fn nested_batch_should_represent_embeddedness() {
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
-					operation_id: vec![
+					operation_stack: vec![
 						ExecutionType::Batch(0),
 						ExecutionType::Batch(1),
 						ExecutionType::Router(2)
@@ -334,7 +334,7 @@ fn nested_batch_should_represent_embeddedness() {
 							asset_out: DOT,
 						}),
 					)],
-					operation_id: vec![
+					operation_stack: vec![
 						ExecutionType::Batch(0),
 						ExecutionType::Batch(1),
 						ExecutionType::Router(2)

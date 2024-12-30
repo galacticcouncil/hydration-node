@@ -74,7 +74,7 @@ fn sell_should_work_when_correct_input_provided() {
 					inputs: vec![Asset::new(asset_a, 30000000000000)],
 					outputs: vec![Asset::new(asset_b, 29902625420922)],
 					fees: vec![Fee::new(asset_b, 0, pool_account)],
-					operation_id: vec![],
+					operation_stack: vec![],
 				}
 				.into(),
 			]);
@@ -148,7 +148,7 @@ fn buy_should_work_when_correct_input_provided() {
 					inputs: vec![Asset::new(asset_a, 30098072706882)],
 					outputs: vec![Asset::new(asset_b, 30000000000000)],
 					fees: vec![Fee::new(asset_a, 0, pool_account)],
-					operation_id: vec![],
+					operation_stack: vec![],
 				}
 				.into(),
 			]);

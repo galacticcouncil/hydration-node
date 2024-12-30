@@ -172,7 +172,7 @@ mod router_different_pools_tests {
 							.unwrap()
 							.fee_collector,
 					)],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -183,7 +183,7 @@ mod router_different_pools_tests {
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -209,7 +209,7 @@ mod router_different_pools_tests {
 							asset_out: DOT,
 						}),
 					)],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -295,7 +295,7 @@ mod router_different_pools_tests {
 								.unwrap()
 								.fee_collector,
 						)],
-						operation_id: vec![ExecutionType::Router(0)],
+						operation_stack: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_amm_support::Event::Swapped {
@@ -321,7 +321,7 @@ mod router_different_pools_tests {
 								asset_out: stable_asset_1,
 							}),
 						)],
-						operation_id: vec![ExecutionType::Router(0)],
+						operation_stack: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_amm_support::Event::Swapped {
@@ -342,7 +342,7 @@ mod router_different_pools_tests {
 								Some(pallet_stableswap::POOL_IDENTIFIER),
 							),
 						)],
-						operation_id: vec![ExecutionType::Router(0)],
+						operation_stack: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_route_executor::Event::Executed {
@@ -425,7 +425,7 @@ mod router_different_pools_tests {
 							.unwrap()
 							.fee_collector,
 					)],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -436,7 +436,7 @@ mod router_different_pools_tests {
 					inputs: vec![Asset::new(LRNA, 2465566245)],
 					outputs: vec![Asset::new(HDX, 2046938775509)],
 					fees: vec![Fee::new(HDX, 5130172370, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -462,7 +462,7 @@ mod router_different_pools_tests {
 							asset_out: DOT,
 						}),
 					)],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -548,7 +548,7 @@ mod router_different_pools_tests {
 								.unwrap()
 								.fee_collector,
 						)],
-						operation_id: vec![ExecutionType::Router(0)],
+						operation_stack: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_amm_support::Event::Swapped {
@@ -574,7 +574,7 @@ mod router_different_pools_tests {
 								asset_out: stable_asset_1,
 							}),
 						)],
-						operation_id: vec![ExecutionType::Router(0)],
+						operation_stack: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_amm_support::Event::Swapped {
@@ -595,7 +595,7 @@ mod router_different_pools_tests {
 								Some(pallet_stableswap::POOL_IDENTIFIER),
 							),
 						)],
-						operation_id: vec![ExecutionType::Router(0)],
+						operation_stack: vec![ExecutionType::Router(0)],
 					}
 					.into(),
 					pallet_route_executor::Event::Executed {
@@ -682,7 +682,7 @@ mod router_different_pools_tests {
 							asset_out: DOT,
 						}),
 					)],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -708,7 +708,7 @@ mod router_different_pools_tests {
 							asset_out: DOT,
 						}),
 					)],
-					operation_id: vec![ExecutionType::Router(1)],
+					operation_stack: vec![ExecutionType::Router(1)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -734,7 +734,7 @@ mod router_different_pools_tests {
 							asset_out: DOT,
 						}),
 					)],
-					operation_id: vec![ExecutionType::Router(2)],
+					operation_stack: vec![ExecutionType::Router(2)],
 				}
 				.into(),
 			]);
@@ -2408,7 +2408,7 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12014871681)],
 					fees: vec![Fee::new(LRNA, 6007435, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -2419,7 +2419,7 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(LRNA, 12008864246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(DAI, 667155563986401, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -2470,7 +2470,7 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12014871681)],
 					fees: vec![Fee::new(LRNA, 6007435, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Omnipool(0)],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -2481,7 +2481,7 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(LRNA, 12008864246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(DAI, 667155563986401, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Omnipool(0)],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
 			]);
@@ -2638,7 +2638,7 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
 					fees: vec![Fee::new(LRNA, 22, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -2649,7 +2649,7 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(LRNA, 45113)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(DAI, 2506265665, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -2700,7 +2700,7 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
 					fees: vec![Fee::new(LRNA, 22, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Omnipool(0)],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
 				pallet_amm_support::Event::Swapped {
@@ -2711,7 +2711,7 @@ mod omnipool_router_tests {
 					inputs: vec![Asset::new(LRNA, 45113)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(DAI, 2506265665, Omnipool::protocol_account())],
-					operation_id: vec![ExecutionType::Omnipool(0)],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
 			]);
@@ -3001,7 +3001,7 @@ mod lbp_router_tests {
 							.unwrap()
 							.fee_collector,
 					)],
-					operation_id: vec![ExecutionType::Router(0)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
 				pallet_route_executor::Event::Executed {
@@ -3057,7 +3057,7 @@ mod lbp_router_tests {
 							.unwrap()
 							.fee_collector,
 					)],
-					operation_id: vec![],
+					operation_stack: vec![],
 				}
 				.into(),
 			]);

@@ -79,7 +79,7 @@ fn sell_test() {
 				inputs: vec![Asset::new(asset_a, 456444678)],
 				outputs: vec![Asset::new(asset_b, 1363483591788)],
 				fees: vec![Fee::new(asset_b, 2732432046, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -143,7 +143,7 @@ fn execute_sell_should_use_event_id() {
 				inputs: vec![Asset::new(asset_a, 456444678)],
 				outputs: vec![Asset::new(asset_b, 1363483591788)],
 				fees: vec![Fee::new(asset_b, 2732432046, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -450,7 +450,7 @@ fn sell_with_correct_fees_should_work() {
 				inputs: vec![Asset::new(asset_a, 100_000)],
 				outputs: vec![Asset::new(asset_b, 19_762_378)],
 				fees: vec![Fee::new(asset_b, 39_602, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -668,7 +668,7 @@ fn single_buy_should_work() {
 				inputs: vec![Asset::new(asset_b, 6_666_666)],
 				outputs: vec![Asset::new(asset_a, 22_068_963_235)],
 				fees: vec![Fee::new(asset_b, 44_137_926, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);

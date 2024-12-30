@@ -154,7 +154,7 @@ fn discount_sell_fees_should_work() {
 				inputs: vec![Asset::new(asset_a, 10_000_000)],
 				outputs: vec![Asset::new(asset_b, 19_986_006)],
 				fees: vec![Fee::new(asset_b, 13_993, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -242,7 +242,7 @@ fn discount_sell_fees_should_work() {
 				inputs: vec![Asset::new(asset_a, 10_000_000)],
 				outputs: vec![Asset::new(asset_b, 19_980_009)],
 				fees: vec![Fee::new(asset_b, 19_990, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -325,7 +325,7 @@ fn discount_sell_fees_should_work() {
 				inputs: vec![Asset::new(asset_a, 10_000_000)],
 				outputs: vec![Asset::new(asset_b, 19_999_999)],
 				fees: vec![Fee::new(asset_b, 0, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -425,7 +425,7 @@ fn discount_buy_fees_should_work() {
 				inputs: vec![Asset::new(asset_b, 10_000_000)],
 				outputs: vec![Asset::new(asset_a, 20_000_002)],
 				fees: vec![Fee::new(asset_b, 14_000, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -517,7 +517,7 @@ fn discount_buy_fees_should_work() {
 				inputs: vec![Asset::new(asset_b, 10_000_000)],
 				outputs: vec![Asset::new(asset_a, 20_000_002)],
 				fees: vec![Fee::new(asset_b, 20_000, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -598,7 +598,7 @@ fn discount_buy_fees_should_work() {
 				inputs: vec![Asset::new(asset_b, 10_000_000)],
 				outputs: vec![Asset::new(asset_a, 20_000_002)],
 				fees: vec![Fee::new(asset_b, 0, pair_account)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);

@@ -151,7 +151,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 					inputs: vec![UnifiedEventAsset::new(HDX, 1000000000000)],
 					outputs: vec![UnifiedEventAsset::new(LRNA, 1201498716)],
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
-					operation_id: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)]
+					operation_stack: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)]
 				}),
 				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
 					swapper: account.into(),
@@ -161,7 +161,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
 					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
 					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
-					operation_id: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)],
+					operation_stack: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)],
 				})
 			]
 		);
@@ -291,7 +291,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 					inputs: vec![UnifiedEventAsset::new(HDX, 1000000000000)],
 					outputs: vec![UnifiedEventAsset::new(LRNA, 1201498716)],
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
-					operation_id: vec![
+					operation_stack: vec![
 						ExecutionType::Xcm(
 							[
 								237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5,
@@ -310,7 +310,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
 					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
 					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
-					operation_id: vec![
+					operation_stack: vec![
 						ExecutionType::Xcm(
 							[
 								237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5,

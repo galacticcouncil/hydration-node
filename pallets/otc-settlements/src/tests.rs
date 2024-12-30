@@ -312,7 +312,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 					49481868743917,
 					<Test as pallet_otc::Config>::FeeReceiver::get(),
 				)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);

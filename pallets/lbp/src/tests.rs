@@ -1851,7 +1851,7 @@ fn execute_sell_should_work() {
 				inputs: vec![Asset::new(asset_in, amount_in)],
 				outputs: vec![Asset::new(asset_out, amount_b)],
 				fees: vec![Fee::new(asset_in, 1_000, pool_data.fee_collector)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -1994,7 +1994,7 @@ fn execute_buy_should_work() {
 				inputs: vec![Asset::new(asset_in, amount_in)],
 				outputs: vec![Asset::new(asset_out, amount_b)],
 				fees: vec![Fee::new(asset_in, 1_000, pool_data.fee_collector)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -2323,7 +2323,7 @@ fn buy_should_work() {
 				inputs: vec![Asset::new(asset_in, 17_894_738)],
 				outputs: vec![Asset::new(asset_out, 10_000_000)],
 				fees: vec![Fee::new(asset_in, 35860, pool_data.fee_collector)],
-				operation_id: vec![], // calling buy directly from the pallet doesn't set event_id
+				operation_stack: vec![], // calling buy directly from the pallet doesn't set event_id
 			}
 			.into(),
 		]);
@@ -2468,7 +2468,7 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 				inputs: vec![Asset::new(asset_in, 17_894_738)],
 				outputs: vec![Asset::new(asset_out, 10_000_000)],
 				fees: vec![Fee::new(asset_in, 35860, pool_data.fee_collector)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -2503,7 +2503,7 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 				outputs: vec![Asset::new(KUSD, 10_000_000)],
 
 				fees: vec![Fee::new(KUSD, 20_000, pool_data.fee_collector)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -2593,7 +2593,7 @@ fn sell_should_work() {
 				inputs: vec![Asset::new(asset_in, 9_980_000)],
 				outputs: vec![Asset::new(asset_out, 5_605_138)],
 				fees: vec![Fee::new(asset_in, 20_000, pool_data.fee_collector)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);

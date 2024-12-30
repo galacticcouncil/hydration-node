@@ -83,7 +83,7 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 					inputs: vec![Asset::new(pool_id, 200516043533380244763),],
 					outputs: vec![Asset::new(asset_c, 199999999999999)],
 					fees: vec![Fee::new(pool_id, 0, pool_account)],
-					operation_id: vec![],
+					operation_stack: vec![],
 				})
 			);
 		});
@@ -1093,7 +1093,7 @@ fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
 						Fee::new(asset_b, 872, pool_account),
 						Fee::new(asset_c, 1998, pool_account)
 					],
-					operation_id: vec![],
+					operation_stack: vec![],
 				})
 			);
 		});

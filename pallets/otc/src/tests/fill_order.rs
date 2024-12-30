@@ -88,7 +88,7 @@ fn complete_fill_order_should_work() {
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -164,7 +164,7 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);
@@ -252,7 +252,7 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);

@@ -119,7 +119,7 @@ fn add_liquidity_should_emit_swapped_events() {
 						Fee::new(asset_b, 17, pool_account),
 						Fee::new(asset_c, 39, pool_account)
 					],
-					operation_id: vec![],
+					operation_stack: vec![],
 				})
 			)
 		});
@@ -718,7 +718,7 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 					inputs: vec![Asset::new(asset_a, 2000000000000000003),],
 					outputs: vec![Asset::new(pool_id, 1947597621401945851)],
 					fees: vec![Fee::new(pool_id, 0, pool_account)],
-					operation_id: vec![],
+					operation_stack: vec![],
 				})
 			)
 		});

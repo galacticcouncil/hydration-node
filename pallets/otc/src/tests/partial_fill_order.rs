@@ -106,7 +106,7 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 					fee,
 					<Test as crate::Config>::FeeReceiver::get(),
 				)],
-				operation_id: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		]);

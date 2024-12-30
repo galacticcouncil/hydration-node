@@ -81,7 +81,7 @@ pub mod pallet {
 			inputs: Vec<Asset>,
 			outputs: Vec<Asset>,
 			fees: Vec<Fee<T::AccountId>>,
-			operation_id: Vec<ExecutionType>,
+			operation_stack: Vec<ExecutionType>,
 		},
 	}
 
@@ -111,7 +111,7 @@ impl<T: Config> Pallet<T> {
 		outputs: Vec<Asset>,
 		fees: Vec<Fee<T::AccountId>>,
 	) {
-		let operation_id = ExecutionContext::<T>::get().to_vec();
+		let operation_stack = ExecutionContext::<T>::get().to_vec();
 		Self::deposit_event(Event::<T>::Swapped {
 			swapper,
 			filler,
@@ -120,7 +120,7 @@ impl<T: Config> Pallet<T> {
 			inputs,
 			outputs,
 			fees,
-			operation_id,
+			operation_stack,
 		});
 	}
 

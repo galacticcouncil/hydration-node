@@ -116,7 +116,7 @@ fn event_should_be_deposited() {
 			inputs: vec![Asset::new(HDX, 1_000_000)],
 			outputs: vec![Asset::new(DOT, 2_000_000)],
 			fees: vec![Fee::new(HDX, 1_000, ALICE), Fee::new(DOT, 2_000, BOB)],
-			operation_id: vec![],
+			operation_stack: vec![],
 		}
 		.into()]);
 	});
