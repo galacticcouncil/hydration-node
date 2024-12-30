@@ -39,6 +39,7 @@ use sp_runtime::{ArithmeticError, FixedU128, Rounding, RuntimeAppPublic, Saturat
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
+use sp_runtime::SaturatedConversion;
 
 pub const SOLVER_LOCK: &[u8] = b"hydradx/ice/lock/";
 pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
@@ -50,6 +51,7 @@ pub mod pallet {
 	use crate::types::{BoundedResolvedIntents, BoundedTrades};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
+	use frame_system::offchain::CreateSignedTransaction;
 	use hydra_dx_math::ratio::Ratio;
 	use hydradx_traits::price::PriceProvider;
 	use sp_runtime::traits::BlockNumberProvider;
@@ -59,7 +61,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> + CreateSignedTransaction<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The identifier type for an authority.
@@ -201,6 +203,12 @@ pub mod pallet {
 
 		/// Error in trading - failed to determine route, calculate trading amounts
 		TradingError,
+
+		/// Failed signing
+		FailedSigning,
+
+		/// Failed to submit transaction
+        		SubmitTransaction,
 	}
 
 	#[pallet::storage]
@@ -270,6 +278,31 @@ pub mod pallet {
 						let s = api::ice::get_solution(intents, data);
 						log::error!("Solution {:?}", s);
 
+						let call: pallet::Call<T> = Call::submit_solution{
+							intents: BoundedResolvedIntents::truncate_from(vec![]),
+							score: 1u64,
+							block: block_number.saturating_add(1u32.into()),
+						};
+
+						let authorities = Self::local_authority_keys().collect::<Vec<_>>();
+
+						//pick one
+						let b: usize = block_number.saturated_into();
+						let idx = b % authorities.len();
+						let (a_idx, key) = authorities.into_iter().nth(idx).expect("Key;qed");
+						/*
+						let signature = key.sign(&call.encode()).ok_or(Error::FailedSigning).unwrap();
+						let r = SubmitTransaction::<T, Call<T>>::submit_transaction(call.into(), Some(signature));
+						 */
+						let a :T::AccountId = key.into();
+
+						let t = CreateSignedTransaction::<Call<T>>::create_transaction(call.into(), key, a, None).ok_or(Error::FailedSigning).unwrap();
+
+						let r = SubmitTransaction::<T, Call<T>>::submit_transaction(t.0, t.1);
+
+						//TODO: handle failures!!
+
+						/*
 						let call = Call::propose_solution {
 							intents: BoundedResolvedIntents::truncate_from(vec![]),
 							trades: BoundedTrades::truncate_from(vec![]),
@@ -278,7 +311,8 @@ pub mod pallet {
 						};
 						let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 
-						// TODO: submit solution as signed tx
+						 */
+
 					}
 				}
 			};
@@ -688,7 +722,6 @@ impl<T: Config> Pallet<T> {
 		let holding_account = crate::Pallet::<T>::holding_account();
 
 		// iterate and act only on TrensferIn instruction
-
 		for instruction in instructions.iter() {
 			match instruction {
 				Instruction::TransferIn { who, asset_id, amount } => {
@@ -866,9 +899,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn local_authority_keys() -> impl Iterator<Item = (u32, T::AuthorityId)> {
-		// on-chain storage
-		// At index `idx`:
-		// 1. A public key to be used by a validator at index `idx`
 		let authorities = Keys::<T>::get();
 
 		// local keystore
