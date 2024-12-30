@@ -15,7 +15,7 @@ serde = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
-pallet-amm-support = { workspace = true }
+pallet-support = { workspace = true }
 primitives = { workspace = true }
 
 # ORML dependencies
@@ -56,7 +56,7 @@ std = [
   'orml-traits/std',
   "hydradx-adapters/std",
   "pallet-balances/std",
-  "pallet-amm-support/std",
+  "pallet-support/std",
   'hydradx-traits/std',
   'hydra-dx-math/std',
   'frame-benchmarking/std',

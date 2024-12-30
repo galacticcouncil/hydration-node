@@ -61,7 +61,7 @@ frame_support::construct_runtime!(
 		 XYK: xyk,
 		 Currency: orml_tokens,
 		 AssetRegistry: pallet_asset_registry,
-		 AmmSupport: pallet_amm_support,
+		 AmmSupport:pallet_support,
 	 }
 
 );
@@ -204,7 +204,7 @@ impl CanCreatePool<AssetId> for Disallow10_10Pool {
 	}
 }
 
-impl pallet_amm_support::Config for Test {
+impl pallet_support::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

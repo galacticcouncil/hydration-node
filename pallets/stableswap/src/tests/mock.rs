@@ -81,7 +81,7 @@ construct_runtime!(
 		System: frame_system,
 		Tokens: orml_tokens,
 		Stableswap: pallet_stableswap,
-		AmmSupport: pallet_amm_support,
+		AmmSupport:pallet_support,
 	}
 );
 
@@ -173,7 +173,7 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
-impl pallet_amm_support::Config for Test {
+impl pallet_support::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 
@@ -460,7 +460,7 @@ pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped { .. }) = e {
+		if let RuntimeEvent::AmmSupport(pallet_support::Event::Swapped { .. }) = e {
 			swapped_events.push(e);
 		}
 	}

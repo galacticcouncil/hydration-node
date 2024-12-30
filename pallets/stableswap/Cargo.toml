@@ -21,7 +21,7 @@ serde = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
-pallet-amm-support = { workspace = true }
+pallet-support = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -72,6 +72,6 @@ std = [
     "frame-benchmarking/std",
     'orml-traits/std',
     "hydra-dx-math/std",
-    "pallet-amm-support/std",
+    "pallet-support/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

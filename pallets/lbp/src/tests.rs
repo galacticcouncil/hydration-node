@@ -1843,11 +1843,11 @@ fn execute_sell_should_work() {
 				fee_amount: 1_000,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pool_id,
-				filler_type: pallet_amm_support::types::Filler::LBP,
-				operation: pallet_amm_support::types::TradeOperation::ExactIn,
+				filler_type:pallet_support::types::Filler::LBP,
+				operation:pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_in, amount_in)],
 				outputs: vec![Asset::new(asset_out, amount_b)],
 				fees: vec![Fee::new(asset_in, 1_000, pool_data.fee_collector)],
@@ -1986,11 +1986,11 @@ fn execute_buy_should_work() {
 				fee_amount: 1_000,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pool_id,
-				filler_type: pallet_amm_support::types::Filler::LBP,
-				operation: pallet_amm_support::types::TradeOperation::ExactOut,
+				filler_type:pallet_support::types::Filler::LBP,
+				operation:pallet_support::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(asset_in, amount_in)],
 				outputs: vec![Asset::new(asset_out, amount_b)],
 				fees: vec![Fee::new(asset_in, 1_000, pool_data.fee_collector)],
@@ -2315,11 +2315,11 @@ fn buy_should_work() {
 				fee_amount: 35860,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: buyer,
 				filler: pool_id,
-				filler_type: pallet_amm_support::types::Filler::LBP,
-				operation: pallet_amm_support::types::TradeOperation::ExactOut,
+				filler_type:pallet_support::types::Filler::LBP,
+				operation:pallet_support::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(asset_in, 17_894_738)],
 				outputs: vec![Asset::new(asset_out, 10_000_000)],
 				fees: vec![Fee::new(asset_in, 35860, pool_data.fee_collector)],
@@ -2460,11 +2460,11 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 				fee_amount: 35860,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: buyer,
 				filler: pool_id,
-				filler_type: pallet_amm_support::types::Filler::LBP,
-				operation: pallet_amm_support::types::TradeOperation::ExactOut,
+				filler_type:pallet_support::types::Filler::LBP,
+				operation:pallet_support::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(asset_in, 17_894_738)],
 				outputs: vec![Asset::new(asset_out, 10_000_000)],
 				fees: vec![Fee::new(asset_in, 35860, pool_data.fee_collector)],
@@ -2494,11 +2494,11 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 				fee_amount: 20_000,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: buyer,
 				filler: pool_id,
-				filler_type: pallet_amm_support::types::Filler::LBP,
-				operation: pallet_amm_support::types::TradeOperation::ExactOut,
+				filler_type:pallet_support::types::Filler::LBP,
+				operation:pallet_support::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(BSX, 5_560_304)],
 				outputs: vec![Asset::new(KUSD, 10_000_000)],
 
@@ -2585,11 +2585,11 @@ fn sell_should_work() {
 				fee_amount: 20_000,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: buyer,
 				filler: pool_id,
-				filler_type: pallet_amm_support::types::Filler::LBP,
-				operation: pallet_amm_support::types::TradeOperation::ExactIn,
+				filler_type:pallet_support::types::Filler::LBP,
+				operation:pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_in, 9_980_000)],
 				outputs: vec![Asset::new(asset_out, 5_605_138)],
 				fees: vec![Fee::new(asset_in, 20_000, pool_data.fee_collector)],

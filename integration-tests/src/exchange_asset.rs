@@ -134,13 +134,13 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
 			vec![
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: TempAccountForXcmAssetExchange::get(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::types::Filler::Omnipool,
-					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![pallet_amm_support::types::Asset::new(ACA, 50000000000000),],
-					outputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 49180327868852)],
+					filler_type:pallet_support::types::Filler::Omnipool,
+					operation:pallet_support::types::TradeOperation::ExactIn,
+					inputs: vec![pallet_support::types::Asset::new(ACA, 50000000000000),],
+					outputs: vec![pallet_support::types::Asset::new(LRNA::get(), 49180327868852)],
 					fees: vec![Fee::new(LRNA::get(), 24590163934, Omnipool::protocol_account()),],
 					operation_stack: vec![
 						ExecutionType::Xcm(topic_id, 0),
@@ -149,13 +149,13 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 						ExecutionType::Omnipool(3)
 					],
 				}),
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: TempAccountForXcmAssetExchange::get(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::types::Filler::Omnipool,
-					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 49155737704918),],
-					outputs: vec![pallet_amm_support::types::Asset::new(HDX, 39101207131554396)],
+					filler_type:pallet_support::types::Filler::Omnipool,
+					operation:pallet_support::types::TradeOperation::ExactIn,
+					inputs: vec![pallet_support::types::Asset::new(LRNA::get(), 49155737704918),],
+					outputs: vec![pallet_support::types::Asset::new(HDX, 39101207131554396)],
 					fees: vec![Fee::new(HDX, 97998012861039, Omnipool::protocol_account()),],
 					operation_stack: vec![
 						ExecutionType::Xcm(topic_id, 0),
@@ -182,23 +182,23 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
 			vec![
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: ALICE.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::types::Filler::Omnipool,
-					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![pallet_amm_support::types::Asset::new(HDX, 1 * UNITS),],
-					outputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 1308673515)],
+					filler_type:pallet_support::types::Filler::Omnipool,
+					operation:pallet_support::types::TradeOperation::ExactIn,
+					inputs: vec![pallet_support::types::Asset::new(HDX, 1 * UNITS),],
+					outputs: vec![pallet_support::types::Asset::new(LRNA::get(), 1308673515)],
 					fees: vec![Fee::new(LRNA::get(), 654336, Omnipool::protocol_account()),],
 					operation_stack: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
 				}),
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: ALICE.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::types::Filler::Omnipool,
-					operation: pallet_amm_support::types::TradeOperation::ExactIn,
-					inputs: vec![pallet_amm_support::types::Asset::new(LRNA::get(), 1308019179),],
-					outputs: vec![pallet_amm_support::types::Asset::new(ACA, 1348602600)],
+					filler_type:pallet_support::types::Filler::Omnipool,
+					operation:pallet_support::types::TradeOperation::ExactIn,
+					inputs: vec![pallet_support::types::Asset::new(LRNA::get(), 1308019179),],
+					outputs: vec![pallet_support::types::Asset::new(ACA, 1348602600)],
 					fees: vec![Fee::new(ACA, 3379957, Omnipool::protocol_account()),],
 					operation_stack: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
 				})
@@ -1227,7 +1227,7 @@ fn half(asset: &Asset) -> Asset {
 		id: asset.clone().id,
 	}
 }
-use pallet_amm_support::types::{ExecutionType, Fee};
+use pallet_support::types::{ExecutionType, Fee};
 use rococo_runtime::xcm_config::BaseXcmWeight;
 use xcm_builder::FixedWeightBounds;
 use xcm_executor::traits::WeightBounds;

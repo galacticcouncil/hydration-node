@@ -45,7 +45,7 @@ members = [
     'pallets/liquidation',
     'precompiles/call-permit',
     'runtime-mock',
-    'pallets/amm-support',
+    'pallets/support',
 ]
 
 resolver = "2"
@@ -146,7 +146,7 @@ pallet-referrals = { path = "pallets/referrals", default-features = false }
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false }
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
-pallet-amm-support = { path = "pallets/amm-support", default-features = false }
+pallet-support = { path = "pallets/support", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

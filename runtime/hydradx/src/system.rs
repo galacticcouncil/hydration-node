@@ -47,7 +47,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
-use pallet_amm_support::types::ExecutionType;
+use pallet_support::types::ExecutionType;
 use pallet_utility::BatchHook;
 use scale_info::TypeInfo;
 use sp_runtime::DispatchResult;

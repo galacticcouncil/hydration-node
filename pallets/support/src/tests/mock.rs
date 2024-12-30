@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate as pallet_amm_support;
+use crate as pallet_support;
 pub use crate::*;
 
 pub use frame_support::{
@@ -43,7 +43,7 @@ construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		AmmSupport: pallet_amm_support,
+		AmmSupport:pallet_support,
 	}
 );
 

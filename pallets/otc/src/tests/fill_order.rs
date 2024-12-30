@@ -18,7 +18,7 @@ use crate::Event;
 use frame_support::{assert_noop, assert_ok};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
-use pallet_amm_support::types::{Asset, Fee};
+use pallet_support::types::{Asset, Fee};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -80,11 +80,11 @@ fn complete_fill_order_should_work() {
 				fee: ONE,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type: pallet_amm_support::types::Filler::OTC(0),
-				operation: pallet_amm_support::types::TradeOperation::ExactIn,
+				filler_type:pallet_support::types::Filler::OTC(0),
+				operation:pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
@@ -156,11 +156,11 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 				fee: ONE,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type: pallet_amm_support::types::Filler::OTC(order_id),
-				operation: pallet_amm_support::types::TradeOperation::ExactIn,
+				filler_type:pallet_support::types::Filler::OTC(order_id),
+				operation:pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
@@ -244,11 +244,11 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 				fee: ONE,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type: pallet_amm_support::types::Filler::OTC(order_id),
-				operation: pallet_amm_support::types::TradeOperation::ExactIn,
+				filler_type:pallet_support::types::Filler::OTC(order_id),
+				operation:pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],

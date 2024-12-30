@@ -5,10 +5,10 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
 use orml_traits::MultiCurrency;
-use pallet_amm_support::types::Asset;
-use pallet_amm_support::types::Fee;
-use pallet_amm_support::types::Filler;
-use pallet_amm_support::types::TradeOperation;
+use pallet_support::types::Asset;
+use pallet_support::types::Fee;
+use pallet_support::types::Filler;
+use pallet_support::types::TradeOperation;
 use pallet_referrals::{FeeDistribution, ReferralCode};
 use primitives::AccountId;
 use sp_core::crypto::Ss58AddressFormat;
@@ -331,7 +331,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 		pretty_assertions::assert_eq!(
 			*last_two_swapped_events,
 			vec![
-				pallet_amm_support::Event::Swapped {
+				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: Filler::Omnipool,
@@ -342,7 +342,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_amm_support::Event::Swapped {
+				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: Filler::Omnipool,
@@ -388,7 +388,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				protocol_fee_amount: 604_873,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
@@ -399,7 +399,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
@@ -449,22 +449,22 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				protocol_fee_amount: 22_611_356,
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
-				filler_type: pallet_amm_support::types::Filler::Omnipool,
-				operation: pallet_amm_support::types::TradeOperation::ExactOut,
+				filler_type:pallet_support::types::Filler::Omnipool,
+				operation:pallet_support::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(HDX, 37_506_757_329_085)],
 				outputs: vec![Asset::new(LRNA, 45_222_713_080)],
 				fees: vec![Fee::new(LRNA, 22_611_356, Omnipool::protocol_account())],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
-			pallet_amm_support::Event::Swapped {
+			pallet_support::Event::Swapped {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
-				filler_type: pallet_amm_support::types::Filler::Omnipool,
-				operation: pallet_amm_support::types::TradeOperation::ExactOut,
+				filler_type:pallet_support::types::Filler::Omnipool,
+				operation:pallet_support::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(LRNA, 45_200_101_724)],
 				outputs: vec![Asset::new(DAI, 1_000_000_000_000_000_000)],
 				fees: vec![Fee::new(DAI, 2_644_977_450_514_458, Omnipool::protocol_account())],
@@ -605,7 +605,7 @@ fn seed_pot_account() {
 	));
 }
 
-use pallet_amm_support::types::ExecutionType;
+use pallet_support::types::ExecutionType;
 use scraper::ALICE;
 use sp_core::crypto::Ss58Codec;
 

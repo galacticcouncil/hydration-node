@@ -20,7 +20,7 @@ codec = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
-pallet-amm-support = { workspace = true }
+pallet-support = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -70,7 +70,7 @@ std = [
 	"pallet-balances/std",
 	"orml-tokens/std",
 	"frame-benchmarking/std",
-	"pallet-amm-support/std",
+	"pallet-support/std",
 	'hydradx-traits/std',
 	'hydra-dx-math/std',
 	'orml-traits/std',

@@ -1,5 +1,5 @@
 [package]
-name = "pallet-amm-support"
+name = "pallet-support"
 version = "1.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"

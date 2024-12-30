@@ -8,9 +8,9 @@ use frame_support::dispatch::GetDispatchInfo;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeEvent;
 use orml_traits::MultiCurrency;
-use pallet_amm_support::types::Asset as UnifiedEventAsset;
-use pallet_amm_support::types::ExecutionType;
-use pallet_amm_support::types::Fee;
+use pallet_support::types::Asset as UnifiedEventAsset;
+use pallet_support::types::ExecutionType;
+use pallet_support::types::Fee;
 use polkadot_xcm::v4::prelude::*;
 use sp_std::sync::Arc;
 use xcm_builder::DescribeAllTerminal;
@@ -143,21 +143,21 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
 			vec![
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: account.clone().into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::types::Filler::Omnipool,
-					operation: pallet_amm_support::types::TradeOperation::ExactIn,
+					filler_type:pallet_support::types::Filler::Omnipool,
+					operation:pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(HDX, 1000000000000)],
 					outputs: vec![UnifiedEventAsset::new(LRNA, 1201498716)],
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
 					operation_stack: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)]
 				}),
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: account.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::types::Filler::Omnipool,
-					operation: pallet_amm_support::types::TradeOperation::ExactIn,
+					filler_type:pallet_support::types::Filler::Omnipool,
+					operation:pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
 					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
 					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
@@ -283,11 +283,11 @@ fn xcm_call_should_populate_unified_event_call_context() {
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
 			vec![
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: account.clone().into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::types::Filler::Omnipool,
-					operation: pallet_amm_support::types::TradeOperation::ExactIn,
+					filler_type:pallet_support::types::Filler::Omnipool,
+					operation:pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(HDX, 1000000000000)],
 					outputs: vec![UnifiedEventAsset::new(LRNA, 1201498716)],
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
@@ -302,11 +302,11 @@ fn xcm_call_should_populate_unified_event_call_context() {
 						ExecutionType::Omnipool(1)
 					]
 				}),
-				RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped {
+				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: account.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_amm_support::types::Filler::Omnipool,
-					operation: pallet_amm_support::types::TradeOperation::ExactIn,
+					filler_type:pallet_support::types::Filler::Omnipool,
+					operation:pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
 					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
 					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
@@ -324,7 +324,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 			]
 		);
 
-		let unified_event_context = pallet_amm_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
+		let unified_event_context =pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
 		assert!(unified_event_context.is_empty());
 	});
 }
@@ -392,7 +392,7 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 
 	// Assert
 	Hydra::execute_with(|| {
-		let context = pallet_amm_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
+		let context =pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
 		assert!(context.is_empty())
 	});
 }

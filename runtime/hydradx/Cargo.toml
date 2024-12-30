@@ -40,7 +40,7 @@ pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
-pallet-amm-support = { workspace = true }
+pallet-support = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
@@ -342,7 +342,7 @@ std = [
     "pallet-conviction-voting/std",
     "pallet-referenda/std",
     "pallet-whitelist/std",
-    "pallet-amm-support/std",
+    "pallet-support/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -418,7 +418,7 @@ try-runtime = [
     "pallet-conviction-voting/try-runtime",
     "pallet-referenda/try-runtime",
     "pallet-whitelist/try-runtime",
-    "pallet-amm-support/try-runtime",
+    "pallet-support/try-runtime",
 ]
 
 metadata-hash = [

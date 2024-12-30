@@ -900,7 +900,7 @@ pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let RuntimeEvent::AmmSupport(pallet_amm_support::Event::Swapped { .. }) = e {
+		if let RuntimeEvent::AmmSupport(pallet_support::Event::Swapped { .. }) = e {
 			swapped_events.push(e);
 		}
 	}

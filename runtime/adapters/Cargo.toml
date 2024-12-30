@@ -32,7 +32,7 @@ pallet-referrals = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
-pallet-amm-support = { workspace = true }
+pallet-support = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -67,7 +67,7 @@ pallet-balances = { workspace = true }
 lazy_static = { workspace = true }
 pretty_assertions = { workspace = true }
 pallet-xyk = { workspace = true }
-pallet-amm-support = { workspace = true }
+pallet-support = { workspace = true }
 
 [features]
 default = ["std"]

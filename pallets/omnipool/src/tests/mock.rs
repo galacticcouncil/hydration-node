@@ -86,7 +86,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
-		AmmSupport: pallet_amm_support,
+		AmmSupport:pallet_support,
 	}
 );
 
@@ -181,7 +181,7 @@ parameter_types! {
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 }
 
-impl pallet_amm_support::Config for Test {
+impl pallet_support::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

@@ -75,7 +75,7 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 LBPPallet: lbp,
 		 Currency: orml_tokens,
-		 AmmSupport: pallet_amm_support,
+		 AmmSupport:pallet_support,
 	 }
 
 );
@@ -176,7 +176,7 @@ impl LockedBalance<AssetId, AccountId, Balance> for MultiLockedBalance {
 	}
 }
 
-impl pallet_amm_support::Config for Test {
+impl pallet_support::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

@@ -246,14 +246,14 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		} else {
 			unique(&message)
 		};
-		pallet_amm_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id))
+		pallet_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id))
 			.map_err(|_| message.clone())?;
 
 		let prepare_result = Inner::prepare(message);
 
 		//In case of error we need to clean context as xcm execution won't happen
 		if prepare_result.is_err() {
-			let _ = pallet_amm_support::Pallet::<Runtime>::remove_from_context();
+			let _ =pallet_support::Pallet::<Runtime>::remove_from_context();
 		}
 
 		prepare_result
@@ -267,7 +267,7 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 	) -> Outcome {
 		let outcome = Inner::execute(origin, pre, id, weight_credit);
 
-		let Ok(_) = pallet_amm_support::Pallet::<Runtime>::remove_from_context() else {
+		let Ok(_) =pallet_support::Pallet::<Runtime>::remove_from_context() else {
 			return Outcome::Error {
 				error: XcmError::FailedToTransactAsset("Unexpected error at modifying unified events stack"),
 			};
@@ -485,7 +485,7 @@ pub type LocationToAccountId = (
 	// Convert ETH to local substrate account
 	EvmAddressConversion<RelayNetwork>,
 );
-use pallet_amm_support::types::ExecutionType;
+use pallet_support::types::ExecutionType;
 use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
