@@ -243,13 +243,16 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+	where <T as frame_system::Config>::AccountId: From<std::vec::Vec<u8>>
+	{
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			SolutionScore::<T>::kill();
 			SolutionExecuted::<T>::kill();
 		}
 
-		fn offchain_worker(block_number: BlockNumberFor<T>) {
+		fn offchain_worker(block_number: BlockNumberFor<T>)
+		{
 			log::error!("Running ice offchain worker");
 			let lock_expiration = Duration::from_millis(LOCK_TIMEOUT_EXPIRATION);
 			let mut lock = StorageLock::<'_, sp_runtime::offchain::storage_lock::Time>::with_deadline(
@@ -294,9 +297,11 @@ pub mod pallet {
 						let signature = key.sign(&call.encode()).ok_or(Error::FailedSigning).unwrap();
 						let r = SubmitTransaction::<T, Call<T>>::submit_transaction(call.into(), Some(signature));
 						 */
-						let a :T::AccountId = key.into();
+						let a = key.to_raw_vec();
+						let ac = T::AccountId::from(a.into());
 
-						let t = CreateSignedTransaction::<Call<T>>::create_transaction(call.into(), key, a, None).ok_or(Error::FailedSigning).unwrap();
+
+						let t = CreateSignedTransaction::<Call<T>>::create_transaction(call.into(), key, ac, None).ok_or(Error::FailedSigning).unwrap();
 
 						let r = SubmitTransaction::<T, Call<T>>::submit_transaction(t.0, t.1);
 
