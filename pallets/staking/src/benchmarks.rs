@@ -17,7 +17,7 @@
 
 use super::*;
 
-use crate::types::{Conviction, Vote};
+use crate::types::{Conviction, Vote, Voting};
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_system::{Pallet as System, RawOrigin};

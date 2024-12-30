@@ -1,11 +1,12 @@
 use crate::pallet::{PositionVotes, Positions, ProcessedVotes};
-use crate::types::{Action, Balance, Conviction};
+use crate::types::{Action, Balance, Conviction, Vote};
 use crate::{Config, Pallet};
 use frame_support::dispatch::DispatchResult;
 use orml_traits::MultiCurrencyExtended;
 use pallet_democracy::traits::DemocracyHooks;
 use pallet_democracy::{AccountVote, ReferendumIndex};
 use sp_runtime::FixedPointNumber;
+use sp_core::Get;
 
 pub struct LegacyStakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
