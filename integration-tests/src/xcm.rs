@@ -280,6 +280,11 @@ fn xcm_call_should_populate_unified_event_call_context() {
 
 		let swapped_events = get_last_swapped_events();
 		let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+		let topic_id = [
+			162, 58, 237, 167, 26, 250, 26, 161, 116, 182, 7, 12, 84, 48, 100,
+			53, 175, 60, 179, 213, 59, 7, 83, 150, 136, 112, 126, 15, 199, 223,
+			71, 230
+		];
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
 			vec![
@@ -293,10 +298,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
 					operation_stack: vec![
 						ExecutionType::Xcm(
-							[
-								237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5,
-								253, 212, 209, 227, 230, 38, 183, 105, 62, 69, 234, 5, 249,
-							],
+							topic_id,
 							0
 						),
 						ExecutionType::Omnipool(1)
@@ -312,10 +314,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
 					operation_stack: vec![
 						ExecutionType::Xcm(
-							[
-								237, 209, 186, 1, 116, 50, 158, 190, 169, 150, 18, 38, 37, 51, 136, 30, 219, 60, 5,
-								253, 212, 209, 227, 230, 38, 183, 105, 62, 69, 234, 5, 249,
-							],
+							topic_id,
 							0
 						),
 						ExecutionType::Omnipool(1)
