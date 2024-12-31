@@ -318,8 +318,8 @@ where
 		_trader: AccountId,
 		_asset: AssetId,
 		_amount: Balance,
-	) -> Result<Balance, Self::Error> {
-		Ok(Balance::zero())
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
+		Ok(vec![])
 	}
 }
 

@@ -59,6 +59,7 @@ use xcm_executor::{
 	traits::{ConvertLocation, MatchesFungible, TransactAsset, WeightTrader},
 	AssetsInHolding,
 };
+use sp_std::vec;
 
 pub mod inspect;
 pub mod price;
@@ -335,7 +336,7 @@ where
 	NativeAsset: Get<AssetId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
-		+ frame_system::Config<RuntimeOrigin = Origin>
+		+ frame_system::Config<RuntimeOrigin = Origin,  AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
 		+ pallet_referrals::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
@@ -472,12 +473,12 @@ where
 		trader: AccountId,
 		asset: AssetId,
 		amount: Balance,
-	) -> Result<Balance, Self::Error> {
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		if asset == Lrna::get() {
-			return Ok(Balance::zero());
+			return Ok(vec![]);
 		}
 		let referrals_used = if asset == NativeAsset::get() {
-			Balance::zero()
+			None
 		} else {
 			pallet_referrals::Pallet::<Runtime>::process_trade_fee(
 				fee_account.clone().into(),
@@ -487,12 +488,13 @@ where
 			)?
 		};
 
+		let referral_amount = referrals_used.clone().map(|(balance, _)| balance).unwrap_or_default();
 		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
 			fee_account.into(),
 			asset.into(),
-			amount.saturating_sub(referrals_used),
+			amount.saturating_sub(referral_amount),
 		)?;
-		Ok(staking_used.saturating_add(referrals_used))
+		Ok(vec![staking_used, referrals_used])
 	}
 }
 

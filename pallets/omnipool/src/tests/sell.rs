@@ -718,6 +718,7 @@ fn sell_should_get_same_amount() {
 		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
 		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
 		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
+		.with_on_trade_withdrawal(Permill::from_percent(1))
 		.build()
 		.execute_with(|| {
 			let buy_amount = 50 * ONE;
@@ -762,7 +763,8 @@ fn sell_should_get_same_amount() {
 					operation:pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 57142857142858)],
 					outputs: vec![Asset::new(200, buy_amount)],
-					fees: vec![Fee::new(200, 5555555555556, Omnipool::protocol_account())],
+					fees: vec![Fee::new(200, 5500000000001, Omnipool::protocol_account()),
+							   Fee::new(200, 55555555555, 0)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
