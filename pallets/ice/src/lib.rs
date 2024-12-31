@@ -242,6 +242,19 @@ pub mod pallet {
 		}
 	}
 
+	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
+	pub struct GenesisConfig<T: Config> {
+		pub keys: Vec<T::AuthorityId>,
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+		fn build(&self) {
+			Pallet::<T>::initialize_keys(&self.keys);
+		}
+	}
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
@@ -280,14 +293,23 @@ pub mod pallet {
 
 						let block: BlockNumberFor<T> = block_number.saturating_add(1u32.into());
 
-						let authorities = Self::local_authority_keys().collect::<Vec<_>>();
+						//let authorities = Self::local_authority_keys().collect::<Vec<_>>();
+						//log::error!("Authorities {:?}", authorities.len());
+
+						let a_idx = 0usize;
+						let local_keys = T::AuthorityId::all();
+						let key = local_keys[a_idx].clone();
 
 						//pick one
+						/*
 						let b: usize = block_number.saturated_into();
 						let idx = b % authorities.len();
 						let (a_idx, key) = authorities.into_iter().nth(idx).expect("Key;qed");
+						 */
 
 						let params = (s.clone(), 1u64, block);
+
+						log::error!("signing");
 
 						let signature = key.sign(&params.encode()).ok_or(Error::<T>::FailedSigning).unwrap();
 
@@ -296,9 +318,10 @@ pub mod pallet {
 							score: 1u64,
 							block,
 							signature,
-							signer: crate::types::Signer::Authority(a_idx)
+							signer: crate::types::Signer::Authority(a_idx as u32)
 						};
 
+						log::error!("Sending tx");
 						let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
 
 						//let r = SubmitTransaction::<T, Call<T>>::submit_transaction(call.into(), Some(signature));
@@ -443,7 +466,9 @@ pub mod pallet {
 
 				match signer {
                     crate::types::Signer::Authority(idx) => {
-						let keys = Keys::<T>::get();
+						log::error!("Validating!!");
+						//let keys = Keys::<T>::get();
+						let keys= T::AuthorityId::all();
 						let aid = keys.get(*idx as usize).unwrap();
 
 						let params = (intents, score, block).encode();
@@ -927,10 +952,12 @@ impl<T: Config> Pallet<T> {
 
 	fn local_authority_keys() -> impl Iterator<Item = (u32, T::AuthorityId)> {
 		let authorities = Keys::<T>::get();
+		log::error!("storage {:?}", authorities.len());
 
 		// local keystore
 		// All public (+private) keys currently in the local keystore.
 		let mut local_keys = T::AuthorityId::all();
+		log::error!("Local keys {:?}", local_keys.len());
 
 		local_keys.sort();
 
