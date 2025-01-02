@@ -224,7 +224,7 @@ mod omnipool {
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_support::types::Filler::Omnipool,
@@ -237,8 +237,8 @@ mod omnipool {
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						]
-					}),
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					},
+					pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_support::types::Filler::Omnipool,
@@ -251,7 +251,7 @@ mod omnipool {
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
-					})
+					}
 				]
 			);
 
@@ -262,7 +262,7 @@ mod omnipool {
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_support::types::Filler::Omnipool,
@@ -275,8 +275,8 @@ mod omnipool {
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
-					}),
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					},
+					pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_support::types::Filler::Omnipool,
@@ -289,7 +289,7 @@ mod omnipool {
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
-					})
+					}
 				]
 			);
 		});
@@ -711,7 +711,7 @@ mod omnipool {
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_support::types::Filler::Omnipool,
@@ -724,8 +724,8 @@ mod omnipool {
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
-					}),
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					},
+					pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_support::types::Filler::Omnipool,
@@ -738,7 +738,7 @@ mod omnipool {
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
-					})
+					}
 				]
 			);
 
@@ -749,7 +749,7 @@ mod omnipool {
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_support::types::Filler::Omnipool,
@@ -762,8 +762,8 @@ mod omnipool {
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
-					}),
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					},
+					pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_support::types::Filler::Omnipool,
@@ -776,7 +776,7 @@ mod omnipool {
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
-					})
+					}
 				]
 			);
 		});

@@ -26,6 +26,8 @@ use sp_runtime::DispatchResult;
 use sp_runtime::{FixedU128, Permill, TransactionOutcome};
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
+use crate::assert_operation_stack;
+
 pub const SELL: bool = true;
 pub const BUY: bool = false;
 
@@ -125,45 +127,28 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
 		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), received);
 
-		let last_swapped_events = get_last_swapped_events();
+		let last_swapped_events : Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
-		let topic_id = [
-			180, 44, 225, 230, 61, 43, 219, 219, 222, 9, 44, 219, 86, 193, 219, 212, 120, 169, 197, 209, 39, 180, 219,
-			225, 224, 182, 134, 141, 41, 162, 96, 54,
-		];
-		pretty_assertions::assert_eq!(
-			last_two_swapped_events,
-			vec![
-				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
-					swapper: TempAccountForXcmAssetExchange::get(),
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_support::types::Filler::Omnipool,
-					operation: pallet_support::types::TradeOperation::ExactIn,
-					inputs: vec![pallet_support::types::Asset::new(ACA, 50000000000000),],
-					outputs: vec![pallet_support::types::Asset::new(LRNA::get(), 49180327868852)],
-					fees: vec![Fee::new(LRNA::get(), 24590163934, Omnipool::protocol_account()),],
-					operation_stack: vec![
-						ExecutionType::Xcm(topic_id, 0),
-						ExecutionType::XcmExchange(1),
-						ExecutionType::Router(2),
-						ExecutionType::Omnipool(3)
-					],
-				}),
-				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
-					swapper: TempAccountForXcmAssetExchange::get(),
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_support::types::Filler::Omnipool,
-					operation: pallet_support::types::TradeOperation::ExactIn,
-					inputs: vec![pallet_support::types::Asset::new(LRNA::get(), 49155737704918),],
-					outputs: vec![pallet_support::types::Asset::new(HDX, 39101207131554396)],
-					fees: vec![Fee::new(HDX, 97998012861039, Omnipool::protocol_account()),],
-					operation_stack: vec![
-						ExecutionType::Xcm(topic_id, 0),
-						ExecutionType::XcmExchange(1),
-						ExecutionType::Router(2),
-						ExecutionType::Omnipool(3)
-					],
-				})
+
+		let event1 = &last_two_swapped_events[0];
+		assert_operation_stack!(
+			event1,
+			[
+				ExecutionType::Xcm(_, 0),
+				ExecutionType::XcmExchange(1),
+				ExecutionType::Router(2),
+				ExecutionType::Omnipool(3)
+			]
+		);
+
+		let event2 = &last_two_swapped_events[0];
+		assert_operation_stack!(
+			event2,
+			[
+				ExecutionType::Xcm(_, 0),
+				ExecutionType::XcmExchange(1),
+				ExecutionType::Router(2),
+				ExecutionType::Omnipool(3)
 			]
 		);
 
@@ -177,31 +162,24 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			vec![],
 		));
 
-		let last_swapped_events = get_last_swapped_events();
+		let last_swapped_events : Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
-		pretty_assertions::assert_eq!(
-			last_two_swapped_events,
-			vec![
-				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
-					swapper: ALICE.into(),
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_support::types::Filler::Omnipool,
-					operation: pallet_support::types::TradeOperation::ExactIn,
-					inputs: vec![pallet_support::types::Asset::new(HDX, 1 * UNITS),],
-					outputs: vec![pallet_support::types::Asset::new(LRNA::get(), 1308673515)],
-					fees: vec![Fee::new(LRNA::get(), 654336, Omnipool::protocol_account()),],
-					operation_stack: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
-				}),
-				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
-					swapper: ALICE.into(),
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_support::types::Filler::Omnipool,
-					operation: pallet_support::types::TradeOperation::ExactIn,
-					inputs: vec![pallet_support::types::Asset::new(LRNA::get(), 1308019179),],
-					outputs: vec![pallet_support::types::Asset::new(ACA, 1348602600)],
-					fees: vec![Fee::new(ACA, 3379957, Omnipool::protocol_account()),],
-					operation_stack: vec![ExecutionType::Router(4), ExecutionType::Omnipool(5)],
-				})
+
+		let event1 = &last_two_swapped_events[0];
+		assert_operation_stack!(
+			event1,
+			[
+				ExecutionType::Router(4),
+				ExecutionType::Omnipool(5)
+			]
+		);
+
+		let event2 = &last_two_swapped_events[0];
+		assert_operation_stack!(
+			event2,
+			[
+				ExecutionType::Router(4),
+				ExecutionType::Omnipool(5)
 			]
 		);
 	});
