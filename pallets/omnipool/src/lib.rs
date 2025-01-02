@@ -1094,7 +1094,6 @@ pub mod pallet {
 
 			pallet_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
-
 			//Swapped event for AssetA to HubAsset
 			pallet_support::Pallet::<T>::deposit_trade_event(
 				who.clone(),
@@ -1124,7 +1123,7 @@ pub mod pallet {
 					*state_changes.asset_out.delta_hub_reserve,
 				)],
 				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
-				trade_fees
+				trade_fees,
 			);
 
 			pallet_support::Pallet::<T>::remove_from_context()?;
@@ -1873,7 +1872,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-        let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::SellExecuted {
@@ -2125,14 +2124,19 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Calls `on_trade_fee` hook and ensures that no more than the fee amount is transferred.
-	fn process_trade_fee(trader: &T::AccountId, asset: T::AssetId, amount: Balance) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
+	fn process_trade_fee(
+		trader: &T::AccountId,
+		asset: T::AssetId,
+		amount: Balance,
+	) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
 
 		// Let's give little bit less to process. Subtracting one due to potential rounding errors
 		let allowed_amount = amount.saturating_sub(Balance::one());
 		let fees = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
-		let additional_fees_total: Balance = fees.clone()
+		let additional_fees_total: Balance = fees
+			.clone()
 			.into_iter()
 			.filter_map(|opt| opt.map(|(balance, _)| balance))
 			.sum();
@@ -2150,9 +2154,12 @@ impl<T: Config> Pallet<T> {
 			recipient: Self::protocol_account(),
 		}];
 
-		let additional_fee_entries : Vec<Fee<T::AccountId>> = fees
+		let additional_fee_entries: Vec<Fee<T::AccountId>> = fees
 			.iter()
-			.filter_map(|opt| opt.clone().map(|(balance, recipient)| Fee::new(asset.into(), balance, recipient.clone())))
+			.filter_map(|opt| {
+				opt.clone()
+					.map(|(balance, recipient)| Fee::new(asset.into(), balance, recipient.clone()))
+			})
 			.filter(|fee| fee.amount > 0) //filter out when we zero percentage is configured for fees
 			.collect();
 

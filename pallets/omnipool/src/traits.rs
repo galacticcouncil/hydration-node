@@ -7,8 +7,8 @@ use hydra_dx_math::omnipool::types::AssetStateChange;
 use sp_runtime::traits::{CheckedAdd, CheckedMul, Get, Saturating, Zero};
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128, Permill};
 use sp_std::fmt::Debug;
-use sp_std::vec::Vec;
 use sp_std::vec;
+use sp_std::vec::Vec;
 /// Asset In/Out information used in hooks.
 pub struct AssetInfo<AssetId, Balance>
 where

@@ -748,8 +748,8 @@ fn sell_should_get_same_amount() {
 				pallet_support::Event::Swapped {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(100, expected_sold_amount)],
 					outputs: vec![Asset::new(LRNA, 57142857142858)],
 					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
@@ -759,12 +759,14 @@ fn sell_should_get_same_amount() {
 				pallet_support::Event::Swapped {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 57142857142858)],
 					outputs: vec![Asset::new(200, buy_amount)],
-					fees: vec![Fee::new(200, 5500000000001, Omnipool::protocol_account()),
-							   Fee::new(200, 55555555555, 0)],
+					fees: vec![
+						Fee::new(200, 5500000000001, Omnipool::protocol_account()),
+						Fee::new(200, 55555555555, 0),
+					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),

@@ -725,7 +725,12 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		Weight::zero()
 	}
 
-	fn on_trade_fee(fee_account: AccountId, _trader: AccountId, asset: AssetId, amount: Balance) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
+	fn on_trade_fee(
+		fee_account: AccountId,
+		_trader: AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
 		Tokens::withdraw(asset, &fee_account, to_take)?;

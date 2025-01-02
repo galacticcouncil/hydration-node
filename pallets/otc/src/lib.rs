@@ -59,7 +59,7 @@ pub use weights::WeightInfo;
 pub use pallet::*;
 use pallet_support::types::Asset;
 pub type Balance = u128;
-pub type OrderId =pallet_support::types::OtcOrderId; //TODO: just use exacty type
+pub type OrderId = pallet_support::types::OtcOrderId; //TODO: just use exacty type
 pub type NamedReserveIdentifier = [u8; 8];
 
 pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"otcorder";

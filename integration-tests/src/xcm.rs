@@ -146,8 +146,8 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: account.clone().into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(HDX, 1000000000000)],
 					outputs: vec![UnifiedEventAsset::new(LRNA, 1201498716)],
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
@@ -156,8 +156,8 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: account.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
 					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
 					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
@@ -281,9 +281,8 @@ fn xcm_call_should_populate_unified_event_call_context() {
 		let swapped_events = get_last_swapped_events();
 		let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
 		let topic_id = [
-			162, 58, 237, 167, 26, 250, 26, 161, 116, 182, 7, 12, 84, 48, 100,
-			53, 175, 60, 179, 213, 59, 7, 83, 150, 136, 112, 126, 15, 199, 223,
-			71, 230
+			162, 58, 237, 167, 26, 250, 26, 161, 116, 182, 7, 12, 84, 48, 100, 53, 175, 60, 179, 213, 59, 7, 83, 150,
+			136, 112, 126, 15, 199, 223, 71, 230,
 		];
 		pretty_assertions::assert_eq!(
 			last_two_swapped_events,
@@ -291,39 +290,27 @@ fn xcm_call_should_populate_unified_event_call_context() {
 				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: account.clone().into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(HDX, 1000000000000)],
 					outputs: vec![UnifiedEventAsset::new(LRNA, 1201498716)],
 					fees: vec![Fee::new(LRNA, 600749, Omnipool::protocol_account()),],
-					operation_stack: vec![
-						ExecutionType::Xcm(
-							topic_id,
-							0
-						),
-						ExecutionType::Omnipool(1)
-					]
+					operation_stack: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)]
 				}),
 				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: account.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![UnifiedEventAsset::new(LRNA, 1200897967)],
 					outputs: vec![UnifiedEventAsset::new(DAI, 26619890727267708)],
 					fees: vec![Fee::new(DAI, 66716518113453, Omnipool::protocol_account()),],
-					operation_stack: vec![
-						ExecutionType::Xcm(
-							topic_id,
-							0
-						),
-						ExecutionType::Omnipool(1)
-					],
+					operation_stack: vec![ExecutionType::Xcm(topic_id, 0), ExecutionType::Omnipool(1)],
 				})
 			]
 		);
 
-		let unified_event_context =pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
+		let unified_event_context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
 		assert!(unified_event_context.is_empty());
 	});
 }
@@ -391,7 +378,7 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 
 	// Assert
 	Hydra::execute_with(|| {
-		let context =pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
+		let context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
 		assert!(context.is_empty())
 	});
 }

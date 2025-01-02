@@ -78,8 +78,8 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type:pallet_support::types::Filler::Stableswap(pool_id),
-					operation:pallet_support::types::TradeOperation::LiquidityRemove,
+					filler_type: pallet_support::types::Filler::Stableswap(pool_id),
+					operation: pallet_support::types::TradeOperation::LiquidityRemove,
 					inputs: vec![Asset::new(pool_id, 200516043533380244763),],
 					outputs: vec![Asset::new(asset_c, 199999999999999)],
 					fees: vec![Fee::new(pool_id, 0, pool_account)],
@@ -1084,8 +1084,8 @@ fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
 				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type:pallet_support::types::Filler::Stableswap(4),
-					operation:pallet_support::types::TradeOperation::LiquidityRemove,
+					filler_type: pallet_support::types::Filler::Stableswap(4),
+					operation: pallet_support::types::TradeOperation::LiquidityRemove,
 					inputs: vec![Asset::new(pool_id, 979387928052053203)],
 					outputs: vec![Asset::new(asset_a, 1000000000000000000),],
 					fees: vec![

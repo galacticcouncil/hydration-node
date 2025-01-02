@@ -302,9 +302,9 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 			.into(),
 			pallet_support::Event::Swapped {
 				swapper: otc.owner,
-				filler:  OtcSettlements::account_id(),
-				filler_type:pallet_support::types::Filler::OTC(otc_id),
-				operation:pallet_support::types::TradeOperation::ExactIn,
+				filler: OtcSettlements::account_id(),
+				filler_type: pallet_support::types::Filler::OTC(otc_id),
+				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(HDX, 2413749694825193)],
 				outputs: vec![Asset::new(DAI, 4948186874391645)],
 				fees: vec![Fee::new(

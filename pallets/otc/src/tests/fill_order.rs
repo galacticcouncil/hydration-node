@@ -83,8 +83,8 @@ fn complete_fill_order_should_work() {
 			pallet_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type:pallet_support::types::Filler::OTC(0),
-				operation:pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_support::types::Filler::OTC(0),
+				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
@@ -159,8 +159,8 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 			pallet_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type:pallet_support::types::Filler::OTC(order_id),
-				operation:pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_support::types::Filler::OTC(order_id),
+				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],
@@ -247,8 +247,8 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 			pallet_support::Event::Swapped {
 				swapper: BOB,
 				filler: ALICE,
-				filler_type:pallet_support::types::Filler::OTC(order_id),
-				operation:pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_support::types::Filler::OTC(order_id),
+				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
 				fees: vec![Fee::new(HDX, ONE, <Test as crate::Config>::FeeReceiver::get())],

@@ -74,8 +74,8 @@ fn sell_test() {
 			pallet_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type:pallet_support::types::Filler::XYK(share_token),
-				operation:pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_support::types::Filler::XYK(share_token),
+				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_a, 456444678)],
 				outputs: vec![Asset::new(asset_b, 1363483591788)],
 				fees: vec![Fee::new(asset_b, 2732432046, pair_account)],
@@ -138,8 +138,8 @@ fn execute_sell_should_use_event_id() {
 			pallet_support::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type:pallet_support::types::Filler::XYK(share_token),
-				operation:pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_support::types::Filler::XYK(share_token),
+				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_a, 456444678)],
 				outputs: vec![Asset::new(asset_b, 1363483591788)],
 				fees: vec![Fee::new(asset_b, 2732432046, pair_account)],
@@ -445,8 +445,8 @@ fn sell_with_correct_fees_should_work() {
 			pallet_support::Event::Swapped {
 				swapper: user_1,
 				filler: pair_account,
-				filler_type:pallet_support::types::Filler::XYK(share_token),
-				operation:pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_support::types::Filler::XYK(share_token),
+				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_a, 100_000)],
 				outputs: vec![Asset::new(asset_b, 19_762_378)],
 				fees: vec![Fee::new(asset_b, 39_602, pair_account)],
@@ -663,8 +663,8 @@ fn single_buy_should_work() {
 			pallet_support::Event::Swapped {
 				swapper: user_1,
 				filler: pair_account,
-				filler_type:pallet_support::types::Filler::XYK(share_token),
-				operation:pallet_support::types::TradeOperation::ExactOut,
+				filler_type: pallet_support::types::Filler::XYK(share_token),
+				operation: pallet_support::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(asset_b, 6_666_666)],
 				outputs: vec![Asset::new(asset_a, 22_068_963_235)],
 				fees: vec![Fee::new(asset_b, 44_137_926, pair_account)],

@@ -51,6 +51,7 @@ use primitive_types::{U128, U512};
 use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
+use sp_std::vec;
 use sp_std::vec::Vec;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
@@ -59,7 +60,6 @@ use xcm_executor::{
 	traits::{ConvertLocation, MatchesFungible, TransactAsset, WeightTrader},
 	AssetsInHolding,
 };
-use sp_std::vec;
 
 pub mod inspect;
 pub mod price;
@@ -336,7 +336,7 @@ where
 	NativeAsset: Get<AssetId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
-		+ frame_system::Config<RuntimeOrigin = Origin,  AccountId = sp_runtime::AccountId32>
+		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
 		+ pallet_referrals::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,

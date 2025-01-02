@@ -20,11 +20,11 @@ use hydradx_traits::router::PoolType;
 use hydradx_traits::router::Trade;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
-use pallet_support::types::*;
 use pallet_dca::types::{Order, Schedule};
 use pallet_omnipool::types::Tradability;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
+use pallet_support::types::*;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
@@ -227,8 +227,8 @@ mod omnipool {
 					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type:pallet_support::types::Filler::Omnipool,
-						operation:pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_support::types::Filler::Omnipool,
+						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, 140421094367051)],
 						outputs: vec![Asset::new(LRNA, 70210545436437)],
 						fees: vec![Fee::new(LRNA, 35105272718, Omnipool::protocol_account()),],
@@ -241,8 +241,8 @@ mod omnipool {
 					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type:pallet_support::types::Filler::Omnipool,
-						operation:pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_support::types::Filler::Omnipool,
+						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175440163719)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(DAI, 250626566417, Omnipool::protocol_account()),],
@@ -265,8 +265,8 @@ mod omnipool {
 					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type:pallet_support::types::Filler::Omnipool,
-						operation:pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_support::types::Filler::Omnipool,
+						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, 140421107716515)],
 						outputs: vec![Asset::new(LRNA, 70210548448729)],
 						fees: vec![Fee::new(LRNA, 35105274224, Omnipool::protocol_account()),],
@@ -279,8 +279,8 @@ mod omnipool {
 					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type:pallet_support::types::Filler::Omnipool,
-						operation:pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_support::types::Filler::Omnipool,
+						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175443174505)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(DAI, 250626566417, Omnipool::protocol_account()),],
@@ -714,8 +714,8 @@ mod omnipool {
 					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type:pallet_support::types::Filler::Omnipool,
-						operation:pallet_support::types::TradeOperation::ExactIn,
+						filler_type: pallet_support::types::Filler::Omnipool,
+						operation: pallet_support::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
 						outputs: vec![Asset::new(LRNA, 49999999159957)],
 						fees: vec![Fee::new(LRNA, 24999999579, Omnipool::protocol_account()),],
@@ -728,8 +728,8 @@ mod omnipool {
 					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type:pallet_support::types::Filler::Omnipool,
-						operation:pallet_support::types::TradeOperation::ExactIn,
+						filler_type: pallet_support::types::Filler::Omnipool,
+						operation: pallet_support::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974999160378)],
 						outputs: vec![Asset::new(DAI, 71214372624126)],
 						fees: vec![Fee::new(DAI, 178482136903, Omnipool::protocol_account()),],
@@ -752,8 +752,8 @@ mod omnipool {
 					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type:pallet_support::types::Filler::Omnipool,
-						operation:pallet_support::types::TradeOperation::ExactIn,
+						filler_type: pallet_support::types::Filler::Omnipool,
+						operation: pallet_support::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
 						outputs: vec![Asset::new(LRNA, 49999997360044)],
 						fees: vec![Fee::new(LRNA, 24999998680, Omnipool::protocol_account()),],
@@ -766,8 +766,8 @@ mod omnipool {
 					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type:pallet_support::types::Filler::Omnipool,
-						operation:pallet_support::types::TradeOperation::ExactIn,
+						filler_type: pallet_support::types::Filler::Omnipool,
+						operation: pallet_support::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974997361364)],
 						outputs: vec![Asset::new(DAI, 71214367826179)],
 						fees: vec![Fee::new(DAI, 178482124878, Omnipool::protocol_account()),],

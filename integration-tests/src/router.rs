@@ -14,17 +14,17 @@ use hydradx_traits::{
 	router::{PoolType, Trade},
 	AssetKind, AMM,
 };
-use pallet_support::types::Asset;
-use pallet_support::types::ExecutionType;
-use pallet_support::types::Fee;
-use pallet_support::types::Filler;
-use pallet_support::types::TradeOperation;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
 use pallet_omnipool::traits::OmnipoolHooks;
 use pallet_omnipool::types::Tradability;
 use pallet_omnipool::weights::WeightInfo as OmnipoolWeights;
 use pallet_route_executor::AmmTradeWeights;
+use pallet_support::types::Asset;
+use pallet_support::types::ExecutionType;
+use pallet_support::types::Fee;
+use pallet_support::types::Filler;
+use pallet_support::types::TradeOperation;
 use primitives::AssetId;
 use sp_runtime::FixedPointNumber;
 use std::convert::Into;
@@ -161,8 +161,8 @@ mod router_different_pools_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
-					filler_type:pallet_support::types::Filler::LBP,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::LBP,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(DAI, 9980000000)],
 					outputs: vec![Asset::new(LRNA, 5640664064)],
 					fees: vec![Fee::new(
@@ -178,8 +178,8 @@ mod router_different_pools_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
@@ -192,13 +192,13 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type:pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+					filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 						pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						},
 					))),
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, 4682924837974)],
 					outputs: vec![Asset::new(DOT, 2230008413831)],
 					fees: vec![Fee::new(
@@ -304,13 +304,13 @@ mod router_different_pools_tests {
 							asset_in: HDX,
 							asset_out: stable_asset_1,
 						}),
-						filler_type:pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+						filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 							pallet_xyk::types::AssetPair {
 								asset_in: HDX,
 								asset_out: stable_asset_1,
 							},
 						))),
-						operation:pallet_support::types::TradeOperation::ExactIn,
+						operation: pallet_support::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, 5640664064)],
 						outputs: vec![Asset::new(stable_asset_1, 2811712439)],
 						fees: vec![Fee::new(
@@ -330,7 +330,7 @@ mod router_different_pools_tests {
 							&stable_pool_id,
 							Some(pallet_stableswap::POOL_IDENTIFIER),
 						),
-						filler_type:pallet_support::types::Filler::Stableswap(stable_pool_id),
+						filler_type: pallet_support::types::Filler::Stableswap(stable_pool_id),
 						operation: TradeOperation::ExactIn,
 						inputs: vec![Asset::new(stable_asset_1, 2811712439)],
 						outputs: vec![Asset::new(stable_asset_2, 2783595233)],
@@ -414,8 +414,8 @@ mod router_different_pools_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
-					filler_type:pallet_support::types::Filler::LBP,
-					operation:pallet_support::types::TradeOperation::ExactOut,
+					filler_type: pallet_support::types::Filler::LBP,
+					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(DAI, 4362157193)],
 					outputs: vec![Asset::new(LRNA, 2465566245)],
 					fees: vec![Fee::new(
@@ -431,8 +431,8 @@ mod router_different_pools_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactOut,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(LRNA, 2465566245)],
 					outputs: vec![Asset::new(HDX, 2046938775509)],
 					fees: vec![Fee::new(HDX, 5130172370, Omnipool::protocol_account())],
@@ -445,13 +445,13 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type:pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+					filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 						pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						},
 					))),
-					operation:pallet_support::types::TradeOperation::ExactOut,
+					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, 1000000000000)],
 					outputs: vec![Asset::new(DOT, 2040816326531)],
 					fees: vec![Fee::new(
@@ -537,8 +537,8 @@ mod router_different_pools_tests {
 					pallet_support::Event::Swapped {
 						swapper: BOB.into(),
 						filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
-						filler_type:pallet_support::types::Filler::LBP,
-						operation:pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_support::types::Filler::LBP,
+						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(DAI, 3746042043754)],
 						outputs: vec![Asset::new(HDX, 2067851065323)],
 						fees: vec![Fee::new(
@@ -557,13 +557,13 @@ mod router_different_pools_tests {
 							asset_in: HDX,
 							asset_out: stable_asset_1,
 						}),
-						filler_type:pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+						filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 							pallet_xyk::types::AssetPair {
 								asset_in: HDX,
 								asset_out: stable_asset_1,
 							},
 						))),
-						operation:pallet_support::types::TradeOperation::ExactOut,
+						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, 1010010000114)],
 						outputs: vec![Asset::new(stable_asset_1, 2061666067122)],
 						fees: vec![Fee::new(
@@ -583,8 +583,8 @@ mod router_different_pools_tests {
 							&stable_pool_id,
 							Some(pallet_stableswap::POOL_IDENTIFIER),
 						),
-						filler_type:pallet_support::types::Filler::Stableswap(stable_pool_id),
-						operation:pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_support::types::Filler::Stableswap(stable_pool_id),
+						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(stable_asset_1, 1010010000114)],
 						outputs: vec![Asset::new(stable_asset_2, 1000000000000)],
 						fees: vec![Fee::new(
@@ -665,13 +665,13 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type:pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+					filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 						pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						},
 					))),
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, 10000000000)],
 					outputs: vec![Asset::new(DOT, 4984501549)],
 					fees: vec![Fee::new(
@@ -691,13 +691,13 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type:pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+					filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 						pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						},
 					))),
-					operation:pallet_support::types::TradeOperation::ExactOut,
+					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, 10000000000)],
 					outputs: vec![Asset::new(DOT, 20007996198)],
 					fees: vec![Fee::new(
@@ -717,13 +717,13 @@ mod router_different_pools_tests {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type:pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+					filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 						pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						},
 					))),
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, 10000000000)],
 					outputs: vec![Asset::new(DOT, 4981510054)],
 					fees: vec![Fee::new(
@@ -2403,8 +2403,8 @@ mod omnipool_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12014871681)],
 					fees: vec![Fee::new(LRNA, 6007435, Omnipool::protocol_account())],
@@ -2414,8 +2414,8 @@ mod omnipool_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 12008864246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(DAI, 667155563986401, Omnipool::protocol_account())],
@@ -2465,8 +2465,8 @@ mod omnipool_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12014871681)],
 					fees: vec![Fee::new(LRNA, 6007435, Omnipool::protocol_account())],
@@ -2476,8 +2476,8 @@ mod omnipool_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 12008864246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(DAI, 667155563986401, Omnipool::protocol_account())],
@@ -2633,8 +2633,8 @@ mod omnipool_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactOut,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
 					fees: vec![Fee::new(LRNA, 22, Omnipool::protocol_account())],
@@ -2644,8 +2644,8 @@ mod omnipool_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactOut,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(LRNA, 45113)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(DAI, 2506265665, Omnipool::protocol_account())],
@@ -2695,8 +2695,8 @@ mod omnipool_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactOut,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
 					fees: vec![Fee::new(LRNA, 22, Omnipool::protocol_account())],
@@ -2706,8 +2706,8 @@ mod omnipool_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type:pallet_support::types::Filler::Omnipool,
-					operation:pallet_support::types::TradeOperation::ExactOut,
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(LRNA, 45113)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(DAI, 2506265665, Omnipool::protocol_account())],
@@ -2990,8 +2990,8 @@ mod lbp_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
-					filler_type:pallet_support::types::Filler::LBP,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::LBP,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell - fee)],
 					outputs: vec![Asset::new(DAI, received_amount_out)],
 					fees: vec![Fee::new(
@@ -3046,8 +3046,8 @@ mod lbp_router_tests {
 				pallet_support::Event::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
-					filler_type:pallet_support::types::Filler::LBP,
-					operation:pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_support::types::Filler::LBP,
+					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, 9_980_000_000_000)],
 					outputs: vec![Asset::new(DAI, received_amount_out)],
 					fees: vec![Fee::new(
