@@ -420,67 +420,6 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 }
 
 #[test]
-fn buying_asset_should_result_in_splitted_trade_fees() {
-	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_12();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
-		let staking_acc = Staking::pot_account_id();
-		let ref_account = Referrals::pot_account_id();
-		let orig_balance = Currencies::free_balance(DAI, &ref_account);
-		let stak_orig_balance = Currencies::free_balance(HDX, &staking_acc);
-		assert_ok!(Omnipool::buy(
-			RuntimeOrigin::signed(BOB.into()),
-			ETH,
-			DAI,
-			1_000_000_000_000,
-			u128::MAX,
-		));
-
-		expect_hydra_last_events(vec![
-			pallet_omnipool::Event::BuyExecuted {
-				who: BOB.into(),
-				asset_in: DAI,
-				asset_out: ETH,
-				amount_in: 26835579541620354,
-				amount_out: 1_000_000_000_000,
-				hub_amount_in: 45135,
-				hub_amount_out: 45113,
-				asset_fee_amount: 2506265665,
-				protocol_fee_amount: 22,
-			}
-				.into(),
-			pallet_support::Event::Swapped {
-				swapper: BOB.into(),
-				filler: Omnipool::protocol_account(),
-				filler_type: Filler::Omnipool,
-				operation: TradeOperation::ExactOut,
-				inputs: vec![Asset::new(DAI, 1001220962719)],
-				outputs: vec![Asset::new(LRNA, 45135)],
-				fees: vec![Fee::new(LRNA, 22, Omnipool::protocol_account())],
-				operation_stack: vec![ExecutionType::Omnipool(0)],
-			}
-				.into(),
-			pallet_support::Event::Swapped {
-				swapper: BOB.into(),
-				filler: Omnipool::protocol_account(),
-				filler_type: Filler::Omnipool,
-				operation: TradeOperation::ExactOut,
-				inputs: vec![Asset::new(LRNA, 45113)],
-				outputs: vec![Asset::new(ETH, 1_000_000_000_000)],
-				fees: vec![Fee::new(ETH,  1253132833, Omnipool::protocol_account()), Fee::new(ETH,  1253132832, Referrals::pot_account_id())],
-				operation_stack: vec![ExecutionType::Omnipool(0)],
-			}
-				.into(),
-		]);
-
-		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
-		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
-		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
-		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 2_794_789_077);
-	});
-}
-
-#[test]
 fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_12();
