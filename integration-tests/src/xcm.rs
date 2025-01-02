@@ -4,6 +4,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use sp_runtime::codec::Encode;
 
+use crate::assert_operation_stack;
 use frame_support::dispatch::GetDispatchInfo;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeEvent;
@@ -18,7 +19,6 @@ use xcm_builder::DescribeFamily;
 use xcm_builder::HashedDescription;
 use xcm_emulator::ConvertLocation;
 use xcm_emulator::TestExt;
-use crate::assert_operation_stack;
 
 #[test]
 fn global_account_derivation_should_work_when_with_other_chain_remote_account() {
@@ -135,26 +135,14 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 			"Omnipool sell swap failed as the user did not receive any DAI"
 		);
 
-		let last_swapped_events : Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_swapped_events: Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
 
 		let event1 = &last_two_swapped_events[0];
-		assert_operation_stack!(
-			event1,
-			[
-				ExecutionType::Xcm(_, 0),
-				ExecutionType::Omnipool(1)
-			]
-		);
+		assert_operation_stack!(event1, [ExecutionType::Xcm(_, 0), ExecutionType::Omnipool(1)]);
 
 		let event2 = &last_two_swapped_events[0];
-		assert_operation_stack!(
-			event2,
-			[
-				ExecutionType::Xcm(_, 0),
-				ExecutionType::Omnipool(1)
-			]
-		);
+		assert_operation_stack!(event2, [ExecutionType::Xcm(_, 0), ExecutionType::Omnipool(1)]);
 	});
 }
 
@@ -266,26 +254,14 @@ fn xcm_call_should_populate_unified_event_call_context() {
 	Hydra::execute_with(|| {
 		assert_xcm_message_processing_passed();
 
-		let last_swapped_events : Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_swapped_events: Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
 
 		let event1 = &last_two_swapped_events[0];
-		assert_operation_stack!(
-			event1,
-			[
-				ExecutionType::Xcm(_, 0),
-				ExecutionType::Omnipool(1)
-			]
-		);
+		assert_operation_stack!(event1, [ExecutionType::Xcm(_, 0), ExecutionType::Omnipool(1)]);
 
 		let event2 = &last_two_swapped_events[0];
-		assert_operation_stack!(
-			event2,
-			[
-				ExecutionType::Xcm(_, 0),
-				ExecutionType::Omnipool(1)
-			]
-		);
+		assert_operation_stack!(event2, [ExecutionType::Xcm(_, 0), ExecutionType::Omnipool(1)]);
 
 		let unified_event_context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
 		assert!(unified_event_context.is_empty());

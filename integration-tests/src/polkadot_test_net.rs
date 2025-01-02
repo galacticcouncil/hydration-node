@@ -923,4 +923,3 @@ macro_rules! assert_operation_stack {
         }
     }
 }
-

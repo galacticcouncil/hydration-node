@@ -2144,10 +2144,7 @@ impl<T: Config> Pallet<T> {
 			.filter(|fee| fee.amount > 0) //filter out when we zero percentage is configured for fees
 			.collect();
 
-		let taken_fee_total: Balance = taken_fee_entries
-			.iter()
-			.map(|fee| fee.amount)
-			.sum();
+		let taken_fee_total: Balance = taken_fee_entries.iter().map(|fee| fee.amount).sum();
 
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let diff = original_asset_reserve.saturating_sub(asset_reserve);

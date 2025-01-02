@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use crate::assert_operation_stack;
 use crate::polkadot_test_net::*;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::storage::with_transaction;
@@ -26,7 +27,6 @@ use sp_runtime::DispatchResult;
 use sp_runtime::{FixedU128, Permill, TransactionOutcome};
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
-use crate::assert_operation_stack;
 
 pub const SELL: bool = true;
 pub const BUY: bool = false;
@@ -127,7 +127,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
 		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), received);
 
-		let last_swapped_events : Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_swapped_events: Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
 
 		let event1 = &last_two_swapped_events[0];
@@ -162,26 +162,14 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			vec![],
 		));
 
-		let last_swapped_events : Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_swapped_events: Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
 
 		let event1 = &last_two_swapped_events[0];
-		assert_operation_stack!(
-			event1,
-			[
-				ExecutionType::Router(4),
-				ExecutionType::Omnipool(5)
-			]
-		);
+		assert_operation_stack!(event1, [ExecutionType::Router(4), ExecutionType::Omnipool(5)]);
 
 		let event2 = &last_two_swapped_events[0];
-		assert_operation_stack!(
-			event2,
-			[
-				ExecutionType::Router(4),
-				ExecutionType::Omnipool(5)
-			]
-		);
+		assert_operation_stack!(event2, [ExecutionType::Router(4), ExecutionType::Omnipool(5)]);
 	});
 }
 
