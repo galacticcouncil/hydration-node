@@ -462,6 +462,9 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 					| RuntimeCall::Treasury(..)
 					| RuntimeCall::Tips(..)
 					| RuntimeCall::Utility(..)
+					| RuntimeCall::Preimage(..)
+					| RuntimeCall::Referenda(..)
+					| RuntimeCall::ConvictionVoting(..)
 			),
 			// Transfer group doesn't include cross-chain transfers
 			ProxyType::Transfer => matches!(
