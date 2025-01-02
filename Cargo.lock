@@ -4897,7 +4897,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 4.0.1",
+ "pallet-staking 4.0.2",
  "pallet-support",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -4919,7 +4919,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "277.0.0"
+version = "278.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5010,7 +5010,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.0.1",
+ "pallet-staking 4.0.2",
  "pallet-state-trie-migration",
  "pallet-support",
  "pallet-timestamp",
@@ -9002,7 +9002,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-referrals"
-version = "1.2.7"
+version = "1.2.8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9182,7 +9182,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12352,7 +12352,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.0.1",
+ "pallet-staking 4.0.2",
  "pallet-support",
  "pallet-timestamp",
  "pallet-tips",
@@ -12417,7 +12417,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 4.0.1",
+ "pallet-staking 4.0.2",
  "primitives",
  "scraper",
  "serde",
