@@ -311,8 +311,8 @@ pub mod pallet {
 				});
 
 				pallet_support::Pallet::<T>::deposit_trade_event(
-					who,
 					order.owner.clone(),
+					who,
 					pallet_support::types::Filler::OTC(order_id),
 					pallet_support::types::TradeOperation::ExactIn,
 					vec![Asset::new(order.asset_in.into(), amount_in)],

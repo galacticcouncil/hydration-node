@@ -95,8 +95,8 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 			}
 			.into(),
 			pallet_support::Event::Swapped {
-				swapper: BOB,
-				filler: order.owner,
+				swapper:order.owner ,
+				filler: BOB,
 				filler_type:pallet_support::types::Filler::OTC(order_id),
 				operation:pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(order.asset_in, 5 * ONE)],
