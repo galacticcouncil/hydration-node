@@ -2134,8 +2134,8 @@ impl<T: Config> Pallet<T> {
 
 		// Let's give little bit less to process. Subtracting one due to potential rounding errors
 		let allowed_amount = amount.saturating_sub(Balance::one());
-		let fees = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
-		let additional_fees_total: Balance = fees
+		let taken_fee = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
+		let taken_fee_total: Balance = taken_fee
 			.clone()
 			.into_iter()
 			.filter_map(|opt| opt.map(|(balance, _)| balance))
@@ -2144,17 +2144,17 @@ impl<T: Config> Pallet<T> {
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let diff = original_asset_reserve.saturating_sub(asset_reserve);
 		ensure!(diff <= allowed_amount, Error::<T>::FeeOverdraft);
-		ensure!(diff == additional_fees_total, Error::<T>::FeeOverdraft);
+		ensure!(diff == taken_fee_total, Error::<T>::FeeOverdraft);
 
-		let normal_trade_fee = amount.saturating_sub(additional_fees_total);
+		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);
 
 		let mut all_trade_fees = vec![Fee {
 			asset: asset.into(),
-			amount: normal_trade_fee,
+			amount: protocol_fee_amount,
 			recipient: Self::protocol_account(),
 		}];
 
-		let additional_fee_entries: Vec<Fee<T::AccountId>> = fees
+		let taken_fee_entries: Vec<Fee<T::AccountId>> = taken_fee
 			.iter()
 			.filter_map(|opt| {
 				opt.clone()
@@ -2163,7 +2163,7 @@ impl<T: Config> Pallet<T> {
 			.filter(|fee| fee.amount > 0) //filter out when we zero percentage is configured for fees
 			.collect();
 
-		all_trade_fees.extend(additional_fee_entries);
+		all_trade_fees.extend(taken_fee_entries);
 
 		Ok(all_trade_fees)
 	}
