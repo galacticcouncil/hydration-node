@@ -45,7 +45,7 @@ fn simple_buy_works() {
 			);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1950 * ONE);
 
-			assert_pool_state!(13_360 * ONE, 26_720 * ONE, SimpleImbalance::default());
+			assert_pool_state!(13_360 * ONE, 26_720 * ONE);
 
 			assert_asset_state!(
 				100,
@@ -330,14 +330,7 @@ fn buy_for_hub_asset_works() {
 				}
 			);
 
-			assert_pool_state!(
-				13393333333333334,
-				26786666666666668,
-				SimpleImbalance {
-					value: 66583706653395,
-					negative: true
-				}
-			);
+			assert_pool_state!(13393333333333334, 26786666666666668);
 		});
 }
 
@@ -754,14 +747,7 @@ fn buy_should_work_when_trading_native_asset() {
 
 			let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
 
-			assert_pool_state!(
-				hub_reserves.iter().sum::<Balance>(),
-				26_720 * ONE,
-				SimpleImbalance {
-					value: 0u128,
-					negative: true
-				}
-			);
+			assert_pool_state!(hub_reserves.iter().sum::<Balance>(), 26_720 * ONE);
 
 			assert_asset_state!(
 				200,

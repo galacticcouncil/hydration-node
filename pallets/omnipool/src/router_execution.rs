@@ -1,5 +1,5 @@
 use crate::types::Balance;
-use crate::{Config, Error, HubAssetImbalance, Pallet};
+use crate::{Config, Error, Pallet};
 use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::omnipool::types::I129;
 
@@ -29,7 +29,6 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		}
 
 		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
-		let current_imbalance = <HubAssetImbalance<T>>::get();
 
 		if asset_in == T::HubAssetId::get() {
 			let current_hub_asset_liquidity =
@@ -41,10 +40,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				&(&asset_out_state).into(),
 				amount_in,
 				asset_fee,
-				I129 {
-					value: current_imbalance.value,
-					negative: current_imbalance.negative,
-				},
+				I129::default(),
 				current_hub_asset_liquidity,
 			)
 			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
@@ -62,7 +58,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			amount_in,
 			asset_fee,
 			protocol_fee,
-			current_imbalance.value,
+			0u128,
 		)
 		.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
@@ -83,7 +79,6 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			return Err(ExecutorError::Error(Error::<T>::NotAllowed.into()));
 		}
 		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
-		let current_imbalance = <HubAssetImbalance<T>>::get();
 
 		if asset_in == T::HubAssetId::get() {
 			let current_hub_asset_liquidity =
@@ -95,10 +90,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				&(&asset_out_state).into(),
 				amount_out,
 				asset_fee,
-				I129 {
-					value: current_imbalance.value,
-					negative: current_imbalance.negative,
-				},
+				I129::default(),
 				current_hub_asset_liquidity,
 			)
 			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
@@ -117,7 +109,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			amount_out,
 			asset_fee,
 			protocol_fee,
-			current_imbalance.value,
+			0u128,
 		)
 		.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
