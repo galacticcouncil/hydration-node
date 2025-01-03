@@ -1035,7 +1035,6 @@ pub mod pallet {
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
 
 			let stablepool_shares = T::Stableswap::add_liquidity(who, stable_pool_id, stable_asset_amounts.to_vec())?;
 
@@ -1046,7 +1045,9 @@ pub mod pallet {
 				Balance::MIN,
 			)?;
 
-			Self::join_farms(origin, farm_entries, position_id)?;
+			if !farm_entries.is_empty() {
+				Self::join_farms(origin, farm_entries, position_id)?;
+			}
 
 			Ok(())
 		}
