@@ -969,7 +969,7 @@ pub mod pallet {
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 			asset: T::AssetId,
 			amount: Balance,
-			min_shares_limit: Option<Balance>
+			min_shares_limit: Option<Balance>,
 		) -> DispatchResult {
 			ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);

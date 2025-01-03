@@ -47,7 +47,6 @@ use warehouse_liquidity_mining::{
 };
 use xcm_emulator::TestExt;
 
-
 #[macro_export]
 macro_rules! assert_nft_owner {
 	( $coll:expr, $item: expr, $acc:expr ) => {{
@@ -578,15 +577,13 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 			(global_farm_2_id, yield_farm_2_id),
 			(global_farm_3_id, yield_farm_3_id),
 		];
-		assert_ok!(
-			hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_and_join_farms(
-				RuntimeOrigin::signed(CHARLIE.into()),
-				farms.try_into().unwrap(),
-				ETH,
-				1_000 * UNITS,
-				Some(1_000 * UNITS)
-			)
-		);
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_and_join_farms(
+			RuntimeOrigin::signed(CHARLIE.into()),
+			farms.try_into().unwrap(),
+			ETH,
+			1_000 * UNITS,
+			Some(1_000 * UNITS)
+		));
 
 		//Assert that the ownership of the nft should be transferred to omnipool account
 		let lm_account = hydradx_runtime::OmnipoolLiquidityMining::account_id();
@@ -2111,4 +2108,3 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 
 	Ok((pool_id, asset_in, asset_out))
 }
-
