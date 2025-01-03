@@ -1023,7 +1023,11 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 				)
 			);
 
-			assert_nft_owner!(hydradx_runtime::OmnipoolCollectionId::get(), position_id, CHARLIE.into());
+			assert_nft_owner!(
+				hydradx_runtime::OmnipoolCollectionId::get(),
+				position_id,
+				CHARLIE.into()
+			);
 
 			set_relaychain_block_number(500);
 
@@ -1036,7 +1040,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 					AssetAmount::new(stable_asset_2, 10 * UNITS),
 				],
 			}
-				.into()]);
+			.into()]);
 
 			let stableswap_shares_amount = 20044549999405;
 			expect_omnipool_liquidity_added_events(vec![pallet_omnipool::Event::LiquidityAdded {
@@ -1045,7 +1049,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 				amount: stableswap_shares_amount,
 				position_id: 8,
 			}
-				.into()]);
+			.into()]);
 
 			expect_lm_events(vec![]);
 
