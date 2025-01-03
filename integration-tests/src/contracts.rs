@@ -5,13 +5,13 @@ use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped, FeeCalculator};
 use frame_support::assert_ok;
 use hex_literal::hex;
 use hydradx_runtime::{
-	AccountId, EVMAccounts, Runtime, RuntimeEvent, System,
 	evm::{
+		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
-		precompiles::{Bytes, handle::EvmDataWriter}
-	}
+	},
+	AccountId, EVMAccounts, Runtime, RuntimeEvent, System,
 };
-use hydradx_traits::evm::{CallContext, EvmAddress, EVM, InspectEvmAccounts};
+use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pretty_assertions::assert_eq;
 use sp_core::{RuntimeDebug, H256, U256};

@@ -74,11 +74,11 @@ impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {
 		let code = hex!["00"];
 		let size = code[..].len() as u64;
 		let hash = H256::from(sp_io::hashing::keccak_256(&code[..]));
-		let code_metadata = pallet_evm::CodeMetadata {
-			size,
-			hash,
-		};
-		pallet_evm::AccountCodesMetadata::<Runtime>::insert(HydraErc20Mapping::encode_evm_address(asset_id), code_metadata);
+		let code_metadata = pallet_evm::CodeMetadata { size, hash };
+		pallet_evm::AccountCodesMetadata::<Runtime>::insert(
+			HydraErc20Mapping::encode_evm_address(asset_id),
+			code_metadata,
+		);
 	}
 }
 
