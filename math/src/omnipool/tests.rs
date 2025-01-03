@@ -1,9 +1,9 @@
 use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, TradeFee};
 use crate::omnipool::{
 	calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
-	calculate_cap_difference, calculate_fee_amount_for_buy,
-	calculate_remove_liquidity_state_changes, calculate_sell_hub_state_changes, calculate_sell_state_changes,
-	calculate_tvl_cap_difference, calculate_withdrawal_fee, verify_asset_cap,
+	calculate_cap_difference, calculate_fee_amount_for_buy, calculate_remove_liquidity_state_changes,
+	calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_tvl_cap_difference,
+	calculate_withdrawal_fee, verify_asset_cap,
 };
 use crate::types::Balance;
 use num_traits::{One, Zero};
@@ -193,7 +193,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		state_changes.asset_out.delta_hub_reserve,
 		BalanceUpdate::Increase(5657142857143u128)
 	);
-	assert_eq!(state_changes.hdx_hub_amount, 0u128);
+	assert_eq!(state_changes.hdx_hub_amount, 57142857142u128);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 57142857142u128 + 5657142857143u128;
@@ -212,10 +212,7 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
 
 	let amount_to_sell = 4 * UNIT;
 	let asset_fee = Permill::from_percent(0);
-	let total_hub_reserve = 40 * UNIT;
-
-	let state_changes =
-		calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee, total_hub_reserve);
+	let state_changes = calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee);
 
 	assert!(state_changes.is_some());
 
@@ -244,10 +241,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
 	let amount_to_sell = 4 * UNIT;
 	let asset_fee = Permill::from_percent(1);
-	let total_hub_reserve = 40 * UNIT;
-
-	let state_changes =
-		calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee, total_hub_reserve);
+	let state_changes = calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee);
 
 	assert!(state_changes.is_some());
 
@@ -460,7 +454,7 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 		state_changes.asset_out.delta_hub_reserve,
 		BalanceUpdate::Increase(1265822784811u128)
 	);
-	assert_eq!(state_changes.hdx_hub_amount, 0u128);
+	assert_eq!(state_changes.hdx_hub_amount, 12786088735u128);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 1265822784811u128 + 12786088735u128;
@@ -479,10 +473,7 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
 
 	let amount_to_buy = 2 * UNIT;
 	let asset_fee = Permill::from_percent(0);
-	let total_hub_reserve = 40 * UNIT;
-
-	let state_changes =
-		calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee, total_hub_reserve);
+	let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee);
 
 	assert!(state_changes.is_some());
 
@@ -511,10 +502,7 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 
 	let amount_to_buy = 2 * UNIT;
 	let asset_fee = Permill::from_percent(1);
-	let total_hub_reserve = 40 * UNIT;
-
-	let state_changes =
-		calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee, total_hub_reserve);
+	let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee);
 
 	assert!(state_changes.is_some());
 
@@ -551,12 +539,8 @@ fn calculate_add_liquidity_should_work_when_correct_input_provided() {
 		shares: 10 * UNIT,
 		protocol_shares: 0u128,
 	};
-
 	let amount_to_add = 2 * UNIT;
-	let total_hub_reserve = 22 * UNIT;
-
-	let state_changes =
-		calculate_add_liquidity_state_changes(&asset_state, amount_to_add, total_hub_reserve);
+	let state_changes = calculate_add_liquidity_state_changes(&asset_state, amount_to_add);
 
 	assert!(state_changes.is_some());
 
@@ -588,21 +572,14 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
 		protocol_shares: 0u128,
 	};
 	let amount_to_remove = 2 * UNIT;
-	let total_hub_reserve = 22 * UNIT;
-
 	let position = Position {
 		amount: 3 * UNIT,
 		shares: 3 * UNIT,
 		price: (FixedU128::from_float(0.23).into_inner(), 1_000_000_000_000_000_000),
 	};
 
-	let state_changes = calculate_remove_liquidity_state_changes(
-		&asset_state,
-		amount_to_remove,
-		&position,
-		total_hub_reserve,
-		FixedU128::zero(),
-	);
+	let state_changes =
+		calculate_remove_liquidity_state_changes(&asset_state, amount_to_remove, &position, FixedU128::zero());
 
 	assert!(state_changes.is_some());
 
@@ -647,21 +624,14 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
 		protocol_shares: 0u128,
 	};
 	let amount_to_remove = 2 * UNIT;
-	let total_hub_reserve = 22 * UNIT;
-
 	let position = Position {
 		amount: 3 * UNIT,
 		shares: 3 * UNIT,
 		price: (FixedU128::from_float(2.23).into_inner(), 1_000_000_000_000_000_000),
 	};
 
-	let state_changes = calculate_remove_liquidity_state_changes(
-		&asset_state,
-		amount_to_remove,
-		&position,
-		total_hub_reserve,
-		FixedU128::zero(),
-	);
+	let state_changes =
+		calculate_remove_liquidity_state_changes(&asset_state, amount_to_remove, &position, FixedU128::zero());
 
 	assert!(state_changes.is_some());
 
@@ -798,8 +768,6 @@ fn calculate_remove_liquidity_should_apply_correct_fee() {
 		protocol_shares: 0u128,
 	};
 	let amount_to_remove = 2 * UNIT;
-	let total_hub_reserve = 22 * UNIT;
-
 	let position = Position {
 		amount: 3 * UNIT,
 		shares: 3 * UNIT,
@@ -810,7 +778,6 @@ fn calculate_remove_liquidity_should_apply_correct_fee() {
 		&asset_state,
 		amount_to_remove,
 		&position,
-		total_hub_reserve,
 		FixedU128::from_float(0.01),
 	);
 
@@ -854,8 +821,6 @@ fn calculate_remove_liquidity_should_apply_fee_to_hub_amount() {
 		protocol_shares: 0u128,
 	};
 	let amount_to_remove = 2 * UNIT;
-	let total_hub_reserve = 22 * UNIT;
-
 	let position = Position {
 		amount: 3 * UNIT,
 		shares: 3 * UNIT,
@@ -866,7 +831,6 @@ fn calculate_remove_liquidity_should_apply_fee_to_hub_amount() {
 		&asset_state,
 		amount_to_remove,
 		&position,
-		total_hub_reserve,
 		FixedU128::from_float(0.01),
 	);
 

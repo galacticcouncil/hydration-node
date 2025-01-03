@@ -185,11 +185,8 @@ proptest! {
 	fn sell_hub_update_invariants_no_fees(asset_out in asset_state(),
 		amount in trade_amount(),
 	) {
-		let total_hub_reserve = 100 * ONE * BALANCE_RANGE.1;
-
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -198,7 +195,6 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 		assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
 	}
 }
@@ -209,11 +205,8 @@ proptest! {
 	fn sell_hub_update_invariants_no_fees_extreme(asset_out in high_asset_state(),
 		amount in trade_amount(),
 	) {
-		let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
-
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -222,7 +215,6 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 		assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
 	}
 }
@@ -234,11 +226,8 @@ proptest! {
 		amount in trade_amount(),
 		asset_fee in fee(),
 	) {
-		let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
-
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			asset_fee,
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -247,8 +236,6 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
-
 		assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
 	}
 }
@@ -259,11 +246,8 @@ proptest! {
 	fn buy_hub_update_invariants_no_fees(asset_out in asset_state(),
 		amount in trade_amount(),
 	) {
-		let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
-
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -272,8 +256,7 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
-	    assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
+		assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
 	}
 }
 
@@ -284,11 +267,8 @@ proptest! {
 		amount in trade_amount(),
 		asset_fee in fee(),
 	) {
-		let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
-
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			asset_fee,
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -297,8 +277,6 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 		assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
 	}
 }
@@ -409,7 +387,6 @@ proptest! {
 	) {
 		let result = calculate_add_liquidity_state_changes(&asset,
 			amount,
-			100 * ONE,
 		);
 
 		assert!(result.is_some());
@@ -448,7 +425,6 @@ proptest! {
 		let result = calculate_remove_liquidity_state_changes(&asset,
 			position.amount,
 			&position,
-			100 * ONE,
 			FixedU128::zero(),
 		);
 

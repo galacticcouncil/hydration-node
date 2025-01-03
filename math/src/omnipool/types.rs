@@ -20,11 +20,6 @@ impl<Balance> AssetReserveState<Balance>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
-	/// Returns price in hub asset as rational number.
-	pub(crate) fn price_as_rational(&self) -> (Balance, Balance) {
-		(self.hub_reserve, self.reserve)
-	}
-
 	/// Calculate price for actual state
 	pub(crate) fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())

@@ -1,6 +1,6 @@
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use crate::omnipool::types::{
-	AssetReserveState, AssetStateChange, BalanceUpdate, HubTradeStateChange, LiquidityStateChange, Position, TradeFee,
+	AssetReserveState, AssetStateChange, HubTradeStateChange, LiquidityStateChange, Position, TradeFee,
 	TradeStateChange,
 };
 use crate::types::Balance;
@@ -10,7 +10,6 @@ use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
-use sp_std::cmp::min;
 use sp_std::ops::{Div, Sub};
 
 #[inline]
@@ -79,7 +78,6 @@ pub fn calculate_sell_hub_state_changes(
 	asset_out_state: &AssetReserveState<Balance>,
 	hub_asset_amount: Balance,
 	asset_fee: Permill,
-	total_hub_reserve: Balance,
 ) -> Option<HubTradeStateChange<Balance>> {
 	let (reserve_hp, hub_reserve_hp, amount_hp) =
 		to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, hub_asset_amount);
@@ -131,7 +129,6 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	asset_out_state: &AssetReserveState<Balance>,
 	asset_out_amount: Balance,
 	asset_fee: Permill,
-	total_hub_reserve: Balance,
 ) -> Option<HubTradeStateChange<Balance>> {
 	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
 	let hub_denominator = reserve_no_fee.checked_sub(asset_out_amount)?;
@@ -226,7 +223,6 @@ pub fn calculate_buy_state_changes(
 pub fn calculate_add_liquidity_state_changes(
 	asset_state: &AssetReserveState<Balance>,
 	amount: Balance,
-	total_hub_reserve: Balance,
 ) -> Option<LiquidityStateChange<Balance>> {
 	let delta_hub_reserve = asset_state.price()?.checked_mul_int(amount)?;
 
@@ -276,7 +272,6 @@ pub fn calculate_remove_liquidity_state_changes(
 	asset_state: &AssetReserveState<Balance>,
 	shares_removed: Balance,
 	position: &Position<Balance>,
-	total_hub_reserve: Balance,
 	withdrawal_fee: FixedU128,
 ) -> Option<LiquidityStateChange<Balance>> {
 	let current_shares = asset_state.shares;
