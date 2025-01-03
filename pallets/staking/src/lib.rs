@@ -18,7 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::traits::{ActionData, GetReferendumState, PayablePercentage, VestingDetails};
-use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
+use crate::types::{Action, Balance, Period, Point, Position, StakingData};
 use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,

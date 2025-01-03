@@ -5,12 +5,12 @@ use crate::{
 
 use super::*;
 
+use crate::types::Voting;
 use frame_system::RawOrigin;
 use mock::Staking;
 use pallet_conviction_voting::traits::VotingHooks;
 use pallet_conviction_voting::AccountVote;
 use pretty_assertions::assert_eq;
-
 //NOTE: Referendums with even indexes are finished.
 
 #[test]

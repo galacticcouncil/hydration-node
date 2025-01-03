@@ -19,19 +19,9 @@ use pallet_liquidity_mining::{DepositData, YieldFarmEntry};
 use pallet_omnipool::types::AssetReserveState;
 use pallet_omnipool::types::Tradability;
 use pretty_assertions::assert_eq;
-#[macro_export]
-macro_rules! assert_asset_state {
-	( $x:expr, $y:expr) => {{
-		let reserve = Tokens::free_balance($x, &Omnipool::protocol_account());
-		assert_eq!(reserve, $y.reserve);
-
-		let actual = pallet_omnipool::Pallet::<Test>::load_asset_state($x).unwrap();
-		assert_eq!(actual, $y.into());
-	}};
-}
 
 #[test]
-fn add_liquidity_and_join_farms_should_work_with_single_yield_farm() {
+fn add_liquidity_with_limit_and_join_farms_should_work_with_single_yield_farm() {
 	let token_amount = 2000 * ONE;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -98,7 +88,7 @@ fn add_liquidity_and_join_farms_should_work_with_single_yield_farm() {
 				yield_farms.try_into().unwrap(),
 				asset_in_position,
 				amount,
-				None
+				Some(u128::MIN)
 			));
 
 			//Assert that liquidity is added
@@ -155,6 +145,80 @@ fn add_liquidity_and_join_farms_should_work_with_single_yield_farm() {
 			//NFT check: lm deposit should be minted for user.
 			let owner: AccountId = DummyNFT::owner(&LM_COLLECTION_ID, &deposit_id).unwrap();
 			assert_eq!(owner, LP1);
+		});
+}
+
+#[test]
+fn add_liquidity_join_farms_should_fail_when_doesnt_reach_limit() {
+	let token_amount = 2000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, KSM, 5000 * ONE),
+			(LP2, DOT, 2000 * ONE),
+			(GC, HDX, 100_000_000 * ONE),
+			(CHARLIE, HDX, 100_000_000 * ONE),
+			(BOB, HDX, 100_000_000 * ONE),
+			(ALICE, KSM, 10_000 * ONE),
+			(BOB, DOT, 10_000 * ONE),
+		])
+		.with_registered_asset(KSM)
+		.with_registered_asset(DOT)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(KSM, FixedU128::from_float(0.65), LP1, token_amount)
+		.with_global_farm(
+			//id: 1
+			80_000_000 * ONE,
+			2_628_000,
+			1,
+			HDX,
+			GC,
+			Perquintill::from_float(0.000_000_15_f64),
+			1_000,
+			FixedU128::one(),
+		)
+		.with_global_farm(
+			//id: 2
+			80_000_000 * ONE,
+			2_628_000,
+			1,
+			HDX,
+			CHARLIE,
+			Perquintill::from_float(0.000_000_15_f64),
+			1_000,
+			FixedU128::one(),
+		)
+		.with_global_farm(
+			//id: 3
+			60_000_000 * ONE,
+			2_428_000,
+			1,
+			HDX,
+			BOB,
+			Perquintill::from_float(0.000_000_14_f64),
+			1_000,
+			FixedU128::one(),
+		)
+		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None) //id: 4
+		.build()
+		.execute_with(|| {
+			let gc_g_farm_id = 1;
+			let gc_y_farm_id = 4;
+			let asset_in_position = KSM;
+			let amount = 20 * ONE;
+			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
+
+			assert_noop!(
+				OmnipoolMining::add_liquidity_and_join_farms(
+					RuntimeOrigin::signed(LP1),
+					yield_farms.try_into().unwrap(),
+					asset_in_position,
+					amount,
+					Some(amount + 1)
+				),
+				pallet_omnipool::Error::<Test>::SlippageLimit
+			);
 		});
 }
 
@@ -237,7 +301,7 @@ fn join_farms_should_work_with_multiple_yield_farm() {
 				yield_farms.try_into().unwrap(),
 				KSM,
 				amount,
-				None
+				Some(u128::MIN)
 			));
 
 			//Assert that liquidity is added
@@ -415,7 +479,7 @@ fn add_liquidity_and_join_farms_should_fail_when_origin_is_none() {
 					yield_farms.try_into().unwrap(),
 					KSM,
 					10 * ONE,
-					None
+					Some(u128::MIN)
 				),
 				BadOrigin
 			);
@@ -484,7 +548,7 @@ fn join_farms_should_fail_when_no_farms_specified() {
 					farms.try_into().unwrap(),
 					KSM,
 					10 * ONE,
-					None
+					Some(u128::MIN)
 				),
 				Error::<Test>::NoFarmEntriesSpecified
 			);
