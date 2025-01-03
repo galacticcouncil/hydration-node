@@ -969,12 +969,14 @@ pub mod pallet {
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
 			asset: T::AssetId,
 			amount: Balance,
+			min_shares_limit: Option<Balance>
 		) -> DispatchResult {
 			ensure_signed(origin.clone())?;
 			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
 
+			let min_shares_limit = min_shares_limit.unwrap_or(Balance::MIN);
 			let position_id =
-				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), asset, amount, Balance::MIN)?;
+				OmnipoolPallet::<T>::do_add_liquidity_with_limit(origin.clone(), asset, amount, min_shares_limit)?;
 
 			Self::join_farms(origin, farm_entries, position_id)?;
 
@@ -1010,43 +1012,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// This function allows user to add liquidity then use that shares to join multiple farms.
-		///
-		/// Limit protection is applied.
-		///
-		/// Parameters:
-		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
-		/// - `farm_entries`: list of farms to join.
-		/// - `asset`: id of the asset to be deposited into the liquidity mining.
-		/// - `amount`: amount of the asset to be deposited into the liquidity mining.
-		/// - `min_shares_limit`: The min amount of delta share asset the user should receive in the position
-		///
-		/// Emits `SharesDeposited` event for the first farm entry
-		/// Emits `SharesRedeposited` event for each farm entry after the first one
-		#[pallet::call_index(17)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))] //Same benchmark as add_liquidity_and_join_farms since it's the same logic
-		pub fn add_liquidity_with_limit_and_join_farms(
-			origin: OriginFor<T>,
-			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
-			asset: T::AssetId,
-			amount: Balance,
-			min_shares_limit: Balance,
-		) -> DispatchResult {
-			ensure_signed(origin.clone())?;
-			ensure!(!farm_entries.is_empty(), Error::<T>::NoFarmEntriesSpecified);
-
-			let position_id = crate::OmnipoolPallet::<T>::do_add_liquidity_with_limit(
-				origin.clone(),
-				asset,
-				amount,
-				min_shares_limit,
-			)?;
-
-			Self::join_farms(origin, farm_entries, position_id)?;
-
-			Ok(())
-		}
-
 		/// This function allows user to add liquidity to stableswap pool,
 		/// then adding the stable shares as liquidity to omnipool
 		/// then use that omnipool shares to join multiple farms.
@@ -1062,7 +1027,7 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event for the first farm entry
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		///
-		#[pallet::call_index(18)]
+		#[pallet::call_index(16)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_stableswap_omnipool_and_join_farms(farm_entries.len() as u32))]
 		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
 			origin: OriginFor<T>,

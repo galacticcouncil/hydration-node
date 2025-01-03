@@ -471,6 +471,7 @@ fn add_liquidity_and_join_farms_should_work_for_multiple_farms() {
 			farms.try_into().unwrap(),
 			ETH,
 			1_000 * UNITS,
+			None
 		));
 
 		//Assert that the ownership of the nft should be transferred to omnipool account
@@ -577,12 +578,12 @@ fn add_liquidity_with_limit_and_join_farms_should_work_for_multiple_farms() {
 			(global_farm_3_id, yield_farm_3_id),
 		];
 		assert_ok!(
-			hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_with_limit_and_join_farms(
+			hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_and_join_farms(
 				RuntimeOrigin::signed(CHARLIE.into()),
 				farms.try_into().unwrap(),
 				ETH,
 				1_000 * UNITS,
-				1_000 * UNITS
+				Some(1_000 * UNITS)
 			)
 		);
 
@@ -728,12 +729,12 @@ fn add_liquidity_with_limit_and_join_farms_should_fail_when_reaches_limit() {
 			(global_farm_3_id, yield_farm_3_id),
 		];
 		assert_noop!(
-			hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_with_limit_and_join_farms(
+			hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_and_join_farms(
 				RuntimeOrigin::signed(CHARLIE.into()),
 				farms.try_into().unwrap(),
 				ETH,
 				1_000 * UNITS,
-				1_000 * UNITS + 1
+				Some(1_000 * UNITS + 1)
 			),
 			pallet_omnipool::Error::<hydradx_runtime::Runtime>::SlippageLimit
 		);

@@ -752,62 +752,6 @@ runtime_benchmarks! {
 
 	}: _(RawOrigin::Signed(lp6), farms.try_into().unwrap(), BTC, 10 * BTC_ONE)
 
-	add_liquidity_with_limit_and_join_farms {
-		let c in 1..get_max_entries();
-
-		let owner = create_funded_account("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
-		let owner2 = create_funded_account("owner2", 1, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
-		let owner3 = create_funded_account("owner3", 2, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
-		let owner4 = create_funded_account("owner4", 3, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
-		let owner5 = create_funded_account("owner5", 4, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
-
-		let deposit_id = 1;
-
-		initialize_omnipool(None)?;
-
-		//gId: 1, yId: 2
-		initialize_global_farm(owner.clone())?;
-		initialize_yield_farm(owner, 1, BTC)?;
-		let lp1 = create_funded_account("lp_1", 1, 10 * BTC_ONE, BTC);
-		let lp1_position_id = omnipool_add_liquidity(lp1.clone(), BTC, 10 * BTC_ONE)?;
-		lm_deposit_shares(lp1, 1, 2, lp1_position_id)?;
-
-		//gId: 3, yId: 4
-		initialize_global_farm(owner2.clone())?;
-		initialize_yield_farm(owner2, 3, BTC)?;
-		let lp2 = create_funded_account("lp_2", 1, 10 * BTC_ONE, BTC);
-		let lp2_position_id = omnipool_add_liquidity(lp2.clone(), BTC, 10 * BTC_ONE)?;
-		lm_deposit_shares(lp2, 3, 4, lp2_position_id)?;
-
-		//gId: 5, yId: 6
-		initialize_global_farm(owner3.clone())?;
-		initialize_yield_farm(owner3, 5, BTC)?;
-		let lp3 = create_funded_account("lp_3", 1, 10 * BTC_ONE, BTC);
-		let lp3_position_id = omnipool_add_liquidity(lp3.clone(), BTC, 10 * BTC_ONE)?;
-		lm_deposit_shares(lp3, 5, 6, lp3_position_id)?;
-
-		//gId: 7, yId: 8
-		initialize_global_farm(owner4.clone())?;
-		initialize_yield_farm(owner4, 7, BTC)?;
-		let lp4 = create_funded_account("lp_4", 1, 10 * BTC_ONE, BTC);
-		let lp4_position_id = omnipool_add_liquidity(lp4.clone(), BTC, 10 * BTC_ONE)?;
-		lm_deposit_shares(lp4, 7, 8, lp4_position_id)?;
-
-		//gId: 9, yId: 10
-		initialize_global_farm(owner5.clone())?;
-		initialize_yield_farm(owner5, 9, BTC)?;
-		let lp5 = create_funded_account("lp_5", 1, 10 * BTC_ONE, BTC);
-		let lp5_position_id = omnipool_add_liquidity(lp5.clone(), BTC, 10 * BTC_ONE)?;
-		lm_deposit_shares(lp5, 9, 10, lp5_position_id)?;
-
-		let lp6 = create_funded_account("lp_6", 5, 10 * BTC_ONE, BTC);
-
-		set_period(200);
-		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
-		let farms = farms_entries[0..c as usize].to_vec();
-
-	}: _(RawOrigin::Signed(lp6), farms.try_into().unwrap(), BTC, 10 * BTC_ONE, 10 * BTC_ONE)
-
 	exit_farms {
 		let c in 1..get_max_entries();
 

@@ -83,12 +83,12 @@ fn add_liquidity_with_limit_and_join_farms_should_work_with_single_yield_farm() 
 			let amount = 20 * ONE;
 			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
 
-			assert_ok!(OmnipoolMining::add_liquidity_with_limit_and_join_farms(
+			assert_ok!(OmnipoolMining::add_liquidity_and_join_farms(
 				RuntimeOrigin::signed(LP1),
 				yield_farms.try_into().unwrap(),
 				asset_in_position,
 				amount,
-				u128::MIN
+				Some(u128::MIN)
 			));
 
 			//Assert that liquidity is added
@@ -210,12 +210,12 @@ fn add_liquidity_join_farms_should_fail_when_doesnt_reach_limit() {
 			let yield_farms = vec![(gc_g_farm_id, gc_y_farm_id)];
 
 			assert_noop!(
-				OmnipoolMining::add_liquidity_with_limit_and_join_farms(
+				OmnipoolMining::add_liquidity_and_join_farms(
 					RuntimeOrigin::signed(LP1),
 					yield_farms.try_into().unwrap(),
 					asset_in_position,
 					amount,
-					amount + 1
+					Some(amount + 1)
 				),
 				pallet_omnipool::Error::<Test>::SlippageLimit
 			);
@@ -296,12 +296,12 @@ fn join_farms_should_work_with_multiple_yield_farm() {
 				(bob_g_farm_id, bob_y_farm_id),
 			];
 
-			assert_ok!(OmnipoolMining::add_liquidity_with_limit_and_join_farms(
+			assert_ok!(OmnipoolMining::add_liquidity_and_join_farms(
 				RuntimeOrigin::signed(LP1),
 				yield_farms.try_into().unwrap(),
 				KSM,
 				amount,
-				u128::MIN
+				Some(u128::MIN)
 			));
 
 			//Assert that liquidity is added
@@ -474,12 +474,12 @@ fn add_liquidity_and_join_farms_should_fail_when_origin_is_none() {
 			];
 
 			assert_noop!(
-				OmnipoolMining::add_liquidity_with_limit_and_join_farms(
+				OmnipoolMining::add_liquidity_and_join_farms(
 					RuntimeOrigin::none(),
 					yield_farms.try_into().unwrap(),
 					KSM,
 					10 * ONE,
-					u128::MIN
+					Some(u128::MIN)
 				),
 				BadOrigin
 			);
@@ -543,12 +543,12 @@ fn join_farms_should_fail_when_no_farms_specified() {
 			let farms = vec![];
 
 			assert_noop!(
-				OmnipoolMining::add_liquidity_with_limit_and_join_farms(
+				OmnipoolMining::add_liquidity_and_join_farms(
 					RuntimeOrigin::signed(LP1),
 					farms.try_into().unwrap(),
 					KSM,
 					10 * ONE,
-					u128::MIN
+					Some(u128::MIN)
 				),
 				Error::<Test>::NoFarmEntriesSpecified
 			);
