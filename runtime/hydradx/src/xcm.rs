@@ -240,7 +240,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type VersionWrapper = PolkadotXcm;
 	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
 	type MaxInboundSuspended = MaxInboundSuspended;
-	type MaxActiveOutboundChannels = ConstU32<128>; // TODO:
+	type MaxActiveOutboundChannels = ConstU32<128>;
 	type MaxPageSize = ConstU32<{ 128 * 1024 }>;
 	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;

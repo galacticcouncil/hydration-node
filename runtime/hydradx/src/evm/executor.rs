@@ -24,7 +24,7 @@ impl<T> Executor<T>
 where
 	T: Config + frame_system::Config,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
-	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	T::AddressMapping: AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
 {
@@ -54,7 +54,7 @@ impl<T> EVM<CallResult> for Executor<T>
 where
 	T: Config + frame_system::Config,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
-	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	T::AddressMapping: AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
 {

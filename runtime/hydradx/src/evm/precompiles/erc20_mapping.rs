@@ -23,7 +23,7 @@ use crate::evm::EvmAddress;
 use crate::Runtime;
 use hex_literal::hex;
 use hydradx_traits::{evm::Erc20Mapping, RegisterAssetHook};
-use primitive_types::H160;
+use primitive_types::{H160, H256};
 use primitives::AssetId;
 
 pub struct HydraErc20Mapping;
@@ -70,6 +70,15 @@ pub struct SetCodeForErc20Precompile;
 impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {
 	fn on_register_asset(asset_id: AssetId) {
 		pallet_evm::AccountCodes::<Runtime>::insert(HydraErc20Mapping::encode_evm_address(asset_id), &hex!["00"][..]);
+
+		let code = hex!["00"];
+		let size = code[..].len() as u64;
+		let hash = H256::from(sp_io::hashing::keccak_256(&code[..]));
+		let code_metadata = pallet_evm::CodeMetadata {
+			size,
+			hash,
+		};
+		pallet_evm::AccountCodesMetadata::<Runtime>::insert(HydraErc20Mapping::encode_evm_address(asset_id), code_metadata);
 	}
 }
 
