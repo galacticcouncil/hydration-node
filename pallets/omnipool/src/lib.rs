@@ -305,7 +305,8 @@ pub mod pallet {
 			shares_removed: Balance,
 		},
 		/// Sell trade executed.
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
+		//TODO: remove when completely migrated to new Swapped event
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -319,6 +320,7 @@ pub mod pallet {
 		},
 		/// Buy trade executed.
 		/// Deprecated. Replaced bypallet_support::Swapped
+		//TODO: remove when completely migrated to new Swapped event
 		BuyExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -1874,7 +1876,6 @@ impl<T: Config> Pallet<T> {
 
 		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 
-		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
