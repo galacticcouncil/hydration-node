@@ -1888,7 +1888,6 @@ impl<T: Config> Pallet<T> {
 		});
 
 		//No protocol fee in case of selling hub asset
-		//TODO: we need to split up too, and in the other place too
 		pallet_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
