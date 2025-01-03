@@ -630,7 +630,6 @@ pub mod pallet {
 				fee,
 			});
 
-			//TODO: ask Martin to double check it
 			pallet_support::Pallet::<T>::deposit_trade_event(
 				who,
 				pool_account.clone(),
