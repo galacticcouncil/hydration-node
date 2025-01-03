@@ -481,8 +481,8 @@ where
 			None
 		} else {
 			pallet_referrals::Pallet::<Runtime>::process_trade_fee(
-				fee_account.clone().into(),
-				trader.into(),
+				fee_account.clone(),
+				trader,
 				asset.into(),
 				amount,
 			)?
@@ -490,7 +490,7 @@ where
 
 		let referral_amount = referrals_used.clone().map(|(balance, _)| balance).unwrap_or_default();
 		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
-			fee_account.into(),
+			fee_account,
 			asset.into(),
 			amount.saturating_sub(referral_amount),
 		)?;
