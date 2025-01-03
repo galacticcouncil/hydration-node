@@ -101,6 +101,7 @@ construct_runtime!(
 		RouteExecutor: pallet_route_executor,
 		Currencies: pallet_currencies,
 		XYK: pallet_xyk,
+		AmmSupport:pallet_support,
 	}
 );
 
@@ -262,6 +263,10 @@ impl pallet_xyk::Config for Test {
 	type AMMHandler = ();
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = DummyDuster;
+}
+
+impl pallet_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct Whitelist;

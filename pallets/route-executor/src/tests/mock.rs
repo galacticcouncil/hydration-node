@@ -50,6 +50,7 @@ frame_support::construct_runtime!(
 		 Tokens: orml_tokens,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
+		 AmmSupport:pallet_support,
 	 }
 );
 
@@ -141,6 +142,10 @@ impl pallet_currencies::Config for Test {
 	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
+}
+
+impl pallet_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 type Pools = (XYK, StableSwap, OmniPool, LBP);

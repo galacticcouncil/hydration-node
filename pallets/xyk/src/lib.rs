@@ -36,6 +36,8 @@ use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
 };
+use pallet_support::types::{Asset, Fee};
+
 use sp_std::{vec, vec::Vec};
 
 use crate::types::{Amount, AssetId, AssetPair, Balance};
@@ -76,7 +78,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_support::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Registry support
@@ -250,6 +252,7 @@ pub mod pallet {
 		},
 
 		/// Asset sale executed.
+		/// Deprecated. Replaced bypallet_support::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: AssetId,
@@ -262,6 +265,7 @@ pub mod pallet {
 		},
 
 		/// Asset purchase executed.
+		/// Deprecated. Replaced bypallet_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			asset_out: AssetId,
@@ -543,7 +547,8 @@ pub mod pallet {
 		///
 		/// `max_limit` - minimum amount of `asset_out` / amount of asset_out to be obtained from the pool in exchange for `asset_in`.
 		///
-		/// Emits `SellExecuted` when successful.
+		/// Emits `SellExecuted` when successful. Deprecated.
+		/// Emits `pallet_support::Swapped` when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell() + <T as Config>::AMMHandler::on_trade_weight())]
 		pub fn sell(
@@ -566,8 +571,8 @@ pub mod pallet {
 		/// Executes a swap of `asset_in` for `asset_out`. Price is determined by the liquidity pool.
 		///
 		/// `max_limit` - maximum amount of `asset_in` to be sold in exchange for `asset_out`.
-		///
-		/// Emits `BuyExecuted` when successful.
+		/// Emits `BuyExecuted` when successful. Deprecated.
+		/// Emits `pallet_support::Swapped` when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy() + <T as Config>::AMMHandler::on_trade_weight())]
 		pub fn buy(
@@ -901,6 +906,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		)
 		.map_err(|(_w, e)| e)?;
 
+		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::<T>::SellExecuted {
 			who: transfer.origin.clone(),
 			asset_in: transfer.assets.asset_in,
@@ -909,8 +915,22 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			sale_price: transfer.amount_b,
 			fee_asset: transfer.fee.0,
 			fee_amount: transfer.fee.1,
-			pool: pair_account,
+			pool: pair_account.clone(),
 		});
+
+		pallet_support::Pallet::<T>::deposit_trade_event(
+			transfer.origin.clone(),
+			pair_account.clone(),
+			pallet_support::types::Filler::XYK(Self::share_token(&pair_account)),
+			pallet_support::types::TradeOperation::ExactIn,
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				recipient: pair_account,
+			}],
+		);
 
 		Ok(())
 	}
@@ -1066,6 +1086,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		)
 		.map_err(|(_w, e)| e)?;
 
+		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::<T>::BuyExecuted {
 			who: transfer.origin.clone(),
 			asset_out: transfer.assets.asset_out,
@@ -1074,8 +1095,22 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			buy_price: transfer.amount_b,
 			fee_asset: transfer.fee.0,
 			fee_amount: transfer.fee.1,
-			pool: pair_account,
+			pool: pair_account.clone(),
 		});
+
+		pallet_support::Pallet::<T>::deposit_trade_event(
+			transfer.origin.clone(),
+			pair_account.clone(),
+			pallet_support::types::Filler::XYK(Self::share_token(&pair_account)),
+			pallet_support::types::TradeOperation::ExactOut,
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
+			vec![Fee {
+				asset: transfer.fee.0,
+				amount: transfer.fee.1,
+				recipient: pair_account,
+			}],
+		);
 
 		Ok(())
 	}

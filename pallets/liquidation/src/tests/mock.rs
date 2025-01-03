@@ -60,6 +60,7 @@ frame_support::construct_runtime!(
 		 Router: pallet_route_executor,
 		 EvmAccounts: pallet_evm_accounts,
 		 Liquidation: pallet_liquidation,
+		 AmmSupport:pallet_support,
 	 }
 );
 
@@ -242,6 +243,10 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
+}
+
+impl pallet_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 parameter_types! {

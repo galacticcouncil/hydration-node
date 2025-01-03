@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidity-mining"
-version = "4.4.4"
+version = "4.4.5"
 description = "Liquidity mining"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -34,6 +34,7 @@ test-utils = { workspace = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
 orml-tokens = { workspace = true }
+primitives = { workspace = true }
 pallet-balances = { workspace = true }
 fixed = { workspace = true }
 proptest = { workspace = true }

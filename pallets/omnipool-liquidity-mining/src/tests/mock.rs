@@ -110,6 +110,7 @@ construct_runtime!(
 		WarehouseLM: warehouse_liquidity_mining::<Instance1>,
 		OmnipoolMining: omnipool_liquidity_mining,
 		EmaOracle: pallet_ema_oracle,
+		AmmSupport:pallet_support,
 	}
 );
 
@@ -305,6 +306,10 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+}
+
+impl pallet_support::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct ExtBuilder {

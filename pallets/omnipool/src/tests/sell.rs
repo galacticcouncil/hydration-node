@@ -701,3 +701,75 @@ fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
 			);
 		});
 }
+
+#[test]
+fn sell_should_get_same_amount() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee(Permill::from_percent(10))
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
+		.with_on_trade_withdrawal(Permill::from_percent(1))
+		.build()
+		.execute_with(|| {
+			let buy_amount = 50 * ONE;
+			let expected_sold_amount = 58_823_529_411_766;
+
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP1),
+				100,
+				200,
+				expected_sold_amount,
+				0
+			));
+
+			expect_events(vec![
+				Event::SellExecuted {
+					who: LP1,
+					asset_in: 100,
+					asset_out: 200,
+					amount_in: expected_sold_amount,
+					amount_out: buy_amount,
+					hub_amount_in: 57142857142858,
+					hub_amount_out: 57142857142858,
+					asset_fee_amount: 5555555555556,
+					protocol_fee_amount: 0,
+				}
+				.into(),
+				pallet_support::Event::Swapped {
+					swapper: LP1,
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(100, expected_sold_amount)],
+					outputs: vec![Asset::new(LRNA, 57142857142858)],
+					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+				pallet_support::Event::Swapped {
+					swapper: LP1,
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_support::types::Filler::Omnipool,
+					operation: pallet_support::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, 57142857142858)],
+					outputs: vec![Asset::new(200, buy_amount)],
+					fees: vec![
+						Fee::new(200, 5500000000001, Omnipool::protocol_account()),
+						Fee::new(200, 55555555555, 0),
+					],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+			]);
+		});
+}

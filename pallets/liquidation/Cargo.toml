@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-liquidation'
-version = '1.0.1'
+version = '1.0.2'
 description = 'A pallet for money market liquidations'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -32,6 +32,9 @@ hex-literal = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
+
+pallet-support = { workspace = true }
+
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }

@@ -1637,6 +1637,10 @@ impl pallet_liquidation::Config for Runtime {
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 }
 
+impl pallet_support::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
