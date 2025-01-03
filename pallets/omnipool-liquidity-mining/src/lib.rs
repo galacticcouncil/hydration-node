@@ -1018,10 +1018,9 @@ pub mod pallet {
 		///
 		/// Parameters:
 		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
+		/// - `stable_pool_id`: id of the stableswap pool to add liquidity to.
+		/// - `stable_asset_amounts`: amount of each asset to be deposited into the stableswap pool.
 		/// - `farm_entries`: list of farms to join.
-		/// - `asset`: id of the asset to be deposited into the liquidity mining.
-		/// - `amount`: amount of the asset to be deposited into the liquidity mining.
-		/// - `min_shares_limit`: The min amount of delta share asset the user should receive in the position
 		///
 		/// Emits `LiquidityAdded` events from both pool
 		/// Emits `SharesDeposited` event for the first farm entry
