@@ -608,12 +608,7 @@ runtime_benchmarks! {
 
 		set_period(400);
 
-	}: {
-		//We fire and forget as claim rewards is disabled
-		let _ = OmnipoolLiquidityMining::claim_rewards(RawOrigin::Signed(lp1).into(), deposit_id, 10);
-	} verify {
-
-	}
+	}:  _(RawOrigin::Signed(lp1), deposit_id, 10)
 
 	withdraw_shares {
 		let owner = create_funded_account("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY);
@@ -750,7 +745,7 @@ runtime_benchmarks! {
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
 
-	}: _(RawOrigin::Signed(lp6), farms.try_into().unwrap(), BTC, 10 * BTC_ONE)
+	}: _(RawOrigin::Signed(lp6), farms.try_into().unwrap(), BTC, 10 * BTC_ONE, Some(10 * BTC_ONE))
 
 	exit_farms {
 		let c in 1..get_max_entries();
