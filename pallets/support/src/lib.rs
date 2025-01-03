@@ -33,9 +33,9 @@ pub mod types;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-const LOG_TARGET: &str = "runtime::amm-support";
-
 pub const MAX_STACK_SIZE: u32 = 16;
+
+const LOG_TARGET: &str = "runtime::amm-support";
 
 type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
 
