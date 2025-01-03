@@ -1,4 +1,4 @@
-use crate::types::{Position, SimpleImbalance};
+use crate::types::Position;
 use crate::*;
 use frame_support::assert_ok;
 use sp_runtime::FixedU128;
@@ -12,7 +12,6 @@ mod sell;
 
 mod add_liquidity_with_limit;
 mod barrier;
-mod imbalance;
 pub(crate) mod mock;
 mod positions;
 mod refund;
@@ -69,7 +68,7 @@ macro_rules! assert_hub_asset {
 
 #[macro_export]
 macro_rules! assert_pool_state {
-	( $x:expr, $y:expr, $z:expr) => {{
+	( $x:expr, $y:expr) => {{
 		let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
 		assert_eq!($x, hub_reserves.iter().sum::<Balance>());
 		assert_eq!(
@@ -85,13 +84,12 @@ macro_rules! assert_pool_state {
 		let tvl =
 			hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
 		assert_eq!(tvl, $y, "Total tvl incorrect\n");
-		assert_eq!(HubAssetImbalance::<Test>::get(), $z, "Imbalance incorrect\n");
 	}};
 }
 
 #[macro_export]
 macro_rules! assert_pool_state_approx {
-	( $x:expr, $y:expr, $z:expr) => {{
+	( $x:expr, $y:expr) => {{
 		assert_eq_approx!(
 			Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
 			$x,
@@ -107,8 +105,6 @@ macro_rules! assert_pool_state_approx {
 		let tvl =
 			hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
 		assert_eq_approx!(tvl, $y, 20u128, "Total tvl incorrect\n");
-
-		assert_eq!(HubAssetImbalance::<Test>::get(), $z, "Imbalance incorrect\n");
 	}};
 }
 

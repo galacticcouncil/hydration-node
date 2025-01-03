@@ -113,6 +113,6 @@ fn scenario_06() {
 				}
 			);
 
-			assert_pool_state!(13360000000000000, 26720000000000000, SimpleImbalance::default());
+			assert_pool_state!(13360000000000000, 26720000000000000);
 		});
 }

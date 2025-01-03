@@ -20,11 +20,6 @@ impl<Balance> AssetReserveState<Balance>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
-	/// Returns price in hub asset as rational number.
-	pub(crate) fn price_as_rational(&self) -> (Balance, Balance) {
-		(self.hub_reserve, self.reserve)
-	}
-
 	/// Calculate price for actual state
 	pub(crate) fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())
@@ -170,7 +165,6 @@ where
 {
 	pub asset_in: AssetStateChange<Balance>,
 	pub asset_out: AssetStateChange<Balance>,
-	pub delta_imbalance: BalanceUpdate<Balance>,
 	pub hdx_hub_amount: Balance,
 	pub fee: TradeFee<Balance>,
 }
@@ -182,7 +176,6 @@ where
 	Balance: Default,
 {
 	pub asset: AssetStateChange<Balance>,
-	pub delta_imbalance: BalanceUpdate<Balance>,
 	pub fee: TradeFee<Balance>,
 }
 
@@ -193,7 +186,6 @@ where
 	Balance: Default,
 {
 	pub asset: AssetStateChange<Balance>,
-	pub delta_imbalance: BalanceUpdate<Balance>,
 	pub delta_position_reserve: BalanceUpdate<Balance>,
 	pub delta_position_shares: BalanceUpdate<Balance>,
 	pub lp_hub_amount: Balance,
@@ -216,12 +208,6 @@ where
 	pub fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.price.0.into(), self.price.1.into())
 	}
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct I129<Balance> {
-	pub value: Balance,
-	pub negative: bool,
 }
 
 #[cfg(test)]

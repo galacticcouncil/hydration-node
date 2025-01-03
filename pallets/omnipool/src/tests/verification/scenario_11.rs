@@ -140,13 +140,6 @@ fn complex_scenario_works() {
 				}
 			);
 
-			assert_pool_state!(
-				14397521548574755,
-				28795043097149510,
-				SimpleImbalance {
-					value: 40379478219702,
-					negative: true
-				}
-			);
+			assert_pool_state!(14397521548574755, 28795043097149510);
 		});
 }

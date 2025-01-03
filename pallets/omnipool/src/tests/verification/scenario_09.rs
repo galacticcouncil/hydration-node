@@ -106,13 +106,6 @@ fn sell_fee_test() {
 				}
 			);
 
-			assert_pool_state!(
-				14260000000000000,
-				28520000000000000,
-				SimpleImbalance {
-					value: 0,
-					negative: true
-				}
-			);
+			assert_pool_state!(14260000000000000, 28520000000000000);
 		});
 }
