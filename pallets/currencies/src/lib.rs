@@ -22,7 +22,7 @@
 //! - `MultiCurrency` - Abstraction over a fungible multi-currency system.
 //! - `MultiCurrencyExtended` - Extended `MultiCurrency` with additional helper
 //!   types and methods, like updating balance
-//! by a given signed integer amount.
+//!   by a given signed integer amount.
 //!
 //! ## Interface
 //!
@@ -32,12 +32,13 @@
 //!   currency.
 //! - `transfer_native_currency` - Transfer some balance to another account, in
 //!   native currency set in
-//! `Config::NativeCurrency`.
+//!   `Config::NativeCurrency`.
 //! - `update_balance` - Update balance by signed integer amount, in a given
 //!   currency, root origin required.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![allow(clippy::manual_inspect)]
 
 use codec::Codec;
 use frame_support::{

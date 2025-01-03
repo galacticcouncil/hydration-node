@@ -1,37 +1,22 @@
 use crate::evm::dai_ethereum_address;
-use crate::polkadot_test_net::Hydra;
-use crate::polkadot_test_net::TestNet;
-use crate::polkadot_test_net::ALICE;
-use crate::polkadot_test_net::BOB;
-use crate::polkadot_test_net::UNITS;
-use crate::polkadot_test_net::WETH;
-use crate::utils::contracts::deploy_contract;
-use crate::utils::contracts::deploy_contract_code;
-use crate::utils::contracts::get_contract_bytecode;
-use fp_evm::ExitReason::Succeed;
-use fp_evm::ExitSucceed::Stopped;
-use fp_evm::FeeCalculator;
+use crate::polkadot_test_net::{Hydra, TestNet, ALICE, BOB, UNITS, WETH};
+use crate::utils::contracts::{deploy_contract, deploy_contract_code, get_contract_bytecode};
+use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped, FeeCalculator};
 use frame_support::assert_ok;
 use hex_literal::hex;
-use hydradx_runtime::evm::precompiles::handle::EvmDataWriter;
-use hydradx_runtime::evm::precompiles::Bytes;
-use hydradx_runtime::evm::Executor;
-use hydradx_runtime::AccountId;
-use hydradx_runtime::EVMAccounts;
-use hydradx_runtime::Runtime;
-use hydradx_runtime::RuntimeEvent;
-use hydradx_runtime::System;
-use hydradx_traits::evm::CallContext;
-use hydradx_traits::evm::EvmAddress;
-use hydradx_traits::evm::InspectEvmAccounts;
-use hydradx_traits::evm::EVM;
+use hydradx_runtime::{
+	evm::{
+		precompiles::{handle::EvmDataWriter, Bytes},
+		Executor,
+	},
+	AccountId, EVMAccounts, Runtime, RuntimeEvent, System,
+};
+use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pretty_assertions::assert_eq;
-use sp_core::H256;
-use sp_core::{RuntimeDebug, U256};
+use sp_core::{RuntimeDebug, H256, U256};
 use test_utils::expect_events;
-use xcm_emulator::Network;
-use xcm_emulator::TestExt;
+use xcm_emulator::{Network, TestExt};
 
 pub fn deployer() -> EvmAddress {
 	EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))
@@ -107,7 +92,7 @@ fn contract_check_fails_on_precompile_without_code() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let checker = deploy_contract("ContractCheck", deployer());
-		pallet_evm::AccountCodes::<Runtime>::remove(dai_ethereum_address());
+		pallet_evm::Pallet::<Runtime>::remove_account(&dai_ethereum_address());
 		assert_eq!(is_contract(checker, dai_ethereum_address()), false);
 	});
 }
@@ -117,6 +102,7 @@ fn contract_check_succeeds_on_precompile_with_invalid_code() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let checker = deploy_contract("ContractCheck", deployer());
+		// The code is invalid, but we intentionally set account codes of registered assets to 0.
 		pallet_evm::AccountCodes::<Runtime>::insert(dai_ethereum_address(), &hex!["00"][..]);
 		assert_eq!(is_contract(checker, dai_ethereum_address()), true);
 	});

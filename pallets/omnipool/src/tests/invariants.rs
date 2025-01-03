@@ -444,7 +444,7 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::MAX));
 
 				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -541,7 +541,7 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::MAX));
 
 				let updated_imbalance = HubAssetImbalance::<Test>::get();
 				assert!(updated_imbalance.value <= imbalance.value);
@@ -644,7 +644,7 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::MAX));
 
 				let updated_imbalance = HubAssetImbalance::<Test>::get();
 				assert!(updated_imbalance.value <= imbalance.value);
@@ -757,7 +757,7 @@ fn buy_invariant_case_01() {
 				300,
 				200,
 				amount,
-				Balance::max_value()
+				Balance::MAX
 			));
 
 			let new_state_200 = Omnipool::load_asset_state(200).unwrap();
@@ -872,7 +872,7 @@ fn buy_invariant_case_02() {
 
 			// TODO: this fais with Overflow - but the real error should be Insufficient token amount after out calc
 			assert_noop!(
-				Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::max_value()),
+				Omnipool::buy(RuntimeOrigin::signed(buyer), 300, 200, amount, Balance::MAX),
 				ArithmeticError::Overflow
 			);
 
@@ -1171,7 +1171,7 @@ proptest! {
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::MAX));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
 
@@ -1255,7 +1255,7 @@ proptest! {
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::MAX));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
 
@@ -1363,7 +1363,7 @@ proptest! {
 				);
 
 				// Let's do a trade so imbalance changes, so it is not always 0
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, LRNA, buy_amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, LRNA, buy_amount, Balance::MAX));
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 
@@ -1453,7 +1453,7 @@ proptest! {
 				let before_buy_state_200 = Omnipool::load_asset_state(200).unwrap();
 
 				// Let's do a trade so imbalance and price changes
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::MAX));
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 
@@ -1545,7 +1545,7 @@ proptest! {
 				let before_buy_state_200 = Omnipool::load_asset_state(200).unwrap();
 
 				// Let's do a trade so imbalance and price changes
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::MAX));
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 

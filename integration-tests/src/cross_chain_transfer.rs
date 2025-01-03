@@ -110,7 +110,7 @@ fn rococo_should_receive_asset_when_sent_from_hydra() {
 	Rococo::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
-			2_999_989_698_923 // 3 * HDX - fee
+			2_999_989_440_633 // 3 * HDX - fee
 		);
 	});
 }

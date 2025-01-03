@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![allow(clippy::manual_inspect)]
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -191,7 +192,7 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 }
 
 /// Signed extension that checks for the `claim` call and in that case, it verifies an Ethereum signature
-#[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
+#[derive(Default, Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct ValidateClaim<T: Config + Send + Sync>(PhantomData<T>);
 
@@ -221,7 +222,7 @@ where
 	type AdditionalSigned = ();
 	type Pre = ();
 
-	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> {
+	fn additional_signed(&self) -> Result<(), TransactionValidityError> {
 		Ok(())
 	}
 
@@ -253,8 +254,7 @@ where
 }
 
 impl<T: Config + Send + Sync> ValidateClaim<T> {
-	#[cfg_attr(feature = "cargo-clippy", allow(clippy::new_without_default))]
 	pub fn new() -> Self {
-		Self(sp_std::marker::PhantomData)
+		Self(PhantomData)
 	}
 }

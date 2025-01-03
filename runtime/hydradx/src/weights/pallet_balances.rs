@@ -153,4 +153,10 @@ impl<T: frame_system::Config> pallet_balances::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(8_333_000, 1501)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
+	fn burn_allow_death() -> Weight {
+		Weight::MAX
+	}
+	fn burn_keep_alive() -> Weight {
+		Weight::MAX
+	}
 }

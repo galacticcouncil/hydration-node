@@ -20,6 +20,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::manual_inspect)]
 
 pub use crate::types::{Amount, AssetId, AssetPair, Balance};
 use codec::{Decode, Encode, MaxEncodedLen};

@@ -40,6 +40,7 @@
 //! * Anyone who holds the bonds is able to redeem them.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::{
 	ensure,

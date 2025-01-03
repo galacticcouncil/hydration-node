@@ -69,7 +69,7 @@ fn split_vote_cancellation_should_work() {
 			}
 		);
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(5), 5));
-		assert_eq!(Balances::locks(5), vec![]);
+		assert_eq!(Balances::locks(&5), vec![]);
 	});
 }
 

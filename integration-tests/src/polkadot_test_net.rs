@@ -2,7 +2,7 @@
 use frame_support::{
 	assert_ok,
 	sp_runtime::{
-		traits::{AccountIdConversion, Block as BlockT, Dispatchable, HashingFor},
+		traits::{AccountIdConversion, Block as BlockT, Dispatchable},
 		BuildStorage, FixedU128, Permill,
 	},
 	traits::{GetCallMetadata, OnInitialize},
@@ -18,7 +18,7 @@ use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 use pallet_referrals::{FeeDistribution, Level};
-pub use polkadot_primitives::v7::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
+pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::storage::Storage;
@@ -282,10 +282,9 @@ pub mod rococo {
 		}
 	}
 
-	use sp_core::{Pair, Public};
+	use sp_core::{sr25519, Pair, Public};
 
 	use polkadot_primitives::{AssignmentId, ValidatorId};
-	use polkadot_service::chain_spec::get_authority_keys_from_seed_no_beefy;
 	use sc_consensus_grandpa::AuthorityId as GrandpaId;
 	use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 	use sp_consensus_babe::AuthorityId as BabeId;
@@ -340,6 +339,28 @@ pub mod rococo {
 		}
 	}
 
+	pub fn get_authority_keys_from_seed_no_beefy(
+		seed: &str,
+	) -> (
+		AccountId,
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ValidatorId,
+		AssignmentId,
+		AuthorityDiscoveryId,
+	) {
+		(
+			get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
+			get_account_id_from_seed::<sr25519::Public>(seed),
+			get_from_seed::<BabeId>(seed),
+			get_from_seed::<GrandpaId>(seed),
+			get_from_seed::<ValidatorId>(seed),
+			get_from_seed::<AssignmentId>(seed),
+			get_from_seed::<AuthorityDiscoveryId>(seed),
+		)
+	}
+
 	pub fn genesis() -> Storage {
 		let genesis_config = rococo_runtime::RuntimeGenesisConfig {
 			balances: rococo_runtime::BalancesConfig {
@@ -366,6 +387,7 @@ pub mod rococo {
 						)
 					})
 					.collect::<Vec<_>>(),
+				non_authority_keys: Default::default(),
 			},
 			configuration: rococo_runtime::ConfigurationConfig {
 				config: get_host_configuration(),
@@ -468,6 +490,7 @@ pub mod hydra {
 						)
 					})
 					.collect(),
+				non_authority_keys: Default::default(),
 			},
 			asset_registry: hydradx_runtime::AssetRegistryConfig {
 				registered_assets: vec![
@@ -632,6 +655,7 @@ pub mod para {
 						)
 					})
 					.collect(),
+				non_authority_keys: Default::default(),
 			},
 			parachain_info: hydradx_runtime::ParachainInfoConfig {
 				parachain_id: para_id.into(),
@@ -765,7 +789,7 @@ pub fn rococo_run_to_block(to: BlockNumber) {
 
 pub fn hydra_live_ext(
 	path_to_snapshot: &str,
-) -> frame_remote_externalities::RemoteExternalities<HashingFor<hydradx_runtime::Block>> {
+) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
 	let ext = tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()

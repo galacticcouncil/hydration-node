@@ -44,13 +44,20 @@ runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
 ]
 std = [
-    'serde/std',
     'codec/std',
-    'sp-std/std',
+    'scale-info/std',
+    'serde/std',
+    'hydradx-traits/std',
+    'hydra-dx-math/std',
+    'orml-traits/std',
+    'frame-benchmarking/std',
     'frame-support/std',
     'frame-system/std',
+    'sp-std/std',
+    'sp-core/std',
+    'sp-runtime/std',
+    "pallet-balances/std",
     'orml-tokens/std',
     "hydradx-adapters/std",
-    "pallet-balances/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
