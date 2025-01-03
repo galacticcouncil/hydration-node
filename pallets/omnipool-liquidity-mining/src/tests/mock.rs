@@ -68,7 +68,7 @@ pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 1_000;
 pub const KSM: AssetId = 1_001;
 pub const ACA: AssetId = 1_002;
-pub const USDT: AssetId = 2_000;
+pub const USDT: AssetId = 1_003;
 
 pub const LP1: AccountId = 1;
 pub const LP2: AccountId = 2;
