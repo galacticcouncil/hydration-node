@@ -170,7 +170,6 @@ where
 {
 	pub asset_in: AssetStateChange<Balance>,
 	pub asset_out: AssetStateChange<Balance>,
-	pub delta_imbalance: BalanceUpdate<Balance>,
 	pub hdx_hub_amount: Balance,
 	pub fee: TradeFee<Balance>,
 }
@@ -182,7 +181,6 @@ where
 	Balance: Default,
 {
 	pub asset: AssetStateChange<Balance>,
-	pub delta_imbalance: BalanceUpdate<Balance>,
 	pub fee: TradeFee<Balance>,
 }
 
@@ -193,7 +191,6 @@ where
 	Balance: Default,
 {
 	pub asset: AssetStateChange<Balance>,
-	pub delta_imbalance: BalanceUpdate<Balance>,
 	pub delta_position_reserve: BalanceUpdate<Balance>,
 	pub delta_position_shares: BalanceUpdate<Balance>,
 	pub lp_hub_amount: Balance,
@@ -216,12 +213,6 @@ where
 	pub fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.price.0.into(), self.price.1.into())
 	}
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct I129<Balance> {
-	pub value: Balance,
-	pub negative: bool,
 }
 
 #[cfg(test)]
