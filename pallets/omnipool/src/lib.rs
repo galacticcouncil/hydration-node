@@ -84,7 +84,7 @@ use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
 use pallet_support::types::{Asset, ExecutionType, Fee};
@@ -125,7 +125,7 @@ pub mod pallet {
 	use frame_support::traits::DefensiveOption;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+	use hydra_dx_math::omnipool::types::BalanceUpdate;
 	use orml_traits::GetByKey;
 	use sp_runtime::ArithmeticError;
 
@@ -709,18 +709,10 @@ pub mod pallet {
 				T::MinWithdrawalFee::get(),
 			);
 
-			let current_hub_asset_liquidity =
-				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-
-			//
-			// calculate state changes of remove liquidity
-			//
 			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
 				&(&position).into(),
-				I129::default(),
-				current_hub_asset_liquidity,
 				withdrawal_fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -936,7 +928,6 @@ pub mod pallet {
 				amount,
 				asset_fee,
 				protocol_fee,
-				0u128,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1174,7 +1165,6 @@ pub mod pallet {
 				amount,
 				asset_fee,
 				protocol_fee,
-				0u128,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1472,9 +1462,6 @@ pub mod pallet {
 			let asset_state = Self::load_asset_state(asset_id)?;
 			ensure!(amount <= asset_state.protocol_shares, Error::<T>::InsufficientShares);
 
-			let current_hub_asset_liquidity =
-				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-
 			// dev note: as we no longer have the position details for sacrificed one, we just need to
 			// construct temporary position.
 			// Note that amount is ok to set to zero in this case. Although the remove liquidity calculation
@@ -1489,8 +1476,6 @@ pub mod pallet {
 				&(&asset_state).into(),
 				amount,
 				&position,
-				I129::default(),
-				current_hub_asset_liquidity,
 				FixedU128::zero(),
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -1734,18 +1719,11 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
-		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
-
 		let (asset_fee, _) = T::Fee::get(&asset_out);
 
-		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
-			&(&asset_state).into(),
-			amount,
-			asset_fee,
-			I129::default(),
-			current_hub_asset_liquidity,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
+		let state_changes =
+			hydra_dx_math::omnipool::calculate_sell_hub_state_changes(&(&asset_state).into(), amount, asset_fee)
+				.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			*state_changes.asset.delta_reserve >= limit,
@@ -1851,16 +1829,12 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxOutRatioExceeded
 		);
 
-		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
-
 		let (asset_fee, _) = T::Fee::get(&asset_out);
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
 			amount,
 			asset_fee,
-			I129::default(),
-			current_hub_asset_liquidity,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1970,11 +1944,6 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
-	}
-
-	/// Get hub asset balance of protocol account
-	fn get_hub_asset_balance_of_protocol_account() -> Balance {
-		T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
 	}
 
 	/// Remove asset from list of Omnipool assets.
@@ -2126,18 +2095,9 @@ impl<T: Config> Pallet<T> {
 		)
 		.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
 
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-
-		//
-		// Calculate add liquidity state changes
-		//
-		let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
-			&(&asset_state).into(),
-			amount,
-			I129::default(),
-			current_hub_asset_liquidity,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
+		let state_changes =
+			hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(&(&asset_state).into(), amount)
+				.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			*state_changes.asset.delta_shares >= min_shares_limit,
