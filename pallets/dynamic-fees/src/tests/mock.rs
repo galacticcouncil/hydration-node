@@ -212,6 +212,10 @@ impl VolumeProvider<AssetId, Balance> for OracleProvider {
 		let liquidity = ORACLE.with(|v| v.borrow().liquidity(asset_id, BLOCK.with(|v| *v.borrow())));
 		Some(liquidity)
 	}
+
+	fn period() -> u64 {
+		10
+	}
 }
 
 #[derive(Default, Clone, Debug)]
@@ -245,8 +249,8 @@ pub trait CustomOracle {
 	fn liquidity(&self, _asset_id: AssetId, block: usize) -> Balance;
 }
 
-pub(crate) fn retrieve_fee_entry(asset_id: AssetId) -> (Fee, Fee) {
-	<UpdateAndRetrieveFees<Test> as GetByKey<AssetId, (Fee, Fee)>>::get(&asset_id)
+pub(crate) fn retrieve_fee_entry(asset_id: AssetId, liquidity: Balance) -> (Fee, Fee) {
+	<UpdateAndRetrieveFees<Test> as GetByKey<(AssetId, Balance), (Fee, Fee)>>::get(&(asset_id, liquidity))
 }
 
 pub(crate) fn get_oracle_entry(asset_id: AssetId, block_number: u64) -> AssetVolume {

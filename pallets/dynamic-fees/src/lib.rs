@@ -59,7 +59,7 @@ use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::GetByKey;
 use sp_runtime::traits::{BlockNumberProvider, Saturating};
-use sp_runtime::{FixedPointOperand, PerThing, SaturatedConversion};
+use sp_runtime::{FixedPointOperand, FixedU128, PerThing, SaturatedConversion};
 
 #[cfg(test)]
 mod tests;
@@ -155,7 +155,7 @@ impl<T: Config> Pallet<T>
 where
 	<T::Fee as PerThing>::Inner: FixedPointOperand,
 {
-	fn update_fee(asset_id: T::AssetId) -> (T::Fee, T::Fee) {
+	fn update_fee(asset_id: T::AssetId, asset_liquidity: Balance) -> (T::Fee, T::Fee) {
 		let block_number = T::BlockNumberProvider::current_block_number();
 
 		let asset_fee_params = T::AssetFeeParameters::get();
@@ -183,12 +183,16 @@ where
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 		};
 
+		let decay_factor = FixedU128::from_rational(2u128, T::Oracle::period() as u128);
+
 		let asset_fee = recalculate_asset_fee(
 			OracleEntry {
 				amount_in: volume.amount_in(),
 				amount_out: volume.amount_out(),
 				liquidity,
+				decay_factor,
 			},
+			asset_liquidity,
 			current_fee_entry.asset_fee,
 			delta_blocks,
 			asset_fee_params.into(),
@@ -198,7 +202,9 @@ where
 				amount_in: volume.amount_in(),
 				amount_out: volume.amount_out(),
 				liquidity,
+				decay_factor,
 			},
+			asset_liquidity,
 			current_fee_entry.protocol_fee,
 			delta_blocks,
 			protocol_fee_params.into(),
@@ -218,11 +224,11 @@ where
 
 pub struct UpdateAndRetrieveFees<T: Config>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> GetByKey<T::AssetId, (T::Fee, T::Fee)> for UpdateAndRetrieveFees<T>
+impl<T: Config> GetByKey<(T::AssetId, Balance), (T::Fee, T::Fee)> for UpdateAndRetrieveFees<T>
 where
 	<T::Fee as PerThing>::Inner: FixedPointOperand,
 {
-	fn get(k: &T::AssetId) -> (T::Fee, T::Fee) {
-		Pallet::<T>::update_fee(*k)
+	fn get(k: &(T::AssetId, Balance)) -> (T::Fee, T::Fee) {
+		Pallet::<T>::update_fee(k.0, k.1)
 	}
 }
