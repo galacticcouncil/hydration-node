@@ -9,4 +9,6 @@ pub trait VolumeProvider<AssetId, Balance> {
 	fn asset_volume(asset_id: AssetId) -> Option<Self::Volume>;
 
 	fn asset_liquidity(asset_id: AssetId) -> Option<Balance>;
+
+	fn period() -> u64;
 }

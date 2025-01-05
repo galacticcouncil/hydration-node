@@ -859,6 +859,10 @@ where
 				.ok()?;
 		Some(entry.liquidity.a)
 	}
+
+	fn period() -> u64 {
+		Period::get().as_period()
+	}
 }
 
 pub struct VestingInfo<Runtime>(PhantomData<Runtime>);

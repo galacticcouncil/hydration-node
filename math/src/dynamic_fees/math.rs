@@ -124,19 +124,16 @@ where
 		FixedU128::from_rational(params.amplification.saturating_mul_int(net_volume), liquidity),
 		neg,
 	);
-	println!("x: {:?}, {:?}", x, x_neg);
-
 	let mut j_sum = FixedU128::zero();
 
-	let w = FixedU128::one().saturating_sub(params.decay);
-	println!("m: {:?}", m);
+	let w = FixedU128::one().saturating_sub(last_entry.decay_factor);
 
 	for j in 0..m {
 		let oracle_value = w.saturating_pow(j as usize);
 		let n = FixedU128::from_rational(net_liquidity, liquidity);
-		let denom = if liquid_neg{
+		let denom = if liquid_neg {
 			FixedU128::one().saturating_sub(n)
-		}else{
+		} else {
 			FixedU128::one().saturating_add(n)
 		};
 		let v = denom.saturating_mul(oracle_value);
@@ -153,8 +150,6 @@ where
 		)
 		.div(params.decay);
 
-	println!("w_term: {:?}", w_term);
-
 	let (p1, p1_neg) = if j_sum_neg {
 		if w_term > j_sum {
 			(w_term.saturating_sub(j_sum), false)
@@ -164,7 +159,6 @@ where
 	} else {
 		(j_sum.saturating_add(w_term), false)
 	};
-	println!("p1: {:?}, {:?}", p1, p1_neg);
 
 	let (p2, p2_neg) = match (x_neg, p1_neg) {
 		(true, true) => (x.saturating_mul(p1), false),
@@ -172,9 +166,6 @@ where
 		(true, false) => (x.saturating_mul(p1), true),
 		(false, true) => (x.saturating_mul(p1), true),
 	};
-
-	println!("p2: {:?}, {:?}", p2, p2_neg);
-
 	let (delta, delta_neg) = if p2_neg {
 		(p2.saturating_add(f), true)
 	} else {
@@ -184,9 +175,6 @@ where
 			(p2.saturating_sub(f), false)
 		}
 	};
-
-	println!("delta: {:?}, {:?}", delta, delta_neg);
-
 	let fixed_previous_fee: FixedU128 = previous_fee.into();
 	if delta_neg {
 		fixed_previous_fee.saturating_sub(delta)
