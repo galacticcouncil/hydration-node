@@ -139,18 +139,19 @@ where
 		let v = denom.saturating_mul(oracle_value);
 		j_sum = j_sum.saturating_add(oracle_value.div(v));
 	}
-	let bd = FixedU128::from(block_diff);
-	let f = params.decay.saturating_mul(bd);
+
 	let w_term = w
 		.saturating_mul(
 			w.saturating_pow(m as usize)
 				.saturating_sub(w.saturating_pow(block_diff as usize)),
 		)
-		.div(params.decay);
+		.div(last_entry.decay_factor);
 
 	let p1 = j_sum.saturating_add(w_term);
 	let p2 = x.saturating_mul(p1);
 
+	let bd = FixedU128::from(block_diff);
+	let f = params.decay.saturating_mul(bd);
 	let (delta, delta_neg) = if x_neg {
 		(p2.saturating_add(f), true)
 	} else {
