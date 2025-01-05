@@ -139,8 +139,6 @@ where
 		let v = denom.saturating_mul(oracle_value);
 		j_sum = j_sum.saturating_add(oracle_value.div(v));
 	}
-	let j_sum_neg = false;
-
 	let bd = FixedU128::from(block_diff);
 	let f = params.decay.saturating_mul(bd);
 	let w_term = w
@@ -150,23 +148,10 @@ where
 		)
 		.div(params.decay);
 
-	let (p1, p1_neg) = if j_sum_neg {
-		if w_term > j_sum {
-			(w_term.saturating_sub(j_sum), false)
-		} else {
-			(j_sum.saturating_sub(w_term), true)
-		}
-	} else {
-		(j_sum.saturating_add(w_term), false)
-	};
+	let p1 = j_sum.saturating_add(w_term);
+	let p2 = x.saturating_mul(p1);
 
-	let (p2, p2_neg) = match (x_neg, p1_neg) {
-		(true, true) => (x.saturating_mul(p1), false),
-		(false, false) => (x.saturating_mul(p1), false),
-		(true, false) => (x.saturating_mul(p1), true),
-		(false, true) => (x.saturating_mul(p1), true),
-	};
-	let (delta, delta_neg) = if p2_neg {
+	let (delta, delta_neg) = if x_neg {
 		(p2.saturating_add(f), true)
 	} else {
 		if f > p2 {
