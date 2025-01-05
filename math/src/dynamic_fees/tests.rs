@@ -294,3 +294,65 @@ fn compute_protocol_fee_should_not_change() {
 	);
 	assert_eq!(calculated_protocol_fee, expected_fee);
 }
+
+#[test]
+fn asset_fee_should_decrease_due_to_decay() {
+	let initial_fee = Permill::from_float(0.1);
+	let volume = OracleEntry {
+		amount_out: 0,
+		amount_in: 0,
+		liquidity: 100_000_000_000_000_000,
+		decay_factor: FixedU128::from_rational(2, 10),
+	};
+
+	let current_liquidity = 100_000_000_000_000_000;
+	let last_block_diff = 2;
+	let params = FeeParams {
+		amplification: FixedU128::from(10),
+		decay: FixedU128::from_rational(5, 10000),
+		min_fee: Permill::from_float(0.0025),
+		max_fee: Permill::from_percent(30),
+	};
+	let calculated_asset_fee = compute_dynamic_fee(
+		volume.clone(),
+		current_liquidity,
+		params.clone(),
+		initial_fee,
+		last_block_diff,
+		NetVolumeDirection::OutIn,
+	);
+	assert!(calculated_asset_fee < initial_fee);
+	let expected_fee = Permill::from_float(0.099);
+	assert_eq!(calculated_asset_fee, expected_fee);
+}
+
+#[test]
+fn protocol_fee_should_decrease_due_to_decay() {
+	let initial_fee = Permill::from_float(0.1);
+	let volume = OracleEntry {
+		amount_out: 0,
+		amount_in: 0,
+		liquidity: 100_000_000_000_000_000,
+		decay_factor: FixedU128::from_rational(2, 10),
+	};
+
+	let current_liquidity = 100_000_000_000_000_000;
+	let last_block_diff = 2;
+	let params = FeeParams {
+		amplification: FixedU128::from(10),
+		decay: FixedU128::from_rational(1, 10000),
+		min_fee: Permill::from_float(0.0005),
+		max_fee: Permill::from_percent(30),
+	};
+	let calculated_asset_fee = compute_dynamic_fee(
+		volume.clone(),
+		current_liquidity,
+		params.clone(),
+		initial_fee,
+		last_block_diff,
+		NetVolumeDirection::InOut,
+	);
+	assert!(calculated_asset_fee < initial_fee);
+	let expected_fee = Permill::from_float(0.0998);
+	assert_eq!(calculated_asset_fee, expected_fee);
+}
