@@ -9,7 +9,8 @@ use sp_arithmetic::{FixedPointOperand, FixedU128, PerThing};
 /// Recalculate Omnipool's asset fee given previously calculated fee and oracle data.
 ///
 /// `volume` is the asset volume data provided by the oracle.
-/// `previous_fee` is the previous calculated asset fee.
+/// `current_asset_liquidity` is the current asset liquidity.
+/// `previous_fee` is the previous-calculated asset fee.
 /// `last_block_diff` is the difference between the current block height and the previous block height when asset fee was calculated.
 /// `params` is the fee parameters, such as minimum fee, maximum fee, decay and amplification.
 pub fn recalculate_asset_fee<Fee: PerThing>(
@@ -35,7 +36,8 @@ where
 /// Recalculate Omnipool's protocol fee given previously calculated fee and oracle data.
 ///
 /// `volume` is the asset volume data provided by the oracle.
-/// `previous_fee` is the previous calculated protocol fee.
+/// 'current_asset_liquidity' is the current asset liquidity.
+/// `previous_fee` is the previous-calculated protocol fee.
 /// `last_block_diff` is the difference between the current block height and the previous block height when asset fee was calculated.
 /// `params` is the fee parameters, such as minimum fee, maximum fee, decay and amplification.
 pub fn recalculate_protocol_fee<Fee: PerThing>(
