@@ -2011,7 +2011,7 @@ impl<T: Config> Pallet<T> {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
 
-		// Let's give little bit less to process. Subtracting one due to potential rounding errors
+		// Let's give a little bit less to process. Subtracting one due to potential rounding errors
 		let allowed_amount = amount.saturating_sub(Balance::one());
 		let fees = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
 		let additional_fees_total: Balance = fees
