@@ -1128,7 +1128,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_support::Pallet::<T>::remove_from_context()?;
+			pallet_support::Pallet::<T>::remove_from_context(ExecutionType::Omnipool)?;
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1369,7 +1369,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_support::Pallet::<T>::remove_from_context()?;
+			pallet_support::Pallet::<T>::remove_from_context(ExecutionType::Omnipool)?;
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(

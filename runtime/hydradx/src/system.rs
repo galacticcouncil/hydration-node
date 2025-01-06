@@ -393,7 +393,7 @@ impl BatchHook for ManageExecutionTypeForUnifiedEvent {
 	}
 
 	fn on_batch_end() -> DispatchResult {
-		AmmSupport::remove_from_context()?;
+		AmmSupport::remove_from_context(ExecutionType::Batch)?;
 
 		Ok(())
 	}

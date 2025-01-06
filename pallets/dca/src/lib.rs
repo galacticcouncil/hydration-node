@@ -782,7 +782,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		pallet_support::Pallet::<T>::remove_from_context()?;
+		pallet_support::Pallet::<T>::remove_from_context(|id| ExecutionType::DCA(schedule_id, id))?;
 
 		trade_result
 	}

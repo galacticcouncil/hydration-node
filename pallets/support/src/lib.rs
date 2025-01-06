@@ -24,7 +24,7 @@ use frame_support::sp_runtime::{BoundedVec, DispatchError, DispatchResult};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::ConstU32;
 use sp_std::vec::Vec;
-
+use sp_std::mem::discriminant;
 #[cfg(test)]
 mod tests;
 
@@ -144,13 +144,25 @@ impl<T: Config> Pallet<T> {
 		Ok(next_id)
 	}
 
-	pub fn remove_from_context() -> DispatchResult {
+
+	// The `expected_last_stack_entry` parameter ensures the stack behaves as intended.
+	// It prevents issues where exceeding the stack size results in ignored actions,
+	// which could lead to unexpected stack data when the stack is decreased.
+	pub fn remove_from_context<F>(expected_last_stack_entry: F) -> DispatchResult
+		where
+		F: FnOnce(u32) -> ExecutionType
+	{
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
 			//We make it fire and forget, and it should fail only in test and when if wrongly used
 			debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
 
-			if stack.pop().is_none() {
-				log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
+			if let Some(last_stack_entry) = stack.last() {
+				let expected_last_entry = expected_last_stack_entry(0);//We use a dummy 0 as id as we only compare type
+				if discriminant(last_stack_entry) == discriminant(&expected_last_entry) {
+					if stack.pop().is_none() {
+						log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
+					}
+				}
 			}
 
 			Ok(())
