@@ -88,12 +88,9 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-			let mut weight: Weight = Weight::zero();
-			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
-
 			ExecutionContext::<T>::kill();
-
-			Weight::from_parts(weight.ref_time(), 0)
+			
+			T::DbWeight::get().reads_writes(1, 1)
 		}
 	}
 
