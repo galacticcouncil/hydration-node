@@ -126,7 +126,7 @@ pub mod pallet {
 		/// An Order has been cancelled
 		Cancelled { order_id: OrderId },
 		/// An Order has been completely filled
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
 		Filled {
 			order_id: OrderId,
 			who: T::AccountId,
@@ -135,7 +135,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// An Order has been partially filled
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
 		PartiallyFilled {
 			order_id: OrderId,
 			who: T::AccountId,

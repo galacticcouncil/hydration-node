@@ -319,7 +319,7 @@ pub mod pallet {
 			protocol_fee_amount: Balance,
 		},
 		/// Buy trade executed.
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
 		//TODO: remove when completely migrated to new Swapped event
 		BuyExecuted {
 			who: T::AccountId,
