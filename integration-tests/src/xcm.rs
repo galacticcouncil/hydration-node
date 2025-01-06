@@ -263,7 +263,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 		let event2 = &last_two_swapped_events[0];
 		assert_operation_stack!(event2, [ExecutionType::Xcm(_, 0), ExecutionType::Omnipool(1)]);
 
-		let unified_event_context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
+		let unified_event_context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context();
 		assert!(unified_event_context.is_empty());
 	});
 }
@@ -331,7 +331,7 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 
 	// Assert
 	Hydra::execute_with(|| {
-		let context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context().unwrap();
+		let context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context();
 		assert!(context.is_empty())
 	});
 }

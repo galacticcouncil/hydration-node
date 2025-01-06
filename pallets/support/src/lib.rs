@@ -159,9 +159,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn get_context() -> Result<Vec<ExecutionType>, DispatchError> {
-		let stack = ExecutionContext::<T>::get().to_vec();
-
-		Ok(stack)
+	pub fn get_context() -> Vec<ExecutionType> {
+		ExecutionContext::<T>::get().to_vec()
 	}
 }
