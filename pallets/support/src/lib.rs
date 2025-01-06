@@ -108,7 +108,7 @@ impl<T: Config> Pallet<T> {
 		outputs: Vec<Asset>,
 		fees: Vec<Fee<T::AccountId>>,
 	) {
-		let operation_stack = ExecutionContext::<T>::get().to_vec();
+		let operation_stack = Self::get_context();
 		Self::deposit_event(Event::<T>::Swapped {
 			swapper,
 			filler,
