@@ -355,7 +355,7 @@ pub mod pallet {
 		},
 
 		/// Purchase executed.
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			asset_out: AssetId,
