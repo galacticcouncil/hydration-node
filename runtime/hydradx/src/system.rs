@@ -387,7 +387,7 @@ pub struct ManageExecutionTypeForUnifiedEvent;
 
 impl BatchHook for ManageExecutionTypeForUnifiedEvent {
 	fn on_batch_start() -> DispatchResult {
-		AmmSupport::add_to_context(ExecutionType::Batch)?;
+		AmmSupport::add_to_context(ExecutionType::Batch);
 
 		Ok(())
 	}

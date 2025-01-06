@@ -21,14 +21,14 @@ use crate::Event;
 #[test]
 fn stack_should_be_populated_when_pushed() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
+		AmmSupport::add_to_context(ExecutionType::Router);
 		assert_eq!(AmmSupport::execution_context(), vec![ExecutionType::Router(0)]);
 		assert_eq!(
 			AmmSupport::execution_context().into_inner(),
 			vec![ExecutionType::Router(0)]
 		);
 
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
+		AmmSupport::add_to_context(ExecutionType::Router);
 		assert_eq!(
 			AmmSupport::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
@@ -38,7 +38,7 @@ fn stack_should_be_populated_when_pushed() {
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Omnipool));
+		AmmSupport::add_to_context(ExecutionType::Omnipool);
 		assert_eq!(
 			AmmSupport::execution_context(),
 			vec![
@@ -61,9 +61,9 @@ fn stack_should_be_populated_when_pushed() {
 #[test]
 fn stack_should_be_reduced_when_poped() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Omnipool));
+		AmmSupport::add_to_context(ExecutionType::Router);
+		AmmSupport::add_to_context(ExecutionType::Router);
+		AmmSupport::add_to_context(ExecutionType::Omnipool);
 
 		AmmSupport::remove_from_context(ExecutionType::Omnipool);
 		assert_eq!(
@@ -75,7 +75,7 @@ fn stack_should_be_reduced_when_poped() {
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Omnipool));
+		AmmSupport::add_to_context(ExecutionType::Omnipool);
 		assert_eq!(
 			AmmSupport::execution_context(),
 			vec![
@@ -126,7 +126,7 @@ fn event_should_be_deposited() {
 #[test]
 fn nothing_is_removed_when_type_not_matched_with_last_stack_item() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
+		AmmSupport::add_to_context(ExecutionType::Router);
 
 		AmmSupport::remove_from_context(ExecutionType::Batch);
 
@@ -141,7 +141,7 @@ fn nothing_is_removed_when_type_not_matched_with_last_stack_item() {
 #[test]
 fn entry_is_removed_when_type_matched_with_last_stack_item() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
+		AmmSupport::add_to_context(ExecutionType::Router);
 
 		AmmSupport::remove_from_context(ExecutionType::Router);
 

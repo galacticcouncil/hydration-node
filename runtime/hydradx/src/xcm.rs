@@ -246,8 +246,7 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		} else {
 			unique(&message)
 		};
-		pallet_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id))
-			.map_err(|_| message.clone())?;
+		pallet_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id));
 
 		let prepare_result = Inner::prepare(message);
 

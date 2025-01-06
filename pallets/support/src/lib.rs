@@ -121,27 +121,27 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn add_to_context<F>(execution_type: F) -> Result<IncrementalIdType, DispatchError>
+	pub fn add_to_context<F>(execution_type: F) -> IncrementalIdType
 	where
 		F: FnOnce(u32) -> ExecutionType,
 	{
-		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
+		let next_id = IncrementalId::<T>::mutate(|current_id| -> IncrementalIdType {
 			let inc_id = *current_id;
 			*current_id = current_id.overflowing_add(1).0;
-			Ok(inc_id)
-		})?;
 
-		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
+			inc_id
+		});
+
+		ExecutionContext::<T>::mutate(|stack| {
 			//We make it fire and forget, and it should fail only in test and when if wrongly used
 			debug_assert_ne!(stack.len(), MAX_STACK_SIZE as usize, "Stack should not be full");
 			if let Err(err) = stack.try_push(execution_type(next_id)) {
 				log::warn!(target: LOG_TARGET, "The max stack size of execution stack has been reached: {:?}", err);
 			}
 
-			Ok(())
-		})?;
+		});
 
-		Ok(next_id)
+		next_id
 	}
 
 
