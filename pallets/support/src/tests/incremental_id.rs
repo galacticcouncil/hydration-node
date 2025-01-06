@@ -65,7 +65,7 @@ fn stack_should_be_reduced_when_poped() {
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Omnipool));
 
-		AmmSupport::remove_from_context(ExecutionType::Omnipool).unwrap();
+		AmmSupport::remove_from_context(ExecutionType::Omnipool);
 		assert_eq!(
 			AmmSupport::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
@@ -128,7 +128,7 @@ fn nothing_is_removed_when_type_not_matched_with_last_stack_item() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 
-		AmmSupport::remove_from_context(ExecutionType::Batch).unwrap();
+		AmmSupport::remove_from_context(ExecutionType::Batch);
 
 		assert_eq!(AmmSupport::execution_context(), vec![ExecutionType::Router(0)]);
 		assert_eq!(
@@ -143,7 +143,7 @@ fn entry_is_removed_when_type_matched_with_last_stack_item() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_ok!(AmmSupport::add_to_context(ExecutionType::Router));
 
-		AmmSupport::remove_from_context(ExecutionType::Router).unwrap();
+		AmmSupport::remove_from_context(ExecutionType::Router);
 
 		assert_eq!(AmmSupport::execution_context().into_inner(), vec![]);
 	});

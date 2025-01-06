@@ -148,11 +148,11 @@ impl<T: Config> Pallet<T> {
 	// The `expected_last_stack_entry` parameter ensures the stack behaves as intended.
 	// It prevents issues where exceeding the stack size results in ignored actions,
 	// which could lead to unexpected stack data when the stack is decreased.
-	pub fn remove_from_context<F>(expected_last_stack_entry: F) -> DispatchResult
+	pub fn remove_from_context<F>(expected_last_stack_entry: F)
 		where
 		F: FnOnce(u32) -> ExecutionType
 	{
-		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
+		ExecutionContext::<T>::mutate(|stack| {
 			//We make it fire and forget, and it should fail only in test and when if wrongly used
 			debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
 
@@ -164,11 +164,7 @@ impl<T: Config> Pallet<T> {
 					}
 				}
 			}
-
-			Ok(())
-		})?;
-
-		Ok(())
+		});
 	}
 
 	pub fn get_context() -> Vec<ExecutionType> {

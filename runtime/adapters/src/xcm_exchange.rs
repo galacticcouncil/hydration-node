@@ -135,7 +135,7 @@ where
 			.map_err(|_| give.clone())
 		};
 
-		pallet_support::Pallet::<Runtime>::remove_from_context(ExecutionType::XcmExchange).map_err(|_| give)?;
+		pallet_support::Pallet::<Runtime>::remove_from_context(ExecutionType::XcmExchange);
 
 		trade_result
 	}
