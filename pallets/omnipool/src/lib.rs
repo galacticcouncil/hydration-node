@@ -173,7 +173,7 @@ pub mod pallet {
 		type HubAssetId: Get<Self::AssetId>;
 
 		/// Dynamic fee support - returns (Asset Fee, Protocol Fee) for given asset
-		type Fee: GetByKey<Self::AssetId, (Permill, Permill)>;
+		type Fee: GetByKey<(Self::AssetId, Balance), (Permill, Permill)>;
 
 		/// Minimum withdrawal fee
 		#[pallet::constant]
@@ -919,8 +919,8 @@ pub mod pallet {
 				Error::<T>::MaxInRatioExceeded
 			);
 
-			let (asset_fee, _) = T::Fee::get(&asset_out);
-			let (_, protocol_fee) = T::Fee::get(&asset_in);
+			let (asset_fee, _) = T::Fee::get(&(asset_out, asset_out_state.reserve));
+			let (_, protocol_fee) = T::Fee::get(&(asset_in, asset_in_state.reserve));
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
@@ -1157,8 +1157,8 @@ pub mod pallet {
 				Error::<T>::MaxOutRatioExceeded
 			);
 
-			let (asset_fee, _) = T::Fee::get(&asset_out);
-			let (_, protocol_fee) = T::Fee::get(&asset_in);
+			let (asset_fee, _) = T::Fee::get(&(asset_out, asset_out_state.reserve));
+			let (_, protocol_fee) = T::Fee::get(&(asset_in, asset_in_state.reserve));
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -1719,7 +1719,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
-		let (asset_fee, _) = T::Fee::get(&asset_out);
+		let (asset_fee, _) = T::Fee::get(&(asset_out, asset_state.reserve));
 
 		let state_changes =
 			hydra_dx_math::omnipool::calculate_sell_hub_state_changes(&(&asset_state).into(), amount, asset_fee)
@@ -1829,7 +1829,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxOutRatioExceeded
 		);
 
-		let (asset_fee, _) = T::Fee::get(&asset_out);
+		let (asset_fee, _) = T::Fee::get(&(asset_out, asset_state.reserve));
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),

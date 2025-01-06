@@ -30,7 +30,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
 
 		if asset_in == T::HubAssetId::get() {
-			let (asset_fee, _) = T::Fee::get(&asset_out);
+			let (asset_fee, _) = T::Fee::get(&(asset_out, asset_out_state.reserve));
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 				&(&asset_out_state).into(),
@@ -41,11 +41,11 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 
 			return Ok(*state_changes.asset.delta_reserve);
 		}
-
-		let (asset_fee, _) = T::Fee::get(&asset_out);
-		let (_, protocol_fee) = T::Fee::get(&asset_in);
-
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
+
+		let (asset_fee, _) = T::Fee::get(&(asset_out, asset_out_state.reserve));
+		let (_, protocol_fee) = T::Fee::get(&(asset_in, asset_in_state.reserve));
+
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 			&(&asset_in_state).into(),
 			&(&asset_out_state).into(),
@@ -74,7 +74,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
 
 		if asset_in == T::HubAssetId::get() {
-			let (asset_fee, _) = T::Fee::get(&asset_out);
+			let (asset_fee, _) = T::Fee::get(&(asset_out, asset_out_state.reserve));
 
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 				&(&asset_out_state).into(),
@@ -88,8 +88,8 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
 
-		let (asset_fee, _) = T::Fee::get(&asset_out);
-		let (_, protocol_fee) = T::Fee::get(&asset_in);
+		let (asset_fee, _) = T::Fee::get(&(asset_out, asset_out_state.reserve));
+		let (_, protocol_fee) = T::Fee::get(&(asset_in, asset_in_state.reserve));
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 			&(&asset_in_state).into(),
@@ -159,11 +159,9 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			return Err(ExecutorError::Error(Error::<T>::NotAllowed.into()));
 		}
 
-		let (_, protocol_fee) = T::Fee::get(&asset_a);
-		let (asset_fee, _) = T::Fee::get(&asset_b);
-
 		let spot_price = if asset_a == T::HubAssetId::get() {
 			let asset_b_state = Self::load_asset_state(asset_b).map_err(ExecutorError::Error)?;
+			let (asset_fee, _) = T::Fee::get(&(asset_b, asset_b_state.reserve));
 
 			hydra_dx_math::omnipool::calculate_lrna_spot_price(&asset_b_state.into(), Some(asset_fee))
 				.ok_or(ExecutorError::Error(Corruption))?
@@ -172,6 +170,9 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		} else {
 			let asset_a_state = Self::load_asset_state(asset_a).map_err(ExecutorError::Error)?;
 			let asset_b_state = Self::load_asset_state(asset_b).map_err(ExecutorError::Error)?;
+
+			let (_, protocol_fee) = T::Fee::get(&(asset_a, asset_a_state.reserve));
+			let (asset_fee, _) = T::Fee::get(&(asset_b, asset_b_state.reserve));
 
 			hydra_dx_math::omnipool::calculate_spot_price(
 				&asset_a_state.into(),

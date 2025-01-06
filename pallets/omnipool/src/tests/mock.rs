@@ -679,8 +679,8 @@ pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetByKey<(AssetId, Balance), (Permill, Permill)> for FeeProvider {
+	fn get(_: &(AssetId, Balance)) -> (Permill, Permill) {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
 }
