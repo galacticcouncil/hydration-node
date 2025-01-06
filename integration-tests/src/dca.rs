@@ -220,7 +220,7 @@ mod omnipool {
 
 			//Assert
 			let swapped_events = get_last_swapped_events();
-			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
@@ -258,7 +258,7 @@ mod omnipool {
 			run_to_block(13, 17);
 
 			let swapped_events = get_last_swapped_events();
-			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
@@ -707,7 +707,7 @@ mod omnipool {
 
 			//Assert
 			let swapped_events = get_last_swapped_events();
-			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
@@ -745,7 +745,7 @@ mod omnipool {
 			run_to_block(13, 17);
 
 			let swapped_events = get_last_swapped_events();
-			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
