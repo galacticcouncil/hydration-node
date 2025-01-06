@@ -23,7 +23,7 @@ use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::{OneSessionHandler, OriginTrait, Time};
 use frame_support::{dispatch::DispatchResult, traits::Get};
 use frame_support::{Blake2_128Concat, BoundedSlice};
-use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
+use frame_system::offchain::{AppCrypto, SendTransactionTypes, Signer, SubmitTransaction};
 use frame_system::pallet_prelude::*;
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::RouterT;
@@ -51,7 +51,7 @@ pub mod pallet {
 	use crate::types::{BoundedResolvedIntents, BoundedTrades};
 	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
-	use frame_system::offchain::CreateSignedTransaction;
+	use frame_system::offchain::{CreateSignedTransaction, SendSignedTransaction};
 	use hydra_dx_math::ratio::Ratio;
 	use hydradx_traits::price::PriceProvider;
 	use sp_runtime::traits::{BlockNumberProvider, UniqueSaturatedInto};
@@ -61,16 +61,20 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
+	pub trait Config: frame_system::Config /* + SendTransactionTypes<Call<Self>>*/ + CreateSignedTransaction<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The identifier type for an authority.
+		/*
 		type AuthorityId: Member
 			+ Parameter
 			+ sp_runtime::RuntimeAppPublic
 			+ Ord
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen;
+		 */
+
+		type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 
 		/// Native asset Id
 		#[pallet::constant]
@@ -230,9 +234,12 @@ pub mod pallet {
 	#[pallet::getter(fn solution_executed)]
 	pub(super) type SolutionExecuted<T: Config> = StorageValue<_, bool, ValueQuery, ExecDefault>;
 
+	/*
 	/// The current set of keys that may submit a solution
 	#[pallet::storage]
 	pub type Keys<T: Config> = StorageValue<_, WeakBoundedVec<T::AuthorityId, T::MaxKeys>, ValueQuery>;
+
+	 */
 
 	pub struct ExecDefault;
 
@@ -242,6 +249,7 @@ pub mod pallet {
 		}
 	}
 
+	/*
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
@@ -254,6 +262,8 @@ pub mod pallet {
 			Pallet::<T>::initialize_keys(&self.keys);
 		}
 	}
+
+	 */
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -290,29 +300,45 @@ pub mod pallet {
 						log::error!("Getting solution");
 						let s = api::ice::get_solution(intents, data);
 						log::error!("Solution {:?}", s);
+						let score = Self::calculate_score(&s);
+						let next_block: BlockNumberFor<T> = block_number.saturating_add(1u32.into());
 
-						let block: BlockNumberFor<T> = block_number.saturating_add(1u32.into());
+						let signer = Signer::<T, T::AuthorityId>::all_accounts();
+						if !signer.can_sign() {
+							//TODO: handle error
+							return;
+						}
+						let results = signer.send_signed_transaction(|_account| Call::submit_solution {
+							intents: BoundedResolvedIntents::truncate_from(s.clone()),
+							score,
+							block: next_block,
+						});
+						//TODO: handle result
 
-						//let authorities = Self::local_authority_keys().collect::<Vec<_>>();
-						//log::error!("Authorities {:?}", authorities.len());
-
+						/* with runtimepublicapp
+						//just take first one for now
 						let a_idx = 0usize;
-						let local_keys = T::AuthorityId::all();
-						let key = local_keys[a_idx].clone();
+						let keys = T::AuthorityId::all();
+						let key = keys[a_idx].clone();
 
-						//pick one
-						/*
-						let b: usize = block_number.saturated_into();
-						let idx = b % authorities.len();
-						let (a_idx, key) = authorities.into_iter().nth(idx).expect("Key;qed");
+						//TODO: account?!
+						let ac = T::AuthorityId::all().len() as u32;
+
+						let call: pallet::Call<T> = Call::submit_solution{
+							intents: BoundedResolvedIntents::truncate_from(s),
+							score,
+							block: next_block,
+						};
+						let t = CreateSignedTransaction::<Call<T>>::create_transaction::<T::AuthorityId>(call.into(), key, ac, None).ok_or(Error::FailedSigning).unwrap();
+						let r = SubmitTransaction::<T, Call<T>>::submit_transaction(t.0, t.1);
+
 						 */
 
-						let params = (s.clone(), 1u64, block);
+						//TODO: handle result
 
-						log::error!("signing");
-
+						/* Unsigned solution
+						let params = (s.clone(), 1u64, next_block);
 						let signature = key.sign(&params.encode()).ok_or(Error::<T>::FailedSigning).unwrap();
-
 						let call: pallet::Call<T> = Call::propose_solution {
 							intents: BoundedResolvedIntents::truncate_from(s),
 							score: 1u64,
@@ -323,24 +349,13 @@ pub mod pallet {
 
 						log::error!("Sending tx");
 						let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
+						 */
 
 						//let r = SubmitTransaction::<T, Call<T>>::submit_transaction(call.into(), Some(signature));
 
 						//let t = CreateSignedTransaction::<Call<T>>::create_transaction::<T::AuthorityId>(call.into(), key, ac, None).ok_or(Error::FailedSigning).unwrap();
 
 						//let r = SubmitTransaction::<T, Call<T>>::submit_transaction(t.0, t.1);
-
-						//TODO: handle failures!!
-
-						/*
-						let call = Call::propose_solution {
-							intents: BoundedResolvedIntents::truncate_from(vec![]),
-							trades: BoundedTrades::truncate_from(vec![]),
-							score: 1u64,
-							block: block_number.saturating_add(1u32.into()),
-						};
-
-						 */
 					}
 				}
 			};
@@ -437,6 +452,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/*
 		//TODO: same as submit, but unsigned,
 		// please merge into one, bob!
 		#[pallet::call_index(2)]
@@ -455,8 +471,11 @@ pub mod pallet {
 			Self::deposit_event(Event::Hurray { score });
 			Ok(())
 		}
+
+		 */
 	}
 
+	/*
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
@@ -465,7 +484,7 @@ pub mod pallet {
 			if let Call::propose_solution { intents, score, block, signature, signer } = _call {
 
 				match signer {
-                    crate::types::Signer::Authority(idx) => {
+					crate::types::Signer::Authority(idx) => {
 						log::error!("Validating!!");
 						//let keys = Keys::<T>::get();
 						let keys= T::AuthorityId::all();
@@ -482,7 +501,7 @@ pub mod pallet {
 					crate::types::Signer::Account(account) => {
 						todo!()
 					}
-                }
+				}
 
 				ValidTransaction::with_tag_prefix("iceice")
 					.priority(u64::MAX)
@@ -495,6 +514,8 @@ pub mod pallet {
 			}
 		}
 	}
+
+	 */
 }
 
 impl<T: Config> Pallet<T> {
@@ -599,6 +620,11 @@ impl<T: Config> Pallet<T> {
 		intents.retain(|(_, intent)| intent.deadline > now);
 
 		intents
+	}
+
+	fn calculate_score(resolved_intent: &[ResolvedIntent]) -> u64 {
+		//TODO:
+		1u64
 	}
 
 	// Calculate score for the solution
@@ -941,6 +967,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/*
 	fn initialize_keys(keys: &[T::AuthorityId]) {
 		if !keys.is_empty() {
 			assert!(Keys::<T>::get().is_empty(), "Keys are already initialized!");
@@ -971,8 +998,11 @@ impl<T: Config> Pallet<T> {
 					.map(|location| (index as u32, local_keys[location].clone()))
 			})
 	}
+
+	 */
 }
 
+/*
 impl<T: Config> sp_runtime::BoundToRuntimeAppPublic for Pallet<T> {
 	type Public = T::AuthorityId;
 }
@@ -998,7 +1028,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 			keys,
 			Some(
 				"Warning: The session has more keys than expected. \
-  				A runtime configuration adjustment may be needed.",
+				  A runtime configuration adjustment may be needed.",
 			),
 		);
 		Keys::<T>::put(bounded_keys);
@@ -1006,3 +1036,5 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 
 	fn on_disabled(_validator_index: u32) {}
 }
+
+ */
