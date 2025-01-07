@@ -44,7 +44,7 @@ pub mod time {
 	/// up by `pallet_aura` to implement `fn slot_duration()`.
 
 	/// Change this to adjust the block time.
-	pub const MILLISECS_PER_BLOCK: u64 = 12_000;
+	pub const MILLISECS_PER_BLOCK: u64 = 6_000;
 	pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
 	// Time is measured by number of blocks.
@@ -72,9 +72,9 @@ pub mod chain {
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;
 
-	/// We allow for 0.5 seconds of compute
+	/// We allow for 2 seconds of compute with a 6 second average block.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
-		WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
+		WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2),
 		polkadot_primitives::v7::MAX_POV_SIZE as u64,
 	);
 
