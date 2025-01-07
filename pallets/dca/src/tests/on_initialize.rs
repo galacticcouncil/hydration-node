@@ -875,9 +875,12 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 				})
 				.build();
 
-			assert_eq!(schedule.is_rolling() , true);
+			assert_eq!(schedule.is_rolling(), true);
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, None));
-			assert_eq!((*AMOUNT_OUT_FOR_OMNIPOOL_SELL + get_fee_for_sell_in_hdx()).saturating_mul(2), Currencies::reserved_balance(HDX, &ALICE));
+			assert_eq!(
+				(*AMOUNT_OUT_FOR_OMNIPOOL_SELL + get_fee_for_sell_in_hdx()).saturating_mul(2),
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
 
 			//Act
 			proceed_to_blocknumber(501, 801);
