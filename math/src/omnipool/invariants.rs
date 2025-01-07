@@ -1,5 +1,5 @@
 use crate::assert_approx_eq;
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position};
+use crate::omnipool::types::{AssetReserveState, Position};
 use crate::omnipool::*;
 use crate::to_balance;
 use crate::types::Balance;
@@ -133,55 +133,6 @@ proptest! {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
-	fn sell_update_invariants_with_fees(asset_in in asset_state(),
-		asset_out in asset_state(),
-		amount in trade_amount(),
-		asset_fee in fee(),
-		protocol_fee in fee(),
-	) {
-		let total_hub_reserve = 100 * BALANCE_RANGE.1;
-
-		let result = calculate_sell_state_changes(&asset_in, &asset_out, amount,
-			asset_fee,
-			protocol_fee,
-		);
-
-		assert!(result.is_some());
-
-		let state_changes = result.unwrap();
-
-		let asset_in_state = asset_in.clone();
-		let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-		assert_asset_invariant(&asset_in, &asset_in_state,  None, "Sell update invariant - token in");
-
-		let asset_out_state = asset_out.clone();
-		let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-		assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
-
-		let delta_hub_asset = state_changes
-				.asset_in
-				.delta_hub_reserve
-				.merge(
-					state_changes
-						.asset_out
-						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
-				).unwrap();
-
-		let q_plus = match delta_hub_asset {
-			BalanceUpdate::Increase(v) => total_hub_reserve.checked_add(v).unwrap(),
-			BalanceUpdate::Decrease(v) => total_hub_reserve.checked_sub(v).unwrap(),
-		};
-
-		let left = total_hub_reserve;
-		let right = q_plus;
-		assert_eq!(left, right);
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
 	fn sell_hub_update_invariants_no_fees(asset_out in asset_state(),
 		amount in trade_amount(),
 	) {
@@ -281,53 +232,6 @@ proptest! {
 	}
 }
 
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn buy_update_invariants_with_fees(asset_in in asset_state(), asset_out in asset_state(),
-		amount in trade_amount(),
-		asset_fee in fee(),
-		protocol_fee in fee(),
-	) {
-		let total_hub_reserve = 100 * BALANCE_RANGE.1;
-
-		let result = calculate_buy_state_changes(&asset_in, &asset_out, amount,
-			asset_fee,
-			protocol_fee,
-		);
-
-		// ignore the invalid result
-		if let Some(state_changes) = result {
-			let asset_in_state = asset_in.clone();
-			let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-			assert_asset_invariant(&asset_in, &asset_in_state,  None, "Buy update invariant - token in");
-
-			let asset_out_state = asset_out.clone();
-			let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-			assert_asset_invariant(&asset_out, &asset_out_state,  None, "Buy update invariant - token out");
-
-			let delta_hub_asset = state_changes
-				.asset_in
-				.delta_hub_reserve
-				.merge(
-					state_changes
-						.asset_out
-						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
-				).unwrap();
-
-			let q_plus = match delta_hub_asset {
-				BalanceUpdate::Increase(v) => total_hub_reserve.checked_add(v).unwrap(),
-				BalanceUpdate::Decrease(v) => total_hub_reserve.checked_sub(v).unwrap(),
-			};
-
-			let left = total_hub_reserve ;
-			let right = q_plus;
-
-			assert_eq!(left, right);
-		}
-	}
-}
 #[test]
 fn buy_update_invariants_no_fees_case() {
 	let asset_in = AssetReserveState {

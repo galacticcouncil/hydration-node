@@ -985,7 +985,7 @@ pub mod pallet {
 					state_changes
 						.asset_out
 						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
+						.merge(BalanceUpdate::Increase(state_changes.extra_hub_amount))
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
@@ -1025,7 +1025,7 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
+			//Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
 			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
@@ -1222,7 +1222,7 @@ pub mod pallet {
 					state_changes
 						.asset_out
 						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
+						.merge(BalanceUpdate::Increase(state_changes.extra_hub_amount))
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
@@ -1262,7 +1262,7 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
+			//Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
 			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 

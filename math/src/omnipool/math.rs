@@ -52,8 +52,6 @@ pub fn calculate_sell_state_changes(
 
 	let asset_fee = amount_out.saturating_sub(delta_reserve_out);
 
-	let hdx_fee_amount = protocol_fee_amount;
-
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
 			delta_reserve: Increase(amount),
@@ -65,7 +63,7 @@ pub fn calculate_sell_state_changes(
 			delta_hub_reserve: Increase(delta_hub_reserve_out),
 			..Default::default()
 		},
-		hdx_hub_amount: hdx_fee_amount,
+		extra_hub_amount: 0u128, //TODO: set when math is updated
 		fee: TradeFee {
 			asset_fee,
 			protocol_fee: protocol_fee_amount,
@@ -198,8 +196,6 @@ pub fn calculate_buy_state_changes(
 	let fee_amount = calculate_fee_amount_for_buy(asset_fee, amount);
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
-	let hdx_fee_amount = protocol_fee_amount;
-
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
 			delta_reserve: Increase(delta_reserve_in),
@@ -211,7 +207,7 @@ pub fn calculate_buy_state_changes(
 			delta_hub_reserve: Increase(delta_hub_reserve_out),
 			..Default::default()
 		},
-		hdx_hub_amount: hdx_fee_amount,
+		extra_hub_amount: 0u128, //TODO: set when math is updated
 		fee: TradeFee {
 			asset_fee: fee_amount,
 			protocol_fee: protocol_fee_amount,
