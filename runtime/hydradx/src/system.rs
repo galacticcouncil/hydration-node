@@ -21,7 +21,10 @@ use crate::origins::GeneralAdmin;
 use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT, UNINCLUDED_SEGMENT_CAPACITY, BLOCK_PROCESSING_VELOCITY, RELAY_CHAIN_SLOT_DURATION_MILLIS},
+	chain::{
+		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT, RELAY_CHAIN_SLOT_DURATION_MILLIS,
+		UNINCLUDED_SEGMENT_CAPACITY,
+	},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
@@ -233,7 +236,6 @@ parameter_types! {
 	pub ReservedXcmpWeight: Weight = BlockWeights::get().max_block / 4;
 	pub ReservedDmpWeight: Weight = BlockWeights::get().max_block / 4;
 }
-
 
 type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
 	Runtime,
