@@ -34,6 +34,12 @@ pub struct Schedule<AccountId, AssetId, BlockNumber> {
 	pub order: Order<AssetId>,
 }
 
+impl<AccountId, AssetId, BlockNumber> Schedule<AccountId, AssetId, BlockNumber> {
+	pub fn is_rolling(&self) -> bool {
+		self.total_amount == 0
+	}
+}
+
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub enum Order<AssetId> {
 	Sell {

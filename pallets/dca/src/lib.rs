@@ -474,10 +474,6 @@ pub mod pallet {
 				T::MinBudgetInNativeCurrency::get(),
 			)?;
 			ensure!(
-				schedule.total_amount >= min_budget,
-				Error::<T>::TotalAmountIsSmallerThanMinBudget
-			);
-			ensure!(
 				schedule.period >= BlockNumberFor::<T>::from(T::MinimalPeriod::get()),
 				Error::<T>::PeriodTooShort
 			);
@@ -509,10 +505,23 @@ pub mod pallet {
 			);
 
 			let amount_in_with_transaction_fee = amount_in.saturating_add(transaction_fee).saturating_mul(2);
-			ensure!(
-				amount_in_with_transaction_fee <= schedule.total_amount,
-				Error::<T>::BudgetTooLow
-			);
+			let reserve_amount = if schedule.is_rolling() {
+				ensure!(
+					amount_in_with_transaction_fee >= min_budget,
+					Error::<T>::MinTradeAmountNotReached
+				);
+				amount_in_with_transaction_fee
+			} else {
+				ensure!(
+					schedule.total_amount >= min_budget,
+					Error::<T>::TotalAmountIsSmallerThanMinBudget
+				);
+				ensure!(
+					amount_in_with_transaction_fee <= schedule.total_amount,
+					Error::<T>::BudgetTooLow
+				);
+				schedule.total_amount
+			};
 
 			let next_schedule_id =
 				ScheduleIdSequencer::<T>::try_mutate(|current_id| -> Result<ScheduleId, DispatchError> {
@@ -523,14 +532,14 @@ pub mod pallet {
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
-			RemainingAmounts::<T>::insert(next_schedule_id, schedule.total_amount);
+			RemainingAmounts::<T>::insert(next_schedule_id, reserve_amount);
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
 
 			T::Currencies::reserve_named(
 				&T::NamedReserveId::get(),
 				schedule.order.get_asset_in(),
 				&who,
-				schedule.total_amount,
+				reserve_amount,
 			)?;
 
 			let blocknumber_for_first_schedule_execution = Self::get_first_execution_block(start_execution_block)?;
@@ -914,6 +923,10 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		amount_to_unreserve: Balance,
 	) -> DispatchResult {
+		if schedule.is_rolling() {
+			return Ok(());
+		};
+
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
 			let remaining_amount = maybe_remaining_amount
 				.as_mut()
