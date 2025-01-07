@@ -20,7 +20,7 @@
 
 use crate::types::*;
 use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::{BoundedVec};
+use frame_support::sp_runtime::BoundedVec;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::ConstU32;
 use sp_std::vec::Vec;
@@ -150,8 +150,7 @@ impl<T: Config> Pallet<T> {
 		next_id
 	}
 
-	pub fn remove_from_context()
-	{
+	pub fn remove_from_context() {
 		if OverflowCount::<T>::get() > 0 {
 			OverflowCount::<T>::mutate(|count| *count -= 1);
 		} else {
