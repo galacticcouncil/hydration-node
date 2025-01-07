@@ -19,7 +19,7 @@ use crate as pallet_support;
 pub use crate::*;
 
 pub use frame_support::{
-	assert_ok, construct_runtime,
+	construct_runtime,
 	sp_runtime::{
 		traits::{BlakeTwo256, IdentityLookup},
 		BuildStorage,

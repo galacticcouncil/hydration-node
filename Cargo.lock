@@ -11353,7 +11353,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.1.1"
+version = "6.1.0"
 dependencies = [
  "frame-support",
  "hex-literal",

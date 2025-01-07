@@ -212,7 +212,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
 		//TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		SellExecuted {
 			who: T::AccountId,
@@ -224,7 +224,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// Buy trade executed. Trade fee paid in asset entering the pool (already included in amount_in).
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			pool_id: T::AssetId,
@@ -630,7 +630,6 @@ pub mod pallet {
 				fee,
 			});
 
-			//TODO: ask Martin to double check it
 			pallet_support::Pallet::<T>::deposit_trade_event(
 				who,
 				pool_account.clone(),

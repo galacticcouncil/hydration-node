@@ -694,7 +694,7 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		pallet_support::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id))?;
+		pallet_support::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id));
 
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 		let trade_result = match &schedule.order {
@@ -782,7 +782,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		pallet_support::Pallet::<T>::remove_from_context()?;
+		pallet_support::Pallet::<T>::remove_from_context(|id| ExecutionType::DCA(schedule_id, id));
 
 		trade_result
 	}
