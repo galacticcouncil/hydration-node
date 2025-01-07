@@ -5,6 +5,20 @@
   "relaychain": {
     "default_command": "../../../polkadot-sdk/target/release/polkadot",
     "chain": "rococo-local",
+    "genesis": {
+      "runtimeGenesis": {
+        "patch": {
+          "configuration": {
+            "config": {
+              "async_backing_params": {
+                "max_candidate_depth": 3,
+                "allowed_ancestry_len": 2
+              }
+            }
+          }
+        }
+      }
+    },
     "nodes": [
       {
         "name": "alice",
