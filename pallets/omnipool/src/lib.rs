@@ -295,7 +295,8 @@ pub mod pallet {
 			shares_removed: Balance,
 		},
 		/// Sell trade executed.
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
+		//TODO: remove when completely migrated to new Swapped event
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -308,7 +309,8 @@ pub mod pallet {
 			protocol_fee_amount: Balance,
 		},
 		/// Buy trade executed.
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
+		//TODO: remove when completely migrated to new Swapped event
 		BuyExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -1045,7 +1047,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			pallet_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
+			pallet_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
 
 			//Swapped event for AssetA to HubAsset
 			pallet_support::Pallet::<T>::deposit_trade_event(
@@ -1079,7 +1081,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_support::Pallet::<T>::remove_from_context()?;
+			pallet_support::Pallet::<T>::remove_from_context(ExecutionType::Omnipool);
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1282,7 +1284,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			pallet_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
+			pallet_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
 
 			//Swapped even from AssetA to HubAsset
 			pallet_support::Pallet::<T>::deposit_trade_event(
@@ -1316,7 +1318,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_support::Pallet::<T>::remove_from_context()?;
+			pallet_support::Pallet::<T>::remove_from_context(ExecutionType::Omnipool);
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1769,7 +1771,6 @@ impl<T: Config> Pallet<T> {
 
 		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 
-		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
@@ -1783,7 +1784,6 @@ impl<T: Config> Pallet<T> {
 		});
 
 		//No protocol fee in case of selling hub asset
-		//TODO: we need to split up too, and in the other place too
 		pallet_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
@@ -2013,27 +2013,8 @@ impl<T: Config> Pallet<T> {
 
 		// Let's give little bit less to process. Subtracting one due to potential rounding errors
 		let allowed_amount = amount.saturating_sub(Balance::one());
-		let fees = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
-		let additional_fees_total: Balance = fees
-			.clone()
-			.into_iter()
-			.filter_map(|opt| opt.map(|(balance, _)| balance))
-			.sum();
-
-		let asset_reserve = T::Currency::free_balance(asset, &account);
-		let diff = original_asset_reserve.saturating_sub(asset_reserve);
-		ensure!(diff <= allowed_amount, Error::<T>::FeeOverdraft);
-		ensure!(diff == additional_fees_total, Error::<T>::FeeOverdraft);
-
-		let normal_trade_fee = amount.saturating_sub(additional_fees_total);
-
-		let mut all_trade_fees = vec![Fee {
-			asset: asset.into(),
-			amount: normal_trade_fee,
-			recipient: Self::protocol_account(),
-		}];
-
-		let additional_fee_entries: Vec<Fee<T::AccountId>> = fees
+		let taken_fee = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
+		let taken_fee_entries: Vec<Fee<T::AccountId>> = taken_fee
 			.iter()
 			.filter_map(|opt| {
 				opt.clone()
@@ -2042,7 +2023,22 @@ impl<T: Config> Pallet<T> {
 			.filter(|fee| fee.amount > 0) //filter out when we zero percentage is configured for fees
 			.collect();
 
-		all_trade_fees.extend(additional_fee_entries);
+		let taken_fee_total: Balance = taken_fee_entries.iter().map(|fee| fee.amount).sum();
+
+		let asset_reserve = T::Currency::free_balance(asset, &account);
+		let diff = original_asset_reserve.saturating_sub(asset_reserve);
+		ensure!(diff <= allowed_amount, Error::<T>::FeeOverdraft);
+		ensure!(diff == taken_fee_total, Error::<T>::FeeOverdraft);
+
+		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);
+
+		let mut all_trade_fees = vec![Fee {
+			asset: asset.into(),
+			amount: protocol_fee_amount,
+			recipient: Self::protocol_account(),
+		}];
+
+		all_trade_fees.extend(taken_fee_entries);
 
 		Ok(all_trade_fees)
 	}

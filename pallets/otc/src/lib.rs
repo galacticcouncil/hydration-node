@@ -59,7 +59,7 @@ pub use weights::WeightInfo;
 pub use pallet::*;
 use pallet_support::types::Asset;
 pub type Balance = u128;
-pub type OrderId = pallet_support::types::OtcOrderId; //TODO: just use exacty type
+pub type OrderId = u32;
 pub type NamedReserveIdentifier = [u8; 8];
 
 pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"otcorder";
@@ -126,7 +126,7 @@ pub mod pallet {
 		/// An Order has been cancelled
 		Cancelled { order_id: OrderId },
 		/// An Order has been completely filled
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
 		Filled {
 			order_id: OrderId,
 			who: T::AccountId,
@@ -135,7 +135,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// An Order has been partially filled
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_support::Swapped
 		PartiallyFilled {
 			order_id: OrderId,
 			who: T::AccountId,

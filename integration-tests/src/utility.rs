@@ -70,7 +70,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 		pretty_assertions::assert_eq!(
 			swapped_events,
 			vec![
-				RuntimeEvent::AmmSupport(pallet_support::Event::<Runtime>::Swapped {
+				pallet_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_support::types::Filler::LBP,
@@ -85,8 +85,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 							.fee_collector,
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
-				}),
-				RuntimeEvent::AmmSupport(pallet_support::Event::<Runtime>::Swapped {
+				},
+				pallet_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_support::types::Filler::Omnipool,
@@ -95,8 +95,8 @@ fn batch_execution_type_should_be_included_in_batch() {
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
-				}),
-				RuntimeEvent::AmmSupport(pallet_support::Event::<Runtime>::Swapped {
+				},
+				pallet_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
@@ -120,7 +120,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 						}),
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
-				})
+				}
 			]
 		);
 	});
@@ -191,7 +191,7 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 		//Assert
 		pretty_assertions::assert_eq!(
 			*get_last_swapped_events().last().unwrap(),
-			RuntimeEvent::AmmSupport(pallet_support::Event::<Runtime>::Swapped {
+			pallet_support::Event::<Runtime>::Swapped {
 				swapper: BOB.into(),
 				filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 					asset_in: HDX,
@@ -215,7 +215,7 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 					}),
 				)],
 				operation_stack: vec![ExecutionType::Batch(2), ExecutionType::Router(3)],
-			})
+			}
 		);
 	});
 }
@@ -277,7 +277,7 @@ fn nested_batch_should_represent_embeddedness() {
 		pretty_assertions::assert_eq!(
 			swapped_events,
 			vec![
-				RuntimeEvent::AmmSupport(pallet_support::Event::<Runtime>::Swapped {
+				pallet_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_support::types::Filler::LBP,
@@ -296,8 +296,8 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Batch(1),
 						ExecutionType::Router(2)
 					],
-				}),
-				RuntimeEvent::AmmSupport(pallet_support::Event::<Runtime>::Swapped {
+				},
+				pallet_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_support::types::Filler::Omnipool,
@@ -310,8 +310,8 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Batch(1),
 						ExecutionType::Router(2)
 					],
-				}),
-				RuntimeEvent::AmmSupport(pallet_support::Event::<Runtime>::Swapped {
+				},
+				pallet_support::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
@@ -339,7 +339,7 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Batch(1),
 						ExecutionType::Router(2)
 					],
-				})
+				}
 			]
 		);
 	});

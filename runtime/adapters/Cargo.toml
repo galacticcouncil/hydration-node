@@ -67,7 +67,6 @@ pallet-balances = { workspace = true }
 lazy_static = { workspace = true }
 pretty_assertions = { workspace = true }
 pallet-xyk = { workspace = true }
-pallet-support = { workspace = true }
 
 [features]
 default = ["std"]
