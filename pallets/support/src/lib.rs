@@ -20,10 +20,9 @@
 
 use crate::types::*;
 use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::{BoundedVec, DispatchError, DispatchResult};
+use frame_support::sp_runtime::{BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::ConstU32;
-use sp_std::mem::discriminant;
 use sp_std::vec::Vec;
 #[cfg(test)]
 mod tests;
@@ -66,7 +65,9 @@ pub mod pallet {
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
-	///To handle the overflow of increasing the execution context.
+	/// To handle the overflow of increasing the execution context.
+	/// After the stack is full, we start to increase the overflow count,
+	/// so we how many times we can ignore the removal from the context.
 	#[pallet::storage]
 	pub(super) type OverflowCount<T: Config> = StorageValue<_, u32, ValueQuery>;
 
@@ -149,12 +150,7 @@ impl<T: Config> Pallet<T> {
 		next_id
 	}
 
-	// The `expected_last_stack_entry` parameter ensures the stack behaves as intended.
-	// It prevents issues where exceeding the stack size results in ignored actions,
-	// which could lead to unexpected stack data when the stack is decreased.
-	pub fn remove_from_context<F>(expected_last_stack_entry: F)
-	where
-		F: FnOnce(u32) -> ExecutionType,
+	pub fn remove_from_context()
 	{
 		if OverflowCount::<T>::get() > 0 {
 			OverflowCount::<T>::mutate(|count| *count -= 1);
@@ -163,13 +159,8 @@ impl<T: Config> Pallet<T> {
 				//We make it fire and forget, and it should fail only in test and when if wrongly used
 				debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
 
-				if let Some(last_stack_entry) = stack.last() {
-					let expected_last_entry = expected_last_stack_entry(0); //We use a dummy 0 as id as we only compare type
-					if discriminant(last_stack_entry) == discriminant(&expected_last_entry) {
-						if stack.pop().is_none() {
-							log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
-						}
-					}
+				if stack.pop().is_none() {
+					log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
 				}
 			});
 		}

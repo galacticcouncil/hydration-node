@@ -252,7 +252,7 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 
 		//In case of error we need to clean context as xcm execution won't happen
 		if prepare_result.is_err() {
-			pallet_support::Pallet::<Runtime>::remove_from_context(|event_id| ExecutionType::Xcm(unique_id, event_id));
+			pallet_support::Pallet::<Runtime>::remove_from_context();
 		}
 
 		prepare_result
@@ -266,9 +266,8 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 	) -> Outcome {
 		let outcome = Inner::execute(origin, pre, id, weight_credit);
 
-		let dummy_topic_id = [1u8; 32];//We use dummy as the enum field values are irrelevant when removing from context
 		// Context was added to the stack in `prepare` call.
-		pallet_support::Pallet::<Runtime>::remove_from_context(|id| ExecutionType::Xcm(dummy_topic_id, id));
+		pallet_support::Pallet::<Runtime>::remove_from_context();
 
 		outcome
 	}
