@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use frame_support::traits::Len;
 use crate::tests::mock::*;
 use crate::Event;
+use frame_support::traits::Len;
 
 #[test]
 fn stack_should_be_populated_when_pushed() {
@@ -123,7 +123,6 @@ fn event_should_be_deposited() {
 	});
 }
 
-
 #[test]
 fn nothing_is_removed_when_type_not_matched_with_last_stack_item() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -153,7 +152,12 @@ fn entry_is_removed_when_type_matched_with_last_stack_item() {
 #[test]
 fn removing_invalid_type_should_not_decrease_context() {
 	ExtBuilder::default().build().execute_with(|| {
-		let types = vec![ExecutionType::Omnipool,ExecutionType::Router, ExecutionType::XcmExchange, ExecutionType::Batch];
+		let types = vec![
+			ExecutionType::Omnipool,
+			ExecutionType::Router,
+			ExecutionType::XcmExchange,
+			ExecutionType::Batch,
+		];
 		for i in 0..MAX_STACK_SIZE {
 			let idx = i as usize % types.len();
 			let operation_type = types[idx];
@@ -162,8 +166,8 @@ fn removing_invalid_type_should_not_decrease_context() {
 
 		assert_eq!(AmmSupport::execution_context().len(), 16);
 
-		AmmSupport::remove_from_context(|id|ExecutionType::DCA(0, id));
-		AmmSupport::remove_from_context(|id|ExecutionType::Xcm([1u8;32], id));
+		AmmSupport::remove_from_context(|id| ExecutionType::DCA(0, id));
+		AmmSupport::remove_from_context(|id| ExecutionType::Xcm([1u8; 32], id));
 
 		assert_eq!(AmmSupport::execution_context().len(), 16);
 	});
@@ -199,4 +203,3 @@ fn overflow_should_be_handled_when_max_stack_size_reached() {
 		assert_eq!(AmmSupport::execution_context().len(), 15);
 	});
 }
-

@@ -23,8 +23,8 @@ use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::{BoundedVec, DispatchError, DispatchResult};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::ConstU32;
-use sp_std::vec::Vec;
 use sp_std::mem::discriminant;
+use sp_std::vec::Vec;
 #[cfg(test)]
 mod tests;
 
@@ -144,19 +144,17 @@ impl<T: Config> Pallet<T> {
 				OverflowCount::<T>::mutate(|count| *count += 1);
 				log::warn!(target: LOG_TARGET, "The max stack size of execution stack has been reached: {:?}", err);
 			}
-
 		});
 
 		next_id
 	}
 
-
 	// The `expected_last_stack_entry` parameter ensures the stack behaves as intended.
 	// It prevents issues where exceeding the stack size results in ignored actions,
 	// which could lead to unexpected stack data when the stack is decreased.
 	pub fn remove_from_context<F>(expected_last_stack_entry: F)
-		where
-		F: FnOnce(u32) -> ExecutionType
+	where
+		F: FnOnce(u32) -> ExecutionType,
 	{
 		if OverflowCount::<T>::get() > 0 {
 			OverflowCount::<T>::mutate(|count| *count -= 1);
@@ -166,7 +164,7 @@ impl<T: Config> Pallet<T> {
 				debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
 
 				if let Some(last_stack_entry) = stack.last() {
-					let expected_last_entry = expected_last_stack_entry(0);//We use a dummy 0 as id as we only compare type
+					let expected_last_entry = expected_last_stack_entry(0); //We use a dummy 0 as id as we only compare type
 					if discriminant(last_stack_entry) == discriminant(&expected_last_entry) {
 						if stack.pop().is_none() {
 							log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
