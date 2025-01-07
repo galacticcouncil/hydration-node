@@ -340,7 +340,9 @@ mod benches {
 struct CheckInherents;
 
 #[allow(deprecated)]
-#[allow(dead_code)] // TODO:
+#[allow(dead_code)]
+// There is some controversy around this deprecation. We can keep it as it is for now.
+// See issue: https://github.com/paritytech/polkadot-sdk/issues/2841
 impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
 	fn check_inherents(
 		block: &Block,

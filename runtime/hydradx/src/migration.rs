@@ -15,36 +15,24 @@
 
 use super::*;
 use frame_support::{
-	dispatch::{GetDispatchInfo, RawOrigin},
 	traits::OnRuntimeUpgrade,
 	weights::Weight,
 };
+
 pub struct OnRuntimeUpgradeMigration;
 use super::Runtime;
 
-pub fn bind_pallet_account() -> Weight {
-	match EVMAccounts::bind_evm_address(RawOrigin::Signed(Liquidation::account_id()).into()) {
-		Ok(_) => {
-			log::info!(
-				target: "runtime::pallet_liquidation",
-				"Migration to v1 for Liquidation pallet"
-			);
-		}
-		Err(error) => {
-			log::info!(
-				target: "runtime::pallet_liquidation",
-				"Migration to v1 for Liquidation pallet failed: {:?}", error
-			);
-		}
-	}
-
-	let call = pallet_evm_accounts::Call::<Runtime>::bind_evm_address {};
-
-	call.get_dispatch_info().weight
+impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
+	type ChannelList = ParachainSystem;
 }
 
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	fn on_runtime_upgrade() -> Weight {
-		bind_pallet_account()
+		cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5::<Runtime>::on_runtime_upgrade()
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
+		cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5::<Runtime>::post_upgrade(state)
 	}
 }
