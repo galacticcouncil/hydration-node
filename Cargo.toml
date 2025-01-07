@@ -286,10 +286,13 @@ cumulus-client-consensus-proposer = { git = "https://github.com/galacticcouncil/
 cumulus-client-network = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
 cumulus-client-service = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
 cumulus-pallet-aura-ext = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
-cumulus-pallet-parachain-system = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
+cumulus-pallet-parachain-system = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false, features = [
+    "parameterized-consensus-hook",
+] }
 cumulus-pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
 cumulus-pallet-xcmp-queue = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
 cumulus-primitives-core = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
+cumulus-primitives-aura = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
 cumulus-primitives-parachain-inherent = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
 cumulus-primitives-timestamp = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
 cumulus-primitives-utility = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch3", default-features = false }
