@@ -66,6 +66,10 @@ pub mod pallet {
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
+	///To handle the overflow of increasing the execution context.
+	#[pallet::storage]
+	pub(super) type OverflowCount<T: Config> = StorageValue<_, u32, ValueQuery>;
+
 	#[pallet::error]
 	pub enum Error<T> {}
 
@@ -89,8 +93,9 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			ExecutionContext::<T>::kill();
-			
-			T::DbWeight::get().reads_writes(1, 1)
+			OverflowCount::<T>::kill();
+
+			T::DbWeight::get().reads_writes(2, 2)
 		}
 	}
 
@@ -136,6 +141,7 @@ impl<T: Config> Pallet<T> {
 			//We make it fire and forget, and it should fail only in test and when if wrongly used
 			debug_assert_ne!(stack.len(), MAX_STACK_SIZE as usize, "Stack should not be full");
 			if let Err(err) = stack.try_push(execution_type(next_id)) {
+				OverflowCount::<T>::mutate(|count| *count += 1);
 				log::warn!(target: LOG_TARGET, "The max stack size of execution stack has been reached: {:?}", err);
 			}
 
@@ -152,19 +158,23 @@ impl<T: Config> Pallet<T> {
 		where
 		F: FnOnce(u32) -> ExecutionType
 	{
-		ExecutionContext::<T>::mutate(|stack| {
-			//We make it fire and forget, and it should fail only in test and when if wrongly used
-			debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
+		if OverflowCount::<T>::get() > 0 {
+			OverflowCount::<T>::mutate(|count| *count -= 1);
+		} else {
+			ExecutionContext::<T>::mutate(|stack| {
+				//We make it fire and forget, and it should fail only in test and when if wrongly used
+				debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
 
-			if let Some(last_stack_entry) = stack.last() {
-				let expected_last_entry = expected_last_stack_entry(0);//We use a dummy 0 as id as we only compare type
-				if discriminant(last_stack_entry) == discriminant(&expected_last_entry) {
-					if stack.pop().is_none() {
-						log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
+				if let Some(last_stack_entry) = stack.last() {
+					let expected_last_entry = expected_last_stack_entry(0);//We use a dummy 0 as id as we only compare type
+					if discriminant(last_stack_entry) == discriminant(&expected_last_entry) {
+						if stack.pop().is_none() {
+							log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
+						}
 					}
 				}
-			}
-		});
+			});
+		}
 	}
 
 	pub fn get_context() -> Vec<ExecutionType> {

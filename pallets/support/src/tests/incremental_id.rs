@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use frame_support::traits::Len;
 use crate::tests::mock::*;
 use crate::Event;
 
@@ -148,3 +149,54 @@ fn entry_is_removed_when_type_matched_with_last_stack_item() {
 		assert_eq!(AmmSupport::execution_context().into_inner(), vec![]);
 	});
 }
+
+#[test]
+fn removing_invalid_type_should_not_decrease_context() {
+	ExtBuilder::default().build().execute_with(|| {
+		let types = vec![ExecutionType::Omnipool,ExecutionType::Router, ExecutionType::XcmExchange, ExecutionType::Batch];
+		for i in 0..MAX_STACK_SIZE {
+			let idx = i as usize % types.len();
+			let operation_type = types[idx];
+			AmmSupport::add_to_context(operation_type);
+		}
+
+		assert_eq!(AmmSupport::execution_context().len(), 16);
+
+		AmmSupport::remove_from_context(|id|ExecutionType::DCA(0, id));
+		AmmSupport::remove_from_context(|id|ExecutionType::Xcm([1u8;32], id));
+
+		assert_eq!(AmmSupport::execution_context().len(), 16);
+	});
+}
+
+//This test is ignored because it is not possible to overflow when running tests in non-release mode
+#[ignore]
+#[test]
+fn overflow_should_be_handled_when_max_stack_size_reached() {
+	ExtBuilder::default().build().execute_with(|| {
+		for _ in 0..MAX_STACK_SIZE {
+			AmmSupport::add_to_context(ExecutionType::Batch);
+		}
+
+		AmmSupport::add_to_context(ExecutionType::Batch);
+		AmmSupport::add_to_context(ExecutionType::Batch);
+		AmmSupport::add_to_context(ExecutionType::Batch);
+
+		assert_eq!(AmmSupport::execution_context().len(), 16);
+
+		//We remove the batch 3 times to check if overflow handled
+		AmmSupport::remove_from_context(ExecutionType::Batch);
+		assert_eq!(AmmSupport::execution_context().len(), 16);
+
+		AmmSupport::remove_from_context(ExecutionType::Batch);
+		assert_eq!(AmmSupport::execution_context().len(), 16);
+
+		AmmSupport::remove_from_context(ExecutionType::Batch);
+		assert_eq!(AmmSupport::execution_context().len(), 16);
+
+		//Check if stack behaves normally after overflow
+		AmmSupport::remove_from_context(ExecutionType::Batch);
+		assert_eq!(AmmSupport::execution_context().len(), 15);
+	});
+}
+
