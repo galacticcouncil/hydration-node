@@ -165,7 +165,7 @@ where
 {
 	pub asset_in: AssetStateChange<Balance>,
 	pub asset_out: AssetStateChange<Balance>,
-	pub hdx_hub_amount: Balance,
+	pub extra_hub_amount: Balance, // Portion of protocol fee that can be transfer out of the pool (eg. for buyback)
 	pub fee: TradeFee<Balance>,
 }
 
