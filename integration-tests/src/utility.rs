@@ -81,9 +81,11 @@ fn batch_execution_type_should_be_included_in_batch() {
 					fees: vec![Fee::new(
 						DAI,
 						20000000,
-						Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
-							.unwrap()
-							.fee_collector),
+						Recipient::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+								.unwrap()
+								.fee_collector
+						),
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
@@ -94,7 +96,11 @@ fn batch_execution_type_should_be_included_in_batch() {
 					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
-					fees: vec![Fee::new(HDX, 11736653730, Recipient::Account(Omnipool::protocol_account()))],
+					fees: vec![Fee::new(
+						HDX,
+						11736653730,
+						Recipient::Account(Omnipool::protocol_account())
+					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
 				pallet_support::Event::<Runtime>::Swapped {
@@ -288,9 +294,11 @@ fn nested_batch_should_represent_embeddedness() {
 					fees: vec![Fee::new(
 						DAI,
 						20000000,
-						Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
-							.unwrap()
-							.fee_collector),
+						Recipient::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+								.unwrap()
+								.fee_collector
+						),
 					)],
 					operation_stack: vec![
 						ExecutionType::Batch(0),
@@ -305,7 +313,11 @@ fn nested_batch_should_represent_embeddedness() {
 					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
-					fees: vec![Fee::new(HDX, 11736653730, Recipient::Account(Omnipool::protocol_account()))],
+					fees: vec![Fee::new(
+						HDX,
+						11736653730,
+						Recipient::Account(Omnipool::protocol_account())
+					)],
 					operation_stack: vec![
 						ExecutionType::Batch(0),
 						ExecutionType::Batch(1),

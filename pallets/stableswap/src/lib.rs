@@ -731,7 +731,9 @@ pub mod pallet {
 			let fees = fees
 				.iter()
 				.zip(pool.assets.iter())
-				.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, Recipient::Account(pool_account.clone())))
+				.map(|(balance, asset_id)| {
+					Fee::new((*asset_id).into(), *balance, Recipient::Account(pool_account.clone()))
+				})
 				.collect::<Vec<_>>();
 			pallet_support::Pallet::<T>::deposit_trade_event(
 				who,

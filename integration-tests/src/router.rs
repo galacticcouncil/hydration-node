@@ -170,9 +170,11 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						DAI,
 						20000000,
-						Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
-							.unwrap()
-							.fee_collector),
+						Recipient::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+								.unwrap()
+								.fee_collector,
+						),
 					)],
 					operation_stack: vec![ExecutionType::Router(0)],
 				}
@@ -184,7 +186,11 @@ mod router_different_pools_tests {
 					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
-					fees: vec![Fee::new(HDX, 11736653730, Recipient::Account(Omnipool::protocol_account()))],
+					fees: vec![Fee::new(
+						HDX,
+						11736653730,
+						Recipient::Account(Omnipool::protocol_account()),
+					)],
 					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
@@ -293,9 +299,11 @@ mod router_different_pools_tests {
 						fees: vec![Fee::new(
 							DAI,
 							20000000,
-							Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
-								.unwrap()
-								.fee_collector),
+							Recipient::Account(
+								LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
+									.unwrap()
+									.fee_collector,
+							),
 						)],
 						operation_stack: vec![ExecutionType::Router(0)],
 					}
@@ -423,9 +431,11 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						DAI,
 						8741796,
-						Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
-							.unwrap()
-							.fee_collector),
+						Recipient::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+								.unwrap()
+								.fee_collector,
+						),
 					)],
 					operation_stack: vec![ExecutionType::Router(0)],
 				}
@@ -437,7 +447,11 @@ mod router_different_pools_tests {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(LRNA, 2465566245)],
 					outputs: vec![Asset::new(HDX, 2046938775509)],
-					fees: vec![Fee::new(HDX, 5130172370, Recipient::Account(Omnipool::protocol_account()))],
+					fees: vec![Fee::new(
+						HDX,
+						5130172370,
+						Recipient::Account(Omnipool::protocol_account()),
+					)],
 					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
@@ -546,9 +560,11 @@ mod router_different_pools_tests {
 						fees: vec![Fee::new(
 							DAI,
 							7507098284,
-							Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
-								.unwrap()
-								.fee_collector),
+							Recipient::Account(
+								LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
+									.unwrap()
+									.fee_collector,
+							),
 						)],
 						operation_stack: vec![ExecutionType::Router(0)],
 					}
@@ -2420,7 +2436,11 @@ mod omnipool_router_tests {
 					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 12008864246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
-					fees: vec![Fee::new(DAI, 667155563986401, Recipient::Account(Omnipool::protocol_account()))],
+					fees: vec![Fee::new(
+						DAI,
+						667155563986401,
+						Recipient::Account(Omnipool::protocol_account()),
+					)],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -2482,7 +2502,11 @@ mod omnipool_router_tests {
 					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 12008864246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
-					fees: vec![Fee::new(DAI, 667155563986401, Recipient::Account(Omnipool::protocol_account()))],
+					fees: vec![Fee::new(
+						DAI,
+						667155563986401,
+						Recipient::Account(Omnipool::protocol_account()),
+					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2650,7 +2674,11 @@ mod omnipool_router_tests {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(LRNA, 45113)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
-					fees: vec![Fee::new(DAI, 2506265665, Recipient::Account(Omnipool::protocol_account()))],
+					fees: vec![Fee::new(
+						DAI,
+						2506265665,
+						Recipient::Account(Omnipool::protocol_account()),
+					)],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -2712,7 +2740,11 @@ mod omnipool_router_tests {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(LRNA, 45113)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
-					fees: vec![Fee::new(DAI, 2506265665, Recipient::Account(Omnipool::protocol_account()))],
+					fees: vec![Fee::new(
+						DAI,
+						2506265665,
+						Recipient::Account(Omnipool::protocol_account()),
+					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2999,9 +3031,11 @@ mod lbp_router_tests {
 					fees: vec![Fee::new(
 						HDX,
 						fee,
-						Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
-							.unwrap()
-							.fee_collector),
+						Recipient::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
+								.unwrap()
+								.fee_collector,
+						),
 					)],
 					operation_stack: vec![ExecutionType::Router(0)],
 				}
@@ -3055,9 +3089,11 @@ mod lbp_router_tests {
 					fees: vec![Fee::new(
 						HDX,
 						20_000_000_000,
-						Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
-							.unwrap()
-							.fee_collector),
+						Recipient::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
+								.unwrap()
+								.fee_collector,
+						),
 					)],
 					operation_stack: vec![],
 				}

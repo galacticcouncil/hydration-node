@@ -40,8 +40,8 @@ mod omnipool {
 	use hydradx_runtime::{DCA, XYK};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
-	use sp_runtime::{FixedU128, TransactionOutcome};
 	use pallet_support::types::Recipient;
+	use sp_runtime::{FixedU128, TransactionOutcome};
 
 	#[test]
 	fn create_schedule_should_work() {
@@ -246,7 +246,11 @@ mod omnipool {
 						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175440163719)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(DAI, 250626566417, Recipient::Account(Omnipool::protocol_account()))],
+						fees: vec![Fee::new(
+							DAI,
+							250626566417,
+							Recipient::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -284,7 +288,11 @@ mod omnipool {
 						operation: pallet_support::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175443174505)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(DAI, 250626566417, Recipient::Account(Omnipool::protocol_account()))],
+						fees: vec![Fee::new(
+							DAI,
+							250626566417,
+							Recipient::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -733,7 +741,11 @@ mod omnipool {
 						operation: pallet_support::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974999160378)],
 						outputs: vec![Asset::new(DAI, 71214372624126)],
-						fees: vec![Fee::new(DAI, 178482136903, Recipient::Account(Omnipool::protocol_account()))],
+						fees: vec![Fee::new(
+							DAI,
+							178482136903,
+							Recipient::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
@@ -771,7 +783,11 @@ mod omnipool {
 						operation: pallet_support::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974997361364)],
 						outputs: vec![Asset::new(DAI, 71214367826179)],
-						fees: vec![Fee::new(DAI, 178482124878, Recipient::Account(Omnipool::protocol_account()))],
+						fees: vec![Fee::new(
+							DAI,
+							178482124878,
+							Recipient::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),

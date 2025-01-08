@@ -22,7 +22,7 @@ pub enum Filler {
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum Recipient<AccountId> {
 	Account(AccountId),
-	Burned
+	Burned,
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]

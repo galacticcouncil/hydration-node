@@ -87,7 +87,11 @@ fn complete_fill_order_should_work() {
 				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
-				fees: vec![Fee::new(HDX, ONE, Recipient::Account(<Test as crate::Config>::FeeReceiver::get()))],
+				fees: vec![Fee::new(
+					HDX,
+					ONE,
+					Recipient::Account(<Test as crate::Config>::FeeReceiver::get()),
+				)],
 				operation_stack: vec![],
 			}
 			.into(),
@@ -163,7 +167,11 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
-				fees: vec![Fee::new(HDX, ONE, Recipient::Account(<Test as crate::Config>::FeeReceiver::get()))],
+				fees: vec![Fee::new(
+					HDX,
+					ONE,
+					Recipient::Account(<Test as crate::Config>::FeeReceiver::get()),
+				)],
 				operation_stack: vec![],
 			}
 			.into(),
@@ -251,7 +259,11 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 				operation: pallet_support::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(DAI, 20 * ONE)],
 				outputs: vec![Asset::new(HDX, 100 * ONE)],
-				fees: vec![Fee::new(HDX, ONE, Recipient::Account(<Test as crate::Config>::FeeReceiver::get()))],
+				fees: vec![Fee::new(
+					HDX,
+					ONE,
+					Recipient::Account(<Test as crate::Config>::FeeReceiver::get()),
+				)],
 				operation_stack: vec![],
 			}
 			.into(),

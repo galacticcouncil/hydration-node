@@ -9,6 +9,7 @@ use pallet_referrals::{FeeDistribution, ReferralCode};
 use pallet_support::types::Asset;
 use pallet_support::types::Fee;
 use pallet_support::types::Filler;
+use pallet_support::types::Recipient;
 use pallet_support::types::TradeOperation;
 use primitives::AccountId;
 use sp_core::crypto::Ss58AddressFormat;
@@ -16,7 +17,6 @@ use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use std::vec;
 use xcm_emulator::TestExt;
-use pallet_support::types::Recipient;
 #[test]
 fn registering_a_code_should_charge_registration_fee() {
 	Hydra::execute_with(|| {
