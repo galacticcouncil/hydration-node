@@ -15,11 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate as pallet_support;
+use crate as pallet_broadcast;
 pub use crate::*;
 
 pub use frame_support::{
-	assert_ok, construct_runtime,
+	construct_runtime,
 	sp_runtime::{
 		traits::{BlakeTwo256, IdentityLookup},
 		BuildStorage,
@@ -43,7 +43,7 @@ construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		AmmSupport:pallet_support,
+		Broadcast:pallet_broadcast,
 	}
 );
 

@@ -2,7 +2,7 @@ use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
-use pallet_support::types::{Asset, Fee};
+use pallet_broadcast::types::{Asset, Fee, Recipient};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -107,17 +107,17 @@ fn add_liquidity_should_emit_swapped_events() {
 
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
-				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type: pallet_support::types::Filler::Stableswap(pool_id),
-					operation: pallet_support::types::TradeOperation::LiquidityAdd,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
 					inputs: vec![Asset::new(asset_a, 2000000000000000000),],
 					outputs: vec![Asset::new(pool_id, 1947487201901031408)],
 					fees: vec![
-						Fee::new(asset_a, 57410103828678, pool_account),
-						Fee::new(asset_b, 17, pool_account),
-						Fee::new(asset_c, 39, pool_account)
+						Fee::new(asset_a, 57410103828678, Recipient::Account(pool_account)),
+						Fee::new(asset_b, 17, Recipient::Account(pool_account)),
+						Fee::new(asset_c, 39, Recipient::Account(pool_account))
 					],
 					operation_stack: vec![],
 				})
@@ -710,14 +710,14 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 			let pool_account = pool_account(pool_id);
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
-				RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type: pallet_support::types::Filler::Stableswap(pool_id),
-					operation: pallet_support::types::TradeOperation::LiquidityAdd,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
 					inputs: vec![Asset::new(asset_a, 2000000000000000003),],
 					outputs: vec![Asset::new(pool_id, 1947597621401945851)],
-					fees: vec![Fee::new(pool_id, 0, pool_account)],
+					fees: vec![Fee::new(pool_id, 0, Recipient::Account(pool_account))],
 					operation_stack: vec![],
 				})
 			)

@@ -79,7 +79,7 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
-		 AmmSupport:pallet_support,
+		 Broadcast:pallet_broadcast,
 	 }
 );
 
@@ -358,7 +358,7 @@ parameter_types! {
 
 }
 
-impl pallet_support::Config for Test {
+impl pallet_broadcast::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

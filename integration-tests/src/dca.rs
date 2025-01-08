@@ -20,11 +20,11 @@ use hydradx_traits::router::PoolType;
 use hydradx_traits::router::Trade;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
+use pallet_broadcast::types::*;
 use pallet_dca::types::{Order, Schedule};
 use pallet_omnipool::types::Tradability;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use pallet_support::types::*;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
@@ -40,6 +40,7 @@ mod omnipool {
 	use hydradx_runtime::{DCA, XYK};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
+	use pallet_broadcast::types::Recipient;
 	use sp_runtime::{FixedU128, TransactionOutcome};
 
 	#[test]
@@ -220,76 +221,84 @@ mod omnipool {
 
 			//Assert
 			let swapped_events = get_last_swapped_events();
-			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					pallet_broadcast::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type: pallet_support::types::Filler::Omnipool,
-						operation: pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, 140421094367051)],
 						outputs: vec![Asset::new(LRNA, 70210545436437)],
-						fees: vec![Fee::new(LRNA, 35105272718, Omnipool::protocol_account()),],
+						fees: vec![Fee::new(LRNA, 35105272718, Recipient::Burned)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						]
-					}),
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					},
+					pallet_broadcast::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type: pallet_support::types::Filler::Omnipool,
-						operation: pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175440163719)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(DAI, 250626566417, Omnipool::protocol_account()),],
+						fees: vec![Fee::new(
+							DAI,
+							250626566417,
+							Recipient::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
-					})
+					}
 				]
 			);
 
 			run_to_block(13, 17);
 
 			let swapped_events = get_last_swapped_events();
-			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					pallet_broadcast::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type: pallet_support::types::Filler::Omnipool,
-						operation: pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, 140421107716515)],
 						outputs: vec![Asset::new(LRNA, 70210548448729)],
-						fees: vec![Fee::new(LRNA, 35105274224, Omnipool::protocol_account()),],
+						fees: vec![Fee::new(LRNA, 35105274224, Recipient::Burned)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
-					}),
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					},
+					pallet_broadcast::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type: pallet_support::types::Filler::Omnipool,
-						operation: pallet_support::types::TradeOperation::ExactOut,
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(LRNA, 70175443174505)],
 						outputs: vec![Asset::new(DAI, amount_out)],
-						fees: vec![Fee::new(DAI, 250626566417, Omnipool::protocol_account()),],
+						fees: vec![Fee::new(
+							DAI,
+							250626566417,
+							Recipient::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
-					})
+					}
 				]
 			);
 		});
@@ -707,76 +716,84 @@ mod omnipool {
 
 			//Assert
 			let swapped_events = get_last_swapped_events();
-			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					pallet_broadcast::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type: pallet_support::types::Filler::Omnipool,
-						operation: pallet_support::types::TradeOperation::ExactIn,
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
 						outputs: vec![Asset::new(LRNA, 49999999159957)],
-						fees: vec![Fee::new(LRNA, 24999999579, Omnipool::protocol_account()),],
+						fees: vec![Fee::new(LRNA, 24999999579, Recipient::Burned)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
-					}),
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					},
+					pallet_broadcast::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type: pallet_support::types::Filler::Omnipool,
-						operation: pallet_support::types::TradeOperation::ExactIn,
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974999160378)],
 						outputs: vec![Asset::new(DAI, 71214372624126)],
-						fees: vec![Fee::new(DAI, 178482136903, Omnipool::protocol_account()),],
+						fees: vec![Fee::new(
+							DAI,
+							178482136903,
+							Recipient::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
 							ExecutionType::Router(1),
 							ExecutionType::Omnipool(2)
 						],
-					})
+					}
 				]
 			);
 
 			run_to_block(13, 17);
 
 			let swapped_events = get_last_swapped_events();
-			let last_two_swapped_events = &get_last_swapped_events()[swapped_events.len() - 2..];
+			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					pallet_broadcast::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type: pallet_support::types::Filler::Omnipool,
-						operation: pallet_support::types::TradeOperation::ExactIn,
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
 						outputs: vec![Asset::new(LRNA, 49999997360044)],
-						fees: vec![Fee::new(LRNA, 24999998680, Omnipool::protocol_account()),],
+						fees: vec![Fee::new(LRNA, 24999998680, Recipient::Burned)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
-					}),
-					RuntimeEvent::AmmSupport(pallet_support::Event::Swapped {
+					},
+					pallet_broadcast::Event::Swapped {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
-						filler_type: pallet_support::types::Filler::Omnipool,
-						operation: pallet_support::types::TradeOperation::ExactIn,
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974997361364)],
 						outputs: vec![Asset::new(DAI, 71214367826179)],
-						fees: vec![Fee::new(DAI, 178482124878, Omnipool::protocol_account()),],
+						fees: vec![Fee::new(
+							DAI,
+							178482124878,
+							Recipient::Account(Omnipool::protocol_account())
+						)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
 							ExecutionType::Omnipool(5)
 						],
-					})
+					}
 				]
 			);
 		});

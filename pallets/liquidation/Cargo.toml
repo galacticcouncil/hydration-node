@@ -33,7 +33,7 @@ hex-literal = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 
-pallet-support = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 
 # Optional imports for benchmarking

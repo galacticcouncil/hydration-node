@@ -240,7 +240,7 @@ construct_runtime!(
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		EmaOracle: pallet_ema_oracle = 202,
-		AmmSupport:pallet_support = 204,
+		Broadcast:pallet_broadcast = 204,
 	}
 );
 

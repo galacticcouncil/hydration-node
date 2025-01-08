@@ -20,11 +20,10 @@
 
 use crate::types::*;
 use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::{BoundedVec, DispatchError, DispatchResult};
+use frame_support::sp_runtime::BoundedVec;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::ConstU32;
 use sp_std::vec::Vec;
-
 #[cfg(test)]
 mod tests;
 
@@ -33,9 +32,9 @@ pub mod types;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-const LOG_TARGET: &str = "runtime::amm-support";
-
 pub const MAX_STACK_SIZE: u32 = 16;
+
+const LOG_TARGET: &str = "runtime::amm-support";
 
 type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
 
@@ -66,6 +65,12 @@ pub mod pallet {
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
+	/// To handle the overflow of increasing the execution context.
+	/// After the stack is full, we start to increase the overflow count,
+	/// so we how many times we can ignore the removal from the context.
+	#[pallet::storage]
+	pub(super) type OverflowCount<T: Config> = StorageValue<_, u32, ValueQuery>;
+
 	#[pallet::error]
 	pub enum Error<T> {}
 
@@ -88,12 +93,10 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-			let mut weight: Weight = Weight::zero();
-			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
-
 			ExecutionContext::<T>::kill();
+			OverflowCount::<T>::kill();
 
-			Weight::from_parts(weight.ref_time(), 0)
+			T::DbWeight::get().reads_writes(2, 2)
 		}
 	}
 
@@ -111,7 +114,7 @@ impl<T: Config> Pallet<T> {
 		outputs: Vec<Asset>,
 		fees: Vec<Fee<T::AccountId>>,
 	) {
-		let operation_stack = ExecutionContext::<T>::get().to_vec();
+		let operation_stack = Self::get_context();
 		Self::deposit_event(Event::<T>::Swapped {
 			swapper,
 			filler,
@@ -124,47 +127,45 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn add_to_context<F>(execution_type: F) -> Result<IncrementalIdType, DispatchError>
+	pub fn add_to_context<F>(execution_type: F) -> IncrementalIdType
 	where
 		F: FnOnce(u32) -> ExecutionType,
 	{
-		let next_id = IncrementalId::<T>::try_mutate(|current_id| -> Result<IncrementalIdType, DispatchError> {
+		let next_id = IncrementalId::<T>::mutate(|current_id| -> IncrementalIdType {
 			let inc_id = *current_id;
 			*current_id = current_id.overflowing_add(1).0;
-			Ok(inc_id)
-		})?;
 
-		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
+			inc_id
+		});
+
+		ExecutionContext::<T>::mutate(|stack| {
 			//We make it fire and forget, and it should fail only in test and when if wrongly used
 			debug_assert_ne!(stack.len(), MAX_STACK_SIZE as usize, "Stack should not be full");
 			if let Err(err) = stack.try_push(execution_type(next_id)) {
+				OverflowCount::<T>::mutate(|count| *count += 1);
 				log::warn!(target: LOG_TARGET, "The max stack size of execution stack has been reached: {:?}", err);
 			}
+		});
 
-			Ok(())
-		})?;
-
-		Ok(next_id)
+		next_id
 	}
 
-	pub fn remove_from_context() -> DispatchResult {
-		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
-			//We make it fire and forget, and it should fail only in test and when if wrongly used
-			debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
+	pub fn remove_from_context() {
+		if OverflowCount::<T>::get() > 0 {
+			OverflowCount::<T>::mutate(|count| *count -= 1);
+		} else {
+			ExecutionContext::<T>::mutate(|stack| {
+				//We make it fire and forget, and it should fail only in test and when if wrongly used
+				debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
 
-			if stack.pop().is_none() {
-				log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
-			}
-
-			Ok(())
-		})?;
-
-		Ok(())
+				if stack.pop().is_none() {
+					log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
+				}
+			});
+		}
 	}
 
-	pub fn get_context() -> Result<Vec<ExecutionType>, DispatchError> {
-		let stack = ExecutionContext::<T>::get().to_vec();
-
-		Ok(stack)
+	pub fn get_context() -> Vec<ExecutionType> {
+		ExecutionContext::<T>::get().to_vec()
 	}
 }

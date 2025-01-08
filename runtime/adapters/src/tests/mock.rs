@@ -101,7 +101,7 @@ construct_runtime!(
 		RouteExecutor: pallet_route_executor,
 		Currencies: pallet_currencies,
 		XYK: pallet_xyk,
-		AmmSupport:pallet_support,
+		Broadcast:pallet_broadcast,
 	}
 );
 
@@ -265,7 +265,7 @@ impl pallet_xyk::Config for Test {
 	type NonDustableWhitelistHandler = DummyDuster;
 }
 
-impl pallet_support::Config for Test {
+impl pallet_broadcast::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

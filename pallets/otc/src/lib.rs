@@ -39,7 +39,8 @@ use frame_support::{pallet_prelude::*, require_transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::Inspect;
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
-use pallet_support::types::Fee;
+use pallet_broadcast::types::Fee;
+use pallet_broadcast::types::Recipient;
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
 use sp_runtime::Permill;
@@ -57,9 +58,9 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-use pallet_support::types::Asset;
+use pallet_broadcast::types::Asset;
 pub type Balance = u128;
-pub type OrderId = pallet_support::types::OtcOrderId; //TODO: just use exacty type
+pub type OrderId = u32;
 pub type NamedReserveIdentifier = [u8; 8];
 
 pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"otcorder";
@@ -83,7 +84,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_support::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// Identifier for the class of asset.
 		type AssetId: Member + Parameter + Copy + HasCompact + MaybeSerializeDeserialize + MaxEncodedLen + Into<u32>;
 
@@ -126,7 +127,7 @@ pub mod pallet {
 		/// An Order has been cancelled
 		Cancelled { order_id: OrderId },
 		/// An Order has been completely filled
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
 		Filled {
 			order_id: OrderId,
 			who: T::AccountId,
@@ -135,7 +136,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// An Order has been partially filled
-		/// Deprecated. Replaced bypallet_support::Swapped
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
 		PartiallyFilled {
 			order_id: OrderId,
 			who: T::AccountId,
@@ -271,7 +272,7 @@ pub mod pallet {
 		///
 		/// Events:
 		/// `PartiallyFilled` event when successful. Deprecated.
-		/// `pallet_support::Swapped` event when successful.
+		/// `pallet_broadcast::Swapped` event when successful.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::partial_fill_order())]
 		pub fn partial_fill_order(origin: OriginFor<T>, order_id: OrderId, amount_in: Balance) -> DispatchResult {
@@ -310,17 +311,17 @@ pub mod pallet {
 					fee,
 				});
 
-				pallet_support::Pallet::<T>::deposit_trade_event(
+				pallet_broadcast::Pallet::<T>::deposit_trade_event(
 					order.owner.clone(),
 					who,
-					pallet_support::types::Filler::OTC(order_id),
-					pallet_support::types::TradeOperation::ExactIn,
+					pallet_broadcast::types::Filler::OTC(order_id),
+					pallet_broadcast::types::TradeOperation::ExactIn,
 					vec![Asset::new(order.asset_in.into(), amount_in)],
 					vec![Asset::new(order.asset_out.into(), amount_out)],
 					vec![Fee {
 						asset: order.asset_out.into(),
 						amount: fee,
-						recipient: T::FeeReceiver::get(),
+						recipient: Recipient::Account(T::FeeReceiver::get()),
 					}],
 				);
 
@@ -335,7 +336,7 @@ pub mod pallet {
 		///
 		/// Events:
 		/// `Filled` event when successful. Deprecated.
-		/// `pallet_support::Swapped` event when successful.
+		/// `pallet_broadcast::Swapped` event when successful.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::fill_order())]
 		pub fn fill_order(origin: OriginFor<T>, order_id: OrderId) -> DispatchResult {
@@ -356,17 +357,17 @@ pub mod pallet {
 				fee,
 			});
 
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				order.owner,
-				pallet_support::types::Filler::OTC(order_id),
-				pallet_support::types::TradeOperation::ExactIn,
+				pallet_broadcast::types::Filler::OTC(order_id),
+				pallet_broadcast::types::TradeOperation::ExactIn,
 				vec![Asset::new(order.asset_in.into(), order.amount_in)],
 				vec![Asset::new(order.asset_out.into(), order.amount_out)],
 				vec![Fee {
 					asset: order.asset_out.into(),
 					amount: fee,
-					recipient: T::FeeReceiver::get(),
+					recipient: Recipient::Account(T::FeeReceiver::get()),
 				}],
 			);
 

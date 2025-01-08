@@ -1,5 +1,5 @@
 use orml_traits::MultiCurrency;
-use pallet_support::types::ExecutionType;
+use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
@@ -64,7 +64,7 @@ where
 		};
 		let use_onchain_route = vec![];
 
-		pallet_support::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange).map_err(|_| give.clone())?;
+		pallet_broadcast::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange);
 
 		let trade_result = if maximal {
 			// sell
@@ -135,7 +135,7 @@ where
 			.map_err(|_| give.clone())
 		};
 
-		pallet_support::Pallet::<Runtime>::remove_from_context().map_err(|_| give)?;
+		pallet_broadcast::Pallet::<Runtime>::remove_from_context();
 
 		trade_result
 	}
