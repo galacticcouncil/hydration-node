@@ -32,7 +32,7 @@ pallet-referrals = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
-pallet-support = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }

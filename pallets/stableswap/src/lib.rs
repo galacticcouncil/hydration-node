@@ -75,7 +75,7 @@ use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, T
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
-use pallet_support::types::{Asset, Fee};
+use pallet_broadcast::types::{Asset, Fee, Recipient};
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
@@ -104,7 +104,7 @@ pub mod pallet {
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
-	use pallet_support::types::Fee;
+	use pallet_broadcast::types::Fee;
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 	use sp_runtime::ArithmeticError;
 	use sp_runtime::Permill;
@@ -114,7 +114,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_support::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -212,7 +212,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
-		/// Deprecated. Replaced by pallet_support::Swapped
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
 		//TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		SellExecuted {
 			who: T::AccountId,
@@ -224,7 +224,7 @@ pub mod pallet {
 			fee: Balance,
 		},
 		/// Buy trade executed. Trade fee paid in asset entering the pool (already included in amount_in).
-		/// Deprecated. Replaced by pallet_support::Swapped
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			pool_id: T::AssetId,
@@ -479,7 +479,7 @@ pub mod pallet {
 		/// - `assets`: asset id and liquidity amount provided
 		///
 		/// Emits `LiquidityAdded` event when successful.
-		/// Emits `pallet_support::Swapped` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
@@ -517,7 +517,7 @@ pub mod pallet {
 		/// - `max_asset_amount`: slippage limit. Max amount of asset.
 		///
 		/// Emits `LiquidityAdded` event when successful.
-		/// Emits `pallet_support::Swapped` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_shares()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
@@ -557,7 +557,7 @@ pub mod pallet {
 		/// - 'min_amount_out': minimum amount to receive
 		///
 		/// Emits `LiquidityRemoved` event when successful.
-		/// Emits `pallet_support::Swapped` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity_one_asset()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
@@ -630,17 +630,17 @@ pub mod pallet {
 				fee,
 			});
 
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				pool_account.clone(),
-				pallet_support::types::Filler::Stableswap(pool_id.into()),
-				pallet_support::types::TradeOperation::LiquidityRemove,
+				pallet_broadcast::types::Filler::Stableswap(pool_id.into()),
+				pallet_broadcast::types::TradeOperation::LiquidityRemove,
 				vec![Asset::new(pool_id.into(), share_amount)],
 				vec![Asset::new(asset_id.into(), amount)],
 				vec![Fee {
 					asset: pool_id.into(),
 					amount: fee,
-					recipient: pool_account,
+					recipient: Recipient::Account(pool_account),
 				}],
 			);
 
@@ -662,7 +662,7 @@ pub mod pallet {
 		/// - 'max_share_amount': Slippage limit. Max amount of shares to burn.
 		///
 		/// Emits `LiquidityRemoved` event when successful.
-		/// Emits `pallet_support::Swapped` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw_asset_amount()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
@@ -731,13 +731,15 @@ pub mod pallet {
 			let fees = fees
 				.iter()
 				.zip(pool.assets.iter())
-				.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, pool_account.clone()))
+				.map(|(balance, asset_id)| {
+					Fee::new((*asset_id).into(), *balance, Recipient::Account(pool_account.clone()))
+				})
 				.collect::<Vec<_>>();
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				pool_account.clone(),
-				pallet_support::types::Filler::Stableswap(pool_id.into()),
-				pallet_support::types::TradeOperation::LiquidityRemove,
+				pallet_broadcast::types::Filler::Stableswap(pool_id.into()),
+				pallet_broadcast::types::TradeOperation::LiquidityRemove,
 				vec![Asset::new(pool_id.into(), shares)],
 				vec![Asset::new(asset_id.into(), amount)],
 				fees,
@@ -757,7 +759,7 @@ pub mod pallet {
 		/// - `min_buy_amount`: Minimum amount required to receive
 		///
 		/// Emits `SellExecuted` event when successful. Deprecated.
-		/// Emits `pallet_support::Swapped` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		///
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell()
@@ -816,17 +818,17 @@ pub mod pallet {
 				fee: fee_amount,
 			});
 
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				pool_account.clone(),
-				pallet_support::types::Filler::Stableswap(pool_id.into()),
-				pallet_support::types::TradeOperation::ExactIn,
+				pallet_broadcast::types::Filler::Stableswap(pool_id.into()),
+				pallet_broadcast::types::TradeOperation::ExactIn,
 				vec![Asset::new(asset_in.into(), amount_in)],
 				vec![Asset::new(asset_out.into(), amount_out)],
 				vec![Fee {
 					asset: asset_out.into(),
 					amount: fee_amount,
-					recipient: pool_account,
+					recipient: Recipient::Account(pool_account),
 				}],
 			);
 
@@ -847,7 +849,7 @@ pub mod pallet {
 		/// - `max_sell_amount`: Maximum amount allowed to be sold
 		///
 		/// Emits `BuyExecuted` event when successful. Deprecated.
-		/// Emits `pallet_support::Swapped` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		///
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy()
@@ -909,17 +911,17 @@ pub mod pallet {
 				fee: fee_amount,
 			});
 
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				pool_account.clone(),
-				pallet_support::types::Filler::Stableswap(pool_id.into()),
-				pallet_support::types::TradeOperation::ExactOut,
+				pallet_broadcast::types::Filler::Stableswap(pool_id.into()),
+				pallet_broadcast::types::TradeOperation::ExactOut,
 				vec![Asset::new(asset_in.into(), amount_in)],
 				vec![Asset::new(asset_out.into(), amount_out)],
 				vec![Fee {
 					asset: asset_in.into(),
 					amount: fee_amount,
-					recipient: pool_account,
+					recipient: Recipient::Account(pool_account),
 				}],
 			);
 
@@ -1270,13 +1272,13 @@ impl<T: Config> Pallet<T> {
 		let fees = fees
 			.iter()
 			.zip(pool.assets.iter())
-			.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, pool_account.clone()))
+			.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, Recipient::Account(pool_account.clone())))
 			.collect::<Vec<_>>();
-		pallet_support::Pallet::<T>::deposit_trade_event(
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			pool_account.clone(),
-			pallet_support::types::Filler::Stableswap(pool_id.into()),
-			pallet_support::types::TradeOperation::LiquidityAdd,
+			pallet_broadcast::types::Filler::Stableswap(pool_id.into()),
+			pallet_broadcast::types::TradeOperation::LiquidityAdd,
 			inputs,
 			vec![Asset::new(pool_id.into(), share_amount)],
 			fees,
@@ -1337,17 +1339,17 @@ impl<T: Config> Pallet<T> {
 		//All done and update. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
-		pallet_support::Pallet::<T>::deposit_trade_event(
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			pool_account.clone(),
-			pallet_support::types::Filler::Stableswap(pool_id.into()),
-			pallet_support::types::TradeOperation::LiquidityAdd,
+			pallet_broadcast::types::Filler::Stableswap(pool_id.into()),
+			pallet_broadcast::types::TradeOperation::LiquidityAdd,
 			vec![Asset::new(asset_id.into(), amount_in)],
 			vec![Asset::new(pool_id.into(), shares)],
 			vec![Fee {
 				asset: pool_id.into(),
 				amount: fee,
-				recipient: pool_account,
+				recipient: Recipient::Account(pool_account),
 			}],
 		);
 

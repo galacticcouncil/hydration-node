@@ -110,7 +110,7 @@ construct_runtime!(
 		WarehouseLM: warehouse_liquidity_mining::<Instance1>,
 		OmnipoolMining: omnipool_liquidity_mining,
 		EmaOracle: pallet_ema_oracle,
-		AmmSupport:pallet_support,
+		Broadcast:pallet_broadcast,
 	}
 );
 
@@ -308,7 +308,7 @@ impl pallet_omnipool::Config for Test {
 	type Fee = FeeProvider;
 }
 
-impl pallet_support::Config for Test {
+impl pallet_broadcast::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

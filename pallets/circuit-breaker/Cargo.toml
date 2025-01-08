@@ -31,7 +31,7 @@ hydradx-traits = { workspace = true }
 
 [dev-dependencies]
 pallet-omnipool = { workspace = true }
-pallet-support = { workspace = true }
+pallet-broadcast = { workspace = true }
 pallet-balances = { workspace = true }
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }

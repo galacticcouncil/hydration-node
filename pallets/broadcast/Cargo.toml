@@ -1,5 +1,5 @@
 [package]
-name = "pallet-support"
+name = "pallet-broadcast"
 version = "1.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"

@@ -60,7 +60,7 @@ frame_support::construct_runtime!(
 		 Router: pallet_route_executor,
 		 EvmAccounts: pallet_evm_accounts,
 		 Liquidation: pallet_liquidation,
-		 AmmSupport:pallet_support,
+		 Broadcast:pallet_broadcast,
 	 }
 );
 
@@ -245,7 +245,7 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_support::Config for Test {
+impl pallet_broadcast::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

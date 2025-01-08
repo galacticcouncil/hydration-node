@@ -74,7 +74,7 @@ frame_support::construct_runtime!(
 		 Omnipool: pallet_omnipool,
 		 Router: pallet_route_executor,
 		 OtcSettlements: pallet_otc_settlements,
-		 AmmSupport:pallet_support,
+		 Broadcast:pallet_broadcast,
 	 }
 );
 
@@ -259,7 +259,7 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_support::Config for Test {
+impl pallet_broadcast::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 }
 

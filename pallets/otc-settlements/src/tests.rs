@@ -24,9 +24,9 @@ pub use crate::mock::*;
 use frame_support::{assert_ok, assert_storage_noop};
 use hydradx_traits::Inspect;
 use orml_traits::MultiCurrency;
-use pallet_support::types::Asset;
-use pallet_support::types::Fee;
-
+use pallet_broadcast::types::Asset;
+use pallet_broadcast::types::Fee;
+use pallet_broadcast::types::Recipient;
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
@@ -300,17 +300,17 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 				profit: 17_736_110_470_326,
 			}
 			.into(),
-			pallet_support::Event::Swapped {
+			pallet_broadcast::Event::Swapped {
 				swapper: otc.owner,
 				filler: OtcSettlements::account_id(),
-				filler_type: pallet_support::types::Filler::OTC(otc_id),
-				operation: pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_broadcast::types::Filler::OTC(otc_id),
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(HDX, 2413749694825193)],
 				outputs: vec![Asset::new(DAI, 4948186874391645)],
 				fees: vec![Fee::new(
 					DAI,
 					49481868743917,
-					<Test as pallet_otc::Config>::FeeReceiver::get(),
+					Recipient::Account(<Test as pallet_otc::Config>::FeeReceiver::get()),
 				)],
 				operation_stack: vec![],
 			}

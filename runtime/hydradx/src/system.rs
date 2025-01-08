@@ -47,7 +47,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
-use pallet_support::types::ExecutionType;
+use pallet_broadcast::types::ExecutionType;
 use pallet_utility::BatchHook;
 use scale_info::TypeInfo;
 use sp_runtime::DispatchResult;
@@ -387,13 +387,13 @@ pub struct ManageExecutionTypeForUnifiedEvent;
 
 impl BatchHook for ManageExecutionTypeForUnifiedEvent {
 	fn on_batch_start() -> DispatchResult {
-		AmmSupport::add_to_context(ExecutionType::Batch);
+		Broadcast::add_to_context(ExecutionType::Batch);
 
 		Ok(())
 	}
 
 	fn on_batch_end() -> DispatchResult {
-		AmmSupport::remove_from_context(ExecutionType::Batch);
+		Broadcast::remove_from_context();
 
 		Ok(())
 	}

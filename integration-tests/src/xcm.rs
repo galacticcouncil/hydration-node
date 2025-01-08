@@ -9,7 +9,7 @@ use frame_support::dispatch::GetDispatchInfo;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeEvent;
 use orml_traits::MultiCurrency;
-use pallet_support::types::ExecutionType;
+use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::v4::prelude::*;
 use sp_std::sync::Arc;
 use xcm_builder::DescribeAllTerminal;
@@ -133,7 +133,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 			"Omnipool sell swap failed as the user did not receive any DAI"
 		);
 
-		let last_swapped_events: Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
 
 		let event1 = &last_two_swapped_events[0];
@@ -252,7 +252,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 	Hydra::execute_with(|| {
 		assert_xcm_message_processing_passed();
 
-		let last_swapped_events: Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
 
 		let event1 = &last_two_swapped_events[0];
@@ -261,7 +261,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 		let event2 = &last_two_swapped_events[0];
 		assert_operation_stack!(event2, [ExecutionType::Xcm(_, 0), ExecutionType::Omnipool(1)]);
 
-		let unified_event_context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context();
+		let unified_event_context = pallet_broadcast::Pallet::<hydradx_runtime::Runtime>::get_context();
 		assert!(unified_event_context.is_empty());
 	});
 }
@@ -329,7 +329,7 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 
 	// Assert
 	Hydra::execute_with(|| {
-		let context = pallet_support::Pallet::<hydradx_runtime::Runtime>::get_context();
+		let context = pallet_broadcast::Pallet::<hydradx_runtime::Runtime>::get_context();
 		assert!(context.is_empty())
 	});
 }
