@@ -36,7 +36,7 @@ use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
 };
-use pallet_broadcast::types::{Asset, Fee, Destination};
+use pallet_broadcast::types::{Asset, Destination, Fee};
 
 use sp_std::{vec, vec::Vec};
 

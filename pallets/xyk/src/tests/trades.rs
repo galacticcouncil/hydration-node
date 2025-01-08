@@ -3,7 +3,7 @@ use crate::{AMMTransfer, Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
-use pallet_broadcast::types::{Asset, Fee, Destination};
+use pallet_broadcast::types::{Asset, Destination, Fee};
 
 use crate::types::AssetPair;
 

@@ -6,9 +6,9 @@ use frame_system::RawOrigin;
 use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::Asset;
+use pallet_broadcast::types::Destination;
 use pallet_broadcast::types::Fee;
 use pallet_broadcast::types::Filler;
-use pallet_broadcast::types::Destination;
 use pallet_broadcast::types::TradeOperation;
 use pallet_referrals::{FeeDistribution, ReferralCode};
 use primitives::AccountId;
@@ -474,7 +474,11 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				inputs: vec![Asset::new(LRNA, 45_200_101_724)],
 				outputs: vec![Asset::new(DAI, 1_000_000_000_000_000_000)],
 				fees: vec![
-					Fee::new(DAI, 1322488725257230, Destination::Account(Omnipool::protocol_account())),
+					Fee::new(
+						DAI,
+						1322488725257230,
+						Destination::Account(Omnipool::protocol_account()),
+					),
 					Fee::new(DAI, 1322488725257228, Destination::Account(Referrals::pot_account_id())),
 				],
 				operation_stack: vec![ExecutionType::Omnipool(0)],

@@ -95,7 +95,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
-use pallet_broadcast::types::{Asset, ExecutionType, Fee, Destination};
+use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
 use scale_info::TypeInfo;
@@ -118,7 +118,6 @@ use crate::traits::{AssetInfo, OmnipoolHooks};
 use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
-
 
 /// NFT class id type of provided nft implementation
 pub type NFTCollectionIdOf<T> =
@@ -2139,8 +2138,9 @@ impl<T: Config> Pallet<T> {
 		let taken_fee_entries: Vec<Fee<T::AccountId>> = taken_fee
 			.iter()
 			.filter_map(|opt| {
-				opt.clone()
-					.map(|(balance, recipient)| Fee::new(asset.into(), balance, Destination::Account(recipient.clone())))
+				opt.clone().map(|(balance, recipient)| {
+					Fee::new(asset.into(), balance, Destination::Account(recipient.clone()))
+				})
 			})
 			.filter(|fee| fee.amount > 0) //filter out when we zero percentage is configured for fees
 			.collect();

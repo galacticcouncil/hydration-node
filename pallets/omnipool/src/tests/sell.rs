@@ -1,8 +1,8 @@
 use super::*;
 use frame_support::assert_noop;
+use pallet_broadcast::types::Destination;
 use pretty_assertions::assert_eq;
 use sp_runtime::Permill;
-use pallet_broadcast::types::Destination;
 
 #[test]
 fn simple_sell_works() {

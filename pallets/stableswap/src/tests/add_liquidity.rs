@@ -2,7 +2,7 @@ use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
-use pallet_broadcast::types::{Asset, Fee, Destination};
+use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 

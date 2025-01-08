@@ -25,8 +25,8 @@ use frame_support::{assert_ok, assert_storage_noop};
 use hydradx_traits::Inspect;
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::Asset;
-use pallet_broadcast::types::Fee;
 use pallet_broadcast::types::Destination;
+use pallet_broadcast::types::Fee;
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }

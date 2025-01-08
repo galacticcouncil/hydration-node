@@ -30,9 +30,9 @@ pub use crate::mock::{
 };
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_traits::{AMMTransfer, LockedBalance};
+use pallet_broadcast::types::Destination;
 use sp_runtime::traits::{BadOrigin, Dispatchable};
 use sp_std::convert::TryInto;
-use pallet_broadcast::types::Destination;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -2593,7 +2593,11 @@ fn sell_should_work() {
 				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_in, 9_980_000)],
 				outputs: vec![Asset::new(asset_out, 5_605_138)],
-				fees: vec![Fee::new(asset_in, 20_000, Destination::Account(pool_data.fee_collector))],
+				fees: vec![Fee::new(
+					asset_in,
+					20_000,
+					Destination::Account(pool_data.fee_collector),
+				)],
 				operation_stack: vec![],
 			}
 			.into(),

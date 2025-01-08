@@ -4,7 +4,7 @@ use crate::{assert_balance, to_precision, Error, Event};
 use std::num::NonZeroU16;
 
 use frame_support::{assert_noop, assert_ok};
-use pallet_broadcast::types::{Asset, Fee, Destination};
+use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::Permill;
 
 #[test]
