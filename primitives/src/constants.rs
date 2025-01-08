@@ -95,8 +95,8 @@ mod tests {
 		assert_eq!(DAYS / 24, HOURS);
 		// 60 minuts in an hour
 		assert_eq!(HOURS / 60, MINUTES);
-		// 1 minute = 60s = 5 blocks 12s each
-		assert_eq!(MINUTES, 5);
+		// 1 minute = 60s = 10 blocks 6s each
+		assert_eq!(MINUTES, 10);
 		// 6s per block
 		assert_eq!(SECS_PER_BLOCK, 12);
 		// 1s = 1000ms

@@ -5,6 +5,10 @@
   "relaychain": {
     "default_command": "../../../polkadot-sdk/target/release/polkadot",
     "chain": "rococo-local",
+    "default_args": [
+      "--no-hardware-benchmarks",
+      "--database=paritydb"
+    ],
     "genesis": {
       "runtimeGenesis": {
         "patch": {
@@ -58,6 +62,9 @@
           "name": "alice",
           "command": "../../target/release/hydradx",
           "args": [
+            "--no-hardware-benchmarks",
+            "--force-authoring",
+            "--database=paritydb",
             "--pruning=archive",
             "--log=info"
           ],
@@ -67,6 +74,12 @@
         {
           "name": "bob",
           "command": "../../target/release/hydradx",
+          "args": [
+            "--no-hardware-benchmarks",
+            "--force-authoring",
+            "--database=paritydb",
+            "--pruning=archive"
+          ],
           "ws_port": 9989
         }
       ]
