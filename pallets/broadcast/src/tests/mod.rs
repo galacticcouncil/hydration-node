@@ -1,2 +1,2 @@
-pub mod mock;
 mod lib;
+pub mod mock;
