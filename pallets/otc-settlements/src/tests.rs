@@ -26,7 +26,7 @@ use hydradx_traits::Inspect;
 use orml_traits::MultiCurrency;
 use pallet_support::types::Asset;
 use pallet_support::types::Fee;
-
+use pallet_support::types::Recipient;
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
@@ -310,7 +310,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 				fees: vec![Fee::new(
 					DAI,
 					49481868743917,
-					<Test as pallet_otc::Config>::FeeReceiver::get(),
+					Recipient::Account(<Test as pallet_otc::Config>::FeeReceiver::get()),
 				)],
 				operation_stack: vec![],
 			}

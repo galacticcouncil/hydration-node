@@ -2,6 +2,7 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
+use pallet_support::types::Recipient;
 
 use crate::assert_balance;
 use hydradx_runtime::LBP;
@@ -80,9 +81,9 @@ fn batch_execution_type_should_be_included_in_batch() {
 					fees: vec![Fee::new(
 						DAI,
 						20000000,
-						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+						Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
 							.unwrap()
-							.fee_collector,
+							.fee_collector),
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
@@ -93,7 +94,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
-					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
+					fees: vec![Fee::new(HDX, 11736653730, Recipient::Account(Omnipool::protocol_account()))],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
 				pallet_support::Event::<Runtime>::Swapped {
@@ -114,10 +115,10 @@ fn batch_execution_type_should_be_included_in_batch() {
 					fees: vec![Fee::new(
 						DOT,
 						6710155707,
-						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						}),
+						})),
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				}
@@ -209,10 +210,10 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 				fees: vec![Fee::new(
 					DOT,
 					13688601,
-					XYK::get_pair_id(pallet_xyk::types::AssetPair {
+					Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,
-					}),
+					})),
 				)],
 				operation_stack: vec![ExecutionType::Batch(2), ExecutionType::Router(3)],
 			}
@@ -287,9 +288,9 @@ fn nested_batch_should_represent_embeddedness() {
 					fees: vec![Fee::new(
 						DAI,
 						20000000,
-						LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+						Recipient::Account(LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
 							.unwrap()
-							.fee_collector,
+							.fee_collector),
 					)],
 					operation_stack: vec![
 						ExecutionType::Batch(0),
@@ -304,7 +305,7 @@ fn nested_batch_should_represent_embeddedness() {
 					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
-					fees: vec![Fee::new(HDX, 11736653730, Omnipool::protocol_account())],
+					fees: vec![Fee::new(HDX, 11736653730, Recipient::Account(Omnipool::protocol_account()))],
 					operation_stack: vec![
 						ExecutionType::Batch(0),
 						ExecutionType::Batch(1),
@@ -329,10 +330,10 @@ fn nested_batch_should_represent_embeddedness() {
 					fees: vec![Fee::new(
 						DOT,
 						6710155707,
-						XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						}),
+						})),
 					)],
 					operation_stack: vec![
 						ExecutionType::Batch(0),

@@ -106,7 +106,7 @@ fn event_should_be_deposited() {
 			TradeOperation::ExactIn,
 			vec![Asset::new(HDX, 1_000_000)],
 			vec![Asset::new(DOT, 2_000_000)],
-			vec![Fee::new(HDX, 1_000, ALICE), Fee::new(DOT, 2_000, BOB)],
+			vec![Fee::new(HDX, 1_000, Recipient::Account(ALICE)), Fee::new(DOT, 2_000, Recipient::Account(BOB))],
 		);
 
 		expect_events(vec![Event::Swapped {
@@ -116,7 +116,7 @@ fn event_should_be_deposited() {
 			operation: TradeOperation::ExactIn,
 			inputs: vec![Asset::new(HDX, 1_000_000)],
 			outputs: vec![Asset::new(DOT, 2_000_000)],
-			fees: vec![Fee::new(HDX, 1_000, ALICE), Fee::new(DOT, 2_000, BOB)],
+			fees: vec![Fee::new(HDX, 1_000, Recipient::Account(ALICE)), Fee::new(DOT, 2_000, Recipient::Account(BOB))],
 			operation_stack: vec![],
 		}
 		.into()]);

@@ -40,6 +40,7 @@ use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::Inspect;
 use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
 use pallet_support::types::Fee;
+use pallet_support::types::Recipient;
 use sp_core::U256;
 use sp_runtime::traits::{One, Zero};
 use sp_runtime::Permill;
@@ -320,7 +321,7 @@ pub mod pallet {
 					vec![Fee {
 						asset: order.asset_out.into(),
 						amount: fee,
-						recipient: T::FeeReceiver::get(),
+						recipient: Recipient::Account(T::FeeReceiver::get()),
 					}],
 				);
 
@@ -366,7 +367,7 @@ pub mod pallet {
 				vec![Fee {
 					asset: order.asset_out.into(),
 					amount: fee,
-					recipient: T::FeeReceiver::get(),
+					recipient: Recipient::Account(T::FeeReceiver::get()),
 				}],
 			);
 

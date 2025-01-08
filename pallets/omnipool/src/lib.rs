@@ -95,7 +95,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
-use pallet_support::types::{Asset, ExecutionType, Fee};
+use pallet_support::types::{Asset, ExecutionType, Fee, Recipient};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
 use scale_info::TypeInfo;
@@ -1110,7 +1110,7 @@ pub mod pallet {
 				vec![Fee::new(
 					T::HubAssetId::get().into(),
 					state_changes.fee.protocol_fee,
-					Self::protocol_account(),
+					Recipient::Burned,
 				)],
 			);
 
@@ -1351,7 +1351,7 @@ pub mod pallet {
 				vec![Fee::new(
 					T::HubAssetId::get().into(),
 					state_changes.fee.protocol_fee,
-					Self::protocol_account(),
+					Recipient::Burned,
 				)],
 			);
 
@@ -2139,7 +2139,7 @@ impl<T: Config> Pallet<T> {
 			.iter()
 			.filter_map(|opt| {
 				opt.clone()
-					.map(|(balance, recipient)| Fee::new(asset.into(), balance, recipient.clone()))
+					.map(|(balance, recipient)| Fee::new(asset.into(), balance, Recipient::Account(recipient.clone())))
 			})
 			.filter(|fee| fee.amount > 0) //filter out when we zero percentage is configured for fees
 			.collect();
@@ -2156,7 +2156,7 @@ impl<T: Config> Pallet<T> {
 		let mut all_trade_fees = vec![Fee {
 			asset: asset.into(),
 			amount: protocol_fee_amount,
-			recipient: Self::protocol_account(),
+			recipient: Recipient::Account(Self::protocol_account()),
 		}];
 
 		all_trade_fees.extend(taken_fee_entries);

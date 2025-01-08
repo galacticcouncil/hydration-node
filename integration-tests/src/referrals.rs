@@ -16,7 +16,7 @@ use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use std::vec;
 use xcm_emulator::TestExt;
-
+use pallet_support::types::Recipient;
 #[test]
 fn registering_a_code_should_charge_registration_fee() {
 	Hydra::execute_with(|| {
@@ -338,7 +338,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 					operation: TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, 1000000000000)],
 					outputs: vec![Asset::new(LRNA, 1205768843)],
-					fees: vec![Fee::new(LRNA, 602884, Omnipool::protocol_account())],
+					fees: vec![Fee::new(LRNA, 602884, Recipient::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -350,8 +350,8 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 					inputs: vec![Asset::new(LRNA, 1205165959)],
 					outputs: vec![Asset::new(DAI, 26663424573622008)],
 					fees: vec![
-						Fee::new(DAI, 61356016373131, Omnipool::protocol_account()),
-						Fee::new(DAI, 9168140377593, Referrals::pot_account_id())
+						Fee::new(DAI, 61356016373131, Recipient::Account(Omnipool::protocol_account())),
+						Fee::new(DAI, 9168140377593, Recipient::Account(Referrals::pot_account_id()))
 					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
@@ -398,7 +398,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation: TradeOperation::ExactOut,
 				inputs: vec![Asset::new(DAI, 26_835_579_541_620_354)],
 				outputs: vec![Asset::new(LRNA, 1_209_746_177)],
-				fees: vec![Fee::new(LRNA, 604_873, Omnipool::protocol_account())],
+				fees: vec![Fee::new(LRNA, 604_873, Recipient::Burned)],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
@@ -410,8 +410,8 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				inputs: vec![Asset::new(LRNA, 1_209_141_304)],
 				outputs: vec![Asset::new(HDX, 1_000_000_000_000)],
 				fees: vec![
-					Fee::new(HDX, 1, Omnipool::protocol_account()),
-					Fee::new(HDX, 2794789077, Staking::pot_account_id()),
+					Fee::new(HDX, 1, Recipient::Account(Omnipool::protocol_account())),
+					Fee::new(HDX, 2794789077, Recipient::Account(Staking::pot_account_id())),
 				],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
@@ -462,7 +462,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation: pallet_support::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(HDX, 37_506_757_329_085)],
 				outputs: vec![Asset::new(LRNA, 45_222_713_080)],
-				fees: vec![Fee::new(LRNA, 22_611_356, Omnipool::protocol_account())],
+				fees: vec![Fee::new(LRNA, 22_611_356, Recipient::Burned)],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
@@ -474,8 +474,8 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				inputs: vec![Asset::new(LRNA, 45_200_101_724)],
 				outputs: vec![Asset::new(DAI, 1_000_000_000_000_000_000)],
 				fees: vec![
-					Fee::new(DAI, 1322488725257230, Omnipool::protocol_account()),
-					Fee::new(DAI, 1322488725257228, Referrals::pot_account_id()),
+					Fee::new(DAI, 1322488725257230, Recipient::Account(Omnipool::protocol_account())),
+					Fee::new(DAI, 1322488725257228, Recipient::Account(Referrals::pot_account_id())),
 				],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}

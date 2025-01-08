@@ -752,7 +752,7 @@ fn sell_should_get_same_amount() {
 					operation: pallet_support::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(100, expected_sold_amount)],
 					outputs: vec![Asset::new(LRNA, 57142857142858)],
-					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
+					fees: vec![Fee::new(LRNA, 0, Recipient::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -764,8 +764,8 @@ fn sell_should_get_same_amount() {
 					inputs: vec![Asset::new(LRNA, 57142857142858)],
 					outputs: vec![Asset::new(200, buy_amount)],
 					fees: vec![
-						Fee::new(200, 5500000000001, Omnipool::protocol_account()),
-						Fee::new(200, 55555555555, 0),
+						Fee::new(200, 5500000000001, Recipient::Account(Omnipool::protocol_account())),
+						Fee::new(200, 55555555555, Recipient::Account(0)),
 					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}

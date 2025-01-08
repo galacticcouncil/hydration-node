@@ -444,7 +444,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(100, expected_sold_amount)],
 					outputs: vec![Asset::new(1, 57142857142858)],
-					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
+					fees: vec![Fee::new(LRNA, 0, Recipient::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -455,7 +455,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(1, 57142857142858)],
 					outputs: vec![Asset::new(200, buy_amount)],
-					fees: vec![Fee::new(200, 5555555555556, Omnipool::protocol_account())],
+					fees: vec![Fee::new(200, 5555555555556, Recipient::Account(Omnipool::protocol_account()))],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -491,7 +491,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(100, 65976185738813)],
 					outputs: vec![Asset::new(1, 60326770004314)],
-					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
+					fees: vec![Fee::new(LRNA, 0, Recipient::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -502,7 +502,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(1, 60326770004314)],
 					outputs: vec![Asset::new(200, other_buy_amount)],
-					fees: vec![Fee::new(200, 5555555555567, Omnipool::protocol_account())],
+					fees: vec![Fee::new(200, 5555555555567, Recipient::Account(Omnipool::protocol_account()))],
 					operation_stack: vec![ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -560,7 +560,7 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(100, expected_sold_amount)],
 					outputs: vec![Asset::new(1, 56980056980057)],
-					fees: vec![Fee::new(LRNA, 5698005698005, Omnipool::protocol_account())],
+					fees: vec![Fee::new(LRNA, 5698005698005, Recipient::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -571,7 +571,7 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 					operation: pallet_support::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(1, 51282051282052)],
 					outputs: vec![Asset::new(200, buy_amount)],
-					fees: vec![Fee::new(200, 0, Omnipool::protocol_account())],
+					fees: vec![Fee::new(200, 0, Recipient::Account(Omnipool::protocol_account()))],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),

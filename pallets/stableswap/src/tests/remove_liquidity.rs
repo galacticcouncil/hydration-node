@@ -3,7 +3,7 @@ use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, Error, Event, Pools};
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
-use pallet_support::types::{Asset, Fee};
+use pallet_support::types::{Asset, Fee, Recipient};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -82,7 +82,7 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 					operation: pallet_support::types::TradeOperation::LiquidityRemove,
 					inputs: vec![Asset::new(pool_id, 200516043533380244763),],
 					outputs: vec![Asset::new(asset_c, 199999999999999)],
-					fees: vec![Fee::new(pool_id, 0, pool_account)],
+					fees: vec![Fee::new(pool_id, 0, Recipient::Account(pool_account))],
 					operation_stack: vec![],
 				})
 			);
@@ -1089,9 +1089,9 @@ fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
 					inputs: vec![Asset::new(pool_id, 979387928052053203)],
 					outputs: vec![Asset::new(asset_a, 1000000000000000000),],
 					fees: vec![
-						Fee::new(asset_a, 2870505165609705, pool_account),
-						Fee::new(asset_b, 872, pool_account),
-						Fee::new(asset_c, 1998, pool_account)
+						Fee::new(asset_a, 2870505165609705, Recipient::Account(pool_account)),
+						Fee::new(asset_b, 872, Recipient::Account(pool_account)),
+						Fee::new(asset_c, 1998, Recipient::Account(pool_account))
 					],
 					operation_stack: vec![],
 				})

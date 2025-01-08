@@ -75,7 +75,7 @@ use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, T
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
-use pallet_support::types::{Asset, Fee};
+use pallet_support::types::{Asset, Fee, Recipient};
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
@@ -640,7 +640,7 @@ pub mod pallet {
 				vec![Fee {
 					asset: pool_id.into(),
 					amount: fee,
-					recipient: pool_account,
+					recipient: Recipient::Account(pool_account),
 				}],
 			);
 
@@ -731,7 +731,7 @@ pub mod pallet {
 			let fees = fees
 				.iter()
 				.zip(pool.assets.iter())
-				.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, pool_account.clone()))
+				.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, Recipient::Account(pool_account.clone())))
 				.collect::<Vec<_>>();
 			pallet_support::Pallet::<T>::deposit_trade_event(
 				who,
@@ -826,7 +826,7 @@ pub mod pallet {
 				vec![Fee {
 					asset: asset_out.into(),
 					amount: fee_amount,
-					recipient: pool_account,
+					recipient: Recipient::Account(pool_account),
 				}],
 			);
 
@@ -919,7 +919,7 @@ pub mod pallet {
 				vec![Fee {
 					asset: asset_in.into(),
 					amount: fee_amount,
-					recipient: pool_account,
+					recipient: Recipient::Account(pool_account),
 				}],
 			);
 
@@ -1270,7 +1270,7 @@ impl<T: Config> Pallet<T> {
 		let fees = fees
 			.iter()
 			.zip(pool.assets.iter())
-			.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, pool_account.clone()))
+			.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, Recipient::Account(pool_account.clone())))
 			.collect::<Vec<_>>();
 		pallet_support::Pallet::<T>::deposit_trade_event(
 			who.clone(),
@@ -1347,7 +1347,7 @@ impl<T: Config> Pallet<T> {
 			vec![Fee {
 				asset: pool_id.into(),
 				amount: fee,
-				recipient: pool_account,
+				recipient: Recipient::Account(pool_account),
 			}],
 		);
 
