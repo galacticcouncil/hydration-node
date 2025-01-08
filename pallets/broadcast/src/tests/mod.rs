@@ -1,2 +1,2 @@
+mod lib;
 pub mod mock;
-mod tests;
