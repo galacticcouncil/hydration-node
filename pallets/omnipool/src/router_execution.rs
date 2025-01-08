@@ -52,6 +52,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			amount_in,
 			asset_fee,
 			protocol_fee,
+			T::BurnProtocolFee::get(),
 		)
 		.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
@@ -97,6 +98,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			amount_out,
 			asset_fee,
 			protocol_fee,
+			T::BurnProtocolFee::get(),
 		)
 		.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 

@@ -227,6 +227,9 @@ pub mod pallet {
 
 		/// Oracle price provider. Provides price for given asset. Used in remove liquidity to support calculation of dynamic withdrawal fee.
 		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
+
+		#[pallet::constant]
+		type BurnProtocolFee: Get<Permill>;
 	}
 
 	#[pallet::storage]
@@ -930,6 +933,7 @@ pub mod pallet {
 				amount,
 				asset_fee,
 				protocol_fee,
+				T::BurnProtocolFee::get(),
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1167,6 +1171,7 @@ pub mod pallet {
 				amount,
 				asset_fee,
 				protocol_fee,
+				T::BurnProtocolFee::get(),
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
