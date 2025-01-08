@@ -425,6 +425,11 @@ pub mod pallet {
 	#[pallet::getter(fn retries_on_error)]
 	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u8, ValueQuery>;
 
+	/// Keep tracking the blocknumber when the schedule is planned to be executed
+	#[pallet::storage]
+	#[pallet::getter(fn schedule_execution_block)]
+	pub type ScheduleExecutionBlock<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, BlockNumberFor<T>, OptionQuery>;
+
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
@@ -585,7 +590,9 @@ pub mod pallet {
 
 			Self::try_unreserve_all(schedule_id, &schedule);
 
-			let next_execution_block = next_execution_block.ok_or(Error::<T>::ScheduleNotFound)?;
+			let next_execution_block = next_execution_block
+				.or(Self::schedule_execution_block(schedule_id))
+				.ok_or(Error::<T>::ScheduleNotFound)?;
 
 			//Remove schedule id from next execution block
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(
@@ -1052,6 +1059,8 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
+		ScheduleExecutionBlock::<T>::insert(schedule_id, next_free_block);
+
 		Self::deposit_event(Event::ExecutionPlanned {
 			id: schedule_id,
 			who: who.clone(),
@@ -1194,6 +1203,7 @@ impl<T: Config> Pallet<T> {
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
+		ScheduleExecutionBlock::<T>::remove(schedule_id);
 	}
 }
 
