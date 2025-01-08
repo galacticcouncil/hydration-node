@@ -4918,7 +4918,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "277.0.0"
+version = "278.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -7988,7 +7988,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.6.4"
+version = "1.7.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -12243,7 +12243,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.26.0"
+version = "1.27.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12251,18 +12251,14 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
- "cumulus-primitives-timestamp",
- "cumulus-primitives-utility",
  "cumulus-test-relay-sproof-builder",
  "ethabi",
  "fp-evm",
  "fp-rpc",
- "frame-benchmarking",
  "frame-executive",
  "frame-remote-externalities",
  "frame-support",
  "frame-system",
- "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex",
  "hex-literal",
@@ -12292,7 +12288,6 @@ dependencies = [
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.3.2",
- "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -12307,7 +12302,6 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
- "pallet-otc-settlements",
  "pallet-referenda",
  "pallet-referrals",
  "pallet-relaychain-info",
@@ -12335,7 +12329,6 @@ dependencies = [
  "precompile-utils",
  "pretty_assertions",
  "primitives",
- "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
  "scraper",
@@ -12353,7 +12346,6 @@ dependencies = [
  "sp-offchain",
  "sp-runtime",
  "sp-session",
- "sp-staking",
  "sp-std",
  "sp-transaction-pool",
  "sp-trie",

@@ -36,7 +36,7 @@ const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 mod omnipool {
 	use super::*;
 	use frame_support::assert_ok;
-	use hydradx_runtime::{DCA, XYK};
+	use hydradx_runtime::{Balances, Currencies, DCA, XYK};
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
 	use sp_runtime::{FixedU128, TransactionOutcome};
@@ -547,6 +547,34 @@ mod omnipool {
 
 			let schedule = DCA::schedules(0);
 			assert!(schedule.is_none());
+		});
+	}
+
+	#[test]
+	fn rolling_buy_dca_should_continue_until_funds_are_spent() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let balance = 20000 * UNITS;
+			let trade_size = 500 * UNITS;
+			let dca_budget = 0; // rolling
+			Balances::force_set_balance(RuntimeOrigin::root(), ALICE.into(), balance).unwrap();
+			create_schedule(
+				ALICE,
+				schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, trade_size, dca_budget),
+			);
+			let reserved = Balances::reserved_balance(&ALICE.into());
+			assert!(Balances::free_balance(&ALICE.into()) <= balance - reserved);
+			let dai_balance = Currencies::free_balance(DAI, &ALICE.into());
+
+			//Act
+			run_to_block(11, 150);
+
+			//Assert
+			assert!(Balances::free_balance(&ALICE.into()) > reserved);
+			assert!(Currencies::free_balance(DAI, &ALICE.into()) > dai_balance);
+			assert!(DCA::schedules(0).is_none());
 		});
 	}
 
