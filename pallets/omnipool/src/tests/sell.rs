@@ -2,6 +2,7 @@ use super::*;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
 use sp_runtime::Permill;
+use pallet_broadcast::types::Destination;
 
 #[test]
 fn simple_sell_works() {
@@ -752,7 +753,7 @@ fn sell_should_get_same_amount() {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(100, expected_sold_amount)],
 					outputs: vec![Asset::new(LRNA, 57142857142858)],
-					fees: vec![Fee::new(LRNA, 0, Recipient::Burned)],
+					fees: vec![Fee::new(LRNA, 0, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -764,8 +765,8 @@ fn sell_should_get_same_amount() {
 					inputs: vec![Asset::new(LRNA, 57142857142858)],
 					outputs: vec![Asset::new(200, buy_amount)],
 					fees: vec![
-						Fee::new(200, 5500000000001, Recipient::Account(Omnipool::protocol_account())),
-						Fee::new(200, 55555555555, Recipient::Account(0)),
+						Fee::new(200, 5500000000001, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(200, 55555555555, Destination::Account(0)),
 					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}

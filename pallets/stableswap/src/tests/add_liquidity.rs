@@ -2,7 +2,7 @@ use crate::tests::mock::*;
 use crate::types::{AssetAmount, PoolInfo};
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
-use pallet_broadcast::types::{Asset, Fee, Recipient};
+use pallet_broadcast::types::{Asset, Fee, Destination};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -115,9 +115,9 @@ fn add_liquidity_should_emit_swapped_events() {
 					inputs: vec![Asset::new(asset_a, 2000000000000000000),],
 					outputs: vec![Asset::new(pool_id, 1947487201901031408)],
 					fees: vec![
-						Fee::new(asset_a, 57410103828678, Recipient::Account(pool_account)),
-						Fee::new(asset_b, 17, Recipient::Account(pool_account)),
-						Fee::new(asset_c, 39, Recipient::Account(pool_account))
+						Fee::new(asset_a, 57410103828678, Destination::Account(pool_account)),
+						Fee::new(asset_b, 17, Destination::Account(pool_account)),
+						Fee::new(asset_c, 39, Destination::Account(pool_account))
 					],
 					operation_stack: vec![],
 				})
@@ -717,7 +717,7 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
 					inputs: vec![Asset::new(asset_a, 2000000000000000003),],
 					outputs: vec![Asset::new(pool_id, 1947597621401945851)],
-					fees: vec![Fee::new(pool_id, 0, Recipient::Account(pool_account))],
+					fees: vec![Fee::new(pool_id, 0, Destination::Account(pool_account))],
 					operation_stack: vec![],
 				})
 			)

@@ -18,7 +18,7 @@ use crate::Event;
 use frame_support::{assert_noop, assert_ok};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
-use pallet_broadcast::types::{Asset, Fee, Recipient};
+use pallet_broadcast::types::{Asset, Fee, Destination};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -90,7 +90,7 @@ fn complete_fill_order_should_work() {
 				fees: vec![Fee::new(
 					HDX,
 					ONE,
-					Recipient::Account(<Test as crate::Config>::FeeReceiver::get()),
+					Destination::Account(<Test as crate::Config>::FeeReceiver::get()),
 				)],
 				operation_stack: vec![],
 			}
@@ -170,7 +170,7 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 				fees: vec![Fee::new(
 					HDX,
 					ONE,
-					Recipient::Account(<Test as crate::Config>::FeeReceiver::get()),
+					Destination::Account(<Test as crate::Config>::FeeReceiver::get()),
 				)],
 				operation_stack: vec![],
 			}
@@ -262,7 +262,7 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 				fees: vec![Fee::new(
 					HDX,
 					ONE,
-					Recipient::Account(<Test as crate::Config>::FeeReceiver::get()),
+					Destination::Account(<Test as crate::Config>::FeeReceiver::get()),
 				)],
 				operation_stack: vec![],
 			}

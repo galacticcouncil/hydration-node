@@ -75,7 +75,7 @@ use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, T
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::MultiCurrency;
-use pallet_broadcast::types::{Asset, Fee, Recipient};
+use pallet_broadcast::types::{Asset, Fee, Destination};
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
@@ -640,7 +640,7 @@ pub mod pallet {
 				vec![Fee {
 					asset: pool_id.into(),
 					amount: fee,
-					recipient: Recipient::Account(pool_account),
+					destination: Destination::Account(pool_account),
 				}],
 			);
 
@@ -732,7 +732,7 @@ pub mod pallet {
 				.iter()
 				.zip(pool.assets.iter())
 				.map(|(balance, asset_id)| {
-					Fee::new((*asset_id).into(), *balance, Recipient::Account(pool_account.clone()))
+					Fee::new((*asset_id).into(), *balance, Destination::Account(pool_account.clone()))
 				})
 				.collect::<Vec<_>>();
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -828,7 +828,7 @@ pub mod pallet {
 				vec![Fee {
 					asset: asset_out.into(),
 					amount: fee_amount,
-					recipient: Recipient::Account(pool_account),
+					destination: Destination::Account(pool_account),
 				}],
 			);
 
@@ -921,7 +921,7 @@ pub mod pallet {
 				vec![Fee {
 					asset: asset_in.into(),
 					amount: fee_amount,
-					recipient: Recipient::Account(pool_account),
+					destination: Destination::Account(pool_account),
 				}],
 			);
 
@@ -1272,7 +1272,7 @@ impl<T: Config> Pallet<T> {
 		let fees = fees
 			.iter()
 			.zip(pool.assets.iter())
-			.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, Recipient::Account(pool_account.clone())))
+			.map(|(balance, asset_id)| Fee::new((*asset_id).into(), *balance, Destination::Account(pool_account.clone())))
 			.collect::<Vec<_>>();
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
@@ -1349,7 +1349,7 @@ impl<T: Config> Pallet<T> {
 			vec![Fee {
 				asset: pool_id.into(),
 				amount: fee,
-				recipient: Recipient::Account(pool_account),
+				destination: Destination::Account(pool_account),
 			}],
 		);
 
