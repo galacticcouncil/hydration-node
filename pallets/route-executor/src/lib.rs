@@ -39,8 +39,8 @@ pub use hydradx_traits::router::{
 };
 
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
-use pallet_support::types::IncrementalIdType;
-pub use pallet_support::types::{ExecutionType, Fee};
+use pallet_broadcast::types::IncrementalIdType;
+pub use pallet_broadcast::types::{ExecutionType, Fee};
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
@@ -74,7 +74,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_support::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset id type
@@ -259,7 +259,7 @@ pub mod pallet {
 
 			let route_length = route.len();
 
-			let next_event_id = pallet_support::Pallet::<T>::add_to_context(ExecutionType::Router);
+			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router);
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
@@ -303,7 +303,7 @@ pub mod pallet {
 				event_id: next_event_id,
 			});
 
-			pallet_support::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context();
 
 			Ok(())
 		}
@@ -496,7 +496,7 @@ impl<T: Config> Pallet<T> {
 
 		let route_length = route.len();
 
-		let next_event_id = pallet_support::Pallet::<T>::add_to_context(ExecutionType::Router);
+		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router);
 
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
@@ -541,7 +541,7 @@ impl<T: Config> Pallet<T> {
 			event_id: next_event_id,
 		});
 
-		pallet_support::Pallet::<T>::remove_from_context();
+		pallet_broadcast::Pallet::<T>::remove_from_context();
 
 		Ok(())
 	}

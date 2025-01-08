@@ -3,7 +3,7 @@ use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
-use pallet_support::types::{Asset, Fee, Recipient};
+use pallet_broadcast::types::{Asset, Fee, Recipient};
 
 use crate::types::AssetPair;
 
@@ -146,11 +146,11 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_support::Event::Swapped {
+			pallet_broadcast::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_support::types::Filler::XYK(share_token),
-				operation: pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_a, 10_000_000)],
 				outputs: vec![Asset::new(asset_b, 19_986_006)],
 				fees: vec![Fee::new(asset_b, 13_993, Recipient::Account(pair_account))],
@@ -234,11 +234,11 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_support::Event::Swapped {
+			pallet_broadcast::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_support::types::Filler::XYK(share_token),
-				operation: pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_a, 10_000_000)],
 				outputs: vec![Asset::new(asset_b, 19_980_009)],
 				fees: vec![Fee::new(asset_b, 19_990, Recipient::Account(pair_account))],
@@ -317,11 +317,11 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_support::Event::Swapped {
+			pallet_broadcast::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_support::types::Filler::XYK(share_token),
-				operation: pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(asset_a, 10_000_000)],
 				outputs: vec![Asset::new(asset_b, 19_999_999)],
 				fees: vec![Fee::new(asset_b, 0, Recipient::Account(pair_account))],
@@ -417,11 +417,11 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_support::Event::Swapped {
+			pallet_broadcast::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_support::types::Filler::XYK(share_token),
-				operation: pallet_support::types::TradeOperation::ExactOut,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(asset_b, 10_000_000)],
 				outputs: vec![Asset::new(asset_a, 20_000_002)],
 				fees: vec![Fee::new(asset_b, 14_000, Recipient::Account(pair_account))],
@@ -509,11 +509,11 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_support::Event::Swapped {
+			pallet_broadcast::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_support::types::Filler::XYK(share_token),
-				operation: pallet_support::types::TradeOperation::ExactOut,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(asset_b, 10_000_000)],
 				outputs: vec![Asset::new(asset_a, 20_000_002)],
 				fees: vec![Fee::new(asset_b, 20_000, Recipient::Account(pair_account))],
@@ -590,11 +590,11 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_support::Event::Swapped {
+			pallet_broadcast::Event::Swapped {
 				swapper: ALICE,
 				filler: pair_account,
-				filler_type: pallet_support::types::Filler::XYK(share_token),
-				operation: pallet_support::types::TradeOperation::ExactOut,
+				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(asset_b, 10_000_000)],
 				outputs: vec![Asset::new(asset_a, 20_000_002)],
 				fees: vec![Fee::new(asset_b, 0, Recipient::Account(pair_account))],

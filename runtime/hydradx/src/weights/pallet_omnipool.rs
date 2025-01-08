@@ -246,12 +246,12 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 	/// Proof: `Referrals::PendingConversions` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::CounterForPendingConversions` (r:1 w:1)
 	/// Proof: `Referrals::CounterForPendingConversions` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::IncrementalId` (r:1 w:1)
-	/// Proof: `AmmSupport::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:1)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::OverflowCount` (r:1 w:0)
-	/// Proof: `AmmSupport::OverflowCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IncrementalId` (r:1 w:1)
+	/// Proof: `Broadcast::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:1)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::OverflowCount` (r:1 w:0)
+	/// Proof: `Broadcast::OverflowCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	fn sell() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `8475`
@@ -311,12 +311,12 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 	/// Proof: `Referrals::PendingConversions` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::CounterForPendingConversions` (r:1 w:1)
 	/// Proof: `Referrals::CounterForPendingConversions` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::IncrementalId` (r:1 w:1)
-	/// Proof: `AmmSupport::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:1)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::OverflowCount` (r:1 w:0)
-	/// Proof: `AmmSupport::OverflowCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IncrementalId` (r:1 w:1)
+	/// Proof: `Broadcast::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:1)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::OverflowCount` (r:1 w:0)
+	/// Proof: `Broadcast::OverflowCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	fn buy() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `8475`
@@ -506,12 +506,12 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 	/// Proof: `Referrals::PendingConversions` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::CounterForPendingConversions` (r:1 w:1)
 	/// Proof: `Referrals::CounterForPendingConversions` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::IncrementalId` (r:1 w:1)
-	/// Proof: `AmmSupport::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:1)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::OverflowCount` (r:1 w:0)
-	/// Proof: `AmmSupport::OverflowCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IncrementalId` (r:1 w:1)
+	/// Proof: `Broadcast::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:1)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::OverflowCount` (r:1 w:0)
+	/// Proof: `Broadcast::OverflowCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(_c: u32, e: u32, ) -> Weight {
@@ -573,12 +573,12 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 	/// Proof: `Referrals::PendingConversions` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
 	/// Storage: `Referrals::CounterForPendingConversions` (r:1 w:1)
 	/// Proof: `Referrals::CounterForPendingConversions` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::IncrementalId` (r:1 w:1)
-	/// Proof: `AmmSupport::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:1)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::OverflowCount` (r:1 w:0)
-	/// Proof: `AmmSupport::OverflowCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IncrementalId` (r:1 w:1)
+	/// Proof: `Broadcast::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:1)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::OverflowCount` (r:1 w:0)
+	/// Proof: `Broadcast::OverflowCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32, ) -> Weight {

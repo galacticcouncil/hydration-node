@@ -18,7 +18,7 @@ use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
-use pallet_support::types::{Asset, Fee, Recipient};
+use pallet_broadcast::types::{Asset, Fee, Recipient};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -94,11 +94,11 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 				fee,
 			}
 			.into(),
-			pallet_support::Event::Swapped {
+			pallet_broadcast::Event::Swapped {
 				swapper: order.owner,
 				filler: BOB,
-				filler_type: pallet_support::types::Filler::OTC(order_id),
-				operation: pallet_support::types::TradeOperation::ExactIn,
+				filler_type: pallet_broadcast::types::Filler::OTC(order_id),
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(order.asset_in, 5 * ONE)],
 				outputs: vec![Asset::new(order.asset_out, expected_amount_out)],
 				fees: vec![Fee::new(

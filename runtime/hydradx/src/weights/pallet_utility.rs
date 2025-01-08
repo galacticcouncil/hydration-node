@@ -51,10 +51,10 @@ pub struct WeightInfo<T>(PhantomData<T>);
 /// Weights for `pallet_utility` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_utility::WeightInfo for HydraWeight<T> {
-	/// Storage: `AmmSupport::IncrementalId` (r:1 w:1)
-	/// Proof: `AmmSupport::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::IdStack` (r:1 w:1)
-	/// Proof: `AmmSupport::IdStack` (`max_values`: Some(1), `max_size`: Some(51), added: 546, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IncrementalId` (r:1 w:1)
+	/// Proof: `Broadcast::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IdStack` (r:1 w:1)
+	/// Proof: `Broadcast::IdStack` (`max_values`: Some(1), `max_size`: Some(51), added: 546, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[0, 1000]`.
 	fn batch(c: u32, ) -> Weight {
 		// Proof Size summary in bytes:
@@ -74,10 +74,10 @@ impl<T: frame_system::Config> pallet_utility::WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 6_183_000 picoseconds.
 		Weight::from_parts(6_383_000, 0)
 	}
-	/// Storage: `AmmSupport::IncrementalId` (r:1 w:1)
-	/// Proof: `AmmSupport::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::IdStack` (r:1 w:1)
-	/// Proof: `AmmSupport::IdStack` (`max_values`: Some(1), `max_size`: Some(51), added: 546, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IncrementalId` (r:1 w:1)
+	/// Proof: `Broadcast::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IdStack` (r:1 w:1)
+	/// Proof: `Broadcast::IdStack` (`max_values`: Some(1), `max_size`: Some(51), added: 546, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[0, 1000]`.
 	fn batch_all(c: u32, ) -> Weight {
 		// Proof Size summary in bytes:
@@ -97,10 +97,10 @@ impl<T: frame_system::Config> pallet_utility::WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 8_714_000 picoseconds.
 		Weight::from_parts(8_898_000, 0)
 	}
-	/// Storage: `AmmSupport::IncrementalId` (r:1 w:1)
-	/// Proof: `AmmSupport::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::IdStack` (r:1 w:1)
-	/// Proof: `AmmSupport::IdStack` (`max_values`: Some(1), `max_size`: Some(51), added: 546, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IncrementalId` (r:1 w:1)
+	/// Proof: `Broadcast::IncrementalId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::IdStack` (r:1 w:1)
+	/// Proof: `Broadcast::IdStack` (`max_values`: Some(1), `max_size`: Some(51), added: 546, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[0, 1000]`.
 	fn force_batch(c: u32, ) -> Weight {
 		// Proof Size summary in bytes:

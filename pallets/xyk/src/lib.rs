@@ -36,7 +36,7 @@ use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
 };
-use pallet_support::types::{Asset, Fee, Recipient};
+use pallet_broadcast::types::{Asset, Fee, Recipient};
 
 use sp_std::{vec, vec::Vec};
 
@@ -78,7 +78,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_support::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Registry support
@@ -252,7 +252,7 @@ pub mod pallet {
 		},
 
 		/// Asset sale executed.
-		/// Deprecated. Replaced by pallet_support::Swapped
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: AssetId,
@@ -265,7 +265,7 @@ pub mod pallet {
 		},
 
 		/// Asset purchase executed.
-		/// Deprecated. Replaced by pallet_support::Swapped
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
 		BuyExecuted {
 			who: T::AccountId,
 			asset_out: AssetId,
@@ -548,7 +548,7 @@ pub mod pallet {
 		/// `max_limit` - minimum amount of `asset_out` / amount of asset_out to be obtained from the pool in exchange for `asset_in`.
 		///
 		/// Emits `SellExecuted` when successful. Deprecated.
-		/// Emits `pallet_support::Swapped` when successful.
+		/// Emits `pallet_broadcast::Swapped` when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell() + <T as Config>::AMMHandler::on_trade_weight())]
 		pub fn sell(
@@ -572,7 +572,7 @@ pub mod pallet {
 		///
 		/// `max_limit` - maximum amount of `asset_in` to be sold in exchange for `asset_out`.
 		/// Emits `BuyExecuted` when successful. Deprecated.
-		/// Emits `pallet_support::Swapped` when successful.
+		/// Emits `pallet_broadcast::Swapped` when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy() + <T as Config>::AMMHandler::on_trade_weight())]
 		pub fn buy(
@@ -918,11 +918,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			pool: pair_account.clone(),
 		});
 
-		pallet_support::Pallet::<T>::deposit_trade_event(
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
 			pair_account.clone(),
-			pallet_support::types::Filler::XYK(Self::share_token(&pair_account)),
-			pallet_support::types::TradeOperation::ExactIn,
+			pallet_broadcast::types::Filler::XYK(Self::share_token(&pair_account)),
+			pallet_broadcast::types::TradeOperation::ExactIn,
 			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
 			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
 			vec![Fee {
@@ -1098,11 +1098,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			pool: pair_account.clone(),
 		});
 
-		pallet_support::Pallet::<T>::deposit_trade_event(
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			transfer.origin.clone(),
 			pair_account.clone(),
-			pallet_support::types::Filler::XYK(Self::share_token(&pair_account)),
-			pallet_support::types::TradeOperation::ExactOut,
+			pallet_broadcast::types::Filler::XYK(Self::share_token(&pair_account)),
+			pallet_broadcast::types::TradeOperation::ExactOut,
 			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
 			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
 			vec![Fee {

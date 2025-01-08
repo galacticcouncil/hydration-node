@@ -246,13 +246,13 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		} else {
 			unique(&message)
 		};
-		pallet_support::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id));
+		pallet_broadcast::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id));
 
 		let prepare_result = Inner::prepare(message);
 
 		//In case of error we need to clean context as xcm execution won't happen
 		if prepare_result.is_err() {
-			pallet_support::Pallet::<Runtime>::remove_from_context();
+			pallet_broadcast::Pallet::<Runtime>::remove_from_context();
 		}
 
 		prepare_result
@@ -267,7 +267,7 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		let outcome = Inner::execute(origin, pre, id, weight_credit);
 
 		// Context was added to the stack in `prepare` call.
-		pallet_support::Pallet::<Runtime>::remove_from_context();
+		pallet_broadcast::Pallet::<Runtime>::remove_from_context();
 
 		outcome
 	}
@@ -481,7 +481,7 @@ pub type LocationToAccountId = (
 	// Convert ETH to local substrate account
 	EvmAddressConversion<RelayNetwork>,
 );
-use pallet_support::types::ExecutionType;
+use pallet_broadcast::types::ExecutionType;
 use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.

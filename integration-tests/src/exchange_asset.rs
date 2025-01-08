@@ -127,7 +127,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
 		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), received);
 
-		let last_swapped_events: Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
 
 		let event1 = &last_two_swapped_events[0];
@@ -162,7 +162,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			vec![],
 		));
 
-		let last_swapped_events: Vec<pallet_support::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
 		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
 
 		let event1 = &last_two_swapped_events[0];
@@ -1193,7 +1193,7 @@ fn half(asset: &Asset) -> Asset {
 		id: asset.clone().id,
 	}
 }
-use pallet_support::types::{ExecutionType, Fee};
+use pallet_broadcast::types::{ExecutionType, Fee};
 use rococo_runtime::xcm_config::BaseXcmWeight;
 use xcm_builder::FixedWeightBounds;
 use xcm_executor::traits::WeightBounds;

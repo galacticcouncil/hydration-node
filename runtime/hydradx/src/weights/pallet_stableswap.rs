@@ -96,8 +96,8 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	fn add_liquidity() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3888`
@@ -131,8 +131,8 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	fn add_liquidity_shares() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3757`
@@ -164,8 +164,8 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:0 w:1)
 	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	fn remove_liquidity_one_asset() -> Weight {
@@ -234,8 +234,8 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	fn withdraw_asset_amount() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3780`
@@ -267,8 +267,8 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:0 w:1)
 	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	fn sell() -> Weight {
@@ -304,8 +304,8 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	fn buy() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3813`
@@ -372,8 +372,8 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:0 w:1)
 	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
@@ -417,8 +417,8 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32, ) -> Weight {

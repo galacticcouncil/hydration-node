@@ -212,8 +212,8 @@ impl<T: frame_system::Config> pallet_xyk::WeightInfo for HydraWeight<T> {
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::WhitelistedAssets` (r:1 w:0)
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	fn sell() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `4607`
@@ -249,8 +249,8 @@ impl<T: frame_system::Config> pallet_xyk::WeightInfo for HydraWeight<T> {
 	/// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::WhitelistedAssets` (r:1 w:0)
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	fn buy() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `4607`
@@ -286,8 +286,8 @@ impl<T: frame_system::Config> pallet_xyk::WeightInfo for HydraWeight<T> {
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencyPrice` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::WhitelistedAssets` (r:1 w:0)
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
@@ -331,8 +331,8 @@ impl<T: frame_system::Config> pallet_xyk::WeightInfo for HydraWeight<T> {
 	/// Proof: `AssetRegistry::ExistentialDepositCounter` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::WhitelistedAssets` (r:1 w:0)
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 3]`.
 	/// The range of component `e` is `[0, 1]`.
 	fn router_execution_buy(c: u32, e: u32, ) -> Weight {

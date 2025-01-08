@@ -23,7 +23,7 @@ serde = { workspace = true, optional = true }
 # HydraDX dependencies
 hydra-dx-math = { workspace = true }
 hydradx-traits = { workspace = true }
-pallet-support = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 ## ORML dependencies
 orml-traits = { workspace = true }
@@ -67,6 +67,6 @@ std = [
     'frame-benchmarking/std',
     "scale-info/std",
     "hydra-dx-math/std",
-    "pallet-support/std",
+    "pallet-broadcast/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

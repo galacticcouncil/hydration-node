@@ -95,7 +95,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
-use pallet_support::types::{Asset, ExecutionType, Fee, Recipient};
+use pallet_broadcast::types::{Asset, ExecutionType, Fee, Recipient};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
 use scale_info::TypeInfo;
@@ -141,7 +141,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_support::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -305,7 +305,7 @@ pub mod pallet {
 			shares_removed: Balance,
 		},
 		/// Sell trade executed.
-		/// Deprecated. Replaced by pallet_support::Swapped
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
 		//TODO: remove when completely migrated to new Swapped event
 		SellExecuted {
 			who: T::AccountId,
@@ -319,7 +319,7 @@ pub mod pallet {
 			protocol_fee_amount: Balance,
 		},
 		/// Buy trade executed.
-		/// Deprecated. Replaced by pallet_support::Swapped
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
 		//TODO: remove when completely migrated to new Swapped event
 		BuyExecuted {
 			who: T::AccountId,
@@ -907,7 +907,7 @@ pub mod pallet {
 		/// - `min_buy_amount`: Minimum amount required to receive
 		///
 		/// Emits `SellExecuted` event when successful. Deprecated.
-		/// Emits `pallet_support::Swapped` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		///
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell()
@@ -1094,14 +1094,14 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			pallet_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
+			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
 
 			//Swapped event for AssetA to HubAsset
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who.clone(),
 				Self::protocol_account(),
-				pallet_support::types::Filler::Omnipool,
-				pallet_support::types::TradeOperation::ExactIn,
+				pallet_broadcast::types::Filler::Omnipool,
+				pallet_broadcast::types::TradeOperation::ExactIn,
 				vec![Asset::new(asset_in.into(), amount)],
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
@@ -1115,11 +1115,11 @@ pub mod pallet {
 			);
 
 			//Swapped event for HubAsset to AssetB
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				Self::protocol_account(),
-				pallet_support::types::Filler::Omnipool,
-				pallet_support::types::TradeOperation::ExactIn,
+				pallet_broadcast::types::Filler::Omnipool,
+				pallet_broadcast::types::TradeOperation::ExactIn,
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
 					*state_changes.asset_out.delta_hub_reserve,
@@ -1128,7 +1128,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_support::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context();
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1154,7 +1154,7 @@ pub mod pallet {
 		/// - `max_sell_amount`: Maximum amount to be sold.
 		///
 		/// Emits `BuyExecuted` event when successful. Deprecated.
-		/// Emits `pallet_support::Swapped` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		///
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy()
@@ -1335,14 +1335,14 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			pallet_support::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
+			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
 
 			//Swapped even from AssetA to HubAsset
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who.clone(),
 				Self::protocol_account(),
-				pallet_support::types::Filler::Omnipool,
-				pallet_support::types::TradeOperation::ExactOut,
+				pallet_broadcast::types::Filler::Omnipool,
+				pallet_broadcast::types::TradeOperation::ExactOut,
 				vec![Asset::new(asset_in.into(), *state_changes.asset_in.delta_reserve)],
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
@@ -1356,11 +1356,11 @@ pub mod pallet {
 			);
 
 			//Swapped even from HubAsset to AssetB
-			pallet_support::Pallet::<T>::deposit_trade_event(
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				Self::protocol_account(),
-				pallet_support::types::Filler::Omnipool,
-				pallet_support::types::TradeOperation::ExactOut,
+				pallet_broadcast::types::Filler::Omnipool,
+				pallet_broadcast::types::TradeOperation::ExactOut,
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
 					*state_changes.asset_out.delta_hub_reserve,
@@ -1369,7 +1369,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_support::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context();
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1889,11 +1889,11 @@ impl<T: Config> Pallet<T> {
 		});
 
 		//No protocol fee in case of selling hub asset
-		pallet_support::Pallet::<T>::deposit_trade_event(
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
-			pallet_support::types::Filler::Omnipool,
-			pallet_support::types::TradeOperation::ExactIn,
+			pallet_broadcast::types::Filler::Omnipool,
+			pallet_broadcast::types::TradeOperation::ExactIn,
 			vec![Asset::new(
 				T::HubAssetId::get().into(),
 				*state_changes.asset.delta_hub_reserve,
@@ -2011,11 +2011,11 @@ impl<T: Config> Pallet<T> {
 		});
 
 		//No protocol fee in case of buying asset for hub asset
-		pallet_support::Pallet::<T>::deposit_trade_event(
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
-			pallet_support::types::Filler::Omnipool,
-			pallet_support::types::TradeOperation::ExactOut,
+			pallet_broadcast::types::Filler::Omnipool,
+			pallet_broadcast::types::TradeOperation::ExactOut,
 			vec![Asset::new(
 				T::HubAssetId::get().into(),
 				*state_changes.asset.delta_hub_reserve,

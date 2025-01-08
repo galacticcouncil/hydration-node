@@ -149,8 +149,8 @@ impl<T: frame_system::Config> pallet_transaction_multi_payment::WeightInfo for H
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::WhitelistedAssets` (r:1 w:0)
 	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::TotalIssuance` (r:1 w:1)
 	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
 	fn withdraw_fee() -> Weight {

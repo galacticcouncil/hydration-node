@@ -22,26 +22,26 @@ use frame_support::traits::Len;
 #[test]
 fn stack_should_be_populated_when_pushed() {
 	ExtBuilder::default().build().execute_with(|| {
-		AmmSupport::add_to_context(ExecutionType::Router);
-		assert_eq!(AmmSupport::execution_context(), vec![ExecutionType::Router(0)]);
+		Broadcast::add_to_context(ExecutionType::Router);
+		assert_eq!(Broadcast::execution_context(), vec![ExecutionType::Router(0)]);
 		assert_eq!(
-			AmmSupport::execution_context().into_inner(),
+			Broadcast::execution_context().into_inner(),
 			vec![ExecutionType::Router(0)]
 		);
 
-		AmmSupport::add_to_context(ExecutionType::Router);
+		Broadcast::add_to_context(ExecutionType::Router);
 		assert_eq!(
-			AmmSupport::execution_context(),
+			Broadcast::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 		assert_eq!(
-			AmmSupport::execution_context().into_inner(),
+			Broadcast::execution_context().into_inner(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		AmmSupport::add_to_context(ExecutionType::Omnipool);
+		Broadcast::add_to_context(ExecutionType::Omnipool);
 		assert_eq!(
-			AmmSupport::execution_context(),
+			Broadcast::execution_context(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
@@ -49,7 +49,7 @@ fn stack_should_be_populated_when_pushed() {
 			]
 		);
 		assert_eq!(
-			AmmSupport::execution_context().into_inner(),
+			Broadcast::execution_context().into_inner(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
@@ -62,23 +62,23 @@ fn stack_should_be_populated_when_pushed() {
 #[test]
 fn stack_should_be_reduced_when_poped() {
 	ExtBuilder::default().build().execute_with(|| {
-		AmmSupport::add_to_context(ExecutionType::Router);
-		AmmSupport::add_to_context(ExecutionType::Router);
-		AmmSupport::add_to_context(ExecutionType::Omnipool);
+		Broadcast::add_to_context(ExecutionType::Router);
+		Broadcast::add_to_context(ExecutionType::Router);
+		Broadcast::add_to_context(ExecutionType::Omnipool);
 
-		AmmSupport::remove_from_context();
+		Broadcast::remove_from_context();
 		assert_eq!(
-			AmmSupport::execution_context(),
+			Broadcast::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 		assert_eq!(
-			AmmSupport::execution_context().into_inner(),
+			Broadcast::execution_context().into_inner(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		AmmSupport::add_to_context(ExecutionType::Omnipool);
+		Broadcast::add_to_context(ExecutionType::Omnipool);
 		assert_eq!(
-			AmmSupport::execution_context(),
+			Broadcast::execution_context(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
@@ -86,7 +86,7 @@ fn stack_should_be_reduced_when_poped() {
 			]
 		);
 		assert_eq!(
-			AmmSupport::execution_context().into_inner(),
+			Broadcast::execution_context().into_inner(),
 			vec![
 				ExecutionType::Router(0),
 				ExecutionType::Router(1),
@@ -99,7 +99,7 @@ fn stack_should_be_reduced_when_poped() {
 #[test]
 fn event_should_be_deposited() {
 	ExtBuilder::default().build().execute_with(|| {
-		AmmSupport::deposit_trade_event(
+		Broadcast::deposit_trade_event(
 			ALICE,
 			BOB,
 			Filler::Omnipool,
@@ -132,11 +132,11 @@ fn event_should_be_deposited() {
 #[test]
 fn entry_is_removed_when_type_matched_with_last_stack_item() {
 	ExtBuilder::default().build().execute_with(|| {
-		AmmSupport::add_to_context(ExecutionType::Router);
+		Broadcast::add_to_context(ExecutionType::Router);
 
-		AmmSupport::remove_from_context();
+		Broadcast::remove_from_context();
 
-		assert_eq!(AmmSupport::execution_context().into_inner(), vec![]);
+		assert_eq!(Broadcast::execution_context().into_inner(), vec![]);
 	});
 }
 
@@ -146,27 +146,27 @@ fn entry_is_removed_when_type_matched_with_last_stack_item() {
 fn overflow_should_be_handled_when_max_stack_size_reached() {
 	ExtBuilder::default().build().execute_with(|| {
 		for _ in 0..MAX_STACK_SIZE {
-			AmmSupport::add_to_context(ExecutionType::Batch);
+			Broadcast::add_to_context(ExecutionType::Batch);
 		}
 
-		AmmSupport::add_to_context(ExecutionType::Batch);
-		AmmSupport::add_to_context(ExecutionType::Batch);
-		AmmSupport::add_to_context(ExecutionType::Batch);
+		Broadcast::add_to_context(ExecutionType::Batch);
+		Broadcast::add_to_context(ExecutionType::Batch);
+		Broadcast::add_to_context(ExecutionType::Batch);
 
-		assert_eq!(AmmSupport::execution_context().len(), 16);
+		assert_eq!(Broadcast::execution_context().len(), 16);
 
 		//We remove the batch 3 times to check if overflow handled, so nothing is removed form stack
-		AmmSupport::remove_from_context();
-		assert_eq!(AmmSupport::execution_context().len(), 16);
+		Broadcast::remove_from_context();
+		assert_eq!(Broadcast::execution_context().len(), 16);
 
-		AmmSupport::remove_from_context();
-		assert_eq!(AmmSupport::execution_context().len(), 16);
+		Broadcast::remove_from_context();
+		assert_eq!(Broadcast::execution_context().len(), 16);
 
-		AmmSupport::remove_from_context();
-		assert_eq!(AmmSupport::execution_context().len(), 16);
+		Broadcast::remove_from_context();
+		assert_eq!(Broadcast::execution_context().len(), 16);
 
 		//Check if stack behaves normally after overflow
-		AmmSupport::remove_from_context();
-		assert_eq!(AmmSupport::execution_context().len(), 15);
+		Broadcast::remove_from_context();
+		assert_eq!(Broadcast::execution_context().len(), 15);
 	});
 }

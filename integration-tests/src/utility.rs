@@ -2,7 +2,7 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use pallet_support::types::Recipient;
+use pallet_broadcast::types::Recipient;
 
 use crate::assert_balance;
 use hydradx_runtime::LBP;
@@ -10,14 +10,14 @@ use hydradx_runtime::XYK;
 use hydradx_runtime::{Currencies, Omnipool, Runtime, RuntimeEvent};
 use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_traits::router::PoolType;
-use pallet_support::types::Asset;
+use pallet_broadcast::types::Asset;
 use xcm_emulator::TestExt;
 
 use hydradx_traits::router::Trade;
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use pallet_support::types::ExecutionType;
-use pallet_support::types::Fee;
+use pallet_broadcast::types::ExecutionType;
+use pallet_broadcast::types::Fee;
 #[test]
 fn batch_execution_type_should_be_included_in_batch() {
 	TestNet::reset();
@@ -71,11 +71,11 @@ fn batch_execution_type_should_be_included_in_batch() {
 		pretty_assertions::assert_eq!(
 			swapped_events,
 			vec![
-				pallet_support::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
-					filler_type: pallet_support::types::Filler::LBP,
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_broadcast::types::Filler::LBP,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(DAI, 9980000000)],
 					outputs: vec![Asset::new(LRNA, 5640664064)],
 					fees: vec![Fee::new(
@@ -89,11 +89,11 @@ fn batch_execution_type_should_be_included_in_batch() {
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
-				pallet_support::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_support::types::Filler::Omnipool,
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(
@@ -103,19 +103,19 @@ fn batch_execution_type_should_be_included_in_batch() {
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
-				pallet_support::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 						pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						},
 					))),
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, 4682924837974)],
 					outputs: vec![Asset::new(DOT, 2230008413831)],
 					fees: vec![Fee::new(
@@ -198,19 +198,19 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 		//Assert
 		pretty_assertions::assert_eq!(
 			*get_last_swapped_events().last().unwrap(),
-			pallet_support::Event::<Runtime>::Swapped {
+			pallet_broadcast::Event::<Runtime>::Swapped {
 				swapper: BOB.into(),
 				filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 					asset_in: HDX,
 					asset_out: DOT,
 				}),
-				filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+				filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 					pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,
 					},
 				))),
-				operation: pallet_support::types::TradeOperation::ExactIn,
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(HDX, amount_to_sell)],
 				outputs: vec![Asset::new(DOT, 4549178628)],
 				fees: vec![Fee::new(
@@ -284,11 +284,11 @@ fn nested_batch_should_represent_embeddedness() {
 		pretty_assertions::assert_eq!(
 			swapped_events,
 			vec![
-				pallet_support::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
-					filler_type: pallet_support::types::Filler::LBP,
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_broadcast::types::Filler::LBP,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(DAI, 9980000000)],
 					outputs: vec![Asset::new(LRNA, 5640664064)],
 					fees: vec![Fee::new(
@@ -306,11 +306,11 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Router(2)
 					],
 				},
-				pallet_support::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_support::types::Filler::Omnipool,
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
 					outputs: vec![Asset::new(HDX, 4682924837974)],
 					fees: vec![Fee::new(
@@ -324,19 +324,19 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Router(2)
 					],
 				},
-				pallet_support::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,
 					}),
-					filler_type: pallet_support::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
 						pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						},
 					))),
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, 4682924837974)],
 					outputs: vec![Asset::new(DOT, 2230008413831)],
 					fees: vec![Fee::new(

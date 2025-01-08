@@ -96,8 +96,8 @@ impl<T: frame_system::Config> pallet_otc::WeightInfo for HydraWeight<T> {
 	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	fn partial_fill_order() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `2645`
@@ -127,8 +127,8 @@ impl<T: frame_system::Config> pallet_otc::WeightInfo for HydraWeight<T> {
 	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `AmmSupport::ExecutionContext` (r:1 w:0)
-	/// Proof: `AmmSupport::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
+	/// Storage: `Broadcast::ExecutionContext` (r:1 w:0)
+	/// Proof: `Broadcast::ExecutionContext` (`max_values`: Some(1), `max_size`: Some(593), added: 1088, mode: `MaxEncodedLen`)
 	fn fill_order() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `2645`

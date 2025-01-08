@@ -14,7 +14,7 @@ scale-info = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
-pallet-support = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -54,7 +54,7 @@ std = [
   'orml-traits/std',
   'hydradx-traits/std',
   'frame-benchmarking/std',
-    "pallet-support/std"
+    "pallet-broadcast/std"
 ]
 
 runtime-benchmarks = [
