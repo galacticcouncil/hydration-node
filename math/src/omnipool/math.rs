@@ -43,14 +43,21 @@ pub fn calculate_sell_state_changes(
 		delta_hub_reserve_out
 	);
 
-	let delta_reserve_out = out_reserve_hp
+	let delta_reserve_out_hp = out_reserve_hp
 		.checked_mul(delta_hub_reserve_out_hp)
 		.and_then(|v| v.checked_div(out_hub_reserve_hp.checked_add(delta_hub_reserve_out_hp)?))?;
 
-	let amount_out = to_balance!(delta_reserve_out).ok()?;
+	let amount_out = to_balance!(delta_reserve_out_hp).ok()?;
 	let delta_reserve_out = amount_without_fee(amount_out, asset_fee)?;
 
-	let asset_fee = amount_out.saturating_sub(delta_reserve_out);
+	let asset_fee_amount = amount_out.saturating_sub(delta_reserve_out);
+
+	//mint amount
+	let delta_q_j = to_u256!(delta_hub_reserve_out);
+	let delta_out_m = out_reserve_hp.checked_mul(delta_q_j)?.checked_div(out_reserve_hp.checked_add(delta_reserve_out_hp)?)?;
+	let delta_out_m = to_balance!(delta_out_m).ok()?;
+	let delta_out_m = asset_fee.mul_floor(delta_out_m);
+	let total_delta_hub_reserve_out = delta_hub_reserve_out.checked_add(delta_out_m)?;
 
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
@@ -60,12 +67,12 @@ pub fn calculate_sell_state_changes(
 		},
 		asset_out: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve_out),
-			delta_hub_reserve: Increase(delta_hub_reserve_out),
+			delta_hub_reserve: Increase(total_delta_hub_reserve_out),
 			..Default::default()
 		},
-		extra_hub_amount: 0u128, //TODO: set when math is updated
+		extra_hub_amount: delta_out_m, //TODO: set when math is updated
 		fee: TradeFee {
-			asset_fee,
+			asset_fee: asset_fee_amount,
 			protocol_fee: protocol_fee_amount,
 		},
 	})
