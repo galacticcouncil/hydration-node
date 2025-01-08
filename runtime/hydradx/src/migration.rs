@@ -14,22 +14,12 @@
 // limitations under the License.
 
 use super::*;
-use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
-
-pub struct OnRuntimeUpgradeMigration;
-use super::Runtime;
 
 impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 	type ChannelList = ParachainSystem;
 }
 
-impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
-	fn on_runtime_upgrade() -> Weight {
-		cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5::<Runtime>::on_runtime_upgrade()
-	}
-
-	#[cfg(feature = "try-runtime")]
-	fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
-		cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5::<Runtime>::post_upgrade(state)
-	}
-}
+pub type Migrations = (
+	cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
+	evm::precompiles::erc20_mapping::SetCodeMetadataForErc20Precompile,
+);

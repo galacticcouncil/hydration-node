@@ -82,14 +82,27 @@ impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {
 	}
 }
 
-impl frame_support::traits::OnRuntimeUpgrade for SetCodeForErc20Precompile {
+pub struct SetCodeMetadataForErc20Precompile;
+impl frame_support::traits::OnRuntimeUpgrade for SetCodeMetadataForErc20Precompile {
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
+		log::info!("Running migration for SetCodeMetadataForErc20Precompile.",);
+
 		let mut reads = 0;
 		let mut writes = 0;
 		pallet_asset_registry::Assets::<Runtime>::iter().for_each(|(asset_id, _)| {
 			reads += 1;
-			if !pallet_evm::AccountCodes::<Runtime>::contains_key(HydraErc20Mapping::encode_evm_address(asset_id)) {
-				Self::on_register_asset(asset_id);
+			if !pallet_evm::AccountCodesMetadata::<Runtime>::contains_key(HydraErc20Mapping::encode_evm_address(
+				asset_id,
+			)) {
+				let code = hex!["00"];
+				let size = code[..].len() as u64;
+				let hash = H256::from(sp_io::hashing::keccak_256(&code[..]));
+				let code_metadata = pallet_evm::CodeMetadata { size, hash };
+				pallet_evm::AccountCodesMetadata::<Runtime>::insert(
+					HydraErc20Mapping::encode_evm_address(asset_id),
+					code_metadata,
+				);
+
 				writes += 1;
 			}
 		});
