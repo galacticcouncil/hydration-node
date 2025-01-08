@@ -41,6 +41,7 @@ const APP_LINEAR: Curve = Curve::make_linear(7, 7, percent(50), percent(100));
 const APP_LINEAR_FLAT: Curve = Curve::make_linear(4, 7, percent(50), percent(100));
 const APP_RECIP: Curve = Curve::make_reciprocal(1, 7, percent(80), percent(50), percent(100));
 const SUP_LINEAR: Curve = Curve::make_linear(7, 7, percent(0), percent(50));
+const SUP_LINEAR_FROM_25: Curve = Curve::make_linear(7, 7, percent(0), percent(25));
 const SUP_RECIP: Curve = Curve::make_reciprocal(5, 7, percent(1), percent(0), percent(50));
 const SUP_FAST_RECIP: Curve = Curve::make_reciprocal(3, 7, percent(1), percent(0), percent(50));
 const SUP_WHITELISTED_CALLER: Curve = Curve::make_reciprocal(1, 28, percent(3), percent(2), percent(50));
@@ -127,7 +128,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 			confirm_period: 12 * HOURS,
 			min_enactment_period: 10 * MINUTES,
 			min_approval: APP_RECIP,
-			min_support: SUP_LINEAR,
+			min_support: SUP_LINEAR_FROM_25,
 		},
 	),
 	(
