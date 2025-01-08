@@ -985,7 +985,7 @@ pub mod pallet {
 					state_changes
 						.asset_out
 						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.extra_hub_amount))
+						.merge(BalanceUpdate::Increase(state_changes.extra_protocol_fee_amount))
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
@@ -1222,7 +1222,7 @@ pub mod pallet {
 					state_changes
 						.asset_out
 						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.extra_hub_amount))
+						.merge(BalanceUpdate::Increase(state_changes.extra_protocol_fee_amount))
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;

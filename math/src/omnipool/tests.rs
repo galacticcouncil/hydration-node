@@ -60,7 +60,7 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 		state_changes.asset_out.delta_hub_reserve,
 		BalanceUpdate::Increase(5714285714285u128)
 	);
-	assert_eq!(state_changes.extra_hub_amount, 0u128);
+	assert_eq!(state_changes.extra_protocol_fee_amount, 0u128);
 	assert_eq!(state_changes.fee, TradeFee::default());
 }
 
@@ -193,7 +193,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		state_changes.asset_out.delta_hub_reserve,
 		BalanceUpdate::Increase(5657142857143u128)
 	);
-	assert_eq!(state_changes.extra_hub_amount, 0);
+	assert_eq!(state_changes.extra_protocol_fee_amount, 0);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 57142857142u128 + 5657142857143u128;
@@ -313,7 +313,7 @@ fn calculate_buy_should_work_when_correct_input_provided() {
 		state_changes.asset_out.delta_hub_reserve,
 		BalanceUpdate::Increase(1250000000001u128)
 	);
-	assert_eq!(state_changes.extra_hub_amount, 0u128);
+	assert_eq!(state_changes.extra_protocol_fee_amount, 0u128);
 }
 
 #[test]
@@ -454,7 +454,7 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 		state_changes.asset_out.delta_hub_reserve,
 		BalanceUpdate::Increase(1265822784811u128)
 	);
-	assert_eq!(state_changes.extra_hub_amount, 0);
+	assert_eq!(state_changes.extra_protocol_fee_amount, 0);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 1265822784811u128 + 12786088735u128;
