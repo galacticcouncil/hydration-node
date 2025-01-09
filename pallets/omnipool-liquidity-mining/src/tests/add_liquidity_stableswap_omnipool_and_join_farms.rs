@@ -90,7 +90,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_with_single_yiel
 				RuntimeOrigin::signed(LP1),
 				STABLESWAP_POOL_ID,
 				vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
-				yield_farms.try_into().unwrap(),
+				Some(yield_farms.try_into().unwrap()),
 			));
 
 			//Assert that liquidity is added
@@ -230,7 +230,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_with_multiple_yi
 				RuntimeOrigin::signed(LP1),
 				STABLESWAP_POOL_ID,
 				vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
-				yield_farms.try_into().unwrap(),
+				Some(yield_farms.try_into().unwrap()),
 			));
 
 			//Assert that liquidity is added
@@ -403,7 +403,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_when_origin_is_n
 					RuntimeOrigin::none(),
 					STABLESWAP_POOL_ID,
 					vec![AssetAmount::new(USDT, amount)].try_into().unwrap(),
-					yield_farms.try_into().unwrap(),
+					Some(yield_farms.try_into().unwrap()),
 				),
 				BadOrigin
 			);

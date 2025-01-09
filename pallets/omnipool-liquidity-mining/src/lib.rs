@@ -1030,12 +1030,16 @@ pub mod pallet {
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		///
 		#[pallet::call_index(16)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_stableswap_omnipool_and_join_farms(farm_entries.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_stableswap_omnipool_and_join_farms(
+			match &farm_entries {
+				Some(entries) => entries.len() as u32,
+				None => 0,
+		}))]
 		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
 			origin: OriginFor<T>,
 			stable_pool_id: T::AssetId,
 			stable_asset_amounts: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
-			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
+			farm_entries: Option<BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
@@ -1048,8 +1052,8 @@ pub mod pallet {
 				Balance::MIN,
 			)?;
 
-			if !farm_entries.is_empty() {
-				Self::join_farms(origin, farm_entries, position_id)?;
+			if let Some(farms) = farm_entries {
+				Self::join_farms(origin, farms, position_id)?;
 			}
 
 			Ok(())

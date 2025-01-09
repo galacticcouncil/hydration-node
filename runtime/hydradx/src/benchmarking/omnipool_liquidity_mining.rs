@@ -910,7 +910,7 @@ runtime_benchmarks! {
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
 
-	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), farms.try_into().unwrap())
+	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), Some(farms.try_into().unwrap()))
 
 }
 

@@ -834,7 +834,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 					]
 					.try_into()
 					.unwrap(),
-					farms.try_into().unwrap()
+					Some(farms.try_into().unwrap())
 				)
 			);
 
@@ -993,8 +993,6 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 			let position_id = hydradx_runtime::Omnipool::next_position_id();
 
 			set_relaychain_block_number(400);
-			let deposit_id = 1;
-			let farms = vec![];
 
 			//Act
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1019,7 +1017,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 					]
 					.try_into()
 					.unwrap(),
-					farms.try_into().unwrap()
+					None
 				)
 			);
 
