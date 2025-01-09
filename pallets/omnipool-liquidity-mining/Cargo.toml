@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.5.0"
+version = "2.6.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -20,6 +20,7 @@ log = { workspace = true }
 # local
 primitives = { workspace = true }
 pallet-omnipool = { workspace = true }
+pallet-stableswap = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
