@@ -100,6 +100,7 @@ mod tests;
 
 pub mod types;
 pub mod weights;
+pub mod migrations;
 
 pub use weights::WeightInfo;
 

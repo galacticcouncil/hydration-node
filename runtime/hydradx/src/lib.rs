@@ -279,8 +279,16 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	migration::OnRuntimeUpgradeMigration,
+	migrations::Migrations,
 >;
+
+pub mod migrations {
+	use super::*;
+
+	pub type Migrations = (
+		pallet_dca::migrations::MultiplySchedulesPeriodBy2<Runtime>
+	);
+}
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
 where
