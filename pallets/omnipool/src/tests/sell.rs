@@ -762,7 +762,7 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_asset_fee(Permill::from_percent(10))
-		.with_protocol_fee(Permill::from_percent(0))
+		.with_protocol_fee(Permill::from_percent(10))
 		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
 		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
 		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
