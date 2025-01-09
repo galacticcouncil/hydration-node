@@ -1016,6 +1016,8 @@ pub mod pallet {
 		/// then adding the stable shares as liquidity to omnipool
 		/// then use that omnipool shares to join multiple farms.
 		///
+		/// If farm entries are not specified (None), then the liquidity are still added to the pools
+		///
 		/// Parameters:
 		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
 		/// - `stable_pool_id`: id of the stableswap pool to add liquidity to.
