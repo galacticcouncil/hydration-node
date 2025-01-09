@@ -350,6 +350,12 @@ runtime_benchmarks! {
 		initialize_global_farm(owner.clone())?;
 		initialize_yield_farm(owner.clone(), global_farm_id, BTC)?;
 
+		let lp = funded_account("lp_1", 1, &[BTC]);
+		let position_id = omnipool_add_liquidity(lp.clone(), BTC, 10 * BTC_ONE)?;
+
+		set_period(100);
+		lm_deposit_shares(lp, global_farm_id, yield_farm_id, position_id)?;
+
 		let planned_yielding_periods = BlockNumberFor::<crate::Runtime>::from(100_000_u32);
 		let yield_per_period = Perquintill::from_percent(20);
 		let min_deposit = 1_000;
