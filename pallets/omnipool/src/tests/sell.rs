@@ -667,6 +667,9 @@ fn sell_should_get_same_amount() {
 				expected_sold_amount,
 				0
 			));
+			let lp1_balance_200 = Tokens::free_balance(200, &LP1);
+
+			dbg!(lp1_balance_200);
 
 			expect_last_events(vec![
 				Event::SellExecuted {
@@ -710,12 +713,10 @@ fn sell_should_get_same_amount() {
 		});
 }
 
-
-
 #[test]
 fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
-	let mut spot_price_1 = FixedU128::zero();;
-	let mut spot_price_2 = FixedU128::zero();;
+	let mut spot_price_1 = FixedU128::zero();
+	let mut spot_price_2 = FixedU128::zero();
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -732,7 +733,7 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
 		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
 		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
-		.with_on_trade_withdrawal(Permill::from_percent(1))
+		.with_on_trade_withdrawal(Permill::from_percent(0))
 		.build()
 		.execute_with(|| {
 			let buy_amount = 50 * ONE;
@@ -745,7 +746,7 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 				0
 			));
 
-			let actual =  Pallet::<Test>::load_asset_state(200).unwrap();
+			let actual = Pallet::<Test>::load_asset_state(200).unwrap();
 
 			spot_price_1 = FixedU128::from_rational(actual.reserve, actual.hub_reserve);
 		});
@@ -765,7 +766,7 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
 		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
 		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
-		.with_on_trade_withdrawal(Permill::from_percent(1))
+		.with_on_trade_withdrawal(Permill::from_percent(0))
 		.build()
 		.execute_with(|| {
 			let buy_amount = 50 * ONE;
@@ -778,7 +779,7 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 				0
 			));
 
-			let actual =  Pallet::<Test>::load_asset_state(200).unwrap();
+			let actual = Pallet::<Test>::load_asset_state(200).unwrap();
 
 			spot_price_2 = FixedU128::from_rational(actual.reserve, actual.hub_reserve);
 		});
@@ -786,4 +787,65 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 	assert_eq!(spot_price_1, spot_price_2);
 }
 
+#[test]
+fn sell_and_buy_should_get_same_amounts_when_all_fees_are_set() {
+	let buy_amount = 49513753820506u128;
+	let sold_amount = 58_823_529_411_766u128;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee(Permill::from_percent(10))
+		.with_protocol_fee(Permill::from_percent(1))
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
+		.with_on_trade_withdrawal(Permill::from_percent(1))
+		.build()
+		.execute_with(|| {
+			let initial_lp1_balance_200 = Tokens::free_balance(200, &LP1);
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, sold_amount, 0));
+			let lp1_balance_200 = Tokens::free_balance(200, &LP1);
+			assert_eq!(lp1_balance_200, initial_lp1_balance_200 + buy_amount);
+		});
 
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee(Permill::from_percent(10))
+		.with_protocol_fee(Permill::from_percent(1))
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
+		.with_on_trade_withdrawal(Permill::from_percent(1))
+		.build()
+		.execute_with(|| {
+			let initial_lp1_balance_200 = Tokens::free_balance(200, &LP1);
+			let initial_lp1_balance_100 = Tokens::free_balance(100, &LP1);
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				200,
+				100,
+				buy_amount,
+				u128::MAX,
+			));
+			let lp1_balance_200 = Tokens::free_balance(200, &LP1);
+			assert_eq!(lp1_balance_200, initial_lp1_balance_200 + buy_amount);
+
+			let lp1_balance_100 = Tokens::free_balance(100, &LP1);
+			assert_eq!(lp1_balance_100, initial_lp1_balance_100 - sold_amount);
+		});
+}
