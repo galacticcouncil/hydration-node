@@ -30,8 +30,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `944`
 		//  Estimated: `3590`
-		// Minimum execution time: 18_480_000 picoseconds.
-		Weight::from_parts(18_761_000, 3590)
+		// Minimum execution time: 18_351_000 picoseconds.
+		Weight::from_parts(18_623_000, 3590)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
@@ -56,10 +56,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `3809`
 		//  Estimated: `13905`
-		// Minimum execution time: 406_226_000 picoseconds.
-		Weight::from_parts(410_385_344, 13905)
-			// Standard Error: 403_782
-			.saturating_add(Weight::from_parts(74_003_355, 0).saturating_mul(c.into()))
+		// Minimum execution time: 403_889_000 picoseconds.
+		Weight::from_parts(408_439_763, 13905)
+			// Standard Error: 288_679
+			.saturating_add(Weight::from_parts(78_440_436, 0).saturating_mul(c.into()))
 			.saturating_add(RocksDbWeight::get().reads(17_u64))
 			.saturating_add(RocksDbWeight::get().writes(8_u64))
 	}
@@ -85,12 +85,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1992 + b * (1842 ±0)`
 		//  Estimated: `8799 + b * (7749 ±0)`
-		// Minimum execution time: 116_363_000 picoseconds.
-		Weight::from_parts(117_368_000, 8799)
-			// Standard Error: 257_168
-			.saturating_add(Weight::from_parts(1_070_216, 0).saturating_mul(c.into()))
-			// Standard Error: 572_786
-			.saturating_add(Weight::from_parts(296_493_654, 0).saturating_mul(b.into()))
+		// Minimum execution time: 116_165_000 picoseconds.
+		Weight::from_parts(117_686_000, 8799)
+			// Standard Error: 232_510
+			.saturating_add(Weight::from_parts(962_142, 0).saturating_mul(c.into()))
+			// Standard Error: 517_865
+			.saturating_add(Weight::from_parts(293_725_885, 0).saturating_mul(b.into()))
 			.saturating_add(RocksDbWeight::get().reads(5_u64))
 			.saturating_add(RocksDbWeight::get().reads((12_u64).saturating_mul(b.into())))
 			.saturating_add(RocksDbWeight::get().writes((8_u64).saturating_mul(b.into())))
@@ -126,8 +126,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `7071`
 		//  Estimated: `39735`
-		// Minimum execution time: 2_250_389_000 picoseconds.
-		Weight::from_parts(2_259_648_000, 39735)
+		// Minimum execution time: 2_238_560_000 picoseconds.
+		Weight::from_parts(2_251_837_000, 39735)
 			.saturating_add(RocksDbWeight::get().reads(58_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
@@ -137,8 +137,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1012`
 		//  Estimated: `0`
-		// Minimum execution time: 30_533_000 picoseconds.
-		Weight::from_parts(31_133_000, 0)
+		// Minimum execution time: 30_739_000 picoseconds.
+		Weight::from_parts(31_254_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	/// Storage: `Router::Routes` (r:1 w:0)
@@ -147,8 +147,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `800`
 		//  Estimated: `3555`
-		// Minimum execution time: 9_397_000 picoseconds.
-		Weight::from_parts(9_575_000, 3555)
+		// Minimum execution time: 9_385_000 picoseconds.
+		Weight::from_parts(9_633_000, 3555)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
 	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
@@ -157,8 +157,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1452`
 		//  Estimated: `6294`
-		// Minimum execution time: 32_498_000 picoseconds.
-		Weight::from_parts(32_983_000, 6294)
+		// Minimum execution time: 32_684_000 picoseconds.
+		Weight::from_parts(33_157_000, 6294)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 	}
 	/// Storage: `EmaOracle::Oracles` (r:4 w:0)
@@ -167,8 +167,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1814`
 		//  Estimated: `11598`
-		// Minimum execution time: 48_824_000 picoseconds.
-		Weight::from_parts(49_452_000, 11598)
+		// Minimum execution time: 48_768_000 picoseconds.
+		Weight::from_parts(49_167_000, 11598)
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
@@ -183,8 +183,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `2029`
 		//  Estimated: `6190`
-		// Minimum execution time: 57_407_000 picoseconds.
-		Weight::from_parts(58_088_000, 6190)
+		// Minimum execution time: 57_184_000 picoseconds.
+		Weight::from_parts(57_713_000, 6190)
 			.saturating_add(RocksDbWeight::get().reads(6_u64))
 	}
 }
