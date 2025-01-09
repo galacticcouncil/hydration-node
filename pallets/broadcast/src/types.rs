@@ -20,7 +20,7 @@ pub enum Filler {
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum Recipient<AccountId> {
+pub enum Destination<AccountId> {
 	Account(AccountId),
 	Burned,
 }
@@ -29,14 +29,14 @@ pub enum Recipient<AccountId> {
 pub struct Fee<AccountId> {
 	pub asset: AssetId,
 	pub amount: Balance,
-	pub recipient: Recipient<AccountId>,
+	pub destination: Destination<AccountId>,
 }
 impl<AccountId> Fee<AccountId> {
-	pub fn new(asset: AssetId, amount: Balance, recipient: Recipient<AccountId>) -> Self {
+	pub fn new(asset: AssetId, amount: Balance, destination: Destination<AccountId>) -> Self {
 		Self {
 			asset,
 			amount,
-			recipient,
+			destination,
 		}
 	}
 }

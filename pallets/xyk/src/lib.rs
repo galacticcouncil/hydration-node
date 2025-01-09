@@ -36,7 +36,7 @@ use hydradx_traits::{
 	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
 	OnTradeHandler, AMM,
 };
-use pallet_broadcast::types::{Asset, Fee, Recipient};
+use pallet_broadcast::types::{Asset, Destination, Fee};
 
 use sp_std::{vec, vec::Vec};
 
@@ -928,7 +928,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,
-				recipient: Recipient::Account(pair_account),
+				destination: Destination::Account(pair_account),
 			}],
 		);
 
@@ -1108,7 +1108,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,
-				recipient: Recipient::Account(pair_account),
+				destination: Destination::Account(pair_account),
 			}],
 		);
 

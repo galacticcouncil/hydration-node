@@ -107,8 +107,8 @@ fn event_should_be_deposited() {
 			vec![Asset::new(HDX, 1_000_000)],
 			vec![Asset::new(DOT, 2_000_000)],
 			vec![
-				Fee::new(HDX, 1_000, Recipient::Account(ALICE)),
-				Fee::new(DOT, 2_000, Recipient::Account(BOB)),
+				Fee::new(HDX, 1_000, Destination::Account(ALICE)),
+				Fee::new(DOT, 2_000, Destination::Account(BOB)),
 			],
 		);
 
@@ -120,8 +120,8 @@ fn event_should_be_deposited() {
 			inputs: vec![Asset::new(HDX, 1_000_000)],
 			outputs: vec![Asset::new(DOT, 2_000_000)],
 			fees: vec![
-				Fee::new(HDX, 1_000, Recipient::Account(ALICE)),
-				Fee::new(DOT, 2_000, Recipient::Account(BOB)),
+				Fee::new(HDX, 1_000, Destination::Account(ALICE)),
+				Fee::new(DOT, 2_000, Destination::Account(BOB)),
 			],
 			operation_stack: vec![],
 		}

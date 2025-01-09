@@ -7,7 +7,7 @@ use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
 };
-use pallet_broadcast::types::Recipient;
+use pallet_broadcast::types::Destination;
 
 use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::RouteSpotPriceProvider;
@@ -170,7 +170,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						DAI,
 						20000000,
-						Recipient::Account(
+						Destination::Account(
 							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
 								.unwrap()
 								.fee_collector,
@@ -189,7 +189,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						HDX,
 						11736653730,
-						Recipient::Account(Omnipool::protocol_account()),
+						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Router(0)],
 				}
@@ -212,7 +212,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						DOT,
 						6710155707,
-						Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						})),
@@ -299,7 +299,7 @@ mod router_different_pools_tests {
 						fees: vec![Fee::new(
 							DAI,
 							20000000,
-							Recipient::Account(
+							Destination::Account(
 								LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
 									.unwrap()
 									.fee_collector,
@@ -326,7 +326,7 @@ mod router_different_pools_tests {
 						fees: vec![Fee::new(
 							stable_asset_1,
 							8460516,
-							Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 								asset_in: HDX,
 								asset_out: stable_asset_1,
 							})),
@@ -347,7 +347,7 @@ mod router_different_pools_tests {
 						fees: vec![Fee::new(
 							stable_asset_2,
 							28117123,
-							Recipient::Account(<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+							Destination::Account(<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
 								&stable_pool_id,
 								Some(pallet_stableswap::POOL_IDENTIFIER),
 							)),
@@ -431,7 +431,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						DAI,
 						8741796,
-						Recipient::Account(
+						Destination::Account(
 							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
 								.unwrap()
 								.fee_collector,
@@ -450,7 +450,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						HDX,
 						5130172370,
-						Recipient::Account(Omnipool::protocol_account()),
+						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Router(0)],
 				}
@@ -473,7 +473,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						HDX,
 						6122448978,
-						Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						})),
@@ -560,7 +560,7 @@ mod router_different_pools_tests {
 						fees: vec![Fee::new(
 							DAI,
 							7507098284,
-							Recipient::Account(
+							Destination::Account(
 								LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
 									.unwrap()
 									.fee_collector,
@@ -587,7 +587,7 @@ mod router_different_pools_tests {
 						fees: vec![Fee::new(
 							HDX,
 							6184998201,
-							Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 								asset_in: HDX,
 								asset_out: stable_asset_1,
 							})),
@@ -608,7 +608,7 @@ mod router_different_pools_tests {
 						fees: vec![Fee::new(
 							stable_asset_1,
 							10000099012,
-							Recipient::Account(<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+							Destination::Account(<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
 								&stable_pool_id,
 								Some(pallet_stableswap::POOL_IDENTIFIER),
 							)),
@@ -695,7 +695,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						DOT,
 						14998500,
-						Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						})),
@@ -721,7 +721,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						HDX,
 						60023988,
-						Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						})),
@@ -747,7 +747,7 @@ mod router_different_pools_tests {
 					fees: vec![Fee::new(
 						DOT,
 						14989497,
-						Recipient::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
 						})),
@@ -2425,7 +2425,7 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12014871681)],
-					fees: vec![Fee::new(LRNA, 6007435, Recipient::Burned)],
+					fees: vec![Fee::new(LRNA, 6007435, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -2439,7 +2439,7 @@ mod omnipool_router_tests {
 					fees: vec![Fee::new(
 						DAI,
 						667155563986401,
-						Recipient::Account(Omnipool::protocol_account()),
+						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
@@ -2491,7 +2491,7 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12014871681)],
-					fees: vec![Fee::new(LRNA, 6007435, Recipient::Burned)],
+					fees: vec![Fee::new(LRNA, 6007435, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2505,7 +2505,7 @@ mod omnipool_router_tests {
 					fees: vec![Fee::new(
 						DAI,
 						667155563986401,
-						Recipient::Account(Omnipool::protocol_account()),
+						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
@@ -2663,7 +2663,7 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
-					fees: vec![Fee::new(LRNA, 22, Recipient::Burned)],
+					fees: vec![Fee::new(LRNA, 22, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -2677,7 +2677,7 @@ mod omnipool_router_tests {
 					fees: vec![Fee::new(
 						DAI,
 						2506265665,
-						Recipient::Account(Omnipool::protocol_account()),
+						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
@@ -2729,7 +2729,7 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
-					fees: vec![Fee::new(LRNA, 22, Recipient::Burned)],
+					fees: vec![Fee::new(LRNA, 22, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2743,7 +2743,7 @@ mod omnipool_router_tests {
 					fees: vec![Fee::new(
 						DAI,
 						2506265665,
-						Recipient::Account(Omnipool::protocol_account()),
+						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
@@ -3031,7 +3031,7 @@ mod lbp_router_tests {
 					fees: vec![Fee::new(
 						HDX,
 						fee,
-						Recipient::Account(
+						Destination::Account(
 							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
 								.unwrap()
 								.fee_collector,
@@ -3089,7 +3089,7 @@ mod lbp_router_tests {
 					fees: vec![Fee::new(
 						HDX,
 						20_000_000_000,
-						Recipient::Account(
+						Destination::Account(
 							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
 								.unwrap()
 								.fee_collector,

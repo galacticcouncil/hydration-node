@@ -37,7 +37,7 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
 use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
-use pallet_broadcast::types::{Asset, Fee, Recipient};
+use pallet_broadcast::types::{Asset, Destination, Fee};
 
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
 
@@ -1131,7 +1131,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,
-				recipient: Recipient::Account(pool.fee_collector),
+				destination: Destination::Account(pool.fee_collector),
 			}],
 		);
 
@@ -1286,7 +1286,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, BalanceOf<T>> for Pallet<T
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,
-				recipient: Recipient::Account(pool.fee_collector),
+				destination: Destination::Account(pool.fee_collector),
 			}],
 		);
 
