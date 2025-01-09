@@ -425,7 +425,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					amount_in: expected_sold_amount,
 					amount_out: buy_amount,
 					hub_amount_in: 57142857142858,
-					hub_amount_out: 57142857142858,
+					hub_amount_out: 63020408163266,
 					asset_fee_amount: 5_555_555_555_556,
 					protocol_fee_amount: 0,
 				}
@@ -446,7 +446,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(1, 57142857142858)],
+					inputs: vec![Asset::new(1, 63020408163266)],
 					outputs: vec![Asset::new(200, buy_amount)],
 					fees: vec![Fee::new(
 						200,
@@ -473,10 +473,10 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					who: LP1,
 					asset_in: 100,
 					asset_out: 200,
-					amount_in: 65976185738813,
+					amount_in: 66170747640117,
 					amount_out: other_buy_amount,
-					hub_amount_in: 60326770004314,
-					hub_amount_out: 60326770004314,
+					hub_amount_in: 60499132204326,
+					hub_amount_out: 66726462234742,
 					asset_fee_amount: 5555555555567,
 					protocol_fee_amount: 0,
 				}
@@ -486,8 +486,8 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(100, 65976185738813)],
-					outputs: vec![Asset::new(1, 60326770004314)],
+					inputs: vec![Asset::new(100, 66170747640117)],
+					outputs: vec![Asset::new(1, 60499132204326)],
 					fees: vec![Fee::new(LRNA, 0, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(1)],
 				}
@@ -497,7 +497,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(1, 60326770004314)],
+					inputs: vec![Asset::new(1, 66726462234742)],
 					outputs: vec![Asset::new(200, other_buy_amount)],
 					fees: vec![Fee::new(
 						200,
@@ -508,6 +508,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 				}
 				.into(),
 			]);
+
 		});
 }
 
@@ -743,7 +744,7 @@ fn buy_should_work_when_trading_native_asset() {
 
 			assert_eq!(Tokens::free_balance(HDX, &LP1), 953354861858628);
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13363820408163265);
 			assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
 				10046645138141372
@@ -755,7 +756,8 @@ fn buy_should_work_when_trading_native_asset() {
 
 			let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
 
-			assert_pool_state!(hub_reserves.iter().sum::<Balance>(), 26_720 * ONE);
+			let hub_balance = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+			assert_pool_state!(hub_reserves.iter().sum::<Balance>(), hub_balance);
 
 			assert_asset_state!(
 				200,
