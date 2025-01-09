@@ -1017,7 +1017,7 @@ pub mod pallet {
 		/// then adding the stable shares as liquidity to omnipool
 		/// then use that omnipool shares to join multiple farms.
 		///
-		/// If farm entries are not specified (None), then the liquidity are still added to the pools
+		/// If farm entries are not specified (empty vectoo), then the liquidities are still added to the pools
 		///
 		/// Parameters:
 		/// - `origin`: owner of the omnipool position to deposit into the liquidity mining.
