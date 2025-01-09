@@ -959,6 +959,7 @@ pub mod pallet {
 		/// - `farm_entries`: list of farms to join.
 		/// - `asset`: id of the asset to be deposited into the liquidity mining.
 		/// - `amount`: amount of the asset to be deposited into the liquidity mining.
+		/// - `min_shares_limit`: The min amount of delta share asset the user should receive in the position
 		///
 		/// Emits `SharesDeposited` event for the first farm entry
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
