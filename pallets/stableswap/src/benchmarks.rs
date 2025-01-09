@@ -19,13 +19,13 @@
 
 use super::*;
 
-use crate::types::AssetAmount;
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::traits::EnsureOrigin;
 use frame_support::BoundedVec;
 use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::router::{PoolType, TradeExecution};
+use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use sp_runtime::Permill;
@@ -100,7 +100,7 @@ benchmarks! {
 			pool_id,
 			BoundedVec::truncate_from(initial),
 		)?;
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, BoundedVec::truncate_from(added_liquidity))
+	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, added_liquidity.try_into().unwrap())
 	verify {
 		assert!(T::Currency::free_balance(pool_id, &lp_provider) > 0u128);
 	}
