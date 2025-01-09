@@ -428,7 +428,8 @@ pub mod pallet {
 	/// Keep tracking the blocknumber when the schedule is planned to be executed
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_execution_block)]
-	pub type ScheduleExecutionBlock<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, BlockNumberFor<T>, OptionQuery>;
+	pub type ScheduleExecutionBlock<T: Config> =
+		StorageMap<_, Blake2_128Concat, ScheduleId, BlockNumberFor<T>, OptionQuery>;
 
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]

@@ -17,8 +17,8 @@ use crate::tests::mock::*;
 use crate::tests::*;
 use crate::{assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages};
 use crate::{Error, Event};
-use frame_support::{assert_noop, assert_ok};
 use frame_support::traits::Hooks;
+use frame_support::{assert_noop, assert_ok};
 use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
@@ -324,7 +324,7 @@ fn terminate_should_work_when_no_block_specified() {
 				who: ALICE,
 				error: Error::<Test>::ManuallyTerminated.into(),
 			}
-				.into()]);
+			.into()]);
 		});
 }
 
@@ -353,7 +353,7 @@ fn terminate_should_work_when_no_block_specified_and_schedule_eeceuted_multiple_
 				who: ALICE,
 				error: Error::<Test>::ManuallyTerminated.into(),
 			}
-				.into()]);
+			.into()]);
 		});
 }
 
@@ -380,7 +380,7 @@ fn terminate_should_work_with_no_blocknumber_when_just_scheduled() {
 				who: ALICE,
 				error: Error::<Test>::ManuallyTerminated.into(),
 			}
-				.into()]);
+			.into()]);
 		});
 }
 

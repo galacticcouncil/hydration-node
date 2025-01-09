@@ -3829,21 +3829,17 @@ fn terminate_should_work_for_freshly_created_dca() {
 		let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
 
 		assert_ok!(DCA::schedule(
-				RuntimeOrigin::signed(ALICE.into()),
-				schedule1.clone(),
-				None
-			));
+			RuntimeOrigin::signed(ALICE.into()),
+			schedule1.clone(),
+			None
+		));
 
 		let schedule_id = 0;
 		let schedule = DCA::schedules(schedule_id);
 		assert!(schedule.is_some());
 
 		//Act
-		assert_ok!(DCA::terminate(
-				RuntimeOrigin::signed(ALICE.into()),
-				schedule_id,
-				None
-			));
+		assert_ok!(DCA::terminate(RuntimeOrigin::signed(ALICE.into()), schedule_id, None));
 
 		//Assert
 		let schedule = DCA::schedules(schedule_id);
