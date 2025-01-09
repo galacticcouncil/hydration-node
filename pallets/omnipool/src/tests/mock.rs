@@ -68,6 +68,7 @@ thread_local! {
 	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
 	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static BURN_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
 	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
@@ -167,10 +168,10 @@ parameter_types! {
 	pub const LRNAAssetId: AssetId = LRNA;
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionCollectionId: u32= 1000;
-	pub BurnProtocolFee: Permill = Permill::zero();
 
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
+	pub BurnFee: Permill = BURN_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
@@ -212,7 +213,7 @@ impl Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
-	type BurnProtocolFee = BurnProtocolFee;
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct ExtBuilder {
@@ -220,6 +221,7 @@ pub struct ExtBuilder {
 	registered_assets: Vec<AssetId>,
 	asset_fee: Permill,
 	protocol_fee: Permill,
+	burn_fee: Permill,
 	asset_weight_cap: Permill,
 	min_liquidity: u128,
 	min_trade_limit: u128,
@@ -247,6 +249,9 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		PROTOCOL_FEE.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		BURN_FEE.with(|v| {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		MIN_ADDED_LIQUDIITY.with(|v| {
@@ -281,6 +286,7 @@ impl Default for ExtBuilder {
 			],
 			asset_fee: Permill::from_percent(0),
 			protocol_fee: Permill::from_percent(0),
+			burn_fee: Permill::from_percent(0),
 			asset_weight_cap: Permill::from_percent(100),
 			min_liquidity: 0,
 			registered_assets: vec![],
@@ -319,6 +325,10 @@ impl ExtBuilder {
 
 	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
 		self.protocol_fee = fee;
+		self
+	}
+	pub fn with_burn_fee(mut self, fee: Permill) -> Self {
+		self.burn_fee = fee;
 		self
 	}
 	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
