@@ -112,6 +112,7 @@ proptest! {
 		let result = calculate_sell_state_changes(&asset_in, &asset_out, amount,
 			Permill::from_percent(0),
 			Permill::from_percent(0),
+			Permill::from_percent(0),
 		);
 
 		assert!(result.is_some());
@@ -254,6 +255,7 @@ fn buy_update_invariants_no_fees_case() {
 		amount,
 		Permill::from_percent(0),
 		Permill::from_percent(0),
+		Permill::from_percent(0),
 	);
 
 	assert!(result.is_none()); // This fails because of not enough asset out in pool out
@@ -266,6 +268,7 @@ proptest! {
 		amount in trade_amount()
 	) {
 		let result = calculate_buy_state_changes(&asset_in, &asset_out, amount,
+			Permill::from_percent(0),
 			Permill::from_percent(0),
 			Permill::from_percent(0),
 		);

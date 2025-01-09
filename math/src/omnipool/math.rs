@@ -9,7 +9,7 @@ use crate::{to_balance, to_u256};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128, PerThing, Permill};
+use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::{Div, Sub};
 
 #[inline]
@@ -105,9 +105,13 @@ pub fn calculate_sell_hub_state_changes(
 	let asset_fee_amount = amount_out.saturating_sub(delta_reserve_out);
 
 	// mint hub asset
-	let delta_q_m = asset_fee
-		.mul_floor(to_balance!(hub_reserve_hp.checked_add(amount_hp)?.checked_mul(amount_hp)?).ok()?)
-		.checked_div(asset_out_state.hub_reserve)?;
+	let delta_q_m = asset_fee.mul_floor(
+		to_balance!(hub_reserve_hp
+			.checked_add(amount_hp)?
+			.checked_mul(amount_hp)?
+			.checked_div(hub_reserve_hp)?)
+		.ok()?,
+	);
 
 	let delta_hub_reserve = hub_asset_amount.checked_add(delta_q_m)?;
 

@@ -30,6 +30,7 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 	let amount_to_sell = 4 * UNIT;
 	let asset_fee = Permill::from_percent(0);
 	let protocol_fee = Permill::from_percent(0);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_sell_state_changes(
 		&asset_in_state,
@@ -37,6 +38,7 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 		amount_to_sell,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -82,6 +84,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_zero() {
 	let amount_to_sell = 4 * UNIT;
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(0);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_sell_state_changes(
 		&asset_in_state,
@@ -89,6 +92,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_zero() {
 		amount_to_sell,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -125,6 +129,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_not_zero() {
 	let amount_to_sell = 4 * UNIT;
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_sell_state_changes(
 		&asset_in_state,
@@ -132,6 +137,7 @@ fn calculate_sell_should_return_correct_when_protocol_fee_is_not_zero() {
 		amount_to_sell,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -163,6 +169,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 	let amount_to_sell = 4 * UNIT;
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_sell_state_changes(
 		&asset_in_state,
@@ -170,6 +177,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		amount_to_sell,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -191,9 +199,71 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 	);
 	assert_eq!(
 		state_changes.asset_out.delta_hub_reserve,
-		BalanceUpdate::Increase(5657142857143u128)
+		BalanceUpdate::Increase(5694097573180)
 	);
-	assert_eq!(state_changes.extra_protocol_fee_amount, 0);
+	assert_eq!(state_changes.extra_protocol_fee_amount, 57142857142);
+
+	// Verify if fee + delta amount == delta with fee
+	let f = 57142857142u128 + 5657142857143u128;
+	let no_fees_amount: Balance = *state_changes.asset_in.delta_hub_reserve;
+	assert_eq!(f, no_fees_amount);
+}
+
+#[test]
+fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fee_is_set() {
+	let asset_in_state = AssetReserveState {
+		reserve: 10 * UNIT,
+		hub_reserve: 20 * UNIT,
+		shares: 10 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 5 * UNIT,
+		hub_reserve: 5 * UNIT,
+		shares: 20 * UNIT,
+		protocol_shares: 0u128,
+	};
+
+	let amount_to_sell = 4 * UNIT;
+	let asset_fee = Permill::from_percent(1);
+	let protocol_fee = Permill::from_percent(1);
+	let burn_fee = Permill::from_percent(50);
+
+	let state_changes = calculate_sell_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		amount_to_sell,
+		asset_fee,
+		protocol_fee,
+		burn_fee,
+	);
+
+	assert!(state_changes.is_some());
+
+	let state_changes = state_changes.unwrap();
+
+	assert_eq!(
+		state_changes.asset_in.delta_reserve,
+		BalanceUpdate::Increase(4000000000000u128)
+	);
+	assert_eq!(
+		state_changes.asset_in.delta_hub_reserve,
+		BalanceUpdate::Decrease(5714285714285u128)
+	);
+
+	assert_eq!(
+		state_changes.asset_out.delta_reserve,
+		BalanceUpdate::Decrease(2627613941018u128)
+	);
+	assert_eq!(
+		state_changes.asset_out.delta_hub_reserve,
+		BalanceUpdate::Increase(5694097573180)
+	);
+	let zero_fee_amount = 57142857142u128;
+	assert_eq!(
+		state_changes.extra_protocol_fee_amount,
+		zero_fee_amount - burn_fee.mul_floor(zero_fee_amount)
+	);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 57142857142u128 + 5657142857143u128;
@@ -251,9 +321,12 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 		state_changes.asset.delta_reserve,
 		BalanceUpdate::Decrease(1649999999999u128)
 	);
+
+	let minted_amount = 48000000000u128;
+
 	assert_eq!(
 		state_changes.asset.delta_hub_reserve,
-		BalanceUpdate::Increase(amount_to_sell)
+		BalanceUpdate::Increase(amount_to_sell + minted_amount)
 	);
 
 	assert_eq!(
@@ -283,6 +356,7 @@ fn calculate_buy_should_work_when_correct_input_provided() {
 	let amount_to_buy = UNIT;
 	let asset_fee = Permill::from_percent(0);
 	let protocol_fee = Permill::from_percent(0);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -290,6 +364,7 @@ fn calculate_buy_should_work_when_correct_input_provided() {
 		amount_to_buy,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -334,6 +409,7 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_zero() {
 	let amount_to_buy = UNIT;
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(0);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -341,6 +417,7 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_zero() {
 		amount_to_buy,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -379,6 +456,7 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_non_zero() {
 	let amount_to_buy = UNIT;
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -386,6 +464,7 @@ fn calculate_buy_should_return_correct_fee_when_protocol_fee_is_non_zero() {
 		amount_to_buy,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -424,6 +503,7 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 	let amount_to_buy = UNIT;
 	let asset_fee = Permill::from_percent(1);
 	let protocol_fee = Permill::from_percent(1);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -431,6 +511,7 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 		amount_to_buy,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -452,9 +533,71 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 	);
 	assert_eq!(
 		state_changes.asset_out.delta_hub_reserve,
-		BalanceUpdate::Increase(1265822784811u128)
+		BalanceUpdate::Increase(1281685627304)
 	);
-	assert_eq!(state_changes.extra_protocol_fee_amount, 0);
+	assert_eq!(state_changes.extra_protocol_fee_amount, 12786088735);
+
+	// Verify if fee + delta amount == delta with fee
+	let f = 1265822784811u128 + 12786088735u128;
+	let no_fees_amount: Balance = *state_changes.asset_in.delta_hub_reserve;
+	assert_eq!(f, no_fees_amount);
+}
+
+#[test]
+fn calculate_buy_with_fees_should_burn_half_of_protocol_fee_when_burn_fee_set_to_50_percent() {
+	let asset_in_state = AssetReserveState {
+		reserve: 10 * UNIT,
+		hub_reserve: 20 * UNIT,
+		shares: 10 * UNIT,
+		protocol_shares: 0u128,
+	};
+	let asset_out_state = AssetReserveState {
+		reserve: 5 * UNIT,
+		hub_reserve: 5 * UNIT,
+		shares: 20 * UNIT,
+		protocol_shares: 0u128,
+	};
+
+	let amount_to_buy = UNIT;
+	let asset_fee = Permill::from_percent(1);
+	let protocol_fee = Permill::from_percent(1);
+	let burn_fee = Permill::from_percent(50);
+
+	let state_changes = calculate_buy_state_changes(
+		&asset_in_state,
+		&asset_out_state,
+		amount_to_buy,
+		asset_fee,
+		protocol_fee,
+		burn_fee,
+	);
+
+	assert!(state_changes.is_some());
+
+	let state_changes = state_changes.unwrap();
+
+	assert_eq!(
+		state_changes.asset_in.delta_reserve,
+		BalanceUpdate::Increase(682966807814u128)
+	);
+	assert_eq!(
+		state_changes.asset_in.delta_hub_reserve,
+		BalanceUpdate::Decrease(1278608873546)
+	);
+
+	assert_eq!(
+		state_changes.asset_out.delta_reserve,
+		BalanceUpdate::Decrease(amount_to_buy)
+	);
+	assert_eq!(
+		state_changes.asset_out.delta_hub_reserve,
+		BalanceUpdate::Increase(1281685627304)
+	);
+	let zero_burn_fee_amount = 12786088735u128;
+	assert_eq!(
+		state_changes.extra_protocol_fee_amount,
+		zero_burn_fee_amount - burn_fee.mul_floor(zero_burn_fee_amount)
+	);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 1265822784811u128 + 12786088735u128;
@@ -514,12 +657,7 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 	);
 	assert_eq!(
 		state_changes.asset.delta_hub_reserve,
-		BalanceUpdate::Increase(5063291139241u128)
-	);
-
-	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
-		BalanceUpdate::Increase(5063291139241)
+		BalanceUpdate::Increase(5126742509213)
 	);
 
 	assert_eq!(
@@ -942,6 +1080,7 @@ fn calculate_buy_should_charge_less_when_fee_is_zero() {
 	let amount_to_buy = UNIT;
 	let asset_fee = Permill::from_percent(0);
 	let protocol_fee = Permill::from_percent(0);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -949,6 +1088,7 @@ fn calculate_buy_should_charge_less_when_fee_is_zero() {
 		amount_to_buy,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
@@ -991,6 +1131,7 @@ fn calculate_buy_should_charge_more_when_fee_is_not_zero() {
 	let amount_to_buy = UNIT;
 	let asset_fee = Permill::from_percent(10);
 	let protocol_fee = Permill::from_percent(5);
+	let burn_fee = Permill::from_percent(0);
 
 	let state_changes = calculate_buy_state_changes(
 		&asset_in_state,
@@ -998,6 +1139,7 @@ fn calculate_buy_should_charge_more_when_fee_is_not_zero() {
 		amount_to_buy,
 		asset_fee,
 		protocol_fee,
+		burn_fee,
 	);
 
 	assert!(state_changes.is_some());
