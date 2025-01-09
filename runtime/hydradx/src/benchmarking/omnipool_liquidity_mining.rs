@@ -399,11 +399,7 @@ runtime_benchmarks! {
 
 		set_period(1000);
 
-	}:  {
-		OmnipoolLiquidityMining::create_yield_farm(RawOrigin::Signed(owner).into(), global_farm_id, ETH, FixedU128::one(), Some(LoyaltyCurve::default()))?;
-
-	} verify {
-	}
+	}:  _(RawOrigin::Signed(owner), global_farm_id, ETH, FixedU128::one(), Some(LoyaltyCurve::default()))
 
 
 	update_yield_farm {
