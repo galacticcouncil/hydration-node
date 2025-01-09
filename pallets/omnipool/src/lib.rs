@@ -1656,7 +1656,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn process_extra_protocol_fee_amount(amount: Balance) -> DispatchResult {
-		println!("process_extra_protocol_fee_amount: {:?}", amount);
 		//TODO: implement, but now just burn it
 		T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
 		Ok(())
