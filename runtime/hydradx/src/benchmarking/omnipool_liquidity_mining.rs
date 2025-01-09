@@ -355,6 +355,7 @@ runtime_benchmarks! {
 
 		set_period(100);
 		lm_deposit_shares(lp, global_farm_id, yield_farm_id, position_id)?;
+		set_period(200);
 
 		let planned_yielding_periods = BlockNumberFor::<crate::Runtime>::from(100_000_u32);
 		let yield_per_period = Perquintill::from_percent(20);
