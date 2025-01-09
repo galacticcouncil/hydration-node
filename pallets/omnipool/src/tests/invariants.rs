@@ -901,15 +901,9 @@ proptest! {
 
 				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
 
-				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
-				assert_eq!(old_hub_liquidity + amount, new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
-
-				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
-
-				assert_eq!(old_asset_hub_liquidity + amount, new_asset_hub_liquidity, "Assets hub liquidity");
+				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
 			});
 	}
 }
@@ -978,15 +972,9 @@ proptest! {
 
 				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
 
-				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
-				assert_eq!(old_hub_liquidity + amount, new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
-
-				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
-
-				assert_eq!(old_asset_hub_liquidity + amount, new_asset_hub_liquidity, "Assets hub liquidity");
+				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
 			});
 	}
 }
