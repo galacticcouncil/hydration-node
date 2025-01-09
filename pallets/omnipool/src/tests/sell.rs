@@ -848,6 +848,8 @@ fn sell_and_buy_should_get_same_amounts_when_all_fees_are_set() {
 			assert_eq!(lp1_balance_200, initial_lp1_balance_200 + buy_amount);
 
 			let lp1_balance_100 = Tokens::free_balance(100, &LP1);
+			let spent = initial_lp1_balance_100 - lp1_balance_100;
+			dbg!(spent);
 			assert_eq!(lp1_balance_100, initial_lp1_balance_100 - sold_amount);
 		});
 }
