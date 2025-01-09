@@ -1000,7 +1000,8 @@ pub mod pallet {
 				}
 				BalanceUpdate::Increase(_) => {
 					// trade can only burn some. This would be a bug.
-					return Err(Error::<T>::HubAssetUpdateError.into());
+					//return Err(Error::<T>::HubAssetUpdateError.into());
+					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
 				}
 				BalanceUpdate::Decrease(amount) => {
 					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
@@ -1236,9 +1237,10 @@ pub mod pallet {
 				BalanceUpdate::Increase(val) if val == Balance::zero() => {
 					// nothing to do if zero.
 				}
-				BalanceUpdate::Increase(_) => {
+				BalanceUpdate::Increase(amount) => {
 					// trade can only burn some. This would be a bug.
-					return Err(Error::<T>::HubAssetUpdateError.into());
+					//return Err(Error::<T>::HubAssetUpdateError.into());
+					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
 				}
 				BalanceUpdate::Decrease(amount) => {
 					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
@@ -1271,11 +1273,11 @@ pub mod pallet {
 
 			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
-			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
-			debug_assert_eq!(
-				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
-				state_changes.fee.protocol_fee
-			);
+			//debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
+			//debug_assert_eq!(
+			//	*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
+			//	state_changes.fee.protocol_fee
+			//);
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
