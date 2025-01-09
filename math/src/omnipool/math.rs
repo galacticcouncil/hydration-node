@@ -217,8 +217,6 @@ pub fn calculate_buy_state_changes(
 		.checked_div(&Permill::from_percent(100).sub(protocol_fee).into())?
 		.into_inner();
 
-	// i think the protocol fee amount should delta_hub_reserve_out  - delta_hub_reserve_in
-
 	if delta_hub_reserve_in >= asset_in_state.hub_reserve {
 		return None;
 	}
@@ -233,9 +231,7 @@ pub fn calculate_buy_state_changes(
 	let delta_reserve_in = to_balance!(delta_reserve_in).ok()?;
 	let delta_reserve_in = delta_reserve_in.checked_add(Balance::one())?;
 
-	let fee_amount = calculate_fee_amount_for_buy(asset_fee, amount);
-
-	//i think this is incorrect amount, but let's work with this for now until verified with Colin
+	let asset_fee_amount = calculate_fee_amount_for_buy(asset_fee, amount);
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
 	// mint amount for asset out
@@ -266,7 +262,7 @@ pub fn calculate_buy_state_changes(
 		},
 		extra_protocol_fee_amount: extra_protocol_fee,
 		fee: TradeFee {
-			asset_fee: fee_amount,
+			asset_fee: asset_fee_amount,
 			protocol_fee: protocol_fee_amount,
 		},
 	})
