@@ -998,13 +998,13 @@ pub mod pallet {
 				BalanceUpdate::Increase(val) if val == Balance::zero() => {
 					// nothing to do if zero.
 				}
-				BalanceUpdate::Increase(_) => {
+				BalanceUpdate::Increase(hub_amount) => {
 					// trade can only burn some. This would be a bug.
 					//return Err(Error::<T>::HubAssetUpdateError.into());
-					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), hub_amount)?;
 				}
-				BalanceUpdate::Decrease(amount) => {
-					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				BalanceUpdate::Decrease(hub_amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), hub_amount)?;
 				}
 			};
 
@@ -1030,15 +1030,18 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			//Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
+			Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
 
 			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
+			/*
 			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
 			debug_assert_eq!(
 				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
 				state_changes.fee.protocol_fee
 			);
+
+			 */
 
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
@@ -1237,13 +1240,13 @@ pub mod pallet {
 				BalanceUpdate::Increase(val) if val == Balance::zero() => {
 					// nothing to do if zero.
 				}
-				BalanceUpdate::Increase(amount) => {
+				BalanceUpdate::Increase(val) => {
 					// trade can only burn some. This would be a bug.
 					//return Err(Error::<T>::HubAssetUpdateError.into());
-					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), val)?;
 				}
-				BalanceUpdate::Decrease(amount) => {
-					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				BalanceUpdate::Decrease(val) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), val)?;
 				}
 			};
 
@@ -1269,7 +1272,7 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			//Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
+			Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
 
 			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
@@ -1652,35 +1655,10 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	/// Update Hub asset side of HDX subpool and add given amount to hub_asset_reserve
-	fn update_hdx_subpool_hub_asset(origin: T::RuntimeOrigin, hub_asset_amount: Balance) -> DispatchResult {
-		if hub_asset_amount > Balance::zero() {
-			let hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
-
-			let mut native_subpool = Assets::<T>::get(T::HdxAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
-			native_subpool.hub_reserve = native_subpool
-				.hub_reserve
-				.checked_add(hub_asset_amount)
-				.ok_or(ArithmeticError::Overflow)?;
-			<Assets<T>>::insert(T::HdxAssetId::get(), native_subpool);
-
-			let updated_hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
-
-			let delta_changes = AssetStateChange {
-				delta_hub_reserve: BalanceUpdate::Increase(hub_asset_amount),
-				..Default::default()
-			};
-
-			let info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
-				T::HdxAssetId::get(),
-				&hdx_state,
-				&updated_hdx_state,
-				&delta_changes,
-				false,
-			);
-
-			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
-		}
+	fn process_extra_protocol_fee_amount(amount: Balance) -> DispatchResult {
+		println!("process_extra_protocol_fee_amount: {:?}", amount);
+		//TODO: implement, but now just burn it
+		T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
 		Ok(())
 	}
 

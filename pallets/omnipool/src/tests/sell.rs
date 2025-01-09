@@ -500,7 +500,10 @@ fn sell_should_work_when_trading_native_asset() {
 
 			assert_eq!(Tokens::free_balance(HDX, &LP1), 950000000000000);
 			assert_eq!(Tokens::free_balance(200, &LP1), 53_471_964_352_023);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13353915026382692
+			);
 			assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
 				NATIVE_AMOUNT + sell_amount
@@ -510,15 +513,15 @@ fn sell_should_work_when_trading_native_asset() {
 				1946528035647977
 			);
 
-			let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
-
-			assert_pool_state!(hub_reserves.iter().sum::<Balance>(), 26_720 * ONE);
+			let hub_reserves: Balance = Assets::<Test>::iter().map(|v| v.1.hub_reserve).sum();
+			let hub_balance = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+			assert_eq!(hub_balance, hub_reserves);
 
 			assert_asset_state!(
 				200,
 				AssetReserveState {
 					reserve: 1946528035647977,
-					hub_reserve: 1339800995024876,
+					hub_reserve: 1343666270163786,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -529,7 +532,7 @@ fn sell_should_work_when_trading_native_asset() {
 				HDX,
 				AssetReserveState {
 					reserve: 10050000000000000,
-					hub_reserve: 9960199004975124,
+					hub_reserve: 9950248756218906,
 					shares: 10000 * ONE,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -665,7 +668,7 @@ fn sell_should_get_same_amount() {
 				0
 			));
 
-			expect_events(vec![
+			expect_last_events(vec![
 				Event::SellExecuted {
 					who: LP1,
 					asset_in: 100,
@@ -673,7 +676,7 @@ fn sell_should_get_same_amount() {
 					amount_in: expected_sold_amount,
 					amount_out: buy_amount,
 					hub_amount_in: 57142857142858,
-					hub_amount_out: 57142857142858,
+					hub_amount_out: 62702702702703,
 					asset_fee_amount: 5555555555556,
 					protocol_fee_amount: 0,
 				}
@@ -694,7 +697,7 @@ fn sell_should_get_same_amount() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, 57142857142858)],
+					inputs: vec![Asset::new(LRNA, 62702702702703)],
 					outputs: vec![Asset::new(200, buy_amount)],
 					fees: vec![
 						Fee::new(200, 5500000000001, Destination::Account(Omnipool::protocol_account())),

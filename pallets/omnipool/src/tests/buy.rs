@@ -508,7 +508,6 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 				}
 				.into(),
 			]);
-
 		});
 }
 
@@ -733,6 +732,9 @@ fn buy_should_work_when_trading_native_asset() {
 
 			let buy_amount = 50 * ONE;
 			let max_limit = 100 * ONE;
+			let hub_reserves: Balance = Assets::<Test>::iter().map(|v| v.1.hub_reserve).sum();
+			let hub_balance = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+			assert_eq!(hub_reserves, hub_balance);
 
 			assert_ok!(Omnipool::buy(
 				RuntimeOrigin::signed(LP1),
@@ -744,7 +746,10 @@ fn buy_should_work_when_trading_native_asset() {
 
 			assert_eq!(Tokens::free_balance(HDX, &LP1), 953354861858628);
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13363820408163265);
+			assert_eq!(
+				Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+				13354534693877551
+			);
 			assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
 				10046645138141372
@@ -754,16 +759,15 @@ fn buy_should_work_when_trading_native_asset() {
 				1950000000000000
 			);
 
-			let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
-
+			let hub_reserves: Balance = Assets::<Test>::iter().map(|v| v.1.hub_reserve).sum();
 			let hub_balance = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-			assert_pool_state!(hub_reserves.iter().sum::<Balance>(), hub_balance);
+			assert_eq!(hub_reserves, hub_balance);
 
 			assert_asset_state!(
 				200,
 				AssetReserveState {
 					reserve: 1950000000000000,
-					hub_reserve: 1337142857142858,
+					hub_reserve: 1340963265306123,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -774,7 +778,7 @@ fn buy_should_work_when_trading_native_asset() {
 				HDX,
 				AssetReserveState {
 					reserve: 10046645138141372,
-					hub_reserve: 9962857142857142,
+					hub_reserve: 9953571428571428,
 					shares: 10000 * ONE,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
