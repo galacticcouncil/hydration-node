@@ -894,13 +894,13 @@ pub fn assert_xcm_message_processing_passed() {
 	)));
 }
 
-pub fn get_last_swapped_events() -> Vec<pallet_support::Event<hydradx_runtime::Runtime>> {
+pub fn get_last_swapped_events() -> Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> {
 	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
 
 	last_events
 		.into_iter()
 		.filter_map(|event| {
-			if let RuntimeEvent::AmmSupport(inner_event @ pallet_support::Event::Swapped { .. }) = event {
+			if let RuntimeEvent::Broadcast(inner_event @ pallet_broadcast::Event::Swapped { .. }) = event {
 				Some(inner_event)
 			} else {
 				None
@@ -912,7 +912,7 @@ pub fn get_last_swapped_events() -> Vec<pallet_support::Event<hydradx_runtime::R
 #[macro_export]
 macro_rules! assert_operation_stack {
     ($event:expr, [$($pattern:pat),*]) => {
-        if let pallet_support::Event::Swapped { operation_stack, .. } = $event {
+        if let pallet_broadcast::Event::Swapped { operation_stack, .. } = $event {
             assert!(matches!(&operation_stack[..],
                 [
                     $($pattern),*

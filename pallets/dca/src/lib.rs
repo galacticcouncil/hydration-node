@@ -96,7 +96,7 @@ use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
 pub use pallet::*;
-use pallet_support::types::ExecutionType;
+use pallet_broadcast::types::ExecutionType;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -206,7 +206,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_support::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -694,7 +694,7 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		pallet_support::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id));
+		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id));
 
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 		let trade_result = match &schedule.order {
@@ -782,7 +782,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		pallet_support::Pallet::<T>::remove_from_context(|id| ExecutionType::DCA(schedule_id, id));
+		pallet_broadcast::Pallet::<T>::remove_from_context();
 
 		trade_result
 	}

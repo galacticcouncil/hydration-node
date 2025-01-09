@@ -44,7 +44,7 @@ pallet-evm-accounts = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
-pallet-support = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -222,7 +222,7 @@ std = [
     "precompile-utils/std",
     "pallet-transaction-pause/std",
     "pallet-liquidation/std",
-    "pallet-support/std",
+    "pallet-broadcast/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

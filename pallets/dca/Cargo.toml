@@ -34,7 +34,7 @@ pallet-omnipool = { workspace = true }
 hydradx-traits = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-ema-oracle = { workspace = true }
-pallet-support = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 hydra-dx-math = { workspace = true }
 

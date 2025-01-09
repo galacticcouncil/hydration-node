@@ -4,7 +4,7 @@ use crate::{assert_balance, to_precision, Error, Event};
 use std::num::NonZeroU16;
 
 use frame_support::{assert_noop, assert_ok};
-use pallet_support::types::{Asset, Fee};
+use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::Permill;
 
 #[test]
@@ -66,14 +66,14 @@ fn sell_should_work_when_correct_input_provided() {
 					fee: 0,
 				}
 				.into(),
-				pallet_support::Event::Swapped {
+				pallet_broadcast::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type: pallet_support::types::Filler::Stableswap(pool_id),
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(asset_a, 30000000000000)],
 					outputs: vec![Asset::new(asset_b, 29902625420922)],
-					fees: vec![Fee::new(asset_b, 0, pool_account)],
+					fees: vec![Fee::new(asset_b, 0, Destination::Account(pool_account))],
 					operation_stack: vec![],
 				}
 				.into(),
@@ -140,14 +140,14 @@ fn buy_should_work_when_correct_input_provided() {
 					fee: 0,
 				}
 				.into(),
-				pallet_support::Event::Swapped {
+				pallet_broadcast::Event::Swapped {
 					swapper: BOB,
 					filler: pool_account,
-					filler_type: pallet_support::types::Filler::Stableswap(pool_id),
-					operation: pallet_support::types::TradeOperation::ExactOut,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(asset_a, 30098072706882)],
 					outputs: vec![Asset::new(asset_b, 30000000000000)],
-					fees: vec![Fee::new(asset_a, 0, pool_account)],
+					fees: vec![Fee::new(asset_a, 0, Destination::Account(pool_account))],
 					operation_stack: vec![],
 				}
 				.into(),

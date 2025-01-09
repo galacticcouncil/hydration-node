@@ -1,5 +1,6 @@
 use super::*;
 use frame_support::assert_noop;
+use pallet_broadcast::types::Destination;
 use pretty_assertions::assert_eq;
 use sp_runtime::Permill;
 
@@ -677,27 +678,27 @@ fn sell_should_get_same_amount() {
 					protocol_fee_amount: 0,
 				}
 				.into(),
-				pallet_support::Event::Swapped {
+				pallet_broadcast::Event::Swapped {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_support::types::Filler::Omnipool,
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(100, expected_sold_amount)],
 					outputs: vec![Asset::new(LRNA, 57142857142858)],
-					fees: vec![Fee::new(LRNA, 0, Omnipool::protocol_account())],
+					fees: vec![Fee::new(LRNA, 0, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_support::Event::Swapped {
+				pallet_broadcast::Event::Swapped {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
-					filler_type: pallet_support::types::Filler::Omnipool,
-					operation: pallet_support::types::TradeOperation::ExactIn,
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 57142857142858)],
 					outputs: vec![Asset::new(200, buy_amount)],
 					fees: vec![
-						Fee::new(200, 5500000000001, Omnipool::protocol_account()),
-						Fee::new(200, 55555555555, 0),
+						Fee::new(200, 5500000000001, Destination::Account(Omnipool::protocol_account())),
+						Fee::new(200, 55555555555, Destination::Account(0)),
 					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
