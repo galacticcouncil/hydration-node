@@ -1,5 +1,6 @@
 use crate::pallet::{PositionVotes, Positions, ProcessedVotes};
-use crate::types::{Action, Balance, Conviction, Vote};
+use crate::types::Vote;
+use crate::types::{Action, Balance, Conviction};
 use crate::{Config, Pallet};
 use frame_support::dispatch::DispatchResult;
 use orml_traits::MultiCurrencyExtended;

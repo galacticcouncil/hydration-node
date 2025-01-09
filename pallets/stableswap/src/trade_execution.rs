@@ -1,8 +1,8 @@
-use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
