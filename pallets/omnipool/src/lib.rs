@@ -1096,7 +1096,7 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
 
-			//Swapped event for AssetA to HubAsset
+			// Swapped event for AssetA to HubAsset
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who.clone(),
 				Self::protocol_account(),
