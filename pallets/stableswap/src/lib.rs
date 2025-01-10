@@ -212,7 +212,7 @@ pub mod pallet {
 		},
 		/// Sell trade executed. Trade fee paid in asset leaving the pool (already subtracted from amount_out).
 		/// Deprecated. Replaced by pallet_broadcast::Swapped
-		//TODO: remove once we migrated completely to pallet_amm::Event::Swapped
+		// TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		SellExecuted {
 			who: T::AccountId,
 			pool_id: T::AssetId,
