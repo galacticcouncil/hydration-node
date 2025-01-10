@@ -294,7 +294,7 @@ fn fees_should_be_recalculated_correctly_for_last_block_change_when_nothing_in_s
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let (asset_fee, protocol_fee) = retrieve_fee_entry(HDX, 49_900_000_000_000);
+			let (_, protocol_fee) = retrieve_fee_entry(HDX, 49_900_000_000_000);
 			//assert_eq!(asset_fee, Fee::from_float(0.012));
 			assert_eq!(protocol_fee, Fee::from_percent(2));
 		});

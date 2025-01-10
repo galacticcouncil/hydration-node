@@ -229,6 +229,7 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
+	pub BurnFee: Permill = Permill::zero();
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
@@ -265,6 +266,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct WithdrawFeePriceOracle;
@@ -1144,8 +1146,8 @@ pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetByKey<(AssetId, Balance), (Permill, Permill)> for FeeProvider {
+	fn get(_: &(AssetId, Balance)) -> (Permill, Permill) {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
 }

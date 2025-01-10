@@ -76,9 +76,9 @@ macro_rules! assert_pool_state {
 			$x,
 			"Hub liquidity incorrect\n"
 		);
-		let hub_reserve = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
 		/*
+		let hub_reserve = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 		let stable_asset = <Assets<Test>>::get(DAI).unwrap();
 		let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 

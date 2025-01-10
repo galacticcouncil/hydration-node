@@ -22,7 +22,7 @@ pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use orml_traits::{parameter_type_with_key, GetByKey};
+use orml_traits::{parameter_type_with_key, GetByKey, MultiCurrency};
 use sp_core::H256;
 use sp_runtime::traits::{ConstU128, ConstU32};
 use sp_runtime::DispatchResult;
@@ -205,6 +205,7 @@ parameter_types! {
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
 	pub MinWithdrawFee: Permill = Permill::from_percent(0);
+	pub BurnFee: Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Test {
@@ -230,6 +231,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
 }
 
 impl pallet_broadcast::Config for Test {
@@ -320,6 +322,11 @@ where
 		_amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		Ok(vec![])
+	}
+
+	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<Balance, Self::Error> {
+		Tokens::withdraw(LRNA, &fee_account, amount)?;
+		Ok(amount)
 	}
 }
 
@@ -664,8 +671,8 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetByKey<(AssetId, Balance), (Permill, Permill)> for FeeProvider {
+	fn get(_: &(AssetId, Balance)) -> (Permill, Permill) {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
 }
