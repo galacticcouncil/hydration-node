@@ -17,13 +17,13 @@
 
 use super::*;
 
+use crate::types::Voting;
 use crate::types::{Conviction, Vote};
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_system::{Pallet as System, RawOrigin};
 use orml_traits::MultiCurrencyExtended;
 use sp_std::vec::Vec;
-
 const UNIT: u128 = 1_000_000_000_000;
 
 fn init_staking<T: Config>(non_dustable_balance: Balance) -> DispatchResult

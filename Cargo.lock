@@ -8833,7 +8833,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.5.1"
+version = "2.6.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8848,6 +8848,7 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-liquidity-mining",
  "pallet-omnipool",
+ "pallet-stableswap",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",
@@ -12407,12 +12408,13 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
  "frame-system",
  "hydradx-runtime",
+ "hydradx-traits",
  "orml-tokens",
  "pallet-asset-registry",
  "pallet-omnipool",
