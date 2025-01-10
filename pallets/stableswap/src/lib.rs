@@ -55,8 +55,8 @@ extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, PalletId};
-use frame_system::pallet_prelude::BlockNumberFor;
-use hydradx_traits::{registry::Inspect, AccountIdFor};
+use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -68,9 +68,10 @@ mod trade_execution;
 pub mod types;
 pub mod weights;
 
-use crate::types::{AssetAmount, Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
+use crate::types::{Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
@@ -482,14 +483,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let shares = Self::do_add_liquidity(&who, pool_id, &assets)?;
-
-			Self::deposit_event(Event::LiquidityAdded {
-				pool_id,
-				who,
-				shares,
-				assets: assets.to_vec(),
-			});
+			Self::do_add_liquidity(&who, pool_id, &assets)?;
 
 			Ok(())
 		}
@@ -1191,6 +1185,13 @@ impl<T: Config> Pallet<T> {
 		#[cfg(feature = "try-runtime")]
 		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
 
+		Self::deposit_event(Event::LiquidityAdded {
+			pool_id,
+			who: who.clone(),
+			shares: share_amount,
+			assets: assets.to_vec(),
+		});
+
 		Ok(share_amount)
 	}
 
@@ -1465,5 +1466,23 @@ impl<T: Config> Pallet<T> {
 			let diff = final_d - initial_d;
 			assert!(diff <= 5000, "Trade D difference is too big: {:?}", diff);
 		}
+	}
+}
+
+impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pallet<T> {
+	fn add_liquidity(
+		who: T::AccountId,
+		pool_id: T::AssetId,
+		assets: Vec<AssetAmount<T::AssetId>>,
+	) -> Result<Balance, DispatchError> {
+		let asset_amounts = assets
+			.iter()
+			.map(|asset| AssetAmount {
+				asset_id: asset.asset_id,
+				amount: asset.amount,
+			})
+			.collect::<Vec<_>>();
+
+		Self::do_add_liquidity(&who, pool_id, &asset_amounts)
 	}
 }

@@ -297,7 +297,6 @@ mod benches {
 	frame_benchmarking::define_benchmarks!(
 		[pallet_lbp, LBP]
 		[pallet_asset_registry, AssetRegistry]
-		[pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining]
 		[pallet_transaction_pause, TransactionPause]
 		[pallet_ema_oracle, EmaOracle]
 		[pallet_circuit_breaker, CircuitBreaker]
@@ -1030,6 +1029,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
 			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
+			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1167,6 +1167,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
 			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
+			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
