@@ -1035,15 +1035,7 @@ pub mod pallet {
 			Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
 
 			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
-
-			/*
-			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
-			debug_assert_eq!(
-				*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
-				state_changes.fee.protocol_fee
-			);
-
-			 */
+			//TODO: we need to burn additional lrna amt from the asset in based on how much asset fee was taken
 
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
@@ -1277,12 +1269,7 @@ pub mod pallet {
 			Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
 
 			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
-
-			//debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
-			//debug_assert_eq!(
-			//	*state_changes.asset_in.delta_hub_reserve - *state_changes.asset_out.delta_hub_reserve,
-			//	state_changes.fee.protocol_fee
-			//);
+			//TODO: we need to burn additional lrna amt from the asset in based on how much asset fee was taken
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
@@ -1762,6 +1749,7 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
 		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		//TODO: we need to burn additional lrna amt from the asset in based on how much asset fee was taken
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1872,6 +1860,7 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
 		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		//TODO: we need to burn additional lrna amt from the asset in based on how much asset fee was taken
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
