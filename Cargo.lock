@@ -4898,7 +4898,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 4.0.2",
+ "pallet-staking 4.1.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4919,7 +4919,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "278.0.0"
+version = "279.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5011,7 +5011,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.0.2",
+ "pallet-staking 4.1.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -5064,7 +5064,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.11.0"
+version = "3.12.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8833,7 +8833,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.6.0"
+version = "2.6.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9175,7 +9175,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "4.1.2"
+version = "4.2.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -9202,7 +9202,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12281,7 +12281,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.27.0"
+version = "1.28.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12354,7 +12354,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.0.2",
+ "pallet-staking 4.1.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -12419,7 +12419,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 4.0.2",
+ "pallet-staking 4.1.0",
  "primitives",
  "scraper",
  "serde",
