@@ -736,7 +736,6 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 		.with_on_trade_withdrawal(Permill::from_percent(0))
 		.build()
 		.execute_with(|| {
-			let buy_amount = 50 * ONE;
 			let expected_sold_amount = 58_823_529_411_766;
 			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(LP1),
@@ -769,7 +768,6 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 		.with_on_trade_withdrawal(Permill::from_percent(0))
 		.build()
 		.execute_with(|| {
-			let buy_amount = 50 * ONE;
 			let expected_sold_amount = 58_823_529_411_766;
 			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(LP1),
@@ -854,6 +852,7 @@ fn sell_and_buy_should_get_same_amounts_when_all_fees_are_set() {
 
 			let lp1_balance_100 = Tokens::free_balance(100, &LP1);
 			let spent = initial_lp1_balance_100 - lp1_balance_100;
+			assert_eq!(spent, sold_amount);
 			assert_eq!(lp1_balance_100, initial_lp1_balance_100 - sold_amount);
 		});
 }

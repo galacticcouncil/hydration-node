@@ -48,13 +48,13 @@ fn sell_fee_test() {
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 14248146920380993, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14248146920380993u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 2560000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 200, 1938364443148399, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 200, 1938364443148399u128, 10);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
 			assert_balance_approx!(LP1, 200, 3000000000000000u128, 10);
 			assert_balance_approx!(LP2, 100, 550000000000000u128, 10);
-			assert_balance_approx!(LP2, 200, 17972051953452, 10);
+			assert_balance_approx!(LP2, 200, 17972051953452u128, 10);
 			assert_balance_approx!(LP3, 100, 1890000000000000u128, 10);
 			assert_balance_approx!(LP3, 200, 343663504898149u128, 10);
 

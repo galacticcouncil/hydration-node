@@ -69,16 +69,16 @@ fn fee_test_buy_sell() {
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 14146958628772699, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 100, 4252365805992807, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 200, 1671722116038779, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14146958628772699u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 100, 4252365805992807u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 200, 1671722116038779u128, 10);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
 			assert_balance_approx!(LP1, 200, 3000000000000000u128, 10);
 			assert_balance_approx!(LP2, 100, 550000000000000u128, 10);
-			assert_balance_approx!(LP2, 200, 17972051953452, 10);
-			assert_balance_approx!(LP3, 100, 197634194007193, 10);
-			assert_balance_approx!(LP3, 200, 610305832007769, 10);
-			assert_balance_approx!(LP3, 1, 46291301360316, 10);
+			assert_balance_approx!(LP2, 200, 17972051953452u128, 10);
+			assert_balance_approx!(LP3, 100, 197634194007193u128, 10);
+			assert_balance_approx!(LP3, 200, 610305832007769u128, 10);
+			assert_balance_approx!(LP3, 1, 46291301360316u128, 10);
 
 			assert_asset_state!(
 				2,
