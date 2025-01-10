@@ -9,7 +9,7 @@ pub mod v2 {
 	};
 	use frame_support::storage_alias;
 
-	const TARGET: &'static str = "runtime::omnipool";
+	const TARGET: &str = "runtime::omnipool";
 
 	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
 	pub struct SimpleImbalance<Balance: Default> {

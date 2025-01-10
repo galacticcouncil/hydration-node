@@ -195,7 +195,7 @@ fn compute_asset_fee_should_increase_when_in_is_greater_than_out() {
 		liquidity: 200_000_000_000_000_000,
 		decay_factor: FixedU128::from_rational(2, 10),
 	};
-	let current_liquidity = 198045_086_005_323_500;
+	let current_liquidity = 198_045_086_005_323_500;
 	let initial_fee = Permill::from_float(0.0025);
 	let last_block_diff = 1;
 	let params = FeeParams {
@@ -226,7 +226,7 @@ fn compute_protocol_fee_should_not_change() {
 		liquidity: 200_000_000_000_000_000,
 		decay_factor: FixedU128::from_rational(2, 10),
 	};
-	let current_liquidity = 198045_086_005_323_500;
+	let current_liquidity = 198_045_086_005_323_500;
 	let last_block_diff = 1;
 	let params = FeeParams {
 		amplification: FixedU128::from(10),

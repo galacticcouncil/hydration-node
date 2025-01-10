@@ -118,12 +118,10 @@ where
 	let f = params.decay.saturating_mul(bd);
 	let (delta, delta_neg) = if x_neg {
 		(p2.saturating_add(f), true)
+	} else if f > p2 {
+		(f.saturating_sub(p2), true)
 	} else {
-		if f > p2 {
-			(f.saturating_sub(p2), true)
-		} else {
-			(p2.saturating_sub(f), false)
-		}
+		(p2.saturating_sub(f), false)
 	};
 	let fixed_previous_fee: FixedU128 = previous_fee.into();
 	if delta_neg {
