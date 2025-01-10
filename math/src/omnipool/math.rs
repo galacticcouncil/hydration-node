@@ -204,14 +204,14 @@ pub fn calculate_buy_state_changes(
 	m: Permill,
 ) -> Option<TradeStateChange<Balance>> {
 	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
-	let (out_hub_reserve, out_reserve_no_fee, out_amount) =
+	let (out_hub_reserve_hp, out_reserve_no_fee_hp, out_amount_hp) =
 		to_u256!(asset_out_state.hub_reserve, reserve_no_fee, amount);
 
-	let delta_hub_reserve_out = out_hub_reserve
-		.checked_mul(out_amount)
-		.and_then(|v| v.checked_div(out_reserve_no_fee.checked_sub(out_amount)?))?;
+	let delta_hub_reserve_out_hp = out_hub_reserve_hp
+		.checked_mul(out_amount_hp)
+		.and_then(|v| v.checked_div(out_reserve_no_fee_hp.checked_sub(out_amount_hp)?))?;
 
-	let delta_hub_reserve_out = to_balance!(delta_hub_reserve_out).ok()?;
+	let delta_hub_reserve_out = to_balance!(delta_hub_reserve_out_hp).ok()?;
 	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(Balance::one())?;
 
 	// Negative
@@ -239,10 +239,10 @@ pub fn calculate_buy_state_changes(
 	// mint amount for asset out
 	let delta_hub_reserve_out_hp = to_u256!(delta_hub_reserve_out);
 	let delta_out_m = asset_fee.mul_floor(
-		to_balance!(out_hub_reserve
+		to_balance!(out_hub_reserve_hp
 			.checked_add(delta_hub_reserve_out_hp)?
 			.checked_mul(delta_hub_reserve_out_hp)?
-			.checked_div(out_hub_reserve)?)
+			.checked_div(out_hub_reserve_hp)?)
 		.ok()?,
 	);
 	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(delta_out_m)?;
