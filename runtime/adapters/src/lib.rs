@@ -39,7 +39,7 @@ use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
-use orml_traits::GetByKey;
+use orml_traits::{GetByKey, MultiCurrency};
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
@@ -327,13 +327,16 @@ where
 }
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
-pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>(PhantomData<(Origin, NativeAsset, Lrna, Runtime)>);
+pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient>(
+	PhantomData<(Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient)>,
+);
 
-impl<Origin, NativeAsset, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
-	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>
+impl<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient>
 where
 	Lrna: Get<AssetId>,
 	NativeAsset: Get<AssetId>,
+	ProtocolFeeRecipient: Get<AccountId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
@@ -342,6 +345,7 @@ where
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
+	MC: MultiCurrency<AccountId, CurrencyId = AssetId, Balance = Balance>,
 {
 	type Error = DispatchError;
 
@@ -490,6 +494,13 @@ where
 			amount.saturating_sub(referral_amount),
 		)?;
 		Ok(vec![staking_used, referrals_used])
+	}
+
+	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<Balance, Self::Error> {
+		//TODO: here in future, we will change this to buyback HDX with the lrna amount
+		// for now, it is just transferring the fee to treasury
+		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
+		Ok(amount)
 	}
 }
 
