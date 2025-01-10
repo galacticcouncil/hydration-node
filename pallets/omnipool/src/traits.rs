@@ -66,6 +66,12 @@ where
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error>;
+
+	/// Part of the protocol fee that must be consumed.
+	/// Returns the amount that was consumed and must be equal to the input amount.
+	/// Otherwise, the transaction will be reverted because the update states are already updated with the fee
+	/// being either burned or transferred somewhere else. That's up to the consumer.
+	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<Balance, Self::Error>;
 }
 
 // Default implementation for no-op hooks.
@@ -106,6 +112,10 @@ where
 		_amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		Ok(vec![])
+	}
+
+	fn consume_protocol_fee(_fee_account: AccountId, amount: Balance) -> Result<Balance, Self::Error> {
+		Ok(amount)
 	}
 }
 

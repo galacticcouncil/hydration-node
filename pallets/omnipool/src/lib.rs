@@ -427,6 +427,8 @@ pub mod pallet {
 		ExistentialDepositNotAvailable,
 		/// Slippage protection
 		SlippageLimit,
+		/// Extra protocol fee has not been consumed.
+		ProtocolFeeNotConsumed,
 	}
 
 	#[pallet::call]
@@ -1656,8 +1658,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn process_extra_protocol_fee_amount(amount: Balance) -> DispatchResult {
-		//TODO: implement, but now just burn it
-		T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+		let initial_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let consumed = T::OmnipoolHooks::consume_protocol_fee(Self::protocol_account(), amount)?;
+		ensure!(consumed == amount, Error::<T>::ProtocolFeeNotConsumed);
+		let final_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		ensure!(
+			initial_balance.saturating_sub(final_balance) == amount,
+			Error::<T>::ProtocolFeeNotConsumed
+		);
 		Ok(())
 	}
 
