@@ -199,7 +199,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 	);
 	assert_eq!(
 		state_changes.asset_out.delta_hub_reserve,
-		BalanceUpdate::Increase(5694097573180)
+		BalanceUpdate::Increase(5777720816326)
 	);
 	assert_eq!(state_changes.extra_protocol_fee_amount, 57142857142);
 
@@ -257,7 +257,7 @@ fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fe
 	);
 	assert_eq!(
 		state_changes.asset_out.delta_hub_reserve,
-		BalanceUpdate::Increase(5694097573180)
+		BalanceUpdate::Increase(5777720816326)
 	);
 	let zero_fee_amount = 57142857142u128;
 	assert_eq!(

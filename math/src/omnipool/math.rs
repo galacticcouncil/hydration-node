@@ -9,7 +9,7 @@ use crate::{to_balance, to_u256};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128, PerThing, Permill};
+use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::{Div, Sub};
 
 #[inline]
