@@ -8139,7 +8139,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-fees"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

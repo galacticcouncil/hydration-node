@@ -1,6 +1,6 @@
 [package]
 name =  "pallet-dynamic-fees"
-version = "1.0.5"
+version = "1.0.6"
 description = "A pallet to provide support for dynamic fees"
 authors = ["GalacticCouncil"]
 edition = "2021"
