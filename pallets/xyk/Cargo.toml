@@ -46,7 +46,7 @@ sp-api = { workspace = true }
 proptest = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
     "frame-benchmarking",
     "frame-system/runtime-benchmarks",

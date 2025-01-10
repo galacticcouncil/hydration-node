@@ -64,7 +64,7 @@ test-case = { workspace = true }
 primitive-types = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
     "codec/std",
     "frame-support/std",

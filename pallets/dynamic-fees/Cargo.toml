@@ -31,7 +31,7 @@ sp-io = { workspace = true }
 proptest = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-system/runtime-benchmarks",

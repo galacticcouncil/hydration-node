@@ -41,7 +41,7 @@ pretty_assertions = { workspace = true }
 test-case = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
     "codec/std",
     "frame-support/std",

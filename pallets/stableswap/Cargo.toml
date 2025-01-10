@@ -51,7 +51,7 @@ test-utils = { workspace = true }
 pretty_assertions = "1.4.0"
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
     "frame-benchmarking",
     "frame-system/runtime-benchmarks",
@@ -60,17 +60,17 @@ runtime-benchmarks = [
 ]
 std = [
     "serde/std",
-    'codec/std',
+    "codec/std",
     "scale-info/std",
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-core/std',
-    'sp-io/std',
-    'sp-std/std',
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-std/std",
     "orml-tokens/std",
     "frame-benchmarking/std",
-    'orml-traits/std',
+    "orml-traits/std",
     "hydra-dx-math/std",
     "pallet-broadcast/std",
 ]

@@ -49,7 +49,7 @@ test-utils = { workspace = true }
 parking_lot = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
     "codec/std",
     "frame-support/std",

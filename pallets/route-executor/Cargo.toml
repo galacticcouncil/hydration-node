@@ -39,7 +39,7 @@ hydradx-adapters = { workspace = true }
 test-utils = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
