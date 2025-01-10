@@ -2,7 +2,6 @@
 #![allow(clippy::identity_op)]
 use super::assert_balance;
 use crate::polkadot_test_net::*;
-use hydradx_adapters::OmnipoolHookAdapter;
 use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
@@ -37,10 +36,7 @@ use xcm_emulator::TestExt;
 use frame_support::storage::with_transaction;
 use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use sp_runtime::{
-	traits::{ConstU32, Zero},
-	DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome,
-};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome};
 
 use hydradx_runtime::{AccountIdFor, InsufficientEDinHDX};
 use orml_traits::MultiCurrency;
