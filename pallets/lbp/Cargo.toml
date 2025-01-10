@@ -64,7 +64,7 @@ std = [
     "sp-core/std",
     "sp-std/std",
     "hydradx-traits/std",
-    'frame-benchmarking/std',
+    "frame-benchmarking/std",
     "scale-info/std",
     "hydra-dx-math/std",
     "pallet-broadcast/std",

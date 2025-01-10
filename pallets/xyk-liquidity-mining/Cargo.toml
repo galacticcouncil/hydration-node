@@ -4,8 +4,8 @@ version = "1.4.0"
 description = "Liquidity mining"
 authors = ["GalacticCouncil"]
 edition = "2021"
-homepage = 'https://github.com/galacticcouncil/hydradx-node'
-repository = 'https://github.com/galacticcouncil/hydradx-node'
+homepage = "https://github.com/galacticcouncil/hydradx-node"
+repository = "https://github.com/galacticcouncil/hydradx-node"
 license = "Apache 2.0"
 
 [package.metadata.docs.rs]
@@ -52,9 +52,9 @@ std = [
   "sp-std/std",
   "frame-support/std",
   "frame-system/std",
-	"sp-core/std",
-	"sp-io/std",
-	"pallet-balances/std",
+  "sp-core/std",
+  "sp-io/std",
+  "pallet-balances/std",
   "orml-tokens/std",
   "pallet-xyk/std",
   "pallet-liquidity-mining/std",

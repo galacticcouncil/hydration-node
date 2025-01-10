@@ -1,10 +1,10 @@
 [package]
-name = 'pallet-route-executor'
-version = '2.7.0'
-description = 'A pallet to execute a route containing a sequence of trades'
-authors = ['GalacticCouncil']
-edition = '2021'
-license = 'Apache 2.0'
+name = "pallet-route-executor"
+version = "2.7.0"
+description = "A pallet to execute a route containing a sequence of trades"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node/tree/master/route-executor"
 
 [dependencies]
@@ -46,21 +46,21 @@ runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
 ]
 std = [
-  'serde/std',
-  'codec/std',
-  'scale-info/std',
-  'sp-std/std',
-  'frame-support/std',
-  'frame-system/std',
-  'orml-tokens/std',
-  'orml-traits/std',
+  "serde/std",
+  "codec/std",
+  "scale-info/std",
+  "sp-std/std",
+  "frame-support/std",
+  "frame-system/std",
+  "orml-tokens/std",
+  "orml-traits/std",
   "hydradx-adapters/std",
   "pallet-balances/std",
   "pallet-broadcast/std",
-  'hydradx-traits/std',
-  'hydra-dx-math/std',
-  'frame-benchmarking/std',
-  'sp-core/std',
-  'sp-runtime/std',
+  "hydradx-traits/std",
+  "hydra-dx-math/std",
+  "frame-benchmarking/std",
+  "sp-core/std",
+  "sp-runtime/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

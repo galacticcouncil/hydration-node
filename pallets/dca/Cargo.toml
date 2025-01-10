@@ -66,13 +66,13 @@ primitive-types = { workspace = true }
 [features]
 default = ['std']
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-std/std',
-    'sp-core/std',
-    'sp-io/std',
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-core/std",
+    "sp-io/std",
     "scale-info/std",
     "orml-tokens/std",
     "hydradx-traits/std",

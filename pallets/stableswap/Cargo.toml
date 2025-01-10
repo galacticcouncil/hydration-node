@@ -1,11 +1,11 @@
 [package]
-name = 'pallet-stableswap'
-version = '4.2.0'
-description = 'AMM for correlated assets'
-authors = ['GalacticCouncil']
-edition = '2021'
+name = "pallet-stableswap"
+version = "4.2.0"
+description = "AMM for correlated assets"
+authors = ["GalacticCouncil"]
+edition = "2021"
 homepage = "https://github.com/galacticcouncil/warehouse"
-license = 'Apache 2.0'
+license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/warehouse"
 
 [package.metadata.docs.rs]

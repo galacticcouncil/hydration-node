@@ -1,10 +1,10 @@
 [package]
-name = 'pallet-liquidation'
-version = '1.0.2'
-description = 'A pallet for money market liquidations'
-authors = ['GalacticCouncil']
-edition = '2021'
-license = 'Apache 2.0'
+name = "pallet-liquidation"
+version = "1.0.2"
+description = "A pallet for money market liquidations"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/hydration-node"
 
 [dependencies]
@@ -59,28 +59,28 @@ parking_lot = { workspace = true }
 [features]
 default = ['std']
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-core/std',
-    'sp-io/std',
-    'sp-std/std',
-    'sp-arithmetic/std',
-    'sp-api/std',
-    'scale-info/std',
-    'orml-tokens/std',
-    'orml-traits/std',
-    'hydradx-traits/std',
-    'hydra-dx-math/std',
-    'frame-benchmarking/std',
-    'pallet-balances/std',
-    'pallet-currencies/std',
-    'pallet-route-executor/std',
-    'pallet-omnipool/std',
-    'pallet-asset-registry/std',
-    'pallet-evm-accounts/std',
-    'pallet-asset-registry/std',
-    'pallet-evm/std',
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-std/std",
+    "sp-arithmetic/std",
+    "sp-api/std",
+    "scale-info/std",
+    "orml-tokens/std",
+    "orml-traits/std",
+    "hydradx-traits/std",
+    "hydra-dx-math/std",
+    "frame-benchmarking/std",
+    "pallet-balances/std",
+    "pallet-currencies/std",
+    "pallet-route-executor/std",
+    "pallet-omnipool/std",
+    "pallet-asset-registry/std",
+    "pallet-evm-accounts/std",
+    "pallet-asset-registry/std",
+    "pallet-evm/std",
 ]
 
 runtime-benchmarks = [

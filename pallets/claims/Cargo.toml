@@ -1,15 +1,15 @@
 [package]
-name = 'pallet-claims'
-version = '3.4.11'
-description = 'HydraDX Claims Module'
-authors = ['GalacticCouncil']
-edition = '2021'
-license = 'Apache 2.0'
-homepage = 'https://github.com/galacticcouncil/hydradx-node'
-repository = 'https://github.com/galacticcouncil/hydradx-node'
+name = "pallet-claims"
+version = "3.4.11"
+description = "HydraDX Claims Module"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+homepage = "https://github.com/galacticcouncil/hydradx-node"
+repository = "https://github.com/galacticcouncil/hydradx-node"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 scale-info = { workspace = true }
@@ -43,14 +43,14 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
 ]
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'primitives/std',
-    'rustc-hex/std',
-    'serde/std',
-    'scale-info/std',
-    'pallet-balances/std',
-    'frame-benchmarking/std'
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "primitives/std",
+    "rustc-hex/std",
+    "serde/std",
+    "scale-info/std",
+    "pallet-balances/std",
+    "frame-benchmarking/std"
 ]
 try-runtime = ["frame-support/try-runtime"]
