@@ -306,7 +306,7 @@ pub mod pallet {
 		},
 		/// Sell trade executed.
 		/// Deprecated. Replaced by pallet_broadcast::Swapped
-		//TODO: remove when completely migrated to new Swapped event
+		// TODO: remove when completely migrated to new Swapped event
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
