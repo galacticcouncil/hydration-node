@@ -74,7 +74,7 @@ frame_support::construct_runtime!(
 		 Omnipool: pallet_omnipool,
 		 Router: pallet_route_executor,
 		 OtcSettlements: pallet_otc_settlements,
-		 Broadcast:pallet_broadcast,
+		 Broadcast: pallet_broadcast,
 	 }
 );
 

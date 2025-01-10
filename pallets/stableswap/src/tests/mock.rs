@@ -81,7 +81,7 @@ construct_runtime!(
 		System: frame_system,
 		Tokens: orml_tokens,
 		Stableswap: pallet_stableswap,
-		Broadcast:pallet_broadcast,
+		Broadcast: pallet_broadcast,
 	}
 );
 
