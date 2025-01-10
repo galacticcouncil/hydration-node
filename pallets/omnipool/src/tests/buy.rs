@@ -883,3 +883,80 @@ fn buy_for_lrna_should_fail_when_exceeds_max_out_ratio() {
 			);
 		});
 }
+
+#[test]
+fn spot_price_after_buy_should_be_identical_when_protocol_fee_is_nonzero() {
+	let mut spot_price_1 = FixedU128::zero();
+	let mut spot_price_2 = FixedU128::zero();
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee(Permill::from_percent(0))
+		.with_protocol_fee(Permill::from_percent(10))
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
+		.with_on_trade_withdrawal(Permill::from_percent(0))
+		.build()
+		.execute_with(|| {
+			let buy_amount = 50 * ONE;
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				200,
+				100,
+				buy_amount,
+				u128::MAX,
+			));
+
+			let actual = Pallet::<Test>::load_asset_state(200).unwrap();
+
+			spot_price_1 = FixedU128::from_rational(actual.reserve, actual.hub_reserve);
+		});
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee(Permill::from_percent(10))
+		.with_protocol_fee(Permill::from_percent(10))
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
+		.with_on_trade_withdrawal(Permill::from_percent(0))
+		.build()
+		.execute_with(|| {
+			let buy_amount = 50 * ONE;
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				200,
+				100,
+				buy_amount,
+				u128::MAX,
+			));
+
+			let actual = Pallet::<Test>::load_asset_state(200).unwrap();
+
+			spot_price_2 = FixedU128::from_rational(actual.reserve, actual.hub_reserve);
+		});
+
+	assert_eq_approx!(
+		spot_price_1,
+		spot_price_2,
+		FixedU128::from_float(0.000000001),
+		"spot price afters sells"
+	);
+}

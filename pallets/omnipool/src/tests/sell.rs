@@ -784,11 +784,10 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero() {
 			spot_price_2 = FixedU128::from_rational(actual.reserve, actual.hub_reserve);
 		});
 
-	//assert_eq!(spot_price_1, spot_price_2);
 	assert_eq_approx!(
 		spot_price_1,
 		spot_price_2,
-		FixedU128::from_float(0.0000001),
+		FixedU128::from_float(0.000000001),
 		"spot price afters sells"
 	);
 }

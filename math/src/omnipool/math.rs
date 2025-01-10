@@ -9,7 +9,7 @@ use crate::{to_balance, to_u256};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use sp_arithmetic::{FixedPointNumber, FixedU128, PerThing, Permill};
 use sp_std::ops::{Div, Sub};
 
 #[inline]
@@ -54,12 +54,14 @@ pub fn calculate_sell_state_changes(
 	let asset_fee_amount = amount_out.saturating_sub(delta_reserve_out);
 
 	//mint amount for asset out
-	let delta_q_j = to_u256!(delta_hub_reserve_out);
-	let delta_out_m = out_reserve_hp
-		.checked_mul(delta_q_j)?
-		.checked_div(out_reserve_hp.checked_add(delta_reserve_out_hp)?)?;
-	let delta_out_m = to_balance!(delta_out_m).ok()?;
-	let delta_out_m = asset_fee.mul_floor(delta_out_m);
+	let delta_out_m = asset_fee.mul_floor(
+		to_balance!(out_hub_reserve_hp
+			.checked_add(delta_hub_reserve_out_hp)?
+			.checked_mul(delta_hub_reserve_out_hp)?
+			.checked_div(out_hub_reserve_hp)?)
+		.ok()?,
+	);
+
 	let total_delta_hub_reserve_out = delta_hub_reserve_out.checked_add(delta_out_m)?;
 
 	// burn part of protocol fee and rest is to be transferred to treasury or buybacks
@@ -235,15 +237,15 @@ pub fn calculate_buy_state_changes(
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
 	// mint amount for asset out
-	let delta_q_j = to_u256!(delta_hub_reserve_out);
-	let delta_q_j_m = asset_fee.mul_floor(
+	let delta_hub_reserve_out_hp = to_u256!(delta_hub_reserve_out);
+	let delta_out_m = asset_fee.mul_floor(
 		to_balance!(out_hub_reserve
-			.checked_add(delta_q_j)?
-			.checked_mul(delta_q_j)?
+			.checked_add(delta_hub_reserve_out_hp)?
+			.checked_mul(delta_hub_reserve_out_hp)?
 			.checked_div(out_hub_reserve)?)
 		.ok()?,
 	);
-	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(delta_q_j_m)?;
+	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(delta_out_m)?;
 
 	// Protocol fee burn and transfer
 	let burned_protocol_fee = m.mul_floor(protocol_fee_amount);
