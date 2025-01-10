@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-otc-settlements'
-version = '1.0.6'
+version = '1.1.1'
 description = 'A pallet with offchain worker closing OTC arbs'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -39,6 +39,7 @@ pallet-asset-registry = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }
+pallet-broadcast = { workspace = true }
 sp-api = { workspace = true }
 orml-traits = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
@@ -48,29 +49,29 @@ test-utils = { workspace = true }
 parking_lot = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-core/std',
-    'sp-io/std',
-    'sp-std/std',
-    'sp-arithmetic/std',
-    'sp-api/std',
-    'scale-info/std',
-    'orml-tokens/std',
-    'orml-traits/std',
-    'hydradx-traits/std',
-    'hydra-dx-math/std',
-    'frame-benchmarking/std',
-    'pallet-otc/std',
-    'pallet-balances/std',
-    'pallet-currencies/std',
-    'pallet-route-executor/std',
-    'pallet-omnipool/std',
-    'pallet-asset-registry/std',
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-std/std",
+    "sp-arithmetic/std",
+    "sp-api/std",
+    "scale-info/std",
+    "orml-tokens/std",
+    "orml-traits/std",
+    "hydradx-traits/std",
+    "hydra-dx-math/std",
+    "frame-benchmarking/std",
+    "pallet-otc/std",
+    "pallet-balances/std",
+    "pallet-currencies/std",
+    "pallet-route-executor/std",
+    "pallet-omnipool/std",
+    "pallet-asset-registry/std",
 ]
 
 runtime-benchmarks = [

@@ -16,7 +16,6 @@ mod evm;
 mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
-mod global_account_derivation;
 mod insufficient_assets_ed;
 mod liquidation;
 mod multi_payment;
@@ -30,8 +29,10 @@ mod referrals;
 mod router;
 mod staking;
 mod transact_call_filter;
+mod utility;
 pub mod utils;
 mod vesting;
+mod xcm;
 mod xyk;
 mod xyk_liquidity_mining;
 

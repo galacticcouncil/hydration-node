@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-otc'
-version = '2.0.4'
+version = '2.1.0'
 description = 'A pallet for trustless over-the-counter trading'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -12,6 +12,10 @@ repository = "https://github.com/galacticcouncil/Hydradx-node"
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 scale-info = { workspace = true }
 
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+pallet-broadcast = { workspace = true }
+
 # primitives
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
@@ -20,9 +24,6 @@ sp-core = { workspace = true }
 # FRAME
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-
-# HydraDX dependencies
-hydradx-traits = { workspace = true }
 
 # ORML dependencies
 orml-traits = { workspace = true }
@@ -39,20 +40,21 @@ pretty_assertions = { workspace = true }
 test-utils = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-core/std',
-    'sp-io/std',
-    'sp-std/std',
-    'scale-info/std',
-    'orml-tokens/std',
-    'orml-traits/std',
-    'hydradx-traits/std',
-    'frame-benchmarking/std'
+  "codec/std",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-runtime/std",
+  "sp-core/std",
+  "sp-io/std",
+  "sp-std/std",
+  "scale-info/std",
+  "orml-tokens/std",
+  "orml-traits/std",
+  "hydradx-traits/std",
+  "frame-benchmarking/std",
+  "pallet-broadcast/std"
 ]
 
 runtime-benchmarks = [

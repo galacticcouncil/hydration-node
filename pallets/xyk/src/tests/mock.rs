@@ -61,6 +61,7 @@ frame_support::construct_runtime!(
 		 XYK: xyk,
 		 Currency: orml_tokens,
 		 AssetRegistry: pallet_asset_registry,
+		 Broadcast: pallet_broadcast,
 	 }
 
 );
@@ -201,6 +202,10 @@ impl CanCreatePool<AssetId> for Disallow10_10Pool {
 	fn can_create(asset_a: AssetId, asset_b: AssetId) -> bool {
 		!matches!((asset_a, asset_b), (10u32, 10u32))
 	}
+}
+
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl xyk::Config for Test {
