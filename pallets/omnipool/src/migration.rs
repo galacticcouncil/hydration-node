@@ -1,7 +1,23 @@
+use super::*;
+
 pub mod v2 {
+	use super::*;
+	use crate::types::Balance;
 	use crate::{Config, Pallet};
-	use frame_support::pallet_prelude::{Get, StorageVersion, Weight};
+	use frame_support::pallet_prelude::{
+		Decode, Encode, Get, MaxEncodedLen, RuntimeDebug, StorageVersion, ValueQuery, Weight,
+	};
+	use frame_support::storage_alias;
+
 	const TARGET: &'static str = "runtime::omnipool";
+
+	#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+	pub struct SimpleImbalance<Balance: Default> {
+		pub value: Balance,
+		pub negative: bool,
+	}
+	#[storage_alias]
+	type HubAssetImbalance<T: Config> = StorageValue<Pallet<T>, SimpleImbalance<Balance>, ValueQuery>;
 
 	pub fn pre_migrate<T: Config>() {
 		assert_eq!(StorageVersion::get::<Pallet<T>>(), 1, "Storage version too high.");
@@ -16,7 +32,7 @@ pub mod v2 {
 		if StorageVersion::get::<Pallet<T>>() != 1 {
 			log::info!(
 				target: TARGET,
-				"v2 migration - Incorrect pallet version."
+				"v2 migration - Incorrect storage version."
 			);
 			return T::DbWeight::get().reads_writes(1, 0);
 		}
@@ -25,23 +41,15 @@ pub mod v2 {
 			target: TARGET,
 			"Omnipool V2 - removing imbalance"
 		);
-
-		let mut reads = 0;
-		let mut writes = 0;
-
-		let mut weight = Weight::zero();
-
-		//TODO: Implement the migration logic here
-		// how to remove storage when it was deleted, huh ?
-		// should we keep it for now and remove it later ?
-
-		weight
+		HubAssetImbalance::<T>::kill();
+		StorageVersion::new(2).put::<Pallet<T>>();
+		T::DbWeight::get().reads_writes(2, 2)
 	}
 
 	pub fn post_migrate<T: Config>() {
 		log::info!(
 			target: TARGET,
-			"Omnipool V2 - balance removed"
+			"Omnipool V2 - imbalance removed"
 		);
 	}
 }
