@@ -211,6 +211,8 @@ pub fn calculate_buy_state_changes(
 		.checked_mul(out_amount_hp)
 		.and_then(|v| v.checked_div(out_reserve_no_fee_hp.checked_sub(out_amount_hp)?))?;
 
+	let delta_hub_reserve_out_hp = delta_hub_reserve_out_hp.checked_add(U256::one())?;
+
 	let delta_hub_reserve_out = to_balance!(delta_hub_reserve_out_hp).ok()?;
 	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(Balance::one())?;
 
