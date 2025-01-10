@@ -7988,7 +7988,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.6.4"
+version = "1.7.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -12244,7 +12244,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.27.0"
+version = "1.28.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
