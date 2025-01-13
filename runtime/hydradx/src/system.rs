@@ -47,7 +47,10 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
+use pallet_broadcast::types::ExecutionType;
+use pallet_utility::BatchHook;
 use scale_info::TypeInfo;
+use sp_runtime::DispatchResult;
 
 pub struct CallFilter;
 impl Contains<RuntimeCall> for CallFilter {
@@ -376,7 +379,24 @@ impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type PalletsOrigin = OriginCaller;
+	type BatchHook = ManageExecutionTypeForUnifiedEvent;
 	type WeightInfo = weights::pallet_utility::HydraWeight<Runtime>;
+}
+
+pub struct ManageExecutionTypeForUnifiedEvent;
+
+impl BatchHook for ManageExecutionTypeForUnifiedEvent {
+	fn on_batch_start() -> DispatchResult {
+		Broadcast::add_to_context(ExecutionType::Batch);
+
+		Ok(())
+	}
+
+	fn on_batch_end() -> DispatchResult {
+		Broadcast::remove_from_context();
+
+		Ok(())
+	}
 }
 
 parameter_types! {

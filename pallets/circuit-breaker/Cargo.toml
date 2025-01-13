@@ -1,6 +1,6 @@
 [package]
 name = "pallet-circuit-breaker"
-version = "1.1.27"
+version = "1.1.28"
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -31,6 +31,7 @@ hydradx-traits = { workspace = true }
 
 [dev-dependencies]
 pallet-omnipool = { workspace = true }
+pallet-broadcast = { workspace = true }
 pallet-balances = { workspace = true }
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
@@ -40,16 +41,16 @@ pretty_assertions = { workspace = true }
 test-case = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'serde/std',
-    'scale-info/std',
-    'frame-benchmarking/std',
-    'pallet-balances/std',
-    'orml-tokens/std',
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "serde/std",
+    "scale-info/std",
+    "frame-benchmarking/std",
+    "pallet-balances/std",
+    "orml-tokens/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",

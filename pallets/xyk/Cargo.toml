@@ -1,15 +1,15 @@
 [package]
-name = 'pallet-xyk'
-version = "6.6.3"
-description = 'XYK automated market maker'
-authors = ['GalacticCouncil']
-edition = '2021'
-homepage = 'https://github.com/galacticcouncil/hydradx-node'
-license = 'Apache 2.0'
-repository = 'https://github.com/galacticcouncil/hydradx-node'
+name = "pallet-xyk"
+version = "6.7.0"
+description = "XYK automated market maker"
+authors = ["GalacticCouncil"]
+edition = "2021"
+homepage = "https://github.com/galacticcouncil/hydradx-node"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydradx-node"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
@@ -29,6 +29,7 @@ orml-traits = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -45,25 +46,26 @@ sp-api = { workspace = true }
 proptest = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
     "frame-benchmarking",
     "frame-system/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
 ]
 std = [
-    'serde',
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-core/std',
-    'sp-std/std',
-    'orml-traits/std',
+    "serde",
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "orml-traits/std",
     "hydradx-traits/std",
-    'orml-tokens/std',
-    'frame-benchmarking/std',
+    "orml-tokens/std",
+    "frame-benchmarking/std",
     "scale-info/std",
     "pallet-asset-registry/std",
+    "pallet-broadcast/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

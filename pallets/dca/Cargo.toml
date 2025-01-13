@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-dca'
-version = "1.6.4"
+version = "1.7.0"
 description = 'A pallet to manage DCA scheduling'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -34,6 +34,7 @@ pallet-omnipool = { workspace = true }
 hydradx-traits = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-ema-oracle = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 hydra-dx-math = { workspace = true }
 
@@ -63,15 +64,15 @@ test-case = { workspace = true }
 primitive-types = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-std/std',
-    'sp-core/std',
-    'sp-io/std',
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-core/std",
+    "sp-io/std",
     "scale-info/std",
     "orml-tokens/std",
     "hydradx-traits/std",
