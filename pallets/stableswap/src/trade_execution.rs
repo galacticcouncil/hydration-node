@@ -114,15 +114,16 @@ where
 					let pool = Pools::<T>::get(pool_id)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 
-					let shares_amount = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
-						&balances,
-						asset_idx,
-						amount_out,
-						amplification,
-						share_issuance,
-						pool.fee,
-					)
-					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					let (shares_amount, _fees) =
+						hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
+							&balances,
+							asset_idx,
+							amount_out,
+							amplification,
+							share_issuance,
+							pool.fee,
+						)
+						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(shares_amount)
 				} else {

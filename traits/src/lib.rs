@@ -94,6 +94,7 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 		discount: bool,
 	) -> dispatch::DispatchResult {
 		Self::execute_sell(&Self::validate_sell(origin, assets, amount, min_bought, discount)?)?;
+
 		Ok(())
 	}
 
@@ -122,6 +123,7 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 		discount: bool,
 	) -> dispatch::DispatchResult {
 		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit, discount)?, None)?;
+
 		Ok(())
 	}
 
