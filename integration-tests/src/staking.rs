@@ -71,7 +71,7 @@ fn begin_referendum() -> ReferendumIndex {
 	));
 
 	assert_eq!(pallet_referenda::DecidingCount::<hydradx_runtime::Runtime>::get(0), 0);
-	fast_forward_to(now + 8 * DAYS);
+	fast_forward_to(now + 5 * DAYS);
 	assert_eq!(pallet_referenda::DecidingCount::<hydradx_runtime::Runtime>::get(0), 1);
 
 	referendum_index
