@@ -38,7 +38,10 @@ use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, Route
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
+
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use pallet_broadcast::types::IncrementalIdType;
+pub use pallet_broadcast::types::{ExecutionType, Fee};
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
@@ -72,7 +75,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset id type
@@ -140,6 +143,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
 			amount_out: T::Balance,
+			event_id: IncrementalIdType,
 		},
 		///The route with trades has been successfully executed
 		RouteUpdated { asset_ids: Vec<T::AssetId> },
@@ -255,6 +259,9 @@ pub mod pallet {
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			let route_length = route.len();
+
+			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router);
+
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 				let user_balance_of_asset_out_before_trade =
@@ -288,12 +295,16 @@ pub mod pallet {
 				first_trade.amount_in,
 			)?;
 
+			//TODO: we want to deprecate it once unified events are working fine
 			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
 				amount_in: first_trade.amount_in,
 				amount_out,
+				event_id: next_event_id,
 			});
+
+			pallet_broadcast::Pallet::<T>::remove_from_context();
 
 			Ok(())
 		}
@@ -485,6 +496,9 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let route_length = route.len();
+
+		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router);
+
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 
@@ -525,7 +539,10 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in,
 			amount_out: last_trade_amount.amount_out,
+			event_id: next_event_id,
 		});
+
+		pallet_broadcast::Pallet::<T>::remove_from_context();
 
 		Ok(())
 	}

@@ -51,6 +51,7 @@ use primitive_types::{U128, U512};
 use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
+use sp_std::vec;
 use sp_std::vec::Vec;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
@@ -335,7 +336,7 @@ where
 	NativeAsset: Get<AssetId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
-		+ frame_system::Config<RuntimeOrigin = Origin>
+		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
 		+ pallet_referrals::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
@@ -472,27 +473,23 @@ where
 		trader: AccountId,
 		asset: AssetId,
 		amount: Balance,
-	) -> Result<Balance, Self::Error> {
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		if asset == Lrna::get() {
-			return Ok(Balance::zero());
+			return Ok(vec![]);
 		}
 		let referrals_used = if asset == NativeAsset::get() {
-			Balance::zero()
+			None
 		} else {
-			pallet_referrals::Pallet::<Runtime>::process_trade_fee(
-				fee_account.clone().into(),
-				trader.into(),
-				asset.into(),
-				amount,
-			)?
+			pallet_referrals::Pallet::<Runtime>::process_trade_fee(fee_account.clone(), trader, asset.into(), amount)?
 		};
 
+		let referral_amount = referrals_used.clone().map(|(balance, _)| balance).unwrap_or_default();
 		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
-			fee_account.into(),
+			fee_account,
 			asset.into(),
-			amount.saturating_sub(referrals_used),
+			amount.saturating_sub(referral_amount),
 		)?;
-		Ok(staking_used.saturating_add(referrals_used))
+		Ok(vec![staking_used, referrals_used])
 	}
 }
 

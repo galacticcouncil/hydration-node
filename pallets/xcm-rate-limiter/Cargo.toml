@@ -47,19 +47,19 @@ orml-tokens = { workspace = true, features = ["std"] }
 pretty_assertions = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'sp-std/std',
-    'sp-core/std',
-    'sp-runtime/std',
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'serde/std',
-    'scale-info/std',
-    'cumulus-pallet-xcmp-queue/std',
-    'orml-traits/std',
-    'hydra-dx-math/std',
+    "sp-std/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "serde/std",
+    "scale-info/std",
+    "cumulus-pallet-xcmp-queue/std",
+    "orml-traits/std",
+    "hydra-dx-math/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",

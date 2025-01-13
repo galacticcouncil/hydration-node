@@ -640,17 +640,17 @@ impl<T: Config> Pallet<T> {
 	/// `source`: account to take the fee from
 	/// `trader`: account that does the trade
 	///
-	/// Returns used amount on success.
+	/// Returns used amount and recipient on success.
 	#[transactional]
 	pub fn process_trade_fee(
 		source: T::AccountId,
 		trader: T::AccountId,
 		asset_id: T::AssetId,
 		amount: Balance,
-	) -> Result<Balance, DispatchError> {
+	) -> Result<Option<(Balance, T::AccountId)>, DispatchError> {
 		let Some(price) = T::PriceProvider::get_price(T::RewardAsset::get(), asset_id.clone()) else {
 			// no price, no fun.
-			return Ok(Balance::zero());
+			return Ok(None);
 		};
 
 		let (level, ref_account) = if let Some(acc) = Self::linked_referral_account(&trader) {
@@ -659,7 +659,7 @@ impl<T: Config> Pallet<T> {
 				(level, Some(acc))
 			} else {
 				defensive!("Referrer details not found");
-				return Ok(Balance::zero());
+				return Ok(None);
 			}
 		} else {
 			(Level::None, None)
@@ -740,6 +740,6 @@ impl<T: Config> Pallet<T> {
 			PendingConversions::<T>::insert(asset_id, ());
 		}
 
-		Ok(total_taken)
+		Ok(Some((total_taken, Self::pot_account_id())))
 	}
 }

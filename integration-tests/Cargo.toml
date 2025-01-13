@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.26.0"
+version = "1.28.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -44,6 +44,7 @@ pallet-evm-accounts = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -221,6 +222,7 @@ std = [
     "precompile-utils/std",
     "pallet-transaction-pause/std",
     "pallet-liquidation/std",
+    "pallet-broadcast/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

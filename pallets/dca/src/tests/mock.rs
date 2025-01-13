@@ -79,6 +79,7 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
+		 Broadcast: pallet_broadcast,
 	 }
 );
 
@@ -357,6 +358,10 @@ parameter_types! {
 
 }
 
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 type Pools = (OmniPool, Xyk);
 
 impl pallet_route_executor::Config for Test {
@@ -368,11 +373,11 @@ impl pallet_route_executor::Config for Test {
 	type AMM = Pools;
 	type InspectRegistry = DummyRegistry<Test>;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type WeightInfo = ();
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type WeightInfo = ();
 }
 
 pub struct MockedEdCalculator;

@@ -15,7 +15,7 @@ use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 pub use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeOrigin};
+use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeEvent, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 use pallet_referrals::{FeeDistribution, Level};
 pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
@@ -941,4 +941,34 @@ pub fn assert_xcm_message_processing_passed() {
 		r.event,
 		hydradx_runtime::RuntimeEvent::MessageQueue(pallet_message_queue::Event::Processed { success: true, .. })
 	)));
+}
+
+pub fn get_last_swapped_events() -> Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> {
+	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
+
+	last_events
+		.into_iter()
+		.filter_map(|event| {
+			if let RuntimeEvent::Broadcast(inner_event @ pallet_broadcast::Event::Swapped { .. }) = event {
+				Some(inner_event)
+			} else {
+				None
+			}
+		})
+		.collect()
+}
+
+#[macro_export]
+macro_rules! assert_operation_stack {
+    ($event:expr, [$($pattern:pat),*]) => {
+        if let pallet_broadcast::Event::Swapped { operation_stack, .. } = $event {
+            assert!(matches!(&operation_stack[..],
+                [
+                    $($pattern),*
+                ]
+            ));
+        } else {
+            panic!("Expected Swapped event");
+        }
+    }
 }
