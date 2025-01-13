@@ -304,7 +304,7 @@ mod account_conversion {
 				DISPATCH_ADDR, // to
 				data,          // data
 				U256::from(0u64),
-				U256::from(52000u64),
+				U256::from(53000u64),
 				None,
 				None,
 				None,
@@ -1604,7 +1604,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 			fee_currency,
 		));
 
-		// give alice evm addr seom weth to sell in omnipool
+		// give alice evm addr some WETH to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
@@ -1649,9 +1649,8 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 
 		//Pre dispatch the native omnipool call - so withdrawing only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
-		let len: usize = 146;
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, len);
+			.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, omni_sell.encoded_size());
 		assert_ok!(&pre);
 
 		let alice_currency_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));

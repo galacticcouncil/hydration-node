@@ -138,9 +138,8 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 
 		// Pre dispatch the native omnipool call - so withdrawing only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
-		let len: usize = 146;
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(user_acc.address()), &omni_sell, &info, len);
+			.pre_dispatch(&AccountId::from(user_acc.address()), &omni_sell, &info, omni_sell.encoded_size());
 		assert_ok!(&pre);
 
 		let alice_currency_balance_pre_dispatch =

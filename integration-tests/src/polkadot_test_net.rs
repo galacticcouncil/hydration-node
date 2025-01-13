@@ -144,6 +144,7 @@ decl_test_parachains! {
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
 			hydradx_runtime::Timestamp::set_timestamp(NOW);
+			hydradx_runtime::AuraExt::on_initialize(1);
 			// Make sure the prices are up-to-date.
 			hydradx_runtime::MultiTransactionPayment::on_initialize(1);
 			hydradx_runtime::AssetRegistry::set_location(WETH, WETH_ASSET_LOCATION).unwrap();
@@ -164,6 +165,7 @@ decl_test_parachains! {
 		genesis = para::genesis(ACALA_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -181,6 +183,7 @@ decl_test_parachains! {
 		genesis = para::genesis(MOONBEAM_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -198,6 +201,7 @@ decl_test_parachains! {
 		genesis = para::genesis(INTERLAY_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -215,6 +219,7 @@ decl_test_parachains! {
 		genesis = para::genesis(ASSET_HUB_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -232,6 +237,7 @@ decl_test_parachains! {
 		genesis = para::genesis(ZEITGEIST_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -703,6 +709,8 @@ pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
 	use hydradx_runtime::ParachainSystem;
+	use xcm_emulator::HeaderT;
+	use sp_core::{Encode, Get};
 
 	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
 	// how we set the block number with `cumulus-test-relay-sproof-builder` package
@@ -710,7 +718,23 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 
 	ParachainSystem::on_initialize(number);
 
-	let (relay_storage_root, proof) = RelayStateSproofBuilder::default().into_state_root_and_proof();
+	let mut sproof_builder = RelayStateSproofBuilder::default();
+
+	let parent_head_data = {
+		let header = cumulus_primitives_core::relay_chain::Header::new(
+			number,
+			sp_core::H256::from_low_u64_be(0),
+			sp_core::H256::from_low_u64_be(0),
+			Default::default(),
+			Default::default(),
+		);
+		cumulus_primitives_core::relay_chain::HeadData(header.encode())
+	};
+
+	sproof_builder.para_id = hydradx_runtime::ParachainInfo::get().into();
+	sproof_builder.included_para_head = Some(parent_head_data.clone());
+
+	let (relay_storage_root, proof) = sproof_builder.into_state_root_and_proof();
 
 	assert_ok!(ParachainSystem::set_validation_data(
 		RuntimeOrigin::none(),
@@ -738,6 +762,7 @@ pub fn hydradx_run_to_next_block() {
 	hydradx_runtime::EmaOracle::on_finalize(b);
 
 	hydradx_runtime::System::on_initialize(b + 1);
+	hydradx_runtime::AuraExt::on_initialize(b + 1);
 	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
 	hydradx_runtime::EmaOracle::on_initialize(b + 1);
