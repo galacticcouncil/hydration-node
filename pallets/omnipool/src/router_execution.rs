@@ -150,7 +150,6 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		if pool_type != PoolType::Omnipool {
 			return Err(ExecutorError::NotSupported);
 		}
-
 		Self::buy(who, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
 	}
 
