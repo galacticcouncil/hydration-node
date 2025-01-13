@@ -75,7 +75,7 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 LBPPallet: lbp,
 		 Currency: orml_tokens,
-		 Broadcast:pallet_broadcast,
+		 Broadcast: pallet_broadcast,
 	 }
 
 );

@@ -61,7 +61,7 @@ frame_support::construct_runtime!(
 		 XYK: xyk,
 		 Currency: orml_tokens,
 		 AssetRegistry: pallet_asset_registry,
-		 Broadcast:pallet_broadcast,
+		 Broadcast: pallet_broadcast,
 	 }
 
 );

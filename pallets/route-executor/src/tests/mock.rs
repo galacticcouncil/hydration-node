@@ -50,7 +50,7 @@ frame_support::construct_runtime!(
 		 Tokens: orml_tokens,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
-		 Broadcast:pallet_broadcast,
+		 Broadcast: pallet_broadcast,
 	 }
 );
 

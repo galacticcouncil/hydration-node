@@ -60,7 +60,7 @@ frame_support::construct_runtime!(
 		 Router: pallet_route_executor,
 		 EvmAccounts: pallet_evm_accounts,
 		 Liquidation: pallet_liquidation,
-		 Broadcast:pallet_broadcast,
+		 Broadcast: pallet_broadcast,
 	 }
 );
 

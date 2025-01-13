@@ -49,29 +49,29 @@ test-utils = { workspace = true }
 parking_lot = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-core/std',
-    'sp-io/std',
-    'sp-std/std',
-    'sp-arithmetic/std',
-    'sp-api/std',
-    'scale-info/std',
-    'orml-tokens/std',
-    'orml-traits/std',
-    'hydradx-traits/std',
-    'hydra-dx-math/std',
-    'frame-benchmarking/std',
-    'pallet-otc/std',
-    'pallet-balances/std',
-    'pallet-currencies/std',
-    'pallet-route-executor/std',
-    'pallet-omnipool/std',
-    'pallet-asset-registry/std',
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-std/std",
+    "sp-arithmetic/std",
+    "sp-api/std",
+    "scale-info/std",
+    "orml-tokens/std",
+    "orml-traits/std",
+    "hydradx-traits/std",
+    "hydra-dx-math/std",
+    "frame-benchmarking/std",
+    "pallet-otc/std",
+    "pallet-balances/std",
+    "pallet-currencies/std",
+    "pallet-route-executor/std",
+    "pallet-omnipool/std",
+    "pallet-asset-registry/std",
 ]
 
 runtime-benchmarks = [

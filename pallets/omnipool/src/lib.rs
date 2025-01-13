@@ -299,7 +299,7 @@ pub mod pallet {
 		},
 		/// Sell trade executed.
 		/// Deprecated. Replaced by pallet_broadcast::Swapped
-		//TODO: remove when completely migrated to new Swapped event
+		// TODO: remove when completely migrated to new Swapped event
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -313,7 +313,7 @@ pub mod pallet {
 		},
 		/// Buy trade executed.
 		/// Deprecated. Replaced by pallet_broadcast::Swapped
-		//TODO: remove when completely migrated to new Swapped event
+		// TODO: remove when completely migrated to new Swapped event
 		BuyExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -1051,7 +1051,7 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
 
-			//Swapped event for AssetA to HubAsset
+			// Swapped event for AssetA to HubAsset
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who.clone(),
 				Self::protocol_account(),
@@ -1069,7 +1069,7 @@ pub mod pallet {
 				)],
 			);
 
-			//Swapped event for HubAsset to AssetB
+			// Swapped event for HubAsset to AssetB
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				Self::protocol_account(),
@@ -1285,7 +1285,7 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
 
-			//Swapped even from AssetA to HubAsset
+			// Swapped even from AssetA to HubAsset
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who.clone(),
 				Self::protocol_account(),
@@ -1303,7 +1303,7 @@ pub mod pallet {
 				)],
 			);
 
-			//Swapped even from HubAsset to AssetB
+			// Swapped even from HubAsset to AssetB
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
 				who,
 				Self::protocol_account(),
@@ -1763,7 +1763,7 @@ impl<T: Config> Pallet<T> {
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
-		//No protocol fee in case of selling hub asset
+		// No protocol fee in case of selling hub asset
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
@@ -1875,7 +1875,7 @@ impl<T: Config> Pallet<T> {
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
-		//No protocol fee in case of buying asset for hub asset
+		// No protocol fee in case of buying asset for hub asset
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			Self::protocol_account(),
@@ -2002,7 +2002,7 @@ impl<T: Config> Pallet<T> {
 					Fee::new(asset.into(), balance, Destination::Account(recipient.clone()))
 				})
 			})
-			.filter(|fee| fee.amount > 0) //filter out when we zero percentage is configured for fees
+			.filter(|fee| fee.amount > 0) // filter out when we zero percentage is configured for fees
 			.collect();
 
 		let taken_fee_total: Balance = taken_fee_entries.iter().map(|fee| fee.amount).sum();

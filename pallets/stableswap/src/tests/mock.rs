@@ -81,7 +81,7 @@ construct_runtime!(
 		System: frame_system,
 		Tokens: orml_tokens,
 		Stableswap: pallet_stableswap,
-		Broadcast:pallet_broadcast,
+		Broadcast: pallet_broadcast,
 	}
 );
 
@@ -324,8 +324,9 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{AssetAmount, PoolInfo, PoolState, StableswapHooks};
+use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{AccountIdFor, Inspect};
 use sp_runtime::traits::Zero;
 

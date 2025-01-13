@@ -86,7 +86,7 @@ frame_support::construct_runtime!(
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
 		CircuitBreaker: pallet_circuit_breaker,
-		Broadcast:pallet_broadcast,
+		Broadcast: pallet_broadcast,
 	}
 );
 

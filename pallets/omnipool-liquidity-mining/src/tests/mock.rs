@@ -48,6 +48,7 @@ use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
 use hydradx_traits::{
 	oracle::{OraclePeriod, Source},
 	pools::DustRemovalAccountWhitelist,
+	stableswap::StableswapAddLiquidity,
 	AssetKind,
 };
 
@@ -67,6 +68,7 @@ pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 1_000;
 pub const KSM: AssetId = 1_001;
 pub const ACA: AssetId = 1_002;
+pub const USDT: AssetId = 1_003;
 
 pub const LP1: AccountId = 1;
 pub const LP2: AccountId = 2;
@@ -110,7 +112,7 @@ construct_runtime!(
 		WarehouseLM: warehouse_liquidity_mining::<Instance1>,
 		OmnipoolMining: omnipool_liquidity_mining,
 		EmaOracle: pallet_ema_oracle,
-		Broadcast:pallet_broadcast,
+		Broadcast: pallet_broadcast,
 	}
 );
 
@@ -178,11 +180,26 @@ impl omnipool_liquidity_mining::Config for Test {
 	type NFTCollectionId = LMCollectionId;
 	type NFTHandler = DummyNFT;
 	type LiquidityMiningHandler = WarehouseLM;
+	type Stableswap = StableswapAddLiquidityStub;
 	type OracleSource = OracleSource;
 	type OraclePeriod = PeriodOracle;
 	type PriceOracle = DummyOracle;
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type WeightInfo = ();
+}
+
+pub const SHARES_FROM_STABLESWAP: u128 = 5 * ONE;
+pub const STABLESWAP_POOL_ID: u32 = 72;
+pub struct StableswapAddLiquidityStub;
+
+impl StableswapAddLiquidity<AccountId, AssetId, Balance> for StableswapAddLiquidityStub {
+	fn add_liquidity(
+		_who: AccountId,
+		_pool_id: AssetId,
+		_asset_amounts: Vec<AssetAmount<AssetId>>,
+	) -> Result<Balance, DispatchError> {
+		Ok(SHARES_FROM_STABLESWAP)
+	}
 }
 
 parameter_types! {
@@ -751,6 +768,7 @@ where
 }
 
 use hydradx_traits::oracle::AggregatedPriceOracle;
+use hydradx_traits::stableswap::AssetAmount;
 use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyOracle;
@@ -773,6 +791,13 @@ impl AggregatedPriceOracle<AssetId, BlockNumber, OraclePrice> for DummyOracle {
 				0,
 			)),
 			DAI => Ok((
+				OraclePrice {
+					n: 650_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
+			STABLESWAP_POOL_ID => Ok((
 				OraclePrice {
 					n: 650_000_000_000_000_000,
 					d: 1_000_000_000_000_000_000,

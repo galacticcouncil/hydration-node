@@ -6,6 +6,7 @@ pub mod duster;
 pub mod dynamic_evm_fee;
 pub mod multi_payment;
 pub mod omnipool;
+pub mod omnipool_liquidity_mining;
 pub mod route_executor;
 pub mod tokens;
 pub mod vesting;
@@ -38,6 +39,23 @@ pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 			deposit,
 			None,
 			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ())
+}
+
+pub fn register_asset_with_decimals(name: Vec<u8>, deposit: Balance, decimals: u8) -> Result<AssetId, ()> {
+	let n = name.try_into().map_err(|_| ())?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+			None,
+			Some(n),
+			AssetKind::Token,
+			deposit,
+			None,
+			Some(decimals),
 			None,
 			None,
 		))

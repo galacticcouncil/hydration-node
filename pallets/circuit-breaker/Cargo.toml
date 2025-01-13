@@ -41,16 +41,16 @@ pretty_assertions = { workspace = true }
 test-case = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'serde/std',
-    'scale-info/std',
-    'frame-benchmarking/std',
-    'pallet-balances/std',
-    'orml-tokens/std',
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "serde/std",
+    "scale-info/std",
+    "frame-benchmarking/std",
+    "pallet-balances/std",
+    "orml-tokens/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",

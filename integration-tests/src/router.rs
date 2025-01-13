@@ -34,7 +34,7 @@ use frame_support::{assert_noop, assert_ok, BoundedVec};
 use xcm_emulator::TestExt;
 
 use frame_support::storage::with_transaction;
-use pallet_stableswap::types::AssetAmount;
+use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome};
 

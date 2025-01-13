@@ -1,8 +1,9 @@
 use crate::tests::mock::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::PoolInfo;
 use crate::{assert_balance, Error, Event, Pools};
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
+use hydradx_traits::stableswap::AssetAmount;
 use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;

@@ -43,7 +43,7 @@ construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		Broadcast:pallet_broadcast,
+		Broadcast: pallet_broadcast,
 	}
 );
 
