@@ -108,9 +108,7 @@ fn rococo_should_receive_asset_when_sent_from_hydra() {
 	});
 
 	Rococo::execute_with(|| {
-		assert!(
-			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)) < 3 * UNITS,
-		);
+		assert!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)) < 3 * UNITS);
 	});
 }
 
