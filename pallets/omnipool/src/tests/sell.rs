@@ -958,7 +958,11 @@ fn spot_price_after_selling_hub_asset_should_be_identical_when_protocol_fee_is_n
 		.build()
 		.execute_with(|| {
 			let sell_amount = 50_000_000_000_000;
+			let initial_lrna_balance = Tokens::free_balance(LRNA, &LP1);
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), LRNA, 200, sell_amount, 0));
+			let final_lrna_balance = Tokens::free_balance(LRNA, &LP1);
+
+			assert_eq!(final_lrna_balance, initial_lrna_balance - sell_amount);
 
 			let actual = Pallet::<Test>::load_asset_state(200).unwrap();
 			spot_price_1 = FixedU128::from_rational(actual.reserve, actual.hub_reserve);
