@@ -178,13 +178,13 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 		pallet_referenda::TrackInfo {
 			name: "economic_parameters",
 			max_deciding: 3,
-			decision_deposit: 500_000 * UNITS,
+			decision_deposit: 750_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 7 * DAYS,
-			confirm_period: 3 * HOURS,
+			confirm_period: 12 * HOURS,
 			min_enactment_period: 10 * MINUTES,
 			min_approval: APP_RECIP,
-			min_support: SUP_RECIP,
+			min_support: SUP_LINEAR_FROM_25,
 		},
 	),
 ];
