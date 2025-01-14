@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::manual_inspect)]
 
 use crate::types::*;
 use frame_support::sp_runtime::app_crypto::sp_core;

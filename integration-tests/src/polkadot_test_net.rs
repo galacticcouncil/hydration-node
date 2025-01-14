@@ -731,7 +731,7 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 		cumulus_primitives_core::relay_chain::HeadData(header.encode())
 	};
 
-	sproof_builder.para_id = hydradx_runtime::ParachainInfo::get().into();
+	sproof_builder.para_id = hydradx_runtime::ParachainInfo::get();
 	sproof_builder.included_para_head = Some(parent_head_data.clone());
 
 	let (relay_storage_root, proof) = sproof_builder.into_state_root_and_proof();

@@ -2,31 +2,35 @@
 
 use crate::assert_operation_stack;
 use crate::polkadot_test_net::*;
-use frame_support::dispatch::GetDispatchInfo;
-use frame_support::storage::with_transaction;
-use frame_support::traits::fungible::Balanced;
-use frame_support::traits::tokens::Precision;
-use frame_support::weights::Weight;
-use frame_support::{assert_ok, pallet_prelude::*};
-use hydradx_runtime::Omnipool;
-use hydradx_runtime::Router;
-use hydradx_runtime::RuntimeEvent;
-use hydradx_runtime::RuntimeOrigin;
-use hydradx_runtime::TempAccountForXcmAssetExchange;
-use hydradx_runtime::{AssetRegistry, LRNA};
-use hydradx_traits::AssetKind;
-use hydradx_traits::Create;
+use frame_support::{
+	assert_ok, pallet_prelude::*,
+	dispatch::GetDispatchInfo,
+	storage::with_transaction,
+	traits::{
+		fungible::Balanced,
+		tokens::Precision,
+	},
+	weights::Weight,
+};
+use hydradx_runtime::{Omnipool, Router, RuntimeOrigin, AssetRegistry};
+use hydradx_traits::{AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
 use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
 use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
-use primitives::constants::chain::CORE_ASSET_ID;
-use primitives::AccountId;
-use sp_runtime::traits::{Convert, Zero};
-use sp_runtime::DispatchResult;
-use sp_runtime::{FixedU128, Permill, TransactionOutcome};
+use primitives::{
+	constants::chain::CORE_ASSET_ID
+};
+use sp_runtime::{
+	DispatchResult, FixedU128, Permill, TransactionOutcome,
+	traits::{Convert, Zero},
+};
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
+use pallet_broadcast::types::ExecutionType;
+use rococo_runtime::xcm_config::BaseXcmWeight;
+use xcm_builder::FixedWeightBounds;
+use xcm_executor::traits::WeightBounds;
 
 pub const SELL: bool = true;
 pub const BUY: bool = false;
@@ -56,7 +60,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			let token_price = FixedU128::from_float(1.0);
 			assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
+			assert_ok!(Omnipool::add_token(
 				hydradx_runtime::RuntimeOrigin::root(),
 				ACA,
 				token_price,
@@ -64,7 +68,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 				AccountId::from(BOB),
 			));
 			use hydradx_traits::pools::SpotPriceProvider;
-			price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, ACA);
+			price = Omnipool::spot_price(CORE_ASSET_ID, ACA);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -157,7 +161,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			RuntimeOrigin::signed(ALICE.into()),
 			HDX,
 			ACA,
-			1 * UNITS,
+			UNITS,
 			0,
 			vec![],
 		));
@@ -185,12 +189,12 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 			add_currency_price(ACA, FixedU128::from(1));
 
 			init_omnipool();
-			let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+			let omnipool_account = Omnipool::protocol_account();
 
 			let token_price = FixedU128::from_float(1.0);
 			assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
+			assert_ok!(Omnipool::add_token(
 				hydradx_runtime::RuntimeOrigin::root(),
 				ACA,
 				token_price,
@@ -275,13 +279,13 @@ fn transfer_and_swap_should_work_with_4_hops() {
 			add_currency_price(GLMR, FixedU128::from(1));
 
 			init_omnipool();
-			let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+			let omnipool_account = Omnipool::protocol_account();
 
 			let token_price = FixedU128::from_float(1.0);
 			assert_ok!(hydradx_runtime::Tokens::deposit(GLMR, &omnipool_account, 3000 * UNITS));
 			assert_ok!(hydradx_runtime::Tokens::deposit(IBTC, &omnipool_account, 3000 * UNITS));
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
+			assert_ok!(Omnipool::add_token(
 				hydradx_runtime::RuntimeOrigin::root(),
 				GLMR,
 				token_price,
@@ -289,7 +293,7 @@ fn transfer_and_swap_should_work_with_4_hops() {
 				AccountId::from(BOB),
 			));
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
+			assert_ok!(Omnipool::add_token(
 				hydradx_runtime::RuntimeOrigin::root(),
 				IBTC,
 				token_price,
@@ -414,7 +418,7 @@ pub mod zeitgeist_use_cases {
 				crate::exchange_asset::add_currency_price(crate::exchange_asset::ZTG, FixedU128::from(1));
 
 				init_omnipool();
-				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+				let omnipool_account = Omnipool::protocol_account();
 
 				let token_price = FixedU128::from_float(1.0);
 				assert_ok!(hydradx_runtime::Tokens::deposit(
@@ -423,7 +427,7 @@ pub mod zeitgeist_use_cases {
 					1000000 * UNITS
 				));
 
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					ZTG,
 					token_price,
@@ -592,7 +596,7 @@ pub mod zeitgeist_use_cases {
 				crate::exchange_asset::add_currency_price(crate::exchange_asset::ZTG, FixedU128::from(1));
 
 				init_omnipool();
-				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+				let omnipool_account = Omnipool::protocol_account();
 
 				let token_price = FixedU128::from_float(1.0);
 				assert_ok!(hydradx_runtime::Tokens::deposit(ZTG, &omnipool_account, 100000 * UNITS));
@@ -601,7 +605,7 @@ pub mod zeitgeist_use_cases {
 					&omnipool_account,
 					100000 * UNITS
 				));
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					IBTC,
 					token_price,
@@ -609,7 +613,7 @@ pub mod zeitgeist_use_cases {
 					AccountId::from(BOB),
 				));
 
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					ZTG,
 					token_price,
@@ -818,7 +822,7 @@ pub mod zeitgeist_use_cases {
 				crate::exchange_asset::add_currency_price(crate::exchange_asset::GLMR, FixedU128::from(1));
 
 				init_omnipool();
-				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+				let omnipool_account = Omnipool::protocol_account();
 
 				let token_price = FixedU128::from_float(1.0);
 				assert_ok!(hydradx_runtime::Tokens::deposit(
@@ -831,7 +835,7 @@ pub mod zeitgeist_use_cases {
 					&omnipool_account,
 					100000 * UNITS
 				));
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					IBTC,
 					token_price,
@@ -839,7 +843,7 @@ pub mod zeitgeist_use_cases {
 					AccountId::from(BOB),
 				));
 
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					GLMR,
 					token_price,
@@ -1193,10 +1197,6 @@ fn half(asset: &Asset) -> Asset {
 		id: asset.clone().id,
 	}
 }
-use pallet_broadcast::types::{ExecutionType, Fee};
-use rococo_runtime::xcm_config::BaseXcmWeight;
-use xcm_builder::FixedWeightBounds;
-use xcm_executor::traits::WeightBounds;
 
 fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	give_asset: Asset,
