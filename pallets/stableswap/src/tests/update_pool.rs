@@ -38,8 +38,8 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					initial_amplification: NonZeroU16::new(100).unwrap(),
 					final_amplification: NonZeroU16::new(100).unwrap(),
-					initial_block: 0,
-					final_block: 0,
+					initial_block: 1,
+					final_block: 1,
 					fee: Permill::from_percent(10),
 				}
 			);
@@ -79,8 +79,8 @@ fn update_pool_should_work_when_only_fee_is_updated() {
 					assets: vec![asset_a, asset_b].try_into().unwrap(),
 					initial_amplification: NonZeroU16::new(100).unwrap(),
 					final_amplification: NonZeroU16::new(100).unwrap(),
-					initial_block: 0,
-					final_block: 0,
+					initial_block: 1,
+					final_block: 1,
 					fee: Permill::from_percent(20),
 				}
 			);

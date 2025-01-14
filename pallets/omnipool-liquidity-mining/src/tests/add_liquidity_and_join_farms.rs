@@ -98,6 +98,7 @@ fn add_liquidity_and_join_farms_should_work_with_single_yield_farm() {
 				yield_farms.try_into().unwrap(),
 				asset_in_position,
 				amount,
+				None
 			));
 
 			//Assert that liquidity is added
@@ -236,6 +237,7 @@ fn join_farms_should_work_with_multiple_yield_farm() {
 				yield_farms.try_into().unwrap(),
 				KSM,
 				amount,
+				None
 			));
 
 			//Assert that liquidity is added
@@ -413,6 +415,7 @@ fn add_liquidity_and_join_farms_should_fail_when_origin_is_none() {
 					yield_farms.try_into().unwrap(),
 					KSM,
 					10 * ONE,
+					None
 				),
 				BadOrigin
 			);
@@ -481,6 +484,7 @@ fn join_farms_should_fail_when_no_farms_specified() {
 					farms.try_into().unwrap(),
 					KSM,
 					10 * ONE,
+					None
 				),
 				Error::<Test>::NoFarmEntriesSpecified
 			);

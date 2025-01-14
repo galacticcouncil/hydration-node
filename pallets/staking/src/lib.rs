@@ -18,7 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::traits::{ActionData, GetReferendumState, PayablePercentage, VestingDetails};
-use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
+use crate::types::{Action, Balance, Period, Point, Position, StakingData};
 use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,
@@ -961,17 +961,17 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Transfer given fee to pot account.
-	/// Returns amount of unused fee.
+	/// Returns amount of unused fee and its recipient.
 	pub fn process_trade_fee(
 		source: T::AccountId,
 		asset: T::AssetId,
 		amount: Balance,
-	) -> Result<Balance, DispatchError> {
+	) -> Result<Option<(Balance, T::AccountId)>, DispatchError> {
 		if asset == T::NativeAssetId::get() && Self::is_initialized() {
 			T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
-			Ok(amount)
+			Ok(Some((amount, Self::pot_account_id())))
 		} else {
-			Ok(Balance::zero())
+			Ok(None)
 		}
 	}
 

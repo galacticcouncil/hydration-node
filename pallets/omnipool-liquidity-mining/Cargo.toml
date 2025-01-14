@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.5.0"
+version = "2.6.1"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -20,6 +20,7 @@ log = { workspace = true }
 # local
 primitives = { workspace = true }
 pallet-omnipool = { workspace = true }
+pallet-stableswap = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -51,6 +52,7 @@ sp-io = { workspace = true, optional = true }
 [dev-dependencies]
 sp-io = { workspace = true }
 sp-core = { workspace = true }
+pallet-broadcast = { workspace = true }
 orml-tokens = { workspace = true }
 pretty_assertions = { workspace = true }
 test-utils = { workspace = true }
@@ -68,11 +70,11 @@ std = [
 	"sp-io/std",
 	"pallet-balances/std",
 	"orml-tokens/std",
-  "pallet-omnipool/std",
+    "pallet-omnipool/std",
 	"pallet-ema-oracle/std",
 	"pallet-liquidity-mining/std",
 	"primitives/std",
-  "hydra-dx-math/std",
+    "hydra-dx-math/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
