@@ -65,16 +65,14 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The identifier type for an authority.
-		/*
 		type AuthorityId: Member
 			+ Parameter
 			+ sp_runtime::RuntimeAppPublic
 			+ Ord
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen;
-		 */
 
-		type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
+		//type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 
 		/// Native asset Id
 		#[pallet::constant]
@@ -303,6 +301,7 @@ pub mod pallet {
 						let score = Self::calculate_score(&s);
 						let next_block: BlockNumberFor<T> = block_number.saturating_add(1u32.into());
 
+						/*
 						let signer = Signer::<T, T::AuthorityId>::all_accounts();
 						if !signer.can_sign() {
 							//TODO: handle error
@@ -314,6 +313,8 @@ pub mod pallet {
 							block: next_block,
 						});
 						//TODO: handle result
+
+						 */
 
 						/* with runtimepublicapp
 						//just take first one for now
