@@ -68,7 +68,7 @@ fn fees_should_initialize_lazily_to_min_value_when_first_trade_happens() {
 			hydradx_runtime::DynamicFees::current_fees(HDX).unwrap(),
 			FeeEntry {
 				asset_fee: asset_fee_params.min_fee,
-				protocol_fee: Permill::from_float(0.000788_f64),
+				protocol_fee: Permill::from_float(0.001_f64),
 				timestamp: 12_u32
 			}
 		);
@@ -104,7 +104,7 @@ fn fees_should_initialize_lazily_to_min_value_when_first_buy_happens() {
 			hydradx_runtime::DynamicFees::current_fees(HDX).unwrap(),
 			FeeEntry {
 				asset_fee: asset_fee_params.min_fee,
-				protocol_fee: Permill::from_float(0.000788_f64),
+				protocol_fee: Permill::from_float(0.001_f64),
 				timestamp: 12_u32
 			}
 		);
@@ -194,7 +194,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 			current_fee,
 			FeeEntry {
 				asset_fee: Permill::from_float(0.0025_f64),
-				protocol_fee: Permill::from_float(0.000926_f64),
+				protocol_fee: Permill::from_float(0.001_f64),
 				timestamp: 13_u32
 			}
 		);
@@ -238,7 +238,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 			current_fee,
 			FeeEntry {
 				asset_fee: Permill::from_float(0.0025_f64),
-				protocol_fee: Permill::from_float(0.000926_f64),
+				protocol_fee: Permill::from_float(0.001f64),
 				timestamp: 13_u32
 			}
 		);
@@ -282,7 +282,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 			current_fee,
 			FeeEntry {
 				asset_fee: Permill::from_float(0.0025_f64),
-				protocol_fee: Permill::from_float(0.000926_f64),
+				protocol_fee: Permill::from_float(0.001f64),
 				timestamp: 13_u32
 			}
 		);
