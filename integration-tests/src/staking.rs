@@ -71,7 +71,7 @@ fn begin_referendum() -> ReferendumIndex {
 	));
 
 	assert_eq!(pallet_referenda::DecidingCount::<hydradx_runtime::Runtime>::get(0), 0);
-	fast_forward_to(now + 8 * DAYS);
+	fast_forward_to(now + 5 * DAYS);
 	assert_eq!(pallet_referenda::DecidingCount::<hydradx_runtime::Runtime>::get(0), 1);
 
 	referendum_index
@@ -588,7 +588,7 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 		));
 		let alice_balance_after_claim = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
 		assert!(alice_balance_after_claim > alice_balance);
-		assert_eq!(alice_balance_after_claim, 999900127998361620);
+		assert_eq!(alice_balance_after_claim, 999900066816353554);
 
 		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
 			&sp_runtime::AccountId32::from(ALICE),
