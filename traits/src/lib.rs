@@ -28,6 +28,7 @@ pub mod price;
 pub mod registry;
 pub mod router;
 pub mod stableswap;
+pub mod ice;
 
 pub use oracle::*;
 pub use registry::*;
