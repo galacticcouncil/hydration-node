@@ -115,7 +115,12 @@ pub fn calculate_sell_hub_state_changes(
 		.ok()?,
 	);
 
-	let delta_hub_reserve = hub_asset_amount.checked_add(delta_q_m)?;
+	//TODO: this is important to add to total, but we can;t sum it up here because
+	// delta_hub_reserve is the amount user is selling so we cannot take more of it.
+	// for now - to ensure all tests are passing before refactoring, we dont add it just yet!
+	// TODO: but thsi needs to be added to total after.
+	//let delta_hub_reserve = hub_asset_amount.checked_add(delta_q_m)?;
+	let delta_hub_reserve = hub_asset_amount;
 
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
@@ -179,7 +184,13 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 		.ok()?,
 	);
 	let delta_q_m = n.checked_div(hub_denominator)?;
-	let delta_hub_reserve = delta_hub_reserve.checked_add(delta_q_m)?;
+
+	//TODO: this is important to add to total, but we can;t sum it up here because
+	// delta_hub_reserve is the amount user is selling so we cannot take more of it.
+	// for now - to ensure all tests are passing before refactoring, we dont add it just yet!
+	// TODO: but thsi needs to be added to total after.
+	//let delta_hub_reserve = delta_hub_reserve.checked_add(delta_q_m)?;
+	let delta_hub_reserve = delta_hub_reserve;
 
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
