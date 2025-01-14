@@ -16,6 +16,13 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy2<T> {
             schedule.period = schedule.period.saturating_mul(2u32.into());
             crate::Schedules::<T>::insert(key, schedule);
             schedules_len.saturating_inc();
+
+            /// At the time of the migration there are ~70 schedules.
+            /// Setting a safe limit which can be executed in 1 block
+            if schedules_len == 150 {
+                log::info!("Hit limit of 150 schedules, exiting loop");
+                break;
+            }
         }
 
         log::info!("MultiplySchedulesPeriodBy2 processed schedules: {:?}", schedules_len);
