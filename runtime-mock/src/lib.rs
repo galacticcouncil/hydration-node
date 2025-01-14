@@ -139,6 +139,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			evm: Default::default(),
 			xyk_warehouse_lm: Default::default(),
 			xyk_liquidity_mining: Default::default(),
+			ice: Default::default(),
 		}
 		.build_storage()
 		.unwrap()

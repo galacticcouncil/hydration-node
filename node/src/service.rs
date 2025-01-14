@@ -59,6 +59,7 @@ type ParachainClient = TFullClient<
 	WasmExecutor<(
 		cumulus_client_service::ParachainHostFunctions,
 		frame_benchmarking::benchmarking::HostFunctions,
+		pallet_ice::api::ice::HostFunctions,
 	)>,
 >;
 
@@ -240,6 +241,8 @@ async fn start_node_impl(
 		})
 		.await?;
 
+	let solution = crate::ice_ext::SolverProvider::new();
+
 	if parachain_config.offchain_worker.enabled {
 		use futures::FutureExt;
 
@@ -254,7 +257,11 @@ async fn start_node_impl(
 				network_provider: Arc::new(network.clone()),
 				is_validator: parachain_config.role.is_authority(),
 				enable_http_requests: false,
-				custom_extensions: move |_| vec![],
+				custom_extensions: move |_| {
+					let boxed_solution: Box<dyn sp_externalities::Extension> =
+						Box::new(pallet_ice::api::SolverExt(solution.solver_ptr()));
+					vec![boxed_solution]
+				},
 			})
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),

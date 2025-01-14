@@ -16,6 +16,8 @@ mod evm;
 mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
+mod global_account_derivation;
+mod ice;
 mod insufficient_assets_ed;
 mod liquidation;
 mod multi_payment;

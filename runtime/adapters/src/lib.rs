@@ -66,6 +66,7 @@ pub mod price;
 pub mod xcm_exchange;
 pub mod xcm_execute_filter;
 
+pub mod ice;
 #[cfg(test)]
 mod tests;
 pub mod xyk;
