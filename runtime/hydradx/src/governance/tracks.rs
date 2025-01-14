@@ -97,7 +97,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 9]
 			decision_deposit: 750_000 * UNITS,
 			prepare_period: 60 * MINUTES,
 			decision_period: 3 * DAYS,
-			confirm_period: 1 * HOURS,
+			confirm_period: HOURS,
 			min_enactment_period: 10 * MINUTES,
 			min_approval: APP_LINEAR_FLAT,
 			min_support: SUP_FAST_RECIP,
