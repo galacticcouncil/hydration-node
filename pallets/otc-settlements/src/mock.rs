@@ -74,6 +74,7 @@ frame_support::construct_runtime!(
 		 Omnipool: pallet_omnipool,
 		 Router: pallet_route_executor,
 		 OtcSettlements: pallet_otc_settlements,
+		 Broadcast: pallet_broadcast,
 	 }
 );
 
@@ -91,17 +92,17 @@ parameter_type_with_key! {
 	};
 }
 
-impl pallet_otc_settlements::Config for Test {
-	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Test>;
+impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type Currency = FungibleCurrencies<Test>;
 	type Router = Router;
 	type ProfitReceiver = TreasuryAccount;
 	type MinProfitPercentage = MinProfitPercentage;
 	type PricePrecision = PricePrecision;
 	type MinTradingLimit = MinTradingLimit;
 	type MaxIterations = ConstU32<40>;
-	type WeightInfo = ();
 	type RouterWeightInfo = ();
+	type WeightInfo = ();
 }
 
 impl pallet_otc::Config for Test {
@@ -256,6 +257,10 @@ impl pallet_currencies::Config for Test {
 	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
+}
+
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 parameter_types! {

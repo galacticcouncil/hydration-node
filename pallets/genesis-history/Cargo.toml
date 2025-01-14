@@ -1,6 +1,6 @@
 [package]
 name = "pallet-genesis-history"
-version = "2.1.4"
+version = "2.1.5"
 description = "Keeping track of the past chain generations."
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
@@ -27,12 +27,12 @@ sp-core = { workspace = true }
 hex-literal = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'serde/std',
-    'scale-info/std',
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "serde/std",
+    "scale-info/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

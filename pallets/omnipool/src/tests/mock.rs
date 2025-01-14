@@ -86,6 +86,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
+		Broadcast: pallet_broadcast,
 	}
 );
 
@@ -178,6 +179,10 @@ parameter_types! {
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
+}
+
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl Config for Test {
@@ -684,6 +689,10 @@ pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
 	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
 
+pub fn expect_last_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
+
 pub struct MockHooks;
 
 impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
@@ -721,10 +730,10 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		_trader: AccountId,
 		asset: AssetId,
 		amount: Balance,
-	) -> Result<Balance, Self::Error> {
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
 		Tokens::withdraw(asset, &fee_account, to_take)?;
-		Ok(to_take)
+		Ok(vec![Some((to_take, AccountId::default()))])
 	}
 }
