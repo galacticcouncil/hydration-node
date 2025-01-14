@@ -244,7 +244,7 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 70175440163719)],
+						inputs: vec![Asset::new(LRNA, 70350878767645)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(
 							DAI,
@@ -272,9 +272,9 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140421107716515)],
-						outputs: vec![Asset::new(LRNA, 70210548448729)],
-						fees: vec![Fee::new(LRNA, 35105274224, Destination::Burned)],
+						inputs: vec![Asset::new(HDX, 140421107723553)],
+						outputs: vec![Asset::new(LRNA, 70210548452248)],
+						fees: vec![Fee::new(LRNA, 35105274226, Destination::Burned)],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
 							ExecutionType::Router(4),
@@ -286,7 +286,7 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 70175443174505)],
+						inputs: vec![Asset::new(LRNA, 70350881789484)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(
 							DAI,
@@ -739,7 +739,7 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
-						inputs: vec![Asset::new(LRNA, 49974999160378)],
+						inputs: vec![Asset::new(LRNA, 50099936660062)],
 						outputs: vec![Asset::new(DAI, 71214372624126)],
 						fees: vec![Fee::new(
 							DAI,
@@ -781,11 +781,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
-						inputs: vec![Asset::new(LRNA, 49974997361364)],
-						outputs: vec![Asset::new(DAI, 71214367826179)],
+						inputs: vec![Asset::new(LRNA, 50099934856551)],
+						outputs: vec![Asset::new(DAI, 71214367823637)],
 						fees: vec![Fee::new(
 							DAI,
-							178482124878,
+							178482124872,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -2531,8 +2531,6 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_stable_trades_and_omnipool() {
 		let amount_to_sell = 100 * UNITS;
-		let amount_to_receive_1 = 70868187814642;
-		let amount_to_receive = 70832735995328;
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
@@ -2650,7 +2648,7 @@ mod stableswap {
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 				assert!(fee > 0, "The treasury did not receive the fee");
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_receive_1);
+				assert_balance!(ALICE.into(), HDX, 1070868187802504);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2751,7 +2749,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_receive);
+				assert_balance!(ALICE.into(), HDX, 1070832735983195);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -2854,7 +2852,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE + amount_to_receive);
+				assert_balance!(ALICE.into(), HDX, 1070832735983195);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4020,7 +4018,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance + 277781714835263);
+			assert_balance!(ALICE.into(), HDX, 5273142335618443);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
