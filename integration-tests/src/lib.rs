@@ -31,8 +31,10 @@ mod referrals;
 mod router;
 mod staking;
 mod transact_call_filter;
+mod utility;
 pub mod utils;
 mod vesting;
+mod xcm;
 mod xyk;
 mod xyk_liquidity_mining;
 

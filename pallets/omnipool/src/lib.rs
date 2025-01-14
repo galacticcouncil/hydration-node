@@ -84,27 +84,26 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use crate::traits::ShouldAllow;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
+use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
-use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
-use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
-use sp_std::ops::{Add, Sub};
-use sp_std::prelude::*;
-
-use crate::traits::ShouldAllow;
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use frame_system::ensure_signed;
-use frame_system::pallet_prelude::OriginFor;
+use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
+use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
 #[cfg(feature = "try-runtime")]
 use primitive_types::U256;
 use scale_info::TypeInfo;
+use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
+use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_std::ops::{Add, Sub};
+use sp_std::prelude::*;
 
 #[cfg(test)]
 mod tests;
@@ -142,7 +141,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -155,7 +154,8 @@ pub mod pallet {
 			+ HasCompact
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
-			+ TypeInfo;
+			+ TypeInfo
+			+ Into<u32>;
 
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
@@ -305,6 +305,8 @@ pub mod pallet {
 			shares_removed: Balance,
 		},
 		/// Sell trade executed.
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
+		// TODO: remove when completely migrated to new Swapped event
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -317,6 +319,8 @@ pub mod pallet {
 			protocol_fee_amount: Balance,
 		},
 		/// Buy trade executed.
+		/// Deprecated. Replaced by pallet_broadcast::Swapped
+		// TODO: remove when completely migrated to new Swapped event
 		BuyExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -902,7 +906,8 @@ pub mod pallet {
 		/// - `amount`: Amount of asset sold
 		/// - `min_buy_amount`: Minimum amount required to receive
 		///
-		/// Emits `SellExecuted` event when successful.
+		/// Emits `SellExecuted` event when successful. Deprecated.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		///
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell()
@@ -1069,7 +1074,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
+			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
 			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
 			debug_assert_eq!(
@@ -1078,7 +1083,7 @@ pub mod pallet {
 			);
 
 			Self::deposit_event(Event::SellExecuted {
-				who,
+				who: who.clone(),
 				asset_in,
 				asset_out,
 				amount_in: amount,
@@ -1088,6 +1093,42 @@ pub mod pallet {
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
+
+			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
+
+			// Swapped event for AssetA to HubAsset
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
+				who.clone(),
+				Self::protocol_account(),
+				pallet_broadcast::types::Filler::Omnipool,
+				pallet_broadcast::types::TradeOperation::ExactIn,
+				vec![Asset::new(asset_in.into(), amount)],
+				vec![Asset::new(
+					T::HubAssetId::get().into(),
+					*state_changes.asset_in.delta_hub_reserve,
+				)],
+				vec![Fee::new(
+					T::HubAssetId::get().into(),
+					state_changes.fee.protocol_fee,
+					Destination::Burned,
+				)],
+			);
+
+			// Swapped event for HubAsset to AssetB
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
+				who,
+				Self::protocol_account(),
+				pallet_broadcast::types::Filler::Omnipool,
+				pallet_broadcast::types::TradeOperation::ExactIn,
+				vec![Asset::new(
+					T::HubAssetId::get().into(),
+					*state_changes.asset_out.delta_hub_reserve,
+				)],
+				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
+				trade_fees,
+			);
+
+			pallet_broadcast::Pallet::<T>::remove_from_context();
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1112,7 +1153,8 @@ pub mod pallet {
 		/// - `amount`: Amount of asset sold
 		/// - `max_sell_amount`: Maximum amount to be sold.
 		///
-		/// Emits `BuyExecuted` event when successful.
+		/// Emits `BuyExecuted` event when successful. Deprecated.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		///
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy()
@@ -1273,7 +1315,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
-			Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
+			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
 
 			debug_assert!(*state_changes.asset_in.delta_hub_reserve >= *state_changes.asset_out.delta_hub_reserve);
 			debug_assert_eq!(
@@ -1282,7 +1324,7 @@ pub mod pallet {
 			);
 
 			Self::deposit_event(Event::BuyExecuted {
-				who,
+				who: who.clone(),
 				asset_in,
 				asset_out,
 				amount_in: *state_changes.asset_in.delta_reserve,
@@ -1292,6 +1334,42 @@ pub mod pallet {
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
+
+			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
+
+			// Swapped even from AssetA to HubAsset
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
+				who.clone(),
+				Self::protocol_account(),
+				pallet_broadcast::types::Filler::Omnipool,
+				pallet_broadcast::types::TradeOperation::ExactOut,
+				vec![Asset::new(asset_in.into(), *state_changes.asset_in.delta_reserve)],
+				vec![Asset::new(
+					T::HubAssetId::get().into(),
+					*state_changes.asset_in.delta_hub_reserve,
+				)],
+				vec![Fee::new(
+					T::HubAssetId::get().into(),
+					state_changes.fee.protocol_fee,
+					Destination::Burned,
+				)],
+			);
+
+			// Swapped even from HubAsset to AssetB
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
+				who,
+				Self::protocol_account(),
+				pallet_broadcast::types::Filler::Omnipool,
+				pallet_broadcast::types::TradeOperation::ExactOut,
+				vec![Asset::new(
+					T::HubAssetId::get().into(),
+					*state_changes.asset_out.delta_hub_reserve,
+				)],
+				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
+				trade_fees,
+			);
+
+			pallet_broadcast::Pallet::<T>::remove_from_context();
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1796,7 +1874,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1809,6 +1887,20 @@ impl<T: Config> Pallet<T> {
 			asset_fee_amount: state_changes.fee.asset_fee,
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
+
+		// No protocol fee in case of selling hub asset
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			Self::protocol_account(),
+			pallet_broadcast::types::Filler::Omnipool,
+			pallet_broadcast::types::TradeOperation::ExactIn,
+			vec![Asset::new(
+				T::HubAssetId::get().into(),
+				*state_changes.asset.delta_hub_reserve,
+			)],
+			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
+			trade_fees,
+		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
 
@@ -1903,8 +1995,9 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
 
+		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
@@ -1916,6 +2009,20 @@ impl<T: Config> Pallet<T> {
 			asset_fee_amount: state_changes.fee.asset_fee,
 			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
+
+		// No protocol fee in case of buying asset for hub asset
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			Self::protocol_account(),
+			pallet_broadcast::types::Filler::Omnipool,
+			pallet_broadcast::types::TradeOperation::ExactOut,
+			vec![Asset::new(
+				T::HubAssetId::get().into(),
+				*state_changes.asset.delta_hub_reserve,
+			)],
+			vec![Asset::new(asset_out.into(), *state_changes.asset.delta_reserve)],
+			trade_fees,
+		);
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
 
@@ -2017,18 +2124,45 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Calls `on_trade_fee` hook and ensures that no more than the fee amount is transferred.
-	fn process_trade_fee(trader: &T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult {
+	fn process_trade_fee(
+		trader: &T::AccountId,
+		asset: T::AssetId,
+		amount: Balance,
+	) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
 
 		// Let's give little bit less to process. Subtracting one due to potential rounding errors
 		let allowed_amount = amount.saturating_sub(Balance::one());
-		let used = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
+		let taken_fee = T::OmnipoolHooks::on_trade_fee(account.clone(), trader.clone(), asset, allowed_amount)?;
+		let taken_fee_entries: Vec<Fee<T::AccountId>> = taken_fee
+			.iter()
+			.filter_map(|opt| {
+				opt.clone().map(|(balance, recipient)| {
+					Fee::new(asset.into(), balance, Destination::Account(recipient.clone()))
+				})
+			})
+			.filter(|fee| fee.amount > 0) // filter out when we zero percentage is configured for fees
+			.collect();
+
+		let taken_fee_total: Balance = taken_fee_entries.iter().map(|fee| fee.amount).sum();
+
 		let asset_reserve = T::Currency::free_balance(asset, &account);
 		let diff = original_asset_reserve.saturating_sub(asset_reserve);
 		ensure!(diff <= allowed_amount, Error::<T>::FeeOverdraft);
-		ensure!(diff == used, Error::<T>::FeeOverdraft);
-		Ok(())
+		ensure!(diff == taken_fee_total, Error::<T>::FeeOverdraft);
+
+		let protocol_fee_amount = amount.saturating_sub(taken_fee_total);
+
+		let mut all_trade_fees = vec![Fee {
+			asset: asset.into(),
+			amount: protocol_fee_amount,
+			destination: Destination::Account(Self::protocol_account()),
+		}];
+
+		all_trade_fees.extend(taken_fee_entries);
+
+		Ok(all_trade_fees)
 	}
 
 	pub fn process_hub_amount(amount: Balance, dest: &T::AccountId) -> DispatchResult {

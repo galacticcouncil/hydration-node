@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "276.0.0"
+version = "280.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -40,6 +40,7 @@ pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
+pallet-broadcast = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-evm-accounts-rpc-runtime-api = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
@@ -343,6 +344,7 @@ std = [
     "pallet-conviction-voting/std",
     "pallet-referenda/std",
     "pallet-whitelist/std",
+    "pallet-broadcast/std",
     "pallet-ice/std",
     "ice-solver/std",
 ]
