@@ -4919,7 +4919,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "280.0.0"
+version = "281.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
