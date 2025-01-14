@@ -115,7 +115,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			T::TreasuryManagerOrigin::ensure_origin(origin)?;
 
-			let call_hash = T::Hashing::hash_of(&call).into();
+			let call_hash = T::Hashing::hash_of(&call);
 			let call_len = call.encoded_size() as u32;
 
 			let (result, actual_weight) = Self::do_dispatch(T::TreasuryAccount::get(), *call);
@@ -140,7 +140,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			T::AaveManagerOrigin::ensure_origin(origin)?;
 
-			let call_hash = T::Hashing::hash_of(&call).into();
+			let call_hash = T::Hashing::hash_of(&call);
 			let call_len = call.encoded_size() as u32;
 
 			let (result, actual_weight) = Self::do_dispatch(T::AaveManagerAccount::get(), *call);
@@ -164,7 +164,7 @@ impl<T: Config> Pallet<T> {
 		let result = call.dispatch(frame_system::Origin::<T>::Signed(account).into());
 
 		let call_actual_weight = match result {
-			Ok(call_post_info) => call_post_info.actual_weight.clone(),
+			Ok(call_post_info) => call_post_info.actual_weight,
 			Err(call_err) => call_err.post_info.actual_weight,
 		};
 
