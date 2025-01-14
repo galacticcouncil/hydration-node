@@ -73,7 +73,6 @@ default = ["std"]
 runtime-benchmarks = [
     "xcm-builder/runtime-benchmarks",
     "xcm-executor/runtime-benchmarks",
-    "pallet-staking/runtime-benchmarks",
 ]
 std = [
     "codec/std",
