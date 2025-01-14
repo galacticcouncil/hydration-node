@@ -2406,7 +2406,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, 12008864246)],
+					inputs: vec![Asset::new(LRNA, 12038886566)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(
 						DAI,
@@ -2451,7 +2451,7 @@ mod omnipool_router_tests {
 					amount_in: amount_to_sell,
 					amount_out,
 					hub_amount_in: 12014871681,
-					hub_amount_out: 12008864246,
+					hub_amount_out: 12038886566,
 					asset_fee_amount: 667_155_563_986_401,
 					protocol_fee_amount: 6_007_435,
 				}
@@ -2462,7 +2462,7 @@ mod omnipool_router_tests {
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
-					outputs: vec![Asset::new(LRNA, 12014871681)],
+					outputs: vec![Asset::new(LRNA, 12014871681)], //TODO: dmoka - verify it should be the same as input below
 					fees: vec![Fee::new(LRNA, 6007435, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
@@ -2472,7 +2472,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, 12008864246)],
+					inputs: vec![Asset::new(LRNA, 12038886566)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(
 						DAI,
@@ -2634,7 +2634,7 @@ mod omnipool_router_tests {
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
-					outputs: vec![Asset::new(LRNA, 45135)],
+					outputs: vec![Asset::new(LRNA, 45135)], //TODO: dmoka - verify it should be the same as input below
 					fees: vec![Fee::new(LRNA, 22, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
@@ -2644,7 +2644,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(LRNA, 45113)],
+					inputs: vec![Asset::new(LRNA, 45225)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(
 						DAI,
@@ -2689,7 +2689,7 @@ mod omnipool_router_tests {
 					amount_in,
 					amount_out: amount_to_buy,
 					hub_amount_in: 45135,
-					hub_amount_out: 45113,
+					hub_amount_out: 45225,
 					asset_fee_amount: 2_506_265_665,
 					protocol_fee_amount: 22,
 				}
@@ -2710,7 +2710,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(LRNA, 45113)],
+					inputs: vec![Asset::new(LRNA, 45225)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(
 						DAI,
