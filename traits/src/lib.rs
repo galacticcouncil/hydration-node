@@ -20,6 +20,7 @@
 
 pub mod evm;
 pub mod fee;
+pub mod ice;
 pub mod liquidity_mining;
 pub mod nft;
 pub mod oracle;
@@ -28,7 +29,6 @@ pub mod price;
 pub mod registry;
 pub mod router;
 pub mod stableswap;
-pub mod ice;
 
 pub use oracle::*;
 pub use registry::*;
