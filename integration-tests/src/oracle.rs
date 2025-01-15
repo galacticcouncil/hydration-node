@@ -37,7 +37,7 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 
 const HDX: AssetId = CORE_ASSET_ID;
 
-const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes];
+pub(crate) const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes];
 const UNSUPPORTED_PERIODS: &[OraclePeriod] = &[Hour, Day, Week];
 
 #[test]

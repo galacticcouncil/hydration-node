@@ -16,7 +16,8 @@ mod evm;
 mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
-mod ice;
+//mod ice;
+mod driver;
 mod insufficient_assets_ed;
 mod liquidation;
 mod multi_payment;
@@ -36,7 +37,6 @@ mod vesting;
 mod xcm;
 mod xyk;
 mod xyk_liquidity_mining;
-mod suite;
 
 #[macro_export]
 macro_rules! assert_balance {

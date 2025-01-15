@@ -412,6 +412,11 @@ impl<T: Config> Pallet<T> {
 					.unwrap_or_else(|| {
 						log::warn!(
 							target: LOG_TARGET,
+							"({prev_entry:?}, {incoming_entry:?}, {period:?}) to new value failed. Defaulting to previous value."
+						);
+
+						log::warn!(
+							target: LOG_TARGET,
 							"Updating EMA oracle ({src:?}, {assets:?}, {period:?}) to new value failed. Defaulting to previous value."
 						);
 						debug_assert!(false, "Updating to new value should not fail.");

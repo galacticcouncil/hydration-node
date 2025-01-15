@@ -6,13 +6,15 @@ use hydradx_runtime::{AssetRegistry, Balances, Currencies, Router, Stableswap};
 use hydradx_runtime::{Omnipool, RuntimeOrigin, Tokens};
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::Trade;
+use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
-use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::{AssetId, Balance};
 use sp_runtime::Permill;
 use sp_runtime::{DispatchError, FixedU128, TransactionOutcome};
+
+/*
 pub fn setup_omnipool() {
 	initialize_omnipol();
 	for _ in 0..10 {
@@ -257,3 +259,6 @@ fn initialize_stableswap_with_details(
 
 	(pool_id, asset_in, asset_out)
 }
+
+
+ */
