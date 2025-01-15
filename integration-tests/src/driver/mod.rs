@@ -1,3 +1,5 @@
+mod example;
+
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
@@ -11,7 +13,7 @@ use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use pallet_asset_registry::AssetType;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use primitives::constants::chain::OMNIPOOL_SOURCE;
+use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
 use primitives::{AccountId, AssetId};
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::Parachain;
@@ -228,9 +230,10 @@ impl HydrationTestDriver {
 		for _ in 1..=10 {
 			self.new_block();
 			let assets = self.omnipool_assets.clone();
+			let stablepools = self.stablepools.clone();
 			self.execute(|| {
 				for asset_id in assets {
-					let amount_to_sell = 100_000_000_000_000;
+					let amount_to_sell = 1_000_000_000_000;
 					assert_ok!(Tokens::set_balance(
 						RawOrigin::Root.into(),
 						CHARLIE.into(),
@@ -247,6 +250,30 @@ impl HydrationTestDriver {
 						1
 					));
 				}
+
+				for (pool_id, assets) in stablepools {
+					for two_assets in assets.windows(2) {
+						let asset_a = two_assets[0];
+						let asset_b = two_assets[1];
+						let amount = 1u128 * 10u128.pow(asset_a.1 as u32);
+						assert_ok!(Tokens::set_balance(
+							RawOrigin::Root.into(),
+							CHARLIE.into(),
+							asset_a.0,
+							amount,
+							0,
+						));
+
+						assert_ok!(Stableswap::sell(
+							RuntimeOrigin::signed(CHARLIE.into()),
+							pool_id,
+							asset_a.0,
+							asset_b.0,
+							amount,
+							1
+						));
+					}
+				}
 			});
 		}
 
@@ -259,28 +286,6 @@ impl HydrationTestDriver {
 		});
 		self
 	}
-
-	/*
-	pub(crate) fn with_balances(&mut self, entries: (AccountId, Balance)) -> &Self {
-		self
-	}
-
-	pub(crate) fn query_balance(&self, account: AccountId, asset_id: AssetId, on_result: impl Fn(Balance)) -> &Self {
-		if asset_id == 0 {
-			self.query_native_balance(account, on_result);
-		} else {
-			//query tokens
-			on_result(0);
-		}
-		self
-	}
-
-	pub(crate) fn query_native_balance(&self, account: AccountId, on_result: Fn(Balance)) -> Self {
-		on_result(0);
-		self
-	}
-
-	 */
 }
 
 #[test]
@@ -307,6 +312,10 @@ fn test_hydration_setup() {
 			assert_eq!(driver.omnipool_assets, vec![HDX, DOT, WETH, 222_222]);
 			assert!(driver.stablepools.len() > 0);
 
+			let stablepool_1 = driver.stablepools[0].clone();
+			let first_asset_id = stablepool_1.1[0].0;
+			let pool_id = stablepool_1.0;
+
 			// assert oracle initial values
 			for supported_period in crate::oracle::SUPPORTED_PERIODS {
 				assert!(
@@ -317,6 +326,7 @@ fn test_hydration_setup() {
 					EmaOracle::get_price(DOT, crate::polkadot_test_net::LRNA, *supported_period, OMNIPOOL_SOURCE)
 						.is_ok()
 				);
+				assert!(EmaOracle::get_price(first_asset_id, pool_id, *supported_period, STABLESWAP_SOURCE).is_ok());
 			}
 		});
 }
