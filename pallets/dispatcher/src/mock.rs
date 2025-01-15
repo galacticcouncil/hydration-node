@@ -200,10 +200,7 @@ use hydradx_traits::Create as CreateRegistry;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchError;
 #[cfg(feature = "runtime-benchmarks")]
-impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
-where
-	T::AssetId: Into<AssetId> + From<u32>,
-{
+impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T> {
 	type Error = DispatchError;
 	type Name = sp_runtime::BoundedVec<u8, sp_core::ConstU32<100>>;
 	type Symbol = sp_runtime::BoundedVec<u8, sp_core::ConstU32<100>>;

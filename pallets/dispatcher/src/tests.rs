@@ -1,7 +1,5 @@
-use crate as dispatcher;
 use crate::mock::*;
 use crate::Event;
-use crate::Weight;
 use frame_support::dispatch::Pays;
 use frame_support::{assert_noop, assert_ok, dispatch::PostDispatchInfo};
 use orml_traits::MultiCurrency;
@@ -30,7 +28,7 @@ fn dispatch_as_treasury_should_work() {
 		assert_eq!(treasury_balance_after, treasury_balance_before - 1_000);
 
 		expect_events(vec![Event::TreasuryManagerCallDispatched {
-			call_hash: call_hash,
+			call_hash,
 			result: Ok(PostDispatchInfo {
 				actual_weight: None,
 				pays_fee: Pays::Yes,
