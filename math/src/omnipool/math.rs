@@ -549,3 +549,15 @@ pub fn verify_asset_cap(
 	)?;
 	Some(weight <= weight_cap)
 }
+
+use sp_arithmetic::traits::SaturatedConversion;
+
+pub(crate) fn calculate_burn_amount_based_on_fee_taken(
+	taken_fee: Balance,
+	reserve: Balance,
+	hub_reserve: Balance,
+) -> Balance {
+	let (fee_hp, hub_reserve_hp, reserve_hp) = to_u256!(taken_fee, hub_reserve, reserve);
+	let hub_to_burn = fee_hp.saturating_mul(hub_reserve_hp).div(reserve_hp);
+	hub_to_burn.saturated_into()
+}

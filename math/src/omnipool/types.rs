@@ -1,6 +1,9 @@
+use crate::omnipool::calculate_burn_amount_based_on_fee_taken;
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
+use crate::to_u256;
 use num_traits::{CheckedAdd, CheckedSub, SaturatingAdd};
-use sp_arithmetic::traits::Saturating;
+use primitive_types::U256;
+use sp_arithmetic::traits::{AtLeast32BitUnsigned, Saturating};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_std::ops::{Add, Deref};
 
@@ -194,8 +197,12 @@ impl<
 		self.delta_hub_reserve.saturating_merge(self.extra_hub_reserve_amount)
 	}
 
-	pub fn adjust_extra_hub_amount(self, taken_fee: Balance) -> Self {
-		self
+	fn account_for_fee_taken(self, amt_to_burn: Balance) -> Self {
+		let mut v = self;
+		v.extra_hub_reserve_amount = v
+			.extra_hub_reserve_amount
+			.saturating_merge(BalanceUpdate::Decrease(amt_to_burn));
+		v
 	}
 }
 
@@ -218,12 +225,17 @@ where
 	pub fee: TradeFee<Balance>,
 }
 
-impl<Balance> TradeStateChange<Balance>
-where
-	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + CheckedSub + Default,
-{
-	pub fn account_for_fee_taken(self, taken_fee: Balance) -> Self {
-		self
+impl TradeStateChange<crate::types::Balance> {
+	pub fn account_for_fee_taken(
+		self,
+		taken_fee: crate::types::Balance,
+		out_reserve: crate::types::Balance,
+		out_hub_reserve: crate::types::Balance,
+	) -> Self {
+		let mut v = self;
+		let extra_amt = calculate_burn_amount_based_on_fee_taken(taken_fee, out_reserve, out_hub_reserve);
+		v.asset_out = v.asset_out.account_for_fee_taken(extra_amt);
+		v
 	}
 }
 
@@ -237,12 +249,17 @@ where
 	pub fee: TradeFee<Balance>,
 }
 
-impl<Balance> HubTradeStateChange<Balance>
-where
-	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + CheckedSub + Default,
-{
-	pub fn account_for_fee_taken(self, taken_fee: Balance) -> Self {
-		self
+impl HubTradeStateChange<crate::types::Balance> {
+	pub fn account_for_fee_taken(
+		self,
+		taken_fee: crate::types::Balance,
+		out_reserve: crate::types::Balance,
+		out_hub_reserve: crate::types::Balance,
+	) -> Self {
+		let mut v = self;
+		let extra_amt = calculate_burn_amount_based_on_fee_taken(taken_fee, out_reserve, out_hub_reserve);
+		v.asset = v.asset.account_for_fee_taken(extra_amt);
+		v
 	}
 }
 

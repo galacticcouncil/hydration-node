@@ -669,8 +669,6 @@ fn sell_should_get_same_amount() {
 			));
 			let lp1_balance_200 = Tokens::free_balance(200, &LP1);
 
-			dbg!(lp1_balance_200);
-
 			expect_last_events(vec![
 				Event::SellExecuted {
 					who: LP1,
@@ -877,7 +875,7 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero_and_pa
 		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
 		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
 		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
-		.with_on_trade_withdrawal(Permill::from_percent(5))
+		.with_on_trade_withdrawal(Permill::from_percent(50))
 		.build()
 		.execute_with(|| {
 			let expected_sold_amount = 58_823_529_411_766;
@@ -909,7 +907,7 @@ fn spot_price_after_sell_should_be_identical_when_protocol_fee_is_nonzero_and_pa
 		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
 		.with_token(100, FixedU128::from(1), LP2, 2000 * ONE)
 		.with_token(200, FixedU128::from(1), LP3, 2000 * ONE)
-		.with_on_trade_withdrawal(Permill::from_percent(5))
+		.with_on_trade_withdrawal(Permill::from_percent(10))
 		.build()
 		.execute_with(|| {
 			let expected_sold_amount = 58_823_529_411_766;
