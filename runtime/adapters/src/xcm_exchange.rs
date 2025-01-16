@@ -153,15 +153,11 @@ where
 			return None;
 		};
 
-		let Some(given) = give.get(0) else { return None };
-		let Some(asset_in) = CurrencyIdConvert::convert(given.clone()) else {
-			return None;
-		};
+		let given = give.get(0)?;
+		let asset_in = CurrencyIdConvert::convert(given.clone())?;
 
-		let Some(wanted) = want.get(0) else { return None };
-		let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else {
-			return None;
-		};
+		let wanted = want.get(0)?;
+		let asset_out = CurrencyIdConvert::convert(wanted.clone())?;
 
 		let route = pallet_route_executor::Pallet::<Runtime>::get_route(AssetPair::new(asset_in, asset_out));
 
