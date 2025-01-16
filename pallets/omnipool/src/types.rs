@@ -4,7 +4,7 @@ use super::*;
 use codec::MaxEncodedLen;
 use frame_support::pallet_prelude::*;
 use hydra_dx_math::omnipool::types::{AssetReserveState as MathReserveState, AssetStateChange, BalanceUpdate};
-use sp_runtime::{FixedPointNumber, FixedU128};
+use sp_runtime::{FixedPointNumber, FixedU128, Saturating};
 
 /// Balance type used in Omnipool
 pub type Balance = u128;
@@ -215,7 +215,13 @@ where
 
 impl<Balance> AssetReserveState<Balance>
 where
-	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner>
+		+ Copy
+		+ CheckedAdd
+		+ CheckedSub
+		+ Default
+		+ PartialOrd
+		+ Saturating,
 {
 	pub fn price_as_rational(&self) -> (Balance, Balance) {
 		(self.hub_reserve, self.reserve)
@@ -234,7 +240,7 @@ where
 	pub fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
 		Some(Self {
 			reserve: (delta.delta_reserve + self.reserve)?,
-			hub_reserve: (delta.delta_hub_reserve + self.hub_reserve)?,
+			hub_reserve: (delta.total_delta_hub_reserve() + self.hub_reserve)?,
 			shares: (delta.delta_shares + self.shares)?,
 			protocol_shares: (delta.delta_protocol_shares + self.protocol_shares)?,
 			cap: self.cap,

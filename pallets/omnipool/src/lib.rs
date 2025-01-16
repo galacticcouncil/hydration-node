@@ -523,6 +523,7 @@ pub mod pallet {
 				delta_reserve: BalanceUpdate::Increase(reserve),
 				delta_shares: BalanceUpdate::Increase(amount),
 				delta_protocol_shares: BalanceUpdate::Increase(Balance::zero()),
+				..Default::default()
 			};
 			T::OmnipoolHooks::on_liquidity_changed(
 				origin,
@@ -752,7 +753,7 @@ pub mod pallet {
 			Self::update_hub_asset_liquidity(
 				&state_changes
 					.asset
-					.delta_hub_reserve
+					.total_delta_hub_reserve()
 					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
 					.ok_or(ArithmeticError::Overflow)?,
 			)?;
@@ -986,11 +987,11 @@ pub mod pallet {
 			// Hub liquidity update - work out difference between in and amount so only one update is needed.
 			let delta_hub_asset = state_changes
 				.asset_in
-				.delta_hub_reserve
+				.total_delta_hub_reserve()
 				.merge(
 					state_changes
 						.asset_out
-						.delta_hub_reserve
+						.total_delta_hub_reserve()
 						.merge(BalanceUpdate::Increase(state_changes.extra_protocol_fee_amount))
 						.ok_or(ArithmeticError::Overflow)?,
 				)
@@ -1043,8 +1044,8 @@ pub mod pallet {
 				asset_out,
 				amount_in: amount,
 				amount_out: *state_changes.asset_out.delta_reserve,
-				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
-				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
+				hub_amount_in: *state_changes.asset_in.total_delta_hub_reserve(),
+				hub_amount_out: *state_changes.asset_out.total_delta_hub_reserve(),
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
@@ -1060,7 +1061,7 @@ pub mod pallet {
 				vec![Asset::new(asset_in.into(), amount)],
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
-					*state_changes.asset_in.delta_hub_reserve,
+					*state_changes.asset_in.total_delta_hub_reserve(),
 				)],
 				vec![Fee::new(
 					T::HubAssetId::get().into(),
@@ -1077,7 +1078,7 @@ pub mod pallet {
 				pallet_broadcast::types::TradeOperation::ExactIn,
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
-					*state_changes.asset_out.delta_hub_reserve,
+					*state_changes.asset_out.total_delta_hub_reserve(),
 				)],
 				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
 				trade_fees,
@@ -1220,11 +1221,11 @@ pub mod pallet {
 			// Hub liquidity update - work out difference between in and amount so only one update is needed.
 			let delta_hub_asset = state_changes
 				.asset_in
-				.delta_hub_reserve
+				.total_delta_hub_reserve()
 				.merge(
 					state_changes
 						.asset_out
-						.delta_hub_reserve
+						.total_delta_hub_reserve()
 						.merge(BalanceUpdate::Increase(state_changes.extra_protocol_fee_amount))
 						.ok_or(ArithmeticError::Overflow)?,
 				)
@@ -1277,8 +1278,8 @@ pub mod pallet {
 				asset_out,
 				amount_in: *state_changes.asset_in.delta_reserve,
 				amount_out: *state_changes.asset_out.delta_reserve,
-				hub_amount_in: *state_changes.asset_in.delta_hub_reserve,
-				hub_amount_out: *state_changes.asset_out.delta_hub_reserve,
+				hub_amount_in: *state_changes.asset_in.total_delta_hub_reserve(),
+				hub_amount_out: *state_changes.asset_out.total_delta_hub_reserve(),
 				asset_fee_amount: state_changes.fee.asset_fee,
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
@@ -1294,7 +1295,7 @@ pub mod pallet {
 				vec![Asset::new(asset_in.into(), *state_changes.asset_in.delta_reserve)],
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
-					*state_changes.asset_in.delta_hub_reserve,
+					*state_changes.asset_in.total_delta_hub_reserve(),
 				)],
 				vec![Fee::new(
 					T::HubAssetId::get().into(),
@@ -1311,7 +1312,7 @@ pub mod pallet {
 				pallet_broadcast::types::TradeOperation::ExactOut,
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
-					*state_changes.asset_out.delta_hub_reserve,
+					*state_changes.asset_out.total_delta_hub_reserve(),
 				)],
 				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
 				trade_fees,
@@ -1498,7 +1499,7 @@ pub mod pallet {
 			Self::update_hub_asset_liquidity(
 				&state_changes
 					.asset
-					.delta_hub_reserve
+					.total_delta_hub_reserve()
 					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
 					.ok_or(ArithmeticError::Overflow)?,
 			)?;
@@ -1729,7 +1730,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.asset.delta_hub_reserve,
+			*state_changes.asset.delta_hub_reserve, // note: here we cannot use total_delta_hub_reserve as it inclused the extra minted amount!
 		)?;
 		T::Currency::transfer(
 			asset_out,
@@ -1737,6 +1738,9 @@ impl<T: Config> Pallet<T> {
 			who,
 			*state_changes.asset.delta_reserve,
 		)?;
+
+		// we need to mint the new extra hub amount
+		Self::update_hub_asset_liquidity(&state_changes.asset.extra_hub_reserve_amount)?;
 
 		let info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
 			asset_out,
@@ -1840,7 +1844,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.asset.delta_hub_reserve,
+			*state_changes.asset.delta_hub_reserve, //note: here we cannot use total_delta_hub_reserve as it inclused the extra minted amount!
 		)?;
 		T::Currency::transfer(
 			asset_out,
@@ -1848,6 +1852,9 @@ impl<T: Config> Pallet<T> {
 			who,
 			*state_changes.asset.delta_reserve,
 		)?;
+
+		// we need to mint the new extra hub amount
+		Self::update_hub_asset_liquidity(&state_changes.asset.extra_hub_reserve_amount)?;
 
 		let info: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
 			asset_out,
@@ -2089,7 +2096,7 @@ impl<T: Config> Pallet<T> {
 		let hub_reserve_ratio = FixedU128::checked_from_rational(
 			new_asset_state.hub_reserve,
 			T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
-				.checked_add(*state_changes.asset.delta_hub_reserve)
+				.checked_add(*state_changes.asset.total_delta_hub_reserve())
 				.ok_or(ArithmeticError::Overflow)?,
 		)
 		.ok_or(ArithmeticError::DivisionByZero)?;
@@ -2134,7 +2141,7 @@ impl<T: Config> Pallet<T> {
 		let info: AssetInfo<T::AssetId, Balance> =
 			AssetInfo::new(asset, &asset_state, &new_asset_state, &state_changes.asset, false);
 
-		Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
+		Self::update_hub_asset_liquidity(&state_changes.asset.total_delta_hub_reserve())?;
 
 		Self::set_asset_state(asset, new_asset_state);
 
