@@ -1,3 +1,4 @@
+use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::v4::prelude::*;
@@ -7,7 +8,6 @@ use sp_std::marker::PhantomData;
 use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
 use xcm_executor::AssetsInHolding;
-use hydradx_traits::router::{AssetPair, RouteProvider};
 
 /// Implements `AssetExchange` to support the `ExchangeAsset` XCM instruction.
 ///
@@ -168,15 +168,27 @@ where
 		if maximal {
 			// sell
 			let Fungible(amount) = given.fun else { return None };
-			let amount = pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_out(&route, amount.into()).ok()?;
-			Some(Asset {id: wanted.id.clone(), fun: Fungible(amount.into())}.into())
-
+			let amount =
+				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_out(&route, amount.into()).ok()?;
+			Some(
+				Asset {
+					id: wanted.id.clone(),
+					fun: Fungible(amount.into()),
+				}
+				.into(),
+			)
 		} else {
 			// buy
 			let Fungible(amount) = wanted.fun else { return None };
-			let amount = pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into()).ok()?;
-			Some(Asset {id: given.id.clone(), fun: Fungible(amount.into())}.into())
+			let amount =
+				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into()).ok()?;
+			Some(
+				Asset {
+					id: given.id.clone(),
+					fun: Fungible(amount.into()),
+				}
+				.into(),
+			)
 		}
-
 	}
 }

@@ -62,11 +62,11 @@ fn xcm_exchanger_allows_selling_supported_assets() {
 			let want: Assets = Asset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
 
 			// get the price before executing the swap
-			let expected_amount_out = XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::quote_exchange_price(
-				&give,
-				&want,
-				SELL,
-			).unwrap();
+			let expected_amount_out =
+				XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::quote_exchange_price(
+					&give, &want, SELL,
+				)
+				.unwrap();
 
 			// Act
 			let received: Assets = exchange_asset(None, give, &want, SELL)
@@ -167,11 +167,11 @@ fn xcm_exchanger_allows_buying_supported_assets() {
 			let want: Assets = want_asset.clone().into();
 
 			// get the price before executing the swap
-			let expected_amount_in = XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::quote_exchange_price(
-				&give,
-				&want,
-				BUY,
-			).unwrap();
+			let expected_amount_in =
+				XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::quote_exchange_price(
+					&give, &want, BUY,
+				)
+				.unwrap();
 
 			// Act
 			let received: Assets = exchange_asset(None, give, &want, BUY).expect("should return ok").into();

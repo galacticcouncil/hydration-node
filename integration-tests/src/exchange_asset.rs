@@ -3,33 +3,29 @@
 use crate::assert_operation_stack;
 use crate::polkadot_test_net::*;
 use frame_support::{
-	assert_ok, pallet_prelude::*,
+	assert_ok,
 	dispatch::GetDispatchInfo,
+	pallet_prelude::*,
 	storage::with_transaction,
-	traits::{
-		fungible::Balanced,
-		tokens::Precision,
-	},
+	traits::{fungible::Balanced, tokens::Precision},
 	weights::Weight,
 };
-use hydradx_runtime::{Omnipool, Router, RuntimeOrigin, AssetRegistry};
+use hydradx_runtime::{AssetRegistry, Omnipool, Router, RuntimeOrigin};
 use hydradx_traits::{AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
+use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
 use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
-use primitives::{
-	constants::chain::CORE_ASSET_ID
-};
+use primitives::constants::chain::CORE_ASSET_ID;
+use rococo_runtime::xcm_config::BaseXcmWeight;
 use sp_runtime::{
-	DispatchResult, FixedU128, Permill, TransactionOutcome,
 	traits::{Convert, Zero},
+	DispatchResult, FixedU128, Permill, TransactionOutcome,
 };
 use sp_std::sync::Arc;
-use xcm_emulator::TestExt;
-use pallet_broadcast::types::ExecutionType;
-use rococo_runtime::xcm_config::BaseXcmWeight;
 use xcm_builder::FixedWeightBounds;
+use xcm_emulator::TestExt;
 use xcm_executor::traits::WeightBounds;
 
 pub const SELL: bool = true;
