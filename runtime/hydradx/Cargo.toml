@@ -117,6 +117,7 @@ parachains-common = { workspace = true }
 # Polkadot dependencies
 polkadot-parachain = { workspace = true }
 pallet-xcm = { workspace = true }
+pallet-xcm-benchmarks = { workspace = true, optional = true }
 polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
@@ -226,6 +227,8 @@ runtime-benchmarks = [
     "pallet-conviction-voting/runtime-benchmarks",
     "pallet-referenda/runtime-benchmarks",
     "pallet-whitelist/runtime-benchmarks",
+    "cumulus-primitives-utility/runtime-benchmarks",
+    "pallet-xcm-benchmarks/runtime-benchmarks"
 ]
 std = [
     "codec/std",
@@ -245,6 +248,7 @@ std = [
     "cumulus-pallet-xcmp-queue/std",
     "staging-parachain-info/std",
     "pallet-xcm/std",
+    "pallet-xcm-benchmarks?/std",
     "polkadot-xcm/std",
     "xcm-fee-payment-runtime-api/std",
     "xcm-executor/std",

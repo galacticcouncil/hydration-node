@@ -5024,6 +5024,7 @@ dependencies = [
  "pallet-utility",
  "pallet-whitelist",
  "pallet-xcm",
+ "pallet-xcm-benchmarks",
  "pallet-xyk",
  "pallet-xyk-liquidity-mining",
  "parachains-common",

@@ -337,6 +337,7 @@ ethereum = { version = "0.15.0", default-features = false, features = ["with-cod
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4", default-features = false }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4", default-features = false }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4", default-features = false }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4", default-features = false, features =  [
@@ -508,6 +509,7 @@ xcm-fee-payment-runtime-api = { git = "https://github.com/galacticcouncil/polkad
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4"}
@@ -663,6 +665,7 @@ xcm-fee-payment-runtime-api = { git = "https://github.com/galacticcouncil/polkad
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4" }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "release-polkadot-v1.11.0-patch4"}

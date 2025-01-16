@@ -25,6 +25,7 @@ pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::Sibling;
+use polkadot_runtime_common::xcm_sender::ExponentialPrice;
 use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
 use scale_info::TypeInfo;
@@ -61,6 +62,17 @@ impl TryFrom<Location> for AssetLocation {
 	}
 }
 
+//TODO: Ask Jakub about these two if well configured
+parameter_types! {
+	/// The asset ID for the asset that we use to pay for message delivery fees.
+	pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
+	/// The base fee for the message delivery fees.
+	pub const BaseDeliveryFee: u128 = CENTS.saturating_mul(3);
+}
+
+pub type PriceForParentDelivery =
+ExponentialPrice<FeeAssetId, BaseDeliveryFee, TransactionByteFee, ParachainSystem>;
+
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
 pub type Barrier = (
@@ -90,6 +102,9 @@ parameter_types! {
 
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
+
+	pub const PolkadotLocation: Location = Location::parent();
+
 
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 
@@ -122,6 +137,8 @@ parameter_types! {
 	pub const BaseXcmWeight: XcmWeight = XcmWeight::from_parts(100_000_000, 0);
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsForTransfer: usize = 2;
+
+	pub const MaxAssetsIntoHolding: u32 = 64;
 
 	pub TempAccountForXcmAssetExchange: AccountId = [42; 32].into();
 	pub const MaxXcmDepth: u16 = 5;
@@ -212,7 +229,7 @@ impl Config for XcmConfig {
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;
-	type MaxAssetsIntoHolding = ConstU32<64>;
+	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
 	type FeeManager = ();
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
@@ -483,6 +500,7 @@ pub type LocationToAccountId = (
 );
 use pallet_broadcast::types::ExecutionType;
 use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
+use primitives::constants::currency::CENTS;
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);

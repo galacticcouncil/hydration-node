@@ -66,7 +66,7 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
+use frame_support::{construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
@@ -331,6 +331,8 @@ mod benches {
 		[cumulus_pallet_parachain_system, ParachainSystem]
 		[pallet_collator_selection, CollatorSelection]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[pallet_xcm_benchmarks::fungible, XcmBalances]
+		[pallet_xcm_benchmarks::generic, XcmGeneric]
 		[pallet_conviction_voting, ConvictionVoting]
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
@@ -444,7 +446,9 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
+use pallet_xcm_benchmarks::asset_instance_from;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
+use polkadot_xcm::prelude::{AccountId32, GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response};
 use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::OpaqueMetadata;
 use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
@@ -1004,6 +1008,7 @@ impl_runtime_apis! {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
+
 		fn benchmark_metadata(extra: bool) -> (
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
@@ -1014,6 +1019,12 @@ impl_runtime_apis! {
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
+
+			// This is defined once again in dispatch_benchmark, because list_benchmarks!
+			// and add_benchmarks! are macros exported by define_benchmarks! macros and those types
+			// are referenced in that call.
+			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
+			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
@@ -1084,6 +1095,7 @@ impl_runtime_apis! {
 				}
 
 				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
+					assert_eq!(3,4);
 					ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(
 								RandomParaId::get()
 							);
@@ -1098,6 +1110,8 @@ impl_runtime_apis! {
 				}
 
 				fn set_up_complex_asset_transfer() -> Option<(Assets, u32, Location, Box<dyn FnOnce()>)> {
+										assert_eq!(3,4);
+
 					ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(
 								RandomParaId::get()
 							);
@@ -1133,11 +1147,158 @@ impl_runtime_apis! {
 
 				fn get_asset() -> Asset {
 					Asset {
-						id: AssetId(Location::here()),
+						id: AssetId(AssetLocation::get()),
 						fun: Fungible(ExistentialDeposit::get()),
 					}
 				}
 			}
+
+			use primitives::constants::currency::UNITS;
+
+			parameter_types! {
+				pub ExistentialDepositAsset: Option<Asset> = Some((
+					AssetLocation::get(),
+					ExistentialDeposit::get()
+				).into());
+			}
+
+			impl pallet_xcm_benchmarks::Config for Runtime {
+				type XcmConfig = xcm::XcmConfig;
+				type AccountIdConverter = xcm::LocationToAccountId;
+				type DeliveryHelper = cumulus_primitives_utility::ToParentDeliveryHelper<
+					xcm::XcmConfig,
+					ExistentialDepositAsset,
+					xcm::PriceForParentDelivery,
+				>;
+				fn valid_destination() -> Result<Location, BenchmarkError> {
+					Ok(AssetHubLocation::get())
+				}
+				fn worst_case_holding(depositable_count: u32) -> Assets {
+					// A mix of fungible, non-fungible, and concrete assets.
+					let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
+					let holding_fungibles = holding_non_fungibles - 2; // -2 for two `iter::once` bellow
+					let fungibles_amount: u128 = 100;
+					(0..holding_fungibles)
+						.map(|i| {
+							Asset {
+								id: AssetId(GeneralIndex(i as u128).into()),
+								fun: Fungible(fungibles_amount * (i + 1) as u128), // non-zero amount
+							}
+						})
+						.chain(core::iter::once(Asset { id: AssetId(Here.into()), fun: Fungible(u128::MAX) }))
+						.chain(core::iter::once(Asset { id: AssetId(PolkadotLocation::get()), fun: Fungible(1_000_000 * UNITS) }))
+						.chain((0..holding_non_fungibles).map(|i| Asset {
+							id: AssetId(GeneralIndex(i as u128).into()),
+							fun: NonFungible(asset_instance_from(i)),
+						}))
+						.collect::<Vec<_>>()
+						.into()
+				}
+			}
+
+			//TODO: ask Jakub
+			parameter_types! {
+				pub const TrustedTeleporter: Option<(Location, Asset)> = Some((
+					PolkadotLocation::get(),
+					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
+				));
+				pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
+				pub TrustedReserve: Option<(Location, Asset)> = Some(
+					(
+						AssetHubLocation::get(),
+						Asset::from((AssetHubLocation::get(), 1000000000000 as u128))
+					)
+				);
+			}
+
+			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
+				type TransactAsset = Balances;
+
+				type CheckedAccount = CheckedAccount;
+				type TrustedTeleporter = TrustedTeleporter;
+				type TrustedReserve = TrustedReserve;
+
+				fn get_asset() -> Asset {
+					Asset {
+						id: AssetId(AssetLocation::get()),
+						fun: Fungible(UNITS),
+					}
+				}
+			}
+
+			impl pallet_xcm_benchmarks::generic::Config for Runtime {
+				type TransactAsset = Balances;
+				type RuntimeCall = RuntimeCall;
+
+				fn worst_case_response() -> (u64, Response) {
+					(0u64, Response::Version(Default::default()))
+				}
+
+				fn worst_case_asset_exchange() -> Result<(Assets, Assets), BenchmarkError> {
+					//We xcm_exchange implementation, we only exchange from single asset to another single one
+					let asset : Assets = (AssetId(AssetLocation::get()), 1_000 * UNITS).into();
+					Ok((asset.clone(), asset))
+				}
+
+				fn universal_alias() -> Result<(Location, Junction), BenchmarkError> {
+										Err(BenchmarkError::Skip)
+
+					//TODO: Ask Jakub -> do we need it? westend uses stg like this
+					/*			let alias =
+					to_rococo::UniversalAliases::get().into_iter().find_map(|(location, junction)| {
+						match to_rococo::SiblingBridgeHubWithBridgeHubRococoInstance::get()
+							.eq(&location)
+						{
+							true => Some((location, junction)),
+							false => None,
+						}
+					});
+				Some(alias.expect("we expect here BridgeHubWestend to Rococo mapping at least"))*/
+				}
+
+				fn transact_origin_and_runtime_call() -> Result<(Location, RuntimeCall), BenchmarkError> {
+					Ok((PolkadotLocation::get(), frame_system::Call::remark_with_event { remark: vec![] }.into()))
+				}
+
+				fn subscribe_origin() -> Result<Location, BenchmarkError> {
+					Ok(PolkadotLocation::get())
+				}
+
+				fn claimable_asset() -> Result<(Location, Location, Assets), BenchmarkError> {
+					let origin = PolkadotLocation::get();
+					let assets: Assets = (AssetId(PolkadotLocation::get()), 1_000 * UNITS).into();
+					let ticket = Location { parents: 0, interior: Here };
+					Ok((origin, ticket, assets))
+				}
+
+				fn fee_asset() -> Result<Asset, BenchmarkError> {
+					Ok(Asset {
+						id: AssetId(PolkadotLocation::get()),
+						fun: Fungible(1_000 * UNITS),
+					})
+				}
+
+				fn unlockable_asset() -> Result<(Location, Location, Asset), BenchmarkError> {
+					Err(BenchmarkError::Skip)
+				}
+
+				fn export_message_origin_and_destination(
+				) -> Result<(Location, NetworkId, InteriorLocation), BenchmarkError> {
+					Err(BenchmarkError::Skip)
+				}
+
+				fn alias_origin() -> Result<(Location, Location), BenchmarkError> {
+					// Any location can alias to an internal location.
+					// Here parachain 1001 aliases to an internal account.
+					Ok((
+						Location::new(1, [Parachain(1001)]),
+						Location::new(1, [Parachain(1001), AccountId32 { id: [111u8; 32], network: None }]),
+					))
+				}
+			}
+
+			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
+			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
