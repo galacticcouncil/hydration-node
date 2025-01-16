@@ -193,6 +193,10 @@ impl<
 	pub fn total_delta_hub_reserve(&self) -> BalanceUpdate<Balance> {
 		self.delta_hub_reserve.saturating_merge(self.extra_hub_reserve_amount)
 	}
+
+	pub fn adjust_extra_hub_amount(self, taken_fee: Balance) -> Self {
+		self
+	}
 }
 
 /// Information about trade fee amounts
@@ -214,6 +218,15 @@ where
 	pub fee: TradeFee<Balance>,
 }
 
+impl<Balance> TradeStateChange<Balance>
+where
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + CheckedSub + Default,
+{
+	pub fn account_for_fee_taken(self, taken_fee: Balance) -> Self {
+		self
+	}
+}
+
 /// Delta changes after a trade with hub asset is executed.
 #[derive(Default, Debug)]
 pub struct HubTradeStateChange<Balance>
@@ -222,6 +235,15 @@ where
 {
 	pub asset: AssetStateChange<Balance>,
 	pub fee: TradeFee<Balance>,
+}
+
+impl<Balance> HubTradeStateChange<Balance>
+where
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + CheckedSub + Default,
+{
+	pub fn account_for_fee_taken(self, taken_fee: Balance) -> Self {
+		self
+	}
 }
 
 /// Delta changes after add or remove liquidity.

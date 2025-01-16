@@ -944,12 +944,10 @@ pub mod pallet {
 				*state_changes.asset_out.delta_reserve > Balance::zero(),
 				Error::<T>::ZeroAmountOut
 			);
-
 			ensure!(
 				*state_changes.asset_out.delta_reserve >= min_buy_amount,
 				Error::<T>::BuyLimitNotReached
 			);
-
 			ensure!(
 				*state_changes.asset_out.delta_reserve
 					<= asset_out_state
@@ -958,6 +956,10 @@ pub mod pallet {
 						.ok_or(ArithmeticError::DivisionByZero)?, // Note: let's be safe. this can only fail if MaxOutRatio is zero.
 				Error::<T>::MaxOutRatioExceeded
 			);
+
+			let (taken_fee, trade_fees) = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
+			// We need to adjust the state changes to account for the fee taken
+			let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 			let new_asset_in_state = asset_in_state
 				.delta_update(&state_changes.asset_in)
@@ -1034,9 +1036,6 @@ pub mod pallet {
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
-
-			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
-			//TODO: we need to burn additional lrna amt from the asset in based on how much asset fee was taken
 
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
@@ -1193,6 +1192,10 @@ pub mod pallet {
 				Error::<T>::MaxInRatioExceeded
 			);
 
+			let (taken_fee, trade_fees) = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
+			// We need to adjust the state changes to account for the fee taken
+			let state_changes = state_changes.account_for_fee_taken(taken_fee);
+
 			let new_asset_in_state = asset_in_state
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
@@ -1268,9 +1271,6 @@ pub mod pallet {
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
-
-			let trade_fees = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
-			//TODO: we need to burn additional lrna amt from the asset in based on how much asset fee was taken
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
@@ -1721,6 +1721,10 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxOutRatioExceeded
 		);
 
+		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		// We need to adjust the state changes to account for the fee taken
+		let state_changes = state_changes.account_for_fee_taken(taken_fee);
+
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -1751,9 +1755,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
-
-		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		//TODO: we need to burn additional lrna amt from the asset in based on how much asset fee was taken
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1836,6 +1837,10 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
+		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
+		// We need to adjust the state changes to account for the fee taken
+		let state_changes = state_changes.account_for_fee_taken(taken_fee);
+
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -1865,9 +1870,6 @@ impl<T: Config> Pallet<T> {
 		);
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
-
-		let trade_fees = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		//TODO: we need to burn additional lrna amt from the asset in based on how much asset fee was taken
 
 		// TODO: Deprecated, remove when ready
 		Self::deposit_event(Event::BuyExecuted {
@@ -1995,7 +1997,7 @@ impl<T: Config> Pallet<T> {
 		trader: &T::AccountId,
 		asset: T::AssetId,
 		amount: Balance,
-	) -> Result<Vec<Fee<T::AccountId>>, DispatchError> {
+	) -> Result<(Balance, Vec<Fee<T::AccountId>>), DispatchError> {
 		let account = Self::protocol_account();
 		let original_asset_reserve = T::Currency::free_balance(asset, &account);
 
@@ -2029,7 +2031,7 @@ impl<T: Config> Pallet<T> {
 
 		all_trade_fees.extend(taken_fee_entries);
 
-		Ok(all_trade_fees)
+		Ok((taken_fee_total, all_trade_fees))
 	}
 
 	pub fn process_hub_amount(amount: Balance, dest: &T::AccountId) -> DispatchResult {
