@@ -4024,6 +4024,38 @@ mod with_onchain_route {
 	}
 }
 
+#[test]
+fn terminate_should_work_for_freshly_created_dca() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let block_id = 11;
+		set_relaychain_block_number(block_id);
+
+		let budget = 1000 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
+
+		assert_ok!(DCA::schedule(
+			RuntimeOrigin::signed(ALICE.into()),
+			schedule1.clone(),
+			None
+		));
+
+		let schedule_id = 0;
+		let schedule = DCA::schedules(schedule_id);
+		assert!(schedule.is_some());
+
+		//Act
+		assert_ok!(DCA::terminate(RuntimeOrigin::signed(ALICE.into()), schedule_id, None));
+
+		//Assert
+		let schedule = DCA::schedules(schedule_id);
+		assert!(schedule.is_none());
+	});
+}
+
 fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
 	assert_ok!(Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
