@@ -62,8 +62,6 @@ pub fn calculate_sell_state_changes(
 		.ok()?,
 	);
 
-	let total_delta_hub_reserve_out = delta_hub_reserve_out.checked_add(delta_out_m)?;
-
 	// burn part of protocol fee and rest is to be transferred to treasury or buybacks
 	// note that we dont need to include burned amount anywhere, as it is already part of delta_hub_reserve_in value.
 	// we only to need to include extra_protocol_fee when the deltas are calculated, as it used to be done for hdx hub amount.
@@ -78,7 +76,8 @@ pub fn calculate_sell_state_changes(
 		},
 		asset_out: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve_out),
-			delta_hub_reserve: Increase(total_delta_hub_reserve_out),
+			delta_hub_reserve: Increase(delta_hub_reserve_out),
+			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},
 		extra_protocol_fee_amount: extra_protocol_fee,
@@ -115,17 +114,11 @@ pub fn calculate_sell_hub_state_changes(
 		.ok()?,
 	);
 
-	//TODO: this is important to add to total, but we can;t sum it up here because
-	// delta_hub_reserve is the amount user is selling so we cannot take more of it.
-	// for now - to ensure all tests are passing before refactoring, we dont add it just yet!
-	// TODO: but thsi needs to be added to total after.
-	//let delta_hub_reserve = hub_asset_amount.checked_add(delta_q_m)?;
-	let delta_hub_reserve = hub_asset_amount;
-
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve_out),
-			delta_hub_reserve: Increase(delta_hub_reserve),
+			delta_hub_reserve: Increase(hub_asset_amount),
+			extra_hub_reserve_amount: Increase(delta_q_m),
 			..Default::default()
 		},
 		fee: TradeFee {
@@ -185,17 +178,11 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	);
 	let delta_q_m = n.checked_div(hub_denominator)?;
 
-	//TODO: this is important to add to total, but we can;t sum it up here because
-	// delta_hub_reserve is the amount user is selling so we cannot take more of it.
-	// for now - to ensure all tests are passing before refactoring, we dont add it just yet!
-	// TODO: but thsi needs to be added to total after.
-	//let delta_hub_reserve = delta_hub_reserve.checked_add(delta_q_m)?;
-	let delta_hub_reserve = delta_hub_reserve;
-
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(asset_out_amount),
 			delta_hub_reserve: Increase(delta_hub_reserve),
+			extra_hub_reserve_amount: Increase(delta_q_m),
 			..Default::default()
 		},
 		fee: TradeFee {
@@ -259,7 +246,6 @@ pub fn calculate_buy_state_changes(
 			.checked_div(out_hub_reserve_hp)?)
 		.ok()?,
 	);
-	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(delta_out_m)?;
 
 	// Protocol fee burn and transfer
 	let burned_protocol_fee = m.mul_floor(protocol_fee_amount);
@@ -274,6 +260,7 @@ pub fn calculate_buy_state_changes(
 		asset_out: AssetStateChange {
 			delta_reserve: Decrease(amount),
 			delta_hub_reserve: Increase(delta_hub_reserve_out),
+			extra_hub_reserve_amount: Increase(delta_out_m),
 			..Default::default()
 		},
 		extra_protocol_fee_amount: extra_protocol_fee,
@@ -421,6 +408,7 @@ pub fn calculate_remove_liquidity_state_changes(
 			delta_hub_reserve: Decrease(delta_hub_reserve),
 			delta_shares: Decrease(delta_shares),
 			delta_protocol_shares: Increase(delta_b),
+			..Default::default()
 		},
 		lp_hub_amount: hub_transferred,
 		delta_position_reserve: Decrease(delta_position_amount),

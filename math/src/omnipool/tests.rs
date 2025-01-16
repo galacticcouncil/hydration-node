@@ -50,7 +50,7 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 		BalanceUpdate::Increase(4000000000000u128)
 	);
 	assert_eq!(
-		state_changes.asset_in.delta_hub_reserve,
+		state_changes.asset_in.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(5714285714285u128)
 	);
 
@@ -59,7 +59,7 @@ fn calculate_sell_should_work_when_correct_input_provided() {
 		BalanceUpdate::Decrease(2666666666666u128)
 	);
 	assert_eq!(
-		state_changes.asset_out.delta_hub_reserve,
+		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(5714285714285u128)
 	);
 	assert_eq!(state_changes.extra_protocol_fee_amount, 0u128);
@@ -189,7 +189,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		BalanceUpdate::Increase(4000000000000u128)
 	);
 	assert_eq!(
-		state_changes.asset_in.delta_hub_reserve,
+		state_changes.asset_in.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(5714285714285u128)
 	);
 
@@ -198,14 +198,14 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 		BalanceUpdate::Decrease(2627613941018u128)
 	);
 	assert_eq!(
-		state_changes.asset_out.delta_hub_reserve,
+		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(5777720816326)
 	);
 	assert_eq!(state_changes.extra_protocol_fee_amount, 57142857142);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 57142857142u128 + 5657142857143u128;
-	let no_fees_amount: Balance = *state_changes.asset_in.delta_hub_reserve;
+	let no_fees_amount: Balance = *state_changes.asset_in.total_delta_hub_reserve();
 	assert_eq!(f, no_fees_amount);
 }
 
@@ -247,7 +247,7 @@ fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fe
 		BalanceUpdate::Increase(4000000000000u128)
 	);
 	assert_eq!(
-		state_changes.asset_in.delta_hub_reserve,
+		state_changes.asset_in.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(5714285714285u128)
 	);
 
@@ -256,7 +256,7 @@ fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fe
 		BalanceUpdate::Decrease(2627613941018u128)
 	);
 	assert_eq!(
-		state_changes.asset_out.delta_hub_reserve,
+		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(5777720816326)
 	);
 	let zero_fee_amount = 57142857142u128;
@@ -267,7 +267,7 @@ fn calculate_sell_with_fees_should_burn_halt_of_protocol_fee_amount_when_burn_fe
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 57142857142u128 + 5657142857143u128;
-	let no_fees_amount: Balance = *state_changes.asset_in.delta_hub_reserve;
+	let no_fees_amount: Balance = *state_changes.asset_in.total_delta_hub_reserve();
 	assert_eq!(f, no_fees_amount);
 }
 
@@ -293,7 +293,7 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
 		BalanceUpdate::Decrease(1666666666666u128)
 	);
 	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
+		state_changes.asset.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(amount_to_sell)
 	);
 
@@ -325,7 +325,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 	let minted_amount = 48000000000u128;
 
 	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
+		state_changes.asset.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(amount_to_sell + minted_amount)
 	);
 
@@ -376,7 +376,7 @@ fn calculate_buy_should_work_when_correct_input_provided() {
 		BalanceUpdate::Increase(666666666668u128)
 	);
 	assert_eq!(
-		state_changes.asset_in.delta_hub_reserve,
+		state_changes.asset_in.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(1250000000001u128)
 	);
 
@@ -385,7 +385,7 @@ fn calculate_buy_should_work_when_correct_input_provided() {
 		BalanceUpdate::Decrease(amount_to_buy)
 	);
 	assert_eq!(
-		state_changes.asset_out.delta_hub_reserve,
+		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(1250000000001u128)
 	);
 	assert_eq!(state_changes.extra_protocol_fee_amount, 0u128);
@@ -523,7 +523,7 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 		BalanceUpdate::Increase(682966807814u128)
 	);
 	assert_eq!(
-		state_changes.asset_in.delta_hub_reserve,
+		state_changes.asset_in.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(1278608873546)
 	);
 
@@ -532,14 +532,14 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
 		BalanceUpdate::Decrease(amount_to_buy)
 	);
 	assert_eq!(
-		state_changes.asset_out.delta_hub_reserve,
+		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(1281685627304)
 	);
 	assert_eq!(state_changes.extra_protocol_fee_amount, 12786088735);
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 1265822784811u128 + 12786088735u128;
-	let no_fees_amount: Balance = *state_changes.asset_in.delta_hub_reserve;
+	let no_fees_amount: Balance = *state_changes.asset_in.total_delta_hub_reserve();
 	assert_eq!(f, no_fees_amount);
 }
 
@@ -581,7 +581,7 @@ fn calculate_buy_with_fees_should_burn_half_of_protocol_fee_when_burn_fee_set_to
 		BalanceUpdate::Increase(682966807814u128)
 	);
 	assert_eq!(
-		state_changes.asset_in.delta_hub_reserve,
+		state_changes.asset_in.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(1278608873546)
 	);
 
@@ -590,7 +590,7 @@ fn calculate_buy_with_fees_should_burn_half_of_protocol_fee_when_burn_fee_set_to
 		BalanceUpdate::Decrease(amount_to_buy)
 	);
 	assert_eq!(
-		state_changes.asset_out.delta_hub_reserve,
+		state_changes.asset_out.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(1281685627304)
 	);
 	let zero_burn_fee_amount = 12786088735u128;
@@ -601,7 +601,7 @@ fn calculate_buy_with_fees_should_burn_half_of_protocol_fee_when_burn_fee_set_to
 
 	// Verify if fee + delta amount == delta with fee
 	let f = 1265822784811u128 + 12786088735u128;
-	let no_fees_amount: Balance = *state_changes.asset_in.delta_hub_reserve;
+	let no_fees_amount: Balance = *state_changes.asset_in.total_delta_hub_reserve();
 	assert_eq!(f, no_fees_amount);
 }
 
@@ -627,7 +627,7 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
 		BalanceUpdate::Decrease(amount_to_buy)
 	);
 	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
+		state_changes.asset.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(5000000000001u128)
 	);
 
@@ -656,7 +656,7 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 		BalanceUpdate::Decrease(amount_to_buy)
 	);
 	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
+		state_changes.asset.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(5126742509213)
 	);
 
@@ -689,7 +689,7 @@ fn calculate_add_liquidity_should_work_when_correct_input_provided() {
 		BalanceUpdate::Increase(amount_to_add)
 	);
 	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
+		state_changes.asset.total_delta_hub_reserve(),
 		BalanceUpdate::Increase(4000000000000u128)
 	);
 	assert_eq!(state_changes.asset.delta_shares, BalanceUpdate::Increase(amount_to_add));
@@ -728,7 +728,7 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
 		BalanceUpdate::Decrease(amount_to_remove)
 	);
 	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
+		state_changes.asset.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(4000000000000u128)
 	);
 	assert_eq!(
@@ -780,7 +780,7 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
 		BalanceUpdate::Decrease(1891252955082u128)
 	);
 	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
+		state_changes.asset.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(3782505910164u128)
 	);
 	assert_eq!(
@@ -928,7 +928,7 @@ fn calculate_remove_liquidity_should_apply_correct_fee() {
 		BalanceUpdate::Decrease(1872340425531u128)
 	);
 	assert_eq!(
-		state_changes.asset.delta_hub_reserve,
+		state_changes.asset.total_delta_hub_reserve(),
 		BalanceUpdate::Decrease(3744680851062)
 	);
 	assert_eq!(

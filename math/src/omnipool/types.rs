@@ -1,5 +1,6 @@
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
-use num_traits::{CheckedAdd, CheckedSub};
+use num_traits::{CheckedAdd, CheckedSub, SaturatingAdd};
+use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_std::ops::{Add, Deref};
 
@@ -43,10 +44,14 @@ pub enum BalanceUpdate<Balance> {
 	Decrease(Balance),
 }
 
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> BalanceUpdate<Balance> {
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default + Saturating + Copy> BalanceUpdate<Balance> {
 	/// Merge two update together
 	pub fn merge(self, other: Self) -> Option<Self> {
 		self.checked_add(&other)
+	}
+
+	fn saturating_merge(self, other: Self) -> Self {
+		self.saturating_add(&other)
 	}
 }
 
@@ -79,6 +84,31 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Default> Add<Self> for Bala
 					BalanceUpdate::Decrease(a - b)
 				} else {
 					BalanceUpdate::Increase(b - a)
+				}
+			}
+		}
+	}
+}
+
+impl<Balance: Copy + CheckedAdd + CheckedSub + PartialOrd + Default + Saturating> SaturatingAdd
+	for BalanceUpdate<Balance>
+{
+	fn saturating_add(&self, rhs: &Self) -> Self {
+		match (self, rhs) {
+			(Increase(a), Increase(b)) => BalanceUpdate::Increase(a.saturating_add(*b)),
+			(Decrease(a), Decrease(b)) => BalanceUpdate::Decrease(a.saturating_add(*b)),
+			(Increase(a), Decrease(b)) => {
+				if a >= b {
+					BalanceUpdate::Increase(a.saturating_sub(*b))
+				} else {
+					BalanceUpdate::Decrease(b.saturating_sub(*a))
+				}
+			}
+			(Decrease(a), Increase(b)) => {
+				if a >= b {
+					BalanceUpdate::Decrease(a.saturating_sub(*b))
+				} else {
+					BalanceUpdate::Increase(b.saturating_sub(*a))
 				}
 			}
 		}
@@ -148,6 +178,21 @@ where
 	pub delta_hub_reserve: BalanceUpdate<Balance>,
 	pub delta_shares: BalanceUpdate<Balance>,
 	pub delta_protocol_shares: BalanceUpdate<Balance>,
+	pub extra_hub_reserve_amount: BalanceUpdate<Balance>,
+}
+impl<
+		Balance: Into<<FixedU128 as FixedPointNumber>::Inner>
+			+ CheckedAdd
+			+ CheckedSub
+			+ Copy
+			+ Default
+			+ PartialOrd
+			+ Saturating,
+	> AssetStateChange<Balance>
+{
+	pub fn total_delta_hub_reserve(&self) -> BalanceUpdate<Balance> {
+		self.delta_hub_reserve.saturating_merge(self.extra_hub_reserve_amount)
+	}
 }
 
 /// Information about trade fee amounts
@@ -265,5 +310,25 @@ mod tests {
 		assert_eq!(BalanceUpdate::Decrease(50u32) + zero, None);
 		assert_eq!(BalanceUpdate::Increase(50u32) + zero, Some(50));
 		assert_eq!(BalanceUpdate::Decrease(100u32) + 50u32, None);
+	}
+
+	#[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Increase(100), BalanceUpdate::Increase(200) ; "When both increase")]
+	#[test_case(BalanceUpdate::Increase(500), BalanceUpdate::Decrease(300), BalanceUpdate::Increase(200) ; "When increase and decrease")]
+	#[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(300), BalanceUpdate::Decrease(200) ; "When increase and decrease larger")]
+	#[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Increase(0), BalanceUpdate::Increase(100) ; "When increase and increase by zero")]
+	#[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(0), BalanceUpdate::Increase(100) ; "When increase and decrease by zero")]
+	#[test_case(BalanceUpdate::Increase(0), BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(100) ; "When increase zero and decrease ")]
+	#[test_case(BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(300), BalanceUpdate::Decrease(400) ; "When both decrease ")]
+	#[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(100), BalanceUpdate::Decrease(100) ; "When decrease and increase")]
+	#[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(300), BalanceUpdate::Increase(100) ; "When decrease and increase larger")]
+	#[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(0), BalanceUpdate::Decrease(200) ; "When decrease and increase zero")]
+	#[test_case(BalanceUpdate::Decrease(0), BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(100) ; "When decrease zero and decreaes ")]
+	#[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(100), BalanceUpdate::Increase(0) ; "When decrease and decrease same amount ")]
+	#[test_case(BalanceUpdate::Decrease(100), BalanceUpdate::Increase(100), BalanceUpdate::Decrease(0) ; "When decrease and decrease same amount swapped ")] // should be probably same as previous ?
+	#[test_case(BalanceUpdate::Increase(u32::MAX), BalanceUpdate::Decrease(1), BalanceUpdate::Increase(u32::MAX - 1) ; "When increase max and decrease one")]
+	#[test_case(BalanceUpdate::Increase(u32::MAX), BalanceUpdate::Increase(1), BalanceUpdate::Increase(u32::MAX); "When increase overflows")]
+	#[test_case(BalanceUpdate::Decrease(u32::MAX), BalanceUpdate::Decrease(1), BalanceUpdate::Decrease(u32::MAX); "When decrease overflows")]
+	fn balance_update_saturating_add(x: BalanceUpdate<u32>, y: BalanceUpdate<u32>, result: BalanceUpdate<u32>) {
+		assert_eq!(x.saturating_merge(y), result);
 	}
 }
