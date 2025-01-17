@@ -58,6 +58,7 @@ pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-lazy-executor = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -341,6 +342,7 @@ std = [
     "pallet-conviction-voting/std",
     "pallet-referenda/std",
     "pallet-whitelist/std",
+    "pallet-lazy-executor/std",
 ]
 try-runtime = [
     "frame-try-runtime",

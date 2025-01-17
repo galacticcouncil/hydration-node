@@ -4991,6 +4991,7 @@ dependencies = [
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-lazy-executor",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",
@@ -8487,6 +8488,27 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-lazy-executor"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "hydra-dx-math",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]

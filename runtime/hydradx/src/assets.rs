@@ -1595,6 +1595,12 @@ impl pallet_referrals::Config for Runtime {
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
+impl pallet_lazy_executor::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type BlockNumberProvider = System;
+}
+
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 4_000_000;
 }
