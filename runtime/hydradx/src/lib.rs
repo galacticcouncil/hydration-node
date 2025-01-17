@@ -285,9 +285,7 @@ pub type Executive = frame_executive::Executive<
 pub mod migrations {
 	use super::*;
 
-	pub type Migrations = (
-		pallet_dca::migrations::MultiplySchedulesPeriodBy2<Runtime>
-	);
+	pub type Migrations = (pallet_dca::migrations::MultiplySchedulesPeriodBy2<Runtime>);
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime

@@ -98,9 +98,9 @@ use sp_std::{cmp::min, vec};
 #[cfg(test)]
 mod tests;
 
+pub mod migrations;
 pub mod types;
 pub mod weights;
-pub mod migrations;
 
 pub use weights::WeightInfo;
 
