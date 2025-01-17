@@ -108,7 +108,7 @@ pub use weights::WeightInfo;
 use crate::types::*;
 pub use pallet::*;
 
-pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
+pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 20;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 

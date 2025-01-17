@@ -878,7 +878,7 @@ fn check_period_smoothing_factors() {
 	println!("Last Block: {} (bits: {})", last_block, last_block.to_bits());
 	assert_eq!(into_smoothing(LastBlock), last_block);
 
-	let short = smoothing_from_period(9);
+	let short = smoothing_from_period(20);
 	println!("Short: {} (bits: {})", short, short.to_bits());
 	assert_eq!(into_smoothing(Short), short);
 
