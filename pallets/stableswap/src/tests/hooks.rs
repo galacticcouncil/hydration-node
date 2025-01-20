@@ -1,6 +1,7 @@
 use crate::tests::mock::*;
-use crate::types::{AssetAmount, PoolInfo, PoolState};
+use crate::types::{PoolInfo, PoolState};
 use frame_support::{assert_ok, BoundedVec};
+use hydradx_traits::stableswap::AssetAmount;
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 

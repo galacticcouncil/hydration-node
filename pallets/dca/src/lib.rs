@@ -77,13 +77,6 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	Origin,
 };
-use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{inverse_route, RouteProvider};
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
-use hydradx_traits::OraclePeriod;
-use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -93,8 +86,22 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
 };
+use sp_std::cmp::min;
 use sp_std::vec::Vec;
-use sp_std::{cmp::min, vec};
+
+use hydradx_adapters::RelayChainBlockHashProvider;
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
+use hydradx_traits::router::{inverse_route, RouteProvider};
+use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
+use hydradx_traits::NativePriceOracle;
+use hydradx_traits::OraclePeriod;
+use hydradx_traits::PriceOracle;
+pub use pallet::*;
+use pallet_broadcast::types::ExecutionType;
+pub use weights::WeightInfo;
+
+// Re-export pallet items so that they can be accessed from the crate namespace.
+use crate::types::*;
 
 #[cfg(test)]
 mod tests;
@@ -102,29 +109,23 @@ mod tests;
 pub mod types;
 pub mod weights;
 
-pub use weights::WeightInfo;
-
-// Re-export pallet items so that they can be accessed from the crate namespace.
-use crate::types::*;
-pub use pallet::*;
-
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
 	use frame_support::traits::Contains;
-
 	use frame_support::weights::WeightToFee;
-
 	use frame_system::pallet_prelude::OriginFor;
+	use orml_traits::NamedMultiReservableCurrency;
+	use sp_runtime::Percent;
+
 	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use hydradx_traits::{NativePriceOracle, PriceOracle};
-	use orml_traits::NamedMultiReservableCurrency;
-	use sp_runtime::Percent;
+
+	use super::*;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -206,7 +207,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -331,7 +332,9 @@ pub mod pallet {
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
-		///The DCA trade is successfully executed
+		/// Deprecated. Use pallet_amm::Event::Swapped instead.
+		/// The DCA trade is successfully executed
+		// TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		TradeExecuted {
 			id: ScheduleId,
 			who: T::AccountId,
@@ -425,6 +428,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn retries_on_error)]
 	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u8, ValueQuery>;
+
+	/// Keep tracking the blocknumber when the schedule is planned to be executed
+	#[pallet::storage]
+	#[pallet::getter(fn schedule_execution_block)]
+	pub type ScheduleExecutionBlock<T: Config> =
+		StorageMap<_, Blake2_128Concat, ScheduleId, BlockNumberFor<T>, OptionQuery>;
 
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
@@ -596,7 +605,9 @@ pub mod pallet {
 
 			Self::try_unreserve_all(schedule_id, &schedule);
 
-			let next_execution_block = next_execution_block.ok_or(Error::<T>::ScheduleNotFound)?;
+			let next_execution_block = next_execution_block
+				.or(Self::schedule_execution_block(schedule_id))
+				.ok_or(Error::<T>::ScheduleNotFound)?;
 
 			//Remove schedule id from next execution block
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(
@@ -702,9 +713,10 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id));
 
-		match &schedule.order {
+		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		let trade_result = match &schedule.order {
 			Order::Sell {
 				asset_in,
 				asset_out,
@@ -787,7 +799,11 @@ impl<T: Config> Pallet<T> {
 					amount_out: *amount_out,
 				})
 			}
-		}
+		};
+
+		pallet_broadcast::Pallet::<T>::remove_from_context();
+
+		trade_result
 	}
 
 	fn replan_or_complete(
@@ -1067,6 +1083,8 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
+		ScheduleExecutionBlock::<T>::insert(schedule_id, next_free_block);
+
 		Self::deposit_event(Event::ExecutionPlanned {
 			id: schedule_id,
 			who: who.clone(),
@@ -1209,6 +1227,7 @@ impl<T: Config> Pallet<T> {
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
+		ScheduleExecutionBlock::<T>::remove(schedule_id);
 	}
 }
 

@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use crate::assert_operation_stack;
 use crate::polkadot_test_net::*;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::storage::with_transaction;
@@ -7,7 +8,12 @@ use frame_support::traits::fungible::Balanced;
 use frame_support::traits::tokens::Precision;
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, pallet_prelude::*};
-use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::Omnipool;
+use hydradx_runtime::Router;
+use hydradx_runtime::RuntimeEvent;
+use hydradx_runtime::RuntimeOrigin;
+use hydradx_runtime::TempAccountForXcmAssetExchange;
+use hydradx_runtime::{AssetRegistry, LRNA};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::currency::MultiCurrency;
@@ -120,6 +126,50 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 		// We receive about 39_101 HDX (HDX is super cheap in our test)
 		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
 		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), received);
+
+		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
+
+		let event1 = &last_two_swapped_events[0];
+		assert_operation_stack!(
+			event1,
+			[
+				ExecutionType::Xcm(_, 0),
+				ExecutionType::XcmExchange(1),
+				ExecutionType::Router(2),
+				ExecutionType::Omnipool(3)
+			]
+		);
+
+		let event2 = &last_two_swapped_events[0];
+		assert_operation_stack!(
+			event2,
+			[
+				ExecutionType::Xcm(_, 0),
+				ExecutionType::XcmExchange(1),
+				ExecutionType::Router(2),
+				ExecutionType::Omnipool(3)
+			]
+		);
+
+		//We assert that another trade doesnt have the xcm exchange type on stack
+		assert_ok!(Router::sell(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			ACA,
+			1 * UNITS,
+			0,
+			vec![],
+		));
+
+		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
+
+		let event1 = &last_two_swapped_events[0];
+		assert_operation_stack!(event1, [ExecutionType::Router(4), ExecutionType::Omnipool(5)]);
+
+		let event2 = &last_two_swapped_events[0];
+		assert_operation_stack!(event2, [ExecutionType::Router(4), ExecutionType::Omnipool(5)]);
 	});
 }
 
@@ -1143,6 +1193,7 @@ fn half(asset: &Asset) -> Asset {
 		id: asset.clone().id,
 	}
 }
+use pallet_broadcast::types::{ExecutionType, Fee};
 use rococo_runtime::xcm_config::BaseXcmWeight;
 use xcm_builder::FixedWeightBounds;
 use xcm_executor::traits::WeightBounds;

@@ -24,7 +24,7 @@ use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::{parameter_type_with_key, GetByKey};
 use sp_core::H256;
-use sp_runtime::traits::{ConstU128, ConstU32, Zero};
+use sp_runtime::traits::{ConstU128, ConstU32};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -86,6 +86,7 @@ frame_support::construct_runtime!(
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
 		CircuitBreaker: pallet_circuit_breaker,
+		Broadcast: pallet_broadcast,
 	}
 );
 
@@ -231,6 +232,10 @@ impl pallet_omnipool::Config for Test {
 	type Fee = FeeProvider;
 }
 
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
 
 impl<T> OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for CircuitBreakerHooks<T>
@@ -313,8 +318,8 @@ where
 		_trader: AccountId,
 		_asset: AssetId,
 		_amount: Balance,
-	) -> Result<Balance, Self::Error> {
-		Ok(Balance::zero())
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
+		Ok(vec![])
 	}
 }
 

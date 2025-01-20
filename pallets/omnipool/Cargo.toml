@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool"
-version = "4.3.7"
+version = "4.5.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -17,6 +17,11 @@ targets = ["x86_64-unknown-linux-gnu"]
 scale-info = { workspace = true }
 codec = { workspace = true }
 
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+hydra-dx-math = { workspace = true }
+pallet-broadcast = { workspace = true }
+
 # primitives
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
@@ -27,11 +32,6 @@ frame-system = { workspace = true }
 
 # ORML
 orml-traits = { workspace = true }
-
-# Warehouse
-hydradx-traits = { workspace = true }
-
-hydra-dx-math = { workspace = true }
 
 # third party
 primitive-types = { workspace = true }
@@ -54,6 +54,7 @@ frame-benchmarking = { workspace = true }
 orml-tokens = { workspace = true }
 proptest = { workspace = true }
 pretty_assertions = { workspace = true }
+test-utils = { workspace = true }
 
 [features]
 default = ["std"]
@@ -69,6 +70,10 @@ std = [
 	"pallet-balances/std",
 	"orml-tokens/std",
 	"frame-benchmarking/std",
+	"pallet-broadcast/std",
+	'hydradx-traits/std',
+	'hydra-dx-math/std',
+	'orml-traits/std',
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
