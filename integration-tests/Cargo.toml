@@ -27,11 +27,9 @@ hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-currencies = { workspace = true }
-pallet-duster = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
-pallet-otc-settlements = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-dca = { workspace = true }
@@ -82,9 +80,7 @@ cumulus-pallet-parachain-system = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
 cumulus-primitives-core = { workspace = true }
-cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
-cumulus-primitives-timestamp = { workspace = true }
 staging-parachain-info = { workspace = true }
 cumulus-test-relay-sproof-builder = { workspace = true }
 
@@ -96,11 +92,9 @@ xcm-executor = { workspace = true }
 polkadot-xcm = { workspace = true }
 
 # Substrate dependencies
-frame-benchmarking = { workspace = true, optional = true }
 frame-executive = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api = { workspace = true }
 pallet-aura = { workspace = true }
 pallet-balances = { workspace = true }
@@ -124,7 +118,6 @@ sp-session = { workspace = true }
 sp-std = { workspace = true }
 sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
-sp-staking = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
 sp-consensus-babe = { workspace = true }
@@ -149,7 +142,6 @@ pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }
 libsecp256k1 = { workspace = true }
-proptest = "1.5.0"
 
 
 [features]
