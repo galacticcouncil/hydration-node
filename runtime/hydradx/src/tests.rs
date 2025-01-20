@@ -382,7 +382,6 @@ fn assert_kusama_root_account() {
 			.expect("Invalid SS58 address format");
 		assert_eq!(ksm_root_account, expected_account);
 
-		// // Example of a wrong account
 		let wrong_account = AccountId::from_ss58check("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
 			.expect("Invalid SS58 address format");
 		assert_ne!(ksm_root_account, wrong_account);
