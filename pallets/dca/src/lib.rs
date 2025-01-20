@@ -29,13 +29,14 @@
 //! In case the given block is full, the execution will be scheduled for the subsequent block.
 //!
 //! Upon creating a schedule, the user specifies a budget (`total_amount`) that will be reserved.
+//! `total_amount` can be zero, in which case the schedule will be executed until it is terminated.
 //! The currency of this reservation is the sold (`amount_in`) currency.
 //!
 //! ### Executing a Schedule
 //!
 //! Orders are executed during block initialization and are sorted based on randomness derived from the relay chain block hash.
 //!
-//! A trade is executed and replanned as long as there is remaining budget from the initial allocation.
+//! When the `total_amount` is not zero, trades are executed as long as there is budget remaining from the initial allocation.
 //!
 //! For both successful and failed trades, a fee is deducted from the schedule owner.
 //! The fee is deducted in the sold (`amount_in`) currency.
@@ -443,7 +444,8 @@ pub mod pallet {
 		/// The reservation currency will be the `amount_in` currency of the order.
 		///
 		/// Trades are executed as long as there is budget remaining
-		/// from the initial `total_amount` allocation.
+		/// from the initial `total_amount` allocation, unless `total_amount` is 0, then trades
+		/// are executed until schedule is terminated.
 		///
 		/// If a trade fails due to slippage limit or price stability errors, it will be retried.
 		/// If the number of retries reaches the maximum allowed,
