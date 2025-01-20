@@ -1442,6 +1442,8 @@ parameter_types! {
 	pub const CurrentStakeWeight: u8 = 2;
 	pub const UnclaimablePeriods: BlockNumber = 1;
 	pub const PointPercentage: FixedU128 = FixedU128::from_rational(2,100);
+	//TODO: set this properly before relese
+	pub const SixSecBlocksSince: BlockNumber = 6_808_912;
 }
 
 pub struct PointsPerAction;
@@ -1496,6 +1498,7 @@ impl pallet_staking::Config for Runtime {
 	type Vesting = VestingInfo<Runtime>;
 	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;
 	type MinSlash = StakingMinSlash;
+	type SixSecBlocksSince = SixSecBlocksSince;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;

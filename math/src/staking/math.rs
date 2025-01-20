@@ -2,7 +2,6 @@ use crate::types::Balance;
 use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Perbill, Permill};
 use sp_std::num::NonZeroU128;
-use sp_std::ops::Div;
 
 type Period = u128;
 type Point = u128;
@@ -53,8 +52,20 @@ pub fn calculate_slashed_points(
 /// Parameters:
 /// - `period_length`: length of the one period in blocks
 /// - `block_number`: block number to calculate period for
-pub fn calculate_period_number(period_length: NonZeroU128, block_number: u128) -> Period {
-	block_number.div(&period_length.get())
+/// - `six_sec_block_since`: block number when staking switched to 6 sec. blocks and period
+/// `period_length` was doubled
+pub fn calculate_period_number(
+	period_length: NonZeroU128,
+	block_number: u128,
+	six_sec_block_since: NonZeroU128,
+) -> Period {
+	if block_number.le(&Into::<u128>::into(six_sec_block_since)) {
+		return block_number.saturating_div(period_length.get());
+	}
+
+	Into::<u128>::into(six_sec_block_since)
+		.saturating_add(block_number)
+		.saturating_div(period_length.get())
 }
 
 /// Function calculates total amount of `Points` user have accumulated until now.

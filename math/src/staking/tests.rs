@@ -85,23 +85,62 @@ fn calculate_slashed_points_should_work_when_pramas_stake_weight_is_not_zero() {
 #[test]
 fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 	assert_eq!(
-		calculate_period_number(NonZeroU128::try_from(1_u128).unwrap(), 12_341_u128),
+		calculate_period_number(
+			NonZeroU128::try_from(1_u128).unwrap(),
+			12_341_u128,
+			NonZeroU128::try_from(12_341_u128).unwrap()
+		),
 		12_341_u128
 	);
 
 	assert_eq!(
-		calculate_period_number(NonZeroU128::try_from(1_000_u128).unwrap(), 12_341_u128,),
+		calculate_period_number(
+			NonZeroU128::try_from(1_000_u128).unwrap(),
+			12_341_u128,
+			NonZeroU128::try_from(12_342_u128).unwrap()
+		),
 		12_u128
 	);
 
 	assert_eq!(
-		calculate_period_number(NonZeroU128::try_from(1_000_u128).unwrap(), 1_u128),
+		calculate_period_number(
+			NonZeroU128::try_from(1_000_u128).unwrap(),
+			1_u128,
+			NonZeroU128::try_from(1).unwrap()
+		),
 		0_u128
 	);
 
 	assert_eq!(
-		calculate_period_number(NonZeroU128::try_from(82_u128).unwrap(), 12_341_u128),
+		calculate_period_number(
+			NonZeroU128::try_from(82_u128).unwrap(),
+			12_341_u128,
+			NonZeroU128::try_from(12_341_u128).unwrap()
+		),
 		150_u128
+	);
+
+	// 41 blocks per period until block 5_001, 82 blocks per period since
+	// 5_001 / 41  + (12_341 - 5_001) / 82 = 121.xxx + 89.xxx = 211
+	assert_eq!(
+		calculate_period_number(
+			NonZeroU128::try_from(82_u128).unwrap(),
+			12_341_u128,
+			NonZeroU128::try_from(5_001_u128).unwrap()
+		),
+		211_u128
+	);
+
+	//	2_617 blocks per period until block 89_789_124, 5_234 blocks per period since
+	//  89_789_124_u128 / 2_617 + (678_789_789 - 89_789_124) / 5_234 =  34_309.xxx + 112_533.xxx =
+	//  146_843
+	assert_eq!(
+		calculate_period_number(
+			NonZeroU128::try_from(5_234_u128).unwrap(),
+			678_789_789_u128,
+			NonZeroU128::try_from(89_789_124_u128).unwrap()
+		),
+		146_843_u128
 	);
 }
 
