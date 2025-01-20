@@ -370,20 +370,18 @@ mod xcm_fee_payment_api_tests {
 
 #[test]
 fn assert_kusama_root_account() {
-	// Initialize the Externalities environment
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		let ksm_root_location = Location::new(2, [GlobalConsensus(Kusama)]);
 		let ksm_root_account =
 			GlobalConsensusConvertsFor::<UniversalLocation, AccountId>::convert_location(&ksm_root_location)
 				.expect("Failed to convert location");
 
-		// // Example treasury account, replace with the actual expected value
-		let expected_account = AccountId::from_ss58check("5G4KKqSKDkiMGiPzCQY12dSB15aBikyNQJL9VDmbMH4SxiWD")
+		let expected_treasury_account = AccountId::from_ss58check("5G4KKqSKDkiMGiPzCQY12dSB15aBikyNQJL9VDmbMH4SxiWD")
 			.expect("Invalid SS58 address format");
-		assert_eq!(ksm_root_account, expected_account);
+		assert_eq!(ksm_root_account, expected_treasury_account);
 
-		let wrong_account = AccountId::from_ss58check("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
+		let wrong_treasury_account = AccountId::from_ss58check("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
 			.expect("Invalid SS58 address format");
-		assert_ne!(ksm_root_account, wrong_account);
+		assert_ne!(ksm_root_account, wrong_treasury_account);
 	});
 }
