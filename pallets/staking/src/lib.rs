@@ -38,7 +38,7 @@ use sp_runtime::{
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 use sp_std::num::NonZeroU128;
 
-mod migrations;
+pub mod migrations;
 
 #[cfg(test)]
 mod tests;
