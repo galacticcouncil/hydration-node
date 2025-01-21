@@ -1,10 +1,5 @@
 use crate::pallet;
-use frame_support::{
-	traits::{Get, OnRuntimeUpgrade},
-	weights::RuntimeDbWeight,
-	Parameter,
-};
-use sp_runtime::traits::{AtLeast32BitUnsigned, Member};
+use frame_support::traits::{Get, OnRuntimeUpgrade};
 use sp_runtime::Saturating;
 
 // This migration multiplies the periods of schedules by 2 to account for 2x faster block times
@@ -21,8 +16,8 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy2<T> {
 			crate::Schedules::<T>::insert(key, schedule);
 			schedules_len.saturating_inc();
 
-			/// At the time of the migration there are ~70 schedules.
-			/// Setting a safe limit which can be executed in 1 block
+			// At the time of the migration there are ~70 schedules.
+			// Setting a safe limit which can be executed in 1 block
 			if schedules_len == 150 {
 				log::info!("Hit limit of 150 schedules, exiting loop");
 				break;
