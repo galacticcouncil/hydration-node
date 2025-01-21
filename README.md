@@ -42,7 +42,7 @@ cargo build --release
 The easiest way to run and interact with HydraDX node is to use [Chopsticks](https://github.com/acalanetwork/chopsticks)
 
 ```Bash
-npx @acala-network/chopsticks@latest --config=launch-configs/chopsticks/hydradx.yml 
+npx @acala-network/chopsticks@latest --config=launch-configs/chopsticks/hydradx.yml
 ```
 
 Now you have a test node running at [`ws://localhost:8000`](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2Flocalhost%3A8000#/explorer)
@@ -55,8 +55,8 @@ Grab `zombienet` utility used to start network from [releases](https://github.co
 Start local testnet with 4 relay chain validators and HydraDX as a parachain with 2 collators.
 
 ```
-cd ./rococo-local
-zombienet spawn config-zombienet.json
+cd launch-configs/zombienet/
+zombienet spawn local.json
 ```
 
 ### Interaction with the node
