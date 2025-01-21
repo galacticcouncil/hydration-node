@@ -1,10 +1,7 @@
 use crate::pallet;
 use frame_support::{
 	traits::{Get, OnRuntimeUpgrade},
-	weights::RuntimeDbWeight,
-	Parameter,
 };
-use sp_runtime::traits::{AtLeast32BitUnsigned, Member};
 use sp_runtime::Saturating;
 
 // This migration multiplies the periods of schedules by 2 to account for 2x faster block times
