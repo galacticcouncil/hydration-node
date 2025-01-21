@@ -12351,6 +12351,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.3.2",
+ "pallet-dispatcher",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",

@@ -233,7 +233,7 @@ impl pallet_referenda::Config for Runtime {
 impl origins::pallet_custom_origins::Config for Runtime {}
 
 parameter_types! {
-	pub const AaveManagerAccount: AccountId = hex!["aa7e0000000000000000000000000000000aa7e0000000000000000000000000"].into();
+	pub const AaveManagerAccount: AccountId = AccountId::new(hex!("aa7e0000000000000000000000000000000aa7e0000000000000000000000000"));
 }
 
 impl pallet_dispatcher::Config for Runtime {
