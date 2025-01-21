@@ -77,7 +77,7 @@ pub mod pallet {
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		type TreasuryAccount: Get<Self::AccountId>;
-		type AaveManagerAccount: Get<Self::AccountId>;
+		type DefaultAaveManagerAccount: Get<Self::AccountId>;
 
 		/// The weight information for this pallet.
 		type WeightInfo: WeightInfo;
@@ -85,6 +85,9 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
+
+	#[pallet::storage]
+	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -143,12 +146,20 @@ pub mod pallet {
 			let call_hash = T::Hashing::hash_of(&call);
 			let call_len = call.encoded_size() as u32;
 
-			let (result, actual_weight) = Self::do_dispatch(T::AaveManagerAccount::get(), *call);
+			let (result, actual_weight) = Self::do_dispatch(AaveManagerAccount::<T>::get(), *call);
 			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
 
 			Ok(actual_weight.into())
+		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(T::WeightInfo::set_aave_manager_account())]
+		pub fn set_aave_manager_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
+			ensure_root(origin)?;
+			AaveManagerAccount::<T>::put(account);
+			Ok(())
 		}
 	}
 }
