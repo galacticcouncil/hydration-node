@@ -135,10 +135,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxVotes: Get<u32>;
 
-		/// Block number since chain switched to 6 sec. blocks.
-		#[pallet::constant]
-		type SixSecBlocksSince: Get<BlockNumberFor<Self>>;
-
 		/// NFT collection id.
 		#[pallet::constant]
 		type NFTCollectionId: Get<Self::CollectionId>;
@@ -242,6 +238,11 @@ pub mod pallet {
 		types::Vote,
 		OptionQuery,
 	>;
+
+	#[pallet::storage]
+	/// Block number when we switched to 6 sec. blocks.
+	#[pallet::getter(fn six_sec_blocks_since)]
+	pub(super) type SixSecBlocksSince<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -922,7 +923,7 @@ impl<T: Config> Pallet<T> {
 		Some(math::calculate_period_number(
 			NonZeroU128::try_from(T::PeriodLength::get().saturated_into::<u128>()).ok()?,
 			block.saturated_into(),
-			NonZeroU128::try_from(T::SixSecBlocksSince::get().saturated_into::<u128>()).ok()?,
+			NonZeroU128::try_from(Self::six_sec_blocks_since().saturated_into::<u128>()).ok()?,
 		))
 	}
 

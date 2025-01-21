@@ -1500,7 +1500,6 @@ impl pallet_staking::Config for Runtime {
 	type Vesting = VestingInfo<Runtime>;
 	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;
 	type MinSlash = StakingMinSlash;
-	type SixSecBlocksSince = SixSecBlocksSince;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;

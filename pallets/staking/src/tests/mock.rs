@@ -200,7 +200,6 @@ parameter_types! {
 	pub const UnclaimablePeriods: BlockNumber = 10;
 	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
 	pub const MaxVotes: u32 = 10;
-	pub const SixSecBlocksSince: BlockNumber =  1_000_000;
 }
 
 impl pallet_staking::Config for Test {
@@ -231,7 +230,6 @@ impl pallet_staking::Config for Test {
 	type Collections = FreezableUniques;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type MinSlash = DummyMinSlash;
-	type SixSecBlocksSince = SixSecBlocksSince;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxLocks = MaxLocks;
