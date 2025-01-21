@@ -749,6 +749,14 @@ impl<
 		RerouteDestination,
 	>
 {
+
+	// We have a dummy implementation only for xcm benchmarking so InitiateTeleport benchmark test file generation doesn't fail.
+	// We don't support teleport anyway
+	#[cfg(feature = "runtime-benchmarks")]
+	fn can_check_out(_dest: &Location, _what: &Asset, _context: &XcmContext) -> XcmResult {
+		Ok(())
+	}
+
 	fn deposit_asset(asset: &Asset, location: &Location, _context: Option<&XcmContext>) -> Result<(), XcmError> {
 		match (
 			AccountIdConvert::convert_location(location),

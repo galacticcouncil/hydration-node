@@ -1087,6 +1087,8 @@ impl_runtime_apis! {
 				type DeliveryHelper = ();
 
 				fn reachable_dest() -> Option<Location> {
+					assert_eq!(3,4);
+
 					Some(Parent.into())
 				}
 
@@ -1171,7 +1173,7 @@ impl_runtime_apis! {
 					xcm::PriceForParentDelivery,
 				>;
 				fn valid_destination() -> Result<Location, BenchmarkError> {
-					Ok(AssetHubLocation::get())
+					Ok(PolkadotLocation::get())
 				}
 				fn worst_case_holding(depositable_count: u32) -> Assets {
 					// A mix of fungible, non-fungible, and concrete assets.
@@ -1203,12 +1205,7 @@ impl_runtime_apis! {
 					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
 				));
 				pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
-				pub TrustedReserve: Option<(Location, Asset)> = Some(
-					(
-						AssetHubLocation::get(),
-						Asset::from((AssetHubLocation::get(), 1000000000000 as u128))
-					)
-				);
+				pub TrustedReserve: Option<(Location, Asset)> = None;
 			}
 
 			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
