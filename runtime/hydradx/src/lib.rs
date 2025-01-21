@@ -1263,7 +1263,7 @@ impl_runtime_apis! {
 					init_omnipool();
 					//We xcm_exchange implementation, we only exchange from single asset to another single one
 					let give : Assets = (AssetId(CoreAssetLocation::get()), 1 * UNITS).into();
-					let want : Assets = (AssetId(DaiLocation::get()), 1 * UNITS).into();
+					let want : Assets = (AssetId(DaiLocation::get()), 26619933371448015u128).into();//exact amount we receive within the initialized omnipool. Needed to set exactly as pallet_xcm_benchmarks::fungibles exchange_asset benchmark test requires to have original wanted fungible amount in holding, as we always put the exact amount received
 					Ok((give, want))
 				}
 

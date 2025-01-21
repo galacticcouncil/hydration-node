@@ -95,9 +95,6 @@ where
 				Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
 				let holding: Asset = (wanted.id.clone(), amount_received.into()).into();
 
-				#[cfg(feature = "runtime-benchmarks")]//pallet_xcm_benchmarks::fungibles benchmark tests requires to have original wanted fungible amount in holding
-				let holding: Asset = (wanted.id.clone(), min_buy_amount).into();
-
 				Ok(holding.into())
 			})
 			.map_err(|_| give.clone())
