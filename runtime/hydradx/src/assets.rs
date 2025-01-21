@@ -1435,7 +1435,9 @@ impl pallet_bonds::Config for Runtime {
 parameter_types! {
 	pub const StakingPalletId: PalletId = PalletId(*b"staking#");
 	pub const MinStake: Balance = 1_000 * UNITS;
-	pub const PeriodLength: BlockNumber = DAYS;
+	//NOTE: 1 DAY with 12 sec. blocks. DON'T change it to 1 `DAYS` with 6 sec. blocks. It's
+	//included in staking's calculations.
+	 pub const PeriodLength: BlockNumber = 7_200;
 	pub const TimePointsW:Permill =  Permill::from_percent(100);
 	pub const ActionPointsW: Perbill = Perbill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 1;

@@ -124,7 +124,7 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 	// 5_001 / 41  + (12_341 - 5_001) / 82 = 121.xxx + 89.xxx = 211
 	assert_eq!(
 		calculate_period_number(
-			NonZeroU128::try_from(82_u128).unwrap(),
+			NonZeroU128::try_from(41_u128).unwrap(),
 			12_341_u128,
 			NonZeroU128::try_from(5_001_u128).unwrap()
 		),
@@ -136,7 +136,7 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 	//  146_843
 	assert_eq!(
 		calculate_period_number(
-			NonZeroU128::try_from(5_234_u128).unwrap(),
+			NonZeroU128::try_from(2_617_u128).unwrap(),
 			678_789_789_u128,
 			NonZeroU128::try_from(89_789_124_u128).unwrap()
 		),
