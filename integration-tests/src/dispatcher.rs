@@ -1,14 +1,11 @@
-use crate::dispatcher::AaveManagerAccount;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use frame_support::dispatch::{Pays, PostDispatchInfo};
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
-use polkadot_runtime_parachains::origin::pallet;
 use primitives::EvmAddress;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
-use test_utils::{expect_events, last_events};
+use test_utils::last_events;
 use xcm_emulator::TestExt;
 
 fn testnet_manager_address() -> EvmAddress {
