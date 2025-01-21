@@ -3,11 +3,8 @@ use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 use sp_core::Get;
 use sp_runtime::traits::BlockNumberProvider;
 
-// This migration multiplies the periods of schedules by 2 to account for 2x faster block times
-//
-// The migration does not use a StorageVersion, make sure it is removed from the Runtime migrations
-// after it has been run.
-
+// This migration sets SixSecBlocksSince which is used to correctly calculate the periods in staking
+// after the migration to 6s block time
 pub struct SetSixSecBlocksSince<T: pallet::Config>(sp_std::marker::PhantomData<T>);
 impl<T: pallet::Config> OnRuntimeUpgrade for SetSixSecBlocksSince<T> {
 	fn on_runtime_upgrade() -> Weight {
