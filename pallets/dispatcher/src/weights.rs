@@ -50,7 +50,7 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
     fn dispatch_as_treasury(n: u32) -> Weight;
     fn dispatch_as_aave_manager(n: u32) -> Weight;
-    fn set_aave_manager_account() -> Weight;
+    fn note_aave_manager() -> Weight;
 }
 
 /// Weights for `pallet_dispatcher` using the HydraDX node and recommended hardware.
@@ -76,7 +76,7 @@ impl WeightInfo for () {
             // Standard Error: 1
             .saturating_add(Weight::from_parts(1_246, 0).saturating_mul(n.into()))
     }
-    fn set_aave_manager_account() -> Weight {
+    fn note_aave_manager() -> Weight {
         Weight::from_parts(11_148_990, 0)
     }
 }

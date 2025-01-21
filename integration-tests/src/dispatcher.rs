@@ -30,7 +30,7 @@ fn testnet_aave_manager_can_be_set_as_dispatcher() {
 			hydradx_runtime::Dispatcher::aave_manager_account(),
 			pad_to_32_bytes(hex!["aa7e0000000000000000000000000000000aa7e0"].as_ref()).into()
 		);
-		assert_ok!(hydradx_runtime::Dispatcher::set_aave_manager_account(
+		assert_ok!(hydradx_runtime::Dispatcher::note_aave_manager(
 			hydradx_runtime::RuntimeOrigin::root(),
 			testnet_manager()
 		));
@@ -42,7 +42,7 @@ fn testnet_aave_manager_can_be_set_as_dispatcher() {
 fn dispatch_as_aave_admin_can_modify_supply_cap_on_testnet() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::Dispatcher::set_aave_manager_account(
+		assert_ok!(hydradx_runtime::Dispatcher::note_aave_manager(
 			hydradx_runtime::RuntimeOrigin::root(),
 			testnet_manager()
 		));

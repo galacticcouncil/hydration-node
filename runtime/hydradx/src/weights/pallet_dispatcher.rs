@@ -73,7 +73,7 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
             .saturating_add(Weight::from_parts(1_246, 0).saturating_mul(n.into()))
     }
     /// The range of component `n` is `[1, 10000]`.
-    fn set_aave_manager_account() -> Weight {
+    fn note_aave_manager() -> Weight {
         // Proof Size summary in bytes:
         //  Measured:  `0`
         //  Estimated: `0`

@@ -155,9 +155,15 @@ pub mod pallet {
 			Ok(actual_weight.into())
 		}
 
+		/// Sets the Aave manager account to be used as origin for dispatching calls.
+		///
+		/// This doesn't actually changes any ACL in the pool.
+		///
+		/// This is intented to be mainly used in testnet environments, where the manager account
+		/// can be different.
 		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::set_aave_manager_account())]
-		pub fn set_aave_manager_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::note_aave_manager())]
+		pub fn note_aave_manager(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			ensure_root(origin)?;
 			AaveManagerAccount::<T>::put(account);
 			Ok(())
