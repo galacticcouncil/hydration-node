@@ -44,10 +44,12 @@ pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 use pallet_asset_registry::AssetType;
 use pallet_currencies_rpc_runtime_api::AccountData;
+use sp_std::sync::Arc;
 pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
+use frame_benchmarking::account;
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
@@ -66,9 +68,9 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
+use frame_support::{assert_ok, construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
 pub use hex_literal::hex;
-use orml_traits::MultiCurrency;
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
@@ -438,6 +440,8 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 	}
 }
 
+use crate::benchmarking::dca::ONE;
+use frame_support::dispatch::RawOrigin;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -446,10 +450,19 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
-use pallet_xcm_benchmarks::asset_instance_from;
+use hydradx_traits::Mutate;
+use pallet_omnipool::types::Tradability;
+use pallet_referrals::{FeeDistribution, Level};
+use polkadot_runtime_common::purchase::Call::create_account;
+use polkadot_xcm::latest::Location;
+use polkadot_xcm::prelude::{
+	AccountId32, GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response,
+};
+use polkadot_xcm::v3::prelude::X1;
+use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
-use polkadot_xcm::prelude::{AccountId32, GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response};
 use primitives::constants::chain::CORE_ASSET_ID;
+use sp_arithmetic::FixedU128;
 use sp_core::OpaqueMetadata;
 use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
 
@@ -1074,15 +1087,22 @@ impl_runtime_apis! {
 			frame_support::parameter_types! {
 				pub const RandomParaId: ParaId = ParaId::new(22_222_222);
 				pub const ExistentialDeposit: u128 = 1_000_000_000_000;
-				pub AssetLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
+				pub CoreAssetLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
 					Arc::new([
 						cumulus_primitives_core::Junction::GeneralIndex(CORE_ASSET_ID.into())
+						])
+				));
+				pub DaiLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
+					Arc::new([
+						cumulus_primitives_core::Junction::GeneralIndex(2)
 						])
 				));
 			}
 
 			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain};
 
+			//TODO: generate benchmark for this too or leave it out
+			//https://github.dev/NodleCode/chain/blob/2f6ecb0d966155e22d6eb17258a8e0bc1a5dcbaa/runtimes/eden/src/xcm_config.rs
 			impl pallet_xcm::benchmarking::Config for Runtime {
 				type DeliveryHelper = ();
 
@@ -1105,7 +1125,7 @@ impl_runtime_apis! {
 					Some((
 						Asset {
 							fun: Fungible(ExistentialDeposit::get()),
-							id: AssetId(AssetLocation::get())
+							id: AssetId(CoreAssetLocation::get())
 						},
 						ParentThen(Parachain(RandomParaId::get().into()).into()).into(),
 					))
@@ -1121,7 +1141,7 @@ impl_runtime_apis! {
 					let destination = ParentThen(Parachain(RandomParaId::get().into()).into()).into();
 
 					let fee_asset: Asset = (
-						   AssetLocation::get(),
+						   CoreAssetLocation::get(),
 						   ExistentialDeposit::get(),
 					 ).into();
 
@@ -1132,7 +1152,7 @@ impl_runtime_apis! {
 					assert_eq!(Balances::free_balance(&who), balance);
 
 					let transfer_asset: Asset = (
-						   AssetLocation::get(),
+						   CoreAssetLocation::get(),
 						   ExistentialDeposit::get(),
 					 ).into();
 
@@ -1149,7 +1169,7 @@ impl_runtime_apis! {
 
 				fn get_asset() -> Asset {
 					Asset {
-						id: AssetId(AssetLocation::get()),
+						id: AssetId(CoreAssetLocation::get()),
 						fun: Fungible(ExistentialDeposit::get()),
 					}
 				}
@@ -1159,7 +1179,7 @@ impl_runtime_apis! {
 
 			parameter_types! {
 				pub ExistentialDepositAsset: Option<Asset> = Some((
-					AssetLocation::get(),
+					CoreAssetLocation::get(),
 					ExistentialDeposit::get()
 				).into());
 			}
@@ -1176,8 +1196,14 @@ impl_runtime_apis! {
 					Ok(PolkadotLocation::get())
 				}
 				fn worst_case_holding(depositable_count: u32) -> Assets {
+					vec![Asset {
+						id: AssetId(CoreAssetLocation::get()),
+						fun: Fungible(UNITS),
+					}]
+					.into()
+					//TODO: try to use it
 					// A mix of fungible, non-fungible, and concrete assets.
-					let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
+					/*let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
 					let holding_fungibles = holding_non_fungibles - 2; // -2 for two `iter::once` bellow
 					let fungibles_amount: u128 = 100;
 					(0..holding_fungibles)
@@ -1191,10 +1217,10 @@ impl_runtime_apis! {
 						.chain(core::iter::once(Asset { id: AssetId(PolkadotLocation::get()), fun: Fungible(1_000_000 * UNITS) }))
 						.chain((0..holding_non_fungibles).map(|i| Asset {
 							id: AssetId(GeneralIndex(i as u128).into()),
-							fun: NonFungible(asset_instance_from(i)),
+							fun: NonFungible(pallet_xcm_benchmarks::asset_instance_from(i)),
 						}))
 						.collect::<Vec<_>>()
-						.into()
+						.into()*/
 				}
 			}
 
@@ -1208,6 +1234,7 @@ impl_runtime_apis! {
 				pub TrustedReserve: Option<(Location, Asset)> = None;
 			}
 
+			// target/release/hydradx benchmark pallet --chain=dev --steps=50 --repeat=20 --wasm-execution=compiled --pallet=pallet-xcm-benchmarks::fungible --extrinsic="*" --template=scripts/pallet-weight-template.hbs --output=xcm-gen.rs --log xcm=trace,runtime=trace
 			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
 				type TransactAsset = Balances;
 
@@ -1217,12 +1244,13 @@ impl_runtime_apis! {
 
 				fn get_asset() -> Asset {
 					Asset {
-						id: AssetId(AssetLocation::get()),
+						id: AssetId(CoreAssetLocation::get()),
 						fun: Fungible(UNITS),
 					}
 				}
 			}
 
+			//target/release/hydradx benchmark pallet --chain=dev --steps=50 --repeat=20 --wasm-execution=compiled --pallet=pallet-xcm-benchmarks::generic --extrinsic="report_holding, buy_execution, query_response, transact, refund_surplus, set_error_handler, set_appendix, clear_error, descend_origin, clear_origin, report_error, claim_asset, trap,  subscribe_version, unsubscribe_version, initiate_reserve_withdraw, burn_asset, expect_asset, expect_origin, expect_error, expect_transact_status, query_pallet, expect_pallet, report_transact_status, clear_transact_status, set_topic, clear_topic, set_fees_mode, unpaid_execution, exchange_asset" --template=scripts/pallet-weight-template.hbs --output=xcm-gen.rs
 			impl pallet_xcm_benchmarks::generic::Config for Runtime {
 				type TransactAsset = Balances;
 				type RuntimeCall = RuntimeCall;
@@ -1232,9 +1260,11 @@ impl_runtime_apis! {
 				}
 
 				fn worst_case_asset_exchange() -> Result<(Assets, Assets), BenchmarkError> {
+					init_omnipool();
 					//We xcm_exchange implementation, we only exchange from single asset to another single one
-					let asset : Assets = (AssetId(AssetLocation::get()), 1_000 * UNITS).into();
-					Ok((asset.clone(), asset))
+					let give : Assets = (AssetId(CoreAssetLocation::get()), 1 * UNITS).into();
+					let want : Assets = (AssetId(DaiLocation::get()), 1 * UNITS).into();
+					Ok((give, want))
 				}
 
 				fn universal_alias() -> Result<(Location, Junction), BenchmarkError> {
@@ -1270,8 +1300,8 @@ impl_runtime_apis! {
 
 				fn fee_asset() -> Result<Asset, BenchmarkError> {
 					Ok(Asset {
-						id: AssetId(PolkadotLocation::get()),
-						fun: Fungible(1_000 * UNITS),
+						id: AssetId(CoreAssetLocation::get()),
+						fun: Fungible(UNITS),
 					})
 				}
 
@@ -1285,12 +1315,7 @@ impl_runtime_apis! {
 				}
 
 				fn alias_origin() -> Result<(Location, Location), BenchmarkError> {
-					// Any location can alias to an internal location.
-					// Here parachain 1001 aliases to an internal account.
-					Ok((
-						Location::new(1, [Parachain(1001)]),
-						Location::new(1, [Parachain(1001), AccountId32 { id: [111u8; 32], network: None }]),
-					))
+					Err(BenchmarkError::Skip)
 				}
 			}
 
@@ -1346,4 +1371,92 @@ impl_runtime_apis! {
 			Default::default()
 		}
 	}
+}
+
+
+#[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic extrinsics
+fn init_omnipool() {
+	let caller: AccountId = account("caller", 0, 1);
+	let hdx = 0;
+	let dai = 2;
+	let token_amount = 2000000000000 * ONE;
+
+	assert_ok!(AssetRegistry::set_location(
+		dai,
+		AssetLocation(MultiLocation::new(0, X1(polkadot_xcm::v3::Junction::GeneralIndex(dai.into()))))
+	));
+
+	Currencies::update_balance(
+		RuntimeOrigin::root(),
+		Omnipool::protocol_account(),
+		hdx,
+		(token_amount as i128) * 100,
+	)
+		.unwrap();
+	Currencies::update_balance(
+		RuntimeOrigin::root(),
+		Omnipool::protocol_account(),
+		dai,
+		(token_amount as i128) * 100,
+	)
+		.unwrap();
+	Currencies::update_balance(RuntimeOrigin::root(), caller.clone(), hdx, token_amount as i128).unwrap();
+	Currencies::update_balance(RuntimeOrigin::root(), caller.clone(), dai, token_amount as i128).unwrap();
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	let native_position_id = Omnipool::next_position_id();
+
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
+		hdx,
+		native_price,
+		Permill::from_percent(10),
+		caller.clone(),
+	));
+
+	let stable_position_id = Omnipool::next_position_id();
+
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
+		dai,
+		stable_price,
+		Permill::from_percent(100),
+		caller.clone(),
+	));
+
+	assert_ok!(Omnipool::sacrifice_position(
+		RuntimeOrigin::signed(caller.clone()),
+		native_position_id,
+	));
+
+	assert_ok!(Omnipool::sacrifice_position(
+		RuntimeOrigin::signed(caller),
+		stable_position_id,
+	));
+
+	assert_ok!(Referrals::set_reward_percentage(
+		RawOrigin::Root.into(),
+		0,
+		Level::None,
+		FeeDistribution::default(),
+	));
+	assert_ok!(Referrals::set_reward_percentage(
+		RawOrigin::Root.into(),
+		1,
+		Level::None,
+		FeeDistribution::default(),
+	));
+
+	assert_ok!(Omnipool::set_asset_tradable_state(
+		RuntimeOrigin::root(),
+		hdx,
+		Tradability::SELL | Tradability::BUY
+	));
+
+	assert_ok!(Omnipool::set_asset_tradable_state(
+		RuntimeOrigin::root(),
+		dai,
+		Tradability::SELL | Tradability::BUY
+	));
 }
