@@ -14,7 +14,7 @@ fn testnet_manager_address() -> EvmAddress {
 
 fn pad_to_32_bytes(bytes: &[u8]) -> [u8; 32] {
 	let mut padded = [0u8; 32];
-	padded[..bytes.len()].copy_from_slice(&bytes);
+	padded[..bytes.len()].copy_from_slice(bytes);
 	padded
 }
 

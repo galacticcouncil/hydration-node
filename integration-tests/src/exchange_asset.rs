@@ -154,7 +154,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			RuntimeOrigin::signed(ALICE.into()),
 			HDX,
 			ACA,
-			1 * UNITS,
+			UNITS,
 			0,
 			vec![],
 		));
