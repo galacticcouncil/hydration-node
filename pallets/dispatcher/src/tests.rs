@@ -18,7 +18,7 @@ fn dispatch_as_treasury_should_work() {
 			amount: 1_000,
 		}));
 
-		let call_hash = BlakeTwo256::hash_of(&call).into();
+		let call_hash = BlakeTwo256::hash_of(&call);
 		let treasury_balance_before = Tokens::free_balance(HDX, &TreasuryAccount::get());
 
 		assert_ok!(Dispatcher::dispatch_as_treasury(RuntimeOrigin::root(), call));
