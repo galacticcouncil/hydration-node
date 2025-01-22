@@ -10,13 +10,13 @@ use sp_arithmetic::Permill;
 fn test_d() {
 	let reserves = [1000u128, 1000u128];
 	assert_eq!(
-		calculate_d_internal::<D_ITERATIONS>(&reserves, 1),
+		calculate_d_internal::<D_ITERATIONS>(&reserves, 1, None),
 		Some(2000u128 + 2u128)
 	);
 
 	let reserves = [1_000_000_000_000_000_000_000u128, 1_000_000_000_000_000_000_000u128];
 	assert_eq!(
-		calculate_d_internal::<D_ITERATIONS>(&reserves, 1),
+		calculate_d_internal::<D_ITERATIONS>(&reserves, 1, None),
 		Some(2_000_000_000_000_000_000_000u128 + 2u128)
 	);
 }
@@ -24,13 +24,13 @@ fn test_d() {
 #[test]
 fn test_d_with_zero_reserves() {
 	let reserves = [0u128, 0u128];
-	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), Some(0u128));
+	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1, None), Some(0u128));
 }
 
 #[test]
 fn test_d_with_one_zero_reserves() {
 	let reserves = [1000u128, 0u128];
-	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), None);
+	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1, None), None);
 }
 
 #[test]
@@ -38,13 +38,13 @@ fn test_y_given_in() {
 	let reserves = [1000u128, 2000u128];
 
 	let amount_in = 100u128;
-	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), Some(2914u128));
+	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1, None), Some(2914u128));
 	assert_eq!(
-		calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, 0, 1, &reserves, 1),
+		calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, 0, 1, &reserves, 1, None),
 		Some(1866u128)
 	);
 	assert_eq!(
-		calculate_d_internal::<D_ITERATIONS>(&[1100u128, 2000u128 - 125u128], 1),
+		calculate_d_internal::<D_ITERATIONS>(&[1100u128, 2000u128 - 125u128], 1, None),
 		Some(2925u128)
 	);
 }
@@ -57,14 +57,14 @@ fn test_y_given_out() {
 
 	let expected_in = 75u128;
 
-	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1), Some(2914u128));
+	assert_eq!(calculate_d_internal::<D_ITERATIONS>(&reserves, 1, None), Some(2914u128));
 
 	assert_eq!(
-		calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, 0, 1, &reserves, 1),
+		calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, 0, 1, &reserves, 1, None),
 		Some(1000u128 + expected_in)
 	);
 	assert_eq!(
-		calculate_d_internal::<D_ITERATIONS>(&[1000u128 + expected_in, 2000u128 - amount_out], 1),
+		calculate_d_internal::<D_ITERATIONS>(&[1000u128 + expected_in, 2000u128 - amount_out], 1, None),
 		Some(2918u128)
 	);
 }
@@ -73,7 +73,7 @@ fn test_y_given_out() {
 fn test_d_case() {
 	let amp = 400u128;
 
-	let result = calculate_d_internal::<D_ITERATIONS>(&[500000000000008580273458u128, 10u128], amp);
+	let result = calculate_d_internal::<D_ITERATIONS>(&[500000000000008580273458u128, 10u128], amp, None);
 
 	assert!(result.is_some());
 }
@@ -82,7 +82,7 @@ fn test_d_case() {
 fn test_d_case2() {
 	let amp = 168u128;
 
-	let result = calculate_d_internal::<D_ITERATIONS>(&[500000000000000000000010u128, 11u128], amp);
+	let result = calculate_d_internal::<D_ITERATIONS>(&[500000000000000000000010u128, 11u128], amp, None);
 
 	assert!(result.is_some());
 }
@@ -93,7 +93,7 @@ fn test_case_03() {
 	let reserve_out: Balance = 57374284583541134907;
 	let amp: u128 = 310;
 
-	let d = calculate_d_internal::<D_ITERATIONS>(&[reserve_in, reserve_out], amp);
+	let d = calculate_d_internal::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, None);
 
 	assert!(d.is_some());
 }
@@ -105,7 +105,8 @@ fn test_shares() {
 	let initial_reserves = &[AssetReserve::new(0, 12); 2];
 	let updated_reserves = &[AssetReserve::new(1000 * ONE, 12), AssetReserve::new(500, 12)];
 
-	let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128, Permill::zero());
+	let result =
+		calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, 0u128, Permill::zero(), None);
 
 	assert!(result.is_some());
 	assert_eq!(result.unwrap().0, 736626243363217809);
@@ -123,6 +124,7 @@ fn remove_one_asset_should_work() {
 		3000u128,
 		amp,
 		Permill::from_percent(10),
+		None,
 	);
 
 	assert!(result.is_some());
