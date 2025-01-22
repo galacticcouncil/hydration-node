@@ -1099,8 +1099,6 @@ impl_runtime_apis! {
 
 			use polkadot_xcm::latest::prelude::{Location, AssetId, Fungible, Asset, Assets, Parent, ParentThen, Parachain};
 
-			//TODO: generate benchmark for this too or leave it out
-			//https://github.dev/NodleCode/chain/blob/2f6ecb0d966155e22d6eb17258a8e0bc1a5dcbaa/runtimes/eden/src/xcm_config.rs
 			impl pallet_xcm::benchmarking::Config for Runtime {
 				type DeliveryHelper = ();
 
@@ -1217,7 +1215,6 @@ impl_runtime_apis! {
 				}
 			}
 
-			//TODO: ask Jakub
 			parameter_types! {
 				pub const TrustedTeleporter: Option<(Location, Asset)> = Some((
 					PolkadotLocation::get(),
@@ -1262,18 +1259,6 @@ impl_runtime_apis! {
 
 				fn universal_alias() -> Result<(Location, Junction), BenchmarkError> {
 										Err(BenchmarkError::Skip)
-
-					//TODO: Ask Jakub -> do we need it? westend uses stg like this
-					/*			let alias =
-					to_rococo::UniversalAliases::get().into_iter().find_map(|(location, junction)| {
-						match to_rococo::SiblingBridgeHubWithBridgeHubRococoInstance::get()
-							.eq(&location)
-						{
-							true => Some((location, junction)),
-							false => None,
-						}
-					});
-				Some(alias.expect("we expect here BridgeHubWestend to Rococo mapping at least"))*/
 				}
 
 				fn transact_origin_and_runtime_call() -> Result<(Location, RuntimeCall), BenchmarkError> {
