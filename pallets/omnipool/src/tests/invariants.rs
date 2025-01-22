@@ -61,11 +61,29 @@ fn assert_asset_invariant(
 	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
 
 	 */
+
+	/*
+	q_plus, r_plus = omnipool.lrna['USD'], omnipool.liquidity['USD']
+	F = 0
+	rho = delta_q / q
+	lhs = q_plus * r_plus - q * r
+	rhs = - delta_q * (r / (1 + rho) * (1 - fA) - F * rho + r_plus * (-1 - fA * (1 + rho)))
+	assert lhs == pytest.approx(rhs, rel=1e-20)
+	 */
+	/*
 	if fee_amount >0 {
-		dbg!(old_state.reserve);
-		dbg!(new_state.reserve);
-		let fee_amoont = old_state.reserve - new_state.reserve;
-		dbg!(fee_amoont);
+		let q_plus = new_state.hub_reserve;
+		let r_plus = new_state.reserve;
+
+		let lhs = new_s - old_s;
+
+		let delta_q = new_state.hub_reserve - old_state.hub_reserve;
+
+		let rho = FixedU128::from_rational(delta_q, old_state.hub_reserve);
+
+		// R / (1 + rho ) * (1 - fA) -F
+		let p1 = FixedU128::from_rational(old_state.reserve, 1) / ((FixedU128::from(1) + rho) * FixedU128::from(1));
+
 		dbg!(fee_amount);
 		let delta_x = new_state.hub_reserve- old_state.hub_reserve;
 
@@ -73,12 +91,57 @@ fn assert_asset_invariant(
 		let delta_x = U256::from(delta_x);
 		let f = U256::from(fee_amount);
 
-		let left = new_s - old_s;
 		let right = x * f + delta_x * f;
-		dbg!(left);
-		dbg!(right);
 	}
 
+	 */
+}
+
+fn assert_asset_invariant_with_fee(
+	old_state: &AssetReserveState<Balance>,
+	new_state: &AssetReserveState<Balance>,
+	fee_amount: Balance,
+	fee: Permill,
+	tolerance: FixedU128,
+	desc: &str,
+) {
+	let new_s = U256::from(new_state.reserve) * U256::from(new_state.hub_reserve);
+	let old_s = U256::from(old_state.reserve) * U256::from(old_state.hub_reserve);
+
+	assert!(
+		new_s >= old_s,
+		"Invariant decreased for {desc} - {:?} >= {:?}",
+		new_s,
+		old_s
+	);
+
+	/*
+	q_plus, r_plus = omnipool.lrna['USD'], omnipool.liquidity['USD']
+	F = 0
+	rho = delta_q / q
+	lhs = q_plus * r_plus - q * r
+	rhs = - delta_q * (r / (1 + rho) * (1 - fA) - F * rho + r_plus * (-1 - fA * (1 + rho)))
+	assert lhs == pytest.approx(rhs, rel=1e-20)
+	 */
+	let q_plus = FixedU128::from_rational(new_state.hub_reserve, 1_000_000_000_000u128);
+	let r_plus = FixedU128::from_rational(new_state.reserve, 1_000_000_000_000u128);
+
+	let q= FixedU128::from_rational(old_state.hub_reserve, 1_000_000_000_000u128);
+	let r= FixedU128::from_rational(old_state.reserve, 1_000_000_000_000u128);
+	let lhs = q_plus * r_plus - q * r;
+
+	let delta_q = FixedU128::from_rational(new_state.hub_reserve - old_state.hub_reserve, 1_000_000_000_000u128);
+
+
+	//rhs = - delta_q * (r / (1 + rho) * (1 - fA) - F * rho + r_plus * (-1 - fA * (1 + rho)))
+	let fee_amt = FixedU128::from_rational(fee_amount, 1_000_000_000_000u128);
+	let rho = delta_q / q;
+	let p1 = r / (FixedU128::from(1) + rho) * (FixedU128::one() - FixedU128::from(fee)) - fee_amt * rho;
+	let p2 = r_plus * (FixedU128::from(1) + FixedU128::from(fee) * (FixedU128::from(1) + rho));
+	let diff = p2 - p1;
+	let rhs = delta_q * diff;
+	dbg!(lhs);
+	dbg!(rhs);
 
 }
 fn fee() -> impl Strategy<Value = Permill> {
@@ -279,6 +342,8 @@ proptest! {
 
 				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), 0u128, "Invariant 200");
 				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), fee_amount, "Invariant 300");
+				assert_asset_invariant_with_fee(&old_state_300, &new_state_300, 0u128, asset_fee, FixedU128::from((TOLERANCE,ONE)), " HAHA Invariant 300");
+
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
