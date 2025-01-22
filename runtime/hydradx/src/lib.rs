@@ -1345,7 +1345,7 @@ impl_runtime_apis! {
 	}
 }
 
-#[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic extrinsics
+#[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic exchane_asset instruction
 fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
 	let hdx = 0;
