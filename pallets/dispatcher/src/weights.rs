@@ -61,22 +61,32 @@ impl WeightInfo for () {
         // Proof Size summary in bytes:
         //  Measured:  `0`
         //  Estimated: `0`
-        // Minimum execution time: 11_248_000 picoseconds.
-        Weight::from_parts(11_516_144, 0)
-            // Standard Error: 6
-            .saturating_add(Weight::from_parts(1_244, 0).saturating_mul(n.into()))
+        // Minimum execution time: 11_217_000 picoseconds.
+        Weight::from_parts(11_608_545, 0)
+            // Standard Error: 1
+            .saturating_add(Weight::from_parts(1_288, 0).saturating_mul(n.into()))
     }
+    /// Storage: `Dispatcher::AaveManagerAccount` (r:1 w:0)
+    /// Proof: `Dispatcher::AaveManagerAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
     /// The range of component `n` is `[1, 10000]`.
     fn dispatch_as_aave_manager(n: u32, ) -> Weight {
         // Proof Size summary in bytes:
+        //  Measured:  `142`
+        //  Estimated: `1517`
+        // Minimum execution time: 13_303_000 picoseconds.
+        Weight::from_parts(13_660_881, 1517)
+            // Standard Error: 2
+            .saturating_add(Weight::from_parts(1_302, 0).saturating_mul(n.into()))
+            .saturating_add(RocksDbWeight::get().reads(1_u64))
+    }
+    /// Storage: `Dispatcher::AaveManagerAccount` (r:0 w:1)
+    /// Proof: `Dispatcher::AaveManagerAccount` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+    fn note_aave_manager() -> Weight {
+        // Proof Size summary in bytes:
         //  Measured:  `0`
         //  Estimated: `0`
-        // Minimum execution time: 10_893_000 picoseconds.
-        Weight::from_parts(11_148_990, 0)
-            // Standard Error: 1
-            .saturating_add(Weight::from_parts(1_246, 0).saturating_mul(n.into()))
-    }
-    fn note_aave_manager() -> Weight {
-        Weight::from_parts(11_148_990, 0)
+        // Minimum execution time: 3_628_000 picoseconds.
+        Weight::from_parts(3_864_000, 0)
+            .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
 }
