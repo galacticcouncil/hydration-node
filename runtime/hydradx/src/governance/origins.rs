@@ -63,6 +63,7 @@ pub mod pallet_custom_origins {
 		Spender,
 		/// Origin able to spend up to roughly $500 from the treasury at once.
 		Tipper,
+		EconomicParameters,
 	}
 
 	macro_rules! decl_unit_ensures {
@@ -102,6 +103,7 @@ pub mod pallet_custom_origins {
 		ReferendumCanceller,
 		ReferendumKiller,
 		Treasurer,
+		EconomicParameters,
 	);
 
 	macro_rules! decl_ensure {

@@ -168,6 +168,7 @@ construct_runtime!(
 		Referenda: pallet_referenda = 37,
 		Origins: pallet_custom_origins = 38,
 		Whitelist: pallet_whitelist = 39,
+		Dispatcher: pallet_dispatcher = 40,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -334,6 +335,7 @@ mod benches {
 		[pallet_conviction_voting, ConvictionVoting]
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
+		[pallet_dispatcher, Dispatcher]
 	);
 }
 

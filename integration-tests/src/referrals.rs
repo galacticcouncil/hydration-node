@@ -353,7 +353,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 						Fee::new(DAI, 9168140377593, Destination::Account(Referrals::pot_account_id()))
 					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
-				}
+				},
 			]
 		);
 	});
