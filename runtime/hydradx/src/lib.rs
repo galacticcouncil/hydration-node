@@ -1105,8 +1105,6 @@ impl_runtime_apis! {
 				type DeliveryHelper = ();
 
 				fn reachable_dest() -> Option<Location> {
-					assert_eq!(3,4);
-
 					Some(Parent.into())
 				}
 
@@ -1115,7 +1113,6 @@ impl_runtime_apis! {
 				}
 
 				fn reserve_transferable_asset_and_dest() -> Option<(Asset, Location)> {
-					assert_eq!(3,4);
 					ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(
 								RandomParaId::get()
 							);
@@ -1130,8 +1127,6 @@ impl_runtime_apis! {
 				}
 
 				fn set_up_complex_asset_transfer() -> Option<(Assets, u32, Location, Box<dyn FnOnce()>)> {
-										assert_eq!(3,4);
-
 					ParachainSystem::open_outbound_hrmp_channel_for_benchmarks_or_tests(
 								RandomParaId::get()
 							);
@@ -1167,7 +1162,7 @@ impl_runtime_apis! {
 
 				fn get_asset() -> Asset {
 					Asset {
-						id: AssetId(CoreAssetLocation::get()),
+						id: AssetId(PolkadotLocation::get()),
 						fun: Fungible(ExistentialDeposit::get()),
 					}
 				}
