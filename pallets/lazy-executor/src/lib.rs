@@ -24,12 +24,15 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::{ensure_signed, pallet_prelude::*, Origin};
+use sp_core::Get;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Dispatchable, One},
 	BoundedVec, DispatchError,
 };
 
 pub use pallet::*;
+pub mod weights;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 mod tests;
@@ -67,6 +70,12 @@ pub mod pallet {
 
 		/// Block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
+
+		// /// Max. amount of calls dispatched on idle per block no matter remaining weight in block.
+		#[pallet::constant]
+		type MaxDispatchedPerBlock: Get<u8>;
+
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -178,15 +187,15 @@ impl<T: Config> Pallet<T> {
 
 	fn process_queue(now: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
 		//TODO: replace with WeightInfo::base_weight after benchmarking
-		let base_weight = Weight::from_parts(1_000, 1_000);
-		let mut total_weight = base_weight;
+		let mut total_weight = T::WeightInfo::process_queue_base_weight();
 
-		//TODO: make this range configurable in config
-		for _ in 1..10 {
+		for i in 1..=T::MaxDispatchedPerBlock::get() {
+			println!("{:?}/{:?}", i, T::MaxDispatchedPerBlock::get());
 			let r = ProcessNextId::<T>::try_mutate(|id| -> Result<(), Error<T>> {
 				CallQueue::<T>::try_mutate_exists(id.clone(), |maybe_call| -> Result<(), Error<T>> {
 					let call_data = maybe_call.as_mut().ok_or(Error::<T>::NothingToProcess)?;
 
+					println!("{:?}, {:?}", call_data.created_at, now);
 					//NOTE: skip execution in same block so storage record exist for the call
 					if call_data.created_at == now {
 						return Err(Error::<T>::NothingToProcess);
@@ -204,7 +213,8 @@ impl<T: Config> Pallet<T> {
 					}
 
 					let call_weight = call.get_dispatch_info().weight;
-					if remaining_weight.any_lt(total_weight.saturating_add(call_weight)) {
+					let iter_weight = call_weight.saturating_add(T::WeightInfo::process_queue_base_weight());
+					if (total_weight.saturating_add(iter_weight)).any_gt(remaining_weight) {
 						//NOTE: this is not failing case, just not enough space for the call in this block
 						return Err(Error::<T>::Overweight);
 					}
@@ -212,7 +222,7 @@ impl<T: Config> Pallet<T> {
 					let o: OriginFor<T> = Origin::<T>::Signed(call_data.origin.clone()).into();
 					let res = call.dispatch(o);
 
-					total_weight = total_weight.saturating_add(call_weight);
+					total_weight = total_weight.saturating_add(iter_weight);
 
 					Self::deposit_event(Event::Executed {
 						id: *id,
@@ -225,6 +235,7 @@ impl<T: Config> Pallet<T> {
 				})
 			});
 
+			println!("{:?}", r);
 			match r {
 				Err(Error::<T>::NothingToProcess) => break,
 				Err(Error::<T>::Overweight) => break,
@@ -234,6 +245,7 @@ impl<T: Config> Pallet<T> {
 				_ => {}
 			}
 
+			println!("weight [total/remaining]: {:?}/{:?}", total_weight, remaining_weight);
 			if total_weight.any_gt(remaining_weight) {
 				//TODO: remove panic
 				panic!("overweight block")

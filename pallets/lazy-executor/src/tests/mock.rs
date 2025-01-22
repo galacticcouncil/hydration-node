@@ -15,7 +15,7 @@
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64, Contains},
+	traits::{ConstU128, ConstU32, ConstU64, ConstU8, Contains},
 	weights::{RuntimeDbWeight, Weight},
 };
 use sp_core::H256;
@@ -25,18 +25,25 @@ use sp_runtime::{
 };
 
 type BlockNumber = u64;
-type AccountId = u64;
+pub type AccountId = u64;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
 pub type MockPalletCall = mock_pallet::Call<Test>;
 
 use crate as pallet_lazy_executor;
 
+use crate::WeightInfo;
+
 const UNIT: Balance = 1_000_000_000_000;
 pub const ALICE: AccountId = 1_000;
 pub const BOB: AccountId = 1_001;
 pub const CHARLIE: AccountId = 1_002;
-pub const MOCK_PALLET_VALID_ORIGIN: AccountId = 1_003;
+
+pub const USER1: AccountId = 1_004;
+pub const USER2: AccountId = 1_005;
+pub const USER3: AccountId = 1_006;
+pub const USER4: AccountId = 1_007;
+pub const USER5: AccountId = 1_008;
 
 pub const MAX_ALLOWED_WEIGHT: Weight = Weight::from_parts(5_000, 20_000);
 
@@ -54,7 +61,7 @@ pub mod mock_pallet {
 	pub use pallet::*;
 	#[frame_support::pallet(dev_mode)]
 	pub mod pallet {
-		use crate::tests::mock::{AccountId, MOCK_PALLET_VALID_ORIGIN};
+		use crate::tests::mock::AccountId;
 		use crate::{ensure_signed, OriginFor};
 		use frame_support::{ensure, pallet_prelude::*};
 
@@ -82,20 +89,24 @@ pub mod mock_pallet {
 		impl<T: Config> Pallet<T> {
 			#[pallet::call_index(1)]
 			#[pallet::weight(*weight)]
-			pub fn dummy_call(origin: OriginFor<T>, weight: Weight) -> DispatchResult {
+			pub fn dummy_call(origin: OriginFor<T>, allowed_origin: Vec<AccountId>, weight: Weight) -> DispatchResult {
 				let who = ensure_signed(origin)?;
 
-				ensure!(who == MOCK_PALLET_VALID_ORIGIN, Error::<T>::Forbidden);
+				ensure!(allowed_origin.contains(&who), Error::<T>::Forbidden);
 
 				Self::deposit_event(Event::CallExecuted { who, weight });
 
 				Ok(())
 			}
 
-			pub fn filtered_call(origin: OriginFor<T>, weight: Weight) -> DispatchResult {
+			pub fn filtered_call(
+				origin: OriginFor<T>,
+				allowed_origin: Vec<AccountId>,
+				weight: Weight,
+			) -> DispatchResult {
 				let who = ensure_signed(origin)?;
 
-				ensure!(who == MOCK_PALLET_VALID_ORIGIN, Error::<T>::Forbidden);
+				ensure!(allowed_origin.contains(&who), Error::<T>::Forbidden);
 
 				Self::deposit_event(Event::CallExecuted { who, weight });
 
@@ -184,10 +195,20 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = ();
 }
 
+pub struct DummyWeightInfo;
+/// Weights for pallet_staking using the hydraDX node and recommended hardware.
+impl WeightInfo for DummyWeightInfo {
+	fn process_queue_base_weight() -> Weight {
+		Weight::from_parts(2_000, 3_000)
+	}
+}
+
 impl pallet_lazy_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type BlockNumberProvider = MockBlockNumberProvider;
+	type MaxDispatchedPerBlock = ConstU8<3>;
+	type WeightInfo = DummyWeightInfo;
 }
 
 pub struct ExtBuilder;
