@@ -1183,15 +1183,10 @@ impl_runtime_apis! {
 					Ok(PolkadotLocation::get())
 				}
 				fn worst_case_holding(depositable_count: u32) -> Assets {
-					vec![Asset {
-						id: AssetId(CoreAssetLocation::get()),
-						fun: Fungible(UNITS),
-					}]
-					.into()
-					/*// A mix of fungible and non-fungible assets
+					// A mix of fungible and non-fungible assets
 					let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
 					let holding_fungibles = holding_non_fungibles - 2; // -2 for two `iter::once` bellow
-					let fungibles_amount: u128 = 100;
+					let fungibles_amount: u128 = UNITS;
 					(0..holding_fungibles)
 						.map(|i| {
 							Asset {
@@ -1206,7 +1201,7 @@ impl_runtime_apis! {
 							fun: NonFungible(pallet_xcm_benchmarks::asset_instance_from(i)),
 						}))
 						.collect::<Vec<_>>()
-						.into()*/
+						.into()
 				}
 			}
 
