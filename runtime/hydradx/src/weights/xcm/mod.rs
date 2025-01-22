@@ -139,7 +139,7 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
         assets.weigh_assets(XcmFungibleWeight::<Runtime>::initiate_reserve_withdraw())
     }
     fn initiate_teleport(assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
-        assets.weigh_assets(XcmFungibleWeight::<Runtime>::initiate_teleport())
+        Weight::MAX
     }
 
     fn report_holding(_response_info: &QueryResponseInfo, _assets: &AssetFilter) -> Weight {
