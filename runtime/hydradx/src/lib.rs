@@ -49,7 +49,6 @@ pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
-use frame_benchmarking::account;
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
@@ -440,7 +439,6 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 	}
 }
 
-use crate::benchmarking::dca::ONE;
 use frame_support::dispatch::RawOrigin;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
@@ -1234,7 +1232,7 @@ impl_runtime_apis! {
 				pub TrustedReserve: Option<(Location, Asset)> = None;
 			}
 
-			// target/release/hydradx benchmark pallet --chain=dev --steps=50 --repeat=20 --wasm-execution=compiled --pallet=pallet-xcm-benchmarks::fungible --extrinsic="*" --template=scripts/pallet-weight-template.hbs --output=xcm-gen.rs --log xcm=trace,runtime=trace
+			//  target/release/hydradx benchmark pallet --chain=dev --steps=50 --repeat=20 --wasm-execution=compiled --pallet=pallet-xcm-benchmarks::fungible --extrinsic="*" --template=scripts/pallet-weight-template.hbs --output=pallet_xcm_benchmarks_generic.rs
 			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
 				type TransactAsset = Balances;
 
@@ -1376,10 +1374,10 @@ impl_runtime_apis! {
 
 #[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic extrinsics
 fn init_omnipool() {
-	let caller: AccountId = account("caller", 0, 1);
+	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
 	let hdx = 0;
 	let dai = 2;
-	let token_amount = 2000000000000 * ONE;
+	let token_amount = 2000000000000 * 1_000_000_000;
 
 	assert_ok!(AssetRegistry::set_location(
 		dai,
