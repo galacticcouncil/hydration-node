@@ -52,15 +52,10 @@ use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
-use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
-	traits::{
-		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
-		UniqueSaturatedInto,
-	},
-	transaction_validity::{TransactionValidity, TransactionValidityError},
-	Permill,
-};
+use sp_runtime::{create_runtime_str, generic, impl_opaque_keys, traits::{
+	AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
+	UniqueSaturatedInto,
+}, transaction_validity::{TransactionValidity, TransactionValidityError}, Permill, DispatchError, TransactionOutcome};
 
 use sp_std::{convert::From, prelude::*};
 #[cfg(feature = "std")]
@@ -448,6 +443,7 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
+use frame_support::storage::with_transaction;
 use hydradx_traits::Mutate;
 use pallet_omnipool::types::Tradability;
 use pallet_referrals::{FeeDistribution, Level};
@@ -1247,10 +1243,11 @@ impl_runtime_apis! {
 				}
 
 				fn worst_case_asset_exchange() -> Result<(Assets, Assets), BenchmarkError> {
-					init_omnipool();
-					//We xcm_exchange implementation, we only exchange from single asset to another single one
-					let give : Assets = (AssetId(CoreAssetLocation::get()), 1 * UNITS).into();
-					let want : Assets = (AssetId(DaiLocation::get()),  26619929823016248u128).into();//exact amount we receive within the initialized omnipool. Needed to set exactly as pallet_xcm_benchmarks::fungibles exchange_asset benchmark test requires to have original wanted fungible amount in holding, as we always put the exact amount received
+					//We can only exchange from single asset to another single one at worst case
+					let amount_to_sell = 1 * UNITS;
+					let received = init_omnipool(amount_to_sell);
+					let give : Assets = (AssetId(CoreAssetLocation::get()), amount_to_sell).into();
+					let want : Assets = (AssetId(DaiLocation::get()),  received).into();//We need to set the exact amount as pallet_xcm_benchmarks::fungibles exchange_asset benchmark test requires to have original wanted fungible amount in holding, but we always put the exact amount received
 					Ok((give, want))
 				}
 
@@ -1350,7 +1347,7 @@ impl_runtime_apis! {
 
 
 #[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic extrinsics
-fn init_omnipool() {
+fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
 	let hdx = 0;
 	let dai = 2;
@@ -1434,4 +1431,22 @@ fn init_omnipool() {
 		dai,
 		Tradability::SELL | Tradability::BUY
 	));
+
+	let received = with_transaction::<Balance, DispatchError, _>(|| {
+		let caller2: AccountId = frame_benchmarking::account("caller2", 0, 1);
+		Currencies::update_balance(RuntimeOrigin::root(), caller2.clone(), hdx, token_amount as i128).unwrap();
+
+		assert_ok!(Router::sell(
+					RuntimeOrigin::signed(caller2.clone()),
+					hdx,
+					dai,
+					amount_to_sell,
+					0,
+					vec![],
+				));
+		let received = Currencies::free_balance(dai, &caller2);
+		TransactionOutcome::Rollback(Ok(received))
+	}).unwrap();
+
+	received
 }
