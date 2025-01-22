@@ -1194,11 +1194,6 @@ fn half(asset: &Asset) -> Asset {
 	}
 }
 
-use pallet_broadcast::types::ExecutionType;
-use rococo_runtime::xcm_config::BaseXcmWeight;
-use xcm_builder::FixedWeightBounds;
-use xcm_executor::traits::WeightBounds;
-
 fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	give_asset: Asset,
 	want_asset: Asset,
