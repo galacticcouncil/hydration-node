@@ -1224,7 +1224,6 @@ impl_runtime_apis! {
 				pub TrustedReserve: Option<(Location, Asset)> = None;
 			}
 
-			//  target/release/hydradx benchmark pallet --chain=dev --steps=50 --repeat=20 --wasm-execution=compiled --pallet=pallet-xcm-benchmarks::fungible --extrinsic="*" --template=scripts/pallet-weight-template.hbs --output=pallet_xcm_benchmarks_generic.rs
 			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
 				type TransactAsset = Balances;
 
@@ -1240,7 +1239,6 @@ impl_runtime_apis! {
 				}
 			}
 
-			//target/release/hydradx benchmark pallet --chain=dev --steps=50 --repeat=20 --wasm-execution=compiled --pallet=pallet-xcm-benchmarks::generic --extrinsic="report_holding, buy_execution, query_response, transact, refund_surplus, set_error_handler, set_appendix, clear_error, descend_origin, clear_origin, report_error, claim_asset, trap,  subscribe_version, unsubscribe_version, initiate_reserve_withdraw, burn_asset, expect_asset, expect_origin, expect_error, expect_transact_status, query_pallet, expect_pallet, report_transact_status, clear_transact_status, set_topic, clear_topic, set_fees_mode, unpaid_execution, exchange_asset" --template=scripts/pallet-weight-template.hbs --output=xcm-gen.rs
 			impl pallet_xcm_benchmarks::generic::Config for Runtime {
 				type TransactAsset = Balances;
 				type RuntimeCall = RuntimeCall;
