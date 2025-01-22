@@ -51,6 +51,7 @@ pallet-elections-phragmen = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-conviction-voting = { workspace = true }
+pallet-dispatcher = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }
@@ -215,6 +216,7 @@ std = [
     "pallet-transaction-pause/std",
     "pallet-liquidation/std",
     "pallet-broadcast/std",
+    "pallet-dispatcher/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

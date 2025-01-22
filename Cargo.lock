@@ -4919,7 +4919,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "281.0.2"
+version = "282.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4975,6 +4975,7 @@ dependencies = [
  "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
  "pallet-democracy 4.3.2",
+ "pallet-dispatcher",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -8087,6 +8088,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-dispatcher"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-duster"
 version = "3.2.7"
 dependencies = [
@@ -8804,7 +8824,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.5.0"
+version = "4.5.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -12327,6 +12347,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.3.2",
+ "pallet-dispatcher",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",

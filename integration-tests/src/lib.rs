@@ -8,6 +8,7 @@ mod circuit_breaker;
 mod contracts;
 mod cross_chain_transfer;
 mod dca;
+mod dispatcher;
 mod driver;
 mod dust;
 mod dust_removal_whitelist;
