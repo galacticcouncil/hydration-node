@@ -52,10 +52,15 @@ use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
-use sp_runtime::{create_runtime_str, generic, impl_opaque_keys, traits::{
-	AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
-	UniqueSaturatedInto,
-}, transaction_validity::{TransactionValidity, TransactionValidityError}, Permill, DispatchError, TransactionOutcome};
+use sp_runtime::{
+	create_runtime_str, generic, impl_opaque_keys,
+	traits::{
+		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
+		UniqueSaturatedInto,
+	},
+	transaction_validity::{TransactionValidity, TransactionValidityError},
+	DispatchError, Permill, TransactionOutcome,
+};
 
 use sp_std::{convert::From, prelude::*};
 #[cfg(feature = "std")]
@@ -435,6 +440,7 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 }
 
 use frame_support::dispatch::RawOrigin;
+use frame_support::storage::with_transaction;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -443,7 +449,6 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
-use frame_support::storage::with_transaction;
 use hydradx_traits::Mutate;
 use pallet_omnipool::types::Tradability;
 use pallet_referrals::{FeeDistribution, Level};
@@ -1340,7 +1345,6 @@ impl_runtime_apis! {
 	}
 }
 
-
 #[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic extrinsics
 fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
@@ -1350,7 +1354,10 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 
 	assert_ok!(AssetRegistry::set_location(
 		dai,
-		AssetLocation(MultiLocation::new(0, X1(polkadot_xcm::v3::Junction::GeneralIndex(dai.into()))))
+		AssetLocation(MultiLocation::new(
+			0,
+			X1(polkadot_xcm::v3::Junction::GeneralIndex(dai.into()))
+		))
 	));
 
 	Currencies::update_balance(
@@ -1359,14 +1366,14 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		hdx,
 		(token_amount as i128) * 100,
 	)
-		.unwrap();
+	.unwrap();
 	Currencies::update_balance(
 		RuntimeOrigin::root(),
 		Omnipool::protocol_account(),
 		dai,
 		(token_amount as i128) * 100,
 	)
-		.unwrap();
+	.unwrap();
 	Currencies::update_balance(RuntimeOrigin::root(), caller.clone(), hdx, token_amount as i128).unwrap();
 	Currencies::update_balance(RuntimeOrigin::root(), caller.clone(), dai, token_amount as i128).unwrap();
 	let native_price = FixedU128::from_inner(1201500000000000);
@@ -1432,16 +1439,17 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		Currencies::update_balance(RuntimeOrigin::root(), caller2.clone(), hdx, token_amount as i128).unwrap();
 
 		assert_ok!(Router::sell(
-					RuntimeOrigin::signed(caller2.clone()),
-					hdx,
-					dai,
-					amount_to_sell,
-					0,
-					vec![],
-				));
+			RuntimeOrigin::signed(caller2.clone()),
+			hdx,
+			dai,
+			amount_to_sell,
+			0,
+			vec![],
+		));
 		let received = Currencies::free_balance(dai, &caller2);
 		TransactionOutcome::Rollback(Ok(received))
-	}).unwrap();
+	})
+	.unwrap();
 
 	received
 }
