@@ -20,6 +20,24 @@ use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
 pub(crate) type Balance = u128;
 
+pub type Peg = (Balance, Balance);
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct AssetPeg {
+	pub current: Peg,
+	pub target: Option<Peg>,
+}
+
+impl AssetPeg {
+	pub fn default_peg() -> Self {
+		Self {
+			current: (1, 1),
+			target: None,
+		}
+	}
+}
+
+pub type Pegs = BoundedVec<AssetPeg, ConstU32<MAX_ASSETS_IN_POOL>>;
+
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets
 /// `amplification`: amp parameter

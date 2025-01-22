@@ -69,7 +69,7 @@ mod trade_execution;
 pub mod types;
 pub mod weights;
 
-use crate::types::{Balance, PoolInfo, PoolState, StableswapHooks, Tradability};
+use crate::types::{AssetPeg, Balance, Pegs, PoolInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
@@ -177,6 +177,11 @@ pub mod pallet {
 	#[pallet::getter(fn pools)]
 	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>>;
 
+	/// List of assets pegs for a pool.
+	#[pallet::storage]
+	#[pallet::getter(fn pool_pegs)]
+	pub type PoolPegs<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Pegs>;
+
 	/// Tradability state of pool assets.
 	#[pallet::storage]
 	#[pallet::getter(fn asset_tradability)]
@@ -192,6 +197,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
 			fee: Permill,
+			pegs: Option<Pegs>,
 		},
 		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
@@ -327,6 +333,9 @@ pub mod pallet {
 
 		/// Failed to retrieve asset decimals.
 		UnknownDecimals,
+
+		/// List of provided pegs is incorrect.
+		IncorrectInitialPegs,
 	}
 
 	#[pallet::call]
@@ -359,13 +368,14 @@ pub mod pallet {
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee)?;
+			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, None)?;
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
 				assets,
 				amplification,
 				fee,
+				pegs: None,
 			});
 
 			Self::deposit_event(Event::AmplificationChanging {
@@ -1040,6 +1050,41 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(11)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_pool())]
+		#[transactional]
+		pub fn create_pool_with_pegs(
+			origin: OriginFor<T>,
+			share_asset: T::AssetId,
+			assets: Vec<T::AssetId>,
+			amplification: u16,
+			fee: Permill,
+			pegs: Pegs,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
+
+			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(pegs.clone()))?;
+
+			Self::deposit_event(Event::PoolCreated {
+				pool_id,
+				assets,
+				amplification,
+				fee,
+				pegs: Some(pegs),
+			});
+
+			Self::deposit_event(Event::AmplificationChanging {
+				pool_id,
+				current_amplification: amplification,
+				final_amplification: amplification,
+				start_block: T::BlockNumberProvider::current_block_number(),
+				end_block: T::BlockNumberProvider::current_block_number(),
+			});
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -1130,6 +1175,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
+		pegs: Option<Pegs>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -1164,7 +1210,22 @@ impl<T: Config> Pallet<T> {
 			ensure!(T::AssetInspection::exists(*asset), Error::<T>::AssetNotRegistered);
 		}
 
+		if let Some(p) = pegs {
+			// Pegs is list of prices of all assets except the first one, denominated in first asset
+			// Ensure the length of pegs is equal to the number of assets in the pool - 1
+			// And insert the default peg (1) for the first asset
+			ensure!(p.len() == pool.assets.len() - 1, Error::<T>::IncorrectInitialPegs);
+			let pool_pegs = Pegs::truncate_from(
+				sp_std::iter::once(AssetPeg::default_peg())
+					.chain(p.into_inner())
+					.collect(),
+			);
+			debug_assert!(pool_pegs.len() == pool.assets.len());
+			PoolPegs::<T>::insert(share_asset, pool_pegs);
+		}
+
 		Pools::<T>::insert(share_asset, pool);
+
 		T::DustAccountHandler::add_account(&Self::pool_account(share_asset))?;
 		Ok(share_asset)
 	}
