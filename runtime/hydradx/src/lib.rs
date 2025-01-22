@@ -1192,9 +1192,8 @@ impl_runtime_apis! {
 						fun: Fungible(UNITS),
 					}]
 					.into()
-					//TODO: try to use it
-					// A mix of fungible, non-fungible, and concrete assets.
-					/*let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
+					/*// A mix of fungible and non-fungible assets
+					let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
 					let holding_fungibles = holding_non_fungibles - 2; // -2 for two `iter::once` bellow
 					let fungibles_amount: u128 = 100;
 					(0..holding_fungibles)
@@ -1251,7 +1250,7 @@ impl_runtime_apis! {
 					init_omnipool();
 					//We xcm_exchange implementation, we only exchange from single asset to another single one
 					let give : Assets = (AssetId(CoreAssetLocation::get()), 1 * UNITS).into();
-					let want : Assets = (AssetId(DaiLocation::get()), 26619933371448015u128).into();//exact amount we receive within the initialized omnipool. Needed to set exactly as pallet_xcm_benchmarks::fungibles exchange_asset benchmark test requires to have original wanted fungible amount in holding, as we always put the exact amount received
+					let want : Assets = (AssetId(DaiLocation::get()),  26619929823016248u128).into();//exact amount we receive within the initialized omnipool. Needed to set exactly as pallet_xcm_benchmarks::fungibles exchange_asset benchmark test requires to have original wanted fungible amount in holding, as we always put the exact amount received
 					Ok((give, want))
 				}
 
@@ -1355,7 +1354,7 @@ fn init_omnipool() {
 	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
 	let hdx = 0;
 	let dai = 2;
-	let token_amount = 2000000000000 * 1_000_000_000;
+	let token_amount = 2000000000000u128 * 1_000_000_000;
 
 	assert_ok!(AssetRegistry::set_location(
 		dai,
