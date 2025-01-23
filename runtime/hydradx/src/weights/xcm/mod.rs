@@ -23,12 +23,12 @@ use pallet_xcm_benchmarks_generic::WeightInfo as XcmGeneric;
 use polkadot_xcm::latest::InteriorLocation;
 use polkadot_xcm::v4::{QueryId, Response, WeightLimit, WildFungibility, Xcm, XcmWeightInfo};
 use polkadot_xcm::DoubleEncoded;
-use sp_std::vec::Vec;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 use cumulus_primitives_core::{
-	All, AllCounted, AllOf, AllOfCounted, Asset, AssetFilter, Assets, Junction, Junctions, Location,
-	OriginKind, QueryResponseInfo,
+	All, AllCounted, AllOf, AllOfCounted, Asset, AssetFilter, Assets, Junction, Junctions, Location, OriginKind,
+	QueryResponseInfo,
 };
 use hydradx_traits::router::{AmmTradeWeights, PoolType, Trade};
 use polkadot_xcm::prelude::{MaybeErrorCode, NetworkId, XcmError};

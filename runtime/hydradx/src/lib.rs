@@ -68,7 +68,7 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::{assert_ok, construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
 pub use hex_literal::hex;
-use orml_traits::{MultiCurrency};
+use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
@@ -453,9 +453,7 @@ use frame_support::{
 use hydradx_traits::Mutate;
 use pallet_omnipool::types::Tradability;
 use pallet_referrals::{FeeDistribution, Level};
-use polkadot_xcm::prelude::{
-	GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response,
-};
+use polkadot_xcm::prelude::{GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response};
 use polkadot_xcm::v3::prelude::X1;
 use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
@@ -1452,5 +1450,4 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		TransactionOutcome::Rollback(Ok(received))
 	})
 	.unwrap()
-
 }

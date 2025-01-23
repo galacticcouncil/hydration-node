@@ -331,8 +331,14 @@ mod xcm_fee_payment_api_tests {
 
 			let queried_weight = Runtime::query_xcm_weight(VersionedXcm::from(xcm_message.clone())).unwrap();
 			let ref_time = queried_weight.ref_time();
-			assert!(ref_time > 170000000, "the ref time did not fall in range. Actual value: {ref_time}");
-			assert!(ref_time < 200000000, "the ref time did not fall in range. Actual value: {ref_time}");
+			assert!(
+				ref_time > 170000000,
+				"the ref time did not fall in range. Actual value: {ref_time}"
+			);
+			assert!(
+				ref_time < 200000000,
+				"the ref time did not fall in range. Actual value: {ref_time}"
+			);
 		});
 	}
 
