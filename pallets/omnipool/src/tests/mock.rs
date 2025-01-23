@@ -55,6 +55,8 @@ pub const ASSET_WITHOUT_ED: AssetId = 1001;
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
+pub const PROTOCOL_FEE_COLLECTOR: u64 = 4;
+pub const TRADE_FEE_COLLECTOR: u64 = 5;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -740,12 +742,20 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
-		Tokens::withdraw(asset, &fee_account, to_take)?;
-		Ok(vec![Some((to_take, AccountId::default()))])
+		<Tokens as MultiCurrency<AccountId>>::transfer(asset, &fee_account, &TRADE_FEE_COLLECTOR, to_take)?;
+		Ok(vec![Some((to_take, TRADE_FEE_COLLECTOR))])
 	}
 
 	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<(Balance, AccountId), Self::Error> {
-		Tokens::withdraw(LRNA, &fee_account, amount)?;
-		Ok((amount, AccountId::default()))
+		if amount == 0 {
+			return Ok((0, PROTOCOL_FEE_COLLECTOR));
+		}
+		if amount < 400_000_000 {
+			//less than ED -> dust
+			<Tokens as MultiCurrency<AccountId>>::withdraw(LRNA, &fee_account, amount)?;
+		} else {
+			<Tokens as MultiCurrency<AccountId>>::transfer(LRNA, &fee_account, &PROTOCOL_FEE_COLLECTOR, amount)?;
+		}
+		Ok((amount, PROTOCOL_FEE_COLLECTOR))
 	}
 }

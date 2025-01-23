@@ -994,3 +994,42 @@ fn spot_price_after_selling_hub_asset_should_be_identical_when_protocol_fee_is_n
 		"spot price afters sells"
 	);
 }
+
+#[test]
+fn sell_with_all_fees_and_extra_withdrawal_works() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee(Permill::from_percent(10))
+		.with_protocol_fee(Permill::from_percent(3))
+		.with_burn_fee(Permill::from_percent(50))
+		.with_on_trade_withdrawal(Permill::from_percent(10))
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.with_token(100, FixedU128::one(), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::one(), LP3, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			let sell_amount = 50 * ONE;
+			let min_limit = 10 * ONE;
+
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP1),
+				100,
+				200,
+				sell_amount,
+				min_limit
+			));
+
+			assert_eq!(Tokens::free_balance(100, &LP1), 950_000_000_000_000);
+			assert_eq!(Tokens::free_balance(200, &LP1), 41601143674053);
+			assert_eq!(Tokens::free_balance(200, &TRADE_FEE_COLLECTOR), 462234929711);
+			assert_eq!(Tokens::free_balance(LRNA, &PROTOCOL_FEE_COLLECTOR), 731707317073);
+		});
+}
