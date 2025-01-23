@@ -1216,7 +1216,10 @@ impl_runtime_apis! {
 					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
 				));
 				pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
-				pub TrustedReserve: Option<(Location, Asset)> = None;
+				pub TrustedReserve: Option<(Location, Asset)> = Some((
+					PolkadotLocation::get(),
+					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
+				));
 			}
 
 			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
