@@ -9,11 +9,9 @@ use frame_support::traits::tokens::Precision;
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, pallet_prelude::*};
 use hydradx_runtime::{Omnipool, RuntimeCall};
+use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::Router;
-use hydradx_runtime::RuntimeEvent;
 use hydradx_runtime::RuntimeOrigin;
-use hydradx_runtime::TempAccountForXcmAssetExchange;
-use hydradx_runtime::{AssetRegistry, LRNA};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::currency::MultiCurrency;
@@ -157,7 +155,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			RuntimeOrigin::signed(ALICE.into()),
 			HDX,
 			ACA,
-			1 * UNITS,
+			UNITS,
 			0,
 			vec![],
 		));
@@ -1193,7 +1191,7 @@ fn half(asset: &Asset) -> Asset {
 		id: asset.clone().id,
 	}
 }
-use pallet_broadcast::types::{ExecutionType, Fee};
+use pallet_broadcast::types::ExecutionType;
 use rococo_runtime::xcm_config::BaseXcmWeight;
 use xcm_builder::{FixedWeightBounds, WeightInfoBounds};
 use xcm_executor::traits::WeightBounds;

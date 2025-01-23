@@ -340,8 +340,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 					outputs: vec![Asset::new(LRNA, 1205768843)],
 					fees: vec![Fee::new(LRNA, 602884, Destination::Burned)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
-				}
-				.into(),
+				},
 				pallet_broadcast::Event::Swapped {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
@@ -354,8 +353,7 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 						Fee::new(DAI, 9168140377593, Destination::Account(Referrals::pot_account_id()))
 					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
-				}
-				.into(),
+				},
 			]
 		);
 	});

@@ -32,9 +32,9 @@ use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, HashedDescription, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, TakeWeightCredit, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
+	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin,WeightInfoBounds, HashedDescription, ParentIsPreset,
+	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin, WithUniqueTopic,TrailingSetTopicAsId, GlobalConsensusConvertsFor
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -74,7 +74,7 @@ pub type PriceForParentDelivery = ExponentialPrice<FeeAssetId, BaseDeliveryFee, 
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
-pub type Barrier = (
+pub type Barrier = TrailingSetTopicAsId<(
 	TakeWeightCredit,
 	// Expected responses are OK.
 	AllowKnownQueryResponses<PolkadotXcm>,
@@ -88,7 +88,7 @@ pub type Barrier = (
 		UniversalLocation,
 		ConstU32<8>,
 	>,
-);
+)>;
 
 parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
@@ -498,6 +498,9 @@ pub type LocationToAccountId = (
 	HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
 	// Convert ETH to local substrate account
 	EvmAddressConversion<RelayNetwork>,
+	// Converts a location which is a top-level relay chain (which provides its own consensus) into a
+	// 32-byte `AccountId`.
+	GlobalConsensusConvertsFor<UniversalLocation, AccountId>,
 );
 use pallet_broadcast::types::ExecutionType;
 use primitives::constants::currency::CENTS;
