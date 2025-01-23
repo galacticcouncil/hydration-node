@@ -23,12 +23,11 @@ use pallet_xcm_benchmarks_generic::WeightInfo as XcmGeneric;
 use polkadot_xcm::latest::InteriorLocation;
 use polkadot_xcm::v4::{QueryId, Response, WeightLimit, WildFungibility, Xcm, XcmWeightInfo};
 use polkadot_xcm::DoubleEncoded;
-use sp_runtime::BoundedVec;
 use sp_std::vec::Vec;
 use sp_std::vec;
 
 use cumulus_primitives_core::{
-	All, AllCounted, AllOf, AllOfCounted, Asset, AssetFilter, AssetId, Assets, Fungible, Junction, Junctions, Location,
+	All, AllCounted, AllOf, AllOfCounted, Asset, AssetFilter, Assets, Junction, Junctions, Location,
 	OriginKind, QueryResponseInfo,
 };
 use hydradx_traits::router::{AmmTradeWeights, PoolType, Trade};
@@ -166,7 +165,7 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	fn initiate_reserve_withdraw(assets: &AssetFilter, _reserve: &Location, _xcm: &Xcm<()>) -> Weight {
 		assets.weigh_assets(XcmFungibleWeight::<Runtime>::initiate_reserve_withdraw())
 	}
-	fn initiate_teleport(assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
+	fn initiate_teleport(_assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
 		Weight::MAX
 	}
 

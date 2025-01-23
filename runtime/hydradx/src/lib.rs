@@ -44,7 +44,6 @@ pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 use pallet_asset_registry::AssetType;
 use pallet_currencies_rpc_runtime_api::AccountData;
-use sp_std::sync::Arc;
 pub use system::*;
 pub use xcm::*;
 
@@ -69,7 +68,7 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::{assert_ok, construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
 pub use hex_literal::hex;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{MultiCurrency};
 /// Import HydraDX pallets
 pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
@@ -454,10 +453,8 @@ use frame_support::{
 use hydradx_traits::Mutate;
 use pallet_omnipool::types::Tradability;
 use pallet_referrals::{FeeDistribution, Level};
-use polkadot_runtime_common::purchase::Call::create_account;
-use polkadot_xcm::latest::Location;
 use polkadot_xcm::prelude::{
-	AccountId32, GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response,
+	GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response,
 };
 use polkadot_xcm::v3::prelude::X1;
 use polkadot_xcm::v3::MultiLocation;
@@ -1249,7 +1246,7 @@ impl_runtime_apis! {
 
 				fn worst_case_asset_exchange() -> Result<(Assets, Assets), BenchmarkError> {
 					//We can only exchange from single asset to another single one at worst case
-					let amount_to_sell = 1 * UNITS;
+					let amount_to_sell = UNITS;
 					let received = init_omnipool(amount_to_sell);
 					let give : Assets = (AssetId(CoreAssetLocation::get()), amount_to_sell).into();
 					let want : Assets = (AssetId(DaiLocation::get()),  received).into();//We need to set the exact amount as pallet_xcm_benchmarks::fungibles exchange_asset benchmark test requires to have original wanted fungible amount in holding, but we always put the exact amount received
@@ -1439,7 +1436,7 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		Tradability::SELL | Tradability::BUY
 	));
 
-	let received = with_transaction::<Balance, DispatchError, _>(|| {
+	with_transaction::<Balance, DispatchError, _>(|| {
 		let caller2: AccountId = frame_benchmarking::account("caller2", 0, 1);
 		Currencies::update_balance(RuntimeOrigin::root(), caller2.clone(), hdx, token_amount as i128).unwrap();
 
@@ -1454,7 +1451,6 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		let received = Currencies::free_balance(dai, &caller2);
 		TransactionOutcome::Rollback(Ok(received))
 	})
-	.unwrap();
+	.unwrap()
 
-	received
 }
