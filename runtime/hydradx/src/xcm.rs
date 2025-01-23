@@ -62,7 +62,6 @@ impl TryFrom<Location> for AssetLocation {
 	}
 }
 
-//TODO: Ask Jakub about these two if well configured
 parameter_types! {
 	/// The asset ID for the asset that we use to pay for message delivery fees.
 	pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
