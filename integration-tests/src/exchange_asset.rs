@@ -1203,7 +1203,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	want_asset: Asset,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	type Weigher<RC> = WeightInfoBounds<hydradx_runtime::weights::xcm::HydraXcmWeight<RC>, RC, ConstU32<100>>;
+	type Weigher<RC> = hydradx_runtime::xcm::DynamicWeigher<RC>;
 
 	let give_reserve_chain = Location::new(
 		1,

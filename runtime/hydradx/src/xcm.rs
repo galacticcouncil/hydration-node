@@ -194,6 +194,8 @@ pub type Reserves = (
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
 
+pub type DynamicWeigher<RuntimeCall> = WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
+
 pub struct XcmConfig;
 impl Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
@@ -207,7 +209,7 @@ impl Config for XcmConfig {
 	type UniversalLocation = UniversalLocation;
 
 	type Barrier = Barrier;
-	type Weigher = WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
+	type Weigher = DynamicWeigher<RuntimeCall>;
 	// We calculate weight fees the same way as for regular extrinsics and use the prices and choice
 	// of accepted currencies of the transaction payment pallet. Fees go to the same fee receiver as
 	// configured in `MultiTransactionPayment`.
@@ -335,7 +337,7 @@ impl orml_xtokens::Config for Runtime {
 	type AccountIdToLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
-	type Weigher = WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
+	type Weigher = DynamicWeigher<RuntimeCall>;
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
 	type LocationsFilter = Everything;
@@ -366,7 +368,7 @@ impl pallet_xcm::Config for Runtime {
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
-	type Weigher = WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
+	type Weigher = DynamicWeigher<RuntimeCall>;
 	type UniversalLocation = UniversalLocation;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
