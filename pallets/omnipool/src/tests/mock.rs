@@ -405,22 +405,21 @@ impl ExtBuilder {
 				v.borrow_mut().insert(*asset, *asset);
 			});
 		});
-
 		ASSET_FEE.with(|v| {
 			*v.borrow_mut() = self.asset_fee;
 		});
 		ASSET_WEIGHT_CAP.with(|v| {
 			*v.borrow_mut() = self.asset_weight_cap;
 		});
-
 		PROTOCOL_FEE.with(|v| {
 			*v.borrow_mut() = self.protocol_fee;
 		});
-
+		BURN_FEE.with(|v| {
+			*v.borrow_mut() = self.burn_fee;
+		});
 		MIN_ADDED_LIQUDIITY.with(|v| {
 			*v.borrow_mut() = self.min_liquidity;
 		});
-
 		MIN_TRADE_AMOUNT.with(|v| {
 			*v.borrow_mut() = self.min_trade_limit;
 		});
@@ -695,10 +694,6 @@ impl GetByKey<(AssetId, Balance), (Permill, Permill)> for FeeProvider {
 	fn get(_: &(AssetId, Balance)) -> (Permill, Permill) {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
-}
-
-pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
-	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
