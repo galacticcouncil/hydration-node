@@ -90,6 +90,7 @@ use sp_std::vec::Vec;
 
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
+use hydradx_traits::ice::SubmitIntent;
 use hydradx_traits::router::{inverse_route, RouteProvider};
 use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::NativePriceOracle;
@@ -122,6 +123,7 @@ pub mod pallet {
 
 	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
+	use hydradx_traits::ice::AssetAmount;
 	use hydradx_traits::{NativePriceOracle, PriceOracle};
 
 	use super::*;
@@ -165,6 +167,39 @@ pub mod pallet {
 					} else {
 						Self::terminate_schedule(schedule_id, &schedule, e);
 						continue;
+					}
+				};
+
+				let on_fail_callback = crate::Call::<T>::on_fail {
+					schedule_id: schedule_id,
+				}.encode();
+
+				match &schedule.order {
+					Order::Sell {
+						asset_in,
+						asset_out,
+						amount_in,
+						min_amount_out,
+						..
+					} => {
+						T::ICE::submit_intent(
+							&schedule.owner,
+							AssetAmount::new(*asset_in, *amount_in),
+							AssetAmount::new(*asset_out, *min_amount_out),
+							0,
+							false,
+							None,
+							Some(BoundedVec::truncate_from(on_fail_callback)),
+						);
+					}
+					Order::Buy {
+						asset_in,
+						asset_out,
+						amount_out,
+						max_amount_in,
+						..
+					} => {
+						//T::ICE::submit_intent(schedule.owner, AssetAmount {});
 					}
 				};
 
@@ -253,6 +288,8 @@ pub mod pallet {
 
 		///Errors we want to explicitly retry on, in case of failing DCA
 		type RetryOnError: Contains<DispatchError>;
+
+		type ICE: SubmitIntent<Self::AccountId, Self::AssetId>;
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]
@@ -624,6 +661,34 @@ pub mod pallet {
 				who: schedule.owner,
 				error: Error::<T>::ManuallyTerminated.into(),
 			});
+
+			Ok(())
+		}
+
+		/// TODO: doc
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::terminate())]//TODO: bench
+		#[transactional]
+		pub fn on_fail(
+			origin: OriginFor<T>,
+			schedule_id: ScheduleId,
+		) -> DispatchResult {
+			let _who = ensure_signed(origin.clone())?;
+
+			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
+
+			let number_of_retries = Self::retries_on_error(schedule_id);
+
+			let max_retries = schedule.max_retries.unwrap_or_else(T::MaxNumberOfRetriesOnError::get);
+
+			//TODO: what will happen in case of intents when reached max? we gotta call terminate_schedule
+			ensure!(number_of_retries < max_retries, Error::<T>::MaxRetryReached);
+
+			RetriesOnError::<T>::mutate(schedule_id, |retry| -> DispatchResult {
+				retry.saturating_inc();
+				Ok(())
+			})?;
 
 			Ok(())
 		}

@@ -23,6 +23,7 @@ use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
 use frame_support::PalletId;
+use hydradx_traits::ice::{AssetAmount, CallData, SubmitIntent};
 
 use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
@@ -706,6 +707,25 @@ impl Config for Test {
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+	type ICE = SubmitIntentFake;
+}
+
+pub struct SubmitIntentFake;
+
+impl SubmitIntent<AccountId, AssetId> for SubmitIntentFake {
+	type Error = DispatchError;
+
+	fn submit_intent(
+		_who: &AccountId,
+		_asset_in: AssetAmount<AssetId>,
+		_asset_out: AssetAmount<AssetId>,
+		_deadline: u64,
+		_partial: bool,
+		_on_success: Option<CallData>,
+		_on_failure: Option<CallData>,
+	) -> Result<u128, Self::Error> {
+		Ok(1)
+	}
 }
 
 pub struct MockedInsufficientAssetSupport;

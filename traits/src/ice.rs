@@ -8,6 +8,12 @@ pub struct AssetAmount<AssetId> {
 	pub amount: u128,
 }
 
+impl<AssetId> AssetAmount<AssetId> {
+	pub fn new(asset_id: AssetId, amount: u128) -> Self {
+		Self { asset_id, amount }
+	}
+}
+
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub type CallData = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 
