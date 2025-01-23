@@ -2216,8 +2216,8 @@ impl<T: Config> Pallet<T> {
 
 		let old_in_state = asset_in.1;
 		let old_out_state = asset_out.1;
-		assert!(new_in_state.reserve > old_in_state.reserve);
-		assert!(new_out_state.reserve < old_out_state.reserve);
+		debug_assert!(new_in_state.reserve > old_in_state.reserve);
+		debug_assert!(new_out_state.reserve < old_out_state.reserve);
 
 		let in_new_reserve = U256::from(new_in_state.reserve);
 		let in_new_hub_reserve = U256::from(new_in_state.hub_reserve);
@@ -2226,7 +2226,7 @@ impl<T: Config> Pallet<T> {
 
 		let rq = in_old_reserve.checked_mul(in_old_hub_reserve).unwrap();
 		let rq_plus = in_new_reserve.checked_mul(in_new_hub_reserve).unwrap();
-		assert!(
+		debug_assert!(
 			rq_plus >= rq,
 			"Asset IN trade invariant, {:?}, {:?}",
 			new_in_state,
@@ -2236,7 +2236,7 @@ impl<T: Config> Pallet<T> {
 		//Ensure Hub reserve in protocol account is equal to sum of all subpool reserves
 		let hub_reserve = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 		let subpool_hub_reserve: Balance = <Assets<T>>::iter().fold(0, |acc, v| acc + v.1.hub_reserve);
-		assert_eq!(hub_reserve, subpool_hub_reserve, "Total Hub reserve invariant");
+		debug_assert_eq!(hub_reserve, subpool_hub_reserve, "Total Hub reserve invariant");
 
 		/*
 		   let out_new_reserve = U256::from(new_out_state.reserve);
@@ -2278,8 +2278,8 @@ impl<T: Config> Pallet<T> {
 			.checked_mul(old_reserve)
 			.unwrap();
 
-		assert!(left <= middle, "Add liquidity first part");
-		assert!(
+		debug_assert!(left <= middle, "Add liquidity first part");
+		debug_assert!(
 			middle <= right,
 			"Add liquidity second part - {:?} <= {:?} <= {:?}",
 			left,
