@@ -88,7 +88,7 @@ use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::{GetByKey, MultiCurrency};
 use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
-#[cfg(feature = "try-runtime")]
+#[cfg(any(feature = "try-runtime", test))]
 use primitive_types::U256;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
@@ -807,7 +807,7 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
-			#[cfg(feature = "try-runtime")]
+			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_liquidity_invariant((asset_id, asset_state, new_asset_state));
 
 			Ok(())
@@ -1103,7 +1103,7 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::remove_from_context();
 
-			#[cfg(feature = "try-runtime")]
+			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(
 				(asset_in, asset_in_state, new_asset_in_state),
 				(asset_out, asset_out_state, new_asset_out_state),
@@ -1356,7 +1356,7 @@ pub mod pallet {
 
 			pallet_broadcast::Pallet::<T>::remove_from_context();
 
-			#[cfg(feature = "try-runtime")]
+			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(
 				(asset_in, asset_in_state, new_asset_in_state),
 				(asset_out, asset_out_state, new_asset_out_state),
@@ -2200,13 +2200,13 @@ impl<T: Config> Pallet<T> {
 
 		T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
-		#[cfg(feature = "try-runtime")]
+		#[cfg(any(feature = "try-runtime", test))]
 		Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state));
 
 		Ok(instance_id)
 	}
 
-	#[cfg(feature = "try-runtime")]
+	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_trade_invariant(
 		asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
 		asset_out: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
@@ -2232,6 +2232,12 @@ impl<T: Config> Pallet<T> {
 			new_in_state,
 			old_in_state
 		);
+
+		//Ensure Hub reserve in protocol account is equal to sum of all subpool reserves
+		let hub_reserve = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let subpool_hub_reserve: Balance = <Assets<T>>::iter().fold(0, |acc, v| acc + v.1.hub_reserve);
+		assert_eq!(hub_reserve, subpool_hub_reserve, "Total Hub reserve invariant");
+
 		/*
 		   let out_new_reserve = U256::from(new_out_state.reserve);
 		   let out_new_hub_reserve = U256::from(new_out_state.hub_reserve);
@@ -2252,7 +2258,7 @@ impl<T: Config> Pallet<T> {
 		*/
 	}
 
-	#[cfg(feature = "try-runtime")]
+	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_liquidity_invariant(asset: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>)) {
 		let old_state = asset.1;
 		let new_state = asset.2;
