@@ -3,6 +3,7 @@ use crate::{AssetReserveState, FixedU128};
 use frame_support::assert_noop;
 use primitive_types::U256;
 use proptest::prelude::*;
+use sp_runtime::PerThing;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000_000_000;
@@ -33,117 +34,101 @@ fn adjustment() -> impl Strategy<Value = (u32, u32, bool)> {
 	)
 }
 
-fn assert_asset_invariant(
-	old_state: &AssetReserveState<Balance>,
-	new_state: &AssetReserveState<Balance>,
-	tolerance: FixedU128,
-	fee_amount: Balance,
-	desc: &str,
-) {
-	let new_s = U256::from(new_state.reserve) * U256::from(new_state.hub_reserve);
-	let s1 = new_s.integer_sqrt();
+#[macro_export]
+macro_rules! assert_asset_invariant_not_decreased {
+	( $old_state:expr, $new_state:expr, $desc:expr) => {{
+		let new_s = U256::from($new_state.reserve) * U256::from($new_state.hub_reserve);
+		let old_s = U256::from($old_state.reserve) * U256::from($old_state.hub_reserve);
 
-	let old_s = U256::from(old_state.reserve) * U256::from(old_state.hub_reserve);
-	let s2 = old_s.integer_sqrt();
-
-	assert!(
-		new_s >= old_s,
-		"Invariant decreased for {desc} - {:?} >= {:?}",
-		new_s,
-		old_s
-	);
-
-	/*
-	let s1_u128 = Balance::try_from(s1).unwrap();
-	let s2_u128 = Balance::try_from(s2).unwrap();
-
-	let invariant = FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE));
-	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
-
-	 */
-
-	/*
-	q_plus, r_plus = omnipool.lrna['USD'], omnipool.liquidity['USD']
-	F = 0
-	rho = delta_q / q
-	lhs = q_plus * r_plus - q * r
-	rhs = - delta_q * (r / (1 + rho) * (1 - fA) - F * rho + r_plus * (-1 - fA * (1 + rho)))
-	assert lhs == pytest.approx(rhs, rel=1e-20)
-	 */
-	/*
-	if fee_amount >0 {
-		let q_plus = new_state.hub_reserve;
-		let r_plus = new_state.reserve;
-
-		let lhs = new_s - old_s;
-
-		let delta_q = new_state.hub_reserve - old_state.hub_reserve;
-
-		let rho = FixedU128::from_rational(delta_q, old_state.hub_reserve);
-
-		// R / (1 + rho ) * (1 - fA) -F
-		let p1 = FixedU128::from_rational(old_state.reserve, 1) / ((FixedU128::from(1) + rho) * FixedU128::from(1));
-
-		dbg!(fee_amount);
-		let delta_x = new_state.hub_reserve- old_state.hub_reserve;
-
-		let x = U256::from(old_state.hub_reserve);
-		let delta_x = U256::from(delta_x);
-		let f = U256::from(fee_amount);
-
-		let right = x * f + delta_x * f;
-	}
-
-	 */
+		assert!(
+			new_s >= old_s,
+			"Invariant decreased for {} - {:?} >= {:?}",
+			$desc,
+			new_s,
+			old_s
+		);
+	}};
 }
 
-fn assert_asset_invariant_with_fee(
-	old_state: &AssetReserveState<Balance>,
-	new_state: &AssetReserveState<Balance>,
-	fee_amount: Balance,
-	fee: Permill,
-	tolerance: FixedU128,
+fn assert_invariants_after_trade(
+	asset_in_old_state: &AssetReserveState<Balance>,
+	asset_in_new_state: &AssetReserveState<Balance>,
+	asset_out_old_state: &AssetReserveState<Balance>,
+	asset_out_new_state: &AssetReserveState<Balance>,
+	asset_fee_amount: Balance,
+	asset_fee: Permill,
+	extra_withdraw_fee: Permill,
 	desc: &str,
 ) {
-	let new_s = U256::from(new_state.reserve) * U256::from(new_state.hub_reserve);
-	let old_s = U256::from(old_state.reserve) * U256::from(old_state.hub_reserve);
+	let asset_in_old_hub_reserve_hp = U256::from(asset_in_old_state.hub_reserve);
+	let asset_in_new_hub_reserve_hp = U256::from(asset_in_new_state.hub_reserve);
 
-	assert!(
-		new_s >= old_s,
-		"Invariant decreased for {desc} - {:?} >= {:?}",
-		new_s,
-		old_s
-	);
+	let delta_q = asset_in_old_hub_reserve_hp - asset_in_new_hub_reserve_hp;
 
-	/*
-	q_plus, r_plus = omnipool.lrna['USD'], omnipool.liquidity['USD']
-	F = 0
-	rho = delta_q / q
-	lhs = q_plus * r_plus - q * r
-	rhs = - delta_q * (r / (1 + rho) * (1 - fA) - F * rho + r_plus * (-1 - fA * (1 + rho)))
-	assert lhs == pytest.approx(rhs, rel=1e-20)
-	 */
-	let q_plus = FixedU128::from_rational(new_state.hub_reserve, 1_000_000_000_000u128);
-	let r_plus = FixedU128::from_rational(new_state.reserve, 1_000_000_000_000u128);
+	let asset_out_old_hub_reserve_hp = U256::from(asset_out_old_state.hub_reserve);
+	let asset_out_new_hub_reserve_hp = U256::from(asset_out_new_state.hub_reserve);
+	let asset_out_old_reserve_hp = U256::from(asset_out_old_state.reserve);
+	let asset_out_new_reserve_hp = U256::from(asset_out_new_state.reserve);
 
-	let q= FixedU128::from_rational(old_state.hub_reserve, 1_000_000_000_000u128);
-	let r= FixedU128::from_rational(old_state.reserve, 1_000_000_000_000u128);
-	let lhs = q_plus * r_plus - q * r;
+	let taken_fee_amount_hp = U256::from(extra_withdraw_fee.mul_floor(asset_fee_amount));
 
-	let delta_q = FixedU128::from_rational(new_state.hub_reserve - old_state.hub_reserve, 1_000_000_000_000u128);
+	let qr_plus = asset_out_new_hub_reserve_hp * asset_out_new_reserve_hp;
+	let qr_with_fee = asset_out_old_hub_reserve_hp * (asset_out_old_reserve_hp - taken_fee_amount_hp);
 
+	let lhs = (qr_plus - qr_with_fee) / delta_q;
+	let fee_compl = Permill::one() - asset_fee;
+	let q_adj = U256::from(fee_compl.mul_floor(asset_out_old_state.hub_reserve));
+	let rh0 = (q_adj * asset_out_old_reserve_hp) / (asset_out_old_hub_reserve_hp + delta_q);
+	let rh1 = asset_out_new_reserve_hp + U256::from(asset_fee.mul_floor(asset_out_new_state.reserve));
+	let rh2 = (U256::from(asset_fee.mul_floor(asset_out_new_state.reserve)) * delta_q) / asset_out_old_hub_reserve_hp;
 
-	//rhs = - delta_q * (r / (1 + rho) * (1 - fA) - F * rho + r_plus * (-1 - fA * (1 + rho)))
-	let fee_amt = FixedU128::from_rational(fee_amount, 1_000_000_000_000u128);
-	let rho = delta_q / q;
-	let p1 = r / (FixedU128::from(1) + rho) * (FixedU128::one() - FixedU128::from(fee)) - fee_amt * rho;
-	let p2 = r_plus * (FixedU128::from(1) + FixedU128::from(fee) * (FixedU128::from(1) + rho));
-	let diff = p2 - p1;
-	let rhs = delta_q * diff;
+	dbg!(rh0);
+	dbg!(rh1);
+	dbg!(rh2);
+
+	let r = rh1 - rh2;
+
+	let rhs = r - rh0;
 	dbg!(lhs);
 	dbg!(rhs);
-
 }
+
+#[macro_export]
+macro_rules! assert_invariants_after_trade {
+	( $old_state:expr, $new_state:expr, $delta_q:expr, $fee_amount:expr, $asset_fee:expr, $extra_fee_taken:expr, $tolerance:expr, $decimals:expr, $desc:expr) => {{
+		let new_s = U256::from($new_state.reserve) * U256::from($new_state.hub_reserve);
+		let old_s = U256::from($old_state.reserve) * U256::from($old_state.hub_reserve);
+
+		assert!(
+			new_s >= old_s,
+			"Invariant decreased for {} - {:?} >= {:?}",
+			$desc,
+			new_s,
+			old_s
+		);
+		let hub_unit = 1_000_000_000_000u128;
+		let asset_unit = 10u128.pow($decimals);
+
+		let q_plus = FixedU128::from_rational($new_state.hub_reserve, hub_unit);
+		let r_plus = FixedU128::from_rational($new_state.reserve, asset_unit);
+
+		let q = FixedU128::from_rational($old_state.hub_reserve, hub_unit);
+		let r = FixedU128::from_rational($old_state.reserve, asset_unit);
+		let lhs = q_plus * r_plus - q * r;
+
+		let delta_q_hp = FixedU128::from_rational($delta_q, hub_unit);
+
+		let fee_taken = $extra_fee_taken.mul_floor($fee_amount);
+		let fee_amt = FixedU128::from_rational(fee_taken, asset_unit);
+		let rho = delta_q_hp / q;
+		let p1 = r / (FixedU128::from(1) + rho) * (FixedU128::one() - FixedU128::from($asset_fee)) - fee_amt / rho;
+		let p2 = r_plus * (FixedU128::from(1) + FixedU128::from($asset_fee) * (FixedU128::from(1) + rho));
+		let diff = if p2 > p1 { p2 - p1 } else { p1 - p2 };
+		let rhs = delta_q_hp * diff;
+		assert_eq_approx!(lhs, rhs, $tolerance, $desc);
+	}};
+}
+
 fn fee() -> impl Strategy<Value = Permill> {
 	// Allow values between 0.001 and 3%
 	(
@@ -158,15 +143,16 @@ fn sum_asset_hub_liquidity() -> Balance {
 }
 
 fn get_fee_amount_from_swapped_event_for_asset(asset_id: AssetId) -> Balance {
-	let events = frame_system::Pallet::<Test>::events().into_iter().map(|e| e.event).collect::<Vec<_>>();
+	let events = frame_system::Pallet::<Test>::events()
+		.into_iter()
+		.map(|e| e.event)
+		.collect::<Vec<_>>();
 
 	for event in events.into_iter() {
-		dbg!(&event);
 		match event {
-			RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped{outputs, fees, ..}) => {
+			RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { outputs, fees, .. }) => {
 				if fees.len() > 0 {
 					let fee = fees.iter().find(|f| f.asset == asset_id);
-					dbg!(&fee);
 					if let Some(fee) = fee {
 						return fee.amount;
 					}
@@ -253,29 +239,18 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
-
-			/*
-				// No LRNA lost
-				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
-				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
-				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-
-				let remaining = delta_q_300 - delta_q_200 - delta_q_hdx;
-				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-
-			 */
 			});
 	}
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn sell_invariants_with_fees_martin(amount in trade_amount(),
 		stable_price in price(),
@@ -328,11 +303,9 @@ proptest! {
 				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
-
 				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(seller), 200, 300, amount, Balance::zero()));
 
 				let fee_amount = get_fee_amount_from_swapped_event_for_asset(300);
-				dbg!(fee_amount);
 
 				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -340,25 +313,36 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), 0u128, "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), fee_amount, "Invariant 300");
-				assert_asset_invariant_with_fee(&old_state_300, &new_state_300, 0u128, asset_fee, FixedU128::from((TOLERANCE,ONE)), " HAHA Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
+
+				let delta_q = old_state_200.hub_reserve - new_state_200.hub_reserve;
+				assert_invariants_after_trade!(&old_state_300,
+					&new_state_300,
+					delta_q,
+					fee_amount,
+					asset_fee,
+					Permill::zero(),
+					FixedU128::from((TOLERANCE,ONE)),
+					12u32,
+					"Invariant 300");
+
+			/*
+				assert_invariants_after_trade(&old_state_200,
+				&new_state_200,
+				&old_state_300,
+				&new_state_300,
+				fee_amount,
+				asset_fee,
+				Permill::zero(),
+				"After Trade Invariant");
+
+			 */
 
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
-
-			/*
-				// No LRNA lost
-				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
-				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
-				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-
-				let remaining = delta_q_200 - delta_q_300 - delta_q_hdx - protocol_hub_diff;
-				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-
-			 */
 			});
 	}
 }
@@ -427,23 +411,12 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
-
-			/*
-				// No LRNA lost
-				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
-				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
-				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-
-				let remaining = delta_q_200 - delta_q_300 - delta_q_hdx - protocol_hub_diff;
-				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-
-			 */
 			});
 	}
 }
@@ -507,23 +480,12 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
-
-			/*
-				// No LRNA lost
-				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
-				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
-				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-
-				let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - protocol_hub_diff;
-				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-
-			 */
 			});
 	}
 }
@@ -591,22 +553,12 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
-			/*
-				// No LRNA lost
-				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
-				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
-				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-
-				let remaining = delta_q_200 - delta_q_300 - delta_q_hdx - imbalance_diff;
-				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-
-			 */
 			});
 	}
 }
@@ -675,28 +627,15 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
 				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
-
 				assert_eq!(new_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
-
-				// No LRNA lost
-			//TODO: ask colin
-			/*
-				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
-				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
-				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-
-				let remaining = delta_q_200 - delta_q_300 - delta_q_hdx ;//- imbalance_diff;
-				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-
-			 */
 			});
 	}
 }
@@ -778,20 +717,8 @@ fn buy_invariant_case_01() {
 			assert_ne!(new_state_200.reserve, old_state_200.reserve);
 			assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-			assert_asset_invariant(
-				&old_state_200,
-				&new_state_200,
-				FixedU128::from((TOLERANCE, ONE)),
-				0,
-				"Invariant 200",
-			);
-			assert_asset_invariant(
-				&old_state_300,
-				&new_state_300,
-				FixedU128::from((TOLERANCE, ONE)),
-				0,
-				"Invariant 300",
-			);
+			assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+			assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 			// Total hub asset liquidity has not changed
 			let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -806,17 +733,6 @@ fn buy_invariant_case_01() {
 				new_asset_hub_liquidity + protocl_hub_imbalance,
 				"Assets hub liquidity"
 			);
-
-			/*
-			// No LRNA lost
-			let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
-			let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
-			let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-
-			let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - protocl_hub_imbalance;
-			assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-
-			 */
 		});
 }
 
@@ -892,47 +808,18 @@ fn buy_invariant_case_02() {
 			let new_state_300 = Omnipool::load_asset_state(300).unwrap();
 
 			// invariant does not decrease
-			// assert_ne!(new_state_200.reserve, old_state_200.reserve);
-			// assert_ne!(new_state_300.reserve, old_state_300.reserve);
-
-			assert_asset_invariant(
-				&old_state_200,
-				&new_state_200,
-				FixedU128::from((TOLERANCE, ONE)),
-				0,
-				"Invariant 200",
-			);
-			assert_asset_invariant(
-				&old_state_300,
-				&new_state_300,
-				FixedU128::from((TOLERANCE, ONE)),
-				0,
-				"Invariant 300",
-			);
+			assert_asset_invariant_not_decreased!(&old_state_200, &new_state_200, "Invariant 200");
+			assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 			// Total hub asset liquidity has not changed
 			let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
 			let protocol_hub_diff = old_hub_liquidity - new_hub_liquidity;
-
-			// total quantity of R_i remains unchanged
 			let new_asset_hub_liquidity = sum_asset_hub_liquidity();
-
 			assert_eq!(
 				old_asset_hub_liquidity,
 				new_asset_hub_liquidity + protocol_hub_diff,
 				"Assets hub liquidity"
 			);
-
-			/*
-			// No LRNA lost
-			let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
-			let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
-			let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-
-			let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - protocol_hub_diff;
-			assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-			 */
 		});
 }
 
@@ -996,8 +883,7 @@ proptest! {
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
-
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
@@ -1068,7 +954,7 @@ proptest! {
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
@@ -1138,7 +1024,7 @@ proptest! {
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -1210,7 +1096,7 @@ proptest! {
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 300");
+				assert_asset_invariant_not_decreased!(&old_state_300, &new_state_300, "Invariant 300");
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -1344,7 +1230,7 @@ proptest! {
 				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 
-				assert_asset_invariant(&before_buy_state_200, &old_state_200, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&before_buy_state_200, &old_state_200, "Invariant 200");
 
 				assert_ok!(Omnipool::remove_liquidity(RuntimeOrigin::signed(seller), position_id, position.shares));
 				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
@@ -1421,7 +1307,7 @@ proptest! {
 				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 
-				assert_asset_invariant(&before_buy_state_200, &old_state_200, FixedU128::from((TOLERANCE,ONE)), 0, "Invariant 200");
+				assert_asset_invariant_not_decreased!(&before_buy_state_200, &old_state_200, "Invariant 200");
 
 				assert_ok!(Omnipool::remove_liquidity(RuntimeOrigin::signed(seller), position_id, position.shares));
 				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
