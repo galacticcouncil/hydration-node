@@ -749,7 +749,6 @@ impl<
 		RerouteDestination,
 	>
 {
-
 	fn deposit_asset(asset: &Asset, location: &Location, _context: Option<&XcmContext>) -> Result<(), XcmError> {
 		match (
 			AccountIdConvert::convert_location(location),
