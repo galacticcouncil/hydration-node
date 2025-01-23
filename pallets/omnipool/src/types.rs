@@ -221,6 +221,7 @@ where
 		+ CheckedSub
 		+ Default
 		+ PartialOrd
+		+ sp_std::fmt::Debug
 		+ Saturating,
 {
 	pub fn price_as_rational(&self) -> (Balance, Balance) {

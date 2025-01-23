@@ -188,6 +188,7 @@ impl<
 			+ Copy
 			+ Default
 			+ PartialOrd
+			+ sp_std::fmt::Debug
 			+ Saturating,
 	> AssetStateChange<Balance>
 {
@@ -197,7 +198,12 @@ impl<
 
 	fn account_for_fee_taken(self, amt_to_burn: Balance) -> Self {
 		let mut v = self;
-		debug_assert!(*v.extra_hub_reserve_amount >= amt_to_burn);
+		debug_assert!(
+			*v.extra_hub_reserve_amount >= amt_to_burn,
+			"Amount to burn {:?} > to mint {:?}",
+			amt_to_burn,
+			v.extra_hub_reserve_amount
+		);
 		v.extra_hub_reserve_amount = v
 			.extra_hub_reserve_amount
 			.saturating_merge(BalanceUpdate::Decrease(amt_to_burn));
