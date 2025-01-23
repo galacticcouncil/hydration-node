@@ -327,7 +327,7 @@ mod xcm_fee_payment_api_tests {
 
 			assert_eq!(
 				Runtime::query_xcm_weight(VersionedXcm::from(xcm_message.clone())),
-				Ok(Weight::from_parts(200000000, 0))
+				Ok(Weight::from_parts(183299000, 0))
 			);
 		});
 	}
