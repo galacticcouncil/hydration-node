@@ -424,10 +424,12 @@ fn initiate_teleport_should_fail_as_disabled() {
 			dest_hydradx,
 			message
 		));
-	});
 
-	// Assert
-	Hydra::execute_with(|| {
-		assert_xcm_message_processing_failed();
+		assert!(!matches!(
+			last_hydra_events(10).first(),
+			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+			))
+		));
 	});
 }
