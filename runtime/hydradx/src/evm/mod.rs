@@ -55,6 +55,7 @@ mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;
 mod runner;
+mod aave_trade_executor;
 
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;
