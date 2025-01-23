@@ -496,11 +496,11 @@ where
 		Ok(vec![staking_used, referrals_used])
 	}
 
-	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<Balance, Self::Error> {
+	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<(Balance, AccountId), Self::Error> {
 		//TODO: here in future, we will change this to buyback HDX with the lrna amount
-		// for now, it is just transferring the fee to treasury
+		// for now, simply transfer the amount to treasury
 		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
-		Ok(amount)
+		Ok((amount, ProtocolFeeRecipient::get()))
 	}
 }
 

@@ -749,8 +749,8 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		Ok(vec![Some((to_take, AccountId::default()))])
 	}
 
-	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<Balance, Self::Error> {
+	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<(Balance, AccountId), Self::Error> {
 		Tokens::withdraw(LRNA, &fee_account, amount)?;
-		Ok(amount)
+		Ok((amount, AccountId::default()))
 	}
 }

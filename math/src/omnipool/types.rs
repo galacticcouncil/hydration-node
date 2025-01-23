@@ -1,9 +1,7 @@
 use crate::omnipool::calculate_burn_amount_based_on_fee_taken;
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
-use crate::to_u256;
 use num_traits::{CheckedAdd, CheckedSub, SaturatingAdd};
-use primitive_types::U256;
-use sp_arithmetic::traits::{AtLeast32BitUnsigned, Saturating};
+use sp_arithmetic::traits::{Saturating};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use sp_std::ops::{Add, Deref};
 

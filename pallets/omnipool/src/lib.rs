@@ -1042,7 +1042,8 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
+			let extra_protocol_fee_dest =
+				Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
@@ -1069,11 +1070,21 @@ pub mod pallet {
 					T::HubAssetId::get().into(),
 					*state_changes.asset_in.total_delta_hub_reserve(),
 				)],
-				vec![Fee::new(
-					T::HubAssetId::get().into(),
-					state_changes.fee.protocol_fee,
-					Destination::Burned,
-				)],
+				vec![
+					Fee::new(
+						T::HubAssetId::get().into(),
+						state_changes
+							.fee
+							.protocol_fee
+							.saturating_sub(state_changes.extra_protocol_fee_amount),
+						Destination::Burned,
+					),
+					Fee::new(
+						T::HubAssetId::get().into(),
+						state_changes.extra_protocol_fee_amount,
+						Destination::Account(extra_protocol_fee_dest),
+					),
+				],
 			);
 
 			// Swapped event for HubAsset to AssetB
@@ -1284,7 +1295,8 @@ pub mod pallet {
 
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
+			let extra_protocol_fee_dest =
+				Self::process_extra_protocol_fee_amount(state_changes.extra_protocol_fee_amount)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),
@@ -1311,11 +1323,21 @@ pub mod pallet {
 					T::HubAssetId::get().into(),
 					*state_changes.asset_in.total_delta_hub_reserve(),
 				)],
-				vec![Fee::new(
-					T::HubAssetId::get().into(),
-					state_changes.fee.protocol_fee,
-					Destination::Burned,
-				)],
+				vec![
+					Fee::new(
+						T::HubAssetId::get().into(),
+						state_changes
+							.fee
+							.protocol_fee
+							.saturating_sub(state_changes.extra_protocol_fee_amount),
+						Destination::Burned,
+					),
+					Fee::new(
+						T::HubAssetId::get().into(),
+						state_changes.extra_protocol_fee_amount,
+						Destination::Account(extra_protocol_fee_dest),
+					),
+				],
 			);
 
 			// Swapped even from HubAsset to AssetB
@@ -1659,16 +1681,16 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	fn process_extra_protocol_fee_amount(amount: Balance) -> DispatchResult {
+	fn process_extra_protocol_fee_amount(amount: Balance) -> Result<T::AccountId, DispatchError> {
 		let initial_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-		let consumed = T::OmnipoolHooks::consume_protocol_fee(Self::protocol_account(), amount)?;
+		let (consumed, who) = T::OmnipoolHooks::consume_protocol_fee(Self::protocol_account(), amount)?;
 		ensure!(consumed == amount, Error::<T>::ProtocolFeeNotConsumed);
 		let final_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 		ensure!(
 			initial_balance.saturating_sub(final_balance) == amount,
 			Error::<T>::ProtocolFeeNotConsumed
 		);
-		Ok(())
+		Ok(who)
 	}
 
 	/// Mint or burn hub asset amount
