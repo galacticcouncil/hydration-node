@@ -137,7 +137,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 		let event1 = &last_two_swapped_events[0];
 		assert_operation_stack!(event1, [ExecutionType::Xcm(_, 0), ExecutionType::Omnipool(1)]);
 
-		let event2 = &last_two_swapped_events[0];
+		let event2 = &last_two_swapped_events[1];
 		assert_operation_stack!(event2, [ExecutionType::Xcm(_, 0), ExecutionType::Omnipool(1)]);
 	});
 }
