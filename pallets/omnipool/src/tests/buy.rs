@@ -1042,3 +1042,70 @@ fn spot_price_after_buy_should_be_identical_when_protocol_fee_is_nonzero() {
 		"spot price afters sells"
 	);
 }
+
+#[test]
+fn buy_with_all_fees_and_extra_withdrawal_works() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee(Permill::from_percent(10))
+		.with_protocol_fee(Permill::from_percent(3))
+		.with_burn_fee(Permill::from_percent(50))
+		.with_on_trade_withdrawal(Permill::from_percent(10))
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.with_token(100, FixedU128::one(), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::one(), LP3, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			let buy_amount = 10 * ONE;
+
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				200,
+				100,
+				buy_amount,
+				u128::MAX,
+			));
+
+			assert_asset_state!(
+				100,
+				AssetReserveState {
+					reserve: 2011585471818340,
+					hub_reserve: 1988481253239648,
+					shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+			assert_asset_state!(
+				200,
+				AssetReserveState {
+					reserve: 1989888888888889,
+					hub_reserve: 2012184388751912,
+					shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+
+			assert_eq!(Tokens::free_balance(100, &LP1), 988414528181660);
+			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
+			assert_eq!(Tokens::free_balance(200, &TRADE_FEE_COLLECTOR), 111111111111);
+			assert_eq!(Tokens::free_balance(LRNA, &PROTOCOL_FEE_COLLECTOR), 172781201405);
+
+			// Account for 200 asset
+			let initial_reserve = 2000 * ONE;
+			let omnipool_200_reserve = Tokens::free_balance(200, &Omnipool::protocol_account());
+			let fee_collector = Tokens::free_balance(200, &TRADE_FEE_COLLECTOR);
+			assert_eq!(initial_reserve, omnipool_200_reserve + buy_amount + fee_collector);
+		});
+}

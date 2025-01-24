@@ -1027,9 +1027,38 @@ fn sell_with_all_fees_and_extra_withdrawal_works() {
 				min_limit
 			));
 
+			assert_asset_state!(
+				100,
+				AssetReserveState {
+					reserve: 2000 * ONE + sell_amount,
+					hub_reserve: 1951219512195122,
+					shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+			assert_asset_state!(
+				200,
+				AssetReserveState {
+					reserve: 1957936621396236,
+					hub_reserve: 2051676360499704,
+					shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+
 			assert_eq!(Tokens::free_balance(100, &LP1), 950_000_000_000_000);
 			assert_eq!(Tokens::free_balance(200, &LP1), 41601143674053);
 			assert_eq!(Tokens::free_balance(200, &TRADE_FEE_COLLECTOR), 462234929711);
 			assert_eq!(Tokens::free_balance(LRNA, &PROTOCOL_FEE_COLLECTOR), 731707317073);
+			// Account for 200 asset
+			let initial_reserve = 2000 * ONE;
+			let omnipool_200_reserve = Tokens::free_balance(200, &Omnipool::protocol_account());
+			let fee_collector = Tokens::free_balance(200, &TRADE_FEE_COLLECTOR);
+			let buy_amount = Tokens::free_balance(200, &LP1);
+			assert_eq!(initial_reserve, omnipool_200_reserve + buy_amount + fee_collector);
 		});
 }
