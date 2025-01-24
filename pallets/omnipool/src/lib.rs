@@ -958,15 +958,7 @@ pub mod pallet {
 			);
 
 			let (taken_fee, trade_fees) = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
-			// We need to adjust the state changes to account for the fee taken
-			let intermediate_out_state = asset_out_state
-				.delta_update(&state_changes.asset_out)
-				.ok_or(ArithmeticError::Overflow)?;
-			let state_changes = state_changes.account_for_fee_taken(
-				taken_fee,
-				intermediate_out_state.reserve,
-				intermediate_out_state.hub_reserve,
-			);
+			let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 			let new_asset_in_state = asset_in_state
 				.delta_update(&state_changes.asset_in)
@@ -1211,15 +1203,7 @@ pub mod pallet {
 			);
 
 			let (taken_fee, trade_fees) = Self::process_trade_fee(&who, asset_out, state_changes.fee.asset_fee)?;
-			// We need to adjust the state changes to account for the fee taken
-			let intermediate_out_state = asset_out_state
-				.delta_update(&state_changes.asset_out)
-				.ok_or(ArithmeticError::Overflow)?;
-			let state_changes = state_changes.account_for_fee_taken(
-				taken_fee,
-				intermediate_out_state.reserve,
-				intermediate_out_state.hub_reserve,
-			);
+			let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 			let new_asset_in_state = asset_in_state
 				.delta_update(&state_changes.asset_in)
@@ -1758,12 +1742,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		// We need to adjust the state changes to account for the fee taken
-		let intermediate_state = asset_state
-			.delta_update(&state_changes.asset)
-			.ok_or(ArithmeticError::Overflow)?;
-		let state_changes =
-			state_changes.account_for_fee_taken(taken_fee, intermediate_state.reserve, intermediate_state.hub_reserve);
+		let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
@@ -1878,12 +1857,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let (taken_fee, trade_fees) = Self::process_trade_fee(who, asset_out, state_changes.fee.asset_fee)?;
-		// We need to adjust the state changes to account for the fee taken
-		let intermediate_state = asset_state
-			.delta_update(&state_changes.asset)
-			.ok_or(ArithmeticError::Overflow)?;
-		let state_changes =
-			state_changes.account_for_fee_taken(taken_fee, intermediate_state.reserve, intermediate_state.hub_reserve);
+		let state_changes = state_changes.account_for_fee_taken(taken_fee);
 
 		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)

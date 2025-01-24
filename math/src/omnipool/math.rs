@@ -554,10 +554,21 @@ use sp_arithmetic::traits::SaturatedConversion;
 
 pub(crate) fn calculate_burn_amount_based_on_fee_taken(
 	taken_fee: Balance,
-	reserve: Balance,
-	hub_reserve: Balance,
+	total_fee_amount: Balance,
+	extra_hub_amount: Balance,
 ) -> Balance {
+	if total_fee_amount.is_zero() {
+		return Balance::zero();
+	}
+	let (taken_fee_hp, total_fee_amount_hp, extra_hp) = to_u256!(taken_fee, total_fee_amount, extra_hub_amount);
+	// taken / fee  = X / extra_hp
+	// X = taken * extra_hp / fee
+	let hub_to_burn = taken_fee_hp.saturating_mul(extra_hp).div(total_fee_amount_hp);
+	hub_to_burn.saturated_into()
+	/*
 	let (fee_hp, hub_reserve_hp, reserve_hp) = to_u256!(taken_fee, hub_reserve, reserve);
 	let hub_to_burn = fee_hp.saturating_mul(hub_reserve_hp).div(reserve_hp);
 	hub_to_burn.saturated_into()
+
+	 */
 }

@@ -231,14 +231,10 @@ where
 }
 
 impl TradeStateChange<crate::types::Balance> {
-	pub fn account_for_fee_taken(
-		self,
-		taken_fee: crate::types::Balance,
-		out_reserve: crate::types::Balance,
-		out_hub_reserve: crate::types::Balance,
-	) -> Self {
+	pub fn account_for_fee_taken(self, taken_fee: crate::types::Balance) -> Self {
 		let mut v = self;
-		let extra_amt = calculate_burn_amount_based_on_fee_taken(taken_fee, out_reserve, out_hub_reserve);
+		let extra_amt =
+			calculate_burn_amount_based_on_fee_taken(taken_fee, v.fee.asset_fee, *v.asset_out.extra_hub_reserve_amount);
 		v.asset_out = v.asset_out.account_for_fee_taken(extra_amt);
 		v
 	}
@@ -255,14 +251,10 @@ where
 }
 
 impl HubTradeStateChange<crate::types::Balance> {
-	pub fn account_for_fee_taken(
-		self,
-		taken_fee: crate::types::Balance,
-		out_reserve: crate::types::Balance,
-		out_hub_reserve: crate::types::Balance,
-	) -> Self {
+	pub fn account_for_fee_taken(self, taken_fee: crate::types::Balance) -> Self {
 		let mut v = self;
-		let extra_amt = calculate_burn_amount_based_on_fee_taken(taken_fee, out_reserve, out_hub_reserve);
+		let extra_amt =
+			calculate_burn_amount_based_on_fee_taken(taken_fee, v.fee.asset_fee, *v.asset.extra_hub_reserve_amount);
 		v.asset = v.asset.account_for_fee_taken(extra_amt);
 		v
 	}
