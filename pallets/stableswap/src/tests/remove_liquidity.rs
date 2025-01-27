@@ -7,6 +7,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
+use orml_traits::MultiCurrencyExtended;
 
 #[test]
 fn remove_liquidity_should_work_when_withdrawing_all_shares() {
@@ -1321,5 +1322,65 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_remaining_share
 				}
 				.into(),
 			]);
+		});
+}
+
+#[test]
+fn remove_liquidity_should_work_when_has_some_dust_small_than_mil_pool_liqudity() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 200 * ONE),
+			(ALICE, asset_a, 100 * ONE),
+			(ALICE, asset_b, 200 * ONE),
+			(ALICE, asset_c, 300 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 200 * ONE),
+					AssetAmount::new(asset_c, 300 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 200 * ONE;
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
+			));
+
+			let shares = Tokens::free_balance(pool_id, &BOB);
+			let some_leftover = <Test as crate::Config>::MinPoolLiquidity::get() - 1;
+			Tokens::update_balance(pool_id, &BOB, some_leftover as i128).unwrap();
+
+			assert_ok!(Stableswap::remove_liquidity_one_asset(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_c,
+				shares,
+				0,
+			));
 		});
 }
