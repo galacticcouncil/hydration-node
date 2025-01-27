@@ -1,9 +1,8 @@
 use super::*;
-use crate::{AssetReserveState, FixedU128};
+use crate::FixedU128;
 use frame_support::assert_noop;
 use primitive_types::U256;
 use proptest::prelude::*;
-use sp_runtime::PerThing;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000_000_000;
@@ -50,6 +49,7 @@ macro_rules! assert_asset_invariant_not_decreased {
 	}};
 }
 
+/*
 fn assert_invariants_after_trade(
 	asset_in_old_state: &AssetReserveState<Balance>,
 	asset_in_new_state: &AssetReserveState<Balance>,
@@ -92,6 +92,8 @@ fn assert_invariants_after_trade(
 	dbg!(lhs);
 	dbg!(rhs);
 }
+
+ */
 
 #[macro_export]
 macro_rules! assert_invariants_after_trade {
@@ -154,7 +156,7 @@ fn get_fee_amount_from_swapped_event_for_asset(asset_id: AssetId) -> Balance {
 
 	for event in events.into_iter() {
 		match event {
-			RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { outputs, fees, .. }) => {
+			RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { fees, .. }) => {
 				if fees.len() > 0 {
 					let fee = fees.iter().find(|f| f.asset == asset_id);
 					if let Some(fee) = fee {
@@ -256,7 +258,7 @@ proptest! {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
-	fn sell_invariants_with_fees_martin(amount in trade_amount(),
+	fn sell_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
 		stable_reserve in asset_reserve(),
 		native_reserve in asset_reserve(),
@@ -265,7 +267,7 @@ proptest! {
 		token_3 in pool_token(300),
 		token_4 in pool_token(400),
 		asset_fee in fee(),
-		protocol_fee in fee(),
+		//protocol_fee in fee(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -330,19 +332,6 @@ proptest! {
 					FixedU128::from((TOLERANCE,ONE)),
 					12u32,
 					"Invariant 300");
-
-			/*
-				assert_invariants_after_trade(&old_state_200,
-				&new_state_200,
-				&old_state_300,
-				&new_state_300,
-				fee_amount,
-				asset_fee,
-				Permill::zero(),
-				"After Trade Invariant");
-
-			 */
-
 
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
