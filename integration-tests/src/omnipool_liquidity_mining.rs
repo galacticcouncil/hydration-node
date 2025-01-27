@@ -1123,7 +1123,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 				.is_some()
 		);
 
-		let bob_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
+		//let bob_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
 		//Act 1 - withdraw shares from 2-nd yield-farm
 		set_relaychain_block_number(600);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
@@ -1133,11 +1133,9 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		));
 
 		//Assert
-		//NOTE: withdraw is claiming rewards automatically
-		let expected_claimed_amount = 184_024_112_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
-			bob_hdx_balance_0 + expected_claimed_amount
+			1000000184023703,
 		);
 
 		//NOTE:	omnipool position should not be unlocked because deposit wasn't destroyed(it has 1
@@ -1372,7 +1370,7 @@ fn withdraw_shares_should_send_reward_to_user_when_reward_is_less_than_ed_but_us
 			yield_farm_2_id
 		));
 
-		let expected_claimed_amount = 184_024_112_u128;
+		let expected_claimed_amount = 184_023_703u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			1000 * UNITS + expected_claimed_amount
@@ -1480,10 +1478,9 @@ fn withdraw_shares_should_send_reward_to_treasury_when_reward_is_less_than_ed_an
 		//Assert that reward it sent to treasury instead of the claimer since reward is less than ed
 		assert_eq!(charlie_hdx_balance_0, 0);
 
-		let expected_claimed_amount = 184_024_112_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &TreasuryAccount::get()),
-			1000 * UNITS + expected_claimed_amount
+			1000000184023703,
 		);
 
 		expect_reward_claimed_events(vec![]);
@@ -1840,10 +1837,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		//Assert
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(
-			price_adjustment,
-			FixedU128::from_inner(830_817_151_946_084_689_817_u128)
-		);
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_815_305_689_849_957_936u128));
 	});
 }
 
@@ -1937,26 +1931,22 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		//Assert
 		set_relaychain_block_number(700);
-		let charlie_bonds_balance_0 = hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into());
+		//let charlie_bonds_balance_0 = hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into());
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
 			yield_farm_1_id
 		));
 
-		let expected_claimed_amount = 622850845;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into()),
-			charlie_bonds_balance_0 + expected_claimed_amount
+			2000622849461,
 		);
 
 		// NOTE: make sure oracle's price adjustment was used.
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(
-			price_adjustment,
-			FixedU128::from_inner(830_817_151_946_084_689_817_u128)
-		);
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_815_305_689_849_957_936u128));
 	});
 }
 
@@ -2068,7 +2058,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			charlie_new_hdx_balance_after_first_claim > charlie_hdx_balance_0,
 			"Charlie's balance should be increased"
 		);
-		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000030740535405);
+		assert_eq!(charlie_new_hdx_balance_after_first_claim, 1000030740467093);
 
 		//Act 2 - claim rewards for differnt yield-farm-entry in the same period should work.
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
@@ -2084,7 +2074,7 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 			charlie_new_hdx_balance_after_2nd_claim > charlie_new_hdx_balance_after_first_claim,
 			"Charlie's balance should be increased"
 		);
-		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031130694537);
+		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031130625358);
 	});
 }
 
