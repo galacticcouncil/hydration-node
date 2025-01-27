@@ -2654,7 +2654,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(LRNA, 45225)],
+					inputs: vec![Asset::new(LRNA, 45113)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(
 						DAI,
