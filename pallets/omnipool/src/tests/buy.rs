@@ -449,7 +449,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(1, 63020408163266)],
+					inputs: vec![Asset::new(1, 57142857142858)],
 					outputs: vec![Asset::new(200, buy_amount)],
 					fees: vec![Fee::new(
 						200,
@@ -503,7 +503,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(1, 66726462234742)],
+					inputs: vec![Asset::new(1, 60499132204326)],
 					outputs: vec![Asset::new(200, other_buy_amount)],
 					fees: vec![Fee::new(
 						200,

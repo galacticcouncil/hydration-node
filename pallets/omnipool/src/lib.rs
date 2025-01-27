@@ -972,6 +972,17 @@ pub mod pallet {
 				"delta_reserve_in is not equal to given amount in"
 			);
 
+			debug_assert_eq!(
+				*state_changes.asset_in.extra_hub_reserve_amount,
+				Balance::zero(),
+				"Extra new minted hub amount for asset in is not zero!"
+			);
+			debug_assert_eq!(
+				(*state_changes.asset_in.delta_hub_reserve).saturating_sub(state_changes.fee.protocol_fee),
+				*state_changes.asset_out.delta_hub_reserve,
+				"Burned Hub asset amount of IN subpool - protocol fee != hub asset amount minted of OUT subpool"
+			);
+
 			T::Currency::transfer(
 				asset_in,
 				&who,
@@ -1060,7 +1071,7 @@ pub mod pallet {
 				vec![Asset::new(asset_in.into(), amount)],
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
-					*state_changes.asset_in.total_delta_hub_reserve(),
+					*state_changes.asset_in.delta_hub_reserve,
 				)],
 				vec![
 					Fee::new(
@@ -1087,7 +1098,7 @@ pub mod pallet {
 				pallet_broadcast::types::TradeOperation::ExactIn,
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
-					*state_changes.asset_out.total_delta_hub_reserve(),
+					*state_changes.asset_out.delta_hub_reserve,
 				)],
 				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
 				trade_fees,
@@ -1217,6 +1228,17 @@ pub mod pallet {
 				"delta_reserve_out is not equal to given amount out"
 			);
 
+			debug_assert_eq!(
+				*state_changes.asset_in.extra_hub_reserve_amount,
+				Balance::zero(),
+				"Extra new minted hub amount for asset in is not zero!"
+			);
+			debug_assert_eq!(
+				(*state_changes.asset_in.delta_hub_reserve).saturating_sub(state_changes.fee.protocol_fee),
+				*state_changes.asset_out.delta_hub_reserve,
+				"Burned Hub asset amount of IN subpool - protocol fee != hub asset amount minted of OUT subpool"
+			);
+
 			T::Currency::transfer(
 				asset_in,
 				&who,
@@ -1305,7 +1327,7 @@ pub mod pallet {
 				vec![Asset::new(asset_in.into(), *state_changes.asset_in.delta_reserve)],
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
-					*state_changes.asset_in.total_delta_hub_reserve(),
+					*state_changes.asset_in.delta_hub_reserve,
 				)],
 				vec![
 					Fee::new(
@@ -1332,7 +1354,7 @@ pub mod pallet {
 				pallet_broadcast::types::TradeOperation::ExactOut,
 				vec![Asset::new(
 					T::HubAssetId::get().into(),
-					*state_changes.asset_out.total_delta_hub_reserve(),
+					*state_changes.asset_out.delta_hub_reserve,
 				)],
 				vec![Asset::new(asset_out.into(), *state_changes.asset_out.delta_reserve)],
 				trade_fees,

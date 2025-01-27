@@ -493,7 +493,7 @@ parameter_types! {
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
-	pub BurnProtocolFee : Permill = Permill::from_rational(1u32,10000); //TODO: ensure correct value here
+	pub BurnProtocolFee : Permill = Permill::from_percent(50);
 }
 
 impl pallet_omnipool::Config for Runtime {

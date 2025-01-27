@@ -1133,10 +1133,10 @@ mod router_different_pools_tests {
 mod omnipool_router_tests {
 	use super::*;
 	use frame_support::assert_noop;
-	use hydradx_runtime::{Balances, XYK};
+	use hydradx_runtime::{Balances, Omnipool, Treasury, XYK};
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
-	use pallet_broadcast::types::ExecutionType;
+	use pallet_broadcast::types::{Destination, ExecutionType};
 
 	#[test]
 	fn sell_should_work_when_route_contains_single_trade() {
@@ -2397,7 +2397,10 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12014871681)],
-					fees: vec![Fee::new(LRNA, 6007435, Destination::Burned)],
+					fees: vec![
+						Fee::new(LRNA, 3003717, Destination::Burned),
+						Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
+					],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -2406,7 +2409,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, 12038886566)],
+					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(
 						DAI,
@@ -2462,8 +2465,12 @@ mod omnipool_router_tests {
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
-					outputs: vec![Asset::new(LRNA, 12014871681)], //TODO: dmoka - verify it should be the same as input below
-					fees: vec![Fee::new(LRNA, 6007435, Destination::Burned)],
+					outputs: vec![Asset::new(LRNA, 12_014_871_681)],
+					fees: vec![
+						Fee::new(LRNA, 3003717, Destination::Burned),
+						Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
+					],
+
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2472,7 +2479,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, 12038886566)],
+					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(
 						DAI,
@@ -2634,8 +2641,11 @@ mod omnipool_router_tests {
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
-					outputs: vec![Asset::new(LRNA, 45135)], //TODO: dmoka - verify it should be the same as input below
-					fees: vec![Fee::new(LRNA, 22, Destination::Burned)],
+					outputs: vec![Asset::new(LRNA, 45135)],
+					fees: vec![
+						Fee::new(LRNA, 11, Destination::Burned),
+						Fee::new(LRNA, 11, Destination::Account(Treasury::account_id())),
+					],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -2701,7 +2711,10 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
-					fees: vec![Fee::new(LRNA, 22, Destination::Burned)],
+					fees: vec![
+						Fee::new(LRNA, 11, Destination::Burned),
+						Fee::new(LRNA, 11, Destination::Account(Treasury::account_id())),
+					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2710,7 +2723,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(LRNA, 45225)],
+					inputs: vec![Asset::new(LRNA, 45113)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(
 						DAI,
