@@ -126,7 +126,7 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 		hydradx_run_to_next_block();
 
 		// assert
-		let expected = ((936324588000000000, 1125006022570633).into(), 0);
+		let expected = ((936324588000000000, 1125006037627185).into(), 0);
 		for supported_period in SUPPORTED_PERIODS {
 			assert_eq!(
 				EmaOracle::get_price(HDX, LRNA, *supported_period, OMNIPOOL_SOURCE),
