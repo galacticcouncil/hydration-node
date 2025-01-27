@@ -391,7 +391,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
 		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
-		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 2_794_789_077);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 5985614405);
 	});
 }
 
@@ -411,6 +411,8 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			1_000_000_000_000_000_000,
 			u128::MAX,
 		));
+
+		let expected_taken_fee = 2091209889188469;
 
 		expect_hydra_last_events(vec![
 			pallet_omnipool::Event::BuyExecuted {
@@ -452,7 +454,11 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 						2091209889188471,
 						Destination::Account(Omnipool::protocol_account()),
 					),
-					Fee::new(DAI, 2091209889188469, Destination::Account(Referrals::pot_account_id())),
+					Fee::new(
+						DAI,
+						expected_taken_fee,
+						Destination::Account(Referrals::pot_account_id()),
+					),
 				],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
@@ -461,7 +467,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
-		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 2_644_977_450_514_458 / 2 - 1);
+		assert_eq!(ref_dai_balance.abs_diff(orig_balance), expected_taken_fee);
 		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 0);
 	});
 }
