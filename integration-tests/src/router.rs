@@ -760,6 +760,51 @@ mod router_different_pools_tests {
 	}
 
 	#[test]
+	fn account_should_not_have_dust_when_selling_share_asset() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ALICE.into(),
+					pool_id,
+					(100 * UNITS + 1) as i128,
+				));
+				let trades = vec![
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: pool_id,
+						asset_out: stable_asset_1,
+					},
+				];
+
+				//Act
+				let amount_to_sell = 100 * UNITS;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					pool_id,
+					stable_asset_1,
+					amount_to_sell,
+					0,
+					trades
+				));
+
+				//Assert
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(pool_id, &AccountId::from(ALICE)),
+					1
+				);
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+
+	#[test]
 	fn router_should_work_for_hopping_from_omnipool_to_stableswap() {
 		TestNet::reset();
 
