@@ -1102,9 +1102,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn get_pool_asset_multipliers(pool_id: T::AssetId) -> Option<Vec<Peg>> {
-		//TODO: implement
-
-		None
+		let multipliers = PoolPegs::<T>::get(&pool_id);
+		let Some(mpls) = multipliers else {
+			return None;
+		};
+		//TODO: when clarified, update to target
+		Some(mpls.into_iter().map(|v| v.current).collect())
 	}
 
 	/// Calculates out amount given in amount.
