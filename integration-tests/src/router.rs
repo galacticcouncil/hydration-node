@@ -760,7 +760,7 @@ mod router_different_pools_tests {
 	}
 
 	#[test]
-	fn account_should_not_have_dust_when_selling_share_asset() {
+	fn account_should_not_have_dust_when_selling_share_asset_with_dust_leftover() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -768,11 +768,12 @@ mod router_different_pools_tests {
 				//Arrange
 				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
 
+				let some_dust = 9;
 				assert_ok!(Currencies::update_balance(
 					hydradx_runtime::RuntimeOrigin::root(),
 					ALICE.into(),
 					pool_id,
-					(100 * UNITS + 1) as i128,
+					(100 * UNITS + some_dust) as i128,
 				));
 				let trades = vec![
 					Trade {
@@ -793,16 +794,22 @@ mod router_different_pools_tests {
 					trades
 				));
 
-				//Assert
+				//Assert that no dust left on account
 				assert_eq!(
 					hydradx_runtime::Currencies::free_balance(pool_id, &AccountId::from(ALICE)),
-					1
+					0
 				);
+
+				//Assert that dust is transferred to treasury
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(pool_id, &Treasury::account_id()),
+					some_dust
+				);
+
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
 	}
-
 
 	#[test]
 	fn router_should_work_for_hopping_from_omnipool_to_stableswap() {
@@ -6193,7 +6200,7 @@ pub fn init_stableswap_with_details(
 		None,
 		Some(b"pool".to_vec().try_into().unwrap()),
 		AssetKind::Token,
-		1u128,
+		1000u128,
 		None,
 		None,
 		None,
