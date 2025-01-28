@@ -5,6 +5,7 @@ use crate::to_u256;
 use crate::types::{AssetId, Balance};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
+use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
@@ -509,6 +510,26 @@ pub(crate) fn calculate_d_internal<const D: u8>(
 ) -> Option<Balance> {
 	let two_u256 = to_u256!(2_u128);
 
+	// Apply multipliers
+	let xp = if let Some(multipliers) = peg {
+		if multipliers.len() != xp.len() {
+			return None;
+		}
+
+		let mut x = vec![];
+		for (v, mpl) in xp.iter().zip(multipliers.iter()) {
+			let Some(r) =
+				multiply_by_rational_with_rounding(*v, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)
+			else {
+				return None;
+			};
+			x.push(r);
+		}
+		x
+	} else {
+		xp.to_vec()
+	};
+
 	// Filter out zero balance assets, and return error if there is one.
 	// Either all assets are zero balance, or none are zero balance.
 	// Otherwise, it breaks the math.
@@ -574,6 +595,25 @@ fn calculate_y_internal<const D: u8>(
 	amplification: Balance,
 	peg: Option<Vec<(Balance, Balance)>>,
 ) -> Option<Balance> {
+	let xp = if let Some(multipliers) = peg {
+		if multipliers.len() != xp.len() {
+			return None;
+		}
+
+		let mut x = vec![];
+		for (v, mpl) in xp.iter().zip(multipliers.iter()) {
+			let Some(r) =
+				multiply_by_rational_with_rounding(*v, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)
+			else {
+				return None;
+			};
+			x.push(r);
+		}
+		x
+	} else {
+		xp.to_vec()
+	};
+
 	// Filter out zero balance assets, and return error if there is one.
 	// Either all assets are zero balance, or none are zero balance.
 	// Otherwise, it breaks the math.
