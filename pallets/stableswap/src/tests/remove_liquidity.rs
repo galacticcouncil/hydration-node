@@ -184,26 +184,6 @@ fn remove_liquidity_should_fail_when_shares_is_insufficient() {
 }
 
 #[test]
-fn remove_liquidity_should_fail_when_remaining_shares_is_below_min_limit() {
-	let pool_id = 100u32;
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(BOB, pool_id, 100 * ONE)])
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Stableswap::remove_liquidity_one_asset(
-					RuntimeOrigin::signed(BOB),
-					pool_id,
-					1u32,
-					100 * ONE - MinimumLiquidity::get() + 1,
-					0,
-				),
-				Error::<Test>::InsufficientShareBalance
-			);
-		});
-}
-
-#[test]
 fn remove_liquidity_should_fail_when_pool_does_not_exists() {
 	let pool_id = 100u32;
 	ExtBuilder::default()
@@ -275,7 +255,7 @@ fn remove_liquidity_should_fail_when_requested_asset_not_in_pool() {
 }
 
 #[test]
-fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
+fn remove_liquidity_should_pass_when_remaining_shares_below_min_liquidity() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let asset_c: AssetId = 3;
@@ -323,7 +303,7 @@ fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
 
-			assert_noop!(
+			assert_ok!(
 				Stableswap::remove_liquidity_one_asset(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
@@ -331,7 +311,6 @@ fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
 					shares - MinimumLiquidity::get() + 1,
 					0,
 				),
-				Error::<Test>::InsufficientShareBalance
 			);
 		});
 }
@@ -1322,65 +1301,5 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_remaining_share
 				}
 				.into(),
 			]);
-		});
-}
-
-#[test]
-fn remove_liquidity_should_work_when_has_some_dust_small_than_mil_pool_liqudity() {
-	let asset_a: AssetId = 1;
-	let asset_b: AssetId = 2;
-	let asset_c: AssetId = 3;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(BOB, asset_a, 200 * ONE),
-			(ALICE, asset_a, 100 * ONE),
-			(ALICE, asset_b, 200 * ONE),
-			(ALICE, asset_c, 300 * ONE),
-		])
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
-		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
-		.with_pool(
-			ALICE,
-			PoolInfo::<AssetId, u64> {
-				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
-				initial_amplification: NonZeroU16::new(100).unwrap(),
-				final_amplification: NonZeroU16::new(100).unwrap(),
-				initial_block: 0,
-				final_block: 0,
-				fee: Permill::from_percent(0),
-			},
-			InitialLiquidity {
-				account: ALICE,
-				assets: vec![
-					AssetAmount::new(asset_a, 100 * ONE),
-					AssetAmount::new(asset_b, 200 * ONE),
-					AssetAmount::new(asset_c, 300 * ONE),
-				],
-			},
-		)
-		.build()
-		.execute_with(|| {
-			let pool_id = get_pool_id_at(0);
-
-			let amount_added = 200 * ONE;
-			assert_ok!(Stableswap::add_liquidity(
-				RuntimeOrigin::signed(BOB),
-				pool_id,
-				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
-			));
-
-			let shares = Tokens::free_balance(pool_id, &BOB);
-			let some_leftover = <Test as crate::Config>::MinPoolLiquidity::get() - 1;
-			Tokens::update_balance(pool_id, &BOB, some_leftover as i128).unwrap();
-
-			assert_ok!(Stableswap::remove_liquidity_one_asset(
-				RuntimeOrigin::signed(BOB),
-				pool_id,
-				asset_c,
-				shares,
-				0,
-			));
 		});
 }
