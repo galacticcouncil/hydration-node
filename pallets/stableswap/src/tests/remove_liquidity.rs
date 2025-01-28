@@ -303,15 +303,13 @@ fn remove_liquidity_should_pass_when_remaining_shares_below_min_liquidity() {
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
 
-			assert_ok!(
-				Stableswap::remove_liquidity_one_asset(
-					RuntimeOrigin::signed(BOB),
-					pool_id,
-					asset_c,
-					shares - MinimumLiquidity::get() + 1,
-					0,
-				),
-			);
+			assert_ok!(Stableswap::remove_liquidity_one_asset(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_c,
+				shares - MinimumLiquidity::get() + 1,
+				0,
+			),);
 		});
 }
 
