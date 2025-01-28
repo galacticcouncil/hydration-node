@@ -36,11 +36,18 @@ where
 					let share_issuance = T::Currency::total_issuance(pool_id);
 
 					let amplification = Self::get_amplification(&pool);
-					let (amount, _) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<
-						D_ITERATIONS,
-						Y_ITERATIONS,
-					>(&balances, amount_in, asset_idx, share_issuance, amplification, pool.fee)
-					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+					let (amount, _) =
+						hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+							&balances,
+							amount_in,
+							asset_idx,
+							share_issuance,
+							amplification,
+							pool.fee,
+							asset_multipliers,
+						)
+						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(amount)
 				} else if asset_out == pool_id {
@@ -86,6 +93,7 @@ where
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
+					let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
 
 					let liqudity = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 						&balances,
@@ -94,6 +102,7 @@ where
 						share_issuance,
 						amplification,
 						pool.fee,
+						asset_multipliers,
 					)
 					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
@@ -113,6 +122,7 @@ where
 
 					let pool = Pools::<T>::get(pool_id)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
 
 					let (shares_amount, _fees) =
 						hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -122,6 +132,7 @@ where
 							amplification,
 							share_issuance,
 							pool.fee,
+							asset_multipliers,
 						)
 						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
@@ -229,6 +240,7 @@ where
 				let amp = Pallet::<T>::get_amplification(&pool);
 				let share_issuance = T::Currency::total_issuance(pool_id);
 				let min_trade_limit = T::MinTradingLimit::get();
+				let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
 
 				let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 					pool_id.into(),
@@ -239,6 +251,7 @@ where
 					share_issuance,
 					min_trade_limit,
 					Some(pool.fee),
+					asset_multipliers,
 				)
 				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 

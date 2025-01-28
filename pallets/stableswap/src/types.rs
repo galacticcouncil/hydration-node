@@ -27,8 +27,8 @@ pub struct AssetPeg {
 	pub target: Option<Peg>,
 }
 
-impl AssetPeg {
-	pub fn default_peg() -> Self {
+impl Default for AssetPeg {
+	fn default() -> Self {
 		Self {
 			current: (1, 1),
 			target: None,
