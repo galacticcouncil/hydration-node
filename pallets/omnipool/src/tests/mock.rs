@@ -746,9 +746,12 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		Ok(vec![Some((to_take, TRADE_FEE_COLLECTOR))])
 	}
 
-	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<(Balance, AccountId), Self::Error> {
+	fn consume_protocol_fee(
+		fee_account: AccountId,
+		amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
 		if amount == 0 {
-			return Ok((0, PROTOCOL_FEE_COLLECTOR));
+			return Ok(None);
 		}
 		if amount < 400_000_000 {
 			//less than ED -> dust
@@ -756,6 +759,6 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 		} else {
 			<Tokens as MultiCurrency<AccountId>>::transfer(LRNA, &fee_account, &PROTOCOL_FEE_COLLECTOR, amount)?;
 		}
-		Ok((amount, PROTOCOL_FEE_COLLECTOR))
+		Ok(Some((amount, PROTOCOL_FEE_COLLECTOR)))
 	}
 }

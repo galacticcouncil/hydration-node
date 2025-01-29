@@ -437,10 +437,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(100, expected_sold_amount)],
 					outputs: vec![Asset::new(1, 57142857142858)],
-					fees: vec![
-						Fee::new(LRNA, 0, Destination::Burned),
-						Fee::new(LRNA, 0, Destination::Account(PROTOCOL_FEE_COLLECTOR)),
-					],
+					fees: vec![],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -491,10 +488,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(100, 66170747640117)],
 					outputs: vec![Asset::new(1, 60499132204326)],
-					fees: vec![
-						Fee::new(LRNA, 0, Destination::Burned),
-						Fee::new(LRNA, 0, Destination::Account(PROTOCOL_FEE_COLLECTOR)),
-					],
+					fees: vec![],
 					operation_stack: vec![ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -567,10 +561,11 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(100, expected_sold_amount)],
 					outputs: vec![Asset::new(1, 56980056980057)],
-					fees: vec![
-						Fee::new(LRNA, 0, Destination::Burned),
-						Fee::new(LRNA, 5698005698005, Destination::Account(PROTOCOL_FEE_COLLECTOR)),
-					],
+					fees: vec![Fee::new(
+						LRNA,
+						5698005698005,
+						Destination::Account(PROTOCOL_FEE_COLLECTOR),
+					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),

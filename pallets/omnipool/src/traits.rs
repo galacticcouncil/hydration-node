@@ -67,18 +67,18 @@ where
 		amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error>;
 
-	/// Part of the protocol fee that must be consumed.
-	/// Returns the amount that was consumed and must be equal to the input amount, and by whom.
-	/// Otherwise, the transaction will be reverted because the update states are already updated with the fee
-	/// being either burned or transferred somewhere else. That's up to the consumer.
-	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<(Balance, AccountId), Self::Error>;
+	/// Part of the protocol fee that can be consumed.
+	/// Returns the amount that was consumed and by whom.
+	fn consume_protocol_fee(
+		fee_account: AccountId,
+		amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error>;
 }
 
 // Default implementation for no-op hooks.
 impl<Origin, AccountId, AssetId, Balance> OmnipoolHooks<Origin, AccountId, AssetId, Balance> for ()
 where
 	Balance: Default + Clone + Zero,
-	AccountId: Default,
 {
 	type Error = DispatchError;
 
@@ -115,8 +115,11 @@ where
 		Ok(vec![])
 	}
 
-	fn consume_protocol_fee(_fee_account: AccountId, amount: Balance) -> Result<(Balance, AccountId), Self::Error> {
-		Ok((amount, AccountId::default()))
+	fn consume_protocol_fee(
+		_fee_account: AccountId,
+		_amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
+		Ok(None)
 	}
 }
 
