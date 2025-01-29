@@ -1,5 +1,38 @@
+use crate::{
+	Currencies, EmaOracle, Router,
+	assets::LRNA,
+	evm::EvmAddress,
+	evm::precompiles::{
+		handle::{FunctionModifier, PrecompileHandleExt},
+		substrate::RuntimeHelper,
+		succeed, Output,
+	},
+};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use sp_runtime::RuntimeDebug;
+use sp_runtime::{
+	RuntimeDebug,
+	traits::{Dispatchable, Get},
+};
+use codec::{Encode, Decode, EncodeLike};
+use frame_support::traits::{IsType, OriginTrait};
+use frame_system::pallet_prelude::BlockNumberFor;
+use hex_literal::hex;
+use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
+use hydradx_adapters::OraclePriceProvider;
+use hydradx_traits::{
+	AggregatedPriceOracle, Inspect, OraclePeriod, Source,
+	oracle::PriceOracle,
+	router::{AssetPair, RouteProvider},
+};
+use orml_traits::MultiCurrency;
+use pallet_ema_oracle::Price;
+use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
+use primitive_types::{H160, U256, U512};
+use primitives::{
+	AssetId, Balance,
+	constants::chain::OMNIPOOL_SOURCE,
+};
+use sp_std::marker::PhantomData;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -11,37 +44,6 @@ pub enum AggregatorInterface {
 	GetAnswer = "getAnswer(uint256)",
 	GetTimestamp = "getTimestamp(uint256)",
 }
-
-use crate::assets::LRNA;
-use crate::evm::EvmAddress;
-use crate::{
-	evm::precompiles::{
-		handle::{FunctionModifier, PrecompileHandleExt},
-		substrate::RuntimeHelper,
-		succeed, Output,
-	},
-	Currencies, EmaOracle, Router,
-};
-use codec::Decode;
-use codec::{Encode, EncodeLike};
-use frame_support::traits::{IsType, OriginTrait};
-use frame_system::pallet_prelude::BlockNumberFor;
-use hex_literal::hex;
-use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
-use hydradx_adapters::OraclePriceProvider;
-use hydradx_traits::router::AssetPair;
-use hydradx_traits::{
-	oracle::PriceOracle, router::RouteProvider, AggregatedPriceOracle, Inspect, OraclePeriod, Source,
-};
-use orml_traits::MultiCurrency;
-use pallet_ema_oracle::Price;
-use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use primitive_types::{H160, U256, U512};
-use primitives::constants::chain::OMNIPOOL_SOURCE;
-use primitives::{AssetId, Balance};
-use sp_runtime::traits::Dispatchable;
-use sp_runtime::traits::Get;
-use sp_std::marker::PhantomData;
 
 pub struct ChainlinkOraclePrecompile<QuoteAsset, Runtime>(PhantomData<(QuoteAsset, Runtime)>);
 
