@@ -1,5 +1,5 @@
 use crate::{
-	Currencies, EmaOracle, Router,
+	EmaOracle, Router,
 	assets::LRNA,
 	evm::EvmAddress,
 	evm::precompiles::{
@@ -24,12 +24,11 @@ use hydradx_traits::{
 	oracle::PriceOracle,
 	router::{AssetPair, RouteProvider},
 };
-use orml_traits::MultiCurrency;
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
 use primitive_types::{H160, U256, U512};
 use primitives::{
-	AssetId, Balance,
+	AssetId,
 	constants::chain::OMNIPOOL_SOURCE,
 };
 use sp_std::marker::PhantomData;
@@ -53,8 +52,6 @@ where
 	Runtime: frame_system::Config
 		+ pallet_evm::Config
 		+ pallet_asset_registry::Config
-		+ pallet_currencies::Config
-		+ pallet_evm_accounts::Config
 		+ pallet_ema_oracle::Config
 		+ pallet_route_executor::Config,
 	EmaOracle: AggregatedPriceOracle<AssetId, BlockNumberFor<Runtime>, Price>,
@@ -62,8 +59,6 @@ where
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 	<Runtime as pallet_asset_registry::Config>::AssetId: From<AssetId>,
-	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
-	pallet_currencies::Pallet<Runtime>: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
 	<Runtime as frame_system::Config>::AccountId:
 		From<sp_runtime::AccountId32> + IsType<sp_runtime::AccountId32> + AsRef<[u8; 32]>,
 {
@@ -97,8 +92,6 @@ where
 	Runtime: frame_system::Config
 		+ pallet_evm::Config
 		+ pallet_asset_registry::Config
-		+ pallet_currencies::Config
-		+ pallet_evm_accounts::Config
 		+ pallet_ema_oracle::Config
 		+ pallet_route_executor::Config,
 	EmaOracle: AggregatedPriceOracle<AssetId, BlockNumberFor<Runtime>, Price>,
@@ -106,8 +99,6 @@ where
 	AssetId: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
 	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 	<Runtime as pallet_asset_registry::Config>::AssetId: From<AssetId>,
-	Currencies: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
-	pallet_currencies::Pallet<Runtime>: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
 	<Runtime as frame_system::Config>::AccountId:
 		From<sp_runtime::AccountId32> + IsType<sp_runtime::AccountId32> + AsRef<[u8; 32]>,
 {
