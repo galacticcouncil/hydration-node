@@ -109,6 +109,10 @@ where
 	<Runtime as frame_system::Config>::AccountId:
 		From<sp_runtime::AccountId32> + IsType<sp_runtime::AccountId32> + AsRef<[u8; 32]>,
 {
+	/// Returned price is always quoted by `QuoteAsset`.
+	/// If `source` is empty, the route is obtained from the Router pallet and final price calculated by multiplication.
+	/// Oracle prices for omnipool are quoted by LRNA, so in the case that the Omnipool is specified as a source,
+	/// two prices (one for ASSET/LRNA and second one for QuoteAsset/LRNA) are fetched and one final price is calculated from them.
 	fn get_oracle_entry(
 		asset_id: AssetId,
 		period: OraclePeriod,
@@ -203,6 +207,9 @@ pub fn is_oracle_address(address: H160) -> bool {
 	&address.to_fixed_bytes()[0..7] == oracle_address_prefix
 }
 
+/// Converts pallet_ema_oracle::Price to U256. The price is stored as integer, integer part + fractional part.
+/// The fractional part contains `decimals` number of decimal places.
+/// E.g. 123.456789 is stored as 123456 if three decimals are used.
 fn convert_price_to_u256(price: Price, decimals: u8) -> Result<U256, PrecompileFailure> {
 	// avoid panic in exponentiation. Max 256bit number has 78 digits.
 	if decimals > 70 {
@@ -222,6 +229,8 @@ fn convert_price_to_u256(price: Price, decimals: u8) -> Result<U256, PrecompileF
 		})
 }
 
+/// Encoding is 7 bytes for precompile prefix 0x00000000000001,
+/// followed by 1 byte for encoded OraclePeriod enum, 8 bytes for Source, and 4 bytes for AssetId.
 pub fn encode_evm_address(asset_id: AssetId, period: OraclePeriod, source: Source) -> Option<EvmAddress> {
 	let mut evm_address_bytes = [0u8; 20];
 
