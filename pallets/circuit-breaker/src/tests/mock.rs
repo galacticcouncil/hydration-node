@@ -324,9 +324,11 @@ where
 		Ok(vec![])
 	}
 
-	fn consume_protocol_fee(fee_account: AccountId, amount: Balance) -> Result<(Balance, Accountid), Self::Error> {
-		Tokens::withdraw(LRNA, &fee_account, amount)?;
-		Ok((amount, AccountId::default))
+	fn consume_protocol_fee(
+		_fee_account: AccountId,
+		_amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
+		Ok(None)
 	}
 }
 
