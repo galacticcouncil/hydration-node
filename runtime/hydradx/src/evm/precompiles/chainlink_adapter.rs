@@ -1,35 +1,32 @@
 use crate::{
-	EmaOracle, Router,
 	assets::LRNA,
-	evm::EvmAddress,
 	evm::precompiles::{
 		handle::{FunctionModifier, PrecompileHandleExt},
 		substrate::RuntimeHelper,
 		succeed, Output,
 	},
+	evm::EvmAddress,
+	EmaOracle, Router,
 };
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-use sp_runtime::{
-	RuntimeDebug,
-	traits::{Dispatchable, Get},
-};
-use codec::{Encode, Decode, EncodeLike};
+use codec::{Decode, Encode, EncodeLike};
 use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_traits::{
-	AggregatedPriceOracle, Inspect, OraclePeriod, Source,
 	oracle::PriceOracle,
 	router::{AssetPair, RouteProvider},
+	AggregatedPriceOracle, Inspect, OraclePeriod, Source,
 };
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
 use primitive_types::{H160, U256, U512};
-use primitives::{
-	AssetId,
-	constants::chain::OMNIPOOL_SOURCE,
+use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
+use sp_runtime::{
+	traits::{Dispatchable, Get},
+	RuntimeDebug,
 };
 use sp_std::marker::PhantomData;
 
