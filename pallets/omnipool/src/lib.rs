@@ -1009,19 +1009,7 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			match delta_hub_asset {
-				BalanceUpdate::Increase(val) if val == Balance::zero() => {
-					// nothing to do if zero.
-				}
-				BalanceUpdate::Increase(hub_amount) => {
-					// trade can only burn some. This would be a bug.
-					//return Err(Error::<T>::HubAssetUpdateError.into());
-					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), hub_amount)?;
-				}
-				BalanceUpdate::Decrease(hub_amount) => {
-					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), hub_amount)?;
-				}
-			};
+			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
 			// Callback hook info
 			let info_in: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
@@ -1265,19 +1253,7 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			match delta_hub_asset {
-				BalanceUpdate::Increase(val) if val == Balance::zero() => {
-					// nothing to do if zero.
-				}
-				BalanceUpdate::Increase(val) => {
-					// trade can only burn some. This would be a bug.
-					//return Err(Error::<T>::HubAssetUpdateError.into());
-					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), val)?;
-				}
-				BalanceUpdate::Decrease(val) => {
-					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), val)?;
-				}
-			};
+			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
 			// Callback hook info
 			let info_in: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
@@ -1801,7 +1777,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.asset.delta_hub_reserve, // note: here we cannot use total_delta_hub_reserve as it inclused the extra minted amount!
+			*state_changes.asset.delta_hub_reserve, // note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
 		)?;
 		T::Currency::transfer(
 			asset_out,
@@ -1915,7 +1891,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.asset.delta_hub_reserve, //note: here we cannot use total_delta_hub_reserve as it inclused the extra minted amount!
+			*state_changes.asset.delta_hub_reserve, //note: here we cannot use total_delta_hub_reserve as it included the extra minted amount!
 		)?;
 		T::Currency::transfer(
 			asset_out,
