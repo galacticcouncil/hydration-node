@@ -775,13 +775,11 @@ mod router_different_pools_tests {
 					pool_id,
 					(100 * UNITS + some_dust) as i128,
 				));
-				let trades = vec![
-					Trade {
-						pool: PoolType::Stableswap(pool_id),
-						asset_in: pool_id,
-						asset_out: stable_asset_1,
-					},
-				];
+				let trades = vec![Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: pool_id,
+					asset_out: stable_asset_1,
+				}];
 
 				//Act
 				let amount_to_sell = 100 * UNITS;
