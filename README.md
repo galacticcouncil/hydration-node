@@ -77,16 +77,11 @@ try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wa
 ```
 or against HydraDX testnet on Rococo using `--uri wss://paseo-rpc.play.hydration.cloud:443`
 
+## Useful resources:
 
-## Security
-Useful resources:
-
-* https://github.com/galacticcouncil/HydraDX-security
+* https://github.com/galacticcouncil/hydration-security
 * https://apidocs.bsx.fi/HydraDX
-* https://docs.hydradx.io/
-* https://docs.hydradx.io/omnipool_design
-* https://docs.hydradx.io/fees
+* https://docs.hydration.net/
 
 Bug bounty: [https://immunefi.com/bounty/hydration/](https://immunefi.com/bounty/hydration/)
-
-Reponsible disclosure: security@hydradx.io
+Reponsible disclosure: security@intergalactic.limited
