@@ -907,16 +907,16 @@ fn removing_liquidity_with_exact_amount_should_work_when_dust_left() {
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				asset_a,
-				amount - 1, maybe here remove more or so
+				amount - 100,
 				desired_shares,
 			));
 
 			// ASSERT
 
-			let received = Tokens::free_balance(pool_id, &BOB);
-			assert_eq!(received, 0);
+			let leftover = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(leftover, 96);
 			let balance = Tokens::free_balance(asset_a, &BOB);
-			assert_eq!(balance, 1_999_999_999_999_999_999);
+			assert_eq!(balance, 1_999_999_999_999_999_900);
 		});
 }
 
