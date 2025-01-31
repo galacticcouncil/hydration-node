@@ -58,7 +58,7 @@ use sp_runtime::{
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
-	Permill,
+	DispatchError, Permill, TransactionOutcome,
 };
 
 use sp_std::{convert::From, prelude::*};
@@ -66,7 +66,7 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
+use frame_support::{assert_ok, construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
@@ -113,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 282,
+	spec_version: 283,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -332,6 +332,8 @@ mod benches {
 		[cumulus_pallet_parachain_system, ParachainSystem]
 		[pallet_collator_selection, CollatorSelection]
 		[pallet_xcm, PalletXcmExtrinsiscsBenchmark::<Runtime>]
+		[pallet_xcm_benchmarks::fungible, XcmBalances]
+		[pallet_xcm_benchmarks::generic, XcmGeneric]
 		[pallet_conviction_voting, ConvictionVoting]
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
@@ -438,6 +440,8 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 	}
 }
 
+use frame_support::dispatch::RawOrigin;
+use frame_support::storage::with_transaction;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -446,8 +450,15 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
+use hydradx_traits::Mutate;
+use pallet_omnipool::types::Tradability;
+use pallet_referrals::{FeeDistribution, Level};
+use polkadot_xcm::prelude::{GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response};
+use polkadot_xcm::v3::prelude::X1;
+use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
+use sp_arithmetic::FixedU128;
 use sp_core::OpaqueMetadata;
 use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
 
@@ -1006,6 +1017,7 @@ impl_runtime_apis! {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
+
 		fn benchmark_metadata(extra: bool) -> (
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
@@ -1016,6 +1028,12 @@ impl_runtime_apis! {
 
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
+
+			// This is defined once again in dispatch_benchmark, because list_benchmarks!
+			// and add_benchmarks! are macros exported by define_benchmarks! macros and those types
+			// are referenced in that call.
+			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
+			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
@@ -1065,9 +1083,14 @@ impl_runtime_apis! {
 			frame_support::parameter_types! {
 				pub const RandomParaId: ParaId = ParaId::new(22_222_222);
 				pub const ExistentialDeposit: u128 = 1_000_000_000_000;
-				pub AssetLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
+				pub CoreAssetLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
 					Arc::new([
 						cumulus_primitives_core::Junction::GeneralIndex(CORE_ASSET_ID.into())
+						])
+				));
+				pub DaiLocation: Location = Location::new(0, cumulus_primitives_core::Junctions::X1(
+					Arc::new([
+						cumulus_primitives_core::Junction::GeneralIndex(2)
 						])
 				));
 			}
@@ -1093,7 +1116,7 @@ impl_runtime_apis! {
 					Some((
 						Asset {
 							fun: Fungible(ExistentialDeposit::get()),
-							id: AssetId(AssetLocation::get())
+							id: AssetId(CoreAssetLocation::get())
 						},
 						ParentThen(Parachain(RandomParaId::get().into()).into()).into(),
 					))
@@ -1107,7 +1130,7 @@ impl_runtime_apis! {
 					let destination = ParentThen(Parachain(RandomParaId::get().into()).into()).into();
 
 					let fee_asset: Asset = (
-						   AssetLocation::get(),
+						   CoreAssetLocation::get(),
 						   ExistentialDeposit::get(),
 					 ).into();
 
@@ -1118,7 +1141,7 @@ impl_runtime_apis! {
 					assert_eq!(Balances::free_balance(&who), balance);
 
 					let transfer_asset: Asset = (
-						   AssetLocation::get(),
+						   CoreAssetLocation::get(),
 						   ExistentialDeposit::get(),
 					 ).into();
 
@@ -1135,11 +1158,141 @@ impl_runtime_apis! {
 
 				fn get_asset() -> Asset {
 					Asset {
-						id: AssetId(Location::here()),
+						id: AssetId(PolkadotLocation::get()),
 						fun: Fungible(ExistentialDeposit::get()),
 					}
 				}
 			}
+
+			use primitives::constants::currency::UNITS;
+
+			parameter_types! {
+				pub ExistentialDepositAsset: Option<Asset> = Some((
+					CoreAssetLocation::get(),
+					ExistentialDeposit::get()
+				).into());
+			}
+
+			impl pallet_xcm_benchmarks::Config for Runtime {
+				type XcmConfig = xcm::XcmConfig;
+				type AccountIdConverter = xcm::LocationToAccountId;
+				type DeliveryHelper = cumulus_primitives_utility::ToParentDeliveryHelper<
+					xcm::XcmConfig,
+					ExistentialDepositAsset,
+					xcm::PriceForParentDelivery,
+				>;
+				fn valid_destination() -> Result<Location, BenchmarkError> {
+					Ok(PolkadotLocation::get())
+				}
+				fn worst_case_holding(depositable_count: u32) -> Assets {
+					// A mix of fungible and non-fungible assets
+					let holding_non_fungibles = MaxAssetsIntoHolding::get() / 2 - depositable_count;
+					let holding_fungibles = holding_non_fungibles - 2; // -2 for two `iter::once` bellow
+					let fungibles_amount: u128 = UNITS;
+					(0..holding_fungibles)
+						.map(|i| {
+							Asset {
+								id: AssetId(GeneralIndex(i as u128).into()),
+								fun: Fungible(fungibles_amount * (i + 1) as u128), // non-zero amount
+							}
+						})
+						.chain(core::iter::once(Asset { id: AssetId(Here.into()), fun: Fungible(u128::MAX) }))
+						.chain(core::iter::once(Asset { id: AssetId(PolkadotLocation::get()), fun: Fungible(1_000_000 * UNITS) }))
+						.chain((0..holding_non_fungibles).map(|i| Asset {
+							id: AssetId(GeneralIndex(i as u128).into()),
+							fun: NonFungible(pallet_xcm_benchmarks::asset_instance_from(i)),
+						}))
+						.collect::<Vec<_>>()
+						.into()
+				}
+			}
+
+			parameter_types! {
+				pub const TrustedTeleporter: Option<(Location, Asset)> = Some((
+					PolkadotLocation::get(),
+					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
+				));
+				pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
+				pub TrustedReserve: Option<(Location, Asset)> = Some((
+					PolkadotLocation::get(),
+					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
+				));
+			}
+
+			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
+				type TransactAsset = Balances;
+
+				type CheckedAccount = CheckedAccount;
+				type TrustedTeleporter = TrustedTeleporter;
+				type TrustedReserve = TrustedReserve;
+
+				fn get_asset() -> Asset {
+					Asset {
+						id: AssetId(CoreAssetLocation::get()),
+						fun: Fungible(UNITS),
+					}
+				}
+			}
+
+			impl pallet_xcm_benchmarks::generic::Config for Runtime {
+				type TransactAsset = Balances;
+				type RuntimeCall = RuntimeCall;
+
+				fn worst_case_response() -> (u64, Response) {
+					(0u64, Response::Version(Default::default()))
+				}
+
+				fn worst_case_asset_exchange() -> Result<(Assets, Assets), BenchmarkError> {
+					//We can only exchange from single asset to another single one at worst case
+					let amount_to_sell = UNITS;
+					let received = init_omnipool(amount_to_sell);
+					let give : Assets = (AssetId(CoreAssetLocation::get()), amount_to_sell).into();
+					let want : Assets = (AssetId(DaiLocation::get()),  received).into();//We need to set the exact amount as pallet_xcm_benchmarks::fungibles exchange_asset benchmark test requires to have original wanted fungible amount in holding, but we always put the exact amount received
+					Ok((give, want))
+				}
+
+				fn universal_alias() -> Result<(Location, Junction), BenchmarkError> {
+										Err(BenchmarkError::Skip)
+				}
+
+				fn transact_origin_and_runtime_call() -> Result<(Location, RuntimeCall), BenchmarkError> {
+					Ok((PolkadotLocation::get(), frame_system::Call::remark_with_event { remark: vec![] }.into()))
+				}
+
+				fn subscribe_origin() -> Result<Location, BenchmarkError> {
+					Ok(PolkadotLocation::get())
+				}
+
+				fn claimable_asset() -> Result<(Location, Location, Assets), BenchmarkError> {
+					let origin = PolkadotLocation::get();
+					let assets: Assets = (AssetId(PolkadotLocation::get()), 1_000 * UNITS).into();
+					let ticket = Location { parents: 0, interior: Here };
+					Ok((origin, ticket, assets))
+				}
+
+				fn fee_asset() -> Result<Asset, BenchmarkError> {
+					Ok(Asset {
+						id: AssetId(CoreAssetLocation::get()),
+						fun: Fungible(UNITS),
+					})
+				}
+
+				fn unlockable_asset() -> Result<(Location, Location, Asset), BenchmarkError> {
+					Err(BenchmarkError::Skip)
+				}
+
+				fn export_message_origin_and_destination(
+				) -> Result<(Location, NetworkId, InteriorLocation), BenchmarkError> {
+					Err(BenchmarkError::Skip)
+				}
+
+				fn alias_origin() -> Result<(Location, Location), BenchmarkError> {
+					Err(BenchmarkError::Skip)
+				}
+			}
+
+			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
+			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1190,4 +1343,111 @@ impl_runtime_apis! {
 			Default::default()
 		}
 	}
+}
+
+#[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic exchane_asset instruction
+fn init_omnipool(amount_to_sell: Balance) -> Balance {
+	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
+	let hdx = 0;
+	let dai = 2;
+	let token_amount = 2000000000000u128 * 1_000_000_000;
+
+	assert_ok!(AssetRegistry::set_location(
+		dai,
+		AssetLocation(MultiLocation::new(
+			0,
+			X1(polkadot_xcm::v3::Junction::GeneralIndex(dai.into()))
+		))
+	));
+
+	Currencies::update_balance(
+		RuntimeOrigin::root(),
+		Omnipool::protocol_account(),
+		hdx,
+		(token_amount as i128) * 100,
+	)
+	.unwrap();
+	Currencies::update_balance(
+		RuntimeOrigin::root(),
+		Omnipool::protocol_account(),
+		dai,
+		(token_amount as i128) * 100,
+	)
+	.unwrap();
+	Currencies::update_balance(RuntimeOrigin::root(), caller.clone(), hdx, token_amount as i128).unwrap();
+	Currencies::update_balance(RuntimeOrigin::root(), caller.clone(), dai, token_amount as i128).unwrap();
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	let native_position_id = Omnipool::next_position_id();
+
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
+		hdx,
+		native_price,
+		Permill::from_percent(10),
+		caller.clone(),
+	));
+
+	let stable_position_id = Omnipool::next_position_id();
+
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
+		dai,
+		stable_price,
+		Permill::from_percent(100),
+		caller.clone(),
+	));
+
+	assert_ok!(Omnipool::sacrifice_position(
+		RuntimeOrigin::signed(caller.clone()),
+		native_position_id,
+	));
+
+	assert_ok!(Omnipool::sacrifice_position(
+		RuntimeOrigin::signed(caller),
+		stable_position_id,
+	));
+
+	assert_ok!(Referrals::set_reward_percentage(
+		RawOrigin::Root.into(),
+		0,
+		Level::None,
+		FeeDistribution::default(),
+	));
+	assert_ok!(Referrals::set_reward_percentage(
+		RawOrigin::Root.into(),
+		1,
+		Level::None,
+		FeeDistribution::default(),
+	));
+
+	assert_ok!(Omnipool::set_asset_tradable_state(
+		RuntimeOrigin::root(),
+		hdx,
+		Tradability::SELL | Tradability::BUY
+	));
+
+	assert_ok!(Omnipool::set_asset_tradable_state(
+		RuntimeOrigin::root(),
+		dai,
+		Tradability::SELL | Tradability::BUY
+	));
+
+	with_transaction::<Balance, DispatchError, _>(|| {
+		let caller2: AccountId = frame_benchmarking::account("caller2", 0, 1);
+		Currencies::update_balance(RuntimeOrigin::root(), caller2.clone(), hdx, token_amount as i128).unwrap();
+
+		assert_ok!(Router::sell(
+			RuntimeOrigin::signed(caller2.clone()),
+			hdx,
+			dai,
+			amount_to_sell,
+			0,
+			vec![],
+		));
+		let received = Currencies::free_balance(dai, &caller2);
+		TransactionOutcome::Rollback(Ok(received))
+	})
+	.unwrap()
 }
