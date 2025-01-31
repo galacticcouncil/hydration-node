@@ -95,13 +95,19 @@ where
 	for j in 0..m {
 		let oracle_value = w.saturating_pow(j as usize);
 		let n = FixedU128::from_rational(net_liquidity, liquidity);
+		let p = n.saturating_mul(oracle_value);
 		let denom = if liquid_neg {
-			FixedU128::one().saturating_sub(n)
+			FixedU128::one().saturating_sub(p)
 		} else {
-			FixedU128::one().saturating_add(n)
+			FixedU128::one().saturating_add(p)
 		};
-		let v = denom.saturating_mul(oracle_value);
-		j_sum = j_sum.saturating_add(oracle_value.div(v));
+		// this should not happen but let's be cautious
+		if denom.is_zero() {
+			// let's make fuzzer happy to panic here!
+			debug_assert!(false, "Denominator is zero");
+			return previous_fee;
+		}
+		j_sum = j_sum.saturating_add(oracle_value.div(denom)); //safe because of previous check
 	}
 
 	let w_term = w
@@ -109,7 +115,7 @@ where
 			w.saturating_pow(m as usize)
 				.saturating_sub(w.saturating_pow(block_diff as usize)),
 		)
-		.div(last_entry.decay_factor);
+		.div(last_entry.decay_factor); //safe because of previous check
 
 	let p1 = j_sum.saturating_add(w_term);
 	let p2 = x.saturating_mul(p1);
