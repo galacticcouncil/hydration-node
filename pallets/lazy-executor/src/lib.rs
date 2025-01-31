@@ -19,6 +19,7 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	dispatch::GetDispatchInfo,
+	ensure,
 	pallet_prelude::{RuntimeDebug, TypeInfo},
 	traits::ConstU32,
 	weights::Weight,
@@ -37,8 +38,8 @@ pub use weights::WeightInfo;
 #[cfg(test)]
 mod tests;
 
-pub type ItemId = u128;
-
+//types
+pub type CallId = u128;
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub type BoundedCall = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 
@@ -68,93 +69,98 @@ pub mod pallet {
 			+ GetDispatchInfo
 			+ From<frame_system::Call<Self>>;
 
-		/// Block number provider.
+		/// Block number provider
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
-		// /// Max. amount of calls dispatched on idle per block no matter remaining weight in block.
+		/// Max. number of submits offchain worker will make in each run
 		#[pallet::constant]
-		type MaxDispatchedPerBlock: Get<u8>;
-
-		type WeightInfo: WeightInfo;
+		type OcwMaxSubmits: Get<u8>;
 	}
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
-	#[pallet::type_value]
-	pub(super) fn DefaultMaxAllowedWeight() -> Weight {
-		//TODO: set proper default values
-		Weight::from_parts(u64::max_value(), u64::max_value())
-	}
 	#[pallet::storage]
-	#[pallet::getter(fn max_allowed_weight)]
-	pub(super) type MaxAllowedWeight<T: Config> = StorageValue<_, Weight, ValueQuery, DefaultMaxAllowedWeight>;
+	#[pallet::getter(fn next_call_id)]
+	pub(super) type Sequencer<T: Config> = StorageValue<_, CallId, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn next_queue_id)]
-	pub(super) type QueueSequencer<T: Config> = StorageValue<_, ItemId, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn process_next_id)]
-	pub(super) type ProcessNextId<T: Config> = StorageValue<_, ItemId, ValueQuery>;
+	#[pallet::getter(fn dispatch_next_id)]
+	pub(super) type DispatchNextId<T: Config> = StorageValue<_, CallId, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn call_queue)]
 	pub(super) type CallQueue<T: Config> =
-		StorageMap<_, Blake2_128Concat, ItemId, CallData<T::AccountId, BlockNumberFor<T>>>;
+		StorageMap<_, Blake2_128Concat, CallId, CallData<T::AccountId, BlockNumberFor<T>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		Executed { id: ItemId, result: DispatchResult },
-		ValidationFailed { id: ItemId, error: DispatchError },
+		Executed { id: CallId, result: DispatchResult },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Call's weight is bigger than max. allowed weight
-		Overweight,
-
 		/// Provided data can't be decoded
 		Corrupted,
 
 		/// `id` reach max value
 		IdOverflow,
 
-		/// No calls to process
-		NothingToProcess,
+		NotImplemented,
+
+		/// No call to dispatch was found at the top of the calls' queue
+		EmptyQueue,
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_idle(n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
-			Self::process_queue(n, remaining_weight)
-		}
-	}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::from_parts(1000, 1000))]
-		pub fn add(origin: OriginFor<T>, call: BoundedCall) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			//TODO: remove whole extrinsic, this is only for testing
+		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResult {
+			let _who = ensure_signed(origin)?;
 
-			Self::execute(who, call)?;
+			//TODO: figure out call weigth(it should include dispatched call's weightout call and
+			//how to refund submitter and charge origin that dispatched call.
 
-			Ok(())
+			DispatchNextId::<T>::try_mutate(|id| {
+				let call_data = CallQueue::<T>::take(*id).ok_or(Error::<T>::EmptyQueue)?;
+
+				let result = if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut &call_data.call[..]) {
+					let o: OriginFor<T> = Origin::<T>::Signed(call_data.origin).into();
+					let result = call.dispatch(o);
+
+					result
+				} else {
+					Err(Error::<T>::Corrupted.into())
+				};
+
+				//TODO: charge and refund fees
+
+				Self::deposit_event(Event::Executed {
+					id: *id,
+					result: result.map(|_| ()).map_err(|e| e.error),
+				});
+
+				*id = id.checked_add(One::one()).ok_or(Error::<T>::IdOverflow)?;
+				return Ok(());
+			})
 		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn execute(origin: T::AccountId, bounded_call: BoundedCall) -> Result<(), DispatchError> {
-		let call = <T as Config>::RuntimeCall::decode(&mut &bounded_call[..]).map_err(|_err| Error::<T>::Corrupted)?;
-
-		Self::validate_call(&call)?;
+	pub fn queue_call(origin: T::AccountId, bounded_call: BoundedCall) -> Result<(), DispatchError> {
+		ensure!(
+			<T as Config>::RuntimeCall::decode(&mut &bounded_call[..]).is_ok(),
+			Error::<T>::Corrupted
+		);
 
 		CallQueue::<T>::insert(
-			Self::get_next_queue_id()?,
+			Self::get_next_call_id()?,
 			CallData {
 				origin,
 				call: bounded_call,
@@ -165,93 +171,12 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn validate_call(call: &<T as Config>::RuntimeCall) -> Result<(), DispatchError> {
-		let max_weight = Self::max_allowed_weight();
-		let call_weight = call.get_dispatch_info().weight;
-
-		if call_weight.any_gt(max_weight) {
-			return Err(Error::<T>::Overweight.into());
-		}
-
-		Ok(())
-	}
-
-	fn get_next_queue_id() -> Result<ItemId, DispatchError> {
-		QueueSequencer::<T>::try_mutate(|current_val| {
+	fn get_next_call_id() -> Result<CallId, DispatchError> {
+		Sequencer::<T>::try_mutate(|current_val| {
 			let ret = *current_val;
 			*current_val = current_val.checked_add(One::one()).ok_or(Error::<T>::IdOverflow)?;
 
 			Ok(ret)
 		})
-	}
-
-	fn process_queue(now: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
-		//TODO: replace with WeightInfo::base_weight after benchmarking
-		let mut total_weight = T::WeightInfo::process_queue_base_weight();
-
-		for i in 1..=T::MaxDispatchedPerBlock::get() {
-			println!("{:?}/{:?}", i, T::MaxDispatchedPerBlock::get());
-			let r = ProcessNextId::<T>::try_mutate(|id| -> Result<(), Error<T>> {
-				CallQueue::<T>::try_mutate_exists(id.clone(), |maybe_call| -> Result<(), Error<T>> {
-					let call_data = maybe_call.as_mut().ok_or(Error::<T>::NothingToProcess)?;
-
-					println!("{:?}, {:?}", call_data.created_at, now);
-					//NOTE: skip execution in same block so storage record exist for the call
-					if call_data.created_at == now {
-						return Err(Error::<T>::NothingToProcess);
-					}
-
-					let call = <T as Config>::RuntimeCall::decode(&mut &call_data.call[..])
-						.map_err(|_err| Error::<T>::Corrupted)?;
-
-					if let Err(err) = Self::validate_call(&call) {
-						*maybe_call = None;
-						*id = id.checked_add(One::one()).ok_or(Error::<T>::IdOverflow)?;
-
-						Self::deposit_event(Event::ValidationFailed { id: *id, error: err });
-						return Ok(());
-					}
-
-					let call_weight = call.get_dispatch_info().weight;
-					let iter_weight = call_weight.saturating_add(T::WeightInfo::process_queue_base_weight());
-					if (total_weight.saturating_add(iter_weight)).any_gt(remaining_weight) {
-						//NOTE: this is not failing case, just not enough space for the call in this block
-						return Err(Error::<T>::Overweight);
-					}
-
-					let o: OriginFor<T> = Origin::<T>::Signed(call_data.origin.clone()).into();
-					let res = call.dispatch(o);
-
-					total_weight = total_weight.saturating_add(iter_weight);
-
-					Self::deposit_event(Event::Executed {
-						id: *id,
-						result: res.map(|_| ()).map_err(|e| e.error),
-					});
-					*maybe_call = None;
-					*id = id.checked_add(One::one()).ok_or(Error::<T>::IdOverflow)?;
-
-					Ok(())
-				})
-			});
-
-			println!("{:?}", r);
-			match r {
-				Err(Error::<T>::NothingToProcess) => break,
-				Err(Error::<T>::Overweight) => break,
-				Err(_err) => {
-					//TODO: log error
-				}
-				_ => {}
-			}
-
-			println!("weight [total/remaining]: {:?}/{:?}", total_weight, remaining_weight);
-			if total_weight.any_gt(remaining_weight) {
-				//TODO: remove panic
-				panic!("overweight block")
-			}
-		}
-
-		total_weight
 	}
 }

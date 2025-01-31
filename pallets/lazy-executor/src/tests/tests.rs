@@ -85,7 +85,7 @@ fn execute_should_queue_call_for_lazy_execution() {
 		});
 		let call_data: BoundedCall = call.encode().try_into().unwrap();
 
-		assert_eq!(LazyExecutor::next_queue_id(), 0);
+		assert_eq!(LazyExecutor::next_id(), 0);
 		assert_eq!(LazyExecutor::process_next_id(), 0);
 		assert_eq!(LazyExecutor::call_queue(0), None);
 
@@ -93,7 +93,7 @@ fn execute_should_queue_call_for_lazy_execution() {
 		assert_ok!(LazyExecutor::execute(ALICE, call_data.clone()));
 
 		//Assert
-		assert_eq!(LazyExecutor::next_queue_id(), 1);
+		assert_eq!(LazyExecutor::next_id(), 1);
 		assert_eq!(LazyExecutor::process_next_id(), 0);
 		assert_eq!(
 			LazyExecutor::call_queue(0),
@@ -161,14 +161,14 @@ fn process_queue_should_works_when_queue_is_not_empty() {
 		});
 		let call_data: BoundedCall = call.encode().try_into().unwrap();
 
-		assert_eq!(LazyExecutor::next_queue_id(), 0);
+		assert_eq!(LazyExecutor::next_id(), 0);
 		assert_eq!(LazyExecutor::process_next_id(), 0);
 		assert_eq!(LazyExecutor::call_queue(0), None);
 
 		assert_ok!(LazyExecutor::execute(ALICE, call_data.clone()));
 
 		assert!(LazyExecutor::call_queue(0).is_some());
-		assert_eq!(LazyExecutor::next_queue_id(), 1);
+		assert_eq!(LazyExecutor::next_id(), 1);
 		assert_eq!(LazyExecutor::process_next_id(), 0);
 
 		let remaining_weight = DummyWeightInfo::process_queue_base_weight()
@@ -183,7 +183,7 @@ fn process_queue_should_works_when_queue_is_not_empty() {
 		let consumed_weight = LazyExecutor::process_queue(current_block, remaining_weight);
 
 		//Assert
-		assert_eq!(LazyExecutor::next_queue_id(), 1);
+		assert_eq!(LazyExecutor::next_id(), 1);
 		assert_eq!(LazyExecutor::process_next_id(), 1);
 		assert!(LazyExecutor::call_queue(0).is_none());
 
@@ -227,7 +227,7 @@ fn process_queue_should_dispatch_max_calls_when_weight_allows_it() {
 			assert_ok!(LazyExecutor::execute(origin, call_data));
 		}
 
-		assert_eq!(LazyExecutor::next_queue_id(), 5);
+		assert_eq!(LazyExecutor::next_id(), 5);
 		assert_eq!(LazyExecutor::process_next_id(), 0);
 
 		let remaining_weight = Weight::from_parts(13_000, 20_000);
@@ -237,7 +237,7 @@ fn process_queue_should_dispatch_max_calls_when_weight_allows_it() {
 		let consumed_weight = LazyExecutor::process_queue(current_block, remaining_weight);
 
 		//Assert
-		assert_eq!(LazyExecutor::next_queue_id(), 5);
+		assert_eq!(LazyExecutor::next_id(), 5);
 		assert_eq!(LazyExecutor::process_next_id(), 3);
 		assert!(LazyExecutor::call_queue(0).is_none());
 		assert!(LazyExecutor::call_queue(1).is_none());
@@ -310,7 +310,7 @@ fn process_queue_should_continue_when_dispatched_call_failed() {
 			assert_ok!(LazyExecutor::execute(origin, call_data));
 		}
 
-		assert_eq!(LazyExecutor::next_queue_id(), 5);
+		assert_eq!(LazyExecutor::next_id(), 5);
 		assert_eq!(LazyExecutor::process_next_id(), 0);
 
 		let remaining_weight = Weight::from_parts(13_000, 20_000);
@@ -320,7 +320,7 @@ fn process_queue_should_continue_when_dispatched_call_failed() {
 		let consumed_weight = LazyExecutor::process_queue(current_block, remaining_weight);
 
 		//Assert
-		assert_eq!(LazyExecutor::next_queue_id(), 5);
+		assert_eq!(LazyExecutor::next_id(), 5);
 		assert_eq!(LazyExecutor::process_next_id(), 3);
 		assert!(LazyExecutor::call_queue(0).is_none());
 		assert!(LazyExecutor::call_queue(1).is_none());
@@ -400,7 +400,7 @@ fn process_queue_should_stop_when_call_was_added_in_same_block() {
 			assert_ok!(LazyExecutor::execute(origin, call_data));
 		}
 
-		assert_eq!(LazyExecutor::next_queue_id(), 5);
+		assert_eq!(LazyExecutor::next_id(), 5);
 		assert_eq!(LazyExecutor::process_next_id(), 0);
 
 		let remaining_weight = Weight::from_parts(13_000, 20_000);
@@ -410,7 +410,7 @@ fn process_queue_should_stop_when_call_was_added_in_same_block() {
 		let consumed_weight = LazyExecutor::process_queue(current_block, remaining_weight);
 
 		//Assert
-		assert_eq!(LazyExecutor::next_queue_id(), 5);
+		assert_eq!(LazyExecutor::next_id(), 5);
 		assert_eq!(LazyExecutor::process_next_id(), 3);
 		assert!(LazyExecutor::call_queue(0).is_none());
 		assert!(LazyExecutor::call_queue(1).is_none());
