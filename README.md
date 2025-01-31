@@ -1,6 +1,6 @@
-# HydraDX node
+# Hydration node
 
-CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE
+CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE (Formerly HydraDX)
 
 ## Contributions & Code of Conduct
 
@@ -39,7 +39,7 @@ cargo build --release
 
 ### Chopsticks
 
-The easiest way to run and interact with HydraDX node is to use [Chopsticks](https://github.com/acalanetwork/chopsticks)
+The easiest way to run and interact with Hydration node is to use [Chopsticks](https://github.com/acalanetwork/chopsticks)
 
 ```Bash
 npx @acala-network/chopsticks@latest --config=launch-configs/chopsticks/hydradx.yml 
@@ -70,23 +70,18 @@ Connect to
 ### Testing of storage migrations and runtime upgrades
 
 The `try-runtime` tool can be used to test storage migrations and runtime upgrades against state from a real chain.
-Run the following command to test against the state on HydraDX.
+Run the following command to test against the state on Hydration.
 Don't forget to use a runtime built with `try-runtime` feature.
 ```bash
 try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri wss://rpc.hydradx.cloud:443
 ```
-or against HydraDX testnet on Rococo using `--uri wss://rococo-hydradx-rpc.hydration.dev:443`
+or against HydraDX testnet on Rococo using `--uri wss://paseo-rpc.play.hydration.cloud:443`
 
+## Useful resources:
 
-## Security
-Useful resources:
-
-* https://github.com/galacticcouncil/HydraDX-security
+* https://github.com/galacticcouncil/hydration-security
 * https://apidocs.bsx.fi/HydraDX
-* https://docs.hydradx.io/
-* https://docs.hydradx.io/omnipool_design
-* https://docs.hydradx.io/fees
+* https://docs.hydration.net/
 
-Bug bounty: [https://immunefi.com/bounty/hydradx/](https://immunefi.com/bounty/hydradx/)
-
-Reponsible disclosure: security@hydradx.io
+Bug bounty: [https://immunefi.com/bounty/hydration/](https://immunefi.com/bounty/hydration/)
+Reponsible disclosure: security@intergalactic.limited
