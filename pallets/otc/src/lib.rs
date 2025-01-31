@@ -66,6 +66,8 @@ pub type NamedReserveIdentifier = [u8; 8];
 
 pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"otcorder";
 
+pub use frame_support_procedural::whitelist_storage;
+
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Order<AccountId, AssetId> {
 	pub owner: AccountId,
@@ -180,6 +182,7 @@ pub mod pallet {
 
 	/// ID sequencer for Orders
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	#[pallet::getter(fn next_order_id)]
 	pub type NextOrderId<T: Config> = StorageValue<_, OrderId, ValueQuery>;
 

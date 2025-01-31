@@ -1047,7 +1047,6 @@ impl_runtime_apis! {
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 
 			let mut list = Vec::<BenchmarkList>::new();
-
 			list_benchmarks!(list, extra);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
@@ -1170,7 +1169,9 @@ impl_runtime_apis! {
 				}
 			}
 
-			let whitelist: Vec<TrackedStorageKey> = vec![
+			use frame_support::traits::WhitelistedStorageKeys;
+			let mut whitelisted_storage = AllPalletsWithSystem::whitelisted_storage_keys();
+			let mut whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
 				hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
 				// Total Issuance
@@ -1182,6 +1183,7 @@ impl_runtime_apis! {
 				// System Events
 				hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
 			];
+			whitelist.append(&mut whitelisted_storage);
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
@@ -1202,6 +1204,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
+
 			Ok(batches)
 		}
 	}
