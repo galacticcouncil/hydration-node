@@ -1,0 +1,27 @@
+[settings]
+timeout = 300
+
+[relaychain]
+chain = "rococo-local"
+default_command = "polkadot"
+default_image = "paritypr/polkadot-debug:master"
+
+[[relaychain.nodes]]
+name = "alice"
+command = "polkadot"
+args = ["--validator"]
+
+[[relaychain.nodes]]
+name = "bob"
+command = "polkadot"
+args = ["--validator"]
+
+[[parachains]]
+id = 2034
+add_to_genesis = true
+
+[parachains.collator]
+name = "hydradx-collator"
+command = "hydradx"
+# Only specify top-level collator arguments (do not include --parachain-id)
+args = ["--collator"]
