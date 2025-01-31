@@ -320,7 +320,7 @@ fn init_oracle() {
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 		DOT,
 		HDX,
-		2 * DOT_UNITS,
+		20 * DOT_UNITS,
 		0,
 	));
 	hydradx_run_to_next_block();
@@ -329,7 +329,7 @@ fn init_oracle() {
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 		DOT,
 		DAI,
-		2 * DOT_UNITS,
+		20 * DOT_UNITS,
 		0,
 	));
 	hydradx_run_to_next_block();
@@ -338,7 +338,7 @@ fn init_oracle() {
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 		DOT,
 		HDX,
-		2 * DOT_UNITS,
+		20 * DOT_UNITS,
 		u128::MAX
 	));
 	hydradx_run_to_next_block();

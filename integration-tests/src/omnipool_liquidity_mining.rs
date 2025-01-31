@@ -1931,7 +1931,6 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 
 		//Assert
 		set_relaychain_block_number(700);
-		//let charlie_bonds_balance_0 = hydradx_runtime::Currencies::free_balance(bond_id, &CHARLIE.into());
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
 			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,

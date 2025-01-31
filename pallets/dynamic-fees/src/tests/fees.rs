@@ -23,8 +23,6 @@ fn asset_fee_should_increase_when_volume_out_increased() {
 			let fee = retrieve_fee_entry(HDX, 49 * ONE);
 
 			assert!(fee.0 > initial_fee);
-
-			//assert_eq!(fee.0, Fee::from_float(0.039999999999));
 		});
 }
 
@@ -121,8 +119,6 @@ fn protocol_fee_should_decrease_when_volume_out_increased() {
 			let fee = retrieve_fee_entry(HDX, 49 * ONE);
 
 			assert!(fee.1 < initial_fee);
-
-			//assert_eq!(fee.1, Fee::from_percent(18));
 		});
 }
 
@@ -209,9 +205,6 @@ fn fees_should_update_correctly_when_volume_out_increased() {
 
 			assert!(fee.0 > initial_fee);
 			assert!(fee.1 < initial_fee);
-
-			//assert_eq!(fee.0, Fee::from_percent(22));
-			//assert_eq!(fee.1, Fee::from_percent(18));
 		});
 }
 

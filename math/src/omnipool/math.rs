@@ -53,7 +53,7 @@ pub fn calculate_sell_state_changes(
 
 	let asset_fee_amount = amount_out.saturating_sub(delta_reserve_out);
 
-	//mint amount for asset out
+	// mint amount to account for asset fee that stays in the pool
 	let delta_out_m = asset_fee.mul_floor(
 		to_balance!(out_hub_reserve_hp
 			.checked_add(delta_hub_reserve_out_hp)?
@@ -105,7 +105,7 @@ pub fn calculate_sell_hub_state_changes(
 	let delta_reserve_out = amount_without_fee(amount_out, asset_fee)?;
 	let asset_fee_amount = amount_out.saturating_sub(delta_reserve_out);
 
-	// mint hub asset
+	// mint amount to account for asset fee that stays in the pool
 	let delta_q_m = asset_fee.mul_floor(
 		to_balance!(hub_reserve_hp
 			.checked_add(amount_hp)?
@@ -169,7 +169,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 	let delta_hub_reserve = to_balance!(delta_hub_reserve_hp).ok()?;
 	let fee_amount = calculate_fee_amount_for_buy(asset_fee, asset_out_amount);
 
-	// mint hub asset
+	// mint amount to account for asset fee that stays in the pool
 	let n = asset_fee.mul_floor(
 		to_balance!(hub_reserve_hp
 			.checked_add(delta_hub_reserve_hp)?
@@ -237,7 +237,7 @@ pub fn calculate_buy_state_changes(
 	let asset_fee_amount = calculate_fee_amount_for_buy(asset_fee, amount);
 	let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
-	// mint amount for asset out
+	// mint amount to account for asset fee that stays in the pool
 	let delta_hub_reserve_out_hp = to_u256!(delta_hub_reserve_out);
 	let delta_out_m = asset_fee.mul_floor(
 		to_balance!(out_hub_reserve_hp

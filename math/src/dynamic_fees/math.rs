@@ -35,10 +35,10 @@ where
 
 /// Recalculate Omnipool's protocol fee given previously calculated fee and oracle data.
 ///
-/// `volume` is the asset volume data provided by the oracle.
-/// 'current_asset_liquidity' is the current asset liquidity.
+/// `last_entry` is the previous asset oracle entry providing volume and liquidity information
+/// `current_asset_liquidity` is the current asset liquidity.
 /// `previous_fee` is the previous-calculated protocol fee.
-/// `last_block_diff` is the difference between the current block height and the previous block height when asset fee was calculated.
+/// `block_diff` is the difference between the current block height and the previous block height when asset fee was calculated.
 /// `params` is the fee parameters, such as minimum fee, maximum fee, decay and amplification.
 pub fn recalculate_protocol_fee<Fee: PerThing>(
 	last_entry: OracleEntry,

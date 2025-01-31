@@ -336,7 +336,6 @@ mod omnipool {
 			//Assert
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 			assert!(fee > 0, "Treasury got rugged");
-			//let amount_in = 140421094431120;
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -450,7 +449,6 @@ mod omnipool {
 
 	#[test]
 	fn buy_schedule_and_direct_buy_and_router_should_yield_same_result_when_selling_native_asset() {
-		//let amount_in = 140_421_094_431_120;
 		let amount_out = 100 * UNITS;
 
 		//DCA
@@ -531,7 +529,6 @@ mod omnipool {
 
 	#[test]
 	fn buy_schedule_and_direct_buy_and_router_should_yield_same_result_when_asset_in_is_hub_asset() {
-		//let amount_in = 70_175_440_083_618;
 		let amount_out = 100 * UNITS;
 
 		//DCA
@@ -1541,8 +1538,6 @@ mod omnipool {
 			set_relaychain_block_number(12);
 
 			//Assert
-			//let amount_out = 142499995765917;
-			//let fee = Currencies::free_balance(LRNA, &Treasury::account_id());
 			let treasury_balance = Currencies::free_balance(LRNA, &Treasury::account_id());
 			assert!(treasury_balance > 0);
 
@@ -1554,7 +1549,6 @@ mod omnipool {
 
 	#[test]
 	fn sell_schedule_and_direct_omnipool_sell_and_router_should_yield_same_result_when_native_asset_sold() {
-		//let amount_out = 71_214_372_591_631;
 		let amount_to_sell = 100 * UNITS;
 
 		//DCA
@@ -1649,7 +1643,6 @@ mod omnipool {
 
 	#[test]
 	fn sell_schedule_and_direct_omnipool_sell_and_router_should_yield_same_result_when_hub_asset_sold() {
-		//let amount_out = 142_499_995_765_917;
 		let amount_to_sell = 100 * UNITS;
 
 		//DCA
@@ -3424,8 +3417,6 @@ mod all_pools {
 				set_relaychain_block_number(12);
 
 				//Assert
-				//let amount_to_receive = 380211607465242;
-
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 				assert_balance!(ALICE.into(), DAI, 2380211607465609);
 
