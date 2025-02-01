@@ -87,6 +87,8 @@ runtime_benchmarks! {
 		// Register new asset in asset registry
 		let token_id = register_asset(b"FCK".to_vec(), Balance::one()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
+		log::info!(target: "benchmark", "Token ID: {}", token_id);
+
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
 
@@ -187,6 +189,8 @@ runtime_benchmarks! {
 
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
+
+		log::info!(target: "benchmark", "Token ID: {}", token_id);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000_u128;

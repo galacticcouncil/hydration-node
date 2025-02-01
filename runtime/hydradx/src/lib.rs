@@ -1172,6 +1172,7 @@ impl_runtime_apis! {
 			use frame_support::traits::WhitelistedStorageKeys;
 			let mut whitelisted_storage = AllPalletsWithSystem::whitelisted_storage_keys();
 			let mut whitelist: Vec<TrackedStorageKey> = vec![
+				// --- Might wanna delete as it should be part of whitelisted storage already --- //
 				// Block Number
 				hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
 				// Total Issuance
@@ -1182,6 +1183,13 @@ impl_runtime_apis! {
 				hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
 				// System Events
 				hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
+				// --- Speed --- //
+				// Omnipool assets 0
+				hex!("97bd8c21bba825270fe6b1b8b3961ac3682a59d51ab9e48a8c8cc418ff9708d211d2df4e979aa105cf552e9544ebd2b500000000").to_vec().into(),
+				// Omnipool assets 2
+				hex!("97bd8c21bba825270fe6b1b8b3961ac3682a59d51ab9e48a8c8cc418ff9708d2754faa9acf0378f8c3543d9f132d85bc02000000").to_vec().into(),
+				// Omnipool 100001 (benchmarking)
+				hex!("97bd8c21bba825270fe6b1b8b3961ac3682a59d51ab9e48a8c8cc418ff9708d266bc47c64821db8bf16ce3409f3b26cd41420f00").to_vec().into(),
 			];
 			whitelist.append(&mut whitelisted_storage);
 
