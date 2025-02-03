@@ -178,7 +178,7 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
 		hydradx_run_to_block(100);
-		// set_relaychain_block_number(100);
+
 		create_global_farm(None, PEPE, None);
 		create_yield_farm(global_farm_id, asset_pair, None);
 		set_relaychain_block_number(300);

@@ -65,20 +65,23 @@ pub fn is_asset_address(address: H160) -> bool {
 	&address.to_fixed_bytes()[0..16] == asset_address_prefix
 }
 
-pub struct SetCodeForErc20Precompile;
+fn set_code_metadata_for_erc20(asset_id: AssetId, code: &[u8]) {
+	let size = code[..].len() as u64;
+	let hash = H256::from(sp_io::hashing::keccak_256(code));
+	let code_metadata = pallet_evm::CodeMetadata { size, hash };
+	pallet_evm::AccountCodesMetadata::<Runtime>::insert(
+		HydraErc20Mapping::encode_evm_address(asset_id),
+		code_metadata,
+	);
+}
 
+pub struct SetCodeForErc20Precompile;
 impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {
 	fn on_register_asset(asset_id: AssetId) {
 		pallet_evm::AccountCodes::<Runtime>::insert(HydraErc20Mapping::encode_evm_address(asset_id), &hex!["00"][..]);
 
 		let code = hex!["00"];
-		let size = code[..].len() as u64;
-		let hash = H256::from(sp_io::hashing::keccak_256(&code[..]));
-		let code_metadata = pallet_evm::CodeMetadata { size, hash };
-		pallet_evm::AccountCodesMetadata::<Runtime>::insert(
-			HydraErc20Mapping::encode_evm_address(asset_id),
-			code_metadata,
-		);
+		set_code_metadata_for_erc20(asset_id, &code);
 	}
 }
 
@@ -89,19 +92,15 @@ impl frame_support::traits::OnRuntimeUpgrade for SetCodeMetadataForErc20Precompi
 
 		let mut reads = 0;
 		let mut writes = 0;
+
+		let code = hex!["00"];
+
 		pallet_asset_registry::Assets::<Runtime>::iter().for_each(|(asset_id, _)| {
 			reads += 1;
 			if !pallet_evm::AccountCodesMetadata::<Runtime>::contains_key(HydraErc20Mapping::encode_evm_address(
 				asset_id,
 			)) {
-				let code = hex!["00"];
-				let size = code[..].len() as u64;
-				let hash = H256::from(sp_io::hashing::keccak_256(&code[..]));
-				let code_metadata = pallet_evm::CodeMetadata { size, hash };
-				pallet_evm::AccountCodesMetadata::<Runtime>::insert(
-					HydraErc20Mapping::encode_evm_address(asset_id),
-					code_metadata,
-				);
+				set_code_metadata_for_erc20(asset_id, &code);
 
 				writes += 1;
 			}
