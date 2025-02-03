@@ -411,7 +411,7 @@ fn test_fees_update_in_multi_blocks() {
 
 		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
 		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
-		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.000617));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001));
 		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.001));
 		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000894));
 
@@ -426,11 +426,11 @@ fn test_fees_update_in_multi_blocks() {
 		assert_eq!(hdx_final_fees, (Permill::from_float(0.05), Permill::from_float(0.0005)));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.0025), Permill::from_float(0.0005))
+			(Permill::from_float(0.006171), Permill::from_float(0.0005))
 		);
 		assert_eq!(
 			dot_final_fees,
-			(Permill::from_float(0.0025), Permill::from_float(0.000602))
+			(Permill::from_float(0.0025), Permill::from_float(0.001))
 		);
 		assert_eq!(
 			eth_final_fees,

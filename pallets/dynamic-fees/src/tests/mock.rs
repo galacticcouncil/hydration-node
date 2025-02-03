@@ -112,7 +112,7 @@ impl Config for Test {
 	type Fee = Fee;
 	type AssetId = AssetId;
 	type BlockNumberProvider = System;
-	type Oracle = OracleProvider;
+	type RawOracle = OracleProvider;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }
@@ -203,14 +203,8 @@ pub struct OracleProvider;
 impl VolumeProvider<AssetId, Balance> for OracleProvider {
 	type Volume = AssetVolume;
 
-	fn asset_volume(asset_id: AssetId) -> Option<Self::Volume> {
-		let volume = ORACLE.with(|v| v.borrow().volume(asset_id, BLOCK.with(|v| *v.borrow())));
-		Some(volume)
-	}
-
-	fn asset_liquidity(asset_id: AssetId) -> Option<Balance> {
-		let liquidity = ORACLE.with(|v| v.borrow().liquidity(asset_id, BLOCK.with(|v| *v.borrow())));
-		Some(liquidity)
+	fn last_entry(asset_id: AssetId) -> Option<Self::Volume> {
+		Some(ORACLE.with(|v| v.borrow().volume(asset_id, BLOCK.with(|v| *v.borrow()))))
 	}
 
 	fn period() -> u64 {
@@ -222,6 +216,8 @@ impl VolumeProvider<AssetId, Balance> for OracleProvider {
 pub struct AssetVolume {
 	pub(crate) amount_in: Balance,
 	pub(crate) amount_out: Balance,
+	pub(crate) liquidity: Balance,
+	pub(crate) updated_at: u128,
 }
 
 impl Volume<Balance> for AssetVolume {
@@ -232,13 +228,23 @@ impl Volume<Balance> for AssetVolume {
 	fn amount_out(&self) -> Balance {
 		self.amount_out
 	}
+
+	fn liquidity(&self) -> Balance {
+		self.liquidity
+	}
+
+	fn updated_at(&self) -> u128 {
+		self.updated_at
+	}
 }
 
-impl From<(Balance, Balance, Balance)> for AssetVolume {
-	fn from(value: (Balance, Balance, Balance)) -> Self {
+impl From<(Balance, Balance, Balance, u128)> for AssetVolume {
+	fn from(value: (Balance, Balance, Balance, u128)) -> Self {
 		Self {
 			amount_in: value.0,
 			amount_out: value.1,
+			liquidity: value.2,
+			updated_at: value.3,
 		}
 	}
 }

@@ -22,8 +22,8 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider,
-	StableswapHooksAdapter, VestingInfo,
+	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
+	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
 
 pub use hydradx_traits::{
@@ -1256,7 +1256,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type BlockNumberProvider = System;
 	type Fee = Permill;
 	type AssetId = AssetId;
-	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
+	type RawOracle = OmnipoolRawOracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }

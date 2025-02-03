@@ -58,7 +58,7 @@
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::GetByKey;
-use sp_runtime::traits::{BlockNumberProvider, Saturating};
+use sp_runtime::traits::{BlockNumberProvider, Saturating, Zero};
 use sp_runtime::{FixedPointOperand, FixedU128, PerThing, SaturatedConversion};
 
 #[cfg(test)]
@@ -108,7 +108,7 @@ pub mod pallet {
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
 
 		/// Volume provider implementation
-		type Oracle: VolumeProvider<Self::AssetId, Balance>;
+		type RawOracle: VolumeProvider<Self::AssetId, Balance>;
 
 		#[pallet::constant]
 		type AssetFeeParameters: Get<FeeParams<Self::Fee>>;
@@ -176,20 +176,28 @@ where
 			.saturating_sub(current_fee_entry.timestamp)
 			.saturated_into();
 
-		let Some(volume) = T::Oracle::asset_volume(asset_id) else {
-			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
-		};
-		let Some(liquidity) = T::Oracle::asset_liquidity(asset_id) else {
+		let Some(raw_entry) = T::RawOracle::last_entry(asset_id) else {
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 		};
 
-		let decay_factor = FixedU128::from_rational(2u128, T::Oracle::period() as u128);
+		let decay_factor = FixedU128::from_rational(2u128, T::RawOracle::period() as u128);
+
+		let fee_updated_at: u128 = current_fee_entry.timestamp.saturated_into();
+		if !fee_updated_at.is_zero() {
+			debug_assert_eq!(
+				raw_entry.updated_at(),
+				fee_updated_at,
+				"Dynamic fee update - expected entry updated at {:?} but got {:?}",
+				current_fee_entry.timestamp,
+				raw_entry.updated_at()
+			);
+		}
 
 		let asset_fee = recalculate_asset_fee(
 			OracleEntry {
-				amount_in: volume.amount_in(),
-				amount_out: volume.amount_out(),
-				liquidity,
+				amount_in: raw_entry.amount_in(),
+				amount_out: raw_entry.amount_out(),
+				liquidity: raw_entry.liquidity(),
 				decay_factor,
 			},
 			asset_liquidity,
@@ -199,9 +207,9 @@ where
 		);
 		let protocol_fee = recalculate_protocol_fee(
 			OracleEntry {
-				amount_in: volume.amount_in(),
-				amount_out: volume.amount_out(),
-				liquidity,
+				amount_in: raw_entry.amount_in(),
+				amount_out: raw_entry.amount_out(),
+				liquidity: raw_entry.liquidity(),
 				decay_factor,
 			},
 			asset_liquidity,

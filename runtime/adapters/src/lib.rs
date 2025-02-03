@@ -36,7 +36,7 @@ use hydra_dx_math::{
 };
 use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
 use hydradx_traits::{
-	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
+	liquidity_mining::PriceAdjustment, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
 use orml_traits::{GetByKey, MultiCurrency};
@@ -832,22 +832,47 @@ impl<
 }
 
 // Dynamic fees volume adapter
-pub struct OracleVolume(Balance, Balance);
-
-impl pallet_dynamic_fees::traits::Volume<Balance> for OracleVolume {
-	fn amount_in(&self) -> Balance {
-		self.0
-	}
-
-	fn amount_out(&self) -> Balance {
-		self.1
+pub struct OracleVolume {
+	amount_in: Balance,
+	amount_out: Balance,
+	liquidity: Balance,
+	updated_at: u128,
+}
+impl OracleVolume {
+	fn new(amount_in: Balance, amount_out: Balance, liquidity: Balance, updated_at: u128) -> Self {
+		Self {
+			amount_in,
+			amount_out,
+			liquidity,
+			updated_at,
+		}
 	}
 }
 
-pub struct OracleAssetVolumeProvider<Runtime, Lrna, Period>(PhantomData<(Runtime, Lrna, Period)>);
+impl pallet_dynamic_fees::traits::Volume<Balance> for OracleVolume {
+	fn amount_in(&self) -> Balance {
+		self.amount_in
+	}
+
+	fn amount_out(&self) -> Balance {
+		self.amount_out
+	}
+
+	fn liquidity(&self) -> Balance {
+		self.liquidity
+	}
+
+	fn updated_at(&self) -> u128 {
+		self.updated_at
+	}
+}
+
+// Provide raw oracle values for given source, asset pair and period.
+// Raw value is not ema adjusted.
+pub struct OmnipoolRawOracleAssetVolumeProvider<Runtime, Lrna, Period>(PhantomData<(Runtime, Lrna, Period)>);
 
 impl<Runtime, Lrna, Period> pallet_dynamic_fees::traits::VolumeProvider<AssetId, Balance>
-	for OracleAssetVolumeProvider<Runtime, Lrna, Period>
+	for OmnipoolRawOracleAssetVolumeProvider<Runtime, Lrna, Period>
 where
 	Runtime: pallet_ema_oracle::Config,
 	Lrna: Get<AssetId>,
@@ -855,18 +880,18 @@ where
 {
 	type Volume = OracleVolume;
 
-	fn asset_volume(asset_id: AssetId) -> Option<Self::Volume> {
-		let entry =
-			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
-				.ok()?;
-		Some(OracleVolume(entry.volume.a_in, entry.volume.a_out))
-	}
-
-	fn asset_liquidity(asset_id: AssetId) -> Option<Balance> {
-		let entry =
-			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
-				.ok()?;
-		Some(entry.liquidity.a)
+	fn last_entry(asset_id: AssetId) -> Option<Self::Volume> {
+		let (entry, _) = pallet_ema_oracle::Pallet::<Runtime>::get_last_oracle_entry(
+			OMNIPOOL_SOURCE,
+			(asset_id, Lrna::get()),
+			Period::get(),
+		)?;
+		Some(OracleVolume::new(
+			entry.volume.a_in,
+			entry.volume.a_out,
+			entry.liquidity.a,
+			entry.updated_at.saturated_into(),
+		))
 	}
 
 	fn period() -> u64 {
