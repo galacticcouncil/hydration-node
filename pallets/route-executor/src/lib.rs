@@ -259,7 +259,7 @@ pub mod pallet {
 
 			let route_length = route.len();
 
-			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router);
+			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
@@ -496,7 +496,7 @@ impl<T: Config> Pallet<T> {
 
 		let route_length = route.len();
 
-		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router);
+		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);

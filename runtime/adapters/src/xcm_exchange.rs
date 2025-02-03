@@ -64,7 +64,10 @@ where
 		};
 		let use_onchain_route = vec![];
 
-		pallet_broadcast::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange);
+		if let Err(_) = pallet_broadcast::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange) {
+			log::warn!(target: "xcm::exchange-asset", "Failed to add to context.");
+			return Err(give);
+		};
 
 		let trade_result = if maximal {
 			// sell
