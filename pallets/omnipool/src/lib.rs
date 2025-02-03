@@ -530,6 +530,10 @@ pub mod pallet {
 				AssetInfo::new(asset, &AssetReserveState::default(), &reserve_state, &changes, false),
 			)?;
 
+			// We need to call this to ensure that the fee is calculated correctly
+			// Although we dont need, but we need the fee to update.
+			let _ = T::Fee::get(&(asset, reserve));
+
 			<Assets<T>>::insert(asset, state);
 
 			Self::deposit_event(Event::TokenAdded {
@@ -693,6 +697,10 @@ pub mod pallet {
 				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
 				Error::<T>::NotAllowed
 			);
+
+			// We need to call this to ensure that the fee is calculated correctly
+			// Although we dont need, but we need the fee to update.
+			let _ = T::Fee::get(&(asset_id, asset_state.reserve));
 
 			let safe_withdrawal = asset_state.tradable.is_safe_withdrawal();
 			// Skip price check if safe withdrawal - trading disabled.
@@ -2123,6 +2131,10 @@ impl<T: Config> Pallet<T> {
 			EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
 		)
 		.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
+
+		// We need to call this to ensure that the fee is calculated correctly
+		// Although we dont need, but we need the fee to update.
+		let _ = T::Fee::get(&(asset, asset_state.reserve));
 
 		let state_changes =
 			hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(&(&asset_state).into(), amount)

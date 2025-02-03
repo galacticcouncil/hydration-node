@@ -185,8 +185,8 @@ where
 		let fee_updated_at: u128 = current_fee_entry.timestamp.saturated_into();
 		if !fee_updated_at.is_zero() {
 			debug_assert_eq!(
-				raw_entry.updated_at(),
 				fee_updated_at,
+				raw_entry.updated_at(),
 				"Dynamic fee update - expected entry updated at {:?} but got {:?}",
 				current_fee_entry.timestamp,
 				raw_entry.updated_at()

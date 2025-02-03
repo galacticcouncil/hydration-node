@@ -2929,6 +2929,7 @@ mod stableswap {
 				do_trade_to_populate_oracle(DAI, HDX, UNITS);
 				set_zero_reward_for_referrals(pool_id);
 
+				hydradx_run_to_block(10);
 				set_relaychain_block_number(10);
 
 				let alice_init_hdx_balance = 5000 * UNITS;
@@ -2976,6 +2977,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 				//Act
+				hydradx_run_to_block(12);
 				set_relaychain_block_number(12);
 
 				//Assert
@@ -3109,6 +3111,7 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 				do_trade_to_populate_oracle(pool_id, HDX, 100 * UNITS);
 
+				hydradx_run_to_block(10);
 				set_relaychain_block_number(10);
 
 				let alice_init_stable1_balance = 5000 * UNITS;
@@ -3157,6 +3160,7 @@ mod stableswap {
 				assert_balance!(&Treasury::account_id(), stable_asset_1, 0);
 
 				//Act
+				hydradx_run_to_block(12);
 				set_relaychain_block_number(12);
 
 				//Assert
