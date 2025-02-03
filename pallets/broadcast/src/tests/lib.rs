@@ -67,7 +67,7 @@ fn stack_should_be_reduced_when_poped() {
 		Broadcast::add_to_context(ExecutionType::Router).unwrap();
 		Broadcast::add_to_context(ExecutionType::Omnipool).unwrap();
 
-		Broadcast::remove_from_context();
+		Broadcast::remove_from_context().unwrap();
 		assert_eq!(
 			Broadcast::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
@@ -135,7 +135,7 @@ fn entry_is_removed_when_type_matched_with_last_stack_item() {
 	ExtBuilder::default().build().execute_with(|| {
 		Broadcast::add_to_context(ExecutionType::Router).unwrap();
 
-		Broadcast::remove_from_context();
+		Broadcast::remove_from_context().unwrap();
 
 		assert_eq!(Broadcast::execution_context().into_inner(), vec![]);
 	});
@@ -152,3 +152,11 @@ fn should_return_error_when_stack_reaches_max_size() {
 		assert_err!(Broadcast::add_to_context(ExecutionType::Batch), Error::<Test>::ExecutionContextFull);
 	});
 }
+
+#[test]
+fn should_return_error_when_trying_to_remove_from_empty_stack() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_err!(Broadcast::remove_from_context(), Error::<Test>::ExecutionContextEmpty);
+	});
+}
+

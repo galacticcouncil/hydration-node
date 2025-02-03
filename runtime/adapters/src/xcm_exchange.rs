@@ -65,7 +65,7 @@ where
 		let use_onchain_route = vec![];
 
 		if let Err(_) = pallet_broadcast::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange) {
-			log::warn!(target: "xcm::exchange-asset", "Failed to add to context.");
+			log::error!(target: "xcm::exchange-asset", "Failed to add to context.");
 			return Err(give);
 		};
 
@@ -137,8 +137,10 @@ where
 			})
 			.map_err(|_| give.clone())
 		};
-
-		pallet_broadcast::Pallet::<Runtime>::remove_from_context();
+		if let Err(_) = pallet_broadcast::Pallet::<Runtime>::remove_from_context() {
+			log::error!(target: "xcm::exchange-asset", "Failed to remove from context.");
+			return Err(give);
+		};
 
 		trade_result
 	}

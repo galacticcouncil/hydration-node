@@ -252,11 +252,14 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 			return Err(message.clone());
 		}
 
-		let prepare_result = Inner::prepare(message);
+		let prepare_result = Inner::prepare(message.clone());
 
 		//In case of error we need to clean context as xcm execution won't happen
 		if prepare_result.is_err() {
-			pallet_broadcast::Pallet::<Runtime>::remove_from_context();
+			if let Err(_) = pallet_broadcast::Pallet::<Runtime>::remove_from_context() {
+				log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
+				return Err(message);
+			}
 		}
 
 		prepare_result
@@ -271,7 +274,11 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		let outcome = Inner::execute(origin, pre, id, weight_credit);
 
 		// Context was added to the stack in `prepare` call.
-		pallet_broadcast::Pallet::<Runtime>::remove_from_context();
+		let Ok(_) = pallet_broadcast::Pallet::<Runtime>::remove_from_context() else {
+			return Outcome::Error {
+				error: XcmError::FailedToTransactAsset("Unexpected error at modifying broadcast execution stack"),
+			};
+		};
 
 		outcome
 	}
