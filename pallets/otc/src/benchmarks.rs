@@ -128,7 +128,6 @@ fn create_account_with_balances<T: Config>(
 where
 	T::AssetId: From<u32>,
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: crate::pallet::Config,
 {
 	let account_id: T::AccountId = account(name, index, index);
 

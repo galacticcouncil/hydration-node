@@ -19,7 +19,7 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 use crate::{Runtime, TreasuryAccount};
-use frame_support::traits::tokens::{Fortitude, Precision};
+use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::traits::{Get, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::evm::InspectEvmAccounts;
@@ -94,6 +94,7 @@ where
 		+ frame_support::traits::tokens::fungibles::Inspect<T::AccountId, AssetId = AssetId, Balance = Balance>,
 	SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<T::AccountId, AssetId, Balance>,
 	DotAssetId: Get<AssetId>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 {
 	type LiquidityInfo = Option<EvmPaymentInfo<EmaPrice>>;
 
@@ -129,12 +130,12 @@ where
 				let max_limit = amount_in.saturating_add(pool_fee);
 
 				SwappablePaymentAssetSupport::buy(
-					&account_id.clone(),
+					&account_id,
 					account_fee_currency,
 					dot,
 					fee_in_dot,
 					max_limit,
-					&account_id.clone(),
+					&account_id,
 				)
 				.map_err(|_| Error::<T>::WithdrawFailed)?;
 
@@ -150,6 +151,7 @@ where
 			fee_currency,
 			&account_id,
 			converted,
+			Preservation::Expendable,
 			Precision::Exact,
 			Fortitude::Polite,
 		)
@@ -241,7 +243,7 @@ where
 pub struct DepositEvmFeeToTreasury;
 impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	// this is called for substrate-based transactions
-	fn on_unbalanceds<B>(amounts: impl Iterator<Item = EvmPaymentInfo<EmaPrice>>) {
+	fn on_unbalanceds(amounts: impl Iterator<Item = EvmPaymentInfo<EmaPrice>>) {
 		Self::on_unbalanced(amounts.fold(EvmPaymentInfo::default(), |i, x| x.merge(i)))
 	}
 

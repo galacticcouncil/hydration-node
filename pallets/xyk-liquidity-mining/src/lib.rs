@@ -36,7 +36,7 @@
 //! pair of assets.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
+#![allow(clippy::manual_inspect)]
 #[cfg(test)]
 mod tests;
 

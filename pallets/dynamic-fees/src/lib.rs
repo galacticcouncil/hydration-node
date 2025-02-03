@@ -54,6 +54,7 @@
 //! An oracle which provides volume in and out of an asset and liquidity.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;

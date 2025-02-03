@@ -485,7 +485,7 @@ fn create_origin_should_always_set_decimals() {
 				None,
 				None,
 				None,
-				Some(u8::max_value()),
+				Some(u8::MAX),
 				None,
 			));
 
@@ -498,7 +498,7 @@ fn create_origin_should_always_set_decimals() {
 					existential_deposit: details_0.existential_deposit,
 					xcm_rate_limit: details_0.xcm_rate_limit,
 					symbol: details_0.symbol.clone(),
-					decimals: Some(u8::max_value()),
+					decimals: Some(u8::MAX),
 					is_sufficient: details_0.is_sufficient
 				})
 			);
@@ -509,7 +509,7 @@ fn create_origin_should_always_set_decimals() {
 				asset_type: details_0.asset_type,
 				existential_deposit: details_0.existential_deposit,
 				xcm_rate_limit: details_0.xcm_rate_limit,
-				decimals: Some(u8::max_value()),
+				decimals: Some(u8::MAX),
 				symbol: details_0.symbol,
 				is_sufficient: details_0.is_sufficient,
 			}

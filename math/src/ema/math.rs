@@ -109,7 +109,7 @@ pub fn exp_smoothing(smoothing: Fraction, iterations: u32) -> Fraction {
 /// Possible alternatives for `alpha = 2 / (period + 1)`:
 /// + `alpha = 1 - 0.5^(1 / period)` for a half-life of `period` or
 /// + `alpha = 1 - 0.5^(2 / period)` to have the same median as a `period`-length SMA.
-/// See https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA
+///   See https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA
 ///
 /// Note: Not used in the pallet except to check configured values. Not meant to be used by code
 /// interacting with the pallet. Use the configured values.

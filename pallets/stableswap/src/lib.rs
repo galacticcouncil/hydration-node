@@ -50,6 +50,7 @@
 //! When LP decides to withdraw liquidity, it receives selected asset.
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 extern crate core;
 
