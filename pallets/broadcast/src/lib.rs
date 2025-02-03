@@ -66,16 +66,12 @@ pub mod pallet {
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
-	/// To handle the overflow of increasing the execution context.
-	/// After the stack is full, we start to increase the overflow count,
-	/// so we how many times we can ignore the removal from the context.
-	#[pallet::storage]
-	pub(super) type OverflowCount<T: Config> = StorageValue<_, u32, ValueQuery>;
-
 	#[pallet::error]
 	pub enum Error<T> {
 		///The execution context has reached its maximum size
 		ExecutionContextFull,
+		///Cannot remove from the execution context as it is empty
+		ExecutionContextEmpty,
 	}
 
 	#[pallet::event]
@@ -98,7 +94,6 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			ExecutionContext::<T>::kill();
-			OverflowCount::<T>::kill();
 
 			T::DbWeight::get().reads_writes(2, 2)
 		}
@@ -151,19 +146,14 @@ impl<T: Config> Pallet<T> {
 		Ok(next_id)
 	}
 
-	pub fn remove_from_context() {
-		if OverflowCount::<T>::get() > 0 {
-			OverflowCount::<T>::mutate(|count| *count -= 1);
-		} else {
-			ExecutionContext::<T>::mutate(|stack| {
-				//We make it fire and forget, and it should fail only in test and when if wrongly used
-				debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
+	pub fn remove_from_context() -> DispatchResult {
+		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
+			stack.pop().ok_or(Error::<T>::ExecutionContextEmpty)?;
 
-				if stack.pop().is_none() {
-					log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
-				}
-			});
-		}
+			Ok(())
+		})
+
+
 	}
 
 	pub fn get_context() -> Vec<ExecutionType> {

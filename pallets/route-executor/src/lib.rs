@@ -303,7 +303,7 @@ pub mod pallet {
 				event_id: next_event_id,
 			});
 
-			pallet_broadcast::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 			Ok(())
 		}
@@ -541,7 +541,7 @@ impl<T: Config> Pallet<T> {
 			event_id: next_event_id,
 		});
 
-		pallet_broadcast::Pallet::<T>::remove_from_context();
+		pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 		Ok(())
 	}
