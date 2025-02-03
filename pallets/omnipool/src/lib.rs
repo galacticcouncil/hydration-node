@@ -124,6 +124,8 @@ pub use weights::WeightInfo;
 pub type NFTCollectionIdOf<T> =
 	<<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
 
+pub use frame_support_procedural::whitelist_storage;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -241,6 +243,7 @@ pub mod pallet {
 	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	/// Imbalance of hub asset
 	#[pallet::getter(fn current_imbalance)]
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
@@ -252,6 +255,7 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	/// Tradable state of hub asset.
 	pub(super) type HubAssetTradability<T: Config> =
 		StorageValue<_, Tradability, ValueQuery, DefaultHubAssetTradability>;
@@ -263,6 +267,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<Balance, T::AssetId>>;
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;

@@ -22,6 +22,7 @@ sp-std = { workspace = true }
 
 # FRAME
 frame-support = { workspace = true }
+frame-support-procedural = { workspace = true }
 frame-system = { workspace = true }
 
 #cumumlus
@@ -68,6 +69,7 @@ default = ["std"]
 std = [
     "codec/std",
     "frame-support/std",
+    "frame-support-procedural/std",
     "frame-system/std",
     "sp-runtime/std",
     "sp-std/std",

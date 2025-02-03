@@ -110,6 +110,8 @@ impl BenchmarkHelper<AssetId> for () {
 	}
 }
 
+pub use frame_support_procedural::whitelist_storage;
+
 #[allow(clippy::type_complexity)]
 #[frame_support::pallet]
 pub mod pallet {
@@ -165,6 +167,7 @@ pub mod pallet {
 
 	/// Accumulator for oracle data in current block that will be recorded at the end of the block.
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	#[pallet::getter(fn accumulator)]
 	pub type Accumulator<T: Config> = StorageValue<
 		_,
@@ -190,6 +193,7 @@ pub mod pallet {
 
 	/// Assets that are whitelisted and tracked by the pallet.
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	pub type WhitelistedAssets<T: Config> =
 		StorageValue<_, BoundedBTreeSet<(Source, (AssetId, AssetId)), T::MaxUniqueEntries>, ValueQuery>;
 

@@ -25,6 +25,7 @@ orml-traits = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
+frame-support-procedural = { workspace = true }
 frame-system = { workspace = true }
 sp-core = { workspace = true }
 sp-arithmetic = { workspace = true }
@@ -57,6 +58,7 @@ std = [
     "serde/std",
     "codec/std",
     "frame-support/std",
+    "frame-support-procedural/std",
     "frame-system/std",
     "sp-runtime/std",
     "sp-core/std",

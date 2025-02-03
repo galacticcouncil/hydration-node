@@ -60,6 +60,8 @@ pub use pallet::*;
 
 pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 
+pub use frame_support_procedural::whitelist_storage;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -175,6 +177,7 @@ pub mod pallet {
 
 	///Flag to indicate when to skip ED handling
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	#[pallet::getter(fn last_trade_position)]
 	pub type SkipEd<T: Config> = StorageValue<_, types::SkipEd, OptionQuery>;
 

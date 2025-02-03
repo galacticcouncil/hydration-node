@@ -59,6 +59,8 @@ use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
 use sp_runtime::TransactionOutcome;
 
+pub use frame_support_procedural::whitelist_storage;
+
 /// Default value of existential deposit. This value is used if existential deposit wasn't
 /// provided.
 pub const DEFAULT_ED: Balance = 1;
@@ -225,6 +227,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::AssetNativeLocation, T::AssetId, OptionQuery>;
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	/// Number of accounts that paid existential deposits for insufficient assets.
 	/// This storage is used by `SufficiencyCheck`.
 	pub type ExistentialDepositCounter<T: Config> = StorageValue<_, u128, ValueQuery>;

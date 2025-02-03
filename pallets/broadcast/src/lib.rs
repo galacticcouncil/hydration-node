@@ -39,6 +39,8 @@ const LOG_TARGET: &str = "runtime::amm-support";
 
 type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
 
+pub use frame_support_procedural::whitelist_storage;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -57,11 +59,13 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	/// Next available incremental ID
 	#[pallet::getter(fn incremental_id)]
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	/// Execution context to figure out where the trade is originated from
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
@@ -70,6 +74,7 @@ pub mod pallet {
 	/// After the stack is full, we start to increase the overflow count,
 	/// so we how many times we can ignore the removal from the context.
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	pub(super) type OverflowCount<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::error]

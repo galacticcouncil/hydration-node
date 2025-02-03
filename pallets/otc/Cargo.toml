@@ -23,6 +23,7 @@ sp-core = { workspace = true }
 
 # FRAME
 frame-support = { workspace = true }
+frame-support-procedural = { workspace = true }
 frame-system = { workspace = true }
 
 # ORML dependencies
@@ -44,6 +45,7 @@ default = ["std"]
 std = [
   "codec/std",
   "frame-support/std",
+  "frame-support-procedural/std",
   "frame-system/std",
   "sp-runtime/std",
   "sp-core/std",

@@ -126,6 +126,8 @@ pub mod pallet {
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use hydradx_traits::{NativePriceOracle, PriceOracle};
 
+	pub use frame_support_procedural::whitelist_storage;
+
 	use super::*;
 
 	#[pallet::pallet]
@@ -405,6 +407,7 @@ pub mod pallet {
 
 	/// Id sequencer for schedules
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	#[pallet::getter(fn next_schedule_id)]
 	pub type ScheduleIdSequencer<T: Config> = StorageValue<_, ScheduleId, ValueQuery>;
 
