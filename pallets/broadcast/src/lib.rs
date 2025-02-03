@@ -18,9 +18,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::too_many_arguments)]
 
+use frame_support::dispatch::DispatchResult;
 use crate::types::*;
 use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::BoundedVec;
+use frame_support::sp_runtime::{BoundedVec, DispatchError};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::ConstU32;
 use sp_std::vec::Vec;
@@ -72,7 +73,10 @@ pub mod pallet {
 	pub(super) type OverflowCount<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		///The execution context has reached its maximum size
+		ExecutionContextFull,
+	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -127,7 +131,7 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn add_to_context<F>(execution_type: F) -> IncrementalIdType
+	pub fn add_to_context<F>(execution_type: F) -> Result<IncrementalIdType, DispatchError>
 	where
 		F: FnOnce(u32) -> ExecutionType,
 	{
@@ -138,16 +142,13 @@ impl<T: Config> Pallet<T> {
 			inc_id
 		});
 
-		ExecutionContext::<T>::mutate(|stack| {
-			//We make it fire and forget, and it should fail only in test and when if wrongly used
-			debug_assert_ne!(stack.len(), MAX_STACK_SIZE as usize, "Stack should not be full");
-			if let Err(err) = stack.try_push(execution_type(next_id)) {
-				OverflowCount::<T>::mutate(|count| *count += 1);
-				log::warn!(target: LOG_TARGET, "The max stack size of execution stack has been reached: {:?}", err);
-			}
-		});
+		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
+			stack.try_push(execution_type(next_id)).map_err(|_|Error::<T>::ExecutionContextFull)?;
 
-		next_id
+			Ok(())
+		})?;
+
+		Ok(next_id)
 	}
 
 	pub fn remove_from_context() {
