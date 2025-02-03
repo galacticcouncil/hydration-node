@@ -69,10 +69,7 @@ fn set_code_metadata_for_erc20(asset_id: AssetId, code: &[u8]) {
 	let size = code[..].len() as u64;
 	let hash = H256::from(sp_io::hashing::keccak_256(code));
 	let code_metadata = pallet_evm::CodeMetadata { size, hash };
-	pallet_evm::AccountCodesMetadata::<Runtime>::insert(
-		HydraErc20Mapping::encode_evm_address(asset_id),
-		code_metadata,
-	);
+	pallet_evm::AccountCodesMetadata::<Runtime>::insert(HydraErc20Mapping::encode_evm_address(asset_id), code_metadata);
 }
 
 pub struct SetCodeForErc20Precompile;
