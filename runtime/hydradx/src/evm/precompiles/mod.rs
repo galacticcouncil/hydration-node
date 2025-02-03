@@ -21,7 +21,14 @@
 
 use core::marker::PhantomData;
 
-use crate::evm::precompiles::{erc20_mapping::is_asset_address, multicurrency::MultiCurrencyPrecompile};
+use crate::evm::{
+	precompiles::{
+		chainlink_adapter::{is_oracle_address, ChainlinkOraclePrecompile},
+		erc20_mapping::is_asset_address,
+		multicurrency::MultiCurrencyPrecompile,
+	},
+	ChainlinkQuoteAsset,
+};
 use codec::Decode;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
 use pallet_evm::{
@@ -40,6 +47,7 @@ use hex_literal::hex;
 use primitive_types::{H160, U256};
 use sp_std::{borrow::ToOwned, vec::Vec};
 
+pub mod chainlink_adapter;
 pub mod costs;
 pub mod erc20_mapping;
 pub mod handle;
@@ -106,6 +114,7 @@ where
 	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<R::AccountId>>,
 	MultiCurrencyPrecompile<R>: Precompile,
+	ChainlinkOraclePrecompile<ChainlinkQuoteAsset, R>: Precompile,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let context = handle.context();
@@ -145,6 +154,8 @@ where
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
+		} else if is_oracle_address(address) {
+			Some(ChainlinkOraclePrecompile::<ChainlinkQuoteAsset, R>::execute(handle))
 		} else {
 			None
 		}
