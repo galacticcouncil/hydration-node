@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use frame_support::{assert_err};
 use crate::tests::mock::*;
 use crate::Event;
+use frame_support::assert_err;
 use frame_support::traits::Len;
 
 #[test]
@@ -141,7 +141,6 @@ fn entry_is_removed_when_type_matched_with_last_stack_item() {
 	});
 }
 
-
 #[test]
 fn should_return_error_when_stack_reaches_max_size() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -149,7 +148,10 @@ fn should_return_error_when_stack_reaches_max_size() {
 			Broadcast::add_to_context(ExecutionType::Batch).unwrap();
 		}
 
-		assert_err!(Broadcast::add_to_context(ExecutionType::Batch), Error::<Test>::ExecutionContextFull);
+		assert_err!(
+			Broadcast::add_to_context(ExecutionType::Batch),
+			Error::<Test>::ExecutionContextFull
+		);
 	});
 }
 
@@ -159,4 +161,3 @@ fn should_return_error_when_trying_to_remove_from_empty_stack() {
 		assert_err!(Broadcast::remove_from_context(), Error::<Test>::ExecutionContextEmpty);
 	});
 }
-

@@ -18,8 +18,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::too_many_arguments)]
 
-use frame_support::dispatch::DispatchResult;
 use crate::types::*;
+use frame_support::dispatch::DispatchResult;
 use frame_support::sp_runtime::app_crypto::sp_core;
 use frame_support::sp_runtime::{BoundedVec, DispatchError};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -138,7 +138,9 @@ impl<T: Config> Pallet<T> {
 		});
 
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
-			stack.try_push(execution_type(next_id)).map_err(|_|Error::<T>::ExecutionContextFull)?;
+			stack
+				.try_push(execution_type(next_id))
+				.map_err(|_| Error::<T>::ExecutionContextFull)?;
 
 			Ok(())
 		})?;
@@ -152,8 +154,6 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})
-
-
 	}
 
 	pub fn get_context() -> Vec<ExecutionType> {
