@@ -247,7 +247,8 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		} else {
 			unique(&message)
 		};
-		if pallet_broadcast::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id)).is_err()
+		if pallet_broadcast::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id))
+			.is_err()
 		{
 			log::error!(target: "xcm-executor", "Failed to add to broadcast context.");
 			return Err(message.clone());
