@@ -129,6 +129,9 @@ pub mod pallet {
 		/// Origin that can enable oracle for assets that would be rejected by `OracleWhitelist` otherwise.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Origin that can update bifrost oracle via `update_bifrost_oracle` extrinsic.
+		type BifrostOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
@@ -287,6 +290,18 @@ pub mod pallet {
 
 			Self::deposit_event(Event::RemovedFromWhitelist { source, assets });
 
+			Ok(())
+		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight((<T as Config>::WeightInfo::update_bifrost_oracle(), Pays::No))]
+		pub fn update_bifrost_oracle(
+			origin: OriginFor<T>,
+			_asset_a: polkadot_xcm::VersionedLocation,
+			_asset_b: polkadot_xcm::VersionedLocation,
+			_price: (Balance, Balance),
+		) -> DispatchResult {
+			T::BifrostOrigin::ensure_origin(origin)?;
 			Ok(())
 		}
 	}

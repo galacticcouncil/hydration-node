@@ -8253,6 +8253,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "staging-xcm",
  "test-utils",
 ]
 
