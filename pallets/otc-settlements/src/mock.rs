@@ -220,6 +220,7 @@ parameter_types! {
 	pub const ExistentialDeposit: u128 = 500;
 	pub ProtocolFee: Permill = Permill::from_percent(0);
 	pub AssetFee: Permill = Permill::from_percent(0);
+	pub BurnFee: Permill = Permill::from_percent(0);
 	pub AssetWeightCap: Permill = Permill::from_percent(100);
 	pub MinAddedLiquidity: Balance = 1000u128;
 	pub MinTradeAmount: Balance = 1000u128;
@@ -351,6 +352,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct DummyNFT;
@@ -400,8 +402,8 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetByKey<(AssetId, Balance), (Permill, Permill)> for FeeProvider {
+	fn get(_: &(AssetId, Balance)) -> (Permill, Permill) {
 		(Permill::from_percent(0), Permill::from_percent(0))
 	}
 }

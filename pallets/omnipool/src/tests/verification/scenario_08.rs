@@ -142,14 +142,7 @@ fn complex_scenario_works() {
 				}
 			);
 
-			assert_pool_state!(
-				14252209513698901,
-				28504419027397802,
-				SimpleImbalance {
-					value: 39971934176269,
-					negative: true
-				}
-			);
+			assert_pool_state!(14252209513698901, 28504419027397802);
 
 			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), 100, 200, 20000000000000, 1,));
 		});

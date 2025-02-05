@@ -11,6 +11,7 @@ repository = "https://github.com/galacticcouncil/warehouse"
 codec = { workspace = true }
 scale-info = {workspace = true }
 serde = { workspace = true, optional = true }
+log = { workspace = true }
 
 # HydraDX dependencies
 hydra-dx-math = { workspace = true }

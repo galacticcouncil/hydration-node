@@ -1,5 +1,5 @@
 use crate::assert_approx_eq;
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
+use crate::omnipool::types::{AssetReserveState, Position};
 use crate::omnipool::*;
 use crate::to_balance;
 use crate::types::Balance;
@@ -80,14 +80,6 @@ fn position() -> impl Strategy<Value = Position<Balance>> {
 	})
 }
 
-fn some_imbalance() -> impl Strategy<Value = I129<Balance>> {
-	(0..10000 * ONE).prop_map(|value| I129 { value, negative: true })
-}
-
-fn high_imbalance() -> impl Strategy<Value = I129<Balance>> {
-	(800_000_000_000 * ONE..800_000_000_001 * ONE).prop_map(|value| I129 { value, negative: true })
-}
-
 fn assert_asset_invariant(
 	old_state: &AssetReserveState<Balance>,
 	new_state: &AssetReserveState<Balance>,
@@ -111,24 +103,6 @@ fn assert_asset_invariant(
 	}
 }
 
-fn assert_imbalance_update(
-	old_imbalance: I129<Balance>,
-	new_imbalance: I129<Balance>,
-	old_hub_reserve: Balance,
-	new_hub_reserve: Balance,
-	desc: &str,
-) {
-	let q = U256::from(old_hub_reserve);
-	let q_plus = U256::from(new_hub_reserve);
-	let l = U256::from(old_imbalance.value);
-	let l_plus = U256::from(new_imbalance.value);
-
-	let left = q.checked_mul(q.checked_sub(l).unwrap()).unwrap();
-	let right = q_plus.checked_mul(q_plus.checked_sub(l_plus).unwrap()).unwrap();
-
-	assert!(left >= right, "{}", desc);
-}
-
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
@@ -138,7 +112,7 @@ proptest! {
 		let result = calculate_sell_state_changes(&asset_in, &asset_out, amount,
 			Permill::from_percent(0),
 			Permill::from_percent(0),
-			Balance::default()
+			Permill::from_percent(0),
 		);
 
 		assert!(result.is_some());
@@ -160,80 +134,11 @@ proptest! {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
-	fn sell_update_invariants_with_fees(asset_in in asset_state(),
-		asset_out in asset_state(),
-		amount in trade_amount(),
-		asset_fee in fee(),
-		protocol_fee in fee(),
-		imbalance in some_imbalance(),
-	) {
-		let total_hub_reserve = 100 * BALANCE_RANGE.1;
-
-		let result = calculate_sell_state_changes(&asset_in, &asset_out, amount,
-			asset_fee,
-			protocol_fee,
-			imbalance.value,
-		);
-
-		assert!(result.is_some());
-
-		let state_changes = result.unwrap();
-
-		let asset_in_state = asset_in.clone();
-		let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-		assert_asset_invariant(&asset_in, &asset_in_state,  None, "Sell update invariant - token in");
-
-		let asset_out_state = asset_out.clone();
-		let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-		assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
-
-		let delta_hub_asset = state_changes
-				.asset_in
-				.delta_hub_reserve
-				.merge(
-					state_changes
-						.asset_out
-						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
-				).unwrap();
-
-		let q_plus = match delta_hub_asset {
-			BalanceUpdate::Increase(v) => total_hub_reserve.checked_add(v).unwrap(),
-			BalanceUpdate::Decrease(v) => total_hub_reserve.checked_sub(v).unwrap(),
-		};
-
-		let imbalance_plus = match state_changes.delta_imbalance {
-			BalanceUpdate::Increase(v) => imbalance.value.checked_sub(v).unwrap(),
-			BalanceUpdate::Decrease(v) => imbalance.value.checked_add(v).unwrap(),
-		};
-
-		let left = total_hub_reserve - imbalance.value;
-		let right = q_plus - imbalance_plus;
-
-		assert_eq!(left, right);
-		assert_imbalance_update(
-			imbalance,
-			I129::<Balance>{value: imbalance_plus, negative: true},
-			total_hub_reserve,
-			q_plus,
-			"sell imbalance invariant failed" );
-
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
 	fn sell_hub_update_invariants_no_fees(asset_out in asset_state(),
 		amount in trade_amount(),
-		imbalance in some_imbalance(),
 	) {
-		let total_hub_reserve = 100 * ONE * BALANCE_RANGE.1;
-
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
-			imbalance,
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -242,16 +147,6 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
-
-		assert_imbalance_update(
-			imbalance,
-			I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
-			total_hub_reserve,
-			new_total_hub_reserve,
-			"sell hub imbalance invariant failed" );
-
 		assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
 	}
 }
@@ -261,14 +156,9 @@ proptest! {
 	#[test]
 	fn sell_hub_update_invariants_no_fees_extreme(asset_out in high_asset_state(),
 		amount in trade_amount(),
-		imbalance in high_imbalance(),
 	) {
-		let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
-
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
-			imbalance,
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -277,16 +167,6 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
-
-		assert_imbalance_update(
-			imbalance,
-			I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
-			total_hub_reserve,
-			new_total_hub_reserve,
-			"sell hub imbalance invariant failed" );
-
 		assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
 	}
 }
@@ -297,14 +177,9 @@ proptest! {
 	fn sell_hub_update_invariants_with_fees(asset_out in asset_state(),
 		amount in trade_amount(),
 		asset_fee in fee(),
-		imbalance in some_imbalance(),
 	) {
-		let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
-
 		let result = calculate_sell_hub_state_changes(&asset_out, amount,
 			asset_fee,
-			imbalance,
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -313,16 +188,6 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
-
-		assert_imbalance_update(
-			imbalance,
-			I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
-			total_hub_reserve,
-			new_total_hub_reserve,
-			"sell hub imbalance invariant failed" );
-
 		assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
 	}
 }
@@ -332,14 +197,9 @@ proptest! {
 	#[test]
 	fn buy_hub_update_invariants_no_fees(asset_out in asset_state(),
 		amount in trade_amount(),
-		imbalance in some_imbalance(),
 	) {
-		let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
-
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			Permill::from_percent(0),
-			imbalance,
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -348,17 +208,7 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
-
-		assert_imbalance_update(
-			imbalance,
-			I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
-			total_hub_reserve,
-			new_total_hub_reserve,
-			"buy hub imbalance invariant failed" );
-
-	   assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
+		assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
 	}
 }
 
@@ -368,14 +218,9 @@ proptest! {
 	fn buy_hub_update_invariants_with_fees(asset_out in asset_state(),
 		amount in trade_amount(),
 		asset_fee in fee(),
-		imbalance in some_imbalance(),
 	) {
-		let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
-
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			asset_fee,
-			imbalance,
-			total_hub_reserve,
 		);
 
 		assert!(result.is_some());
@@ -384,81 +229,10 @@ proptest! {
 
 		let asset_out_state = asset_out.clone();
 		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-
-		let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
-
-		assert_imbalance_update(
-			imbalance,
-			I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
-			total_hub_reserve,
-			new_total_hub_reserve,
-			"buy hub imbalance invariant failed" );
-
 		assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
 	}
 }
 
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn buy_update_invariants_with_fees(asset_in in asset_state(), asset_out in asset_state(),
-		amount in trade_amount(),
-		asset_fee in fee(),
-		protocol_fee in fee(),
-		imbalance in some_imbalance(),
-	) {
-		let total_hub_reserve = 100 * BALANCE_RANGE.1;
-
-		let result = calculate_buy_state_changes(&asset_in, &asset_out, amount,
-			asset_fee,
-			protocol_fee,
-			imbalance.value,
-		);
-
-		// ignore the invalid result
-		if let Some(state_changes) = result {
-			let asset_in_state = asset_in.clone();
-			let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-			assert_asset_invariant(&asset_in, &asset_in_state,  None, "Buy update invariant - token in");
-
-			let asset_out_state = asset_out.clone();
-			let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-			assert_asset_invariant(&asset_out, &asset_out_state,  None, "Buy update invariant - token out");
-
-			let delta_hub_asset = state_changes
-				.asset_in
-				.delta_hub_reserve
-				.merge(
-					state_changes
-						.asset_out
-						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
-				).unwrap();
-
-			let q_plus = match delta_hub_asset {
-				BalanceUpdate::Increase(v) => total_hub_reserve.checked_add(v).unwrap(),
-				BalanceUpdate::Decrease(v) => total_hub_reserve.checked_sub(v).unwrap(),
-			};
-
-			let imbalance_plus = match state_changes.delta_imbalance {
-				BalanceUpdate::Increase(v) => imbalance.value.checked_sub(v).unwrap(),
-				BalanceUpdate::Decrease(v) => imbalance.value.checked_add(v).unwrap(),
-			};
-
-			let left = total_hub_reserve - imbalance.value;
-			let right = q_plus - imbalance_plus;
-
-			assert_eq!(left, right);
-
-			assert_imbalance_update(
-				imbalance,
-				I129::<Balance>{value: imbalance_plus, negative: true},
-				total_hub_reserve,
-				q_plus,
-				"buy imbalance invariant failed" );
-		}
-	}
-}
 #[test]
 fn buy_update_invariants_no_fees_case() {
 	let asset_in = AssetReserveState {
@@ -481,7 +255,7 @@ fn buy_update_invariants_no_fees_case() {
 		amount,
 		Permill::from_percent(0),
 		Permill::from_percent(0),
-		Balance::default(),
+		Permill::from_percent(0),
 	);
 
 	assert!(result.is_none()); // This fails because of not enough asset out in pool out
@@ -496,7 +270,7 @@ proptest! {
 		let result = calculate_buy_state_changes(&asset_in, &asset_out, amount,
 			Permill::from_percent(0),
 			Permill::from_percent(0),
-			Balance::default()
+			Permill::from_percent(0),
 		);
 
 		// perform assertion only when result is valid
@@ -517,12 +291,9 @@ proptest! {
 	#[test]
 	fn price_should_not_change_when_liquidity_added(asset in asset_state(),
 		amount in trade_amount(),
-		imbalance in some_imbalance(),
 	) {
 		let result = calculate_add_liquidity_state_changes(&asset,
 			amount,
-			imbalance,
-			100 * ONE,
 		);
 
 		assert!(result.is_some());
@@ -557,13 +328,10 @@ proptest! {
 	#[test]
 	fn price_should_not_change_when_liquidity_removed(asset in asset_state(),
 		position in position(),
-		imbalance in some_imbalance(),
 	) {
 		let result = calculate_remove_liquidity_state_changes(&asset,
 			position.amount,
 			&position,
-			imbalance,
-			100 * ONE,
 			FixedU128::zero(),
 		);
 
