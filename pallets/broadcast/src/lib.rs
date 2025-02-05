@@ -94,7 +94,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
-			ExecutionContext::<T>::kill();
+			ExecutionContext::<T>::kill(); //We don't need to account for this weight in on_initialize as we whitelist the storage
 		}
 	}
 
