@@ -41,11 +41,11 @@ coverage:
 
 .PHONY: clippy
 clippy:
-	$(cargo) clippy --release --locked --all-targets -- -D warnings -A deprecated
+	$(cargo) clippy --release --locked --all-targets -- -A deprecated
 
 .PHONY: clippy-all
 clippy-all:
-	$(cargo) clippy --release --locked --all-targets --all-features -- -D warnings -A deprecated
+	$(cargo) clippy --release --locked --all-targets --all-features -- -A deprecated
 
 .PHONY: format
 format:

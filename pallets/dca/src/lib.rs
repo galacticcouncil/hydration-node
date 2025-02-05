@@ -29,13 +29,14 @@
 //! In case the given block is full, the execution will be scheduled for the subsequent block.
 //!
 //! Upon creating a schedule, the user specifies a budget (`total_amount`) that will be reserved.
+//! `total_amount` can be zero, in which case the schedule will be executed until it is terminated.
 //! The currency of this reservation is the sold (`amount_in`) currency.
 //!
 //! ### Executing a Schedule
 //!
 //! Orders are executed during block initialization and are sorted based on randomness derived from the relay chain block hash.
 //!
-//! A trade is executed and replanned as long as there is remaining budget from the initial allocation.
+//! When the `total_amount` is not zero, trades are executed as long as there is budget remaining from the initial allocation.
 //!
 //! For both successful and failed trades, a fee is deducted from the schedule owner.
 //! The fee is deducted in the sold (`amount_in`) currency.
@@ -76,13 +77,6 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	Origin,
 };
-use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{inverse_route, RouteProvider};
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
-use hydradx_traits::OraclePeriod;
-use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -92,8 +86,22 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
 };
+use sp_std::cmp::min;
 use sp_std::vec::Vec;
-use sp_std::{cmp::min, vec};
+
+use hydradx_adapters::RelayChainBlockHashProvider;
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
+use hydradx_traits::router::{inverse_route, RouteProvider};
+use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
+use hydradx_traits::NativePriceOracle;
+use hydradx_traits::OraclePeriod;
+use hydradx_traits::PriceOracle;
+pub use pallet::*;
+use pallet_broadcast::types::ExecutionType;
+pub use weights::WeightInfo;
+
+// Re-export pallet items so that they can be accessed from the crate namespace.
+use crate::types::*;
 
 #[cfg(test)]
 mod tests;
@@ -109,22 +117,23 @@ use crate::types::*;
 pub use pallet::*;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 20;
+
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
 	use frame_support::traits::Contains;
-
 	use frame_support::weights::WeightToFee;
-
 	use frame_system::pallet_prelude::OriginFor;
+	use orml_traits::NamedMultiReservableCurrency;
+	use sp_runtime::Percent;
+
 	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use hydradx_traits::{NativePriceOracle, PriceOracle};
-	use orml_traits::NamedMultiReservableCurrency;
-	use sp_runtime::Percent;
+
+	use super::*;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -206,7 +215,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -331,7 +340,9 @@ pub mod pallet {
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
-		///The DCA trade is successfully executed
+		/// Deprecated. Use pallet_amm::Event::Swapped instead.
+		/// The DCA trade is successfully executed
+		// TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		TradeExecuted {
 			id: ScheduleId,
 			who: T::AccountId,
@@ -426,6 +437,12 @@ pub mod pallet {
 	#[pallet::getter(fn retries_on_error)]
 	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u8, ValueQuery>;
 
+	/// Keep tracking the blocknumber when the schedule is planned to be executed
+	#[pallet::storage]
+	#[pallet::getter(fn schedule_execution_block)]
+	pub type ScheduleExecutionBlock<T: Config> =
+		StorageMap<_, Blake2_128Concat, ScheduleId, BlockNumberFor<T>, OptionQuery>;
+
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
@@ -444,7 +461,8 @@ pub mod pallet {
 		/// The reservation currency will be the `amount_in` currency of the order.
 		///
 		/// Trades are executed as long as there is budget remaining
-		/// from the initial `total_amount` allocation.
+		/// from the initial `total_amount` allocation, unless `total_amount` is 0, then trades
+		/// are executed until schedule is terminated.
 		///
 		/// If a trade fails due to slippage limit or price stability errors, it will be retried.
 		/// If the number of retries reaches the maximum allowed,
@@ -474,10 +492,6 @@ pub mod pallet {
 				schedule.order.get_asset_in(),
 				T::MinBudgetInNativeCurrency::get(),
 			)?;
-			ensure!(
-				schedule.total_amount >= min_budget,
-				Error::<T>::TotalAmountIsSmallerThanMinBudget
-			);
 			ensure!(
 				schedule.period >= BlockNumberFor::<T>::from(T::MinimalPeriod::get()),
 				Error::<T>::PeriodTooShort
@@ -510,10 +524,23 @@ pub mod pallet {
 			);
 
 			let amount_in_with_transaction_fee = amount_in.saturating_add(transaction_fee).saturating_mul(2);
-			ensure!(
-				amount_in_with_transaction_fee <= schedule.total_amount,
-				Error::<T>::BudgetTooLow
-			);
+			let reserve_amount = if schedule.is_rolling() {
+				ensure!(
+					amount_in_with_transaction_fee >= min_budget,
+					Error::<T>::MinTradeAmountNotReached
+				);
+				amount_in_with_transaction_fee
+			} else {
+				ensure!(
+					schedule.total_amount >= min_budget,
+					Error::<T>::TotalAmountIsSmallerThanMinBudget
+				);
+				ensure!(
+					amount_in_with_transaction_fee <= schedule.total_amount,
+					Error::<T>::BudgetTooLow
+				);
+				schedule.total_amount
+			};
 
 			let next_schedule_id =
 				ScheduleIdSequencer::<T>::try_mutate(|current_id| -> Result<ScheduleId, DispatchError> {
@@ -524,14 +551,14 @@ pub mod pallet {
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
-			RemainingAmounts::<T>::insert(next_schedule_id, schedule.total_amount);
+			RemainingAmounts::<T>::insert(next_schedule_id, reserve_amount);
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
 
 			T::Currencies::reserve_named(
 				&T::NamedReserveId::get(),
 				schedule.order.get_asset_in(),
 				&who,
-				schedule.total_amount,
+				reserve_amount,
 			)?;
 
 			let blocknumber_for_first_schedule_execution = Self::get_first_execution_block(start_execution_block)?;
@@ -586,7 +613,9 @@ pub mod pallet {
 
 			Self::try_unreserve_all(schedule_id, &schedule);
 
-			let next_execution_block = next_execution_block.ok_or(Error::<T>::ScheduleNotFound)?;
+			let next_execution_block = next_execution_block
+				.or(Self::schedule_execution_block(schedule_id))
+				.ok_or(Error::<T>::ScheduleNotFound)?;
 
 			//Remove schedule id from next execution block
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(
@@ -692,9 +721,10 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id));
 
-		match &schedule.order {
+		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		let trade_result = match &schedule.order {
 			Order::Sell {
 				asset_in,
 				asset_out,
@@ -777,7 +807,11 @@ impl<T: Config> Pallet<T> {
 					amount_out: *amount_out,
 				})
 			}
-		}
+		};
+
+		pallet_broadcast::Pallet::<T>::remove_from_context();
+
+		trade_result
 	}
 
 	fn replan_or_complete(
@@ -915,6 +949,10 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		amount_to_unreserve: Balance,
 	) -> DispatchResult {
+		if schedule.is_rolling() {
+			return Ok(());
+		};
+
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
 			let remaining_amount = maybe_remaining_amount
 				.as_mut()
@@ -1052,6 +1090,8 @@ impl<T: Config> Pallet<T> {
 				.map_err(|_| Error::<T>::InvalidState)?;
 			Ok(())
 		})?;
+
+		ScheduleExecutionBlock::<T>::insert(schedule_id, next_free_block);
 
 		Self::deposit_event(Event::ExecutionPlanned {
 			id: schedule_id,
@@ -1195,6 +1235,7 @@ impl<T: Config> Pallet<T> {
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
+		ScheduleExecutionBlock::<T>::remove(schedule_id);
 	}
 }
 

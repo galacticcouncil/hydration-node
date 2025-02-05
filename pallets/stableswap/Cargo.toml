@@ -1,11 +1,11 @@
 [package]
-name = 'pallet-stableswap'
-version = '4.1.1'
-description = 'AMM for correlated assets'
-authors = ['GalacticCouncil']
-edition = '2021'
+name = "pallet-stableswap"
+version = "4.3.0"
+description = "AMM for correlated assets"
+authors = ["GalacticCouncil"]
+edition = "2021"
 homepage = "https://github.com/galacticcouncil/warehouse"
-license = 'Apache 2.0'
+license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/warehouse"
 
 [package.metadata.docs.rs]
@@ -18,6 +18,10 @@ bitflags = { workspace = true }
 scale-info = { workspace = true }
 codec = { workspace = true }
 serde = { workspace = true }
+
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -32,9 +36,6 @@ frame-system = { workspace = true }
 # Math
 hydra-dx-math = { workspace = true }
 
-# HydraDX dependencies
-hydradx-traits = { workspace = true }
-
 # ORML dependencies
 orml-traits = { workspace = true }
 
@@ -47,9 +48,10 @@ sp-tracing = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
 proptest = { workspace = true }
 test-utils = { workspace = true }
+pretty_assertions = "1.4.0"
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
     "frame-benchmarking",
     "frame-system/runtime-benchmarks",
@@ -58,17 +60,18 @@ runtime-benchmarks = [
 ]
 std = [
     "serde/std",
-    'codec/std',
+    "codec/std",
     "scale-info/std",
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-core/std',
-    'sp-io/std',
-    'sp-std/std',
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-std/std",
     "orml-tokens/std",
     "frame-benchmarking/std",
-    'orml-traits/std',
+    "orml-traits/std",
     "hydra-dx-math/std",
+    "pallet-broadcast/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

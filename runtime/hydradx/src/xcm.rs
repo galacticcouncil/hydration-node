@@ -15,6 +15,7 @@ use frame_support::{
 	traits::{ConstU32, Contains, ContainsPair, EitherOf, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
+use frame_system::unique;
 use frame_system::EnsureRoot;
 use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
@@ -30,9 +31,10 @@ use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
-	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin,
+	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, GlobalConsensusConvertsFor,
+	HashedDescription, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
+	WithComputedOrigin, WithUniqueTopic,
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -62,7 +64,7 @@ impl TryFrom<Location> for AssetLocation {
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
-pub type Barrier = (
+pub type Barrier = TrailingSetTopicAsId<(
 	TakeWeightCredit,
 	// Expected responses are OK.
 	AllowKnownQueryResponses<PolkadotXcm>,
@@ -76,7 +78,7 @@ pub type Barrier = (
 		UniversalLocation,
 		ConstU32<8>,
 	>,
-);
+)>;
 
 parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
@@ -226,7 +228,60 @@ impl Config for XcmConfig {
 
 impl cumulus_pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
+}
+
+pub struct WithUnifiedEventSupport<Inner>(PhantomData<Inner>);
+
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfig as Config>::RuntimeCall>
+	for WithUnifiedEventSupport<Inner>
+{
+	type Prepared = <Inner as cumulus_primitives_core::ExecuteXcm<RuntimeCall>>::Prepared;
+
+	fn prepare(
+		message: Xcm<<XcmConfig as Config>::RuntimeCall>,
+	) -> Result<Self::Prepared, Xcm<<XcmConfig as Config>::RuntimeCall>> {
+		//We populate the context in `prepare` as we have the xcm message at this point so we can get the unique topic id
+		let unique_id = if let Some(SetTopic(id)) = message.last() {
+			*id
+		} else {
+			unique(&message)
+		};
+		pallet_broadcast::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id));
+
+		let prepare_result = Inner::prepare(message);
+
+		//In case of error we need to clean context as xcm execution won't happen
+		if prepare_result.is_err() {
+			pallet_broadcast::Pallet::<Runtime>::remove_from_context();
+		}
+
+		prepare_result
+	}
+
+	fn execute(
+		origin: impl Into<Location>,
+		pre: Self::Prepared,
+		id: &mut XcmHash,
+		weight_credit: XcmWeight,
+	) -> Outcome {
+		let outcome = Inner::execute(origin, pre, id, weight_credit);
+
+		// Context was added to the stack in `prepare` call.
+		pallet_broadcast::Pallet::<Runtime>::remove_from_context();
+
+		outcome
+	}
+
+	fn charge_fees(location: impl Into<Location>, fees: Assets) -> XcmResult {
+		Inner::charge_fees(location, fees)
+	}
+}
+
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> XcmAssetTransfers for WithUnifiedEventSupport<Inner> {
+	type IsReserve = <XcmConfig as Config>::IsReserve;
+	type IsTeleporter = <XcmConfig as Config>::IsTeleporter;
+	type AssetTransactor = <XcmConfig as Config>::AssetTransactor;
 }
 
 parameter_types! {
@@ -264,7 +319,7 @@ impl orml_xtokens::Config for Runtime {
 	type CurrencyIdConvert = CurrencyIdConvert;
 	type AccountIdToLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
@@ -293,7 +348,7 @@ impl pallet_xcm::Config for Runtime {
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
@@ -324,7 +379,11 @@ impl pallet_message_queue::Config for Runtime {
 	type MessageProcessor =
 		pallet_message_queue::mock_helpers::NoopMessageProcessor<cumulus_primitives_core::AggregateMessageOrigin>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MessageProcessor = xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, XcmExecutor<XcmConfig>, RuntimeCall>;
+	type MessageProcessor = xcm_builder::ProcessXcmMessage<
+		AggregateMessageOrigin,
+		WithUnifiedEventSupport<XcmExecutor<XcmConfig>>,
+		RuntimeCall,
+	>;
 	type Size = u32;
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
 	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
@@ -401,12 +460,12 @@ impl Convert<AccountId, Location> for AccountIdToMultiLocation {
 
 /// The means for routing XCM messages which are not for local execution into the right message
 /// queues.
-pub type XcmRouter = (
+pub type XcmRouter = WithUniqueTopic<(
 	// Two routers - use UMP to communicate with the relay chain:
 	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
 	// ..and XCMP to communicate with the sibling chains.
 	XcmpQueue,
-);
+)>;
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
@@ -422,8 +481,12 @@ pub type LocationToAccountId = (
 	HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
 	// Convert ETH to local substrate account
 	EvmAddressConversion<RelayNetwork>,
+	// Converts a location which is a top-level relay chain (which provides its own consensus) into a
+	// 32-byte `AccountId`.
+	GlobalConsensusConvertsFor<UniversalLocation, AccountId>,
 );
-use xcm_executor::traits::ConvertLocation;
+use pallet_broadcast::types::ExecutionType;
+use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);

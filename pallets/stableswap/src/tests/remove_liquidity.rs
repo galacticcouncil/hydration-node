@@ -1,8 +1,11 @@
 use crate::tests::mock::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::PoolInfo;
 use crate::{assert_balance, Error, Event, Pools};
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
+use hydradx_traits::stableswap::AssetAmount;
+use orml_traits::MultiCurrencyExtended;
+use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -71,6 +74,20 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 			assert_balance!(BOB, pool_id, 0u128);
 			assert_balance!(pool_account, asset_a, 100 * ONE + amount_added);
 			assert_balance!(pool_account, asset_c, 300 * ONE - amount_received);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityRemove,
+					inputs: vec![Asset::new(pool_id, 200516043533380244763),],
+					outputs: vec![Asset::new(asset_c, 199999999999999)],
+					fees: vec![Fee::new(pool_id, 0, Destination::Account(pool_account))],
+					operation_stack: vec![],
+				})
+			);
 		});
 }
 
@@ -167,26 +184,6 @@ fn remove_liquidity_should_fail_when_shares_is_insufficient() {
 }
 
 #[test]
-fn remove_liquidity_should_fail_when_remaining_shares_is_below_min_limit() {
-	let pool_id = 100u32;
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(BOB, pool_id, 100 * ONE)])
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Stableswap::remove_liquidity_one_asset(
-					RuntimeOrigin::signed(BOB),
-					pool_id,
-					1u32,
-					100 * ONE - MinimumLiquidity::get() + 1,
-					0,
-				),
-				Error::<Test>::InsufficientShareBalance
-			);
-		});
-}
-
-#[test]
 fn remove_liquidity_should_fail_when_pool_does_not_exists() {
 	let pool_id = 100u32;
 	ExtBuilder::default()
@@ -258,7 +255,7 @@ fn remove_liquidity_should_fail_when_requested_asset_not_in_pool() {
 }
 
 #[test]
-fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
+fn remove_liquidity_should_pass_when_remaining_shares_below_min_liquidity() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let asset_c: AssetId = 3;
@@ -306,16 +303,13 @@ fn remove_liquidity_should_fail_when_remaining_shares_below_min_liquidity() {
 
 			let shares = Tokens::free_balance(pool_id, &BOB);
 
-			assert_noop!(
-				Stableswap::remove_liquidity_one_asset(
-					RuntimeOrigin::signed(BOB),
-					pool_id,
-					asset_c,
-					shares - MinimumLiquidity::get() + 1,
-					0,
-				),
-				Error::<Test>::InsufficientShareBalance
-			);
+			assert_ok!(Stableswap::remove_liquidity_one_asset(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_c,
+				shares - MinimumLiquidity::get() + 1,
+				0,
+			),);
 		});
 }
 
@@ -848,10 +842,81 @@ fn removing_liquidity_with_exact_amount_should_work() {
 			));
 
 			// ASSERT
+
 			let received = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(received, 0);
 			let balance = Tokens::free_balance(asset_a, &BOB);
 			assert_eq!(balance, 1_999_999_999_999_999_999);
+		});
+}
+
+#[test]
+fn removing_liquidity_with_exact_amount_should_work_when_dust_left() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 2_000_000_000_000_000_003),
+			(ALICE, asset_a, 52425995641788588073263117),
+			(ALICE, asset_b, 52033213790329),
+			(ALICE, asset_c, 119135337044269),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 6)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 6)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(2000).unwrap(),
+				final_amplification: NonZeroU16::new(2000).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::zero(),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 52425995641788588073263117),
+					AssetAmount::new(asset_b, 52033213790329),
+					AssetAmount::new(asset_c, 119135337044269),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+			let amount = 2_000_000_000_000_000_000;
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			let desired_shares = 1947597621401945851;
+			assert_ok!(Stableswap::add_liquidity_shares(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				desired_shares,
+				asset_a,
+				amount + 3, // add liquidity for shares uses slightly more
+			));
+			let received = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(received, desired_shares);
+			let balance = Tokens::free_balance(asset_a, &BOB);
+			assert_eq!(balance, 0);
+			// ACT
+			assert_ok!(Stableswap::withdraw_asset_amount(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_a,
+				amount - 100,
+				desired_shares,
+			));
+
+			// ASSERT
+
+			let leftover = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(leftover, 96);
+			let balance = Tokens::free_balance(asset_a, &BOB);
+			assert_eq!(balance, 1_999_999_999_999_999_900);
 		});
 }
 
@@ -991,6 +1056,95 @@ fn removing_liquidity_with_exact_amount_should_apply_fee() {
 			assert_eq!(shares_left, 968209693349892648);
 			let balance = Tokens::free_balance(asset_a, &BOB);
 			assert_eq!(balance, 1988517979234162416);
+		});
+}
+
+#[test]
+fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 3_000_000_000_000_000_003),
+			(ALICE, asset_a, 52425995641788588073263117),
+			(ALICE, asset_b, 52033213790329),
+			(ALICE, asset_c, 119135337044269),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 6)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 6)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(2000).unwrap(),
+				final_amplification: NonZeroU16::new(2000).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(1),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 52425995641788588073263117),
+					AssetAmount::new(asset_b, 52033213790329),
+					AssetAmount::new(asset_c, 119135337044269),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+			let amount = 2_000_000_000_000_000_000;
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			let desired_shares = 1947597621401945851;
+			assert_ok!(Stableswap::add_liquidity_shares(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				desired_shares,
+				asset_a,
+				amount * 2, // add liquidity for shares uses slightly more
+			));
+			let received = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(received, desired_shares);
+			let balance = Tokens::free_balance(asset_a, &BOB);
+			let amount_used = 3_000_000_000_000_000_003 - balance;
+			assert_eq!(amount_used, 2011482020765837587);
+			// ACT
+			assert_ok!(Stableswap::withdraw_asset_amount(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_a,
+				1_000_000_000_000_000_000,
+				desired_shares,
+			));
+
+			// ASSERT
+			let shares_left = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(shares_left, 968209693349892648);
+			let balance = Tokens::free_balance(asset_a, &BOB);
+			assert_eq!(balance, 1988517979234162416);
+			let pool_account = pool_account(pool_id);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(4),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityRemove,
+					inputs: vec![Asset::new(pool_id, 979387928052053203)],
+					outputs: vec![Asset::new(asset_a, 1000000000000000000),],
+					fees: vec![
+						Fee::new(asset_a, 2870505165609705, Destination::Account(pool_account)),
+						Fee::new(asset_b, 872, Destination::Account(pool_account)),
+						Fee::new(asset_c, 1998, Destination::Account(pool_account))
+					],
+					operation_stack: vec![],
+				})
+			);
 		});
 }
 

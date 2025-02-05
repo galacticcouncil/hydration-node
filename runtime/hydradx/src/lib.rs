@@ -114,7 +114,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 278,
+	spec_version: 284,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -169,6 +169,7 @@ construct_runtime!(
 		Referenda: pallet_referenda = 37,
 		Origins: pallet_custom_origins = 38,
 		Whitelist: pallet_whitelist = 39,
+		Dispatcher: pallet_dispatcher = 40,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -241,6 +242,7 @@ construct_runtime!(
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		EmaOracle: pallet_ema_oracle = 202,
+		Broadcast: pallet_broadcast = 204,
 	}
 );
 
@@ -307,7 +309,6 @@ mod benches {
 	frame_benchmarking::define_benchmarks!(
 		[pallet_lbp, LBP]
 		[pallet_asset_registry, AssetRegistry]
-		[pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining]
 		[pallet_transaction_pause, TransactionPause]
 		[pallet_ema_oracle, EmaOracle]
 		[pallet_circuit_breaker, CircuitBreaker]
@@ -344,6 +345,7 @@ mod benches {
 		[pallet_conviction_voting, ConvictionVoting]
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
+		[pallet_dispatcher, Dispatcher]
 	);
 }
 
@@ -1026,6 +1028,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_xyk, benchmarking::xyk);
 			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
+			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1163,6 +1166,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_xyk, benchmarking::xyk);
 			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
+			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
