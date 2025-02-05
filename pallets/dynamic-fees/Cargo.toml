@@ -15,9 +15,7 @@ log = { workspace = true }
 
 # HydraDX dependencies
 hydra-dx-math = { workspace = true }
-
-# ORML dependencies
-orml-traits = { workspace = true }
+hydradx-traits = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -48,6 +46,6 @@ std = [
   "sp-io/std",
   "frame-support/std",
   "frame-system/std",
-  "orml-traits/std",
+  "hydradx-traits/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

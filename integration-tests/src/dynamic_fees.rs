@@ -2,7 +2,7 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use orml_traits::GetByKey;
+use hydradx_traits::fee::GetDynamicFee;
 use pallet_dynamic_fees::types::FeeEntry;
 use pallet_dynamic_fees::UpdateAndRetrieveFees;
 use primitives::AssetId;
@@ -416,11 +416,11 @@ fn test_fees_update_in_multi_blocks() {
 		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000894));
 
 		//ACT
-		let hdx_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get(&(HDX, hdx_state.reserve));
-		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get(&(DAI, dai_state.reserve));
-		let dot_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get(&(DOT, dot_state.reserve));
-		let eth_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get(&(ETH, eth_state.reserve));
-		let btc_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get(&(BTC, btc_state.reserve));
+		let hdx_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((HDX, hdx_state.reserve));
+		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
+		let dot_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DOT, dot_state.reserve));
+		let eth_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((ETH, eth_state.reserve));
+		let btc_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((BTC, btc_state.reserve));
 
 		//ASSERT
 		assert_eq!(hdx_final_fees, (Permill::from_float(0.05), Permill::from_float(0.0005)));

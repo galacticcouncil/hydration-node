@@ -57,7 +57,6 @@
 
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
-use orml_traits::GetByKey;
 use sp_runtime::traits::{BlockNumberProvider, Saturating, Zero};
 use sp_runtime::{FixedPointOperand, FixedU128, PerThing, SaturatedConversion};
 
@@ -72,6 +71,7 @@ use crate::traits::{Volume, VolumeProvider};
 use crate::types::{FeeEntry, FeeParams};
 use hydra_dx_math::dynamic_fees::types::OracleEntry;
 use hydra_dx_math::dynamic_fees::{recalculate_asset_fee, recalculate_protocol_fee};
+use hydradx_traits::fee::GetDynamicFee;
 
 type Balance = u128;
 
@@ -155,7 +155,7 @@ impl<T: Config> Pallet<T>
 where
 	<T::Fee as PerThing>::Inner: FixedPointOperand,
 {
-	fn update_fee(asset_id: T::AssetId, asset_liquidity: Balance) -> (T::Fee, T::Fee) {
+	fn update_fee(asset_id: T::AssetId, asset_liquidity: Balance, store: bool) -> (T::Fee, T::Fee) {
 		let block_number = T::BlockNumberProvider::current_block_number();
 
 		let asset_fee_params = T::AssetFeeParameters::get();
@@ -185,7 +185,7 @@ where
 		let fee_updated_at: u128 = current_fee_entry.timestamp.saturated_into();
 		if !fee_updated_at.is_zero() {
 			debug_assert!(
-				fee_updated_at >= raw_entry.updated_at(),
+				fee_updated_at == raw_entry.updated_at(),
 				"Dynamic fee update - last fee updated at {:?} but expected to be >= {:?}",
 				current_fee_entry.timestamp,
 				raw_entry.updated_at()
@@ -217,25 +217,33 @@ where
 			protocol_fee_params.into(),
 		);
 
-		AssetFee::<T>::insert(
-			asset_id,
-			FeeEntry {
-				asset_fee,
-				protocol_fee,
-				timestamp: block_number,
-			},
-		);
+		if store {
+			AssetFee::<T>::insert(
+				asset_id,
+				FeeEntry {
+					asset_fee,
+					protocol_fee,
+					timestamp: block_number,
+				},
+			);
+		}
 		(asset_fee, protocol_fee)
 	}
 }
 
 pub struct UpdateAndRetrieveFees<T: Config>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> GetByKey<(T::AssetId, Balance), (T::Fee, T::Fee)> for UpdateAndRetrieveFees<T>
+impl<T: Config> GetDynamicFee<(T::AssetId, Balance)> for UpdateAndRetrieveFees<T>
 where
 	<T::Fee as PerThing>::Inner: FixedPointOperand,
 {
-	fn get(k: &(T::AssetId, Balance)) -> (T::Fee, T::Fee) {
-		Pallet::<T>::update_fee(k.0, k.1)
+	type Fee = (T::Fee, T::Fee);
+
+	fn get(k: (T::AssetId, Balance)) -> Self::Fee {
+		Pallet::<T>::update_fee(k.0, k.1, false)
+	}
+
+	fn get_and_store(k: (T::AssetId, Balance)) -> Self::Fee {
+		Pallet::<T>::update_fee(k.0, k.1, true)
 	}
 }

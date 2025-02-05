@@ -85,8 +85,9 @@ use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
+use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use orml_traits::{GetByKey, MultiCurrency};
+use orml_traits::MultiCurrency;
 use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
 #[cfg(any(feature = "try-runtime", test))]
 use primitive_types::U256;
@@ -126,7 +127,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::BalanceUpdate;
-	use orml_traits::GetByKey;
+	use hydradx_traits::fee::GetDynamicFee;
 	use sp_runtime::ArithmeticError;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
@@ -173,7 +174,7 @@ pub mod pallet {
 		type HubAssetId: Get<Self::AssetId>;
 
 		/// Dynamic fee support - returns (Asset Fee, Protocol Fee) for given asset
-		type Fee: GetByKey<(Self::AssetId, Balance), (Permill, Permill)>;
+		type Fee: GetDynamicFee<(Self::AssetId, Balance), Fee = (Permill, Permill)>;
 
 		/// Minimum withdrawal fee
 		#[pallet::constant]
@@ -532,7 +533,7 @@ pub mod pallet {
 
 			// We need to call this to ensure that the fee is calculated correctly
 			// Although we dont need, but we need the fee to update.
-			let _ = T::Fee::get(&(asset, reserve));
+			let _ = T::Fee::get_and_store((asset, reserve));
 
 			<Assets<T>>::insert(asset, state);
 
@@ -700,7 +701,7 @@ pub mod pallet {
 
 			// We need to call this to ensure that the fee is calculated correctly
 			// Although we dont need, but we need the fee to update.
-			let _ = T::Fee::get(&(asset_id, asset_state.reserve));
+			let _ = T::Fee::get_and_store((asset_id, asset_state.reserve));
 
 			let safe_withdrawal = asset_state.tradable.is_safe_withdrawal();
 			// Skip price check if safe withdrawal - trading disabled.
@@ -935,8 +936,8 @@ pub mod pallet {
 				Error::<T>::MaxInRatioExceeded
 			);
 
-			let (asset_fee, _) = T::Fee::get(&(asset_out, asset_out_state.reserve));
-			let (_, protocol_fee) = T::Fee::get(&(asset_in, asset_in_state.reserve));
+			let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
+			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
@@ -1178,8 +1179,8 @@ pub mod pallet {
 				Error::<T>::MaxOutRatioExceeded
 			);
 
-			let (asset_fee, _) = T::Fee::get(&(asset_out, asset_out_state.reserve));
-			let (_, protocol_fee) = T::Fee::get(&(asset_in, asset_in_state.reserve));
+			let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_out_state.reserve));
+			let (_, protocol_fee) = T::Fee::get_and_store((asset_in, asset_in_state.reserve));
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&asset_in_state).into(),
 				&(&asset_out_state).into(),
@@ -1753,7 +1754,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
-		let (asset_fee, _) = T::Fee::get(&(asset_out, asset_state.reserve));
+		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
 		let state_changes =
 			hydra_dx_math::omnipool::calculate_sell_hub_state_changes(&(&asset_state).into(), amount, asset_fee)
@@ -1865,7 +1866,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxOutRatioExceeded
 		);
 
-		let (asset_fee, _) = T::Fee::get(&(asset_out, asset_state.reserve));
+		let (asset_fee, _) = T::Fee::get_and_store((asset_out, asset_state.reserve));
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
@@ -2134,7 +2135,7 @@ impl<T: Config> Pallet<T> {
 
 		// We need to call this to ensure that the fee is calculated correctly
 		// Although we dont need, but we need the fee to update.
-		let _ = T::Fee::get(&(asset, asset_state.reserve));
+		let _ = T::Fee::get_and_store((asset, asset_state.reserve));
 
 		let state_changes =
 			hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(&(&asset_state).into(), amount)
