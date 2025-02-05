@@ -4754,7 +4754,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "8.2.0"
+version = "9.0.0"
 dependencies = [
  "approx",
  "criterion",
@@ -4897,7 +4897,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 4.0.1",
+ "pallet-staking 4.1.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -5010,7 +5010,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.0.1",
+ "pallet-staking 4.1.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -9167,7 +9167,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "4.0.1"
+version = "4.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12316,7 +12316,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.0.1",
+ "pallet-staking 4.1.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -12380,7 +12380,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 4.0.1",
+ "pallet-staking 4.1.0",
  "primitives",
  "scraper",
  "serde",
