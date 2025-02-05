@@ -2674,7 +2674,7 @@ mod stableswap {
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 				assert!(fee > 0, "The treasury did not receive the fee");
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_balance!(ALICE.into(), HDX, 1070868187802504);
+				assert_balance!(ALICE.into(), HDX, 1070832735983195);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
