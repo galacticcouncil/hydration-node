@@ -4754,7 +4754,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "8.3.0"
+version = "8.4.0"
 dependencies = [
  "approx",
  "criterion",
@@ -4775,7 +4775,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.0.2"
+version = "14.1.0"
 dependencies = [
  "async-trait",
  "clap 4.5.4",
@@ -4919,12 +4919,13 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "283.0.0"
+version = "284.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcm",
  "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-aura",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
@@ -11374,7 +11375,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.1.0"
+version = "6.1.1"
 dependencies = [
  "frame-support",
  "hex-literal",
