@@ -7800,6 +7800,7 @@ name = "pallet-broadcast"
 version = "1.0.0"
 dependencies = [
  "frame-support",
+ "frame-support-procedural",
  "frame-system",
  "hydradx-traits",
  "log",
