@@ -4,7 +4,7 @@ use sp_runtime::Saturating;
 
 // This migration multiplies the periods of schedules by 2 to account for 2x faster block times
 //
-// The migration does not use a StorageVersion, make sure it is removed from the Runtime migrations
+// The migration does not use a StorageVersion, make sure it is removed from the Runtime Executive
 // after it has been run.
 pub struct MultiplySchedulesPeriodBy2<T: pallet::Config>(sp_std::marker::PhantomData<T>);
 impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy2<T> {
@@ -16,7 +16,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy2<T> {
 			crate::Schedules::<T>::insert(key, schedule);
 			schedules_len.saturating_inc();
 
-			// At the time of the migration there are ~70 schedules.
+			// At the time before the migration there are ~60 schedules.
 			// Setting a safe limit which can be executed in 1 block
 			if schedules_len == 150 {
 				log::info!("Hit limit of 150 schedules, exiting loop");
@@ -29,19 +29,16 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy2<T> {
 	}
 }
 
-#[cfg(all(feature = "try-runtime", test))]
+#[cfg(test)]
 mod test {
 	use super::*;
 	use crate::tests::mock::{RuntimeOrigin, Test, ALICE, DCA};
 	use crate::tests::schedule::set_block_number;
 	use crate::tests::{
-		create_bounded_vec,
-		mock::{ExtBuilder, BTC, HDX, ONE},
+		mock::{ExtBuilder, HDX, ONE},
 		ScheduleBuilder,
 	};
-	use crate::{Error, Event, Order};
 	use frame_support::assert_ok;
-	use hydradx_traits::router::PoolType;
 
 	#[test]
 	fn multiply_schedules_period_by_2_works() {
@@ -65,6 +62,8 @@ mod test {
 				// Act
 				MultiplySchedulesPeriodBy2::<Test>::on_runtime_upgrade();
 				let updated_schedule = DCA::schedules(0).unwrap();
+
+				// Assert
 				assert_eq!(updated_schedule.period, 200);
 			});
 	}

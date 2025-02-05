@@ -29,7 +29,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
-mod migration;
+mod migrations;
 pub mod weights;
 
 mod assets;
@@ -281,17 +281,14 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	migrations::Migrations,
+	Migrations,
 >;
 
-pub mod migrations {
-	use super::*;
-
-	pub type Migrations = (
-		pallet_dca::migrations::MultiplySchedulesPeriodBy2<Runtime>,
-		pallet_staking::migrations::SetSixSecBlocksSince<Runtime>,
-	);
-}
+pub type Migrations = (
+	pallet_dca::migrations::MultiplySchedulesPeriodBy2<Runtime>,
+	pallet_staking::migrations::SetSixSecBlocksSince<Runtime>,
+	migrations::MigrateSchedulerTo6sBlocks<Runtime>,
+);
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
 where

@@ -96,12 +96,8 @@ use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
 use hydradx_traits::NativePriceOracle;
 use hydradx_traits::OraclePeriod;
 use hydradx_traits::PriceOracle;
-pub use pallet::*;
 use pallet_broadcast::types::ExecutionType;
 pub use weights::WeightInfo;
-
-// Re-export pallet items so that they can be accessed from the crate namespace.
-use crate::types::*;
 
 #[cfg(test)]
 mod tests;
@@ -109,8 +105,6 @@ mod tests;
 pub mod migrations;
 pub mod types;
 pub mod weights;
-
-pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use crate::types::*;
