@@ -93,7 +93,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_finalize(_n: BlockNumberFor<T>){
+		fn on_finalize(_n: BlockNumberFor<T>) {
 			ExecutionContext::<T>::kill();
 		}
 	}
