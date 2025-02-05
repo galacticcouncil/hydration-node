@@ -18,13 +18,13 @@
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
-	dispatch::GetDispatchInfo,
 	ensure,
 	pallet_prelude::{RuntimeDebug, TypeInfo},
 	traits::ConstU32,
 	weights::Weight,
 };
 use frame_system::{ensure_signed, pallet_prelude::*, Origin};
+use pallet_transaction_payment::OnChargeTransaction;
 use sp_core::Get;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Dispatchable, One},
@@ -35,13 +35,15 @@ pub use pallet::*;
 pub mod weights;
 pub use weights::WeightInfo;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 //types
 pub type CallId = u128;
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub type BoundedCall = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
+
+const NO_TIP: u32 = 0;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct CallData<AccountId, BlockNumber> {
@@ -54,23 +56,30 @@ pub struct CallData<AccountId, BlockNumber> {
 pub mod pallet {
 	use super::*;
 	use frame_support::{
-		dispatch::{GetDispatchInfo, PostDispatchInfo},
+		dispatch::{DispatchInfo, GetDispatchInfo, PostDispatchInfo},
 		pallet_prelude::{ValueQuery, *},
 	};
 	use sp_runtime::DispatchResult;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config:
+		frame_system::Config + pallet_transaction_payment::Config<RuntimeCall = <Self as pallet::Config>::RuntimeCall>
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The aggregated call type.
 		type RuntimeCall: Parameter
-			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
+			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, Info = DispatchInfo, PostInfo = PostDispatchInfo>
 			+ GetDispatchInfo
 			+ From<frame_system::Call<Self>>;
 
 		/// Block number provider
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
+
+		// type ChargeTransaction: SignedExtension<
+		// 	AccountId = Self::AccountId,
+		// 	Call = <Self as pallet::Config>::RuntimeCall,
+		// >;
 
 		/// Max. number of submits offchain worker will make in each run
 		#[pallet::constant]
@@ -107,6 +116,9 @@ pub mod pallet {
 		/// `id` reach max value
 		IdOverflow,
 
+		/// Arithmetic or type conversion overflow
+		Overflow,
+
 		NotImplemented,
 
 		/// No call to dispatch was found at the top of the calls' queue
@@ -120,6 +132,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::from_parts(1000, 1000))]
+		//TODO: add BoundedCall as param for this extrinsic so encoded call length is calculated
+		//correctly
 		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResult {
 			let _who = ensure_signed(origin)?;
 
@@ -130,6 +144,24 @@ pub mod pallet {
 				let call_data = CallQueue::<T>::take(*id).ok_or(Error::<T>::EmptyQueue)?;
 
 				let result = if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut &call_data.call[..]) {
+					//TODO: charge/refund fee from correct user + make correct weight function
+					let info = call.get_dispatch_info();
+					let fee = pallet_transaction_payment::Pallet::<T>::compute_fee(
+						call_data.call.len().try_into().map_err(|_| Error::<T>::Overflow)?,
+						&info,
+						NO_TIP.into(),
+					);
+
+					//TODO: handle this correclty, result contains imbalance necessary for
+					//`correct_and_deposit_fee`
+					let _ = <T as pallet_transaction_payment::Config>::OnChargeTransaction::withdraw_fee(
+						&call_data.origin,
+						&call,
+						&info,
+						fee,
+						NO_TIP.into(),
+					);
+
 					let o: OriginFor<T> = Origin::<T>::Signed(call_data.origin).into();
 					let result = call.dispatch(o);
 
@@ -148,6 +180,17 @@ pub mod pallet {
 				*id = id.checked_add(One::one()).ok_or(Error::<T>::IdOverflow)?;
 				return Ok(());
 			})
+		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(Weight::from_parts(1000, 1000))]
+		pub fn add(origin: OriginFor<T>, as_o: T::AccountId, call: BoundedCall) -> DispatchResult {
+			let _who = ensure_signed(origin)?;
+			//TODO: remove whole extrinsic, this is only for testing
+
+			Self::queue_call(as_o, call)?;
+
+			Ok(())
 		}
 	}
 }

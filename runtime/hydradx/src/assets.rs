@@ -1595,10 +1595,14 @@ impl pallet_referrals::Config for Runtime {
 	type BenchmarkHelper = ReferralsBenchmarkHelper;
 }
 
+parameter_types! {
+	pub OcwMaxSubmitsPerRun: u8 = 5;
+}
 impl pallet_lazy_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type BlockNumberProvider = System;
+	type OcwMaxSubmits = OcwMaxSubmitsPerRun;
 }
 
 parameter_types! {

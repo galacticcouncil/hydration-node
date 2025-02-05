@@ -19,12 +19,11 @@ codec = { workspace = true }
 serde = { workspace = true, optional = true }
 log = { workspace = true }
 
-hydra-dx-math = { workspace = true }
-
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
+pallet-transaction-payment = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
@@ -48,6 +47,7 @@ std = [
 	"sp-std/std",
 	"sp-core/std",
 	"pallet-balances/std",
+	"pallet-transaction-payment/std",
 ]
 
 runtime-benchmarks = [ "frame-benchmarking/runtime-benchmarks" ]
