@@ -62,6 +62,7 @@ pub mod pallet {
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	/// Execution context to figure out where the trade is originated from
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
@@ -92,10 +93,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+		fn on_finalize(_n: BlockNumberFor<T>){
 			ExecutionContext::<T>::kill();
-
-			T::DbWeight::get().reads_writes(2, 2)
 		}
 	}
 
