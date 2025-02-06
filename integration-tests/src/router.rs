@@ -2573,7 +2573,7 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			let amount_in = 37_565_544;
+			let amount_in = 37_528_090;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -2658,7 +2658,7 @@ mod omnipool_router_tests {
 
 		let amount_to_buy = UNITS;
 		let limit = 100 * UNITS;
-		let amount_in = 37_565_544;
+		let amount_in = 37_528_090;
 
 		Hydra::execute_with(|| {
 			//Arrange
@@ -5575,7 +5575,7 @@ mod with_on_chain_and_default_route {
 			));
 
 			//Assert
-			let amount_in = 37_565_544;
+			let amount_in = 37_528_090;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -5916,7 +5916,7 @@ mod sell_all {
 		TestNet::reset();
 
 		let limit = 0;
-		let amount_out = 26577363534770086553;
+		let amount_out = 26604007508238527742;
 
 		Hydra::execute_with(|| {
 			let bob_hdx_balance = Currencies::free_balance(HDX, &BOB.into());
@@ -5958,7 +5958,7 @@ mod sell_all {
 		TestNet::reset();
 
 		let limit = 0;
-		let amount_out = 35227901268414708;
+		let amount_out = 35263217460162492;
 
 		Hydra::execute_with(|| {
 			let bob_nonnative_balance = Currencies::free_balance(DAI, &BOB.into());

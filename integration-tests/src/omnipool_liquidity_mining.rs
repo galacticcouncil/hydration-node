@@ -1836,7 +1836,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		//Assert
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815_305_689_849_957_936u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689850039738u128));
 	});
 }
 
@@ -1944,7 +1944,7 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		// NOTE: make sure oracle's price adjustment was used.
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815_305_689_849_957_936u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689850039738u128));
 	});
 }
 
