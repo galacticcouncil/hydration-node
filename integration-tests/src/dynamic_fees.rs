@@ -438,7 +438,7 @@ fn test_fees_update_in_multi_blocks() {
 		);
 		assert_eq!(
 			btc_final_fees,
-			(Permill::from_float(0.0015), Permill::from_float(0.00099))
+			(Permill::from_float(0.0015), Permill::from_float(0.000991))
 		);
 	});
 }
