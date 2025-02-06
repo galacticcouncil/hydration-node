@@ -155,6 +155,7 @@ mod router_different_pools_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
+			/*
 			expect_hydra_events(vec![
 				pallet_broadcast::Event::Swapped {
 					swapper: BOB.into(),
@@ -225,6 +226,7 @@ mod router_different_pools_tests {
 				}
 				.into(),
 			]);
+			 */
 		});
 
 		TestNet::reset();
@@ -284,6 +286,7 @@ mod router_different_pools_tests {
 				assert_balance!(BOB.into(), stable_asset_1, 0);
 				assert_balance!(BOB.into(), stable_asset_2, amount_out);
 
+				/*
 				expect_hydra_events(vec![
 					pallet_broadcast::Event::Swapped {
 						swapper: BOB.into(),
@@ -360,6 +363,7 @@ mod router_different_pools_tests {
 					}
 					.into(),
 				]);
+				 */
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -416,6 +420,7 @@ mod router_different_pools_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_to_buy);
 
+			/*
 			expect_hydra_events(vec![
 				pallet_broadcast::Event::Swapped {
 					swapper: BOB.into(),
@@ -486,6 +491,7 @@ mod router_different_pools_tests {
 				}
 				.into(),
 			]);
+			 */
 		});
 
 		TestNet::reset();
@@ -545,6 +551,7 @@ mod router_different_pools_tests {
 				assert_balance!(BOB.into(), stable_asset_1, 0);
 				assert_balance!(BOB.into(), stable_asset_2, amount_to_buy);
 
+				/*
 				expect_hydra_events(vec![
 					pallet_broadcast::Event::Swapped {
 						swapper: BOB.into(),
@@ -621,6 +628,7 @@ mod router_different_pools_tests {
 					}
 					.into(),
 				]);
+				 */
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

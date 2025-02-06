@@ -436,9 +436,6 @@ fn test_fees_update_in_multi_blocks() {
 			eth_final_fees,
 			(Permill::from_float(0.0015), Permill::from_float(0.0025))
 		);
-		assert_eq!(
-			btc_final_fees,
-			(Permill::from_float(0.0015), Permill::from_float(0.000991))
-		);
+		assert_eq!(btc_final_fees, (Permill::from_float(0.0015), Permill::from_parts(991)));
 	});
 }
