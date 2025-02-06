@@ -1540,7 +1540,7 @@ impl pallet_xyk::Config for Runtime {
 
 parameter_types! {
 	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
-	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
+	pub RegistrationFee: (AssetId, Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
 	pub const MaxCodeLength: u32 = 10;
 	pub const MinCodeLength: u32 = 4;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
@@ -1677,29 +1677,29 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 				external: Permill::from_percent(50),
 			},
 			Level::Tier0 => FeeDistribution {
-				referrer: Permill::from_percent(5),
-				trader: Permill::from_percent(10),
-				external: Permill::from_percent(35),
+				referrer: Permill::from_percent(3),
+				trader: Permill::from_percent(2),
+				external: Permill::from_percent(45),
 			},
 			Level::Tier1 => FeeDistribution {
-				referrer: Permill::from_percent(10),
-				trader: Permill::from_percent(11),
-				external: Permill::from_percent(29),
+				referrer: Permill::from_percent(6),
+				trader: Permill::from_percent(4),
+				external: Permill::from_percent(40),
 			},
 			Level::Tier2 => FeeDistribution {
-				referrer: Permill::from_percent(15),
-				trader: Permill::from_percent(12),
-				external: Permill::from_percent(23),
+				referrer: Permill::from_percent(9),
+				trader: Permill::from_percent(6),
+				external: Permill::from_percent(35),
 			},
 			Level::Tier3 => FeeDistribution {
-				referrer: Permill::from_percent(20),
-				trader: Permill::from_percent(13),
-				external: Permill::from_percent(17),
+				referrer: Permill::from_percent(12),
+				trader: Permill::from_percent(8),
+				external: Permill::from_percent(30),
 			},
 			Level::Tier4 => FeeDistribution {
-				referrer: Permill::from_percent(25),
-				trader: Permill::from_percent(15),
-				external: Permill::from_percent(10),
+				referrer: Permill::from_percent(15),
+				trader: Permill::from_percent(10),
+				external: Permill::from_percent(25),
 			},
 		};
 		(volume, rewards)
