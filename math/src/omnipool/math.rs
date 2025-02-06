@@ -53,7 +53,7 @@ pub fn calculate_sell_state_changes(
 
 	let asset_fee_amount = amount_out.saturating_sub(delta_reserve_out);
 
-	// mint amount to account for asset fee that stays in the pool
+	// calculate amount to mint to account for asset fee that stays in the pool
 	let delta_out_m = asset_fee.mul_floor(
 		to_balance!(out_hub_reserve_hp
 			.checked_add(delta_hub_reserve_out_hp)?
@@ -247,7 +247,7 @@ pub fn calculate_buy_state_changes(
 		.ok()?,
 	);
 
-	// Protocol fee burn and transfer
+	// Protocol fee to burn and transfer
 	let burned_protocol_fee = m.mul_floor(protocol_fee_amount);
 	let extra_protocol_fee = protocol_fee_amount.checked_sub(burned_protocol_fee)?;
 

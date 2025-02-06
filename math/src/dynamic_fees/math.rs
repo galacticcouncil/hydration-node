@@ -6,12 +6,14 @@ use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::FixedPointNumber;
 use sp_arithmetic::{FixedPointOperand, FixedU128, PerThing};
 
+const MAX_BLOCK_DIFFERENCE: u128 = 20;
+
 /// Recalculate Omnipool's asset fee given previously calculated fee and oracle data.
 ///
-/// `volume` is the asset volume data provided by the oracle.
+/// `last_entry` is the previous asset oracle entry providing volume and liquidity information
 /// `current_asset_liquidity` is the current asset liquidity.
 /// `previous_fee` is the previous-calculated asset fee.
-/// `last_block_diff` is the difference between the current block height and the previous block height when asset fee was calculated.
+/// `block_diff` is the difference between the current block height and the previous block height when asset fee was calculated.
 /// `params` is the fee parameters, such as minimum fee, maximum fee, decay and amplification.
 pub fn recalculate_asset_fee<Fee: PerThing>(
 	last_entry: OracleEntry,
@@ -70,23 +72,26 @@ pub(super) fn compute_dynamic_fee<Fee: PerThing>(
 where
 	<Fee as PerThing>::Inner: FixedPointOperand,
 {
-	if params.amplification.is_zero() || block_diff.is_zero() {
+	if last_entry.decay_factor.is_zero() || params.amplification.is_zero() || block_diff.is_zero() {
 		return previous_fee;
 	}
-	if last_entry.decay_factor.is_zero() {
-		return previous_fee; //otherwise we would divide by zero
-	}
 
-	let (net_volume, neg) = last_entry.net_volume(net_direction);
+	let (net_volume, volume_neg) = last_entry.net_volume(net_direction);
 	let (net_liquidity, liquid_neg) = (
 		last_entry.liquidity.abs_diff(liquidity),
 		last_entry.liquidity < liquidity,
 	);
 
-	let m = block_diff.min(20u128);
+	// when benchmarking - force the max block difference
+	let m = if cfg!(feature = "runtime-benchmarks") {
+		MAX_BLOCK_DIFFERENCE
+	} else {
+		block_diff.min(MAX_BLOCK_DIFFERENCE)
+	};
+
 	let (x, x_neg) = (
 		FixedU128::from_rational(params.amplification.saturating_mul_int(net_volume), liquidity),
-		neg,
+		volume_neg,
 	);
 	let mut j_sum = FixedU128::zero();
 

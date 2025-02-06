@@ -358,9 +358,9 @@ mod tests {
 	#[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(100), BalanceUpdate::Decrease(100) ; "When decrease and increase")]
 	#[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(300), BalanceUpdate::Increase(100) ; "When decrease and increase larger")]
 	#[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(0), BalanceUpdate::Decrease(200) ; "When decrease and increase zero")]
-	#[test_case(BalanceUpdate::Decrease(0), BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(100) ; "When decrease zero and decreaes ")]
+	#[test_case(BalanceUpdate::Decrease(0), BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(100) ; "When decrease zero and decreases ")]
 	#[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(100), BalanceUpdate::Increase(0) ; "When decrease and decrease same amount ")]
-	#[test_case(BalanceUpdate::Decrease(100), BalanceUpdate::Increase(100), BalanceUpdate::Decrease(0) ; "When decrease and decrease same amount swapped ")] // should be probably same as previous ?
+	#[test_case(BalanceUpdate::Decrease(100), BalanceUpdate::Increase(100), BalanceUpdate::Decrease(0) ; "When decrease and decrease same amount swapped ")]
 	#[test_case(BalanceUpdate::Increase(u32::MAX), BalanceUpdate::Decrease(1), BalanceUpdate::Increase(u32::MAX - 1) ; "When increase max and decrease one")]
 	#[test_case(BalanceUpdate::Increase(u32::MAX), BalanceUpdate::Increase(1), BalanceUpdate::Increase(u32::MAX); "When increase overflows")]
 	#[test_case(BalanceUpdate::Decrease(u32::MAX), BalanceUpdate::Decrease(1), BalanceUpdate::Decrease(u32::MAX); "When decrease overflows")]

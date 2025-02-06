@@ -1123,7 +1123,6 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 				.is_some()
 		);
 
-		//let bob_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
 		//Act 1 - withdraw shares from 2-nd yield-farm
 		set_relaychain_block_number(600);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
