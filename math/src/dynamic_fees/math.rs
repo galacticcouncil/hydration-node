@@ -82,12 +82,7 @@ where
 		last_entry.liquidity < liquidity,
 	);
 
-	// when benchmarking - force the max block difference
-	let m = if cfg!(feature = "runtime-benchmarks") {
-		MAX_BLOCK_DIFFERENCE
-	} else {
-		block_diff.min(MAX_BLOCK_DIFFERENCE)
-	};
+	block_diff.min(MAX_BLOCK_DIFFERENCE);
 
 	let (x, x_neg) = (
 		FixedU128::from_rational(params.amplification.saturating_mul_int(net_volume), liquidity),
@@ -106,6 +101,9 @@ where
 		} else {
 			FixedU128::one().saturating_add(p)
 		};
+
+		debug_assert!(denom != FixedU128::zero(), "dynamic fee calc: Denominator is zero");
+
 		// this should not happen but let's be cautious
 		if denom.is_zero() {
 			// let's make fuzzer happy to panic here!
