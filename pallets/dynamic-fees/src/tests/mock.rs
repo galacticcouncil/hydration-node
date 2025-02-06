@@ -28,7 +28,7 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use orml_traits::GetByKey;
+use hydradx_traits::fee::GetDynamicFee;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One, Zero},
@@ -256,7 +256,7 @@ pub trait CustomOracle {
 }
 
 pub(crate) fn retrieve_fee_entry(asset_id: AssetId, liquidity: Balance) -> (Fee, Fee) {
-	<UpdateAndRetrieveFees<Test> as GetByKey<(AssetId, Balance), (Fee, Fee)>>::get(&(asset_id, liquidity))
+	<UpdateAndRetrieveFees<Test> as GetDynamicFee<(AssetId, Balance)>>::get((asset_id, liquidity))
 }
 
 pub(crate) fn get_oracle_entry(asset_id: AssetId, block_number: u64) -> AssetVolume {

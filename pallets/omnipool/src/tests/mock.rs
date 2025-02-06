@@ -32,7 +32,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind};
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::{
@@ -692,9 +692,14 @@ pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
 
 pub struct FeeProvider;
 
-impl GetByKey<(AssetId, Balance), (Permill, Permill)> for FeeProvider {
-	fn get(_: &(AssetId, Balance)) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
+
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
 	}
 }
 

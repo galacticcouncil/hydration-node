@@ -28,11 +28,12 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
+use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::{
 	router::{PoolType, RefundEdCalculator},
 	OraclePeriod, PriceOracle,
 };
-use orml_traits::{parameter_type_with_key, GetByKey};
+use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::offchain::{
@@ -402,9 +403,14 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 pub struct FeeProvider;
 
-impl GetByKey<(AssetId, Balance), (Permill, Permill)> for FeeProvider {
-	fn get(_: &(AssetId, Balance)) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(Permill::from_percent(0), Permill::from_percent(0))
+	}
+
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
 	}
 }
 
