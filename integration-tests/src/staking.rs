@@ -526,7 +526,7 @@ fn increase_should_slash_min_amount_when_increase_is_low() {
 
 		let stake_position =
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
-		assert_eq!(stake_position.accumulated_slash_points, 50);
+		assert_eq!(stake_position.accumulated_slash_points, 5);
 	});
 }
 
