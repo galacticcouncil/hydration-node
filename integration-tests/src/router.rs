@@ -2,7 +2,6 @@
 #![allow(clippy::identity_op)]
 use super::assert_balance;
 use crate::polkadot_test_net::*;
-use hydradx_adapters::OmnipoolHookAdapter;
 use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
@@ -37,10 +36,7 @@ use xcm_emulator::TestExt;
 use frame_support::storage::with_transaction;
 use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use sp_runtime::{
-	traits::{ConstU32, Zero},
-	DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome,
-};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome};
 
 use hydradx_runtime::{AccountIdFor, InsufficientEDinHDX};
 use orml_traits::MultiCurrency;
@@ -1147,21 +1143,9 @@ mod router_different_pools_tests {
 			assert_eq!(
 				RouterWeightInfo::sell_weight(trades.as_slice()),
 				hydradx_runtime::weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
-					.checked_add(&<OmnipoolHookAdapter<
-						RuntimeOrigin,
-						ConstU32<HDX>,
-						ConstU32<LRNA>,
-						Runtime,
-					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_trade_weight(
-					))
+					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
 					.unwrap()
-					.checked_add(&<OmnipoolHookAdapter<
-						RuntimeOrigin,
-						ConstU32<HDX>,
-						ConstU32<LRNA>,
-						Runtime,
-					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
-					))
+					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight())
 					.unwrap()
 					.checked_add(
 						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1)
@@ -1177,21 +1161,9 @@ mod router_different_pools_tests {
 			assert_eq!(
 				RouterWeightInfo::buy_weight(trades.as_slice()),
 				hydradx_runtime::weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_buy(1, 1)
-					.checked_add(&<OmnipoolHookAdapter<
-						RuntimeOrigin,
-						ConstU32<HDX>,
-						ConstU32<LRNA>,
-						Runtime,
-					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_trade_weight(
-					))
+					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
 					.unwrap()
-					.checked_add(&<OmnipoolHookAdapter<
-						RuntimeOrigin,
-						ConstU32<HDX>,
-						ConstU32<LRNA>,
-						Runtime,
-					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
-					))
+					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight())
 					.unwrap()
 					.checked_add(
 						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1)
@@ -1211,10 +1183,10 @@ mod router_different_pools_tests {
 mod omnipool_router_tests {
 	use super::*;
 	use frame_support::assert_noop;
-	use hydradx_runtime::{Balances, XYK};
+	use hydradx_runtime::{Balances, Omnipool, Treasury, XYK};
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
-	use pallet_broadcast::types::ExecutionType;
+	use pallet_broadcast::types::{Destination, ExecutionType};
 
 	#[test]
 	fn sell_should_work_when_route_contains_single_trade() {
@@ -2475,7 +2447,10 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
 					outputs: vec![Asset::new(LRNA, 12014871681)],
-					fees: vec![Fee::new(LRNA, 6007435, Destination::Burned)],
+					fees: vec![
+						Fee::new(LRNA, 3003717, Destination::Burned),
+						Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
+					],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -2484,7 +2459,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, 12008864246)],
+					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(
 						DAI,
@@ -2529,7 +2504,7 @@ mod omnipool_router_tests {
 					amount_in: amount_to_sell,
 					amount_out,
 					hub_amount_in: 12014871681,
-					hub_amount_out: 12008864246,
+					hub_amount_out: 12038886566,
 					asset_fee_amount: 667_155_563_986_401,
 					protocol_fee_amount: 6_007_435,
 				}
@@ -2540,8 +2515,12 @@ mod omnipool_router_tests {
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, amount_to_sell)],
-					outputs: vec![Asset::new(LRNA, 12014871681)],
-					fees: vec![Fee::new(LRNA, 6007435, Destination::Burned)],
+					outputs: vec![Asset::new(LRNA, 12_014_871_681)],
+					fees: vec![
+						Fee::new(LRNA, 3003717, Destination::Burned),
+						Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
+					],
+
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
@@ -2550,7 +2529,7 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, 12008864246)],
+					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(
 						DAI,
@@ -2713,7 +2692,10 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
-					fees: vec![Fee::new(LRNA, 22, Destination::Burned)],
+					fees: vec![
+						Fee::new(LRNA, 11, Destination::Burned),
+						Fee::new(LRNA, 11, Destination::Account(Treasury::account_id())),
+					],
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
@@ -2767,7 +2749,7 @@ mod omnipool_router_tests {
 					amount_in,
 					amount_out: amount_to_buy,
 					hub_amount_in: 45135,
-					hub_amount_out: 45113,
+					hub_amount_out: 45225,
 					asset_fee_amount: 2_506_265_665,
 					protocol_fee_amount: 22,
 				}
@@ -2779,7 +2761,10 @@ mod omnipool_router_tests {
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
 					outputs: vec![Asset::new(LRNA, 45135)],
-					fees: vec![Fee::new(LRNA, 22, Destination::Burned)],
+					fees: vec![
+						Fee::new(LRNA, 11, Destination::Burned),
+						Fee::new(LRNA, 11, Destination::Account(Treasury::account_id())),
+					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),

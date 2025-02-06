@@ -22,8 +22,8 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider,
-	StableswapHooksAdapter, VestingInfo,
+	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
+	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
 
 pub use hydradx_traits::{
@@ -493,6 +493,7 @@ parameter_types! {
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
+	pub BurnProtocolFee : Permill = Permill::from_percent(50);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -515,7 +516,8 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::pallet_omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = OmnipoolHookAdapter<Self::RuntimeOrigin, NativeAssetId, LRNA, Runtime>;
+	type OmnipoolHooks =
+		OmnipoolHookAdapter<Self::RuntimeOrigin, NativeAssetId, LRNA, Runtime, Currencies, TreasuryAccount>;
 	type PriceBarrier = (
 		EnsurePriceWithin<
 			AccountId,
@@ -534,6 +536,7 @@ impl pallet_omnipool::Config for Runtime {
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
+	type BurnProtocolFee = BurnProtocolFee;
 }
 
 pub struct CircuitBreakerWhitelist;
@@ -961,22 +964,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e)
-					.saturating_add(
-						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight(),
-					)
-					.saturating_add(
-						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight(),
-					),
+					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
+					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::Stableswap(_) => {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e)
@@ -1009,22 +998,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e)
-					.saturating_add(
-						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight(),
-					)
-					.saturating_add(
-						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight(),
-					),
+					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
+					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::Stableswap(_) => {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e)
@@ -1281,7 +1256,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type BlockNumberProvider = System;
 	type Fee = Permill;
 	type AssetId = AssetId;
-	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
+	type RawOracle = OmnipoolRawOracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }

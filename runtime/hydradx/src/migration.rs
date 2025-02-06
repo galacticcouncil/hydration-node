@@ -45,6 +45,11 @@ pub fn bind_pallet_account() -> Weight {
 
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	fn on_runtime_upgrade() -> Weight {
-		bind_pallet_account()
+		let mut w = Weight::zero();
+		let bw = bind_pallet_account();
+		w.saturating_accrue(bw);
+		let ow = pallet_omnipool::migration::v2::migrate::<Runtime>();
+		w.saturating_accrue(ow);
+		w
 	}
 }

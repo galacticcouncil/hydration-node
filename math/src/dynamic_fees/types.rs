@@ -16,6 +16,7 @@ pub struct OracleEntry {
 	pub amount_in: Balance,
 	pub amount_out: Balance,
 	pub liquidity: Balance,
+	pub decay_factor: FixedU128,
 }
 
 impl OracleEntry {

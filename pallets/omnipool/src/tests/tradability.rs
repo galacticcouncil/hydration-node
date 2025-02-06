@@ -56,3 +56,13 @@ fn sell_asset_tradable_state_should_fail_when_hub_asset_new_state_contains_liqui
 			);
 		});
 }
+
+#[test]
+fn tradability_should_allow_all_when_default() {
+	let default_tradability = Tradability::default();
+
+	assert!(default_tradability.contains(Tradability::BUY));
+	assert!(default_tradability.contains(Tradability::SELL));
+	assert!(default_tradability.contains(Tradability::ADD_LIQUIDITY));
+	assert!(default_tradability.contains(Tradability::REMOVE_LIQUIDITY));
+}
