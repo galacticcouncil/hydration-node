@@ -82,7 +82,7 @@ where
 		last_entry.liquidity < liquidity,
 	);
 
-	block_diff.min(MAX_BLOCK_DIFFERENCE);
+	let m = block_diff.min(MAX_BLOCK_DIFFERENCE);
 
 	let (x, x_neg) = (
 		FixedU128::from_rational(params.amplification.saturating_mul_int(net_volume), liquidity),
