@@ -121,7 +121,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			50 * UNITS - fee
 		);
 		// We receive about 39_101 HDX (HDX is super cheap in our test)
-		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
+		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396 + 39_199_205_144_415;
 		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), received);
 
 		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();

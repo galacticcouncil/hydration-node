@@ -404,16 +404,16 @@ fn test_fees_update_in_multi_blocks() {
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
 		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.05));
-		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0025));
-		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0025));
-		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0025));
-		assert_eq!(btc_fee.asset_fee, Permill::from_float(0.0025));
+		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(btc_fee.asset_fee, Permill::from_float(0.0015));
 
 		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
 		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
-		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001));
-		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.001));
-		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000894));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001674));
+		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000849));
 
 		//ACT
 		let hdx_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((HDX, hdx_state.reserve));
@@ -426,19 +426,19 @@ fn test_fees_update_in_multi_blocks() {
 		assert_eq!(hdx_final_fees, (Permill::from_float(0.05), Permill::from_float(0.0005)));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.006171), Permill::from_float(0.0005))
+			(Permill::from_float(0.004455), Permill::from_float(0.0005))
 		);
 		assert_eq!(
 			dot_final_fees,
-			(Permill::from_float(0.0025), Permill::from_float(0.001))
+			(Permill::from_float(0.0015), Permill::from_float(0.002115))
 		);
 		assert_eq!(
 			eth_final_fees,
-			(Permill::from_float(0.0025), Permill::from_float(0.001))
+			(Permill::from_float(0.0015), Permill::from_float(0.0025))
 		);
 		assert_eq!(
 			btc_final_fees,
-			(Permill::from_float(0.0025), Permill::from_float(0.001))
+			(Permill::from_float(0.0015), Permill::from_float(0.00099))
 		);
 	});
 }
