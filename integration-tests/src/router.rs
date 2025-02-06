@@ -148,7 +148,7 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			let amount_out = 2_230_008_413_831;
+			let amount_out = 2232143907425;
 
 			assert_balance!(BOB.into(), DAI, 1_000_000_000 * UNITS - amount_to_sell);
 			assert_balance!(BOB.into(), LRNA, BOB_INITIAL_LRNA_BALANCE);
@@ -204,7 +204,7 @@ mod router_different_pools_tests {
 					))),
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(HDX, 4682924837974)],
-					outputs: vec![Asset::new(DOT, 2230008413831)],
+					outputs: vec![Asset::new(DOT, 2232143907425)],
 					fees: vec![Fee::new(
 						DOT,
 						6710155707,
@@ -2504,8 +2504,8 @@ mod omnipool_router_tests {
 					amount_in: amount_to_sell,
 					amount_out,
 					hub_amount_in: 12014871681,
-					hub_amount_out: 12038886566,
-					asset_fee_amount: 667_155_563_986_401,
+					hub_amount_out: 12026877638,
+					asset_fee_amount: 400293338391841,
 					protocol_fee_amount: 6_007_435,
 				}
 				.into(),
@@ -2533,7 +2533,7 @@ mod omnipool_router_tests {
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(
 						DAI,
-						667155563986401,
+						400293338391841,
 						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
