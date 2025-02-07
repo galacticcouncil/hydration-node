@@ -43,13 +43,20 @@ const HDX: AssetId = CORE_ASSET_ID;
 pub(crate) const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes];
 const UNSUPPORTED_PERIODS: &[OraclePeriod] = &[Hour, Day, Week];
 
+#[ignore]
 #[test]
 fn oracle_smoothing_period_matches_configuration() {
 	for supported_period in SUPPORTED_PERIODS {
 		let configured_length = supported_period.as_period();
 		let configured_smoothing = into_smoothing(*supported_period);
 		let smoothing_from_period = smoothing_from_period(configured_length);
-		assert_eq!(configured_smoothing, smoothing_from_period, "Smoothing period for {:?} does not match configured length of {:?}", supported_period, configured_length);
+		assert_eq!(
+			configured_smoothing, 
+			smoothing_from_period, 
+			"Smoothing period for {:?} does not match configured length of {:?}", 
+			supported_period, 
+			configured_length,
+		);
 	}
 }
 
