@@ -1056,7 +1056,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
+			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
 			// Protocol fee report
 			let burned_protocol_fee = state_changes
@@ -1101,7 +1101,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_broadcast::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(
@@ -1300,7 +1300,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
+			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
 			let burned_protocol_fee = state_changes
 				.fee
@@ -1344,7 +1344,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_broadcast::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(
