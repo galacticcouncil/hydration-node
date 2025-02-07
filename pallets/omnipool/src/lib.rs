@@ -1094,7 +1094,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
+			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
 			// Swapped event for AssetA to HubAsset
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -1128,7 +1128,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_broadcast::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(
@@ -1335,7 +1335,7 @@ pub mod pallet {
 				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
-			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool);
+			pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Omnipool)?;
 
 			// Swapped even from AssetA to HubAsset
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -1369,7 +1369,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_broadcast::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 			#[cfg(feature = "try-runtime")]
 			Self::ensure_trade_invariant(

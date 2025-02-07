@@ -19,8 +19,9 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::types::*;
+use frame_support::dispatch::DispatchResult;
 use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::BoundedVec;
+use frame_support::sp_runtime::{BoundedVec, DispatchError};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::ConstU32;
 use sp_std::vec::Vec;
@@ -61,18 +62,18 @@ pub mod pallet {
 	pub(super) type IncrementalId<T: Config> = StorageValue<_, IncrementalIdType, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	/// Execution context to figure out where the trade is originated from
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
-	/// To handle the overflow of increasing the execution context.
-	/// After the stack is full, we start to increase the overflow count,
-	/// so we how many times we can ignore the removal from the context.
-	#[pallet::storage]
-	pub(super) type OverflowCount<T: Config> = StorageValue<_, u32, ValueQuery>;
-
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		///The execution context call stack has reached its maximum size
+		ExecutionCallStackOverflow,
+		///The execution context call stack is empty, unable to decrease level
+		ExecutionCallStackUnderflow,
+	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -92,11 +93,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-			ExecutionContext::<T>::kill();
-			OverflowCount::<T>::kill();
-
-			T::DbWeight::get().reads_writes(2, 2)
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			ExecutionContext::<T>::kill(); //We don't need to account for this weight in on_initialize as we whitelist the storage
 		}
 	}
 
@@ -127,7 +125,7 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn add_to_context<F>(execution_type: F) -> IncrementalIdType
+	pub fn add_to_context<F>(execution_type: F) -> Result<IncrementalIdType, DispatchError>
 	where
 		F: FnOnce(u32) -> ExecutionType,
 	{
@@ -138,31 +136,27 @@ impl<T: Config> Pallet<T> {
 			inc_id
 		});
 
-		ExecutionContext::<T>::mutate(|stack| {
-			//We make it fire and forget, and it should fail only in test and when if wrongly used
-			debug_assert_ne!(stack.len(), MAX_STACK_SIZE as usize, "Stack should not be full");
-			if let Err(err) = stack.try_push(execution_type(next_id)) {
-				OverflowCount::<T>::mutate(|count| *count += 1);
-				log::warn!(target: LOG_TARGET, "The max stack size of execution stack has been reached: {:?}", err);
-			}
-		});
+		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
+			stack
+				.try_push(execution_type(next_id))
+				.map_err(|_| Error::<T>::ExecutionCallStackOverflow)?;
 
-		next_id
+			Ok(())
+		})?;
+
+		Ok(next_id)
 	}
 
-	pub fn remove_from_context() {
-		if OverflowCount::<T>::get() > 0 {
-			OverflowCount::<T>::mutate(|count| *count -= 1);
-		} else {
-			ExecutionContext::<T>::mutate(|stack| {
-				//We make it fire and forget, and it should fail only in test and when if wrongly used
-				debug_assert_ne!(stack.len(), 0, "The stack should not be empty when decreased");
+	pub fn remove_from_context() -> DispatchResult {
+		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
+			stack.pop().ok_or_else(|| {
+				log::error!(target: "broadcast", "The execution context call stack is empty, unable to decrease level");
 
-				if stack.pop().is_none() {
-					log::warn!(target: LOG_TARGET,"The execution stack should not be empty when decreased. The stack should be populated first, or should not be decreased more than its size");
-				}
-			});
-		}
+				Error::<T>::ExecutionCallStackUnderflow
+			})?;
+
+			Ok(())
+		})
 	}
 
 	pub fn get_context() -> Vec<ExecutionType> {
