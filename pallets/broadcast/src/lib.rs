@@ -150,7 +150,7 @@ impl<T: Config> Pallet<T> {
 	pub fn remove_from_context() -> DispatchResult {
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
 			stack.pop().ok_or_else(|| {
-				log::error!(target: "broadcast", "Execution call stack underflow, as the stack is empty");
+				log::error!(target: "broadcast", "The execution context call stack is empty, unable to decrease level");
 
 				Error::<T>::ExecutionCallStackUnderflow
 			})?;
