@@ -91,7 +91,7 @@ use sp_std::vec::Vec;
 
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, inverse_route, RouteProvider, RouterT, Trade};
+use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
 pub use pallet::*;
 use pallet_broadcast::types::ExecutionType;
