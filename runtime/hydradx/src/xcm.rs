@@ -276,7 +276,7 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		let outcome = Inner::execute(origin, pre, id, weight_credit);
 
 		// Context was added to the stack in `prepare` call.
-		let Ok(_) = pallet_broadcast::Pallet::<Runtime>::remove_from_context() else {
+		if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
 			return Outcome::Error {
 				error: XcmError::FailedToTransactAsset("Unexpected error at modifying broadcast execution stack"),
 			};
