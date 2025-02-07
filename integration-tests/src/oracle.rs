@@ -17,8 +17,8 @@ use hydradx_traits::{
 
 use hydra_dx_math::ema::smoothing_from_period;
 
-use pallet_ema_oracle::{OracleError};
 use pallet_ema_oracle::into_smoothing;
+use pallet_ema_oracle::OracleError;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 use xcm_emulator::TestExt;
 
@@ -51,11 +51,9 @@ fn oracle_smoothing_period_matches_configuration() {
 		let configured_smoothing = into_smoothing(*supported_period);
 		let smoothing_from_period = smoothing_from_period(configured_length);
 		assert_eq!(
-			configured_smoothing, 
-			smoothing_from_period, 
-			"Smoothing period for {:?} does not match configured length of {:?}", 
-			supported_period, 
-			configured_length,
+			configured_smoothing, smoothing_from_period,
+			"Smoothing period for {:?} does not match configured length of {:?}",
+			supported_period, configured_length,
 		);
 	}
 }
