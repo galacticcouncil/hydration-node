@@ -149,7 +149,11 @@ impl<T: Config> Pallet<T> {
 
 	pub fn remove_from_context() -> DispatchResult {
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
-			stack.pop().ok_or(Error::<T>::ExecutionCallStackUnderflow)?;
+			stack.pop().ok_or_else(|| {
+				log::error!(target: "broadcast", "Execution call stack underflow, as the stack is empty");
+
+				Error::<T>::ExecutionCallStackUnderflow
+			})?;
 
 			Ok(())
 		})
