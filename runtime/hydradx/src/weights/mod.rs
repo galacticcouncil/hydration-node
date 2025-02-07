@@ -49,3 +49,4 @@ pub mod pallet_whitelist;
 pub mod pallet_xcm;
 pub mod pallet_xyk;
 pub mod pallet_xyk_liquidity_mining;
+pub mod xcm;

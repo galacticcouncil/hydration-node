@@ -11,6 +11,7 @@ use frame_support::{assert_ok, pallet_prelude::*};
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::Router;
 use hydradx_runtime::RuntimeOrigin;
+use hydradx_runtime::{Omnipool, RuntimeCall};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::currency::MultiCurrency;
@@ -1192,7 +1193,7 @@ fn half(asset: &Asset) -> Asset {
 }
 use pallet_broadcast::types::ExecutionType;
 use rococo_runtime::xcm_config::BaseXcmWeight;
-use xcm_builder::FixedWeightBounds;
+use xcm_builder::{FixedWeightBounds, WeightInfoBounds};
 use xcm_executor::traits::WeightBounds;
 
 fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
@@ -1200,7 +1201,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	want_asset: Asset,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
+	type Weigher<RC> = hydradx_runtime::xcm::DynamicWeigher<RC>;
 
 	let give_reserve_chain = Location::new(
 		1,
