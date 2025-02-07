@@ -364,7 +364,7 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// The range of component `c` is `[1, 2]`.
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(_c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1654 + e * (2047 ±0)`
 		//  Estimated: `13990 + e * (5166 ±0)`
