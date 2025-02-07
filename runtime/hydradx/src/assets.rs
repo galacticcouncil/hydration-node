@@ -1460,7 +1460,7 @@ pub struct StakingMinSlash;
 
 impl GetByKey<FixedU128, Point> for StakingMinSlash {
 	fn get(_k: &FixedU128) -> Point {
-		50_u128
+		5_u128
 	}
 }
 
