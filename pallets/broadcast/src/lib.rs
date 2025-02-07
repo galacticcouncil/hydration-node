@@ -69,9 +69,9 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		///The execution context has reached its maximum size
+		///The execution context call stack has reached its maximum size
 		ExecutionCallStackOverflow,
-		///Cannot remove from the execution context as it is empty
+		///The execution context call stack is empty, unable to decrease level
 		ExecutionCallStackUnderflow,
 	}
 
