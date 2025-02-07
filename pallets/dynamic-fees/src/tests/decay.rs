@@ -81,7 +81,7 @@ fn protocol_fee_should_not_decay_below_min_limit_when_volume_has_not_changed() {
 		.with_initial_fees(initial_fee, initial_fee, 0)
 		.with_protocol_fee_params(
 			Fee::from_float(0.09),
-			Fee::from_float(0.09),
+			Fee::from_float(0.091),
 			FixedU128::from_float(0.02),
 			FixedU128::one(),
 		)
