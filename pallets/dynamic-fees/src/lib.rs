@@ -180,7 +180,13 @@ where
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 		};
 
-		let decay_factor = FixedU128::from_rational(2u128, T::RawOracle::period() as u128);
+		let period = T::RawOracle::period() as u128;
+		if period.is_zero() {
+			// This should never happen, but if it does, we should not panic.
+			debug_assert!(false, "Oracle period is 0");
+			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
+		}
+		let decay_factor = FixedU128::from_rational(2u128, period);
 
 		let fee_updated_at: u128 = current_fee_entry.timestamp.saturated_into();
 		if !fee_updated_at.is_zero() {
