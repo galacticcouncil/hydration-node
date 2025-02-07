@@ -1656,7 +1656,12 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 
 		let alice_currency_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
 		let native_fee = new_alice_currency_balance - alice_currency_balance_pre_dispatch;
-		assert!(evm_fee > native_fee);
+		assert!(
+			evm_fee > native_fee,
+			"assertion failed evm_fee > native fee. Evm fee: {:?} Native fee: {:?}",
+			evm_fee,
+			native_fee
+		);
 
 		let fee_difference = evm_fee - native_fee;
 		assert!(fee_difference > 0);
