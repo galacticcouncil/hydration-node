@@ -65,7 +65,10 @@ where
 		};
 		let use_onchain_route = vec![];
 
-		pallet_broadcast::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange);
+		if pallet_broadcast::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange).is_err() {
+			log::error!(target: "xcm::exchange-asset", "Failed to add to context.");
+			return Err(give);
+		};
 
 		let trade_result = if maximal {
 			// sell
@@ -135,8 +138,10 @@ where
 			})
 			.map_err(|_| give.clone())
 		};
-
-		pallet_broadcast::Pallet::<Runtime>::remove_from_context();
+		if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
+			log::error!(target: "xcm::exchange-asset", "Failed to remove from context.");
+			return Err(give);
+		};
 
 		trade_result
 	}

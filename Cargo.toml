@@ -165,6 +165,7 @@ frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sd
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 frame-remote-externalities = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 frame-support = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false, features = ["tuples-96"] }
+frame-support-procedural = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false, features = ["tuples-96"] }
 frame-system = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 frame-system-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
@@ -385,6 +386,7 @@ frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sd
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-remote-externalities = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-support = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
+frame-support-procedural = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-system = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-system-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-system-rpc-runtime-api = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
@@ -540,6 +542,7 @@ frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sd
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-remote-externalities = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-support = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
+frame-support-procedural = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-system = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-system-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }
 frame-system-rpc-runtime-api = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch" }

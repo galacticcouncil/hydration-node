@@ -4670,7 +4670,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "284.0.0"
+version = "286.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -7678,6 +7678,7 @@ name = "pallet-broadcast"
 version = "1.0.1"
 dependencies = [
  "frame-support",
+ "frame-support-procedural",
  "frame-system",
  "hydradx-traits",
  "log",

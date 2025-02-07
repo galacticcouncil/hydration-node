@@ -398,13 +398,13 @@ pub struct ManageExecutionTypeForUnifiedEvent;
 
 impl BatchHook for ManageExecutionTypeForUnifiedEvent {
 	fn on_batch_start() -> DispatchResult {
-		Broadcast::add_to_context(ExecutionType::Batch);
+		Broadcast::add_to_context(ExecutionType::Batch)?;
 
 		Ok(())
 	}
 
 	fn on_batch_end() -> DispatchResult {
-		Broadcast::remove_from_context();
+		Broadcast::remove_from_context()?;
 
 		Ok(())
 	}
