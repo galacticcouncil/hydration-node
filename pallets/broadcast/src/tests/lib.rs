@@ -150,7 +150,7 @@ fn should_return_error_when_stack_reaches_max_size() {
 
 		assert_err!(
 			Broadcast::add_to_context(ExecutionType::Batch),
-			Error::<Test>::ExecutionContextFull
+			Error::<Test>::ExecutionCallStackOverflow
 		);
 	});
 }
@@ -158,6 +158,9 @@ fn should_return_error_when_stack_reaches_max_size() {
 #[test]
 fn should_return_error_when_trying_to_remove_from_empty_stack() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_err!(Broadcast::remove_from_context(), Error::<Test>::ExecutionContextEmpty);
+		assert_err!(
+			Broadcast::remove_from_context(),
+			Error::<Test>::ExecutionCallStackUnderflow
+		);
 	});
 }
