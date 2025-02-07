@@ -70,9 +70,9 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		///The execution context has reached its maximum size
-		ExecutionContextFull,
+		ExecutionCallStackOverflow,
 		///Cannot remove from the execution context as it is empty
-		ExecutionContextEmpty,
+		ExecutionCallStackUnderflow,
 	}
 
 	#[pallet::event]
@@ -139,7 +139,7 @@ impl<T: Config> Pallet<T> {
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
 			stack
 				.try_push(execution_type(next_id))
-				.map_err(|_| Error::<T>::ExecutionContextFull)?;
+				.map_err(|_| Error::<T>::ExecutionCallStackOverflow)?;
 
 			Ok(())
 		})?;
@@ -149,7 +149,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn remove_from_context() -> DispatchResult {
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
-			stack.pop().ok_or(Error::<T>::ExecutionContextEmpty)?;
+			stack.pop().ok_or(Error::<T>::ExecutionCallStackUnderflow)?;
 
 			Ok(())
 		})
