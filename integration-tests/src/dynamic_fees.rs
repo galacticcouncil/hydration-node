@@ -437,5 +437,143 @@ fn test_fees_update_in_multi_blocks() {
 			(Permill::from_float(0.0015), Permill::from_float(0.0025))
 		);
 		assert_eq!(btc_final_fees, (Permill::from_float(0.0015), Permill::from_parts(991)));
+
+		let dai_state = hydradx_runtime::Omnipool::load_asset_state(DAI).unwrap();
+
+		hydradx_run_to_next_block();
+
+		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
+		assert_eq!(
+			dai_final_fees,
+			(Permill::from_float(0.004507), Permill::from_float(0.0005))
+		);
+
+		hydradx_run_to_next_block();
+		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
+		assert_eq!(
+			dai_final_fees,
+			(Permill::from_float(0.004528), Permill::from_float(0.0005))
+		);
+
+		hydradx_run_to_next_block();
+		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
+		assert_eq!(
+			dai_final_fees,
+			(Permill::from_float(0.004525), Permill::from_float(0.0005))
+		);
+
+		hydradx_run_to_next_block();
+		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
+		assert_eq!(
+			dai_final_fees,
+			(Permill::from_float(0.004503), Permill::from_float(0.0005))
+		);
+
+		hydradx_run_to_next_block();
+		hydradx_run_to_next_block();
+		hydradx_run_to_next_block();
+		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
+		assert_eq!(
+			dai_final_fees,
+			(Permill::from_float(0.004354), Permill::from_float(0.0005))
+		);
+	});
+}
+
+#[test]
+fn test_fees_update_after_selling_lrna_in_multi_blocks() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+		init_oracle();
+		hydradx_run_to_next_block();
+		hydradx_run_to_next_block();
+
+		let hdx_fee = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
+		let dai_fee = hydradx_runtime::DynamicFees::current_fees(DAI).unwrap();
+		let dot_fee = hydradx_runtime::DynamicFees::current_fees(DOT).unwrap();
+		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
+		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
+
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.05));
+		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(btc_fee.asset_fee, Permill::from_float(0.0015));
+
+		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
+		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001674));
+		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000849));
+
+		//ACT
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
+			LRNA,
+			DAI,
+			2 * UNITS,
+			0,
+		));
+
+		hydradx_run_to_next_block();
+		let dai_state = hydradx_runtime::Omnipool::load_asset_state(DAI).unwrap();
+		let dai_fee = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get_and_store((DAI, dai_state.reserve));
+		//ASSERT
+		assert_eq!(
+			(dai_fee.0, dai_fee.1),
+			(Permill::from_float(0.004859), Permill::from_float(0.0005))
+		);
+	});
+}
+
+#[test]
+fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+		init_oracle();
+		hydradx_run_to_next_block();
+		hydradx_run_to_next_block();
+
+		let hdx_fee = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
+		let dai_fee = hydradx_runtime::DynamicFees::current_fees(DAI).unwrap();
+		let dot_fee = hydradx_runtime::DynamicFees::current_fees(DOT).unwrap();
+		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
+		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
+
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.05));
+		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0015));
+		assert_eq!(btc_fee.asset_fee, Permill::from_float(0.0015));
+
+		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
+		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001674));
+		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000849));
+
+		//ACT
+		assert_ok!(hydradx_runtime::Omnipool::buy(
+			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
+			DAI,
+			LRNA,
+			2 * UNITS,
+			u128::MAX,
+		));
+
+		hydradx_run_to_next_block();
+		let dai_state = hydradx_runtime::Omnipool::load_asset_state(DAI).unwrap();
+		let dai_fee = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get_and_store((DAI, dai_state.reserve));
+		//ASSERT
+		assert_eq!(
+			(dai_fee.0, dai_fee.1),
+			(Permill::from_float(0.004506), Permill::from_float(0.0005))
+		);
 	});
 }
