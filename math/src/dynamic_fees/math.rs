@@ -133,6 +133,12 @@ where
 		(p2.saturating_sub(f), false)
 	};
 	let fixed_previous_fee: FixedU128 = previous_fee.into();
+
+	debug_assert!(
+		params.min_fee < params.max_fee,
+		"dynamic fee calc: Min fee is greater than max fee"
+	);
+
 	if delta_neg {
 		fixed_previous_fee.saturating_sub(delta)
 	} else {
