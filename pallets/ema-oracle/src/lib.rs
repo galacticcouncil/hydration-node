@@ -294,11 +294,12 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(2)]
-		#[pallet::weight((<T as Config>::WeightInfo::update_bifrost_oracle(), Pays::No))]
+		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle())]
 		pub fn update_bifrost_oracle(
 			origin: OriginFor<T>,
-			_asset_a: polkadot_xcm::VersionedLocation,
-			_asset_b: polkadot_xcm::VersionedLocation,
+			//NOTE: these must be boxed becasue of https://github.com/paritytech/polkadot-sdk/blob/6875d36b2dba537f3254aad3db76ac7aa656b7ab/substrate/frame/utility/src/lib.rs#L150
+			_asset_a: Box<polkadot_xcm::VersionedLocation>,
+			_asset_b: Box<polkadot_xcm::VersionedLocation>,
 			_price: (Balance, Balance),
 		) -> DispatchResult {
 			T::BifrostOrigin::ensure_origin(origin)?;
