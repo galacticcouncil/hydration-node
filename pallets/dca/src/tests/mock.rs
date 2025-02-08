@@ -18,7 +18,7 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Everything, Nothing};
+use frame_support::traits::{Everything, Nothing, SortedMembers};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
@@ -141,6 +141,12 @@ parameter_types! {
 	OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
+pub struct BifrostAcc;
+impl SortedMembers<AccountId> for BifrostAcc {
+	fn sorted_members() -> Vec<AccountId> {
+		return vec![ALICE];
+	}
+}
 impl pallet_ema_oracle::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
@@ -150,6 +156,7 @@ impl pallet_ema_oracle::Config for Test {
 	type MaxUniqueEntries = ConstU32<20>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
 }
 
