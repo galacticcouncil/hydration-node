@@ -57,7 +57,7 @@ use frame_support::{
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
-		LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
+		LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
 	},
 	BoundedVec, PalletId,
 };
@@ -580,9 +580,18 @@ where
 	}
 }
 
+pub struct BifrostAcc;
+impl SortedMembers<AccountId> for BifrostAcc {
+	fn sorted_members() -> Vec<AccountId> {
+		//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
+		return vec![hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()];
+	}
+}
+
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
