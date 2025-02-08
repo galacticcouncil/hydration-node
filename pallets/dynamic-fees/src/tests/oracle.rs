@@ -266,7 +266,8 @@ pub struct Oracle;
 
 impl CustomOracle for Oracle {
 	fn volume(&self, _asset_id: AssetId, block: usize) -> AssetVolume {
-		DATA[block].into()
+		let row = DATA[block];
+		(row.0, row.1, row.2, (block as u128).saturating_sub(1)).into()
 	}
 
 	fn liquidity(&self, _asset_id: AssetId, block: usize) -> Balance {
@@ -281,12 +282,12 @@ impl Oracle {
 }
 
 pub struct SingleValueOracle {
-	data: (Balance, Balance, Balance),
+	data: (Balance, Balance, Balance, u128),
 }
 impl SingleValueOracle {
 	pub fn new(volume_in: Balance, volume_out: Balance, liquidity: Balance) -> Self {
 		Self {
-			data: (volume_in, volume_out, liquidity),
+			data: (volume_in, volume_out, liquidity, 0),
 		}
 	}
 }

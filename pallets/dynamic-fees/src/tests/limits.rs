@@ -20,7 +20,7 @@ fn asset_fee_should_not_exceed_max_limit_when_volume_out_increased() {
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let fee = retrieve_fee_entry(HDX);
+			let fee = retrieve_fee_entry(HDX, 49 * ONE);
 
 			assert!(fee.0 > initial_fee);
 
@@ -45,7 +45,7 @@ fn asset_fee_should_not_fall_below_min_limit_when_volume_in_increased() {
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let fee = retrieve_fee_entry(HDX);
+			let fee = retrieve_fee_entry(HDX, 51 * ONE);
 
 			assert!(fee.0 < initial_fee);
 
@@ -70,7 +70,7 @@ fn protocol_fee_should_not_exceed_max_limit_when_volume_in_increased() {
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let fee = retrieve_fee_entry(HDX);
+			let fee = retrieve_fee_entry(HDX, 51 * ONE);
 
 			assert!(fee.1 > initial_fee);
 
@@ -95,7 +95,7 @@ fn protocol_fee_should_not_fall_bellow_min_limit_when_volume_out_increased() {
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let fee = retrieve_fee_entry(HDX);
+			let fee = retrieve_fee_entry(HDX, 49 * ONE);
 
 			assert!(fee.1 < initial_fee);
 

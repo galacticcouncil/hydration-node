@@ -461,6 +461,22 @@ impl<T: Config> Pallet<T> {
 		}
 		.map(|return_entry| (return_entry, init))
 	}
+
+	/// Return last stored entry for given period and block number of last updated.
+	pub fn get_last_oracle_entry(
+		source: Source,
+		assets: (AssetId, AssetId),
+		period: OraclePeriod,
+	) -> Option<(OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>)> {
+		Self::oracle((source, ordered_pair(assets.0, assets.1), period)).map(|(last_entry, init)| {
+			let entry = if (assets.0, assets.1) != ordered_pair(assets.0, assets.1) {
+				last_entry.inverted()
+			} else {
+				last_entry
+			};
+			(entry, init)
+		})
+	}
 }
 
 /// A callback handler for trading and liquidity activity that schedules oracle updates.

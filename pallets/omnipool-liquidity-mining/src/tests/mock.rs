@@ -306,6 +306,7 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub MinWithdrawFee: Permill = Permill::from_percent(0);
+	pub BurnFee: Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Test {
@@ -331,6 +332,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
 }
 
 impl pallet_broadcast::Config for Test {
@@ -724,8 +726,10 @@ where
 	}
 }
 
+use hydradx_traits::fee::GetDynamicFee;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
+
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
 where
@@ -899,8 +903,13 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
+
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
 	}
 }
