@@ -819,8 +819,16 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 			assert!(user_insufficient_asset_balance < initial_user_insufficient_balance);
 			let payed_fee = initial_user_insufficient_balance - user_insufficient_asset_balance;
 			//assert_eq!(payed_fee, 107314200);
-			assert!(payed_fee > 50_000_000, "payed_fee: {:?} is less than 50_000_000", payed_fee);
-			assert!(payed_fee < 120_000_000, "payed_fee: {:?} is more than 120_000_000", payed_fee);
+			assert!(
+				payed_fee > 50_000_000,
+				"payed_fee: {:?} is less than 50_000_000",
+				payed_fee
+			);
+			assert!(
+				payed_fee < 120_000_000,
+				 "payed_fee: {:?} is more than 120_000_000",
+				 payed_fee
+			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
