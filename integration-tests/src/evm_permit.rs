@@ -150,7 +150,12 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
 		let tolerated_fee_difference = FixedU128::from_rational(30, 100);
 		// EVM fees should be not higher than 20%
-		assert!(relative_fee_difference < tolerated_fee_difference, "relative_fee_difference: {:?} is bigger than tolerated {:?}", relative_fee_difference, tolerated_fee_difference);
+		assert!(
+			relative_fee_difference < tolerated_fee_difference,
+			"relative_fee_difference: {:?} is bigger than tolerated {:?}",
+			relative_fee_difference,
+			tolerated_fee_difference
+		);
 	})
 }
 
@@ -826,8 +831,8 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 			);
 			assert!(
 				payed_fee < 120_000_000,
-				 "payed_fee: {:?} is more than 120_000_000",
-				 payed_fee
+				"payed_fee: {:?} is more than 120_000_000",
+				payed_fee
 			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
