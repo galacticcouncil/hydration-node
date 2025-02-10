@@ -46,7 +46,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 
 			assert_eq!(position, expected);
 
-			assert_pool_state!(12_060 * ONE, 24_120 * ONE, SimpleImbalance::default());
+			assert_pool_state!(12_060 * ONE, 24_120 * ONE);
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 
@@ -96,7 +96,7 @@ fn add_stable_asset_liquidity_works() {
 
 			assert_eq!(position, expected);
 
-			assert_pool_state!(10_700 * ONE, 21_400 * ONE, SimpleImbalance::default());
+			assert_pool_state!(10_700 * ONE, 21_400 * ONE);
 
 			assert_balance!(LP1, DAI, 4600 * ONE);
 
