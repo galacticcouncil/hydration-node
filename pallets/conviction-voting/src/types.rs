@@ -18,9 +18,7 @@
 //! Miscellaneous additional datatypes.
 
 use codec::{Codec, Decode, Encode, MaxEncodedLen};
-use frame_support::{
-	traits::VoteTally, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
-};
+use frame_support::{traits::VoteTally, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Saturating, Zero},
@@ -32,16 +30,7 @@ use super::*;
 use crate::{AccountVote, Conviction, Vote};
 
 /// Info regarding an ongoing referendum.
-#[derive(
-	CloneNoBound,
-	PartialEqNoBound,
-	EqNoBound,
-	RuntimeDebugNoBound,
-	TypeInfo,
-	Encode,
-	Decode,
-	MaxEncodedLen,
-)]
+#[derive(CloneNoBound, PartialEqNoBound, EqNoBound, RuntimeDebugNoBound, TypeInfo, Encode, Decode, MaxEncodedLen)]
 #[scale_info(skip_type_params(Total))]
 #[codec(mel_bound(Votes: MaxEncodedLen))]
 pub struct Tally<Votes: Clone + PartialEq + Eq + Debug + TypeInfo + Codec, Total> {
@@ -62,7 +51,12 @@ impl<
 	> VoteTally<Votes, Class> for Tally<Votes, Total>
 {
 	fn new(_: Class) -> Self {
-		Self { ayes: Zero::zero(), nays: Zero::zero(), support: Zero::zero(), dummy: PhantomData }
+		Self {
+			ayes: Zero::zero(),
+			nays: Zero::zero(),
+			support: Zero::zero(),
+			dummy: PhantomData,
+		}
 	}
 
 	fn ayes(&self, _: Class) -> Votes {
@@ -79,19 +73,34 @@ impl<
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn unanimity(_: Class) -> Self {
-		Self { ayes: Total::get(), nays: Zero::zero(), support: Total::get(), dummy: PhantomData }
+		Self {
+			ayes: Total::get(),
+			nays: Zero::zero(),
+			support: Total::get(),
+			dummy: PhantomData,
+		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn rejection(_: Class) -> Self {
-		Self { ayes: Zero::zero(), nays: Total::get(), support: Total::get(), dummy: PhantomData }
+		Self {
+			ayes: Zero::zero(),
+			nays: Total::get(),
+			support: Total::get(),
+			dummy: PhantomData,
+		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn from_requirements(support: Perbill, approval: Perbill, _: Class) -> Self {
 		let support = support.mul_ceil(Total::get());
 		let ayes = approval.mul_ceil(support);
-		Self { ayes, nays: support - ayes, support, dummy: PhantomData }
+		Self {
+			ayes,
+			nays: support - ayes,
+			support,
+			dummy: PhantomData,
+		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -114,11 +123,7 @@ impl<
 		}
 	}
 
-	pub fn from_parts(
-		ayes_with_conviction: Votes,
-		nays_with_conviction: Votes,
-		ayes: Votes,
-	) -> Self {
+	pub fn from_parts(ayes_with_conviction: Votes, nays_with_conviction: Votes, ayes: Votes) -> Self {
 		Self {
 			ayes: ayes_with_conviction,
 			nays: nays_with_conviction,
@@ -136,26 +141,25 @@ impl<
 					true => {
 						self.support = self.support.checked_add(&capital)?;
 						self.ayes = self.ayes.checked_add(&votes)?
-					},
+					}
 					false => self.nays = self.nays.checked_add(&votes)?,
 				}
-			},
+			}
 			AccountVote::Split { aye, nay } => {
 				let aye = Conviction::None.votes(aye);
 				let nay = Conviction::None.votes(nay);
 				self.support = self.support.checked_add(&aye.capital)?;
 				self.ayes = self.ayes.checked_add(&aye.votes)?;
 				self.nays = self.nays.checked_add(&nay.votes)?;
-			},
+			}
 			AccountVote::SplitAbstain { aye, nay, abstain } => {
 				let aye = Conviction::None.votes(aye);
 				let nay = Conviction::None.votes(nay);
 				let abstain = Conviction::None.votes(abstain);
-				self.support =
-					self.support.checked_add(&aye.capital)?.checked_add(&abstain.capital)?;
+				self.support = self.support.checked_add(&aye.capital)?.checked_add(&abstain.capital)?;
 				self.ayes = self.ayes.checked_add(&aye.votes)?;
 				self.nays = self.nays.checked_add(&nay.votes)?;
-			},
+			}
 		}
 		Some(())
 	}
@@ -169,26 +173,25 @@ impl<
 					true => {
 						self.support = self.support.checked_sub(&capital)?;
 						self.ayes = self.ayes.checked_sub(&votes)?
-					},
+					}
 					false => self.nays = self.nays.checked_sub(&votes)?,
 				}
-			},
+			}
 			AccountVote::Split { aye, nay } => {
 				let aye = Conviction::None.votes(aye);
 				let nay = Conviction::None.votes(nay);
 				self.support = self.support.checked_sub(&aye.capital)?;
 				self.ayes = self.ayes.checked_sub(&aye.votes)?;
 				self.nays = self.nays.checked_sub(&nay.votes)?;
-			},
+			}
 			AccountVote::SplitAbstain { aye, nay, abstain } => {
 				let aye = Conviction::None.votes(aye);
 				let nay = Conviction::None.votes(nay);
 				let abstain = Conviction::None.votes(abstain);
-				self.support =
-					self.support.checked_sub(&aye.capital)?.checked_sub(&abstain.capital)?;
+				self.support = self.support.checked_sub(&aye.capital)?.checked_sub(&abstain.capital)?;
 				self.ayes = self.ayes.checked_sub(&aye.votes)?;
 				self.nays = self.nays.checked_sub(&nay.votes)?;
-			},
+			}
 		}
 		Some(())
 	}
@@ -199,7 +202,7 @@ impl<
 			true => {
 				self.support = self.support.saturating_add(delegations.capital);
 				self.ayes = self.ayes.saturating_add(delegations.votes);
-			},
+			}
 			false => self.nays = self.nays.saturating_add(delegations.votes),
 		}
 	}
@@ -210,16 +213,14 @@ impl<
 			true => {
 				self.support = self.support.saturating_sub(delegations.capital);
 				self.ayes = self.ayes.saturating_sub(delegations.votes);
-			},
+			}
 			false => self.nays = self.nays.saturating_sub(delegations.votes),
 		}
 	}
 }
 
 /// Amount of votes and capital placed in delegation for an account.
-#[derive(
-	Encode, Decode, Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen,
-)]
+#[derive(Encode, Decode, Default, Copy, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct Delegations<Balance> {
 	/// The number of votes (this is post-conviction).
 	pub votes: Balance,
@@ -250,7 +251,10 @@ impl<Balance: Saturating> Saturating for Delegations<Balance> {
 	}
 
 	fn saturating_pow(self, exp: usize) -> Self {
-		Self { votes: self.votes.saturating_pow(exp), capital: self.capital.saturating_pow(exp) }
+		Self {
+			votes: self.votes.saturating_pow(exp),
+			capital: self.capital.saturating_pow(exp),
+		}
 	}
 }
 

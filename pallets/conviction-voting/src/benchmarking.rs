@@ -38,8 +38,7 @@ const SEED: u32 = 0;
 
 /// Fill all classes as much as possible up to `MaxVotes` and return the Class with the most votes
 /// ongoing.
-fn fill_voting<T: Config<I>, I: 'static>(
-) -> (ClassOf<T, I>, BTreeMap<ClassOf<T, I>, Vec<IndexOf<T, I>>>) {
+fn fill_voting<T: Config<I>, I: 'static>() -> (ClassOf<T, I>, BTreeMap<ClassOf<T, I>, Vec<IndexOf<T, I>>>) {
 	let mut r = BTreeMap::<ClassOf<T, I>, Vec<IndexOf<T, I>>>::new();
 	for class in T::Polls::classes().into_iter() {
 		for _ in 0..T::MaxVotes::get() {
@@ -60,7 +59,10 @@ fn funded_account<T: Config<I>, I: 'static>(name: &'static str, index: u32) -> T
 }
 
 fn account_vote<T: Config<I>, I: 'static>(b: BalanceOf<T, I>) -> AccountVote<BalanceOf<T, I>> {
-	let v = Vote { aye: true, conviction: Conviction::Locked1x };
+	let v = Vote {
+		aye: true,
+		conviction: Conviction::Locked1x,
+	};
 
 	AccountVote::Standard { vote: v, balance: b }
 }
