@@ -4754,7 +4754,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "9.0.0"
+version = "9.0.1"
 dependencies = [
  "approx",
  "criterion",
@@ -4775,7 +4775,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.0.2"
+version = "14.1.0"
 dependencies = [
  "async-trait",
  "clap 4.5.4",
@@ -4898,7 +4898,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 4.1.1",
+ "pallet-staking 4.2.0",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4919,12 +4919,13 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "287.0.0"
+version = "288.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcm",
  "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-aura",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
@@ -4970,7 +4971,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
@@ -5012,7 +5013,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.1.1",
+ "pallet-staking 4.2.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -7965,6 +7966,25 @@ dependencies = [
 [[package]]
 name = "pallet-conviction-voting"
 version = "28.0.0"
+dependencies = [
+ "assert_matches",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-scheduler",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-conviction-voting"
+version = "28.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch4#fb3177d42f7ed729c03ea1184a5a74eb8f3e517c"
 dependencies = [
  "assert_matches",
@@ -8012,7 +8032,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.8.3"
+version = "1.8.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8236,7 +8256,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.4.1"
+version = "1.4.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9225,7 +9245,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "4.1.1"
+version = "4.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9235,7 +9255,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-democracy 4.3.2",
  "pallet-referenda",
  "pallet-uniques",
@@ -11377,7 +11397,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "6.1.0"
+version = "6.1.1"
 dependencies = [
  "frame-support",
  "hex-literal",
@@ -12157,7 +12177,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch4)",
  "pallet-democracy 28.0.0",
  "pallet-elections-phragmen",
  "pallet-grandpa",
@@ -12346,7 +12366,7 @@ dependencies = [
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.3.2",
@@ -12372,7 +12392,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 4.1.1",
+ "pallet-staking 4.2.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -12435,7 +12455,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 4.1.1",
+ "pallet-staking 4.2.0",
  "primitives",
  "scraper",
  "serde",
@@ -17255,7 +17275,7 @@ dependencies = [
  "pallet-beefy",
  "pallet-beefy-mmr",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch4)",
  "pallet-democracy 28.0.0",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",

@@ -38,6 +38,8 @@ use sp_runtime::{
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 use sp_std::num::NonZeroU128;
 
+pub mod migrations;
+
 #[cfg(test)]
 mod tests;
 
@@ -238,6 +240,11 @@ pub mod pallet {
 		types::Vote,
 		OptionQuery,
 	>;
+
+	#[pallet::storage]
+	/// Block number when we switched to 6 sec. blocks.
+	#[pallet::getter(fn six_sec_blocks_since)]
+	pub(super) type SixSecBlocksSince<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -918,6 +925,7 @@ impl<T: Config> Pallet<T> {
 		Some(math::calculate_period_number(
 			NonZeroU128::try_from(T::PeriodLength::get().saturated_into::<u128>()).ok()?,
 			block.saturated_into(),
+			NonZeroU128::try_from(Self::six_sec_blocks_since().saturated_into::<u128>()).ok()?,
 		))
 	}
 
