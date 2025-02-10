@@ -31,7 +31,7 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	traits::{
-		fungible, Currency, Get, LockIdentifier, LockableCurrency, PollStatus, Polling,
+		fungible, Currency, EnsureOrigin, Get, LockIdentifier, LockableCurrency, PollStatus, Polling,
 		ReservableCurrency, WithdrawReasons,
 	},
 };
@@ -141,6 +141,9 @@ pub mod pallet {
 
 		/// Hooks are called when a new vote is registered or an existing vote is removed.
 		type VotingHooks: VotingHooks<Self::AccountId, PollIndexOf<Self, I>, BalanceOf<Self, I>>;
+
+		/// Origin for anyone able to force remove a vote.
+		type VoteRemovalOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
 	}
 
 	/// All voting for a particular voter in a particular voting class. We store the balance for the
@@ -355,7 +358,7 @@ pub mod pallet {
 			index: PollIndexOf<T, I>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::try_remove_vote(&who, index, class, UnvoteScope::Any)
+			Self::try_remove_vote(&who, index, class, UnvoteScope::Any, false)
 		}
 
 		/// Remove a vote for a poll.
@@ -386,6 +389,36 @@ pub mod pallet {
 			let target = T::Lookup::lookup(target)?;
 			let scope = if target == who { UnvoteScope::Any } else { UnvoteScope::OnlyExpired };
 			Self::try_remove_vote(&target, index, Some(class), scope)?;
+		/// Allow to force remove a vote for a referendum.
+		///
+		/// The dispatch origin of this call must be `VoteRemovalOrigin`.
+		///
+		/// Only allowed if the referendum is finished.
+		///
+		/// The dispatch origin of this call must be _Signed_.
+		///
+		/// - `target`: The account of the vote to be removed; this account must have voted for
+		///   referendum `index`.
+		/// - `index`: The index of referendum of the vote to be removed.
+		///
+		/// Weight: `O(R + log R)` where R is the number of referenda that `target` has voted on.
+		///   Weight is calculated for the maximum number of vote.
+		#[pallet::call_index(19)]
+		#[pallet::weight(T::WeightInfo::remove_other_vote())]
+		pub fn force_remove_vote(
+			origin: OriginFor<T>,
+			target: AccountIdLookupOf<T>,
+			class: ClassOf<T, I>,
+			index: PollIndexOf<T, I>,
+		) -> DispatchResult {
+			let who = T::VoteRemovalOrigin::ensure_origin(origin)?;
+			let target = T::Lookup::lookup(target)?;
+			let scope = if target == who {
+				UnvoteScope::Any
+			} else {
+				UnvoteScope::OnlyExpired
+			};
+			Self::try_remove_vote(&target, index, Some(class), scope, true)?;
 			Ok(())
 		}
 	}
@@ -451,6 +484,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		poll_index: PollIndexOf<T, I>,
 		class_hint: Option<ClassOf<T, I>>,
 		scope: UnvoteScope,
+		forced: bool,
 	) -> DispatchResult {
 		let class = class_hint
 			.or_else(|| Some(T::Polls::as_ongoing(poll_index)?.1))
@@ -481,7 +515,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 							let now = frame_system::Pallet::<T>::block_number();
 							if now < unlock_at {
 								ensure!(
-									matches!(scope, UnvoteScope::Any),
+									forced || matches!(scope, UnvoteScope::Any),
 									Error::<T, I>::NoPermissionYet
 								);
 								prior.accumulate(unlock_at, balance)
@@ -499,7 +533,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 									let now = frame_system::Pallet::<T>::block_number();
 									if now < unlock_at {
 										ensure!(
-											matches!(scope, UnvoteScope::Any),
+											forced || matches!(scope, UnvoteScope::Any),
 											Error::<T, I>::NoPermissionYet
 										);
 										prior.accumulate(unlock_at, to_lock)
