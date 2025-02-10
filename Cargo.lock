@@ -4721,7 +4721,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
@@ -7838,6 +7838,25 @@ dependencies = [
 
 [[package]]
 name = "pallet-conviction-voting"
+version = "28.0.0"
+dependencies = [
+ "assert_matches",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-scheduler",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-conviction-voting"
 version = "38.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch#21d2b5ea4035c4d0f74e286ba6bf61cfd6b44df4"
 dependencies = [
@@ -9094,7 +9113,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-democracy 4.3.3",
  "pallet-referenda",
  "pallet-uniques",
@@ -11987,7 +12006,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 38.0.0",
  "pallet-democracy 38.0.0",
  "pallet-elections-phragmen",
  "pallet-grandpa",
@@ -12175,7 +12194,7 @@ dependencies = [
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.3.3",
@@ -17032,7 +17051,7 @@ dependencies = [
  "pallet-beefy",
  "pallet-beefy-mmr",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 38.0.0",
  "pallet-delegated-staking",
  "pallet-democracy 38.0.0",
  "pallet-election-provider-multi-phase",
