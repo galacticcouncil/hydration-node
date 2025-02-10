@@ -93,7 +93,6 @@ use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
-pub use pallet::*;
 use pallet_broadcast::types::ExecutionType;
 pub use weights::WeightInfo;
 
@@ -103,6 +102,10 @@ mod tests;
 pub mod migrations;
 pub mod types;
 pub mod weights;
+
+// Re-export pallet items so that they can be accessed from the crate namespace.
+use crate::types::*;
+pub use pallet::*;
 
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
