@@ -4971,7 +4971,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
@@ -7966,6 +7966,25 @@ dependencies = [
 [[package]]
 name = "pallet-conviction-voting"
 version = "28.0.0"
+dependencies = [
+ "assert_matches",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-scheduler",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-conviction-voting"
+version = "28.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch4#fb3177d42f7ed729c03ea1184a5a74eb8f3e517c"
 dependencies = [
  "assert_matches",
@@ -9236,7 +9255,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-democracy 4.3.2",
  "pallet-referenda",
  "pallet-uniques",
@@ -12158,7 +12177,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch4)",
  "pallet-democracy 28.0.0",
  "pallet-elections-phragmen",
  "pallet-grandpa",
@@ -12347,7 +12366,7 @@ dependencies = [
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0",
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy 4.3.2",
@@ -17256,7 +17275,7 @@ dependencies = [
  "pallet-beefy",
  "pallet-beefy-mmr",
  "pallet-collective",
- "pallet-conviction-voting",
+ "pallet-conviction-voting 28.0.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=release-polkadot-v1.11.0-patch4)",
  "pallet-democracy 28.0.0",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
