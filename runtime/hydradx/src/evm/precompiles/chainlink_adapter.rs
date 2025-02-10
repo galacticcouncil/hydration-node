@@ -8,7 +8,7 @@ use crate::{
 	evm::EvmAddress,
 	EmaOracle, Router,
 };
-use codec::{Decode, Encode, EncodeLike};
+use codec::{Decode, Encode, EncodeLike, MaxEncodedLen};
 use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
@@ -29,6 +29,9 @@ use sp_runtime::{
 	RuntimeDebug,
 };
 use sp_std::marker::PhantomData;
+use pallet_omnipool::types::Balance;
+
+const EMPTY_SOURCE: Source = [0u8; 8];
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -120,8 +123,8 @@ where
 				exit_status: pallet_evm::ExitError::Other("Decimals not available".into()),
 			})?;
 
-		// use Router to get a route
-		let price = if source == [0; 8] {
+		// In case of empty source, we retrieve onchain route
+		let price = if source == EMPTY_SOURCE {
 			let route = Router::get_route(AssetPair {
 				asset_in: asset_id,
 				asset_out: QuoteAsset::get(),
@@ -222,13 +225,14 @@ fn convert_price_to_u256(price: Price, decimals: u8) -> Result<U256, PrecompileF
 /// Encoding is 7 bytes for precompile prefix 0x00000000000001,
 /// followed by 1 byte for encoded OraclePeriod enum, 8 bytes for Source, and 4 bytes for AssetId.
 pub fn encode_evm_address(asset_id: AssetId, period: OraclePeriod, source: Source) -> Option<EvmAddress> {
+	// OraclePeriod is enum ancoded as Vec<u8>. We don't expect more than 1 byte.
+	if OraclePeriod::max_encoded_len() > 1 {
+		return None;
+	}
+
 	let mut evm_address_bytes = [0u8; 20];
 
 	let period_u32 = period.encode();
-	// OraclePeriod is enum ancoded as Vec<u8>.
-	if period_u32.len() > 1 {
-		return None;
-	}
 
 	evm_address_bytes[6] = 1;
 
@@ -254,13 +258,14 @@ pub fn decode_evm_address(evm_address: EvmAddress) -> Option<(AssetId, OraclePer
 		asset_id = (asset_id << 8) | (*byte as u32);
 	}
 
-	let mut source: Source = [0; 8];
+	let mut source: Source = EMPTY_SOURCE;
 	source.copy_from_slice(&evm_address_bytes[8..16]);
 
 	let period_u32 = evm_address_bytes[7];
-	let period: OraclePeriod = Decode::decode(&mut &[period_u32; 1][..]).unwrap();
-
-	Some((asset_id, period, source))
+	match Decode::decode(&mut &[period_u32; 1][..]) {
+		Ok(period) => Some((asset_id, period, source)),
+		_ => None,
+	}
 }
 
 #[test]

@@ -1275,7 +1275,7 @@ mod chainlink_precompile {
 			.checked_mul_int(10_u128.pow(decimals.into()))
 			.unwrap();
 
-		assert!(fixed_price_int == precompile_price.as_u128());
+		pretty_assertions::assert_eq!(fixed_price_int, precompile_price.as_u128());
 	}
 
 	#[test]
