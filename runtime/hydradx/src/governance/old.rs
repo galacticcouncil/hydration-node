@@ -220,5 +220,6 @@ impl pallet_tips::Config for Runtime {
 	type TipReportDepositBase = TipReportDepositBase;
 	type MaxTipAmount = MaxTipAmount;
 	type Tippers = Elections;
+	type OnSlash = Treasury;
 	type WeightInfo = weights::pallet_tips::HydraWeight<Runtime>;
 }

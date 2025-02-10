@@ -30,7 +30,7 @@ use frame_support::BoundedVec;
 use frame_system::EnsureRoot;
 use hydradx_traits::OraclePeriod::{self, *};
 use hydradx_traits::Source;
-use hydradx_traits::{AssetPairAccountIdFor, Liquidity, Volume};
+use hydradx_traits::{Liquidity, Volume};
 use sp_core::H256;
 
 use crate::types::{AssetId, Balance, Price};
@@ -115,19 +115,6 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
-}
-
-pub struct AssetPairAccountIdTest();
-
-impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
-	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
-		let mut a = asset_a as u128;
-		let mut b = asset_b as u128;
-		if a > b {
-			std::mem::swap(&mut a, &mut b);
-		}
-		(a * 1000 + b) as u64
-	}
 }
 
 parameter_types! {

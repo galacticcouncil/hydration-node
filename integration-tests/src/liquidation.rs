@@ -24,6 +24,7 @@ use orml_traits::currency::MultiCurrency;
 use sp_core::{H256, U256};
 use sp_runtime::{traits::CheckedConversion, SaturatedConversion};
 
+// ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
 const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 
 #[module_evm_utility_macro::generate_function_selector]

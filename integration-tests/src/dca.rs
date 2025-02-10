@@ -198,7 +198,7 @@ mod omnipool {
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), HDX, 858874258006303);
+			assert_reserved_balance!(&ALICE.into(), HDX, 858858384008414);
 		});
 	}
 
@@ -339,7 +339,7 @@ mod omnipool {
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), HDX, 858874258006303);
+			assert_reserved_balance!(&ALICE.into(), HDX, 858858384008414);
 		});
 	}
 
@@ -440,7 +440,7 @@ mod omnipool {
 			//Assert
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), LRNA, 2429472200972701);
+			assert_reserved_balance!(&ALICE.into(), LRNA, 2429464263973749);
 
 			let treasury_balance = Currencies::free_balance(LRNA, &Treasury::account_id());
 			assert!(treasury_balance > 0);
@@ -469,7 +469,7 @@ mod omnipool {
 			set_relaychain_block_number(12);
 
 			//Assert
-			assert_reserved_balance!(&ALICE.into(), HDX, 858874258006303);
+			assert_reserved_balance!(&ALICE.into(), HDX, 858858384008414);
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
@@ -552,7 +552,7 @@ mod omnipool {
 			set_relaychain_block_number(12);
 
 			//Assert
-			assert_reserved_balance!(&ALICE.into(), LRNA, 929472200972701);
+			assert_reserved_balance!(&ALICE.into(), LRNA, 929464263973749);
 			assert_balance!(ALICE.into(), DAI, 2100000000000000);
 		});
 
@@ -1543,7 +1543,7 @@ mod omnipool {
 
 			assert_balance!(ALICE.into(), DAI, 2142642852904326);
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), LRNA, 2399569558403200);
+			assert_reserved_balance!(&ALICE.into(), LRNA, 2399561886966227);
 		});
 	}
 
