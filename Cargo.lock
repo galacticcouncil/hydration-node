@@ -4505,7 +4505,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "8.3.1"
+version = "9.0.1"
 dependencies = [
  "approx",
  "criterion",
@@ -4619,7 +4619,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.3.11"
+version = "1.4.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4670,7 +4670,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "286.0.0"
+version = "288.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4816,7 +4816,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.12.0"
+version = "3.13.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7885,7 +7885,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.8.1"
+version = "1.8.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8047,13 +8047,14 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-fees"
-version = "1.0.7"
+version = "2.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
- "orml-traits",
+ "hydradx-traits",
+ "log",
  "parity-scale-codec",
  "proptest",
  "scale-info",
@@ -8119,7 +8120,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.3.5"
+version = "1.4.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8138,6 +8139,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "staging-xcm",
  "test-utils",
 ]
 
@@ -8695,7 +8697,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "4.5.2"
+version = "5.0.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -8724,7 +8726,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.6.2"
+version = "2.6.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12131,7 +12133,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.32.1"
+version = "1.33.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",

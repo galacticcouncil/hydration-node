@@ -92,11 +92,8 @@ use sp_std::vec::Vec;
 
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{inverse_route, RouteProvider};
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
-use hydradx_traits::OraclePeriod;
-use hydradx_traits::PriceOracle;
+use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
+use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
 pub use pallet::*;
 use pallet_broadcast::types::ExecutionType;
 pub use weights::WeightInfo;
@@ -110,7 +107,6 @@ mod tests;
 pub mod types;
 pub mod weights;
 
-pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 
@@ -872,10 +868,12 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
+		let retry_period = OraclePeriod::Short.as_period() as u32;
+
 		let retry_multiplier = 2u32
 			.checked_pow(number_of_retries.into())
 			.ok_or(ArithmeticError::Overflow)?;
-		let retry_delay = SHORT_ORACLE_BLOCK_PERIOD
+		let retry_delay = retry_period
 			.checked_mul(retry_multiplier)
 			.ok_or(ArithmeticError::Overflow)?;
 		let next_execution_block = current_blocknumber

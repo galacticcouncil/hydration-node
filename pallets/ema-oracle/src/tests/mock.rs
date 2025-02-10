@@ -25,7 +25,7 @@ use frame_support::sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-use frame_support::traits::{Contains, Everything};
+use frame_support::traits::{Contains, Everything, SortedMembers};
 use frame_support::BoundedVec;
 use frame_system::EnsureRoot;
 use hydradx_traits::OraclePeriod::{self, *};
@@ -40,6 +40,8 @@ pub type AccountId = u64;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 use crate::MAX_PERIODS;
+
+pub const ALICE: AccountId = 1;
 
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
@@ -126,6 +128,12 @@ impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist {
 	}
 }
 
+pub struct BifrostAcc;
+impl SortedMembers<AccountId> for BifrostAcc {
+	fn sorted_members() -> Vec<AccountId> {
+		return vec![ALICE];
+	}
+}
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
@@ -135,6 +143,7 @@ impl Config for Test {
 	type MaxUniqueEntries = ConstU32<45>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
 }
 

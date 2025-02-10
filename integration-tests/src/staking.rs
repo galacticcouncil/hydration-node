@@ -138,7 +138,7 @@ fn staking_should_transfer_hdx_fees_to_pot_account_when_omnipool_trade_is_execut
 		));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_eq!(Currencies::free_balance(HDX, &staking_account), 1_093_580_529_359);
+		assert_eq!(Currencies::free_balance(HDX, &staking_account), 1056148317615);
 	});
 }
 

@@ -13,6 +13,7 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn add_oracle() -> Weight;
 	fn remove_oracle() -> Weight;
+	fn update_bifrost_oracle() -> Weight;
 	fn on_finalize_no_entry() -> Weight;
 	fn on_finalize_multiple_tokens(b: u32) -> Weight;
 	fn on_trade_multiple_tokens(b: u32) -> Weight;
@@ -48,6 +49,11 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(5_u64))
 	}
+
+	fn update_bifrost_oracle() -> Weight {
+		Weight::zero()
+	}
+
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:0)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	fn on_finalize_no_entry() -> Weight {
