@@ -69,7 +69,9 @@ mod trade_execution;
 pub mod types;
 pub mod weights;
 
-use crate::types::{AssetPeg, Balance, Peg, Pegs, PoolInfo, PoolState, StableswapHooks, Tradability};
+use crate::types::{
+	AssetMultiplier, Balance, Multiplier, Multipliers, PoolInfo, PoolState, StableswapHooks, Tradability,
+};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
@@ -177,10 +179,10 @@ pub mod pallet {
 	#[pallet::getter(fn pools)]
 	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>>;
 
-	/// List of assets pegs for a pool.
+	/// List of assets multipliers for a pool.
 	#[pallet::storage]
-	#[pallet::getter(fn pool_pegs)]
-	pub type PoolPegs<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Pegs>;
+	#[pallet::getter(fn pool_multipliers)]
+	pub type PoolMultipliers<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Multipliers>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -197,7 +199,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
 			fee: Permill,
-			pegs: Option<Pegs>,
+			multipliers: Option<Multipliers>,
 		},
 		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
@@ -334,8 +336,8 @@ pub mod pallet {
 		/// Failed to retrieve asset decimals.
 		UnknownDecimals,
 
-		/// List of provided pegs is incorrect.
-		IncorrectInitialPegs,
+		/// List of provided multipliers is incorrect.
+		IncorrectInitialMultipliers,
 	}
 
 	#[pallet::call]
@@ -375,7 +377,7 @@ pub mod pallet {
 				assets,
 				amplification,
 				fee,
-				pegs: None,
+				multipliers: None,
 			});
 
 			Self::deposit_event(Event::AmplificationChanging {
@@ -1048,26 +1050,26 @@ pub mod pallet {
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_pool())]
 		#[transactional]
-		pub fn create_pool_with_pegs(
+		pub fn create_pool_with_multipliers(
 			origin: OriginFor<T>,
 			share_asset: T::AssetId,
 			assets: Vec<T::AssetId>,
 			amplification: u16,
 			fee: Permill,
-			pegs: Pegs,
+			multipliers: Multipliers,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(pegs.clone()))?;
+			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(multipliers.clone()))?;
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
 				assets,
 				amplification,
 				fee,
-				pegs: Some(pegs),
+				multipliers: Some(multipliers),
 			});
 
 			Self::deposit_event(Event::AmplificationChanging {
@@ -1091,8 +1093,8 @@ impl<T: Config> Pallet<T> {
 		PalletId(*b"stblpool").into_account_truncating()
 	}
 
-	fn get_pool_asset_multipliers(pool_id: T::AssetId) -> Option<Vec<Peg>> {
-		let multipliers = PoolPegs::<T>::get(&pool_id);
+	fn get_pool_asset_multipliers(pool_id: T::AssetId) -> Option<Vec<Multiplier>> {
+		let multipliers = PoolMultipliers::<T>::get(&pool_id);
 		let Some(mpls) = multipliers else {
 			return None;
 		};
@@ -1182,7 +1184,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
-		pegs: Option<Pegs>,
+		multipliers: Option<Multipliers>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -1217,15 +1219,21 @@ impl<T: Config> Pallet<T> {
 			ensure!(T::AssetInspection::exists(*asset), Error::<T>::AssetNotRegistered);
 		}
 
-		if let Some(p) = pegs {
-			// Pegs is list of prices of all assets except the first one, denominated in first asset
-			// Ensure the length of pegs is equal to the number of assets in the pool - 1
-			// And insert the default peg (1) for the first asset
-			ensure!(p.len() == pool.assets.len() - 1, Error::<T>::IncorrectInitialPegs);
-			let pool_pegs =
-				Pegs::truncate_from(sp_std::iter::once(AssetPeg::default()).chain(p.into_inner()).collect());
-			debug_assert!(pool_pegs.len() == pool.assets.len());
-			PoolPegs::<T>::insert(share_asset, pool_pegs);
+		if let Some(p) = multipliers {
+			// Multipliers is list of prices of all assets except the first one, denominated in first asset
+			// Ensure the length of multipliers is equal to the number of assets in the pool - 1
+			// And insert the default multiplier (1) for the first asset
+			ensure!(
+				p.len() == pool.assets.len() - 1,
+				Error::<T>::IncorrectInitialMultipliers
+			);
+			let pool_multipliers = Multipliers::truncate_from(
+				sp_std::iter::once(AssetMultiplier::default())
+					.chain(p.into_inner())
+					.collect(),
+			);
+			debug_assert!(pool_multipliers.len() == pool.assets.len());
+			PoolMultipliers::<T>::insert(share_asset, pool_multipliers);
 		}
 
 		Pools::<T>::insert(share_asset, pool);

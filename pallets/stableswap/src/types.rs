@@ -20,14 +20,14 @@ use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
 pub(crate) type Balance = u128;
 
-pub type Peg = (Balance, Balance);
+pub type Multiplier = (Balance, Balance);
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct AssetPeg {
-	pub current: Peg,
-	pub target: Option<Peg>,
+pub struct AssetMultiplier {
+	pub current: Multiplier,
+	pub target: Option<Multiplier>,
 }
 
-impl Default for AssetPeg {
+impl Default for AssetMultiplier {
 	fn default() -> Self {
 		Self {
 			current: (1, 1),
@@ -36,7 +36,7 @@ impl Default for AssetPeg {
 	}
 }
 
-pub type Pegs = BoundedVec<AssetPeg, ConstU32<MAX_ASSETS_IN_POOL>>;
+pub type Multipliers = BoundedVec<AssetMultiplier, ConstU32<MAX_ASSETS_IN_POOL>>;
 
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets
