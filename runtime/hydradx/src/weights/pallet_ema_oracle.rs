@@ -148,4 +148,14 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(17_680_000, 6294)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 	}
+
+	//TODO: tmp, write propper benchmark
+	fn update_bifrost_oracle() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `638`
+		//  Estimated: `6294`
+		// Minimum execution time: 17_336_000 picoseconds.
+		Weight::from_parts(17_680_000, 6294)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+	}
 }

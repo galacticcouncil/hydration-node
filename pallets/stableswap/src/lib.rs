@@ -581,11 +581,6 @@ pub mod pallet {
 
 			let current_share_balance = T::Currency::free_balance(pool_id, &who);
 			ensure!(current_share_balance >= share_amount, Error::<T>::InsufficientShares);
-			ensure!(
-				current_share_balance == share_amount
-					|| current_share_balance.saturating_sub(share_amount) >= T::MinPoolLiquidity::get(),
-				Error::<T>::InsufficientShareBalance
-			);
 
 			// Retrive pool state.
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
@@ -713,11 +708,6 @@ pub mod pallet {
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
 
 			let current_share_balance = T::Currency::free_balance(pool_id, &who);
-			ensure!(
-				current_share_balance == shares
-					|| current_share_balance.saturating_sub(shares) >= T::MinPoolLiquidity::get(),
-				Error::<T>::InsufficientShareBalance
-			);
 
 			// Burn shares and transfer asset to user.
 			T::Currency::withdraw(pool_id, &who, shares)?;

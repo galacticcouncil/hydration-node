@@ -129,6 +129,9 @@ pub mod pallet {
 		/// Origin that can enable oracle for assets that would be rejected by `OracleWhitelist` otherwise.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Origin that can update bifrost oracle via `update_bifrost_oracle` extrinsic.
+		type BifrostOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
@@ -289,6 +292,19 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle())]
+		pub fn update_bifrost_oracle(
+			origin: OriginFor<T>,
+			//NOTE: these must be boxed becasue of https://github.com/paritytech/polkadot-sdk/blob/6875d36b2dba537f3254aad3db76ac7aa656b7ab/substrate/frame/utility/src/lib.rs#L150
+			_asset_a: Box<polkadot_xcm::VersionedLocation>,
+			_asset_b: Box<polkadot_xcm::VersionedLocation>,
+			_price: (Balance, Balance),
+		) -> DispatchResult {
+			T::BifrostOrigin::ensure_origin(origin)?;
+			Ok(())
+		}
 	}
 }
 
@@ -444,6 +460,22 @@ impl<T: Config> Pallet<T> {
 			Some(entry)
 		}
 		.map(|return_entry| (return_entry, init))
+	}
+
+	/// Return last stored entry for given period and block number of last updated.
+	pub fn get_last_oracle_entry(
+		source: Source,
+		assets: (AssetId, AssetId),
+		period: OraclePeriod,
+	) -> Option<(OracleEntry<BlockNumberFor<T>>, BlockNumberFor<T>)> {
+		Self::oracle((source, ordered_pair(assets.0, assets.1), period)).map(|(last_entry, init)| {
+			let entry = if (assets.0, assets.1) != ordered_pair(assets.0, assets.1) {
+				last_entry.inverted()
+			} else {
+				last_entry
+			};
+			(entry, init)
+		})
 	}
 }
 
