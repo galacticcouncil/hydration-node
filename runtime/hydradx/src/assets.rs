@@ -43,7 +43,6 @@ use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKille
 use primitives::constants::{
 	chain::{OMNIPOOL_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
-	time::DAYS,
 };
 use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
 
