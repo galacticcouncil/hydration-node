@@ -22,6 +22,7 @@ use hydradx_traits::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
+use pallet_omnipool::types::Balance;
 use primitive_types::{H160, U256, U512};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
 use sp_runtime::{
@@ -29,7 +30,6 @@ use sp_runtime::{
 	RuntimeDebug,
 };
 use sp_std::marker::PhantomData;
-use pallet_omnipool::types::Balance;
 
 const EMPTY_SOURCE: Source = [0u8; 8];
 
