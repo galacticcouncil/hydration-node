@@ -124,11 +124,11 @@ where
 {
 	type Error = ConsensusError;
 
-	async fn check_block(&mut self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error> {
+	async fn check_block(&self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error> {
 		self.inner.check_block(block).await.map_err(Into::into)
 	}
 
-	async fn import_block(&mut self, block: BlockImportParams<B>) -> Result<ImportResult, Self::Error> {
+	async fn import_block(&self, block: BlockImportParams<B>) -> Result<ImportResult, Self::Error> {
 		if *block.header.number() >= self.evm_since {
 			ensure_log(block.header.digest()).map_err(Error::from)?;
 		}

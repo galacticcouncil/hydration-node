@@ -112,7 +112,7 @@ impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
 	R: pallet_evm::Config + pallet_currencies::Config + pallet_evm_accounts::Config,
 	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
-	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<R::AccountId>>,
+	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
 	MultiCurrencyPrecompile<R>: Precompile,
 	ChainlinkOraclePrecompile<ChainlinkQuoteAsset, R>: Precompile,
 {

@@ -122,7 +122,7 @@ polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
 polkadot-runtime-common = { workspace = true }
-xcm-fee-payment-runtime-api = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -223,6 +223,7 @@ runtime-benchmarks = [
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
+    "xcm-runtime-apis/runtime-benchmarks",
     "pallet-liquidation/runtime-benchmarks",
     "pallet-conviction-voting/runtime-benchmarks",
     "pallet-referenda/runtime-benchmarks",
@@ -248,7 +249,7 @@ std = [
     "staging-parachain-info/std",
     "pallet-xcm/std",
     "polkadot-xcm/std",
-    "xcm-fee-payment-runtime-api/std",
+    "xcm-runtime-apis/std",
     "xcm-executor/std",
     "xcm-builder/std",
     "orml-tokens/std",

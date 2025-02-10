@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use crate::pallet::{PositionVotes, Positions, ProcessedVotes};
 use crate::types::Vote;
 use crate::types::{Action, Balance, Conviction};

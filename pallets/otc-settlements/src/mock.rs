@@ -271,26 +271,6 @@ parameter_types! {
 	pub const DiscountedFee: (u32, u32) = (7, 10_000);
 }
 
-pub struct AllowPools;
-
-impl hydradx_traits::CanCreatePool<AssetId> for AllowPools {
-	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		true
-	}
-}
-
-pub struct AssetPairAccountIdTest;
-impl hydradx_traits::AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
-	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
-		let mut a = asset_a as u128;
-		let mut b = asset_b as u128;
-		if a > b {
-			std::mem::swap(&mut a, &mut b)
-		}
-		(a * 1000 + b) as u64
-	}
-}
-
 parameter_types! {
 	#[derive(PartialEq, Debug)]
 	pub RegistryStringLimit: u32 = 100;

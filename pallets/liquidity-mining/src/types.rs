@@ -406,9 +406,9 @@ impl<T: Config<I>, I: 'static> YieldFarmEntry<T, I> {
 /// An enum whose variants represent the state of the yield or global farm.
 /// - `Active` - farm has full functionality. This state may be used for both farm types.
 /// - `Stopped` - only partial functionality of the farm is available to users. Farm can became
-/// `Active` again or can be `Terminated`. This state can be used only for yield farms.
+///   `Active` again or can be `Terminated`. This state can be used only for yield farms.
 /// - `Terminated` - farm is destroyed and it's waiting to be removed from the storage. This state can't be
-/// reverted and is available for both farm types.
+///   reverted and is available for both farm types.
 #[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum FarmState {
 	Active,

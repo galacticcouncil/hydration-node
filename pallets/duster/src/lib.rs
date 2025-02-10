@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(test)]
 mod mock;
@@ -149,8 +150,8 @@ pub mod pallet {
 				AccountBlacklist::<T>::insert(account_id, ());
 			});
 
-			RewardAccount::<T>::put(&self.reward_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
-			DustAccount::<T>::put(&self.dust_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
+			RewardAccount::<T>::put(self.reward_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
+			DustAccount::<T>::put(self.dust_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
 		}
 	}
 

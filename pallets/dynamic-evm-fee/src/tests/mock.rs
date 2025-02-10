@@ -26,7 +26,6 @@ use frame_support::{
 };
 use frame_system as system;
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::router::RouteProvider;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
@@ -173,10 +172,6 @@ impl Config for Test {
 	type WethAssetId = HdxAssetId;
 	type WeightInfo = ();
 }
-
-pub struct DefaultRouteProvider;
-
-impl RouteProvider<AssetId> for DefaultRouteProvider {}
 
 impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
