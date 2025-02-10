@@ -70,7 +70,7 @@ pub mod types;
 pub mod weights;
 
 use crate::types::{
-	AssetMultiplier, Balance, Multiplier, Multipliers, PoolInfo, PoolState, StableswapHooks, Tradability,
+	AssetMultiplier, Balance, BoundedMultipliers, MultiplierType, PoolInfo, PoolState, StableswapHooks, Tradability,
 };
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
@@ -182,7 +182,7 @@ pub mod pallet {
 	/// List of assets multipliers for a pool.
 	#[pallet::storage]
 	#[pallet::getter(fn pool_multipliers)]
-	pub type PoolMultipliers<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Multipliers>;
+	pub type PoolMultipliers<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, BoundedMultipliers>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -199,7 +199,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
 			fee: Permill,
-			multipliers: Option<Multipliers>,
+			multipliers: Option<BoundedMultipliers>,
 		},
 		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
@@ -1056,7 +1056,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: u16,
 			fee: Permill,
-			multipliers: Multipliers,
+			multipliers: BoundedMultipliers,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -1093,7 +1093,7 @@ impl<T: Config> Pallet<T> {
 		PalletId(*b"stblpool").into_account_truncating()
 	}
 
-	fn get_pool_asset_multipliers(pool_id: T::AssetId) -> Option<Vec<Multiplier>> {
+	fn get_pool_asset_multipliers(pool_id: T::AssetId) -> Option<Vec<MultiplierType>> {
 		let multipliers = PoolMultipliers::<T>::get(&pool_id);
 		let Some(mpls) = multipliers else {
 			return None;
@@ -1184,7 +1184,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
-		multipliers: Option<Multipliers>,
+		multipliers: Option<BoundedMultipliers>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -1227,7 +1227,7 @@ impl<T: Config> Pallet<T> {
 				p.len() == pool.assets.len() - 1,
 				Error::<T>::IncorrectInitialMultipliers
 			);
-			let pool_multipliers = Multipliers::truncate_from(
+			let pool_multipliers = BoundedMultipliers::truncate_from(
 				sp_std::iter::once(AssetMultiplier::default())
 					.chain(p.into_inner())
 					.collect(),

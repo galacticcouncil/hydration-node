@@ -20,11 +20,11 @@ use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
 pub(crate) type Balance = u128;
 
-pub type Multiplier = (Balance, Balance);
+pub type MultiplierType = (Balance, Balance);
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct AssetMultiplier {
-	pub current: Multiplier,
-	pub target: Option<Multiplier>,
+	pub current: MultiplierType,
+	pub target: Option<MultiplierType>,
 }
 
 impl Default for AssetMultiplier {
@@ -36,7 +36,7 @@ impl Default for AssetMultiplier {
 	}
 }
 
-pub type Multipliers = BoundedVec<AssetMultiplier, ConstU32<MAX_ASSETS_IN_POOL>>;
+pub type BoundedMultipliers = BoundedVec<AssetMultiplier, ConstU32<MAX_ASSETS_IN_POOL>>;
 
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets

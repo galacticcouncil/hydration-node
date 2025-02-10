@@ -45,7 +45,7 @@ fn trade_fee() -> impl Strategy<Value = Permill> {
 	(0f64..0.2f64).prop_map(Permill::from_float)
 }
 
-fn get_pool_asset_multiplier(pool_id: AssetId) -> Option<Vec<Multiplier>> {
+fn get_pool_asset_multiplier(pool_id: AssetId) -> Option<Vec<MultiplierType>> {
 	Pallet::<Test>::get_pool_asset_multipliers(pool_id)
 }
 
