@@ -138,7 +138,7 @@ fn staking_should_transfer_hdx_fees_to_pot_account_when_omnipool_trade_is_execut
 		));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
-		assert_eq!(Currencies::free_balance(HDX, &staking_account), 1_093_580_529_359);
+		assert_eq!(Currencies::free_balance(HDX, &staking_account), 1056148317615);
 	});
 }
 
@@ -526,7 +526,7 @@ fn increase_should_slash_min_amount_when_increase_is_low() {
 
 		let stake_position =
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(alice_position_id).unwrap();
-		assert_eq!(stake_position.accumulated_slash_points, 50);
+		assert_eq!(stake_position.accumulated_slash_points, 5);
 	});
 }
 

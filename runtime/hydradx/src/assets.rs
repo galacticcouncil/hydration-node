@@ -22,8 +22,8 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider,
-	StableswapHooksAdapter, VestingInfo,
+	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
+	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
 
 pub use hydradx_traits::{
@@ -57,7 +57,7 @@ use frame_support::{
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
-		LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
+		LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
 	},
 	BoundedVec, PalletId,
 };
@@ -493,6 +493,7 @@ parameter_types! {
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
+	pub BurnProtocolFee : Permill = Permill::from_percent(50);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -515,7 +516,8 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::pallet_omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = OmnipoolHookAdapter<Self::RuntimeOrigin, NativeAssetId, LRNA, Runtime>;
+	type OmnipoolHooks =
+		OmnipoolHookAdapter<Self::RuntimeOrigin, NativeAssetId, LRNA, Runtime, Currencies, TreasuryAccount>;
 	type PriceBarrier = (
 		EnsurePriceWithin<
 			AccountId,
@@ -534,6 +536,7 @@ impl pallet_omnipool::Config for Runtime {
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
+	type BurnProtocolFee = BurnProtocolFee;
 }
 
 pub struct CircuitBreakerWhitelist;
@@ -580,9 +583,18 @@ where
 	}
 }
 
+pub struct BifrostAcc;
+impl SortedMembers<AccountId> for BifrostAcc {
+	fn sorted_members() -> Vec<AccountId> {
+		//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
+		return vec![hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()];
+	}
+}
+
 impl pallet_ema_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	/// The definition of the oracle time periods currently assumes a 6 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
@@ -961,22 +973,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e)
-					.saturating_add(
-						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight(),
-					)
-					.saturating_add(
-						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight(),
-					),
+					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
+					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::Stableswap(_) => {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e)
@@ -1009,22 +1007,8 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_buy(c, e)
-					.saturating_add(
-						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_trade_weight(),
-					)
-					.saturating_add(
-						<OmnipoolHookAdapter<RuntimeOrigin, NativeAssetId, LRNA, Runtime> as OmnipoolHooks<
-							RuntimeOrigin,
-							AccountId,
-							AssetId,
-							Balance,
-						>>::on_liquidity_changed_weight(),
-					),
+					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
+					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(c, e),
 				PoolType::Stableswap(_) => {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_buy(c, e)
@@ -1260,16 +1244,16 @@ impl pallet_otc_settlements::Config for Runtime {
 // Dynamic fees
 parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
-		min_fee: Permill::from_rational(25u32,10000u32), // 0.25%
+		min_fee: Permill::from_rational(15u32,10000u32), // 0.15%
 		max_fee: Permill::from_rational(5u32,100u32),    // 5%
-		decay: FixedU128::from_rational(1,200000),       // 0.0005%
+		decay: FixedU128::from_rational(1,20000),        // 0.005%
 		amplification: FixedU128::from(2),               // 2
 	};
 
 	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(5u32,10000u32),  // 0.05%
-		max_fee: Permill::from_rational(1u32,1000u32),   // 0.1%
-		decay: FixedU128::from_rational(5,2000000),      // 0.00025%
+		max_fee: Permill::from_rational(25u32,10000u32), // 0.25%
+		decay: FixedU128::from_rational(5,200000),       // 0.0025%
 		amplification: FixedU128::one(),                 // 1
 	};
 
@@ -1281,7 +1265,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type BlockNumberProvider = System;
 	type Fee = Permill;
 	type AssetId = AssetId;
-	type Oracle = OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
+	type RawOracle = OmnipoolRawOracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }
@@ -1460,7 +1444,7 @@ pub struct StakingMinSlash;
 
 impl GetByKey<FixedU128, Point> for StakingMinSlash {
 	fn get(_k: &FixedU128) -> Point {
-		50_u128
+		5_u128
 	}
 }
 
@@ -1565,7 +1549,7 @@ impl pallet_xyk::Config for Runtime {
 
 parameter_types! {
 	pub const ReferralsPalletId: PalletId = PalletId(*b"referral");
-	pub RegistrationFee: (AssetId,Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
+	pub RegistrationFee: (AssetId, Balance, AccountId)= (NativeAssetId::get(), 222_000_000_000_000, TreasuryAccount::get());
 	pub const MaxCodeLength: u32 = 10;
 	pub const MinCodeLength: u32 = 4;
 	pub const ReferralsOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
@@ -1702,29 +1686,29 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 				external: Permill::from_percent(50),
 			},
 			Level::Tier0 => FeeDistribution {
-				referrer: Permill::from_percent(5),
-				trader: Permill::from_percent(10),
-				external: Permill::from_percent(35),
+				referrer: Permill::from_percent(3),
+				trader: Permill::from_percent(2),
+				external: Permill::from_percent(45),
 			},
 			Level::Tier1 => FeeDistribution {
-				referrer: Permill::from_percent(10),
-				trader: Permill::from_percent(11),
-				external: Permill::from_percent(29),
+				referrer: Permill::from_percent(6),
+				trader: Permill::from_percent(4),
+				external: Permill::from_percent(40),
 			},
 			Level::Tier2 => FeeDistribution {
-				referrer: Permill::from_percent(15),
-				trader: Permill::from_percent(12),
-				external: Permill::from_percent(23),
+				referrer: Permill::from_percent(9),
+				trader: Permill::from_percent(6),
+				external: Permill::from_percent(35),
 			},
 			Level::Tier3 => FeeDistribution {
-				referrer: Permill::from_percent(20),
-				trader: Permill::from_percent(13),
-				external: Permill::from_percent(17),
+				referrer: Permill::from_percent(12),
+				trader: Permill::from_percent(8),
+				external: Permill::from_percent(30),
 			},
 			Level::Tier4 => FeeDistribution {
-				referrer: Permill::from_percent(25),
-				trader: Permill::from_percent(15),
-				external: Permill::from_percent(10),
+				referrer: Permill::from_percent(15),
+				trader: Permill::from_percent(10),
+				external: Permill::from_percent(25),
 			},
 		};
 		(volume, rewards)

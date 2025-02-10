@@ -69,16 +69,16 @@ fn fee_test_buy_sell() {
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 14225180042050832u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 100, 4243052260380446u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 200, 1671684145777546u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14147257719180100u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 100, 4252747367586943u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 200, 1671723999328408u128, 10);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
 			assert_balance_approx!(LP1, 200, 3000000000000000u128, 10);
 			assert_balance_approx!(LP2, 100, 550000000000000u128, 10);
-			assert_balance_approx!(LP2, 200, 18014179710851u128, 10);
-			assert_balance_approx!(LP3, 100, 206947739619554u128, 10);
-			assert_balance_approx!(LP3, 200, 610301674511603u128, 10);
-			assert_balance_approx!(LP3, 1, 42897803510764u128, 10);
+			assert_balance_approx!(LP2, 200, 17969962455819u128, 10);
+			assert_balance_approx!(LP3, 100, 197252632413057u128, 10);
+			assert_balance_approx!(LP3, 200, 610306038215773u128, 10);
+			assert_balance_approx!(LP3, 1, 46297584539636u128, 10);
 
 			assert_asset_state!(
 				2,
@@ -96,7 +96,7 @@ fn fee_test_buy_sell() {
 				0,
 				AssetReserveState {
 					reserve: 10000000000000000,
-					hub_reserve: 10135523267202732,
+					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 0,
 					cap: DEFAULT_WEIGHT_CAP,
@@ -107,8 +107,8 @@ fn fee_test_buy_sell() {
 			assert_asset_state!(
 				100,
 				AssetReserveState {
-					reserve: 4243052260380446,
-					hub_reserve: 882383663986336,
+					reserve: 4252747367586943,
+					hub_reserve: 880372069249999,
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
@@ -119,22 +119,15 @@ fn fee_test_buy_sell() {
 			assert_asset_state!(
 				200,
 				AssetReserveState {
-					reserve: 1671684145777545,
-					hub_reserve: 2707273110861764,
-					shares: 2006364027707802,
+					reserve: 1671723999328408,
+					hub_reserve: 2766885649930101,
+					shares: 2006359320212760,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
 
-			assert_pool_state!(
-				14225180042050832,
-				28450360084101664,
-				SimpleImbalance {
-					value: 0,
-					negative: true
-				}
-			);
+			assert_pool_state!(14147257719180100, 28450360084101664);
 		});
 }
