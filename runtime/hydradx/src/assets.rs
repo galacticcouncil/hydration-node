@@ -591,7 +591,7 @@ pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
 		//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
-		return vec![hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()];
+		vec![hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()]
 	}
 }
 

@@ -276,7 +276,7 @@ parameter_types! {
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
-		return vec![ALICE];
+		vec![ALICE]
 	}
 }
 

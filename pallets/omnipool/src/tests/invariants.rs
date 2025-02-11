@@ -1010,7 +1010,7 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::MAX));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
 
@@ -1082,7 +1082,7 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(seller), 300, LRNA, amount, Balance::MAX));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
 
@@ -1152,7 +1152,7 @@ proptest! {
 				assert_ok!(Omnipool::add_token(RuntimeOrigin::root(), token_2.asset_id, token_2.price,Permill::from_percent(100),lp2));
 				assert_ok!(Omnipool::add_token(RuntimeOrigin::root(), token_3.asset_id, token_3.price,Permill::from_percent(100), lp3));
 				assert_ok!(Omnipool::add_token(RuntimeOrigin::root(), token_4.asset_id, token_4.price,Permill::from_percent(100),lp4));
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, LRNA, buy_amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, LRNA, buy_amount, Balance::MAX));
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(seller), 200, amount));
@@ -1221,7 +1221,7 @@ proptest! {
 				let position = <Positions<Test>>::get(position_id).unwrap();
 				let before_buy_state_200 = Omnipool::load_asset_state(200).unwrap();
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::MAX));
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 
 				assert_asset_invariant_not_decreased!(&before_buy_state_200, &old_state_200, "Invariant 200");
@@ -1298,7 +1298,7 @@ proptest! {
 				let position = <Positions<Test>>::get(position_id).unwrap();
 				let before_buy_state_200 = Omnipool::load_asset_state(200).unwrap();
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
+				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 200, DAI, buy_amount, Balance::MAX));
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 
 				assert_asset_invariant_not_decreased!(&before_buy_state_200, &old_state_200, "Invariant 200");

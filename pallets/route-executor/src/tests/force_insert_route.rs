@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::{Error, Trade};
+use crate::{Trade};
 use frame_support::pallet_prelude::*;
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::router::{AssetPair, PoolType};
