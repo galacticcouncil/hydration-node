@@ -703,7 +703,7 @@ impl<T: Config> RawOracle<AssetId, Balance, BlockNumberFor<T>> for Pallet<T> {
 		asset_b: AssetId,
 		period: OraclePeriod,
 	) -> Result<RawEntry<Balance, BlockNumberFor<T>>, Self::Error> {
-		if asset_a == asset_b{
+		if asset_a == asset_b {
 			return Err(OracleError::SameAsset);
 		}
 		let assets = ordered_pair(asset_a, asset_b);

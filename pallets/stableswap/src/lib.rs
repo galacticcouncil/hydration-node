@@ -57,7 +57,7 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
+use hydradx_traits::{oracle::RawOracle, registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -69,9 +69,7 @@ mod trade_execution;
 pub mod types;
 pub mod weights;
 
-use crate::types::{
-	AssetMultiplier, Balance, BoundedMultipliers, MultiplierType, PoolInfo, PoolState, StableswapHooks, Tradability,
-};
+use crate::types::{Balance, MultiplierType, PoolInfo, PoolMultiplierInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
@@ -101,6 +99,7 @@ const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::types::PoolMultiplierInfo;
 	use codec::HasCompact;
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
@@ -167,6 +166,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type AmplificationRange: Get<RangeInclusive<NonZeroU16>>;
 
+		type MultiplierOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 
@@ -182,7 +183,7 @@ pub mod pallet {
 	/// List of assets multipliers for a pool.
 	#[pallet::storage]
 	#[pallet::getter(fn pool_multipliers)]
-	pub type PoolMultipliers<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, BoundedMultipliers>;
+	pub type PoolMultipliers<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolMultiplierInfo>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -199,7 +200,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
 			fee: Permill,
-			multipliers: Option<BoundedMultipliers>,
+			multipliers: Option<PoolMultiplierInfo>,
 		},
 		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
@@ -709,8 +710,6 @@ pub mod pallet {
 
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
 
-			let current_share_balance = T::Currency::free_balance(pool_id, &who);
-
 			// Burn shares and transfer asset to user.
 			T::Currency::withdraw(pool_id, &who, shares)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
@@ -1056,7 +1055,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: u16,
 			fee: Permill,
-			multipliers: BoundedMultipliers,
+			multipliers: PoolMultiplierInfo,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -1099,7 +1098,7 @@ impl<T: Config> Pallet<T> {
 			return None;
 		};
 		//TODO: when clarified, update to target
-		Some(mpls.into_iter().map(|v| v.current).collect())
+		Some(mpls.current.to_vec())
 	}
 
 	/// Calculates out amount given in amount.
@@ -1184,7 +1183,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
-		multipliers: Option<BoundedMultipliers>,
+		multipliers: Option<PoolMultiplierInfo>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -1220,20 +1219,11 @@ impl<T: Config> Pallet<T> {
 		}
 
 		if let Some(p) = multipliers {
-			// Multipliers is list of prices of all assets except the first one, denominated in first asset
-			// Ensure the length of multipliers is equal to the number of assets in the pool - 1
-			// And insert the default multiplier (1) for the first asset
 			ensure!(
-				p.len() == pool.assets.len() - 1,
+				p.current.len() == pool.assets.len(),
 				Error::<T>::IncorrectInitialMultipliers
 			);
-			let pool_multipliers = BoundedMultipliers::truncate_from(
-				sp_std::iter::once(AssetMultiplier::default())
-					.chain(p.into_inner())
-					.collect(),
-			);
-			debug_assert!(pool_multipliers.len() == pool.assets.len());
-			PoolMultipliers::<T>::insert(share_asset, pool_multipliers);
+			PoolMultipliers::<T>::insert(share_asset, p);
 		}
 
 		Pools::<T>::insert(share_asset, pool);

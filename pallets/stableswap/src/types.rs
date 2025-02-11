@@ -14,29 +14,23 @@ use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
+use hydradx_traits::Source;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
+
 pub(crate) type Balance = u128;
 
 pub type MultiplierType = (Balance, Balance);
+
+pub type BoundedMultipliers = BoundedVec<MultiplierType, ConstU32<MAX_ASSETS_IN_POOL>>;
+
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct AssetMultiplier {
-	pub current: MultiplierType,
-	pub target: Option<MultiplierType>,
+pub struct PoolMultiplierInfo {
+	pub source: Source,
+	pub current: BoundedMultipliers,
 }
-
-impl Default for AssetMultiplier {
-	fn default() -> Self {
-		Self {
-			current: (1, 1),
-			target: None,
-		}
-	}
-}
-
-pub type BoundedMultipliers = BoundedVec<AssetMultiplier, ConstU32<MAX_ASSETS_IN_POOL>>;
 
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets
