@@ -306,7 +306,7 @@ mod account_conversion {
 				DISPATCH_ADDR, // to
 				data,          // data
 				U256::from(0u64),
-				U256::from(52000u64),
+				U256::from(53000u64),
 				None,
 				None,
 				None,
@@ -1601,7 +1601,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 			fee_currency,
 		));
 
-		// give alice evm addr seom weth to sell in omnipool
+		// give alice evm addr some DOT to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),

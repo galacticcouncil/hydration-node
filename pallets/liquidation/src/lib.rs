@@ -25,6 +25,7 @@
 //! * `liquidate` - Liquidates an existing MM position. Performs flash loan to get funds.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
@@ -236,6 +237,7 @@ pub mod pallet {
 				debt_asset,
 				&pallet_acc,
 				debt_to_cover,
+				Preservation::Expendable,
 				Precision::Exact,
 				Fortitude::Force,
 			)?;

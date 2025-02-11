@@ -160,7 +160,8 @@ fn precise_price_ema_works() {
 	let smoothing = fraction::frac(1, 4);
 	let expected = ((Rational::from(history[0]) * 3 / 4 + Rational::from(history[1]) / 4) * 3 / 4
 		+ Rational::from(history[2]) / 4)
-		* 3 / 4 + Rational::from(history[3]) / 4;
+		* 3 / 4
+		+ Rational::from(history[3]) / 4;
 	let naive_ema = naive_precise_price_ema(history.clone(), fraction_to_high_precision(smoothing));
 	assert_eq!(expected, naive_ema);
 	let history = history.into_iter().map(|p| (p, 1)).collect();

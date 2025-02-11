@@ -16,6 +16,7 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::pallet_prelude::*;
 use frame_support::require_transactional;
@@ -642,7 +643,7 @@ impl<T: Config> GetByKey<T::AssetId, Balance> for Pallet<T> {
 			details.existential_deposit
 		} else {
 			// Asset does not exist - not supported
-			Balance::max_value()
+			Balance::MAX
 		}
 	}
 }

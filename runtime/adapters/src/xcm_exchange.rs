@@ -1,3 +1,4 @@
+use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::v4::prelude::*;
@@ -143,5 +144,52 @@ where
 		};
 
 		trade_result
+	}
+
+	fn quote_exchange_price(give: &Assets, want: &Assets, maximal: bool) -> Option<Assets> {
+		if give.len() != 1 {
+			log::warn!(target: "xcm::exchange-asset", "Only one give asset is supported.");
+			return None;
+		};
+
+		//We assume only one asset wanted as translating into buy and sell is ambigous for multiple want assets
+		if want.len() != 1 {
+			log::warn!(target: "xcm::exchange-asset", "Only one want asset is supported.");
+			return None;
+		};
+
+		let given = give.get(0)?;
+		let asset_in = CurrencyIdConvert::convert(given.clone())?;
+
+		let wanted = want.get(0)?;
+		let asset_out = CurrencyIdConvert::convert(wanted.clone())?;
+
+		let route = pallet_route_executor::Pallet::<Runtime>::get_route(AssetPair::new(asset_in, asset_out));
+
+		if maximal {
+			// sell
+			let Fungible(amount) = given.fun else { return None };
+			let amount =
+				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_out(&route, amount.into()).ok()?;
+			Some(
+				Asset {
+					id: wanted.id.clone(),
+					fun: Fungible(amount.into()),
+				}
+				.into(),
+			)
+		} else {
+			// buy
+			let Fungible(amount) = wanted.fun else { return None };
+			let amount =
+				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into()).ok()?;
+			Some(
+				Asset {
+					id: given.id.clone(),
+					fun: Fungible(amount.into()),
+				}
+				.into(),
+			)
+		}
 	}
 }

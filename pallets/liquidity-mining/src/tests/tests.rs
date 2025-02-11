@@ -1498,7 +1498,7 @@ fn get_next_farm_id_should_work() {
 
 #[test]
 fn farm_account_id_should_work() {
-	let ids: Vec<FarmId> = vec![1, 100, 543, u32::max_value()];
+	let ids: Vec<FarmId> = vec![1, 100, 543, u32::MAX];
 
 	for id in ids {
 		assert_ok!(LiquidityMining::farm_account_id(id));
