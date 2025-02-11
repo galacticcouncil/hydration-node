@@ -46,7 +46,7 @@ fn trade_fee() -> impl Strategy<Value = Permill> {
 }
 
 fn get_pool_asset_multiplier(pool_id: AssetId) -> Option<Vec<MultiplierType>> {
-	Pallet::<Test>::get_pool_asset_multipliers(pool_id, Permill::zero()).1
+	Pallet::<Test>::get_current_multipliers(pool_id)
 }
 
 proptest! {
