@@ -44,6 +44,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 pub use hydradx_traits::{
 	evm::CallContext,
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
@@ -66,7 +67,6 @@ use pallet_omnipool::{
 use pallet_otc::NamedReserveIdentifier;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
-use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 
 use pallet_staking::{
 	types::{Action, Point},
