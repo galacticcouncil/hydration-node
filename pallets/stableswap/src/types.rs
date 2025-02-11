@@ -29,6 +29,7 @@ pub type BoundedMultipliers = BoundedVec<MultiplierType, ConstU32<MAX_ASSETS_IN_
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct PoolMultiplierInfo {
 	pub source: Source,
+	pub max_target_update: MultiplierType,
 	pub current: BoundedMultipliers,
 }
 
