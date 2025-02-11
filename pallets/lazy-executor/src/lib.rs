@@ -18,7 +18,7 @@
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
-	ensure,
+	dispatch::{GetDispatchInfo, Pays, PostDispatchInfo},
 	pallet_prelude::{RuntimeDebug, TypeInfo},
 	traits::ConstU32,
 	weights::Weight,
@@ -42,21 +42,21 @@ pub use weights::WeightInfo;
 pub type CallId = u128;
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub type BoundedCall = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
+type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
 
 const NO_TIP: u32 = 0;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct CallData<AccountId, BlockNumber> {
+pub struct CallData<AccountId> {
 	origin: AccountId,
 	call: BoundedCall,
-	created_at: BlockNumber,
 }
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::{
-		dispatch::{DispatchInfo, GetDispatchInfo, PostDispatchInfo},
+		dispatch::DispatchInfo,
 		pallet_prelude::{ValueQuery, *},
 	};
 	use sp_runtime::DispatchResult;
@@ -76,14 +76,12 @@ pub mod pallet {
 		/// Block number provider
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
 
-		// type ChargeTransaction: SignedExtension<
-		// 	AccountId = Self::AccountId,
-		// 	Call = <Self as pallet::Config>::RuntimeCall,
-		// >;
-
 		/// Max. number of submits offchain worker will make in each run
 		#[pallet::constant]
 		type OcwMaxSubmits: Get<u8>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -99,13 +97,21 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn call_queue)]
-	pub(super) type CallQueue<T: Config> =
-		StorageMap<_, Blake2_128Concat, CallId, CallData<T::AccountId, BlockNumberFor<T>>>;
+	pub(super) type CallQueue<T: Config> = StorageMap<_, Blake2_128Concat, CallId, CallData<T::AccountId>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		Executed { id: CallId, result: DispatchResult },
+		Queued {
+			id: CallId,
+			who: T::AccountId,
+			fees: BalanceOf<T>,
+		},
+
+		Executed {
+			id: CallId,
+			result: DispatchResult,
+		},
 	}
 
 	#[pallet::error]
@@ -120,6 +126,10 @@ pub mod pallet {
 		Overflow,
 
 		NotImplemented,
+
+		FailedToPayFees,
+
+		FailedToDepositFees,
 
 		/// No call to dispatch was found at the top of the calls' queue
 		EmptyQueue,
@@ -137,31 +147,10 @@ pub mod pallet {
 		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResult {
 			let _who = ensure_signed(origin)?;
 
-			//TODO: figure out call weigth(it should include dispatched call's weightout call and
-			//how to refund submitter and charge origin that dispatched call.
-
 			DispatchNextId::<T>::try_mutate(|id| {
 				let call_data = CallQueue::<T>::take(*id).ok_or(Error::<T>::EmptyQueue)?;
 
 				let result = if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut &call_data.call[..]) {
-					//TODO: charge/refund fee from correct user + make correct weight function
-					let info = call.get_dispatch_info();
-					let fee = pallet_transaction_payment::Pallet::<T>::compute_fee(
-						call_data.call.len().try_into().map_err(|_| Error::<T>::Overflow)?,
-						&info,
-						NO_TIP.into(),
-					);
-
-					//TODO: handle this correclty, result contains imbalance necessary for
-					//`correct_and_deposit_fee`
-					let _ = <T as pallet_transaction_payment::Config>::OnChargeTransaction::withdraw_fee(
-						&call_data.origin,
-						&call,
-						&info,
-						fee,
-						NO_TIP.into(),
-					);
-
 					let o: OriginFor<T> = Origin::<T>::Signed(call_data.origin).into();
 					let result = call.dispatch(o);
 
@@ -170,14 +159,14 @@ pub mod pallet {
 					Err(Error::<T>::Corrupted.into())
 				};
 
-				//TODO: charge and refund fees
-
 				Self::deposit_event(Event::Executed {
 					id: *id,
 					result: result.map(|_| ()).map_err(|e| e.error),
 				});
 
 				*id = id.checked_add(One::one()).ok_or(Error::<T>::IdOverflow)?;
+
+				//TODO: refund dispatcher's fees
 				return Ok(());
 			})
 		}
@@ -188,7 +177,7 @@ pub mod pallet {
 			let _who = ensure_signed(origin)?;
 			//TODO: remove whole extrinsic, this is only for testing
 
-			Self::queue_call(as_o, call)?;
+			Self::add_to_queue(as_o, call)?;
 
 			Ok(())
 		}
@@ -196,21 +185,63 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn queue_call(origin: T::AccountId, bounded_call: BoundedCall) -> Result<(), DispatchError> {
-		ensure!(
-			<T as Config>::RuntimeCall::decode(&mut &bounded_call[..]).is_ok(),
-			Error::<T>::Corrupted
+	pub fn add_to_queue(origin: T::AccountId, bounded_call: BoundedCall) -> Result<(), DispatchError> {
+		let call = if let Ok(c) = <T as Config>::RuntimeCall::decode(&mut &bounded_call[..]) {
+			c
+		} else {
+			return Err(Error::<T>::Corrupted.into());
+		};
+
+		let mut info = call.get_dispatch_info();
+		info.weight = info.weight.saturating_add(T::WeightInfo::dispatch_top_base_weight());
+
+		let len = bounded_call
+			.len()
+			.saturating_add(Call::<T>::dispatch_top {}.encoded_size());
+		let fees = pallet_transaction_payment::Pallet::<T>::compute_fee(
+			len.try_into().map_err(|_| Error::<T>::Overflow)?,
+			&info,
+			NO_TIP.into(),
 		);
 
+		let already_withdrawn = <T as pallet_transaction_payment::Config>::OnChargeTransaction::withdraw_fee(
+			&origin,
+			&call,
+			&info,
+			fees,
+			NO_TIP.into(),
+		)
+		//TODO: log error
+		.map_err(|_| Error::<T>::FailedToPayFees)?;
+
+		<T as pallet_transaction_payment::Config>::OnChargeTransaction::correct_and_deposit_fee(
+			&origin,
+			&info,
+			&PostDispatchInfo {
+				actual_weight: Some(info.weight),
+				pays_fee: Pays::Yes,
+			},
+			fees,
+			NO_TIP.into(),
+			already_withdrawn,
+		)
+		//TODO: log error
+		.map_err(|_| Error::<T>::FailedToDepositFees)?;
+
+		let call_id = Self::get_next_call_id()?;
 		CallQueue::<T>::insert(
-			Self::get_next_call_id()?,
+			call_id,
 			CallData {
-				origin,
+				origin: origin.clone(),
 				call: bounded_call,
-				created_at: T::BlockNumberProvider::current_block_number(),
 			},
 		);
 
+		Self::deposit_event(Event::Queued {
+			id: call_id,
+			who: origin,
+			fees,
+		});
 		Ok(())
 	}
 
