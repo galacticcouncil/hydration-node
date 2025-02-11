@@ -72,7 +72,7 @@ use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler, Volume,
+	OnLiquidityChangedHandler, OnTradeHandler, RawEntry, RawOracle, Volume,
 };
 use sp_arithmetic::traits::Saturating;
 use sp_std::marker::PhantomData;
@@ -691,5 +691,33 @@ pub struct OracleWhitelist<T>(PhantomData<T>);
 impl<T: Config> Contains<(Source, AssetId, AssetId)> for OracleWhitelist<T> {
 	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
 		WhitelistedAssets::<T>::get().contains(&(t.0, (t.1, t.2)))
+	}
+}
+
+impl<T: Config> RawOracle<AssetId, Balance, BlockNumberFor<T>> for Pallet<T> {
+	type Error = OracleError;
+
+	fn get_raw_entry(
+		source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		period: OraclePeriod,
+	) -> Result<RawEntry<Balance, BlockNumberFor<T>>, Self::Error> {
+		if asset_a == asset_b{
+			return Err(OracleError::SameAsset);
+		}
+		let assets = ordered_pair(asset_a, asset_b);
+		let (entry, _) = Self::oracle((source, assets, period)).ok_or(OracleError::NotPresent)?;
+		let entry = if (asset_a, asset_b) == assets {
+			entry
+		} else {
+			entry.inverted()
+		};
+		Ok(RawEntry {
+			price: (entry.price.n, entry.price.d),
+			volume: entry.volume,
+			liquidity: entry.liquidity,
+			updated_at: entry.updated_at,
+		})
 	}
 }
