@@ -1690,6 +1690,37 @@ impl<T: Config> Pallet<T> {
 		let Some(info) = PoolMultipliers::<T>::get(&pool_id) else {
 			return Ok((pool_trade_fee, None));
 		};
-		Ok((pool_trade_fee, None))
+		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let current_block = T::BlockNumberProvider::current_block_number();
+		let target_multipliers = Self::get_target_multipliers(pool.assets.to_vec());
+		let current_multipliers = info.current.to_vec();
+
+		let deltas =
+			Self::calculate_peg_deltas(current_block.saturated_into(), current_multipliers, target_multipliers);
+		let trade_fee = Self::calculate_target_fee(current_block.saturated_into(), &deltas, pool.fee);
+		Self::move_multipliers(deltas)?;
+
+		Ok((trade_fee, Self::get_current_multipliers(pool_id)))
+	}
+
+	fn get_target_multipliers(pool_assets: Vec<T::AssetId>) -> Vec<MultiplierType> {
+		vec![]
+	}
+
+	fn calculate_peg_deltas(
+		block_no: u128,
+		current: Vec<MultiplierType>,
+		target: Vec<MultiplierType>,
+	) -> Vec<MultiplierType> {
+		vec![]
+	}
+
+	fn calculate_target_fee(block_no: u128, deltas: &[MultiplierType], current_fee: Permill) -> Permill {
+		Permill::zero()
+	}
+
+	#[require_transactional]
+	fn move_multipliers(deltas: Vec<MultiplierType>) -> DispatchResult {
+		Ok(())
 	}
 }
