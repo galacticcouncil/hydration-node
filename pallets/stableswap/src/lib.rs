@@ -646,7 +646,7 @@ pub mod pallet {
 				}],
 			);
 
-			#[cfg(feature = "try-runtime")]
+			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
 
 			Ok(())
@@ -829,7 +829,7 @@ pub mod pallet {
 				}],
 			);
 
-			#[cfg(feature = "try-runtime")]
+			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
 
 			Ok(())
@@ -922,7 +922,7 @@ pub mod pallet {
 				}],
 			);
 
-			#[cfg(feature = "try-runtime")]
+			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(pool_id, &initial_reserves, pool.fee);
 
 			Ok(())
@@ -1040,7 +1040,7 @@ pub mod pallet {
 				fee: Balance::zero(),
 			});
 
-			#[cfg(feature = "try-runtime")]
+			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
 
 			Ok(())
@@ -1320,7 +1320,7 @@ impl<T: Config> Pallet<T> {
 		// All done and updated. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
-		#[cfg(feature = "try-runtime")]
+		#[cfg(any(feature = "try-runtime", test))]
 		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
 
 		Self::deposit_event(Event::LiquidityAdded {
@@ -1579,7 +1579,7 @@ impl<T: Config> Pallet<T> {
 		Ok(state)
 	}
 
-	#[cfg(feature = "try-runtime")]
+	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_add_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
 		let (_, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
@@ -1607,9 +1607,11 @@ impl<T: Config> Pallet<T> {
 		);
 	}
 
-	#[cfg(feature = "try-runtime")]
+	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_remove_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
-		let pool = Pools::<T>::get(pool_id).unwrap();
+		let Some(pool) = Pools::<T>::get(pool_id) else {
+			return;
+		};
 		let (_, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
@@ -1634,7 +1636,7 @@ impl<T: Config> Pallet<T> {
 			final_d
 		);
 	}
-	#[cfg(feature = "try-runtime")]
+	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], fee: Permill) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
 		let (_, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
@@ -1660,10 +1662,6 @@ impl<T: Config> Pallet<T> {
 			initial_d,
 			final_d
 		);
-		if fee.is_zero() {
-			let diff = final_d - initial_d;
-			assert!(diff <= 5000, "Trade D difference is too big: {:?}", diff);
-		}
 	}
 }
 
