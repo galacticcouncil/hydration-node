@@ -391,8 +391,8 @@ fn sell_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 			KSM,
 			amount_to_sell,
 			limit,
-			BoundedVec::truncate_from(trades))
-		);
+			BoundedVec::truncate_from(trades)
+		));
 
 		//Assert
 		assert_executed_sell_trades(vec![
@@ -401,7 +401,6 @@ fn sell_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 		]);
 	});
 }
-
 
 #[test]
 fn sell_should_fail_when_called_with_non_signed_origin() {
@@ -413,7 +412,14 @@ fn sell_should_fail_when_called_with_non_signed_origin() {
 
 		//Act and Assert
 		assert_noop!(
-			Router::sell(RuntimeOrigin::none(), HDX, AUSD, amount_to_sell, limit, BoundedVec::truncate_from(trades)),
+			Router::sell(
+				RuntimeOrigin::none(),
+				HDX,
+				AUSD,
+				amount_to_sell,
+				limit,
+				BoundedVec::truncate_from(trades)
+			),
 			BadOrigin
 		);
 	});
@@ -429,7 +435,14 @@ fn sell_should_fail_when_caller_has_not_enough_balance() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Act and Assert
 		assert_noop!(
-			Router::sell(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_sell, limit, BoundedVec::truncate_from(trades)),
+			Router::sell(
+				RuntimeOrigin::signed(ALICE),
+				HDX,
+				AUSD,
+				amount_to_sell,
+				limit,
+				BoundedVec::truncate_from(trades)
+			),
 			TokenError::FundsUnavailable
 		);
 	});
@@ -446,7 +459,14 @@ fn sell_should_fail_when_min_limit_to_receive_is_not_reached() {
 
 		//Act and Assert
 		assert_noop!(
-			Router::sell(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_sell, limit, BoundedVec::truncate_from(trades)),
+			Router::sell(
+				RuntimeOrigin::signed(ALICE),
+				HDX,
+				AUSD,
+				amount_to_sell,
+				limit,
+				BoundedVec::truncate_from(trades)
+			),
 			Error::<Test>::TradingLimitReached
 		);
 	});
@@ -477,7 +497,14 @@ fn sell_should_fail_when_assets_dont_correspond_to_route() {
 
 			//Act and assert
 			assert_noop!(
-				Router::sell(RuntimeOrigin::signed(ALICE), MOVR, AUSD, amount_to_sell, limit, BoundedVec::truncate_from(trades)),
+				Router::sell(
+					RuntimeOrigin::signed(ALICE),
+					MOVR,
+					AUSD,
+					amount_to_sell,
+					limit,
+					BoundedVec::truncate_from(trades)
+				),
 				Error::<Test>::InvalidRoute
 			);
 		});
@@ -508,7 +535,14 @@ fn sell_should_fail_when_intermediare_assets_are_inconsistent() {
 
 		//Act
 		assert_noop!(
-			Router::sell(RuntimeOrigin::signed(ALICE), HDX, KSM, amount_to_sell, limit, BoundedVec::truncate_from(trades)),
+			Router::sell(
+				RuntimeOrigin::signed(ALICE),
+				HDX,
+				KSM,
+				amount_to_sell,
+				limit,
+				BoundedVec::truncate_from(trades)
+			),
 			Error::<Test>::InvalidRoute
 		);
 	});

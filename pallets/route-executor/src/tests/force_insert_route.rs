@@ -36,7 +36,11 @@ fn force_insert_should_not_work_when_called_with_non_technical_origin() {
 
 		//Act
 		assert_noop!(
-			Router::force_insert_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::force_insert_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			BadOrigin
 		);
 	});
@@ -60,6 +64,5 @@ fn force_insert_should_work_when_called_with_technical_origin() {
 		);
 	});
 }
-
 
 //TODO: add  test that it can add insuffucient asset

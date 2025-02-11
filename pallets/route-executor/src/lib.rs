@@ -33,7 +33,9 @@ use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider, Route};
+use hydradx_traits::router::{
+	inverse_route, AssetPair, RefundEdCalculator, Route, RouteProvider, RouteSpotPriceProvider,
+};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -56,7 +58,6 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -179,12 +180,7 @@ pub mod pallet {
 	/// Storing routes for asset pairs
 	#[pallet::storage]
 	#[pallet::getter(fn route)]
-	pub type Routes<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		AssetPair<T::AssetId>,
-		Route<T::AssetId>,
-	>;
+	pub type Routes<T: Config> = StorageMap<_, Blake2_128Concat, AssetPair<T::AssetId>, Route<T::AssetId>>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -742,7 +738,14 @@ impl<T: Config> Pallet<T> {
 				return TransactionOutcome::Rollback(Err(Error::<T>::MaxTradesExceeded.into()));
 			};
 
-			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route_as_bounded_vec);
+			let sell_result = Self::sell(
+				origin,
+				asset_in,
+				asset_out,
+				amount_in,
+				u128::MIN.into(),
+				route_as_bounded_vec,
+			);
 			let amount_out =
 				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 

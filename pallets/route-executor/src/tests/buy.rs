@@ -423,7 +423,14 @@ fn buy_should_fail_when_called_with_non_signed_origin() {
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::none(), HDX, AUSD, amount_to_buy, limit, BoundedVec::truncate_from(trades)),
+				Router::buy(
+					RuntimeOrigin::none(),
+					HDX,
+					AUSD,
+					amount_to_buy,
+					limit,
+					BoundedVec::truncate_from(trades)
+				),
 				sp_runtime::DispatchError::BadOrigin
 			);
 		});
@@ -443,7 +450,14 @@ fn buy_should_fail_when_max_limit_to_spend_is_reached() {
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_buy, limit, BoundedVec::truncate_from(trades)),
+				Router::buy(
+					RuntimeOrigin::signed(ALICE),
+					HDX,
+					AUSD,
+					amount_to_buy,
+					limit,
+					BoundedVec::truncate_from(trades)
+				),
 				Error::<Test>::TradingLimitReached
 			);
 		});
@@ -474,7 +488,14 @@ fn buy_should_fail_when_assets_dont_correspond_to_route() {
 
 			//Act
 			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), MOVR, AUSD, amount_to_buy, limit, BoundedVec::truncate_from(trades)),
+				Router::buy(
+					RuntimeOrigin::signed(ALICE),
+					MOVR,
+					AUSD,
+					amount_to_buy,
+					limit,
+					BoundedVec::truncate_from(trades)
+				),
 				Error::<Test>::InvalidRoute
 			);
 		});

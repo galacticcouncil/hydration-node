@@ -4103,11 +4103,11 @@ mod set_route {
 	mod when_prestored_route_is_invalid {
 		use super::*;
 		use frame_support::assert_ok;
-		use sp_core::bounded_vec;
-		use sp_runtime::BoundedVec;
 		use hydradx_runtime::EmaOracle;
 		use hydradx_traits::AssetKind;
 		use primitives::constants::chain::XYK_SOURCE;
+		use sp_core::bounded_vec;
+		use sp_runtime::BoundedVec;
 
 		#[test]
 		fn set_route_should_work_with_omnipool_xyk_and_stable_pools() {
@@ -4265,7 +4265,11 @@ mod set_route {
 
 						//We try to set back the more expensive but did not replace
 						assert_noop!(
-							Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1.try_into().unwrap()),
+							Router::set_route(
+								hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+								asset_pair,
+								route1.try_into().unwrap()
+							),
 							pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 						);
 						assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
@@ -4317,7 +4321,11 @@ mod set_route {
 
 				//Act and assert
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route1.try_into().unwrap()
+					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 				);
 			});
@@ -4503,7 +4511,11 @@ mod set_route {
 
 				//Act and assert
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route.try_into().unwrap()
+					),
 					pallet_omnipool::Error::<Runtime>::NotAllowed
 				);
 			});
@@ -4559,7 +4571,11 @@ mod set_route {
 
 				//Act and assert
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route.try_into().unwrap()
+					),
 					pallet_omnipool::Error::<Runtime>::NotAllowed
 				);
 			});
@@ -4960,7 +4976,11 @@ mod set_route {
 
 				//Act and assert
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route2.try_into().unwrap()
+					),
 					pallet_omnipool::Error::<hydradx_runtime::Runtime>::NotAllowed
 				);
 			});
@@ -5035,7 +5055,11 @@ mod set_route {
 
 				//Act and assert
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route2.try_into().unwrap()
+					),
 					pallet_omnipool::Error::<Runtime>::NotAllowed
 				);
 			});
@@ -5111,7 +5135,11 @@ mod set_route {
 
 				//Act and assert
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route2.try_into().unwrap()
+					),
 					pallet_omnipool::Error::<Runtime>::NotAllowed
 				);
 			});
@@ -5177,7 +5205,11 @@ mod set_route {
 
 				//Validation is fine so no AMM error, but since the route is not better, it results in unsuccessfull route setting
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route.try_into().unwrap()
+					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 				);
 			});
@@ -5243,7 +5275,11 @@ mod set_route {
 
 				//Validation is fine, but since the route is not better, it results in unsuccessfull route setting
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route.try_into().unwrap()
+					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 				);
 			});
@@ -5283,7 +5319,11 @@ mod set_route {
 				let asset_pair = Pair::new(HDX, DOT);
 
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1.try_into().unwrap()),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route1.try_into().unwrap()
+					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 				);
 			});

@@ -9,8 +9,8 @@ use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
 };
-use orml_traits::MultiCurrency;
 use orml_traits::parameters::sp_runtime::BoundedVec;
+use orml_traits::MultiCurrency;
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);

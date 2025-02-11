@@ -62,6 +62,7 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 use hydradx_traits::AMM;
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
@@ -70,7 +71,6 @@ use orml_traits::{
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
-use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 use pallet_staking::{
 	types::{Action, Point},
 	SigmoidPercentage,

@@ -1,9 +1,9 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::BoundedVec;
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
+use frame_support::BoundedVec;
 use scale_info::TypeInfo;
 use sp_arithmetic::FixedU128;
 use sp_std::vec;
@@ -12,7 +12,6 @@ use sp_std::vec::Vec;
 pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 
 pub type Route<AssetId> = BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>;
-
 
 pub trait RouteSpotPriceProvider<AssetId> {
 	fn spot_price_with_fee(route: &[Trade<AssetId>]) -> Option<FixedU128>;
@@ -64,7 +63,6 @@ pub trait RouteProvider<AssetId> {
 			asset_in: asset_pair.asset_in,
 			asset_out: asset_pair.asset_out,
 		}])
-
 	}
 }
 
@@ -97,7 +95,8 @@ pub struct AmountInAndOut<Balance> {
 }
 
 pub fn inverse_route<AssetId>(trades: Route<AssetId>) -> Route<AssetId> {
-	let inversed_route = trades.into_inner()
+	let inversed_route = trades
+		.into_inner()
 		.into_iter()
 		.map(|trade| Trade {
 			pool: trade.pool,
@@ -143,7 +142,11 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 
 	fn calculate_buy_trade_amounts(route: &[Trade], amount_out: Balance) -> Result<Vec<AmountInAndOut>, DispatchError>;
 
-	fn set_route(origin: Origin, asset_pair: AssetPair<AssetId>, route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>) -> DispatchResultWithPostInfo;
+	fn set_route(
+		origin: Origin,
+		asset_pair: AssetPair<AssetId>,
+		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
+	) -> DispatchResultWithPostInfo;
 
 	fn force_insert_route(
 		origin: Origin,

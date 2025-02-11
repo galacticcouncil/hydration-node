@@ -37,7 +37,11 @@ fn set_route_should_work_when_overriting_default_omnipool() {
 
 		//Act
 		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route.clone())),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route.clone())
+			),
 			Pays::No.into()
 		);
 
@@ -79,7 +83,11 @@ fn set_route_should_store_route_in_ordered_fashion() {
 
 		//Act
 		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Pays::No.into()
 		);
 
@@ -125,7 +133,11 @@ fn set_route_should_work_when_new_price_is_better() {
 		];
 
 		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Pays::No.into()
 		);
 
@@ -142,7 +154,11 @@ fn set_route_should_work_when_new_price_is_better() {
 		}];
 
 		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(cheaper_route.clone())),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(cheaper_route.clone())
+			),
 			Pays::No.into()
 		);
 
@@ -184,7 +200,11 @@ fn set_route_should_not_override_when_only_normal_sell_price_is_better() {
 		];
 
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Error::<Test>::RouteUpdateIsNotSuccessful,
 		);
 
@@ -215,7 +235,11 @@ fn set_route_should_not_override_when_only_inverse_sell_price_is_better() {
 
 		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
@@ -237,7 +261,11 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 		}];
 
 		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(cheaper_route.clone())),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(cheaper_route.clone())
+			),
 			Pays::No.into()
 		);
 
@@ -256,7 +284,11 @@ fn set_route_should_not_override_when_both_sell_and_buy_price_is_worse() {
 
 		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 
@@ -285,7 +317,10 @@ fn set_route_should_fail_when_called_by_unsigned() {
 		];
 
 		//Act and assert
-		assert_noop!(Router::set_route(RuntimeOrigin::none(), asset_pair, BoundedVec::truncate_from(route)), BadOrigin);
+		assert_noop!(
+			Router::set_route(RuntimeOrigin::none(), asset_pair, BoundedVec::truncate_from(route)),
+			BadOrigin
+		);
 	});
 }
 
@@ -309,7 +344,11 @@ fn set_route_should_fail_when_asset_pair_is_invalid_for_route() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Error::<Test>::InvalidRoute
 		);
 	});
@@ -324,7 +363,11 @@ fn set_route_should_fail_when_called_with_empty_route() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(empty_route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(empty_route)
+			),
 			Error::<Test>::InvalidRoute
 		);
 	});
@@ -351,7 +394,11 @@ fn set_route_should_fail_when_route_is_not_valid() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Error::<Test>::InvalidRoute
 		);
 
@@ -380,7 +427,11 @@ fn set_route_should_fail_when_trying_to_override_with_invalid_route() {
 
 		//Act and assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(invalid_route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(invalid_route)
+			),
 			Error::<Test>::InvalidRoute
 		);
 
@@ -402,13 +453,21 @@ fn set_route_should_not_work_when_readded_the_same() {
 
 		//Act
 		assert_ok!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route.clone())),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route.clone())
+			),
 			Pays::No.into()
 		);
 
 		//Assert
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Error::<Test>::RouteUpdateIsNotSuccessful
 		);
 	});
@@ -427,7 +486,11 @@ fn set_route_should_fail_with_insufficient_asset() {
 
 		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Error::<Test>::RouteHasNoOracle
 		);
 	});
@@ -458,7 +521,11 @@ fn set_route_should_fail_with_insufficient_asset_as_intermediare() {
 
 		//Act
 		assert_noop!(
-			Router::set_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
+			Router::set_route(
+				RuntimeOrigin::signed(ALICE),
+				asset_pair,
+				BoundedVec::truncate_from(route)
+			),
 			Error::<Test>::RouteHasNoOracle
 		);
 	});

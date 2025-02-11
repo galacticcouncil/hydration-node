@@ -747,14 +747,7 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::RouteExecutor::sell(
-					origin,
-					*asset_in,
-					*asset_out,
-					amount_to_sell,
-					amount_out,
-					route.clone(),
-				)?;
+				T::RouteExecutor::sell(origin, *asset_in, *asset_out, amount_to_sell, amount_out, route.clone())?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,

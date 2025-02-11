@@ -16,9 +16,9 @@ use xcm_emulator::TestExt;
 use hydradx_traits::router::Trade;
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use sp_core::bounded_vec::BoundedVec;
 use pallet_broadcast::types::ExecutionType;
 use pallet_broadcast::types::Fee;
+use sp_core::bounded_vec::BoundedVec;
 #[test]
 fn batch_execution_type_should_be_included_in_batch() {
 	TestNet::reset();
