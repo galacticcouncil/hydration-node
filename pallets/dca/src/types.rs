@@ -3,7 +3,6 @@ use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
-use sp_std::vec::Vec;
 
 pub type Balance = u128;
 pub type ScheduleId = u32;
