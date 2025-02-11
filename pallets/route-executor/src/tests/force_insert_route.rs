@@ -36,7 +36,7 @@ fn force_insert_should_not_work_when_called_with_non_technical_origin() {
 
 		//Act
 		assert_noop!(
-			Router::force_insert_route(RuntimeOrigin::signed(ALICE), asset_pair, route),
+			Router::force_insert_route(RuntimeOrigin::signed(ALICE), asset_pair, BoundedVec::truncate_from(route)),
 			BadOrigin
 		);
 	});
@@ -55,56 +55,11 @@ fn force_insert_should_work_when_called_with_technical_origin() {
 
 		//Act
 		assert_ok!(
-			Router::force_insert_route(RuntimeOrigin::root(), asset_pair, route),
+			Router::force_insert_route(RuntimeOrigin::root(), asset_pair, BoundedVec::truncate_from(route)),
 			Pays::No.into()
 		);
 	});
 }
 
-#[test]
-fn force_insert_should_fail_when_called_with_too_big_route() {
-	ExtBuilder::default().build().execute_with(|| {
-		//Arrange
-		let asset_pair = AssetPair::new(HDX, AUSD);
-		let route = vec![
-			Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: AUSD,
-			},
-			Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: AUSD,
-			},
-			Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: AUSD,
-			},
-			Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: AUSD,
-			},
-			Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: AUSD,
-			},
-			Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: AUSD,
-			},
-		];
-
-		//Act
-		assert_noop!(
-			Router::force_insert_route(RuntimeOrigin::root(), asset_pair, route),
-			Error::<Test>::MaxTradesExceeded
-		);
-	});
-}
 
 //TODO: add  test that it can add insuffucient asset

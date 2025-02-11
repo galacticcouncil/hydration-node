@@ -44,6 +44,8 @@ use frame_support::{
 	},
 	transactional, PalletId,
 };
+use hydradx_traits::router::Route;
+
 use frame_system::{
 	offchain::{SendTransactionTypes, SubmitTransaction},
 	pallet_prelude::{BlockNumberFor, OriginFor},
@@ -250,7 +252,7 @@ pub mod pallet {
 			_origin: OriginFor<T>,
 			otc_id: OrderId,
 			amount: Balance,
-			route: Vec<Trade<AssetIdOf<T>>>,
+			route: Route<AssetIdOf<T>>,
 		) -> DispatchResult {
 			// `is_execution` is set to `true`, so both full and partial closing of arbs is allowed.
 			// If set to `false`, an arb needs to be fully closed.
@@ -298,7 +300,7 @@ impl<T: Config> Pallet<T> {
 	pub fn settle_otc(
 		otc_id: OrderId,
 		amount: Balance,
-		route: Vec<Trade<AssetIdOf<T>>>,
+		route: Route<AssetIdOf<T>>,
 		is_execution: bool,
 	) -> DispatchResult {
 		log::debug!(
@@ -555,7 +557,7 @@ impl<T: Config> Pallet<T> {
 	fn try_find_trade_amount(
 		otc_id: OrderId,
 		otc: &Order<T::AccountId, T::AssetId>,
-		route: &[Trade<AssetIdOf<T>>],
+		route: &Route<AssetIdOf<T>>,
 	) -> Option<Balance> {
 		// use binary search to determine the correct sell amount
 		let mut sell_amt = otc.amount_in; // start by trying to fill the whole order
@@ -574,7 +576,7 @@ impl<T: Config> Pallet<T> {
 			log::debug!(
 			target: "offchain_worker::settle_otcs::binary_search",
 				"\nsell_amt: {:?}\nsell_amt_up: {:?}\nsell_amt_down: {:?}", sell_amt, sell_amt_up, sell_amt_down);
-			match Self::settle_otc(otc_id, sell_amt, route.to_vec(), false) {
+			match Self::settle_otc(otc_id, sell_amt, route.clone(), false) {
 				Ok(_) => {
 					log::debug!(
 					target: "offchain_worker::settle_otcs",
@@ -613,7 +615,7 @@ impl<T: Config> Pallet<T> {
 		}
 		// execute with the latest min value
 		if sell_amt_down != T::MinTradingLimit::get() {
-			match Self::settle_otc(otc_id, sell_amt_down, route.to_vec(), true) {
+			match Self::settle_otc(otc_id, sell_amt_down, route.clone(), true) {
 				Ok(_) => Some(sell_amt_down),
 				Err(_) => None,
 			}

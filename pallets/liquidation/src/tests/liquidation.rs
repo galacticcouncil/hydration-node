@@ -10,6 +10,7 @@ use hydradx_traits::{
 	router::{AssetPair, RouteProvider},
 };
 use orml_traits::MultiCurrency;
+use orml_traits::parameters::sp_runtime::BoundedVec;
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
@@ -120,7 +121,7 @@ fn liquidation_should_work_when_debt_and_collateral_asset_is_same() {
 			HDX, // debt
 			bob_evm_address,
 			debt_to_cover,
-			vec![],
+			BoundedVec::new(),
 		));
 
 		// Assert

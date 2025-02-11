@@ -8,6 +8,8 @@ use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
+use sp_core::bounded_vec::BoundedVec;
+
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
@@ -1445,7 +1447,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 			asset_out: altcoin,
 			amount_out: UNITS,
 			max_amount_in: u128::MAX,
-			route: swap_route,
+			route: BoundedVec::truncate_from(swap_route),
 		});
 
 		//Arrange

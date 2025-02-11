@@ -1,5 +1,5 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use hydradx_traits::router::{AssetPair, RouteProvider, Trade};
+use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
@@ -79,7 +79,7 @@ where
 		*asset_out
 	}
 
-	pub fn get_route_or_default<Provider: RouteProvider<AssetId>>(&self) -> Vec<Trade<AssetId>> {
+	pub fn get_route_or_default<Provider: RouteProvider<AssetId>>(&self) -> Route<AssetId> {
 		let route = match &self {
 			Order::Sell { route, .. } => route,
 			Order::Buy { route, .. } => route,
@@ -87,7 +87,7 @@ where
 		if route.is_empty() {
 			Provider::get_route(AssetPair::new(self.get_asset_in(), self.get_asset_out()))
 		} else {
-			route.to_vec()
+			route.clone()
 		}
 	}
 }

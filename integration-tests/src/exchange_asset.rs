@@ -156,7 +156,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			ACA,
 			UNITS,
 			0,
-			vec![],
+			BoundedVec::new(),
 		));
 
 		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();

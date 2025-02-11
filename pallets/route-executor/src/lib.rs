@@ -33,7 +33,7 @@ use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
+use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider, Route};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -57,7 +57,6 @@ pub use weights::WeightInfo;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub const MAX_NUMBER_OF_TRADES: u32 = 5;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -184,7 +183,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		AssetPair<T::AssetId>,
-		BoundedVec<Trade<T::AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
+		Route<T::AssetId>,
 	>;
 
 	#[pallet::call]
@@ -211,7 +210,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
 			min_amount_out: T::Balance,
-			route: Vec<Trade<T::AssetId>>,
+			route: Route<T::AssetId>,
 		) -> DispatchResult {
 			Self::do_sell(origin, asset_in, asset_out, amount_in, min_amount_out, route)
 		}
@@ -238,7 +237,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_out: T::Balance,
 			max_amount_in: T::Balance,
-			route: Vec<Trade<T::AssetId>>,
+			route: Route<T::AssetId>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
@@ -335,7 +334,7 @@ pub mod pallet {
 		pub fn set_route(
 			origin: OriginFor<T>,
 			mut asset_pair: AssetPair<T::AssetId>,
-			mut new_route: Vec<Trade<T::AssetId>>,
+			mut new_route: Route<T::AssetId>,
 		) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(new_route.len())?;
@@ -349,13 +348,13 @@ pub mod pallet {
 
 			let existing_route = Self::get_route(asset_pair);
 
-			match Self::validate_route(&existing_route) {
+			match Self::validate_route(existing_route.clone()) {
 				Ok((reference_amount_in, reference_amount_in_for_inverse)) => {
-					let new_route_validation = Self::validate_sell(new_route.clone(), reference_amount_in);
+					let new_route_validation = Self::validate_sell(new_route.clone().to_vec(), reference_amount_in);
 
-					let inverse_new_route = inverse_route(new_route.to_vec());
+					let inverse_new_route = inverse_route(new_route.clone());
 					let inverse_new_route_validation =
-						Self::validate_sell(inverse_new_route.clone(), reference_amount_in_for_inverse);
+						Self::validate_sell(inverse_new_route.clone().to_vec(), reference_amount_in_for_inverse);
 
 					match (new_route_validation, inverse_new_route_validation) {
 						(Ok(_), Ok(_)) => (),
@@ -363,7 +362,7 @@ pub mod pallet {
 							Self::validate_sell(new_route.to_vec(), amount_out).map(|_| ())?;
 						}
 						(Ok(amount_out), Err(_)) => {
-							Self::validate_sell(inverse_new_route.clone(), amount_out).map(|_| ())?;
+							Self::validate_sell(inverse_new_route.to_vec(), amount_out).map(|_| ())?;
 						}
 						(Err(err), Err(_)) => return Err(err.into()),
 					}
@@ -373,7 +372,7 @@ pub mod pallet {
 					let amount_out_for_new_route =
 						Self::calculate_expected_amount_out(&new_route, reference_amount_in)?;
 
-					let inverse_existing_route = inverse_route(existing_route.to_vec());
+					let inverse_existing_route = inverse_route(existing_route);
 					let amount_out_for_existing_inversed_route =
 						Self::calculate_expected_amount_out(&inverse_existing_route, reference_amount_in_for_inverse)?;
 					let amount_out_for_new_inversed_route =
@@ -386,7 +385,7 @@ pub mod pallet {
 					}
 				}
 				Err(_) => {
-					Self::validate_route(&new_route)?;
+					Self::validate_route(new_route.clone())?;
 
 					return Self::insert_route(asset_pair, new_route);
 				}
@@ -415,7 +414,7 @@ pub mod pallet {
 		pub fn force_insert_route(
 			origin: OriginFor<T>,
 			mut asset_pair: AssetPair<T::AssetId>,
-			mut new_route: Vec<Trade<T::AssetId>>,
+			mut new_route: Route<T::AssetId>,
 		) -> DispatchResultWithPostInfo {
 			T::ForceInsertOrigin::ensure_origin(origin)?;
 
@@ -449,7 +448,7 @@ pub mod pallet {
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
 			min_amount_out: T::Balance,
-			route: Vec<Trade<T::AssetId>>,
+			route: Route<T::AssetId>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			let amount_in = T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
@@ -471,7 +470,7 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount_in: T::Balance,
 		min_amount_out: T::Balance,
-		route: Vec<Trade<T::AssetId>>,
+		route: Route<T::AssetId>,
 	) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin.clone())?;
 
@@ -548,7 +547,7 @@ impl<T: Config> Pallet<T> {
 
 	fn ensure_route_size(route_length: usize) -> Result<(), DispatchError> {
 		ensure!(
-			(route_length as u32) <= MAX_NUMBER_OF_TRADES,
+			(route_length as u32) <= hydradx_traits::router::MAX_NUMBER_OF_TRADES,
 			Error::<T>::MaxTradesExceeded
 		);
 
@@ -631,9 +630,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn get_route_or_default(
-		route: Vec<Trade<T::AssetId>>,
+		route: Route<T::AssetId>,
 		asset_pair: AssetPair<T::AssetId>,
-	) -> Result<Vec<Trade<T::AssetId>>, DispatchError> {
+	) -> Result<Route<T::AssetId>, DispatchError> {
 		let route = if !route.is_empty() {
 			route
 		} else {
@@ -677,21 +676,21 @@ impl<T: Config> Pallet<T> {
 		false
 	}
 
-	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<(T::Balance, T::Balance), DispatchError> {
-		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
+	fn validate_route(route: Route<T::AssetId>) -> Result<(T::Balance, T::Balance), DispatchError> {
+		let reference_amount_in = Self::calculate_reference_amount_in(&route.to_vec())?;
 		let route_validation = Self::validate_sell(route.to_vec(), reference_amount_in);
 
-		let inverse_route = inverse_route(route.to_vec());
+		let inverse_route = inverse_route(route.clone());
 		let reference_amount_in_for_inverse_route = Self::calculate_reference_amount_in(&inverse_route)?;
 		let inverse_route_validation =
-			Self::validate_sell(inverse_route.clone(), reference_amount_in_for_inverse_route);
+			Self::validate_sell(inverse_route.clone().to_vec(), reference_amount_in_for_inverse_route);
 
 		match (route_validation, inverse_route_validation) {
 			(Ok(_), Ok(_)) => Ok((reference_amount_in, reference_amount_in_for_inverse_route)),
 			(Err(_), Ok(amount_out)) => Self::validate_sell(route.to_vec(), amount_out)
 				.map(|_| (amount_out, reference_amount_in_for_inverse_route)),
 			(Ok(amount_out), Err(_)) => {
-				Self::validate_sell(inverse_route, amount_out).map(|_| (reference_amount_in, amount_out))
+				Self::validate_sell(inverse_route.to_vec(), amount_out).map(|_| (reference_amount_in, amount_out))
 			}
 			(Err(err), Err(_)) => Err(err),
 		}
@@ -739,7 +738,11 @@ impl<T: Config> Pallet<T> {
 			);
 			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
 
-			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
+			let Ok(route_as_bounded_vec) = route.try_into() else {
+				return TransactionOutcome::Rollback(Err(Error::<T>::MaxTradesExceeded.into()));
+			};
+
+			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route_as_bounded_vec);
 			let amount_out =
 				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
 
@@ -805,11 +808,8 @@ impl<T: Config> Pallet<T> {
 		Ok(amount_in_and_outs)
 	}
 
-	fn insert_route(asset_pair: AssetPair<T::AssetId>, route: Vec<Trade<T::AssetId>>) -> DispatchResultWithPostInfo {
-		let route_as_bounded_vec: BoundedVec<Trade<T::AssetId>, sp_runtime::traits::ConstU32<MAX_NUMBER_OF_TRADES>> =
-			route.try_into().map_err(|_| Error::<T>::MaxTradesExceeded)?;
-
-		Routes::<T>::insert(asset_pair, route_as_bounded_vec);
+	fn insert_route(asset_pair: AssetPair<T::AssetId>, route: Route<T::AssetId>) -> DispatchResultWithPostInfo {
+		Routes::<T>::insert(asset_pair, route);
 
 		Self::deposit_event(Event::RouteUpdated {
 			asset_ids: asset_pair.to_ordered_vec(),
@@ -828,7 +828,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		asset_out: T::AssetId,
 		amount_in: T::Balance,
 		min_amount_out: T::Balance,
-		route: Vec<Trade<T::AssetId>>,
+		route: Route<T::AssetId>,
 	) -> DispatchResult {
 		Pallet::<T>::sell(origin, asset_in, asset_out, amount_in, min_amount_out, route)
 	}
@@ -838,7 +838,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		min_amount_out: T::Balance,
-		route: Vec<Trade<T::AssetId>>,
+		route: Route<T::AssetId>,
 	) -> DispatchResult {
 		Pallet::<T>::sell_all(origin, asset_in, asset_out, min_amount_out, route)
 	}
@@ -849,7 +849,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		asset_out: T::AssetId,
 		amount_out: T::Balance,
 		max_amount_in: T::Balance,
-		route: Vec<Trade<T::AssetId>>,
+		route: Route<T::AssetId>,
 	) -> DispatchResult {
 		Pallet::<T>::buy(origin, asset_in, asset_out, amount_out, max_amount_in, route)
 	}
@@ -871,7 +871,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	fn set_route(
 		origin: T::RuntimeOrigin,
 		asset_pair: AssetPair<T::AssetId>,
-		route: Vec<Trade<T::AssetId>>,
+		route: Route<T::AssetId>,
 	) -> DispatchResultWithPostInfo {
 		Pallet::<T>::set_route(origin, asset_pair, route)
 	}
@@ -879,7 +879,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	fn force_insert_route(
 		origin: T::RuntimeOrigin,
 		asset_pair: AssetPair<T::AssetId>,
-		route: Vec<Trade<T::AssetId>>,
+		route: Route<T::AssetId>,
 	) -> DispatchResultWithPostInfo {
 		Pallet::<T>::force_insert_route(origin, asset_pair, route)
 	}
@@ -895,7 +895,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		_asset_out: T::AssetId,
 		_amount_in: T::Balance,
 		_min_amount_out: T::Balance,
-		_route: Vec<Trade<T::AssetId>>,
+		_route: Route<T::AssetId>,
 	) -> DispatchResult {
 		Ok(())
 	}
@@ -905,7 +905,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		_asset_in: T::AssetId,
 		_asset_out: T::AssetId,
 		_min_amount_out: T::Balance,
-		_route: Vec<Trade<T::AssetId>>,
+		_route: Route<T::AssetId>,
 	) -> sp_runtime::DispatchResult {
 		Ok(())
 	}
@@ -916,7 +916,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 		_asset_out: T::AssetId,
 		_amount_out: T::Balance,
 		_max_amount_in: T::Balance,
-		_route: Vec<Trade<T::AssetId>>,
+		_route: Route<T::AssetId>,
 	) -> DispatchResult {
 		Ok(())
 	}
@@ -944,7 +944,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	fn set_route(
 		_origin: T::RuntimeOrigin,
 		_asset_pair: AssetPair<T::AssetId>,
-		_route: Vec<Trade<T::AssetId>>,
+		_route: Route<T::AssetId>,
 	) -> DispatchResultWithPostInfo {
 		Ok(Pays::Yes.into())
 	}
@@ -952,7 +952,7 @@ impl<T: Config> RouterT<T::RuntimeOrigin, T::AssetId, T::Balance, Trade<T::Asset
 	fn force_insert_route(
 		_origin: T::RuntimeOrigin,
 		_asset_pair: AssetPair<T::AssetId>,
-		_route: Vec<Trade<T::AssetId>>,
+		_route: Route<T::AssetId>,
 	) -> DispatchResultWithPostInfo {
 		Ok(Pays::Yes.into())
 	}
@@ -965,12 +965,12 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for DummyRouter<T> {
 }
 
 impl<T: Config> RouteProvider<T::AssetId> for DummyRouter<T> {
-	fn get_route(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
-		vec![Trade {
+	fn get_route(asset_pair: AssetPair<T::AssetId>) -> Route<T::AssetId> {
+		BoundedVec::truncate_from(vec![Trade {
 			pool: T::DefaultRoutePoolType::get(),
 			asset_in: asset_pair.asset_in,
 			asset_out: asset_pair.asset_out,
-		}]
+		}])
 	}
 }
 
@@ -987,25 +987,27 @@ macro_rules! handle_execution_error {
 }
 
 impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
-	fn get_route(asset_pair: AssetPair<T::AssetId>) -> Vec<Trade<T::AssetId>> {
+	fn get_route(asset_pair: AssetPair<T::AssetId>) -> Route<T::AssetId> {
 		let onchain_route = Routes::<T>::get(asset_pair.ordered_pair());
 
-		let default_route = vec![Trade {
+		let default_route = BoundedVec::truncate_from(vec![Trade {
 			pool: T::DefaultRoutePoolType::get(),
 			asset_in: asset_pair.asset_in,
 			asset_out: asset_pair.asset_out,
-		}];
+		}]);
 
-		match onchain_route {
+		let route = match onchain_route {
 			Some(route) => {
 				if asset_pair.is_ordered() {
-					route.to_vec()
+					route
 				} else {
-					inverse_route(route.to_vec())
+					inverse_route(route)
 				}
 			}
 			None => default_route,
-		}
+		};
+
+		route
 	}
 }
 
