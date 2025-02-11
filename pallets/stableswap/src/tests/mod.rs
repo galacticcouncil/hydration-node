@@ -29,7 +29,7 @@ pub(crate) fn get_share_price(pool_id: AssetId, asset_idx: usize) -> FixedU128 {
 	let balances = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
 	let amp = Pallet::<Test>::get_amplification(&pool);
 	let issuance = Tokens::total_issuance(pool_id);
-	let asset_multiplier = Pallet::<Test>::get_pool_asset_multipliers(pool_id);
+	let (_, asset_multiplier) = Pallet::<Test>::get_pool_asset_multipliers(pool_id, pool.fee);
 	let share_price = hydra_dx_math::stableswap::calculate_share_price::<128u8>(
 		&balances,
 		amp,
@@ -48,7 +48,7 @@ pub(crate) fn asset_spot_price(pool_id: AssetId, asset_id: AssetId) -> FixedU128
 	let balances = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
 	let amp = Pallet::<Test>::get_amplification(&pool);
 	let asset_idx = pool.find_asset(asset_id).unwrap();
-	let asset_multiplier = Pallet::<Test>::get_pool_asset_multipliers(pool_id);
+	let (_, asset_multiplier) = Pallet::<Test>::get_pool_asset_multipliers(pool_id, pool.fee);
 	let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp, asset_multiplier).unwrap();
 	hydra_dx_math::stableswap::calculate_spot_price_between_two_stable_assets(&balances, amp, d, 0, asset_idx, None)
 		.unwrap()

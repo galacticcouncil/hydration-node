@@ -601,7 +601,7 @@ pub mod pallet {
 			);
 
 			let amplification = Self::get_amplification(&pool);
-			let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+			let (trade_fee, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 
 			//Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
@@ -610,7 +610,7 @@ pub mod pallet {
 				asset_idx,
 				share_issuance,
 				amplification,
-				pool.fee,
+				trade_fee,
 				asset_multipliers,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -694,7 +694,7 @@ pub mod pallet {
 
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
-			let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+			let (trade_fee, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 
 			// Calculate how much shares user needs to provide to receive `amount` of asset.
 			let (shares, fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -703,7 +703,7 @@ pub mod pallet {
 				amount,
 				amplification,
 				share_issuance,
-				pool.fee,
+				trade_fee,
 				asset_multipliers,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -1092,13 +1092,14 @@ impl<T: Config> Pallet<T> {
 		PalletId(*b"stblpool").into_account_truncating()
 	}
 
-	fn get_pool_asset_multipliers(pool_id: T::AssetId) -> Option<Vec<MultiplierType>> {
-		let multipliers = PoolMultipliers::<T>::get(&pool_id);
-		let Some(mpls) = multipliers else {
-			return None;
+	fn get_pool_asset_multipliers(
+		pool_id: T::AssetId,
+		pool_trade_fee: Permill,
+	) -> (Permill, Option<Vec<MultiplierType>>) {
+		let Some(info) = PoolMultipliers::<T>::get(&pool_id) else {
+			return (pool_trade_fee, None);
 		};
-		//TODO: when clarified, update to target
-		Some(mpls.current.to_vec())
+		Self::update_multipliers(&pool_id, &info, pool_trade_fee)
 	}
 
 	/// Calculates out amount given in amount.
@@ -1126,14 +1127,14 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let amplification = Self::get_amplification(&pool);
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (trade_fee, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			index_in,
 			index_out,
 			amount_in,
 			amplification,
-			pool.fee,
+			trade_fee,
 			asset_multipliers,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
@@ -1164,14 +1165,14 @@ impl<T: Config> Pallet<T> {
 		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = Self::get_amplification(&pool);
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (trade_fee, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			index_in,
 			index_out,
 			amount_out,
 			amplification,
-			pool.fee,
+			trade_fee,
 			asset_multipliers,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
@@ -1291,13 +1292,13 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (trade_fee, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		let (share_amount, fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves,
 			amplification,
 			share_issuance,
-			pool.fee,
+			trade_fee,
 			asset_multipliers,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
@@ -1379,14 +1380,14 @@ impl<T: Config> Pallet<T> {
 			ensure!(!reserve.amount.is_zero(), Error::<T>::InvalidInitialLiquidity);
 		}
 
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (trade_fee, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		let (amount_in, fee) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			shares,
 			asset_idx,
 			share_issuance,
 			amplification,
-			pool.fee,
+			trade_fee,
 			asset_multipliers,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
@@ -1500,13 +1501,13 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (trade_fee, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		let (share_amount, _fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves[..],
 			amplification,
 			share_issuance,
-			pool.fee,
+			trade_fee,
 			asset_multipliers,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
@@ -1550,7 +1551,7 @@ impl<T: Config> Pallet<T> {
 		let updated_reserves = pool
 			.reserves_with_decimals::<T>(&pool_account)
 			.ok_or(Error::<T>::UnknownDecimals)?;
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (_, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
 			&updated_reserves,
 			amplification,
@@ -1581,7 +1582,7 @@ impl<T: Config> Pallet<T> {
 	#[cfg(feature = "try-runtime")]
 	fn ensure_add_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (_, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
@@ -1609,7 +1610,7 @@ impl<T: Config> Pallet<T> {
 	#[cfg(feature = "try-runtime")]
 	fn ensure_remove_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (_, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
@@ -1636,7 +1637,7 @@ impl<T: Config> Pallet<T> {
 	#[cfg(feature = "try-runtime")]
 	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], fee: Permill) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
-		let asset_multipliers = Self::get_pool_asset_multipliers(pool_id);
+		let (_, asset_multipliers) = Self::get_pool_asset_multipliers(pool_id, pool.fee);
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
@@ -1681,5 +1682,18 @@ impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pa
 			.collect::<Vec<_>>();
 
 		Self::do_add_liquidity(&who, pool_id, &asset_amounts)
+	}
+}
+
+// Peg/Multiplier support
+impl<T: Config> Pallet<T> {
+	fn update_multipliers(
+		pool_id: &T::AssetId,
+		current: &PoolMultiplierInfo,
+		trade_fee: Permill,
+	) -> (Permill, Option<Vec<MultiplierType>>) {
+		//TODO: when clarified, update to target
+
+		(trade_fee, None)
 	}
 }

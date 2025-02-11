@@ -194,6 +194,7 @@ impl Config for Test {
 	type Hooks = DummyHookAdapter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DummyRegistry;
+	type MultiplierOracle = MOracle;
 }
 
 pub struct InitialLiquidity {
@@ -327,7 +328,7 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect};
+use hydradx_traits::{AccountIdFor, Inspect, OraclePeriod, RawEntry, RawOracle, Source};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
@@ -477,4 +478,19 @@ pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
 		.rev()
 		.map(|e| e.event)
 		.collect()
+}
+
+pub struct MOracle;
+
+impl RawOracle<AssetId, Balance, u64> for MOracle {
+	type Error = ();
+
+	fn get_raw_entry(
+		source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		period: OraclePeriod,
+	) -> Result<RawEntry<Balance, u64>, Self::Error> {
+		todo!()
+	}
 }
