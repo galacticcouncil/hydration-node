@@ -3,7 +3,7 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, Pallet, MAX_ASSETS_IN_POOL};
+use crate::{Config, Pallet, PoolPeg, MAX_ASSETS_IN_POOL};
 use sp_runtime::Permill;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
@@ -13,8 +13,9 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
+use hydra_dx_math::ratio::Ratio;
 use hydra_dx_math::stableswap::types::AssetReserve;
-use hydradx_traits::Source;
+use hydradx_traits::{OraclePeriod, Source};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
@@ -154,7 +155,7 @@ pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum PegSource {
 	Value(PegType),
-	Oracle(Source),
+	Oracle((Source, OraclePeriod)),
 }
 
 pub type BoundedPegSources = BoundedVec<PegSource, ConstU32<MAX_ASSETS_IN_POOL>>;
@@ -164,4 +165,30 @@ pub struct PoolPegInfo {
 	pub source: BoundedPegSources,
 	pub max_target_update: PegType,
 	pub current: BoundedPegs,
+}
+
+impl PoolPegInfo {
+	pub fn with_new_pegs(self, pegs: &[PegType]) -> Self {
+		PoolPegInfo {
+			source: self.source,
+			max_target_update: self.max_target_update,
+			current: BoundedPegs::truncate_from(pegs.to_vec()),
+		}
+	}
+}
+
+// Helper type for cleaner calculation
+#[derive(Clone, Copy)]
+pub(crate) struct PegDelta {
+	pub(crate) delta: Ratio,
+	pub(crate) neg: bool,
+}
+
+impl From<(Ratio, bool)> for PegDelta {
+	fn from(value: (Ratio, bool)) -> Self {
+		Self {
+			delta: value.0,
+			neg: value.1,
+		}
+	}
 }

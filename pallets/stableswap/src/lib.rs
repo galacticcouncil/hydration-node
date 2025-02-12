@@ -58,9 +58,10 @@ use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydradx_traits::{oracle::RawOracle, registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
+use num_traits::ops::saturating::{SaturatingAdd, SaturatingMul, SaturatingSub};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
-use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
+use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion, Saturating};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
@@ -69,7 +70,10 @@ mod trade_execution;
 pub mod types;
 pub mod weights;
 
-use crate::types::{Balance, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability};
+use crate::types::{
+	Balance, BoundedPegs, PegDelta, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
+};
+use hydra_dx_math::ratio::Ratio;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
@@ -339,6 +343,8 @@ pub mod pallet {
 
 		/// List of provided pegs is incorrect.
 		IncorrectInitialPegs,
+
+		MissingTargetPegOracle,
 	}
 
 	#[pallet::call]
@@ -1687,30 +1693,115 @@ impl<T: Config> Pallet<T> {
 			return Ok((pool.fee, None));
 		};
 		let current_block = T::BlockNumberProvider::current_block_number();
-		let target_pegs = Self::get_target_pegs(pool.assets.to_vec());
-		let current_pegs = info.current.to_vec();
+		let target_pegs = Self::get_target_pegs(&pool.assets, &info.source)?;
 
-		let deltas = Self::calculate_peg_deltas(current_block.saturated_into(), current_pegs, target_pegs);
-		let trade_fee = Self::calculate_target_fee(current_block.saturated_into(), &deltas, pool.fee);
-		Self::move_pegs(deltas)?;
+		let deltas = Self::calculate_peg_deltas(
+			current_block.saturated_into(),
+			&info.current,
+			&target_pegs,
+			info.max_target_update,
+		);
+		let trade_fee = Self::calculate_target_fee(current_block.saturated_into(), &deltas, pool.fee, is_swap);
+		let new_pegs = Self::calculate_new_pegs(&info.current, &deltas);
+
+		// Store new pegs
+		let new_info = info.with_new_pegs(&new_pegs);
+		PoolPeg::<T>::insert(pool_id, new_info);
 
 		Ok((trade_fee, Self::get_current_pegs(pool_id)))
 	}
 
-	fn get_target_pegs(pool_assets: Vec<T::AssetId>) -> Vec<PegType> {
-		vec![]
+	fn get_target_pegs(pool_assets: &[T::AssetId], peg_sources: &[PegSource]) -> Result<Vec<PegType>, DispatchError> {
+		debug_assert_eq!(
+			pool_assets.len(),
+			peg_sources.len(),
+			"Pool assets and peg sources must have the same length"
+		);
+
+		// Just to be defensive enough
+		if pool_assets.is_empty() {
+			// Should never happen
+			debug_assert!(false, "Missing pool info");
+			return Err(Error::<T>::IncorrectAssets.into());
+		}
+
+		let first_asset = pool_assets[0];
+
+		let mut r = vec![];
+		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
+			let p = match source {
+				PegSource::Value(peg) => peg.clone(),
+				PegSource::Oracle((source, period)) => {
+					//TODO: what if error - do we fail completely ?
+					let entry = T::TargetPegOracle::get_raw_entry(*source, first_asset, *asset_id, *period)
+						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
+					(entry.price.0, entry.price.1)
+				}
+			};
+			r.push(p);
+		}
+		Ok(r)
 	}
 
-	fn calculate_peg_deltas(block_no: u128, current: Vec<PegType>, target: Vec<PegType>) -> Vec<PegType> {
-		vec![]
+	fn calculate_peg_deltas(
+		block_no: u128,
+		current: &[PegType],
+		target: &[PegType],
+		max_move: PegType,
+	) -> Vec<PegDelta> {
+		debug_assert_eq!(
+			current.len(),
+			target.len(),
+			"Current and target pegs must have the same length"
+		);
+
+		let mut r = vec![];
+		for (current, target) in current.iter().copied().zip(target.iter().copied()) {
+			let c: Ratio = current.into();
+			let t: Ratio = target.into();
+			let (delta, delta_neg) = if t > c {
+				(t.saturating_sub(&c), false)
+			} else {
+				(c.saturating_sub(&t), true)
+			};
+
+			//Ensure max peg target update
+			let b: Ratio = block_no.into();
+			let max_move_ratio: Ratio = max_move.into();
+			let max_peg_move = max_move_ratio.saturating_mul(&c).saturating_mul(&b);
+
+			if delta <= max_peg_move {
+				r.push((delta, delta_neg).into());
+			} else if c < t {
+				r.push((max_peg_move, false).into());
+			} else {
+				r.push((max_peg_move, true).into());
+			}
+		}
+		r
 	}
 
-	fn calculate_target_fee(block_no: u128, deltas: &[PegType], current_fee: Permill) -> Permill {
-		Permill::zero()
+	fn calculate_target_fee(block_no: u128, deltas: &[PegDelta], current_fee: Permill, is_swap: bool) -> Permill {
+		current_fee
 	}
 
-	#[require_transactional]
-	fn move_pegs(deltas: Vec<PegType>) -> DispatchResult {
-		Ok(())
+	fn calculate_new_pegs(current: &[PegType], deltas: &[PegDelta]) -> Vec<PegType> {
+		debug_assert_eq!(
+			current.len(),
+			deltas.len(),
+			"Current and deltas must have the same length"
+		);
+		let mut r = vec![];
+		for (current, delta) in current.iter().copied().zip(deltas.iter().copied()) {
+			let c: Ratio = current.into();
+			let d: Ratio = delta.delta;
+			let new_peg = if delta.neg {
+				c.saturating_sub(&d)
+			} else {
+				c.saturating_add(&d)
+			};
+			r.push(new_peg.into());
+		}
+		r
 	}
 }

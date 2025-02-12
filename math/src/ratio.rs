@@ -1,9 +1,10 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::cmp::{Ord, Ordering, PartialOrd};
-use num_traits::Zero;
+use num_traits::{SaturatingAdd, SaturatingMul, SaturatingSub, Zero};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::helpers_128bit;
+use sp_std::ops::{Add, Mul, Sub};
 
 /// A rational number represented by a `n`umerator and `d`enominator.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Encode, Decode, Serialize, Deserialize, TypeInfo, MaxEncodedLen)]
@@ -112,6 +113,48 @@ impl Ord for Ratio {
 			let other_n = helpers_128bit::to_big_uint(other.n) * helpers_128bit::to_big_uint(self.d);
 			self_n.cmp(&other_n)
 		}
+	}
+}
+
+impl Add for Ratio {
+	type Output = Self;
+
+	fn add(self, rhs: Self) -> Self::Output {
+		todo!()
+	}
+}
+
+impl SaturatingAdd for Ratio {
+	fn saturating_add(&self, v: &Self) -> Self {
+		todo!()
+	}
+}
+
+impl Sub for Ratio {
+	type Output = Self;
+
+	fn sub(self, rhs: Self) -> Self::Output {
+		todo!()
+	}
+}
+
+impl SaturatingSub for Ratio {
+	fn saturating_sub(&self, v: &Self) -> Self {
+		todo!()
+	}
+}
+
+impl Mul for Ratio {
+	type Output = Self;
+
+	fn mul(self, rhs: Self) -> Self::Output {
+		todo!()
+	}
+}
+
+impl SaturatingMul for Ratio {
+	fn saturating_mul(&self, v: &Self) -> Self {
+		todo!()
 	}
 }
 
