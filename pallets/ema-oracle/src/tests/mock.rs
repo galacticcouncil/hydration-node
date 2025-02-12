@@ -31,7 +31,11 @@ use frame_system::EnsureRoot;
 use hydradx_traits::OraclePeriod::{self, *};
 use hydradx_traits::Source;
 use hydradx_traits::{Liquidity, Volume};
+use polkadot_xcm::latest::{Junctions, Location};
+use polkadot_xcm::prelude::{GeneralIndex, Here, Parachain};
 use sp_core::H256;
+use sp_runtime::traits::Convert;
+use std::sync::Arc;
 
 use crate::types::{AssetId, Balance, Price};
 pub type BlockNumber = u64;
@@ -145,6 +149,25 @@ impl Config for Test {
 	type BenchmarkHelper = ();
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
+	type CurrencyIdConvert = CurrencyIdConvertMock;
+}
+
+pub struct CurrencyIdConvertMock;
+
+impl Convert<Location, Option<AssetId>> for CurrencyIdConvertMock {
+	fn convert(location: Location) -> Option<AssetId> {
+		let Location { parents, interior } = location.clone();
+
+		match interior {
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(0u32.into())) => Some(0),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(1u32.into())) => Some(1),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(2u32.into())) => Some(2),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(3u32.into())) => Some(4),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(4u32.into())) => Some(4),
+			Junctions::Here => Some(5),
+			_ => None,
+		}
+	}
 }
 
 pub type InitialDataEntry = (Source, (AssetId, AssetId), Price, Liquidity<Balance>);

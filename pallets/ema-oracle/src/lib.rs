@@ -71,11 +71,14 @@ use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
 use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
 	OnLiquidityChangedHandler, OnTradeHandler, Volume,
 };
+use polkadot_xcm::opaque::lts::Location;
 use sp_arithmetic::traits::Saturating;
+use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
 
@@ -93,6 +96,8 @@ mod benchmarking;
 
 /// The maximum number of periods that could have corresponding oracles.
 pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
+
+pub const BITFROST_SOURCE: [u8; 8] = *b"bitfrost";
 
 const LOG_TARGET: &str = "runtime::ema-oracle";
 
@@ -142,6 +147,8 @@ pub mod pallet {
 		/// Whitelist determining what oracles are tracked by the pallet.
 		type OracleWhitelist: Contains<(Source, AssetId, AssetId)>;
 
+		type CurrencyIdConvert: sp_runtime::traits::Convert<Location, Option<AssetId>>;
+
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]
 		type MaxUniqueEntries: Get<u32>;
@@ -155,6 +162,10 @@ pub mod pallet {
 		TooManyUniqueEntries,
 		OnTradeValueZero,
 		OracleNotFound,
+		/// The version of the `Versioned` value used is not able to be interpreted.
+		BadVersion, //TODO: check if we can use the same error from pallet xcm
+		/// Asset not found
+		AssetNotFound,
 	}
 
 	#[pallet::event]
@@ -295,15 +306,39 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle())] //TODO: rebenchmark
 		pub fn update_bifrost_oracle(
 			origin: OriginFor<T>,
 			//NOTE: these must be boxed becasue of https://github.com/paritytech/polkadot-sdk/blob/6875d36b2dba537f3254aad3db76ac7aa656b7ab/substrate/frame/utility/src/lib.rs#L150
-			_asset_a: Box<polkadot_xcm::VersionedLocation>,
-			_asset_b: Box<polkadot_xcm::VersionedLocation>,
-			_price: (Balance, Balance),
+			asset_a: Box<polkadot_xcm::VersionedLocation>,
+			asset_b: Box<polkadot_xcm::VersionedLocation>,
+			price: (Balance, Balance),
 		) -> DispatchResult {
+			//TODO: add integration test due to mocked out currencyidcovnert
 			T::BifrostOrigin::ensure_origin(origin)?;
+
+			let asset_a_loc = Location::try_from(*asset_a).map_err(|()| Error::<T>::BadVersion)?;
+			let asset_b_loc = Location::try_from(*asset_b).map_err(|()| Error::<T>::BadVersion)?;
+
+			let asset_a = T::CurrencyIdConvert::convert(asset_a_loc).ok_or(Error::<T>::AssetNotFound)?;
+			let asset_b = T::CurrencyIdConvert::convert(asset_b_loc).ok_or(Error::<T>::AssetNotFound)?;
+
+			let entry: OracleEntry<BlockNumberFor<T>> = {
+				let e = OracleEntry::new(
+					EmaPrice::new(price.0, price.1),
+					Volume::default(),
+					Liquidity::default(),
+					T::BlockNumberProvider::current_block_number(),
+				);
+				if ordered_pair(asset_a, asset_b) == (asset_a, asset_b) {
+					e
+				} else {
+					e.inverted()
+				}
+			};
+
+			Self::on_entry(BITFROST_SOURCE, (asset_a, asset_b), entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
+
 			Ok(())
 		}
 	}
@@ -478,6 +513,7 @@ impl<T: Config> Pallet<T> {
 			(entry, init)
 		})
 	}
+
 }
 
 /// A callback handler for trading and liquidity activity that schedules oracle updates.
