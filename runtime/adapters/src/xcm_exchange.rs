@@ -4,8 +4,8 @@ use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
+use sp_runtime::BoundedVec;
 use sp_std::marker::PhantomData;
-use sp_std::vec;
 use xcm_executor::traits::AssetExchange;
 use xcm_executor::AssetsInHolding;
 
@@ -63,7 +63,7 @@ where
 		let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else {
 			return Err(give);
 		};
-		let use_onchain_route = vec![];
+		let use_onchain_route = BoundedVec::new();
 
 		if pallet_broadcast::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange).is_err() {
 			log::error!(target: "xcm::exchange-asset", "Failed to add to context.");

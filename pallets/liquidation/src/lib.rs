@@ -37,6 +37,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
+use hydradx_traits::router::Route;
 use hydradx_traits::{
 	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
@@ -183,7 +184,7 @@ pub mod pallet {
 			debt_asset: AssetId,
 			user: EvmAddress,
 			debt_to_cover: Balance,
-			route: Vec<Trade<AssetId>>,
+			route: Route<AssetId>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let pallet_acc = Self::account_id();

@@ -518,7 +518,7 @@ mod omnipool {
 				DAI,
 				amount_out,
 				Balance::MAX,
-				trade
+				BoundedVec::truncate_from(trade)
 			));
 
 			//Assert
@@ -606,7 +606,7 @@ mod omnipool {
 				DAI,
 				amount_out,
 				Balance::MAX,
-				trade
+				BoundedVec::truncate_from(trade)
 			));
 
 			//Assert
@@ -1632,7 +1632,7 @@ mod omnipool {
 				DAI,
 				amount_to_sell,
 				0,
-				trade
+				BoundedVec::truncate_from(trade)
 			));
 
 			//Assert
@@ -1718,7 +1718,7 @@ mod omnipool {
 				DAI,
 				amount_to_sell,
 				0,
-				trade
+				BoundedVec::truncate_from(trade)
 			));
 
 			//Assert
@@ -2542,7 +2542,7 @@ mod stableswap {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					trades
+					BoundedVec::truncate_from(trades)
 				));
 
 				//Assert
@@ -2869,7 +2869,7 @@ mod stableswap {
 					HDX,
 					amount_to_sell,
 					0,
-					trades
+					BoundedVec::truncate_from(trades)
 				));
 
 				//Assert
@@ -3526,7 +3526,7 @@ mod with_onchain_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					trades.clone()
+					trades.clone().try_into().unwrap()
 				));
 				assert_eq!(Router::route(asset_pair).unwrap(), trades);
 
@@ -3640,7 +3640,7 @@ mod with_onchain_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					trades.clone()
+					trades.clone().try_into().unwrap()
 				));
 				assert_eq!(Router::route(asset_pair).unwrap(), trades);
 
@@ -3757,7 +3757,7 @@ mod with_onchain_route {
 					DOT,
 					amount_to_sell,
 					0,
-					vec![]
+					BoundedVec::new()
 				));
 				let alice_received_dot =
 					Currencies::free_balance(DOT, &AccountId::from(ALICE)) - alice_init_dot_balance;
@@ -3871,7 +3871,7 @@ mod with_onchain_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					trades.clone()
+					trades.clone().try_into().unwrap()
 				));
 				assert_eq!(Router::route(asset_pair).unwrap(), trades);
 
@@ -3904,7 +3904,7 @@ mod with_onchain_route {
 						stable_asset_1,
 						amount_to_sell,
 						0,
-						vec![]
+						BoundedVec::new()
 					));
 					let alice_received_stable =
 						Currencies::free_balance(stable_asset_1, &AccountId::from(ALICE)) - alice_init_stable_balance;
@@ -3991,7 +3991,7 @@ mod with_onchain_route {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				asset_pair,
-				trades.clone()
+				trades.clone().try_into().unwrap()
 			));
 			assert_eq!(Router::route(asset_pair).unwrap(), trades);
 
@@ -4024,7 +4024,7 @@ mod with_onchain_route {
 					DOT,
 					fee_in_hdx,
 					0,
-					vec![]
+					BoundedVec::new()
 				));
 				let alice_received_dot =
 					Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
