@@ -131,14 +131,17 @@ pub mod pallet {
 		/// Arithmetic or type conversion overflow
 		Overflow,
 
-		NotImplemented,
-
+		/// User failed to pay fees for future execution
 		FailedToPayFees,
 
+		/// Failed to deposit collected fees
 		FailedToDepositFees,
 
-		/// No call to dispatch was found at the top of the calls' queue
+		/// Calls' queue is empty
 		EmptyQueue,
+
+		/// Provided call is not not call at the top of the queue
+		CallMismatch,
 	}
 
 	#[pallet::hooks]
@@ -147,12 +150,25 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::from_parts(1000, 1000))]
-		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+		#[pallet::weight({
+			let info = if let Ok(c) = <T as Config>::RuntimeCall::decode(&mut &call[..]) {
+				c.get_dispatch_info()
+			} else {
+				DispatchInfo {
+					weight: Default::default(),
+					class: DispatchClass::Normal,
+					pays_fee: Pays::No,
+				}
+			};
+			Weight::from_parts(1000, 1000).saturating_add(info.weight)
+		})]
+		pub fn dispatch_top(origin: OriginFor<T>, call: BoundedCall) -> DispatchResultWithPostInfo {
 			let _ = ensure_signed(origin)?;
 
 			DispatchNextId::<T>::try_mutate(|id| {
 				let call_data = CallQueue::<T>::take(*id).ok_or(Error::<T>::EmptyQueue)?;
+
+				ensure!(call == call_data.call, Error::<T>::CallMismatch);
 
 				let result = if let Ok(call) = <T as Config>::RuntimeCall::decode(&mut &call_data.call[..]) {
 					let o: OriginFor<T> = Origin::<T>::Signed(call_data.origin).into();
@@ -178,7 +194,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(2)]
-		#[pallet::weight(Weight::from_parts(1000, 1000))]
+		#[pallet::weight((Weight::from_parts(1000, 1000), Pays::No))]
 		pub fn add(
 			origin: OriginFor<T>,
 			as_origin: T::AccountId,
@@ -206,10 +222,11 @@ impl<T: Config> Pallet<T> {
 		let mut info = call.get_dispatch_info();
 		info.weight = info.weight.saturating_add(T::WeightInfo::dispatch_top_base_weight());
 
-		let len = bounded_call
-			.len()
-			.saturating_add(Call::<T>::dispatch_top {}.encoded_size())
-			.saturating_add(CALL_LEN_OFFSET.try_into().map_err(|_| Error::<T>::Overflow)?);
+		let len = Call::<T>::dispatch_top {
+			call: bounded_call.clone(),
+		}
+		.encoded_size()
+		.saturating_add(CALL_LEN_OFFSET.try_into().map_err(|_| Error::<T>::Overflow)?);
 
 		let fees = pallet_transaction_payment::Pallet::<T>::compute_fee(
 			len.try_into().map_err(|_| Error::<T>::Overflow)?,
