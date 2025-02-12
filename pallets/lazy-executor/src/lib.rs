@@ -40,11 +40,16 @@ pub use weights::WeightInfo;
 
 //types
 pub type CallId = u128;
+pub type IntentId = u128;
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub type BoundedCall = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
 
 const NO_TIP: u32 = 0;
+//Encoded call's length offset for additional extrinsic's data in bytes.
+//4(lenght) + 1(version&type) + 32(signer) + 65(signauture) + 16(tip) + 40(signedExtras) + 16(tip)
+//NOTE: this is approximate number
+const CALL_LEN_OFFSET: u32 = 158;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct CallData<AccountId> {
@@ -56,7 +61,7 @@ pub struct CallData<AccountId> {
 pub mod pallet {
 	use super::*;
 	use frame_support::{
-		dispatch::DispatchInfo,
+		dispatch::{DispatchInfo, DispatchResultWithPostInfo},
 		pallet_prelude::{ValueQuery, *},
 	};
 	use sp_runtime::DispatchResult;
@@ -105,6 +110,7 @@ pub mod pallet {
 		Queued {
 			id: CallId,
 			who: T::AccountId,
+			intent_id: IntentId,
 			fees: BalanceOf<T>,
 		},
 
@@ -119,7 +125,7 @@ pub mod pallet {
 		/// Provided data can't be decoded
 		Corrupted,
 
-		/// `id` reach max value
+		/// `id` reached max. value
 		IdOverflow,
 
 		/// Arithmetic or type conversion overflow
@@ -142,10 +148,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::from_parts(1000, 1000))]
-		//TODO: add BoundedCall as param for this extrinsic so encoded call length is calculated
-		//correctly
-		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
+		pub fn dispatch_top(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+			let _ = ensure_signed(origin)?;
 
 			DispatchNextId::<T>::try_mutate(|id| {
 				let call_data = CallQueue::<T>::take(*id).ok_or(Error::<T>::EmptyQueue)?;
@@ -166,18 +170,25 @@ pub mod pallet {
 
 				*id = id.checked_add(One::one()).ok_or(Error::<T>::IdOverflow)?;
 
-				//TODO: refund dispatcher's fees
-				return Ok(());
+				Ok(PostDispatchInfo {
+					actual_weight: None,
+					pays_fee: Pays::No,
+				})
 			})
 		}
 
 		#[pallet::call_index(2)]
 		#[pallet::weight(Weight::from_parts(1000, 1000))]
-		pub fn add(origin: OriginFor<T>, as_o: T::AccountId, call: BoundedCall) -> DispatchResult {
+		pub fn add(
+			origin: OriginFor<T>,
+			as_origin: T::AccountId,
+			intent_id: IntentId,
+			call: BoundedCall,
+		) -> DispatchResult {
 			let _who = ensure_signed(origin)?;
 			//TODO: remove whole extrinsic, this is only for testing
 
-			Self::add_to_queue(as_o, call)?;
+			Self::add_to_queue(intent_id, as_origin, call)?;
 
 			Ok(())
 		}
@@ -185,19 +196,21 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn add_to_queue(origin: T::AccountId, bounded_call: BoundedCall) -> Result<(), DispatchError> {
-		let call = if let Ok(c) = <T as Config>::RuntimeCall::decode(&mut &bounded_call[..]) {
-			c
-		} else {
-			return Err(Error::<T>::Corrupted.into());
-		};
+	pub fn add_to_queue(
+		intent_id: IntentId,
+		origin: T::AccountId,
+		bounded_call: BoundedCall,
+	) -> Result<(), DispatchError> {
+		let call = <T as Config>::RuntimeCall::decode(&mut &bounded_call[..]).map_err(|_| Error::<T>::Corrupted)?;
 
 		let mut info = call.get_dispatch_info();
 		info.weight = info.weight.saturating_add(T::WeightInfo::dispatch_top_base_weight());
 
 		let len = bounded_call
 			.len()
-			.saturating_add(Call::<T>::dispatch_top {}.encoded_size());
+			.saturating_add(Call::<T>::dispatch_top {}.encoded_size())
+			.saturating_add(CALL_LEN_OFFSET.try_into().map_err(|_| Error::<T>::Overflow)?);
+
 		let fees = pallet_transaction_payment::Pallet::<T>::compute_fee(
 			len.try_into().map_err(|_| Error::<T>::Overflow)?,
 			&info,
@@ -239,6 +252,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::deposit_event(Event::Queued {
 			id: call_id,
+			intent_id,
 			who: origin,
 			fees,
 		});
