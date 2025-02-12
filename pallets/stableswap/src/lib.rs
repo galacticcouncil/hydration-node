@@ -1692,16 +1692,11 @@ impl<T: Config> Pallet<T> {
 		let Some(info) = PoolPeg::<T>::get(&pool_id) else {
 			return Ok((pool.fee, None));
 		};
-		let current_block = T::BlockNumberProvider::current_block_number();
-		let target_pegs = Self::get_target_pegs(&pool.assets, &info.source)?;
+		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
+		let target_pegs = Self::get_target_pegs(current_block, &pool.assets, &info.source)?;
 
-		let deltas = Self::calculate_peg_deltas(
-			current_block.saturated_into(),
-			&info.current,
-			&target_pegs,
-			info.max_target_update,
-		);
-		let trade_fee = Self::calculate_target_fee(current_block.saturated_into(), &deltas, pool.fee, is_swap);
+		let deltas = Self::calculate_peg_deltas(current_block, &info.current, &target_pegs, info.max_target_update);
+		let trade_fee = Self::calculate_target_fee(current_block, &deltas, pool.fee, is_swap);
 		let new_pegs = Self::calculate_new_pegs(&info.current, &deltas);
 
 		// Store new pegs
@@ -1711,7 +1706,11 @@ impl<T: Config> Pallet<T> {
 		Ok((trade_fee, Self::get_current_pegs(pool_id)))
 	}
 
-	fn get_target_pegs(pool_assets: &[T::AssetId], peg_sources: &[PegSource]) -> Result<Vec<PegType>, DispatchError> {
+	fn get_target_pegs(
+		block_no: u128,
+		pool_assets: &[T::AssetId],
+		peg_sources: &[PegSource],
+	) -> Result<Vec<(PegType, u128)>, DispatchError> {
 		debug_assert_eq!(
 			pool_assets.len(),
 			peg_sources.len(),
@@ -1730,12 +1729,12 @@ impl<T: Config> Pallet<T> {
 		let mut r = vec![];
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
 			let p = match source {
-				PegSource::Value(peg) => peg.clone(),
+				PegSource::Value(peg) => (peg.clone(), block_no),
 				PegSource::Oracle((source, period)) => {
 					//TODO: what if error - do we fail completely ?
 					let entry = T::TargetPegOracle::get_raw_entry(*source, first_asset, *asset_id, *period)
 						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
-					(entry.price.0, entry.price.1)
+					((entry.price.0, entry.price.1), entry.updated_at.saturated_into())
 				}
 			};
 			r.push(p);
@@ -1746,7 +1745,7 @@ impl<T: Config> Pallet<T> {
 	fn calculate_peg_deltas(
 		block_no: u128,
 		current: &[PegType],
-		target: &[PegType],
+		target: &[(PegType, u128)],
 		max_move: PegType,
 	) -> Vec<PegDelta> {
 		debug_assert_eq!(
@@ -1758,7 +1757,10 @@ impl<T: Config> Pallet<T> {
 		let mut r = vec![];
 		for (current, target) in current.iter().copied().zip(target.iter().copied()) {
 			let c: Ratio = current.into();
-			let t: Ratio = target.into();
+			let t: Ratio = target.0.into();
+			let t_updated_at = target.1;
+			let block_ct = block_no.saturating_sub(t_updated_at).max(1u128);
+
 			let (delta, delta_neg) = if t > c {
 				(t.saturating_sub(&c), false)
 			} else {
@@ -1766,7 +1768,7 @@ impl<T: Config> Pallet<T> {
 			};
 
 			//Ensure max peg target update
-			let b: Ratio = block_no.into();
+			let b: Ratio = block_ct.into();
 			let max_move_ratio: Ratio = max_move.into();
 			let max_peg_move = max_move_ratio.saturating_mul(&c).saturating_mul(&b);
 
