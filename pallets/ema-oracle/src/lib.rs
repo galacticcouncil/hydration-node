@@ -162,8 +162,8 @@ pub mod pallet {
 		TooManyUniqueEntries,
 		OnTradeValueZero,
 		OracleNotFound,
-		/// The version of the `Versioned` value used is not able to be interpreted.
-		BadVersion, //TODO: check if we can use the same error from pallet xcm
+		/// VersionedLocation cannot be converted to Location
+		BadVersion,
 		/// Asset not found
 		AssetNotFound,
 	}
