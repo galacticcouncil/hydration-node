@@ -62,7 +62,7 @@ where
 
 					Ok(share_amount)
 				} else {
-					let (amount_out, _) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)
+					let (amount_out, _) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in, false)
 						.map_err(ExecutorError::Error)?;
 
 					Ok(amount_out)
@@ -138,7 +138,7 @@ where
 
 					Ok(shares_amount)
 				} else {
-					let (amount_in, _) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)
+					let (amount_in, _) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out, false)
 						.map_err(ExecutorError::Error)?;
 
 					Ok(amount_in)

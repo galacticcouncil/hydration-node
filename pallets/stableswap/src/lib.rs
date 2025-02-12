@@ -601,7 +601,7 @@ pub mod pallet {
 			);
 
 			let amplification = Self::get_amplification(&pool);
-			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
+			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, false)?;
 
 			//Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
@@ -694,7 +694,7 @@ pub mod pallet {
 
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
-			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
+			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, false)?;
 
 			// Calculate how much shares user needs to provide to receive `amount` of asset.
 			let (shares, fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -796,7 +796,7 @@ pub mod pallet {
 				.reserves_with_decimals::<T>(&pool_account)
 				.ok_or(Error::<T>::UnknownDecimals)?;
 
-			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in)?;
+			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in, true)?;
 			ensure!(amount_out >= min_buy_amount, Error::<T>::BuyLimitNotReached);
 
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
@@ -881,7 +881,7 @@ pub mod pallet {
 				.reserves_with_decimals::<T>(&pool_account)
 				.ok_or(Error::<T>::UnknownDecimals)?;
 
-			let (amount_in, fee_amount) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out)?;
+			let (amount_in, fee_amount) = Self::calculate_in_amount(pool_id, asset_in, asset_out, amount_out, true)?;
 
 			let pool_account = Self::pool_account(pool_id);
 
@@ -1099,6 +1099,7 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount_in: Balance,
+		update_peg: bool, // This is needed to distinguish between just calculation and trade execution
 	) -> Result<(Balance, Balance), DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 
@@ -1117,7 +1118,11 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let amplification = Self::get_amplification(&pool);
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = if update_peg {
+			Self::update_and_return_pegs_and_trade_fee(pool_id, true)?
+		} else {
+			(pool.fee, Self::get_current_pegs(pool_id))
+		};
 		hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			index_in,
@@ -1137,6 +1142,7 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount_out: Balance,
+		update_peg: bool, // This is needed to distinguish between just calculation and trade execution
 	) -> Result<(Balance, Balance), DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 
@@ -1155,7 +1161,11 @@ impl<T: Config> Pallet<T> {
 		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = Self::get_amplification(&pool);
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = if update_peg {
+			Self::update_and_return_pegs_and_trade_fee(pool_id, true)?
+		} else {
+			(pool.fee, Self::get_current_pegs(pool_id))
+		};
 		hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			index_in,
@@ -1279,7 +1289,7 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, true)?;
 		let (share_amount, fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves,
@@ -1367,7 +1377,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(!reserve.amount.is_zero(), Error::<T>::InvalidInitialLiquidity);
 		}
 
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, false)?;
 		let (amount_in, fee) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			shares,
@@ -1488,7 +1498,7 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, false)?;
 		let (share_amount, _fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves[..],
@@ -1670,12 +1680,12 @@ impl<T: Config> Pallet<T> {
 	#[require_transactional]
 	fn update_and_return_pegs_and_trade_fee(
 		pool_id: T::AssetId,
-		pool_trade_fee: Permill,
+		is_swap: bool,
 	) -> Result<(Permill, Option<Vec<PegType>>), DispatchError> {
-		let Some(info) = PoolPeg::<T>::get(&pool_id) else {
-			return Ok((pool_trade_fee, None));
-		};
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+		let Some(info) = PoolPeg::<T>::get(&pool_id) else {
+			return Ok((pool.fee, None));
+		};
 		let current_block = T::BlockNumberProvider::current_block_number();
 		let target_pegs = Self::get_target_pegs(pool.assets.to_vec());
 		let current_pegs = info.current.to_vec();
