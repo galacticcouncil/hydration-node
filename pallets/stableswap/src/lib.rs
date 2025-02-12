@@ -1717,7 +1717,7 @@ impl<T: Config> Pallet<T> {
 			"Pool assets and peg sources must have the same length"
 		);
 
-		// Just to be defensive enough
+		// Just to be defensive enough - so we dont panic when accessing by index
 		if pool_assets.is_empty() {
 			// Should never happen
 			debug_assert!(false, "Missing pool info");
