@@ -9,6 +9,7 @@ mod creation;
 mod hooks;
 mod invariants;
 pub(crate) mod mock;
+mod peg;
 mod peg_one;
 mod price;
 mod remove_liquidity;

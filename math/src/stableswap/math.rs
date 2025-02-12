@@ -46,6 +46,7 @@ pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 	);
 	let new_reserve_out =
 		calculate_y_given_in::<D, Y>(amount_in, idx_in, idx_out, &reserves, amplification, multipliers)?;
+
 	let amount_out = reserves[idx_out].checked_sub(new_reserve_out)?;
 	let amount_out = normalize_value(
 		amount_out,
@@ -502,7 +503,7 @@ pub(crate) fn calculate_y_given_in<const D: u8, const Y: u8>(
 		.map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
 		.collect();
 
-	let r_pegs = if let Some(pegs) = multipliers {
+	let r_pegs = if let Some(pegs) = multipliers.clone() {
 		let r = pegs
 			.into_iter()
 			.enumerate()
@@ -514,7 +515,14 @@ pub(crate) fn calculate_y_given_in<const D: u8, const Y: u8>(
 		None
 	};
 
-	calculate_y_internal::<Y>(&xp, d, amplification, r_pegs)
+	let new_y = calculate_y_internal::<Y>(&xp, d, amplification, r_pegs)?;
+
+	if let Some(pegs) = multipliers {
+		let out_peg = pegs[idx_out];
+		multiply_by_rational_with_rounding(new_y, out_peg.1, out_peg.0, sp_arithmetic::per_things::Rounding::Down)
+	} else {
+		Some(new_y)
+	}
 }
 
 /// Calculate new amount of reserve IN given amount to be withdrawn from the pool
