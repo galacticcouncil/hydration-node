@@ -45,8 +45,8 @@ fn trade_fee() -> impl Strategy<Value = Permill> {
 	(0f64..0.2f64).prop_map(Permill::from_float)
 }
 
-fn get_pool_asset_multiplier(pool_id: AssetId) -> Option<Vec<MultiplierType>> {
-	Pallet::<Test>::get_current_multipliers(pool_id)
+fn get_pool_asset_pegs(pool_id: AssetId) -> Option<Vec<PegType>> {
+	Pallet::<Test>::get_current_pegs(pool_id)
 }
 
 proptest! {
@@ -313,7 +313,7 @@ proptest! {
 				let pool_id = get_pool_id_at(0);
 
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				let asset_a_reserve = Tokens::free_balance(asset_a, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_b, &pool_account);
@@ -322,7 +322,7 @@ proptest! {
 					AssetReserve::new(asset_b_reserve, 12),
 				];
 
-				let d_prev = calculate_d::<128u8>(&reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let d_prev = calculate_d::<128u8>(&reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				let initial_spot_price = asset_spot_price(pool_id, asset_b);
 				assert_ok!(Stableswap::sell(
 					RuntimeOrigin::signed(BOB),
@@ -351,7 +351,7 @@ proptest! {
 					AssetReserve::new(asset_b_reserve, 12),
 				];
 
-				let d = calculate_d::<128u8>(&reserves, amplification.get().into(), asset_multipliers).unwrap();
+				let d = calculate_d::<128u8>(&reserves, amplification.get().into(), asset_pegs).unwrap();
 
 				assert!(d >= d_prev);
 			});
@@ -396,7 +396,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				let pool_id = get_pool_id_at(0);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				let pool_account = pool_account(pool_id);
 
@@ -407,7 +407,7 @@ proptest! {
 					AssetReserve::new(asset_b_reserve, 12),
 				];
 
-				let d_prev = calculate_d::<128u8>(&reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let d_prev = calculate_d::<128u8>(&reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 
 				let bob_balance_a = Tokens::free_balance(asset_a, &BOB);
 				let initial_spot_price = asset_spot_price(pool_id, asset_b);
@@ -442,7 +442,7 @@ proptest! {
 					AssetReserve::new(asset_a_reserve, 12),
 					AssetReserve::new(asset_b_reserve, 12),
 				];
-				let d = calculate_d::<128u8>(&reserves, amplification.get().into(), asset_multipliers).unwrap();
+				let d = calculate_d::<128u8>(&reserves, amplification.get().into(), asset_pegs).unwrap();
 				assert!(d >= d_prev);
 			});
 	}
@@ -490,7 +490,7 @@ proptest! {
 				System::set_block_number(0);
 				let pool_id = get_pool_id_at(0);
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				System::set_block_number(1);
 				assert_ok!(
@@ -521,7 +521,7 @@ proptest! {
 						AssetReserve::new(asset_b_reserve, 12),
 					];
 
-					let d_prev = calculate_d::<128u8>(&reserves, amplification, asset_multipliers.clone()).unwrap();
+					let d_prev = calculate_d::<128u8>(&reserves, amplification, asset_pegs.clone()).unwrap();
 					let initial_spot_price = asset_spot_price(pool_id, asset_b);
 					assert_ok!(Stableswap::sell(
 						RuntimeOrigin::signed(BOB),
@@ -553,7 +553,7 @@ proptest! {
 						AssetReserve::new(asset_b_reserve, 12),
 					];
 
-					let d = calculate_d::<128u8>(&reserves, amplification, asset_multipliers.clone()).unwrap();
+					let d = calculate_d::<128u8>(&reserves, amplification, asset_pegs.clone()).unwrap();
 
 					assert!(d >= d_prev);
 				}
@@ -603,7 +603,7 @@ proptest! {
 				System::set_block_number(0);
 				let pool_id = get_pool_id_at(0);
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				System::set_block_number(1);
 				assert_ok!(
@@ -634,7 +634,7 @@ proptest! {
 						AssetReserve::new(asset_b_reserve, 12),
 					];
 
-					let d_prev = calculate_d::<128u8>(&reserves, amplification, asset_multipliers.clone()).unwrap();
+					let d_prev = calculate_d::<128u8>(&reserves, amplification, asset_pegs.clone()).unwrap();
 
 					let bob_a_balance = Tokens::free_balance(asset_a, &BOB);
 					let initial_spot_price = asset_spot_price(pool_id, asset_b);
@@ -662,7 +662,7 @@ proptest! {
 						AssetReserve::new(asset_b_reserve, 12),
 					];
 
-					let d = calculate_d::<128u8>(&reserves, amplification, asset_multipliers.clone()).unwrap();
+					let d = calculate_d::<128u8>(&reserves, amplification, asset_pegs.clone()).unwrap();
 
 					assert!(d >= d_prev);
 				}
@@ -713,7 +713,7 @@ proptest! {
 				System::set_block_number(0);
 				let pool_id = get_pool_id_at(0);
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				System::set_block_number(1);
 				assert_ok!(
@@ -744,7 +744,7 @@ proptest! {
 						AssetReserve::new(asset_b_reserve, 18),
 					];
 
-					let d_prev = calculate_d::<128u8>(&reserves, amplification, asset_multipliers.clone()).unwrap();
+					let d_prev = calculate_d::<128u8>(&reserves, amplification, asset_pegs.clone()).unwrap();
 
 					let bob_a_balance = Tokens::free_balance(asset_a, &BOB);
 					let initial_spot_price = asset_spot_price(pool_id, asset_b);
@@ -771,7 +771,7 @@ proptest! {
 						AssetReserve::new(asset_b_reserve, 18),
 					];
 
-					let d = calculate_d::<128u8>(&reserves, amplification, asset_multipliers.clone()).unwrap();
+					let d = calculate_d::<128u8>(&reserves, amplification, asset_pegs.clone()).unwrap();
 					assert!(d >= d_prev);
 				}
 			});
@@ -840,11 +840,11 @@ proptest! {
 			.execute_with(|| {
 				let pool_id = get_pool_id_at(0);
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let initial_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
@@ -862,7 +862,7 @@ proptest! {
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(intermediate_d > initial_d);
 
 				let d = U256::from(initial_d) ;
@@ -889,7 +889,7 @@ proptest! {
 				let final_shares = Tokens::total_issuance(pool_id);
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(final_d < intermediate_d);
 
 				let d = d_plus;
@@ -943,11 +943,11 @@ proptest! {
 			.execute_with(|| {
 				let pool_id = get_pool_id_at(0);
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let initial_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
@@ -965,7 +965,7 @@ proptest! {
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(intermediate_d > initial_d);
 
 				let d = U256::from(initial_d) ;
@@ -992,7 +992,7 @@ proptest! {
 				let final_shares = Tokens::total_issuance(pool_id);
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(final_d < intermediate_d);
 
 				let d = d_plus;
@@ -1046,11 +1046,11 @@ proptest! {
 			.execute_with(|| {
 				let pool_id = get_pool_id_at(0);
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs= get_pool_asset_pegs(pool_id);
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let initial_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
@@ -1072,7 +1072,7 @@ proptest! {
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(intermediate_d > initial_d);
 
 				let d = U256::from(initial_d) ;
@@ -1099,7 +1099,7 @@ proptest! {
 				let final_shares = Tokens::total_issuance(pool_id);
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(final_d < intermediate_d);
 
 				let d = d_plus;
@@ -1153,11 +1153,11 @@ proptest! {
 			.execute_with(|| {
 				let pool_id = get_pool_id_at(0);
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let initial_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
@@ -1179,7 +1179,7 @@ proptest! {
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(intermediate_d > initial_d);
 
 				let d = U256::from(initial_d) ;
@@ -1206,7 +1206,7 @@ proptest! {
 				let final_shares = Tokens::total_issuance(pool_id);
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(final_d < intermediate_d);
 
 				let d = d_plus;
@@ -1265,11 +1265,11 @@ proptest! {
 			.execute_with(|| {
 				let pool_id = get_pool_id_at(0);
 				let pool_account = pool_account(pool_id);
-				let asset_multipliers = get_pool_asset_multiplier(pool_id);
+				let asset_pegs = get_pool_asset_pegs(pool_id);
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let initial_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let initial_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&initial_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
@@ -1287,7 +1287,7 @@ proptest! {
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(intermediate_d > initial_d);
 
 				let d = U256::from(initial_d) ;
@@ -1313,7 +1313,7 @@ proptest! {
 				let final_shares = Tokens::total_issuance(pool_id);
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
-				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_multipliers.clone()).unwrap();
+				let final_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), asset_pegs.clone()).unwrap();
 				assert!(final_d < intermediate_d);
 
 				let d = d_plus;

@@ -69,7 +69,7 @@ mod trade_execution;
 pub mod types;
 pub mod weights;
 
-use crate::types::{Balance, MultiplierType, PoolInfo, PoolMultiplierInfo, PoolState, StableswapHooks, Tradability};
+use crate::types::{Balance, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
@@ -99,7 +99,7 @@ const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::PoolMultiplierInfo;
+	use crate::types::PoolPegInfo;
 	use codec::HasCompact;
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
@@ -166,7 +166,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type AmplificationRange: Get<RangeInclusive<NonZeroU16>>;
 
-		type MultiplierOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
+		type TargetPegOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -180,10 +180,10 @@ pub mod pallet {
 	#[pallet::getter(fn pools)]
 	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>>;
 
-	/// List of assets multipliers for a pool.
+	/// Pool peg info.
 	#[pallet::storage]
-	#[pallet::getter(fn pool_multipliers)]
-	pub type PoolMultipliers<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolMultiplierInfo>;
+	#[pallet::getter(fn pool_peg_info)]
+	pub type PoolPeg<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -200,7 +200,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
 			fee: Permill,
-			multipliers: Option<PoolMultiplierInfo>,
+			peg: Option<PoolPegInfo>,
 		},
 		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
@@ -337,8 +337,8 @@ pub mod pallet {
 		/// Failed to retrieve asset decimals.
 		UnknownDecimals,
 
-		/// List of provided multipliers is incorrect.
-		IncorrectInitialMultipliers,
+		/// List of provided pegs is incorrect.
+		IncorrectInitialPegs,
 	}
 
 	#[pallet::call]
@@ -378,7 +378,7 @@ pub mod pallet {
 				assets,
 				amplification,
 				fee,
-				multipliers: None,
+				peg: None,
 			});
 
 			Self::deposit_event(Event::AmplificationChanging {
@@ -601,7 +601,7 @@ pub mod pallet {
 			);
 
 			let amplification = Self::get_amplification(&pool);
-			let (trade_fee, asset_multipliers) = Self::update_and_return_multipliers_and_trade_fee(pool_id, pool.fee)?;
+			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
 
 			//Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
@@ -611,7 +611,7 @@ pub mod pallet {
 				share_issuance,
 				amplification,
 				trade_fee,
-				asset_multipliers,
+				asset_pegs,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -694,7 +694,7 @@ pub mod pallet {
 
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
-			let (trade_fee, asset_multipliers) = Self::update_and_return_multipliers_and_trade_fee(pool_id, pool.fee)?;
+			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
 
 			// Calculate how much shares user needs to provide to receive `amount` of asset.
 			let (shares, fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -704,7 +704,7 @@ pub mod pallet {
 				amplification,
 				share_issuance,
 				trade_fee,
-				asset_multipliers,
+				asset_pegs,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1049,26 +1049,26 @@ pub mod pallet {
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_pool())]
 		#[transactional]
-		pub fn create_pool_with_multipliers(
+		pub fn create_pool_with_pegs(
 			origin: OriginFor<T>,
 			share_asset: T::AssetId,
 			assets: Vec<T::AssetId>,
 			amplification: u16,
 			fee: Permill,
-			multipliers: PoolMultiplierInfo,
+			peg_info: PoolPegInfo,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(multipliers.clone()))?;
+			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(peg_info.clone()))?;
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
 				assets,
 				amplification,
 				fee,
-				multipliers: Some(multipliers),
+				peg: Some(peg_info),
 			});
 
 			Self::deposit_event(Event::AmplificationChanging {
@@ -1117,7 +1117,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let amplification = Self::get_amplification(&pool);
-		let (trade_fee, asset_multipliers) = Self::update_and_return_multipliers_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
 		hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			index_in,
@@ -1125,7 +1125,7 @@ impl<T: Config> Pallet<T> {
 			amount_in,
 			amplification,
 			trade_fee,
-			asset_multipliers,
+			asset_pegs,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
@@ -1155,7 +1155,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = Self::get_amplification(&pool);
-		let (trade_fee, asset_multipliers) = Self::update_and_return_multipliers_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
 		hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			index_in,
@@ -1163,7 +1163,7 @@ impl<T: Config> Pallet<T> {
 			amount_out,
 			amplification,
 			trade_fee,
-			asset_multipliers,
+			asset_pegs,
 		)
 		.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
@@ -1174,7 +1174,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
-		multipliers: Option<PoolMultiplierInfo>,
+		peg_info: Option<PoolPegInfo>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -1209,12 +1209,9 @@ impl<T: Config> Pallet<T> {
 			ensure!(T::AssetInspection::exists(*asset), Error::<T>::AssetNotRegistered);
 		}
 
-		if let Some(p) = multipliers {
-			ensure!(
-				p.current.len() == pool.assets.len(),
-				Error::<T>::IncorrectInitialMultipliers
-			);
-			PoolMultipliers::<T>::insert(share_asset, p);
+		if let Some(p) = peg_info {
+			ensure!(p.current.len() == pool.assets.len(), Error::<T>::IncorrectInitialPegs);
+			PoolPeg::<T>::insert(share_asset, p);
 		}
 
 		Pools::<T>::insert(share_asset, pool);
@@ -1282,14 +1279,14 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let (trade_fee, asset_multipliers) = Self::update_and_return_multipliers_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
 		let (share_amount, fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves,
 			amplification,
 			share_issuance,
 			trade_fee,
-			asset_multipliers,
+			asset_pegs,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1370,7 +1367,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(!reserve.amount.is_zero(), Error::<T>::InvalidInitialLiquidity);
 		}
 
-		let (trade_fee, asset_multipliers) = Self::update_and_return_multipliers_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
 		let (amount_in, fee) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			shares,
@@ -1378,7 +1375,7 @@ impl<T: Config> Pallet<T> {
 			share_issuance,
 			amplification,
 			trade_fee,
-			asset_multipliers,
+			asset_pegs,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1491,14 +1488,14 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let (trade_fee, asset_multipliers) = Self::update_and_return_multipliers_and_trade_fee(pool_id, pool.fee)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, pool.fee)?;
 		let (share_amount, _fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves[..],
 			amplification,
 			share_issuance,
 			trade_fee,
-			asset_multipliers,
+			asset_pegs,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1541,12 +1538,12 @@ impl<T: Config> Pallet<T> {
 		let updated_reserves = pool
 			.reserves_with_decimals::<T>(&pool_account)
 			.ok_or(Error::<T>::UnknownDecimals)?;
-		let asset_multipliers = Self::get_current_multipliers(pool_id);
+		let asset_pegs = Self::get_current_pegs(pool_id);
 		let share_prices = hydra_dx_math::stableswap::calculate_share_prices::<D_ITERATIONS>(
 			&updated_reserves,
 			amplification,
 			share_issuance,
-			asset_multipliers,
+			asset_pegs,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1572,7 +1569,7 @@ impl<T: Config> Pallet<T> {
 	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_add_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
-		let asset_multipliers = Self::get_current_multipliers(pool_id);
+		let asset_pegs = Self::get_current_pegs(pool_id);
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
@@ -1580,15 +1577,11 @@ impl<T: Config> Pallet<T> {
 			"Reserves are not changed"
 		);
 		let amplification = Self::get_amplification(&pool);
-		let initial_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(
-			initial_reserves,
-			amplification,
-			asset_multipliers.clone(),
-		)
-		.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, asset_multipliers)
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, asset_pegs.clone())
 				.unwrap();
+		let final_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, asset_pegs).unwrap();
 		assert!(
 			final_d >= initial_d,
 			"Add liquidity Invariant broken: D+ is less than initial D; {:?} <= {:?}",
@@ -1602,7 +1595,7 @@ impl<T: Config> Pallet<T> {
 		let Some(pool) = Pools::<T>::get(pool_id) else {
 			return;
 		};
-		let asset_multipliers = Self::get_current_multipliers(pool_id);
+		let asset_pegs = Self::get_current_pegs(pool_id);
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
@@ -1610,15 +1603,11 @@ impl<T: Config> Pallet<T> {
 			"Reserves are not changed"
 		);
 		let amplification = Self::get_amplification(&pool);
-		let initial_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(
-			initial_reserves,
-			amplification,
-			asset_multipliers.clone(),
-		)
-		.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, asset_multipliers)
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, asset_pegs.clone())
 				.unwrap();
+		let final_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, asset_pegs).unwrap();
 		assert!(
 			final_d <= initial_d,
 			"Remove liquidity Invariant broken: D+ is more than initial D; {:?} >= {:?}",
@@ -1629,7 +1618,7 @@ impl<T: Config> Pallet<T> {
 	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], fee: Permill) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
-		let asset_multipliers = Self::get_current_multipliers(pool_id);
+		let asset_pegs = Self::get_current_pegs(pool_id);
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
@@ -1637,15 +1626,11 @@ impl<T: Config> Pallet<T> {
 			"Reserves are not changed"
 		);
 		let amplification = Self::get_amplification(&pool);
-		let initial_d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(
-			initial_reserves,
-			amplification,
-			asset_multipliers.clone(),
-		)
-		.unwrap();
-		let final_d =
-			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, asset_multipliers)
+		let initial_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(initial_reserves, amplification, asset_pegs.clone())
 				.unwrap();
+		let final_d =
+			hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&final_reserves, amplification, asset_pegs).unwrap();
 		assert!(
 			final_d >= initial_d,
 			"Trade Invariant broken: D+ is less than initial D; {:?} <= {:?}",
@@ -1673,54 +1658,49 @@ impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pa
 	}
 }
 
-// Peg/Multiplier support
+// Peg support
 impl<T: Config> Pallet<T> {
-	fn get_current_multipliers(pool_id: T::AssetId) -> Option<Vec<MultiplierType>> {
-		let Some(info) = PoolMultipliers::<T>::get(&pool_id) else {
+	fn get_current_pegs(pool_id: T::AssetId) -> Option<Vec<PegType>> {
+		let Some(info) = PoolPeg::<T>::get(&pool_id) else {
 			return None;
 		};
 		Some(info.current.to_vec())
 	}
 
 	#[require_transactional]
-	fn update_and_return_multipliers_and_trade_fee(
+	fn update_and_return_pegs_and_trade_fee(
 		pool_id: T::AssetId,
 		pool_trade_fee: Permill,
-	) -> Result<(Permill, Option<Vec<MultiplierType>>), DispatchError> {
-		let Some(info) = PoolMultipliers::<T>::get(&pool_id) else {
+	) -> Result<(Permill, Option<Vec<PegType>>), DispatchError> {
+		let Some(info) = PoolPeg::<T>::get(&pool_id) else {
 			return Ok((pool_trade_fee, None));
 		};
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let current_block = T::BlockNumberProvider::current_block_number();
-		let target_multipliers = Self::get_target_multipliers(pool.assets.to_vec());
-		let current_multipliers = info.current.to_vec();
+		let target_pegs = Self::get_target_pegs(pool.assets.to_vec());
+		let current_pegs = info.current.to_vec();
 
-		let deltas =
-			Self::calculate_peg_deltas(current_block.saturated_into(), current_multipliers, target_multipliers);
+		let deltas = Self::calculate_peg_deltas(current_block.saturated_into(), current_pegs, target_pegs);
 		let trade_fee = Self::calculate_target_fee(current_block.saturated_into(), &deltas, pool.fee);
-		Self::move_multipliers(deltas)?;
+		Self::move_pegs(deltas)?;
 
-		Ok((trade_fee, Self::get_current_multipliers(pool_id)))
+		Ok((trade_fee, Self::get_current_pegs(pool_id)))
 	}
 
-	fn get_target_multipliers(pool_assets: Vec<T::AssetId>) -> Vec<MultiplierType> {
+	fn get_target_pegs(pool_assets: Vec<T::AssetId>) -> Vec<PegType> {
 		vec![]
 	}
 
-	fn calculate_peg_deltas(
-		block_no: u128,
-		current: Vec<MultiplierType>,
-		target: Vec<MultiplierType>,
-	) -> Vec<MultiplierType> {
+	fn calculate_peg_deltas(block_no: u128, current: Vec<PegType>, target: Vec<PegType>) -> Vec<PegType> {
 		vec![]
 	}
 
-	fn calculate_target_fee(block_no: u128, deltas: &[MultiplierType], current_fee: Permill) -> Permill {
+	fn calculate_target_fee(block_no: u128, deltas: &[PegType], current_fee: Permill) -> Permill {
 		Permill::zero()
 	}
 
 	#[require_transactional]
-	fn move_multipliers(deltas: Vec<MultiplierType>) -> DispatchResult {
+	fn move_pegs(deltas: Vec<PegType>) -> DispatchResult {
 		Ok(())
 	}
 }

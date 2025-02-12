@@ -194,7 +194,7 @@ impl Config for Test {
 	type Hooks = DummyHookAdapter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DummyRegistry;
-	type MultiplierOracle = MOracle;
+	type TargetPegOracle = PegOracle;
 }
 
 pub struct InitialLiquidity {
@@ -480,9 +480,9 @@ pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
 		.collect()
 }
 
-pub struct MOracle;
+pub struct PegOracle;
 
-impl RawOracle<AssetId, Balance, u64> for MOracle {
+impl RawOracle<AssetId, Balance, u64> for PegOracle {
 	type Error = ();
 
 	fn get_raw_entry(

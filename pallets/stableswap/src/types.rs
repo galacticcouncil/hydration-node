@@ -22,17 +22,6 @@ use sp_runtime::DispatchResult;
 
 pub(crate) type Balance = u128;
 
-pub type MultiplierType = (Balance, Balance);
-
-pub type BoundedMultipliers = BoundedVec<MultiplierType, ConstU32<MAX_ASSETS_IN_POOL>>;
-
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct PoolMultiplierInfo {
-	pub source: Source,
-	pub max_target_update: MultiplierType,
-	pub current: BoundedMultipliers,
-}
-
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets
 /// `amplification`: amp parameter
@@ -156,4 +145,23 @@ impl<AssetId> StableswapHooks<AssetId> for () {
 	fn on_trade_weight(_n: usize) -> Weight {
 		Weight::zero()
 	}
+}
+
+pub type PegType = (Balance, Balance);
+
+pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum PegSource {
+	Value(PegType),
+	Oracle(Source),
+}
+
+pub type BoundedPegSources = BoundedVec<PegSource, ConstU32<MAX_ASSETS_IN_POOL>>;
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct PoolPegInfo {
+	pub source: BoundedPegSources,
+	pub max_target_update: PegType,
+	pub current: BoundedPegs,
 }
