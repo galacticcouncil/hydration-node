@@ -35,27 +35,26 @@ pub use pallet::*;
 pub mod weights;
 pub use weights::WeightInfo;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
-//types
 pub type CallId = u128;
 pub type IntentId = u128;
 pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
 pub type BoundedCall = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
 type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
 
-const NO_TIP: u32 = 0;
-//Encoded call's length offset for additional extrinsic's data in bytes.
-//4(lenght) + 1(version&type) + 32(signer) + 65(signauture) + 16(tip) + 40(signedExtras) + 16(tip)
-//NOTE: this is approximate number
-const CALL_LEN_OFFSET: u32 = 158;
-
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct CallData<AccountId> {
 	origin: AccountId,
 	call: BoundedCall,
 }
+
+const NO_TIP: u32 = 0;
+//Encoded call's length offset for additional extrinsic's data in bytes.
+//4(lenght) + 1(version&type) + 32(signer) + 65(signauture) + 16(tip) + 40(signedExtras) + 16(tip)
+//NOTE: this is approximate number
+const CALL_LEN_OFFSET: u32 = 158;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -160,6 +159,7 @@ pub mod pallet {
 					pays_fee: Pays::No,
 				}
 			};
+
 			Weight::from_parts(1000, 1000).saturating_add(info.weight)
 		})]
 		pub fn dispatch_top(origin: OriginFor<T>, call: BoundedCall) -> DispatchResultWithPostInfo {

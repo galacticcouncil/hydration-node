@@ -40,8 +40,6 @@ type AccountId = u64;
 type AssetId = u32;
 type BlockNumber = u64;
 
-pub const HDX: AssetId = 0;
-
 pub const ALICE: AccountId = 1_000;
 pub const BOB: AccountId = 1_001;
 pub const CHARLIE: AccountId = 1_002;

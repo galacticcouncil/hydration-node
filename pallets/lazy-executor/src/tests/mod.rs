@@ -1,4 +1,4 @@
-use mock::*;
+use mock::{System, *};
 
 pub(crate) mod mock;
 #[allow(clippy::module_inception)]

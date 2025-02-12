@@ -15,10 +15,12 @@
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64, ConstU8, Contains},
-	weights::{RuntimeDbWeight, Weight},
+	traits::{fungible, ConstU128, ConstU32, ConstU64, ConstU8, Contains, Imbalance, OnUnbalanced},
+	weights::{RuntimeDbWeight, Weight, WeightToFee as WeightToFeeT},
 };
+use pallet_transaction_payment::FungibleAdapter;
 use sp_core::H256;
+use sp_runtime::SaturatedConversion;
 use sp_runtime::{
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
 	BuildStorage,
@@ -39,14 +41,6 @@ pub const ALICE: AccountId = 1_000;
 pub const BOB: AccountId = 1_001;
 pub const CHARLIE: AccountId = 1_002;
 
-pub const USER1: AccountId = 1_004;
-pub const USER2: AccountId = 1_005;
-pub const USER3: AccountId = 1_006;
-pub const USER4: AccountId = 1_007;
-pub const USER5: AccountId = 1_008;
-
-pub const MAX_ALLOWED_WEIGHT: Weight = Weight::from_parts(5_000, 20_000);
-
 construct_runtime!(
 	pub enum Test
 	{
@@ -54,6 +48,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		LazyExecutor: pallet_lazy_executor,
 		MockPallet: mock_pallet,
+		TransactionPayment: pallet_transaction_payment,
 	}
 );
 
@@ -198,7 +193,7 @@ impl pallet_balances::Config for Test {
 pub struct DummyWeightInfo;
 /// Weights for pallet_staking using the hydraDX node and recommended hardware.
 impl WeightInfo for DummyWeightInfo {
-	fn process_queue_base_weight() -> Weight {
+	fn dispatch_top_base_weight() -> Weight {
 		Weight::from_parts(2_000, 3_000)
 	}
 }
@@ -207,8 +202,58 @@ impl pallet_lazy_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type BlockNumberProvider = MockBlockNumberProvider;
-	type MaxDispatchedPerBlock = ConstU8<3>;
 	type WeightInfo = DummyWeightInfo;
+	type OcwMaxSubmits = ConstU8<5>;
+}
+
+parameter_types! {
+	pub static WeightToFee: u128 = 1;
+	pub static TransactionByteFee: u128 = 1;
+	pub static OperationalFeeMultiplier: u8 = 5;
+}
+
+impl WeightToFeeT for WeightToFee {
+	type Balance = u128;
+
+	fn weight_to_fee(weight: &Weight) -> Self::Balance {
+		Self::Balance::saturated_from(weight.ref_time()).saturating_mul(WEIGHT_TO_FEE.with(|v| *v.borrow()))
+	}
+}
+
+impl WeightToFeeT for TransactionByteFee {
+	type Balance = u128;
+
+	fn weight_to_fee(weight: &Weight) -> Self::Balance {
+		Self::Balance::saturated_from(weight.ref_time()).saturating_mul(TRANSACTION_BYTE_FEE.with(|v| *v.borrow()))
+	}
+}
+
+parameter_types! {
+	pub(crate) static TipUnbalancedAmount: u128 = 0;
+	pub(crate) static FeeUnbalancedAmount: u128 = 0;
+}
+
+pub struct DealWithFees;
+impl OnUnbalanced<fungible::Credit<<Test as frame_system::Config>::AccountId, Balances>> for DealWithFees {
+	fn on_unbalanceds<B>(
+		mut fees_then_tips: impl Iterator<Item = fungible::Credit<<Test as frame_system::Config>::AccountId, Balances>>,
+	) {
+		if let Some(fees) = fees_then_tips.next() {
+			FeeUnbalancedAmount::mutate(|a| *a += fees.peek());
+			if let Some(tips) = fees_then_tips.next() {
+				TipUnbalancedAmount::mutate(|a| *a += tips.peek());
+			}
+		}
+	}
+}
+
+impl pallet_transaction_payment::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type OnChargeTransaction = FungibleAdapter<Balances, DealWithFees>;
+	type OperationalFeeMultiplier = OperationalFeeMultiplier;
+	type WeightToFee = WeightToFee;
+	type LengthToFee = TransactionByteFee;
+	type FeeMultiplierUpdate = ();
 }
 
 pub struct ExtBuilder;
@@ -228,14 +273,11 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		//TODO: set maxAllowedWeight
-
-		let mut ext = sp_io::TestExternalities::new(t);
-		ext.execute_with(|| {
-			pallet_lazy_executor::MaxAllowedWeight::<Test>::put(MAX_ALLOWED_WEIGHT);
-
-			System::set_block_number(1)
+		let mut r: sp_io::TestExternalities = t.into();
+		r.execute_with(|| {
+			System::set_block_number(1);
 		});
-		ext
+
+		r
 	}
 }
