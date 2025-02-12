@@ -326,7 +326,18 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 		.map(|(_, v)| *v)
 		.collect();
 
-	let y = calculate_y_internal::<Y>(&xp, Balance::try_from(d1).ok()?, amplification, multipliers.clone())?;
+	let r_pegs = if let Some(pegs) = multipliers {
+		let r = pegs
+			.into_iter()
+			.enumerate()
+			.filter(|(idx, _)| *idx != asset_index)
+			.map(|(_, v)| v)
+			.collect();
+		Some(r)
+	} else {
+		None
+	};
+	let y = calculate_y_internal::<Y>(&xp, Balance::try_from(d1).ok()?, amplification, r_pegs.clone())?;
 	let xp_hp: Vec<U256> = reserves.iter().map(|v| to_u256!(*v)).collect();
 	let y_hp = to_u256!(y);
 
@@ -354,12 +365,7 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 		}
 	}
 
-	let y1 = calculate_y_internal::<Y>(
-		&reserves_reduced,
-		Balance::try_from(d1).ok()?,
-		amplification,
-		multipliers,
-	)?;
+	let y1 = calculate_y_internal::<Y>(&reserves_reduced, Balance::try_from(d1).ok()?, amplification, r_pegs)?;
 	let dy = asset_reserve.checked_sub(y1)?;
 	let dy_0 = reserves[asset_index].checked_sub(y)?;
 	let fee = dy_0.checked_sub(dy)?;
@@ -407,8 +413,19 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 		.filter(|(idx, _)| *idx != asset_index)
 		.map(|(_, v)| *v)
 		.collect();
+	let r_pegs = if let Some(pegs) = multipliers {
+		let r = pegs
+			.into_iter()
+			.enumerate()
+			.filter(|(idx, _)| *idx != asset_index)
+			.map(|(_, v)| v)
+			.collect();
+		Some(r)
+	} else {
+		None
+	};
 
-	let y = calculate_y_internal::<Y>(&xp, Balance::try_from(d1).ok()?, amplification, multipliers.clone())?;
+	let y = calculate_y_internal::<Y>(&xp, Balance::try_from(d1).ok()?, amplification, r_pegs.clone())?;
 
 	let fixed_fee = FixedU128::from(fee);
 	let fee = fixed_fee
@@ -440,12 +457,7 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 		}
 	}
 
-	let y1 = calculate_y_internal::<Y>(
-		&reserves_reduced,
-		Balance::try_from(d1).ok()?,
-		amplification,
-		multipliers.clone(),
-	)?;
+	let y1 = calculate_y_internal::<Y>(&reserves_reduced, Balance::try_from(d1).ok()?, amplification, r_pegs)?;
 	let dy = y1.checked_sub(asset_reserve)?;
 	let dy_0 = y.checked_sub(asset_reserve)?;
 	let fee = dy.checked_sub(dy_0)?;
@@ -490,7 +502,19 @@ pub(crate) fn calculate_y_given_in<const D: u8, const Y: u8>(
 		.map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
 		.collect();
 
-	calculate_y_internal::<Y>(&xp, d, amplification, multipliers.clone())
+	let r_pegs = if let Some(pegs) = multipliers {
+		let r = pegs
+			.into_iter()
+			.enumerate()
+			.filter(|(idx, _)| *idx != idx_out)
+			.map(|(_, v)| v)
+			.collect();
+		Some(r)
+	} else {
+		None
+	};
+
+	calculate_y_internal::<Y>(&xp, d, amplification, r_pegs)
 }
 
 /// Calculate new amount of reserve IN given amount to be withdrawn from the pool
@@ -515,7 +539,19 @@ pub(crate) fn calculate_y_given_out<const D: u8, const Y: u8>(
 		.map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
 		.collect();
 
-	calculate_y_internal::<Y>(&xp, d, amplification, multipliers.clone())
+	let r_pegs = if let Some(pegs) = multipliers {
+		let r = pegs
+			.into_iter()
+			.enumerate()
+			.filter(|(idx, _)| *idx != idx_in)
+			.map(|(_, v)| v)
+			.collect();
+		Some(r)
+	} else {
+		None
+	};
+
+	calculate_y_internal::<Y>(&xp, d, amplification, r_pegs)
 }
 
 /// Calculate D invariant. Reserves must be already normalized.
@@ -831,7 +867,6 @@ pub fn calculate_share_price<const D: u8>(
 		(num, denom)
 	};
 	let (num, denom) = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
-	//dbg!(FixedU128::checked_from_rational(num, denom));
 	Some((num, denom))
 }
 
