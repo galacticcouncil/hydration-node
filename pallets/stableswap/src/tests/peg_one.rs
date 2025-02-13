@@ -26,11 +26,8 @@ fn sell_with_peg_should_work_as_before_when_all_pegs_are_one() {
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(0),
-				PoolPegInfo {
-					source: BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
-					max_target_update: (1, 10),
-					current: BoundedPegs::truncate_from(vec![(1, 1), (1, 1)]),
-				}
+				BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
+				(1, 10),
 			));
 
 			assert_ok!(Stableswap::add_liquidity(
@@ -80,11 +77,8 @@ fn buy_should_work_as_before_when_all_pegs_are_one() {
 				vec![asset_a, asset_b],
 				100,
 				Permill::from_percent(0),
-				PoolPegInfo {
-					source: BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
-					max_target_update: (1, 10),
-					current: BoundedPegs::truncate_from(vec![(1, 1), (1, 1)]),
-				}
+				BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
+				(1, 10),
 			));
 
 			assert_ok!(Stableswap::add_liquidity(
@@ -166,15 +160,12 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 				vec![asset_a, asset_b, asset_c],
 				100,
 				Permill::from_percent(0),
-				PoolPegInfo {
-					source: BoundedPegSources::truncate_from(vec![
-						PegSource::Value((1, 1)),
-						PegSource::Value((1, 1)),
-						PegSource::Value((1, 1))
-					]),
-					max_target_update: (1, 10),
-					current: BoundedPegs::truncate_from(vec![(1, 1), (1, 1), (1, 1)]),
-				}
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((1, 1)),
+					PegSource::Value((1, 1)),
+					PegSource::Value((1, 1))
+				]),
+				(1, 10),
 			));
 
 			assert_ok!(Stableswap::add_liquidity(
@@ -256,15 +247,12 @@ fn removing_liquidity_with_exact_amount_should_work_as_before_when_pegs_are_one(
 				vec![asset_a, asset_b, asset_c],
 				2000,
 				Permill::from_percent(0),
-				PoolPegInfo {
-					source: BoundedPegSources::truncate_from(vec![
-						PegSource::Value((1, 1)),
-						PegSource::Value((1, 1)),
-						PegSource::Value((1, 1))
-					]),
-					max_target_update: (1, 10),
-					current: BoundedPegs::truncate_from(vec![(1, 1), (1, 1), (1, 1)]),
-				}
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((1, 1)),
+					PegSource::Value((1, 1)),
+					PegSource::Value((1, 1))
+				]),
+				(1, 10),
 			));
 
 			assert_ok!(Stableswap::add_liquidity(

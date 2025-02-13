@@ -103,7 +103,7 @@ const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::PoolPegInfo;
+	use crate::types::{BoundedPegSources, PoolPegInfo};
 	use codec::HasCompact;
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
@@ -1061,13 +1061,23 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: u16,
 			fee: Permill,
-			peg_info: PoolPegInfo,
+			peg_source: BoundedPegSources,
+			max_peg_update: PegType,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(peg_info.clone()))?;
+			let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
+			let initial_pegs = Self::get_target_pegs(current_block, &assets, &peg_source)?;
+
+			let peg_info = PoolPegInfo {
+				source: peg_source,
+				max_target_update: max_peg_update,
+				current: BoundedPegs::truncate_from(initial_pegs.into_iter().map(|(v, _)| v).collect()),
+			};
+
+			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, fee, Some(&peg_info))?;
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
@@ -1190,7 +1200,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
-		peg_info: Option<PoolPegInfo>,
+		peg_info: Option<&PoolPegInfo>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(

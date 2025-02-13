@@ -73,6 +73,7 @@ thread_local! {
 	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 	pub static LAST_LIQUDITY_CHANGE_HOOK: RefCell<Option<(AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
 	pub static LAST_TRADE_HOOK: RefCell<Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
+	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = { RefCell::new(HashMap::default()) };
 }
 
 construct_runtime!(
@@ -328,7 +329,7 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, OraclePeriod, RawEntry, RawOracle, Source};
+use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
@@ -486,11 +487,27 @@ impl RawOracle<AssetId, Balance, u64> for PegOracle {
 	type Error = ();
 
 	fn get_raw_entry(
-		source: Source,
+		_source: Source,
 		asset_a: AssetId,
 		asset_b: AssetId,
-		period: OraclePeriod,
+		_period: OraclePeriod,
 	) -> Result<RawEntry<Balance, u64>, Self::Error> {
-		todo!()
+		let (n, d, u) = PEG_ORACLE_VALUES
+			.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
+			.ok_or(())?;
+
+		Ok(RawEntry {
+			price: (n, d),
+			volume: Volume::default(),
+			liquidity: Liquidity::default(),
+			updated_at: u,
+		})
 	}
+}
+
+pub(crate) fn set_peg_oracle_value(asset_a: AssetId, asset_b: AssetId, price: (Balance, Balance), updated_at: u64) {
+	PEG_ORACLE_VALUES.with(|v| {
+		v.borrow_mut()
+			.insert((asset_a, asset_b), (price.0, price.1, updated_at));
+	});
 }
