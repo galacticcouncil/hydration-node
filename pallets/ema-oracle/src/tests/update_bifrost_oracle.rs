@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-pub use mock::{expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1};
+pub use mock::{expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1, bifrost_account};
 use std::sync::Arc;
 
 use frame_support::{assert_noop, assert_ok};
@@ -35,6 +35,7 @@ use hydradx_traits::evm::EvmAddress;
 use polkadot_xcm::v3::Junction::{AccountKey20, GeneralIndex, Parachain};
 use polkadot_xcm::v3::Junctions::{Here, X1, X2};
 use polkadot_xcm::v3::{Junction, MultiLocation};
+use sp_core::crypto::AccountId32;
 use sp_runtime::{DispatchResult, TransactionOutcome};
 
 #[test]
@@ -53,7 +54,7 @@ fn add_oracle_should_add_entry_to_storage() {
 		System::set_block_number(3);
 
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE),
+			RuntimeOrigin::signed(AccountId32::from(bifrost_account())),
 			asset_a,
 			asset_b,
 			(100, 99)

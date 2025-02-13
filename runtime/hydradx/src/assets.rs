@@ -610,6 +610,7 @@ impl pallet_ema_oracle::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
+	type CurrencyIdConvert = CurrencyIdConvert;
 }
 
 pub struct DustRemovalWhitelist;

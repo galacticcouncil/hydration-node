@@ -91,9 +91,6 @@ pub use types::*;
 #[allow(clippy::all)]
 pub mod weights;
 pub use weights::WeightInfo;
-
-mod benchmarking;
-
 /// The maximum number of periods that could have corresponding oracles.
 pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
 
@@ -204,6 +201,7 @@ pub mod pallet {
 
 	/// Assets that are whitelisted and tracked by the pallet.
 	#[pallet::storage]
+	#[pallet::getter(fn whitelisted_assets)]
 	pub type WhitelistedAssets<T: Config> =
 		StorageValue<_, BoundedBTreeSet<(Source, (AssetId, AssetId)), T::MaxUniqueEntries>, ValueQuery>;
 
