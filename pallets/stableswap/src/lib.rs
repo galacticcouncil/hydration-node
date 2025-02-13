@@ -61,7 +61,7 @@ use hydradx_traits::{oracle::RawOracle, registry::Inspect, stableswap::Stableswa
 use num_traits::ops::saturating::{SaturatingAdd, SaturatingMul, SaturatingSub};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
-use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion, Saturating};
+use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
@@ -1705,7 +1705,7 @@ impl<T: Config> Pallet<T> {
 		let target_pegs = Self::get_target_pegs(current_block, &pool.assets, &info.source)?;
 
 		let deltas = Self::calculate_peg_deltas(current_block, &info.current, &target_pegs, info.max_target_update);
-		let trade_fee = Self::calculate_target_fee(current_block, &info.current, &deltas, pool.fee);
+		let trade_fee = Self::calculate_target_fee(&info.current, &deltas, pool.fee);
 		let new_pegs = Self::calculate_new_pegs(&info.current, &deltas);
 
 		// Store new pegs
@@ -1792,7 +1792,7 @@ impl<T: Config> Pallet<T> {
 		r
 	}
 
-	fn calculate_target_fee(block_no: u128, current: &[PegType], deltas: &[PegDelta], current_fee: Permill) -> Permill {
+	fn calculate_target_fee(current: &[PegType], deltas: &[PegDelta], current_fee: Permill) -> Permill {
 		let peg_relative_changes: Vec<(Ratio, bool)> = deltas
 			.iter()
 			.zip(current.iter().copied())

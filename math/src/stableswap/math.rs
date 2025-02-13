@@ -29,7 +29,7 @@ pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 	idx_out: usize,
 	amount_in: Balance,
 	amplification: Balance,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<Balance> {
 	if idx_in == idx_out {
 		return None;
@@ -44,8 +44,7 @@ pub fn calculate_out_given_in<const D: u8, const Y: u8>(
 		TARGET_PRECISION,
 		Rounding::Up,
 	);
-	let new_reserve_out =
-		calculate_y_given_in::<D, Y>(amount_in, idx_in, idx_out, &reserves, amplification, multipliers)?;
+	let new_reserve_out = calculate_y_given_in::<D, Y>(amount_in, idx_in, idx_out, &reserves, amplification, pegs)?;
 
 	let amount_out = reserves[idx_out].checked_sub(new_reserve_out)?;
 	let amount_out = normalize_value(
@@ -66,7 +65,7 @@ pub fn calculate_in_given_out<const D: u8, const Y: u8>(
 	idx_out: usize,
 	amount_out: Balance,
 	amplification: Balance,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<Balance> {
 	if idx_in == idx_out {
 		return None;
@@ -81,8 +80,7 @@ pub fn calculate_in_given_out<const D: u8, const Y: u8>(
 		TARGET_PRECISION,
 		Rounding::Down,
 	);
-	let new_reserve_in =
-		calculate_y_given_out::<D, Y>(amount_out, idx_in, idx_out, &reserves, amplification, multipliers)?;
+	let new_reserve_in = calculate_y_given_out::<D, Y>(amount_out, idx_in, idx_out, &reserves, amplification, pegs)?;
 	let amount_in = new_reserve_in.checked_sub(reserves[idx_in])?;
 	let amount_in = normalize_value(
 		amount_in,
@@ -101,13 +99,12 @@ pub fn calculate_out_given_in_with_fee<const D: u8, const Y: u8>(
 	amount_in: Balance,
 	amplification: Balance,
 	fee: Permill,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<(Balance, Balance)> {
 	if idx_in == idx_out {
 		return None;
 	}
-	let amount_out =
-		calculate_out_given_in::<D, Y>(initial_reserves, idx_in, idx_out, amount_in, amplification, multipliers)?;
+	let amount_out = calculate_out_given_in::<D, Y>(initial_reserves, idx_in, idx_out, amount_in, amplification, pegs)?;
 	let fee_amount = calculate_fee_amount(amount_out, fee, Rounding::Down);
 	let amount_out = amount_out.checked_sub(fee_amount)?;
 	Some((amount_out, fee_amount))
@@ -121,19 +118,12 @@ pub fn calculate_in_given_out_with_fee<const D: u8, const Y: u8>(
 	amount_out: Balance,
 	amplification: Balance,
 	fee: Permill,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<(Balance, Balance)> {
 	if idx_in == idx_out {
 		return None;
 	}
-	let amount_in = calculate_in_given_out::<D, Y>(
-		initial_reserves,
-		idx_in,
-		idx_out,
-		amount_out,
-		amplification,
-		multipliers,
-	)?;
+	let amount_in = calculate_in_given_out::<D, Y>(initial_reserves, idx_in, idx_out, amount_out, amplification, pegs)?;
 	let fee_amount = calculate_fee_amount(amount_in, fee, Rounding::Up);
 	let amount_in = amount_in.checked_add(fee_amount)?;
 	Some((amount_in, fee_amount))
@@ -146,7 +136,7 @@ pub fn calculate_shares<const D: u8>(
 	amplification: Balance,
 	share_issuance: Balance,
 	fee: Permill,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<(Balance, Vec<Balance>)> {
 	if initial_reserves.len() != updated_reserves.len() {
 		return None;
@@ -155,11 +145,11 @@ pub fn calculate_shares<const D: u8>(
 	if n_coins <= 1 {
 		return None;
 	}
-	let initial_d = calculate_d::<D>(initial_reserves, amplification, multipliers.clone())?;
+	let initial_d = calculate_d::<D>(initial_reserves, amplification, pegs.clone())?;
 
 	// We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
 	// calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-	let updated_d = calculate_d::<D>(updated_reserves, amplification, multipliers.clone())?.checked_sub(2_u128)?;
+	let updated_d = calculate_d::<D>(updated_reserves, amplification, pegs.clone())?.checked_sub(2_u128)?;
 	if updated_d < initial_d {
 		return None;
 	}
@@ -190,7 +180,7 @@ pub fn calculate_shares<const D: u8>(
 	} else {
 		updated_reserves.to_vec()
 	};
-	let adjusted_d = calculate_d::<D>(&adjusted_reserves, amplification, multipliers)?;
+	let adjusted_d = calculate_d::<D>(&adjusted_reserves, amplification, pegs)?;
 
 	if share_issuance == 0 {
 		// if first liquidity added
@@ -212,7 +202,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 	amplification: Balance,
 	share_issuance: Balance,
 	fee: Permill,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<(Balance, Vec<Balance>)> {
 	let n_coins = initial_reserves.len();
 	if n_coins <= 1 {
@@ -238,8 +228,8 @@ pub fn calculate_shares_for_amount<const D: u8>(
 		})
 		.collect::<Option<Vec<AssetReserve>>>()?;
 
-	let initial_d = calculate_d::<D>(initial_reserves, amplification, multipliers.clone())?;
-	let updated_d = calculate_d::<D>(&updated_reserves, amplification, multipliers.clone())?;
+	let initial_d = calculate_d::<D>(initial_reserves, amplification, pegs.clone())?;
+	let updated_d = calculate_d::<D>(&updated_reserves, amplification, pegs.clone())?;
 	let (d1, d0) = to_u256!(updated_d, initial_d);
 	let mut fees = vec![];
 	let adjusted_reserves: Vec<AssetReserve> = updated_reserves
@@ -258,7 +248,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 		})
 		.collect::<Option<Vec<AssetReserve>>>()?;
 
-	let adjusted_d = calculate_d::<D>(&adjusted_reserves, amplification, multipliers)?;
+	let adjusted_d = calculate_d::<D>(&adjusted_reserves, amplification, pegs)?;
 	let (d_diff, issuance_hp) = to_u256!(initial_d.checked_sub(adjusted_d)?, share_issuance);
 	let share_amount = issuance_hp
 		.checked_mul(d_diff)?
@@ -289,7 +279,7 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 	share_asset_issuance: Balance,
 	amplification: Balance,
 	fee: Permill,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<(Balance, Balance)> {
 	if share_asset_issuance.is_zero() {
 		return None;
@@ -315,7 +305,7 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 		.checked_mul(&FixedU128::from(n_coins as u128))?
 		.checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
 
-	let initial_d = calculate_d_internal::<D>(&reserves, amplification, multipliers.clone())?;
+	let initial_d = calculate_d_internal::<D>(&reserves, amplification, pegs.clone())?;
 	let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
 
 	let d1 = d_hp.checked_sub(shares_hp.checked_mul(d_hp)?.checked_div(issuance_hp)?)?;
@@ -327,7 +317,7 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 		.map(|(_, v)| *v)
 		.collect();
 
-	let (r_pegs, peg_omit) = if let Some(pegs) = multipliers {
+	let (r_pegs, peg_omit) = if let Some(pegs) = pegs {
 		let p_omit = pegs[asset_index];
 		let r = pegs
 			.into_iter()
@@ -397,7 +387,7 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 	share_asset_issuance: Balance,
 	amplification: Balance,
 	fee: Permill,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<(Balance, Balance)> {
 	if share_asset_issuance.is_zero() {
 		return None;
@@ -416,7 +406,7 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 	let asset_in_decimals = reserves[asset_index].decimals;
 	let reserves = normalize_reserves(reserves);
 
-	let initial_d = calculate_d_internal::<D>(&reserves, amplification, multipliers.clone())?;
+	let initial_d = calculate_d_internal::<D>(&reserves, amplification, pegs.clone())?;
 	let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
 
 	let d1 = d_hp.checked_add(shares_hp.checked_mul(d_hp)?.checked_div(issuance_hp)?)?;
@@ -428,7 +418,7 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 		.map(|(_, v)| *v)
 		.collect();
 
-	let (r_pegs, peg_omit) = if let Some(pegs) = multipliers {
+	let (r_pegs, peg_omit) = if let Some(pegs) = pegs {
 		let p_omit = pegs[asset_index];
 		let r = pegs
 			.into_iter()
@@ -496,10 +486,10 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 pub fn calculate_d<const D: u8>(
 	reserves: &[AssetReserve],
 	amplification: Balance,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<Balance> {
 	let n_reserves = normalize_reserves(reserves);
-	calculate_d_internal::<D>(&n_reserves, amplification, multipliers)
+	calculate_d_internal::<D>(&n_reserves, amplification, pegs)
 }
 
 const fn calculate_ann(n: usize, amplification: Balance) -> Option<Balance> {
@@ -513,7 +503,7 @@ pub(crate) fn calculate_y_given_in<const D: u8, const Y: u8>(
 	idx_out: usize,
 	reserves: &[Balance],
 	amplification: Balance,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<Balance> {
 	if idx_in >= reserves.len() || idx_out >= reserves.len() {
 		return None;
@@ -521,7 +511,7 @@ pub(crate) fn calculate_y_given_in<const D: u8, const Y: u8>(
 
 	let new_reserve_in = reserves[idx_in].checked_add(amount)?;
 
-	let d = calculate_d_internal::<D>(reserves, amplification, multipliers.clone())?;
+	let d = calculate_d_internal::<D>(reserves, amplification, pegs.clone())?;
 
 	let xp: Vec<Balance> = reserves
 		.iter()
@@ -530,7 +520,7 @@ pub(crate) fn calculate_y_given_in<const D: u8, const Y: u8>(
 		.map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
 		.collect();
 
-	let (r_pegs, peg_omit) = if let Some(pegs) = multipliers.clone() {
+	let (r_pegs, peg_omit) = if let Some(pegs) = pegs.clone() {
 		let p_omit = pegs[idx_out];
 		let r = pegs
 			.into_iter()
@@ -553,14 +543,14 @@ pub(crate) fn calculate_y_given_out<const D: u8, const Y: u8>(
 	idx_out: usize,
 	reserves: &[Balance],
 	amplification: Balance,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<Balance> {
 	if idx_in >= reserves.len() || idx_out >= reserves.len() {
 		return None;
 	}
 	let new_reserve_out = reserves[idx_out].checked_sub(amount)?;
 
-	let d = calculate_d_internal::<D>(reserves, amplification, multipliers.clone())?;
+	let d = calculate_d_internal::<D>(reserves, amplification, pegs.clone())?;
 	let xp: Vec<Balance> = reserves
 		.iter()
 		.enumerate()
@@ -568,7 +558,7 @@ pub(crate) fn calculate_y_given_out<const D: u8, const Y: u8>(
 		.map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
 		.collect();
 
-	let (r_pegs, peg_omit) = if let Some(pegs) = multipliers {
+	let (r_pegs, peg_omit) = if let Some(pegs) = pegs {
 		let p_omit = pegs[idx_in];
 		let r = pegs
 			.into_iter()
@@ -588,18 +578,17 @@ pub(crate) fn calculate_y_given_out<const D: u8, const Y: u8>(
 pub(crate) fn calculate_d_internal<const D: u8>(
 	xp: &[Balance],
 	amplification: Balance,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<Balance> {
 	let two_u256 = to_u256!(2_u128);
 
-	// Apply multipliers
-	let xp = if let Some(multipliers) = multipliers {
-		if multipliers.len() != xp.len() {
+	let xp = if let Some(pegs) = pegs {
+		if pegs.len() != xp.len() {
 			return None;
 		}
 
 		let mut x = vec![];
-		for (v, mpl) in xp.iter().zip(multipliers.iter()) {
+		for (v, mpl) in xp.iter().zip(pegs.iter()) {
 			let Some(r) =
 				multiply_by_rational_with_rounding(*v, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)
 			else {
@@ -675,16 +664,16 @@ fn calculate_y_internal<const D: u8>(
 	xp: &[Balance],
 	d: Balance,
 	amplification: Balance,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 	peg_omit: Option<(Balance, Balance)>,
 ) -> Option<Balance> {
-	let xp = if let Some(multipliers) = multipliers {
-		if multipliers.len() != xp.len() {
+	let xp = if let Some(pegs) = pegs {
+		if pegs.len() != xp.len() {
 			return None;
 		}
 
 		let mut x = vec![];
-		for (v, mpl) in xp.iter().zip(multipliers.iter()) {
+		for (v, mpl) in xp.iter().zip(pegs.iter()) {
 			let Some(r) =
 				multiply_by_rational_with_rounding(*v, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)
 			else {
@@ -846,19 +835,19 @@ pub fn calculate_share_prices<const D: u8>(
 	reserves: &[AssetReserve],
 	amplification: Balance,
 	issuance: Balance,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<Vec<(Balance, Balance)>> {
 	let n = reserves.len();
 	if n <= 1 {
 		return None;
 	}
 
-	let d = calculate_d::<D>(reserves, amplification, multipliers.clone())?;
+	let d = calculate_d::<D>(reserves, amplification, pegs.clone())?;
 
 	let mut r = Vec::with_capacity(n);
 
 	for idx in 0..n {
-		let price = calculate_share_price::<D>(reserves, amplification, issuance, idx, Some(d), multipliers.clone())?;
+		let price = calculate_share_price::<D>(reserves, amplification, issuance, idx, Some(d), pegs.clone())?;
 		r.push(price);
 	}
 	Some(r)
@@ -870,7 +859,7 @@ pub fn calculate_share_price<const D: u8>(
 	issuance: Balance,
 	asset_idx: usize,
 	provided_d: Option<Balance>,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<(Balance, Balance)> {
 	let n = reserves.len() as u128;
 	if n <= 1 || asset_idx >= reserves.len() {
@@ -879,7 +868,7 @@ pub fn calculate_share_price<const D: u8>(
 	let d = if let Some(v) = provided_d {
 		v
 	} else {
-		calculate_d::<D>(reserves, amplification, multipliers.clone())?
+		calculate_d::<D>(reserves, amplification, pegs.clone())?
 	};
 	let n_reserves = normalize_reserves(reserves);
 
@@ -945,7 +934,7 @@ pub fn calculate_spot_price(
 	share_issuance: Balance,
 	min_trade_amount: Balance,
 	fee: Option<Permill>,
-	multipliers: Option<Vec<(Balance, Balance)>>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<FixedU128> {
 	let reserves = asset_reserves
 		.clone()
@@ -953,7 +942,7 @@ pub fn calculate_spot_price(
 		.map(|(_, v)| v)
 		.collect::<Vec<AssetReserve>>();
 
-	let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amplification, multipliers.clone())?;
+	let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amplification, pegs.clone())?;
 
 	match (asset_in == pool_id, asset_out == pool_id) {
 		(STABLE_ASSET, STABLE_ASSET) => {
@@ -977,7 +966,7 @@ pub fn calculate_spot_price(
 				amplification,
 				share_issuance,
 				fee.unwrap_or(Permill::zero()),
-				multipliers.clone(),
+				pegs.clone(),
 			)?;
 
 			FixedU128::checked_from_rational(shares, min_trade_amount)
@@ -999,7 +988,7 @@ pub fn calculate_spot_price(
 				amplification,
 				share_issuance,
 				fee.unwrap_or(Permill::zero()),
-				multipliers.clone(),
+				pegs.clone(),
 			)?;
 
 			FixedU128::checked_from_rational(min_trade_amount, shares_for_min_trade)

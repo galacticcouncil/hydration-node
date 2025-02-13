@@ -8,7 +8,6 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::helpers_128bit;
 use sp_std::ops::{Add, Mul, Sub};
-use std::ops::Div;
 
 /// A rational number represented by a `n`umerator and `d`enominator.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Encode, Decode, Serialize, Deserialize, TypeInfo, MaxEncodedLen)]
