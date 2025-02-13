@@ -8,6 +8,7 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_arithmetic::helpers_128bit;
 use sp_std::ops::{Add, Mul, Sub};
+use std::ops::Div;
 
 /// A rational number represented by a `n`umerator and `d`enominator.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Encode, Decode, Serialize, Deserialize, TypeInfo, MaxEncodedLen)]
@@ -205,6 +206,17 @@ impl SaturatingMul for Ratio {
 	}
 }
 
+impl Ratio {
+	pub fn saturating_div(&self, rhs: &Self) -> Self {
+		if rhs.is_zero() {
+			return Self::zero(); // Handle division by zero
+		}
+		let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(self.n, self.d, rhs.n, rhs.d);
+		let n = l_n.full_mul(r_d);
+		let d = l_d.full_mul(r_n);
+		round_to_rational((n, d), Rounding::Nearest).into()
+	}
+}
 #[cfg(feature = "std")]
 impl sp_std::fmt::Debug for Ratio {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter<'_>) -> sp_std::fmt::Result {

@@ -382,6 +382,8 @@ fn sell_with_drifting_peg_should_work() {
 		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
 		.build()
 		.execute_with(|| {
+			System::set_block_number(1);
+			set_peg_oracle_value(asset_a, asset_b, peg2, 1);
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
@@ -406,6 +408,10 @@ fn sell_with_drifting_peg_should_work() {
 				])
 			));
 
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+
+			System::set_block_number(5);
+
 			let pool_account = pool_account(pool_id);
 
 			//let pool_liquid_a = Tokens::free_balance(asset_a, &pool_account);
@@ -423,6 +429,6 @@ fn sell_with_drifting_peg_should_work() {
 			));
 
 			assert_balance!(BOB, asset_a, 0);
-			assert_balance!(BOB, asset_b, 199999950445584);
+			assert_balance!(BOB, asset_b, 190961826574751);
 		});
 }

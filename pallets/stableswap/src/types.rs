@@ -178,17 +178,19 @@ impl PoolPegInfo {
 }
 
 // Helper type for cleaner calculation
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct PegDelta {
 	pub(crate) delta: Ratio,
 	pub(crate) neg: bool,
+	pub(crate) block_diff: u128,
 }
 
-impl From<(Ratio, bool)> for PegDelta {
-	fn from(value: (Ratio, bool)) -> Self {
+impl From<(Ratio, bool, u128)> for PegDelta {
+	fn from(value: (Ratio, bool, u128)) -> Self {
 		Self {
 			delta: value.0,
 			neg: value.1,
+			block_diff: value.2,
 		}
 	}
 }

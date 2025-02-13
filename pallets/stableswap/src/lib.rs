@@ -607,7 +607,7 @@ pub mod pallet {
 			);
 
 			let amplification = Self::get_amplification(&pool);
-			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, false)?;
+			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id)?;
 
 			//Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
@@ -700,7 +700,7 @@ pub mod pallet {
 
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
-			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, false)?;
+			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id)?;
 
 			// Calculate how much shares user needs to provide to receive `amount` of asset.
 			let (shares, fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -1135,7 +1135,7 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let (trade_fee, asset_pegs) = if update_peg {
-			Self::update_and_return_pegs_and_trade_fee(pool_id, true)?
+			Self::update_and_return_pegs_and_trade_fee(pool_id)?
 		} else {
 			(pool.fee, Self::get_current_pegs(pool_id))
 		};
@@ -1178,7 +1178,7 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let (trade_fee, asset_pegs) = if update_peg {
-			Self::update_and_return_pegs_and_trade_fee(pool_id, true)?
+			Self::update_and_return_pegs_and_trade_fee(pool_id)?
 		} else {
 			(pool.fee, Self::get_current_pegs(pool_id))
 		};
@@ -1305,7 +1305,7 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, true)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id)?;
 		let (share_amount, fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves,
@@ -1393,7 +1393,7 @@ impl<T: Config> Pallet<T> {
 			ensure!(!reserve.amount.is_zero(), Error::<T>::InvalidInitialLiquidity);
 		}
 
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, false)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id)?;
 		let (amount_in, fee) = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 			&initial_reserves,
 			shares,
@@ -1514,7 +1514,7 @@ impl<T: Config> Pallet<T> {
 
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, false)?;
+		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id)?;
 		let (share_amount, _fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
 			&updated_reserves[..],
@@ -1696,7 +1696,6 @@ impl<T: Config> Pallet<T> {
 	#[require_transactional]
 	fn update_and_return_pegs_and_trade_fee(
 		pool_id: T::AssetId,
-		is_swap: bool,
 	) -> Result<(Permill, Option<Vec<PegType>>), DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		let Some(info) = PoolPeg::<T>::get(&pool_id) else {
@@ -1706,7 +1705,7 @@ impl<T: Config> Pallet<T> {
 		let target_pegs = Self::get_target_pegs(current_block, &pool.assets, &info.source)?;
 
 		let deltas = Self::calculate_peg_deltas(current_block, &info.current, &target_pegs, info.max_target_update);
-		let trade_fee = Self::calculate_target_fee(current_block, &deltas, pool.fee, is_swap);
+		let trade_fee = Self::calculate_target_fee(current_block, &info.current, &deltas, pool.fee);
 		let new_pegs = Self::calculate_new_pegs(&info.current, &deltas);
 
 		// Store new pegs
@@ -1783,18 +1782,109 @@ impl<T: Config> Pallet<T> {
 			let max_peg_move = max_move_ratio.saturating_mul(&c).saturating_mul(&b);
 
 			if delta <= max_peg_move {
-				r.push((delta, delta_neg).into());
+				r.push((delta, delta_neg, block_ct).into());
 			} else if c < t {
-				r.push((max_peg_move, false).into());
+				r.push((max_peg_move, false, block_ct).into());
 			} else {
-				r.push((max_peg_move, true).into());
+				r.push((max_peg_move, true, block_ct).into());
 			}
 		}
 		r
 	}
 
-	fn calculate_target_fee(block_no: u128, deltas: &[PegDelta], current_fee: Permill, is_swap: bool) -> Permill {
-		current_fee
+	fn calculate_target_fee(block_no: u128, current: &[PegType], deltas: &[PegDelta], current_fee: Permill) -> Permill {
+		let peg_relative_changes: Vec<(Ratio, bool)> = deltas
+			.iter()
+			.zip(current.iter().copied())
+			.map(|(delta, current)| {
+				let b: Ratio = delta.block_diff.into();
+				let c: Ratio = current.into();
+				debug_assert!(!b.is_zero(), "Block difference cannot be zero");
+				debug_assert!(!c.is_zero(), "Current peg cannot be zero");
+				let r = delta.delta.saturating_div(&b).saturating_div(&c);
+				(r, delta.neg)
+			})
+			.collect();
+
+		let mut max_change = (Ratio::zero(), false);
+		for (v, neg) in peg_relative_changes.iter() {
+			let c_max_neg = max_change.1;
+
+			match (neg, c_max_neg) {
+				(true, true) => {
+					if v < &max_change.0 {
+						max_change = (v.clone(), true);
+					}
+				}
+				(true, false) => {
+					// no change
+				}
+				(false, true) => {
+					max_change = (v.clone(), true);
+				}
+				(false, false) => {
+					if v > &max_change.0 {
+						max_change = (v.clone(), false);
+					}
+				}
+			}
+		}
+
+		let mut min_change = (Ratio::zero(), false);
+		for (v, neg) in peg_relative_changes.iter() {
+			let c_min_neg = min_change.1;
+			match (neg, c_min_neg) {
+				(true, true) => {
+					if v > &min_change.0 {
+						min_change = (v.clone(), true);
+					}
+				}
+				(true, false) => {
+					min_change = (v.clone(), true);
+				}
+				(false, true) => {
+					// no change
+				}
+				(false, false) => {
+					if v < &min_change.0 {
+						min_change = (v.clone(), false);
+					}
+				}
+			}
+		}
+		let (max_value, max_neg) = if max_change.1 {
+			// negative
+			if max_change.0 > Ratio::one() {
+				(max_change.0.saturating_sub(&Ratio::one()), true)
+			} else {
+				(Ratio::one().saturating_sub(&max_change.0), false)
+			}
+		} else {
+			// positive
+			(max_change.0.saturating_add(&Ratio::one()), false)
+		};
+
+		let (min_value, min_neg) = if min_change.1 {
+			// negative
+			if min_change.0 > Ratio::one() {
+				(min_change.0.saturating_sub(&Ratio::one()), true)
+			} else {
+				(Ratio::one().saturating_sub(&min_change.0), false)
+			}
+		} else {
+			// positive
+			(min_change.0.saturating_add(&Ratio::one()), false)
+		};
+
+		let max_diff = max_value.saturating_div(&min_value);
+		let max_diff_negative = max_neg || min_neg;
+		if max_diff_negative || max_diff < Ratio::one() {
+			return current_fee;
+		}
+		let max_diff = max_diff.saturating_sub(&Ratio::one());
+		let p = Ratio::from(2).saturating_mul(&max_diff);
+		let new_fee = Permill::from_rational(p.n, p.d);
+		new_fee.max(current_fee)
 	}
 
 	fn calculate_new_pegs(current: &[PegType], deltas: &[PegDelta]) -> Vec<PegType> {
