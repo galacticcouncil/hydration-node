@@ -162,6 +162,7 @@ fn buy_with_peg_should_work_different_pegs() {
 			//let pool_liquid_c = Tokens::free_balance(asset_c, &pool_account);
 
 			assert_balance!(BOB, asset_b, 0);
+			let bob_a_initial = Tokens::free_balance(asset_a, &BOB);
 			assert_ok!(Stableswap::buy(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -171,7 +172,8 @@ fn buy_with_peg_should_work_different_pegs() {
 				250 * ONE,
 			));
 
-			assert_balance!(BOB, asset_a, 0);
+			let bob_a_final = Tokens::free_balance(asset_a, &BOB);
+			assert_eq!(bob_a_initial - bob_a_final, 100_000_000_000_001);
 			assert_balance!(BOB, asset_b, 199999950445584);
 		});
 }
