@@ -3,7 +3,7 @@ use crate::stableswap::types::AssetReserve;
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
 use crate::types::{AssetId, Balance, Ratio};
-use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
+use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, SaturatingMul, Zero};
 use primitive_types::U256;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
@@ -980,6 +980,7 @@ pub fn calculate_spot_price(
 				asset_in_idx,
 				asset_out_idx,
 				fee,
+				pegs,
 			)
 		}
 		(SHARE_ASSET, STABLE_ASSET) => {
@@ -1040,6 +1041,7 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	asset_in_idx: usize,
 	asset_out_idx: usize,
 	fee: Option<Permill>,
+	pegs: Option<Vec<(Balance, Balance)>>,
 ) -> Option<FixedU128> {
 	let n = reserves.len();
 	if n <= 1 || asset_in_idx >= n || asset_out_idx >= n {
@@ -1047,7 +1049,26 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	}
 	let ann = calculate_ann(n, amplification)?;
 
-	let mut n_reserves = normalize_reserves(reserves);
+	let (adjusted_reserves, asset_peg_in, asset_peg_out) = if let Some(p) = pegs {
+		if p.len() != reserves.len() {
+			return None;
+		}
+
+		let mut x = vec![];
+		for (v, mpl) in reserves.iter().zip(p.iter()) {
+			let r_new =
+				multiply_by_rational_with_rounding(v.amount, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)?;
+			x.push(AssetReserve {
+				amount: r_new,
+				decimals: v.decimals,
+			});
+		}
+		(x, Some(p[asset_in_idx]), Some(p[asset_out_idx]))
+	} else {
+		(reserves.to_vec(), None, None)
+	};
+
+	let mut n_reserves = normalize_reserves(&adjusted_reserves);
 
 	let x0 = n_reserves[asset_in_idx];
 	let xi = n_reserves[asset_out_idx];
@@ -1063,17 +1084,26 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	let num = x0.checked_mul(ann.checked_mul(xi)?.checked_add(c)?)?;
 	let denom = xi.checked_mul(ann.checked_mul(x0)?.checked_add(c)?)?;
 
-	let mut spot_price = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
+	let spot_price = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
+
+	let spot_price = if let (Some(peg_in), Some(peg_out)) = (asset_peg_in, asset_peg_out) {
+		let price: Ratio = spot_price.into();
+		let peg_in: Ratio = peg_in.into();
+		let peg_out: Ratio = peg_out.into();
+		let result = price.saturating_mul(&peg_in).saturating_div(&peg_out);
+		(result.n, result.d)
+	} else {
+		spot_price
+	};
 
 	if let Some(fee) = fee {
 		// Amount_out is reduced by fee in SELL, making asset_out more expensive, so the asset_in/asset_out spot price should be increased.
 		// So divide spot-price-without-fee by (1-fee) to reflect correct amount out after the fee deduction
 		let fee_multiplier = Permill::from_percent(100).checked_sub(&fee)?;
-
-		spot_price.1 = fee_multiplier.mul_floor(spot_price.1);
+		FixedU128::checked_from_rational(spot_price.0, fee_multiplier.mul_floor(spot_price.1))
+	} else {
+		FixedU128::checked_from_rational(spot_price.0, spot_price.1)
 	}
-
-	FixedU128::checked_from_rational(spot_price.0, spot_price.1)
 }
 
 #[cfg(test)]
@@ -1121,7 +1151,7 @@ mod tests {
 		];
 		let amp = 319u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp, None).unwrap();
-		let p = calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 0, 1, None).unwrap();
+		let p = calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 0, 1, None, None).unwrap();
 		assert_approx_eq!(
 			p,
 			FixedU128::from_rational(
@@ -1139,7 +1169,7 @@ mod tests {
 		];
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp, None).unwrap();
-		let p = calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 0, 1, None).unwrap();
+		let p = calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 0, 1, None, None).unwrap();
 		assert_approx_eq!(
 			p,
 			FixedU128::from_rational(
@@ -1162,8 +1192,8 @@ mod tests {
 		let amp = 10u128;
 		let d = calculate_d::<MAX_D_ITERATIONS>(&reserves, amp, None).unwrap();
 
-		assert!(calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 4, 1, None).is_none());
-		assert!(calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 1, 4, None).is_none());
+		assert!(calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 4, 1, None, None).is_none());
+		assert!(calculate_spot_price_between_two_stable_assets(&reserves, amp, d, 1, 4, None, None).is_none());
 	}
 
 	#[test]

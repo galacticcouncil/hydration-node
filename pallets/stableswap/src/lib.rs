@@ -1642,7 +1642,7 @@ impl<T: Config> Pallet<T> {
 		);
 	}
 	#[cfg(any(feature = "try-runtime", test))]
-	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], fee: Permill) {
+	fn ensure_trade_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve], _fee: Permill) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
 		let asset_pegs = Self::get_current_pegs(pool_id);
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();

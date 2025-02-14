@@ -3,13 +3,14 @@ use crate::types::{BoundedPegSources, BoundedPegs, PegSource, PoolPegInfo};
 use crate::{assert_balance, Event};
 use hydradx_traits::stableswap::AssetAmount;
 
-use crate::tests::get_share_price;
+use crate::tests::{get_share_price, spot_price, spot_price_first_asset};
 use frame_support::{assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
 use num_traits::One;
 use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{FixedPointNumber, FixedU128, Permill};
+use test_utils::assert_eq_approx;
 
 #[test]
 fn sell_with_peg_should_work_different_pegs() {
@@ -575,13 +576,20 @@ fn spot_pries_should_be_correct_with_different_pegs() {
 				])
 			));
 
-			let share0 = get_share_price(pool_id, 0);
-			assert_eq!(share0, FixedU128::from_float(0.000001000748975604));
+			let spot1 = spot_price(pool_id, asset_b, asset_a);
+			assert_eq_approx!(
+				spot1,
+				FixedU128::from_float(0.5),
+				FixedU128::from_float(0.0000000001),
+				"spot price not equal"
+			);
 
-			let share1 = get_share_price(pool_id, 1);
-			assert_eq!(share1, FixedU128::from_float(0.000002001497951207));
-
-			let share2 = get_share_price(pool_id, 2);
-			assert_eq!(share2, FixedU128::from_float(0.000002988112571400));
+			let spot2 = spot_price(pool_id, asset_c, asset_a);
+			assert_eq_approx!(
+				spot2,
+				FixedU128::from_float(0.331764024772596923),
+				FixedU128::from_float(0.0000000001),
+				"spot price not equal"
+			);
 		});
 }
