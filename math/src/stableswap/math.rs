@@ -587,16 +587,14 @@ pub(crate) fn calculate_d_internal<const D: u8>(
 			return None;
 		}
 
-		let mut x = vec![];
-		for (v, mpl) in xp.iter().zip(pegs.iter()) {
-			let Some(r) =
-				multiply_by_rational_with_rounding(*v, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)
-			else {
-				return None;
-			};
-			x.push(r);
-		}
-		x
+		xp.iter()
+			.zip(pegs.iter())
+			.map(|(v, peg)| {
+				multiply_by_rational_with_rounding(*v, peg.0, peg.1, sp_arithmetic::per_things::Rounding::Down)
+			})
+			.collect::<Vec<Option<Balance>>>()
+			.into_iter()
+			.collect::<Option<Vec<Balance>>>()?
 	} else {
 		xp.to_vec()
 	};
@@ -671,17 +669,14 @@ fn calculate_y_internal<const D: u8>(
 		if pegs.len() != xp.len() {
 			return None;
 		}
-
-		let mut x = vec![];
-		for (v, mpl) in xp.iter().zip(pegs.iter()) {
-			let Some(r) =
-				multiply_by_rational_with_rounding(*v, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)
-			else {
-				return None;
-			};
-			x.push(r);
-		}
-		x
+		xp.iter()
+			.zip(pegs.iter())
+			.map(|(v, peg)| {
+				multiply_by_rational_with_rounding(*v, peg.0, peg.1, sp_arithmetic::per_things::Rounding::Down)
+			})
+			.collect::<Vec<Option<Balance>>>()
+			.into_iter()
+			.collect::<Option<Vec<Balance>>>()?
 	} else {
 		xp.to_vec()
 	};
