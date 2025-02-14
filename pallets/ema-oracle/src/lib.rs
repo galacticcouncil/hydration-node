@@ -304,7 +304,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle())] //TODO: rebenchmark
+		#[pallet::weight(<T as Config>::WeightInfo::update_bifrost_oracle())]
 		pub fn update_bifrost_oracle(
 			origin: OriginFor<T>,
 			//NOTE: these must be boxed becasue of https://github.com/paritytech/polkadot-sdk/blob/6875d36b2dba537f3254aad3db76ac7aa656b7ab/substrate/frame/utility/src/lib.rs#L150
