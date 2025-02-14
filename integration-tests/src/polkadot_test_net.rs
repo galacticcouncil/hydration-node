@@ -2,7 +2,7 @@
 use frame_support::{
 	assert_ok,
 	sp_runtime::{
-		traits::{AccountIdConversion, Block as BlockT, Dispatchable, HashingFor},
+		traits::{AccountIdConversion, Block as BlockT, Dispatchable},
 		BuildStorage, FixedU128, Permill,
 	},
 	traits::{GetCallMetadata, OnInitialize},
@@ -18,7 +18,7 @@ use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeEvent, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 use pallet_referrals::{FeeDistribution, Level};
-pub use polkadot_primitives::v7::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
+pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::storage::Storage;
@@ -144,6 +144,7 @@ decl_test_parachains! {
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
 			hydradx_runtime::Timestamp::set_timestamp(NOW);
+			hydradx_runtime::AuraExt::on_initialize(1);
 			// Make sure the prices are up-to-date.
 			hydradx_runtime::MultiTransactionPayment::on_initialize(1);
 			hydradx_runtime::AssetRegistry::set_location(WETH, WETH_ASSET_LOCATION).unwrap();
@@ -164,6 +165,7 @@ decl_test_parachains! {
 		genesis = para::genesis(ACALA_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -181,6 +183,7 @@ decl_test_parachains! {
 		genesis = para::genesis(MOONBEAM_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -198,6 +201,7 @@ decl_test_parachains! {
 		genesis = para::genesis(INTERLAY_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -215,6 +219,7 @@ decl_test_parachains! {
 		genesis = para::genesis(ASSET_HUB_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -232,6 +237,7 @@ decl_test_parachains! {
 		genesis = para::genesis(ZEITGEIST_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
+			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -282,10 +288,9 @@ pub mod rococo {
 		}
 	}
 
-	use sp_core::{Pair, Public};
+	use sp_core::{sr25519, Pair, Public};
 
 	use polkadot_primitives::{AssignmentId, ValidatorId};
-	use polkadot_service::chain_spec::get_authority_keys_from_seed_no_beefy;
 	use sc_consensus_grandpa::AuthorityId as GrandpaId;
 	use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 	use sp_consensus_babe::AuthorityId as BabeId;
@@ -340,6 +345,28 @@ pub mod rococo {
 		}
 	}
 
+	pub fn get_authority_keys_from_seed_no_beefy(
+		seed: &str,
+	) -> (
+		AccountId,
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ValidatorId,
+		AssignmentId,
+		AuthorityDiscoveryId,
+	) {
+		(
+			get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
+			get_account_id_from_seed::<sr25519::Public>(seed),
+			get_from_seed::<BabeId>(seed),
+			get_from_seed::<GrandpaId>(seed),
+			get_from_seed::<ValidatorId>(seed),
+			get_from_seed::<AssignmentId>(seed),
+			get_from_seed::<AuthorityDiscoveryId>(seed),
+		)
+	}
+
 	pub fn genesis() -> Storage {
 		let genesis_config = rococo_runtime::RuntimeGenesisConfig {
 			balances: rococo_runtime::BalancesConfig {
@@ -366,6 +393,7 @@ pub mod rococo {
 						)
 					})
 					.collect::<Vec<_>>(),
+				non_authority_keys: Default::default(),
 			},
 			configuration: rococo_runtime::ConfigurationConfig {
 				config: get_host_configuration(),
@@ -468,6 +496,7 @@ pub mod hydra {
 						)
 					})
 					.collect(),
+				non_authority_keys: Default::default(),
 			},
 			asset_registry: hydradx_runtime::AssetRegistryConfig {
 				registered_assets: vec![
@@ -632,6 +661,7 @@ pub mod para {
 						)
 					})
 					.collect(),
+				non_authority_keys: Default::default(),
 			},
 			parachain_info: hydradx_runtime::ParachainInfoConfig {
 				parachain_id: para_id.into(),
@@ -679,6 +709,8 @@ pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
 	use hydradx_runtime::ParachainSystem;
+	use sp_core::{Encode, Get};
+	use xcm_emulator::HeaderT;
 
 	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
 	// how we set the block number with `cumulus-test-relay-sproof-builder` package
@@ -686,7 +718,23 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 
 	ParachainSystem::on_initialize(number);
 
-	let (relay_storage_root, proof) = RelayStateSproofBuilder::default().into_state_root_and_proof();
+	let mut sproof_builder = RelayStateSproofBuilder::default();
+
+	let parent_head_data = {
+		let header = cumulus_primitives_core::relay_chain::Header::new(
+			number,
+			sp_core::H256::from_low_u64_be(0),
+			sp_core::H256::from_low_u64_be(0),
+			Default::default(),
+			Default::default(),
+		);
+		cumulus_primitives_core::relay_chain::HeadData(header.encode())
+	};
+
+	sproof_builder.para_id = hydradx_runtime::ParachainInfo::get();
+	sproof_builder.included_para_head = Some(parent_head_data.clone());
+
+	let (relay_storage_root, proof) = sproof_builder.into_state_root_and_proof();
 
 	assert_ok!(ParachainSystem::set_validation_data(
 		RuntimeOrigin::none(),
@@ -717,6 +765,7 @@ pub fn hydradx_run_to_next_block() {
 
 	hydradx_runtime::System::set_block_number(b + 1);
 	hydradx_runtime::System::on_initialize(b + 1);
+	hydradx_runtime::AuraExt::on_initialize(b + 1);
 	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 	hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
 	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
@@ -770,7 +819,7 @@ pub fn rococo_run_to_block(to: BlockNumber) {
 
 pub fn hydra_live_ext(
 	path_to_snapshot: &str,
-) -> frame_remote_externalities::RemoteExternalities<HashingFor<hydradx_runtime::Block>> {
+) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
 	let ext = tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()

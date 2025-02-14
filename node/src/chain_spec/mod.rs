@@ -28,8 +28,7 @@ pub mod staging;
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use hydradx_runtime::{
-	pallet_claims::EthereumAddress, AccountId, AuraId, Balance, DusterConfig, RegistryStrLimit, RuntimeGenesisConfig,
-	Signature, WASM_BINARY,
+	pallet_claims::EthereumAddress, AccountId, AuraId, Balance, DusterConfig, RegistryStrLimit, Signature, WASM_BINARY,
 };
 use primitives::{
 	constants::currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
@@ -53,7 +52,6 @@ const STASH: Balance = 100 * UNITS;
 
 /// The extensions for the [`ChainSpec`].
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
-#[serde(deny_unknown_fields)]
 pub struct Extensions {
 	/// The relay chain of the Parachain.
 	pub relay_chain: String,
@@ -71,7 +69,7 @@ impl Extensions {
 }
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// Generate a crypto pair from seed.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {

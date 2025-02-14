@@ -33,6 +33,7 @@
 // * `cancel_order` - cancel an open OTC order.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::*, require_transactional};
