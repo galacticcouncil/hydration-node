@@ -29,7 +29,6 @@ sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 
 polkadot-xcm = { workspace = true }
-hex-literal = { workspace = true }
 
 log = { workspace = true }
 

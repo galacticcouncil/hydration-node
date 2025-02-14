@@ -133,8 +133,6 @@ impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist {
 	}
 }
 
-use hex_literal::hex;
-
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
