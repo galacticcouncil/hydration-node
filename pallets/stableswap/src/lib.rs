@@ -1706,10 +1706,7 @@ impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pa
 // Peg support
 impl<T: Config> Pallet<T> {
 	fn get_current_pegs(pool_id: T::AssetId) -> Option<Vec<PegType>> {
-		let Some(info) = PoolPeg::<T>::get(&pool_id) else {
-			return None;
-		};
-		Some(info.current.to_vec())
+		Some(PoolPeg::<T>::get(pool_id)?.current.to_vec())
 	}
 
 	#[require_transactional]
@@ -1717,7 +1714,7 @@ impl<T: Config> Pallet<T> {
 		pool_id: T::AssetId,
 	) -> Result<(Permill, Option<Vec<PegType>>), DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-		let Some(info) = PoolPeg::<T>::get(&pool_id) else {
+		let Some(info) = PoolPeg::<T>::get(pool_id) else {
 			return Ok((pool.fee, None));
 		};
 		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
@@ -1757,7 +1754,7 @@ impl<T: Config> Pallet<T> {
 		let mut r = vec![];
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
 			let p = match source {
-				PegSource::Value(peg) => (peg.clone(), block_no),
+				PegSource::Value(peg) => (*peg, block_no),
 				PegSource::Oracle((source, period)) => {
 					//TODO: what if error - do we fail completely ?
 					let entry = T::TargetPegOracle::get_raw_entry(*source, first_asset, *asset_id, *period)
@@ -1832,18 +1829,18 @@ impl<T: Config> Pallet<T> {
 			match (neg, c_max_neg) {
 				(true, true) => {
 					if v < &max_change.0 {
-						max_change = (v.clone(), true);
+						max_change = (*v, true);
 					}
 				}
 				(true, false) => {
 					// no change
 				}
 				(false, true) => {
-					max_change = (v.clone(), true);
+					max_change = (*v, true);
 				}
 				(false, false) => {
 					if v > &max_change.0 {
-						max_change = (v.clone(), false);
+						max_change = (*v, false);
 					}
 				}
 			}
@@ -1855,18 +1852,18 @@ impl<T: Config> Pallet<T> {
 			match (neg, c_min_neg) {
 				(true, true) => {
 					if v > &min_change.0 {
-						min_change = (v.clone(), true);
+						min_change = (*v, true);
 					}
 				}
 				(true, false) => {
-					min_change = (v.clone(), true);
+					min_change = (*v, true);
 				}
 				(false, true) => {
 					// no change
 				}
 				(false, false) => {
 					if v < &min_change.0 {
-						min_change = (v.clone(), false);
+						min_change = (*v, false);
 					}
 				}
 			}
