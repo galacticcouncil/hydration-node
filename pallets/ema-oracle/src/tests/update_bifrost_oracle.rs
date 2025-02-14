@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-pub use mock::{bifrost_account, expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1};
+pub use mock::{expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1};
 use std::sync::Arc;
 
 use frame_support::{assert_noop, assert_ok};
@@ -54,7 +54,7 @@ fn add_oracle_should_add_entry_to_storage() {
 		System::set_block_number(3);
 
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(AccountId32::from(bifrost_account())),
+			RuntimeOrigin::signed(ALICE.into()),
 			asset_a,
 			asset_b,
 			(100, 99)
@@ -89,7 +89,7 @@ fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 		System::set_block_number(3);
 
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(AccountId32::from(bifrost_account())),
+			RuntimeOrigin::signed(ALICE.into()),
 			asset_b,
 			asset_a,
 			(100, 99)

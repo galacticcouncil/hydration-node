@@ -40,13 +40,13 @@ use std::sync::Arc;
 
 use crate::types::{AssetId, Balance, Price};
 pub type BlockNumber = u64;
-pub type AccountId = [u8; 32];
+pub type AccountId = u64;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
 use crate::MAX_PERIODS;
 
-pub const ALICE: AccountId = [1u8; 32];
+pub const ALICE: AccountId = 1;
 
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
@@ -101,7 +101,7 @@ impl frame_system::Config for Test {
 	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = AccountId32;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
@@ -135,27 +135,23 @@ impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist {
 
 use hex_literal::hex;
 
-pub fn bifrost_account() -> AccountId32 {
-	hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()
-}
 pub struct BifrostAcc;
-impl SortedMembers<AccountId32> for BifrostAcc {
-	fn sorted_members() -> Vec<AccountId32> {
-		//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
-		return vec![bifrost_account()];
+impl SortedMembers<AccountId> for BifrostAcc {
+	fn sorted_members() -> Vec<AccountId> {
+		return vec![ALICE];
 	}
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type AuthorityOrigin = EnsureRoot<AccountId32>;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = OracleWhitelist;
 	type MaxUniqueEntries = ConstU32<45>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId32>;
+	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
 	type CurrencyIdConvert = CurrencyIdConvertMock;
 }
