@@ -94,7 +94,7 @@ pub use weights::WeightInfo;
 /// The maximum number of periods that could have corresponding oracles.
 pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
 
-pub const BITFROST_SOURCE: [u8; 8] = *b"bitfrost"; //TODO: rename to bifrost
+pub const BIFROST_SOURCE: [u8; 8] = *b"bifrosto";
 
 const LOG_TARGET: &str = "runtime::ema-oracle";
 
@@ -335,7 +335,8 @@ pub mod pallet {
 				}
 			};
 
-			Self::on_entry(BITFROST_SOURCE, (asset_a, asset_b), entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
+			Self::on_entry(BIFROST_SOURCE, ordered_pair(asset_a, asset_b), entry)
+				.map_err(|_| Error::<T>::TooManyUniqueEntries)?;
 
 			Ok(())
 		}

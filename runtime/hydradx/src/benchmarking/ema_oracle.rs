@@ -50,8 +50,6 @@ use sp_core::{ConstU32, Get};
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";
 
-pub const BITFROST_SOURCE: [u8; 8] = *b"bitfrost";
-
 fn fill_whitelist_storage<T: pallet_ema_oracle::Config>(n: u32) {
 	for i in 0..n {
 		assert_ok!(EmaOracle::add_oracle(RawOrigin::Root.into(), SOURCE, (HDX, i)));
@@ -406,7 +404,7 @@ runtime_benchmarks! {
 	update_bifrost_oracle {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
 		fill_whitelist_storage::<Runtime>(max_entries -  1);
-		EmaOracle::add_oracle(RawOrigin::Root.into(), BITFROST_SOURCE, (0, 3)).expect("error when adding oracle");
+		EmaOracle::add_oracle(RawOrigin::Root.into(), pallet_ema_oracle::BIFROST_SOURCE, (0, 3)).expect("error when adding oracle");
 
 		let initial_data_block: BlockNumberFor<Runtime> = 5u32.into();
 		let oracle_age: BlockNumberFor<Runtime> = 7u32.into();
@@ -433,7 +431,7 @@ runtime_benchmarks! {
 		frame_system::Pallet::<Runtime>::set_block_number(block_num);
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(block_num);
 
-		let entry = pallet_ema_oracle::Pallet::<Runtime>::oracle((BITFROST_SOURCE, pallet_ema_oracle::ordered_pair(0, 3), hydradx_traits::oracle::OraclePeriod::Short));
+		let entry = pallet_ema_oracle::Pallet::<Runtime>::oracle((pallet_ema_oracle::BIFROST_SOURCE, pallet_ema_oracle::ordered_pair(0, 3), hydradx_traits::oracle::OraclePeriod::Short));
 		assert!(entry.is_some());
 	}
 }

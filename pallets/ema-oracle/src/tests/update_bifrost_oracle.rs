@@ -63,10 +63,45 @@ fn add_oracle_should_add_entry_to_storage() {
 		update_aggregated_oracles();
 
 		//Assert
-		let entry = Oracles::<Test>::get((BITFROST_SOURCE, ordered_pair(0, 5), OraclePeriod::Day)).map(|(e, _)| e);
+		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), OraclePeriod::Day)).map(|(e, _)| e);
 		assert!(entry.is_some());
 		let entry = entry.unwrap();
 		assert_eq!(entry.price, EmaPrice::new(100, 99));
+		assert_eq!(entry.volume, Volume::default());
+		assert_eq!(entry.liquidity, Liquidity::default());
+		assert_eq!(entry.updated_at, 3);
+	});
+}
+
+#[test]
+fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
+	new_test_ext().execute_with(|| {
+		//Arrange
+		let hdx =
+			polkadot_xcm::v3::MultiLocation::new(0, polkadot_xcm::v3::Junctions::X1(GeneralIndex(0))).into_versioned();
+
+		let dot = polkadot_xcm::v3::MultiLocation::parent().into_versioned();
+
+		let asset_a = Box::new(hdx);
+		let asset_b = Box::new(dot);
+
+		//Act
+		System::set_block_number(3);
+
+		assert_ok!(EmaOracle::update_bifrost_oracle(
+			RuntimeOrigin::signed(AccountId32::from(bifrost_account())),
+			asset_b,
+			asset_a,
+			(100, 99)
+		));
+
+		update_aggregated_oracles();
+
+		//Assert
+		let entry = Oracles::<Test>::get((BIFROST_SOURCE, ordered_pair(0, 5), OraclePeriod::Day)).map(|(e, _)| e);
+		assert!(entry.is_some());
+		let entry = entry.unwrap();
+		assert_eq!(entry.price, EmaPrice::new(99, 100));
 		assert_eq!(entry.volume, Volume::default());
 		assert_eq!(entry.liquidity, Liquidity::default());
 		assert_eq!(entry.updated_at, 3);
