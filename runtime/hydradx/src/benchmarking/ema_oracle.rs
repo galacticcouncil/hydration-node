@@ -18,6 +18,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+use crate::bifrost_account;
 use codec::Decode;
 use pallet_ema_oracle::OnActivityHandler;
 use sp_std::sync::Arc;
@@ -426,17 +427,7 @@ runtime_benchmarks! {
 		let asset_a = Box::new(hdx_loc.into_versioned());
 		let asset_b = Box::new(dot_loc.into_versioned());
 
-		let account: [u8; 32] = [
-			0x70, 0x61, 0x72, 0x61, 0xee, 0x07, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-		];//TODO: here we can just maybe import BifrostAcc
-
-		let account = Decode::decode(&mut &account[..])
-		.expect("infinite length input; no invalid inputs for type; qed");
-
-	}: _(RawOrigin::Signed(account), asset_a, asset_b, (100,99))
+	}: _(RawOrigin::Signed(bifrost_account()), asset_a, asset_b, (100,99))
 	verify {
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 		frame_system::Pallet::<Runtime>::set_block_number(block_num);

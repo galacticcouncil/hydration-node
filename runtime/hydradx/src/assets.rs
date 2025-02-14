@@ -585,11 +585,14 @@ where
 	}
 }
 
+//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
+pub fn bifrost_account() -> AccountId {
+	hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()
+}
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
-		//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
-		return vec![hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()];
+		return vec![bifrost_account()];
 	}
 }
 
