@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-pub use mock::{expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1, bifrost_account};
+pub use mock::{bifrost_account, expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1};
 use std::sync::Arc;
 
 use frame_support::{assert_noop, assert_ok};

@@ -511,7 +511,6 @@ impl<T: Config> Pallet<T> {
 			(entry, init)
 		})
 	}
-
 }
 
 /// A callback handler for trading and liquidity activity that schedules oracle updates.

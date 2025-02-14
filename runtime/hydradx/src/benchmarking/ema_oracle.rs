@@ -17,46 +17,44 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use sp_std::sync::Arc;
-use codec::Decode;
 use super::*;
+use codec::Decode;
 use pallet_ema_oracle::OnActivityHandler;
+use sp_std::sync::Arc;
 pub const ALICE: u64 = 1;
-use scale_info::prelude::string::ToString;
-use pallet_ema_oracle::ordered_pair;
 use hydradx_traits::oracle::OraclePeriod;
 use hydradx_traits::AggregatedEntry;
+use pallet_ema_oracle::ordered_pair;
+use scale_info::prelude::string::ToString;
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
-use sp_runtime::{BoundedVec, DispatchError};
-use hydradx_traits::OnLiquidityChangedHandler;
 use frame_benchmarking::benchmarks;
 use frame_support::{assert_ok, dispatch::RawOrigin, traits::Hooks};
-use sp_std::boxed::Box;
 use hydradx_traits::AggregatedOracle;
+use hydradx_traits::OnLiquidityChangedHandler;
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 use sp_core::crypto::AccountId32;
+use sp_runtime::{BoundedVec, DispatchError};
+use sp_std::boxed::Box;
 
 use frame_benchmarking::{account, whitelisted_caller};
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_core::{ConstU32, Get};
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{Liquidity, OnTradeHandler, Source, Volume};
 use orml_benchmarking::runtime_benchmarks;
-use hydra_dx_math::ema::EmaPrice;
 use pallet_ema_oracle::{Accumulator, OracleEntry};
-
+use sp_core::{ConstU32, Get};
 
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";
 
 pub const BITFROST_SOURCE: [u8; 8] = *b"bitfrost";
 
-
 fn fill_whitelist_storage<T: pallet_ema_oracle::Config>(n: u32) {
-    for i in 0..n {
-        assert_ok!(EmaOracle::add_oracle(RawOrigin::Root.into(), SOURCE, (HDX, i)));
-    }
+	for i in 0..n {
+		assert_ok!(EmaOracle::add_oracle(RawOrigin::Root.into(), SOURCE, (HDX, i)));
+	}
 }
 runtime_benchmarks! {
 	{ Runtime, pallet_ema_oracle }
@@ -413,7 +411,7 @@ runtime_benchmarks! {
 		let block_num = initial_data_block.saturating_add(oracle_age.saturating_add(One::one()));
 
 		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);
-        <pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
+		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
 		let asset_a = 0;
 		let asset_b = 3;
 

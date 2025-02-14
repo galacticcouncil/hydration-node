@@ -4,6 +4,7 @@ pub mod currencies;
 pub mod dca;
 pub mod duster;
 pub mod dynamic_evm_fee;
+pub mod ema_oracle;
 pub mod multi_payment;
 pub mod omnipool;
 pub mod omnipool_liquidity_mining;
@@ -12,7 +13,6 @@ pub mod tokens;
 pub mod vesting;
 pub mod xyk;
 pub mod xyk_liquidity_mining;
-pub mod ema_oracle;
 
 use crate::{AssetLocation, AssetRegistry, EmaOracle, MultiTransactionPayment, Runtime, System, DOT_ASSET_LOCATION};
 use frame_benchmarking::BenchmarkError;
@@ -61,7 +61,7 @@ pub fn register_asset_with_id(name: Vec<u8>, id: AssetId) -> Result<AssetId, ()>
 			None,
 		))
 	})
-		.map_err(|_| ())
+	.map_err(|_| ())
 }
 
 pub fn register_asset_with_id_and_loc(name: Vec<u8>, id: AssetId, loc: AssetLocation) -> Result<AssetId, ()> {
@@ -78,7 +78,7 @@ pub fn register_asset_with_id_and_loc(name: Vec<u8>, id: AssetId, loc: AssetLoca
 			None,
 		))
 	})
-		.map_err(|_| ())
+	.map_err(|_| ())
 }
 
 pub fn register_asset_with_decimals(name: Vec<u8>, deposit: Balance, decimals: u8) -> Result<AssetId, ()> {
