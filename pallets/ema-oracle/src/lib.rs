@@ -312,7 +312,6 @@ pub mod pallet {
 			asset_b: Box<polkadot_xcm::VersionedLocation>,
 			price: (Balance, Balance),
 		) -> DispatchResult {
-			//TODO: add integration test due to mocked out currencyidcovnert
 			T::BifrostOrigin::ensure_origin(origin)?;
 
 			let asset_a_loc = Location::try_from(*asset_a).map_err(|()| Error::<T>::BadVersion)?;
