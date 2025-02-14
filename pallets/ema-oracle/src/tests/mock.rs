@@ -47,6 +47,7 @@ type Block = frame_system::mocking::MockBlock<Test>;
 use crate::MAX_PERIODS;
 
 pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
 
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
