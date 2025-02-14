@@ -19,9 +19,6 @@ use crate::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use polkadot_xcm::latest::{Junctions, Location};
-use polkadot_xcm::prelude::GeneralIndex;
-
 use crate as omnipool_liquidity_mining;
 
 use frame_support::weights::Weight;
@@ -291,28 +288,10 @@ impl pallet_ema_oracle::Config for Test {
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
-	type CurrencyIdConvert = CurrencyIdConvertMock;
+	type CurrencyIdConvert = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type WeightInfo = ();
-}
-
-pub struct CurrencyIdConvertMock;
-
-impl Convert<Location, Option<AssetId>> for CurrencyIdConvertMock {
-	fn convert(location: Location) -> Option<AssetId> {
-		let Location { parents, interior } = location.clone();
-
-		match interior {
-			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(0u32.into())) => Some(0),
-			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(1u32.into())) => Some(1),
-			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(2u32.into())) => Some(2),
-			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(3u32.into())) => Some(4),
-			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(4u32.into())) => Some(4),
-			Junctions::Here => Some(5),
-			_ => None,
-		}
-	}
 }
 
 parameter_types! {
@@ -637,7 +616,6 @@ impl ExtBuilder {
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
 use hydra_dx_math::ema::EmaPrice;
-use sp_runtime::traits::Convert;
 
 pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 
