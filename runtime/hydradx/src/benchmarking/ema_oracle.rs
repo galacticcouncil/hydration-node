@@ -404,10 +404,11 @@ runtime_benchmarks! {
 
 	update_bifrost_oracle {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries);
+		fill_whitelist_storage::<Runtime>(max_entries -  1);
+		EmaOracle::add_oracle(RawOrigin::Root.into(), BITFROST_SOURCE, (0, 3)).expect("error when adding oracle");
 
 		let initial_data_block: BlockNumberFor<Runtime> = 5u32.into();
-		let oracle_age: BlockNumberFor<Runtime> = 999_999u32.into();
+		let oracle_age: BlockNumberFor<Runtime> = 7u32.into();
 		let block_num = initial_data_block.saturating_add(oracle_age.saturating_add(One::one()));
 
 		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);
@@ -437,13 +438,12 @@ runtime_benchmarks! {
 
 	}: _(RawOrigin::Signed(account), asset_a, asset_b, (100,99))
 	verify {
-		//TODO: CONTINUE
-		/*<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
+		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 		frame_system::Pallet::<Runtime>::set_block_number(block_num);
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(block_num);
 
-		let entry = pallet_ema_oracle::Pallet::<Runtime>::oracle((BITFROST_SOURCE, pallet_ema_oracle::ordered_pair(0, 3), hydradx_traits::oracle::OraclePeriod::Day));
-		assert!(entry.is_some());*/
+		let entry = pallet_ema_oracle::Pallet::<Runtime>::oracle((BITFROST_SOURCE, pallet_ema_oracle::ordered_pair(0, 3), hydradx_traits::oracle::OraclePeriod::Short));
+		assert!(entry.is_some());
 	}
 }
 

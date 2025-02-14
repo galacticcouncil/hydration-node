@@ -94,7 +94,7 @@ pub use weights::WeightInfo;
 /// The maximum number of periods that could have corresponding oracles.
 pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
 
-pub const BITFROST_SOURCE: [u8; 8] = *b"bitfrost";
+pub const BITFROST_SOURCE: [u8; 8] = *b"bitfrost"; //TODO: rename to bifrost
 
 const LOG_TARGET: &str = "runtime::ema-oracle";
 
