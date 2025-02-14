@@ -15,6 +15,9 @@ use hydradx_traits::{
 	OraclePeriod::{self, *},
 };
 
+use hydra_dx_math::ema::smoothing_from_period;
+
+use pallet_ema_oracle::into_smoothing;
 use pallet_ema_oracle::OracleError;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 use xcm_emulator::TestExt;
@@ -37,8 +40,23 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 
 const HDX: AssetId = CORE_ASSET_ID;
 
-const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes];
+pub(crate) const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes];
 const UNSUPPORTED_PERIODS: &[OraclePeriod] = &[Hour, Day, Week];
+
+#[ignore]
+#[test]
+fn oracle_smoothing_period_matches_configuration() {
+	for supported_period in SUPPORTED_PERIODS {
+		let configured_length = supported_period.as_period();
+		let configured_smoothing = into_smoothing(*supported_period);
+		let smoothing_from_period = smoothing_from_period(configured_length);
+		assert_eq!(
+			configured_smoothing, smoothing_from_period,
+			"Smoothing period for {:?} does not match configured length of {:?}",
+			supported_period, configured_length,
+		);
+	}
+}
 
 #[test]
 fn omnipool_trades_are_ingested_into_oracle() {
@@ -76,8 +94,8 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		hydradx_run_to_next_block();
 
 		// assert
-		let expected_a = ((936334588000000000, 1124993995517813).into(), 0);
-		let expected_b = ((87719064743683, 2250006004576687).into(), 0);
+		let expected_a = ((936334588000000000, 1124993992514080).into(), 0);
+		let expected_b = ((87719064509592, 2250006013583407).into(), 0);
 		for supported_period in SUPPORTED_PERIODS {
 			assert_eq!(
 				EmaOracle::get_price(asset_a, LRNA, *supported_period, OMNIPOOL_SOURCE),
@@ -126,7 +144,7 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 		hydradx_run_to_next_block();
 
 		// assert
-		let expected = ((936324588000000000, 1125006022570633).into(), 0);
+		let expected = ((936324588000000000, 1125006025563847).into(), 0);
 		for supported_period in SUPPORTED_PERIODS {
 			assert_eq!(
 				EmaOracle::get_price(HDX, LRNA, *supported_period, OMNIPOOL_SOURCE),

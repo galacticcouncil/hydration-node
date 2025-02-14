@@ -29,13 +29,14 @@
 //! In case the given block is full, the execution will be scheduled for the subsequent block.
 //!
 //! Upon creating a schedule, the user specifies a budget (`total_amount`) that will be reserved.
+//! `total_amount` can be zero, in which case the schedule will be executed until it is terminated.
 //! The currency of this reservation is the sold (`amount_in`) currency.
 //!
 //! ### Executing a Schedule
 //!
 //! Orders are executed during block initialization and are sorted based on randomness derived from the relay chain block hash.
 //!
-//! A trade is executed and replanned as long as there is remaining budget from the initial allocation.
+//! When the `total_amount` is not zero, trades are executed as long as there is budget remaining from the initial allocation.
 //!
 //! For both successful and failed trades, a fee is deducted from the schedule owner.
 //! The fee is deducted in the sold (`amount_in`) currency.
@@ -43,11 +44,11 @@
 //! A trade can fail due to two main reasons:
 //!
 //! 1. Price Stability Error: If the price difference between the short oracle price and the current price
-//! exceeds the specified threshold. The user can customize this threshold,
-//! or the default value from the pallet configuration will be used.
+//!    exceeds the specified threshold. The user can customize this threshold,
+//!    or the default value from the pallet configuration will be used.
 //! 2. Slippage Error: If the minimum amount out (sell) or maximum amount in (buy) slippage limits are not reached.
-//! These limits are calculated based on the last block's oracle price and the user-specified slippage.
-//! If no slippage is specified, the default value from the pallet configuration will be used.
+//!    These limits are calculated based on the last block's oracle price and the user-specified slippage.
+//!    If no slippage is specified, the default value from the pallet configuration will be used.
 //!
 //! If a trade fails due to these errors, the trade will be retried.
 //! If the number of retries reaches the maximum number of retries, the schedule will be permanently terminated.
@@ -62,6 +63,7 @@
 //! Once a schedule is terminated, it is completely and permanently removed from the blockchain.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::traits::DefensiveOption;
 use frame_support::{
@@ -90,11 +92,8 @@ use sp_std::vec::Vec;
 
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{inverse_route, RouteProvider};
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
-use hydradx_traits::OraclePeriod;
-use hydradx_traits::PriceOracle;
+use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
+use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
 pub use pallet::*;
 use pallet_broadcast::types::ExecutionType;
 pub use weights::WeightInfo;
@@ -108,7 +107,6 @@ mod tests;
 pub mod types;
 pub mod weights;
 
-pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 
@@ -452,7 +450,8 @@ pub mod pallet {
 		/// The reservation currency will be the `amount_in` currency of the order.
 		///
 		/// Trades are executed as long as there is budget remaining
-		/// from the initial `total_amount` allocation.
+		/// from the initial `total_amount` allocation, unless `total_amount` is 0, then trades
+		/// are executed until schedule is terminated.
 		///
 		/// If a trade fails due to slippage limit or price stability errors, it will be retried.
 		/// If the number of retries reaches the maximum allowed,
@@ -482,10 +481,6 @@ pub mod pallet {
 				schedule.order.get_asset_in(),
 				T::MinBudgetInNativeCurrency::get(),
 			)?;
-			ensure!(
-				schedule.total_amount >= min_budget,
-				Error::<T>::TotalAmountIsSmallerThanMinBudget
-			);
 			ensure!(
 				schedule.period >= BlockNumberFor::<T>::from(T::MinimalPeriod::get()),
 				Error::<T>::PeriodTooShort
@@ -518,10 +513,23 @@ pub mod pallet {
 			);
 
 			let amount_in_with_transaction_fee = amount_in.saturating_add(transaction_fee).saturating_mul(2);
-			ensure!(
-				amount_in_with_transaction_fee <= schedule.total_amount,
-				Error::<T>::BudgetTooLow
-			);
+			let reserve_amount = if schedule.is_rolling() {
+				ensure!(
+					amount_in_with_transaction_fee >= min_budget,
+					Error::<T>::MinTradeAmountNotReached
+				);
+				amount_in_with_transaction_fee
+			} else {
+				ensure!(
+					schedule.total_amount >= min_budget,
+					Error::<T>::TotalAmountIsSmallerThanMinBudget
+				);
+				ensure!(
+					amount_in_with_transaction_fee <= schedule.total_amount,
+					Error::<T>::BudgetTooLow
+				);
+				schedule.total_amount
+			};
 
 			let next_schedule_id =
 				ScheduleIdSequencer::<T>::try_mutate(|current_id| -> Result<ScheduleId, DispatchError> {
@@ -532,14 +540,14 @@ pub mod pallet {
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
-			RemainingAmounts::<T>::insert(next_schedule_id, schedule.total_amount);
+			RemainingAmounts::<T>::insert(next_schedule_id, reserve_amount);
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
 
 			T::Currencies::reserve_named(
 				&T::NamedReserveId::get(),
 				schedule.order.get_asset_in(),
 				&who,
-				schedule.total_amount,
+				reserve_amount,
 			)?;
 
 			let blocknumber_for_first_schedule_execution = Self::get_first_execution_block(start_execution_block)?;
@@ -702,7 +710,7 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id));
+		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id))?;
 
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 		let trade_result = match &schedule.order {
@@ -790,7 +798,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		pallet_broadcast::Pallet::<T>::remove_from_context();
+		pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 		trade_result
 	}
@@ -860,10 +868,12 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
+		let retry_period = OraclePeriod::Short.as_period() as u32;
+
 		let retry_multiplier = 2u32
 			.checked_pow(number_of_retries.into())
 			.ok_or(ArithmeticError::Overflow)?;
-		let retry_delay = SHORT_ORACLE_BLOCK_PERIOD
+		let retry_delay = retry_period
 			.checked_mul(retry_multiplier)
 			.ok_or(ArithmeticError::Overflow)?;
 		let next_execution_block = current_blocknumber
@@ -930,6 +940,10 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		amount_to_unreserve: Balance,
 	) -> DispatchResult {
+		if schedule.is_rolling() {
+			return Ok(());
+		};
+
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
 			let remaining_amount = maybe_remaining_amount
 				.as_mut()

@@ -22,7 +22,7 @@ fn add_token_works() {
 				LP1
 			));
 
-			assert_pool_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
+			assert_pool_state!(11_800 * ONE, 23_600 * ONE);
 
 			assert_asset_state!(
 				1_000,

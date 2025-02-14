@@ -77,6 +77,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 						)
 					})
 					.collect::<Vec<_>>(),
+				non_authority_keys: Default::default(),
 			},
 			aura: Default::default(),
 			collator_selection: CollatorSelectionConfig {

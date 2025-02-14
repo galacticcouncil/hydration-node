@@ -25,12 +25,12 @@ use frame_support::sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-use frame_support::traits::{Contains, Everything};
+use frame_support::traits::{Contains, Everything, SortedMembers};
 use frame_support::BoundedVec;
 use frame_system::EnsureRoot;
 use hydradx_traits::OraclePeriod::{self, *};
 use hydradx_traits::Source;
-use hydradx_traits::{AssetPairAccountIdFor, Liquidity, Volume};
+use hydradx_traits::{Liquidity, Volume};
 use sp_core::H256;
 
 use crate::types::{AssetId, Balance, Price};
@@ -40,6 +40,8 @@ pub type AccountId = u64;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 use crate::MAX_PERIODS;
+
+pub const ALICE: AccountId = 1;
 
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
@@ -115,19 +117,6 @@ impl frame_system::Config for Test {
 	type PostTransactions = ();
 }
 
-pub struct AssetPairAccountIdTest();
-
-impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
-	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
-		let mut a = asset_a as u128;
-		let mut b = asset_b as u128;
-		if a > b {
-			std::mem::swap(&mut a, &mut b);
-		}
-		(a * 1000 + b) as u64
-	}
-}
-
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = bounded_vec![LastBlock, TenMinutes, Day, Week];
 }
@@ -139,6 +128,12 @@ impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist {
 	}
 }
 
+pub struct BifrostAcc;
+impl SortedMembers<AccountId> for BifrostAcc {
+	fn sorted_members() -> Vec<AccountId> {
+		return vec![ALICE];
+	}
+}
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
@@ -148,6 +143,7 @@ impl Config for Test {
 	type MaxUniqueEntries = ConstU32<45>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
 }
 

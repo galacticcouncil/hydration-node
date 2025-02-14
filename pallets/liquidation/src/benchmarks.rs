@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#![cfg(feature = "runtime-benchmarks")]
+
 use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::fungibles::Mutate;
@@ -62,6 +62,7 @@ benchmarks! {
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
 }
 
+#[allow(clippy::multiple_bound_locations)]
 fn seed_registry<T: Config>() -> Result<AssetId, DispatchError>
 where
 	T: pallet_asset_registry::Config,

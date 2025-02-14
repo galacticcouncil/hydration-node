@@ -15,6 +15,7 @@ pub mod pallet_conviction_voting;
 pub mod pallet_currencies;
 pub mod pallet_dca;
 pub mod pallet_democracy;
+pub mod pallet_dispatcher;
 pub mod pallet_duster;
 pub mod pallet_dynamic_evm_fee;
 pub mod pallet_elections_phragmen;

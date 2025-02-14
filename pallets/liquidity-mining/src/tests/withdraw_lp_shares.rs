@@ -1168,7 +1168,8 @@ fn trait_withdraw_lp_shares_should_claim_and_withdraw_when_yield_farm_is_claimab
 					total_valued_shares: 43_040 * ONE,
 					entries_count: 2,
 					left_to_distribute: bsx_tkn1_yield_farm_0.left_to_distribute
-						- unclaimable_rewards - expected_claimed_amount,
+						- unclaimable_rewards
+						- expected_claimed_amount,
 					..bsx_tkn1_yield_farm_0
 				},
 			);
@@ -1351,7 +1352,8 @@ fn trait_withdraw_lp_shares_should_claim_zero_when_user_already_claimed_rewards(
 					total_valued_shares: 43_040 * ONE,
 					entries_count: 2,
 					left_to_distribute: bsx_tkn1_yield_farm_0.left_to_distribute
-						- unclaimable_rewards - expected_claimed_amount,
+						- unclaimable_rewards
+						- expected_claimed_amount,
 					..bsx_tkn1_yield_farm_0
 				},
 			);

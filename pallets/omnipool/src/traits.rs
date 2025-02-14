@@ -66,6 +66,13 @@ where
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error>;
+
+	/// Part of the protocol fee that can be consumed.
+	/// Returns the amount that was consumed and by whom.
+	fn consume_protocol_fee(
+		fee_account: AccountId,
+		amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error>;
 }
 
 // Default implementation for no-op hooks.
@@ -106,6 +113,13 @@ where
 		_amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		Ok(vec![])
+	}
+
+	fn consume_protocol_fee(
+		_fee_account: AccountId,
+		_amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
+		Ok(None)
 	}
 }
 

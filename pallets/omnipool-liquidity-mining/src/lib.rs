@@ -33,6 +33,9 @@
 //! * **Deposit:** omnipool's position(LP shares) locked in the liquidity mining
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
+#![allow(clippy::manual_inspect)]
+#![allow(clippy::multiple_bound_locations)]
 
 #[cfg(test)]
 mod tests;

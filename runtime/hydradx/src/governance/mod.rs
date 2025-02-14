@@ -33,7 +33,9 @@ pub mod tracks;
 
 use super::*;
 use crate::governance::{
-	origins::{GeneralAdmin, ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller},
+	origins::{
+		EconomicParameters, GeneralAdmin, ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller,
+	},
 	tracks::TracksInfo,
 };
 use frame_support::{
@@ -144,13 +146,8 @@ impl frame_support::traits::tokens::Pay for PayFromTreasuryAccount {
 
 impl pallet_treasury::Config for Runtime {
 	type Currency = Balances;
-	type ApproveOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type RejectOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type RuntimeEvent = RuntimeEvent;
-	type OnSlash = Treasury;
-	type ProposalBond = ProposalBond;
-	type ProposalBondMinimum = ProposalBondMinimum;
-	type ProposalBondMaximum = ProposalBondMaximum;
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
 	type PalletId = TreasuryPalletId;
@@ -189,7 +186,7 @@ impl pallet_conviction_voting::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxBalance: Balance = Balance::max_value();
+	pub const MaxBalance: Balance = Balance::MAX;
 }
 pub type TreasurySpender = EitherOf<EnsureRootWithSuccess<AccountId, MaxBalance>, Spender>;
 
@@ -229,3 +226,17 @@ impl pallet_referenda::Config for Runtime {
 }
 
 impl origins::pallet_custom_origins::Config for Runtime {}
+
+parameter_types! {
+	pub const AaveManagerAccount: AccountId = AccountId::new(hex!("aa7e0000000000000000000000000000000aa7e0000000000000000000000000"));
+}
+
+impl pallet_dispatcher::Config for Runtime {
+	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
+	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
+	type TreasuryAccount = TreasuryAccount;
+	type DefaultAaveManagerAccount = AaveManagerAccount;
+}
