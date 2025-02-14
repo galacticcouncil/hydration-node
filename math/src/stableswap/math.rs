@@ -586,15 +586,18 @@ pub(crate) fn calculate_d_internal<const D: u8>(
 		if pegs.len() != xp.len() {
 			return None;
 		}
-
 		xp.iter()
 			.zip(pegs.iter())
-			.map(|(v, peg)| {
-				multiply_by_rational_with_rounding(*v, peg.0, peg.1, sp_arithmetic::per_things::Rounding::Down)
-			})
-			.collect::<Vec<Option<Balance>>>()
-			.into_iter()
-			.collect::<Option<Vec<Balance>>>()?
+			.try_fold(Vec::with_capacity(xp.len()), |mut acc, (v, peg)| {
+				if let Some(result) =
+					multiply_by_rational_with_rounding(*v, peg.0, peg.1, sp_arithmetic::per_things::Rounding::Down)
+				{
+					acc.push(result);
+					Some(acc)
+				} else {
+					None
+				}
+			})?
 	} else {
 		xp.to_vec()
 	};
@@ -671,12 +674,16 @@ fn calculate_y_internal<const D: u8>(
 		}
 		xp.iter()
 			.zip(pegs.iter())
-			.map(|(v, peg)| {
-				multiply_by_rational_with_rounding(*v, peg.0, peg.1, sp_arithmetic::per_things::Rounding::Down)
-			})
-			.collect::<Vec<Option<Balance>>>()
-			.into_iter()
-			.collect::<Option<Vec<Balance>>>()?
+			.try_fold(Vec::with_capacity(xp.len()), |mut acc, (v, peg)| {
+				if let Some(result) =
+					multiply_by_rational_with_rounding(*v, peg.0, peg.1, sp_arithmetic::per_things::Rounding::Down)
+				{
+					acc.push(result);
+					Some(acc)
+				} else {
+					None
+				}
+			})?
 	} else {
 		xp.to_vec()
 	};
