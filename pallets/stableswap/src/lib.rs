@@ -346,6 +346,9 @@ pub mod pallet {
 		IncorrectInitialPegs,
 
 		MissingTargetPegOracle,
+
+		/// Creating pool with pegs is not allowed for asset with different decimals
+		IncorrectAssetDecimals,
 	}
 
 	#[pallet::call]
@@ -1238,6 +1241,21 @@ impl<T: Config> Pallet<T> {
 
 		if let Some(p) = peg_info {
 			ensure!(p.current.len() == pool.assets.len(), Error::<T>::IncorrectInitialPegs);
+
+			let asset_decimals: Vec<Option<u8>> = pool
+				.assets
+				.iter()
+				.map(|asset| Self::retrieve_decimals(*asset))
+				.collect();
+			let asset_decimals: Option<Vec<u8>> = asset_decimals.into_iter().collect();
+			if let Some(decimals_info) = asset_decimals {
+				ensure!(
+					decimals_info.iter().all(|&x| x == decimals_info[0]),
+					Error::<T>::IncorrectAssetDecimals
+				);
+			} else {
+				return Err(Error::<T>::UnknownDecimals.into());
+			}
 			PoolPeg::<T>::insert(share_asset, p);
 		}
 

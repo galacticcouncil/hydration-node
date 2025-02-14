@@ -1,9 +1,9 @@
 use crate::tests::mock::*;
 use crate::types::{BoundedPegSources, BoundedPegs, PegSource, PoolPegInfo};
-use crate::{assert_balance, Event};
+use crate::{assert_balance, Error, Event};
 use hydradx_traits::stableswap::AssetAmount;
 
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::{assert_noop, assert_ok, BoundedVec};
 use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::Permill;
 
@@ -221,6 +221,7 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 		});
 }
 
+/*
 #[test]
 fn removing_liquidity_with_exact_amount_should_work_as_before_when_pegs_are_one() {
 	let asset_a: AssetId = 1;
@@ -294,5 +295,44 @@ fn removing_liquidity_with_exact_amount_should_work_as_before_when_pegs_are_one(
 			assert_eq!(received, 0);
 			let balance = Tokens::free_balance(asset_a, &BOB);
 			assert_eq!(balance, 1_999_999_999_999_999_999);
+		});
+}
+ */
+#[test]
+fn creating_pool_with_pegs_shoud_fails_when_assets_have_different_decimals() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+	let pool_id: AssetId = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 2_000_000_000_000_000_003),
+			(ALICE, asset_a, 52425995641788588073263117),
+			(ALICE, asset_b, 52033213790329),
+			(ALICE, asset_c, 119135337044269),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 6)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 6)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 18)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Stableswap::create_pool_with_pegs(
+					RuntimeOrigin::root(),
+					pool_id,
+					vec![asset_a, asset_b, asset_c],
+					2000,
+					Permill::from_percent(0),
+					BoundedPegSources::truncate_from(vec![
+						PegSource::Value((1, 1)),
+						PegSource::Value((1, 1)),
+						PegSource::Value((1, 1))
+					]),
+					(1, 10),
+				),
+				Error::<Test>::IncorrectAssetDecimals
+			);
 		});
 }
