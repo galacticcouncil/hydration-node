@@ -2,7 +2,7 @@ use crate::stableswap::types::AssetReserve;
 
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
-use crate::types::{AssetId, Balance};
+use crate::types::{AssetId, Balance, Ratio};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
@@ -870,7 +870,25 @@ pub fn calculate_share_price<const D: u8>(
 	} else {
 		calculate_d::<D>(reserves, amplification, pegs.clone())?
 	};
-	let n_reserves = normalize_reserves(reserves);
+	let (adjusted_reserves, asset_peg) = if let Some(p) = pegs {
+		if p.len() != reserves.len() {
+			return None;
+		}
+
+		let mut x = vec![];
+		for (v, mpl) in reserves.iter().zip(p.iter()) {
+			let r_new =
+				multiply_by_rational_with_rounding(v.amount, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)?;
+			x.push(AssetReserve {
+				amount: r_new,
+				decimals: v.decimals,
+			});
+		}
+		(x, Some(p[asset_idx]))
+	} else {
+		(reserves.to_vec(), None)
+	};
+	let n_reserves = normalize_reserves(&adjusted_reserves);
 
 	let c = n_reserves
 		.iter()
@@ -903,7 +921,14 @@ pub fn calculate_share_price<const D: u8>(
 		(num, denom)
 	};
 	let (num, denom) = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
-	Some((num, denom))
+	if let Some(peg) = asset_peg {
+		let c: Ratio = (num, denom).into();
+		let peg: Ratio = peg.into();
+		let result = c.saturating_div(&peg);
+		Some((result.n, result.d))
+	} else {
+		Some((num, denom))
+	}
 }
 
 const STABLE_ASSET: bool = false;
