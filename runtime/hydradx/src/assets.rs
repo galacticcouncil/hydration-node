@@ -1824,13 +1824,17 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 		asset_out: AssetId,
 		asset_out_amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		let asset_pair_account = XYK::get_pair_id(AssetPair::new(insuff_asset_id, asset_out));
+		let asset_pair = AssetPair::new(insuff_asset_id, asset_out);
+		let asset_pair_account = XYK::get_pair_id(asset_pair);
+		if !XYK::exists(asset_pair) {
+			return Err(DispatchError::Other("XYK Pool does not exist"));
+		}
 		let out_reserve = Currencies::free_balance(asset_out, &asset_pair_account);
-		let in_reserve = Currencies::free_balance(insuff_asset_id, &asset_pair_account.clone());
-
+		let in_reserve = Currencies::free_balance(insuff_asset_id, &asset_pair_account);
 		hydra_dx_math::xyk::calculate_in_given_out(out_reserve, in_reserve, asset_out_amount)
-			.map_err(|_err| ArithmeticError::Overflow.into())
+			.map_err(|_err| DispatchError::Other("Insufficient liquidity in XYK Pool"))
 	}
+	
 
 	fn calculate_out_given_in(
 		asset_in: AssetId,
