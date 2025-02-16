@@ -7,7 +7,7 @@ use pallet_broadcast::types::Destination;
 use crate::assert_balance;
 use hydradx_runtime::LBP;
 use hydradx_runtime::XYK;
-use hydradx_runtime::{Currencies, Omnipool, Runtime, RuntimeEvent};
+use hydradx_runtime::{Currencies, Omnipool, Runtime};
 use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_traits::router::PoolType;
 use pallet_broadcast::types::Asset;
@@ -95,10 +95,10 @@ fn batch_execution_type_should_be_included_in_batch() {
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
-					outputs: vec![Asset::new(HDX, 4682924837974)],
+					outputs: vec![Asset::new(HDX, 4687619499466)],
 					fees: vec![Fee::new(
 						HDX,
-						11736653730,
+						7041992238,
 						Destination::Account(Omnipool::protocol_account())
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
@@ -116,11 +116,11 @@ fn batch_execution_type_should_be_included_in_batch() {
 						},
 					))),
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(HDX, 4682924837974)],
-					outputs: vec![Asset::new(DOT, 2230008413831)],
+					inputs: vec![Asset::new(HDX, 4687619499466)],
+					outputs: vec![Asset::new(DOT, 2232143907425)],
 					fees: vec![Fee::new(
 						DOT,
-						6710155707,
+						6716581464,
 						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
@@ -212,10 +212,10 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 				))),
 				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(HDX, amount_to_sell)],
-				outputs: vec![Asset::new(DOT, 4549178628)],
+				outputs: vec![Asset::new(DOT, 4548771287)],
 				fees: vec![Fee::new(
 					DOT,
-					13688601,
+					13687374,
 					Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -312,10 +312,10 @@ fn nested_batch_should_represent_embeddedness() {
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
 					inputs: vec![Asset::new(LRNA, 5640664064)],
-					outputs: vec![Asset::new(HDX, 4682924837974)],
+					outputs: vec![Asset::new(HDX, 4687619499466)],
 					fees: vec![Fee::new(
 						HDX,
-						11736653730,
+						7041992238,
 						Destination::Account(Omnipool::protocol_account())
 					)],
 					operation_stack: vec![
@@ -337,11 +337,11 @@ fn nested_batch_should_represent_embeddedness() {
 						},
 					))),
 					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(HDX, 4682924837974)],
-					outputs: vec![Asset::new(DOT, 2230008413831)],
+					inputs: vec![Asset::new(HDX, 4687619499466)],
+					outputs: vec![Asset::new(DOT, 2232143907425)],
 					fees: vec![Fee::new(
 						DOT,
-						6710155707,
+						6716581464,
 						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,

@@ -61,6 +61,13 @@ fn xcm_exchanger_allows_selling_supported_assets() {
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
 			let want: Assets = Asset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
 
+			// get the price before executing the swap
+			let expected_amount_out =
+				XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::quote_exchange_price(
+					&give, &want, SELL,
+				)
+				.unwrap();
+
 			// Act
 			let received: Assets = exchange_asset(None, give, &want, SELL)
 				.expect("should return ok")
@@ -76,6 +83,15 @@ fn xcm_exchanger_allows_selling_supported_assets() {
 			assert!(received_amount >= wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
 			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);
+
+			// verify that quote_exchange_price returns correct value
+			assert_eq!(expected_amount_out.len(), 1, "there should only be one asset returned");
+			let wanted = expected_amount_out.get(0).unwrap();
+			assert_eq!(wanted.id.0, GeneralIndex(HDX.into()).into());
+			let Fungible(amount_out) = wanted.fun else {
+				panic!("should be fungible")
+			};
+			assert_eq!(received_amount, amount_out);
 		});
 }
 
@@ -150,6 +166,13 @@ fn xcm_exchanger_allows_buying_supported_assets() {
 			let want_asset = Asset::from((GeneralIndex(HDX.into()), wanted_amount));
 			let want: Assets = want_asset.clone().into();
 
+			// get the price before executing the swap
+			let expected_amount_in =
+				XcmAssetExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert, Currencies>::quote_exchange_price(
+					&give, &want, BUY,
+				)
+				.unwrap();
+
 			// Act
 			let received: Assets = exchange_asset(None, give, &want, BUY).expect("should return ok").into();
 
@@ -178,6 +201,15 @@ fn xcm_exchanger_allows_buying_supported_assets() {
 			assert!(received_amount == wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
 			assert_eq!(Balances::free_balance(ExchangeTempAccount::get()), 0);
+
+			// verify that quote_exchange_price returns correct value
+			assert_eq!(expected_amount_in.len(), 1, "there should only be one asset returned");
+			let given = expected_amount_in.get(0).unwrap();
+			assert_eq!(given.id.0, GeneralIndex(DAI.into()).into());
+			let Fungible(amount_in) = given.fun else {
+				panic!("should be fungible")
+			};
+			assert_eq!(given_amount - left_over_amount, amount_in);
 		});
 }
 

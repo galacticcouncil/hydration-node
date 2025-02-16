@@ -849,6 +849,52 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 }
 
 #[test]
+fn rolling_dca_should_end_when_account_has_no_balance() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(0)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_eq!(schedule.is_rolling(), true);
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, None));
+			assert_eq!(
+				(*AMOUNT_OUT_FOR_OMNIPOOL_SELL + get_fee_for_sell_in_hdx()).saturating_mul(2),
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
+
+			//Act
+			proceed_to_blocknumber(501, 801);
+
+			//Assert
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
+			assert_number_of_executed_sell_trades!(3);
+
+			let schedule_id = 0;
+			assert_that_dca_is_terminated(ALICE, schedule_id, sp_runtime::TokenError::FundsUnavailable.into());
+		});
+}
+
+#[test]
 fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_enough_balance() {
 	let alice_init_hdx_balance = 10000 * ONE;
 	ExtBuilder::default()
@@ -889,7 +935,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_en
 			assert_number_of_executed_buy_trades!(4);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
-			let left_over_which_is_not_enough_for_last_trade = 9994629924000;
+			let left_over_which_is_not_enough_for_last_trade = 9994516532000;
 
 			assert_balance!(
 				ALICE,
