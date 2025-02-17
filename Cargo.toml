@@ -47,7 +47,8 @@ members = [
     'runtime-mock',
     'pallets/broadcast',
     'pallets/ice',
-    "hydration-solver"]
+    "hydration-solver",
+    "pallets/intent"]
 
 resolver = "2"
 
@@ -154,6 +155,7 @@ pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false 
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-ice = { path = "pallets/ice", default-features = false}
+pallet-intent = { path = "pallets/intent", default-features = false}
 hydration-solver = { path = "hydration-solver"}
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 
