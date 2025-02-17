@@ -78,8 +78,13 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	Origin,
 };
+use pallet_intent::types::Swap;
+use pallet_intent::types::SwapType;
+
 use hydradx_traits::ice::SubmitIntent;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
+use pallet_intent::types::Intent;
+use pallet_intent::types::Moment;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
@@ -181,7 +186,24 @@ pub mod pallet {
 						min_amount_out,
 						..
 					} => {
-						T::ICE::submit_intent(
+						let swap = Swap {
+							asset_in: (*asset_in).into(),
+							asset_out: (*asset_out).into(),
+							amount_in: *amount_in,
+							amount_out: *min_amount_out,
+							swap_type: SwapType::ExactIn,
+						};
+						let intent = Intent {
+							who: schedule.owner.clone(),
+							swap: swap,
+							deadline: Moment::default(),
+							partial: false,
+							on_success: None,
+							on_failure: None,
+						};
+
+						pallet_intent::Pallet::<T>::add_intent(intent);
+						/*T::ICE::submit_intent(
 							&schedule.owner,
 							AssetAmount::new(*asset_in, *amount_in),
 							AssetAmount::new(*asset_out, *min_amount_out),
@@ -189,7 +211,7 @@ pub mod pallet {
 							false,
 							None,
 							Some(BoundedVec::truncate_from(on_fail_callback)),
-						);
+						);*/
 					}
 					Order::Buy {
 						asset_in,
@@ -240,12 +262,12 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_broadcast::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config + pallet_intent::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset id type
-		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Into<u32>;
 
 		/// Origin able to terminate schedules
 		type TerminateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -288,7 +310,7 @@ pub mod pallet {
 		///Errors we want to explicitly retry on, in case of failing DCA
 		type RetryOnError: Contains<DispatchError>;
 
-		type ICE: SubmitIntent<Self::AccountId, Self::AssetId>;
+		type ICE: SubmitIntent<Self::AccountId, Self::AssetId>; //TODO: remove as we use pallent-intents directly
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]

@@ -8107,6 +8107,7 @@ dependencies = [
  "pallet-broadcast",
  "pallet-currencies",
  "pallet-ema-oracle",
+ "pallet-intent",
  "pallet-omnipool",
  "pallet-route-executor",
  "pallet-xyk",

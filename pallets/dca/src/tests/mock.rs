@@ -18,12 +18,13 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Everything, Nothing, SortedMembers};
+use frame_support::traits::{Everything, Nothing, SortedMembers, Time};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
 use frame_support::PalletId;
 use hydradx_traits::ice::{AssetAmount, CallData, SubmitIntent};
+use pallet_intent::types::Moment;
 
 use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
@@ -81,6 +82,7 @@ frame_support::construct_runtime!(
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
 		 Broadcast: pallet_broadcast,
+		 Intents: pallet_intent,
 	 }
 );
 
@@ -302,6 +304,34 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 	fn get_price_weight() -> Weight {
 		todo!()
+	}
+}
+parameter_types! {
+	pub const MaxCallData: u32 = 4 * 1024 * 1024;
+	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
+}
+
+impl pallet_intent::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type TimestampProvider = DummyTimestampProvider;
+	type HubAssetId = LRNAAssetId;
+	type MaxAllowedIntentDuration = MaxAllowdIntentDuration;
+	type MaxCallData = MaxCallData;
+	type WeightInfo = ();
+}
+
+pub const DEFAULT_NOW: pallet_intent::types::Moment = 1689844300000; // unix time in milliseconds
+thread_local! {
+	pub static NOW: RefCell<Moment> = RefCell::new(DEFAULT_NOW);
+}
+
+pub struct DummyTimestampProvider;
+
+impl Time for DummyTimestampProvider {
+	type Moment = u64;
+
+	fn now() -> Self::Moment {
+		NOW.with(|now| *now.borrow())
 	}
 }
 

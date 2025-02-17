@@ -35,6 +35,7 @@ hydradx-traits = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 pallet-broadcast = { workspace = true }
+pallet-intent = { workspace = true }
 
 hydra-dx-math = { workspace = true }
 
