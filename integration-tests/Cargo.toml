@@ -9,6 +9,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
+rand = { version = "0.8.5", default-features = false }
 hex-literal = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { workspace = true }
@@ -43,6 +44,8 @@ pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-broadcast = { workspace = true }
+pallet-ice = { workspace = true}
+hydration-solver = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-democracy = { workspace = true }
@@ -143,6 +146,8 @@ pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }
 libsecp256k1 = { workspace = true }
+proptest = "1.5.0"
+serde = {workspace = true}
 
 
 [features]
@@ -216,6 +221,7 @@ std = [
     "pallet-transaction-pause/std",
     "pallet-liquidation/std",
     "pallet-broadcast/std",
+    "pallet-ice/std",
     "pallet-dispatcher/std",
 ]
 

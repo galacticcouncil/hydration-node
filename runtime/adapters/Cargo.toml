@@ -33,6 +33,7 @@ pallet-lbp = { workspace = true }
 pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-broadcast = { workspace = true }
+pallet-ice = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -114,4 +115,5 @@ std = [
     "pallet-asset-registry/std",
     "pallet-omnipool-liquidity-mining/std",
     "pallet-bonds/std",
+    "pallet-ice/std",
 ]

@@ -46,7 +46,10 @@ members = [
     'precompiles/call-permit',
     'runtime-mock',
     'pallets/broadcast',
-]
+    'pallets/ice',
+    'pallets/ice2',
+    "hydration-solver",
+    "pallets/intent",]
 
 resolver = "2"
 
@@ -55,6 +58,9 @@ codec = { package = "parity-scale-codec", version = "3.6.12", default-features =
 scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
 serde = { version = "1.0.209", default-features = false }
 primitive-types = { version = "0.12.1", default-features = false }
+
+#futures = { version = "0.3.31" }
+tracing = { version = "0.1.37", default-features = false }
 
 affix = "0.1.2"
 approx = "0.5.1"
@@ -104,6 +110,8 @@ toml = "0.8.19"
 trie-db = "0.29.1"
 trybuild = "1.0"
 
+clarabel = { version = "0.9.0"}
+
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
@@ -147,6 +155,10 @@ pallet-referrals = { path = "pallets/referrals", default-features = false }
 pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false }
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
+pallet-ice = { path = "pallets/ice", default-features = false}
+pallet-ice2 = { path = "pallets/ice2", default-features = false}
+pallet-intent = { path = "pallets/intent", default-features = false}
+hydration-solver = { path = "hydration-solver"}
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
