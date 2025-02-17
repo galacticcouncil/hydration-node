@@ -6,16 +6,14 @@ mod tests;
 pub mod types;
 mod weights;
 
-use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, Moment, NamedReserveIdentifier};
+use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, Moment};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
 use frame_support::Blake2_128Concat;
 use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
 use frame_system::pallet_prelude::*;
-use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
-use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
@@ -23,9 +21,6 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::PalletId;
-	use sp_runtime::traits::BlockNumberProvider;
-	use types::Balance;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -34,36 +29,19 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		/// Provider for the current timestamp.
+		type TimestampProvider: Time<Moment = Moment>;
+
 		/// Asset Id of hub asset
 		#[pallet::constant]
 		type HubAssetId: Get<AssetId>;
-
-		/// Provider for the current timestamp.
-		type TimestampProvider: Time<Moment = Moment>;
 
 		/// Maximum deadline for intent in milliseconds.
 		#[pallet::constant]
 		type MaxAllowedIntentDuration: Get<Moment>;
 
-		/// Block number provider.
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
-
-		type ReservableCurrency: NamedMultiReservableCurrency<
-			Self::AccountId,
-			ReserveIdentifier = NamedReserveIdentifier,
-			CurrencyId = AssetId,
-			Balance = Balance,
-		>;
-
-		/// Pallet id.
-		#[pallet::constant]
-		type PalletId: Get<PalletId>;
-
 		#[pallet::constant]
 		type MaxCallData: Get<u32>;
-
-		#[pallet::constant]
-		type NamedReserveId: Get<NamedReserveIdentifier>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -124,11 +102,6 @@ pub mod pallet {
 
 // PALLET PUBLIC API
 impl<T: Config> Pallet<T> {
-	/// Holding account
-	pub fn holding_account() -> T::AccountId {
-		T::PalletId::get().into_account_truncating()
-	}
-
 	pub fn get_intent_id(deadline: Moment, increment: IncrementalIntentId) -> IntentId {
 		(deadline as u128) << 64 | increment as u128
 	}
@@ -146,13 +119,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(intent.swap.amount_out > Balance::zero(), Error::<T>::InvalidIntent);
 		ensure!(intent.swap.asset_in != intent.swap.asset_out, Error::<T>::InvalidIntent);
 		ensure!(intent.swap.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
-
-		T::ReservableCurrency::reserve_named(
-			&T::NamedReserveId::get(),
-			intent.swap.asset_in,
-			&intent.who,
-			intent.swap.amount_in,
-		)?;
 
 		let incremental_id = Self::get_next_incremental_id();
 		let intent_id = Self::get_intent_id(intent.deadline, incremental_id);

@@ -1,9 +1,8 @@
 use super::*;
-use crate::tests::{ExtBuilder, ICE};
+use crate::tests::{ExtBuilder, Intents};
 use crate::types::{Intent, Swap, SwapType};
 use crate::Error;
 use frame_support::{assert_noop, assert_ok};
-use orml_traits::NamedMultiReservableCurrency;
 
 #[test]
 fn submit_intent_should_store_correct_intent_information() {
@@ -26,7 +25,7 @@ fn submit_intent_should_store_correct_intent_information() {
 				on_success: None,
 				on_failure: None,
 			};
-			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,));
+			assert_ok!(Intents::submit_intent(RuntimeOrigin::signed(ALICE), intent,));
 
 			let intent_id = get_intent_id(DEFAULT_NOW + 1_000_000, 0);
 			let intent = crate::Pallet::<Test>::get_intent(intent_id);
@@ -45,36 +44,6 @@ fn submit_intent_should_store_correct_intent_information() {
 }
 
 #[test]
-fn submit_intent_should_reserve_amount_in() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
-		.build()
-		.execute_with(|| {
-			let swap = Swap {
-				asset_in: 100,
-				asset_out: 200,
-				amount_in: 100_000_000_000_000,
-				amount_out: 200_000_000_000_000,
-				swap_type: SwapType::ExactIn,
-			};
-			let intent = Intent {
-				who: ALICE,
-				swap,
-				deadline: DEFAULT_NOW + 1_000_000,
-				partial: false,
-				on_success: None,
-				on_failure: None,
-			};
-			assert_ok!(ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,));
-
-			assert_eq!(
-				100_000_000_000_000,
-				Currencies::reserved_balance_named(&NamedReserveId::get(), 100, &ALICE)
-			);
-		});
-}
-
-#[test]
 fn submit_intent_should_fail_when_deadline_is_not_valid() {
 	ExtBuilder::default().build().execute_with(|| {
 		let swap = Swap {
@@ -86,7 +55,7 @@ fn submit_intent_should_fail_when_deadline_is_not_valid() {
 		};
 		// Past
 		assert_noop!(
-			ICE::submit_intent(
+			Intents::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				Intent {
 					who: ALICE,
@@ -102,7 +71,7 @@ fn submit_intent_should_fail_when_deadline_is_not_valid() {
 
 		// Equal
 		assert_noop!(
-			ICE::submit_intent(
+			Intents::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				Intent {
 					who: ALICE,
@@ -118,7 +87,7 @@ fn submit_intent_should_fail_when_deadline_is_not_valid() {
 
 		// Future
 		assert_noop!(
-			ICE::submit_intent(
+			Intents::submit_intent(
 				RuntimeOrigin::signed(ALICE),
 				Intent {
 					who: ALICE,
@@ -132,36 +101,6 @@ fn submit_intent_should_fail_when_deadline_is_not_valid() {
 			Error::<Test>::InvalidDeadline
 		);
 	});
-}
-
-#[test]
-fn submit_intent_should_fail_when_it_cant_reserve_sufficient_amount() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000)])
-		.build()
-		.execute_with(|| {
-			let swap = Swap {
-				asset_in: 100,
-				asset_out: 200,
-				amount_in: 100_000_000_000_000,
-				amount_out: 200_000_000_000_000,
-				swap_type: SwapType::ExactIn,
-			};
-			assert_noop!(
-				ICE::submit_intent(
-					RuntimeOrigin::signed(ALICE),
-					Intent {
-						who: ALICE,
-						swap,
-						deadline: DEFAULT_NOW + 1_000_000,
-						partial: false,
-						on_success: None,
-						on_failure: None,
-					},
-				),
-				orml_tokens::Error::<Test>::BalanceTooLow
-			);
-		});
 }
 
 #[test]
@@ -219,7 +158,7 @@ fn submit_intent_should_fail_when_amount_in_is_zero() {
 				on_failure: None,
 			};
 			assert_noop!(
-				ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
+				Intents::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
 				Error::<Test>::InvalidIntent
 			);
 		});
@@ -247,7 +186,7 @@ fn submit_intent_should_fail_when_amount_out_is_zero() {
 				on_failure: None,
 			};
 			assert_noop!(
-				ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
+				Intents::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
 				Error::<Test>::InvalidIntent
 			);
 		});
@@ -275,7 +214,7 @@ fn submit_intent_should_fail_when_asset_out_is_hub_asset() {
 				on_failure: None,
 			};
 			assert_noop!(
-				ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
+				Intents::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
 				Error::<Test>::InvalidIntent
 			);
 		});
@@ -303,7 +242,7 @@ fn submit_intent_should_fail_when_asset_in_out_are_the_same() {
 				on_failure: None,
 			};
 			assert_noop!(
-				ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
+				Intents::submit_intent(RuntimeOrigin::signed(ALICE), intent,),
 				Error::<Test>::InvalidIntent
 			);
 		});
@@ -330,7 +269,7 @@ fn submit_intent_should_fail_when_account_does_not_match() {
 				on_failure: None,
 			};
 			assert_noop!(
-				ICE::submit_intent(RuntimeOrigin::signed(ALICE), intent),
+				Intents::submit_intent(RuntimeOrigin::signed(ALICE), intent),
 				Error::<Test>::InvalidIntent
 			);
 		});
