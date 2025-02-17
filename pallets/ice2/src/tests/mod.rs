@@ -1,4 +1,5 @@
 mod submit;
+mod submit_errors;
 
 use crate as pallet_ice;
 use crate::traits::Trader;
