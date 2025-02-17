@@ -4,7 +4,9 @@ use crate::{assert_balance, Error, Event};
 use hydradx_traits::stableswap::AssetAmount;
 
 use frame_support::{assert_noop, assert_ok, BoundedVec};
+use hydradx_traits::OraclePeriod;
 use pallet_broadcast::types::{Asset, Destination, Fee};
+use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::Permill;
 
 #[test]
@@ -333,6 +335,121 @@ fn creating_pool_with_pegs_shoud_fails_when_assets_have_different_decimals() {
 					(1, 10),
 				),
 				Error::<Test>::IncorrectAssetDecimals
+			);
+		});
+}
+
+#[test]
+fn should_fail_when_called_by_invalid_origin() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Stableswap::create_pool_with_pegs(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					vec![asset_a, asset_b],
+					100,
+					Permill::from_percent(0),
+					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
+					(1, 10),
+				),
+				BadOrigin
+			);
+		});
+}
+
+#[test]
+fn should_fail_when_invalid_amplification_specified() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Stableswap::create_pool_with_pegs(
+					RuntimeOrigin::root(),
+					pool_id,
+					vec![asset_a, asset_b],
+					0,
+					Permill::from_percent(0),
+					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
+					(1, 10),
+				),
+				Error::<Test>::InvalidAmplification
+			);
+		});
+}
+
+#[test]
+fn should_fail_when_asset_decimals_are_not_same() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 18)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Stableswap::create_pool_with_pegs(
+					RuntimeOrigin::root(),
+					pool_id,
+					vec![asset_a, asset_b],
+					100,
+					Permill::from_percent(0),
+					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
+					(1, 10),
+				),
+				Error::<Test>::IncorrectAssetDecimals
+			);
+		});
+}
+
+#[test]
+fn should_fail_when_no_target_peg_oracle() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let pool_id = 100;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 18)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Stableswap::create_pool_with_pegs(
+					RuntimeOrigin::root(),
+					pool_id,
+					vec![asset_a, asset_b],
+					100,
+					Permill::from_percent(0),
+					BoundedPegSources::truncate_from(vec![
+						PegSource::Oracle((*b"testtest", OraclePeriod::Short)),
+						PegSource::Value((1, 1))
+					]),
+					(1, 10),
+				),
+				Error::<Test>::MissingTargetPegOracle
 			);
 		});
 }
