@@ -3,7 +3,6 @@
 
 #[cfg(test)]
 mod tests;
-mod tests;
 mod traits;
 mod types;
 mod weights;
