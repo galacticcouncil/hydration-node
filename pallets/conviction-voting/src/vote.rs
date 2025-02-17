@@ -47,8 +47,7 @@ impl Decode for Vote {
 		let b = input.read_byte()?;
 		Ok(Vote {
 			aye: (b & 0b1000_0000) == 0b1000_0000,
-			conviction: Conviction::try_from(b & 0b0111_1111)
-				.map_err(|_| codec::Error::from("Invalid conviction"))?,
+			conviction: Conviction::try_from(b & 0b0111_1111).map_err(|_| codec::Error::from("Invalid conviction"))?,
 		})
 	}
 }
@@ -77,7 +76,11 @@ pub enum AccountVote<Balance> {
 	/// A split vote with balances given for both ways as well as abstentions, and with no
 	/// conviction, useful for parachains when voting, other off-chain aggregate accounts and
 	/// individuals who wish to abstain.
-	SplitAbstain { aye: Balance, nay: Balance, abstain: Balance },
+	SplitAbstain {
+		aye: Balance,
+		nay: Balance,
+		abstain: Balance,
+	},
 }
 
 impl<Balance: Saturating> AccountVote<Balance> {
@@ -86,9 +89,16 @@ impl<Balance: Saturating> AccountVote<Balance> {
 	pub fn locked_if(self, approved: bool) -> Option<(u32, Balance)> {
 		// winning side: can only be removed after the lock period ends.
 		match self {
-			AccountVote::Standard { vote: Vote { conviction: Conviction::None, .. }, .. } => None,
-			AccountVote::Standard { vote, balance } if vote.aye == approved =>
-				Some((vote.conviction.lock_periods(), balance)),
+			AccountVote::Standard {
+				vote: Vote {
+					conviction: Conviction::None,
+					..
+				},
+				..
+			} => None,
+			AccountVote::Standard { vote, balance } if vote.aye == approved => {
+				Some((vote.conviction.lock_periods(), balance))
+			}
 			_ => None,
 		}
 	}
@@ -98,8 +108,7 @@ impl<Balance: Saturating> AccountVote<Balance> {
 		match self {
 			AccountVote::Standard { balance, .. } => balance,
 			AccountVote::Split { aye, nay } => aye.saturating_add(nay),
-			AccountVote::SplitAbstain { aye, nay, abstain } =>
-				aye.saturating_add(nay).saturating_add(abstain),
+			AccountVote::SplitAbstain { aye, nay, abstain } => aye.saturating_add(nay).saturating_add(abstain),
 		}
 	}
 
@@ -115,18 +124,7 @@ impl<Balance: Saturating> AccountVote<Balance> {
 
 /// A "prior" lock, i.e. a lock for some now-forgotten reason.
 #[derive(
-	Encode,
-	Decode,
-	Default,
-	Copy,
-	Clone,
-	Eq,
-	PartialEq,
-	Ord,
-	PartialOrd,
-	RuntimeDebug,
-	TypeInfo,
-	MaxEncodedLen,
+	Encode, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo, MaxEncodedLen,
 )]
 pub struct PriorLock<BlockNumber, Balance>(BlockNumber, Balance);
 
@@ -225,13 +223,8 @@ where
 	}
 }
 
-impl<
-		Balance: Saturating + Ord + Zero + Copy,
-		BlockNumber: Ord + Copy + Zero,
-		AccountId,
-		PollIndex,
-		MaxVotes,
-	> Voting<Balance, AccountId, BlockNumber, PollIndex, MaxVotes>
+impl<Balance: Saturating + Ord + Zero + Copy, BlockNumber: Ord + Copy + Zero, AccountId, PollIndex, MaxVotes>
+	Voting<Balance, AccountId, BlockNumber, PollIndex, MaxVotes>
 where
 	MaxVotes: Get<u32>,
 {
@@ -242,22 +235,26 @@ where
 	/// The amount of this account's balance that must currently be locked due to voting.
 	pub fn locked_balance(&self) -> Balance {
 		match self {
-			Voting::Casting(Casting { votes, prior, .. }) =>
-				votes.iter().map(|i| i.1.balance()).fold(prior.locked(), |a, i| a.max(i)),
+			Voting::Casting(Casting { votes, prior, .. }) => votes
+				.iter()
+				.map(|i| i.1.balance())
+				.fold(prior.locked(), |a, i| a.max(i)),
 			Voting::Delegating(Delegating { balance, prior, .. }) => *balance.max(&prior.locked()),
 		}
 	}
 
-	pub fn set_common(
-		&mut self,
-		delegations: Delegations<Balance>,
-		prior: PriorLock<BlockNumber, Balance>,
-	) {
+	pub fn set_common(&mut self, delegations: Delegations<Balance>, prior: PriorLock<BlockNumber, Balance>) {
 		let (d, p) = match self {
-			Voting::Casting(Casting { ref mut delegations, ref mut prior, .. }) =>
-				(delegations, prior),
-			Voting::Delegating(Delegating { ref mut delegations, ref mut prior, .. }) =>
-				(delegations, prior),
+			Voting::Casting(Casting {
+				ref mut delegations,
+				ref mut prior,
+				..
+			}) => (delegations, prior),
+			Voting::Delegating(Delegating {
+				ref mut delegations,
+				ref mut prior,
+				..
+			}) => (delegations, prior),
 		};
 		*d = delegations;
 		*p = prior;
