@@ -369,7 +369,8 @@ pub mod pallet {
 			} else {
 				UnvoteScope::OnlyExpired
 			};
-			Self::try_remove_vote(&target, index, Some(class), scope)?;
+			Self::try_remove_vote(&target, index, Some(class), scope, false)?;
+			Ok(())
 		}
 
 		/// Allow to force remove a vote for a referendum.
