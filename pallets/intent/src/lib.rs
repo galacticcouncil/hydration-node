@@ -56,23 +56,11 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Data too long
-		TooLong,
-
-		/// Invalid block number
-		InvalidBlockNumber,
-
 		/// Invalid deadline
 		InvalidDeadline,
 
-		/// Insufficient reserved balance
-		InsufficientReservedBalance,
-
 		/// Invalid intent parameters
 		InvalidIntent,
-
-		/// Incorrect intent update
-		InvalidIntentUpdate,
 	}
 
 	#[pallet::storage]
