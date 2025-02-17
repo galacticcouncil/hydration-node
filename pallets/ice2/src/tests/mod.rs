@@ -1,3 +1,5 @@
+mod submit;
+
 use crate as pallet_ice;
 use crate::traits::Trader;
 use crate::types::*;
