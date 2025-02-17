@@ -6,13 +6,11 @@ use frame_support::pallet_prelude::ConstU32;
 use frame_support::traits::{ConstU128, ConstU64, Everything, Time};
 use frame_support::{construct_runtime, parameter_types, PalletId};
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::BuildStorage;
 use std::cell::RefCell;
-use std::collections::HashMap;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 pub(crate) type AssetId = u32;
@@ -21,14 +19,12 @@ type NamedReserveIdentifier = [u8; 8];
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
-pub const RECEIVER: AccountId = 3;
 
 pub(crate) const LRNA: AssetId = 1;
 
 pub const DEFAULT_NOW: Moment = 1689844300000; // unix time in milliseconds
 thread_local! {
 	pub static NOW: RefCell<Moment> = RefCell::new(DEFAULT_NOW);
-	pub static PRICES: RefCell<HashMap<(AssetId, AssetId), (Balance, Balance)>> = RefCell::new(HashMap::new());
 }
 
 construct_runtime!(
@@ -129,11 +125,9 @@ parameter_types! {
 	pub const NativeAssetId: AssetId = 0;
 	pub const HubAssetId: AssetId = LRNA;
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
-	pub const ICEPalletId: PalletId = PalletId(*b"testicer");
+	pub const IntentPalletId: PalletId = PalletId(*b"testintn");
 	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
-	pub const ProposalBond: Balance = 1_000_000_000_000;
-	pub const SlashReceiver: AccountId = RECEIVER;
 	pub NamedReserveId: NamedReserveIdentifier = *b"iceinten";
 }
 
@@ -164,9 +158,8 @@ impl pallet_ice::Config for Test {
 	type TimestampProvider = DummyTimestampProvider;
 	type MaxAllowedIntentDuration = MaxAllowdIntentDuration;
 	type BlockNumberProvider = MockBlockNumberProvider;
-	type Currency = FungibleCurrencies<Test>;
 	type ReservableCurrency = Currencies;
-	type PalletId = ICEPalletId;
+	type PalletId = IntentPalletId;
 	type MaxCallData = MaxCallData;
 	type NamedReserveId = NamedReserveId;
 	type WeightInfo = ();

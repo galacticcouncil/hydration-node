@@ -23,7 +23,6 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::traits::fungibles::Mutate;
 	use frame_support::PalletId;
 	use sp_runtime::traits::BlockNumberProvider;
 	use types::Balance;
@@ -48,9 +47,6 @@ pub mod pallet {
 
 		/// Block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
-
-		/// TODO: this two currencies could be merged into one, however it would need to implement support in the runtime for this
-		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = types::Balance>;
 
 		type ReservableCurrency: NamedMultiReservableCurrency<
 			Self::AccountId,
