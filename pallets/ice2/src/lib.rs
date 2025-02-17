@@ -4,6 +4,7 @@
 #[cfg(test)]
 mod tests;
 mod tests;
+mod traits;
 mod types;
 mod weights;
 
@@ -22,6 +23,7 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{ArithmeticError, FixedU128, Rounding, Saturating};
 use std::collections::BTreeMap;
+use traits::Trader;
 use types::{AssetId, Balance, Reason, Solution};
 pub use weights::WeightInfo;
 
@@ -69,6 +71,9 @@ pub mod pallet {
 
 		/// Price provider
 		type PriceProvider: PriceProvider<AssetId, Price = Ratio>;
+
+		/// Trader support - used to execute trades given assets and amounts in and out
+		type Trader: Trader<Self::AccountId, Outcome = ()>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -292,7 +297,12 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// now do the trades
-		//Self::do_trades(amounts.amounts_in, amounts.amounts_out)?;
+		let trade_amounts: Vec<(AssetId, (Balance, Balance))> = solution
+			.amounts
+			.iter()
+			.map(|(asset_id, (amount_in, amount_out))| (*asset_id, (*amount_in, *amount_out)))
+			.collect();
+		T::Trader::trade(holding_account.clone(), trade_amounts)?;
 
 		for instruction in solution.transfers_out.iter() {
 			match instruction {
