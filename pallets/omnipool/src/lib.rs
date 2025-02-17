@@ -2229,7 +2229,7 @@ impl<T: Config> Pallet<T> {
 		asset_states
 	}
 
-    #[cfg(any(feature = "try-runtime", test))]
+	#[cfg(any(feature = "try-runtime", test))]
 	fn ensure_trade_invariant(
 		asset_in: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),
 		asset_out: (T::AssetId, AssetReserveState<Balance>, AssetReserveState<Balance>),

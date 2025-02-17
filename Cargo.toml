@@ -108,7 +108,7 @@ toml = "0.8.19"
 trie-db = "0.29.1"
 trybuild = "1.0"
 
-clarabel = { version = "0"}
+clarabel = { version = "0.9.0"}
 
 hydra-dx-math = { path = "math", default-features = false }
 hydradx = { path = "node", default-features = false }
