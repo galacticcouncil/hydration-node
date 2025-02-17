@@ -16,6 +16,7 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use codec::MaxEncodedLen;
 use frame_support::storage::with_transaction;
@@ -259,7 +260,7 @@ pub mod pallet {
 
 			let route_length = route.len();
 
-			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router);
+			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
@@ -303,7 +304,7 @@ pub mod pallet {
 				event_id: next_event_id,
 			});
 
-			pallet_broadcast::Pallet::<T>::remove_from_context();
+			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 			Ok(())
 		}
@@ -496,7 +497,7 @@ impl<T: Config> Pallet<T> {
 
 		let route_length = route.len();
 
-		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router);
+		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
@@ -541,7 +542,7 @@ impl<T: Config> Pallet<T> {
 			event_id: next_event_id,
 		});
 
-		pallet_broadcast::Pallet::<T>::remove_from_context();
+		pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 		Ok(())
 	}
@@ -697,6 +698,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	// TODO: add missing documentation
 	fn calculate_reference_amount_in(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
 		let first_route = route.first().ok_or(Error::<T>::RouteCalculationFailed)?;
 		let asset_b = match first_route.pool {
@@ -747,7 +749,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	fn calculate_expected_amount_out(
+	pub fn calculate_expected_amount_out(
 		route: &[Trade<<T as Config>::AssetId>],
 		amount_in: T::Balance,
 	) -> Result<T::Balance, DispatchError> {
@@ -780,6 +782,19 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(amount_in_and_outs)
+	}
+
+	pub fn calculate_expected_amount_in(
+		route: &[Trade<<T as Config>::AssetId>],
+		amount_out: T::Balance,
+	) -> Result<T::Balance, DispatchError> {
+		let sell_trade_amounts = Self::calculate_buy_trade_amounts(route, amount_out)?;
+		let amount_in = sell_trade_amounts
+			.last()
+			.ok_or(Error::<T>::RouteCalculationFailed)?
+			.amount_in;
+
+		Ok(amount_in)
 	}
 
 	fn calculate_buy_trade_amounts(

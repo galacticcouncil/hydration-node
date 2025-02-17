@@ -73,7 +73,7 @@ fn remove_vote_should_not_extend_lock_when_voted_not_in_favor_and_hook_returns_f
 		fast_forward_to(3);
 		assert_ok!(Democracy::remove_vote(RuntimeOrigin::signed(1), r));
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(1), 1));
-		assert_eq!(Balances::locks(1), vec![]);
+		assert_eq!(Balances::locks(&1), vec![]);
 		assert_eq!(Balances::usable_balance(1), 10);
 	});
 }
@@ -99,7 +99,7 @@ fn remove_vote_should_extend_lock_when_voted_not_in_favor_hook_returns_true() {
 		fast_forward_to(3);
 		assert_ok!(Democracy::remove_vote(RuntimeOrigin::signed(1), r));
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(1), 1));
-		assert_eq!(Balances::locks(1), vec![the_lock(10)]);
+		assert_eq!(Balances::locks(&1), vec![the_lock(10)]);
 		assert_eq!(Balances::usable_balance(1), 0);
 	});
 }
@@ -125,7 +125,7 @@ fn remove_vote_should_extend_lock_only_for_given_amount_when_voted_not_in_favor_
 		fast_forward_to(3);
 		assert_ok!(Democracy::remove_vote(RuntimeOrigin::signed(1), r));
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(1), 1));
-		assert_eq!(Balances::locks(1), vec![the_lock(5)]);
+		assert_eq!(Balances::locks(&1), vec![the_lock(5)]);
 		assert_eq!(Balances::usable_balance(1), 5);
 	});
 }

@@ -917,7 +917,7 @@ fn calculate_global_farm_rewards_should_work() {
 		(
 			FixedU128::from(1), //max value for yield_per_period
 			100_000_000_000_000_000_000_000_000_000_u128,
-			u128::max_value() / 1_000_000,
+			u128::MAX / 1_000_000,
 			FixedU128::from(3),
 			1_000_000,
 			300_000_000_000_000_000_000_000_000_000_000_000_u128,

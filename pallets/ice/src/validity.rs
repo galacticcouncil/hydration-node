@@ -57,7 +57,8 @@ where
 				intents, score, block, ..
 			}) => {
 				if !Pallet::<T>::ensure_proposal_bond(who) {
-					return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment)); //TODO: custom error?
+					return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment));
+					//TODO: custom error?
 				}
 				let valid = Pallet::<T>::validate_submission(who, intents, *score, *block);
 				if valid {

@@ -19,6 +19,7 @@ pub struct Schedule<AccountId, AssetId, BlockNumber> {
 	/// The time period (in blocks) between two schedule executions.
 	pub period: BlockNumber,
 	/// The total amount (budget) the user wants to spend on the whole DCA.
+	/// Can be set to zero, in which case the schedule will run indefinitely.
 	/// Its currency is the sold (amount_in) currency specified in `order`.
 	pub total_amount: Balance,
 	/// The maximum number of retries in case of failing schedules.
@@ -32,6 +33,12 @@ pub struct Schedule<AccountId, AssetId, BlockNumber> {
 	pub slippage: Option<Permill>,
 	/// The order containing information to execute a specific trade by the router.
 	pub order: Order<AssetId>,
+}
+
+impl<AccountId, AssetId, BlockNumber> Schedule<AccountId, AssetId, BlockNumber> {
+	pub fn is_rolling(&self) -> bool {
+		self.total_amount == 0
+	}
 }
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]

@@ -32,7 +32,7 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind};
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::{
@@ -55,6 +55,8 @@ pub const ASSET_WITHOUT_ED: AssetId = 1001;
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
+pub const PROTOCOL_FEE_COLLECTOR: u64 = 4;
+pub const TRADE_FEE_COLLECTOR: u64 = 5;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -68,6 +70,7 @@ thread_local! {
 	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
 	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static BURN_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
 	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
@@ -170,6 +173,7 @@ parameter_types! {
 
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
+	pub BurnFee: Permill = BURN_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
@@ -211,6 +215,7 @@ impl Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct ExtBuilder {
@@ -218,6 +223,7 @@ pub struct ExtBuilder {
 	registered_assets: Vec<AssetId>,
 	asset_fee: Permill,
 	protocol_fee: Permill,
+	burn_fee: Permill,
 	asset_weight_cap: Permill,
 	min_liquidity: u128,
 	min_trade_limit: u128,
@@ -245,6 +251,9 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		PROTOCOL_FEE.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		BURN_FEE.with(|v| {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		MIN_ADDED_LIQUDIITY.with(|v| {
@@ -279,6 +288,7 @@ impl Default for ExtBuilder {
 			],
 			asset_fee: Permill::from_percent(0),
 			protocol_fee: Permill::from_percent(0),
+			burn_fee: Permill::from_percent(0),
 			asset_weight_cap: Permill::from_percent(100),
 			min_liquidity: 0,
 			registered_assets: vec![],
@@ -317,6 +327,10 @@ impl ExtBuilder {
 
 	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
 		self.protocol_fee = fee;
+		self
+	}
+	pub fn with_burn_fee(mut self, fee: Permill) -> Self {
+		self.burn_fee = fee;
 		self
 	}
 	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
@@ -393,22 +407,21 @@ impl ExtBuilder {
 				v.borrow_mut().insert(*asset, *asset);
 			});
 		});
-
 		ASSET_FEE.with(|v| {
 			*v.borrow_mut() = self.asset_fee;
 		});
 		ASSET_WEIGHT_CAP.with(|v| {
 			*v.borrow_mut() = self.asset_weight_cap;
 		});
-
 		PROTOCOL_FEE.with(|v| {
 			*v.borrow_mut() = self.protocol_fee;
 		});
-
+		BURN_FEE.with(|v| {
+			*v.borrow_mut() = self.burn_fee;
+		});
 		MIN_ADDED_LIQUDIITY.with(|v| {
 			*v.borrow_mut() = self.min_liquidity;
 		});
-
 		MIN_TRADE_AMOUNT.with(|v| {
 			*v.borrow_mut() = self.min_trade_limit;
 		});
@@ -679,14 +692,15 @@ pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
-}
 
-pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
-	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
+	}
 }
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
@@ -733,7 +747,23 @@ impl OmnipoolHooks<RuntimeOrigin, AccountId, AssetId, Balance> for MockHooks {
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		let percentage = ON_TRADE_WITHDRAWAL.with(|v| *v.borrow());
 		let to_take = percentage.mul_floor(amount);
-		Tokens::withdraw(asset, &fee_account, to_take)?;
-		Ok(vec![Some((to_take, AccountId::default()))])
+		<Tokens as MultiCurrency<AccountId>>::transfer(asset, &fee_account, &TRADE_FEE_COLLECTOR, to_take)?;
+		Ok(vec![Some((to_take, TRADE_FEE_COLLECTOR))])
+	}
+
+	fn consume_protocol_fee(
+		fee_account: AccountId,
+		amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
+		if amount == 0 {
+			return Ok(None);
+		}
+		if amount < 400_000_000 {
+			//less than ED -> dust
+			<Tokens as MultiCurrency<AccountId>>::withdraw(LRNA, &fee_account, amount)?;
+		} else {
+			<Tokens as MultiCurrency<AccountId>>::transfer(LRNA, &fee_account, &PROTOCOL_FEE_COLLECTOR, amount)?;
+		}
+		Ok(Some((amount, PROTOCOL_FEE_COLLECTOR)))
 	}
 }

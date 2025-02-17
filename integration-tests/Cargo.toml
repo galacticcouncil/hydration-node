@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.29.0"
+version = "1.33.1"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -28,11 +28,9 @@ hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
 pallet-transaction-multi-payment = { workspace = true, features = ["evm"] }
 pallet-currencies = { workspace = true }
-pallet-duster = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
-pallet-otc-settlements = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-dca = { workspace = true }
@@ -56,6 +54,7 @@ pallet-elections-phragmen = { workspace = true }
 pallet-tips = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-conviction-voting = { workspace = true }
+pallet-dispatcher = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }
@@ -85,9 +84,7 @@ cumulus-pallet-parachain-system = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
 cumulus-primitives-core = { workspace = true }
-cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
-cumulus-primitives-timestamp = { workspace = true }
 staging-parachain-info = { workspace = true }
 cumulus-test-relay-sproof-builder = { workspace = true }
 
@@ -99,11 +96,9 @@ xcm-executor = { workspace = true }
 polkadot-xcm = { workspace = true }
 
 # Substrate dependencies
-frame-benchmarking = { workspace = true, optional = true }
 frame-executive = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api = { workspace = true }
 pallet-aura = { workspace = true }
 pallet-balances = { workspace = true }
@@ -127,7 +122,6 @@ sp-session = { workspace = true }
 sp-std = { workspace = true }
 sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
-sp-staking = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
 sp-consensus-babe = { workspace = true }
@@ -228,6 +222,7 @@ std = [
     "pallet-liquidation/std",
     "pallet-broadcast/std",
     "pallet-ice/std",
+    "pallet-dispatcher/std",
 ]
 
 # we don't include integration tests when benchmarking feature is enabled

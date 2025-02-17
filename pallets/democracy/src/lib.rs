@@ -40,16 +40,16 @@
 //! ### Terminology
 //!
 //! - **Enactment Period:** The minimum period of locking and the period between a proposal being
-//! approved and enacted.
+//!   approved and enacted.
 //! - **Lock Period:** A period of time after proposal enactment that the tokens of _winning_ voters
-//! will be locked.
+//!   will be locked.
 //! - **Conviction:** An indication of a voter's strength of belief in their vote. An increase
-//! of one in conviction indicates that a token holder is willing to lock their tokens for twice
-//! as many lock periods after enactment.
+//!   of one in conviction indicates that a token holder is willing to lock their tokens for twice
+//!   as many lock periods after enactment.
 //! - **Vote:** A value that can either be in approval ("Aye") or rejection ("Nay") of a particular
 //!   referendum.
 //! - **Proposal:** A submission to the chain that represents an action that a proposer (either an
-//! account or an external origin) suggests that the system adopt.
+//!   account or an external origin) suggests that the system adopt.
 //! - **Referendum:** A proposal that is in the process of being voted on for either acceptance or
 //!   rejection as a change to the system.
 //! - **Delegation:** The act of granting your voting power to the decisions of another account for
@@ -152,6 +152,7 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::manual_inspect)]
 
 use codec::{Decode, Encode};
 use frame_support::{

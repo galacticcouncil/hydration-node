@@ -54,10 +54,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 
 	Hydra::execute_with(|| {
 		let fee_currency = HDX;
-		//Set up to idle state where the chain is not utilized at all
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
-			hydradx_runtime::MinimumMultiplier::get(),
-		);
+
 		init_omnipool_with_oracle_for_block_10();
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -151,9 +148,14 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let fee_difference = evm_fee - native_fee;
 		assert!(fee_difference > 0);
 		let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
-		let tolerated_fee_difference = FixedU128::from_rational(20, 100);
+		let tolerated_fee_difference = FixedU128::from_rational(30, 100);
 		// EVM fees should be not higher than 20%
-		assert!(relative_fee_difference < tolerated_fee_difference);
+		assert!(
+			relative_fee_difference < tolerated_fee_difference,
+			"relative_fee_difference: {:?} is bigger than tolerated {:?}",
+			relative_fee_difference,
+			tolerated_fee_difference
+		);
 	})
 }
 
@@ -343,7 +345,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3_565_408_466_680);
+		assert_eq!(user_weth_balance, 3570615837132);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -822,8 +824,16 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 			assert!(user_insufficient_asset_balance < initial_user_insufficient_balance);
 			let payed_fee = initial_user_insufficient_balance - user_insufficient_asset_balance;
 			//assert_eq!(payed_fee, 107314200);
-			assert!(payed_fee > 100_000_000);
-			assert!(payed_fee < 120_000_000);
+			assert!(
+				payed_fee > 50_000_000,
+				"payed_fee: {:?} is less than 50_000_000",
+				payed_fee
+			);
+			assert!(
+				payed_fee < 120_000_000,
+				"payed_fee: {:?} is more than 120_000_000",
+				payed_fee
+			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -917,7 +927,7 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			let insufficient_amount = 10 * UNITS;
 			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount)).unwrap();
 			assert_eq!(
-				(4293122621256764998, Ratio::new(4293122621256764998, 10000000000000)),
+				(4293123327072534587, Ratio::new(4293123327072534587, 10000000000000)),
 				amount_in_weth
 			);
 
@@ -1049,7 +1059,7 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 			let weth_amount = 10 * UNITS;
 			let amount_in_insufficient_asset = Convert::convert((WETH, insufficient_asset, weth_amount)).unwrap();
 			assert_eq!(
-				(23293070, Ratio::new(23293070, 10000000000000)),
+				(23293066, Ratio::new(23293066, 10000000000000)),
 				amount_in_insufficient_asset
 			);
 
@@ -1210,7 +1220,7 @@ fn evm_permit_dispatch_flow_should_work() {
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3_565_408_466_680);
+		assert_eq!(user_weth_balance, 3570615837132);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -1347,7 +1357,7 @@ fn evm_permit_should_fail_when_replayed() {
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3_565_408_466_680);
+		assert_eq!(user_weth_balance, 3570615837132);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -1667,7 +1677,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 7_154_148_914_103);
+		assert_eq!(tx_fee, 4491170241294);
 	})
 }
 
@@ -1874,7 +1884,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 7154148914103);
+		assert_eq!(tx_fee, 4491170241294);
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,

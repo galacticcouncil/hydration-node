@@ -31,17 +31,24 @@ pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
 }
 
 fn run_to_block(to: u32) {
-	while System::block_number() < to {
-		let b = System::block_number();
-
-		System::on_finalize(b);
-		EmaOracle::on_finalize(b);
-
-		System::on_initialize(b + 1_u32);
-		EmaOracle::on_initialize(b + 1_u32);
-
-		System::set_block_number(b + 1_u32);
+	if System::block_number() >= to {
+		panic!("Passed block number must be greater than the current block number");
 	}
+	while System::block_number() < to {
+		next_block();
+	}
+}
+
+fn next_block() {
+	let current_block = System::block_number();
+
+	System::on_finalize(current_block);
+	EmaOracle::on_finalize(current_block);
+
+	System::on_initialize(current_block + 1);
+	EmaOracle::on_initialize(current_block + 1);
+
+	System::set_block_number(current_block + 1);
 }
 
 const HDX: AssetId = 0;
@@ -72,6 +79,8 @@ pub fn init() -> DispatchResult {
 		Permill::from_percent(100),
 		acc,
 	)?;
+
+	next_block();
 
 	Ok(())
 }

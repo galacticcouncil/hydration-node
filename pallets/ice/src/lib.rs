@@ -956,7 +956,7 @@ impl<T: Config> Pallet<T> {
 
 					*amount_in = 0u128;
 					amount_out -= possible_out_amount; //this is safe, because of the condition
-					               //after this, we need another asset_in to buy the rest
+					                    //after this, we need another asset_in to buy the rest
 				}
 			}
 

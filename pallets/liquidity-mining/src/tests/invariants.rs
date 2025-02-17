@@ -310,7 +310,7 @@ proptest! {
 				let reward =
 					LiquidityMining::sync_global_farm(&mut global_farm, current_period).unwrap();
 
-				let s_0 = (left_to_distribute_0 - reward).max(0);
+				let s_0 = left_to_distribute_0 - reward;
 				let s_1 = Tokens::free_balance(REWARD_CURRENCY, &global_farm_account);
 
 				assert_eq!(

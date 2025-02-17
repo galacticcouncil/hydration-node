@@ -17,19 +17,20 @@
 
 use crate::tests::mock::*;
 use crate::Event;
+use frame_support::assert_err;
 use frame_support::traits::Len;
 
 #[test]
 fn stack_should_be_populated_when_pushed() {
 	ExtBuilder::default().build().execute_with(|| {
-		Broadcast::add_to_context(ExecutionType::Router);
+		Broadcast::add_to_context(ExecutionType::Router).unwrap();
 		assert_eq!(Broadcast::execution_context(), vec![ExecutionType::Router(0)]);
 		assert_eq!(
 			Broadcast::execution_context().into_inner(),
 			vec![ExecutionType::Router(0)]
 		);
 
-		Broadcast::add_to_context(ExecutionType::Router);
+		Broadcast::add_to_context(ExecutionType::Router).unwrap();
 		assert_eq!(
 			Broadcast::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
@@ -39,7 +40,7 @@ fn stack_should_be_populated_when_pushed() {
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		Broadcast::add_to_context(ExecutionType::Omnipool);
+		Broadcast::add_to_context(ExecutionType::Omnipool).unwrap();
 		assert_eq!(
 			Broadcast::execution_context(),
 			vec![
@@ -62,11 +63,11 @@ fn stack_should_be_populated_when_pushed() {
 #[test]
 fn stack_should_be_reduced_when_poped() {
 	ExtBuilder::default().build().execute_with(|| {
-		Broadcast::add_to_context(ExecutionType::Router);
-		Broadcast::add_to_context(ExecutionType::Router);
-		Broadcast::add_to_context(ExecutionType::Omnipool);
+		Broadcast::add_to_context(ExecutionType::Router).unwrap();
+		Broadcast::add_to_context(ExecutionType::Router).unwrap();
+		Broadcast::add_to_context(ExecutionType::Omnipool).unwrap();
 
-		Broadcast::remove_from_context();
+		Broadcast::remove_from_context().unwrap();
 		assert_eq!(
 			Broadcast::execution_context(),
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
@@ -76,7 +77,7 @@ fn stack_should_be_reduced_when_poped() {
 			vec![ExecutionType::Router(0), ExecutionType::Router(1)]
 		);
 
-		Broadcast::add_to_context(ExecutionType::Omnipool);
+		Broadcast::add_to_context(ExecutionType::Omnipool).unwrap();
 		assert_eq!(
 			Broadcast::execution_context(),
 			vec![
@@ -132,41 +133,34 @@ fn event_should_be_deposited() {
 #[test]
 fn entry_is_removed_when_type_matched_with_last_stack_item() {
 	ExtBuilder::default().build().execute_with(|| {
-		Broadcast::add_to_context(ExecutionType::Router);
+		Broadcast::add_to_context(ExecutionType::Router).unwrap();
 
-		Broadcast::remove_from_context();
+		Broadcast::remove_from_context().unwrap();
 
 		assert_eq!(Broadcast::execution_context().into_inner(), vec![]);
 	});
 }
 
-//This test is ignored because it is not possible to overflow when running tests in non-release mode
-#[ignore]
 #[test]
-fn overflow_should_be_handled_when_max_stack_size_reached() {
+fn should_return_error_when_stack_reaches_max_size() {
 	ExtBuilder::default().build().execute_with(|| {
 		for _ in 0..MAX_STACK_SIZE {
-			Broadcast::add_to_context(ExecutionType::Batch);
+			Broadcast::add_to_context(ExecutionType::Batch).unwrap();
 		}
 
-		Broadcast::add_to_context(ExecutionType::Batch);
-		Broadcast::add_to_context(ExecutionType::Batch);
-		Broadcast::add_to_context(ExecutionType::Batch);
+		assert_err!(
+			Broadcast::add_to_context(ExecutionType::Batch),
+			Error::<Test>::ExecutionCallStackOverflow
+		);
+	});
+}
 
-		assert_eq!(Broadcast::execution_context().len(), 16);
-
-		//We remove the batch 3 times to check if overflow handled, so nothing is removed form stack
-		Broadcast::remove_from_context();
-		assert_eq!(Broadcast::execution_context().len(), 16);
-
-		Broadcast::remove_from_context();
-		assert_eq!(Broadcast::execution_context().len(), 16);
-
-		Broadcast::remove_from_context();
-		assert_eq!(Broadcast::execution_context().len(), 16);
-
-		//Check if stack behaves normally after overflow
-		Broadcast::remove_from_context();
-		assert_eq!(Broadcast::execution_context().len(), 15);
+#[test]
+fn should_return_error_when_trying_to_remove_from_empty_stack() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_err!(
+			Broadcast::remove_from_context(),
+			Error::<Test>::ExecutionCallStackUnderflow
+		);
 	});
 }

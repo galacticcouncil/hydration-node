@@ -1,6 +1,6 @@
 [package]
 name = "pallet-staking"
-version = "4.1.0"
+version = "4.1.2"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -70,6 +70,7 @@ runtime-benchmarks = [
 	"pallet-uniques/runtime-benchmarks",
 	"pallet-conviction-voting/runtime-benchmarks",
 	"pallet-referenda/runtime-benchmarks",
+	"pallet-democracy/runtime-benchmarks",
 
 ]
 try-runtime = ["frame-support/try-runtime",]

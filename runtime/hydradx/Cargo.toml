@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "280.0.0"
+version = "288.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -60,12 +60,12 @@ pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-ice = { workspace = true }
-#ice-solver = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-conviction-voting = { workspace = true }
+pallet-dispatcher = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
@@ -123,7 +123,7 @@ polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
 polkadot-runtime-common = { workspace = true }
-xcm-fee-payment-runtime-api = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -224,10 +224,12 @@ runtime-benchmarks = [
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
+    "xcm-runtime-apis/runtime-benchmarks",
     "pallet-liquidation/runtime-benchmarks",
     "pallet-conviction-voting/runtime-benchmarks",
     "pallet-referenda/runtime-benchmarks",
     "pallet-whitelist/runtime-benchmarks",
+    "pallet-dispatcher/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -248,7 +250,7 @@ std = [
     "staging-parachain-info/std",
     "pallet-xcm/std",
     "polkadot-xcm/std",
-    "xcm-fee-payment-runtime-api/std",
+    "xcm-runtime-apis/std",
     "xcm-executor/std",
     "xcm-builder/std",
     "orml-tokens/std",
@@ -345,8 +347,8 @@ std = [
     "pallet-referenda/std",
     "pallet-whitelist/std",
     "pallet-broadcast/std",
+    "pallet-dispatcher/std",
     "pallet-ice/std",
-    #"ice-solver/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -423,6 +425,7 @@ try-runtime = [
     "pallet-referenda/try-runtime",
     "pallet-whitelist/try-runtime",
     "pallet-broadcast/try-runtime",
+    "pallet-dispatcher/try-runtime",
 ]
 
 metadata-hash = [

@@ -1,4 +1,5 @@
 use crate::*;
+use cumulus_primitives_core::{Junction::GlobalConsensus, Location, NetworkId::Kusama};
 use primitives::constants::{
 	currency::{CENTS, DOLLARS, MILLICENTS},
 	time::{DAYS, HOURS},
@@ -14,8 +15,11 @@ use frame_support::{
 use pallet_transaction_payment::Multiplier;
 use polkadot_xcm::opaque::VersionedXcm;
 use polkadot_xcm::{VersionedAssets, VersionedLocation};
+use sp_core::crypto::Ss58Codec;
 use sp_runtime::{BuildStorage, FixedU128};
 use sp_std::sync::Arc;
+use xcm_builder::GlobalConsensusConvertsFor;
+use xcm_executor::traits::ConvertLocation;
 
 #[test]
 #[ignore]
@@ -183,10 +187,8 @@ fn max_multiplier() {
 mod xcm_fee_payment_api_tests {
 	use super::*;
 	use frame_support::assert_ok;
-	use polkadot_xcm::v4::prelude::*;
-	use polkadot_xcm::VersionedAssetId::V4;
-	use xcm_fee_payment_runtime_api::runtime_decl_for_xcm_payment_api::XcmPaymentApiV1;
-	use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
+	use polkadot_xcm::{v4::prelude::*, VersionedAssetId::V4};
+	use xcm_runtime_apis::fees::{runtime_decl_for_xcm_payment_api::XcmPaymentApiV1, Error as XcmPaymentApiError};
 
 	#[test]
 	fn query_acceptable_payment_assets_should_return_native_and_registered_locations() {
@@ -362,4 +364,22 @@ mod xcm_fee_payment_api_tests {
 			);
 		});
 	}
+}
+
+#[test]
+fn assert_kusama_root_account() {
+	sp_io::TestExternalities::new_empty().execute_with(|| {
+		let ksm_root_location = Location::new(2, [GlobalConsensus(Kusama)]);
+		let ksm_root_account =
+			GlobalConsensusConvertsFor::<UniversalLocation, AccountId>::convert_location(&ksm_root_location)
+				.expect("Failed to convert location");
+
+		let expected_treasury_account = AccountId::from_ss58check("5G4KKqSKDkiMGiPzCQY12dSB15aBikyNQJL9VDmbMH4SxiWD")
+			.expect("Invalid SS58 address format");
+		assert_eq!(ksm_root_account, expected_treasury_account);
+
+		let wrong_treasury_account = AccountId::from_ss58check("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")
+			.expect("Invalid SS58 address format");
+		assert_ne!(ksm_root_account, wrong_treasury_account);
+	});
 }

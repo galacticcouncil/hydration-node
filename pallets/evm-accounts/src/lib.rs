@@ -55,6 +55,7 @@
 //! * `disapprove_contract` - Disapproves contract address to manage balances.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};

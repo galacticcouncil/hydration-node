@@ -32,6 +32,7 @@
 //! * `settle_otc_order` -  Executes a trade between an OTC order and some route.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(not(feature = "runtime-benchmarks"))]
 use frame_system::RawOrigin;
@@ -79,7 +80,7 @@ mod benchmarks;
 
 pub mod weights;
 
-use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -419,7 +420,14 @@ impl<T: Config> Pallet<T> {
 			Preservation::Expendable,
 		)?;
 
-		<T as Config>::Currency::burn_from(asset_a, &pallet_acc, amount, Precision::Exact, Fortitude::Force)?;
+		<T as Config>::Currency::burn_from(
+			asset_a,
+			&pallet_acc,
+			amount,
+			Preservation::Expendable,
+			Precision::Exact,
+			Fortitude::Force,
+		)?;
 
 		let asset_a_balance_after = <T as Config>::Currency::balance(asset_a, &pallet_acc);
 		let asset_b_balance_after = <T as Config>::Currency::balance(asset_b, &pallet_acc);

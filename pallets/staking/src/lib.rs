@@ -16,6 +16,7 @@
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use crate::traits::{ActionData, GetReferendumState, PayablePercentage, VestingDetails};
 use crate::types::{Action, Balance, Period, Point, Position, StakingData};
@@ -1004,7 +1005,7 @@ impl<T: Config> Pallet<T> {
 	/// - action: action for which points are calculated
 	/// - data: action's data necessary for points calculation
 	/// - action_max_value: max value that can be used by user for `action`. It is used to calculate
-	/// percentage of points user will receive based on how much action's power user used.
+	///   percentage of points user will receive based on how much action's power user used.
 	fn calculate_points_for_action<V: ActionData>(action: Action, data: V, action_max_value: Balance) -> Balance {
 		data.conviction()
 			.saturating_mul_int(data.amount())

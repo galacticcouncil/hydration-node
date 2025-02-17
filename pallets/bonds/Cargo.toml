@@ -1,6 +1,6 @@
 [package]
 name = "pallet-bonds"
-version = "2.2.4"
+version = "2.2.5"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"

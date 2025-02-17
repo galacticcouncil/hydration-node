@@ -390,7 +390,7 @@ mod test {
 			let mut voter_all_locks = initial_locks.clone();
 			voter_all_locks.push((&DEMOCRACY_ID, stake));
 			assert_eq!(
-				<Test as crate::Config>::Currency::locks(voter)
+				<Test as crate::Config>::Currency::locks(&voter)
 					.iter()
 					.map(|lock| (&lock.id, lock.amount))
 					.collect::<Vec<_>>(),
@@ -405,7 +405,7 @@ mod test {
 
 			// Assert the voter lock was removed
 			assert_eq!(
-				<Test as crate::Config>::Currency::locks(voter)
+				<Test as crate::Config>::Currency::locks(&voter)
 					.iter()
 					.map(|lock| (&lock.id, lock.amount))
 					.collect::<Vec<_>>(),

@@ -86,7 +86,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 			u128::MAX,
 		));
 
-		let expected = 1664733011875663575256u128;
+		let expected = 1662982831332175506391u128;
 
 		let charlie_dai = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
@@ -117,7 +117,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 			u128::MAX,
 		));
 
-		let expected = 2_428_053_975_026_574_531_220u128;
+		let expected = 2425314174355896988615u128;
 
 		let charlie_dai = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 

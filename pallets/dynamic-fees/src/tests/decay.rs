@@ -20,7 +20,7 @@ fn asset_fee_should_decay_when_volume_has_not_changed() {
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let fee = retrieve_fee_entry(HDX);
+			let fee = retrieve_fee_entry(HDX, 50 * ONE);
 
 			assert_eq!(fee.0, Fee::from_float(0.0195));
 		});
@@ -43,7 +43,7 @@ fn protocol_fee_should_decay_when_volume_has_not_changed() {
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let fee = retrieve_fee_entry(HDX);
+			let fee = retrieve_fee_entry(HDX, 50 * ONE);
 
 			assert_eq!(fee.1, Fee::from_float(0.0195));
 		});
@@ -66,7 +66,7 @@ fn asset_fee_should_not_decay_below_min_limit_when_volume_has_not_changed() {
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let fee = retrieve_fee_entry(HDX);
+			let fee = retrieve_fee_entry(HDX, 50 * ONE);
 
 			assert_eq!(fee.0, Fee::from_float(0.09));
 		});
@@ -81,7 +81,7 @@ fn protocol_fee_should_not_decay_below_min_limit_when_volume_has_not_changed() {
 		.with_initial_fees(initial_fee, initial_fee, 0)
 		.with_protocol_fee_params(
 			Fee::from_float(0.09),
-			Fee::from_float(0.09),
+			Fee::from_float(0.091),
 			FixedU128::from_float(0.02),
 			FixedU128::one(),
 		)
@@ -89,7 +89,7 @@ fn protocol_fee_should_not_decay_below_min_limit_when_volume_has_not_changed() {
 		.execute_with(|| {
 			System::set_block_number(1);
 
-			let fee = retrieve_fee_entry(HDX);
+			let fee = retrieve_fee_entry(HDX, 50 * ONE);
 
 			assert_eq!(fee.1, Fee::from_float(0.09));
 		});

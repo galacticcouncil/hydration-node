@@ -77,6 +77,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 						)
 					})
 					.collect::<Vec<_>>(),
+				non_authority_keys: Default::default(),
 			},
 			aura: Default::default(),
 			collator_selection: CollatorSelectionConfig {
@@ -139,7 +140,6 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			evm: Default::default(),
 			xyk_warehouse_lm: Default::default(),
 			xyk_liquidity_mining: Default::default(),
-			ice: Default::default(),
 		}
 		.build_storage()
 		.unwrap()
