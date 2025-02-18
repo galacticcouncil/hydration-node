@@ -343,7 +343,6 @@ pub mod pallet {
 				}
 			};
 
-			//TODO: verify if tenMinutes are same as otjers
 			if let Some(reference_entry) = Self::oracle((BIFROST_SOURCE, ordered_pair, OraclePeriod::TenMinutes)) {
 				ensure!(
 					Self::is_within_range(reference_entry.0.price.into(), price),
