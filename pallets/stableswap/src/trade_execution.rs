@@ -1,12 +1,15 @@
+use crate::types::Tradability;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
-use frame_support::BoundedVec;
+use frame_support::{ensure, BoundedVec};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
+use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
 where
@@ -51,15 +54,76 @@ where
 
 					Ok(amount)
 				} else if asset_out == pool_id {
-					let share_amount = Self::calculate_shares(
-						pool_id,
-						&[AssetAmount {
-							asset_id: asset_in,
-							amount: amount_in,
-						}],
-					)
-					.map_err(ExecutorError::Error)?;
+					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
+					let pool_account = Self::pool_account(pool_id);
 
+					let assets = vec![AssetAmount {
+						asset_id: asset_in,
+						amount: amount_in,
+					}];
+
+					let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
+					for asset in assets.iter() {
+						ensure!(
+							Self::is_asset_allowed(pool_id, asset.asset_id, Tradability::ADD_LIQUIDITY),
+							ExecutorError::Error(Error::<T>::NotAllowed.into())
+						);
+						ensure!(
+							asset.amount >= T::MinTradingLimit::get(),
+							ExecutorError::Error(Error::<T>::InsufficientTradingAmount.into())
+						);
+
+						ensure!(
+							pool.find_asset(asset.asset_id).is_some(),
+							ExecutorError::Error(Error::<T>::AssetNotInPool.into())
+						);
+						if added_assets.insert(asset.asset_id, asset.amount).is_some() {
+							return Err(ExecutorError::Error(Error::<T>::IncorrectAssets.into()));
+						}
+					}
+
+					let mut initial_reserves = Vec::with_capacity(pool.assets.len());
+					let mut updated_reserves = Vec::with_capacity(pool.assets.len());
+					for pool_asset in pool.assets.iter() {
+						let decimals = Self::retrieve_decimals(*pool_asset)
+							.ok_or(ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
+						let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
+						initial_reserves.push(AssetReserve {
+							amount: reserve,
+							decimals,
+						});
+						if let Some(liq_added) = added_assets.remove(pool_asset) {
+							let inc_reserve = reserve
+								.checked_add(liq_added)
+								.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+							updated_reserves.push(AssetReserve {
+								amount: inc_reserve,
+								decimals,
+							});
+						} else {
+							ensure!(
+								reserve > 0u128,
+								ExecutorError::Error(Error::<T>::InvalidInitialLiquidity.into())
+							);
+							updated_reserves.push(AssetReserve {
+								amount: reserve,
+								decimals,
+							});
+						}
+					}
+
+					let amplification = Self::get_amplification(&pool);
+					let share_issuance = T::Currency::total_issuance(pool_id);
+					let asset_pegs = Self::get_current_pegs(pool_id, pool.assets.len());
+					let (share_amount, _) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
+						&initial_reserves,
+						&updated_reserves[..],
+						amplification,
+						share_issuance,
+						pool.fee,
+						&asset_pegs,
+					)
+					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 					Ok(share_amount)
 				} else {
 					let (amount_out, _) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in, false)

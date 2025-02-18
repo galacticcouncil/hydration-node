@@ -168,11 +168,11 @@ pub struct PoolPegInfo {
 }
 
 impl PoolPegInfo {
-	pub fn with_new_pegs(self, pegs: &[PegType]) -> Self {
+	pub fn with_new_pegs(self, pegs: Vec<PegType>) -> Self {
 		PoolPegInfo {
 			source: self.source,
 			max_target_update: self.max_target_update,
-			current: BoundedPegs::truncate_from(pegs.to_vec()),
+			current: BoundedPegs::truncate_from(pegs),
 		}
 	}
 }

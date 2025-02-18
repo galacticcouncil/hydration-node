@@ -171,6 +171,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type AmplificationRange: Get<RangeInclusive<NonZeroU16>>;
 
+		/// Oracle providing prices for asset pegs (if configured for pool)
 		type TargetPegOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
 
 		/// Weight information for extrinsics in this pallet.
@@ -345,9 +346,10 @@ pub mod pallet {
 		/// List of provided pegs is incorrect.
 		IncorrectInitialPegs,
 
+		/// FAiled to retrieve oracle entry.
 		MissingTargetPegOracle,
 
-		/// Creating pool with pegs is not allowed for asset with different decimals
+		/// Creating pool with pegs is not allowed for asset with different decimals.
 		IncorrectAssetDecimals,
 	}
 
@@ -1057,7 +1059,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_pool())]
+		#[pallet::weight(<T as Config>::WeightInfo::create_pool_with_pegs())]
 		#[transactional]
 		pub fn create_pool_with_pegs(
 			origin: OriginFor<T>,
@@ -1483,70 +1485,6 @@ impl<T: Config> Pallet<T> {
 		T::AssetInspection::decimals(asset_id)
 	}
 
-	fn calculate_shares(pool_id: T::AssetId, assets: &[AssetAmount<T::AssetId>]) -> Result<Balance, DispatchError> {
-		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-		let pool_account = Self::pool_account(pool_id);
-
-		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
-
-		let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
-		for asset in assets.iter() {
-			ensure!(
-				Self::is_asset_allowed(pool_id, asset.asset_id, Tradability::ADD_LIQUIDITY),
-				Error::<T>::NotAllowed
-			);
-			ensure!(
-				asset.amount >= T::MinTradingLimit::get(),
-				Error::<T>::InsufficientTradingAmount
-			);
-
-			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
-
-			if added_assets.insert(asset.asset_id, asset.amount).is_some() {
-				return Err(Error::<T>::IncorrectAssets.into());
-			}
-		}
-
-		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
-		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
-		for pool_asset in pool.assets.iter() {
-			let decimals = Self::retrieve_decimals(*pool_asset).ok_or(Error::<T>::UnknownDecimals)?;
-			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
-			initial_reserves.push(AssetReserve {
-				amount: reserve,
-				decimals,
-			});
-			if let Some(liq_added) = added_assets.remove(pool_asset) {
-				let inc_reserve = reserve.checked_add(liq_added).ok_or(ArithmeticError::Overflow)?;
-				updated_reserves.push(AssetReserve {
-					amount: inc_reserve,
-					decimals,
-				});
-			} else {
-				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
-				updated_reserves.push(AssetReserve {
-					amount: reserve,
-					decimals,
-				});
-			}
-		}
-
-		let amplification = Self::get_amplification(&pool);
-		let share_issuance = T::Currency::total_issuance(pool_id);
-		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id)?;
-		let (share_amount, _fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
-			&initial_reserves,
-			&updated_reserves[..],
-			amplification,
-			share_issuance,
-			trade_fee,
-			&asset_pegs,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
-
-		Ok(share_amount)
-	}
-
 	// Trigger on_liquidity_changed hook. Initial reserves and issuance are required to calculate delta.
 	// We need new updated reserves and new share price of each asset in pool, so for this, we can simply query the storage after the update.
 	fn call_on_liquidity_change_hook(
@@ -1694,15 +1632,7 @@ impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pa
 		pool_id: T::AssetId,
 		assets: Vec<AssetAmount<T::AssetId>>,
 	) -> Result<Balance, DispatchError> {
-		let asset_amounts = assets
-			.iter()
-			.map(|asset| AssetAmount {
-				asset_id: asset.asset_id,
-				amount: asset.amount,
-			})
-			.collect::<Vec<_>>();
-
-		Self::do_add_liquidity(&who, pool_id, &asset_amounts)
+		Self::do_add_liquidity(&who, pool_id, &assets)
 	}
 }
 
@@ -1731,7 +1661,7 @@ impl<T: Config> Pallet<T> {
 		let new_pegs = Self::calculate_new_pegs(&info.current, &deltas);
 
 		// Store new pegs
-		let new_info = info.with_new_pegs(&new_pegs);
+		let new_info = info.with_new_pegs(new_pegs);
 		PoolPeg::<T>::insert(pool_id, new_info);
 
 		Ok((trade_fee, Self::get_current_pegs(pool_id, pool.assets.len())))
@@ -1762,7 +1692,6 @@ impl<T: Config> Pallet<T> {
 			let p = match source {
 				PegSource::Value(peg) => (*peg, block_no),
 				PegSource::Oracle((source, period)) => {
-					//TODO: what if error - do we fail completely ?
 					let entry = T::TargetPegOracle::get_raw_entry(*source, first_asset, *asset_id, *period)
 						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
 					((entry.price.0, entry.price.1), entry.updated_at.saturated_into())
