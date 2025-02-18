@@ -571,6 +571,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+
+	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: (u32, u32) = (10, 100);
 }
 
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
@@ -614,6 +616,7 @@ impl pallet_ema_oracle::Config for Runtime {
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
 	type CurrencyIdConvert = CurrencyIdConvert;
+	type MaxAllowedPriceDifference = MaxAllowedPriceDifferenceForBifrostOracleUpdate;
 }
 
 pub struct DustRemovalWhitelist;

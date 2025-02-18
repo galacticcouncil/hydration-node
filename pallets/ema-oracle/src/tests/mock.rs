@@ -125,6 +125,7 @@ impl frame_system::Config for Test {
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = bounded_vec![LastBlock, TenMinutes, Day, Week];
+	pub PriceDifference: (u32, u32) = (10, 100);
 }
 
 pub struct OracleWhitelist;
@@ -153,6 +154,7 @@ impl Config for Test {
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
 	type CurrencyIdConvert = CurrencyIdConvertMock;
+	type MaxAllowedPriceDifference = PriceDifference;
 }
 
 pub struct CurrencyIdConvertMock;

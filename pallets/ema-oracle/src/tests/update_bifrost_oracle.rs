@@ -132,6 +132,87 @@ fn bitfrost_oracle_should_not_be_updated_by_nonpriviliged_account() {
 	});
 }
 
+#[test]
+fn should_fail_when_new_price_is_bigger_than_allowed() {
+	new_test_ext().execute_with(|| {
+		//Arrange
+		let hdx =
+			polkadot_xcm::v3::MultiLocation::new(0, polkadot_xcm::v3::Junctions::X1(GeneralIndex(0))).into_versioned();
+
+		let dot = polkadot_xcm::v3::MultiLocation::parent().into_versioned();
+
+		let asset_a = Box::new(hdx);
+		let asset_b = Box::new(dot);
+
+		System::set_block_number(3);
+
+		assert_ok!(EmaOracle::update_bifrost_oracle(
+			RuntimeOrigin::signed(ALICE.into()),
+			asset_a.clone(),
+			asset_b.clone(),
+			(100, 100)
+		));
+
+		update_aggregated_oracles();
+
+		//Act
+		assert_noop!(
+			EmaOracle::update_bifrost_oracle(
+				RuntimeOrigin::signed(ALICE.into()),
+				asset_a.clone(),
+				asset_b.clone(),
+				(111, 100)
+			),
+			Error::<Test>::PriceOutsideAllowedRange
+		);
+
+		assert_noop!(
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE.into()), asset_a, asset_b, (89, 100)),
+			Error::<Test>::PriceOutsideAllowedRange
+		);
+	});
+}
+
+#[test]
+fn should_pass_when_new_price_is_still_within_range() {
+	new_test_ext().execute_with(|| {
+		//Arrange
+		let hdx =
+			polkadot_xcm::v3::MultiLocation::new(0, polkadot_xcm::v3::Junctions::X1(GeneralIndex(0))).into_versioned();
+
+		let dot = polkadot_xcm::v3::MultiLocation::parent().into_versioned();
+
+		let asset_a = Box::new(hdx);
+		let asset_b = Box::new(dot);
+
+		System::set_block_number(3);
+
+		assert_ok!(EmaOracle::update_bifrost_oracle(
+			RuntimeOrigin::signed(ALICE.into()),
+			asset_a.clone(),
+			asset_b.clone(),
+			(100, 100)
+		));
+
+		update_aggregated_oracles();
+
+		//Act
+		assert_ok!(EmaOracle::update_bifrost_oracle(
+			RuntimeOrigin::signed(ALICE.into()),
+			asset_a.clone(),
+			asset_b.clone(),
+			(110, 100)
+		),);
+
+		assert_ok!(EmaOracle::update_bifrost_oracle(
+			RuntimeOrigin::signed(ALICE.into()),
+			asset_a,
+			asset_b,
+			(90, 100)
+		),);
+	});
+}
+
 pub fn update_aggregated_oracles() {
 	EmaOracle::on_finalize(6);
 	System::set_block_number(7);

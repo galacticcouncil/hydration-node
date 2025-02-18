@@ -78,6 +78,7 @@ use hydradx_traits::{
 };
 use polkadot_xcm::opaque::lts::Location;
 use sp_arithmetic::traits::Saturating;
+use sp_arithmetic::FixedU128;
 use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
@@ -144,7 +145,12 @@ pub mod pallet {
 		/// Whitelist determining what oracles are tracked by the pallet.
 		type OracleWhitelist: Contains<(Source, AssetId, AssetId)>;
 
+		/// Asset id converter based on xcm locations
 		type CurrencyIdConvert: sp_runtime::traits::Convert<Location, Option<AssetId>>;
+
+		/// Maximum allowed percentage difference for bifrost oracle price update
+		#[pallet::constant]
+		type MaxAllowedPriceDifference: Get<(u32, u32)>;
 
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]
@@ -163,6 +169,8 @@ pub mod pallet {
 		BadVersion,
 		/// Asset not found
 		AssetNotFound,
+		///The new price is outside the max allowed range
+		PriceOutsideAllowedRange,
 	}
 
 	#[pallet::event]
@@ -320,6 +328,7 @@ pub mod pallet {
 			let asset_a = T::CurrencyIdConvert::convert(asset_a_loc).ok_or(Error::<T>::AssetNotFound)?;
 			let asset_b = T::CurrencyIdConvert::convert(asset_b_loc).ok_or(Error::<T>::AssetNotFound)?;
 
+			let ordered_pair = ordered_pair(asset_a, asset_b);
 			let entry: OracleEntry<BlockNumberFor<T>> = {
 				let e = OracleEntry::new(
 					EmaPrice::new(price.0, price.1),
@@ -327,15 +336,22 @@ pub mod pallet {
 					Liquidity::default(),
 					T::BlockNumberProvider::current_block_number(),
 				);
-				if ordered_pair(asset_a, asset_b) == (asset_a, asset_b) {
+				if ordered_pair == (asset_a, asset_b) {
 					e
 				} else {
 					e.inverted()
 				}
 			};
 
-			Self::on_entry(BIFROST_SOURCE, ordered_pair(asset_a, asset_b), entry)
-				.map_err(|_| Error::<T>::TooManyUniqueEntries)?;
+			//TODO: verify if tenMinutes are same as otjers
+			if let Some(reference_entry) = Self::oracle((BIFROST_SOURCE, ordered_pair, OraclePeriod::TenMinutes)) {
+				ensure!(
+					Self::is_within_range(reference_entry.0.price.into(), price),
+					Error::<T>::PriceOutsideAllowedRange
+				);
+			};
+
+			Self::on_entry(BIFROST_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
 
 			Ok(())
 		}
@@ -510,6 +526,17 @@ impl<T: Config> Pallet<T> {
 			};
 			(entry, init)
 		})
+	}
+
+	fn is_within_range(reference_price: (u128, u128), new_price: (u128, u128)) -> bool {
+		let reference = FixedU128::from_rational(reference_price.0, reference_price.1);
+		let new_value = FixedU128::from_rational(new_price.0, new_price.1);
+
+		let percentage_difference = T::MaxAllowedPriceDifference::get();
+		let lower_bound = reference.saturating_mul(FixedU128::one().saturating_sub(percentage_difference.into()));
+		let upper_bound = reference.saturating_mul(FixedU128::one().saturating_add(percentage_difference.into()));
+
+		new_value >= lower_bound && new_value <= upper_bound
 	}
 }
 
