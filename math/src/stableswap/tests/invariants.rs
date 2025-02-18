@@ -54,10 +54,10 @@ proptest! {
 		amp in amplification(),
 		(idx_in, idx_out) in trade_pair(3),
 	) {
-		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, None).unwrap();
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, &default_pegs(pool.len())).unwrap();
 		let amount_out = to_precision(amount, pool[idx_out].decimals);
 
-		let amount_in = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_out, amp, None).unwrap();
+		let amount_in = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_out, amp, &default_pegs(pool.len())).unwrap();
 		let updated_pool: Vec<AssetReserve> = pool
 			.into_iter()
 			.enumerate()
@@ -71,7 +71,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, None).unwrap();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, &default_pegs(updated_pool.len())).unwrap();
 		assert!(d1 >= d0);
 	}
 }
@@ -85,10 +85,10 @@ proptest! {
 		amp in amplification(),
 		(idx_in, idx_out) in trade_pair(4),
 	) {
-		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, None).unwrap();
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, &default_pegs(pool.len())).unwrap();
 		let amount_out = to_precision(amount, pool[idx_out].decimals);
 
-		let amount_in = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_out, amp, None).unwrap();
+		let amount_in = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_out, amp, &default_pegs(pool.len())).unwrap();
 		let updated_pool: Vec<AssetReserve> = pool
 			.into_iter()
 			.enumerate()
@@ -102,7 +102,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, None).unwrap();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, &default_pegs(updated_pool.len())).unwrap();
 		assert!(d1 >= d0);
 	}
 }
@@ -116,10 +116,10 @@ proptest! {
 		amp in amplification(),
 		(idx_in, idx_out) in trade_pair(5),
 	) {
-		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, None).unwrap();
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, &default_pegs(pool.len())).unwrap();
 		let amount_out = to_precision(amount, pool[idx_out].decimals);
 
-		let amount_in = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_out, amp, None).unwrap();
+		let amount_in = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_out, amp, &default_pegs(pool.len())).unwrap();
 		let updated_pool: Vec<AssetReserve> = pool
 			.into_iter()
 			.enumerate()
@@ -133,7 +133,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, None).unwrap();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, &default_pegs(updated_pool.len())).unwrap();
 		assert!(d1 >= d0);
 	}
 }
@@ -159,9 +159,9 @@ proptest! {
 			.map(|v| normalize_value(v.amount, v.decimals, 18u8, Rounding::Down))
 			.collect::<Vec<Balance>>();
 
-		let d0 = calculate_d_internal::<D_ITERATIONS>(&balances, amp, None).unwrap();
+		let d0 = calculate_d_internal::<D_ITERATIONS>(&balances, amp, &default_pegs(pool.len())).unwrap();
 		let new_reserve_in =
-			calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, idx_in, idx_out, &balances, amp, None).unwrap();
+			calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, idx_in, idx_out, &balances, amp, &default_pegs(pool.len())).unwrap();
 		let updated_balances: Vec<Balance> = balances
 			.into_iter()
 			.enumerate()
@@ -176,7 +176,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d_internal::<D_ITERATIONS>(&updated_balances, amp, None).unwrap();
+		let d1 = calculate_d_internal::<D_ITERATIONS>(&updated_balances, amp, &default_pegs(pool.len())).unwrap();
 		assert!(d1 >= d0);
 	}
 }
@@ -190,10 +190,10 @@ proptest! {
 		amp in amplification(),
 		(idx_in, idx_out) in trade_pair(2),
 	) {
-		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, None).unwrap();
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, &default_pegs(pool.len())).unwrap();
 		let amount_in = to_precision(amount, pool[idx_in].decimals);
 
-		let amount_out = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_in, amp, None).unwrap();
+		let amount_out = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_in, amp, &default_pegs(pool.len())).unwrap();
 		let updated_pool: Vec<AssetReserve> = pool
 			.into_iter()
 			.enumerate()
@@ -207,7 +207,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, None).unwrap();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, &default_pegs(updated_pool.len())).unwrap();
 		assert!(d1 >= d0);
 	}
 }
@@ -221,10 +221,10 @@ proptest! {
 		amp in amplification(),
 		(idx_in, idx_out) in trade_pair(3),
 	) {
-		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, None).unwrap();
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, &default_pegs(pool.len())).unwrap();
 		let amount_in = to_precision(amount, pool[idx_in].decimals);
 
-		let amount_out = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_in, amp, None).unwrap();
+		let amount_out = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_in, amp, &default_pegs(pool.len())).unwrap();
 		let updated_pool: Vec<AssetReserve> = pool
 			.into_iter()
 			.enumerate()
@@ -238,7 +238,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, None).unwrap();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, &default_pegs(updated_pool.len())).unwrap();
 		assert!(d1 >= d0);
 	}
 }
@@ -252,10 +252,10 @@ proptest! {
 		amp in amplification(),
 		(idx_in, idx_out) in trade_pair(4),
 	) {
-		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, None).unwrap();
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, &default_pegs(pool.len())).unwrap();
 		let amount_in = to_precision(amount, pool[idx_in].decimals);
 
-		let amount_out = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_in, amp, None).unwrap();
+		let amount_out = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_in, amp, &default_pegs(pool.len())).unwrap();
 		let updated_pool: Vec<AssetReserve> = pool
 			.into_iter()
 			.enumerate()
@@ -269,7 +269,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, None).unwrap();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, &default_pegs(updated_pool.len())).unwrap();
 		assert!(d1 >= d0);
 	}
 }
@@ -283,10 +283,10 @@ proptest! {
 		amp in amplification(),
 		(idx_in, idx_out) in trade_pair(5),
 	) {
-		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, None).unwrap();
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, &default_pegs(pool.len())).unwrap();
 		let amount_in = to_precision(amount, pool[idx_in].decimals);
 
-		let amount_out = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_in, amp, None).unwrap();
+		let amount_out = calculate_out_given_in::<D_ITERATIONS,Y_ITERATIONS>(&pool, idx_in, idx_out, amount_in, amp, &default_pegs(pool.len())).unwrap();
 		let updated_pool: Vec<AssetReserve> = pool
 			.into_iter()
 			.enumerate()
@@ -300,7 +300,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, None).unwrap();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, &default_pegs(updated_pool.len())).unwrap();
 		assert!(d1 >= d0);
 	}
 }
@@ -314,7 +314,7 @@ proptest! {
 		amp in amplification(),
 		(_, idx_out) in trade_pair(3),
 	) {
-		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, None).unwrap();
+		let d0 = calculate_d::<D_ITERATIONS>(&pool, amp, &default_pegs(pool.len())).unwrap();
 		let amount = to_precision(amount, 18u8);
 
 		let balances = pool
@@ -323,7 +323,7 @@ proptest! {
 			.collect::<Vec<Balance>>();
 		let issuance = balances.iter().sum();
 
-		let amount_out = calculate_withdraw_one_asset::<D_ITERATIONS,Y_ITERATIONS>(&pool, amount, idx_out, issuance, amp, Permill::zero(), None).unwrap();
+		let amount_out = calculate_withdraw_one_asset::<D_ITERATIONS,Y_ITERATIONS>(&pool, amount, idx_out, issuance, amp, Permill::zero(), &default_pegs(pool.len())).unwrap();
 		let updated_pool: Vec<AssetReserve> = pool
 			.into_iter()
 			.enumerate()
@@ -335,7 +335,7 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, None).unwrap();
+		let d1 = calculate_d::<D_ITERATIONS>(&updated_pool, amp, &default_pegs(updated_pool.len())).unwrap();
 		assert!(d1 < d0);
 	}
 }
@@ -361,9 +361,9 @@ proptest! {
 			.map(|v| normalize_value(v.amount, v.decimals, 18u8, Rounding::Down))
 			.collect::<Vec<Balance>>();
 
-		let d0 = calculate_d_internal::<D_ITERATIONS>(&balances, amp, None).unwrap();
+		let d0 = calculate_d_internal::<D_ITERATIONS>(&balances, amp, &default_pegs(pool.len())).unwrap();
 		let new_reserve_out =
-			calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, idx_in, idx_out, &balances, amp, None).unwrap();
+			calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, idx_in, idx_out, &balances, amp, &default_pegs(pool.len())).unwrap();
 
 		assert!(new_reserve_out < balances[idx_out]);
 		let updated_balances: Vec<Balance> = balances
@@ -380,13 +380,14 @@ proptest! {
 				}
 			})
 			.collect();
-		let d1 = calculate_d_internal::<D_ITERATIONS>(&updated_balances, amp, None).unwrap();
+		let d1 = calculate_d_internal::<D_ITERATIONS>(&updated_balances, amp, &default_pegs(pool.len())).unwrap();
 		assert!(d1 >= d0);
 		let diff = d1 - d0;
 		assert!(diff <= 8000u128);
 	}
 }
 
+use crate::stableswap::tests::default_pegs;
 use sp_arithmetic::Permill;
 
 proptest! {
@@ -404,10 +405,10 @@ proptest! {
 
 		let issuance = balances.iter().sum();
 		let amount = to_precision(amount, pool[0].decimals);
-		let result = calculate_shares_for_amount::<D_ITERATIONS>(&pool, 0, amount, amp, issuance, Permill::zero(), None).unwrap();
+		let result = calculate_shares_for_amount::<D_ITERATIONS>(&pool, 0, amount, amp, issuance, Permill::zero(), &default_pegs(balances.len())).unwrap();
 
 		let received =
-		calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(&pool, result.0, 0, issuance, amp, Permill::zero(), None)
+		calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(&pool, result.0, 0, issuance, amp, Permill::zero(), &default_pegs(balances.len()))
 			.unwrap();
 		// LP should not receive more than provided.
 		assert!(received.0 <= amount);
