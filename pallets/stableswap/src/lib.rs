@@ -21,6 +21,11 @@
 //!
 //! Curve style AMM at is designed to provide highly efficient and low-slippage trades for stablecoins.
 //!
+//! ### Drifting peg
+//! It is possible to create a pool with so called drifting peg.
+//! Source of target peg for each asset must be provided. Either constant value or external oracle.
+//! First asset in the pool is considered as a base asset and all other assets are pegged to it. Therefore peg of the first asset must be 1.
+//!
 //! ### Stableswap Hooks
 //!
 //! Stableswap pallet supports multiple hooks which are triggerred on certain operations:
@@ -37,17 +42,17 @@
 //!
 //! ## Assumptions
 //!
-//! Maximum number of assets in pool is 5.
+//! Maximum number of assets in pool is 5 (`MAX_ASSETS_IN_POOL` constant).
 //!
 //! A pool can be created only by allowed `AuthorityOrigin`.
 //!
-//! First LP to provided liquidity must add initial liquidity of all pool assets. Subsequent calls to add_liquidity, LP can provide only 1 asset.
+//! First LP to provide liquidity must add initial liquidity of all pool assets. Subsequent calls to add_liquidity, LP can provide only 1 asset.
 //!
 //! Initial liquidity is first liquidity added to the pool (that is first call of `add_liquidity`).
 //!
 //! LP is given certain amount of shares by minting a pool's share token.
 //!
-//! When LP decides to withdraw liquidity, it receives selected asset.
+//! When LP decides to withdraw liquidity, it receives selected asset or all assets proportionality.
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
@@ -734,7 +739,7 @@ pub mod pallet {
 				who: who.clone(),
 				shares,
 				amounts: vec![AssetAmount { asset_id, amount }],
-				fee: 0u128, // dev note: figure out the actual fee amount in this case. For now, we dont need it.
+				fee: 0u128, // dev note: figure out the actual fee amount in this case. For now, we dont need it. is deprecated anyway in favor of unified events
 			});
 
 			let fees = fees
