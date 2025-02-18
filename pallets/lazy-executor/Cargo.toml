@@ -45,6 +45,7 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"log/std",
 	"sp-core/std",
 	"pallet-balances/std",
 	"pallet-transaction-payment/std",

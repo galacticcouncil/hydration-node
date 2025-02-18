@@ -1603,6 +1603,7 @@ impl pallet_lazy_executor::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type BlockNumberProvider = System;
 	type OcwMaxSubmits = OcwMaxSubmitsPerRun;
+	type AuthorityId = pallet_lazy_executor::crypto::TestAuthId;
 	type WeightInfo = ();
 }
 

@@ -23,12 +23,17 @@ use frame_support::{
 	traits::ConstU32,
 	weights::Weight,
 };
-use frame_system::{ensure_signed, pallet_prelude::*, Origin};
+use frame_system::{
+	ensure_signed,
+	offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer},
+	pallet_prelude::*,
+	Origin,
+};
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_core::Get;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Dispatchable, One},
-	BoundedVec, DispatchError,
+	BoundedVec, DispatchError, KeyTypeId,
 };
 
 pub use pallet::*;
@@ -55,6 +60,33 @@ const NO_TIP: u32 = 0;
 //4(lenght) + 1(version&type) + 32(signer) + 65(signauture) + 16(tip) + 40(signedExtras) + 16(tip)
 //NOTE: this is approximate number
 const CALL_LEN_OFFSET: u32 = 158;
+pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"EXEC");
+
+pub mod crypto {
+	use super::KEY_TYPE;
+	use sp_core::sr25519::Signature as Sr25519Signature;
+	use sp_runtime::{
+		app_crypto::{app_crypto, sr25519},
+		traits::Verify,
+		MultiSignature, MultiSigner,
+	};
+	app_crypto!(sr25519, KEY_TYPE);
+
+	pub struct TestAuthId;
+
+	impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for TestAuthId {
+		type RuntimeAppPublic = Public;
+		type GenericSignature = sp_core::sr25519::Signature;
+		type GenericPublic = sp_core::sr25519::Public;
+	}
+
+	// implemented for mock runtime in test
+	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for TestAuthId {
+		type RuntimeAppPublic = Public;
+		type GenericSignature = sp_core::sr25519::Signature;
+		type GenericPublic = sp_core::sr25519::Public;
+	}
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -67,7 +99,9 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_transaction_payment::Config<RuntimeCall = <Self as pallet::Config>::RuntimeCall>
+		CreateSignedTransaction<Call<Self>>
+		+ frame_system::Config
+		+ pallet_transaction_payment::Config<RuntimeCall = <Self as pallet::Config>::RuntimeCall>
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -79,6 +113,9 @@ pub mod pallet {
 
 		/// Block number provider
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
+
+		/// The identifier type for an offchain worker.
+		type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 
 		/// Max. number of submits offchain worker will make in each run
 		#[pallet::constant]
@@ -144,7 +181,41 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn offchain_worker(_block_number: BlockNumberFor<T>) {
+			log::info!("--------------------------------------------> offchain worker started");
+
+			let signer = Signer::<T, T::AuthorityId>::all_accounts();
+			if !signer.can_sign() {
+				log::error!("No local accounts available. Consider adding one via `author_insertKey` RPC.");
+				return;
+			}
+
+			let call_data = CallQueue::<T>::get(Self::dispatch_next_id());
+
+			if call_data.is_none() {
+				log::info!("CallQueue is empty");
+				return;
+			}
+
+			let call_data = call_data.unwrap();
+
+			let results = signer.send_signed_transaction(|_account| {
+				// Received price is wrapped into a call to `submit_price` public function of this
+				// pallet. This means that the transaction, when executed, will simply call that
+				// function passing `price` as an argument.
+				Call::dispatch_top {
+					call: call_data.call.clone(),
+				}
+			});
+
+			for (_account_id, result) in results.into_iter() {
+				if result.is_err() {
+					log::error!("Unable to submit transaction: :{:?}", result);
+				}
+			}
+		}
+	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
