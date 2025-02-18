@@ -103,6 +103,7 @@ impl Default for Tradability {
 #[cfg(feature = "runtime-benchmarks")]
 pub trait BenchmarkHelper<AssetId> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult;
+	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult;
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

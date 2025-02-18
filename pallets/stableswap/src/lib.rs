@@ -194,7 +194,7 @@ pub mod pallet {
 	/// Pool peg info.
 	#[pallet::storage]
 	#[pallet::getter(fn pool_peg_info)]
-	pub type PoolPeg<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo>;
+	pub type PoolPegs<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -1263,7 +1263,7 @@ impl<T: Config> Pallet<T> {
 			} else {
 				return Err(Error::<T>::UnknownDecimals.into());
 			}
-			PoolPeg::<T>::insert(share_asset, p);
+			PoolPegs::<T>::insert(share_asset, p);
 		}
 
 		Pools::<T>::insert(share_asset, pool);
@@ -1644,7 +1644,7 @@ impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pa
 // Peg support
 impl<T: Config> Pallet<T> {
 	fn get_current_pegs(pool_id: T::AssetId, nbr_assets: usize) -> Vec<PegType> {
-		if let Some(pegs) = PoolPeg::<T>::get(pool_id) {
+		if let Some(pegs) = PoolPegs::<T>::get(pool_id) {
 			pegs.current.to_vec()
 		} else {
 			// default pegs are one!
@@ -1655,7 +1655,7 @@ impl<T: Config> Pallet<T> {
 	#[require_transactional]
 	fn update_and_return_pegs_and_trade_fee(pool_id: T::AssetId) -> Result<(Permill, Vec<PegType>), DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-		let Some(info) = PoolPeg::<T>::get(pool_id) else {
+		let Some(info) = PoolPegs::<T>::get(pool_id) else {
 			return Ok((pool.fee, Self::get_current_pegs(pool_id, pool.assets.len())));
 		};
 		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
@@ -1667,7 +1667,7 @@ impl<T: Config> Pallet<T> {
 
 		// Store new pegs
 		let new_info = info.with_new_pegs(new_pegs);
-		PoolPeg::<T>::insert(pool_id, new_info);
+		PoolPegs::<T>::insert(pool_id, new_info);
 
 		Ok((trade_fee, Self::get_current_pegs(pool_id, pool.assets.len())))
 	}

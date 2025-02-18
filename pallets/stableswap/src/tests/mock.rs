@@ -326,7 +326,7 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{PoolInfo, PoolState, StableswapHooks};
+use crate::types::{PegType, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
@@ -380,6 +380,11 @@ impl BenchmarkHelper<AssetId> for DummyRegistry {
 			v.borrow_mut().insert(asset_id, (asset_id, decimals));
 		});
 
+		Ok(())
+	}
+
+	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, _source: Source) -> DispatchResult {
+		set_peg_oracle_value(asset_pair.0, asset_pair.1, peg, 0);
 		Ok(())
 	}
 }
