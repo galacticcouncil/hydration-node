@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, BoundedPegs, PegSource, PoolPegInfo};
+use crate::types::{BoundedPegSources, PegSource};
 use crate::{assert_balance, Error, Event};
 use hydradx_traits::stableswap::AssetAmount;
 

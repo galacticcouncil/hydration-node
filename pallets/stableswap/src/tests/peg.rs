@@ -1,14 +1,12 @@
+use crate::assert_balance;
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, BoundedPegs, PegSource, PoolPegInfo};
-use crate::{assert_balance, Event};
+use crate::types::{BoundedPegSources, PegSource};
 use hydradx_traits::stableswap::AssetAmount;
 
-use crate::tests::{get_share_price, spot_price, spot_price_first_asset};
+use crate::tests::{get_share_price, spot_price};
 use frame_support::{assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
 use num_traits::One;
-use pallet_broadcast::types::{Asset, Destination, Fee};
-use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{FixedPointNumber, FixedU128, Permill};
 use test_utils::assert_eq_approx;
 
@@ -73,12 +71,6 @@ fn sell_with_peg_should_work_different_pegs() {
 					AssetAmount::new(asset_c, liquid_c),
 				])
 			));
-
-			let pool_account = pool_account(pool_id);
-
-			//let pool_liquid_a = Tokens::free_balance(asset_a, &pool_account);
-			//let pool_liquid_b = Tokens::free_balance(asset_b, &pool_account);
-			//let pool_liquid_c = Tokens::free_balance(asset_c, &pool_account);
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(
@@ -156,12 +148,6 @@ fn buy_with_peg_should_work_different_pegs() {
 					AssetAmount::new(asset_c, liquid_c),
 				])
 			));
-
-			let pool_account = pool_account(pool_id);
-
-			//let pool_liquid_a = Tokens::free_balance(asset_a, &pool_account);
-			//let pool_liquid_b = Tokens::free_balance(asset_b, &pool_account);
-			//let pool_liquid_c = Tokens::free_balance(asset_c, &pool_account);
 
 			assert_balance!(BOB, asset_b, 0);
 			let bob_a_initial = Tokens::free_balance(asset_a, &BOB);
@@ -243,12 +229,6 @@ fn sell_with_peg_with_fee_should_work_different_pegs() {
 				])
 			));
 
-			let pool_account = pool_account(pool_id);
-
-			//let pool_liquid_a = Tokens::free_balance(asset_a, &pool_account);
-			//let pool_liquid_b = Tokens::free_balance(asset_b, &pool_account);
-			//let pool_liquid_c = Tokens::free_balance(asset_c, &pool_account);
-
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(
 				RuntimeOrigin::signed(BOB),
@@ -326,12 +306,6 @@ fn buy_with_peg_with_fee_should_work_different_pegs() {
 					AssetAmount::new(asset_c, liquid_c),
 				])
 			));
-
-			let pool_account = pool_account(pool_id);
-
-			//let pool_liquid_a = Tokens::free_balance(asset_a, &pool_account);
-			//let pool_liquid_b = Tokens::free_balance(asset_b, &pool_account);
-			//let pool_liquid_c = Tokens::free_balance(asset_c, &pool_account);
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::buy(
@@ -415,12 +389,6 @@ fn sell_with_drifting_peg_should_work() {
 			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
 
 			System::set_block_number(5);
-
-			let pool_account = pool_account(pool_id);
-
-			//let pool_liquid_a = Tokens::free_balance(asset_a, &pool_account);
-			//let pool_liquid_b = Tokens::free_balance(asset_b, &pool_account);
-			//let pool_liquid_c = Tokens::free_balance(asset_c, &pool_account);
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(

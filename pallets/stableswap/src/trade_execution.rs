@@ -57,7 +57,7 @@ where
 					let pool = Pools::<T>::get(pool_id).ok_or(ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 					let pool_account = Self::pool_account(pool_id);
 
-					let assets = vec![AssetAmount {
+					let assets = [AssetAmount {
 						asset_id: asset_in,
 						amount: amount_in,
 					}];

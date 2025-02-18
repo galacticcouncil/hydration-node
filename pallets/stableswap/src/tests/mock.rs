@@ -73,7 +73,7 @@ thread_local! {
 	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 	pub static LAST_LIQUDITY_CHANGE_HOOK: RefCell<Option<(AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
 	pub static LAST_TRADE_HOOK: RefCell<Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
-	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = { RefCell::new(HashMap::default()) };
+	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
 }
 
 construct_runtime!(
