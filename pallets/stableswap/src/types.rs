@@ -169,11 +169,12 @@ pub struct PoolPegInfo {
 }
 
 impl PoolPegInfo {
-	pub fn with_new_pegs(self, pegs: Vec<PegType>) -> Self {
+	pub fn with_new_pegs(self, pegs: &[PegType]) -> Self {
+		debug_assert_eq!(self.current.len(), pegs.len(), "Invalid pegs length");
 		PoolPegInfo {
 			source: self.source,
 			max_target_update: self.max_target_update,
-			current: BoundedPegs::truncate_from(pegs),
+			current: BoundedPegs::truncate_from(pegs.to_vec()),
 		}
 	}
 }

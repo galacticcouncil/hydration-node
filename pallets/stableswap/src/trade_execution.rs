@@ -39,7 +39,8 @@ where
 					let share_issuance = T::Currency::total_issuance(pool_id);
 
 					let amplification = Self::get_amplification(&pool);
-					let asset_pegs = Self::get_current_pegs(pool_id, pool.assets.len());
+					let (trade_fee, asset_pegs) =
+						Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
 					let (amount, _) =
 						hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 							&balances,
@@ -47,7 +48,7 @@ where
 							asset_idx,
 							share_issuance,
 							amplification,
-							pool.fee,
+							trade_fee,
 							&asset_pegs,
 						)
 						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
@@ -114,13 +115,14 @@ where
 
 					let amplification = Self::get_amplification(&pool);
 					let share_issuance = T::Currency::total_issuance(pool_id);
-					let asset_pegs = Self::get_current_pegs(pool_id, pool.assets.len());
+					let (trade_fee, asset_pegs) =
+						Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
 					let (share_amount, _) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 						&initial_reserves,
 						&updated_reserves[..],
 						amplification,
 						share_issuance,
-						pool.fee,
+						trade_fee,
 						&asset_pegs,
 					)
 					.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
@@ -157,7 +159,8 @@ where
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
-					let asset_pegs = Self::get_current_pegs(pool_id, pool.assets.len());
+					let (trade_fee, asset_pegs) =
+						Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
 
 					let liqudity = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 						&balances,
@@ -165,7 +168,7 @@ where
 						asset_idx,
 						share_issuance,
 						amplification,
-						pool.fee,
+						trade_fee,
 						&asset_pegs,
 					)
 					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
@@ -186,7 +189,8 @@ where
 
 					let pool = Pools::<T>::get(pool_id)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
-					let asset_pegs = Self::get_current_pegs(pool_id, pool.assets.len());
+					let (trade_fee, asset_pegs) =
+						Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
 
 					let (shares_amount, _fees) =
 						hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -195,7 +199,7 @@ where
 							amount_out,
 							amplification,
 							share_issuance,
-							pool.fee,
+							trade_fee,
 							&asset_pegs,
 						)
 						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
@@ -304,7 +308,8 @@ where
 				let amp = Pallet::<T>::get_amplification(&pool);
 				let share_issuance = T::Currency::total_issuance(pool_id);
 				let min_trade_limit = T::MinTradingLimit::get();
-				let asset_pegs = Self::get_current_pegs(pool_id, pool.assets.len());
+				let (trade_fee, asset_pegs) =
+					Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
 
 				let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 					pool_id.into(),
@@ -314,7 +319,7 @@ where
 					asset_b.into(),
 					share_issuance,
 					min_trade_limit,
-					Some(pool.fee),
+					Some(trade_fee),
 					&asset_pegs,
 				)
 				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;

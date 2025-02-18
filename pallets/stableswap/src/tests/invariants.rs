@@ -47,7 +47,7 @@ fn trade_fee() -> impl Strategy<Value = Permill> {
 
 fn get_pool_asset_pegs(pool_id: AssetId) -> Vec<PegType> {
 	let pool = crate::Pools::<Test>::get(pool_id).unwrap();
-	Pallet::<Test>::get_current_pegs(pool_id, pool.assets.len())
+	Pallet::<Test>::get_updated_pegs(pool_id, &pool).unwrap().1
 }
 
 proptest! {
