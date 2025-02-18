@@ -31,9 +31,14 @@ pub(crate) fn get_share_price(pool_id: AssetId, asset_idx: usize) -> FixedU128 {
 	let balances = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
 	let amp = Pallet::<Test>::get_amplification(&pool);
 	let issuance = Tokens::total_issuance(pool_id);
-	let asset_pegs = Pallet::<Test>::get_current_pegs(pool_id);
+	let asset_pegs = Pallet::<Test>::get_current_pegs(pool_id, pool.assets.len());
 	let share_price = hydra_dx_math::stableswap::calculate_share_price::<128u8>(
-		&balances, amp, issuance, asset_idx, None, asset_pegs,
+		&balances,
+		amp,
+		issuance,
+		asset_idx,
+		None,
+		&asset_pegs,
 	)
 	.unwrap();
 	FixedU128::from_rational(share_price.0, share_price.1)
@@ -45,11 +50,16 @@ pub(crate) fn spot_price_first_asset(pool_id: AssetId, asset_id: AssetId) -> Fix
 	let balances = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
 	let amp = Pallet::<Test>::get_amplification(&pool);
 	let asset_idx = pool.find_asset(asset_id).unwrap();
-	let asset_pegs = Pallet::<Test>::get_current_pegs(pool_id);
-	let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp, asset_pegs.clone()).unwrap();
-	dbg!(d);
+	let asset_pegs = Pallet::<Test>::get_current_pegs(pool_id, pool.assets.len());
+	let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp, &asset_pegs).unwrap();
 	hydra_dx_math::stableswap::calculate_spot_price_between_two_stable_assets(
-		&balances, amp, d, 0, asset_idx, None, asset_pegs,
+		&balances,
+		amp,
+		d,
+		0,
+		asset_idx,
+		None,
+		&asset_pegs,
 	)
 	.unwrap()
 }
@@ -61,8 +71,8 @@ pub(crate) fn spot_price(pool_id: AssetId, asset_id_a: AssetId, asset_id_b: Asse
 	let amp = Pallet::<Test>::get_amplification(&pool);
 	let asset_idx_a = pool.find_asset(asset_id_a).unwrap();
 	let asset_idx_b = pool.find_asset(asset_id_b).unwrap();
-	let asset_pegs = Pallet::<Test>::get_current_pegs(pool_id);
-	let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp, asset_pegs.clone()).unwrap();
+	let asset_pegs = Pallet::<Test>::get_current_pegs(pool_id, pool.assets.len());
+	let d = hydra_dx_math::stableswap::calculate_d::<D_ITERATIONS>(&balances, amp, &asset_pegs).unwrap();
 	hydra_dx_math::stableswap::calculate_spot_price_between_two_stable_assets(
 		&balances,
 		amp,
@@ -70,7 +80,7 @@ pub(crate) fn spot_price(pool_id: AssetId, asset_id_a: AssetId, asset_id_b: Asse
 		asset_idx_a,
 		asset_idx_b,
 		None,
-		asset_pegs,
+		&asset_pegs,
 	)
 	.unwrap()
 }
