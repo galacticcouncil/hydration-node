@@ -4,6 +4,7 @@ pub mod currencies;
 pub mod dca;
 pub mod duster;
 pub mod dynamic_evm_fee;
+pub mod ema_oracle;
 pub mod multi_payment;
 pub mod omnipool;
 pub mod omnipool_liquidity_mining;
@@ -40,6 +41,40 @@ pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 			None,
 			None,
 			None,
+			None,
+		))
+	})
+	.map_err(|_| ())
+}
+
+pub fn register_asset_with_id(name: Vec<u8>, id: AssetId) -> Result<AssetId, ()> {
+	let n = name.try_into().map_err(|_| ())?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+			Some(id),
+			Some(n),
+			AssetKind::Token,
+			1000,
+			None,
+			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ())
+}
+
+pub fn register_asset_with_id_and_loc(name: Vec<u8>, id: AssetId, loc: AssetLocation) -> Result<AssetId, ()> {
+	let n = name.try_into().map_err(|_| ())?;
+	with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+			Some(id),
+			Some(n),
+			AssetKind::Token,
+			1000,
+			None,
+			None,
+			Some(loc),
 			None,
 		))
 	})
