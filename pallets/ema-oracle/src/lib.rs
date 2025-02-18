@@ -722,3 +722,15 @@ impl<T: Config> RawOracle<AssetId, Balance, BlockNumberFor<T>> for Pallet<T> {
 		})
 	}
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> Pallet<T> {
+	// Helper function for runtime-benchmarking to directly set oracle value.
+	pub fn add_entry(
+		src: Source,
+		assets: (AssetId, AssetId),
+		oracle_entry: OracleEntry<BlockNumberFor<T>>,
+	) -> Result<(), DispatchError> {
+		Self::on_entry(src, assets, oracle_entry).map_err(|_| Error::<T>::OracleNotFound.into())
+	}
+}
