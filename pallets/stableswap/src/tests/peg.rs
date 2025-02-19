@@ -719,8 +719,8 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 
 			let bob_shares = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(bob_shares, 4713465477960257850);
-			let bob_a_balance = Tokens::free_balance(asset_b, &BOB);
-			assert_eq!(bob_a_balance, 12261858024); //TODO: verify why paid less
+			let bob_b_balance = Tokens::free_balance(asset_b, &BOB);
+			assert_eq!(bob_b_balance, 12261858024);
 		});
 }
 
