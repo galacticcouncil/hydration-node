@@ -1448,6 +1448,9 @@ impl<T: Config> Pallet<T> {
 		//All done and update. let's call the on_liquidity_changed hook.
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
+		#[cfg(any(feature = "try-runtime", test))]
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
+
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			pool_account.clone(),
