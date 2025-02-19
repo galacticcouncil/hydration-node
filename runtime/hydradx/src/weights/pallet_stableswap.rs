@@ -72,6 +72,21 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(7_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
+	/// Storage: `Stableswap::Pools` (r:1 w:1)
+	/// Proof: `Stableswap::Pools` (`max_values`: None, `max_size`: Some(57), added: 2532, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:6 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `Duster::AccountBlacklist` (r:0 w:1)
+	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	fn create_pool_with_pegs() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `855`
+		//  Estimated: `16590`
+		// Minimum execution time: 55_309_000 picoseconds.
+		Weight::from_parts(55_907_000, 16590)
+			.saturating_add(T::DbWeight::get().reads(7_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
 	/// Storage: `Stableswap::Pools` (r:1 w:0)
 	/// Proof: `Stableswap::Pools` (`max_values`: None, `max_size`: Some(57), added: 2532, mode: `MaxEncodedLen`)
 	/// Storage: `Stableswap::AssetTradability` (r:5 w:0)

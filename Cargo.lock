@@ -9065,6 +9065,7 @@ dependencies = [
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
+ "num-traits",
  "orml-tokens",
  "orml-traits",
  "pallet-broadcast",

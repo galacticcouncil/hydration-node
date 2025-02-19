@@ -19,6 +19,7 @@
 
 use super::*;
 
+use crate::types::BoundedPegSources;
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::traits::EnsureOrigin;
@@ -26,6 +27,7 @@ use frame_support::BoundedVec;
 use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::router::{PoolType, TradeExecution};
 use hydradx_traits::stableswap::AssetAmount;
+use hydradx_traits::OraclePeriod;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use sp_runtime::Permill;
@@ -62,6 +64,37 @@ benchmarks! {
 	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), asset_ids, amplification, trade_fee)
 	verify {
 		assert!(<Pools<T>>::get::<T::AssetId>(pool_id.into()).is_some());
+	}
+
+	create_pool_with_pegs {
+		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
+		for idx in 0..MAX_ASSETS_IN_POOL{
+			let asset_id = idx + ASSET_ID_OFFSET;
+			T::BenchmarkHelper::register_asset(asset_id.into(), 12)?;
+			asset_ids.push(asset_id.into());
+		}
+		// 5 sources
+		let peg_source = vec![PegSource::Value((1,1)),
+			PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+			PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+			PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+			PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+		];
+		assert_eq!(peg_source.len() as u32, MAX_ASSETS_IN_POOL);
+		let first_asset_id = asset_ids[0];
+		for asset_id in asset_ids.iter().skip(1){
+			T::BenchmarkHelper::register_asset_peg((first_asset_id, *asset_id), (1u128,2u128), *b"benchmar")?;
+		}
+		let pool_id = 1000u32;
+		T::BenchmarkHelper::register_asset(pool_id.into(), 18)?;
+		let amplification = 100u16;
+		let trade_fee = Permill::from_percent(1);
+		let caller: T::AccountId = account("caller", 0, 1);
+		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), asset_ids, amplification, trade_fee, BoundedPegSources::truncate_from(peg_source), (u128::MAX,1))
+	verify {
+		assert!(<Pools<T>>::get::<T::AssetId>(pool_id.into()).is_some());
+		assert!(<PoolPegs<T>>::get::<T::AssetId>(pool_id.into()).is_some());
 	}
 
 	add_liquidity{
