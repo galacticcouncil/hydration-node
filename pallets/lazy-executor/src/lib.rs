@@ -130,7 +130,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn ocw_transactions_per_run)]
-	pub(super) type OcwTransactionsPerRun<T: Config> = StorageValue<_, u16, ValueQuery>;
+	pub(super) type OcwTransactionsPerRun<T: Config> = StorageValue<_, u16, ValueQuery, DefaultOcwTxPerRun>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn next_call_id)]
@@ -186,13 +186,11 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			log::info!(target: "runtime::pallet-lazy-executor", "run offchain worker");
-
-			//TODO: remove this, this is just for testing
-			if block_number % 10_u32.into() != 0_u32.into() {
+		fn offchain_worker(_block_number: BlockNumberFor<T>) {
+			if sp_io::offchain::is_validator() {
 				return;
 			}
+			log::info!(target: "runtime::pallet-lazy-executor", "run offchain worker");
 
 			let signer = Signer::<T, T::AuthorityId>::all_accounts();
 			if !signer.can_sign() {
@@ -201,13 +199,14 @@ pub mod pallet {
 			}
 
 			let mut next_id = Self::dispatch_next_id();
+			log::info!("next_id: {:?}", next_id);
+			log::info!("max submits: {:?}", Self::ocw_transactions_per_run());
+
 			for i in 0..Self::ocw_transactions_per_run() {
 				//TODO: change to checked math
 				next_id += i as u128;
 
-				let call_data = CallQueue::<T>::get(next_id);
-
-				if let Some(c) = call_data {
+				if let Some(c) = CallQueue::<T>::get(next_id) {
 					let results =
 						signer.send_signed_transaction(|_account| Call::dispatch_top { call: c.call.clone() });
 

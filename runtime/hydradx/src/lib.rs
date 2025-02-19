@@ -44,7 +44,6 @@ pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 use pallet_asset_registry::AssetType;
 use pallet_currencies_rpc_runtime_api::AccountData;
-use polkadot_runtime_common::crowdloan::NewRaise;
 pub use system::*;
 pub use xcm::*;
 
