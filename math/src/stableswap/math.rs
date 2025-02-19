@@ -1010,8 +1010,8 @@ pub fn calculate_spot_price_between_two_stable_assets(
 		.iter()
 		.try_fold(d, |acc, val| acc.checked_mul(d)?.checked_div(val.checked_mul(n)?))?;
 
-	let num = x0.checked_mul(ann.checked_mul(xi)?.checked_add(c)?)?;
-	let denom = xi.checked_mul(ann.checked_mul(x0)?.checked_add(c)?)?;
+	let num = ann.checked_mul(x0)?.checked_add(c)?.checked_mul(xi)?;
+	let denom = ann.checked_mul(xi)?.checked_add(c)?.checked_mul(x0)?;
 
 	let spot_price = round_to_rational((num, denom), crate::support::rational::Rounding::Down);
 

@@ -555,7 +555,7 @@ fn spot_pries_should_be_correct_with_different_pegs() {
 			let spot2 = spot_price(pool_id, asset_c, asset_a);
 			assert_eq_approx!(
 				spot2,
-				FixedU128::from_float(0.331764024772596923),
+				FixedU128::from_float(0.334910065029717101),
 				FixedU128::from_float(0.0000000001),
 				"spot price not equal"
 			);
