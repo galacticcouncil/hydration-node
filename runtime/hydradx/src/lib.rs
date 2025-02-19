@@ -313,30 +313,27 @@ where
 		RuntimeCall,
 		<UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
 	)> {
-		let tip = 0;
 		// take the biggest period possible.
 		let period = BlockHashCount::get()
 			.checked_next_power_of_two()
 			.map(|c| c / 2)
 			.unwrap_or(2) as u64;
-		let current_block = System::block_number()
-			.saturated_into::<u64>()
-			// The `System::block_number` is initialized with `n+1`,
-			// so the actual block number is `n`.
-			.saturating_sub(1);
-		let era = Era::mortal(period, current_block);
+
+		// The `System::block_number` is initialized with `n+1`, so the actual block number is `n`.
+		let current_block = System::block_number().saturated_into::<u64>().saturating_sub(1);
 		let extra = (
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckEra::<Runtime>::from(era),
+			frame_system::CheckEra::<Runtime>::from(Era::mortal(period, current_block)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			//no tip
+			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
 			pallet_claims::ValidateClaim::<Runtime>::new(),
-			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false), //TODO: chechk
-			                                                                         //if `false` is ok
+			//doesn't check metadata hash
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 		);
 
 		let raw_payload = SignedPayload::new(call, extra)

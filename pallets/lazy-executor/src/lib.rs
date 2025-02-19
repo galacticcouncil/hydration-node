@@ -30,7 +30,6 @@ use frame_system::{
 	Origin,
 };
 use pallet_transaction_payment::OnChargeTransaction;
-use sp_core::Get;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Dispatchable, One},
 	BoundedVec, DispatchError, KeyTypeId,
@@ -72,16 +71,16 @@ pub mod crypto {
 	};
 	app_crypto!(sr25519, KEY_TYPE);
 
-	pub struct TestAuthId;
+	pub struct LazyExecId;
 
-	impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for TestAuthId {
+	impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for LazyExecId {
 		type RuntimeAppPublic = Public;
 		type GenericSignature = sp_core::sr25519::Signature;
 		type GenericPublic = sp_core::sr25519::Public;
 	}
 
 	// implemented for mock runtime in test
-	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for TestAuthId {
+	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for LazyExecId {
 		type RuntimeAppPublic = Public;
 		type GenericSignature = sp_core::sr25519::Signature;
 		type GenericPublic = sp_core::sr25519::Public;
@@ -117,16 +116,21 @@ pub mod pallet {
 		/// The identifier type for an offchain worker.
 		type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 
-		/// Max. number of submits offchain worker will make in each run
-		#[pallet::constant]
-		type OcwMaxSubmits: Get<u8>;
-
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
+
+	#[pallet::type_value]
+	pub(super) fn DefaultOcwTxPerRun() -> u16 {
+		10_u16
+	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn ocw_transactions_per_run)]
+	pub(super) type OcwTransactionsPerRun<T: Config> = StorageValue<_, u16, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn next_call_id)]
@@ -182,37 +186,39 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn offchain_worker(_block_number: BlockNumberFor<T>) {
-			log::info!("--------------------------------------------> offchain worker started");
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			log::info!(target: "runtime::pallet-lazy-executor", "run offchain worker");
+
+			//TODO: remove this, this is just for testing
+			if block_number % 10_u32.into() != 0_u32.into() {
+				return;
+			}
 
 			let signer = Signer::<T, T::AuthorityId>::all_accounts();
 			if !signer.can_sign() {
-				log::error!("No local accounts available. Consider adding one via `author_insertKey` RPC.");
+				log::error!(target: "runtime::pallet-lazy-exeuctor", "No local accounts available. Consider adding one via `author_insertKey` RPC.");
 				return;
 			}
 
-			let call_data = CallQueue::<T>::get(Self::dispatch_next_id());
+			let mut next_id = Self::dispatch_next_id();
+			for i in 0..Self::ocw_transactions_per_run() {
+				//TODO: change to checked math
+				next_id += i as u128;
 
-			if call_data.is_none() {
-				log::info!("CallQueue is empty");
-				return;
-			}
+				let call_data = CallQueue::<T>::get(next_id);
 
-			let call_data = call_data.unwrap();
+				if let Some(c) = call_data {
+					let results =
+						signer.send_signed_transaction(|_account| Call::dispatch_top { call: c.call.clone() });
 
-			let results = signer.send_signed_transaction(|_account| {
-				// Received price is wrapped into a call to `submit_price` public function of this
-				// pallet. This means that the transaction, when executed, will simply call that
-				// function passing `price` as an argument.
-				Call::dispatch_top {
-					call: call_data.call.clone(),
+					for (_account_id, result) in results.into_iter() {
+						if result.is_err() {
+							log::error!(target: "runtime::pallet-lazy-executor","Unable to submit transaction: :{:?}", result);
+						}
+					}
 				}
-			});
 
-			for (_account_id, result) in results.into_iter() {
-				if result.is_err() {
-					log::error!("Unable to submit transaction: :{:?}", result);
-				}
+				break;
 			}
 		}
 	}
