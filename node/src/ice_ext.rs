@@ -1,4 +1,3 @@
-use hydradx_adapters::ice::OmnipoolDataProvider;
 use pallet_ice::traits::{AssetInfo, OmnipoolAssetInfo, OmnipoolInfo};
 use primitives::AssetId;
 use sp_runtime::{PerThing, Permill};
@@ -31,8 +30,6 @@ impl pallet_ice::api::SolutionProvider for IceSolver {
 		intents: Vec<pallet_ice::api::IntentRepr>,
 		data: Vec<pallet_ice::api::DataRepr>,
 	) -> Vec<pallet_ice::types::ResolvedIntent> {
-		//let data = OmnipoolDataProvider::<hydradx_runtime::Runtime>::assets(None);
-		//let data: Vec<AssetInfo<AssetId>> = data.into_iter().map(|v| v.into()).collect::<Vec<_>>();
 		println!("data {:?}", data.len());
 		// convert to the format that the solver expects
 		let data: Vec<hydration_solver::types::Asset> = data
