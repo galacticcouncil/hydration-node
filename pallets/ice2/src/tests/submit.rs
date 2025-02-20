@@ -1,6 +1,9 @@
 use super::*;
 use frame_support::testing_prelude::*;
 use pallet_intent::types::*;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_runtime::{Rounding, Saturating};
+use std::collections::BTreeMap;
 
 pub(crate) fn get_next_intent_id(moment: Moment) -> IntentId {
 	let increment = pallet_intent::Pallet::<Test>::next_incremental_id();
@@ -15,6 +18,7 @@ fn submit_intent(intent: Intent<AccountId>) -> Result<IntentId, DispatchError> {
 
 fn create_solution(intent_ids: Vec<IntentId>) -> (BoundedResolvedIntents, u64) {
 	let mut resolved = vec![];
+	let mut amounts: BTreeMap<AssetId, (u128, u128)> = BTreeMap::new();
 
 	for intent_id in intent_ids {
 		let intent = Intents::get_intent(intent_id).unwrap();
@@ -23,11 +27,31 @@ fn create_solution(intent_ids: Vec<IntentId>) -> (BoundedResolvedIntents, u64) {
 			amount_in: intent.swap.amount_in,
 			amount_out: intent.swap.amount_out,
 		});
+		amounts
+			.entry(intent.swap.asset_in)
+			.and_modify(|(v_in, _)| *v_in = v_in.saturating_add(intent.swap.amount_in))
+			.or_insert((intent.swap.amount_in, 0u128));
+		amounts
+			.entry(intent.swap.asset_out)
+			.and_modify(|(_, v_out)| *v_out = v_out.saturating_add(intent.swap.amount_out))
+			.or_insert((0u128, intent.swap.amount_out));
 	}
 
-	let score = 1_000_000 * resolved.len() as u64;
+	let mut hub_amount = resolved.len() as u128 * 1_000_000_000_000u128;
 
-	(BoundedResolvedIntents::truncate_from(resolved), score)
+	for (asset_id, (amount_in, amount_out)) in amounts.iter() {
+		let matched_amount = (*amount_in).min(*amount_out);
+		if matched_amount > 0u128 {
+			let price = get_price(*asset_id, LRNA);
+			let converted =
+				multiply_by_rational_with_rounding(matched_amount, price.0, price.1, Rounding::Down).unwrap();
+			hub_amount.saturating_accrue(converted);
+		}
+	}
+
+	let score = hub_amount / 1_000_000u128;
+
+	(BoundedResolvedIntents::truncate_from(resolved), score as u64)
 }
 
 #[test]
@@ -64,6 +88,67 @@ fn submit_solution_should_work_when_valid_solution_is_submitted() {
 
 			assert_eq!(Tokens::free_balance(100, &ALICE), 0);
 			assert_eq!(Tokens::free_balance(200, &ALICE), 200_000_000_000_000);
+		});
+}
+
+#[test]
+fn submit_solution_should_work_when_valid_solution_with_matching_amounts_is_submitted() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000), (BOB, 200, 100_000_000_000_000)])
+		.with_prices(vec![
+			((100, 200), (1_000_000_000_000, 2_000_000_000_000)),
+			((100, LRNA), (1, 1)),
+			((200, LRNA), (1, 1)),
+		])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: ALICE,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			};
+			let alice_intent_id = submit_intent(intent).unwrap();
+
+			let swap = Swap {
+				asset_in: 200,
+				asset_out: 100,
+				amount_in: 100_000_000_000_000,
+				amount_out: 50_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: BOB,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			};
+			let bob_intent_id = submit_intent(intent).unwrap();
+
+			let (resolved_intents, score) = create_solution(vec![alice_intent_id, bob_intent_id]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(EXECUTOR),
+				resolved_intents,
+				score,
+				1,
+			));
+
+			assert_eq!(Tokens::free_balance(100, &ALICE), 0);
+			assert_eq!(Tokens::free_balance(200, &ALICE), 200_000_000_000_000);
+			assert_eq!(Tokens::free_balance(200, &BOB), 0);
+			assert_eq!(Tokens::free_balance(100, &BOB), 50_000_000_000_000);
 		});
 }
 

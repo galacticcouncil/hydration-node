@@ -214,3 +214,10 @@ impl ExtBuilder {
 		r
 	}
 }
+
+pub(crate) fn get_price(asset_a: AssetId, asset_b: AssetId) -> (Balance, Balance) {
+	PRICES.with(|p| {
+		let pm = p.borrow();
+		*pm.get(&(asset_a, asset_b)).unwrap()
+	})
+}

@@ -1,10 +1,8 @@
 use codec::{Decode, Encode};
 use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
+pub use pallet_intent::types::{AssetId, Balance};
 use sp_std::collections::btree_map::BTreeMap;
-
-pub type AssetId = u32;
-pub type Balance = u128;
 
 /// The reason for invalid solution.
 #[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
