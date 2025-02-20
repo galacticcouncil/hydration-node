@@ -9,7 +9,7 @@ use frame_support::traits::{ConstU64, Everything, Time};
 use frame_support::{construct_runtime, parameter_types, PalletId};
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, MultiCurrency};
 use pallet_intent::types::Moment;
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
@@ -22,7 +22,7 @@ pub(crate) type AccountId = u64;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
-pub const RECEIVER: AccountId = 3;
+pub const EXECUTOR: AccountId = 3;
 
 pub(crate) const LRNA: AssetId = 1;
 
@@ -38,7 +38,7 @@ construct_runtime!(
 	{
 		System: frame_system,
 		Tokens: orml_tokens,
-		Intent: pallet_intent,
+		Intents: pallet_intent,
 		ICE: pallet_ice,
 	}
 );
@@ -116,7 +116,16 @@ parameter_types! {
 	pub const MaxAllowedIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
 	pub const ProposalBond: Balance = 1_000_000_000_000;
-	pub const SlashReceiver: AccountId = RECEIVER;
+}
+
+impl pallet_ice::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type PalletId = ICEPalletId;
+	type BlockNumberProvider = MockBlockNumberProvider;
+	type Currency = Tokens;
+	type PriceProvider = MockPriceProvider;
+	type Trader = TestTrader;
+	type WeightInfo = ();
 }
 
 pub struct MockTimestampProvider;
@@ -139,16 +148,6 @@ impl BlockNumberProvider for MockBlockNumberProvider {
 	}
 }
 
-impl pallet_ice::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type PalletId = ICEPalletId;
-	type BlockNumberProvider = MockBlockNumberProvider;
-	type Currency = Tokens;
-	type PriceProvider = MockPriceProvider;
-	type Trader = TestTrader;
-	type WeightInfo = ();
-}
-
 pub struct MockPriceProvider;
 
 impl PriceProvider<AssetId> for MockPriceProvider {
@@ -165,7 +164,15 @@ impl Trader<AccountId> for TestTrader {
 	type Outcome = ();
 
 	fn trade(account: AccountId, assets: Vec<(AssetId, (Balance, Balance))>) -> Result<Self::Outcome, DispatchError> {
-		todo!()
+		for (asset, (amount_in, amount_out)) in assets {
+			let balance = Tokens::free_balance(asset, &account);
+			if balance < amount_in {
+				return Err(DispatchError::from("Insufficient balance"));
+			}
+			Tokens::withdraw(asset, &account, amount_in)?;
+			Tokens::deposit(asset, &account, amount_out)?;
+		}
+		Ok(())
 	}
 }
 

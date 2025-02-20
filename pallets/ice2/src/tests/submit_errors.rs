@@ -5,6 +5,9 @@ fn submit_solution_should_fail_when_valid_for_block_is_not_current_block() {}
 fn submit_solution_should_fail_when_score_is_not_equal_to_provided_score() {}
 
 #[test]
+fn submit_solution_should_fail_when_solution_is_already_executed_in_current_block() {}
+
+#[test]
 fn submit_solution_should_fail_when_intent_list_is_empty() {}
 
 #[test]
