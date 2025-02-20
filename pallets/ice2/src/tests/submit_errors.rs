@@ -21,3 +21,6 @@ fn submit_solution_should_fail_when_resolved_intent_does_not_respect_given_inten
 
 #[test]
 fn submit_solution_should_fail_when_intent_account_does_not_have_required_amount() {}
+
+#[test]
+fn submit_solution_should_fail_when_resolved_intent_partially_resolves_full_intent() {}
