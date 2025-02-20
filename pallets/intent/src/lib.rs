@@ -6,7 +6,7 @@ mod tests;
 pub mod types;
 mod weights;
 
-use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, Moment};
+use crate::types::{AssetId, Balance, IncrementalIntentId, Intent, IntentId, Moment, ResolvedIntent, Swap};
 use frame_support::pallet_prelude::StorageValue;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::Time;
@@ -61,6 +61,12 @@ pub mod pallet {
 
 		/// Invalid intent parameters
 		InvalidIntent,
+
+		/// Intent not found
+		NotFound,
+
+		/// Resolving an intent provided invalid amounts
+		InvalidIntentUpdate,
 	}
 
 	#[pallet::storage]
@@ -117,14 +123,48 @@ impl<T: Config> Pallet<T> {
 		Ok(intent_id)
 	}
 
-	pub fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId>)> {
-		let mut intents: Vec<(IntentId, Intent<T::AccountId>)> = Intents::<T>::iter().collect();
-		intents.sort_by_key(|(_, intent)| intent.deadline);
+	#[require_transactional]
+	pub fn resolve_intent(resolved: ResolvedIntent) -> DispatchResult {
+		let Some(intent) = Intents::<T>::take(resolved.intent_id) else {
+			//should not happen, hence defensive assert. Helpful for fuzzing
+			defensive!("Resolving - intent not found");
+			return Err(Error::<T>::NotFound.into());
+		};
 
-		let now = T::TimestampProvider::now();
-		intents.retain(|(_, intent)| intent.deadline > now);
+		let amount_in = intent.swap.amount_in;
+		let amount_out = intent.swap.amount_out;
+		let resolved_amount_in = resolved.amount_in;
+		let resolved_amount_out = resolved.amount_out;
 
-		intents
+		let full_resolved = resolved_amount_in == amount_in && resolved_amount_out == amount_out;
+
+		// we need to handle only partially resolved intents, we already taken out the intent from storage
+		// in case of partial resolved, we need to insert new updated intent, otherwise there is nothing else to do
+		if !full_resolved {
+			// if not fully resolved, the intent's partial flag must be True
+			ensure!(intent.partial, Error::<T>::InvalidIntentUpdate);
+
+			// let's help fuzzer here
+			debug_assert!(resolved_amount_in <= amount_in);
+			debug_assert!(resolved_amount_out <= amount_out);
+
+			let new_intent = Intent {
+				who: intent.who,
+				swap: Swap {
+					asset_in: intent.swap.asset_in,
+					asset_out: intent.swap.asset_out,
+					amount_in: amount_in.saturating_sub(resolved_amount_in),
+					amount_out: amount_out.saturating_sub(resolved_amount_out),
+					swap_type: intent.swap.swap_type,
+				},
+				deadline: intent.deadline,
+				partial: true,
+				on_success: intent.on_success,
+				on_failure: intent.on_failure,
+			};
+			Intents::<T>::insert(resolved.intent_id, new_intent);
+		}
+		Ok(())
 	}
 }
 

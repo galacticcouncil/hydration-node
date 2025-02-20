@@ -17,7 +17,7 @@ use frame_system::pallet_prelude::*;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 pub use pallet::*;
-use pallet_intent::types::{Intent, ResolvedIntent, SwapType};
+use pallet_intent::types::{BoundedResolvedIntents, Intent, ResolvedIntent, SwapType};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{ArithmeticError, FixedU128, Rounding, Saturating};
@@ -132,6 +132,8 @@ pub mod pallet {
 			Self::validate_solution_score(&solution, intents.len() as u128, score)?;
 
 			Self::execute_solution(solution)?;
+
+			Self::update_resolved_intents(intents)?;
 
 			Self::deposit_event(Event::Executed { who });
 
@@ -314,6 +316,14 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
+		Ok(())
+	}
+
+	#[require_transactional]
+	fn update_resolved_intents(resolved: BoundedResolvedIntents) -> DispatchResult {
+		for intent in resolved {
+			pallet_intent::Pallet::<T>::resolve_intent(intent)?;
+		}
 		Ok(())
 	}
 
