@@ -14,6 +14,7 @@ fn sell_with_peg_should_work_as_before_when_all_pegs_are_one() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
+	let max_peg_update = Permill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
@@ -29,7 +30,7 @@ fn sell_with_peg_should_work_as_before_when_all_pegs_are_one() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
-				(1, 10),
+				max_peg_update,
 			));
 
 			assert_ok!(Stableswap::add_liquidity(
@@ -66,6 +67,7 @@ fn buy_should_work_as_before_when_all_pegs_are_one() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id: AssetId = 100;
+	let max_peg_update = Permill::from_percent(100);
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
@@ -80,7 +82,7 @@ fn buy_should_work_as_before_when_all_pegs_are_one() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
-				(1, 10),
+				max_peg_update,
 			));
 
 			assert_ok!(Stableswap::add_liquidity(
@@ -142,6 +144,7 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 	let asset_b: AssetId = 2;
 	let asset_c: AssetId = 3;
 	let pool_id: AssetId = 100;
+	let max_peg_update = Permill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -167,7 +170,7 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 					PegSource::Value((1, 1)),
 					PegSource::Value((1, 1))
 				]),
-				(1, 10),
+				max_peg_update,
 			));
 
 			assert_ok!(Stableswap::add_liquidity(
@@ -223,89 +226,13 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 		});
 }
 
-/*
-#[test]
-fn removing_liquidity_with_exact_amount_should_work_as_before_when_pegs_are_one() {
-	let asset_a: AssetId = 1;
-	let asset_b: AssetId = 2;
-	let asset_c: AssetId = 3;
-	let pool_id: AssetId = 100;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(BOB, asset_a, 2_000_000_000_000_000_003),
-			(ALICE, asset_a, 52425995641788588073263117),
-			(ALICE, asset_b, 52033213790329),
-			(ALICE, asset_c, 119135337044269),
-		])
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 6)
-		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 6)
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 18)
-		.build()
-		.execute_with(|| {
-			assert_ok!(Stableswap::create_pool_with_pegs(
-				RuntimeOrigin::root(),
-				pool_id,
-				vec![asset_a, asset_b, asset_c],
-				2000,
-				Permill::from_percent(0),
-				BoundedPegSources::truncate_from(vec![
-					PegSource::Value((1, 1)),
-					PegSource::Value((1, 1)),
-					PegSource::Value((1, 1))
-				]),
-				(1, 10),
-			));
-
-			assert_ok!(Stableswap::add_liquidity(
-				RuntimeOrigin::signed(ALICE),
-				pool_id,
-				BoundedVec::truncate_from(vec![
-					AssetAmount::new(asset_a, 52425995641788588073263117),
-					AssetAmount::new(asset_b, 52033213790329),
-					AssetAmount::new(asset_c, 119135337044269),
-				])
-			));
-
-			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
-			let desired_shares = 1947597621401945851;
-			assert_ok!(Stableswap::add_liquidity_shares(
-				RuntimeOrigin::signed(BOB),
-				pool_id,
-				desired_shares,
-				asset_a,
-				amount + 3, // add liquidity for shares uses slightly more
-			));
-			let received = Tokens::free_balance(pool_id, &BOB);
-			assert_eq!(received, desired_shares);
-			let balance = Tokens::free_balance(asset_a, &BOB);
-			assert_eq!(balance, 0);
-			// ACT
-			assert_ok!(Stableswap::withdraw_asset_amount(
-				RuntimeOrigin::signed(BOB),
-				pool_id,
-				asset_a,
-				amount - 1,
-				desired_shares,
-			));
-
-			// ASSERT
-
-			let received = Tokens::free_balance(pool_id, &BOB);
-			assert_eq!(received, 0);
-			let balance = Tokens::free_balance(asset_a, &BOB);
-			assert_eq!(balance, 1_999_999_999_999_999_999);
-		});
-}
- */
 #[test]
 fn creating_pool_with_pegs_shoud_fails_when_assets_have_different_decimals() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let asset_c: AssetId = 3;
 	let pool_id: AssetId = 100;
+	let max_peg_update = Permill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -332,7 +259,7 @@ fn creating_pool_with_pegs_shoud_fails_when_assets_have_different_decimals() {
 						PegSource::Value((1, 1)),
 						PegSource::Value((1, 1))
 					]),
-					(1, 10),
+					max_peg_update,
 				),
 				Error::<Test>::IncorrectAssetDecimals
 			);
@@ -344,6 +271,7 @@ fn should_fail_when_called_by_invalid_origin() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
+	let max_peg_update = Permill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
@@ -360,7 +288,7 @@ fn should_fail_when_called_by_invalid_origin() {
 					100,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
-					(1, 10),
+					max_peg_update
 				),
 				BadOrigin
 			);
@@ -372,6 +300,7 @@ fn should_fail_when_invalid_amplification_specified() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
+	let max_peg_update = Permill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
@@ -388,7 +317,7 @@ fn should_fail_when_invalid_amplification_specified() {
 					0,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
-					(1, 10),
+					max_peg_update,
 				),
 				Error::<Test>::InvalidAmplification
 			);
@@ -400,6 +329,7 @@ fn should_fail_when_asset_decimals_are_not_same() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
+	let max_peg_update = Permill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
@@ -416,7 +346,7 @@ fn should_fail_when_asset_decimals_are_not_same() {
 					100,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
-					(1, 10),
+					max_peg_update,
 				),
 				Error::<Test>::IncorrectAssetDecimals
 			);
@@ -428,6 +358,7 @@ fn should_fail_when_no_target_peg_oracle() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
+	let max_peg_update = Permill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(BOB, 1, 200 * ONE), (ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
@@ -447,7 +378,7 @@ fn should_fail_when_no_target_peg_oracle() {
 						PegSource::Oracle((*b"testtest", OraclePeriod::Short)),
 						PegSource::Value((1, 1))
 					]),
-					(1, 10),
+					max_peg_update,
 				),
 				Error::<Test>::MissingTargetPegOracle
 			);

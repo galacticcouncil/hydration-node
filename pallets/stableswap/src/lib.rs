@@ -1073,7 +1073,7 @@ pub mod pallet {
 			amplification: u16,
 			fee: Permill,
 			peg_source: BoundedPegSources,
-			max_peg_update: PegType,
+			max_peg_update: Permill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -1084,7 +1084,7 @@ pub mod pallet {
 
 			let peg_info = PoolPegInfo {
 				source: peg_source,
-				max_target_update: max_peg_update,
+				max_peg_update,
 				current: BoundedPegs::truncate_from(initial_pegs.into_iter().map(|(v, _)| v).collect()),
 			};
 
@@ -1659,12 +1659,8 @@ impl<T: Config> Pallet<T> {
 		// Move pegs to target pegs if necessary
 		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
 		let target_pegs = Self::get_target_pegs(current_block, &pool.assets, &peg_info.source)?;
-		let deltas = Self::calculate_peg_deltas(
-			current_block,
-			&peg_info.current,
-			&target_pegs,
-			peg_info.max_target_update,
-		);
+		let deltas =
+			Self::calculate_peg_deltas(current_block, &peg_info.current, &target_pegs, peg_info.max_peg_update);
 		let trade_fee = Self::calculate_target_fee(&peg_info.current, &deltas, pool.fee);
 		let new_pegs = Self::calculate_new_pegs(&peg_info.current, &deltas);
 		Ok((trade_fee, new_pegs))
@@ -1727,7 +1723,7 @@ impl<T: Config> Pallet<T> {
 		block_no: u128,
 		current: &[PegType],
 		target: &[(PegType, u128)],
-		max_move: PegType,
+		max_peg_update: Permill,
 	) -> Vec<PegDelta> {
 		debug_assert_eq!(
 			current.len(),
@@ -1750,7 +1746,7 @@ impl<T: Config> Pallet<T> {
 
 			//Ensure max peg target update
 			let b: Ratio = block_ct.into();
-			let max_move_ratio: Ratio = max_move.into();
+			let max_move_ratio: Ratio = (max_peg_update.deconstruct() as u128, 1_000_000u128).into();
 			let max_peg_move = max_move_ratio.saturating_mul(&c).saturating_mul(&b);
 
 			if delta <= max_peg_move {

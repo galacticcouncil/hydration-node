@@ -91,7 +91,7 @@ benchmarks! {
 		let trade_fee = Permill::from_percent(1);
 		let caller: T::AccountId = account("caller", 0, 1);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), asset_ids, amplification, trade_fee, BoundedPegSources::truncate_from(peg_source), (u128::MAX,1))
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), asset_ids, amplification, trade_fee, BoundedPegSources::truncate_from(peg_source), Permill::from_percent(100))
 	verify {
 		assert!(<Pools<T>>::get::<T::AssetId>(pool_id.into()).is_some());
 		assert!(<PoolPegs<T>>::get::<T::AssetId>(pool_id.into()).is_some());

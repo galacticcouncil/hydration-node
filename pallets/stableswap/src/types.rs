@@ -164,7 +164,7 @@ pub type BoundedPegSources = BoundedVec<PegSource, ConstU32<MAX_ASSETS_IN_POOL>>
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct PoolPegInfo {
 	pub source: BoundedPegSources,
-	pub max_target_update: PegType,
+	pub max_peg_update: Permill,
 	pub current: BoundedPegs,
 }
 
@@ -173,7 +173,7 @@ impl PoolPegInfo {
 		debug_assert_eq!(self.current.len(), pegs.len(), "Invalid pegs length");
 		PoolPegInfo {
 			source: self.source,
-			max_target_update: self.max_target_update,
+			max_peg_update: self.max_peg_update,
 			current: BoundedPegs::truncate_from(pegs.to_vec()),
 		}
 	}
