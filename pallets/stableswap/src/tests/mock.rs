@@ -326,7 +326,7 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{PegType, PoolInfo, PoolState, StableswapHooks};
+use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
