@@ -130,12 +130,9 @@ pub mod pallet {
 			let solution = Self::prepare_solution(&intents)?;
 
 			Self::validate_solution_score(&solution, intents.len() as u128, score)?;
-
 			Self::execute_solution(solution)?;
-
 			Self::update_resolved_intents(intents)?;
-
-			pallet_intent::Pallet::<T>::clear_expired_intents()?;
+			Self::clear_expired_intents()?;
 
 			Self::deposit_event(Event::Executed { who });
 
@@ -327,6 +324,11 @@ impl<T: Config> Pallet<T> {
 			pallet_intent::Pallet::<T>::resolve_intent(intent)?;
 		}
 		Ok(())
+	}
+
+	#[require_transactional]
+	fn clear_expired_intents() -> DispatchResult {
+		pallet_intent::Pallet::<T>::clear_expired_intents()
 	}
 
 	fn ensure_intent_price(intent: &Intent<T::AccountId>, resolved_intent: &ResolvedIntent) -> bool {

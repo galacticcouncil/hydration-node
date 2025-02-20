@@ -168,6 +168,8 @@ impl<T: Config> Pallet<T> {
 			};
 			Intents::<T>::insert(resolved.intent_id, new_intent);
 		} else if let Some(call) = intent.on_success {
+			//TODO: we probably want to ignore errors here, as solution execution would fail
+			// in such case, we ignore the callback - probably failed to account not having enough to pay fees
 			T::OnResultExecutor::execute(intent.who, resolved.intent_id, call)?;
 		}
 		Ok(())
@@ -182,6 +184,8 @@ impl<T: Config> Pallet<T> {
 		for (intent_id, intent) in Intents::<T>::iter() {
 			if intent.deadline < now {
 				if let Some(call) = intent.on_failure {
+					//TODO: we probably want to ignore errors here, as solution execution would fail
+					// in such case, we ignore the callback - probably failed to account not having enough to pay fees
 					T::OnResultExecutor::execute(intent.who, intent_id, call)?;
 				}
 				to_remove.push(intent_id);
