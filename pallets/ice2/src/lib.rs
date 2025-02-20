@@ -13,18 +13,53 @@ use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
 use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
+use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
 use frame_system::pallet_prelude::*;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::price::PriceProvider;
 pub use pallet::*;
 use pallet_intent::types::{BoundedResolvedIntents, Intent, ResolvedIntent, SwapType};
+use sp_core::offchain::KeyTypeId;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::{ArithmeticError, FixedU128, Rounding, Saturating};
+use sp_runtime::{ArithmeticError, FixedU128, Rounding, SaturatedConversion, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 use traits::Trader;
 use types::{AssetId, Balance, Reason, Solution};
 pub use weights::WeightInfo;
+
+// Some useful constants
+const LOG_TARGET: &str = "runtime::ice";
+//const ICE_SOLVER_LOCK: &[u8] = b"hydration/ice/lock/";
+//const ICE_SOLVER_LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
+
+pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"ICEK");
+
+pub mod crypto {
+	use super::KEY_TYPE;
+	use sp_core::sr25519::Signature as Sr25519Signature;
+	use sp_runtime::{
+		app_crypto::{app_crypto, sr25519},
+		traits::Verify,
+		MultiSignature, MultiSigner,
+	};
+	app_crypto!(sr25519, KEY_TYPE);
+
+	pub struct IceKeyId;
+
+	impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for IceKeyId {
+		type RuntimeAppPublic = Public;
+		type GenericSignature = sp_core::sr25519::Signature;
+		type GenericPublic = sp_core::sr25519::Public;
+	}
+
+	// implemented for mock runtime in test
+	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for IceKeyId {
+		type RuntimeAppPublic = Public;
+		type GenericSignature = sp_core::sr25519::Signature;
+		type GenericPublic = sp_core::sr25519::Public;
+	}
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -55,8 +90,11 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_intent::Config {
+	pub trait Config: frame_system::Config + pallet_intent::Config + CreateSignedTransaction<Call<Self>> {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// The identifier type for an offchain worker.
+		type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 
 		/// Pallet id - used to create holding account
 		#[pallet::constant]
@@ -146,6 +184,33 @@ pub mod pallet {
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			SolutionScore::<T>::kill();
 			SolutionExecuted::<T>::kill();
+		}
+
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			log::info!(target: LOG_TARGET, "offchain_worker: block_number: {:?}", block_number);
+			// Only validator
+			if !sp_io::offchain::is_validator() {
+				return;
+			}
+
+			//TODO: consider lock guard with timeout here!
+
+			let signer = Signer::<T, T::AuthorityId>::all_accounts();
+			if !signer.can_sign() {
+				log::error!(target: LOG_TARGET, "No local accounts available. Consider adding one via `author_insertKey` RPC.");
+				return;
+			}
+
+			let call = Self::run(block_number);
+
+			if let Some(c) = call {
+				let results = signer.send_signed_transaction(|_account| c.clone());
+				for (_account_id, result) in results.into_iter() {
+					if result.is_err() {
+						log::error!(target: LOG_TARGET, "Unable to submit transaction: :{:?}", result);
+					}
+				}
+			}
 		}
 	}
 }
@@ -355,5 +420,24 @@ impl<T: Config> Pallet<T> {
 		};
 
 		diff <= FixedU128::from_rational(1, 1000)
+	}
+}
+
+// OFFCHAIN WORKER SUPPORT
+impl<T: Config> Pallet<T> {
+	fn run(block_no: BlockNumberFor<T>) -> Option<Call<T>> {
+		let intents = Self::get_valid_intents();
+		// 1. Get valid intents
+		// 2. Call solver
+		// 3. calculate score
+		Some(Call::submit_solution {
+			intents: BoundedResolvedIntents::new(),
+			score: 0,
+			valid_for_block: block_no.saturating_add(1u32.saturated_into()), // next block
+		})
+	}
+
+	fn get_valid_intents() -> Vec<Intent<T::AccountId>> {
+		vec![]
 	}
 }

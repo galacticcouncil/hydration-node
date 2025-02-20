@@ -4,16 +4,18 @@ mod submit_errors;
 use crate as pallet_ice;
 use crate::traits::Trader;
 use crate::types::*;
+use crate::Call;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::traits::{ConstU64, Everything, Time};
 use frame_support::{construct_runtime, dispatch::DispatchResult, parameter_types, PalletId};
+use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendTransactionTypes, SigningTypes};
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::ice::{CallData, CallExecutor};
 use hydradx_traits::price::PriceProvider;
 use orml_traits::{parameter_type_with_key, MultiCurrency};
 use pallet_intent::types::{IntentId, Moment};
 use sp_core::H256;
-use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
+use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, Extrinsic, IdentityLookup};
 use sp_runtime::{BuildStorage, DispatchError};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -121,8 +123,52 @@ parameter_types! {
 	pub const ProposalBond: Balance = 1_000_000_000_000;
 }
 
+use sp_core::{
+	offchain::{testing, OffchainWorkerExt, TransactionPoolExt},
+	sr25519::Signature,
+};
+use sp_runtime::testing::{TestSignature, TestXt, UintAuthorityId};
+use sp_runtime::traits::Verify;
+
+type LocalExtrinsic = TestXt<RuntimeCall, ()>;
+
+impl SigningTypes for Test {
+	type Public = UintAuthorityId;
+	type Signature = TestSignature;
+}
+
+impl<LocalCall> SendTransactionTypes<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type Extrinsic = LocalExtrinsic;
+	type OverarchingCall = RuntimeCall;
+}
+
+impl<LocalCall> CreateSignedTransaction<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_transaction<C: AppCrypto<Self::Public, Self::Signature>>(
+		call: Self::OverarchingCall,
+		public: Self::Public,
+		account: Self::AccountId,
+		nonce: Self::Nonce,
+	) -> Option<(Self::OverarchingCall, <Self::Extrinsic as Extrinsic>::SignaturePayload)> {
+		todo!()
+	}
+}
+
+pub struct DummyAppCrypto;
+impl AppCrypto<UintAuthorityId, TestSignature> for DummyAppCrypto {
+	type RuntimeAppPublic = UintAuthorityId;
+	type GenericPublic = UintAuthorityId;
+	type GenericSignature = TestSignature;
+}
+
 impl pallet_ice::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type AuthorityId = DummyAppCrypto;
 	type PalletId = ICEPalletId;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type Currency = Tokens;

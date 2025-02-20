@@ -410,7 +410,7 @@ pub mod pallet {
 			//TODO: how do we account weight for trades now ?!! since it is removed
 			// probably we can take the worst case scenario - which is one intent - one trade
 			// number of resolved intent is known
-			// we can consider retrurning unused weight
+			// we can consider returning unused weight
 			w
 		})]
 		pub fn submit_solution(
