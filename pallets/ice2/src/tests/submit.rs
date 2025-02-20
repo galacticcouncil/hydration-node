@@ -197,13 +197,16 @@ fn submit_solution_should_work_with_partial_resolved_intents() {
 				who: BOB,
 				swap: swap.clone(),
 				deadline: DEFAULT_NOW + 1_000_000,
-				partial: false,
+				partial: true,
 				on_success: None,
 				on_failure: None,
 			};
 			let bob_intent_id = submit_intent(intent).unwrap();
 
-			let (resolved_intents, score) = create_solution(vec![(alice_intent_id, None), (bob_intent_id, None)]);
+			let (resolved_intents, score) = create_solution(vec![
+				(alice_intent_id, None),
+				(bob_intent_id, Some((50_000_000_000_000, 25_000_000_000_000))),
+			]);
 
 			assert_ok!(ICE::submit_solution(
 				RuntimeOrigin::signed(EXECUTOR),
@@ -214,8 +217,8 @@ fn submit_solution_should_work_with_partial_resolved_intents() {
 
 			assert_eq!(Tokens::free_balance(100, &ALICE), 0);
 			assert_eq!(Tokens::free_balance(200, &ALICE), 200_000_000_000_000);
-			assert_eq!(Tokens::free_balance(200, &BOB), 0);
-			assert_eq!(Tokens::free_balance(100, &BOB), 50_000_000_000_000);
+			assert_eq!(Tokens::free_balance(200, &BOB), 50_000_000_000_000);
+			assert_eq!(Tokens::free_balance(100, &BOB), 25_000_000_000_000);
 		});
 }
 
@@ -298,4 +301,139 @@ fn on_finalize_should_reserve_execute_flag_and_score() {
 }
 
 #[test]
-fn submit_solution_should_update_partial_intent_correctly() {}
+fn submit_solution_should_clear_resolved_intents() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000), (BOB, 200, 100_000_000_000_000)])
+		.with_prices(vec![
+			((100, 200), (1_000_000_000_000, 2_000_000_000_000)),
+			((100, LRNA), (1, 1)),
+			((200, LRNA), (1, 1)),
+		])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: ALICE,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			};
+			let alice_intent_id = submit_intent(intent).unwrap();
+
+			let swap = Swap {
+				asset_in: 200,
+				asset_out: 100,
+				amount_in: 100_000_000_000_000,
+				amount_out: 50_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: BOB,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			};
+			let bob_intent_id = submit_intent(intent).unwrap();
+
+			let (resolved_intents, score) = create_solution(vec![(alice_intent_id, None), (bob_intent_id, None)]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(EXECUTOR),
+				resolved_intents,
+				score,
+				1,
+			));
+			assert!(Intents::get_intent(alice_intent_id).is_none());
+			assert!(Intents::get_intent(bob_intent_id).is_none());
+		});
+}
+
+#[test]
+
+fn submit_solution_should_update_partial_intents() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000), (BOB, 200, 100_000_000_000_000)])
+		.with_prices(vec![
+			((100, 200), (1_000_000_000_000, 2_000_000_000_000)),
+			((100, LRNA), (1, 1)),
+			((200, LRNA), (1, 1)),
+		])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: ALICE,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: None,
+				on_failure: None,
+			};
+			let alice_intent_id = submit_intent(intent).unwrap();
+
+			let swap = Swap {
+				asset_in: 200,
+				asset_out: 100,
+				amount_in: 100_000_000_000_000,
+				amount_out: 50_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: BOB,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: true,
+				on_success: None,
+				on_failure: None,
+			};
+			let bob_intent_id = submit_intent(intent).unwrap();
+
+			let (resolved_intents, score) = create_solution(vec![
+				(alice_intent_id, None),
+				(bob_intent_id, Some((50_000_000_000_000, 25_000_000_000_000))),
+			]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(EXECUTOR),
+				resolved_intents,
+				score,
+				1,
+			));
+			let bob_intent = Intents::get_intent(bob_intent_id).unwrap();
+			assert_eq!(
+				bob_intent,
+				Intent {
+					who: BOB,
+					swap: Swap {
+						asset_in: 200,
+						asset_out: 100,
+						amount_in: 50_000_000_000_000,
+						amount_out: 25_000_000_000_000,
+						swap_type: SwapType::ExactIn,
+					},
+					deadline: DEFAULT_NOW + 1_000_000,
+					partial: true,
+					on_success: None,
+					on_failure: None,
+				}
+			);
+
+			assert!(Intents::get_intent(alice_intent_id).is_none());
+		});
+}
