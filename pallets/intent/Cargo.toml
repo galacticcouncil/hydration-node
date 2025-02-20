@@ -16,6 +16,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 scale-info = { workspace = true}
 codec = { workspace = true }
 
+hydradx-traits = {workspace = true}
+
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 frame-support = { workspace = true }
@@ -43,6 +45,7 @@ std = [
     "sp-std/std",
     "sp-core/std",
     "sp-io/std",
+    "hydradx-traits/std",
 ]
 runtime-benchmarks = [ "frame-benchmarking/runtime-benchmarks" ]
 try-runtime = [ "frame-support/try-runtime" ]

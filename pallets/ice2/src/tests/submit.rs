@@ -437,3 +437,118 @@ fn submit_solution_should_update_partial_intents() {
 			assert!(Intents::get_intent(alice_intent_id).is_none());
 		});
 }
+
+#[test]
+fn submit_solution_should_execute_on_success_callback_when_intent_is_resolved() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000)])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: ALICE,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: Some(hydradx_traits::ice::CallData::truncate_from([2u8; 8].to_vec())),
+				on_failure: None,
+			};
+			let intent_id = submit_intent(intent).unwrap();
+
+			let (resolved_intents, score) = create_solution(vec![(intent_id, None)]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(EXECUTOR),
+				resolved_intents,
+				score,
+				1,
+			));
+
+			assert!(
+				callback_executed(
+					intent_id,
+					(ALICE, hydradx_traits::ice::CallData::truncate_from([2u8; 8].to_vec()))
+				),
+				"Callback should be executed"
+			);
+		});
+}
+
+#[test]
+fn submit_solution_should_execute_on_failure_callback_when_intent_is_expired() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, 100, 100_000_000_000_000), (BOB, 200, 100_000_000_000_000)])
+		.with_prices(vec![
+			((100, 200), (1_000_000_000_000, 2_000_000_000_000)),
+			((100, LRNA), (1, 1)),
+			((200, LRNA), (1, 1)),
+		])
+		.build()
+		.execute_with(|| {
+			let swap = Swap {
+				asset_in: 100,
+				asset_out: 200,
+				amount_in: 100_000_000_000_000,
+				amount_out: 200_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: ALICE,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000_000,
+				partial: false,
+				on_success: Some(hydradx_traits::ice::CallData::truncate_from([2u8; 8].to_vec())),
+				on_failure: None,
+			};
+			let alice_intent_id = submit_intent(intent).unwrap();
+
+			let swap = Swap {
+				asset_in: 200,
+				asset_out: 100,
+				amount_in: 100_000_000_000_000,
+				amount_out: 50_000_000_000_000,
+				swap_type: SwapType::ExactIn,
+			};
+			let intent = Intent {
+				who: BOB,
+				swap: swap.clone(),
+				deadline: DEFAULT_NOW + 1_000,
+				partial: false,
+				on_success: None,
+				on_failure: Some(hydradx_traits::ice::CallData::truncate_from([3u8; 8].to_vec())),
+			};
+			let bob_intent_id = submit_intent(intent).unwrap();
+
+			move_time(2000);
+
+			let (resolved_intents, score) = create_solution(vec![(alice_intent_id, None)]);
+
+			assert_ok!(ICE::submit_solution(
+				RuntimeOrigin::signed(EXECUTOR),
+				resolved_intents,
+				score,
+				1,
+			));
+
+			assert!(
+				callback_executed(
+					alice_intent_id,
+					(ALICE, hydradx_traits::ice::CallData::truncate_from([2u8; 8].to_vec()))
+				),
+				"Success Callback should be executed"
+			);
+			assert!(
+				callback_executed(
+					bob_intent_id,
+					(BOB, hydradx_traits::ice::CallData::truncate_from([3u8; 8].to_vec()))
+				),
+				"Failed Callback should be executed"
+			);
+		});
+}

@@ -21,7 +21,7 @@ use pallet_intent::types::{BoundedResolvedIntents, Intent, ResolvedIntent, SwapT
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{ArithmeticError, FixedU128, Rounding, Saturating};
-use std::collections::BTreeMap;
+use sp_std::collections::btree_map::BTreeMap;
 use traits::Trader;
 use types::{AssetId, Balance, Reason, Solution};
 pub use weights::WeightInfo;
@@ -134,6 +134,8 @@ pub mod pallet {
 			Self::execute_solution(solution)?;
 
 			Self::update_resolved_intents(intents)?;
+
+			pallet_intent::Pallet::<T>::clear_expired_intents()?;
 
 			Self::deposit_event(Event::Executed { who });
 

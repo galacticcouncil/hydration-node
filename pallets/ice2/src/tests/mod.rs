@@ -6,11 +6,12 @@ use crate::traits::Trader;
 use crate::types::*;
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::traits::{ConstU64, Everything, Time};
-use frame_support::{construct_runtime, parameter_types, PalletId};
+use frame_support::{construct_runtime, dispatch::DispatchResult, parameter_types, PalletId};
 use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::ice::{CallData, CallExecutor};
 use hydradx_traits::price::PriceProvider;
 use orml_traits::{parameter_type_with_key, MultiCurrency};
-use pallet_intent::types::Moment;
+use pallet_intent::types::{IntentId, Moment};
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::{BuildStorage, DispatchError};
@@ -31,6 +32,7 @@ pub const DEFAULT_NOW: Moment = 1689844300000; // unix time in milliseconds
 thread_local! {
 	pub static NOW: RefCell<Moment> = RefCell::new(DEFAULT_NOW);
 	pub static PRICES: RefCell<HashMap<(AssetId, AssetId), (Balance, Balance)>> = RefCell::new(HashMap::new());
+	pub static EXECUTED_CALLBACKS: RefCell<HashMap<IntentId, (AccountId, CallData)>> = RefCell::new(HashMap::new());
 }
 
 construct_runtime!(
@@ -102,6 +104,7 @@ impl orml_tokens::Config for Test {
 impl pallet_intent::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type TimestampProvider = MockTimestampProvider;
+	type OnResultExecutor = MockCallExecutor;
 	type HubAssetId = HubAssetId;
 	type MaxAllowedIntentDuration = MaxAllowedIntentDuration;
 	type MaxCallData = MaxCallData;
@@ -155,6 +158,17 @@ impl PriceProvider<AssetId> for MockPriceProvider {
 
 	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Ratio> {
 		Some(Ratio::new(1, 1))
+	}
+}
+
+pub struct MockCallExecutor;
+impl CallExecutor<AccountId> for MockCallExecutor {
+	fn execute(who: AccountId, ident: u128, call: CallData) -> DispatchResult {
+		EXECUTED_CALLBACKS.with(|executed_callbacks| {
+			executed_callbacks.borrow_mut().insert(ident, (who, call));
+		});
+
+		Ok(())
 	}
 }
 
@@ -220,4 +234,20 @@ pub(crate) fn get_price(asset_a: AssetId, asset_b: AssetId) -> (Balance, Balance
 		let pm = p.borrow();
 		*pm.get(&(asset_a, asset_b)).unwrap()
 	})
+}
+
+pub(crate) fn callback_executed(ident: IntentId, data: (AccountId, CallData)) -> bool {
+	EXECUTED_CALLBACKS.with(|executed_callbacks| {
+		if let Some((who, call)) = executed_callbacks.borrow().get(&ident) {
+			who == &data.0 && call == &data.1
+		} else {
+			false
+		}
+	})
+}
+
+pub(crate) fn move_time(by: Moment) {
+	NOW.with(|now| {
+		*now.borrow_mut() += by;
+	});
 }

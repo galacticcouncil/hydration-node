@@ -13,6 +13,7 @@ use frame_support::traits::Time;
 use frame_support::Blake2_128Concat;
 use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get};
 use frame_system::pallet_prelude::*;
+use hydradx_traits::ice::CallExecutor;
 pub use pallet::*;
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
@@ -31,6 +32,9 @@ pub mod pallet {
 
 		/// Provider for the current timestamp.
 		type TimestampProvider: Time<Moment = Moment>;
+
+		/// Callback support - execute given intent callback on success/on failure
+		type OnResultExecutor: CallExecutor<Self::AccountId>;
 
 		/// Asset Id of hub asset
 		#[pallet::constant]
@@ -163,7 +167,30 @@ impl<T: Config> Pallet<T> {
 				on_failure: intent.on_failure,
 			};
 			Intents::<T>::insert(resolved.intent_id, new_intent);
+		} else if let Some(call) = intent.on_success {
+			T::OnResultExecutor::execute(intent.who, resolved.intent_id, call)?;
 		}
+		Ok(())
+	}
+
+	#[require_transactional]
+	pub fn clear_expired_intents() -> DispatchResult {
+		let now = T::TimestampProvider::now();
+		let mut to_remove = Vec::new();
+
+		//TODO: make it better, bob! no need to iterate twice and over all intents
+		for (intent_id, intent) in Intents::<T>::iter() {
+			if intent.deadline < now {
+				if let Some(call) = intent.on_failure {
+					T::OnResultExecutor::execute(intent.who, intent_id, call)?;
+				}
+				to_remove.push(intent_id);
+			}
+		}
+
+		to_remove.into_iter().for_each(|intent_id| {
+			Intents::<T>::remove(intent_id);
+		});
 		Ok(())
 	}
 }
