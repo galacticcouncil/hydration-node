@@ -719,6 +719,7 @@ impl RandomnessProvider for RandomnessProviderMock {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
 	type AssetId = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = RandomnessProviderMock;
@@ -745,8 +746,6 @@ impl Config for Test {
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
-
-	type ICE = SubmitIntentFake;
 }
 
 pub struct DummyTimestampProvider;

@@ -90,21 +90,24 @@ use pallet_intent::types::Moment;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
-use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::traits::CheckedMul;
-use sp_runtime::{
-	traits::{BlockNumberProvider, Saturating},
-	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
-};
-use sp_std::cmp::min;
-use sp_std::vec::Vec;
-
+use codec::FullCodec;
+use frame_support::dispatch::GetDispatchInfo;
+use frame_support::dispatch::PostDispatchInfo;
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
 pub use pallet::*;
 use pallet_broadcast::types::ExecutionType;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_runtime::traits::CheckedMul;
+use sp_runtime::traits::Dispatchable;
+use sp_runtime::{
+	traits::{BlockNumberProvider, Saturating},
+	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
+};
+use sp_std::cmp::min;
+use sp_std::vec::Vec;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -176,11 +179,21 @@ pub mod pallet {
 					}
 				};
 
-				let on_fail_callback = crate::Call::<T>::on_fail {
-					schedule_id: schedule_id,
-					current_blocknumber: current_blocknumber,
-				}
-				.encode();
+				let on_fail_callback: <T as pallet::Config>::RuntimeCall =
+					<T as pallet::Config>::RuntimeCall::from(crate::Call::<T>::on_fail {
+						schedule_id: schedule_id,
+						current_blocknumber: current_blocknumber,
+					});
+
+				let on_fail_callback = on_fail_callback.encode();
+
+				/*let on_fail_callback = <T as pallet::Config>::RuntimeCall::DCA(
+					crate::Call::<T>::on_fail {
+						schedule_id: schedule_id,
+						current_blocknumber: current_blocknumber,
+					}
+					.encode(),
+				);*/
 
 				/*let back = <T as frame_system::Config>::RuntimeCall::decode(&mut on_fail_callback.as_slice())
 				.expect("Cannot be done");*/
@@ -195,8 +208,6 @@ pub mod pallet {
 					current_blocknumber,
 				}
 				.into();*/
-
-				let on_fail_callback = on_fail_callback.encode();
 
 				match &schedule.order {
 					Order::Sell {
@@ -302,6 +313,14 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		type RuntimeCall: IsType<<Self as pallet::Config>::RuntimeCall>
+			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
+			+ GetDispatchInfo
+			+ FullCodec
+			+ TypeInfo
+			+ From<pallet::Call<Self>>
+			+ Parameter;
+
 		/// Asset id type
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Into<u32>;
 
@@ -345,8 +364,6 @@ pub mod pallet {
 
 		///Errors we want to explicitly retry on, in case of failing DCA
 		type RetryOnError: Contains<DispatchError>;
-
-		type ICE: SubmitIntent<Self::AccountId, Self::AssetId>; //TODO: remove as we use pallent-intents directly
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]
