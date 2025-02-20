@@ -544,18 +544,24 @@ fn spot_prices_should_be_correct_with_different_pegs() {
 				])
 			));
 
-			let spot1 = spot_price(pool_id, asset_b, asset_a);
+			let spot1 = spot_price(pool_id, asset_a, asset_b);
 			assert_eq_approx!(
 				spot1,
 				FixedU128::from_float(0.5),
 				FixedU128::from_float(0.0000000001),
 				"spot price not equal"
 			);
-
-			let spot2 = spot_price(pool_id, asset_c, asset_a);
+			let spot2 = spot_price(pool_id, asset_a, asset_c);
 			assert_eq_approx!(
 				spot2,
 				FixedU128::from_float(0.334910065029717101),
+				FixedU128::from_float(0.0000000001),
+				"spot price not equal"
+			);
+			let spot2 = spot_price(pool_id, asset_c, asset_a);
+			assert_eq_approx!(
+				spot2,
+				FixedU128::from_float(2.985876222953372314),
 				FixedU128::from_float(0.0000000001),
 				"spot price not equal"
 			);
