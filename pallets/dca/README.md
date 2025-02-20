@@ -1,5 +1,10 @@
 # DCA Pallet
 
+## Questions for intent integration
+- How about budget for existing -> migrate, store value in DCA schedule and sbustract it
+- How about deadline? 
+- How about min amount out and max amount in stuff as DCA supports this? - Yes currently we will need to set this based on oracle slippage setting i.e. 1%
+- 
 ## Overview
 
 The DCA pallet provides dollar-cost averaging functionality, allowing users to perform repeating orders. 

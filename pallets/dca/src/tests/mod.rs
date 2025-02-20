@@ -6,7 +6,8 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
 
 pub mod mock;
-pub mod on_initialize;
+//pub mod on_initialize;
+pub mod on_initialize_ice;
 pub mod schedule;
 pub mod terminate;
 

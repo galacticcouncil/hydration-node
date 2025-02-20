@@ -8110,6 +8110,8 @@ dependencies = [
  "pallet-intent",
  "pallet-omnipool",
  "pallet-route-executor",
+ "pallet-timestamp",
+ "pallet-utility",
  "pallet-xyk",
  "parity-scale-codec",
  "pretty_assertions",

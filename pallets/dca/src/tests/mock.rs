@@ -24,7 +24,7 @@ use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
 use frame_support::PalletId;
 use hydradx_traits::ice::{AssetAmount, CallData, SubmitIntent};
-use pallet_intent::types::Moment;
+use pallet_intent::types::{Moment, SwapType};
 
 use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
@@ -83,6 +83,7 @@ frame_support::construct_runtime!(
 		 EmaOracle: pallet_ema_oracle,
 		 Broadcast: pallet_broadcast,
 		 Intents: pallet_intent,
+		 Utility: pallet_utility
 	 }
 );
 
@@ -169,6 +170,14 @@ impl BlockNumberProvider for MockBlockNumberProvider {
 	fn current_block_number() -> Self::BlockNumber {
 		System::block_number()
 	}
+}
+
+impl pallet_utility::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type PalletsOrigin = OriginCaller;
+	type BatchHook = ();
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -323,16 +332,6 @@ impl pallet_intent::Config for Test {
 pub const DEFAULT_NOW: pallet_intent::types::Moment = 1689844300000; // unix time in milliseconds
 thread_local! {
 	pub static NOW: RefCell<Moment> = RefCell::new(DEFAULT_NOW);
-}
-
-pub struct DummyTimestampProvider;
-
-impl Time for DummyTimestampProvider {
-	type Moment = u64;
-
-	fn now() -> Self::Moment {
-		NOW.with(|now| *now.borrow())
-	}
 }
 
 pub struct WeightToFee;
@@ -746,7 +745,18 @@ impl Config for Test {
 	type RetryOnError = ();
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+
 	type ICE = SubmitIntentFake;
+}
+
+pub struct DummyTimestampProvider;
+
+impl Time for DummyTimestampProvider {
+	type Moment = u64;
+
+	fn now() -> Self::Moment {
+		NOW.with(|now| *now.borrow())
+	}
 }
 
 pub struct SubmitIntentFake;
@@ -1095,6 +1105,53 @@ pub fn set_sell_amount_out(balance: Balance) {
 	CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| {
 		*v.borrow_mut() = balance;
 	});
+}
+
+pub fn resolve_intent() {
+	for intent in Intents::get_valid_intents() {
+		let intent = intent.1.clone();
+		match intent.swap.swap_type {
+			SwapType::ExactIn => {
+				SELL_EXECUTIONS.with(|v| {
+					let mut m = v.borrow_mut();
+					m.push(SellExecution {
+						asset_in: intent.swap.asset_in,
+						asset_out: intent.swap.asset_out,
+						amount_in: intent.swap.amount_in,
+						min_buy_amount: intent.swap.amount_out,
+					});
+				});
+			}
+			SwapType::ExactOut => {}
+		};
+	}
+}
+
+use codec::Decode;
+use sp_runtime::traits::Dispatchable;
+pub fn resolve_intent_with_failure() {
+	for intent in Intents::get_valid_intents() {
+		let intent = intent.1.clone();
+		match intent.swap.swap_type {
+			SwapType::ExactIn => {
+				/*let call: RuntimeCall = intent.on_failure.unwrap().to_vec().into();
+				let call = RuntimeCall::from(call);
+				Utility::batch(RuntimeOrigin::root(), vec![call]);*/
+
+				let call_data = intent.on_failure.unwrap().to_vec();
+				//let rc0 = <Test as frame_system::Config>::RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
+				let rc0 = RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
+				rc0.dispatch(RuntimeOrigin::root());
+
+				//let rc = RuntimeCall::decode(&mut &Vec::from(call_data)[..]).unwrap();
+				//Utility::batch(RuntimeOrigin::root(), vec![rc0.unwrap()]);
+				let s = 3;
+			}
+			SwapType::ExactOut => {
+				panic!()
+			}
+		};
+	}
 }
 
 pub fn use_prod_randomness() {

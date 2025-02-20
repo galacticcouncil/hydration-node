@@ -28,6 +28,9 @@ frame-system = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
 
+#substrate
+pallet-timestamp = { workspace = true }
+
 # HydraDX dependencies
 pallet-xyk = { workspace = true }
 pallet-omnipool = { workspace = true }
@@ -52,6 +55,7 @@ primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 pallet-route-executor = { workspace = true }
+pallet-utility = { workspace = true }
 smallvec = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }

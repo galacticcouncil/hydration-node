@@ -65,6 +65,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
+use codec::Encode;
 use frame_support::traits::DefensiveOption;
 use frame_support::{
 	ensure,
@@ -81,12 +82,14 @@ use frame_system::{
 use pallet_intent::types::Swap;
 use pallet_intent::types::SwapType;
 
+use frame_support::traits::Time;
 use hydradx_traits::ice::SubmitIntent;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use pallet_intent::types::Intent;
 use pallet_intent::types::Moment;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::CheckedMul;
 use sp_runtime::{
@@ -175,8 +178,25 @@ pub mod pallet {
 
 				let on_fail_callback = crate::Call::<T>::on_fail {
 					schedule_id: schedule_id,
+					current_blocknumber: current_blocknumber,
 				}
 				.encode();
+
+				/*let back = <T as frame_system::Config>::RuntimeCall::decode(&mut on_fail_callback.as_slice())
+				.expect("Cannot be done");*/
+
+				/*let on_fail_callback = <T as frame_system::Config>::RuntimeCall(crate::Call::<T>::on_fail {
+					schedule_id: schedule_id,
+					current_blocknumber: current_blocknumber,
+				});*/
+
+				/*let on_fail_callback: <T as frame_system::Config>::RuntimeCall = crate::Call::<T>::on_fail {
+					schedule_id,
+					current_blocknumber,
+				}
+				.into();*/
+
+				let on_fail_callback = on_fail_callback.encode();
 
 				match &schedule.order {
 					Order::Sell {
@@ -186,32 +206,48 @@ pub mod pallet {
 						min_amount_out,
 						..
 					} => {
+						let route = &schedule.order.get_route_or_default::<T::RouteProvider>();
+
+						let Ok(trade_amounts) = T::RouteExecutor::calculate_sell_trade_amounts(route, *amount_in)
+						else {
+							continue;
+						};
+
+						let Some(last_trade) = trade_amounts.last() else {
+							continue;
+						};
+
+						let amount_out = last_trade.amount_out;
+
 						let swap = Swap {
 							asset_in: (*asset_in).into(),
 							asset_out: (*asset_out).into(),
 							amount_in: *amount_in,
-							amount_out: *min_amount_out,
+							amount_out: amount_out,
 							swap_type: SwapType::ExactIn,
 						};
+						let deadline = T::TimestampProvider::now() + 10000000; //TODO: set deadline properly, already asked in channel
+
+						let fail_callback = on_fail_callback
+							.try_into()
+							.expect("was unable to convert to bounded vec"); //TODO: convert properly to bounded vec
 						let intent = Intent {
 							who: schedule.owner.clone(),
 							swap: swap,
-							deadline: Moment::default(),
+							deadline: deadline,
 							partial: false,
 							on_success: None,
-							on_failure: None,
+							on_failure: Some(fail_callback),
 						};
 
-						pallet_intent::Pallet::<T>::add_intent(intent);
-						/*T::ICE::submit_intent(
-							&schedule.owner,
-							AssetAmount::new(*asset_in, *amount_in),
-							AssetAmount::new(*asset_out, *min_amount_out),
-							0,
-							false,
-							None,
-							Some(BoundedVec::truncate_from(on_fail_callback)),
-						);*/
+						frame_support::storage::with_transaction::<_, DispatchError, _>(|| {
+							pallet_intent::Pallet::<T>::add_intent(intent);
+							sp_runtime::TransactionOutcome::Commit(Ok(()))
+						});
+
+						/*if let Err(e) = pallet_intent::Pallet::<T>::add_intent(intent) {
+							continue;
+						}*/
 					}
 					Order::Buy {
 						asset_in,
@@ -224,7 +260,7 @@ pub mod pallet {
 					}
 				};
 
-				match Self::execute_trade(schedule_id, &schedule) {
+				/*match Self::execute_trade(schedule_id, &schedule) {
 					Ok(amounts) => {
 						if let Err(err) = Self::replan_or_complete(
 							schedule_id,
@@ -254,7 +290,7 @@ pub mod pallet {
 							Self::terminate_schedule(schedule_id, &schedule, retry_error);
 						}
 					}
-				}
+				}*/
 			}
 
 			weight
@@ -527,7 +563,7 @@ pub mod pallet {
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule()
-			+ <T as Config>::AmmTradeWeights::calculate_buy_trade_amounts_weight(&schedule.order.get_route_or_default::<T::RouteProvider>()))]
++ <T as Config>::AmmTradeWeights::calculate_buy_trade_amounts_weight(&schedule.order.get_route_or_default::<T::RouteProvider>()))]
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,
@@ -701,22 +737,17 @@ pub mod pallet {
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::terminate())] //TODO: bench
 		#[transactional]
-		pub fn on_fail(origin: OriginFor<T>, schedule_id: ScheduleId) -> DispatchResult {
+		pub fn on_fail(
+			origin: OriginFor<T>,
+			schedule_id: ScheduleId,
+			current_blocknumber: BlockNumberFor<T>,
+		) -> DispatchResult {
 			let _who = ensure_signed(origin.clone())?;
-
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
+			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
 
-			let number_of_retries = Self::retries_on_error(schedule_id);
-
-			let max_retries = schedule.max_retries.unwrap_or_else(T::MaxNumberOfRetriesOnError::get);
-
-			//TODO: what will happen in case of intents when reached max? we gotta call terminate_schedule
-			ensure!(number_of_retries < max_retries, Error::<T>::MaxRetryReached);
-
-			RetriesOnError::<T>::mutate(schedule_id, |retry| -> DispatchResult {
-				retry.saturating_inc();
-				Ok(())
-			})?;
+			Self::retry_schedule(schedule_id, &schedule, current_blocknumber, &mut randomness_generator);
+			//TODO: if fails then terminate
 
 			Ok(())
 		}
