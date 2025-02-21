@@ -82,6 +82,7 @@ use sp_arithmetic::FixedU128;
 use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
+use sp_arithmetic::{Permill};
 
 #[cfg(test)]
 mod tests;
@@ -150,7 +151,7 @@ pub mod pallet {
 
 		/// Maximum allowed percentage difference for bifrost oracle price update
 		#[pallet::constant]
-		type MaxAllowedPriceDifference: Get<(u32, u32)>;
+		type MaxAllowedPriceDifference: Get<Permill>;
 
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]

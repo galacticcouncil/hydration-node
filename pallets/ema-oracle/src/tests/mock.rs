@@ -37,6 +37,7 @@ use sp_core::crypto::AccountId32;
 use sp_core::H256;
 use sp_runtime::traits::Convert;
 use std::sync::Arc;
+use sp_arithmetic::Permill;
 
 use crate::types::{AssetId, Balance, Price};
 pub type BlockNumber = u64;
@@ -125,7 +126,7 @@ impl frame_system::Config for Test {
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = bounded_vec![LastBlock, TenMinutes, Day, Week];
-	pub PriceDifference: (u32, u32) = (10, 100);
+	pub PriceDifference: Permill = Permill::from_percent(10);
 }
 
 pub struct OracleWhitelist;

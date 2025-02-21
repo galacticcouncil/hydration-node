@@ -572,7 +572,7 @@ parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 
-	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: (u32, u32) = (10, 100);
+	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: Permill = Permill::from_percent(10);
 }
 
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);

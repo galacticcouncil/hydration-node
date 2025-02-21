@@ -272,7 +272,7 @@ parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 
-	pub PriceDifference: (u32, u32) = (10, 100);
+	pub PriceDifference: Permill = Permill::from_percent(10);
 
 }
 
