@@ -146,7 +146,7 @@ pub mod pallet {
 		/// Whitelist determining what oracles are tracked by the pallet.
 		type OracleWhitelist: Contains<(Source, AssetId, AssetId)>;
 
-		/// Asset id converter based on xcm locations
+		/// Location to Asset Id converter
 		type CurrencyIdConvert: sp_runtime::traits::Convert<Location, Option<AssetId>>;
 
 		/// Maximum allowed percentage difference for bifrost oracle price update
