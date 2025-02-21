@@ -16,31 +16,7 @@ pub enum Reason {
 }
 
 pub(crate) struct Solution<AccountId> {
-	pub transfers_in: Vec<Instruction<AccountId>>,
-	pub transfers_out: Vec<Instruction<AccountId>>,
+	pub transfers_in: Vec<(AccountId, AssetId, Balance)>,
+	pub transfers_out: Vec<(AccountId, AssetId, Balance)>,
 	pub amounts: BTreeMap<AssetId, (Balance, Balance)>,
-}
-
-impl<AccountId> Default for Solution<AccountId> {
-	fn default() -> Self {
-		Self {
-			transfers_in: Vec::new(),
-			transfers_out: Vec::new(),
-			amounts: Default::default(),
-		}
-	}
-}
-
-#[derive(Debug)]
-pub enum Instruction<AccountId> {
-	TransferIn {
-		who: AccountId,
-		asset_id: AssetId,
-		amount: Balance,
-	},
-	TransferOut {
-		who: AccountId,
-		asset_id: AssetId,
-		amount: Balance,
-	},
 }

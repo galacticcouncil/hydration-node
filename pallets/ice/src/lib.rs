@@ -9,7 +9,6 @@ mod types;
 mod weights;
 
 use crate::api::{into_intent_repr, DataRepr, IntentRepr};
-use crate::types::Instruction;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
@@ -230,8 +229,8 @@ impl<T: Config> Pallet<T> {
 	/// 4. Construct list of transfers
 	fn prepare_solution(resolved_intents: &[ResolvedIntent]) -> Result<Solution<T::AccountId>, DispatchError> {
 		let mut amounts: BTreeMap<AssetId, (Balance, Balance)> = BTreeMap::new();
-		let mut transfers_in: Vec<Instruction<T::AccountId>> = Vec::new();
-		let mut transfers_out: Vec<Instruction<T::AccountId>> = Vec::new();
+		let mut transfers_in: Vec<(T::AccountId, AssetId, Balance)> = Vec::new();
+		let mut transfers_out: Vec<(T::AccountId, AssetId, Balance)> = Vec::new();
 
 		for resolved_intent in resolved_intents.iter() {
 			let intent = pallet_intent::Pallet::<T>::get_intent(resolved_intent.intent_id)
@@ -258,16 +257,8 @@ impl<T: Config> Pallet<T> {
 				.and_modify(|(_, v_out)| *v_out = v_out.saturating_add(resolved_amount_out))
 				.or_insert((0u128, resolved_amount_out));
 
-			transfers_in.push(Instruction::TransferIn {
-				who: intent.who.clone(),
-				asset_id: asset_in,
-				amount: resolved_amount_in,
-			});
-			transfers_out.push(Instruction::TransferOut {
-				who: intent.who.clone(),
-				asset_id: asset_out,
-				amount: resolved_amount_out,
-			});
+			transfers_in.push((intent.who.clone(), asset_in, resolved_amount_in));
+			transfers_out.push((intent.who.clone(), asset_out, resolved_amount_out));
 
 			// Ensure the amounts does not exceed the intent amounts
 			match intent.swap.swap_type {
@@ -352,15 +343,8 @@ impl<T: Config> Pallet<T> {
 	fn execute_solution(solution: Solution<T::AccountId>) -> DispatchResult {
 		let holding_account = crate::Pallet::<T>::holding_account();
 
-		for instruction in solution.transfers_in.iter() {
-			match instruction {
-				Instruction::TransferIn { who, asset_id, amount } => {
-					T::Currency::transfer(*asset_id, &who, &holding_account, *amount, Preservation::Expendable)?;
-				}
-				_ => {
-					defensive!("Unexpected instruction: {:?}", instruction);
-				}
-			}
+		for (who, asset_id, amount_in) in solution.transfers_in.iter() {
+			T::Currency::transfer(*asset_id, who, &holding_account, *amount_in, Preservation::Expendable)?;
 		}
 
 		// now do the trades
@@ -371,15 +355,8 @@ impl<T: Config> Pallet<T> {
 			.collect();
 		T::Trader::trade(holding_account.clone(), trade_amounts)?;
 
-		for instruction in solution.transfers_out.iter() {
-			match instruction {
-				Instruction::TransferOut { who, asset_id, amount } => {
-					T::Currency::transfer(*asset_id, &holding_account, &who, *amount, Preservation::Expendable)?;
-				}
-				_ => {
-					defensive!("Unexpected instruction: {:?}", instruction);
-				}
-			}
+		for (who, asset_id, amount_out) in solution.transfers_out.iter() {
+			T::Currency::transfer(*asset_id, &holding_account, who, *amount_out, Preservation::Expendable)?;
 		}
 
 		Ok(())
