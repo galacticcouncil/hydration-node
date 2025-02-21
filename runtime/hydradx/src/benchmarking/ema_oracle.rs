@@ -20,12 +20,12 @@
 use super::*;
 use crate::bifrost_account;
 use codec::Decode;
-use pallet_ema_oracle::OnActivityHandler;
-use sp_std::sync::Arc;
 use hydradx_traits::oracle::OraclePeriod;
 use hydradx_traits::AggregatedEntry;
 use pallet_ema_oracle::ordered_pair;
+use pallet_ema_oracle::OnActivityHandler;
 use scale_info::prelude::string::ToString;
+use sp_std::sync::Arc;
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
 use frame_benchmarking::benchmarks;

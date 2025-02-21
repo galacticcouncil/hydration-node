@@ -347,9 +347,9 @@ pub mod pallet {
 			if let Some(reference_entry) = Self::oracle((BIFROST_SOURCE, ordered_pair, OraclePeriod::TenMinutes)) {
 				if !Self::is_within_range(reference_entry.0.price.into(), price) {
 					log::error!(
-							target: LOG_TARGET,
-							"Updating biforst oracle failed as the price is outside the allowed range"
-						);
+						target: LOG_TARGET,
+						"Updating biforst oracle failed as the price is outside the allowed range"
+					);
 					return Err(Error::<T>::PriceOutsideAllowedRange.into());
 				}
 			}
