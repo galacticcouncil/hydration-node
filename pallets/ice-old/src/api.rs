@@ -16,10 +16,11 @@ pub type SolverPtr = Arc<dyn SolutionProvider + Send + 'static>;
 
 #[cfg(feature = "std")]
 sp_externalities::decl_extension! {
-	/// The solver extension to retrieve solution from the externalities.
+	/// The keystore extension to register/retrieve from the externalities.
 	pub struct SolverExt(SolverPtr);
 }
 
+use crate::traits::AssetInfo;
 #[cfg(feature = "std")]
 use sp_externalities::{Externalities, ExternalitiesExt};
 use sp_runtime_interface::{runtime_interface, RIType};
@@ -35,31 +36,29 @@ pub trait ICE {
 
 // Unfortunately, we need simple representations of the types to be able to use across the FFI
 // dev: perhaps, it could be possible to implement IntoFFIValue to simplify.
-
-// AMM asset state representation
-// 1. AMM identifier - 0 for Omnipool, 1 for StableSwap )
-// 2. Asset identifier
-// 3. Reserve amount
-// 4. Hub reserve amount
-// 5. Decimals
-// 6. Fee
-// 7. Hub fee
 pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32));
-
-// Intent representation
-// 1. Intent identifier
-// 2. Asset in identifier
-// 3. Asset out identifier
-// 4. Amount in
-// 5. Amount out
 pub type IntentRepr = (IntentId, AssetId, AssetId, Balance, Balance);
 
-pub(crate) fn into_intent_repr<AccountId>(data: (IntentId, Intent<AccountId>)) -> IntentRepr {
-	(
-		data.0,
-		data.1.swap.asset_in,
-		data.1.swap.asset_out,
-		data.1.swap.amount_in,
-		data.1.swap.amount_out,
-	)
+impl From<AssetInfo<AssetId>> for DataRepr {
+	fn from(value: AssetInfo<AssetId>) -> Self {
+		todo!()
+	}
+}
+
+impl From<DataRepr> for AssetInfo<AssetId> {
+	fn from(value: DataRepr) -> Self {
+		todo!()
+	}
+}
+
+impl<AccountId> From<Intent<AccountId>> for IntentRepr {
+	fn from(value: Intent<AccountId>) -> Self {
+		(
+			0,
+			value.swap.asset_in,
+			value.swap.asset_out,
+			value.swap.amount_in,
+			value.swap.amount_out,
+		)
+	}
 }

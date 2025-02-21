@@ -8,7 +8,7 @@ pub mod traits;
 pub mod types;
 pub mod v3;
 
-const LOG_TARGET: &str = "ice-solver";
+const LOG_TARGET: &str = "ice-old-solver";
 
 /*
 pub struct HydrationSolver<T, RA, B, BE, TP, SC>(PhantomData<(T, RA, B, BE, TP, SC)>);
@@ -21,7 +21,7 @@ where
 	//BE: Backend<Block> + 'static,
 	RA: BlockchainEvents<Block> + 'static,
 	TP: MaintainedTransactionPool<Block = Block, Hash = <Block as BlockT>::Hash> + 'static,
-	SC: hydradx_traits::ice::SolverSolution<u32>,
+	SC: hydradx_traits::ice-old::SolverSolution<u32>,
 	T: pallet_ice::Config
 		+ frame_system::Config<RuntimeCall = hydradx_runtime::RuntimeCall>
 		+ pallet_omnipool::Config<AssetId = AssetId>
@@ -50,7 +50,7 @@ where
 				if let Ok(intents) = runtime.intents(notification.hash, &notification.header) {
 					// Compute solution using solver
 					let Ok((resolved_intents, metadata)) =
-						omni::OmniSolver::<AccountId, AssetId, hydradx_adapters::ice::OmnipoolDataProvider<T>>::solve(
+						omni::OmniSolver::<AccountId, AssetId, hydradx_adapters::ice-old::OmnipoolDataProvider<T>>::solve(
 							intents,
 						)
 					else {

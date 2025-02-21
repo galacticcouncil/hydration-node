@@ -1,53 +1,48 @@
-mod intents;
-mod solution;
-mod submission;
+mod submit;
+mod submit_errors;
 
 use crate as pallet_ice;
-use frame_support::dispatch::DispatchResultWithPostInfo;
+use crate::traits::Trader;
+use crate::types::*;
+use crate::Call;
 use frame_support::pallet_prelude::ConstU32;
-use frame_support::traits::{ConstU128, ConstU64, Everything, Time};
-use frame_support::{construct_runtime, parameter_types, PalletId};
-use frame_system::ensure_signed;
+use frame_support::traits::{ConstU64, Everything, Time};
+use frame_support::{construct_runtime, dispatch::DispatchResult, parameter_types, PalletId};
+use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendTransactionTypes, SigningTypes};
 use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::ice::{CallData, CallExecutor};
 use hydradx_traits::price::PriceProvider;
-use hydradx_traits::router::{AmountInAndOut, AssetPair, PoolType, RouterT, Trade};
 use orml_traits::{parameter_type_with_key, MultiCurrency};
-use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
-use pallet_ice::traits::*;
+use pallet_intent::types::{IntentId, Moment};
 use sp_core::H256;
-use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
-use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Rounding};
+use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, Extrinsic, IdentityLookup};
+use sp_runtime::{BuildStorage, DispatchError};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
 type Block = frame_system::mocking::MockBlock<Test>;
-pub(crate) type AssetId = u32;
 pub(crate) type AccountId = u64;
-type NamedReserveIdentifier = [u8; 8];
-
-use crate::types::{Balance, BoundedResolvedIntents, Intent, IntentId, Moment, ResolvedIntent};
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
-pub const RECEIVER: AccountId = 3;
+pub const EXECUTOR: AccountId = 3;
 
 pub(crate) const LRNA: AssetId = 1;
 
 pub const DEFAULT_NOW: Moment = 1689844300000; // unix time in milliseconds
+
 thread_local! {
 	pub static NOW: RefCell<Moment> = RefCell::new(DEFAULT_NOW);
 	pub static PRICES: RefCell<HashMap<(AssetId, AssetId), (Balance, Balance)>> = RefCell::new(HashMap::new());
+	pub static EXECUTED_CALLBACKS: RefCell<HashMap<IntentId, (AccountId, CallData)>> = RefCell::new(HashMap::new());
 }
 
 construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		Balances: pallet_balances,
-		Currencies: pallet_currencies,
 		Tokens: orml_tokens,
+		Intents: pallet_intent,
 		ICE: pallet_ice,
 	}
 );
@@ -70,7 +65,7 @@ impl frame_system::Config for Test {
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<Balance>;
+	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -82,22 +77,6 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
-}
-
-impl pallet_balances::Config for Test {
-	type Balance = Balance;
-	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
-	type ExistentialDeposit = ConstU128<1>;
-	type AccountStore = System;
-	type WeightInfo = ();
-	type MaxLocks = ();
-	type MaxReserves = ConstU32<50>;
-	type ReserveIdentifier = [u8; 8];
-	type FreezeIdentifier = ();
-	type MaxFreezes = ();
-	type RuntimeHoldReason = ();
-	type RuntimeFreezeReason = ();
 }
 
 parameter_type_with_key! {
@@ -119,50 +98,91 @@ impl orml_tokens::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type DustRemovalWhitelist = ();
-	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = NamedReserveIdentifier;
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 	type CurrencyHooks = ();
 }
 
-impl pallet_currencies::Config for Test {
+impl pallet_intent::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type MultiCurrency = Tokens;
-	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, i128, u32>;
-	type GetNativeCurrencyId = NativeCurrencyId;
+	type TimestampProvider = MockTimestampProvider;
+	type OnResultExecutor = MockCallExecutor;
+	type HubAssetId = HubAssetId;
+	type MaxAllowedIntentDuration = MaxAllowedIntentDuration;
+	type MaxCallData = MaxCallData;
 	type WeightInfo = ();
-	type Erc20Currency = MockErc20Currency<Test>;
-	type BoundErc20 = MockBoundErc20<Test>;
 }
 
 parameter_types! {
 	pub const MaxReserves: u32 = 50;
-	pub const NativeAssetId: AssetId = 0;
 	pub const HubAssetId: AssetId = LRNA;
 	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const ICEPalletId: PalletId = PalletId(*b"testicer");
-	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
+	pub const MaxAllowedIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
 	pub const ProposalBond: Balance = 1_000_000_000_000;
-	pub const SlashReceiver: AccountId = RECEIVER;
-	pub NamedReserveId: NamedReserveIdentifier = *b"iceinten";
 }
 
-pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+use sp_core::{
+	offchain::{testing, OffchainWorkerExt, TransactionPoolExt},
+	sr25519::Signature,
+};
+use sp_runtime::testing::{TestSignature, TestXt, UintAuthorityId};
+use sp_runtime::traits::Verify;
+
+type LocalExtrinsic = TestXt<RuntimeCall, ()>;
+
+impl SigningTypes for Test {
+	type Public = UintAuthorityId;
+	type Signature = TestSignature;
+}
+
+impl<LocalCall> SendTransactionTypes<LocalCall> for Test
 where
-	RuntimeCall: From<C>,
+	RuntimeCall: From<LocalCall>,
 {
-	type Extrinsic = Extrinsic;
+	type Extrinsic = LocalExtrinsic;
 	type OverarchingCall = RuntimeCall;
 }
 
-pub struct DummyTimestampProvider;
+impl<LocalCall> CreateSignedTransaction<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_transaction<C: AppCrypto<Self::Public, Self::Signature>>(
+		call: Self::OverarchingCall,
+		public: Self::Public,
+		account: Self::AccountId,
+		nonce: Self::Nonce,
+	) -> Option<(Self::OverarchingCall, <Self::Extrinsic as Extrinsic>::SignaturePayload)> {
+		todo!()
+	}
+}
 
-impl Time for DummyTimestampProvider {
+pub struct DummyAppCrypto;
+impl AppCrypto<UintAuthorityId, TestSignature> for DummyAppCrypto {
+	type RuntimeAppPublic = UintAuthorityId;
+	type GenericPublic = UintAuthorityId;
+	type GenericSignature = TestSignature;
+}
+
+impl pallet_ice::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type AuthorityId = DummyAppCrypto;
+	type PalletId = ICEPalletId;
+	type BlockNumberProvider = MockBlockNumberProvider;
+	type Currency = Tokens;
+	type PriceProvider = MockPriceProvider;
+	type Trader = TestTrader;
+	type WeightInfo = ();
+}
+
+pub struct MockTimestampProvider;
+
+impl Time for MockTimestampProvider {
 	type Moment = u64;
 
 	fn now() -> Self::Moment {
-		//TODO: perhaps use some static value which is possible to set as part of test
 		NOW.with(|now| *now.borrow())
 	}
 }
@@ -177,140 +197,6 @@ impl BlockNumberProvider for MockBlockNumberProvider {
 	}
 }
 
-impl pallet_ice::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type NativeAssetId = NativeAssetId;
-	type HubAssetId = HubAssetId;
-	type TimestampProvider = DummyTimestampProvider;
-	type MaxAllowedIntentDuration = MaxAllowdIntentDuration;
-	type BlockNumberProvider = MockBlockNumberProvider;
-	type Currency = FungibleCurrencies<Test>;
-	type ReservableCurrency = Currencies;
-	type TradeExecutor = DummyTradeExecutor;
-	type Weigher = ();
-	type PriceProvider = MockPriceProvider;
-	type PalletId = ICEPalletId;
-	type MaxCallData = MaxCallData;
-	type ProposalBond = ProposalBond;
-	type SlashReceiver = SlashReceiver;
-	type NamedReserveId = NamedReserveId;
-	type WeightInfo = ();
-	type RoutingSupport = RoutingSupport;
-	type AmmStateProvider = AmmState;
-	type AuthorityId = sp_runtime::testing::UintAuthorityId;
-	type MaxKeys = ConstU32<10_000>;
-}
-
-pub struct AmmState;
-
-impl crate::traits::AmmState<AssetId> for AmmState {
-	fn state<F: Fn(&AssetId) -> bool>(_filter: F) -> Vec<AssetInfo<AssetId>> {
-		todo!()
-	}
-}
-
-pub struct RoutingSupport;
-
-impl Routing<AssetId> for RoutingSupport {
-	fn get_route(asset_a: AssetId, asset_b: AssetId) -> Vec<Trade<AssetId>> {
-		vec![Trade {
-			pool: PoolType::Omnipool,
-			asset_in: asset_a,
-			asset_out: asset_b,
-		}]
-	}
-
-	fn calculate_amount_out(route: &[Trade<AssetId>], amount_in: Balance) -> Result<Balance, ()> {
-		let price = PRICES.with(|p| {
-			let p = p.borrow();
-			let (a, b) = (route[0].asset_in, route[0].asset_out);
-			p.get(&(a, b)).unwrap().clone()
-		});
-		multiply_by_rational_with_rounding(amount_in, price.1, price.0, Rounding::Up).ok_or(())
-	}
-
-	fn calculate_amount_in(route: &[Trade<AssetId>], amount_out: Balance) -> Result<Balance, ()> {
-		let price = PRICES.with(|p| {
-			let p = p.borrow();
-			let (a, b) = (route[0].asset_in, route[0].asset_out);
-			p.get(&(a, b)).unwrap().clone()
-		});
-		multiply_by_rational_with_rounding(amount_out, price.0, price.1, Rounding::Up).ok_or(())
-	}
-}
-
-pub struct DummyTradeExecutor;
-
-impl RouterT<RuntimeOrigin, AssetId, Balance, Trade<AssetId>, AmountInAndOut<Balance>> for DummyTradeExecutor {
-	fn sell(
-		origin: RuntimeOrigin,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		min_amount_out: Balance,
-		_route: Vec<Trade<AssetId>>,
-	) -> DispatchResult {
-		let who = ensure_signed(origin)?;
-		Currencies::withdraw(asset_in, &who, amount_in)?;
-		Currencies::deposit(asset_out, &who, min_amount_out)?;
-		Ok(())
-	}
-
-	fn sell_all(
-		_origin: RuntimeOrigin,
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		_min_amount_out: Balance,
-		_route: Vec<Trade<AssetId>>,
-	) -> DispatchResult {
-		unimplemented!()
-	}
-
-	fn buy(
-		origin: RuntimeOrigin,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-		max_amount_in: Balance,
-		_route: Vec<Trade<AssetId>>,
-	) -> DispatchResult {
-		let who = ensure_signed(origin)?;
-		Currencies::withdraw(asset_in, &who, max_amount_in)?;
-		Currencies::deposit(asset_out, &who, amount_out)?;
-		Ok(())
-	}
-
-	fn calculate_sell_trade_amounts(
-		_route: &[Trade<AssetId>],
-		_amount_in: Balance,
-	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError> {
-		unimplemented!()
-	}
-
-	fn calculate_buy_trade_amounts(
-		_route: &[Trade<AssetId>],
-		_amount_out: Balance,
-	) -> Result<Vec<AmountInAndOut<Balance>>, DispatchError> {
-		unimplemented!()
-	}
-
-	fn set_route(
-		_origin: RuntimeOrigin,
-		_asset_pair: AssetPair<AssetId>,
-		_route: Vec<Trade<AssetId>>,
-	) -> DispatchResultWithPostInfo {
-		unimplemented!()
-	}
-
-	fn force_insert_route(
-		_origin: RuntimeOrigin,
-		_asset_pair: AssetPair<AssetId>,
-		_route: Vec<Trade<AssetId>>,
-	) -> DispatchResultWithPostInfo {
-		unimplemented!()
-	}
-}
-
 pub struct MockPriceProvider;
 
 impl PriceProvider<AssetId> for MockPriceProvider {
@@ -321,10 +207,38 @@ impl PriceProvider<AssetId> for MockPriceProvider {
 	}
 }
 
+pub struct MockCallExecutor;
+impl CallExecutor<AccountId> for MockCallExecutor {
+	fn execute(who: AccountId, ident: u128, call: CallData) -> DispatchResult {
+		EXECUTED_CALLBACKS.with(|executed_callbacks| {
+			executed_callbacks.borrow_mut().insert(ident, (who, call));
+		});
+
+		Ok(())
+	}
+}
+
+pub struct TestTrader;
+
+impl Trader<AccountId> for TestTrader {
+	type Outcome = ();
+
+	fn trade(account: AccountId, assets: Vec<(AssetId, (Balance, Balance))>) -> Result<Self::Outcome, DispatchError> {
+		for (asset, (amount_in, amount_out)) in assets {
+			let balance = Tokens::free_balance(asset, &account);
+			if balance < amount_in {
+				return Err(DispatchError::from("Insufficient balance"));
+			}
+			Tokens::withdraw(asset, &account, amount_in)?;
+			Tokens::deposit(asset, &account, amount_out)?;
+		}
+		Ok(())
+	}
+}
+
 #[derive(Default)]
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
-	native_amounts: Vec<(u64, Balance)>,
 }
 
 impl ExtBuilder {
@@ -333,10 +247,6 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_native_amount(mut self, account: u64, amount: Balance) -> Self {
-		self.native_amounts.push((account, amount));
-		self
-	}
 	pub fn with_prices(self, prices: Vec<((AssetId, AssetId), (Balance, Balance))>) -> Self {
 		PRICES.with(|p| {
 			let mut pm = p.borrow_mut();
@@ -354,11 +264,6 @@ impl ExtBuilder {
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
-		pallet_balances::GenesisConfig::<Test> {
-			balances: self.native_amounts,
-		}
-		.assimilate_storage(&mut t)
-		.unwrap();
 
 		let mut r: sp_io::TestExternalities = t.into();
 
@@ -370,30 +275,25 @@ impl ExtBuilder {
 	}
 }
 
-pub(crate) fn get_next_intent_id(moment: Moment) -> IntentId {
-	let increment = crate::Pallet::<Test>::next_incremental_id();
-	crate::Pallet::<Test>::get_intent_id(moment, increment)
+pub(crate) fn get_price(asset_a: AssetId, asset_b: AssetId) -> (Balance, Balance) {
+	PRICES.with(|p| {
+		let pm = p.borrow();
+		*pm.get(&(asset_a, asset_b)).unwrap()
+	})
 }
 
-pub(crate) fn get_intent_id(moment: Moment, increment: u64) -> IntentId {
-	crate::Pallet::<Test>::get_intent_id(moment, increment)
+pub(crate) fn callback_executed(ident: IntentId, data: (AccountId, CallData)) -> bool {
+	EXECUTED_CALLBACKS.with(|executed_callbacks| {
+		if let Some((who, call)) = executed_callbacks.borrow().get(&ident) {
+			who == &data.0 && call == &data.1
+		} else {
+			false
+		}
+	})
 }
 
-pub(crate) fn mock_solution(intents: Vec<(IntentId, Intent<AccountId>)>) -> (BoundedResolvedIntents, u64) {
-	let resolved_intents = intents
-		.into_iter()
-		.map(|(intent_id, v)| ResolvedIntent {
-			intent_id,
-			amount_in: v.swap.amount_in,
-			amount_out: v.swap.amount_out,
-		})
-		.collect();
-
-	//TODO: calculate score
-
-	(BoundedResolvedIntents::truncate_from(resolved_intents), 1_000_000)
-}
-
-pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
-	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+pub(crate) fn move_time(by: Moment) {
+	NOW.with(|now| {
+		*now.borrow_mut() += by;
+	});
 }
