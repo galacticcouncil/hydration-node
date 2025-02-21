@@ -273,14 +273,7 @@ pub mod pallet {
 		pub fn add_oracle(origin: OriginFor<T>, source: Source, assets: (AssetId, AssetId)) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
-			let assets = ordered_pair(assets.0, assets.1);
-
-			WhitelistedAssets::<T>::mutate(|list| {
-				list.try_insert((source, (assets)))
-					.map_err(|_| Error::<T>::TooManyUniqueEntries)
-			})?;
-
-			Self::deposit_event(Event::AddedToWhitelist { source, assets });
+			Self::do_add_oracle(source, assets)?;
 
 			Ok(())
 		}
@@ -344,15 +337,20 @@ pub mod pallet {
 				}
 			};
 
-			if let Some(reference_entry) = Self::oracle((BIFROST_SOURCE, ordered_pair, OraclePeriod::TenMinutes)) {
-				if !Self::is_within_range(reference_entry.0.price.into(), price) {
-					log::error!(
-						target: LOG_TARGET,
-						"Updating biforst oracle failed as the price is outside the allowed range"
-					);
-					return Err(Error::<T>::PriceOutsideAllowedRange.into());
+			match Self::oracle((BIFROST_SOURCE, ordered_pair, OraclePeriod::TenMinutes)) {
+				Some(reference_entry) => {
+					if !Self::is_within_range(reference_entry.0.price.into(), price) {
+						log::error!(
+							target: LOG_TARGET,
+							"Updating biforst oracle failed as the price is outside the allowed range"
+						);
+						return Err(Error::<T>::PriceOutsideAllowedRange.into());
+					}
 				}
-			};
+				None => {
+					Self::do_add_oracle(BIFROST_SOURCE, (asset_a, asset_b))?;
+				}
+			}
 
 			Self::on_entry(BIFROST_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
 
@@ -362,6 +360,19 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	fn do_add_oracle(source: Source, assets: (AssetId, AssetId)) -> DispatchResult {
+		let assets = ordered_pair(assets.0, assets.1);
+
+		WhitelistedAssets::<T>::mutate(|list| {
+			list.try_insert((source, (assets)))
+				.map_err(|_| Error::<T>::TooManyUniqueEntries)
+		})?;
+
+		Self::deposit_event(Event::AddedToWhitelist { source, assets });
+
+		Ok(())
+	}
+
 	/// Insert or update data in the accumulator from received entry. Aggregates volume and
 	/// takes the most recent data for the rest.
 	pub(crate) fn on_entry(

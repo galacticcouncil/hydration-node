@@ -358,3 +358,80 @@ fn bifrost_oracle_should_be_udpdated() {
 		});
 	});
 }
+
+#[test]
+fn bifrost_oracle_should_be_added_and_updated_when_not_exist() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			// arrange
+			hydradx_run_to_next_block();
+
+			let asset_a_id = 50;
+			let asset_b_id = 51;
+
+			let asset_a_loc = polkadot_xcm::v4::Location::new(
+				1,
+				polkadot_xcm::v4::Junctions::X2(Arc::new([
+					polkadot_xcm::v4::Junction::Parachain(1500),
+					polkadot_xcm::v4::Junction::GeneralIndex(0),
+				])),
+			);
+			let asset_b_loc = polkadot_xcm::v4::Location::new(
+				1,
+				polkadot_xcm::v4::Junctions::X2(Arc::new([
+					polkadot_xcm::v4::Junction::Parachain(2000),
+					polkadot_xcm::v4::Junction::GeneralIndex(0),
+				])),
+			);
+
+			assert_ok!(AssetRegistry::register_insufficient_asset(
+				Some(asset_a_id),
+				Some(b"ASS1".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				Some(1_000_000),
+				None,
+				None,
+				Some(AssetLocation::try_from(asset_a_loc.clone()).unwrap()),
+				None,
+			));
+
+			assert_ok!(AssetRegistry::register_insufficient_asset(
+				Some(asset_b_id),
+				Some(b"ASS2".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				Some(1_000_000),
+				None,
+				None,
+				Some(AssetLocation::try_from(asset_b_loc.clone()).unwrap()),
+				None,
+			));
+
+			// act
+			let asset_a = Box::new(asset_a_loc.into_versioned());
+			let asset_b = Box::new(asset_b_loc.into_versioned());
+			assert_ok!(EmaOracle::update_bifrost_oracle(
+				RuntimeOrigin::signed(bifrost_account()),
+				asset_a,
+				asset_b,
+				(50, 100)
+			));
+			// will store the data received in the sell as oracle values
+			hydradx_run_to_next_block();
+
+			// assert
+			for supported_period in SUPPORTED_PERIODS {
+				assert!(EmaOracle::get_price(asset_a_id, asset_b_id, *supported_period, BIFROST_SOURCE).is_ok(),);
+			}
+			for unsupported_period in UNSUPPORTED_PERIODS {
+				assert_eq!(
+					EmaOracle::get_price(asset_a_id, asset_b_id, *unsupported_period, BIFROST_SOURCE),
+					Err(OracleError::NotPresent)
+				);
+			}
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
