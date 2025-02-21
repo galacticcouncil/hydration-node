@@ -22,7 +22,6 @@ use crate::bifrost_account;
 use codec::Decode;
 use pallet_ema_oracle::OnActivityHandler;
 use sp_std::sync::Arc;
-pub const ALICE: u64 = 1;
 use hydradx_traits::oracle::OraclePeriod;
 use hydradx_traits::AggregatedEntry;
 use pallet_ema_oracle::ordered_pair;
@@ -50,7 +49,7 @@ use sp_core::{ConstU32, Get};
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";
 
-fn fill_whitelist_storage<T: pallet_ema_oracle::Config>(n: u32) {
+fn fill_whitelist_storage(n: u32) {
 	for i in 0..n {
 		assert_ok!(EmaOracle::add_oracle(RawOrigin::Root.into(), SOURCE, (HDX, i)));
 	}
@@ -60,7 +59,7 @@ runtime_benchmarks! {
 
 	add_oracle {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries - 1);
+		fill_whitelist_storage(max_entries - 1);
 
 		assert_eq!(pallet_ema_oracle::Pallet::<Runtime>::whitelisted_assets().len(), (max_entries - 1) as usize);
 
@@ -71,7 +70,7 @@ runtime_benchmarks! {
 
 	remove_oracle {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries - 1);
+		fill_whitelist_storage(max_entries - 1);
 
 		assert_ok!(EmaOracle::add_oracle(RawOrigin::Root.into(), SOURCE, (HDX, DOT)));
 
@@ -85,16 +84,16 @@ runtime_benchmarks! {
 
 	on_finalize_no_entry {
 		let block_num: u32 = 5;
-	}: { <pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(block_num.into()); }
+	}: { <pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(block_num); }
 	verify {
 	}
 
 	#[extra]
 	on_finalize_insert_one_token {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries);
+		fill_whitelist_storage(max_entries);
 
-		let block_num: BlockNumberFor<Runtime> = 5u32.into();
+		let block_num: BlockNumberFor<Runtime> = 5u32;
 		let prev_block = block_num.saturating_sub(One::one());
 
 		frame_system::Pallet::<Runtime>::set_block_number(prev_block);
@@ -131,11 +130,11 @@ runtime_benchmarks! {
 	#[extra]
 	on_finalize_update_one_token {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries);
+		fill_whitelist_storage(max_entries);
 
-		let initial_data_block: BlockNumberFor<Runtime> = 5u32.into();
+		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
 		// higher update time difference might make exponentiation more expensive
-		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
+		let block_num = initial_data_block.saturating_add(1_000_000u32);
 
 		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
@@ -175,10 +174,10 @@ runtime_benchmarks! {
 		let b in 1 .. (<<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get() - 1);
 
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries);
+		fill_whitelist_storage(max_entries);
 
-		let initial_data_block: BlockNumberFor<Runtime> = 5u32.into();
-		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
+		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
+		let block_num = initial_data_block.saturating_add(1_000_000u32);
 
 		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
@@ -225,10 +224,10 @@ runtime_benchmarks! {
 		let b in 1 .. (<<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get() - 1);
 
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries);
+		fill_whitelist_storage(max_entries);
 
-		let initial_data_block: BlockNumberFor<Runtime> = 5u32.into();
-		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
+		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
+		let block_num = initial_data_block.saturating_add(1_000_000u32);
 
 		let mut entries = Vec::new();
 
@@ -289,10 +288,10 @@ runtime_benchmarks! {
 	on_liquidity_changed_multiple_tokens {
 		let b in 1 .. (<<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get() - 1);
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries);
+		fill_whitelist_storage(max_entries);
 
-		let initial_data_block: BlockNumberFor<Runtime> = 5u32.into();
-		let block_num = initial_data_block.saturating_add(1_000_000u32.into());
+		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
+		let block_num = initial_data_block.saturating_add(1_000_000u32);
 
 		let mut entries = Vec::new();
 
@@ -358,10 +357,10 @@ runtime_benchmarks! {
 
 	get_entry {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries);
+		fill_whitelist_storage(max_entries);
 
-		let initial_data_block: BlockNumberFor<Runtime> = 5u32.into();
-		let oracle_age: BlockNumberFor<Runtime> = 999_999u32.into();
+		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
+		let oracle_age: BlockNumberFor<Runtime> = 999_999u32;
 		let block_num = initial_data_block.saturating_add(oracle_age.saturating_add(One::one()));
 
 		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);
@@ -403,11 +402,11 @@ runtime_benchmarks! {
 
 	update_bifrost_oracle {
 		let max_entries = <<Runtime as pallet_ema_oracle::Config>::MaxUniqueEntries as Get<u32>>::get();
-		fill_whitelist_storage::<Runtime>(max_entries -  1);
+		fill_whitelist_storage(max_entries -  1);
 		EmaOracle::add_oracle(RawOrigin::Root.into(), pallet_ema_oracle::BIFROST_SOURCE, (0, 3)).expect("error when adding oracle");
 
-		let initial_data_block: BlockNumberFor<Runtime> = 5u32.into();
-		let oracle_age: BlockNumberFor<Runtime> = 7u32.into();
+		let initial_data_block: BlockNumberFor<Runtime> = 5u32;
+		let oracle_age: BlockNumberFor<Runtime> = 7u32;
 		let block_num = initial_data_block.saturating_add(oracle_age.saturating_add(One::one()));
 
 		frame_system::Pallet::<Runtime>::set_block_number(initial_data_block);

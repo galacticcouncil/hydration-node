@@ -594,7 +594,7 @@ pub fn bifrost_account() -> AccountId {
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
-		return vec![bifrost_account()];
+		vec![bifrost_account()]
 	}
 }
 
