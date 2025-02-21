@@ -360,7 +360,7 @@ fn bifrost_oracle_should_be_udpdated() {
 }
 
 #[test]
-fn bifrost_oracle_should_be_added_and_updated_when_not_exist() {
+fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
