@@ -156,7 +156,7 @@ fn diags(n: usize, m: usize, data: Vec<f64>) -> CscMatrix {
 }
 
 pub struct SolverResult {
-	pub(crate) resolved_intents: Vec<ResolvedIntent>,
+	pub resolved_intents: Vec<ResolvedIntent>,
 }
 
 pub struct SolverV3;

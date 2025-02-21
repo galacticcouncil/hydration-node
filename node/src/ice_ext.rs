@@ -27,7 +27,6 @@ impl pallet_ice::api::SolutionProvider for IceSolver {
 		intents: Vec<pallet_ice::api::IntentRepr>,
 		data: Vec<pallet_ice::api::DataRepr>,
 	) -> Vec<pallet_ice::types::ResolvedIntent> {
-		println!("data {:?}", data.len());
 		// convert to the format that the solver expects
 		let data: Vec<hydration_solver::types::Asset> = data
 			.into_iter()
@@ -55,11 +54,36 @@ impl pallet_ice::api::SolutionProvider for IceSolver {
 			})
 			.collect();
 
-		let s = hydration_solver::v3::SolverV3::solve(vec![], data);
-		vec![pallet_ice::types::ResolvedIntent {
-			intent_id: 0,
-			amount_in: 123,
-			amount_out: 123,
-		}]
+		// map to solver intents
+		let intents: Vec<hydration_solver::types::Intent> = intents
+			.into_iter()
+			.map(|v| {
+				let (intent_id, asset_in, asset_out, amount_in, amount_out) = v;
+				hydration_solver::types::Intent {
+					intent_id,
+					asset_in,
+					asset_out,
+					amount_in,
+					amount_out,
+					partial: false,
+				}
+			})
+			.collect();
+
+		let s = hydration_solver::v3::SolverV3::solve(intents, data);
+
+		if let Ok(solution) = s {
+			solution
+				.resolved_intents
+				.iter()
+				.map(|v| pallet_ice::types::ResolvedIntent {
+					intent_id: v.intent_id,
+					amount_in: v.amount_in,
+					amount_out: v.amount_out,
+				})
+				.collect()
+		} else {
+			vec![]
+		}
 	}
 }
