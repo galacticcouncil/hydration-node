@@ -93,7 +93,6 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 	pub const NativeAssetId: AssetId = 0;
 	pub const HubAssetId: AssetId = LRNA;
-	pub const MaxCallData: u32 = 4 * 1024 * 1024;
 	pub const MaxAllowdIntentDuration: Moment = 86_400_000; //1day
 	pub const NativeCurrencyId: AssetId = 0;
 }
@@ -113,7 +112,6 @@ impl pallet_intent::Config for Test {
 	type TimestampProvider = DummyTimestampProvider;
 	type HubAssetId = HubAssetId;
 	type MaxAllowedIntentDuration = MaxAllowdIntentDuration;
-	type MaxCallData = MaxCallData;
 	type WeightInfo = ();
 }
 

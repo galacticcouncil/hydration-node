@@ -44,9 +44,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxAllowedIntentDuration: Get<Moment>;
 
-		#[pallet::constant]
-		type MaxCallData: Get<u32>;
-
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}

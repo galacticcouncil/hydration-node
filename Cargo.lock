@@ -4913,6 +4913,7 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-ice",
  "pallet-identity",
+ "pallet-intent",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",

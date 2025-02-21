@@ -1,6 +1,3 @@
-use pallet_ice::traits::{AssetInfo, OmnipoolAssetInfo, OmnipoolInfo};
-use primitives::AssetId;
-use sp_runtime::{PerThing, Permill};
 use std::sync::Arc;
 
 #[derive(Clone)]

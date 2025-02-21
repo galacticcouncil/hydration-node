@@ -1,9 +1,6 @@
-use hydra_dx_math::ratio::Ratio;
-use hydradx_traits::price::PriceProvider;
-use hydradx_traits::router::{AssetPair, RouteProvider, RouterT, Trade};
+use hydradx_traits::ice::{AmmState, AssetInfo, OmnipoolAssetInfo};
 use hydradx_traits::Inspect;
-use pallet_ice::traits::{AmmState, AssetInfo, OmnipoolAssetInfo};
-use primitives::{AssetId, Balance};
+use primitives::AssetId;
 use sp_runtime::Permill;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -29,7 +26,7 @@ where
 			}
 			let decimals = pallet_asset_registry::Pallet::<T>::decimals(asset_id.into()).unwrap();
 			let (asset_fee, hub_fee) = pallet_dynamic_fees::Pallet::<T>::get_fee(asset_id);
-			assets.push(pallet_ice::traits::AssetInfo::Omnipool(OmnipoolAssetInfo {
+			assets.push(AssetInfo::Omnipool(OmnipoolAssetInfo {
 				asset_id: asset_id.into(),
 				reserve: state.reserve,
 				hub_reserve: state.hub_reserve,

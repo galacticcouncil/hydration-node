@@ -5,7 +5,7 @@ pub mod api;
 #[cfg(test)]
 mod tests;
 mod traits;
-mod types;
+pub mod types;
 mod weights;
 
 use crate::api::{into_intent_repr, into_pool_data_repr, DataRepr, IntentRepr};
@@ -26,6 +26,8 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{ArithmeticError, FixedU128, Rounding, SaturatedConversion, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec;
+use sp_std::vec::Vec;
 use traits::Trader;
 use types::{AssetId, Balance, Reason, Solution};
 pub use weights::WeightInfo;

@@ -3,6 +3,7 @@ use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
 pub use pallet_intent::types::{AssetId, Balance, Intent, IntentId, ResolvedIntent};
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
 
 /// The reason for invalid solution.
 #[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]

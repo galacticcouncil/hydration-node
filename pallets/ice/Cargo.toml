@@ -30,8 +30,8 @@ sp-externalities = {workspace = true}
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
-sp-core = { workspace = true, optional = true}
-sp-io = { workspace = true, optional = true}
+sp-core = { workspace = true}
+sp-io = { workspace = true}
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
