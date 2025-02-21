@@ -20,6 +20,7 @@ sp_externalities::decl_extension! {
 	pub struct SolverExt(SolverPtr);
 }
 
+use hydradx_traits::ice::AssetInfo;
 #[cfg(feature = "std")]
 use sp_externalities::{Externalities, ExternalitiesExt};
 use sp_runtime_interface::{runtime_interface, RIType};
@@ -62,4 +63,8 @@ pub(crate) fn into_intent_repr<AccountId>(data: (IntentId, Intent<AccountId>)) -
 		data.1.swap.amount_in,
 		data.1.swap.amount_out,
 	)
+}
+
+pub(crate) fn into_pool_data_repr(data: AssetInfo<AssetId>) -> DataRepr {
+	(0, 0, 0, 0, 0, (0, 0), (0, 0))
 }

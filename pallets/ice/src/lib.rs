@@ -8,7 +8,7 @@ mod traits;
 mod types;
 mod weights;
 
-use crate::api::{into_intent_repr, DataRepr, IntentRepr};
+use crate::api::{into_intent_repr, into_pool_data_repr, DataRepr, IntentRepr};
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
@@ -17,6 +17,7 @@ use frame_support::{dispatch::DispatchResult, require_transactional, traits::Get
 use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer};
 use frame_system::pallet_prelude::*;
 use hydra_dx_math::ratio::Ratio;
+use hydradx_traits::ice::AmmState;
 use hydradx_traits::price::PriceProvider;
 pub use pallet::*;
 use pallet_intent::types::{BoundedResolvedIntents, Intent, IntentId, ResolvedIntent, SwapType};
@@ -112,6 +113,9 @@ pub mod pallet {
 
 		/// Trader support - used to execute trades given assets and amounts in and out
 		type Trader: Trader<Self::AccountId, Outcome = ()>;
+
+		/// Provider of states of all AMM pools
+		type AmmStateProvider: AmmState<AssetId>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -408,17 +412,18 @@ impl<T: Config> Pallet<T> {
 	where
 		F: FnOnce(Vec<IntentRepr>, Vec<DataRepr>) -> Vec<ResolvedIntent>,
 	{
+		//TODO: ensure max intents / resolved intents somehow
+
 		// 1. Get valid intents
 		let intents = Self::get_valid_intents();
+		let pool_data = T::AmmStateProvider::state(|_| true);
 
-		// 2. Prepare data - convert intents to intent repr
-		// Get AMM states
+		// 2. Prepare data
 		let intents: Vec<api::IntentRepr> = intents.into_iter().map(|intent| into_intent_repr(intent)).collect();
-		let data = vec![];
+		let data = pool_data.into_iter().map(|d| into_pool_data_repr(d)).collect();
 
 		// 2. Call solver
 		let resolved_intents = solve(intents, data);
-		//TODO: ensure max resolved intents somehow
 
 		// 3. calculate score
 		let score = 0;
