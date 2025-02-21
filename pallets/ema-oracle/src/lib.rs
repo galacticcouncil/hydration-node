@@ -79,10 +79,10 @@ use hydradx_traits::{
 use polkadot_xcm::opaque::lts::Location;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::FixedU128;
+use sp_arithmetic::Permill;
 use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
-use sp_arithmetic::{Permill};
 
 #[cfg(test)]
 mod tests;
@@ -345,10 +345,13 @@ pub mod pallet {
 			};
 
 			if let Some(reference_entry) = Self::oracle((BIFROST_SOURCE, ordered_pair, OraclePeriod::TenMinutes)) {
-				ensure!(
-					Self::is_within_range(reference_entry.0.price.into(), price),
-					Error::<T>::PriceOutsideAllowedRange
-				);
+				if !Self::is_within_range(reference_entry.0.price.into(), price) {
+					log::error!(
+						target: LOG_TARGET,
+						"Updating biforst oracle failed as the price is outside the allowed range"
+					);
+					return Err(Error::<T>::PriceOutsideAllowedRange.into());
+				}
 			};
 
 			Self::on_entry(BIFROST_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
