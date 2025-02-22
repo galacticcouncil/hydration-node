@@ -160,8 +160,10 @@ impl Config for Test {
 
 pub struct CurrencyIdConvertMock;
 
-impl Convert<Location, Option<AssetId>> for CurrencyIdConvertMock {
-	fn convert(location: Location) -> Option<AssetId> {
+impl Convert<polkadot_xcm::VersionedLocation, Option<AssetId>> for CurrencyIdConvertMock {
+	fn convert(versioned_location: polkadot_xcm::VersionedLocation) -> Option<AssetId> {
+		let location = Location::try_from(versioned_location).ok()?;
+
 		let Location { parents, interior } = location.clone();
 
 		match interior {

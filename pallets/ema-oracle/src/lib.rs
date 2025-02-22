@@ -147,7 +147,7 @@ pub mod pallet {
 		type OracleWhitelist: Contains<(Source, AssetId, AssetId)>;
 
 		/// Location to Asset Id converter
-		type LocationToAssetIdConversion: sp_runtime::traits::Convert<Location, Option<AssetId>>;
+		type LocationToAssetIdConversion: sp_runtime::traits::Convert<polkadot_xcm::VersionedLocation, Option<AssetId>>;
 
 		/// Maximum allowed percentage difference for bifrost oracle price update
 		#[pallet::constant]
@@ -166,8 +166,6 @@ pub mod pallet {
 		TooManyUniqueEntries,
 		OnTradeValueZero,
 		OracleNotFound,
-		/// VersionedLocation cannot be converted to Location
-		BadVersion,
 		/// Asset not found
 		AssetNotFound,
 		///The new price is outside the max allowed range
@@ -323,11 +321,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::BifrostOrigin::ensure_origin(origin)?;
 
-			let asset_a_loc = Location::try_from(*asset_a).map_err(|()| Error::<T>::BadVersion)?;
-			let asset_b_loc = Location::try_from(*asset_b).map_err(|()| Error::<T>::BadVersion)?;
-
-			let asset_a = T::LocationToAssetIdConversion::convert(asset_a_loc).ok_or(Error::<T>::AssetNotFound)?;
-			let asset_b = T::LocationToAssetIdConversion::convert(asset_b_loc).ok_or(Error::<T>::AssetNotFound)?;
+			let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
+			let asset_b = T::LocationToAssetIdConversion::convert(*asset_b).ok_or(Error::<T>::AssetNotFound)?;
 
 			let ordered_pair = ordered_pair(asset_a, asset_b);
 			let entry: OracleEntry<BlockNumberFor<T>> = {
