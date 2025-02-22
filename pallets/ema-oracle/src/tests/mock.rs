@@ -32,7 +32,7 @@ use hydradx_traits::OraclePeriod::{self, *};
 use hydradx_traits::Source;
 use hydradx_traits::{Liquidity, Volume};
 use polkadot_xcm::latest::{Junctions, Location};
-use polkadot_xcm::prelude::{GeneralIndex};
+use polkadot_xcm::prelude::GeneralIndex;
 use sp_arithmetic::Permill;
 use sp_core::H256;
 use sp_runtime::traits::Convert;

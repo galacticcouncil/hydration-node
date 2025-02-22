@@ -28,7 +28,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 use crate::tests::mock::ALICE;
-use polkadot_xcm::v3::Junction::{GeneralIndex};
+use polkadot_xcm::v3::Junction::GeneralIndex;
 use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
