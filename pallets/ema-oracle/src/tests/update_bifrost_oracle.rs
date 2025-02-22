@@ -16,29 +16,20 @@
 // limitations under the License.
 
 use super::*;
-pub use mock::{expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1};
-use std::sync::Arc;
+pub use mock::{EmaOracle, RuntimeOrigin, Test};
 
 use frame_support::{assert_noop, assert_ok};
 
 use crate::tests::mock::BOB;
-use polkadot_xcm::VersionedLocation;
 use pretty_assertions::assert_eq;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	ExtBuilder::default().build()
 }
 
-pub const HYDRA_PARA_ID: u32 = 2_034;
-
 use crate::tests::mock::ALICE;
-use hydradx_traits::evm::EvmAddress;
-use polkadot_xcm::v3::Junction::{AccountKey20, GeneralIndex, Parachain};
-use polkadot_xcm::v3::Junctions::{Here, X1, X2};
-use polkadot_xcm::v3::{Junction, MultiLocation};
-use sp_core::crypto::AccountId32;
+use polkadot_xcm::v3::Junction::{GeneralIndex};
 use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::{DispatchResult, TransactionOutcome};
 
 #[test]
 fn add_oracle_should_add_entry_to_storage() {

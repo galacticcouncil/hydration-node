@@ -76,7 +76,6 @@ use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
 	OnLiquidityChangedHandler, OnTradeHandler, Volume,
 };
-use polkadot_xcm::opaque::lts::Location;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::FixedU128;
 use sp_arithmetic::Permill;
