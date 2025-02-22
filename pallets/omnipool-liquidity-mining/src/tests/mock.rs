@@ -291,7 +291,7 @@ impl pallet_ema_oracle::Config for Test {
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
-	type CurrencyIdConvert = ();
+	type LocationToAssetIdConversion = ();
 	type MaxAllowedPriceDifference = PriceDifference;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();

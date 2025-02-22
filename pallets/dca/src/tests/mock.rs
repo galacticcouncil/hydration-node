@@ -155,7 +155,7 @@ impl pallet_ema_oracle::Config for Test {
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
-	type CurrencyIdConvert = ();
+	type LocationToAssetIdConversion = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;

@@ -154,7 +154,7 @@ impl Config for Test {
 	type BenchmarkHelper = ();
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
-	type CurrencyIdConvert = CurrencyIdConvertMock;
+	type LocationToAssetIdConversion = CurrencyIdConvertMock;
 	type MaxAllowedPriceDifference = PriceDifference;
 }
 
