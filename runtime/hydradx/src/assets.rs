@@ -1354,16 +1354,18 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 
 	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
 		with_transaction(|| {
-			pallet_ema_oracle::Pallet::<T>::add_entry(
+			if let Err(e) = pallet_ema_oracle::Pallet::<T>::add_entry(
 				source,
 				asset_pair,
 				OracleEntry {
 					price: EmaPrice::new(peg.0, peg.1),
 					volume: Default::default(),
 					liquidity: Default::default(),
-					updated_at: 0,
+					updated_at: BlockNumber::default().into(),
 				},
-			)?;
+			) {
+				return TransactionOutcome::Rollback(e.into());
+			}
 
 			let current_block = System::block_number();
 
