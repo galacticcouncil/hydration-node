@@ -2,6 +2,7 @@
 
 use crate::polkadot_test_net::*;
 
+use frame_support::storage::with_transaction;
 use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
 use frame_support::{
@@ -9,11 +10,21 @@ use frame_support::{
 	sp_runtime::{FixedU128, Permill},
 	traits::tokens::fungibles::Mutate,
 };
+use hydradx_traits::Create;
+use sp_runtime::DispatchResult;
+use sp_runtime::TransactionOutcome;
+use sp_std::sync::Arc;
+
+use hydradx_runtime::bifrost_account;
+use hydradx_runtime::AssetLocation;
+use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::{EmaOracle, RuntimeOrigin};
+use hydradx_traits::AssetKind;
 use hydradx_traits::{
 	AggregatedPriceOracle,
 	OraclePeriod::{self, *},
 };
+use pallet_ema_oracle::BIFROST_SOURCE;
 
 use hydra_dx_math::ema::smoothing_from_period;
 
@@ -262,5 +273,165 @@ fn xyk_trades_with_insufficient_asset_are_tracked_by_oracle_when_asset_is_whitel
 				Err(OracleError::NotPresent)
 			);
 		}
+	});
+}
+
+#[test]
+fn bifrost_oracle_should_be_udpdated() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			// arrange
+			hydradx_run_to_next_block();
+
+			let asset_a_id = 50;
+			let asset_b_id = 51;
+
+			let asset_a_loc = polkadot_xcm::v4::Location::new(
+				1,
+				polkadot_xcm::v4::Junctions::X2(Arc::new([
+					polkadot_xcm::v4::Junction::Parachain(1500),
+					polkadot_xcm::v4::Junction::GeneralIndex(0),
+				])),
+			);
+			let asset_b_loc = polkadot_xcm::v4::Location::new(
+				1,
+				polkadot_xcm::v4::Junctions::X2(Arc::new([
+					polkadot_xcm::v4::Junction::Parachain(2000),
+					polkadot_xcm::v4::Junction::GeneralIndex(0),
+				])),
+			);
+
+			assert_ok!(AssetRegistry::register_sufficient_asset(
+				Some(asset_a_id),
+				Some(b"ASS1".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				1_000_000,
+				None,
+				None,
+				Some(AssetLocation::try_from(asset_a_loc.clone()).unwrap()),
+				None,
+			));
+
+			assert_ok!(AssetRegistry::register_sufficient_asset(
+				Some(asset_b_id),
+				Some(b"ASS2".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				1_000_000,
+				None,
+				None,
+				Some(AssetLocation::try_from(asset_b_loc.clone()).unwrap()),
+				None,
+			));
+
+			assert_ok!(EmaOracle::add_oracle(
+				RuntimeOrigin::root(),
+				BIFROST_SOURCE,
+				(asset_a_id, asset_b_id)
+			));
+
+			// act
+			let asset_a = Box::new(asset_a_loc.into_versioned());
+			let asset_b = Box::new(asset_b_loc.into_versioned());
+			assert_ok!(EmaOracle::update_bifrost_oracle(
+				RuntimeOrigin::signed(bifrost_account()),
+				asset_a,
+				asset_b,
+				(50, 100)
+			));
+			// will store the data received in the sell as oracle values
+			hydradx_run_to_next_block();
+
+			// assert
+			for supported_period in SUPPORTED_PERIODS {
+				assert!(EmaOracle::get_price(asset_a_id, asset_b_id, *supported_period, BIFROST_SOURCE).is_ok(),);
+			}
+			for unsupported_period in UNSUPPORTED_PERIODS {
+				assert_eq!(
+					EmaOracle::get_price(asset_a_id, asset_b_id, *unsupported_period, BIFROST_SOURCE),
+					Err(OracleError::NotPresent)
+				);
+			}
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+#[test]
+fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			// arrange
+			hydradx_run_to_next_block();
+
+			let asset_a_id = 50;
+			let asset_b_id = 51;
+
+			let asset_a_loc = polkadot_xcm::v4::Location::new(
+				1,
+				polkadot_xcm::v4::Junctions::X2(Arc::new([
+					polkadot_xcm::v4::Junction::Parachain(1500),
+					polkadot_xcm::v4::Junction::GeneralIndex(0),
+				])),
+			);
+			let asset_b_loc = polkadot_xcm::v4::Location::new(
+				1,
+				polkadot_xcm::v4::Junctions::X2(Arc::new([
+					polkadot_xcm::v4::Junction::Parachain(2000),
+					polkadot_xcm::v4::Junction::GeneralIndex(0),
+				])),
+			);
+
+			assert_ok!(AssetRegistry::register_insufficient_asset(
+				Some(asset_a_id),
+				Some(b"ASS1".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				Some(1_000_000),
+				None,
+				None,
+				Some(AssetLocation::try_from(asset_a_loc.clone()).unwrap()),
+				None,
+			));
+
+			assert_ok!(AssetRegistry::register_insufficient_asset(
+				Some(asset_b_id),
+				Some(b"ASS2".to_vec().try_into().unwrap()),
+				AssetKind::Token,
+				Some(1_000_000),
+				None,
+				None,
+				Some(AssetLocation::try_from(asset_b_loc.clone()).unwrap()),
+				None,
+			));
+
+			// act
+			let asset_a = Box::new(asset_a_loc.into_versioned());
+			let asset_b = Box::new(asset_b_loc.into_versioned());
+			assert_ok!(EmaOracle::update_bifrost_oracle(
+				RuntimeOrigin::signed(bifrost_account()),
+				asset_a,
+				asset_b,
+				(50, 100)
+			));
+			// will store the data received in the sell as oracle values
+			hydradx_run_to_next_block();
+
+			// assert
+			for supported_period in SUPPORTED_PERIODS {
+				assert!(EmaOracle::get_price(asset_a_id, asset_b_id, *supported_period, BIFROST_SOURCE).is_ok(),);
+			}
+			for unsupported_period in UNSUPPORTED_PERIODS {
+				assert_eq!(
+					EmaOracle::get_price(asset_a_id, asset_b_id, *unsupported_period, BIFROST_SOURCE),
+					Err(OracleError::NotPresent)
+				);
+			}
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
 	});
 }

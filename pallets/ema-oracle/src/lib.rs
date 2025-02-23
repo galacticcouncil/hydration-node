@@ -71,11 +71,15 @@ use frame_support::pallet_prelude::*;
 use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
 use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
 	OnLiquidityChangedHandler, OnTradeHandler, RawEntry, RawOracle, Volume,
 };
 use sp_arithmetic::traits::Saturating;
+use sp_arithmetic::FixedU128;
+use sp_arithmetic::Permill;
+use sp_runtime::traits::Convert;
 use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
 
@@ -88,11 +92,10 @@ pub use types::*;
 #[allow(clippy::all)]
 pub mod weights;
 pub use weights::WeightInfo;
-
-mod benchmarking;
-
 /// The maximum number of periods that could have corresponding oracles.
 pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
+
+pub const BIFROST_SOURCE: [u8; 8] = *b"bifrosto";
 
 const LOG_TARGET: &str = "runtime::ema-oracle";
 
@@ -142,6 +145,13 @@ pub mod pallet {
 		/// Whitelist determining what oracles are tracked by the pallet.
 		type OracleWhitelist: Contains<(Source, AssetId, AssetId)>;
 
+		/// Location to Asset Id converter
+		type LocationToAssetIdConversion: sp_runtime::traits::Convert<polkadot_xcm::VersionedLocation, Option<AssetId>>;
+
+		/// Maximum allowed percentage difference for bifrost oracle price update
+		#[pallet::constant]
+		type MaxAllowedPriceDifference: Get<Permill>;
+
 		/// Maximum number of unique oracle entries expected in one block.
 		#[pallet::constant]
 		type MaxUniqueEntries: Get<u32>;
@@ -155,6 +165,10 @@ pub mod pallet {
 		TooManyUniqueEntries,
 		OnTradeValueZero,
 		OracleNotFound,
+		/// Asset not found
+		AssetNotFound,
+		///The new price is outside the max allowed range
+		PriceOutsideAllowedRange,
 	}
 
 	#[pallet::event]
@@ -193,6 +207,7 @@ pub mod pallet {
 
 	/// Assets that are whitelisted and tracked by the pallet.
 	#[pallet::storage]
+	#[pallet::getter(fn whitelisted_assets)]
 	pub type WhitelistedAssets<T: Config> =
 		StorageValue<_, BoundedBTreeSet<(Source, (AssetId, AssetId)), T::MaxUniqueEntries>, ValueQuery>;
 
@@ -299,11 +314,42 @@ pub mod pallet {
 		pub fn update_bifrost_oracle(
 			origin: OriginFor<T>,
 			//NOTE: these must be boxed becasue of https://github.com/paritytech/polkadot-sdk/blob/6875d36b2dba537f3254aad3db76ac7aa656b7ab/substrate/frame/utility/src/lib.rs#L150
-			_asset_a: Box<polkadot_xcm::VersionedLocation>,
-			_asset_b: Box<polkadot_xcm::VersionedLocation>,
-			_price: (Balance, Balance),
+			asset_a: Box<polkadot_xcm::VersionedLocation>,
+			asset_b: Box<polkadot_xcm::VersionedLocation>,
+			price: (Balance, Balance),
 		) -> DispatchResult {
 			T::BifrostOrigin::ensure_origin(origin)?;
+
+			let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
+			let asset_b = T::LocationToAssetIdConversion::convert(*asset_b).ok_or(Error::<T>::AssetNotFound)?;
+
+			let ordered_pair = ordered_pair(asset_a, asset_b);
+			let entry: OracleEntry<BlockNumberFor<T>> = {
+				let e = OracleEntry::new(
+					EmaPrice::new(price.0, price.1),
+					Volume::default(),
+					Liquidity::default(),
+					T::BlockNumberProvider::current_block_number(),
+				);
+				if ordered_pair == (asset_a, asset_b) {
+					e
+				} else {
+					e.inverted()
+				}
+			};
+
+			if let Some(reference_entry) = Self::oracle((BIFROST_SOURCE, ordered_pair, OraclePeriod::TenMinutes)) {
+				if !Self::is_within_range(reference_entry.0.price.into(), price) {
+					log::error!(
+						target: LOG_TARGET,
+						"Updating biforst oracle failed as the price is outside the allowed range"
+					);
+					return Err(Error::<T>::PriceOutsideAllowedRange.into());
+				}
+			}
+
+			Self::on_entry(BIFROST_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
+
 			Ok(())
 		}
 	}
@@ -317,7 +363,7 @@ impl<T: Config> Pallet<T> {
 		assets: (AssetId, AssetId),
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), ()> {
-		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) {
+		if !T::OracleWhitelist::contains(&(src, assets.0, assets.1)) && src.ne(&BIFROST_SOURCE) {
 			// if we don't track oracle for given asset pair, don't throw error
 			return Ok(());
 		}
@@ -477,6 +523,17 @@ impl<T: Config> Pallet<T> {
 			};
 			(entry, init)
 		})
+	}
+
+	fn is_within_range(reference_price: (u128, u128), new_price: (u128, u128)) -> bool {
+		let reference = FixedU128::from_rational(reference_price.0, reference_price.1);
+		let new_value = FixedU128::from_rational(new_price.0, new_price.1);
+
+		let percentage_difference = T::MaxAllowedPriceDifference::get();
+		let lower_bound = reference.saturating_mul(FixedU128::one().saturating_sub(percentage_difference.into()));
+		let upper_bound = reference.saturating_mul(FixedU128::one().saturating_add(percentage_difference.into()));
+
+		new_value >= lower_bound && new_value <= upper_bound
 	}
 }
 

@@ -31,7 +31,11 @@ use frame_system::EnsureRoot;
 use hydradx_traits::OraclePeriod::{self, *};
 use hydradx_traits::Source;
 use hydradx_traits::{Liquidity, Volume};
+use polkadot_xcm::latest::{Junctions, Location};
+use polkadot_xcm::prelude::GeneralIndex;
+use sp_arithmetic::Permill;
 use sp_core::H256;
+use sp_runtime::traits::Convert;
 
 use crate::types::{AssetId, Balance, Price};
 pub type BlockNumber = u64;
@@ -42,6 +46,7 @@ type Block = frame_system::mocking::MockBlock<Test>;
 use crate::MAX_PERIODS;
 
 pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
 
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
@@ -96,7 +101,7 @@ impl frame_system::Config for Test {
 	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
@@ -119,6 +124,7 @@ impl frame_system::Config for Test {
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = bounded_vec![LastBlock, TenMinutes, Day, Week];
+	pub PriceDifference: Permill = Permill::from_percent(10);
 }
 
 pub struct OracleWhitelist;
@@ -134,6 +140,7 @@ impl SortedMembers<AccountId> for BifrostAcc {
 		return vec![ALICE];
 	}
 }
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
@@ -145,6 +152,28 @@ impl Config for Test {
 	type BenchmarkHelper = ();
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
 	type WeightInfo = ();
+	type LocationToAssetIdConversion = CurrencyIdConvertMock;
+	type MaxAllowedPriceDifference = PriceDifference;
+}
+
+pub struct CurrencyIdConvertMock;
+
+impl Convert<polkadot_xcm::VersionedLocation, Option<AssetId>> for CurrencyIdConvertMock {
+	fn convert(versioned_location: polkadot_xcm::VersionedLocation) -> Option<AssetId> {
+		let location = Location::try_from(versioned_location).ok()?;
+
+		let Location { parents, interior } = location.clone();
+
+		match interior {
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(0u32.into())) => Some(0),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(1u32.into())) => Some(1),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(2u32.into())) => Some(2),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(3u32.into())) => Some(4),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(4u32.into())) => Some(4),
+			Junctions::Here => Some(5),
+			_ => None,
+		}
+	}
 }
 
 pub type InitialDataEntry = (Source, (AssetId, AssetId), Price, Liquidity<Balance>);
