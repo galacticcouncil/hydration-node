@@ -852,7 +852,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Execute a swap of `asset_in` for `asset_out`.
+		/// Execute a swap of `asset_out` for `asset_in`.
 		///
 		/// Parameters:
 		/// - `origin`:
@@ -945,6 +945,22 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Update the tradable state of a specific asset in a pool.
+		///
+		/// This function allows updating the tradability state of an asset within a pool. The tradability state determines whether the asset can be used for specific operations such as adding liquidity, removing liquidity, buying, or selling.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::UpdateTradabilityOrigin`.
+		/// - `pool_id`: The ID of the pool containing the asset.
+		/// - `asset_id`: The ID of the asset whose tradability state is to be updated.
+		/// - `state`: The new tradability state of the asset.
+		///
+		/// Emits `TradableStateUpdated` event when successful.
+		///
+		/// # Errors
+		/// - `PoolNotFound`: If the specified pool does not exist.
+		/// - `AssetNotInPool`: If the specified asset is not part of the pool.
+		///
 		#[pallet::call_index(9)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
@@ -972,6 +988,33 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Remove liquidity from a selected pool uniformly.
+		///
+		/// This function allows a liquidity provider to withdraw liquidity from a pool.
+		/// The provider specifies the amount of shares to burn and the minimum amounts of each asset to receive.
+		///
+		/// Parameters:
+		/// - `origin`: The liquidity provider.
+		/// - `pool_id`: The ID of the pool from which to remove liquidity.
+		/// - `share_amount`: The amount of shares to burn.
+		/// - `min_amounts_out`: A bounded vector specifying the minimum amounts of each asset to receive.
+		///
+		/// Emits `LiquidityRemoved` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
+		///
+		/// # Errors
+		/// - `InvalidAssetAmount`: If the `share_amount` is zero.
+		/// - `InsufficientShares`: If the provider does not have enough shares.
+		/// - `PoolNotFound`: If the specified pool does not exist.
+		/// - `UnknownDecimals`: If the asset decimals cannot be retrieved.
+		/// - `IncorrectAssets`: If the provided `min_amounts_out` does not match the pool assets.
+		/// - `NotAllowed`: If the asset is not allowed for the operation.
+		/// - `SlippageLimit`: If the amount received is less than the specified minimum amount.
+		/// - `InsufficientLiquidityRemaining`: If the remaining liquidity in the pool is below the minimum required.
+		///
+		/// # Invariants
+		/// - Ensures that the pool's reserves are updated correctly after liquidity removal.
+		/// - Ensures that the pool's invariant is maintained.
 		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
 		#[transactional]
@@ -1063,6 +1106,33 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Create a stable pool with a given list of assets and pegs.
+		///
+		/// This function allows the creation of a new stable pool with specified assets, amplification, fee, and peg sources. The pool is identified by a share asset.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`.
+		/// - `share_asset`: Preregistered share asset identifier.
+		/// - `assets`: List of asset IDs to be included in the pool.
+		/// - `amplification`: Pool amplification parameter.
+		/// - `fee`: Fee to be applied on trade and liquidity operations.
+		/// - `peg_source`: Bounded vector specifying the source of the peg for each asset.
+		/// - `max_peg_update`: Maximum allowed peg update per block.
+		///
+		/// Emits `PoolCreated` event if successful.
+		/// Emits `AmplificationChanging` event if successful.
+		///
+		/// # Errors
+		/// - `IncorrectAssets`: If the assets are the same or less than 2 assets are provided.
+		/// - `MaxAssetsExceeded`: If the maximum number of assets is exceeded.
+		/// - `PoolExists`: If a pool with the given assets already exists.
+		/// - `ShareAssetInPoolAssets`: If the share asset is among the pool assets.
+		/// - `AssetNotRegistered`: If one or more assets are not registered in the AssetRegistry.
+		/// - `InvalidAmplification`: If the amplification parameter is invalid.
+		/// - `IncorrectInitialPegs`: If the initial pegs are incorrect.
+		/// - `MissingTargetPegOracle`: If the target peg oracle entry is missing.
+		/// - `IncorrectAssetDecimals`: If the assets have different decimals.
+		///
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_pool_with_pegs())]
 		#[transactional]
