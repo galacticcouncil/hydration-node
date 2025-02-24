@@ -462,6 +462,14 @@ impl Convert<Asset, Option<AssetId>> for CurrencyIdConvert {
 	}
 }
 
+impl Convert<VersionedLocation, Option<AssetId>> for CurrencyIdConvert {
+	fn convert(versioned_location: VersionedLocation) -> Option<AssetId> {
+		let location = Location::try_from(versioned_location).ok()?;
+
+		Self::convert(location)
+	}
+}
+
 pub struct AccountIdToMultiLocation;
 impl Convert<AccountId, Location> for AccountIdToMultiLocation {
 	fn convert(account: AccountId) -> Location {
