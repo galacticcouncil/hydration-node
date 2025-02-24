@@ -410,7 +410,7 @@ impl<T: Config> Pallet<T> {
 
 // OFFCHAIN WORKER SUPPORT
 impl<T: Config> Pallet<T> {
-	fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
+	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
 		F: FnOnce(Vec<IntentRepr>, Vec<DataRepr>) -> Vec<ResolvedIntent>,
 	{

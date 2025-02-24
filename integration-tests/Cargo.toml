@@ -45,6 +45,7 @@ pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-ice = { workspace = true}
+pallet-intent = { workspace = true}
 hydration-solver = { workspace = true }
 
 pallet-treasury = { workspace = true }
@@ -222,6 +223,7 @@ std = [
     "pallet-liquidation/std",
     "pallet-broadcast/std",
     "pallet-ice/std",
+    "pallet-intent/std",
     "pallet-dispatcher/std",
 ]
 

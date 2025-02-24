@@ -1,7 +1,7 @@
 use codec::{Decode, Encode};
 use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
-pub use pallet_intent::types::{AssetId, Balance, Intent, IntentId, ResolvedIntent};
+pub use pallet_intent::types::{AssetId, Balance, Intent, IntentId, ResolvedIntent, Swap, SwapType};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 

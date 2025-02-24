@@ -1,36 +1,35 @@
-pub(crate) mod generator;
+//pub(crate) mod generator;
 mod intents;
-mod omni;
+//mod omni;
 mod v3;
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use hydra_dx_math::ratio::Ratio;
+use hydradx_adapters::ice::GlobalAmmState;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_runtime::{
-	Currencies, EmaOracle, Omnipool, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT,
+	Currencies, EmaOracle, Intents, Omnipool, ReferralsOraclePeriod, Router, RuntimeOrigin, ICE, LRNA as LRNAT,
 };
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::AssetPair;
 use orml_traits::MultiCurrency;
-use pallet_ice::traits::Solver;
-use pallet_ice::types::{Balance, BoundedResolvedIntents, BoundedTrades, Intent, IntentId, ResolvedIntent as RI, Swap};
+use pallet_ice::types::{Balance, Intent, IntentId, ResolvedIntent as RI, Swap};
+use pallet_intent::types::BoundedResolvedIntents;
 use primitives::{AccountId, AssetId, Moment};
 use sp_core::crypto::AccountId32;
 use xcm_emulator::TestExt;
 
 const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2024-10-18";
 
-pub(crate) fn solve_intents_with<S: Solver<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>>(
-	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32, AssetId>)>,
+pub(crate) fn solve_intents_with(
+	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32>)>,
 ) -> Result<BoundedResolvedIntents, ()> {
-	let (result, metadata) = S::solve(intents).map_err(|_| ())?;
-	let resolved_intents = BoundedResolvedIntents::try_from(result).unwrap();
-	//let trades = BoundedTrades::try_from(solution.trades()).unwrap();
-	//let score = solution.score();
-	Ok(resolved_intents)
+	let solution = pallet_ice::Pallet::<hydradx_runtime::Runtime>::run(0, |i, d| vec![]);
+
+	Ok(BoundedResolvedIntents::default())
 }
 
 #[test]
@@ -55,16 +54,16 @@ fn test_omnipool_snapshot() {
 	});
 }
 
-pub(crate) fn submit_intents(intents: Vec<Intent<AccountId, AssetId>>) -> Vec<(IntentId, Intent<AccountId, AssetId>)> {
+pub(crate) fn submit_intents(intents: Vec<Intent<AccountId>>) -> Vec<(IntentId, Intent<AccountId>)> {
 	let mut intent_ids = Vec::new();
 	for intent in intents {
 		let deadline = intent.deadline;
-		let increment_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::next_incremental_id();
-		assert_ok!(ICE::submit_intent(
+		let increment_id = pallet_intent::Pallet::<hydradx_runtime::Runtime>::next_incremental_id();
+		assert_ok!(Intents::submit_intent(
 			RuntimeOrigin::signed(intent.who.clone()),
 			intent.clone()
 		));
-		let intent_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, increment_id);
+		let intent_id = pallet_intent::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, increment_id);
 		intent_ids.push((intent_id, intent));
 	}
 

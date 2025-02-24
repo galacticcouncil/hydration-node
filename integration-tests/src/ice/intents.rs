@@ -12,9 +12,9 @@ fn submit_intent_should_work() {
 			asset_out: DAI,
 			amount_in: 1_000_000_000_000,
 			amount_out: 2_000_000_000_000,
-			swap_type: pallet_ice::types::SwapType::ExactIn,
+			swap_type: pallet_intent::types::SwapType::ExactIn,
 		};
-		assert_ok!(ICE::submit_intent(
+		assert_ok!(Intents::submit_intent(
 			RuntimeOrigin::signed(BOB.into()),
 			Intent {
 				who: BOB.into(),
@@ -26,9 +26,9 @@ fn submit_intent_should_work() {
 			}
 		));
 
-		let intent_id = pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, 0);
+		let intent_id = pallet_intent::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, 0);
 
-		let expected_entry = pallet_ice::types::Intent {
+		let expected_entry = pallet_intent::types::Intent {
 			who: BOB.into(),
 			swap,
 			deadline,
@@ -37,7 +37,7 @@ fn submit_intent_should_work() {
 			on_failure: None,
 		};
 		assert_eq!(
-			pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_id),
+			pallet_intent::Pallet::<hydradx_runtime::Runtime>::get_intent(intent_id),
 			Some(expected_entry)
 		);
 	});

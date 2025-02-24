@@ -2,13 +2,14 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
+use frame_support::BoundedVec;
 use hydradx_runtime::{AssetRegistry, Balances, Currencies, Router, Stableswap};
 use hydradx_runtime::{Omnipool, RuntimeOrigin, Tokens};
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::Trade;
+use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
-use pallet_stableswap::types::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::{AssetId, Balance};
 use sp_runtime::Permill;
@@ -252,7 +253,7 @@ fn initialize_stableswap_with_details(
 	assert_ok!(Stableswap::add_liquidity(
 		hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 		pool_id,
-		initial
+		BoundedVec::truncate_from(initial),
 	));
 
 	(pool_id, asset_in, asset_out)

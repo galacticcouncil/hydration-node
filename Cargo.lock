@@ -12449,6 +12449,7 @@ dependencies = [
  "pallet-evm-precompile-call-permit",
  "pallet-ice",
  "pallet-im-online",
+ "pallet-intent",
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",
