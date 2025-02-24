@@ -957,7 +957,6 @@ impl<T: Config> Pallet<T> {
 		amounts: AmountInAndOut<Balance>,
 		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
-		check why the rolling keeps continueing, maybe on master
 		Self::deposit_event(Event::TradeExecuted {
 			id: schedule_id,
 			who: schedule.owner.clone(),
