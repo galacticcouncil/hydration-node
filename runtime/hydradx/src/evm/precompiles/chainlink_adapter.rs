@@ -64,7 +64,7 @@ where
 {
 	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		let address = handle.code_address();
-		if let Some((asset_id, period, source)) = decode_evm_address(address) {
+		if let Some((asset_id, period, source)) = decode_oracle_address(address) {
 			log::debug!(target: "evm", "chainlink: asset_id: {:?}, period: {:?}, source: {:?}", asset_id, period, source);
 
 			let selector = match handle.read_selector() {
@@ -224,12 +224,7 @@ fn convert_price_to_u256(price: Price, decimals: u8) -> Result<U256, PrecompileF
 
 /// Encoding is 7 bytes for precompile prefix 0x00000000000001,
 /// followed by 1 byte for encoded OraclePeriod enum, 8 bytes for Source, and 4 bytes for AssetId.
-pub fn encode_evm_address(asset_id: AssetId, period: OraclePeriod, source: Source) -> Option<EvmAddress> {
-	// OraclePeriod is enum ancoded as Vec<u8>. We don't expect more than 1 byte.
-	if OraclePeriod::max_encoded_len() > 1 {
-		return None;
-	}
-
+pub fn encode_oracle_address(asset_id: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
 	let mut evm_address_bytes = [0u8; 20];
 
 	let period_u32 = period.encode();
@@ -243,10 +238,10 @@ pub fn encode_evm_address(asset_id: AssetId, period: OraclePeriod, source: Sourc
 	let asset_id_bytes: [u8; 4] = asset_id.to_be_bytes();
 	evm_address_bytes[16..(16 + asset_id_bytes.len())].copy_from_slice(&asset_id_bytes[..]);
 
-	Some(EvmAddress::from(evm_address_bytes))
+	EvmAddress::from(evm_address_bytes)
 }
 
-pub fn decode_evm_address(evm_address: EvmAddress) -> Option<(AssetId, OraclePeriod, Source)> {
+pub fn decode_oracle_address(evm_address: EvmAddress) -> Option<(AssetId, OraclePeriod, Source)> {
 	if !is_oracle_address(evm_address) {
 		return None;
 	}
@@ -269,17 +264,24 @@ pub fn decode_evm_address(evm_address: EvmAddress) -> Option<(AssetId, OraclePer
 }
 
 #[test]
-fn encode_evm_address_should_work() {
+fn encoded_oracle_period_has_one_byte() {
+	// OraclePeriod is enum encoded as Vec<u8>. We don't expect it to be more than 1 byte.
+	assert_eq!(OraclePeriod::max_encoded_len(), 1);
+
+}
+
+#[test]
+fn encode_oracle_address_should_work() {
 	assert_eq!(
-		encode_evm_address(4, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
-		Some(H160::from(hex!("00000000000001026f6d6e69706f6f6c00000004")))
+		encode_oracle_address(4, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
+		H160::from(hex!("00000000000001026f6d6e69706f6f6c00000004"))
 	);
 }
 
 #[test]
-fn decode_evm_address_should_work() {
+fn decode_oracle_address_should_work() {
 	assert_eq!(
-		decode_evm_address(H160::from(hex!("00000000000001026f6d6e69706f6f6c00000004"))),
+		decode_oracle_address(H160::from(hex!("00000000000001026f6d6e69706f6f6c00000004"))),
 		Some((4, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE))
 	);
 }
