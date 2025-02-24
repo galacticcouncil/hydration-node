@@ -78,9 +78,7 @@ fn convert_to_solver_types(
 	(intents, data)
 }
 
-pub(crate) fn solve_intents_with(
-	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32>)>,
-) -> Result<pallet_ice::Call<hydradx_runtime::Runtime>, ()> {
+pub(crate) fn solve_current_intents() -> Result<pallet_ice::Call<hydradx_runtime::Runtime>, ()> {
 	let b = hydradx_runtime::System::block_number();
 	let solution = pallet_ice::Pallet::<hydradx_runtime::Runtime>::run(b, |i, d| {
 		let (intents, data) = convert_to_solver_types(i, d);

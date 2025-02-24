@@ -1,4 +1,4 @@
-use crate::ice::{solve_intents_with, submit_intents, PATH_TO_SNAPSHOT};
+use crate::ice::{solve_current_intents, submit_intents, PATH_TO_SNAPSHOT};
 use crate::polkadot_test_net::*;
 use frame_support::__private::serde;
 use frame_support::assert_ok;
@@ -45,7 +45,7 @@ fn load_from_file() -> Vec<Intent<AccountId32>> {
 }
 
 #[test]
-fn v3_scenario() {
+fn simple_v3_scenario() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		//let intents = load_from_file();
 		let intents: Vec<Intent<AccountId32>> = vec![Intent {
@@ -70,19 +70,17 @@ fn v3_scenario() {
 				intent.swap.asset_in,
 				intent.swap.amount_in as i128 * 1_000_000,
 			));
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				intent.who.clone().into(),
-				intent.swap.asset_out,
-				intent.swap.amount_out as i128 * 1_000_000,
-			));
 		}
 		let intents = submit_intents(intents);
-		let submit_call = solve_intents_with(intents).unwrap();
+		let submit_call = solve_current_intents().unwrap();
 		hydradx_run_to_next_block();
 
-		let r = submit_call.dispatch_bypass_filter(RuntimeOrigin::signed(BOB.into()));
-		dbg!(r);
+		assert_ok!(submit_call.dispatch_bypass_filter(RuntimeOrigin::signed(BOB.into())));
+
+		for (intent_id, intent) in intents {
+			let balance = Currencies::free_balance(intent.swap.asset_out, &intent.who);
+			assert_eq!(balance, intent.swap.amount_out);
+		}
 	});
 }
 

@@ -1305,7 +1305,7 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_adapters::ice::GlobalAmmState;
+use hydradx_adapters::ice::{GlobalAmmState, IceTrader};
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
@@ -1672,7 +1672,7 @@ impl pallet_ice::Config for Runtime {
 	type BlockNumberProvider = System;
 	type Currency = FungibleCurrencies<Runtime>;
 	type PriceProvider = IcePriceProvider;
-	type Trader = ();
+	type Trader = IceTrader<Runtime, Router>;
 	type AmmStateProvider = GlobalAmmState<Runtime>;
 	type WeightInfo = ();
 }

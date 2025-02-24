@@ -4,7 +4,7 @@
 pub mod api;
 #[cfg(test)]
 mod tests;
-mod traits;
+pub mod traits;
 pub mod types;
 mod weights;
 
