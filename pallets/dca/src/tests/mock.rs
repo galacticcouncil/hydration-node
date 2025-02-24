@@ -1120,6 +1120,23 @@ pub fn resolve_intent() {
 						min_buy_amount: intent.swap.amount_out,
 					});
 				});
+
+				Currencies::transfer(
+					RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
+					intent.who,
+					intent.swap.asset_out,
+					intent.swap.amount_out,
+				)
+				.map_err(ExecutorError::Error)
+				.unwrap();
+				Currencies::transfer(
+					RuntimeOrigin::signed(intent.who),
+					ASSET_PAIR_ACCOUNT,
+					intent.swap.asset_in,
+					intent.swap.amount_in,
+				)
+				.map_err(ExecutorError::Error)
+				.unwrap();
 			}
 			SwapType::ExactOut => {}
 		};

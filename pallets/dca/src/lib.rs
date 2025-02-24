@@ -510,6 +510,8 @@ pub mod pallet {
 		PeriodTooShort,
 		///Stability threshold cannot be higher than `MaxConfigurablePriceDifferenceBetweenBlock`
 		StabilityThresholdTooHigh,
+		/// Balance is too low.
+		BalanceTooLow,
 	}
 
 	/// Id sequencer for schedules
@@ -759,9 +761,21 @@ pub mod pallet {
 			schedule_id: ScheduleId,
 			current_blocknumber: BlockNumberFor<T>,
 		) -> DispatchResult {
-			let _who = ensure_signed(origin.clone())?;
+			let who = ensure_signed(origin.clone())?;
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
+
+			let amount_in = match schedule.order {
+				Order::Sell { amount_in, .. } => amount_in,
+				Order::Buy { amount_out, .. } => {
+					let route = schedule.order.get_route_or_default::<T::RouteProvider>();
+					Self::get_amount_in_for_buy(&amount_out, &route)?
+				}
+			};
+			let free_balance = T::Currencies::free_balance(schedule.order.get_asset_in(), &who); //TODO; use using reducible balance
+			if free_balance < amount_in {
+				Self::terminate_schedule(schedule_id, &schedule, Error::<T>::BalanceTooLow.into());
+			}
 
 			Self::retry_schedule(schedule_id, &schedule, current_blocknumber, &mut randomness_generator);
 			//TODO: if fails then terminate
@@ -943,6 +957,7 @@ impl<T: Config> Pallet<T> {
 		amounts: AmountInAndOut<Balance>,
 		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
+		check why the rolling keeps continueing, maybe on master
 		Self::deposit_event(Event::TradeExecuted {
 			id: schedule_id,
 			who: schedule.owner.clone(),
