@@ -208,7 +208,7 @@ pub mod pallet {
 				return;
 			}
 
-			let call = Self::run(block_number, |i, d| api::ice::get_solution(i, d));
+			let call = Self::run(block_number, |i, d| Some(api::ice::get_solution(i, d)));
 
 			if let Some(c) = call {
 				let results = signer.send_signed_transaction(|_account| c.clone());
@@ -412,7 +412,7 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> Pallet<T> {
 	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
-		F: FnOnce(Vec<IntentRepr>, Vec<DataRepr>) -> Vec<ResolvedIntent>,
+		F: FnOnce(Vec<IntentRepr>, Vec<DataRepr>) -> Option<Vec<ResolvedIntent>>,
 	{
 		//TODO: ensure max intents / resolved intents somehow
 
@@ -425,7 +425,7 @@ impl<T: Config> Pallet<T> {
 		let data = pool_data.into_iter().map(|d| into_pool_data_repr(d)).collect();
 
 		// 2. Call solver
-		let resolved_intents = solve(intents, data);
+		let resolved_intents = solve(intents, data)?;
 
 		// 3. calculate score
 		let score = 0;

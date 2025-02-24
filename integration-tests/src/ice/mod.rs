@@ -6,6 +6,7 @@ mod v3;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
+use frame_support::traits::UnfilteredDispatchable;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_adapters::ice::GlobalAmmState;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
@@ -16,6 +17,7 @@ use hydradx_runtime::{
 use hydradx_traits::price::PriceProvider;
 use hydradx_traits::router::AssetPair;
 use orml_traits::MultiCurrency;
+use pallet_ice::api::{DataRepr, IntentRepr};
 use pallet_ice::types::{Balance, Intent, IntentId, ResolvedIntent as RI, Swap};
 use pallet_intent::types::BoundedResolvedIntents;
 use primitives::{AccountId, AssetId, Moment};
@@ -24,12 +26,91 @@ use xcm_emulator::TestExt;
 
 const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2025-02-24";
 
+fn convert_to_solver_types(
+	intents: Vec<IntentRepr>,
+	data: Vec<DataRepr>,
+) -> (
+	Vec<hydration_solver::types::Intent>,
+	Vec<hydration_solver::types::Asset>,
+) {
+	let data: Vec<hydration_solver::types::Asset> = data
+		.into_iter()
+		.map(|v| {
+			let (c, asset_id, reserve, hub_reserve, decimals, fee, hub_fee) = v;
+			match c {
+				0 => hydration_solver::types::Asset::Omnipool(hydration_solver::types::OmnipoolAsset {
+					asset_id,
+					decimals,
+					reserve,
+					hub_reserve,
+					fee,
+					hub_fee,
+				}),
+				1 => hydration_solver::types::Asset::StableSwap(hydration_solver::types::StableSwapAsset {
+					asset_id,
+					decimals,
+					reserve,
+					fee,
+				}),
+				_ => {
+					panic!("unsupported pool asset!")
+				}
+			}
+		})
+		.collect();
+
+	// map to solver intents
+	let intents: Vec<hydration_solver::types::Intent> = intents
+		.into_iter()
+		.map(|v| {
+			let (intent_id, asset_in, asset_out, amount_in, amount_out) = v;
+			hydration_solver::types::Intent {
+				intent_id,
+				asset_in,
+				asset_out,
+				amount_in,
+				amount_out,
+				partial: false,
+			}
+		})
+		.collect();
+
+	(intents, data)
+}
+
 pub(crate) fn solve_intents_with(
 	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32>)>,
-) -> Result<BoundedResolvedIntents, ()> {
-	let solution = pallet_ice::Pallet::<hydradx_runtime::Runtime>::run(0, |i, d| vec![]);
+) -> Result<pallet_ice::Call<hydradx_runtime::Runtime>, ()> {
+	let b = hydradx_runtime::System::block_number();
+	let solution = pallet_ice::Pallet::<hydradx_runtime::Runtime>::run(b, |i, d| {
+		let (intents, data) = convert_to_solver_types(i, d);
+		dbg!(&intents);
+		let s = hydration_solver::v3::SolverV3::solve(intents, data).ok()?;
+		let resolved = s
+			.resolved_intents
+			.iter()
+			.map(|v| pallet_ice::types::ResolvedIntent {
+				intent_id: v.intent_id,
+				amount_in: v.amount_in,
+				amount_out: v.amount_out,
+			})
+			.collect();
+		Some(resolved)
+	});
 
-	Ok(BoundedResolvedIntents::default())
+	if let Some(c) = solution {
+		/*
+		println!("dispatching");
+		let r = c.dispatch_bypass_filter(
+			RuntimeOrigin::signed(BOB.into()),
+		);
+		dbg!(r);
+
+		 */
+		Ok(c)
+	} else {
+		Err(())
+	}
 }
 
 #[test]

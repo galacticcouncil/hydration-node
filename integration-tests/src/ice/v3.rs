@@ -5,6 +5,7 @@ use frame_support::assert_ok;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::traits::fungible::Mutate;
 use frame_support::traits::Time;
+use frame_support::traits::UnfilteredDispatchable;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_runtime::{
@@ -47,6 +48,9 @@ fn load_from_file() -> Vec<Intent<AccountId32>> {
 fn v3_scenario() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let intents = load_from_file();
+		dbg!(&intents);
+		let now = Timestamp::now();
+		dbg!(now);
 		for intent in intents.iter() {
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -63,7 +67,18 @@ fn v3_scenario() {
 		}
 		let intents = submit_intents(intents);
 
-		let resolved = solve_intents_with(intents).unwrap();
+		let b = hydradx_runtime::System::block_number();
+		dbg!(b);
+		let submit_call = solve_intents_with(intents).unwrap();
+		dbg!(&submit_call);
+		let b = hydradx_runtime::System::block_number();
+		dbg!(b);
+		hydradx_run_to_next_block();
+
+		let b = hydradx_runtime::System::block_number();
+		dbg!(b);
+		let r = submit_call.dispatch_bypass_filter(RuntimeOrigin::signed(BOB.into()));
+		dbg!(r);
 	});
 }
 
