@@ -31,7 +31,7 @@ use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle};
-use orml_traits::parameter_type_with_key;
+use orml_traits::{MultiCurrency, parameter_type_with_key};
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use primitive_types::U128;
 use sp_core::H256;
@@ -1157,7 +1157,7 @@ pub fn resolve_intent_with_failure() {
 				let call_data = intent.on_failure.unwrap().to_vec();
 				//let rc0 = <Test as frame_system::Config>::RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
 				let rc0 = RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
-				rc0.dispatch(RuntimeOrigin::root());
+				rc0.dispatch(RuntimeOrigin::signed(intent.who)).unwrap();
 
 				//let rc = RuntimeCall::decode(&mut &Vec::from(call_data)[..]).unwrap();
 				//Utility::batch(RuntimeOrigin::root(), vec![rc0.unwrap()]);

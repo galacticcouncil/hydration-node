@@ -775,10 +775,11 @@ pub mod pallet {
 			let free_balance = T::Currencies::free_balance(schedule.order.get_asset_in(), &who); //TODO; use using reducible balance
 			if free_balance < amount_in {
 				Self::terminate_schedule(schedule_id, &schedule, Error::<T>::BalanceTooLow.into());
+			} else {
+				Self::retry_schedule(schedule_id, &schedule, current_blocknumber, &mut randomness_generator)?; //TODO: test retry logic
 			}
 
-			Self::retry_schedule(schedule_id, &schedule, current_blocknumber, &mut randomness_generator);
-			//TODO: if fails then terminate
+			//TODO: if fails yunexpectredly then terminate
 
 			Ok(())
 		}

@@ -346,7 +346,7 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: 40 * ONE,
+					amount_in: 20 * ONE,
 					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
@@ -362,17 +362,17 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 			//Act
 			proceed_to_blocknumber(501, 601);
 			resolve_intent();
-			/*proceed_to_blocknumber(601, 701);
+			proceed_to_blocknumber(601, 701);
 			resolve_intent();
 			proceed_to_blocknumber(701, 801);
-			resolve_intent_with_failure();*/
+			resolve_intent_with_failure();
 
 			//Assert
-			//assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			assert_number_of_executed_sell_trades!(2);
 
 			let schedule_id = 0;
-			assert_that_dca_is_terminated(ALICE, schedule_id, sp_runtime::TokenError::FundsUnavailable.into());
+			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::BalanceTooLow.into());
 		});
 }
 
