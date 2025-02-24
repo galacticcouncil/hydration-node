@@ -268,6 +268,25 @@ pub fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, Ass
 	}
 }
 
+/// Runtime API definition for the Chainlink adapter.
+pub mod runtime_api {
+	#![cfg_attr(not(feature = "std"), no_std)]
+
+	use codec::Codec;
+	use super::{AssetId, OraclePeriod, Source};
+
+	sp_api::decl_runtime_apis! {
+		/// The API to query EVM account conversions.
+		pub trait ChainlinkAdapterApi<AccountId, EvmAddress> where
+			AccountId: Codec,
+			EvmAddress: Codec,
+		{
+			fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> EvmAddress;
+			fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)>;
+		}
+	}
+}
+
 #[test]
 fn encoded_oracle_period_is_one_byte() {
 	use codec::MaxEncodedLen;

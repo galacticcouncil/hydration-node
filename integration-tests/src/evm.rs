@@ -1259,7 +1259,6 @@ mod chainlink_precompile {
 	use ethabi::ethereum_types::U256;
 	use frame_support::{
 		sp_runtime::{FixedPointNumber, FixedU128},
-		traits::ConstU32,
 	};
 	use hydradx_runtime::{
 		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
@@ -1560,6 +1559,26 @@ mod chainlink_precompile {
 				Err(PrecompileFailure::Error {
 					exit_status: ExitError::Other("Price not available".into()),
 				})
+			);
+		});
+	}
+
+	#[test]
+	fn chainlink_runtime_rpc_should_work() {
+		use hydradx_runtime::evm::precompiles::chainlink_adapter::runtime_api::runtime_decl_for_chainlink_adapter_api::ChainlinkAdapterApiV1;
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Runtime::encode_oracle_address(4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
+				hydradx_runtime::evm::precompiles::chainlink_adapter::encode_oracle_address(4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE)
+			);
+
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Runtime::decode_oracle_address(H160::from(hex!("000001026f6d6e69706f6f6c0000000400000005"))),
+				hydradx_runtime::evm::precompiles::chainlink_adapter::decode_oracle_address(H160::from(hex!("000001026f6d6e69706f6f6c0000000400000005")))
 			);
 		});
 	}
