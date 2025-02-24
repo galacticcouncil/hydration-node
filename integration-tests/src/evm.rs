@@ -1262,7 +1262,7 @@ mod chainlink_precompile {
 		traits::ConstU32,
 	};
 	use hydradx_runtime::{
-		evm::precompiles::chainlink_adapter::{encode_evm_address, AggregatorInterface, ChainlinkOraclePrecompile},
+		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
 		EmaOracle, Router,
 	};
 	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
@@ -1321,7 +1321,7 @@ mod chainlink_precompile {
 
 			let data = EvmDataWriter::new_with_selector(AggregatorInterface::GetAnswer).build();
 
-			let oracle_ethereum_address = encode_evm_address(HDX, OraclePeriod::Short, OMNIPOOL_SOURCE).unwrap();
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, OMNIPOOL_SOURCE);
 
 			let mut handle = MockHandle {
 				input: data,
@@ -1336,7 +1336,7 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<ConstU32<DOT>, hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
@@ -1387,7 +1387,7 @@ mod chainlink_precompile {
 
 			let data = EvmDataWriter::new_with_selector(AggregatorInterface::GetAnswer).build();
 
-			let oracle_ethereum_address = encode_evm_address(HDX, OraclePeriod::Short, XYK_SOURCE).unwrap();
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, XYK_SOURCE);
 
 			let mut handle = MockHandle {
 				input: data,
@@ -1402,7 +1402,7 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<ConstU32<DOT>, hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
@@ -1504,7 +1504,7 @@ mod chainlink_precompile {
 
 			let data = EvmDataWriter::new_with_selector(AggregatorInterface::GetAnswer).build();
 
-			let oracle_ethereum_address = encode_evm_address(HDX, OraclePeriod::Short, [0; 8]).unwrap();
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, [0; 8]);
 
 			let mut handle = MockHandle {
 				input: data,
@@ -1519,7 +1519,7 @@ mod chainlink_precompile {
 
 			//Act
 			let PrecompileOutput { output, exit_status } =
-				ChainlinkOraclePrecompile::<ConstU32<DOT>, hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
 
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
@@ -1538,7 +1538,7 @@ mod chainlink_precompile {
 
 			let data = EvmDataWriter::new_with_selector(AggregatorInterface::GetAnswer).build();
 
-			let oracle_ethereum_address = encode_evm_address(HDX, OraclePeriod::Short, XYK_SOURCE).unwrap();
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, XYK_SOURCE);
 
 			let mut handle = MockHandle {
 				input: data,
@@ -1552,7 +1552,7 @@ mod chainlink_precompile {
 			};
 
 			//Act
-			let result = ChainlinkOraclePrecompile::<ConstU32<DOT>, hydradx_runtime::Runtime>::execute(&mut handle);
+			let result = ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle);
 
 			//Assert
 			pretty_assertions::assert_eq!(

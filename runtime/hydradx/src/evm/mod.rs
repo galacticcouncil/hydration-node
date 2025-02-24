@@ -137,7 +137,6 @@ parameter_types! {
 	pub const OracleEvmPeriod: OraclePeriod = OraclePeriod::Short;
 
 	pub const SuicideQuickClearLimit: u32 = 0;
-	pub const ChainlinkQuoteAsset: AssetId = USDT;
 }
 
 impl pallet_evm::Config for Runtime {

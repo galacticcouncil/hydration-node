@@ -8,7 +8,7 @@ use crate::{
 	evm::EvmAddress,
 	EmaOracle, Router,
 };
-use codec::{Decode, Encode, EncodeLike, MaxEncodedLen};
+use codec::{Decode, Encode, EncodeLike};
 use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
@@ -22,11 +22,10 @@ use hydradx_traits::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use pallet_omnipool::types::Balance;
 use primitive_types::{H160, U256, U512};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
 use sp_runtime::{
-	traits::{Dispatchable, Get},
+	traits::Dispatchable,
 	RuntimeDebug,
 };
 use sp_std::marker::PhantomData;
@@ -44,11 +43,10 @@ pub enum AggregatorInterface {
 	GetTimestamp = "getTimestamp(uint256)",
 }
 
-pub struct ChainlinkOraclePrecompile<QuoteAsset, Runtime>(PhantomData<(QuoteAsset, Runtime)>);
+pub struct ChainlinkOraclePrecompile<Runtime>(PhantomData<Runtime>);
 
-impl<QuoteAsset, Runtime> Precompile for ChainlinkOraclePrecompile<QuoteAsset, Runtime>
+impl<Runtime> Precompile for ChainlinkOraclePrecompile<Runtime>
 where
-	QuoteAsset: Get<AssetId>,
 	Runtime: frame_system::Config
 		+ pallet_evm::Config
 		+ pallet_asset_registry::Config
@@ -65,7 +63,7 @@ where
 	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		let address = handle.code_address();
 		if let Some((asset_id_a, asset_id_b, period, source)) = decode_oracle_address(address) {
-			log::debug!(target: "evm", "chainlink: asset_id: {:?}, period: {:?}, source: {:?}", asset_id_a, period, source);
+			log::debug!(target: "evm", "chainlink: asset_id_a: {:?}, asset_id_b: {:?}, period: {:?}, source: {:?}", asset_id_a, asset_id_b, period, source);
 
 			let selector = match handle.read_selector() {
 				Ok(selector) => selector,
@@ -75,7 +73,7 @@ where
 			handle.check_function_modifier(FunctionModifier::View)?;
 
 			return match selector {
-				AggregatorInterface::GetAnswer => Self::get_oracle_entry(asset_id_a, period, source, handle),
+				AggregatorInterface::GetAnswer => Self::get_oracle_entry(asset_id_a, asset_id_b, period, source, handle),
 				_ => Self::not_supported(),
 			};
 		}
@@ -86,9 +84,8 @@ where
 	}
 }
 
-impl<QuoteAsset, Runtime> ChainlinkOraclePrecompile<QuoteAsset, Runtime>
+impl<Runtime> ChainlinkOraclePrecompile<Runtime>
 where
-	QuoteAsset: Get<AssetId>,
 	Runtime: frame_system::Config
 		+ pallet_evm::Config
 		+ pallet_asset_registry::Config
@@ -106,7 +103,8 @@ where
 	/// Oracle prices for omnipool are quoted by LRNA, so in the case that the Omnipool is specified as a source,
 	/// two prices (one for Asset_A/LRNA and second one for Asset_B/LRNA) are fetched and one final price is calculated from them.
 	fn get_oracle_entry(
-		asset_id: AssetId,
+		asset_id_a: AssetId,
+		asset_id_b: AssetId,
 		period: OraclePeriod,
 		source: Source,
 		handle: &mut impl PrecompileHandle,
@@ -118,15 +116,15 @@ where
 		input.expect_arguments(0)?;
 
 		let decimals =
-			<pallet_asset_registry::Pallet<Runtime>>::decimals(asset_id.into()).ok_or(PrecompileFailure::Error {
+			<pallet_asset_registry::Pallet<Runtime>>::decimals(asset_id_a.into()).ok_or(PrecompileFailure::Error {
 				exit_status: pallet_evm::ExitError::Other("Decimals not available".into()),
 			})?;
 
 		// In case of empty source, we retrieve onchain route
 		let price = if source == EMPTY_SOURCE {
 			let route = Router::get_route(AssetPair {
-				asset_in: asset_id,
-				asset_out: QuoteAsset::get(),
+				asset_in: asset_id_a,
+				asset_out: asset_id_b,
 			});
 			let price = OraclePriceProvider::<AssetId, EmaOracle, LRNA>::price(&route, period).ok_or(
 				PrecompileFailure::Error {
@@ -134,25 +132,25 @@ where
 				},
 			)?;
 
-			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", asset_id, QuoteAsset::get(), price, source);
+			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", asset_id_a, asset_id_b, price, source);
 			price
 		}
 		// special case: all Omnipool prices are quoted with LRNA asset
 		else if source == OMNIPOOL_SOURCE {
 			let (asset_a_price, _block_number) =
-				<pallet_ema_oracle::Pallet<Runtime>>::get_price(asset_id, LRNA::get(), period, source).map_err(
+				<pallet_ema_oracle::Pallet<Runtime>>::get_price(asset_id_a, LRNA::get(), period, source).map_err(
 					|_| PrecompileFailure::Error {
 						exit_status: pallet_evm::ExitError::Other("Price not available".into()),
 					},
 				)?;
-			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", asset_id, LRNA::get(), asset_a_price, source);
+			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", asset_id_a, LRNA::get(), asset_a_price, source);
 
 			let (asset_b_price, _block_number) =
-				<pallet_ema_oracle::Pallet<Runtime>>::get_price(QuoteAsset::get(), LRNA::get(), period, source)
+				<pallet_ema_oracle::Pallet<Runtime>>::get_price(asset_id_b, LRNA::get(), period, source)
 					.map_err(|_| PrecompileFailure::Error {
 						exit_status: pallet_evm::ExitError::Other("Price not available".into()),
 					})?;
-			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", LRNA::get(), QuoteAsset::get(), asset_b_price, source);
+			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", LRNA::get(), asset_id_b, asset_b_price, source);
 
 			let nominator = U512::from(asset_a_price.n)
 				.checked_mul(U512::from(asset_b_price.d))
@@ -170,12 +168,12 @@ where
 			Price::from(rat_as_u128)
 		} else {
 			let (price, _block_number) =
-				<pallet_ema_oracle::Pallet<Runtime>>::get_price(asset_id, QuoteAsset::get(), period, source).map_err(
+				<pallet_ema_oracle::Pallet<Runtime>>::get_price(asset_id_a, asset_id_b, period, source).map_err(
 					|_| PrecompileFailure::Error {
 						exit_status: pallet_evm::ExitError::Other("Price not available".into()),
 					},
 				)?;
-			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", asset_id, QuoteAsset::get(), price, source);
+			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", asset_id_a, asset_id_b, price, source);
 			price
 		};
 
@@ -272,6 +270,7 @@ pub fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, Ass
 
 #[test]
 fn encoded_oracle_period_is_one_byte() {
+	use codec::MaxEncodedLen;
 	// OraclePeriod is enum encoded as Vec<u8>. We don't expect it to be more than 1 byte.
 	assert_eq!(OraclePeriod::max_encoded_len(), 1);
 

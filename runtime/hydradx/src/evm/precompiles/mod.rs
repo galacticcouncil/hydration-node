@@ -27,7 +27,6 @@ use crate::evm::{
 		erc20_mapping::is_asset_address,
 		multicurrency::MultiCurrencyPrecompile,
 	},
-	ChainlinkQuoteAsset,
 };
 use codec::Decode;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
@@ -114,7 +113,7 @@ where
 	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
 	MultiCurrencyPrecompile<R>: Precompile,
-	ChainlinkOraclePrecompile<ChainlinkQuoteAsset, R>: Precompile,
+	ChainlinkOraclePrecompile<R>: Precompile,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let context = handle.context();
@@ -155,7 +154,7 @@ where
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
 		} else if is_oracle_address(address) {
-			Some(ChainlinkOraclePrecompile::<ChainlinkQuoteAsset, R>::execute(handle))
+			Some(ChainlinkOraclePrecompile::<R>::execute(handle))
 		} else {
 			None
 		}
