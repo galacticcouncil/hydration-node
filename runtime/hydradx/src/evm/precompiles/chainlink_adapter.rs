@@ -225,38 +225,38 @@ fn convert_price_to_u256(price: Price, decimals: u8) -> Result<U256, PrecompileF
 /// Encoding is 7 bytes for precompile prefix 0x00000000000001,
 /// followed by 1 byte for encoded OraclePeriod enum, 8 bytes for Source, and 4 bytes for AssetId.
 pub fn encode_oracle_address(asset_id: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
-	let mut evm_address_bytes = [0u8; 20];
+	let mut oracle_address_bytes = [0u8; 20];
 
 	let period_u32 = period.encode();
 
-	evm_address_bytes[6] = 1;
+	oracle_address_bytes[6] = 1;
 
-	evm_address_bytes[7] = period_u32[0];
+	oracle_address_bytes[7] = period_u32[0];
 
-	evm_address_bytes[8..(8 + source.len())].copy_from_slice(&source[..]);
+	oracle_address_bytes[8..(8 + source.len())].copy_from_slice(&source[..]);
 
 	let asset_id_bytes: [u8; 4] = asset_id.to_be_bytes();
-	evm_address_bytes[16..(16 + asset_id_bytes.len())].copy_from_slice(&asset_id_bytes[..]);
+	oracle_address_bytes[16..(16 + asset_id_bytes.len())].copy_from_slice(&asset_id_bytes[..]);
 
-	EvmAddress::from(evm_address_bytes)
+	EvmAddress::from(oracle_address_bytes)
 }
 
-pub fn decode_oracle_address(evm_address: EvmAddress) -> Option<(AssetId, OraclePeriod, Source)> {
-	if !is_oracle_address(evm_address) {
+pub fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, OraclePeriod, Source)> {
+	if !is_oracle_address(oracle_address) {
 		return None;
 	}
 
-	let evm_address_bytes = evm_address.to_fixed_bytes();
+	let oracle_address_bytes = oracle_address.to_fixed_bytes();
 
 	let mut asset_id: u32 = 0;
-	for byte in evm_address_bytes[16..20].iter() {
+	for byte in oracle_address_bytes[16..20].iter() {
 		asset_id = (asset_id << 8) | (*byte as u32);
 	}
 
 	let mut source: Source = EMPTY_SOURCE;
-	source.copy_from_slice(&evm_address_bytes[8..16]);
+	source.copy_from_slice(&oracle_address_bytes[8..16]);
 
-	let period_u32 = evm_address_bytes[7];
+	let period_u32 = oracle_address_bytes[7];
 	match Decode::decode(&mut &[period_u32; 1][..]) {
 		Ok(period) => Some((asset_id, period, source)),
 		_ => None,
