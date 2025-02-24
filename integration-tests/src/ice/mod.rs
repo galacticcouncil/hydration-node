@@ -22,7 +22,7 @@ use primitives::{AccountId, AssetId, Moment};
 use sp_core::crypto::AccountId32;
 use xcm_emulator::TestExt;
 
-const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2024-10-18";
+const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2025-02-24";
 
 pub(crate) fn solve_intents_with(
 	intents: Vec<(IntentId, Intent<sp_runtime::AccountId32>)>,
