@@ -21,12 +21,10 @@
 
 use core::marker::PhantomData;
 
-use crate::evm::{
-	precompiles::{
-		chainlink_adapter::{is_oracle_address, ChainlinkOraclePrecompile},
-		erc20_mapping::is_asset_address,
-		multicurrency::MultiCurrencyPrecompile,
-	},
+use crate::evm::precompiles::{
+	chainlink_adapter::{is_oracle_address, ChainlinkOraclePrecompile},
+	erc20_mapping::is_asset_address,
+	multicurrency::MultiCurrencyPrecompile,
 };
 use codec::Decode;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
