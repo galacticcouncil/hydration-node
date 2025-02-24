@@ -194,6 +194,16 @@ impl<T: Config> Pallet<T> {
 		});
 		Ok(())
 	}
+
+	pub fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId>)> {
+		let mut intents: Vec<(IntentId, Intent<T::AccountId>)> = Intents::<T>::iter().collect();
+		intents.sort_by_key(|(_, intent)| intent.deadline);
+
+		let now = T::TimestampProvider::now();
+		intents.retain(|(_, intent)| intent.deadline > now);
+
+		intents
+	}
 }
 
 impl<T: Config> Pallet<T> {

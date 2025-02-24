@@ -66,5 +66,23 @@ pub(crate) fn into_intent_repr<AccountId>(data: (IntentId, Intent<AccountId>)) -
 }
 
 pub(crate) fn into_pool_data_repr(data: AssetInfo<AssetId>) -> DataRepr {
-	(0, 0, 0, 0, 0, (0, 0), (0, 0))
+	match data {
+		AssetInfo::Omnipool(asset) => {
+			let fee = (asset.fee.deconstruct(), 1_000_000);
+			let hub_fee = (asset.hub_fee.deconstruct(), 1_000_000);
+			(
+				0,
+				asset.asset_id,
+				asset.reserve,
+				asset.hub_reserve,
+				asset.decimals,
+				fee,
+				hub_fee,
+			)
+		}
+		AssetInfo::StableSwap(asset) => {
+			let fee = (asset.fee.deconstruct(), 1_000_000);
+			(1, asset.asset_id, asset.reserve, 0, asset.decimals, fee, (0, 0))
+		}
+	}
 }

@@ -47,10 +47,22 @@ fn load_from_file() -> Vec<Intent<AccountId32>> {
 #[test]
 fn v3_scenario() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		let intents = load_from_file();
-		dbg!(&intents);
+		//let intents = load_from_file();
+		let intents: Vec<Intent<AccountId32>> = vec![Intent {
+			who: BOB.into(),
+			swap: Swap {
+				asset_in: 0,
+				asset_out: 27,
+				amount_in: 100_000_000_000_000,
+				amount_out: 6775923048819,
+				swap_type: SwapType::ExactIn,
+			},
+			deadline: Timestamp::now() + 43_200_000,
+			partial: false,
+			on_success: None,
+			on_failure: None,
+		}];
 		let now = Timestamp::now();
-		dbg!(now);
 		for intent in intents.iter() {
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -66,17 +78,9 @@ fn v3_scenario() {
 			));
 		}
 		let intents = submit_intents(intents);
-
-		let b = hydradx_runtime::System::block_number();
-		dbg!(b);
 		let submit_call = solve_intents_with(intents).unwrap();
-		dbg!(&submit_call);
-		let b = hydradx_runtime::System::block_number();
-		dbg!(b);
 		hydradx_run_to_next_block();
 
-		let b = hydradx_runtime::System::block_number();
-		dbg!(b);
 		let r = submit_call.dispatch_bypass_filter(RuntimeOrigin::signed(BOB.into()));
 		dbg!(r);
 	});

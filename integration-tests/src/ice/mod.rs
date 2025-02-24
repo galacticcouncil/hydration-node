@@ -84,7 +84,6 @@ pub(crate) fn solve_intents_with(
 	let b = hydradx_runtime::System::block_number();
 	let solution = pallet_ice::Pallet::<hydradx_runtime::Runtime>::run(b, |i, d| {
 		let (intents, data) = convert_to_solver_types(i, d);
-		dbg!(&intents);
 		let s = hydration_solver::v3::SolverV3::solve(intents, data).ok()?;
 		let resolved = s
 			.resolved_intents
@@ -99,14 +98,6 @@ pub(crate) fn solve_intents_with(
 	});
 
 	if let Some(c) = solution {
-		/*
-		println!("dispatching");
-		let r = c.dispatch_bypass_filter(
-			RuntimeOrigin::signed(BOB.into()),
-		);
-		dbg!(r);
-
-		 */
 		Ok(c)
 	} else {
 		Err(())
@@ -131,7 +122,7 @@ fn test_omnipool_snapshot() {
 		));
 		let balance20 = Currencies::free_balance(buy_asset, &AccountId32::from(BOB));
 
-		assert_eq!(balance20 - initial_balance20, 1249711278057);
+		assert_eq!(balance20 - initial_balance20, 6775923048819);
 	});
 }
 

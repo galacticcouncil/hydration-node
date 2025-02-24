@@ -345,6 +345,24 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	fn calculate_score(amounts: &[(AssetId, (Balance, Balance))], resolved_count: u128) -> Result<u64, DispatchError> {
+		let mut hub_amount = resolved_count * 1_000_000_000_000u128;
+
+		for (asset_id, (amount_in, amount_out)) in amounts.iter() {
+			let matched_amount = (*amount_in).min(*amount_out);
+			if matched_amount > 0u128 {
+				let price = T::PriceProvider::get_price(<T as pallet_intent::Config>::HubAssetId::get(), *asset_id)
+					.ok_or(Error::<T>::MissingPrice)?;
+				let converted = multiply_by_rational_with_rounding(matched_amount, price.n, price.d, Rounding::Down)
+					.ok_or(ArithmeticError::Overflow)?;
+				hub_amount.saturating_accrue(converted);
+			}
+		}
+
+		let calculated_score = hub_amount / 1_000_000u128;
+		Ok(calculated_score as u64)
+	}
+
 	#[require_transactional]
 	fn execute_solution(solution: Solution<T::AccountId>) -> DispatchResult {
 		let holding_account = crate::Pallet::<T>::holding_account();
@@ -428,7 +446,21 @@ impl<T: Config> Pallet<T> {
 		let resolved_intents = solve(intents, data)?;
 
 		// 3. calculate score
-		let score = 0;
+		//TODO: retrieving intent again -  why, bob, why?
+		let mut amounts: BTreeMap<AssetId, (Balance, Balance)> = BTreeMap::new();
+		for resolved in resolved_intents.iter() {
+			let intent = pallet_intent::Pallet::<T>::get_intent(resolved.intent_id).unwrap();
+			amounts
+				.entry(intent.swap.asset_in)
+				.and_modify(|(v_in, _)| *v_in = v_in.saturating_add(resolved.amount_in))
+				.or_insert((resolved.amount_in, 0u128));
+			amounts
+				.entry(intent.swap.asset_out)
+				.and_modify(|(_, v_out)| *v_out = v_out.saturating_add(resolved.amount_out))
+				.or_insert((0u128, resolved.amount_out));
+		}
+		let amounts: Vec<(AssetId, (Balance, Balance))> = amounts.into_iter().collect();
+		let score = Self::calculate_score(&amounts, resolved_intents.len() as u128).ok()?;
 
 		Some(Call::submit_solution {
 			intents: BoundedResolvedIntents::truncate_from(resolved_intents),
@@ -438,6 +470,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn get_valid_intents() -> Vec<(IntentId, Intent<T::AccountId>)> {
-		vec![]
+		pallet_intent::Pallet::<T>::get_valid_intents()
 	}
 }
