@@ -64,8 +64,8 @@ where
 {
 	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		let address = handle.code_address();
-		if let Some((asset_id, period, source)) = decode_oracle_address(address) {
-			log::debug!(target: "evm", "chainlink: asset_id: {:?}, period: {:?}, source: {:?}", asset_id, period, source);
+		if let Some((asset_id_a, asset_id_b, period, source)) = decode_oracle_address(address) {
+			log::debug!(target: "evm", "chainlink: asset_id: {:?}, period: {:?}, source: {:?}", asset_id_a, period, source);
 
 			let selector = match handle.read_selector() {
 				Ok(selector) => selector,
@@ -75,7 +75,7 @@ where
 			handle.check_function_modifier(FunctionModifier::View)?;
 
 			return match selector {
-				AggregatorInterface::GetAnswer => Self::get_oracle_entry(asset_id, period, source, handle),
+				AggregatorInterface::GetAnswer => Self::get_oracle_entry(asset_id_a, period, source, handle),
 				_ => Self::not_supported(),
 			};
 		}
@@ -102,10 +102,9 @@ where
 	<Runtime as frame_system::Config>::AccountId:
 		From<sp_runtime::AccountId32> + IsType<sp_runtime::AccountId32> + AsRef<[u8; 32]>,
 {
-	/// Returned price is always quoted by `QuoteAsset`.
 	/// If `source` is empty, the route is obtained from the Router pallet and final price calculated by multiplication.
 	/// Oracle prices for omnipool are quoted by LRNA, so in the case that the Omnipool is specified as a source,
-	/// two prices (one for ASSET/LRNA and second one for QuoteAsset/LRNA) are fetched and one final price is calculated from them.
+	/// two prices (one for Asset_A/LRNA and second one for Asset_B/LRNA) are fetched and one final price is calculated from them.
 	fn get_oracle_entry(
 		asset_id: AssetId,
 		period: OraclePeriod,
@@ -195,9 +194,9 @@ where
 }
 
 pub fn is_oracle_address(address: H160) -> bool {
-	let oracle_address_prefix = &(H160::from(hex!("0000000000000100000000000000000000000000"))[0..7]);
+	let oracle_address_prefix = &(H160::from(hex!("0000010000000000000000000000000000000000"))[0..3]);
 
-	&address.to_fixed_bytes()[0..7] == oracle_address_prefix
+	&address.to_fixed_bytes()[0..3] == oracle_address_prefix
 }
 
 /// Converts pallet_ema_oracle::Price to U256. The price is stored as integer, integer part + fractional part.
@@ -222,49 +221,57 @@ fn convert_price_to_u256(price: Price, decimals: u8) -> Result<U256, PrecompileF
 		})
 }
 
-/// Encoding is 7 bytes for precompile prefix 0x00000000000001,
-/// followed by 1 byte for encoded OraclePeriod enum, 8 bytes for Source, and 4 bytes for AssetId.
-pub fn encode_oracle_address(asset_id: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
+/// Encoding is 3 bytes for precompile prefix 0x000001,
+/// followed by 1 byte for encoded OraclePeriod enum, 8 bytes for Source, and two times 4 bytes for AssetId.
+pub fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
 	let mut oracle_address_bytes = [0u8; 20];
 
 	let period_u32 = period.encode();
 
-	oracle_address_bytes[6] = 1;
+	oracle_address_bytes[2] = 1;
 
-	oracle_address_bytes[7] = period_u32[0];
+	oracle_address_bytes[3] = period_u32[0];
 
-	oracle_address_bytes[8..(8 + source.len())].copy_from_slice(&source[..]);
+	oracle_address_bytes[4..(4 + source.len())].copy_from_slice(&source[..]);
 
-	let asset_id_bytes: [u8; 4] = asset_id.to_be_bytes();
+	let asset_id_bytes: [u8; 4] = asset_id_a.to_be_bytes();
+	oracle_address_bytes[12..(12 + asset_id_bytes.len())].copy_from_slice(&asset_id_bytes[..]);
+
+	let asset_id_bytes: [u8; 4] = asset_id_b.to_be_bytes();
 	oracle_address_bytes[16..(16 + asset_id_bytes.len())].copy_from_slice(&asset_id_bytes[..]);
 
 	EvmAddress::from(oracle_address_bytes)
 }
 
-pub fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, OraclePeriod, Source)> {
+pub fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
 	if !is_oracle_address(oracle_address) {
 		return None;
 	}
 
 	let oracle_address_bytes = oracle_address.to_fixed_bytes();
 
-	let mut asset_id: u32 = 0;
+	let mut asset_id_a: u32 = 0;
+	for byte in oracle_address_bytes[12..16].iter() {
+		asset_id_a = (asset_id_a << 8) | (*byte as u32);
+	}
+
+	let mut asset_id_b: u32 = 0;
 	for byte in oracle_address_bytes[16..20].iter() {
-		asset_id = (asset_id << 8) | (*byte as u32);
+		asset_id_b = (asset_id_b << 8) | (*byte as u32);
 	}
 
 	let mut source: Source = EMPTY_SOURCE;
-	source.copy_from_slice(&oracle_address_bytes[8..16]);
+	source.copy_from_slice(&oracle_address_bytes[4..12]);
 
-	let period_u32 = oracle_address_bytes[7];
+	let period_u32 = oracle_address_bytes[3];
 	match Decode::decode(&mut &[period_u32; 1][..]) {
-		Ok(period) => Some((asset_id, period, source)),
+		Ok(period) => Some((asset_id_a, asset_id_b, period, source)),
 		_ => None,
 	}
 }
 
 #[test]
-fn encoded_oracle_period_has_one_byte() {
+fn encoded_oracle_period_is_one_byte() {
 	// OraclePeriod is enum encoded as Vec<u8>. We don't expect it to be more than 1 byte.
 	assert_eq!(OraclePeriod::max_encoded_len(), 1);
 
@@ -273,15 +280,15 @@ fn encoded_oracle_period_has_one_byte() {
 #[test]
 fn encode_oracle_address_should_work() {
 	assert_eq!(
-		encode_oracle_address(4, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
-		H160::from(hex!("00000000000001026f6d6e69706f6f6c00000004"))
+		encode_oracle_address(4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
+		H160::from(hex!("000001026f6d6e69706f6f6c0000000400000005"))
 	);
 }
 
 #[test]
 fn decode_oracle_address_should_work() {
 	assert_eq!(
-		decode_oracle_address(H160::from(hex!("00000000000001026f6d6e69706f6f6c00000004"))),
-		Some((4, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE))
+		decode_oracle_address(H160::from(hex!("000001026f6d6e69706f6f6c0000000400000005"))),
+		Some((4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE))
 	);
 }
