@@ -411,7 +411,18 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_en
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
-			proceed_to_blocknumber(501, 2001);
+			proceed_to_blocknumber(501, 601);
+			resolve_intent();
+			proceed_to_blocknumber(601, 701);
+			resolve_intent();
+			proceed_to_blocknumber(701, 801);
+			resolve_intent();
+			proceed_to_blocknumber(801, 901);
+			resolve_intent();
+			proceed_to_blocknumber(901, 1001);
+			resolve_intent_with_failure();
+
+			continue
 
 			//Assert
 			assert_number_of_executed_buy_trades!(4);
