@@ -113,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 288,
+	spec_version: 289,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -303,7 +303,6 @@ mod benches {
 		[pallet_lbp, LBP]
 		[pallet_asset_registry, AssetRegistry]
 		[pallet_transaction_pause, TransactionPause]
-		[pallet_ema_oracle, EmaOracle]
 		[pallet_circuit_breaker, CircuitBreaker]
 		[pallet_bonds, Bonds]
 		[pallet_stableswap, Stableswap]
@@ -1067,6 +1066,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
+			orml_list_benchmark!(list, extra, pallet_ema_oracle, benchmarking::ema_oracle);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1195,6 +1195,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
+			orml_add_benchmark!(params, batches, pallet_ema_oracle, benchmarking::ema_oracle);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
