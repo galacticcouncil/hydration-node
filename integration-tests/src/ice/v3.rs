@@ -6,6 +6,7 @@ use frame_support::dispatch::GetDispatchInfo;
 use frame_support::traits::fungible::Mutate;
 use frame_support::traits::Time;
 use frame_support::traits::UnfilteredDispatchable;
+use hydradx_adapters::ice::GlobalAmmState;
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_runtime::{
@@ -46,6 +47,7 @@ fn load_from_file() -> Vec<Intent<AccountId32>> {
 }
 
 use crate::driver::HydrationTestDriver;
+use hydradx_traits::ice::AmmState;
 
 #[test]
 fn simple_v3_scenario() {
@@ -77,6 +79,9 @@ fn simple_v3_scenario() {
 		.execute(|| {
 			let balance = Currencies::free_balance(27, &BOB.into());
 			assert_eq!(balance, 6775923048819);
+			let data = GlobalAmmState::<hydradx_runtime::Runtime>::state(|_| true);
+			let d = serde_json::to_string(&data).unwrap();
+			dbg!(d);
 		});
 }
 

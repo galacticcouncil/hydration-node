@@ -2,7 +2,6 @@
 
 use crate::data::process_omnipool_data;
 use crate::problem::{AmmApprox, Direction, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
-use crate::traits::OmnipoolAssetInfo;
 use crate::types::{AssetId, Balance, FloatType, Intent, ResolvedIntent};
 use clarabel::algebra::*;
 use clarabel::solver::*;

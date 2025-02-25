@@ -1,35 +1,22 @@
 extern crate rand;
-
 mod v3;
-
-use crate::data::AssetData;
-use crate::traits::{OmnipoolAssetInfo, TempOmnipoolAssetInfo};
-use crate::types::FloatType;
 use crate::types::Intent;
+use crate::types::{Asset, AssetId, OmnipoolAsset};
 use rand::Rng;
 
-const OMNIPOOL_DATA: &str = r##"[{"asset_id": 100, "reserve": 1392263929561840317724897, "hub_reserve": 50483454258911331, "decimals": 18, "fee": 2504, "hub_fee": 500, "symbol": "4-Pool"},{"asset_id": 0, "reserve": 140474254463930214441, "hub_reserve": 24725802166085100, "decimals": 12, "fee": 2500, "hub_fee": 500, "symbol": "HDX"},{"asset_id": 28, "reserve": 1941765870068803245372, "hub_reserve": 10802301353604526, "decimals": 15, "fee": 2500, "hub_fee": 500, "symbol": "KILT"},{"asset_id": 20, "reserve": 897820372708098091909, "hub_reserve": 82979992792480889, "decimals": 18, "fee": 2500, "hub_fee": 500, "symbol": "WETH"},{"asset_id": 101, "reserve": 80376407421087835272, "hub_reserve": 197326543312095758, "decimals": 18, "fee": 2500, "hub_fee": 500, "symbol": "2-Pool"},{"asset_id": 16, "reserve": 7389788325282889772690033, "hub_reserve": 44400113772627681, "decimals": 18, "fee": 2500, "hub_fee": 500, "symbol": "GLMR"},{"asset_id": 14, "reserve": 5294190655262755253, "hub_reserve": 35968107631988627, "decimals": 12, "fee": 2500, "hub_fee": 500, "symbol": "BNC"},{"asset_id": 31, "reserve": 30608622540452908043463002, "hub_reserve": 1996484382337770, "decimals": 18, "fee": 2500, "hub_fee": 500, "symbol": "RING"},{"asset_id": 33, "reserve": 1709768909360181457244842, "hub_reserve": 4292819030020081, "decimals": 18, "fee": 2500, "hub_fee": 500, "symbol": "vASTR"},{"asset_id": 15, "reserve": 8517557840315843, "hub_reserve": 182410990007273071, "decimals": 10, "fee": 2500, "hub_fee": 500, "symbol": "vDOT"},{"asset_id": 13, "reserve": 3497639039771749578811390, "hub_reserve": 41595576892166959, "decimals": 18, "fee": 2500, "hub_fee": 500, "symbol": "CFG"},{"asset_id": 27, "reserve": 337868268274751003, "hub_reserve": 4744442135139952, "decimals": 12, "fee": 2500, "hub_fee": 500, "symbol": "CRU"},{"asset_id": 102, "reserve": 14626788977583803950815838, "hub_reserve": 523282707224236528, "decimals": 18, "fee": 2500, "hub_fee": 500, "symbol": "2-Pool"},{"asset_id": 5, "reserve": 23699654990946855, "hub_reserve": 363516483882480814, "decimals": 10, "fee": 2500, "hub_fee": 500, "symbol": "DOT"},{"asset_id": 8, "reserve": 6002455470581388547, "hub_reserve": 24099247547699764, "decimals": 12, "fee": 2500, "hub_fee": 500, "symbol": "PHA"},{"asset_id": 12, "reserve": 97076438291619355, "hub_reserve": 4208903658046130, "decimals": 10, "fee": 2500, "hub_fee": 500, "symbol": "ZTG"},{"asset_id": 17, "reserve": 527569284895074643, "hub_reserve": 19516483401186167, "decimals": 10, "fee": 2500, "hub_fee": 500, "symbol": "INTR"},{"asset_id": 9, "reserve": 31837859712733867027462915, "hub_reserve": 68571523757927389, "decimals": 18, "fee": 2500, "hub_fee": 500, "symbol": "ASTR"}]"##;
+const DATA: &str = r##"[{"Omnipool":{"asset_id":100,"reserve":1270943150463997444837375,"hub_reserve":50853671234155699,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":0,"reserve":83592523593731567499,"hub_reserve":40853940161804370,"decimals":12,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":28,"reserve":4444581557775981481383,"hub_reserve":9867914236001391,"decimals":15,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":20,"reserve":839402843839653672974,"hub_reserve":87617024245417446,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":101,"reserve":629572314354454914,"hub_reserve":2197799364666895,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":16,"reserve":13830709039242499338536071,"hub_reserve":65517044346108249,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":11,"reserve":984121260,"hub_reserve":36404599848875067,"decimals":8,"fee":4166,"hub_fee":500}},{"Omnipool":{"asset_id":14,"reserve":6557500346217376443,"hub_reserve":43555962781559649,"decimals":12,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":19,"reserve":960749125,"hub_reserve":35480714305769130,"decimals":8,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":31,"reserve":31045853803931756127987667,"hub_reserve":1957518273282525,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":33,"reserve":7002428183209846203807494,"hub_reserve":13152800813262614,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":15,"reserve":9077381717604021,"hub_reserve":245563870516993185,"decimals":10,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":13,"reserve":5303765501109563123458773,"hub_reserve":35368913823769879,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":27,"reserve":415903156101558577,"hub_reserve":2993841030740697,"decimals":12,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":102,"reserve":14890614296802581841121227,"hub_reserve":583613992958006756,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":5,"reserve":28257160599310227,"hub_reserve":520096306936030392,"decimals":10,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":1000624,"reserve":895399907425460194070,"hub_reserve":8229794081405306,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":8,"reserve":4956589123156450856,"hub_reserve":29923412066769426,"decimals":12,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":1000765,"reserve":10345100937330576668,"hub_reserve":38354389448420649,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":12,"reserve":86962201989061098,"hub_reserve":3518716760727916,"decimals":10,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":17,"reserve":687214470346292401,"hub_reserve":15195426436782832,"decimals":10,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":9,"reserve":46139630828497220817523427,"hub_reserve":72920802445903885,"decimals":18,"fee":1500,"hub_fee":500}},{"Omnipool":{"asset_id":1000752,"reserve":703013009404,"hub_reserve":4331316417449755,"decimals":9,"fee":1500,"hub_fee":500}}]"##;
 
-pub const ALICE: [u8; 32] = [4u8; 32];
-
-type AssetId = u32;
-
-pub(crate) fn load_omnipool_data() -> Vec<OmnipoolAssetInfo<AssetId>> {
-	let d: Vec<TempOmnipoolAssetInfo<AssetId>> = serde_json::from_str(OMNIPOOL_DATA).unwrap();
-
-	d.into_iter()
-		.map(|a| OmnipoolAssetInfo {
-			asset_id: a.asset_id,
-			reserve: a.reserve,
-			hub_reserve: a.hub_reserve,
-			decimals: a.decimals,
-			fee: (a.fee, 1000_000),
-			hub_fee: (a.hub_fee, 1000_000),
-		})
-		.collect()
+pub(crate) fn load_amm_state() -> Vec<Asset> {
+	serde_json::from_str(DATA).unwrap()
 }
 
-fn price(da: &OmnipoolAssetInfo<AssetId>, db: &OmnipoolAssetInfo<AssetId>, asset_a: AssetId, asset_b: AssetId) -> f64 {
+#[test]
+fn test_data() {
+	let d = load_amm_state();
+	assert_eq!(d.len(), 23);
+}
+
+fn price(da: &OmnipoolAsset, db: &OmnipoolAsset, asset_a: AssetId, asset_b: AssetId) -> f64 {
 	if asset_a == asset_b {
 		1.
 	} else if asset_b == 1u32 {
@@ -45,7 +32,7 @@ fn price(da: &OmnipoolAssetInfo<AssetId>, db: &OmnipoolAssetInfo<AssetId>, asset
 	}
 }
 
-pub(crate) fn generate_random_intents(c: u32, data: Vec<OmnipoolAssetInfo<AssetId>>) -> Vec<Intent> {
+pub(crate) fn generate_random_intents(c: u32, data: &[Asset]) -> Vec<Intent> {
 	let random_pair = || {
 		let mut rng = rand::thread_rng();
 		loop {
@@ -54,19 +41,22 @@ pub(crate) fn generate_random_intents(c: u32, data: Vec<OmnipoolAssetInfo<AssetI
 			if (idx_in == idx_out) {
 				continue;
 			}
-			let reserve_in = data[idx_in].reserve;
-			let reserve_out = data[idx_out].reserve;
+			let data_idx_in = match &data[idx_in] {
+				Asset::Omnipool(v) => v,
+				Asset::StableSwap(_) => continue,
+			};
+			let data_idx_out = match &data[idx_out] {
+				Asset::Omnipool(v) => v,
+				Asset::StableSwap(_) => continue,
+			};
+			let reserve_in = data_idx_in.reserve;
+			let reserve_out = data_idx_out.reserve;
 			let amount_in = rng.gen_range(1..reserve_in / 4);
-			let price = price(
-				&data[idx_in],
-				&data[idx_out],
-				data[idx_in].asset_id,
-				data[idx_out].asset_id,
-			);
+			let price = price(&data_idx_in, &data_idx_out, data_idx_in.asset_id, data_idx_out.asset_id);
 			let p = 0.9f64;
 			let amount_out = (price * amount_in as f64) as u128;
 			let amount_out = (p * amount_out as f64) as u128;
-			return (data[idx_in].asset_id, data[idx_out].asset_id, amount_in, amount_out);
+			return (data_idx_in.asset_id, data_idx_out.asset_id, amount_in, amount_out);
 		}
 	};
 
@@ -85,36 +75,4 @@ pub(crate) fn generate_random_intents(c: u32, data: Vec<OmnipoolAssetInfo<AssetI
 		});
 	}
 	intents
-}
-
-pub(crate) struct DataProvider;
-
-impl DataProvider {
-	fn assets(filter: Option<Vec<AssetId>>) -> Vec<OmnipoolAssetInfo<AssetId>> {
-		let d = load_omnipool_data();
-		if let Some(filtered_assets) = filter {
-			d.into_iter()
-				.filter(|a| filtered_assets.contains(&a.asset_id))
-				.collect()
-		} else {
-			d
-		}
-	}
-}
-
-#[test]
-fn test_data_provider() {
-	let d = DataProvider::assets(None);
-	assert_eq!(d.len(), 18);
-	let d = DataProvider::assets(Some(vec![0, 27]));
-	assert_eq!(d.len(), 2);
-	assert_eq!(d[0].asset_id, 0);
-	assert_eq!(d[1].asset_id, 27);
-}
-
-#[test]
-fn test_generate_intents() {
-	let d = DataProvider::assets(None);
-	let intents = generate_random_intents(1, d);
-	assert_eq!(intents.len(), 1);
 }

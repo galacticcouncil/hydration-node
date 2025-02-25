@@ -18,7 +18,7 @@ impl<AccountId> CallExecutor<AccountId> for () {
 	}
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct OmnipoolAssetInfo<AssetId> {
 	pub asset_id: AssetId,
 	pub reserve: u128,
@@ -28,7 +28,7 @@ pub struct OmnipoolAssetInfo<AssetId> {
 	pub hub_fee: Permill,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct StableswapAssetInfo<AssetId> {
 	pub pool_id: AssetId,
 	pub asset_id: AssetId,
@@ -37,6 +37,7 @@ pub struct StableswapAssetInfo<AssetId> {
 	pub fee: Permill,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum AssetInfo<AssetId> {
 	Omnipool(OmnipoolAssetInfo<AssetId>),
 	StableSwap(StableswapAssetInfo<AssetId>),

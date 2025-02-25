@@ -1,10 +1,7 @@
-//pub mod omni;
-
 mod data;
 mod problem;
 #[cfg(test)]
 mod tests;
-pub mod traits;
 pub mod types;
 pub mod v3;
 
