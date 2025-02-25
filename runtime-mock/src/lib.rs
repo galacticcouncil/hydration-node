@@ -88,10 +88,6 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			balances: BalancesConfig {
 				balances: native_endowed_accounts,
 			},
-			council: CouncilConfig {
-				members: get_council_members(),
-				phantom: Default::default(),
-			},
 			technical_committee: TechnicalCommitteeConfig {
 				members: get_technical_committee(),
 				phantom: Default::default(),
@@ -113,7 +109,6 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 					.collect(),
 			},
 			treasury: Default::default(),
-			elections: Default::default(),
 			genesis_history: GenesisHistoryConfig::default(),
 			claims: ClaimsConfig {
 				claims: Default::default(),
