@@ -81,7 +81,7 @@ use frame_system::{
 };
 use pallet_intent::types::Swap;
 use pallet_intent::types::SwapType;
-
+use sp_runtime::traits::Zero;
 use frame_support::traits::Time;
 use hydradx_traits::ice::SubmitIntent;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
@@ -187,6 +187,14 @@ pub mod pallet {
 
 				let on_fail_callback = on_fail_callback.encode();
 
+				let on_success_callback: <T as pallet::Config>::RuntimeCall =
+					<T as pallet::Config>::RuntimeCall::from(crate::Call::<T>::on_success {
+						schedule_id: schedule_id,
+						current_blocknumber: current_blocknumber,
+					});
+
+				let on_success_callback = on_success_callback.encode();
+
 				/*let on_fail_callback = <T as pallet::Config>::RuntimeCall::DCA(
 					crate::Call::<T>::on_fail {
 						schedule_id: schedule_id,
@@ -242,12 +250,16 @@ pub mod pallet {
 						let fail_callback = on_fail_callback
 							.try_into()
 							.expect("was unable to convert to bounded vec"); //TODO: convert properly to bounded vec
+
+						let success_callback = on_success_callback
+							.try_into()
+							.expect("was unable to convert to bounded vec"); //TODO: convert properly to bounded vec
 						let intent = Intent {
 							who: schedule.owner.clone(),
 							swap: swap,
 							deadline: deadline,
 							partial: false,
-							on_success: None,
+							on_success: Some(success_callback),
 							on_failure: Some(fail_callback),
 						};
 
@@ -267,7 +279,48 @@ pub mod pallet {
 						max_amount_in,
 						..
 					} => {
-						//T::ICE::submit_intent(schedule.owner, AssetAmount {});
+						let route = &schedule.order.get_route_or_default::<T::RouteProvider>();
+
+						let Ok(trade_amounts) = T::RouteExecutor::calculate_buy_trade_amounts(route, *amount_out)
+							else {
+								continue;
+							};
+
+						let Some(first_trade) = trade_amounts.last() else { //TODO: double check if it first or last
+							continue;
+						};
+
+						let amount_in = first_trade.amount_in;
+
+						let swap = Swap {
+							asset_in: (*asset_in).into(),
+							asset_out: (*asset_out).into(),
+							amount_in: amount_in,
+							amount_out: *amount_out,
+							swap_type: SwapType::ExactOut,
+						};
+						let deadline = T::TimestampProvider::now() + 10000000; //TODO: set deadline properly, already asked in channel
+
+						let fail_callback = on_fail_callback
+							.try_into()
+							.expect("was unable to convert to bounded vec"); //TODO: convert properly to bounded vec
+
+						let success_callback = on_success_callback
+							.try_into()
+							.expect("was unable to convert to bounded vec"); //TODO: convert properly to bounded vec
+						let intent = Intent {
+							who: schedule.owner.clone(),
+							swap: swap,
+							deadline: deadline,
+							partial: false,
+							on_success: Some(success_callback),
+							on_failure: Some(fail_callback),
+						};
+
+						frame_support::storage::with_transaction::<_, DispatchError, _>(|| {
+							pallet_intent::Pallet::<T>::add_intent(intent);
+							sp_runtime::TransactionOutcome::Commit(Ok(()))
+						});
 					}
 				};
 
@@ -783,6 +836,36 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::terminate())] //TODO: bench
+		#[transactional]
+		pub fn on_success(
+			origin: OriginFor<T>,
+			schedule_id: crate::types::ScheduleId,
+			current_blocknumber: BlockNumberFor<T>,
+		) -> DispatchResult {
+			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
+			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
+			let amounts = AmountInAndOut {
+				amount_in: Balance::zero(),//TODO: fix these zeros
+				amount_out: Balance::zero()
+			};
+			if let Err(err) = Self::replan_or_complete(
+				schedule_id,
+				&schedule,
+				current_blocknumber,
+				amounts,
+				&mut randomness_generator,
+			) {
+				Self::terminate_schedule(schedule_id, &schedule, err);
+			}
+			Ok(())
+		}
+
+
+
+
 	}
 }
 

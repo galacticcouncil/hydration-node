@@ -420,9 +420,12 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_en
 			proceed_to_blocknumber(801, 901);
 			resolve_intent();
 			proceed_to_blocknumber(901, 1001);
-			resolve_intent_with_failure();
+			resolve_intent();
+			proceed_to_blocknumber(1001, 1101);
+			resolve_intent();
 
-			continue
+			we have to fix the budgetting, namely we wanna decrease the remaining budget when intent fired and on success or on fail we check if there is any if not we terminate.
+				bno more reserved funds
 
 			//Assert
 			assert_number_of_executed_buy_trades!(4);
