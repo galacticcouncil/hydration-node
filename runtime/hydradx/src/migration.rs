@@ -63,9 +63,6 @@ pub type Migrations = (
 	pallet_tips::migrations::unreserve_deposits::UnreserveDeposits<UnlockConfig, ()>,
 	// Delete storage key/values from all Gov v1 pallets
 	frame_support::migrations::RemovePallet<CouncilPalletName, <Runtime as frame_system::Config>::DbWeight>,
-	frame_support::migrations::RemovePallet<
-		PhragmenElectionPalletName,
-		<Runtime as frame_system::Config>::DbWeight,
-	>,
+	frame_support::migrations::RemovePallet<PhragmenElectionPalletName, <Runtime as frame_system::Config>::DbWeight>,
 	frame_support::migrations::RemovePallet<TipsPalletName, <Runtime as frame_system::Config>::DbWeight>,
 );
