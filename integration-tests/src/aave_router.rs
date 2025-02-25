@@ -3,21 +3,23 @@ use crate::liquidation::supply;
 use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
+use frame_support::pallet_prelude::DispatchError::Other;
 use hex_literal::hex;
+use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::EvmAddress;
+use hydradx_traits::router::AssetPair;
+use hydradx_traits::router::ExecutorError;
 use hydradx_traits::router::PoolType::Aave;
+use hydradx_traits::router::RouteProvider;
 use hydradx_traits::router::Trade;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
 use pallet_liquidation::BorrowingContract;
-use primitives::Balance;
-use frame_support::pallet_prelude::DispatchError::Other;
-use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use pallet_route_executor::TradeExecution;
-use hydradx_traits::router::ExecutorError;
+use primitives::Balance;
 
 // ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
 const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
@@ -239,7 +241,29 @@ fn liquidity_depth_validates_tokens() {
 	with_aave(|| {
 		assert_eq!(
 			AaveTradeExecutor::<Runtime>::get_liquidity_depth(Aave, HDX, DOT),
-			Err(ExecutorError::Error("Asset mismatch: first asset atoken has to match second asset reserve".into()))
+			Err(ExecutorError::Error(
+				"Asset mismatch: first asset atoken has to match second asset reserve".into()
+			))
 		);
 	});
+}
+
+#[test]
+fn router_should_set_on_chain_route() {
+	with_aave(|| {
+		let pair = AssetPair {
+			asset_in: ADOT,
+			asset_out: DOT,
+		};
+		assert_ok!(Router::set_route(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pair,
+			vec![Trade {
+				pool: Aave,
+				asset_in: ADOT,
+				asset_out: DOT,
+			}]
+		));
+		assert_eq!(Router::get_route(pair), []);
+	})
 }

@@ -1,10 +1,12 @@
-use crate::evm::executor::{BalanceOf, NonceIdOf};
+use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::{Erc20Currency, Executor};
 use crate::Runtime;
 use ethabi::{decode, ParamType};
+use evm::ExitReason;
 use evm::ExitReason::Succeed;
+use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
@@ -13,18 +15,21 @@ use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAc
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pallet_democracy::EncodeInto;
 use pallet_liquidation::BorrowingContract;
 use polkadot_xcm::v3::MultiLocation;
 use primitive_types::{H256, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
+use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_arithmetic::FixedU128;
+use sp_runtime::format;
 use sp_runtime::traits::CheckedConversion;
 use sp_runtime::{DispatchError, RuntimeDebug};
+use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 use sp_std::vec::Vec;
-use pallet_democracy::EncodeInto;
 
 pub struct AaveTradeExecutor<T>(PhantomData<T>);
 
@@ -184,8 +189,8 @@ where
 	}
 
 	fn get_asset_address(asset: AssetId) -> EvmAddress {
-        pallet_asset_registry::Pallet::<T>::contract_address(asset)
-            .unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset))
+		pallet_asset_registry::Pallet::<T>::contract_address(asset)
+			.unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset))
 	}
 
 	fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
@@ -221,11 +226,7 @@ where
 			.write(0_u16)
 			.build();
 
-		let (res, _) = Executor::<T>::call(context, data, U256::zero(), 500_000);
-
-		ensure!(matches!(res, Succeed(_)), "Supply operation failed");
-
-		Ok(())
+		handle_result(Executor::<T>::call(context, data, U256::zero(), 500_000))
 	}
 
 	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
@@ -239,11 +240,21 @@ where
 			.write(to)
 			.build();
 
-		let (res, _) = Executor::<T>::call(context, data, U256::zero(), 500_000);
+		handle_result(Executor::<T>::call(context, data, U256::zero(), 500_000))
+	}
+}
 
-		ensure!(matches!(res, Succeed(_)), "Withdraw operation failed");
-
-		Ok(())
+fn handle_result(result: CallResult) -> DispatchResult {
+	let (exit_reason, value) = result;
+	match exit_reason {
+		Succeed(_) => Ok(()),
+		e => {
+			let hex_value = hex::encode(&value);
+			log::error!(target: "evm", "evm call failed with : {:?}, value: 0x{}, decoded: {:?}", e, hex_value, String::from_utf8_lossy(&value).into_owned());
+			Err(DispatchError::Other(&*Box::leak(
+				format!("evm:0x{}", hex_value).into_boxed_str(),
+			)))
+		}
 	}
 }
 
@@ -356,10 +367,15 @@ where
 			let asset_address = AaveTradeExecutor::<T>::get_asset_address(asset_out);
 			let atoken_address = pallet_asset_registry::Pallet::<T>::contract_address(asset_in);
 			let reserve_data = AaveTradeExecutor::<T>::get_reserve_data(pool, asset_address)?;
-			ensure!(atoken_address == Some(reserve_data.atoken_address), ExecutorError::Error("Asset mismatch: first asset atoken has to match second asset reserve".into()));
+			ensure!(
+				atoken_address == Some(reserve_data.atoken_address),
+				ExecutorError::Error("Asset mismatch: first asset atoken has to match second asset reserve".into())
+			);
 			let scaled_token_supply = AaveTradeExecutor::<T>::get_scaled_total_supply(reserve_data.atoken_address)?;
 			Ok(Balance::from(
-				reserve_data.available_supply(scaled_token_supply).saturated_into::<u128>()
+				reserve_data
+					.available_supply(scaled_token_supply)
+					.saturated_into::<u128>(),
 			))
 		}
 	}

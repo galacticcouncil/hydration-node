@@ -93,4 +93,3 @@ pub trait Erc20Encoding<AssetId> {
 pub trait Erc20Mapping<AssetId> {
 	fn asset_address(asset_id: AssetId) -> EvmAddress;
 }
-

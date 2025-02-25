@@ -611,6 +611,7 @@ where
 						Err(_) => return None,
 					}
 				}
+				PoolType::Aave => EmaPrice::from(1),
 				_ => return None,
 			};
 
