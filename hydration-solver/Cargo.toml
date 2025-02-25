@@ -7,19 +7,13 @@ edition = "2021"
 name = "hydration-solver"
 path = "src/bin/main.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 tracing = {workspace = true}
 clarabel = {workspace = true}
-#hydradx-traits = {workspace = true, default-features = false}
-
 highs = "1.6.1"
 ndarray = "0.16.1"
 float_next_after= "1.0.0"
 serde = { version = "1.0.197", features = ["derive"] }
-
-[dev-dependencies]
 rand = { version = "0.8.5" }
 serde_json = {workspace = true}
 chrono = "0.4.19"

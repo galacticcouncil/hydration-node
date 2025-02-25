@@ -1,4 +1,4 @@
-use crate::tests::{generate_random_intents, load_amm_state};
+use crate::tests::load_amm_state;
 use crate::types::*;
 use crate::v3::SolverV3;
 use std::time::Instant;
@@ -196,29 +196,4 @@ fn solver_should_find_solution_for_four_intents() {
 		},
 	];
 	assert_eq!(solution.resolved_intents, expected_solution);
-}
-
-#[test]
-fn solver_should_find_solution_for_many_intents() {
-	let data = load_amm_state();
-	let intents = generate_random_intents(100, &data);
-	println!("Generated intents {:?}", intents.len());
-	let result = std::panic::catch_unwind(|| {
-		let start = Instant::now();
-		let solution = SolverV3::solve(intents.clone(), data).unwrap();
-		let duration = start.elapsed();
-		println!(
-			"Time elapsed in solve() is: {:?} - resolved intents {:?}",
-			duration,
-			solution.resolved_intents.len()
-		);
-	});
-
-	let filename = if result.is_err() {
-		format!("testdata/failed_{}.json", chrono::Utc::now().timestamp())
-	} else {
-		format!("testdata/success_{}.json", chrono::Utc::now().timestamp())
-	};
-	let serialized = serde_json::to_string(&intents).unwrap();
-	std::fs::write(filename, serialized).unwrap();
 }
