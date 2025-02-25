@@ -19,6 +19,7 @@ use pallet_omnipool::types::Tradability;
 use primitives::{AccountId, AssetId, Moment};
 use sp_core::crypto::AccountId32;
 use sp_runtime::traits::{BlockNumberProvider, Dispatchable};
+use std::any::Any;
 use std::collections::BTreeSet;
 
 type PriceP =
@@ -44,44 +45,39 @@ fn load_from_file() -> Vec<Intent<AccountId32>> {
 	intents
 }
 
+use crate::driver::HydrationTestDriver;
+
 #[test]
 fn simple_v3_scenario() {
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		//let intents = load_from_file();
-		let intents: Vec<Intent<AccountId32>> = vec![Intent {
-			who: BOB.into(),
-			swap: Swap {
-				asset_in: 0,
-				asset_out: 27,
-				amount_in: 100_000_000_000_000,
-				amount_out: 6775923048819,
-				swap_type: SwapType::ExactIn,
-			},
-			deadline: Timestamp::now() + 43_200_000,
-			partial: false,
-			on_success: None,
-			on_failure: None,
-		}];
-		let now = Timestamp::now();
-		for intent in intents.iter() {
-			assert_ok!(Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				intent.who.clone().into(),
-				intent.swap.asset_in,
-				intent.swap.amount_in as i128 * 1_000_000,
-			));
-		}
-		let intents = submit_intents(intents);
-		let submit_call = solve_current_intents().unwrap();
-		hydradx_run_to_next_block();
+	let intents: Vec<Intent<AccountId32>> = vec![Intent {
+		who: BOB.into(),
+		swap: Swap {
+			asset_in: 0,
+			asset_out: 27,
+			amount_in: 100_000_000_000_000,
+			amount_out: 6775923048819,
+			swap_type: SwapType::ExactIn,
+		},
+		//deadline: Timestamp::now() + 43_200_000,
+		deadline: 43_200_000,
+		partial: false,
+		on_success: None,
+		on_failure: None,
+	}];
 
-		assert_ok!(submit_call.dispatch_bypass_filter(RuntimeOrigin::signed(BOB.into())));
-
-		for (intent_id, intent) in intents {
-			let balance = Currencies::free_balance(intent.swap.asset_out, &intent.who);
-			assert_eq!(balance, intent.swap.amount_out);
-		}
-	});
+	HydrationTestDriver::default()
+		.with_snapshot(PATH_TO_SNAPSHOT)
+		.submit_intents(intents) // Submit given intents, it also updates balance of the intent's user
+		.inspect_data::<Vec<(IntentId, Intent<AccountId32>)>>("intents", |intents| {
+			// Easy way to inspect submitted intents if needed
+			dbg!(intents);
+		})
+		.solve_intents() // Run Solver with currently submitted intents
+		.new_block()
+		.execute(|| {
+			let balance = Currencies::free_balance(27, &BOB.into());
+			assert_eq!(balance, 6775923048819);
+		});
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
