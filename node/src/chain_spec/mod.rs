@@ -48,7 +48,6 @@ const PARA_ID: u32 = 2034;
 const TOKEN_DECIMALS: u8 = 12;
 const TOKEN_SYMBOL: &str = "HDX";
 const PROTOCOL_ID: &str = "hdx";
-const STASH: Balance = 100 * UNITS;
 
 /// The extensions for the [`ChainSpec`].
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]

@@ -1,6 +1,6 @@
 [package]
 name = "runtime-mock"
-version = "1.0.4"
+version = "1.0.5"
 description = "Mock of the HydraDX Runtime for testing purposes"
 authors = ["GalacticCouncil"]
 edition = "2021"
