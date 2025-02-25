@@ -47,6 +47,7 @@ use pallet_evm::{EnsureAddressTruncated, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
+pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
 mod evm_fee;
@@ -55,7 +56,6 @@ mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;
 mod runner;
-mod aave_trade_executor;
 
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;

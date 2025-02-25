@@ -38,7 +38,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::{
-	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
+	evm::{CallContext, Erc20Encoding, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -97,7 +97,7 @@ pub mod pallet {
 		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
 
 		/// Mapping between AssetId and ERC20 address.
-		type Erc20Mapping: Erc20Mapping<AssetId>;
+		type Erc20Mapping: Erc20Encoding<AssetId>;
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;

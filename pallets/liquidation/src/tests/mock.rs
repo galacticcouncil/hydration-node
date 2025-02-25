@@ -145,7 +145,7 @@ impl EVM<CallResult> for EvmMock {
 }
 
 pub struct HydraErc20Mapping;
-impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 

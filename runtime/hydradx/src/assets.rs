@@ -983,6 +983,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => todo!(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1017,6 +1018,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => todo!(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1049,6 +1051,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => todo!(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1073,6 +1076,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => todo!(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1097,6 +1101,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => todo!(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1129,6 +1134,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::Aave => todo!(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1142,6 +1148,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::Aave => todo!(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1174,6 +1181,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::calculate_spot_price_with_fee()
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				PoolType::Aave => todo!(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1198,7 +1206,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Balance = Balance;
 	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
-	type AMM = (Omnipool, Stableswap, XYK, LBP);
+	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type InspectRegistry = AssetRegistry;
@@ -1716,6 +1724,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 	}
 }
 
+use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;

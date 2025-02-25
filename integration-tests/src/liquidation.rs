@@ -16,7 +16,7 @@ use hydradx_runtime::{
 	AssetId, Balance, Currencies, EVMAccounts, Liquidation, Router, RuntimeOrigin, Treasury,
 };
 use hydradx_traits::{
-	evm::{CallContext, Erc20Mapping, EvmAddress, EVM},
+	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
 	router::{AssetPair, RouteProvider},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};

@@ -704,8 +704,7 @@ impl<T: Config> Pallet<T> {
 		let asset_b = match first_route.pool {
 			PoolType::Omnipool => T::NativeAssetId::get(),
 			PoolType::Stableswap(pool_id) => pool_id,
-			PoolType::XYK => first_route.asset_out,
-			PoolType::LBP => first_route.asset_out,
+			_ => first_route.asset_out,
 		};
 
 		let asset_in_liquidity = T::AMM::get_liquidity_depth(first_route.pool, first_route.asset_in, asset_b);

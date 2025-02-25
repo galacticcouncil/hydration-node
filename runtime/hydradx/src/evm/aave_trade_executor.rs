@@ -1,322 +1,379 @@
-use std::marker::PhantomData;
-use evm::ExitReason::Succeed;
-use frame_support::ensure;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-use primitive_types::{H256, U256};
-use sp_arithmetic::FixedU128;
-use sp_runtime::{DispatchError, RuntimeDebug};
-use hydradx_traits::BoundErc20;
-use hydradx_traits::evm::{CallContext, EVM};
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
-use primitives::{AccountId, AssetId, Balance, EvmAddress};
-use crate::evm::Executor;
+use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
-use crate::origins::Origin;
+use crate::evm::{Erc20Currency, Executor};
+use crate::Runtime;
+use ethabi::{decode, ParamType};
+use evm::ExitReason::Succeed;
+use frame_support::ensure;
+use frame_system::ensure_signed;
+use frame_system::pallet_prelude::OriginFor;
+use hex_literal::hex;
+use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::BoundErc20;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pallet_liquidation::BorrowingContract;
+use polkadot_xcm::v3::MultiLocation;
+use primitive_types::{H256, U256};
+use primitives::{AccountId, AssetId, Balance, EvmAddress};
+use sp_arithmetic::traits::SaturatedConversion;
+use sp_arithmetic::FixedU128;
+use sp_runtime::traits::CheckedConversion;
+use sp_runtime::{DispatchError, RuntimeDebug};
+use sp_std::marker::PhantomData;
+use sp_std::vec;
+use sp_std::vec::Vec;
+use pallet_democracy::EncodeInto;
 
-pub struct AaveTradeExecutor<Runtime>;
+pub struct AaveTradeExecutor<T>(PhantomData<T>);
+
+pub type Aave = AaveTradeExecutor<Runtime>;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
-    // Pool Addresses Provider
-    GetPool = "getPool()",
+	// Pool
+	Supply = "supply(address,uint256,address,uint16)",
+	Withdraw = "withdraw(address,uint256,address)",
+	GetReserveData = "getReserveData(address)",
+	GetConfiguration = "getConfiguration(address)",
 
-    // Pool
-    Supply = "supply(address,uint256,address,uint16)",
-    Withdraw = "withdraw(address,uint256,address)",
-    GetReserveData = "getReserveData(address)",
-    GetConfiguration = "getConfiguration(address)",
-
-    // AToken
-    UnderlyingAssetAddress = "UNDERLYING_ASSET_ADDRESS()",
+	// AToken
+	UnderlyingAssetAddress = "UNDERLYING_ASSET_ADDRESS()",
+	ScaledTotalSupply = "scaledTotalSupply()",
 }
 
-impl<Runtime> AaveTradeExecutor<Runtime>
-{
-    fn asset_address(asset_id: AssetId) -> Result<EvmAddress, DispatchError> {
-        let asset = pallet_asset_registry::Pallet::<Runtime>::contract_address(asset_id)
-            .ok_or_else(|| "Asset not registered")?;
-
-        Ok(asset)
-    }
-    fn get_underlying_asset(atoken: AssetId) -> Result<EvmAddress, DispatchError> {
-        // Get aToken EVM address
-        let atoken_address = Self::asset_address(atoken)?;
-
-        // Make view call to get underlying asset
-        let context = CallContext::new_view(atoken_address);
-        let data = Into::<u32>::into(Function::UnderlyingAssetAddress).to_be_bytes().to_vec();
-
-        let (res, value) = Executor::<Runtime>::view(
-            context,
-            data,
-            100_000,
-        );
-
-        ensure!(
-            matches!(res, Succeed(Returned)),
-            "Failed to get underlying asset address"
-        );
-
-        Ok(EvmAddress::from(H256::from_slice(&value)))
-    }
-
-    fn get_aave_pool_address() -> Result<EvmAddress, DispatchError> {
-        let context = CallContext::new_view(Self::pap_address);
-        let data = Into::<u32>::into(Function::GetPool).to_be_bytes().to_vec();
-
-        let (res, value) = Executor::<Runtime>::view(
-            context,
-            data,
-            100_000,
-        );
-
-        ensure!(
-            matches!(res, Succeed(Returned)),
-            "Failed to get pool address"
-        );
-
-        Ok(EvmAddress::from(H256::from_slice(&value)))
-    }
-
-    fn supply_to_aave(
-        who: AccountId,
-        asset: AssetId,
-        amount: Balance,
-    ) -> Result<(), DispatchError> {
-        let user_evm = AccountIdConverter::into_evm_address(who);
-        let pool_address = Self::get_aave_pool_address()?;
-        let asset_address = pallet_asset_registry::Pallet::<Runtime>::contract_address(asset).ok_or_else(|| "Asset not registered")?;
-
-        let context = CallContext::new_call(pool_address, user_evm);
-        let data = EvmDataWriter::new_with_selector(Function::Supply)
-            .write(asset_address)
-            .write(amount)
-            .write(user_evm)
-            .write(0u32)
-            .build();
-
-        let (res, _) = Executor::<Runtime>::call(
-            context,
-            data,
-            U256::zero(),
-            500_000,
-        );
-
-        ensure!(
-            matches!(res, Succeed(Returned)),
-            "Supply operation failed"
-        );
-
-        Ok(())
-    }
-
-    fn withdraw_from_aave(
-        who: AccountId,
-        atoken: AssetId,
-        amount: Balance,
-    ) -> Result<(), DispatchError> {
-        let user_evm = AccountIdConverter::into_evm_address(who);
-        let pool_address = Self::get_aave_pool_address()?;
-        let underlying = Self::get_underlying_asset(atoken)?;
-
-        let context = CallContext::new_call(pool_address, user_evm);
-        let data = EvmDataWriter::new_with_selector(Function::Withdraw)
-            .write(underlying)
-            .write(amount)
-            .write(user_evm)
-            .build();
-
-        let (res, _) = Executor::<Runtime>::call(
-            context,
-            data,
-            U256::zero(),
-            500_000,
-        );
-
-        ensure!(
-            matches!(res, Succeed(Returned)),
-            "Withdraw operation failed"
-        );
-
-        Ok(())
-    }
+struct ReserveData {
+	configuration: U256,
+	liquidity_index: U256,
+	current_liquidity_rate: U256,
+	variable_borrow_index: U256,
+	current_variable_borrow_rate: U256,
+	current_stable_borrow_rate: U256,
+	last_update_timestamp: U256,
+	id: u16,
+	atoken_address: EvmAddress,
+	stable_debt_token_address: EvmAddress,
+	variable_debt_token_address: EvmAddress,
+	interest_rate_strategy_address: EvmAddress,
+	accrued_to_treasury: U256,
 }
 
-impl<Runtime> TradeExecution<Origin, AccountId, AssetId, Balance> for AaveTradeExecutor<Runtime>
+impl ReserveData {
+	fn decimals(&self) -> u8 {
+		//bit 48-55: Decimals
+		let mask = U256::from(0xFF) << 48;
+		((self.configuration & mask) >> 48).saturated_into()
+	}
+
+	fn supply_cap_raw(&self) -> U256 {
+		//bit 116-151 supply cap in whole tokens, supplyCap == 0 => no cap
+		let mask = U256::from((1u128 << 36) - 1) << 116;
+		(self.configuration & mask) >> 116
+	}
+
+	fn supply_cap(&self) -> U256 {
+		if self.supply_cap_raw().is_zero() {
+			U256::MAX
+		} else {
+			self.supply_cap_raw().saturating_mul(
+				U256::from(10)
+					.checked_pow(self.decimals().into())
+					.unwrap_or_else(|| U256::one()),
+			)
+		}
+	}
+
+	fn current_supply(&self, scaled_total_supply: U256) -> U256 {
+		scaled_total_supply
+			.saturating_add(self.accrued_to_treasury)
+			.saturating_mul(self.liquidity_index)
+			/ U256::from(10).pow(27.into())
+	}
+
+	fn available_supply(&self, scaled_total_supply: U256) -> U256 {
+		self.supply_cap()
+			.saturating_sub(self.current_supply(scaled_total_supply))
+	}
+}
+
+impl<T> AaveTradeExecutor<T>
+where
+	T: pallet_evm::Config
+		+ pallet_asset_registry::Config<AssetId = AssetId>
+		+ pallet_liquidation::Config
+		+ pallet_evm_accounts::Config
+		+ frame_system::Config,
+	T::AssetNativeLocation: Into<MultiLocation>,
+	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
+	NonceIdOf<T>: Into<T::Nonce>,
 {
-    type Error = DispatchError;
+	fn get_reserve_data(pool: EvmAddress, asset: EvmAddress) -> Result<ReserveData, ExecutorError<DispatchError>> {
+		let context = CallContext::new_view(pool);
+		let data = EvmDataWriter::new_with_selector(Function::GetReserveData)
+			.write(asset)
+			.build();
 
-    fn calculate_sell(
-        pool_type: PoolType<AssetId>,
-        asset_in: AssetId,
-        _asset_out: AssetId,
-        amount_in: Balance,
-    ) -> Result<Balance, ExecutorError<Self::Error>> {
-        if pool_type != PoolType::Aave {
-            return Err(ExecutorError::NotSupported);
-        }
+		let (res, reserve_data) = Executor::<T>::view(context, data, 100_000);
 
-        // For both supply and withdraw, amount out is always 1:1
-        Ok(amount_in)
-    }
+		ensure!(
+			matches!(res, Succeed(_)),
+			ExecutorError::Error("Failed to get reserve data".into())
+		);
 
-    fn calculate_buy(
-        pool_type: PoolType<AssetId>,
-        asset_in: AssetId,
-        _asset_out: AssetId,
-        amount_out: Balance,
-    ) -> Result<Balance, ExecutorError<Self::Error>> {
-        if pool_type != PoolType::Aave {
-            return Err(ExecutorError::NotSupported);
-        }
+		let param_types = vec![
+			ParamType::Uint(256), // configuration
+			ParamType::Uint(256), // liquidityIndex
+			ParamType::Uint(256), // variableBorrowIndex
+			ParamType::Uint(256), // currentLiquidityRate
+			ParamType::Uint(256), // currentVariableBorrowRate
+			ParamType::Uint(256), // currentStableBorrowRate
+			ParamType::Uint(256), // lastUpdateTimestamp
+			ParamType::Uint(16),  // id
+			ParamType::Address,   // aTokenAddress
+			ParamType::Address,   // stableDebtTokenAddress
+			ParamType::Address,   // variableDebtTokenAddress
+			ParamType::Address,   // interestRateStrategyAddress
+			ParamType::Uint(256), // accruedToTreasury
+		];
 
-        Ok(amount_out)
-    }
+		let decoded = decode(&param_types, reserve_data.as_ref())
+			.map_err(|_| ExecutorError::Error("Failed to decode reserve data".into()))?;
 
-    fn execute_sell(
-        who: AccountId,
-        pool_type: PoolType<AssetId>,
-        asset_in: AssetId,
-        _asset_out: AssetId,
-        amount_in: Balance,
-        min_limit: Balance,
-    ) -> Result<(), ExecutorError<Self::Error>> {
-        if pool_type != PoolType::Aave {
-            return Err(ExecutorError::NotSupported);
-        }
+		Ok(ReserveData {
+			configuration: decoded[0].clone().into_uint().unwrap_or_default(),
+			liquidity_index: decoded[1].clone().into_uint().unwrap_or_default(),
+			current_liquidity_rate: decoded[3].clone().into_uint().unwrap_or_default(),
+			variable_borrow_index: decoded[2].clone().into_uint().unwrap_or_default(),
+			current_variable_borrow_rate: decoded[4].clone().into_uint().unwrap_or_default(),
+			current_stable_borrow_rate: decoded[5].clone().into_uint().unwrap_or_default(),
+			last_update_timestamp: decoded[6].clone().into_uint().unwrap_or_default(),
+			id: decoded[7].clone().into_uint().unwrap_or_default().saturated_into(),
+			atoken_address: EvmAddress::from_slice((&decoded[8].clone().into_address().unwrap_or_default()).as_ref()),
+			stable_debt_token_address: EvmAddress::from_slice(
+				(&decoded[9].clone().into_address().unwrap_or_default()).as_ref(),
+			),
+			variable_debt_token_address: EvmAddress::from_slice(
+				(&decoded[10].clone().into_address().unwrap_or_default()).as_ref(),
+			),
+			interest_rate_strategy_address: EvmAddress::from_slice(
+				(&decoded[11].clone().into_address().unwrap_or_default()).as_ref(),
+			),
+			accrued_to_treasury: decoded[12].clone().into_uint().unwrap_or_default(),
+		})
+	}
 
-        ensure!(
-            amount_in >= min_limit,
-            ExecutorError::Error("Slippage exceeded".into())
-        );
+	fn get_available_liquidity(atoken: EvmAddress, underlying: EvmAddress) -> Balance {
+		<Erc20Currency<T> as ERC20>::balance_of(CallContext::new_view(underlying), atoken)
+	}
 
-        if AaveTradeExecutor::<Runtime>::get_underlying_asset(asset_in).is_ok() {
-            Self::withdraw_from_aave(who, asset_in, amount_in)
-        } else {
-            Self::supply_to_aave(who, asset_in, amount_in)
-        }.map_err(ExecutorError::Error)
-    }
+	fn get_scaled_total_supply(atoken: EvmAddress) -> Result<U256, ExecutorError<DispatchError>> {
+		let context = CallContext::new_view(atoken);
+		let data = EvmDataWriter::new_with_selector(Function::ScaledTotalSupply).build();
+		let (res, value) = Executor::<T>::view(context, data, 100_000);
+		ensure!(
+			matches!(res, Succeed(_)),
+			ExecutorError::Error("Failed to get scaled total supply".into())
+		);
+		U256::checked_from(value.as_slice()).ok_or(ExecutorError::Error("Failed to decode scaled total supply".into()))
+	}
 
-    fn execute_buy(
-        who: AccountId,
-        pool_type: PoolType<AssetId>,
-        asset_in: AssetId,
-        _asset_out: AssetId,
-        amount_out: Balance,
-        max_limit: Balance,
-    ) -> Result<(), ExecutorError<Self::Error>> {
-        if pool_type != PoolType::Aave {
-            return Err(ExecutorError::NotSupported);
-        }
+	fn get_asset_address(asset: AssetId) -> EvmAddress {
+        pallet_asset_registry::Pallet::<T>::contract_address(asset)
+            .unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset))
+	}
 
-        ensure!(
-            amount_out <= max_limit,
-            ExecutorError::Error("Slippage exceeded".into())
-        );
+	fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
+		let Some(atoken_address) = pallet_asset_registry::Pallet::<T>::contract_address(atoken) else {
+			// not a contract
+			return None;
+		};
 
-        if Self::get_underlying_asset(asset_in).is_ok() {
-            Self::withdraw_from_aave(who, asset_in, amount_out)
-        } else {
-            Self::supply_to_aave(who, asset_in, amount_out)
-        }.map_err(ExecutorError::Error)
-    }
+		let context = CallContext::new_view(atoken_address);
+		let data = Into::<u32>::into(Function::UnderlyingAssetAddress)
+			.to_be_bytes()
+			.to_vec();
 
-    fn get_liquidity_depth(
-        pool_type: PoolType<AssetId>,
-        asset_in: AssetId,
-        _asset_out: AssetId,
-    ) -> Result<Balance, ExecutorError<Self::Error>> {
-        if pool_type != PoolType::Aave {
-            return Err(ExecutorError::NotSupported);
-        }
+		let (res, value) = Executor::<T>::view(context, data, 100_000);
 
-        let pool_address = Self::get_aave_pool_address().map_err(ExecutorError::Error)?;
+		if !matches!(res, Succeed(_)) {
+			// not a token
+			return None;
+		}
 
-        if Self::get_underlying_asset(asset_in).is_ok() {
-            let context = CallContext::new_view(pool_address);
-            let data = EvmDataWriter::new_with_selector(Function::GetReserveData)
-                .write(underlying)
-                .build();
+		Some(EvmAddress::from(H256::from_slice(&value)))
+	}
 
-            let (res, value) = Executor::<Runtime>::view(
-                context,
-                data,
-                100_000,
-            );
+	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
+		let who = ensure_signed(origin)?;
+		let on_behalf_of = T::EvmAccounts::evm_address(&who);
 
-            ensure!(
-                matches!(res, Succeed(Returned)),
-                ExecutorError::Error("Failed to get reserve data".into())
-            );
+		let context = CallContext::new_call(<BorrowingContract<T>>::get(), on_behalf_of);
+		let data = EvmDataWriter::new_with_selector(Function::Supply)
+			.write(asset)
+			.write(amount)
+			.write(on_behalf_of)
+			.write(0_u16)
+			.build();
 
-            // Parse available liquidity from reserve data
-            // Value is tuple (configuration, liquidityIndex, currentLiquidityRate, ..., availableLiquidity)
-            let available_liquidity = U256::from_big_endian(&value[192..224]); // availableLiquidity is at offset 192
-            Ok(available_liquidity.try_into().unwrap_or(0))
-        } else {
-            // For wrapping (token -> aToken), check supply cap room
-            let asset_address = AssetMapper::get_evm_address(asset_in)
-                .ok_or_else(|| ExecutorError::Error("Asset not mapped to EVM address".into()))?;
+		let (res, _) = Executor::<T>::call(context, data, U256::zero(), 500_000);
 
-            let context = CallContext::new_view(pool_address);
-            let data = EvmDataWriter::new_with_selector(Function::GetConfiguration)
-                .write(asset_address)
-                .build();
+		ensure!(matches!(res, Succeed(_)), "Supply operation failed");
 
-            let (res, value) = Executor::<Runtime>::view(
-                context,
-                data,
-                100_000,
-            );
+		Ok(())
+	}
 
-            ensure!(
-                matches!(res, Succeed(Returned)),
-                ExecutorError::Error("Failed to get configuration".into())
-            );
+	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
+		let who = ensure_signed(origin)?;
+		let to = T::EvmAccounts::evm_address(&who);
 
-            // Get current supply
-            let data = EvmDataWriter::new_with_selector(Function::GetReserveData)
-                .write(asset_address)
-                .build();
+		let context = CallContext::new_call(<BorrowingContract<T>>::get(), to);
+		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
+			.write(asset)
+			.write(amount)
+			.write(to)
+			.build();
 
-            let (res, supply_data) = Executor::<Runtime>::view(
-                context,
-                data,
-                100_000,
-            );
+		let (res, _) = Executor::<T>::call(context, data, U256::zero(), 500_000);
 
-            ensure!(
-                matches!(res, Succeed(Returned)),
-                ExecutorError::Error("Failed to get reserve data".into())
-            );
+		ensure!(matches!(res, Succeed(_)), "Withdraw operation failed");
 
-            // Parse supply cap and current supply
-            let supply_cap = U256::from_big_endian(&value[224..256]); // supplyCap at offset 224
-            let current_supply = U256::from_big_endian(&supply_data[160..192]); // totalSupply at offset 160
+		Ok(())
+	}
+}
 
-            if supply_cap.is_zero() {
-                // No supply cap
-                Ok(Balance::MAX)
-            } else {
-                let available = supply_cap.saturating_sub(current_supply);
-                Ok(available.try_into().unwrap_or(0))
-            }
-        }
-    }
+impl<T> TradeExecution<OriginFor<T>, AccountId, AssetId, Balance> for AaveTradeExecutor<T>
+where
+	T: pallet_evm::Config
+		+ pallet_asset_registry::Config<AssetId = AssetId>
+		+ pallet_liquidation::Config
+		+ pallet_evm_accounts::Config
+		+ frame_system::Config,
+	T::AssetNativeLocation: Into<MultiLocation>,
+	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
+	NonceIdOf<T>: Into<T::Nonce>,
+{
+	type Error = DispatchError;
 
-    fn calculate_spot_price_with_fee(
-        pool_type: PoolType<AssetId>,
-        _asset_in: AssetId,
-        _asset_out: AssetId,
-    ) -> Result<FixedU128, ExecutorError<Self::Error>> {
-        if pool_type != PoolType::Aave {
-            return Err(ExecutorError::NotSupported);
-        }
+	fn calculate_sell(
+		pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		amount_in: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
 
-        // Price is always 1:1
-        Ok(FixedU128::from(1))
-    }
+		// For both supply and withdraw, amount out is always 1:1
+		// to save weight we just assume the operation will be available
+		Ok(amount_in)
+	}
+
+	fn calculate_buy(
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		Self::calculate_sell(pool_type, asset_in, asset_out, amount_out)
+	}
+
+	fn execute_sell(
+		who: OriginFor<T>,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		ensure!(amount_in >= min_limit, ExecutorError::Error("Slippage exceeded".into()));
+
+		if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_out) {
+			// Supplying asset_in to get aToken (asset_out)
+			let asset_address = AaveTradeExecutor::<T>::get_asset_address(asset_in);
+			ensure!(
+				asset_address == underlying,
+				ExecutorError::Error("Asset mismatch: supplied asset must match aToken's underlying".into())
+			);
+			AaveTradeExecutor::<T>::supply(who, asset_address, amount_in).map_err(|e| ExecutorError::Error(e))?;
+		} else if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_in) {
+			// Withdrawing aToken (asset_in) to get underlying asset
+			let asset_address = AaveTradeExecutor::<T>::get_asset_address(asset_out);
+			ensure!(
+				asset_address == underlying,
+				ExecutorError::Error("Asset mismatch: output asset must match aToken's underlying".into())
+			);
+			AaveTradeExecutor::<T>::withdraw(who, underlying, amount_in).map_err(|e| ExecutorError::Error(e))?;
+		} else {
+			return Err(ExecutorError::Error("Invalid asset pair".into()));
+		}
+
+		Ok(())
+	}
+
+	fn execute_buy(
+		who: OriginFor<T>,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+		max_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		Self::execute_sell(who, pool_type, asset_in, asset_out, amount_out, max_limit)
+	}
+
+	fn get_liquidity_depth(
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		let pool = <BorrowingContract<T>>::get();
+
+		if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_out) {
+			let asset_address = pallet_asset_registry::Pallet::<T>::contract_address(asset_out).unwrap_or_default();
+			Ok(AaveTradeExecutor::<T>::get_available_liquidity(
+				asset_address,
+				underlying,
+			))
+		} else {
+			let asset_address = AaveTradeExecutor::<T>::get_asset_address(asset_out);
+			let atoken_address = pallet_asset_registry::Pallet::<T>::contract_address(asset_in);
+			let reserve_data = AaveTradeExecutor::<T>::get_reserve_data(pool, asset_address)?;
+			ensure!(atoken_address == Some(reserve_data.atoken_address), ExecutorError::Error("Asset mismatch: first asset atoken has to match second asset reserve".into()));
+			let scaled_token_supply = AaveTradeExecutor::<T>::get_scaled_total_supply(reserve_data.atoken_address)?;
+			Ok(Balance::from(
+				reserve_data.available_supply(scaled_token_supply).saturated_into::<u128>()
+			))
+		}
+	}
+
+	fn calculate_spot_price_with_fee(
+		pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+	) -> Result<FixedU128, ExecutorError<Self::Error>> {
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		// Price is always 1:1
+		Ok(FixedU128::from(1))
+	}
 }
