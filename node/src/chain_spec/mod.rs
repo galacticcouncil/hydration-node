@@ -93,7 +93,6 @@ pub fn parachain_genesis(
 	_root_key: AccountId,
 	initial_authorities: (Vec<(AccountId, AuraId)>, Balance), // (initial auths, candidacy bond)
 	endowed_accounts: Vec<(AccountId, Balance)>,
-	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	registered_assets: Vec<(
@@ -108,7 +107,6 @@ pub fn parachain_genesis(
 	accepted_assets: Vec<(AssetId, Price)>, // (Asset id, Fallback price) - asset which fee can be paid with
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
-	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
 	duster: DusterConfig,
 ) -> serde_json::Value {
@@ -143,9 +141,6 @@ pub fn parachain_genesis(
 			.map(|k| (k.0.clone(), k.1 * UNITS))
 			.collect::<Vec<_>>(),
 	},
-	"council": {
-		"members": council_members,
-	},
 	"technicalCommittee": {
 		"members": tech_committee_members,
 	},
@@ -178,9 +173,6 @@ pub fn parachain_genesis(
 		},
 	},
 	"treasury": {
-	},
-	"elections": {
-		"members": elections,
 	},
 	"genesisHistory": {
 		"previousChain": hydradx_runtime::Chain::default()
