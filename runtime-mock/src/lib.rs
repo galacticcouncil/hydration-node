@@ -6,7 +6,7 @@ mod staking;
 pub mod traits;
 
 use accounts::{
-	get_council_members, get_duster_dest_account, get_duster_reward_account, get_native_endowed_accounts,
+	get_duster_dest_account, get_duster_reward_account, get_native_endowed_accounts,
 	get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
 };
 use hydradx_runtime::Runtime as MockedRuntime;
