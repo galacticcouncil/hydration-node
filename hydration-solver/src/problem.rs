@@ -1,4 +1,4 @@
-use crate::data::AssetData;
+use crate::data::OmnipoolAsset;
 use crate::to_f64_by_decimals;
 use crate::types::{AssetId, FloatType, Intent, IntentId};
 use clarabel::solver::SolverStatus;
@@ -39,7 +39,7 @@ pub struct ICEProblem {
 	pub intents: Vec<Intent>,
 	pub intent_amounts: Vec<(FloatType, FloatType)>,
 
-	pub pool_data: BTreeMap<AssetId, AssetData>,
+	pub pool_data: BTreeMap<AssetId, OmnipoolAsset>,
 
 	pub n: usize, // number of assets in intents
 	pub m: usize, // number of partial intents
@@ -63,7 +63,7 @@ pub struct ICEProblem {
 }
 
 impl ICEProblem {
-	pub fn new(intents_and_ids: Vec<Intent>, pool_data: BTreeMap<AssetId, AssetData>) -> Self {
+	pub fn new(intents_and_ids: Vec<Intent>, pool_data: BTreeMap<AssetId, OmnipoolAsset>) -> Self {
 		let mut intents = Vec::with_capacity(intents_and_ids.len());
 		let mut intent_ids = Vec::with_capacity(intents_and_ids.len());
 		let mut intent_amounts = Vec::with_capacity(intents_and_ids.len());
@@ -377,7 +377,7 @@ impl ICEProblem {
 		}
 	}
 
-	pub(crate) fn get_asset_pool_data(&self, asset_id: AssetId) -> &AssetData {
+	pub(crate) fn get_asset_pool_data(&self, asset_id: AssetId) -> &OmnipoolAsset {
 		self.pool_data.get(&asset_id).unwrap()
 	}
 

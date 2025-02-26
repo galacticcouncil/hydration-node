@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::data::process_omnipool_data;
+use crate::data::process_data;
 use crate::problem::{AmmApprox, Direction, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
 use crate::types::{AssetId, Balance, FloatType, Intent, ResolvedIntent};
 use clarabel::algebra::*;
@@ -168,8 +168,8 @@ impl SolverV3 {
 			});
 		}
 		// atm we support only omnipool assets - let's prepare those
-		let data = process_omnipool_data(pool_data);
-		let mut problem = ICEProblem::new(intents, data);
+		let data = process_data(pool_data);
+		let mut problem = ICEProblem::new(intents, data.omnipool);
 
 		let (n, m, r) = (problem.n, problem.m, problem.r);
 
