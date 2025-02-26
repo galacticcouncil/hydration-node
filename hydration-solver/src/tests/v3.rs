@@ -143,7 +143,7 @@ fn solver_should_find_solution_for_two_partial_intents() {
 }
 
 #[test]
-fn solver_should_find_solution_for_four_intents() {
+fn solver_should_exclude_an_intent_when_it_contains_non_existing_trade_assets() {
 	let data = load_amm_state();
 	let intents = vec![
 		Intent {
