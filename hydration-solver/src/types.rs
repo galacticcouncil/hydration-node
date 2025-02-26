@@ -22,13 +22,13 @@ pub struct ResolvedIntent {
 	pub amount_out: Balance,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Asset {
 	Omnipool(OmnipoolAsset),
 	StableSwap(StableSwapAsset),
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OmnipoolAsset {
 	pub asset_id: AssetId,
 	pub reserve: Balance,
@@ -40,7 +40,7 @@ pub struct OmnipoolAsset {
 	pub hub_fee: (u32, u32),
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StableSwapAsset {
 	pub pool_id: AssetId,
 	pub asset_id: AssetId,

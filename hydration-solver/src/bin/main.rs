@@ -87,7 +87,7 @@ fn main() {
 	println!("Generated intents {:?}", intents.len());
 	let result = std::panic::catch_unwind(|| {
 		let start = Instant::now();
-		let solution = SolverV3::solve(intents.clone(), data).unwrap();
+		let solution = SolverV3::solve(intents.clone(), data.clone()).unwrap();
 		let duration = start.elapsed();
 		println!(
 			"Time elapsed to solve(): {:?} - resolved intents {:?}",
@@ -95,6 +95,15 @@ fn main() {
 			solution.resolved_intents.len()
 		);
 	});
-	let serialized = serde_json::to_string_pretty(&intents).unwrap();
-	std::fs::write(output_path, serialized).unwrap();
+	let (data_output, intent_output) = match result {
+		Ok(_) => (output_path.to_string() + ".data", output_path.to_string() + ".intents"),
+		Err(e) => {
+			eprintln!("Error: {:?}", e);
+			std::process::exit(1);
+		}
+	};
+	let intent_serialized = serde_json::to_string_pretty(&intents).unwrap();
+	let data_serialized = serde_json::to_string_pretty(&data).unwrap();
+	std::fs::write(intent_output, intent_serialized).unwrap();
+	std::fs::write(data_output, data_serialized).unwrap();
 }
