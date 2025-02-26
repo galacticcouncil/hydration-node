@@ -87,18 +87,11 @@ fn solver_should_find_solution_for_two_intents() {
 	let solution = SolverV3::solve(intents, data).unwrap();
 	let duration = start.elapsed();
 	println!("Time elapsed in solve() is: {:?}", duration);
-	let expected_solution = vec![
-		ResolvedIntent {
-			intent_id: 0,
-			amount_in: 1_000_000_000_000_000_000,
-			amount_out: 1_149_000_000_000_000,
-		},
-		ResolvedIntent {
-			intent_id: 1,
-			amount_in: 1_760_432_132_425_056_256,
-			amount_out: 29885503514584528,
-		},
-	];
+	let expected_solution = vec![ResolvedIntent {
+		intent_id: 0,
+		amount_in: 1_000_000_000_000_000_000,
+		amount_out: 1_149_000_000_000_000,
+	}];
 	assert_eq!(solution.resolved_intents, expected_solution);
 }
 

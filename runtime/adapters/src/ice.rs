@@ -1,11 +1,13 @@
 use frame_support::defensive;
 use frame_support::traits::OriginTrait;
-use hydradx_traits::ice::{AmmInfo, AmmState, OmnipoolAsset, OmnipoolState};
+use hydradx_traits::ice::{AmmInfo, AmmState, OmnipoolAsset, OmnipoolState, Stablepool, StablepoolAsset};
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT, TradeExecution};
 use hydradx_traits::Inspect;
 use pallet_ice::types::Balance;
 use primitives::AssetId;
-use sp_runtime::{DispatchError, Permill};
+use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::{DispatchError, Permill, SaturatedConversion};
+use sp_std::cell::RefCell;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -17,13 +19,17 @@ impl<T> AmmState<AssetId> for GlobalAmmState<T>
 where
 	T: pallet_omnipool::Config<AssetId = AssetId>
 		+ pallet_asset_registry::Config<AssetId = AssetId>
-		+ pallet_dynamic_fees::Config<Fee = Permill, AssetId = AssetId>,
+		+ pallet_dynamic_fees::Config<Fee = Permill, AssetId = AssetId>
+		+ pallet_stableswap::Config<AssetId = AssetId>
+		+ frame_system::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<AssetId>,
-	<T as pallet_asset_registry::Config>::AssetId: From<<T as pallet_omnipool::Config>::AssetId> + From<AssetId>,
+	<T as pallet_stableswap::Config>::AssetId: From<AssetId>,
+	<T as pallet_asset_registry::Config>::AssetId:
+		From<<T as pallet_omnipool::Config>::AssetId> + From<AssetId> + From<<T as pallet_stableswap::Config>::AssetId>,
 	AssetId: From<<T as pallet_omnipool::Config>::AssetId>,
 {
 	fn state<F: Fn(&AssetId) -> bool>(retain: F) -> Vec<AmmInfo<AssetId>> {
-		// Get state of omnipool
+		// OMNIPOOL
 		let mut assets = vec![];
 		for (asset_id, state) in pallet_omnipool::Pallet::<T>::omnipool_state() {
 			if !retain(&asset_id) {
@@ -40,8 +46,36 @@ where
 				hub_fee,
 			});
 		}
-		vec![AmmInfo::Omnipool(OmnipoolState { assets })]
-		// TODO: add state of all stableswap pools
+		let amm = RefCell::new(vec![AmmInfo::Omnipool(OmnipoolState { assets })]);
+
+		// STABLEPOOLS
+		let current_block = frame_system::Pallet::<T>::current_block_number();
+		pallet_stableswap::Pallet::<T>::load_pools(|pool_id, info, reserves| {
+			let assets = reserves
+				.into_iter()
+				.zip(info.assets.iter())
+				.map(|(asset_reserve, asset_id)| StablepoolAsset {
+					asset_id: (*asset_id).into(),
+					reserve: asset_reserve.amount,
+					decimals: asset_reserve.decimals,
+				})
+				.collect();
+			let pool = Stablepool {
+				pool_id,
+				assets,
+				fee: info.fee,
+				amplification: hydra_dx_math::stableswap::calculate_amplification(
+					info.initial_amplification.get().into(),
+					info.final_amplification.get().into(),
+					info.initial_block.saturated_into(),
+					info.final_block.saturated_into(),
+					current_block.saturated_into(),
+				),
+			};
+
+			amm.borrow_mut().push(AmmInfo::Stablepool(pool));
+		});
+		amm.into_inner()
 	}
 }
 

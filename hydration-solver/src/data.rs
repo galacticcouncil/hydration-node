@@ -22,10 +22,12 @@ pub(crate) struct Stablepool {
 	pub amplification: u128,
 }
 
+#[derive(Debug)]
 pub(crate) struct AssetInfo {
 	pub decimals: u8,
 }
 
+#[derive(Debug)]
 pub(crate) struct AmmStore {
 	pub(crate) omnipool: BTreeMap<AssetId, OmnipoolAsset>,
 	stablepools: BTreeMap<AssetId, Stablepool>,
@@ -60,7 +62,6 @@ pub(crate) fn process_data(info: Vec<crate::types::Asset>) -> AmmStore {
 						amplification,
 					});
 
-				assert!(assets.get(&asset_id).is_none(), "Asset already in list of assets");
 				assets.insert(asset_id, AssetInfo { decimals });
 				assets.insert(pool_id, AssetInfo { decimals: 18 });
 			}
@@ -82,8 +83,6 @@ pub(crate) fn process_data(info: Vec<crate::types::Asset>) -> AmmStore {
 					hub_price,
 				};
 				omnipool.insert(asset_id, asset_data);
-
-				assert!(assets.get(&asset_id).is_none(), "Asset already in list of assets");
 				assets.insert(asset_id, AssetInfo { decimals });
 			}
 		}

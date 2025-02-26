@@ -36,7 +36,7 @@ pub struct OmnipoolState<AssetId> {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Stablepool<AssetId> {
 	pub pool_id: AssetId,
-	pub assets: Vec<OmnipoolAsset<AssetId>>,
+	pub assets: Vec<StablepoolAsset<AssetId>>,
 	pub fee: Permill,
 	pub amplification: u128,
 }

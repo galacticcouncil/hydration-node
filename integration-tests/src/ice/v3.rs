@@ -55,8 +55,5 @@ fn simple_v3_scenario() {
 		.execute(|| {
 			let balance = Currencies::free_balance(27, &BOB.into());
 			assert_eq!(balance, 6775923048819);
-			let data = GlobalAmmState::<hydradx_runtime::Runtime>::state(|_| true);
-			let d = serde_json::to_string(&data).unwrap();
-			dbg!(d);
 		});
 }
