@@ -440,7 +440,13 @@ impl<T: Config> Pallet<T> {
 
 		// 2. Prepare data
 		let intents: Vec<api::IntentRepr> = intents.into_iter().map(|intent| into_intent_repr(intent)).collect();
-		let data = pool_data.into_iter().map(|d| into_pool_data_repr(d)).collect();
+		let data = pool_data
+			.into_iter()
+			.map(|d| into_pool_data_repr(d))
+			.collect::<Vec<Vec<DataRepr>>>()
+			.into_iter()
+			.flatten()
+			.collect();
 
 		// 2. Call solver
 		let resolved_intents = solve(intents, data)?;

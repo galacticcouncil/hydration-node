@@ -1,6 +1,6 @@
 use frame_support::defensive;
 use frame_support::traits::OriginTrait;
-use hydradx_traits::ice::{AmmState, AssetInfo, OmnipoolAssetInfo};
+use hydradx_traits::ice::{AmmInfo, AmmState, OmnipoolAsset, OmnipoolState};
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT, TradeExecution};
 use hydradx_traits::Inspect;
 use pallet_ice::types::Balance;
@@ -22,7 +22,7 @@ where
 	<T as pallet_asset_registry::Config>::AssetId: From<<T as pallet_omnipool::Config>::AssetId> + From<AssetId>,
 	AssetId: From<<T as pallet_omnipool::Config>::AssetId>,
 {
-	fn state<F: Fn(&AssetId) -> bool>(retain: F) -> Vec<AssetInfo<AssetId>> {
+	fn state<F: Fn(&AssetId) -> bool>(retain: F) -> Vec<AmmInfo<AssetId>> {
 		// Get state of omnipool
 		let mut assets = vec![];
 		for (asset_id, state) in pallet_omnipool::Pallet::<T>::omnipool_state() {
@@ -31,16 +31,16 @@ where
 			}
 			let decimals = pallet_asset_registry::Pallet::<T>::decimals(asset_id.into()).unwrap();
 			let (asset_fee, hub_fee) = pallet_dynamic_fees::Pallet::<T>::get_fee(asset_id);
-			assets.push(AssetInfo::Omnipool(OmnipoolAssetInfo {
+			assets.push(OmnipoolAsset {
 				asset_id: asset_id.into(),
 				reserve: state.reserve,
 				hub_reserve: state.hub_reserve,
 				decimals,
 				fee: asset_fee,
 				hub_fee,
-			}));
+			});
 		}
-		assets
+		vec![AmmInfo::Omnipool(OmnipoolState { assets })]
 		// TODO: add state of all stableswap pools
 	}
 }

@@ -19,7 +19,7 @@ impl<AccountId> CallExecutor<AccountId> for () {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct OmnipoolAssetInfo<AssetId> {
+pub struct OmnipoolAsset<AssetId> {
 	pub asset_id: AssetId,
 	pub reserve: u128,
 	pub hub_reserve: u128,
@@ -29,21 +29,32 @@ pub struct OmnipoolAssetInfo<AssetId> {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct StableswapAssetInfo<AssetId> {
-	pub pool_id: AssetId,
-	pub asset_id: AssetId,
-	pub reserve: u128,
-	pub decimals: u8,
-	pub fee: Permill,
+pub struct OmnipoolState<AssetId> {
+	pub assets: Vec<OmnipoolAsset<AssetId>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum AssetInfo<AssetId> {
-	Omnipool(OmnipoolAssetInfo<AssetId>),
-	StableSwap(StableswapAssetInfo<AssetId>),
+pub struct Stablepool<AssetId> {
+	pub pool_id: AssetId,
+	pub assets: Vec<OmnipoolAsset<AssetId>>,
+	pub fee: Permill,
+	pub amplification: u128,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct StablepoolAsset<AssetId> {
+	pub asset_id: AssetId,
+	pub reserve: u128,
+	pub decimals: u8,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum AmmInfo<AssetId> {
+	Omnipool(OmnipoolState<AssetId>),
+	Stablepool(Stablepool<AssetId>),
 }
 
 /// Trait to gather all Hydration AMM information - each pool, each asset
 pub trait AmmState<AssetId> {
-	fn state<F: Fn(&AssetId) -> bool>(retain: F) -> Vec<AssetInfo<AssetId>>;
+	fn state<F: Fn(&AssetId) -> bool>(retain: F) -> Vec<AmmInfo<AssetId>>;
 }

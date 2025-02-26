@@ -28,48 +28,8 @@ impl pallet_ice::api::SolutionProvider for IceSolver {
 		data: Vec<pallet_ice::api::DataRepr>,
 	) -> Vec<pallet_ice::types::ResolvedIntent> {
 		// convert to the format that the solver expects
-		let data: Vec<hydration_solver::types::Asset> = data
-			.into_iter()
-			.map(|v| {
-				let (c, asset_id, reserve, hub_reserve, decimals, fee, hub_fee, pool_id) = v;
-				match c {
-					0 => hydration_solver::types::Asset::Omnipool(hydration_solver::types::OmnipoolAsset {
-						asset_id,
-						decimals,
-						reserve,
-						hub_reserve,
-						fee,
-						hub_fee,
-					}),
-					1 => hydration_solver::types::Asset::StableSwap(hydration_solver::types::StableSwapAsset {
-						pool_id,
-						asset_id,
-						decimals,
-						reserve,
-						fee,
-					}),
-					_ => {
-						panic!("unsupported pool asset!")
-					}
-				}
-			})
-			.collect();
-
-		// map to solver intents
-		let intents: Vec<hydration_solver::types::Intent> = intents
-			.into_iter()
-			.map(|v| {
-				let (intent_id, asset_in, asset_out, amount_in, amount_out, partial) = v;
-				hydration_solver::types::Intent {
-					intent_id,
-					asset_in,
-					asset_out,
-					amount_in,
-					amount_out,
-					partial,
-				}
-			})
-			.collect();
+		let data = hydration_solver::types::convert_data_repr(data);
+		let intents = hydration_solver::types::convert_intent_repr(intents);
 
 		let s = hydration_solver::v3::SolverV3::solve(intents, data);
 

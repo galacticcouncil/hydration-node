@@ -1,3 +1,4 @@
+use crate::driver::HydrationTestDriver;
 use crate::ice::{solve_current_intents, submit_intents, PATH_TO_SNAPSHOT};
 use crate::polkadot_test_net::*;
 use frame_support::__private::serde;
@@ -13,6 +14,7 @@ use hydradx_runtime::{
 	Currencies, EmaOracle, Omnipool, ReferralsOraclePeriod, Router, RuntimeOrigin, System, Timestamp, ICE,
 	LRNA as LRNAT,
 };
+use hydradx_traits::ice::AmmState;
 use hydradx_traits::router::{PoolType, Trade};
 use orml_traits::MultiCurrency;
 use pallet_ice::types::{Intent, IntentId, Swap, SwapType};
@@ -22,8 +24,6 @@ use sp_core::crypto::AccountId32;
 use sp_runtime::traits::{BlockNumberProvider, Dispatchable};
 use std::any::Any;
 use std::collections::BTreeSet;
-use crate::driver::HydrationTestDriver;
-use hydradx_traits::ice::AmmState;
 
 #[test]
 fn simple_v3_scenario() {

@@ -10,7 +10,7 @@ use frame_support::traits::{ConstU64, Everything, Time};
 use frame_support::{construct_runtime, dispatch::DispatchResult, parameter_types, PalletId};
 use frame_system::offchain::{AppCrypto, CreateSignedTransaction, SendTransactionTypes, SigningTypes};
 use hydra_dx_math::ratio::Ratio;
-use hydradx_traits::ice::{AmmState, AssetInfo, CallData, CallExecutor};
+use hydradx_traits::ice::{AmmInfo, AmmState, CallData, CallExecutor};
 use hydradx_traits::price::PriceProvider;
 use orml_traits::{parameter_type_with_key, MultiCurrency};
 use pallet_intent::types::{IntentId, Moment};
@@ -239,7 +239,7 @@ impl Trader<AccountId> for TestTrader {
 
 pub struct MockAmmDataProvider;
 impl AmmState<AssetId> for MockAmmDataProvider {
-	fn state<F: Fn(&AssetId) -> bool>(retain: F) -> Vec<AssetInfo<AssetId>> {
+	fn state<F: Fn(&AssetId) -> bool>(retain: F) -> Vec<AmmInfo<AssetId>> {
 		todo!()
 	}
 }

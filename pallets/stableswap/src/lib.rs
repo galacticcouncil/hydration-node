@@ -1563,6 +1563,19 @@ impl<T: Config> Pallet<T> {
 			assert!(diff <= 5000, "Trade D difference is too big: {:?}", diff);
 		}
 	}
+
+	// Get all pools
+	pub fn load_pools(f: impl Fn(T::AssetId, &PoolInfo<T::AssetId, BlockNumberFor<T>>, Vec<AssetReserve>)) {
+		for pool_id in Pools::<T>::iter_keys() {
+			let Some(pool) = Pools::<T>::get(pool_id) else {
+				continue;
+			};
+			let Some(reserves) = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)) else {
+				continue;
+			};
+			f(pool_id, &pool, reserves);
+		}
+	}
 }
 
 impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pallet<T> {

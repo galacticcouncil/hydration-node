@@ -19,6 +19,7 @@ pub(crate) struct Stablepool {
 	pub assets: Vec<AssetId>,
 	pub reserves: Vec<FloatType>,
 	pub fee: FloatType,
+	pub amplification: u128,
 }
 
 pub(crate) struct AssetInfo {
@@ -43,6 +44,7 @@ pub(crate) fn process_data(info: Vec<crate::types::Asset>) -> AmmStore {
 				let decimals = asset.decimals;
 				let reserve = asset.reserve as f64 / 10u128.pow(decimals as u32) as f64;
 				let fee = asset.fee.0 as f64 / asset.fee.1 as f64;
+				let amplification = asset.amplification;
 
 				stablepools
 					.entry(pool_id)
@@ -55,6 +57,7 @@ pub(crate) fn process_data(info: Vec<crate::types::Asset>) -> AmmStore {
 						assets: vec![asset_id],
 						reserves: vec![reserve],
 						fee,
+						amplification,
 					});
 
 				assert!(assets.get(&asset_id).is_none(), "Asset already in list of assets");

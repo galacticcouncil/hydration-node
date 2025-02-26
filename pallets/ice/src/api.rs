@@ -7,6 +7,7 @@ use crate::types::{AssetId, Balance, Intent, IntentId, ResolvedIntent};
 use alloc::vec::Vec;
 use codec::Decode;
 use sp_std::sync::Arc;
+use sp_std::vec;
 
 pub trait SolutionProvider: Send + Sync {
 	fn get_solution(&self, intents: Vec<IntentRepr>, data: Vec<DataRepr>) -> Vec<ResolvedIntent>;
@@ -20,7 +21,7 @@ sp_externalities::decl_extension! {
 	pub struct SolverExt(SolverPtr);
 }
 
-use hydradx_traits::ice::AssetInfo;
+use hydradx_traits::ice::AmmInfo;
 #[cfg(feature = "std")]
 use sp_externalities::{Externalities, ExternalitiesExt};
 use sp_runtime_interface::{runtime_interface, RIType};
@@ -46,7 +47,8 @@ pub trait ICE {
 // 6. Fee
 // 7. Hub fee
 // 8. Pool id (stableswap)
-pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32), AssetId);
+// 9. Amplification (stableswap)
+pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32), AssetId, u128);
 
 // Intent representation
 // 1. Intent identifier
@@ -67,25 +69,44 @@ pub(crate) fn into_intent_repr<AccountId>(data: (IntentId, Intent<AccountId>)) -
 	)
 }
 
-pub(crate) fn into_pool_data_repr(data: AssetInfo<AssetId>) -> DataRepr {
+pub(crate) fn into_pool_data_repr(data: AmmInfo<AssetId>) -> Vec<DataRepr> {
+	let mut r = vec![];
 	match data {
-		AssetInfo::Omnipool(asset) => {
-			let fee = (asset.fee.deconstruct(), 1_000_000);
-			let hub_fee = (asset.hub_fee.deconstruct(), 1_000_000);
-			(
-				0,
-				asset.asset_id,
-				asset.reserve,
-				asset.hub_reserve,
-				asset.decimals,
-				fee,
-				hub_fee,
-				0,
-			)
+		AmmInfo::Omnipool(state) => {
+			for asset in state.assets {
+				let fee = (asset.fee.deconstruct(), 1_000_000);
+				let hub_fee = (asset.hub_fee.deconstruct(), 1_000_000);
+				r.push((
+					0,
+					asset.asset_id,
+					asset.reserve,
+					asset.hub_reserve,
+					asset.decimals,
+					fee,
+					hub_fee,
+					0,
+					0,
+				));
+			}
 		}
-		AssetInfo::StableSwap(asset) => {
-			let fee = (asset.fee.deconstruct(), 1_000_000);
-			(1, asset.asset_id, asset.reserve, 0, asset.decimals, fee, (0, 0), asset.pool_id)
+		AmmInfo::Stablepool(state) => {
+			let fee = (state.fee.deconstruct(), 1_000_000);
+			let pool_id = state.pool_id;
+			let amp = state.amplification;
+			for asset in state.assets {
+				r.push((
+					1,
+					asset.asset_id,
+					asset.reserve,
+					0,
+					asset.decimals,
+					fee,
+					(0, 0),
+					pool_id,
+					amp,
+				));
+			}
 		}
 	}
+	r
 }
