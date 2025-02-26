@@ -4,8 +4,9 @@ mod problem;
 mod tests;
 pub mod types;
 pub mod v3;
+pub mod v4;
 
-const LOG_TARGET: &str = "ice-old-solver";
+const LOG_TARGET: &str = "hydration-solver";
 
 #[macro_export]
 macro_rules! to_f64_by_decimals {
