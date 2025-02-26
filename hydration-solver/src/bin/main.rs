@@ -103,7 +103,7 @@ fn main() {
 		}
 	};
 	let intent_serialized = serde_json::to_string_pretty(&intents).unwrap();
-	let data_serialized = serde_json::to_string_pretty(&data).unwrap();
+	let data_serialized = serde_json::to_string(&data).unwrap();
 	std::fs::write(intent_output, intent_serialized).unwrap();
 	std::fs::write(data_output, data_serialized).unwrap();
 }

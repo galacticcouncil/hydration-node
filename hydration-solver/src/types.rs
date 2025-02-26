@@ -34,9 +34,7 @@ pub struct OmnipoolAsset {
 	pub reserve: Balance,
 	pub hub_reserve: Balance,
 	pub decimals: u8,
-	#[serde(deserialize_with = "deserialize_fee")]
 	pub fee: (u32, u32),
-	#[serde(deserialize_with = "deserialize_fee")]
 	pub hub_fee: (u32, u32),
 }
 
@@ -46,16 +44,7 @@ pub struct StableSwapAsset {
 	pub asset_id: AssetId,
 	pub reserve: Balance,
 	pub decimals: u8,
-	#[serde(deserialize_with = "deserialize_fee")]
 	pub fee: (u32, u32),
-}
-
-fn deserialize_fee<'de, D>(deserializer: D) -> Result<(u32, u32), D::Error>
-where
-	D: Deserializer<'de>,
-{
-	let number: u32 = u32::deserialize(deserializer)?;
-	Ok((number, 1_000_000))
 }
 
 impl OmnipoolAsset {
