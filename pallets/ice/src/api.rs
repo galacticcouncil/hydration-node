@@ -45,7 +45,8 @@ pub trait ICE {
 // 5. Decimals
 // 6. Fee
 // 7. Hub fee
-pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32));
+// 8. Pool id (stableswap)
+pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32), AssetId);
 
 // Intent representation
 // 1. Intent identifier
@@ -53,7 +54,7 @@ pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32));
 // 3. Asset out identifier
 // 4. Amount in
 // 5. Amount out
-pub type IntentRepr = (IntentId, AssetId, AssetId, Balance, Balance);
+pub type IntentRepr = (IntentId, AssetId, AssetId, Balance, Balance, bool);
 
 pub(crate) fn into_intent_repr<AccountId>(data: (IntentId, Intent<AccountId>)) -> IntentRepr {
 	(
@@ -62,6 +63,7 @@ pub(crate) fn into_intent_repr<AccountId>(data: (IntentId, Intent<AccountId>)) -
 		data.1.swap.asset_out,
 		data.1.swap.amount_in,
 		data.1.swap.amount_out,
+		data.1.partial,
 	)
 }
 
@@ -78,11 +80,12 @@ pub(crate) fn into_pool_data_repr(data: AssetInfo<AssetId>) -> DataRepr {
 				asset.decimals,
 				fee,
 				hub_fee,
+				0,
 			)
 		}
 		AssetInfo::StableSwap(asset) => {
 			let fee = (asset.fee.deconstruct(), 1_000_000);
-			(1, asset.asset_id, asset.reserve, 0, asset.decimals, fee, (0, 0))
+			(1, asset.asset_id, asset.reserve, 0, asset.decimals, fee, (0, 0), asset.pool_id)
 		}
 	}
 }

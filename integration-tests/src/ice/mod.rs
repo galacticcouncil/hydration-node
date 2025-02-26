@@ -24,7 +24,7 @@ use primitives::{AccountId, AssetId, Moment};
 use sp_core::crypto::AccountId32;
 use xcm_emulator::TestExt;
 
-const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2025-02-24";
+const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/2025-02-26";
 
 fn convert_to_solver_types(
 	intents: Vec<IntentRepr>,
@@ -36,7 +36,7 @@ fn convert_to_solver_types(
 	let data: Vec<hydration_solver::types::Asset> = data
 		.into_iter()
 		.map(|v| {
-			let (c, asset_id, reserve, hub_reserve, decimals, fee, hub_fee) = v;
+			let (c, asset_id, reserve, hub_reserve, decimals, fee, hub_fee, pool_id) = v;
 			match c {
 				0 => hydration_solver::types::Asset::Omnipool(hydration_solver::types::OmnipoolAsset {
 					asset_id,
@@ -47,6 +47,7 @@ fn convert_to_solver_types(
 					hub_fee,
 				}),
 				1 => hydration_solver::types::Asset::StableSwap(hydration_solver::types::StableSwapAsset {
+					pool_id,
 					asset_id,
 					decimals,
 					reserve,
@@ -63,14 +64,14 @@ fn convert_to_solver_types(
 	let intents: Vec<hydration_solver::types::Intent> = intents
 		.into_iter()
 		.map(|v| {
-			let (intent_id, asset_in, asset_out, amount_in, amount_out) = v;
+			let (intent_id, asset_in, asset_out, amount_in, amount_out, partial) = v;
 			hydration_solver::types::Intent {
 				intent_id,
 				asset_in,
 				asset_out,
 				amount_in,
 				amount_out,
-				partial: false,
+				partial,
 			}
 		})
 		.collect();

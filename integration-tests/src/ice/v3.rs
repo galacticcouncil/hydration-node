@@ -22,30 +22,6 @@ use sp_core::crypto::AccountId32;
 use sp_runtime::traits::{BlockNumberProvider, Dispatchable};
 use std::any::Any;
 use std::collections::BTreeSet;
-
-type PriceP =
-	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNAT>, ReferralsOraclePeriod>;
-
-type V3Solver = hydration_solver::v3::SolverV3;
-
-fn load_from_file() -> Vec<Intent<AccountId32>> {
-	let testdata = std::fs::read_to_string("../hydration-solver/testdata/success_1732737492.json").unwrap();
-	let intents: Vec<TestEntry> = serde_json::from_str(&testdata).unwrap();
-	let intents: Vec<Intent<AccountId32>> = intents
-		.into_iter()
-		.enumerate()
-		.map(|(idx, entry)| {
-			let mut who: [u8; 32] = [0u8; 32];
-			let b = idx.to_be_bytes();
-			who[..b.len()].copy_from_slice(&b);
-			let mut e: Intent<AccountId32> = entry.into();
-			e.who = who.into();
-			e
-		})
-		.collect();
-	intents
-}
-
 use crate::driver::HydrationTestDriver;
 use hydradx_traits::ice::AmmState;
 
@@ -83,45 +59,4 @@ fn simple_v3_scenario() {
 			let d = serde_json::to_string(&data).unwrap();
 			dbg!(d);
 		});
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
-struct TestEntry {
-	asset_in: AssetId,
-	asset_out: AssetId,
-	amount_in: Balance,
-	amount_out: Balance,
-	partial: bool,
-}
-
-impl From<Intent<AccountId32>> for TestEntry {
-	fn from(value: Intent<AccountId32>) -> Self {
-		Self {
-			asset_in: value.swap.asset_in,
-			asset_out: value.swap.asset_out,
-			amount_in: value.swap.amount_in,
-			amount_out: value.swap.amount_out,
-			partial: value.partial,
-		}
-	}
-}
-
-impl Into<Intent<AccountId32>> for TestEntry {
-	fn into(self) -> Intent<AccountId32> {
-		let deadline: Moment = Timestamp::now() + 43_200_000;
-		Intent {
-			who: ALICE.into(),
-			swap: Swap {
-				asset_in: self.asset_in,
-				asset_out: self.asset_out,
-				amount_in: self.amount_in,
-				amount_out: self.amount_out,
-				swap_type: SwapType::ExactIn,
-			},
-			deadline,
-			partial: self.partial,
-			on_success: None,
-			on_failure: None,
-		}
-	}
 }
