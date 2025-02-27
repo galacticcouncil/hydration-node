@@ -1,5 +1,6 @@
 use mock::System;
 
+mod add_to_queue;
 pub(crate) mod mock;
 #[allow(clippy::module_inception)]
 // mod tests;

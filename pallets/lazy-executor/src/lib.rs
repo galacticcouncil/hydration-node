@@ -20,6 +20,7 @@ use frame_support::{
 	dispatch::{GetDispatchInfo, Pays, PostDispatchInfo},
 	pallet_prelude::{RuntimeDebug, TypeInfo},
 	traits::ConstU32,
+	transactional,
 	weights::Weight,
 };
 use frame_system::{
@@ -326,6 +327,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	#[transactional]
 	pub fn add_to_queue(src: Source, origin: T::AccountId, bounded_call: BoundedCall) -> Result<(), DispatchError> {
 		let call = <T as Config>::RuntimeCall::decode(&mut &bounded_call[..]).map_err(|_| Error::<T>::Corrupted)?;
 
@@ -357,7 +359,6 @@ impl<T: Config> Pallet<T> {
 			fees,
 			NO_TIP.into(),
 		)
-		//TODO: log error
 		.map_err(|_| Error::<T>::FailedToPayFees)?;
 
 		<T as pallet_transaction_payment::Config>::OnChargeTransaction::correct_and_deposit_fee(
@@ -371,7 +372,6 @@ impl<T: Config> Pallet<T> {
 			NO_TIP.into(),
 			already_withdrawn,
 		)
-		//TODO: log error
 		.map_err(|_| Error::<T>::FailedToDepositFees)?;
 
 		CallQueue::<T>::insert(
