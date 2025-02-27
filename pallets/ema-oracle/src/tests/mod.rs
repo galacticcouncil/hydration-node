@@ -18,6 +18,7 @@
 mod add_and_remove_oracle;
 mod invariants;
 mod mock;
+mod update_bifrost_oracle;
 
 use super::*;
 use crate::OraclePeriod::*;

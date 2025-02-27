@@ -26,33 +26,16 @@ use hydradx_adapters::{
 	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
 
-pub use hydradx_traits::{
-	evm::CallContext,
-	registry::Inspect,
-	router::{inverse_route, PoolType, Trade},
-	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
-};
-use pallet_currencies::BasicCurrencyAdapter;
-use pallet_omnipool::{
-	traits::{EnsurePriceWithin, OmnipoolHooks},
-	weights::WeightInfo as OmnipoolWeights,
-};
-use pallet_otc::NamedReserveIdentifier;
-use pallet_stableswap::weights::WeightInfo as StableswapWeights;
-use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
-use primitives::constants::{
-	chain::{OMNIPOOL_SOURCE, XYK_SOURCE},
-	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
-};
-use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
-
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
 	parameter_types,
-	sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom,
 	sp_runtime::traits::{One, PhantomData},
+	sp_runtime::{
+		app_crypto::sp_core::crypto::UncheckedFrom, traits::Zero, ArithmeticError, DispatchError, DispatchResult,
+		FixedPointNumber, Percent,
+	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
@@ -61,19 +44,39 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_traits::AMM;
+pub use hydradx_traits::{
+	evm::CallContext,
+	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
+	registry::Inspect,
+	router::{inverse_route, PoolType, Trade},
+	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
+	AMM,
+};
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Happened,
 };
+use pallet_currencies::BasicCurrencyAdapter;
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
+use pallet_omnipool::{
+	traits::{EnsurePriceWithin, OmnipoolHooks},
+	weights::WeightInfo as OmnipoolWeights,
+};
+use pallet_otc::NamedReserveIdentifier;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
+use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use pallet_staking::{
 	types::{Action, Point},
 	SigmoidPercentage,
 };
+use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
+use primitives::constants::{
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
+	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+	time::DAYS,
+};
 use sp_std::num::NonZeroU16;
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
@@ -568,6 +571,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+
+	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: Permill = Permill::from_percent(10);
 }
 
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
@@ -582,11 +587,14 @@ where
 	}
 }
 
+//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
+pub fn bifrost_account() -> AccountId {
+	hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()
+}
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
-		//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
-		return vec![hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()];
+		vec![bifrost_account()]
 	}
 }
 
@@ -607,6 +615,8 @@ impl pallet_ema_oracle::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
+	type LocationToAssetIdConversion = CurrencyIdConvert;
+	type MaxAllowedPriceDifference = MaxAllowedPriceDifferenceForBifrostOracleUpdate;
 }
 
 pub struct DustRemovalWhitelist;
@@ -1301,7 +1311,6 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1717,7 +1726,6 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
-use primitives::constants::chain::CORE_ASSET_ID;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;

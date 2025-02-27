@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "288.0.0"
+version = "291.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -123,7 +123,7 @@ polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
 polkadot-runtime-common = { workspace = true }
-xcm-fee-payment-runtime-api = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -171,6 +171,9 @@ module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
 hex = { workspace = true }
 serde_json = { workspace = true, default-features = false }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
 
 [features]
 default = ["std"]
@@ -224,6 +227,7 @@ runtime-benchmarks = [
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
+    "xcm-runtime-apis/runtime-benchmarks",
     "pallet-liquidation/runtime-benchmarks",
     "pallet-conviction-voting/runtime-benchmarks",
     "pallet-referenda/runtime-benchmarks",
@@ -250,7 +254,7 @@ std = [
     "staging-parachain-info/std",
     "pallet-xcm/std",
     "polkadot-xcm/std",
-    "xcm-fee-payment-runtime-api/std",
+    "xcm-runtime-apis/std",
     "xcm-executor/std",
     "xcm-builder/std",
     "orml-tokens/std",

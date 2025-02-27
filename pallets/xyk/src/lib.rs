@@ -27,6 +27,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::sp_runtime::{traits::Zero, DispatchError};
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
@@ -724,7 +725,7 @@ impl<T: Config> Pallet<T> {
 // Implementation of AMM API which makes possible to plug the AMM pool into the exchange pallet.
 impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	fn exists(assets: AssetPair) -> bool {
-		<ShareToken<T>>::contains_key(&Self::get_pair_id(assets))
+		<ShareToken<T>>::contains_key(Self::get_pair_id(assets))
 	}
 
 	fn get_pair_id(assets: AssetPair) -> T::AccountId {

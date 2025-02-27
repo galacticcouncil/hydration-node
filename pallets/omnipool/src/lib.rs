@@ -49,7 +49,7 @@
 //!
 //! * **LP:**  liquidity provider
 //! * **Position:**  a moment when LP added liquidity to the pool. It stores amount,shares and price at the time
-//!  of provision
+//!   of provision
 //! * **Hub Asset:** dedicated 'hub' token for trade executions (LRNA)
 //! * **Native Asset:** governance token
 //!
@@ -75,6 +75,7 @@
 //! * `withdraw_protocol_liquidity` - Withdraws protocol's liquidity from the pool. Used to withdraw liquidity from sacrificed position.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use crate::traits::ShouldAllow;
 use frame_support::pallet_prelude::{DispatchResult, Get};

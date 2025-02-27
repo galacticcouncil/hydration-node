@@ -114,7 +114,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 288,
+	spec_version: 290,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -281,6 +281,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	// todo, add from master merge
 	Migrations,
 >;
 
@@ -301,13 +302,12 @@ where
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	frame_support::parameter_types! {
-		pub const BenchmarkMaxBalance: crate::Balance = crate::Balance::max_value();
+		pub const BenchmarkMaxBalance: crate::Balance = crate::Balance::MAX;
 	}
 	frame_benchmarking::define_benchmarks!(
 		[pallet_lbp, LBP]
 		[pallet_asset_registry, AssetRegistry]
 		[pallet_transaction_pause, TransactionPause]
-		[pallet_ema_oracle, EmaOracle]
 		[pallet_circuit_breaker, CircuitBreaker]
 		[pallet_bonds, Bonds]
 		[pallet_stableswap, Stableswap]
@@ -344,6 +344,32 @@ mod benches {
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
 	);
+}
+
+struct CheckInherents;
+
+#[allow(deprecated)]
+#[allow(dead_code)]
+// There is some controversy around this deprecation. We can keep it as it is for now.
+// See issue: https://github.com/paritytech/polkadot-sdk/issues/2841
+impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
+	fn check_inherents(
+		block: &Block,
+		relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
+	) -> sp_inherents::CheckInherentsResult {
+		let relay_chain_slot = relay_state_proof
+			.read_slot()
+			.expect("Could not read the relay chain slot from the proof");
+
+		let inherent_data = cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration(
+			relay_chain_slot,
+			sp_std::time::Duration::from_secs(6),
+		)
+		.create_inherent_data()
+		.expect("Could not create the timestamp inherent data");
+
+		inherent_data.check_extrinsics(block)
+	}
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {
@@ -433,7 +459,10 @@ use frame_support::{
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::OpaqueMetadata;
-use xcm_fee_payment_runtime_api::Error as XcmPaymentApiError;
+use xcm_runtime_apis::{
+	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
+	fees::Error as XcmPaymentApiError,
+};
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -929,7 +958,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xcm_fee_payment_runtime_api::XcmPaymentApi<Block> for Runtime {
+	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			if !matches!(xcm_version, 3 | 4) {
 				return Err(XcmPaymentApiError::UnhandledXcmVersion);
@@ -997,6 +1026,28 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
+		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+			PolkadotXcm::dry_run_call::<Runtime, xcm::XcmRouter, OriginCaller, RuntimeCall>(origin, call)
+		}
+
+		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+			PolkadotXcm::dry_run_xcm::<Runtime, xcm::XcmRouter, RuntimeCall, xcm::XcmConfig>(origin_location, xcm)
+		}
+	}
+
+	impl xcm_runtime_apis::conversions::LocationToAccountApi<Block, AccountId> for Runtime {
+		fn convert_location(location: VersionedLocation) -> Result<
+			AccountId,
+			xcm_runtime_apis::conversions::Error
+		> {
+			xcm_runtime_apis::conversions::LocationToAccountHelper::<
+				AccountId,
+				xcm::LocationToAccountId,
+			>::convert_location(location)
+		}
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
@@ -1026,6 +1077,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
+			orml_list_benchmark!(list, extra, pallet_ema_oracle, benchmarking::ema_oracle);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1154,6 +1206,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee);
 			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
+			orml_add_benchmark!(params, batches, pallet_ema_oracle, benchmarking::ema_oracle);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

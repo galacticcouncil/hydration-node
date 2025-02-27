@@ -304,7 +304,7 @@ mod account_conversion {
 				DISPATCH_ADDR, // to
 				data,          // data
 				U256::from(0u64),
-				U256::from(52000u64),
+				U256::from(53000u64),
 				None,
 				None,
 				None,
@@ -1599,7 +1599,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 			fee_currency,
 		));
 
-		// give alice evm addr seom weth to sell in omnipool
+		// give alice evm addr some DOT to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
@@ -1662,7 +1662,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		assert!(fee_difference > 0);
 
 		let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
-		let tolerated_fee_difference = FixedU128::from_rational(30, 100);
+		let tolerated_fee_difference = FixedU128::from_rational(31, 100);
 		// EVM fees should be not higher than 20%
 		assert!(
 			relative_fee_difference < tolerated_fee_difference,

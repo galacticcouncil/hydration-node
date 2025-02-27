@@ -41,7 +41,7 @@
 // 20
 // --template=scripts/pallet-weight-template.hbs
 // --output
-// otcs.rs
+// runtime/hydradx/src/weights/pallet_otc_settlements.rs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -56,7 +56,7 @@ pub struct WeightInfo<T>(PhantomData<T>);
 
 /// Weights for `pallet_otc_settlements` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_otc_settlements::weights::WeightInfo for HydraWeight<T> {
+impl<T: frame_system::Config> pallet_otc_settlements::WeightInfo for HydraWeight<T> {
 	/// Storage: `OTC::Orders` (r:1 w:0)
 	/// Proof: `OTC::Orders` (`max_values`: None, `max_size`: Some(93), added: 2568, mode: `MaxEncodedLen`)
 	/// Storage: `System::Account` (r:2 w:1)

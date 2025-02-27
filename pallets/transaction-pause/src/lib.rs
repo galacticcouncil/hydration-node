@@ -18,6 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::{
 	pallet_prelude::*,

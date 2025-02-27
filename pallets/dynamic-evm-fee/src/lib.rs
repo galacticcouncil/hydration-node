@@ -44,6 +44,7 @@
 //! This dual-criteria approach ensures that transaction fees remain fair and reflective of both market conditions and network demand.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(test)]
 mod tests;
