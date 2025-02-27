@@ -367,6 +367,10 @@ impl orml_tokens::Config for Runtime {
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
+parameter_types! {
+	pub ReserveAccount: AccountId = PalletId( * b"curreser").into_account_truncating();
+}
+
 // The latest versions of the orml-currencies pallet don't emit events.
 // The infrastructure relies on the events from this pallet, so we use the latest version of
 // the pallet that contains and emit events and was updated to the polkadot version we use.
@@ -376,7 +380,7 @@ impl pallet_currencies::Config for Runtime {
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type Erc20Currency = Erc20Currency<Runtime>;
 	type BoundErc20 = AssetRegistry;
-	type ReserveAccount = TreasuryAccount;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }

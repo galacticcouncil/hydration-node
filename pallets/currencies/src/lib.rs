@@ -110,6 +110,7 @@ pub mod module {
 
 		type BoundErc20: BoundErc20<AssetId = CurrencyIdOf<Self>>;
 
+		#[pallet::constant]
 		type ReserveAccount: Get<Self::AccountId>;
 
 		#[pallet::constant]
