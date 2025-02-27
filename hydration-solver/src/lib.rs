@@ -5,6 +5,7 @@ mod tests;
 pub mod types;
 pub mod v3;
 pub mod v4;
+mod problem_v4;
 
 const LOG_TARGET: &str = "hydration-solver";
 

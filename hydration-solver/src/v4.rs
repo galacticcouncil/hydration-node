@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use crate::data::process_data;
-use crate::problem::{AmmApprox, Direction, ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
+use crate::problem_v4::{AmmApprox, Direction, ICEProblemV4 as ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
 use crate::types::{AssetId, Balance, FloatType, Intent, ResolvedIntent};
 use clarabel::algebra::*;
 use clarabel::solver::*;
