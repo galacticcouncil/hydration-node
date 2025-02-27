@@ -1,4 +1,4 @@
-use crate::data::OmnipoolAsset;
+use crate::data::{AmmStore, OmnipoolAsset};
 use crate::to_f64_by_decimals;
 use crate::types::{AssetId, FloatType, Intent, IntentId};
 use clarabel::solver::SolverStatus;
@@ -32,12 +32,14 @@ impl From<SolverStatus> for ProblemStatus {
 	}
 }
 
-#[derive(Clone)]
-pub struct ICEProblem {
+#[derive(Clone, Default)]
+pub(crate) struct ICEProblem {
 	pub tkn_profit: AssetId,
 	pub intent_ids: Vec<IntentId>,
 	pub intents: Vec<Intent>,
 	pub intent_amounts: Vec<(FloatType, FloatType)>,
+
+	pub amm_store: AmmStore,
 
 	pub pool_data: BTreeMap<AssetId, OmnipoolAsset>,
 
@@ -62,11 +64,34 @@ pub struct ICEProblem {
 	pub fee_match: FloatType,
 }
 
+// Problem builder
 impl ICEProblem {
-	pub fn new(intents_and_ids: Vec<Intent>, pool_data: BTreeMap<AssetId, OmnipoolAsset>) -> Self {
-		let mut intents = Vec::with_capacity(intents_and_ids.len());
-		let mut intent_ids = Vec::with_capacity(intents_and_ids.len());
-		let mut intent_amounts = Vec::with_capacity(intents_and_ids.len());
+	pub fn new() -> Self {
+		ICEProblem::default()
+	}
+
+	pub fn with_intents(mut self, intents: Vec<Intent>) -> Self {
+		self.intents = intents;
+		self
+	}
+
+	pub fn with_amm_store(mut self, amm_store: AmmStore) -> Self {
+		self.amm_store = amm_store;
+		self
+	}
+}
+
+impl ICEProblem {
+	pub fn prepare(&mut self) {
+		if self.intents.len() == 0 {
+			panic!("No intents provided!");
+		}
+
+		let intents_len = self.intents.len();
+
+		let mut intents = Vec::with_capacity(intents_len);
+		let mut intent_ids = Vec::with_capacity(intents_len);
+		let mut intent_amounts = Vec::with_capacity(intents_len);
 		let mut partial_sell_amounts = Vec::new();
 		let mut partial_indices = Vec::new();
 		let mut full_indices = Vec::new();
@@ -75,7 +100,9 @@ impl ICEProblem {
 		let asset_profit = 0u32.into(); //HDX
 		asset_ids.insert(asset_profit);
 
-		for (idx, intent) in intents_and_ids.iter().enumerate() {
+		let pool_data = self.amm_store.omnipool.clone();
+
+		for (idx, intent) in self.intents.iter().enumerate() {
 			intent_ids.push(intent.intent_id);
 			intents.push(intent.clone());
 
@@ -112,27 +139,24 @@ impl ICEProblem {
 
 		let initial_sell_maxs = partial_sell_amounts.clone();
 
-		ICEProblem {
-			tkn_profit: 0u32, // HDX
-			intent_ids,
-			intents,
-			intent_amounts,
-			pool_data,
-			min_partial: 1.,
-			n,
-			m,
-			r,
-			indicators,
-			asset_ids: asset_ids.into_iter().collect(),
-			partial_sell_maxs: partial_sell_amounts,
-			initial_sell_maxs,
-			partial_indices,
-			full_indices,
-			directional_flags: None,
-			force_amm_approx: None,
-			step_params: StepParams::default(),
-			fee_match: 0.0005,
-		}
+		self.tkn_profit = 0u32; // HDX
+		self.intent_ids = intent_ids;
+		self.intent_amounts = intent_amounts;
+		self.pool_data = pool_data.clone();
+		self.min_partial = 1.;
+		self.n = n;
+		self.m = m;
+		self.r = r;
+		self.indicators = indicators;
+		self.asset_ids = asset_ids.into_iter().collect();
+		self.partial_sell_maxs = partial_sell_amounts;
+		self.initial_sell_maxs = initial_sell_maxs;
+		self.partial_indices = partial_indices;
+		self.full_indices = full_indices;
+		self.directional_flags = None;
+		self.force_amm_approx = None;
+		self.step_params = StepParams::default();
+		self.fee_match = 0.0005;
 	}
 
 	pub(crate) fn get_partial_intent_prices(&self) -> Vec<FloatType> {

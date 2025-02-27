@@ -168,8 +168,9 @@ impl SolverV4 {
 			});
 		}
 		// atm we support only omnipool assets - let's prepare those
-		let data = process_data(pool_data);
-		let mut problem = ICEProblem::new(intents, data.omnipool);
+		let store = process_data(pool_data);
+		let mut problem = ICEProblem::new().with_intents(intents).with_amm_store(store);
+		problem.prepare();
 
 		let (n, m, r) = (problem.n, problem.m, problem.r);
 

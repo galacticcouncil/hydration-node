@@ -1,5 +1,7 @@
 extern crate rand;
 mod v3;
+mod v4;
+
 use crate::types::Asset;
 use rand::Rng;
 

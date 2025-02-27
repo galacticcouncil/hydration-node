@@ -22,12 +22,12 @@ pub(crate) struct Stablepool {
 	pub amplification: u128,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct AssetInfo {
 	pub decimals: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct AmmStore {
 	pub(crate) omnipool: BTreeMap<AssetId, OmnipoolAsset>,
 	stablepools: BTreeMap<AssetId, Stablepool>,
