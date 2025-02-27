@@ -9,6 +9,7 @@ use highs::{HighsModelStatus, Sense};
 use ndarray::{s, Array1, Array2, Axis};
 use std::collections::BTreeMap;
 use std::ops::Neg;
+use anyhow::{anyhow, Result};
 
 const ROUND_TOLERANCE: FloatType = 0.0001;
 const LRNA: AssetId = 1;
@@ -161,7 +162,7 @@ pub struct SolverResult {
 pub struct SolverV4;
 
 impl SolverV4 {
-	pub fn solve(intents: Vec<Intent>, pool_data: Vec<crate::types::Asset>) -> Result<SolverResult, ()> {
+	pub fn solve(intents: Vec<Intent>, pool_data: Vec<crate::types::Asset>) -> Result<SolverResult>{
 		if intents.is_empty() {
 			return Ok(SolverResult {
 				resolved_intents: vec![],
@@ -291,7 +292,7 @@ impl SolverV4 {
 		}
 		if best_status != ProblemStatus::Solved {
 			// no solution found
-			return Err(());
+			return Err(anyhow!("Best status not solved: {:?}", best_status));
 		}
 
 		let sell_deltas = round_solution(

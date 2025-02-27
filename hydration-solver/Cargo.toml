@@ -17,6 +17,7 @@ serde = { version = "1.0.197", features = ["derive"] }
 rand = { version = "0.8.5" }
 serde_json = {workspace = true}
 chrono = "0.4.19"
+anyhow = "1.0.96"
 
 [features]
 default = [
