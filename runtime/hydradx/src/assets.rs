@@ -1602,7 +1602,6 @@ impl pallet_lazy_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type BlockNumberProvider = System;
-	type AuthorityId = pallet_lazy_executor::crypto::LazyExecId;
 	type WeightInfo = ();
 }
 

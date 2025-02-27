@@ -12,7 +12,7 @@ fn add_to_queue_should_work_when_call_is_valid_and_user_can_pay_fees() {
 			weight: Weight::from_parts(40_000, 70_000),
 		});
 
-		let intent_id: IntentId = 1;
+		let intent_id: Source = Source::ICE(1);
 		let origin: AccountId = BOB;
 		let bounded_call_data: BoundedCall = call.encode().try_into().unwrap();
 		let expected_fees = 107_116_179_u128;
@@ -28,7 +28,7 @@ fn add_to_queue_should_work_when_call_is_valid_and_user_can_pay_fees() {
 			Event::Queued {
 				id: 0,
 				who: BOB,
-				intent_id,
+				src: intent_id,
 				fees: expected_fees.into()
 			}
 			.into()
@@ -54,7 +54,7 @@ fn add_to_queue_should_fail_when_call_is_not_valid() {
 		//NOTE: call encoded by PolkadotAPPs with removed last 2 characters
 		let call_data: Vec<u8> =
 			hex_literal::hex!["070346f0b489ac07cb495852eba68e42250209e4d91f472d37a2fc8e4f0d9c74a828070010a5d4"].into();
-		let intent_id: IntentId = 1;
+		let intent_id: Source = Source::ICE(1);
 		let origin: AccountId = BOB;
 
 		//Act & Assert
@@ -73,7 +73,7 @@ fn add_to_queue_should_fail_when_origin_cant_pay_fees() {
 			weight: Weight::from_parts(40_000, 70_000),
 		});
 
-		let intent_id: IntentId = 1;
+		let intent_id: Source = 1;
 		let origin: AccountId = CHARLIE;
 		let bounded_call_data: BoundedCall = call.encode().try_into().unwrap();
 		let expected_fees = 107_116_179_u128;

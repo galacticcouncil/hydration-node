@@ -15,7 +15,7 @@
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{fungible, ConstU128, ConstU32, ConstU64, ConstU8, Contains, Imbalance, OnUnbalanced},
+	traits::{fungible, ConstU128, ConstU32, ConstU64, Contains, Imbalance, OnUnbalanced},
 	weights::{RuntimeDbWeight, Weight, WeightToFee as WeightToFeeT},
 };
 use pallet_transaction_payment::FungibleAdapter;
@@ -31,10 +31,9 @@ pub type AccountId = u64;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
 pub type MockPalletCall = mock_pallet::Call<Test>;
+pub type LazyExecutorCall = pallet::Call<Test>;
 
-use crate as pallet_lazy_executor;
-
-use crate::WeightInfo;
+use crate::{self as pallet_lazy_executor, pallet};
 
 const UNIT: Balance = 1_000_000_000_000;
 pub const ALICE: AccountId = 1_000;
@@ -190,20 +189,22 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = ();
 }
 
-pub struct DummyWeightInfo;
-/// Weights for pallet_staking using the hydraDX node and recommended hardware.
-impl WeightInfo for DummyWeightInfo {
-	fn dispatch_top_base_weight() -> Weight {
-		Weight::from_parts(2_000, 3_000)
-	}
+pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+where
+	RuntimeCall: From<C>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
 }
 
 impl pallet_lazy_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
-	type BlockNumberProvider = MockBlockNumberProvider;
-	type WeightInfo = DummyWeightInfo;
-	type OcwMaxSubmits = ConstU8<5>;
+	type UnsignedPriority = ConstU64<100>;
+	type UnsignedLongevity = ConstU64<3>;
+
+	type WeightInfo = ();
 }
 
 parameter_types! {
