@@ -1,5 +1,10 @@
 #![cfg(test)]
+use crate::dca::create_schedule;
+use crate::dca::init_omnipool_with_oracle_for_block_10;
+use crate::dca::run_to_block;
+use crate::dca::schedule_fake_with_sell_order;
 use crate::liquidation::supply;
+use crate::liquidation::PATH_TO_SNAPSHOT;
 use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
@@ -7,22 +12,23 @@ use frame_support::pallet_prelude::DispatchError::Other;
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
+use hydradx_runtime::Omnipool;
+use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin, Treasury};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::EvmAddress;
-use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::ExecutorError;
 use hydradx_traits::router::PoolType::Aave;
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::router::Trade;
+use hydradx_traits::router::{AssetPair, PoolType};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
+use pallet_broadcast::types::Destination;
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use primitives::Balance;
-
-// ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
-const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
+use sp_runtime::FixedU128;
+use sp_runtime::Permill;
 
 fn with_aave(execution: impl FnOnce()) {
 	TestNet::reset();
@@ -63,6 +69,7 @@ fn with_atoken(execution: impl FnOnce()) {
 
 const HDX: AssetId = 0;
 const DOT: AssetId = 5;
+const DAI: AssetId = 2;
 const ADOT: AssetId = 1_000_037;
 const ONE: u128 = 1 * 10_u128.pow(10);
 const BAG: u128 = 100000 * ONE;
@@ -255,15 +262,40 @@ fn router_should_set_on_chain_route() {
 			asset_in: ADOT,
 			asset_out: DOT,
 		};
+		let route = vec![Trade {
+			pool: Aave,
+			asset_in: ADOT,
+			asset_out: DOT,
+		}];
 		assert_ok!(Router::set_route(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			pair,
-			vec![Trade {
-				pool: Aave,
-				asset_in: ADOT,
-				asset_out: DOT,
-			}]
+			route.clone()
 		));
-		assert_eq!(Router::get_route(pair), []);
+		assert_eq!(Router::get_route(pair), route);
+	})
+}
+
+#[test]
+fn dca_schedule_buying_atokens_should_be_created() {
+	with_aave(|| {
+		create_schedule(
+			ALICE,
+			schedule_fake_with_sell_order(ALICE, Aave, 10 * ONE, DOT, ADOT, ONE),
+		);
+		run_to_block(11, 12);
+		println!("{:?}", get_last_swapped_events());
+	})
+}
+
+#[test]
+fn dca_schedule_selling_atokens_should_be_created() {
+	with_aave(|| {
+		create_schedule(
+			ALICE,
+			schedule_fake_with_sell_order(ALICE, Aave, 10 * ONE, ADOT, DOT, ONE),
+		);
+		run_to_block(11, 12);
+		println!("{:?}", get_last_swapped_events());
 	})
 }

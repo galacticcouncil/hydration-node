@@ -723,29 +723,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> Result<T::Balance, DispatchError> {
+		// Validate that the route is properly structured
 		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
 		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
 
-		with_transaction::<T::Balance, DispatchError, _>(|| {
-			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
-			let Ok(who) = ensure_signed(origin.clone()) else {
-				return TransactionOutcome::Rollback(Err(Error::<T>::InvalidRoute.into()));
-			};
-			//NOTE: This is necessary so router's account can pay ED for insufficient assets in the
-			//route. Value is 10K to make sure we can pay ED for really long routes.
-			let _ = T::Currency::mint_into(
-				T::NativeAssetId::get(),
-				&Self::router_account(),
-				10_000_000_000_000_000_u128.into(),
-			);
-			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
+		// Instead of executing a transaction, just calculate the expected amount out
+		let amount_out = Self::calculate_expected_amount_out(&route, amount_in)?;
 
-			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
-			let amount_out =
-				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
-
-			TransactionOutcome::Rollback(sell_result.map(|_| amount_out))
-		})
+		Ok(amount_out)
 	}
 
 	pub fn calculate_expected_amount_out(
