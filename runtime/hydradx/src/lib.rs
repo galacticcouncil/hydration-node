@@ -281,15 +281,8 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	// todo, add from master merge
-	Migrations,
+	migrations::Migrations,
 >;
-
-pub type Migrations = (
-	pallet_dca::migrations::MultiplySchedulesPeriodBy2<Runtime>,
-	pallet_staking::migrations::SetSixSecBlocksSince<Runtime>,
-	migrations::MigrateSchedulerTo6sBlocks<Runtime>,
-);
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
 where

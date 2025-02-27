@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2025  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +14,3 @@
 // limitations under the License.
 
 use super::*;
-
-impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
-	type ChannelList = ParachainSystem;
-}
-
-pub type Migrations = (
-	cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
-	evm::precompiles::erc20_mapping::SetCodeMetadataForErc20Precompile,
-);

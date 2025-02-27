@@ -72,7 +72,7 @@ pub mod chain {
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;
 
-	/// We allow for 2 seconds of compute with a 6 second average block.
+	/// We allow for 2 seconds of compute with a 6 seconds average block.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
 		WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2),
 		polkadot_primitives::v8::MAX_POV_SIZE as u64,
