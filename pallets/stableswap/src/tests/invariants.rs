@@ -1297,6 +1297,7 @@ proptest! {
 
 				let pool = Pools::<Test>::get(pool_id).unwrap();
 				let final_reserves = pool.reserves_with_decimals::<Test>(&pool_account).unwrap();
+				let reserves_add =final_reserves.clone();
 				let intermediate_d = hydra_dx_math::stableswap::calculate_d::<128u8>(&final_reserves, amplification.get().into(), &asset_pegs).unwrap();
 				assert!(intermediate_d > initial_d);
 
@@ -1331,8 +1332,12 @@ proptest! {
 				let s = s_plus;
 				let s_plus = U256::from(final_shares);
 				assert!(d * (s_plus + 10u128.pow(18) )  >= d_plus * s);
-				assert!(d_plus * s >= d * s_plus);
 
+				for (x_n_plus, x_n) in final_reserves.iter().zip(reserves_add.iter()) {
+					let x_n_plus = U256::from(x_n_plus.amount);
+					let x_n = U256::from(x_n.amount);
+					assert!(x_n_plus * s >= x_n * s_plus);
+				}
 			});
 	}
 }
