@@ -28,7 +28,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, NativeAssetId, Runtime, XykPaymentAssetSupport, LRNA};
+use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
@@ -39,7 +39,6 @@ use frame_support::{
 use frame_system::EnsureRoot;
 use hex_literal::hex;
 use hydradx_adapters::price::ConvertBalance;
-use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
@@ -219,14 +218,7 @@ impl pallet_dynamic_evm_fee::Config for Runtime {
 	type MinBaseFeePerGas = MinBaseFeePerGas;
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type FeeMultiplier = TransactionPaymentMultiplier;
-	type NativePriceOracle = AssetFeeOraclePriceProvider<
-		NativeAssetId,
-		crate::MultiTransactionPayment,
-		crate::Router,
-		OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
-		crate::MultiTransactionPayment,
-		OracleEvmPeriod,
-	>;
+	type NativePriceOracle = FeePriceOracle;
 	type WethAssetId = WethAssetId;
 	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
 }

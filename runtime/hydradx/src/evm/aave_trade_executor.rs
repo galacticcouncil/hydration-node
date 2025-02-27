@@ -16,6 +16,7 @@ use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_democracy::EncodeInto;
+use pallet_evm::GasWeightMapping;
 use pallet_liquidation::BorrowingContract;
 use polkadot_xcm::v3::MultiLocation;
 use primitive_types::{H256, U256};
@@ -30,6 +31,7 @@ use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 use sp_std::vec::Vec;
+use pallet_genesis_history::migration::Weight;
 
 pub struct AaveTradeExecutor<T>(PhantomData<T>);
 
@@ -104,6 +106,9 @@ impl ReserveData {
 	}
 }
 
+const TRADE_GAS_LIMIT: u64 = 500_000;
+const VIEW_GAS_LIMIT: u64 = 100_000;
+
 impl<T> AaveTradeExecutor<T>
 where
 	T: pallet_evm::Config
@@ -124,7 +129,7 @@ where
 			.write(asset)
 			.build();
 
-		let (res, reserve_data) = Executor::<T>::view(context, data, 100_000);
+		let (res, reserve_data) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
 		ensure!(
 			matches!(res, Succeed(_)),
@@ -180,7 +185,7 @@ where
 	fn get_scaled_total_supply(atoken: EvmAddress) -> Result<U256, ExecutorError<DispatchError>> {
 		let context = CallContext::new_view(atoken);
 		let data = EvmDataWriter::new_with_selector(Function::ScaledTotalSupply).build();
-		let (res, value) = Executor::<T>::view(context, data, 100_000);
+		let (res, value) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 		ensure!(
 			matches!(res, Succeed(_)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
@@ -204,7 +209,7 @@ where
 			.to_be_bytes()
 			.to_vec();
 
-		let (res, value) = Executor::<T>::view(context, data, 100_000);
+		let (res, value) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
 		if !matches!(res, Succeed(_)) {
 			// not a token
@@ -226,7 +231,7 @@ where
 			.write(0_u16)
 			.build();
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), 500_000))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
 
 	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
@@ -240,7 +245,11 @@ where
 			.write(to)
 			.build();
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), 500_000))
+		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+	}
+
+	pub fn trade_weight() -> Weight {
+		<T as pallet_evm::Config>::GasWeightMapping::gas_to_weight(TRADE_GAS_LIMIT + VIEW_GAS_LIMIT, true)
 	}
 }
 

@@ -9,6 +9,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
+use frame_support::traits::OnInitialize;
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
@@ -283,19 +284,33 @@ fn dca_schedule_buying_atokens_should_be_created() {
 			ALICE,
 			schedule_fake_with_sell_order(ALICE, Aave, 10 * ONE, DOT, ADOT, ONE),
 		);
-		run_to_block(11, 12);
-		println!("{:?}", get_last_swapped_events());
 	})
 }
 
 #[test]
 fn dca_schedule_selling_atokens_should_be_created() {
 	with_aave(|| {
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ADOT,
+			FixedU128::from_rational(1, 100000),
+		));
+		hydradx_runtime::MultiTransactionPayment::on_initialize(0);
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			1000 * ONE,
+			1000 * ONE,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+		));
 		create_schedule(
 			ALICE,
 			schedule_fake_with_sell_order(ALICE, Aave, 10 * ONE, ADOT, DOT, ONE),
 		);
-		run_to_block(11, 12);
-		println!("{:?}", get_last_swapped_events());
 	})
 }
