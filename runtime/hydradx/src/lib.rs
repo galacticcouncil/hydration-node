@@ -113,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 289,
+	spec_version: 290,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1029,6 +1029,16 @@ impl_runtime_apis! {
 				AccountId,
 				xcm::LocationToAccountId,
 			>::convert_location(location)
+		}
+	}
+
+	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, evm::EvmAddress> for Runtime {
+		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> evm::EvmAddress {
+			evm::precompiles::chainlink_adapter::encode_oracle_address(asset_id_a, asset_id_b, period, source)
+		}
+
+		fn decode_oracle_address(oracle_address: evm::EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
+			evm::precompiles::chainlink_adapter::decode_oracle_address(oracle_address)
 		}
 	}
 
