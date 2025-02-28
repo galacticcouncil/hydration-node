@@ -113,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 289,
+	spec_version: 290,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -154,10 +154,8 @@ construct_runtime!(
 		Preimage: pallet_preimage = 15,
 		Identity: pallet_identity = 17,
 		Democracy: pallet_democracy exclude_parts { Config } = 19,
-		Elections: pallet_elections_phragmen = 21,
-		Council: pallet_collective::<Instance1> = 23,
+		// NOTE 19, 21, 23 are retired (used by gov v1)
 		TechnicalCommittee: pallet_collective::<Instance2> = 25,
-		Tips: pallet_tips = 27,
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
@@ -315,13 +313,10 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
 		[pallet_democracy, Democracy]
-		[pallet_elections_phragmen, Elections]
 		[pallet_treasury, Treasury]
 		[pallet_scheduler, Scheduler]
 		[pallet_utility, Utility]
-		[pallet_tips, Tips]
 		[pallet_identity, Identity]
-		[pallet_collective_council, Council]
 		[pallet_collective_technical_committee, TechnicalCommittee]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_message_queue, MessageQueue]

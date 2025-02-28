@@ -4526,7 +4526,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.1.0"
+version = "14.2.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -4670,7 +4670,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "289.0.0"
+version = "290.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12135,7 +12135,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.33.2"
+version = "1.33.3"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12180,11 +12180,9 @@ dependencies = [
  "pallet-conviction-voting",
  "pallet-currencies",
  "pallet-dca",
- "pallet-democracy 4.3.3",
  "pallet-dispatcher",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
- "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-evm",
  "pallet-evm-accounts",
@@ -12205,7 +12203,6 @@ dependencies = [
  "pallet-stableswap",
  "pallet-staking 4.1.2",
  "pallet-timestamp",
- "pallet-tips",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
  "pallet-transaction-payment",
@@ -12255,7 +12252,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
