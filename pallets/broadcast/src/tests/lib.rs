@@ -18,7 +18,6 @@
 use crate::tests::mock::*;
 use crate::Event;
 use frame_support::assert_err;
-use frame_support::traits::Len;
 
 #[test]
 fn stack_should_be_populated_when_pushed() {

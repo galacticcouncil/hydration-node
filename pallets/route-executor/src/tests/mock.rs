@@ -116,6 +116,7 @@ impl orml_tokens::Config for Test {
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxReserves: u32 = 50;
+	pub const ReserveAccount: AccountId = 7;
 }
 
 impl pallet_balances::Config for Test {
@@ -140,6 +141,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }

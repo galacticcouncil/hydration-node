@@ -16,7 +16,7 @@ pub struct Executor<R>(sp_std::marker::PhantomData<R>);
 
 pub type CallResult = (ExitReason, Vec<u8>);
 
-type BalanceOf<T> =
+pub type BalanceOf<T> =
 	<<T as pallet_evm::Config>::Currency as frame_support::traits::Currency<pallet_evm::AccountIdOf<T>>>::Balance;
 pub type NonceIdOf<T> = <<T as Config>::AccountProvider as AccountProvider>::Nonce;
 

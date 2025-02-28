@@ -1,10 +1,10 @@
+use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::executor::{CallResult, Executor};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
-use fp_evm::AccountProvider;
 use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
 use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -36,9 +36,6 @@ pub enum Function {
 	Approve = "approve(address,uint256)",
 	TransferFrom = "transferFrom(address,address,uint256)",
 }
-type BalanceOf<T> =
-	<<T as pallet_evm::Config>::Currency as frame_support::traits::Currency<pallet_evm::AccountIdOf<T>>>::Balance;
-pub type NonceIdOf<T> = <<T as pallet_evm::Config>::AccountProvider as AccountProvider>::Nonce;
 
 pub struct Erc20Currency<T>(PhantomData<T>);
 

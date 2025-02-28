@@ -176,6 +176,7 @@ pub trait Mutate<Balance>: Inspect {
 	fn set_location(asset_id: Self::AssetId, location: Self::Location) -> Result<(), Self::Error>;
 }
 
+/// Stored bindings of ERC20 contracts to Assets
 pub trait BoundErc20: Inspect {
 	fn contract_address(id: Self::AssetId) -> Option<EvmAddress>;
 }

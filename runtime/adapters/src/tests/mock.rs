@@ -191,6 +191,7 @@ parameter_types! {
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 	pub BurnFee: Permill = Permill::zero();
+	pub const ReserveAccount: AccountId = 7;
 }
 
 impl pallet_omnipool::Config for Test {
@@ -241,6 +242,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }

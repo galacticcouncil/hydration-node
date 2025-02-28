@@ -1,6 +1,7 @@
 #![cfg(test)]
 // DCA pallet uses dummy router for benchmarks and some tests fail when benchmarking feature is enabled
 #![cfg(not(feature = "runtime-benchmarks"))]
+mod aave_router;
 mod asset_registry;
 mod bonds;
 mod call_filter;

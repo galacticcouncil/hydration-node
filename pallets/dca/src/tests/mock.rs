@@ -145,7 +145,7 @@ parameter_types! {
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
-		return vec![ALICE];
+		vec![ALICE]
 	}
 }
 impl pallet_ema_oracle::Config for Test {
@@ -357,6 +357,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
