@@ -8,6 +8,7 @@ use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
+use sp_std::vec;
 
 pub const MAX_Y_ITERATIONS: u8 = 128;
 pub const MAX_D_ITERATIONS: u8 = 64;
@@ -129,7 +130,7 @@ pub fn calculate_shares<const D: u8>(
 	amplification: Balance,
 	share_issuance: Balance,
 	fee: Permill,
-) -> Option<Balance> {
+) -> Option<(Balance, Vec<Balance>)> {
 	if initial_reserves.len() != updated_reserves.len() {
 		return None;
 	}
@@ -152,6 +153,7 @@ pub fn calculate_shares<const D: u8>(
 
 	let (d0, d1) = to_u256!(initial_d, updated_d);
 
+	let mut fees = vec![];
 	let adjusted_reserves = if share_issuance > 0 {
 		updated_reserves
 			.iter()
@@ -161,6 +163,7 @@ pub fn calculate_shares<const D: u8>(
 				let ideal_balance = d1.checked_mul(initial_reserve)?.checked_div(d0)?;
 				let diff = Balance::try_from(updated_reserve.abs_diff(ideal_balance)).ok()?;
 				let fee_amount = fee.checked_mul_int(diff)?;
+				fees.push(fee_amount);
 				Some(AssetReserve::new(
 					asset_reserve.amount.saturating_sub(fee_amount),
 					asset_reserve.decimals,
@@ -174,11 +177,13 @@ pub fn calculate_shares<const D: u8>(
 
 	if share_issuance == 0 {
 		// if first liquidity added
-		Some(updated_d)
+		Some((updated_d, fees))
 	} else {
 		let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, adjusted_d.checked_sub(initial_d)?, initial_d);
 		let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
-		Balance::try_from(share_amount).ok()
+		let shares_amount = Balance::try_from(share_amount).ok()?;
+
+		Some((shares_amount, fees))
 	}
 }
 
@@ -190,7 +195,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 	amplification: Balance,
 	share_issuance: Balance,
 	fee: Permill,
-) -> Option<Balance> {
+) -> Option<(Balance, Vec<Balance>)> {
 	let n_coins = initial_reserves.len();
 	if n_coins <= 1 {
 		return None;
@@ -218,6 +223,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 	let initial_d = calculate_d::<D>(initial_reserves, amplification)?;
 	let updated_d = calculate_d::<D>(&updated_reserves, amplification)?;
 	let (d1, d0) = to_u256!(updated_d, initial_d);
+	let mut fees = vec![];
 	let adjusted_reserves: Vec<AssetReserve> = updated_reserves
 		.iter()
 		.enumerate()
@@ -226,6 +232,7 @@ pub fn calculate_shares_for_amount<const D: u8>(
 			let ideal_balance = d1.checked_mul(initial_reserve)?.checked_div(d0)?;
 			let diff = Balance::try_from(updated_reserve.abs_diff(ideal_balance)).ok()?;
 			let fee_amount = fee.checked_mul_int(diff)?;
+			fees.push(fee_amount);
 			Some(AssetReserve::new(
 				asset_reserve.amount.saturating_sub(fee_amount),
 				asset_reserve.decimals,
@@ -239,7 +246,20 @@ pub fn calculate_shares_for_amount<const D: u8>(
 		.checked_mul(d_diff)?
 		.checked_div(d0)?
 		.checked_add(U256::one())?;
-	Balance::try_from(share_amount).ok()
+	let shares = Balance::try_from(share_amount).ok()?;
+
+	Some((shares, fees))
+}
+
+pub fn calculate_liquidity_out(reserve: Balance, share_amount: Balance, share_issuance: Balance) -> Option<Balance> {
+	let issuance_u256 = U256::from(share_issuance);
+	let share_amount_u256 = U256::from(share_amount);
+	Some(
+		U256::from(reserve)
+			.checked_mul(share_amount_u256)?
+			.checked_div(issuance_u256)?
+			.as_u128(),
+	)
 }
 
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
@@ -782,7 +802,7 @@ pub fn calculate_spot_price(
 		}
 		(SHARE_ASSET, STABLE_ASSET) => {
 			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
-			let shares = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
+			let (shares, _fees) = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
 				&reserves,
 				asset_out_idx,
 				min_trade_amount,
@@ -804,7 +824,7 @@ pub fn calculate_spot_price(
 			}
 
 			let update_reserves: &Vec<AssetReserve> = &updated_reserves.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
-			let shares_for_min_trade = calculate_shares::<MAX_D_ITERATIONS>(
+			let (shares_for_min_trade, _fees) = calculate_shares::<MAX_D_ITERATIONS>(
 				&reserves,
 				update_reserves,
 				amplification,

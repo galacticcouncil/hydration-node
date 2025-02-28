@@ -19,6 +19,7 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::large_enum_variant)]
+#![allow(clippy::manual_inspect)]
 
 pub mod weights;
 
@@ -47,6 +48,8 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::fee::InspectTransactionFeeCurrency;
+use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
@@ -57,7 +60,8 @@ use pallet_transaction_payment::OnChargeTransaction;
 use sp_runtime::traits::TryConvert;
 use sp_std::{marker::PhantomData, prelude::*};
 
-type AssetIdOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
+pub type AssetIdOf<T> =
+	<<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
 type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
 
 /// Spot price type
@@ -75,6 +79,7 @@ pub mod pallet {
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
+	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use sp_core::{H160, H256, U256};
 	use sp_runtime::{ModuleError, TransactionOutcome};
 
@@ -123,6 +128,13 @@ pub mod pallet {
 		/// Oracle price provider for routes
 		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
+		/// Supporting swappable assets as fee currencies
+		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<
+			Self::AccountId,
+			AssetIdOf<Self>,
+			BalanceOf<Self>,
+		>;
+
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 
@@ -133,12 +145,16 @@ pub mod pallet {
 		#[pallet::constant]
 		type NativeAssetId: Get<AssetIdOf<Self>>;
 
+		/// Polkadot Native Asset (DOT)
+		#[pallet::constant]
+		type PolkadotNativeAssetId: Get<AssetIdOf<Self>>;
+
 		/// EVM Asset
 		#[pallet::constant]
 		type EvmAssetId: Get<AssetIdOf<Self>>;
 
 		/// EVM Accounts info
-		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId, sp_core::H160>;
+		type InspectEvmAccounts: InspectEvmAccounts<Self::AccountId>;
 
 		type EvmPermit: EVMPermit;
 
@@ -264,7 +280,8 @@ pub mod pallet {
 		/// This allows to set a currency for an account in which all transaction fees will be paid.
 		/// Account balance cannot be zero.
 		///
-		/// Chosen currency must be in the list of accepted currencies.
+		/// In case of sufficient asset, the chosen currency must be in the list of accepted currencies
+		/// In case of insufficient asset, the chosen currency must have a XYK pool with DOT
 		///
 		/// When currency is set, fixed fee is withdrawn from the account to pay for the currency change
 		///
@@ -276,10 +293,17 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetIdOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			ensure!(
-				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-				Error::<T>::UnsupportedCurrency
-			);
+			if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
+				ensure!(
+					currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+					Error::<T>::UnsupportedCurrency
+				);
+			} else {
+				ensure!(
+					T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
+					Error::<T>::UnsupportedCurrency
+				);
+			}
 
 			<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
@@ -434,7 +458,10 @@ pub mod pallet {
 	}
 
 	#[pallet::validate_unsigned]
-	impl<T: Config> ValidateUnsigned for Pallet<T> {
+	impl<T: Config> ValidateUnsigned for Pallet<T>
+	where
+		AssetIdOf<T>: Into<u32>,
+	{
 		type Call = Call<T>;
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
@@ -598,6 +625,7 @@ where
 	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
 	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
 	BalanceOf<T>: FixedPointOperand,
+	BalanceOf<T>: From<MC::Balance>,
 {
 	type LiquidityInfo = Option<PaymentInfo<Self::Balance, AssetIdOf<T>, Price>>;
 	type Balance = <MC as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -634,11 +662,44 @@ where
 			Pallet::<T>::account_currency(who)
 		};
 
-		let price = Pallet::<T>::get_currency_price(currency)
-			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		let (converted_fee, currency, price) = if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency)
+		{
+			let price = Pallet::<T>::get_currency_price(currency)
+				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-		let converted_fee =
-			convert_fee_with_price(fee, price).ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			let converted_fee = convert_fee_with_price(fee, price)
+				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			(converted_fee, currency, price)
+		} else {
+			//In case of insufficient asset we buy DOT with insufficient asset, and using that DOT and amount as fee currency
+			let dot_hdx_price = Pallet::<T>::get_currency_price(T::PolkadotNativeAssetId::get())
+				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			let fee_in_dot = convert_fee_with_price(fee, dot_hdx_price)
+				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			let amount_in = T::SwappablePaymentAssetSupport::calculate_in_given_out(
+				currency,
+				T::PolkadotNativeAssetId::get(),
+				fee_in_dot.into(),
+			)
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			let pool_fee = T::SwappablePaymentAssetSupport::calculate_fee_amount(amount_in)
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			let max_limit = amount_in.saturating_add(pool_fee);
+
+			T::SwappablePaymentAssetSupport::buy(
+				who,
+				currency,
+				T::PolkadotNativeAssetId::get(),
+				fee_in_dot.into(),
+				max_limit,
+				who,
+			)
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
+		};
 
 		match MC::withdraw(currency.into(), who, converted_fee) {
 			Ok(()) => {

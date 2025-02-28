@@ -6,31 +6,36 @@ license = 'Apache-2.0'
 name = "hydra-dx-math"
 description = "A collection of utilities to make performing liquidity pool calculations more convenient."
 repository = 'https://github.com/galacticcouncil/hydradx-math'
-version = "8.1.2"
+version = "9.0.1"
 
 [dependencies]
-primitive-types = {default-features = false, version = '0.12.0'}
-num-traits = {default-features = false, version = "0.2.14"}
-fixed = { version = "=1.15.0", features = ["num-traits"] }
+primitive-types = {  workspace = true }
+num-traits = {  workspace = true }
+fixed = {  workspace = true, features = ["num-traits"] }
 # Added because of use of the FixedU128, used to implement `Ratio`
-codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive", "max-encoded-len"] }
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+codec = {  workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = {  workspace = true }
 sp-arithmetic = { workspace = true }
 sp-std = { workspace = true }
-serde = { version = "1.0.136", default-features = false }
+serde = {  workspace = true }
 
 [dev-dependencies]
-approx = "0.5.1"
-criterion = "0.4.0"
-proptest = "1.0.0"
-rand = { version = "0.8.5", default-features = false, features= ["std_rng"] }
-rand_xoshiro = "0.6.0"
-rug = { version = "1.17.0", features = ["num-traits"] }
-test-case = "2.2.1"
+approx = {  workspace = true }
+criterion = {  workspace = true }
+proptest = {  workspace = true }
+rand = {  workspace = true, features= ["std_rng"] }
+rand_xoshiro = {  workspace = true }
+rug = {  workspace = true }
+test-case = {  workspace = true }
 
 [features]
 default = ["std"]
-std = ["codec/std", "serde/std", "sp-arithmetic/std", "sp-std/std"]
+std = [
+    "codec/std",
+    "serde/std",
+    "sp-arithmetic/std",
+    "sp-std/std"
+]
 runtime-benchmarks = []
 
 [[bench]]

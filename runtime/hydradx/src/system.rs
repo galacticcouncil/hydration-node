@@ -17,23 +17,31 @@
 
 use super::*;
 
-use pallet_transaction_multi_payment::{DepositAll, TransferFees};
+use crate::origins::GeneralAdmin;
+use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
+	chain::{
+		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT, RELAY_CHAIN_SLOT_DURATION_MILLIS,
+		UNINCLUDED_SEGMENT_CAPACITY,
+	},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use core::cmp::Ordering;
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
 	sp_runtime::{
-		traits::{ConstU32, IdentityLookup},
+		traits::{ConstU32, ConstU64, IdentityLookup},
 		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
 	},
-	traits::{ConstBool, Contains, InstanceFilter, SortedMembers},
+	traits::{
+		fungible::HoldConsideration, ConstBool, Contains, EitherOf, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
+		SortedMembers,
+	},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -42,14 +50,24 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
+use pallet_broadcast::types::ExecutionType;
+use pallet_utility::BatchHook;
 use scale_info::TypeInfo;
+use sp_runtime::DispatchResult;
 
 pub struct CallFilter;
 impl Contains<RuntimeCall> for CallFilter {
 	fn contains(call: &RuntimeCall) -> bool {
 		if matches!(
 			call,
-			RuntimeCall::System(_) | RuntimeCall::Timestamp(_) | RuntimeCall::ParachainSystem(_)
+			RuntimeCall::System(_)
+				| RuntimeCall::ConvictionVoting(_)
+				| RuntimeCall::Timestamp(_)
+				| RuntimeCall::ParachainSystem(_)
+				| RuntimeCall::Preimage(_)
+				| RuntimeCall::Referenda(_)
+				| RuntimeCall::TransactionPause(_)
+				| RuntimeCall::Whitelist(_)
 		) {
 			// always allow
 			// Note: this is done to avoid unnecessary check of paused storage.
@@ -95,11 +113,9 @@ impl Contains<RuntimeCall> for CallFilter {
 		}
 
 		match call {
-			RuntimeCall::PolkadotXcm(pallet_xcm::Call::send { .. }) => true,
 			// create and create2 are only allowed through RPC or Runtime API
 			RuntimeCall::EVM(pallet_evm::Call::create { .. }) => false,
 			RuntimeCall::EVM(pallet_evm::Call::create2 { .. }) => false,
-			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::OrmlXcm(_) => false,
 			_ => true,
 		}
@@ -134,12 +150,23 @@ parameter_types! {
 		})
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
-	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
+	pub ExtrinsicBaseWeight: Weight = get_extrinsic_base_weight();
 	pub const BlockHashCount: BlockNumber = 2400;
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: frame_system::limits::BlockLength =
 		frame_system::limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u16 = 63;
+}
+
+//We get the base and add the multi payment overhead until we have proper solution for calculating ExtrinsicBaseWeight by using the benchmark overhead command.
+pub fn get_extrinsic_base_weight() -> Weight {
+	let mut base_weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
+	let multi_payment_overhead =
+		crate::weights::pallet_transaction_multi_payment::HydraWeight::<Runtime>::withdraw_fee();
+
+	base_weight.saturating_accrue(multi_payment_overhead);
+
+	base_weight
 }
 
 impl frame_system::Config for Runtime {
@@ -189,6 +216,11 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {
@@ -208,6 +240,13 @@ parameter_types! {
 	pub ReservedDmpWeight: Weight = BlockWeights::get().max_block / 4;
 }
 
+type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
+	Runtime,
+	RELAY_CHAIN_SLOT_DURATION_MILLIS,
+	BLOCK_PROCESSING_VELOCITY,
+	UNINCLUDED_SEGMENT_CAPACITY,
+>;
+
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnSystemEvent = pallet_relaychain_info::OnValidationDataHandler<Runtime>;
@@ -219,6 +258,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
+	type ConsensusHook = ConsensusHook;
 }
 
 parameter_types! {
@@ -230,6 +270,7 @@ impl pallet_aura::Config for Runtime {
 	type MaxAuthorities = MaxAuthorities;
 	type DisabledValidators = ();
 	type AllowMultipleBlocksPerSlot = ConstBool<false>;
+	type SlotDuration = ConstU64<SLOT_DURATION>;
 }
 
 impl staging_parachain_info::Config for Runtime {}
@@ -250,7 +291,7 @@ parameter_types! {
 impl pallet_collator_selection::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type UpdateOrigin = MoreThanHalfCouncil;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type PotId = PotId;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxCandidates = MaxCandidates;
@@ -264,6 +305,65 @@ impl pallet_collator_selection::Config for Runtime {
 	type ValidatorRegistration = Session;
 	type WeightInfo = weights::pallet_collator_selection::HydraWeight<Runtime>;
 	type MinEligibleCollators = ConstU32<4>;
+}
+
+parameter_types! {
+	pub PreimageBaseDeposit: Balance = deposit(2, 64);
+	pub PreimageByteDeposit: Balance = deposit(0, 1);
+	pub const PreimageHoldReason: RuntimeHoldReason = RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
+}
+
+impl pallet_preimage::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_preimage::HydraWeight<Runtime>;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
+}
+
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
+	pub const MaxScheduledPerBlock: u32 = 50;
+}
+impl pallet_scheduler::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type PalletsOrigin = OriginCaller;
+	type RuntimeCall = RuntimeCall;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type ScheduleOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type OriginPrivilegeCmp = OriginPrivilegeCmp;
+	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
+	type Preimages = Preimage;
+}
+
+/// Used the compare the privilege of an origin inside the scheduler.
+pub struct OriginPrivilegeCmp;
+
+impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
+	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
+		if left == right {
+			return Some(Ordering::Equal);
+		}
+
+		match (left, right) {
+			// Root is greater than anything.
+			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
+			// Check which one has more yes votes.
+			(
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
+			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
+			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
+			_ => None,
+		}
+	}
 }
 
 parameter_types! {
@@ -290,7 +390,24 @@ impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type PalletsOrigin = OriginCaller;
+	type BatchHook = ManageExecutionTypeForUnifiedEvent;
 	type WeightInfo = weights::pallet_utility::HydraWeight<Runtime>;
+}
+
+pub struct ManageExecutionTypeForUnifiedEvent;
+
+impl BatchHook for ManageExecutionTypeForUnifiedEvent {
+	fn on_batch_start() -> DispatchResult {
+		Broadcast::add_to_context(ExecutionType::Batch)?;
+
+		Ok(())
+	}
+
+	fn on_batch_end() -> DispatchResult {
+		Broadcast::remove_from_context()?;
+
+		Ok(())
+	}
 }
 
 parameter_types! {
@@ -315,8 +432,8 @@ impl pallet_identity::Config for Runtime {
 	type IdentityInformation = pallet_identity::legacy::IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
-	type ForceOrigin = MoreThanHalfCouncil;
-	type RegistrarOrigin = MoreThanHalfCouncil;
+	type ForceOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type RegistrarOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type OffchainSignature = Signature;
 	type SigningPublicKey = <Signature as sp_runtime::traits::Verify>::Signer;
 	type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
@@ -356,6 +473,9 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 					| RuntimeCall::Treasury(..)
 					| RuntimeCall::Tips(..)
 					| RuntimeCall::Utility(..)
+					| RuntimeCall::Preimage(..)
+					| RuntimeCall::Referenda(..)
+					| RuntimeCall::ConvictionVoting(..)
 			),
 			// Transfer group doesn't include cross-chain transfers
 			ProxyType::Transfer => matches!(
@@ -438,7 +558,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 
 pub struct WeightToFee;
 
-pub const SUBSTRATE_FEE_DIVIDER: u128 = 4; // We use this to divide fee related constant as HDX price is high (~0.26$), but we want to reduce the fee price
+pub const SUBSTRATE_FEE_DIVIDER: u128 = 6; // To scale down the fee (based on manually evaluating market price data)
 
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
@@ -456,7 +576,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
 		let p = CENTS / SUBSTRATE_FEE_DIVIDER; // 1_000_000_000_000 / SUBSTRATE_FEE_DIVIDER
-		let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time()); // 7_919_840_000
+		let q = 10 * Balance::from(frame_support::weights::constants::ExtrinsicBaseWeight::get().ref_time());
 		smallvec::smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
@@ -492,17 +612,19 @@ impl pallet_transaction_payment::Config for Runtime {
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
+	type AcceptedCurrencyOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type Currencies = Currencies;
 	type RouteProvider = Router;
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type WeightInfo = weights::pallet_transaction_multi_payment::HydraWeight<Runtime>;
 	type NativeAssetId = NativeAssetId;
+	type PolkadotNativeAssetId = DotAssetId;
 	type EvmAssetId = evm::WethAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type WeightToFee = WeightToFee;
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
 	type TryCallCurrency<'a> = pallet_transaction_multi_payment::TryCallCurrency<Runtime>;
+	type SwappablePaymentAssetSupport = assets::XykPaymentAssetSupport;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
@@ -543,14 +665,14 @@ impl pallet_collator_rewards::Config for Runtime {
 
 impl pallet_transaction_pause::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type UpdateOrigin = SuperMajorityTechCommittee;
+	type UpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type WeightInfo = weights::pallet_transaction_pause::HydraWeight<Runtime>;
 }
 
 pub struct TechCommAccounts;
 impl SortedMembers<AccountId> for TechCommAccounts {
 	fn sorted_members() -> Vec<AccountId> {
-		TechnicalCommittee::members()
+		pallet_collective::Members::<Runtime, TechnicalCollective>::get()
 	}
 }
 
@@ -562,7 +684,7 @@ parameter_types! {
 }
 
 impl pallet_state_trie_migration::Config for Runtime {
-	type ControlOrigin = SuperMajorityTechCommittee;
+	type ControlOrigin = EnsureRoot<Self::AccountId>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type SignedFilter = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
 	#[cfg(feature = "runtime-benchmarks")]

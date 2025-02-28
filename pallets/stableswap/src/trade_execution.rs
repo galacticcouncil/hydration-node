@@ -1,7 +1,8 @@
-use crate::types::AssetAmount;
 use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
+use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use sp_core::Get;
 use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
@@ -113,15 +114,16 @@ where
 					let pool = Pools::<T>::get(pool_id)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 
-					let shares_amount = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
-						&balances,
-						asset_idx,
-						amount_out,
-						amplification,
-						share_issuance,
-						pool.fee,
-					)
-					.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+					let (shares_amount, _fees) =
+						hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
+							&balances,
+							asset_idx,
+							amount_out,
+							amplification,
+							share_issuance,
+							pool.fee,
+						)
+						.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 					Ok(shares_amount)
 				} else {
@@ -152,10 +154,10 @@ where
 					Self::add_liquidity(
 						who,
 						pool_id,
-						vec![AssetAmount {
+						BoundedVec::truncate_from(vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
-						}],
+						}]),
 					)
 					.map_err(ExecutorError::Error)
 				} else {

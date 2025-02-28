@@ -41,14 +41,21 @@
 //! `ControllerOrigin` can add this permission to EVM addresses.
 //! The list of whitelisted accounts is stored in the storage of this pallet.
 //!
+//! ### Approving smart contracts
+//! This pallet is also used to control which contracts are allowed to manage balances and tokens.
+//! `ApprovedContract` storage is used by the currencies precompile to determine whenever contract is allowed to transfer or not.
+//!
 //! ### Dispatchable Functions
 //!
 //! * `bind_evm_address` - Binds a Substrate address to EVM address.
 //! * `add_contract_deployer` - Adds a permission to deploy smart contracts.
 //! * `remove_contract_deployer` - Removes a permission of whitelisted address to deploy smart contracts.
 //! * `renounce_contract_deployer` - Renounce caller's permission to deploy smart contracts.
+//! * `approve_contract` - Approves contract address to manage balances.
+//! * `disapprove_contract` - Disapproves contract address to manage balances.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
@@ -114,6 +121,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub(super) type ContractDeployer<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
 
+	/// Whitelisted contracts that are allowed to manage balances and tokens.
+	#[pallet::storage]
+	pub(super) type ApprovedContract<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, ()>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -123,12 +134,16 @@ pub mod pallet {
 		DeployerAdded { who: EvmAddress },
 		/// Deployer was removed.
 		DeployerRemoved { who: EvmAddress },
+		/// Contract was approved.
+		ContractApproved { address: EvmAddress },
+		/// Contract was disapproved.
+		ContractDisapproved { address: EvmAddress },
 	}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
-		/// EVM Account's nonce is not zero
+		/// Active EVM account cannot be bound
 		TruncatedAccountAlreadyUsed,
 		/// Address is already bound
 		AddressAlreadyBound,
@@ -187,6 +202,10 @@ pub mod pallet {
 				Error::<T>::AddressAlreadyBound
 			);
 
+			ensure!(
+				!Self::is_evm_account(who.clone()),
+				Error::<T>::TruncatedAccountAlreadyUsed
+			);
 			let nonce = T::EvmNonceProvider::get_nonce(evm_address);
 			ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
 
@@ -260,23 +279,67 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Adds address of the contract to the list of approved contracts to manage balances.
+		///
+		/// Effectively giving it allowance to for any balances and tokens.
+		///
+		/// Parameters:
+		/// - `origin`:  Must be `ControllerOrigin`.
+		/// - `address`: Contract address that will be approved
+		///
+		/// Emits `ContractApproved` event when successful.
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::approve_contract())]
+		pub fn approve_contract(origin: OriginFor<T>, address: EvmAddress) -> DispatchResult {
+			T::ControllerOrigin::ensure_origin(origin.clone())?;
+			<ApprovedContract<T>>::insert(address, ());
+			Self::deposit_event(Event::ContractApproved { address });
+			Ok(())
+		}
+
+		/// Removes address of the contract from the list of approved contracts to manage balances.
+		///
+		/// Parameters:
+		/// - `origin`:  Must be `ControllerOrigin`.
+		/// - `address`: Contract address that will be disapproved
+		///
+		/// Emits `ContractDisapproved` event when successful.
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::disapprove_contract())]
+		pub fn disapprove_contract(origin: OriginFor<T>, address: EvmAddress) -> DispatchResult {
+			T::ControllerOrigin::ensure_origin(origin.clone())?;
+			<ApprovedContract<T>>::remove(address);
+			Self::deposit_event(Event::ContractDisapproved { address });
+			Ok(())
+		}
 	}
 }
 
-impl<T: Config> InspectEvmAccounts<T::AccountId, EvmAddress> for Pallet<T>
+impl<T: Config> Pallet<T> {
+	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
+		&account_id[0..4] == b"ETH\0" && account_id[24..32] == [0u8; 8]
+	}
+}
+
+impl<T: Config> InspectEvmAccounts<T::AccountId> for Pallet<T>
 where
 	T::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<AccountId32>,
 {
 	/// Returns `True` if the account is EVM truncated account.
 	fn is_evm_account(account_id: T::AccountId) -> bool {
 		let account_ref = account_id.as_ref();
-		&account_ref[0..4] == b"ETH\0" && account_ref[24..32] == [0u8; 8]
+		Self::_is_evm_account(account_ref)
 	}
 
 	/// Get the EVM address from the substrate address.
 	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
 		let acc = account_id.as_ref();
-		EvmAddress::from_slice(&acc[..20])
+		if Self::_is_evm_account(acc) {
+			EvmAddress::from_slice(&acc[4..24])
+		} else {
+			EvmAddress::from_slice(&acc[..20])
+		}
 	}
 
 	/// Get the truncated address from the EVM address.
@@ -289,9 +352,7 @@ where
 
 	/// Return the Substrate address bound to the EVM account. If not bound, returns `None`.
 	fn bound_account_id(evm_address: EvmAddress) -> Option<T::AccountId> {
-		let Some(last_12_bytes) = AccountExtension::<T>::get(evm_address) else {
-			return None;
-		};
+		let last_12_bytes = AccountExtension::<T>::get(evm_address)?;
 		let mut data: [u8; 32] = [0u8; 32];
 		data[..20].copy_from_slice(evm_address.0.as_ref());
 		data[20..32].copy_from_slice(&last_12_bytes);
@@ -307,5 +368,10 @@ where
 	/// Returns `True` if the address is allowed to deploy smart contracts.
 	fn can_deploy_contracts(evm_address: EvmAddress) -> bool {
 		ContractDeployer::<T>::contains_key(evm_address)
+	}
+
+	/// Returns `True` if the address is allowed to manage balances and tokens.
+	fn is_approved_contract(evm_address: EvmAddress) -> bool {
+		ApprovedContract::<T>::contains_key(evm_address)
 	}
 }

@@ -36,10 +36,10 @@ use hydra_dx_math::{
 };
 use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
 use hydradx_traits::{
-	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
+	liquidity_mining::PriceAdjustment, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
-use orml_traits::GetByKey;
+use orml_traits::{GetByKey, MultiCurrency};
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
@@ -51,6 +51,7 @@ use primitive_types::{U128, U512};
 use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
+use sp_std::vec;
 use sp_std::vec::Vec;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
 use warehouse_liquidity_mining::GlobalFarmData;
@@ -267,7 +268,7 @@ impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayCh
 	type BlockNumber = polkadot_parachain::primitives::RelayChainBlockNumber;
 
 	fn current_block_number() -> Self::BlockNumber {
-		let maybe_data = cumulus_pallet_parachain_system::Pallet::<T>::validation_data();
+		let maybe_data = cumulus_pallet_parachain_system::ValidationData::<T>::get();
 
 		if let Some(data) = maybe_data {
 			data.relay_parent_number
@@ -300,7 +301,7 @@ where
 	Runtime: cumulus_pallet_parachain_system::Config,
 {
 	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		let validation_data = cumulus_pallet_parachain_system::ValidationData::<Runtime>::get();
 		match validation_data {
 			Some(data) => Some(data.parent_head.hash()),
 			None => None,
@@ -326,21 +327,25 @@ where
 }
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
-pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>(PhantomData<(Origin, NativeAsset, Lrna, Runtime)>);
+pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient>(
+	PhantomData<(Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient)>,
+);
 
-impl<Origin, NativeAsset, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
-	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>
+impl<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient>
 where
 	Lrna: Get<AssetId>,
 	NativeAsset: Get<AssetId>,
+	ProtocolFeeRecipient: Get<AccountId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
-		+ frame_system::Config<RuntimeOrigin = Origin>
+		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
 		+ pallet_referrals::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
+	MC: MultiCurrency<AccountId, CurrencyId = AssetId, Balance = Balance>,
 {
 	type Error = DispatchError;
 
@@ -472,27 +477,33 @@ where
 		trader: AccountId,
 		asset: AssetId,
 		amount: Balance,
-	) -> Result<Balance, Self::Error> {
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
 		if asset == Lrna::get() {
-			return Ok(Balance::zero());
+			return Ok(vec![]);
 		}
 		let referrals_used = if asset == NativeAsset::get() {
-			Balance::zero()
+			None
 		} else {
-			pallet_referrals::Pallet::<Runtime>::process_trade_fee(
-				fee_account.clone().into(),
-				trader.into(),
-				asset.into(),
-				amount,
-			)?
+			pallet_referrals::Pallet::<Runtime>::process_trade_fee(fee_account.clone(), trader, asset.into(), amount)?
 		};
 
+		let referral_amount = referrals_used.clone().map(|(balance, _)| balance).unwrap_or_default();
 		let staking_used = pallet_staking::Pallet::<Runtime>::process_trade_fee(
-			fee_account.into(),
+			fee_account,
 			asset.into(),
-			amount.saturating_sub(referrals_used),
+			amount.saturating_sub(referral_amount),
 		)?;
-		Ok(staking_used.saturating_add(referrals_used))
+		Ok(vec![staking_used, referrals_used])
+	}
+
+	fn consume_protocol_fee(
+		fee_account: AccountId,
+		amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
+		//TODO: here in future, we will change this to buyback HDX with the lrna amount
+		// for now, simply transfer the amount to treasury
+		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
+		Ok(Some((amount, ProtocolFeeRecipient::get())))
 	}
 }
 
@@ -821,22 +832,47 @@ impl<
 }
 
 // Dynamic fees volume adapter
-pub struct OracleVolume(Balance, Balance);
-
-impl pallet_dynamic_fees::traits::Volume<Balance> for OracleVolume {
-	fn amount_in(&self) -> Balance {
-		self.0
-	}
-
-	fn amount_out(&self) -> Balance {
-		self.1
+pub struct OracleVolume {
+	amount_in: Balance,
+	amount_out: Balance,
+	liquidity: Balance,
+	updated_at: u128,
+}
+impl OracleVolume {
+	fn new(amount_in: Balance, amount_out: Balance, liquidity: Balance, updated_at: u128) -> Self {
+		Self {
+			amount_in,
+			amount_out,
+			liquidity,
+			updated_at,
+		}
 	}
 }
 
-pub struct OracleAssetVolumeProvider<Runtime, Lrna, Period>(PhantomData<(Runtime, Lrna, Period)>);
+impl pallet_dynamic_fees::traits::Volume<Balance> for OracleVolume {
+	fn amount_in(&self) -> Balance {
+		self.amount_in
+	}
+
+	fn amount_out(&self) -> Balance {
+		self.amount_out
+	}
+
+	fn liquidity(&self) -> Balance {
+		self.liquidity
+	}
+
+	fn updated_at(&self) -> u128 {
+		self.updated_at
+	}
+}
+
+// Provide raw oracle values for given source, asset pair and period.
+// Raw value is not ema adjusted.
+pub struct OmnipoolRawOracleAssetVolumeProvider<Runtime, Lrna, Period>(PhantomData<(Runtime, Lrna, Period)>);
 
 impl<Runtime, Lrna, Period> pallet_dynamic_fees::traits::VolumeProvider<AssetId, Balance>
-	for OracleAssetVolumeProvider<Runtime, Lrna, Period>
+	for OmnipoolRawOracleAssetVolumeProvider<Runtime, Lrna, Period>
 where
 	Runtime: pallet_ema_oracle::Config,
 	Lrna: Get<AssetId>,
@@ -844,18 +880,22 @@ where
 {
 	type Volume = OracleVolume;
 
-	fn asset_volume(asset_id: AssetId) -> Option<Self::Volume> {
-		let entry =
-			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
-				.ok()?;
-		Some(OracleVolume(entry.volume.a_in, entry.volume.a_out))
+	fn last_entry(asset_id: AssetId) -> Option<Self::Volume> {
+		let (entry, _) = pallet_ema_oracle::Pallet::<Runtime>::get_last_oracle_entry(
+			OMNIPOOL_SOURCE,
+			(asset_id, Lrna::get()),
+			Period::get(),
+		)?;
+		Some(OracleVolume::new(
+			entry.volume.a_in,
+			entry.volume.a_out,
+			entry.liquidity.a,
+			entry.updated_at.saturated_into(),
+		))
 	}
 
-	fn asset_liquidity(asset_id: AssetId) -> Option<Balance> {
-		let entry =
-			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
-				.ok()?;
-		Some(entry.liquidity.a)
+	fn period() -> u64 {
+		Period::get().as_period()
 	}
 }
 
@@ -900,7 +940,7 @@ where
 {
 	fn get_by_lock(lock_id: LockIdentifier, currency_id: AssetId, who: T::AccountId) -> Balance {
 		if currency_id == NativeAssetId::get() {
-			match pallet_balances::Pallet::<T>::locks(who)
+			match pallet_balances::Pallet::<T>::locks(&who)
 				.into_iter()
 				.find(|lock| lock.id == lock_id)
 			{

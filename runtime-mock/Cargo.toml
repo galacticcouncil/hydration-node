@@ -1,6 +1,6 @@
 [package]
 name = "runtime-mock"
-version = "1.0.0"
+version = "1.0.4"
 description = "Mock of the HydraDX Runtime for testing purposes"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -9,11 +9,12 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-serde = { version = "1.0.136", features = ["derive"] }
-toml = "0.5"
+serde = {  workspace = true }
+toml = {  workspace = true }
 
 # local dependencies
 hydradx-runtime = { workspace = true }
+hydradx-traits = { workspace = true }
 primitives = { workspace = true }
 
 # Substrate dependencies

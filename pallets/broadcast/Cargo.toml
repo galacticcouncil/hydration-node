@@ -1,0 +1,47 @@
+[package]
+name = "pallet-broadcast"
+version = "1.0.2"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+homepage = 'https://github.com/galacticcouncil/hydration-node'
+repository = 'https://github.com/galacticcouncil/hydration-node'
+description = "Support for AMMs"
+readme = "README.md"
+
+[dependencies]
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+serde = { workspace = true }
+sp-arithmetic = { workspace = true }
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+primitives = { workspace = true }
+
+log = { workspace = true }
+
+# Substrate dependencies
+sp-std = { workspace = true }
+sp-api = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+frame-support-procedural = { workspace = true }
+
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-std/std",
+    "sp-api/std",
+    "sp-core/std",
+    "sp-io/std",
+    "primitives/std",
+    "frame-support-procedural/std",
+]
+try-runtime = ["frame-support/try-runtime"]

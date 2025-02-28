@@ -1,6 +1,6 @@
 [package]
 name = "pallet-staking"
-version = "3.1.1"
+version = "4.1.2"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -14,10 +14,10 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # parity
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-serde = { version = "1.0.136", features = ["derive"], optional = true }
-log = { version = "0.4.17", default-features = false }
+scale-info = { workspace = true }
+codec = { workspace = true }
+serde = { workspace = true, optional = true }
+log = { workspace = true }
 
 # ORML
 orml-traits = { workspace = true }
@@ -31,13 +31,16 @@ sp-core = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
-pallet-democracy = { workspace = true }
+pallet-conviction-voting= { workspace = true }
+pallet-referenda = { workspace = true }
+
+pallet-democracy = {workspace = true}
 
 [dev-dependencies]
 pallet-uniques = { workspace = true }
 orml-tokens = { workspace = true }
 pallet-balances = { workspace = true }
-pretty_assertions = "1.2.1"
+pretty_assertions = { workspace = true }
 
 [features]
 default = ["std"]
@@ -55,6 +58,8 @@ std = [
     "pallet-balances/std",
 	"pallet-uniques/std",
 	"orml-tokens/std",
+	"pallet-conviction-voting/std",
+	"pallet-referenda/std",
 	"pallet-democracy/std",
 ]
 runtime-benchmarks = [
@@ -63,6 +68,9 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"pallet-uniques/runtime-benchmarks",
+	"pallet-conviction-voting/runtime-benchmarks",
+	"pallet-referenda/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
+
 ]
 try-runtime = ["frame-support/try-runtime",]

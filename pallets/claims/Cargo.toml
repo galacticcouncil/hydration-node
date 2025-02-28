@@ -1,27 +1,27 @@
 [package]
-name = 'pallet-claims'
-version = '3.4.9'
-description = 'HydraDX Claims Module'
-authors = ['GalacticCouncil']
-edition = '2021'
-license = 'Apache 2.0'
-homepage = 'https://github.com/galacticcouncil/hydradx-node'
-repository = 'https://github.com/galacticcouncil/hydradx-node'
+name = "pallet-claims"
+version = "3.4.13"
+description = "HydraDX Claims Module"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+homepage = "https://github.com/galacticcouncil/hydradx-node"
+repository = "https://github.com/galacticcouncil/hydradx-node"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-serde = { version = '1.0.136', default-features = false, features = ['derive']}
-hex = {default-features = false, version = "0.4.3"}
-hex-literal = '0.3.4'
-lazy_static = {features = ['spin_no_std'], version = "1.4.0"}
-rustc-hex = {version = '2.1.0', default-features = false}
+scale-info = { workspace = true }
+codec = { workspace = true }
+serde = { workspace = true }
+hex = { workspace = true }
+hex-literal = { workspace = true }
+lazy_static = { workspace = true }
+rustc-hex = { workspace = true }
 
 # Substrate dependencies
-frame-benchmarking = { workspace = true, optional = true}
+frame-benchmarking = { workspace = true, optional = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-io = { workspace = true }
@@ -36,21 +36,21 @@ pallet-balances = { workspace = true }
 sp-core = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
 ]
 std = [
-  'codec/std',
-  'frame-support/std',
-  'frame-system/std',
-  'primitives/std',
-  'rustc-hex/std',
-  'serde/std',
-  'scale-info/std',
-  'pallet-balances/std',
-  'frame-benchmarking/std'
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "primitives/std",
+    "rustc-hex/std",
+    "serde/std",
+    "scale-info/std",
+    "pallet-balances/std",
+    "frame-benchmarking/std"
 ]
-try-runtime = [ "frame-support/try-runtime" ]
+try-runtime = ["frame-support/try-runtime"]

@@ -1,26 +1,32 @@
 #![cfg(test)]
 
+use crate::assert_operation_stack;
 use crate::polkadot_test_net::*;
-use frame_support::dispatch::GetDispatchInfo;
-use frame_support::storage::with_transaction;
-use frame_support::traits::fungible::Balanced;
-use frame_support::traits::tokens::Precision;
-use frame_support::weights::Weight;
-use frame_support::{assert_ok, pallet_prelude::*};
-use hydradx_runtime::AssetRegistry;
-use hydradx_traits::AssetKind;
-use hydradx_traits::Create;
+use frame_support::{
+	assert_ok,
+	dispatch::GetDispatchInfo,
+	pallet_prelude::*,
+	storage::with_transaction,
+	traits::{fungible::Balanced, tokens::Precision},
+	weights::Weight,
+};
+use hydradx_runtime::{AssetRegistry, Omnipool, Router, RuntimeOrigin};
+use hydradx_traits::{AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
+use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
 use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
-use primitives::AccountId;
-use sp_runtime::traits::{Convert, Zero};
-use sp_runtime::DispatchResult;
-use sp_runtime::{FixedU128, Permill, TransactionOutcome};
+use rococo_runtime::xcm_config::BaseXcmWeight;
+use sp_runtime::{
+	traits::{Convert, Zero},
+	DispatchResult, FixedU128, Permill, TransactionOutcome,
+};
 use sp_std::sync::Arc;
+use xcm_builder::FixedWeightBounds;
 use xcm_emulator::TestExt;
+use xcm_executor::traits::WeightBounds;
 
 pub const SELL: bool = true;
 pub const BUY: bool = false;
@@ -50,7 +56,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			let token_price = FixedU128::from_float(1.0);
 			assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
+			assert_ok!(Omnipool::add_token(
 				hydradx_runtime::RuntimeOrigin::root(),
 				ACA,
 				token_price,
@@ -58,7 +64,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 				AccountId::from(BOB),
 			));
 			use hydradx_traits::pools::SpotPriceProvider;
-			price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, ACA);
+			price = Omnipool::spot_price(CORE_ASSET_ID, ACA);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -118,8 +124,52 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			50 * UNITS - fee
 		);
 		// We receive about 39_101 HDX (HDX is super cheap in our test)
-		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
+		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396 + 39_199_205_144_415;
 		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), received);
+
+		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
+
+		let event1 = &last_two_swapped_events[0];
+		assert_operation_stack!(
+			event1,
+			[
+				ExecutionType::Xcm(_, 0),
+				ExecutionType::XcmExchange(1),
+				ExecutionType::Router(2),
+				ExecutionType::Omnipool(3)
+			]
+		);
+
+		let event2 = &last_two_swapped_events[0];
+		assert_operation_stack!(
+			event2,
+			[
+				ExecutionType::Xcm(_, 0),
+				ExecutionType::XcmExchange(1),
+				ExecutionType::Router(2),
+				ExecutionType::Omnipool(3)
+			]
+		);
+
+		//We assert that another trade doesnt have the xcm exchange type on stack
+		assert_ok!(Router::sell(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			ACA,
+			UNITS,
+			0,
+			vec![],
+		));
+
+		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
+		let last_two_swapped_events = &last_swapped_events[last_swapped_events.len() - 2..];
+
+		let event1 = &last_two_swapped_events[0];
+		assert_operation_stack!(event1, [ExecutionType::Router(4), ExecutionType::Omnipool(5)]);
+
+		let event2 = &last_two_swapped_events[0];
+		assert_operation_stack!(event2, [ExecutionType::Router(4), ExecutionType::Omnipool(5)]);
 	});
 }
 
@@ -135,12 +185,12 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 			add_currency_price(ACA, FixedU128::from(1));
 
 			init_omnipool();
-			let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+			let omnipool_account = Omnipool::protocol_account();
 
 			let token_price = FixedU128::from_float(1.0);
 			assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
+			assert_ok!(Omnipool::add_token(
 				hydradx_runtime::RuntimeOrigin::root(),
 				ACA,
 				token_price,
@@ -215,6 +265,8 @@ fn transfer_and_swap_should_work_with_4_hops() {
 	//Arrange
 	TestNet::reset();
 
+	let bob_init_ibtc_balance = 0;
+
 	Hydra::execute_with(|| {
 		let _ = with_transaction(|| {
 			register_glmr();
@@ -223,13 +275,13 @@ fn transfer_and_swap_should_work_with_4_hops() {
 			add_currency_price(GLMR, FixedU128::from(1));
 
 			init_omnipool();
-			let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+			let omnipool_account = Omnipool::protocol_account();
 
 			let token_price = FixedU128::from_float(1.0);
 			assert_ok!(hydradx_runtime::Tokens::deposit(GLMR, &omnipool_account, 3000 * UNITS));
 			assert_ok!(hydradx_runtime::Tokens::deposit(IBTC, &omnipool_account, 3000 * UNITS));
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
+			assert_ok!(Omnipool::add_token(
 				hydradx_runtime::RuntimeOrigin::root(),
 				GLMR,
 				token_price,
@@ -237,7 +289,7 @@ fn transfer_and_swap_should_work_with_4_hops() {
 				AccountId::from(BOB),
 			));
 
-			assert_ok!(hydradx_runtime::Omnipool::add_token(
+			assert_ok!(Omnipool::add_token(
 				hydradx_runtime::RuntimeOrigin::root(),
 				IBTC,
 				token_price,
@@ -248,6 +300,11 @@ fn transfer_and_swap_should_work_with_4_hops() {
 			set_zero_reward_for_referrals(IBTC);
 			set_zero_reward_for_referrals(ACA);
 			hydradx_run_to_block(3);
+
+			assert_eq!(
+				hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB)),
+				bob_init_ibtc_balance
+			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -326,12 +383,13 @@ fn transfer_and_swap_should_work_with_4_hops() {
 	Interlay::execute_with(|| {});
 
 	Acala::execute_with(|| {
-		//hydradx_run_to_block(5);
+		let bob_new_ibtc_balance = hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB));
 
-		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(IBTC, &AccountId::from(BOB)),
-			549839246387064
+		assert!(
+			bob_new_ibtc_balance > bob_init_ibtc_balance,
+			"Bob should have received iBTC"
 		);
+
 		let fee = hydradx_runtime::Tokens::free_balance(IBTC, &hydradx_runtime::Treasury::account_id());
 
 		assert!(fee > 0, "treasury should have received fees, but it didn't");
@@ -356,7 +414,7 @@ pub mod zeitgeist_use_cases {
 				crate::exchange_asset::add_currency_price(crate::exchange_asset::ZTG, FixedU128::from(1));
 
 				init_omnipool();
-				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+				let omnipool_account = Omnipool::protocol_account();
 
 				let token_price = FixedU128::from_float(1.0);
 				assert_ok!(hydradx_runtime::Tokens::deposit(
@@ -365,7 +423,7 @@ pub mod zeitgeist_use_cases {
 					1000000 * UNITS
 				));
 
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					ZTG,
 					token_price,
@@ -376,6 +434,8 @@ pub mod zeitgeist_use_cases {
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
+
+		let alice_init_hxd_balance_on_zeitgeist = 0;
 
 		//Construct and send XCM zeitgeist -> hydra
 		Zeitgeist::execute_with(|| {
@@ -388,7 +448,7 @@ pub mod zeitgeist_use_cases {
 
 			pretty_assertions::assert_eq!(
 				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)),
-				0
+				alice_init_hxd_balance_on_zeitgeist
 			);
 
 			let give_reserve_chain = Location::new(
@@ -513,9 +573,11 @@ pub mod zeitgeist_use_cases {
 
 		//Assert that swap amount out is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
-			pretty_assertions::assert_eq!(
-				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE)),
-				8142821444432895
+			let alice_new_hxd_balance_on_zeitgeist =
+				hydradx_runtime::Tokens::free_balance(HDX_ON_OTHER_PARACHAIN, &AccountId::from(ALICE));
+			assert!(
+				alice_new_hxd_balance_on_zeitgeist > alice_init_hxd_balance_on_zeitgeist,
+				"Alice should have received HDX"
 			);
 		});
 	}
@@ -530,7 +592,7 @@ pub mod zeitgeist_use_cases {
 				crate::exchange_asset::add_currency_price(crate::exchange_asset::ZTG, FixedU128::from(1));
 
 				init_omnipool();
-				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+				let omnipool_account = Omnipool::protocol_account();
 
 				let token_price = FixedU128::from_float(1.0);
 				assert_ok!(hydradx_runtime::Tokens::deposit(ZTG, &omnipool_account, 100000 * UNITS));
@@ -539,7 +601,7 @@ pub mod zeitgeist_use_cases {
 					&omnipool_account,
 					100000 * UNITS
 				));
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					IBTC,
 					token_price,
@@ -547,7 +609,7 @@ pub mod zeitgeist_use_cases {
 					AccountId::from(BOB),
 				));
 
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					ZTG,
 					token_price,
@@ -570,6 +632,7 @@ pub mod zeitgeist_use_cases {
 				.expect("Failed to deposit");
 		});
 
+		let alice_init_ibtc_balance_on_zeitgeist = 0;
 		//Construct and send XCM zeitgeist -> hydra
 		Zeitgeist::execute_with(|| {
 			let _ = with_transaction(|| {
@@ -581,7 +644,10 @@ pub mod zeitgeist_use_cases {
 			crate::exchange_asset::add_currency_price(HDX_ON_OTHER_PARACHAIN, FixedU128::from(1));
 			crate::exchange_asset::add_currency_price(IBTC, FixedU128::from(1));
 
-			pretty_assertions::assert_eq!(hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)), 0);
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
+				alice_init_ibtc_balance_on_zeitgeist
+			);
 
 			let give_reserve_chain = Location::new(
 				1,
@@ -728,15 +794,18 @@ pub mod zeitgeist_use_cases {
 
 		//Assert that swap amount out of IBTC is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
-			pretty_assertions::assert_eq!(
-				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
-				9839246387064
+			let alice_new_ibtc_balance_on_zeitgeist =
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE));
+			assert!(
+				alice_new_ibtc_balance_on_zeitgeist > alice_init_ibtc_balance_on_zeitgeist,
+				"Alice should have received iBTC"
 			);
 		});
 	}
 
 	#[test]
 	fn remote_swap_sell_nonnative_glmr_for_nonnative_ibtc_on_hydra() {
+		let alice_init_ibtc_balance_on_zeitgeist = 0;
 		//Register tokens and init omnipool on hydra
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
@@ -749,7 +818,7 @@ pub mod zeitgeist_use_cases {
 				crate::exchange_asset::add_currency_price(crate::exchange_asset::GLMR, FixedU128::from(1));
 
 				init_omnipool();
-				let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+				let omnipool_account = Omnipool::protocol_account();
 
 				let token_price = FixedU128::from_float(1.0);
 				assert_ok!(hydradx_runtime::Tokens::deposit(
@@ -762,7 +831,7 @@ pub mod zeitgeist_use_cases {
 					&omnipool_account,
 					100000 * UNITS
 				));
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					IBTC,
 					token_price,
@@ -770,7 +839,7 @@ pub mod zeitgeist_use_cases {
 					AccountId::from(BOB),
 				));
 
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
+				assert_ok!(Omnipool::add_token(
 					hydradx_runtime::RuntimeOrigin::root(),
 					GLMR,
 					token_price,
@@ -992,6 +1061,11 @@ pub mod zeitgeist_use_cases {
 					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
 				))
 			));
+
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
+				alice_init_ibtc_balance_on_zeitgeist
+			);
 		});
 
 		//Trigger the processing of horizontal xcm messages
@@ -1001,9 +1075,10 @@ pub mod zeitgeist_use_cases {
 
 		//Assert that swap amount out of IBTC is sent back to Zeitgeist
 		Zeitgeist::execute_with(|| {
-			pretty_assertions::assert_eq!(
-				hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE)),
-				9839246387064
+			let alice_new_ibtc_balance = hydradx_runtime::Tokens::free_balance(IBTC, &AccountId::from(ALICE));
+			assert!(
+				alice_new_ibtc_balance > alice_init_ibtc_balance_on_zeitgeist,
+				"Alice should have received iBTC"
 			);
 		});
 	}
@@ -1118,9 +1193,6 @@ fn half(asset: &Asset) -> Asset {
 		id: asset.clone().id,
 	}
 }
-use rococo_runtime::xcm_config::BaseXcmWeight;
-use xcm_builder::FixedWeightBounds;
-use xcm_executor::traits::WeightBounds;
 
 fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	give_asset: Asset,

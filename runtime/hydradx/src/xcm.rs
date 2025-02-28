@@ -1,18 +1,22 @@
 use super::*;
 
+use crate::origins::GeneralAdmin;
+use sp_std::marker::PhantomData;
+
 use codec::MaxEncodedLen;
 use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
 use pallet_transaction_multi_payment::DepositAll;
 use primitives::{AssetId, Price};
-use sp_std::marker::PhantomData; // shadow glob import of polkadot_xcm::v3::prelude::AssetId
 
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing, TransformOrigin},
+	traits::{ConstU32, Contains, ContainsPair, EitherOf, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
+use frame_system::unique;
+use frame_system::EnsureRoot;
 use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
@@ -27,9 +31,10 @@ use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, HashedDescription, ParentIsPreset,
-	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, WithComputedOrigin,
+	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, GlobalConsensusConvertsFor,
+	HashedDescription, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
+	WithComputedOrigin, WithUniqueTopic,
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -38,7 +43,13 @@ pub struct AssetLocation(pub polkadot_xcm::v3::Location);
 
 impl From<AssetLocation> for Option<Location> {
 	fn from(location: AssetLocation) -> Option<Location> {
-		xcm_builder::V4V3LocationConverter::convert_back(&location.0)
+		xcm_builder::WithLatestLocationConverter::convert_back(&location.0)
+	}
+}
+
+impl From<AssetLocation> for MultiLocation {
+	fn from(location: AssetLocation) -> Self {
+		location.0
 	}
 }
 
@@ -53,7 +64,7 @@ impl TryFrom<Location> for AssetLocation {
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
-pub type Barrier = (
+pub type Barrier = TrailingSetTopicAsId<(
 	TakeWeightCredit,
 	// Expected responses are OK.
 	AllowKnownQueryResponses<PolkadotXcm>,
@@ -67,7 +78,7 @@ pub type Barrier = (
 		UniversalLocation,
 		ConstU32<8>,
 	>,
-);
+)>;
 
 parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
@@ -141,7 +152,29 @@ where
 	}
 }
 
+pub struct IsDotFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<Asset, Location> for IsDotFrom<Origin>
+where
+	Origin: Get<Location>,
+{
+	fn contains(asset: &Asset, origin: &Location) -> bool {
+		let loc = Origin::get();
+		&loc == origin
+			&& matches!(
+				asset,
+				Asset {
+					id: AssetId(Location {
+						parents: 1,
+						interior: Here
+					}),
+					fun: Fungible(_),
+				},
+			)
+	}
+}
+
 pub type Reserves = (
+	IsDotFrom<AssetHubLocation>,
 	IsForeignNativeAssetFrom<AssetHubLocation>,
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
@@ -185,14 +218,83 @@ impl Config for XcmConfig {
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
-	type SafeCallFilter = SafeCallFilter;
+	type SafeCallFilter = Everything;
 	type Aliasers = Nothing;
 	type TransactionalProcessor = xcm_builder::FrameTransactionalProcessor;
+	type HrmpNewChannelOpenRequestHandler = ();
+	type HrmpChannelClosingHandler = ();
+	type HrmpChannelAcceptedHandler = ();
+	type XcmRecorder = PolkadotXcm;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
+}
+
+pub struct WithUnifiedEventSupport<Inner>(PhantomData<Inner>);
+
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfig as Config>::RuntimeCall>
+	for WithUnifiedEventSupport<Inner>
+{
+	type Prepared = <Inner as cumulus_primitives_core::ExecuteXcm<RuntimeCall>>::Prepared;
+
+	fn prepare(
+		message: Xcm<<XcmConfig as Config>::RuntimeCall>,
+	) -> Result<Self::Prepared, Xcm<<XcmConfig as Config>::RuntimeCall>> {
+		//We populate the context in `prepare` as we have the xcm message at this point so we can get the unique topic id
+		let unique_id = if let Some(SetTopic(id)) = message.last() {
+			*id
+		} else {
+			unique(&message)
+		};
+		if pallet_broadcast::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id))
+			.is_err()
+		{
+			log::error!(target: "xcm-executor", "Failed to add to broadcast context.");
+			return Err(message.clone());
+		}
+
+		let prepare_result = Inner::prepare(message.clone());
+
+		//In case of error we need to clean context as xcm execution won't happen
+		if prepare_result.is_err() {
+			if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
+				log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
+				return Err(message);
+			}
+		}
+
+		prepare_result
+	}
+
+	fn execute(
+		origin: impl Into<Location>,
+		pre: Self::Prepared,
+		id: &mut XcmHash,
+		weight_credit: XcmWeight,
+	) -> Outcome {
+		let outcome = Inner::execute(origin, pre, id, weight_credit);
+
+		// Context was added to the stack in `prepare` call.
+		if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
+			return Outcome::Error {
+				error: XcmError::FailedToTransactAsset("Unexpected error at modifying broadcast execution stack"),
+			};
+		};
+
+		outcome
+	}
+
+	fn charge_fees(location: impl Into<Location>, fees: Assets) -> XcmResult {
+		Inner::charge_fees(location, fees)
+	}
+}
+
+impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> XcmAssetTransfers for WithUnifiedEventSupport<Inner> {
+	type IsReserve = <XcmConfig as Config>::IsReserve;
+	type IsTeleporter = <XcmConfig as Config>::IsTeleporter;
+	type AssetTransactor = <XcmConfig as Config>::AssetTransactor;
 }
 
 parameter_types! {
@@ -203,12 +305,14 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ChannelInfo = ParachainSystem;
 	type VersionWrapper = PolkadotXcm;
-	type ControllerOrigin = MoreThanHalfTechCommittee;
+	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
+	type MaxInboundSuspended = MaxInboundSuspended;
+	type MaxActiveOutboundChannels = ConstU32<128>;
+	type MaxPageSize = ConstU32<{ 128 * 1024 }>;
+	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
 	type WeightInfo = weights::cumulus_pallet_xcmp_queue::HydraWeight<Runtime>;
-	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
-	type MaxInboundSuspended = MaxInboundSuspended;
 }
 
 const ASSET_HUB_PARA_ID: u32 = 1000;
@@ -217,7 +321,7 @@ parameter_type_with_key! {
 	pub ParachainMinFee: |location: Location| -> Option<u128> {
 		#[allow(clippy::match_ref_pats)] // false positive
 		match (location.parents, location.first_interior()) {
-			(1, Some(Parachain(ASSET_HUB_PARA_ID))) => Some(50_000_000),
+			(1, Some(Parachain(ASSET_HUB_PARA_ID))) => Some(150_000_000),
 			_ => None,
 		}
 	};
@@ -230,7 +334,7 @@ impl orml_xtokens::Config for Runtime {
 	type CurrencyIdConvert = CurrencyIdConvert;
 	type AccountIdToLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
@@ -248,7 +352,7 @@ impl orml_unknown_tokens::Config for Runtime {
 
 impl orml_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type SovereignOrigin = MoreThanHalfCouncil;
+	type SovereignOrigin = EnsureRoot<Self::AccountId>;
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -259,7 +363,7 @@ impl pallet_xcm::Config for Runtime {
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
@@ -272,7 +376,7 @@ impl pallet_xcm::Config for Runtime {
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
 	type WeightInfo = weights::pallet_xcm::HydraWeight<Runtime>;
-	type AdminOrigin = MajorityOfCouncil;
+	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
 }
@@ -290,13 +394,18 @@ impl pallet_message_queue::Config for Runtime {
 	type MessageProcessor =
 		pallet_message_queue::mock_helpers::NoopMessageProcessor<cumulus_primitives_core::AggregateMessageOrigin>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MessageProcessor = xcm_builder::ProcessXcmMessage<AggregateMessageOrigin, XcmExecutor<XcmConfig>, RuntimeCall>;
+	type MessageProcessor = xcm_builder::ProcessXcmMessage<
+		AggregateMessageOrigin,
+		WithUnifiedEventSupport<XcmExecutor<XcmConfig>>,
+		RuntimeCall,
+	>;
 	type Size = u32;
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
 	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
 	type HeapSize = MessageQueueHeapSize;
 	type MaxStale = MessageQueueMaxStale;
 	type ServiceWeight = MessageQueueServiceWeight;
+	type IdleMaxServiceWeight = ();
 }
 
 pub struct CurrencyIdConvert;
@@ -353,6 +462,14 @@ impl Convert<Asset, Option<AssetId>> for CurrencyIdConvert {
 	}
 }
 
+impl Convert<VersionedLocation, Option<AssetId>> for CurrencyIdConvert {
+	fn convert(versioned_location: VersionedLocation) -> Option<AssetId> {
+		let location = Location::try_from(versioned_location).ok()?;
+
+		Self::convert(location)
+	}
+}
+
 pub struct AccountIdToMultiLocation;
 impl Convert<AccountId, Location> for AccountIdToMultiLocation {
 	fn convert(account: AccountId) -> Location {
@@ -366,12 +483,12 @@ impl Convert<AccountId, Location> for AccountIdToMultiLocation {
 
 /// The means for routing XCM messages which are not for local execution into the right message
 /// queues.
-pub type XcmRouter = (
+pub type XcmRouter = WithUniqueTopic<(
 	// Two routers - use UMP to communicate with the relay chain:
 	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
 	// ..and XCMP to communicate with the sibling chains.
 	XcmpQueue,
-);
+)>;
 
 /// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
@@ -387,8 +504,12 @@ pub type LocationToAccountId = (
 	HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
 	// Convert ETH to local substrate account
 	EvmAddressConversion<RelayNetwork>,
+	// Converts a location which is a top-level relay chain (which provides its own consensus) into a
+	// 32-byte `AccountId`.
+	GlobalConsensusConvertsFor<UniversalLocation, AccountId>,
 );
-use xcm_executor::traits::ConvertLocation;
+use pallet_broadcast::types::ExecutionType;
+use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);
@@ -436,93 +557,3 @@ pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	OmnipoolProtocolAccount,
 	TreasuryAccount,
 >;
-
-/// A call filter for the XCM Transact instruction. This is a temporary measure until we properly
-/// account for proof size weights.
-///
-/// Calls that are allowed through this filter must:
-/// 1. Have a fixed weight;
-/// 2. Cannot lead to another call being made;
-/// 3. Have a defined proof size weight, e.g. no unbounded vecs in call parameters.
-pub struct SafeCallFilter;
-impl Contains<RuntimeCall> for SafeCallFilter {
-	fn contains(call: &RuntimeCall) -> bool {
-		#[cfg(feature = "runtime-benchmarks")]
-		{
-			if matches!(call, RuntimeCall::System(frame_system::Call::remark_with_event { .. })) {
-				return true;
-			}
-		}
-
-		// check the runtime call filter
-		if !CallFilter::contains(call) {
-			return false;
-		}
-
-		matches!(
-			call,
-			RuntimeCall::System(frame_system::Call::kill_prefix { .. } | frame_system::Call::set_heap_pages { .. })
-				| RuntimeCall::Timestamp(..)
-				| RuntimeCall::Balances(..)
-				| RuntimeCall::Treasury(..)
-				| RuntimeCall::Utility(pallet_utility::Call::as_derivative { .. })
-				| RuntimeCall::Vesting(..)
-				| RuntimeCall::Proxy(..)
-				| RuntimeCall::CollatorSelection(
-					pallet_collator_selection::Call::set_desired_candidates { .. }
-						| pallet_collator_selection::Call::set_candidacy_bond { .. }
-						| pallet_collator_selection::Call::register_as_candidate { .. }
-						| pallet_collator_selection::Call::leave_intent { .. },
-				) | RuntimeCall::Session(pallet_session::Call::purge_keys { .. })
-				| RuntimeCall::Uniques(
-					pallet_uniques::Call::create { .. }
-						| pallet_uniques::Call::force_create { .. }
-						| pallet_uniques::Call::mint { .. }
-						| pallet_uniques::Call::burn { .. }
-						| pallet_uniques::Call::transfer { .. }
-						| pallet_uniques::Call::freeze { .. }
-						| pallet_uniques::Call::thaw { .. }
-						| pallet_uniques::Call::freeze_collection { .. }
-						| pallet_uniques::Call::thaw_collection { .. }
-						| pallet_uniques::Call::transfer_ownership { .. }
-						| pallet_uniques::Call::set_team { .. }
-						| pallet_uniques::Call::approve_transfer { .. }
-						| pallet_uniques::Call::cancel_approval { .. }
-						| pallet_uniques::Call::force_item_status { .. }
-						| pallet_uniques::Call::set_attribute { .. }
-						| pallet_uniques::Call::clear_attribute { .. }
-						| pallet_uniques::Call::set_metadata { .. }
-						| pallet_uniques::Call::clear_metadata { .. }
-						| pallet_uniques::Call::set_collection_metadata { .. }
-						| pallet_uniques::Call::clear_collection_metadata { .. }
-						| pallet_uniques::Call::set_accept_ownership { .. }
-						| pallet_uniques::Call::set_price { .. }
-						| pallet_uniques::Call::buy_item { .. },
-				) | RuntimeCall::Identity(
-				pallet_identity::Call::add_registrar { .. }
-					| pallet_identity::Call::set_identity { .. }
-					| pallet_identity::Call::clear_identity { .. }
-					| pallet_identity::Call::request_judgement { .. }
-					| pallet_identity::Call::cancel_request { .. }
-					| pallet_identity::Call::set_fee { .. }
-					| pallet_identity::Call::set_account_id { .. }
-					| pallet_identity::Call::set_fields { .. }
-					| pallet_identity::Call::provide_judgement { .. }
-					| pallet_identity::Call::kill_identity { .. }
-					| pallet_identity::Call::add_sub { .. }
-					| pallet_identity::Call::rename_sub { .. }
-					| pallet_identity::Call::remove_sub { .. }
-					| pallet_identity::Call::quit_sub { .. },
-			) | RuntimeCall::Omnipool(..)
-				| RuntimeCall::OmnipoolLiquidityMining(..)
-				| RuntimeCall::OTC(..)
-				| RuntimeCall::CircuitBreaker(..)
-				| RuntimeCall::Router(..)
-				| RuntimeCall::DCA(..)
-				| RuntimeCall::MultiTransactionPayment(..)
-				| RuntimeCall::Currencies(..)
-				| RuntimeCall::Tokens(..)
-				| RuntimeCall::OrmlXcm(..)
-		)
-	}
-}

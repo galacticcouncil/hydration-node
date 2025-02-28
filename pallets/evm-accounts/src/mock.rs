@@ -1,8 +1,5 @@
-#![cfg(test)]
-use super::*;
-
 use crate as pallet_evm_accounts;
-use crate::{Balance, Config};
+use crate::{Balance, Config, EvmNonceProvider};
 use frame_support::parameter_types;
 use frame_support::sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
@@ -10,8 +7,9 @@ use frame_support::sp_runtime::{
 };
 use frame_support::traits::Everything;
 use frame_system::EnsureRoot;
+use hydradx_traits::evm::InspectEvmAccounts;
 use orml_traits::parameter_type_with_key;
-pub use sp_core::{H160, H256};
+pub use sp_core::{H160, H256, U256};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -89,6 +87,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_type_with_key! {

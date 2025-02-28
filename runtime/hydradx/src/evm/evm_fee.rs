@@ -19,9 +19,11 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 use crate::{Runtime, TreasuryAccount};
-use frame_support::traits::tokens::{Fortitude, Precision};
+use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::traits::{Get, TryDrop};
 use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
 use pallet_evm::{AddressMapping, Error};
 use pallet_transaction_multi_payment::{DepositAll, DepositFee};
@@ -66,19 +68,33 @@ impl<Price> TryDrop for EvmPaymentInfo<Price> {
 
 /// Implements the transaction payment for EVM transactions.
 /// Supports multi-currency fees based on what is provided by AC - account currency.
-pub struct TransferEvmFees<OU, AC, EC, C, MC>(PhantomData<(OU, AC, EC, C, MC)>);
+pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId>(
+	PhantomData<(
+		OU,
+		AccountCurrency,
+		EvmFeeAsset,
+		C,
+		MC,
+		SwappablePaymentAssetSupport,
+		DotAssetId,
+	)>,
+);
 
-impl<T, OU, AC, EC, C, MC> OnChargeEVMTransaction<T> for TransferEvmFees<OU, AC, EC, C, MC>
+impl<T, OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId> OnChargeEVMTransaction<T>
+	for TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId>
 where
 	T: pallet_evm::Config,
 	OU: OnUnbalanced<EvmPaymentInfo<EmaPrice>>,
 	U256: UniqueSaturatedInto<Balance>,
-	AC: AccountFeeCurrency<T::AccountId, AssetId = AssetId>, // AccountCurrency
-	EC: Get<AssetId>,                                        // Evm default fee asset
+	AccountCurrency: AccountFeeCurrency<T::AccountId, AssetId = AssetId>,
+	EvmFeeAsset: Get<AssetId>,
 	C: Convert<(AssetId, AssetId, Balance), Option<(Balance, EmaPrice)>>, // Conversion from default fee asset to account currency
 	U256: UniqueSaturatedInto<Balance>,
 	MC: frame_support::traits::tokens::fungibles::Mutate<T::AccountId, AssetId = AssetId, Balance = Balance>
 		+ frame_support::traits::tokens::fungibles::Inspect<T::AccountId, AssetId = AssetId, Balance = Balance>,
+	SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<T::AccountId, AssetId, Balance>,
+	DotAssetId: Get<AssetId>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 {
 	type LiquidityInfo = Option<EvmPaymentInfo<EmaPrice>>;
 
@@ -87,10 +103,44 @@ where
 			return Ok(None);
 		}
 		let account_id = T::AddressMapping::into_account_id(*who);
-		let fee_currency = AC::get(&account_id);
-		let Some((converted, price)) = C::convert((EC::get(), fee_currency, fee.unique_saturated_into())) else {
-			return Err(Error::<T>::WithdrawFailed);
-		};
+		let account_fee_currency = AccountCurrency::get(&account_id);
+
+		let (converted, fee_currency, price) =
+			if SwappablePaymentAssetSupport::is_transaction_fee_currency(account_fee_currency) {
+				let Some((converted, price)) =
+					C::convert((EvmFeeAsset::get(), account_fee_currency, fee.unique_saturated_into()))
+				else {
+					return Err(Error::<T>::WithdrawFailed);
+				};
+				(converted, account_fee_currency, price)
+			} else {
+				//In case of insufficient asset we buy DOT with insufficient asset, and using that DOT and amount as fee currency
+				let dot = DotAssetId::get();
+				let Some((fee_in_dot, eth_dot_price)) =
+					C::convert((EvmFeeAsset::get(), dot, fee.unique_saturated_into()))
+				else {
+					return Err(Error::<T>::WithdrawFailed);
+				};
+
+				let amount_in =
+					SwappablePaymentAssetSupport::calculate_in_given_out(account_fee_currency, dot, fee_in_dot)
+						.map_err(|_| Error::<T>::WithdrawFailed)?;
+				let pool_fee = SwappablePaymentAssetSupport::calculate_fee_amount(amount_in)
+					.map_err(|_| Error::<T>::WithdrawFailed)?;
+				let max_limit = amount_in.saturating_add(pool_fee);
+
+				SwappablePaymentAssetSupport::buy(
+					&account_id,
+					account_fee_currency,
+					dot,
+					fee_in_dot,
+					max_limit,
+					&account_id,
+				)
+				.map_err(|_| Error::<T>::WithdrawFailed)?;
+
+				(fee_in_dot, dot, eth_dot_price)
+			};
 
 		// Ensure that converted fee is not zero
 		if converted == 0 {
@@ -101,6 +151,7 @@ where
 			fee_currency,
 			&account_id,
 			converted,
+			Preservation::Expendable,
 			Precision::Exact,
 			Fortitude::Polite,
 		)
@@ -115,8 +166,9 @@ where
 
 	fn can_withdraw(who: &H160, amount: U256) -> Result<(), pallet_evm::Error<T>> {
 		let account_id = T::AddressMapping::into_account_id(*who);
-		let fee_currency = AC::get(&account_id);
-		let Some((converted, _)) = C::convert((EC::get(), fee_currency, amount.unique_saturated_into())) else {
+		let fee_currency = AccountCurrency::get(&account_id);
+		let Some((converted, _)) = C::convert((EvmFeeAsset::get(), fee_currency, amount.unique_saturated_into()))
+		else {
 			return Err(Error::<T>::BalanceLow);
 		};
 
@@ -134,7 +186,7 @@ where
 		corrected_fee: U256,
 		_base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
-	) -> Result<Self::LiquidityInfo, Error<T>> {
+	) -> Self::LiquidityInfo {
 		if let Some(paid) = already_withdrawn {
 			let account_id = T::AddressMapping::into_account_id(*who);
 
@@ -177,9 +229,9 @@ where
 				asset_id: paid.asset_id,
 				price: paid.price,
 			});
-			return Ok(None);
+			return None;
 		}
-		Ok(None)
+		None
 	}
 
 	fn pay_priority_fee(tip: Self::LiquidityInfo) {
@@ -188,11 +240,10 @@ where
 		}
 	}
 }
-
 pub struct DepositEvmFeeToTreasury;
 impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	// this is called for substrate-based transactions
-	fn on_unbalanceds<B>(amounts: impl Iterator<Item = EvmPaymentInfo<EmaPrice>>) {
+	fn on_unbalanceds(amounts: impl Iterator<Item = EvmPaymentInfo<EmaPrice>>) {
 		Self::on_unbalanced(amounts.fold(EvmPaymentInfo::default(), |i, x| x.merge(i)))
 	}
 
@@ -208,19 +259,26 @@ impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	}
 }
 
-pub struct FeeCurrencyOverrideOrDefault<EC>(PhantomData<EC>);
+pub struct FeeCurrencyOverrideOrDefault<EC, EI>(PhantomData<(EC, EI)>);
 
-impl<EC> AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault<EC>
+impl<EC, EI> AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault<EC, EI>
 where
 	EC: Get<AssetId>,
+	EI: InspectEvmAccounts<AccountId>,
 {
 	type AssetId = AssetId;
 
 	fn get(a: &AccountId) -> Self::AssetId {
-		let maybe_override = pallet_transaction_multi_payment::Pallet::<Runtime>::tx_fee_currency_override(a);
-		match maybe_override {
-			Some(currency) => currency,
-			None => EC::get(),
+		// Check if account has fee currency override set - used eg. by dispatch_permit
+		if let Some(currency) = pallet_transaction_multi_payment::Pallet::<Runtime>::tx_fee_currency_override(a) {
+			currency
+		} else {
+			// if account is evm account - default to given EC, otherwise use account currency or default to HDX.
+			if EI::is_evm_account(a.clone()) {
+				EC::get()
+			} else {
+				pallet_transaction_multi_payment::Pallet::<Runtime>::account_currency(a)
+			}
 		}
 	}
 }

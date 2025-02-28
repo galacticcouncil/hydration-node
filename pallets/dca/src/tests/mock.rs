@@ -18,7 +18,7 @@
 use crate as dca;
 use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Everything, Nothing};
+use frame_support::traits::{Everything, Nothing, SortedMembers};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
@@ -29,8 +29,8 @@ use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle};
-use orml_traits::{parameter_type_with_key, GetByKey};
-use pallet_currencies::BasicCurrencyAdapter;
+use orml_traits::parameter_type_with_key;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use primitive_types::U128;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
@@ -54,16 +54,12 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 1336361000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 1175997680;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 1338448000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 1177834240;
-
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
 pub const FORBIDDEN_ASSET: AssetId = 4;
+pub const DOT: AssetId = 5;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
@@ -83,6 +79,7 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 EmaOracle: pallet_ema_oracle,
+		 Broadcast: pallet_broadcast,
 	 }
 );
 
@@ -95,22 +92,22 @@ lazy_static::lazy_static! {
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
-	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
+	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_OUT_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
 	pub static MIN_BUDGET: RefCell<Balance> = RefCell::new(*ORIGINAL_MIN_BUDGET_IN_NATIVE);
-	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
-	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
-	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
+	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = const { RefCell::new(vec![]) };
+	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = const { RefCell::new(vec![]) };
+	pub static SET_OMNIPOOL_ON: RefCell<bool> = const { RefCell::new(true) };
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
-	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static CALCULATED_AMOUNT_OUT_FOR_SELL: RefCell<Balance> = RefCell::new(*AMOUNT_OUT_FOR_OMNIPOOL_SELL);
-	pub static USE_PROD_RANDOMNESS: RefCell<bool> = RefCell::new(false);
+	pub static USE_PROD_RANDOMNESS: RefCell<bool> = const { RefCell::new(false) };
 	pub static PARENT_HASH: RefCell<Option<Hash>> = RefCell::new(Some([
 			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
 			135, 250, 171, 69, 205, 241, 47, 227, 168,
@@ -142,8 +139,15 @@ parameter_types! {
 	pub static MockBlockNumberProvider: u64 = 0;
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 	OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+	pub PriceDifference: Permill = Permill::from_percent(10);
 }
 
+pub struct BifrostAcc;
+impl SortedMembers<AccountId> for BifrostAcc {
+	fn sorted_members() -> Vec<AccountId> {
+		return vec![ALICE];
+	}
+}
 impl pallet_ema_oracle::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
@@ -151,8 +155,11 @@ impl pallet_ema_oracle::Config for Test {
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
+	type LocationToAssetIdConversion = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
+	type MaxAllowedPriceDifference = PriceDifference;
 	type WeightInfo = ();
 }
 
@@ -194,6 +201,11 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 pub type Amount = i128;
@@ -227,6 +239,7 @@ parameter_types! {
 	pub const MaxReserves: u32 = 50;
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
+	pub BurnFee: Permill = Permill::zero();
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
@@ -253,7 +266,7 @@ impl pallet_omnipool::Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
@@ -263,6 +276,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct WithdrawFeePriceOracle;
@@ -341,6 +355,8 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
@@ -354,6 +370,10 @@ parameter_types! {
 
 }
 
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 type Pools = (OmniPool, Xyk);
 
 impl pallet_route_executor::Config for Test {
@@ -365,11 +385,11 @@ impl pallet_route_executor::Config for Test {
 	type AMM = Pools;
 	type InspectRegistry = DummyRegistry<Test>;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type WeightInfo = ();
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type WeightInfo = ();
 }
 
 pub struct MockedEdCalculator;
@@ -644,6 +664,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
+	pub PolkadotNativeCurrencyId: AssetId = DOT;
 	pub MinBudgetInNativeCurrency: Balance= MIN_BUDGET.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
@@ -652,8 +673,8 @@ parameter_types! {
 	pub BumpChance: Percent = Percent::from_percent(0);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
+	pub ExchangeFeeRate: (u32, u32) = (3, 1000);
 }
-use rand::SeedableRng;
 
 pub struct RandomnessProviderMock {}
 
@@ -689,12 +710,59 @@ impl Config for Test {
 	type BumpChance = BumpChance;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type TerminateOrigin = EnsureRoot<Self::AccountId>;
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
 	type RetryOnError = ();
+	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
+	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
+}
+
+pub struct MockedInsufficientAssetSupport;
+
+impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
+	fn is_transaction_fee_currency(_asset: AssetId) -> bool {
+		true
+	}
+}
+
+impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
+	fn is_trade_supported(_from: AssetId, _into: AssetId) -> bool {
+		unimplemented!()
+	}
+
+	fn buy(
+		_origin: &AccountId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_amount: Balance,
+		_max_limit: Balance,
+		_dest: &AccountId,
+	) -> DispatchResult {
+		unimplemented!()
+	}
+
+	fn calculate_fee_amount(_swap_amount: Balance) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
+
+	fn calculate_in_given_out(
+		_insuff_asset_id: AssetId,
+		_asset_out: AssetId,
+		_asset_out_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
+
+	fn calculate_out_given_in(
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		_asset_in_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		unimplemented!()
+	}
 }
 
 pub struct NativePriceOracleMock;
@@ -723,10 +791,12 @@ use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
+use hydradx_traits::fee::{GetDynamicFee, InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
-use rand::rngs::StdRng;
+use rand::prelude::StdRng;
+use rand::SeedableRng;
 use smallvec::smallvec;
 
 pub struct DummyNFT;
@@ -781,23 +851,23 @@ impl<T: Config> InspectRegistry for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
-	type AssetId = T::AssetId;
+	type AssetId = AssetId;
 	type Location = u8;
 
 	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
 		unimplemented!()
 	}
 
-	fn is_sufficient(_id: Self::AssetId) -> bool {
-		true
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		id <= 2000
 	}
 
 	fn decimals(_id: Self::AssetId) -> Option<u8> {
 		unimplemented!()
 	}
 
-	fn exists(asset_id: T::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+	fn exists(asset_id: AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id)).copied());
 		asset.is_some()
 	}
 
@@ -1086,8 +1156,13 @@ pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
+
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
 	}
 }

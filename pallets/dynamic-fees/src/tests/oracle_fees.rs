@@ -30,11 +30,17 @@ pub fn asset_fee_should_be_update_correctly_when_volume_is_increasing() {
 				},
 			);
 
+			let initial_liquidity = ORACLE.with(|v| v.borrow().liquidity(HDX, 0));
+
 			for block in (1..=200).step_by(1) {
 				let previous_entry = crate::AssetFee::<Test>::get(HDX).unwrap();
 				let current_block = BLOCK.with(|v| *v.borrow());
+
 				let asset_volume = get_oracle_entry(HDX, current_block as u64);
-				let (asset_fee, protocol_fee) = retrieve_fee_entry(HDX);
+				let (asset_fee, protocol_fee) = retrieve_fee_entry(
+					HDX,
+					initial_liquidity + asset_volume.amount_in - asset_volume.amount_out,
+				);
 
 				match asset_volume.amount_out.cmp(&asset_volume.amount_in) {
 					Ordering::Less => {

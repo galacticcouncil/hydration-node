@@ -1,19 +1,19 @@
 [package]
-name = 'pallet-ema-oracle'
-version = '1.3.2'
-description = 'Exponential moving average oracle for AMM pools'
-authors = ['GalacticCouncil']
-edition = '2021'
-license = 'Apache 2.0'
-repository = 'https://github.com/galacticcouncil/warehouse'
+name = "pallet-ema-oracle"
+version = "1.5.0"
+description = "Exponential moving average oracle for AMM pools"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/warehouse"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-serde = {features = ['derive'], optional = true, version = '1.0.136'}
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
-codec = { package = 'parity-scale-codec', version = '3.4.0', default-features = false, features = ['derive', "max-encoded-len"] }
+serde = { workspace = true, optional = true }
+scale-info = {workspace = true }
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
@@ -28,34 +28,37 @@ sp-core = { workspace = true }
 sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 
-log = { version = "0.4.14", default-features = false }
+polkadot-xcm = { workspace = true }
+
+log = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = "1.3.0"
-proptest = "1.0.0"
-rug = { version = "1.17.0", features = ["num-traits"] }
+pretty_assertions = { workspace = true }
+proptest = { workspace = true }
+rug = { workspace = true }
 sp-io = { workspace = true }
 test-utils = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
 ]
 std = [
-  'serde',
-  'codec/std',
-  'frame-support/std',
-  'frame-system/std',
-  'frame-benchmarking/std',
-  'log/std',
-  'sp-arithmetic/std',
-  'sp-core/std',
-  'sp-std/std',
-  'hydradx-traits/std',
-  'hydra-dx-math/std',
-  'scale-info/std',
+  "serde",
+  "codec/std",
+  "frame-support/std",
+  "frame-system/std",
+  "frame-benchmarking/std",
+  "log/std",
+  "sp-arithmetic/std",
+  "sp-core/std",
+  "sp-std/std",
+  "hydradx-traits/std",
+  "hydra-dx-math/std",
+  "scale-info/std",
+  "polkadot-xcm/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

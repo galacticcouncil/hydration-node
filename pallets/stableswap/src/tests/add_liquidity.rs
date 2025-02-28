@@ -1,7 +1,9 @@
 use crate::tests::mock::*;
-use crate::types::{AssetAmount, PoolInfo};
+use crate::types::PoolInfo;
 use crate::{assert_balance, to_precision, Error};
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, BoundedVec};
+use hydradx_traits::stableswap::AssetAmount;
+use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -39,10 +41,10 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![
+				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, initial_liquidity_amount),
 					AssetAmount::new(asset_b, initial_liquidity_amount),
-				]
+				])
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -50,6 +52,77 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			assert_balance!(BOB, pool_id, 200 * ONE * 1_000_000);
 			assert_balance!(pool_account, asset_a, 100 * ONE);
 			assert_balance!(pool_account, asset_b, 100 * ONE);
+		});
+}
+
+#[test]
+fn add_liquidity_should_emit_swapped_events() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, asset_a, 2_000_000_000_000_000_000),
+			(ALICE, asset_a, 52425995641788588073263117),
+			(ALICE, asset_b, 52033213790329),
+			(ALICE, asset_c, 119135337044269),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 18)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 6)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 6)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b, asset_c].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(2000).unwrap(),
+				final_amplification: NonZeroU16::new(2000).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_float(0.0001),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 52425995641788588073263117),
+					AssetAmount::new(asset_b, 52033213790329),
+					AssetAmount::new(asset_c, 119135337044269),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+			let amount = 2_000_000_000_000_000_000;
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				vec![AssetAmount::new(asset_a, amount),].try_into().unwrap()
+			));
+
+			let received = Tokens::free_balance(pool_id, &BOB);
+			assert_eq!(received, 1947487201901031408);
+
+			let pool_account = pool_account(pool_id);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
+					inputs: vec![Asset::new(asset_a, 2000000000000000000),],
+					outputs: vec![Asset::new(pool_id, 1947487201901031408)],
+					fees: vec![
+						Fee::new(asset_a, 57410103828678, Destination::Account(pool_account)),
+						Fee::new(asset_b, 17, Destination::Account(pool_account)),
+						Fee::new(asset_c, 39, Destination::Account(pool_account))
+					],
+					operation_stack: vec![],
+				})
+			)
 		});
 }
 
@@ -88,10 +161,10 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 				Stableswap::add_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
-					vec![
+					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, initial_liquidity_amount),
 						AssetAmount::new(asset_b, initial_liquidity_amount),
-					]
+					])
 				),
 				Error::<Test>::InsufficientBalance
 			);
@@ -146,10 +219,10 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![
+				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, amount_added),
 					AssetAmount::new(asset_b, amount_added),
-				]
+				])
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -203,10 +276,10 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![
+				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_b, amount_added),
 					AssetAmount::new(asset_a, amount_added),
-				]
+				])
 			));
 
 			assert_balance!(BOB, asset_a, 100 * ONE);
@@ -258,10 +331,10 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 				Stableswap::add_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
-					vec![
+					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_b, amount_added),
 						AssetAmount::new(asset_a, amount_added),
-					]
+					])
 				),
 				Error::<Test>::InsufficientTradingAmount
 			);
@@ -315,7 +388,7 @@ fn add_liquidity_should_work_when_providing_one_asset_only() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount_added),]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount_added)])
 			));
 		});
 }
@@ -371,10 +444,10 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 				Stableswap::add_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
-					vec![
+					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, amount_added),
 						AssetAmount::new(asset_e, amount_added),
-					]
+					])
 				),
 				Error::<Test>::AssetNotInPool
 			);
@@ -421,10 +494,10 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 				Stableswap::add_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
-					vec![
+					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, amount_added),
 						AssetAmount::new(asset_a, amount_added),
-					]
+					])
 				),
 				Error::<Test>::IncorrectAssets
 			);
@@ -467,10 +540,10 @@ fn add_initial_liquidity_should_work_when_asset_have_different_decimals() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![
+				BoundedVec::truncate_from(vec![
 					AssetAmount::new(asset_a, initial_liquidity_amount_a),
 					AssetAmount::new(asset_b, initial_liquidity_amount_b),
-				]
+				])
 			));
 
 			assert_balance!(BOB, asset_a, to_precision!(100, dec_a));
@@ -525,7 +598,7 @@ fn add_liquidity_should_work_correctly() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount),]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount),])
 			));
 			let received = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(received, 1947597621401945851);
@@ -575,7 +648,7 @@ fn add_liquidity_should_work_correctly_when_fee_is_applied() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount),]
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount),])
 			));
 			let received = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(received, 1947487201901031408);
@@ -634,6 +707,21 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 
 			let used = Tokens::free_balance(asset_a, &BOB);
 			assert_eq!(used, 0);
+
+			let pool_account = pool_account(pool_id);
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
+					inputs: vec![Asset::new(asset_a, 2000000000000000003),],
+					outputs: vec![Asset::new(pool_id, 1947597621401945851)],
+					fees: vec![Fee::new(pool_id, 0, Destination::Account(pool_account))],
+					operation_stack: vec![],
+				})
+			)
 		});
 }
 

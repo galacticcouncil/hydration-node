@@ -1,18 +1,15 @@
-#![cfg(test)]
-use super::*;
-
 use crate as lbp;
 use crate::{
 	types::{AssetId, AssetPair, Balance},
-	AssetPairAccountIdFor, Config,
+	AssetPairAccountIdFor, Config, Pool, WeightCurveType,
 };
 use frame_support::parameter_types;
 use frame_support::traits::{Everything, LockIdentifier, Nothing};
-use hydradx_traits::LockedBalance;
+use hydradx_traits::{AMMTransfer, LockedBalance};
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup, Zero},
 	BuildStorage,
 };
 use std::collections::BTreeMap;
@@ -75,6 +72,7 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 LBPPallet: lbp,
 		 Currency: orml_tokens,
+		 Broadcast: pallet_broadcast,
 	 }
 
 );
@@ -109,6 +107,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_type_with_key! {
@@ -168,6 +171,10 @@ impl LockedBalance<AssetId, AccountId, Balance> for MultiLockedBalance {
 			None => Zero::zero(),
 		}
 	}
+}
+
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl Config for Test {

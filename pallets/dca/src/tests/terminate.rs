@@ -17,6 +17,7 @@ use crate::tests::mock::*;
 use crate::tests::*;
 use crate::{assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages};
 use crate::{Error, Event};
+use frame_support::traits::Hooks;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
@@ -299,6 +300,91 @@ fn terminate_should_fail_when_with_nonexisting_schedule() {
 		});
 }
 
-pub fn set_block_number(n: u64) {
-	System::set_block_number(n);
+#[test]
+fn terminate_should_work_when_no_block_specified() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().with_period(300).build();
+			let schedule_id = 0;
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
+			set_block_number(600);
+
+			//Act
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, None));
+
+			//Assert
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
+
+			expect_events(vec![Event::Terminated {
+				id: 0,
+				who: ALICE,
+				error: Error::<Test>::ManuallyTerminated.into(),
+			}
+			.into()]);
+		});
+}
+
+#[test]
+fn terminate_should_work_when_no_block_specified_and_schedule_eeceuted_multiple_times() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().with_period(300).build();
+			let schedule_id = 0;
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
+			set_block_number(600);
+			set_block_number(900);
+
+			//Act
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, None));
+
+			//Assert
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
+
+			expect_events(vec![Event::Terminated {
+				id: 0,
+				who: ALICE,
+				error: Error::<Test>::ManuallyTerminated.into(),
+			}
+			.into()]);
+		});
+}
+
+#[test]
+fn terminate_should_work_with_no_blocknumber_when_just_scheduled() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().with_period(300).build();
+			let schedule_id = 0;
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
+
+			//Act
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, None));
+
+			//Assert
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
+
+			expect_events(vec![Event::Terminated {
+				id: 0,
+				who: ALICE,
+				error: Error::<Test>::ManuallyTerminated.into(),
+			}
+			.into()]);
+		});
+}
+
+pub fn set_block_number(to: u64) {
+	System::set_block_number(to);
+	DCA::on_initialize(to);
 }

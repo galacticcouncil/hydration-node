@@ -29,9 +29,9 @@ use crate as pallet_stableswap;
 
 use crate::Config;
 
-use frame_support::assert_ok;
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
+use frame_support::{assert_ok, BoundedVec};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -69,10 +69,10 @@ macro_rules! assert_balance {
 thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (u32,u8)>> = RefCell::new(HashMap::default());
 	pub static ASSET_IDENTS: RefCell<HashMap<Vec<u8>, u32>> = RefCell::new(HashMap::default());
-	pub static POOL_IDS: RefCell<Vec<AssetId>> = RefCell::new(Vec::new());
-	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
-	pub static LAST_LIQUDITY_CHANGE_HOOK: RefCell<Option<(AssetId, PoolState<AssetId>)>> = RefCell::new(None);
-	pub static LAST_TRADE_HOOK: RefCell<Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)>> = RefCell::new(None);
+	pub static POOL_IDS: RefCell<Vec<AssetId>> = const { RefCell::new(Vec::new()) };
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
+	pub static LAST_LIQUDITY_CHANGE_HOOK: RefCell<Option<(AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
+	pub static LAST_TRADE_HOOK: RefCell<Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
 }
 
 construct_runtime!(
@@ -81,11 +81,12 @@ construct_runtime!(
 		System: frame_system,
 		Tokens: orml_tokens,
 		Stableswap: pallet_stableswap,
+		Broadcast: pallet_broadcast,
 	}
 );
 
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
@@ -109,6 +110,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_type_with_key! {
@@ -167,6 +173,10 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	}
 }
 
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -174,6 +184,7 @@ impl Config for Test {
 	type ShareAccountId = AccountIdConstructor;
 	type AssetInspection = DummyRegistry;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
 	type MinTradingLimit = MinimumTradingLimit;
@@ -275,6 +286,8 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
+			frame_system::Pallet::<Test>::set_block_number(1);
+
 			for (_who, pool, initial_liquid) in self.created_pools {
 				let pool_id = retrieve_current_asset_id();
 				REGISTERED_ASSETS.with(|v| {
@@ -299,7 +312,7 @@ impl ExtBuilder {
 					assert_ok!(Stableswap::add_liquidity(
 						RuntimeOrigin::signed(initial_liquid.account),
 						pool_id,
-						initial_liquid.assets
+						BoundedVec::truncate_from(initial_liquid.assets)
 					));
 				}
 			}
@@ -311,8 +324,9 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{AssetAmount, PoolInfo, PoolState, StableswapHooks};
+use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{AccountIdFor, Inspect};
 use sp_runtime::traits::Zero;
 
@@ -435,4 +449,32 @@ pub(crate) fn last_liquidity_changed_hook_state() -> Option<(AssetId, PoolState<
 
 pub(crate) fn last_trade_hook_state() -> Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)> {
 	LAST_TRADE_HOOK.with(|v| v.borrow().clone())
+}
+
+pub(crate) fn expect_events(e: Vec<RuntimeEvent>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
+}
+
+pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
+	let last_events: Vec<RuntimeEvent> = last_hydra_events(1000);
+	let mut swapped_events = vec![];
+
+	for event in last_events {
+		let e = event.clone();
+		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { .. }) = e {
+			swapped_events.push(e);
+		}
+	}
+
+	swapped_events
+}
+
+pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
+	frame_system::Pallet::<Test>::events()
+		.into_iter()
+		.rev()
+		.take(n)
+		.rev()
+		.map(|e| e.event)
+		.collect()
 }

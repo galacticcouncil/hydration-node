@@ -28,7 +28,7 @@ use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
-use pallet_evm::{AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
+use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
 use primitives::{AssetId, Balance};
@@ -43,6 +43,8 @@ where
 	R: Runner<T>,
 	<R as pallet_evm::Runner<T>>::Error: core::convert::From<TransactionValidationError>,
 	B: AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 {
 	type Error = R::Error;
 
@@ -65,7 +67,7 @@ where
 
 		let evm_currency = WethAssetId::get();
 		let account_id = T::AddressMapping::into_account_id(source);
-		let account_nonce = frame_system::Pallet::<T>::account_nonce(&account_id);
+		let account_nonce = T::AccountProvider::account_nonce(&account_id.clone().into());
 		let (balance, b_weight) = B::get_balance_in_currency(evm_currency, &account_id);
 
 		let (source_account, inner_weight) = (
@@ -258,6 +260,58 @@ where
 			weight_limit,
 			proof_size_base_cost,
 			config,
+		)
+	}
+
+	fn create_force_address(
+		source: H160,
+		init: Vec<u8>,
+		value: U256,
+		gas_limit: u64,
+		max_fee_per_gas: Option<U256>,
+		max_priority_fee_per_gas: Option<U256>,
+		nonce: Option<U256>,
+		access_list: Vec<(H160, Vec<H256>)>,
+		is_transactional: bool,
+		validate: bool,
+		weight_limit: Option<Weight>,
+		proof_size_base_cost: Option<u64>,
+		config: &evm::Config,
+		contract_address: H160,
+	) -> Result<CreateInfo, RunnerError<Self::Error>> {
+		if validate {
+			Self::validate(
+				source,
+				None,
+				init.clone(),
+				value,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				nonce,
+				access_list.clone(),
+				is_transactional,
+				weight_limit,
+				proof_size_base_cost,
+				config,
+			)?;
+		}
+		//Validated, flag set to false
+		R::create_force_address(
+			source,
+			init,
+			value,
+			gas_limit,
+			max_fee_per_gas,
+			max_priority_fee_per_gas,
+			nonce,
+			access_list,
+			is_transactional,
+			false,
+			weight_limit,
+			proof_size_base_cost,
+			config,
+			contract_address,
 		)
 	}
 }

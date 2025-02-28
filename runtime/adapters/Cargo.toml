@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "1.3.5"
+version = "1.4.1"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -8,9 +8,9 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/warehouse/tree/master/adapters"
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-log = { version = "0.4.17", default-features = false }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
+codec = { workspace = true }
+log = { workspace = true }
+scale-info = { workspace = true }
 
 # HydraDX dependencies
 primitives = { workspace = true }
@@ -32,6 +32,7 @@ pallet-referrals = { workspace = true }
 pallet-lbp = { workspace = true }
 pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -63,8 +64,8 @@ orml-tokens = { workspace = true }
 pallet-balances = { workspace = true }
 
 [dev-dependencies]
-lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
-pretty_assertions = "1.4.0"
+lazy_static = { workspace = true }
+pretty_assertions = { workspace = true }
 pallet-xyk = { workspace = true }
 
 [features]
@@ -72,6 +73,27 @@ default = ["std"]
 runtime-benchmarks = [
     "xcm-builder/runtime-benchmarks",
     "xcm-executor/runtime-benchmarks",
+    "pallet-omnipool/runtime-benchmarks",
+    "pallet-ema-oracle/runtime-benchmarks",
+    "pallet-circuit-breaker/runtime-benchmarks",
+    "pallet-omnipool-liquidity-mining/runtime-benchmarks",
+    "pallet-dynamic-fees/runtime-benchmarks",
+    "pallet-uniques/runtime-benchmarks",
+    "pallet-staking/runtime-benchmarks",
+    "pallet-route-executor/runtime-benchmarks",
+    "pallet-stableswap/runtime-benchmarks",
+    "pallet-referrals/runtime-benchmarks",
+    "pallet-lbp/runtime-benchmarks",
+    "pallet-asset-registry/runtime-benchmarks",
+    "pallet-bonds/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "cumulus-pallet-parachain-system/runtime-benchmarks",
+    "cumulus-primitives-core/runtime-benchmarks",
+    "orml-vesting/runtime-benchmarks",
+    "orml-tokens/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
 ]
 std = [
     "codec/std",

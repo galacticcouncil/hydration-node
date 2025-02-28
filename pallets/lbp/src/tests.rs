@@ -30,6 +30,7 @@ pub use crate::mock::{
 };
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_traits::{AMMTransfer, LockedBalance};
+use pallet_broadcast::types::Destination;
 use sp_runtime::traits::{BadOrigin, Dispatchable};
 use sp_std::convert::TryInto;
 
@@ -1809,6 +1810,7 @@ fn execute_sell_should_work() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		let amount_in = 8_000_000_u128;
 		let amount_b = 20_000_000_u128;
@@ -1831,16 +1833,29 @@ fn execute_sell_should_work() {
 
 		assert_ok!(LBPPallet::execute_sell(&t));
 
-		expect_events(vec![Event::SellExecuted {
-			who: ALICE,
-			asset_in,
-			asset_out,
-			amount: amount_in,
-			sale_price: amount_b,
-			fee_asset: asset_in,
-			fee_amount: 1_000,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::SellExecuted {
+				who: ALICE,
+				asset_in,
+				asset_out,
+				amount: amount_in,
+				sale_price: amount_b,
+				fee_asset: asset_in,
+				fee_amount: 1_000,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: ALICE,
+				filler: pool_id,
+				filler_type: pallet_broadcast::types::Filler::LBP,
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
+				inputs: vec![Asset::new(asset_in, amount_in)],
+				outputs: vec![Asset::new(asset_out, amount_b)],
+				fees: vec![Fee::new(asset_in, 1_000, Destination::Account(pool_data.fee_collector))],
+				operation_stack: vec![],
+			}
+			.into(),
+		]);
 
 		assert_eq!(Currency::free_balance(asset_in, &ALICE), 999_998_991_999_000);
 		assert_eq!(Currency::free_balance(asset_out, &ALICE), 999_998_020_000_000);
@@ -1848,17 +1863,6 @@ fn execute_sell_should_work() {
 
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_008_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 1_980_000_000);
-
-		expect_events(vec![Event::SellExecuted {
-			who: ALICE,
-			asset_in,
-			asset_out,
-			amount: 8_000_000,
-			sale_price: 20_000_000,
-			fee_asset: asset_in,
-			fee_amount: 1_000,
-		}
-		.into()]);
 	});
 }
 
@@ -1940,6 +1944,7 @@ fn execute_buy_should_work() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		let amount_in = 8_000_000_u128;
 		let amount_b = 20_000_000_u128;
@@ -1961,7 +1966,7 @@ fn execute_buy_should_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
-		assert_ok!(LBPPallet::execute_buy(&t));
+		assert_ok!(LBPPallet::execute_buy(&t, None));
 
 		assert_eq!(Currency::free_balance(asset_in, &ALICE), 999_998_991_999_000);
 		assert_eq!(Currency::free_balance(asset_out, &ALICE), 999_998_020_000_000);
@@ -1971,16 +1976,29 @@ fn execute_buy_should_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_008_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 1_980_000_000);
 
-		expect_events(vec![Event::BuyExecuted {
-			who: ALICE,
-			asset_out,
-			asset_in,
-			amount: 8_000_000,
-			buy_price: 20_000_000,
-			fee_asset: asset_in,
-			fee_amount: 1_000,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::BuyExecuted {
+				who: ALICE,
+				asset_in,
+				asset_out,
+				amount: amount_in,
+				buy_price: amount_b,
+				fee_asset: asset_in,
+				fee_amount: 1_000,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: ALICE,
+				filler: pool_id,
+				filler_type: pallet_broadcast::types::Filler::LBP,
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(asset_in, amount_in)],
+				outputs: vec![Asset::new(asset_out, amount_b)],
+				fees: vec![Fee::new(asset_in, 1_000, Destination::Account(pool_data.fee_collector))],
+				operation_stack: vec![],
+			}
+			.into(),
+		]);
 	});
 }
 
@@ -2011,7 +2029,10 @@ fn execute_buy_should_not_work() {
 		assert_eq!(Currency::free_balance(asset_in, &pool_id), 1_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &pool_id), 2_000_000_000);
 
-		assert_noop!(LBPPallet::execute_buy(&t), orml_tokens::Error::<Test>::BalanceTooLow);
+		assert_noop!(
+			LBPPallet::execute_buy(&t, None),
+			orml_tokens::Error::<Test>::BalanceTooLow
+		);
 
 		assert_eq!(Currency::free_balance(asset_in, &ALICE), 999_999_000_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &ALICE), 999_998_000_000_000);
@@ -2272,6 +2293,7 @@ fn buy_should_work() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		//start sale
 		set_block_number(11);
@@ -2282,6 +2304,30 @@ fn buy_should_work() {
 			10_000_000_u128,
 			2_000_000_000_u128
 		));
+
+		expect_events(vec![
+			Event::BuyExecuted {
+				who: buyer,
+				asset_in,
+				asset_out,
+				amount: 17_894_738,
+				buy_price: 10_000_000,
+				fee_asset: asset_in,
+				fee_amount: 35860,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: buyer,
+				filler: pool_id,
+				filler_type: pallet_broadcast::types::Filler::LBP,
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(asset_in, 17_894_738)],
+				outputs: vec![Asset::new(asset_out, 10_000_000)],
+				fees: vec![Fee::new(asset_in, 35860, Destination::Account(pool_data.fee_collector))],
+				operation_stack: vec![], // calling buy directly from the pallet doesn't set event_id
+			}
+			.into(),
+		]);
 
 		assert_eq!(Currency::free_balance(asset_in, &buyer), 999_999_982_069_402);
 		assert_eq!(Currency::free_balance(asset_out, &buyer), 1_000_000_010_000_000);
@@ -2390,6 +2436,8 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 		let buyer = BOB;
 		let asset_in = KUSD;
 		let asset_out = BSX;
+		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		//start sale
 		set_block_number(11);
@@ -2402,16 +2450,29 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 			u128::MAX,
 		));
 
-		expect_events(vec![Event::BuyExecuted {
-			who: buyer,
-			asset_out: BSX,
-			asset_in: KUSD,
-			amount: 17_894_738,
-			buy_price: 10_000_000,
-			fee_asset: KUSD,
-			fee_amount: 35_860,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::BuyExecuted {
+				who: buyer,
+				asset_in,
+				asset_out,
+				amount: 17_894_738,
+				buy_price: 10_000_000,
+				fee_asset: asset_in,
+				fee_amount: 35860,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: buyer,
+				filler: pool_id,
+				filler_type: pallet_broadcast::types::Filler::LBP,
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(asset_in, 17_894_738)],
+				outputs: vec![Asset::new(asset_out, 10_000_000)],
+				fees: vec![Fee::new(asset_in, 35860, Destination::Account(pool_data.fee_collector))],
+				operation_stack: vec![],
+			}
+			.into(),
+		]);
 
 		// swap assets
 		set_block_number(11);
@@ -2423,16 +2484,30 @@ fn buy_should_work_when_limit_is_set_above_account_balance() {
 			u128::MAX,
 		));
 
-		expect_events(vec![Event::BuyExecuted {
-			who: buyer,
-			asset_out: KUSD,
-			asset_in: BSX,
-			amount: 5_560_304,
-			buy_price: 10_000_000,
-			fee_asset: KUSD,
-			fee_amount: 20_000,
-		}
-		.into()]);
+		expect_events(vec![
+			Event::BuyExecuted {
+				who: buyer,
+				asset_in: BSX,
+				asset_out: KUSD,
+				amount: 5_560_304,
+				buy_price: 10_000_000,
+				fee_asset: KUSD,
+				fee_amount: 20_000,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: buyer,
+				filler: pool_id,
+				filler_type: pallet_broadcast::types::Filler::LBP,
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(BSX, 5_560_304)],
+				outputs: vec![Asset::new(KUSD, 10_000_000)],
+
+				fees: vec![Fee::new(KUSD, 20_000, Destination::Account(pool_data.fee_collector))],
+				operation_stack: vec![],
+			}
+			.into(),
+		]);
 	});
 }
 
@@ -2462,17 +2537,6 @@ fn update_pool_data_after_sale_should_not_work() {
 
 		set_block_number(41);
 
-		expect_events(vec![Event::BuyExecuted {
-			who: buyer,
-			asset_out: BSX,
-			asset_in: KUSD,
-			amount: 17_894_738,
-			buy_price: 10_000_000,
-			fee_asset: KUSD,
-			fee_amount: 35_860,
-		}
-		.into()]);
-
 		assert_noop!(
 			LBPPallet::update_pool_data(
 				Origin::signed(ALICE),
@@ -2498,6 +2562,7 @@ fn sell_should_work() {
 		let asset_in = KUSD;
 		let asset_out = BSX;
 		let pool_id = LBPPallet::get_pair_id(AssetPair { asset_in, asset_out });
+		let pool_data = <PoolData<Test>>::try_get(pool_id).unwrap();
 
 		//start sale
 		set_block_number(11);
@@ -2509,6 +2574,34 @@ fn sell_should_work() {
 			10_000_000_u128,
 			2_000_u128
 		));
+
+		expect_events(vec![
+			Event::SellExecuted {
+				who: buyer,
+				asset_in,
+				asset_out,
+				amount: 9_980_000,
+				sale_price: 5_605_138,
+				fee_asset: asset_in,
+				fee_amount: 20_000,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: buyer,
+				filler: pool_id,
+				filler_type: pallet_broadcast::types::Filler::LBP,
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
+				inputs: vec![Asset::new(asset_in, 9_980_000)],
+				outputs: vec![Asset::new(asset_out, 5_605_138)],
+				fees: vec![Fee::new(
+					asset_in,
+					20_000,
+					Destination::Account(pool_data.fee_collector),
+				)],
+				operation_stack: vec![],
+			}
+			.into(),
+		]);
 
 		assert_eq!(Currency::free_balance(asset_in, &buyer), 999_999_990_000_000);
 		assert_eq!(Currency::free_balance(asset_out, &buyer), 1_000_000_005_605_138);
@@ -3689,7 +3782,7 @@ fn collected_fees_should_be_locked_and_unlocked_after_liquidity_is_removed() {
 		run_to_sale_start();
 		let Pool { fee_collector, .. } = LBPPallet::pool_data(KUSD_BSX_POOL_ID).unwrap();
 		let (fee_asset, fee_amount) = SAMPLE_AMM_TRANSFER.fee;
-		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER));
+		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None));
 
 		// collector receives locked fee
 		assert_eq!(Currency::free_balance(fee_asset, &fee_collector), fee_amount);
@@ -3720,8 +3813,8 @@ fn collected_fees_are_continually_locked() {
 		run_to_sale_start();
 		let Pool { fee_collector, .. } = LBPPallet::pool_data(KUSD_BSX_POOL_ID).unwrap();
 		let (fee_asset, fee_amount) = SAMPLE_AMM_TRANSFER.fee;
-		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER));
-		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER));
+		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None));
+		assert_ok!(LBPPallet::execute_buy(&SAMPLE_AMM_TRANSFER, None));
 		let total = 2 * fee_amount;
 		assert_eq!(Currency::free_balance(fee_asset, &fee_collector), total);
 		assert_eq!(

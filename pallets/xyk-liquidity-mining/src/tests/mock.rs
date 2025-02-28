@@ -21,13 +21,13 @@ use super::*;
 use crate as liq_mining;
 use frame_support::weights::RuntimeDbWeight;
 use frame_support::{
-	parameter_types,
+	dispatch, parameter_types,
 	traits::{Everything, Nothing},
 	PalletId,
 };
 
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMPosition, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMPosition, AMMTransfer, AMM};
 use orml_traits::parameter_type_with_key;
 use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
@@ -139,42 +139,47 @@ impl system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 thread_local! {
-	pub static NFT_COLLECTION: RefCell<(u128, u128, u128)>= RefCell::new((0,0,0));
+	pub static NFT_COLLECTION: RefCell<(u128, u128, u128)>= const { RefCell::new((0,0,0)) };
 
 	pub static AMM_POOLS: RefCell<HashMap<AccountId, (AssetId, AssetPair)>> = RefCell::new(HashMap::new());
 	pub static NFTS: RefCell<HashMap<(CollectionId, ItemId), AccountId>> = RefCell::new(HashMap::default());
-	pub static DEPOSIT_IDS: RefCell<Vec<DepositId>> = RefCell::new(Vec::new());
+	pub static DEPOSIT_IDS: RefCell<Vec<DepositId>> = const { RefCell::new(Vec::new()) };
 
 	pub static GLOBAL_FARMS: RefCell<HashMap<u32, DymmyGlobalFarm>> = RefCell::new(HashMap::default());
 	pub static YIELD_FARMS: RefCell<HashMap<u32, DummyYieldFarm>> = RefCell::new(HashMap::default());
 	pub static DEPOSITS: RefCell<HashMap<u128, DummyDeposit>> = RefCell::new(HashMap::default());
 	pub static DEPOSIT_ENTRIES: RefCell<HashMap<(DepositId, u32), DummyFarmEntry>> = RefCell::new(HashMap::default());
 
-	pub static FARM_ID: RefCell<u32> = RefCell::new(0);
-	pub static DEPOSIT_ID: RefCell<DepositId> = RefCell::new(0);
+	pub static FARM_ID: RefCell<u32> = const { RefCell::new(0) };
+	pub static DEPOSIT_ID: RefCell<DepositId> = const { RefCell::new(0) };
 
-	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>>= RefCell::new(Vec::new());
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>>= const { RefCell::new(Vec::new()) };
 }
 #[derive(Copy, Clone)]
 pub struct DymmyGlobalFarm {
 	total_rewards: Balance,
-	_planned_yielding_periods: PeriodOf<Test>,
+	planned_yielding_periods: PeriodOf<Test>,
 	_blocks_per_period: BlockNumber,
 	incentivized_asset: AssetId,
 	reward_currency: AssetId,
 	_owner: AccountId,
-	_yield_per_period: Perquintill,
-	_min_deposit: Balance,
+	yield_per_period: Perquintill,
+	min_deposit: Balance,
 	price_adjustment: FixedU128,
 	_max_reward_per_period: Balance,
 }
 
 #[derive(Clone, Debug)]
 pub struct DummyYieldFarm {
-	_global_farm_id: u32,
+	global_farm_id: u32,
 	multiplier: FarmMultiplier,
 	amm_pool_id: AccountId,
 	_assets: Vec<AssetId>,
@@ -236,8 +241,9 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
 	}
 
 	fn execute_buy(
-		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-	) -> frame_support::dispatch::DispatchResult {
+		_transfer: &AMMTransfer<AccountId, AssetId, AssetPair, u128>,
+		_destination: Option<&AccountId>,
+	) -> dispatch::DispatchResult {
 		Err(sp_runtime::DispatchError::Other("NotImplemented"))
 	}
 
@@ -345,6 +351,21 @@ impl liq_mining::Config for Test {
 	type LiquidityMiningHandler = DummyLiquidityMining;
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry<Test>;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+}
+
+pub const ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;
+
+impl AMMAddLiquidity<AccountId, AssetId, Balance> for DummyAMM {
+	fn add_liquidity(
+		_origin: AccountId,
+		_asset_a: AssetId,
+		_asset_b: AssetId,
+		_amount_a: Balance,
+		_amount_b_max_limit: Balance,
+	) -> Result<Balance, DispatchError> {
+		Ok(ADD_LIQUIDITY_XYK_SHARE_AMOUNT)
+	}
 }
 
 use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
@@ -392,6 +413,8 @@ where
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
+use hydradx_traits::AMMAddLiquidity;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -529,13 +552,13 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 				farm_id,
 				DymmyGlobalFarm {
 					total_rewards,
-					_planned_yielding_periods: planned_yielding_periods,
+					planned_yielding_periods,
 					_blocks_per_period: blocks_per_period,
 					incentivized_asset,
 					reward_currency,
 					_owner: owner,
-					_yield_per_period: yield_per_period,
-					_min_deposit: min_deposit,
+					yield_per_period,
+					min_deposit,
 					price_adjustment,
 					_max_reward_per_period: max_reward_per_period,
 				},
@@ -582,11 +605,28 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 	) -> Result<u32, Self::Error> {
 		let farm_id = get_next_farm_id();
 
+		YIELD_FARMS
+			.with(|v| {
+				let mut p = v.borrow_mut();
+				let yield_farm = p
+					.iter_mut()
+					.find(|(_, farm)| farm.amm_pool_id == amm_pool_id && farm.global_farm_id == global_farm_id);
+
+				if yield_farm.is_some() {
+					return Err(sp_runtime::DispatchError::Other(
+						"Yield Farm already exists in global farm",
+					));
+				}
+
+				Ok::<(), Self::Error>(())
+			})
+			.unwrap();
+
 		YIELD_FARMS.with(|v| {
 			v.borrow_mut().insert(
 				farm_id,
 				DummyYieldFarm {
-					_global_farm_id: global_farm_id,
+					global_farm_id,
 					multiplier,
 					amm_pool_id,
 					_assets: assets,
@@ -811,6 +851,25 @@ impl hydradx_traits::liquidity_mining::Mutate<AccountId, AssetId, BlockNumber> f
 	) -> Result<(YieldFarmId, Self::Balance), Self::Error> {
 		//NOTE: Basilisk is not using this fn.
 		Err(sp_runtime::DispatchError::Other("Not implemented"))
+	}
+
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: Self::Period,
+		yield_per_period: Perquintill,
+		min_deposit: Self::Balance,
+	) -> Result<(), Self::Error> {
+		GLOBAL_FARMS.with(|v| {
+			let mut p = v.borrow_mut();
+
+			let global_farm = p.get_mut(&global_farm_id).unwrap();
+
+			global_farm.planned_yielding_periods = planned_yielding_periods;
+			global_farm.yield_per_period = yield_per_period;
+			global_farm.min_deposit = min_deposit;
+
+			Ok(())
+		})
 	}
 }
 
