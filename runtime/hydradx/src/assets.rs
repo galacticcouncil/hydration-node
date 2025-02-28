@@ -20,12 +20,6 @@ use crate::evm::Erc20Currency;
 use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 
-use hydradx_adapters::{
-	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
-	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
-};
-
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
@@ -44,6 +38,12 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use hydradx_adapters::OraclePriceProvider;
+use hydradx_adapters::{
+	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
+	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
+	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
+};
 pub use hydradx_traits::{
 	evm::CallContext,
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
