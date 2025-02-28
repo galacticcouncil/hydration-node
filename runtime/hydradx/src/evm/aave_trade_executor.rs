@@ -4,18 +4,15 @@ use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::{Erc20Currency, Executor};
 use crate::Runtime;
 use ethabi::{decode, ParamType};
-use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hex_literal::hex;
-use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
+use hydradx_traits::evm::{CallContext, Erc20Encoding, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pallet_democracy::EncodeInto;
 use pallet_evm::GasWeightMapping;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
@@ -31,7 +28,6 @@ use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
-use sp_std::vec::Vec;
 
 pub struct AaveTradeExecutor<T>(PhantomData<T>);
 
@@ -88,7 +84,7 @@ impl ReserveData {
 			self.supply_cap_raw().saturating_mul(
 				U256::from(10)
 					.checked_pow(self.decimals().into())
-					.unwrap_or_else(|| U256::one()),
+					.unwrap_or_else(U256::one),
 			)
 		}
 	}
@@ -164,15 +160,15 @@ where
 			current_stable_borrow_rate: decoded[5].clone().into_uint().unwrap_or_default(),
 			last_update_timestamp: decoded[6].clone().into_uint().unwrap_or_default(),
 			id: decoded[7].clone().into_uint().unwrap_or_default().saturated_into(),
-			atoken_address: EvmAddress::from_slice((&decoded[8].clone().into_address().unwrap_or_default()).as_ref()),
+			atoken_address: EvmAddress::from_slice(decoded[8].clone().into_address().unwrap_or_default().as_ref()),
 			stable_debt_token_address: EvmAddress::from_slice(
-				(&decoded[9].clone().into_address().unwrap_or_default()).as_ref(),
+				decoded[9].clone().into_address().unwrap_or_default().as_ref(),
 			),
 			variable_debt_token_address: EvmAddress::from_slice(
-				(&decoded[10].clone().into_address().unwrap_or_default()).as_ref(),
+				decoded[10].clone().into_address().unwrap_or_default().as_ref(),
 			),
 			interest_rate_strategy_address: EvmAddress::from_slice(
-				(&decoded[11].clone().into_address().unwrap_or_default()).as_ref(),
+				decoded[11].clone().into_address().unwrap_or_default().as_ref(),
 			),
 			accrued_to_treasury: decoded[12].clone().into_uint().unwrap_or_default(),
 		})
@@ -328,7 +324,7 @@ where
 				asset_address == underlying,
 				ExecutorError::Error("Asset mismatch: supplied asset must match aToken's underlying".into())
 			);
-			AaveTradeExecutor::<T>::supply(who, asset_address, amount_in).map_err(|e| ExecutorError::Error(e))?;
+			AaveTradeExecutor::<T>::supply(who, asset_address, amount_in).map_err(ExecutorError::Error)?;
 		} else if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_in) {
 			// Withdrawing aToken (asset_in) to get underlying asset
 			let asset_address = AaveTradeExecutor::<T>::get_asset_address(asset_out);
@@ -336,7 +332,7 @@ where
 				asset_address == underlying,
 				ExecutorError::Error("Asset mismatch: output asset must match aToken's underlying".into())
 			);
-			AaveTradeExecutor::<T>::withdraw(who, underlying, amount_in).map_err(|e| ExecutorError::Error(e))?;
+			AaveTradeExecutor::<T>::withdraw(who, underlying, amount_in).map_err(ExecutorError::Error)?;
 		} else {
 			return Err(ExecutorError::Error("Invalid asset pair".into()));
 		}

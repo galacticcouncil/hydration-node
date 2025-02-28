@@ -22,8 +22,7 @@
 use crate::evm::EvmAddress;
 use crate::Runtime;
 use hex_literal::hex;
-use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::{evm::Erc20Encoding, BoundErc20, RegisterAssetHook};
+use hydradx_traits::{evm::Erc20Encoding, RegisterAssetHook};
 use primitive_types::{H160, H256};
 use primitives::AssetId;
 

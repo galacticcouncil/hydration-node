@@ -1,6 +1,6 @@
 use mock::*;
 
-use crate::types::{Position, StakingData, Voting};
+use crate::types::{Position, StakingData};
 use crate::*;
 use frame_support::{assert_noop, assert_ok};
 use orml_tokens::BalanceLock;

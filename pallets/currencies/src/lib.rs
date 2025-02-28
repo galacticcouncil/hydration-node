@@ -562,8 +562,8 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 			T::NativeCurrency::reserve_named(id, who, value)
 		} else {
 			if let Some(contract) = T::BoundErc20::contract_address(currency_id) {
-				T::Erc20Currency::transfer(contract, &who, &T::ReserveAccount::get(), value)?;
-				T::MultiCurrency::deposit(currency_id, &who, value)?;
+				T::Erc20Currency::transfer(contract, who, &T::ReserveAccount::get(), value)?;
+				T::MultiCurrency::deposit(currency_id, who, value)?;
 			}
 			T::MultiCurrency::reserve_named(id, currency_id, who, value)
 		}
@@ -583,8 +583,8 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 					let remaining = T::MultiCurrency::unreserve_named(id, currency_id, who, value);
 					let unreserved = value.saturating_sub(remaining);
 					if unreserved > Zero::zero() {
-						T::MultiCurrency::withdraw(currency_id, &who, unreserved)?;
-						T::Erc20Currency::transfer(contract, &T::ReserveAccount::get(), &who, unreserved)?;
+						T::MultiCurrency::withdraw(currency_id, who, unreserved)?;
+						T::Erc20Currency::transfer(contract, &T::ReserveAccount::get(), who, unreserved)?;
 					}
 					Ok(remaining)
 				})
