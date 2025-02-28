@@ -17,6 +17,7 @@ use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_democracy::EncodeInto;
 use pallet_evm::GasWeightMapping;
+use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
 use polkadot_xcm::v3::MultiLocation;
 use primitive_types::{H256, U256};
@@ -31,7 +32,6 @@ use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 use sp_std::vec::Vec;
-use pallet_genesis_history::migration::Weight;
 
 pub struct AaveTradeExecutor<T>(PhantomData<T>);
 

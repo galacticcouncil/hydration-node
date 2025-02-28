@@ -1060,18 +1060,10 @@ where
 /// Price provider that returns a price of an asset that can be used to pay tx fee.
 /// If an asset cannot be used as fee payment asset, None is returned.
 pub struct AssetFeeOraclePriceProvider<NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period>(
-	PhantomData<(
-		NativeAsset,
-		FeePaymentAsset,
-		Router,
-		Oracle,
-		FallbackPrice,
-		Period,
-	)>,
+	PhantomData<(NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period)>,
 );
 
-impl<AssetId, NativeAsset, Router, FeePaymentAsset, Oracle, FallbackPrice, Period>
-	NativePriceOracle<AssetId, EmaPrice>
+impl<AssetId, NativeAsset, Router, FeePaymentAsset, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
 	for AssetFeeOraclePriceProvider<NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period>
 where
 	Router: RouteProvider<AssetId>,

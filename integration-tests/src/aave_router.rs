@@ -379,13 +379,11 @@ fn buy_adot_from_stablepool() {
 			ADOT,
 			ONE,
 			Balance::MAX,
-			vec![
-				Trade {
-					pool: PoolType::Stableswap(pool),
-					asset_in: DOT,
-					asset_out: ADOT,
-				},
-			]
+			vec![Trade {
+				pool: PoolType::Stableswap(pool),
+				asset_in: DOT,
+				asset_out: ADOT,
+			},]
 		));
 	});
 }
