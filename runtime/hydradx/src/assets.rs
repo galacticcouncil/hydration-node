@@ -16,11 +16,10 @@
 // limitations under the License.
 
 use super::*;
+use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
 use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
-
-use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -40,7 +39,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
+	OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
 	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
 pub use hydradx_traits::{
@@ -794,9 +793,6 @@ impl PriceOracle<AssetId> for DummyOraclePriceProvider {
 		Some(EmaPrice::one())
 	}
 }
-
-#[cfg(not(feature = "runtime-benchmarks"))]
-use hydradx_adapters::OraclePriceProvider;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummySpotPriceProvider;
