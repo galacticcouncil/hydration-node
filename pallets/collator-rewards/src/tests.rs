@@ -1,7 +1,10 @@
 use super::*;
 use frame_support::assert_ok;
 
-use crate::mock::{set_block_number, CollatorRewards, ExtBuilder, Test, Tokens, ALICE, BOB, CHARLIE, COLLATOR_REWARD, DAVE, GC_COLL_1, GC_COLL_2, GC_COLL_3, NATIVE_TOKEN, SESSION_ENDED, BAG, RuntimeOrigin};
+use crate::mock::{
+	set_block_number, CollatorRewards, ExtBuilder, RuntimeOrigin, Test, Tokens, ALICE, BAG, BOB, CHARLIE,
+	COLLATOR_REWARD, DAVE, GC_COLL_1, GC_COLL_2, GC_COLL_3, NATIVE_TOKEN, SESSION_ENDED,
+};
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
