@@ -38,7 +38,6 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
-use hydradx_adapters::OraclePriceProvider;
 use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
 	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
