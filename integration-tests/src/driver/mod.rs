@@ -1,22 +1,31 @@
 mod example;
 
+use crate::ice::solve_current_intents;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
+use frame_support::traits::UnfilteredDispatchable;
 use frame_support::BoundedVec;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
 use pallet_asset_registry::AssetType;
+use pallet_intent::types::Intent;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
 use primitives::{AccountId, AssetId};
+use sp_core::crypto::AccountId32;
 use sp_runtime::{FixedU128, Permill};
+use std::any::Any;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use xcm_emulator::TestExt;
 
 pub(crate) struct HydrationTestDriver {
 	omnipool_assets: Vec<AssetId>,
 	stablepools: Vec<(AssetId, Vec<(AssetId, u8)>)>,
+	ext: Option<RefCell<frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block>>>,
+	data: RefCell<HashMap<String, Box<dyn Any>>>,
 }
 
 impl HydrationTestDriver {
@@ -39,13 +48,21 @@ impl HydrationTestDriver {
 		HydrationTestDriver {
 			omnipool_assets: vec![],
 			stablepools: vec![],
+			ext: None,
+			data: RefCell::new(HashMap::new()),
 		}
 	}
 
 	pub(crate) fn execute(&self, f: impl FnOnce()) -> &Self {
-		Hydra::ext_wrapper(|| {
-			f();
-		});
+		if let Some(custom) = &self.ext {
+			custom.borrow_mut().execute_with(|| {
+				f();
+			})
+		} else {
+			Hydra::ext_wrapper(|| {
+				f();
+			});
+		}
 		self
 	}
 
@@ -117,7 +134,7 @@ impl HydrationTestDriver {
 		self.add_omnipool_assets(vec![HDX, DOT, WETH])
 	}
 
-	pub(crate) fn setup_stableswap(self) -> Self {
+	pub fn setup_stableswap(self) -> Self {
 		let mut stable_pool_id = 0;
 		let mut stable_assets = vec![];
 		self.execute(|| {
@@ -195,7 +212,7 @@ impl HydrationTestDriver {
 		self.add_stablepools(vec![(stable_pool_id, stable_assets)])
 	}
 
-	pub(crate) fn add_stablepools_to_omnipool(self) -> Self {
+	pub fn add_stablepools_to_omnipool(self) -> Self {
 		self.execute(|| {
 			let omnipool_acc = hydradx_runtime::Omnipool::protocol_account();
 			for (pool_id, _) in self.stablepools.iter() {
@@ -275,10 +292,89 @@ impl HydrationTestDriver {
 		self
 	}
 
-	fn new_block(&self) -> &Self {
+	pub fn with_snapshot(self, path: &str) -> Self {
+		let ext = tokio::runtime::Builder::new_current_thread()
+			.enable_all()
+			.build()
+			.unwrap()
+			.block_on(async {
+				use frame_remote_externalities::*;
+
+				let snapshot_config = SnapshotConfig::from(String::from(path));
+				let offline_config = OfflineConfig {
+					state_snapshot: snapshot_config,
+				};
+				let mode = Mode::Offline(offline_config);
+
+				let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
+
+				builder.build().await.unwrap()
+			});
+		Self {
+			ext: Some(RefCell::new(ext)),
+			..self
+		}
+	}
+
+	pub fn submit_intents(&self, intents: Vec<Intent<AccountId32>>) -> &Self {
 		self.execute(|| {
-			hydradx_run_to_next_block();
+			for intent in intents.iter() {
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					intent.who.clone().into(),
+					intent.swap.asset_in,
+					intent.swap.amount_in as i128 * 1_000_000,
+				));
+			}
+			let mut intent_ids = Vec::new();
+			for intent in intents {
+				let deadline = intent.deadline;
+				let increment_id = pallet_intent::Pallet::<hydradx_runtime::Runtime>::next_incremental_id();
+				assert_ok!(Intents::submit_intent(
+					RuntimeOrigin::signed(intent.who.clone()),
+					intent.clone()
+				));
+				let intent_id =
+					pallet_intent::Pallet::<hydradx_runtime::Runtime>::get_intent_id(deadline, increment_id);
+				intent_ids.push((intent_id, intent));
+			}
+			self.data
+				.borrow_mut()
+				.insert("intents".to_string(), Box::new(intent_ids));
 		});
+		self
+	}
+
+	pub fn solve_intents(&self) -> &Self {
+		self.execute(|| {
+			let submit_call = solve_current_intents().unwrap();
+			self.new_block_internal();
+			assert_ok!(submit_call.dispatch_bypass_filter(RuntimeOrigin::signed(BOB.into())));
+		});
+		self
+	}
+	pub fn inspect_data<T: 'static>(&self, ident: &str, f: impl FnOnce(&T)) -> &Self {
+		let data_storage = self.data.borrow();
+		let value = data_storage
+			.get(ident)
+			.expect("data for inspection")
+			.downcast_ref::<T>()
+			.expect("Expected data missing");
+		f(value);
+		self
+	}
+
+	pub fn new_block(&self) -> &Self {
+		self.execute(|| {
+			self.new_block_internal();
+		});
+		self
+	}
+}
+
+impl HydrationTestDriver {
+	fn new_block_internal(&self) -> &Self {
+		hydradx_run_to_next_block();
 		self
 	}
 }

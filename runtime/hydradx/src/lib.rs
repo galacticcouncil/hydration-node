@@ -54,8 +54,8 @@ use sp_genesis_builder::PresetId;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
-		UniqueSaturatedInto,
+		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Extrinsic as ExtrinsicT,
+		PostDispatchInfoOf, UniqueSaturatedInto, Verify,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
 	Permill,
@@ -198,6 +198,8 @@ construct_runtime!(
 		Tokens: orml_tokens = 77,
 		Currencies: pallet_currencies = 79,
 		Vesting: orml_vesting = 81,
+		ICE: pallet_ice= 82,
+		Intents: pallet_intent = 83,
 
 		// Frontier and EVM pallets
 		EVM: pallet_evm = 90,
@@ -267,6 +269,7 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	pallet_claims::ValidateClaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	//pallet_ice::validity::ValidateIceSolution<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
@@ -451,7 +454,9 @@ use frame_support::{
 };
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
+use sp_arithmetic::traits::SaturatedConversion;
 use sp_core::OpaqueMetadata;
+use sp_runtime::generic::{Era, SignedPayload};
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
 	fees::Error as XcmPaymentApiError,
@@ -1210,4 +1215,56 @@ impl_runtime_apis! {
 			Default::default()
 		}
 	}
+}
+
+/// Submits a transaction with the node's public and signature type. Adheres to the signed extension
+/// format of the chain.
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: RuntimeCall,
+		public: <Signature as Verify>::Signer,
+		account: AccountId,
+		nonce: <Runtime as frame_system::Config>::Nonce,
+	) -> Option<(RuntimeCall, <UncheckedExtrinsic as ExtrinsicT>::SignaturePayload)> {
+		// take the biggest period possible.
+		let period = BlockHashCount::get()
+			.checked_next_power_of_two()
+			.map(|c| c / 2)
+			.unwrap_or(2) as u64;
+
+		// The `System::block_number` is initialized with `n+1`, so the actual block number is `n`.
+		let current_block = System::block_number().saturated_into::<u64>().saturating_sub(1);
+		let extra = (
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckEra::<Runtime>::from(Era::mortal(period, current_block)),
+			frame_system::CheckNonce::<Runtime>::from(nonce),
+			frame_system::CheckWeight::<Runtime>::new(),
+			//no tip
+			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
+			pallet_claims::ValidateClaim::<Runtime>::new(),
+			//doesn't check metadata hash
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+		);
+
+		let raw_payload = SignedPayload::new(call, extra)
+			.map_err(|e| {
+				log::warn!("Unable to create signed payload: {:?}", e);
+			})
+			.ok()?;
+		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+		let address = account;
+		let (call, extra, _) = raw_payload.deconstruct();
+		Some((call, (address, signature, extra)))
+	}
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+	type Public = <Signature as Verify>::Signer;
+	type Signature = Signature;
 }
