@@ -1,9 +1,7 @@
 use super::*;
+use frame_support::assert_ok;
 
-use crate::mock::{
-	set_block_number, CollatorRewards, ExtBuilder, Test, Tokens, ALICE, BOB, CHARLIE, COLLATOR_REWARD, DAVE, GC_COLL_1,
-	GC_COLL_2, GC_COLL_3, NATIVE_TOKEN, SESSION_ENDED,
-};
+use crate::mock::{set_block_number, CollatorRewards, ExtBuilder, Test, Tokens, ALICE, BOB, CHARLIE, COLLATOR_REWARD, DAVE, GC_COLL_1, GC_COLL_2, GC_COLL_3, NATIVE_TOKEN, SESSION_ENDED, BAG, RuntimeOrigin};
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -14,6 +12,13 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 #[test]
 fn reward_collator_on_end_session_should_work() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(Tokens::set_balance(
+			RuntimeOrigin::root(),
+			BAG,
+			NATIVE_TOKEN,
+			100 * COLLATOR_REWARD,
+			0
+		));
 		// collators which should be rewarded
 		assert_eq!(Tokens::free_balance(NATIVE_TOKEN, &ALICE), 0);
 		assert_eq!(Tokens::free_balance(NATIVE_TOKEN, &CHARLIE), 0);
