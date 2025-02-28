@@ -33,6 +33,7 @@ pub const ALICE: AccountId = 4;
 pub const BOB: AccountId = 5;
 pub const CHARLIE: AccountId = 6;
 pub const DAVE: AccountId = 7;
+pub const BAG: AccountId = 8;
 
 pub const NATIVE_TOKEN: AssetId = 0;
 
@@ -128,6 +129,7 @@ impl pallet_balances::Config for Test {
 parameter_types! {
 	pub const RewardPerCollator: Balance = COLLATOR_REWARD;
 	pub const RewardCurrencyId: AssetId = NATIVE_TOKEN;
+	pub const RewardsBag: AccountId = BAG;
 	pub GcCollators: Vec<AccountId> = vec![GC_COLL_1, GC_COLL_2, GC_COLL_3];
 	pub const MaxCandidates: u32 = 50;
 }
@@ -154,6 +156,7 @@ impl Config for Test {
 	type Currency = Tokens;
 	type RewardPerCollator = RewardPerCollator;
 	type RewardCurrencyId = RewardCurrencyId;
+	type RewardsBag = RewardsBag;
 	type ExcludedCollators = GcCollators;
 	type SessionManager = MockSessionManager;
 	type MaxCandidates = MaxCandidates;
