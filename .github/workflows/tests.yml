@@ -42,6 +42,8 @@ jobs:
         with:
           name: hydradx_runtime.compact.compressed.wasm
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
+      - name: Clippy
+        run: make clippy-all
       - name: Test benchmarks
         run: make test-benchmarks
 
@@ -105,7 +107,7 @@ jobs:
         run: |
           # Set the path to the downloaded WASM file
           export HYDRADX_RUNTIME_WASM_PATH="$PWD/hydradx_runtime.compact.compressed.wasm"
-
+          
           # Run specific tests doing XCM between hydradx and other parachains
           yarn install
           yarn test upgrade.test.ts
