@@ -139,6 +139,7 @@ parameter_types! {
 	pub static MockBlockNumberProvider: u64 = 0;
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 	OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+	pub PriceDifference: Permill = Permill::from_percent(10);
 }
 
 pub struct BifrostAcc;
@@ -154,9 +155,11 @@ impl pallet_ema_oracle::Config for Test {
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
+	type LocationToAssetIdConversion = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
+	type MaxAllowedPriceDifference = PriceDifference;
 	type WeightInfo = ();
 }
 

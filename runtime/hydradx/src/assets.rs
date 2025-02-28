@@ -576,6 +576,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<{ pallet_ema_oracle::MAX_PERIODS }>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+
+	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: Permill = Permill::from_percent(10);
 }
 
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
@@ -590,11 +592,14 @@ where
 	}
 }
 
+//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
+pub fn bifrost_account() -> AccountId {
+	hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()
+}
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
-		//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
-		return vec![hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()];
+		vec![bifrost_account()]
 	}
 }
 
@@ -615,6 +620,8 @@ impl pallet_ema_oracle::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	/// Should take care of the overhead introduced by `OracleWhitelist`.
 	type BenchmarkHelper = RegisterAsset<Runtime>;
+	type LocationToAssetIdConversion = CurrencyIdConvert;
+	type MaxAllowedPriceDifference = MaxAllowedPriceDifferenceForBifrostOracleUpdate;
 }
 
 pub struct DustRemovalWhitelist;
