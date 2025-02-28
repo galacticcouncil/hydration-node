@@ -121,6 +121,8 @@ impl Get<Multiplier> for TransactionPaymentMultiplier {
 	}
 }
 
+pub const USDT: AssetId = 10u32;
+
 parameter_types! {
 	/// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare
 	/// it with the pov_size for a block. E.g.
