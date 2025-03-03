@@ -3,6 +3,7 @@ use frame_support::traits::OriginTrait;
 use hydradx_traits::ice::{AmmInfo, AmmState, OmnipoolAsset, OmnipoolState, Stablepool, StablepoolAsset};
 use hydradx_traits::router::{AssetPair, RouteProvider, RouterT, TradeExecution};
 use hydradx_traits::Inspect;
+use orml_traits::MultiCurrency;
 use pallet_ice::types::Balance;
 use primitives::AssetId;
 use sp_runtime::traits::BlockNumberProvider;
@@ -51,6 +52,14 @@ where
 		// STABLEPOOLS
 		let current_block = frame_system::Pallet::<T>::current_block_number();
 		pallet_stableswap::Pallet::<T>::load_pools(|pool_id, info, reserves| {
+			let amplification = hydra_dx_math::stableswap::calculate_amplification(
+				info.initial_amplification.get().into(),
+				info.final_amplification.get().into(),
+				info.initial_block.saturated_into(),
+				info.final_block.saturated_into(),
+				current_block.saturated_into(),
+			);
+			let d = hydra_dx_math::stableswap::calculate_d::<128u8>(&reserves, amplification).unwrap_or(0);
 			let assets = reserves
 				.into_iter()
 				.zip(info.assets.iter())
@@ -60,6 +69,7 @@ where
 					decimals: asset_reserve.decimals,
 				})
 				.collect();
+			let shares = <T as pallet_stableswap::Config>::Currency::total_issuance(pool_id.into());
 			let pool = Stablepool {
 				pool_id,
 				assets,
@@ -71,6 +81,8 @@ where
 					info.final_block.saturated_into(),
 					current_block.saturated_into(),
 				),
+				shares,
+				d,
 			};
 
 			amm.borrow_mut().push(AmmInfo::Stablepool(pool));

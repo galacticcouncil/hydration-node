@@ -39,6 +39,8 @@ pub struct Stablepool<AssetId> {
 	pub assets: Vec<StablepoolAsset<AssetId>>,
 	pub fee: Permill,
 	pub amplification: u128,
+	pub shares: u128,
+	pub d: u128,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

@@ -48,7 +48,21 @@ pub trait ICE {
 // 7. Hub fee
 // 8. Pool id (stableswap)
 // 9. Amplification (stableswap)
-pub type DataRepr = (u8, AssetId, Balance, Balance, u8, (u32, u32), (u32, u32), AssetId, u128);
+// 10. Shares (stableswap)
+// 11. D (stableswap)
+pub type DataRepr = (
+	u8,
+	AssetId,
+	Balance,
+	Balance,
+	u8,
+	(u32, u32),
+	(u32, u32),
+	AssetId,
+	u128,
+	u128,
+	u128,
+);
 
 // Intent representation
 // 1. Intent identifier
@@ -86,6 +100,8 @@ pub(crate) fn into_pool_data_repr(data: AmmInfo<AssetId>) -> Vec<DataRepr> {
 					hub_fee,
 					0,
 					0,
+					0,
+					0,
 				));
 			}
 		}
@@ -104,6 +120,8 @@ pub(crate) fn into_pool_data_repr(data: AmmInfo<AssetId>) -> Vec<DataRepr> {
 					(0, 0),
 					pool_id,
 					amp,
+					state.shares,
+					state.d,
 				));
 			}
 		}

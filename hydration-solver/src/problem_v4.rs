@@ -955,7 +955,6 @@ impl StepParams {
 	}
 
 	pub fn set_coefficients(&mut self, problem: &ICEProblemV4) {
-
 		// profit calculations
 		let n = problem.n;
 		let m = problem.m;

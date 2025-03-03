@@ -6,7 +6,19 @@ pub type IntentId = u128;
 pub type FloatType = f64;
 
 // Incoming data representation
-pub type DataRepr = (u8, AssetId, u128, u128, u8, (u32, u32), (u32, u32), AssetId, u128);
+pub type DataRepr = (
+	u8,
+	AssetId,
+	u128,
+	u128,
+	u8,
+	(u32, u32),
+	(u32, u32),
+	AssetId,
+	u128,
+	u128,
+	u128,
+);
 pub type IntentRepr = (u128, AssetId, AssetId, u128, u128, bool);
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -50,6 +62,8 @@ pub struct StableSwapAsset {
 	pub decimals: u8,
 	pub fee: (u32, u32),
 	pub amplification: u128,
+	pub shares: u128,
+	pub d: u128,
 }
 
 impl OmnipoolAsset {
@@ -98,7 +112,7 @@ pub fn convert_intent_repr(intents: Vec<IntentRepr>) -> Vec<Intent> {
 pub fn convert_data_repr(data: Vec<DataRepr>) -> Vec<Asset> {
 	data.into_iter()
 		.map(|v| {
-			let (c, asset_id, reserve, hub_reserve, decimals, fee, hub_fee, pool_id, amp) = v;
+			let (c, asset_id, reserve, hub_reserve, decimals, fee, hub_fee, pool_id, amp, shares, d) = v;
 			match c {
 				0 => Asset::Omnipool(OmnipoolAsset {
 					asset_id,
@@ -115,6 +129,8 @@ pub fn convert_data_repr(data: Vec<DataRepr>) -> Vec<Asset> {
 					decimals,
 					fee,
 					amplification: amp,
+					shares,
+					d,
 				}),
 				_ => panic!("unsupported pool asset!"),
 			}

@@ -3,13 +3,13 @@
 use crate::data::process_data;
 use crate::problem_v4::{AmmApprox, Direction, ICEProblemV4 as ICEProblem, ProblemStatus, SetupParams, FLOAT_INF};
 use crate::types::{AssetId, Balance, FloatType, Intent, ResolvedIntent};
+use anyhow::{anyhow, Result};
 use clarabel::algebra::*;
 use clarabel::solver::*;
 use highs::{HighsModelStatus, Sense};
 use ndarray::{s, Array1, Array2, Axis};
 use std::collections::BTreeMap;
 use std::ops::Neg;
-use anyhow::{anyhow, Result};
 
 const ROUND_TOLERANCE: FloatType = 0.0001;
 const LRNA: AssetId = 1;
@@ -162,7 +162,7 @@ pub struct SolverResult {
 pub struct SolverV4;
 
 impl SolverV4 {
-	pub fn solve(intents: Vec<Intent>, pool_data: Vec<crate::types::Asset>) -> Result<SolverResult>{
+	pub fn solve(intents: Vec<Intent>, pool_data: Vec<crate::types::Asset>) -> Result<SolverResult> {
 		if intents.is_empty() {
 			return Ok(SolverResult {
 				resolved_intents: vec![],

@@ -43,6 +43,8 @@ pub(crate) fn solve_current_intents() -> Result<pallet_ice::Call<hydradx_runtime
 	let b = hydradx_runtime::System::block_number();
 	let solution = pallet_ice::Pallet::<hydradx_runtime::Runtime>::run(b, |i, d| {
 		let (intents, data) = convert_to_solver_types(i, d);
+		let data_json = serde_json::to_string(&data).unwrap();
+		dbg!(data_json);
 		let s = hydration_solver::v3::SolverV3::solve(intents, data).ok()?;
 		let resolved = s
 			.resolved_intents
