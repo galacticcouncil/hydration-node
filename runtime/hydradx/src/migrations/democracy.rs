@@ -14,11 +14,10 @@
 // limitations under the License.
 
 use super::*;
-use frame_support::storage::IterableStorageDoubleMap;
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_democracy::{pallet, Voting};
-use sp_runtime::{traits::BlockNumberProvider, Saturating};
+use sp_runtime::Saturating;
 
 pub struct MigrateDemocracyTo6sBlocks<T: pallet::Config>(sp_std::marker::PhantomData<T>);
 impl<T: pallet::Config> OnRuntimeUpgrade for MigrateDemocracyTo6sBlocks<T> {
