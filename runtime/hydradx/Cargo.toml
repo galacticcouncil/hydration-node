@@ -59,6 +59,8 @@ pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-ice = { workspace = true }
+pallet-intent = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -350,6 +352,8 @@ std = [
     "pallet-whitelist/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
+    "pallet-ice/std",
+    "pallet-intent/std",
 ]
 try-runtime = [
     "frame-try-runtime",

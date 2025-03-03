@@ -1,0 +1,62 @@
+use codec::{Decode, Encode};
+use frame_support::dispatch::DispatchResult;
+use frame_support::pallet_prelude::{ConstU32, TypeInfo};
+use frame_support::BoundedVec;
+use sp_arithmetic::Permill;
+use sp_std::vec::Vec;
+
+pub const MAX_DATA_SIZE: u32 = 4 * 1024 * 1024;
+pub type CallData = BoundedVec<u8, ConstU32<MAX_DATA_SIZE>>;
+
+pub trait CallExecutor<AccountId> {
+	fn execute(who: AccountId, ident: u128, call: CallData) -> DispatchResult;
+}
+
+impl<AccountId> CallExecutor<AccountId> for () {
+	fn execute(_who: AccountId, _ident: u128, _call: CallData) -> DispatchResult {
+		Ok(())
+	}
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct OmnipoolAsset<AssetId> {
+	pub asset_id: AssetId,
+	pub reserve: u128,
+	pub hub_reserve: u128,
+	pub decimals: u8,
+	pub fee: Permill,
+	pub hub_fee: Permill,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct OmnipoolState<AssetId> {
+	pub assets: Vec<OmnipoolAsset<AssetId>>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct Stablepool<AssetId> {
+	pub pool_id: AssetId,
+	pub assets: Vec<StablepoolAsset<AssetId>>,
+	pub fee: Permill,
+	pub amplification: u128,
+	pub shares: u128,
+	pub d: u128,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct StablepoolAsset<AssetId> {
+	pub asset_id: AssetId,
+	pub reserve: u128,
+	pub decimals: u8,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum AmmInfo<AssetId> {
+	Omnipool(OmnipoolState<AssetId>),
+	Stablepool(Stablepool<AssetId>),
+}
+
+/// Trait to gather all Hydration AMM information - each pool, each asset
+pub trait AmmState<AssetId> {
+	fn state<F: Fn(&AssetId) -> bool>(retain: F) -> Vec<AmmInfo<AssetId>>;
+}

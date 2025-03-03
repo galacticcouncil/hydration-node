@@ -22,7 +22,7 @@ use crate::system::NativeAssetId;
 
 use hydradx_adapters::{
 	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
+	OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
 	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
 
@@ -56,7 +56,7 @@ use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Happened,
 };
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, WeightInfo};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_omnipool::{
@@ -791,9 +791,6 @@ impl PriceOracle<AssetId> for DummyOraclePriceProvider {
 	}
 }
 
-#[cfg(not(feature = "runtime-benchmarks"))]
-use hydradx_adapters::OraclePriceProvider;
-
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummySpotPriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1306,11 +1303,10 @@ where
 
 use pallet_currencies::fungibles::FungibleCurrencies;
 
-#[cfg(not(feature = "runtime-benchmarks"))]
-use hydradx_adapters::price::OraclePriceProviderUsingRoute;
-
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use hydradx_adapters::ice::{GlobalAmmState, IceTrader};
+use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1635,6 +1631,61 @@ impl pallet_broadcast::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
 
+parameter_types! {
+	pub const ICEPalletId: PalletId = PalletId(*b"iceaccnt");
+	pub const MaxIntentDuration: Moment = 86_400_000; //1day
+	pub const IceProposalBond: Balance = 1_000_000_000_000_000; /// 1000 HDX
+	pub const IceOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+}
+
+/*
+pub struct IceWeigher<R>(PhantomData<R>);
+
+impl<R: AmmTradeWeights<Trade<AssetId>>> IceWeightBounds<RuntimeCall, Vec<Trade<AssetId>>> for IceWeigher<R> {
+	fn transfer_weight() -> Weight {
+		// we take the non native transfer weight even in case of native transfer, to make things simpler.
+		weights::pallet_currencies::HydraWeight::<Runtime>::transfer_non_native_currency()
+	}
+
+	fn sell_weight(route: Vec<Trade<AssetId>>) -> Weight {
+		R::sell_weight(&route)
+	}
+
+	fn buy_weight(route: Vec<Trade<AssetId>>) -> Weight {
+		R::buy_weight(&route)
+	}
+
+	fn call_weight(_call: &RuntimeCall) -> Weight {
+		//TODO: add correct weights - not used atm.
+		Weight::zero()
+	}
+}
+ */
+
+type IcePriceProvider =
+	OraclePriceProviderUsingRoute<Router, OraclePriceProvider<AssetId, EmaOracle, LRNA>, IceOraclePeriod>;
+
+impl pallet_ice::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AuthorityId = pallet_ice::crypto::IceKeyId;
+	type PalletId = ICEPalletId;
+	type BlockNumberProvider = System;
+	type Currency = FungibleCurrencies<Runtime>;
+	type PriceProvider = IcePriceProvider;
+	type Trader = IceTrader<Runtime, Router>;
+	type AmmStateProvider = GlobalAmmState<Runtime>;
+	type WeightInfo = ();
+}
+
+impl pallet_intent::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type TimestampProvider = Timestamp;
+	type OnResultExecutor = ();
+	type HubAssetId = LRNA;
+	type MaxAllowedIntentDuration = MaxIntentDuration;
+	type WeightInfo = ();
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
@@ -1726,6 +1777,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
+use primitives::Moment;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;

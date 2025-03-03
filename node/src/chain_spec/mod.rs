@@ -218,6 +218,9 @@ pub fn parachain_genesis(
 	},
 	"xykLiquidityMining": {
 	},
+		"ice-old": {
+			"keys": initial_authorities.0.iter().cloned().map(|(_, a)| a).collect::<Vec<_>>(),
+		}
 	}
 	)
 }
