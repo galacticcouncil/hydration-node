@@ -1487,7 +1487,7 @@ mod chainlink_precompile {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				AssetPair::new(HDX, DOT),
-				route
+				route.try_into().unwrap()
 			));
 
 			let dai_price = EmaOracle::get_price(HDX, DAI, OraclePeriod::Short, XYK_SOURCE)

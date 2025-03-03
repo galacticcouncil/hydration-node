@@ -20,8 +20,6 @@ use hydradx_traits::{
 use pallet_broadcast::types::Asset;
 use pallet_broadcast::types::ExecutionType;
 use pallet_broadcast::types::Fee;
-use pallet_broadcast::types::Filler;
-use pallet_broadcast::types::TradeOperation;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
 use pallet_omnipool::traits::OmnipoolHooks;
@@ -40,7 +38,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome};
 
-use hydradx_runtime::{AccountIdFor, InsufficientEDinHDX};
+use hydradx_runtime::InsufficientEDinHDX;
 use orml_traits::MultiCurrency;
 pub const LBP_SALE_START: BlockNumber = 10;
 pub const LBP_SALE_END: BlockNumber = 40;
@@ -772,7 +770,7 @@ mod router_different_pools_tests {
 		Hydra::execute_with(|| {
 			let _ = with_transaction(|| {
 				//Arrange
-				let (pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+				let (pool_id, stable_asset_1, _stable_asset_2) = init_stableswap().unwrap();
 
 				let some_dust = 9;
 				assert_ok!(Currencies::update_balance(
@@ -4106,7 +4104,6 @@ mod set_route {
 		use hydradx_runtime::EmaOracle;
 		use hydradx_traits::AssetKind;
 		use primitives::constants::chain::XYK_SOURCE;
-		use sp_core::bounded_vec;
 		use sp_runtime::BoundedVec;
 
 		#[test]
