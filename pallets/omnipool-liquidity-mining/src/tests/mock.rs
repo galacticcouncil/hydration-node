@@ -271,6 +271,9 @@ use pallet_ema_oracle::MAX_PERIODS;
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+
+	pub PriceDifference: Permill = Permill::from_percent(10);
+
 }
 
 pub struct BifrostAcc;
@@ -288,6 +291,8 @@ impl pallet_ema_oracle::Config for Test {
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
+	type LocationToAssetIdConversion = ();
+	type MaxAllowedPriceDifference = PriceDifference;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type WeightInfo = ();
