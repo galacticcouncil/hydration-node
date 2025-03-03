@@ -1014,7 +1014,7 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 			asset_out: asset_pair.asset_out,
 		}]);
 
-		let route = match onchain_route {
+		match onchain_route {
 			Some(route) => {
 				if asset_pair.is_ordered() {
 					route
@@ -1023,9 +1023,7 @@ impl<T: Config> RouteProvider<T::AssetId> for Pallet<T> {
 				}
 			}
 			None => default_route,
-		};
-
-		route
+		}
 	}
 }
 
