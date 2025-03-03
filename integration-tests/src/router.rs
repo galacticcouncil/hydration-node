@@ -98,7 +98,7 @@ mod router_different_pools_tests {
 					DOT,
 					amount_to_sell,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_route_executor::Error::<Runtime>::InvalidRoute
 			);
@@ -144,7 +144,7 @@ mod router_different_pools_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -275,7 +275,7 @@ mod router_different_pools_tests {
 					stable_asset_2,
 					amount_to_sell,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -409,7 +409,7 @@ mod router_different_pools_tests {
 				DOT,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -540,7 +540,7 @@ mod router_different_pools_tests {
 					stable_asset_2,
 					amount_to_buy,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -676,7 +676,7 @@ mod router_different_pools_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -793,7 +793,7 @@ mod router_different_pools_tests {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert that no dust left on account
@@ -860,7 +860,7 @@ mod router_different_pools_tests {
 					stable_asset_2,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -922,7 +922,7 @@ mod router_different_pools_tests {
 					pool_id,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -987,7 +987,7 @@ mod router_different_pools_tests {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -1049,7 +1049,7 @@ mod router_different_pools_tests {
 					stable_asset_1,
 					amount_to_buy,
 					u128::MAX,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -1117,7 +1117,7 @@ mod router_different_pools_tests {
 					HDX,
 					amount_to_buy,
 					u128::MAX,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -1219,7 +1219,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -1274,7 +1274,7 @@ mod omnipool_router_tests {
 					pool_id,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -1338,7 +1338,7 @@ mod omnipool_router_tests {
 						altcoin,
 						amount_to_sell,
 						0,
-						BoundedVec::truncate_from(trades)
+						trades.try_into().unwrap()
 					),
 					orml_tokens::Error::<Runtime>::ExistentialDeposit
 				);
@@ -1398,7 +1398,7 @@ mod omnipool_router_tests {
 					altcoin,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -1488,7 +1488,7 @@ mod omnipool_router_tests {
 					ETH,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - amount_to_sell);
@@ -1616,7 +1616,7 @@ mod omnipool_router_tests {
 					insufficient_asset4,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
@@ -1710,7 +1710,7 @@ mod omnipool_router_tests {
 					ETH,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 				let alice_balance_after_trade = Balances::free_balance(AccountId::from(ALICE));
 
@@ -1790,7 +1790,7 @@ mod omnipool_router_tests {
 					insufficient_asset_2,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),);
 
 				//ED for insufficient_asset_1 is refunded, but ED for insufficient_asset_2 is charged plus extra 10%
@@ -1919,7 +1919,7 @@ mod omnipool_router_tests {
 					insufficient_asset4,
 					amount_to_buy,
 					u128::MAX,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
@@ -1989,7 +1989,7 @@ mod omnipool_router_tests {
 					HDX,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2113,7 +2113,7 @@ mod omnipool_router_tests {
 					BTC,
 					UNITS,
 					u128::MAX,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2171,7 +2171,7 @@ mod omnipool_router_tests {
 					shitcoin,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2208,7 +2208,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_sell,
 				0,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2281,7 +2281,7 @@ mod omnipool_router_tests {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -2357,7 +2357,7 @@ mod omnipool_router_tests {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -2394,7 +2394,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2439,7 +2439,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2577,7 +2577,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2621,7 +2621,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2653,7 +2653,7 @@ mod omnipool_router_tests {
 					LRNA,
 					amount_to_buy,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_omnipool::Error::<Runtime>::NotAllowed
 			);
@@ -2685,7 +2685,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2822,7 +2822,7 @@ mod omnipool_router_tests {
 					ACA,
 					amount_to_sell,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_omnipool::Error::<Runtime>::AssetNotFound
 			);
@@ -2858,7 +2858,7 @@ mod lbp_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2902,7 +2902,7 @@ mod lbp_router_tests {
 				HDX,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2954,7 +2954,7 @@ mod lbp_router_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3007,7 +3007,7 @@ mod lbp_router_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3054,7 +3054,7 @@ mod lbp_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3172,7 +3172,7 @@ mod lbp_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3216,7 +3216,7 @@ mod lbp_router_tests {
 				HDX,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3268,7 +3268,7 @@ mod lbp_router_tests {
 				DOT,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3321,7 +3321,7 @@ mod lbp_router_tests {
 				DOT,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3368,7 +3368,7 @@ mod lbp_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3432,7 +3432,7 @@ mod lbp_router_tests {
 					ACA,
 					amount_to_sell,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_lbp::Error::<Runtime>::PoolNotFound
 			);
@@ -3469,7 +3469,7 @@ mod xyk_router_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3531,7 +3531,7 @@ mod xyk_router_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3577,7 +3577,7 @@ mod xyk_router_tests {
 					DAI,
 					amount_to_sell * UNITS,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::TokenPoolNotFound
 			);
@@ -3606,7 +3606,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_sell * UNITS,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientAssetBalance
 			);
@@ -3636,7 +3636,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_sell,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientTradingAmount
 			);
@@ -3666,7 +3666,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_sell,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::MaxInRatioExceeded
 			);
@@ -3699,7 +3699,7 @@ mod xyk_router_tests {
 				DOT,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3754,7 +3754,7 @@ mod xyk_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3817,7 +3817,7 @@ mod xyk_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3863,7 +3863,7 @@ mod xyk_router_tests {
 					DAI,
 					amount_to_sell * UNITS,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::TokenPoolNotFound
 			);
@@ -3893,7 +3893,7 @@ mod xyk_router_tests {
 					HDX,
 					amount_to_buy,
 					150 * UNITS,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientAssetBalance
 			);
@@ -3923,7 +3923,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_buy,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientTradingAmount
 			);
@@ -3953,7 +3953,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_buy,
 					limit,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::MaxOutRatioExceeded
 			);
@@ -3998,7 +3998,7 @@ mod omnipool_stableswap_router_tests {
 					pool_id,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -4044,7 +4044,7 @@ mod omnipool_stableswap_router_tests {
 					pool_id,
 					amount_to_buy,
 					u128::MAX,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4082,7 +4082,7 @@ mod omnipool_stableswap_router_tests {
 					stable_asset_1,
 					amount_to_buy,
 					u128::MAX,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -5986,7 +5986,7 @@ mod sell_all {
 				HDX,
 				DAI,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -6028,7 +6028,7 @@ mod sell_all {
 				DAI,
 				HDX,
 				limit,
-				BoundedVec::truncate_from(trades)
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -6078,7 +6078,7 @@ mod sell_all {
 					stable_asset_1,
 					pool_id,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert

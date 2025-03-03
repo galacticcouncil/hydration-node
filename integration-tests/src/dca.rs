@@ -518,7 +518,7 @@ mod omnipool {
 				DAI,
 				amount_out,
 				Balance::MAX,
-				BoundedVec::truncate_from(trade)
+				trade.try_into().unwrap()
 			));
 
 			//Assert
@@ -606,7 +606,7 @@ mod omnipool {
 				DAI,
 				amount_out,
 				Balance::MAX,
-				BoundedVec::truncate_from(trade)
+				trade.try_into().unwrap()
 			));
 
 			//Assert
@@ -1632,7 +1632,7 @@ mod omnipool {
 				DAI,
 				amount_to_sell,
 				0,
-				BoundedVec::truncate_from(trade)
+				trade.try_into().unwrap()
 			));
 
 			//Assert
@@ -1718,7 +1718,7 @@ mod omnipool {
 				DAI,
 				amount_to_sell,
 				0,
-				BoundedVec::truncate_from(trade)
+				trade.try_into().unwrap()
 			));
 
 			//Assert
@@ -2542,7 +2542,7 @@ mod stableswap {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -2869,7 +2869,7 @@ mod stableswap {
 					HDX,
 					amount_to_sell,
 					0,
-					BoundedVec::truncate_from(trades)
+					trades.try_into().unwrap()
 				));
 
 				//Assert
