@@ -1,4 +1,4 @@
-// Simple HydraDX Extrinsic Executor with hardcoded values
+// Simple HydraDX Encoded Extrinsic Executor with hardcoded values
 // Modify the values at the top of the script as needed
 
 import { ApiPromise, WsProvider, Keyring} from "@polkadot/api";
