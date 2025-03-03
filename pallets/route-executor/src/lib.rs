@@ -347,19 +347,19 @@ pub mod pallet {
 
 			match Self::validate_route(existing_route.clone()) {
 				Ok((reference_amount_in, reference_amount_in_for_inverse)) => {
-					let new_route_validation = Self::validate_sell(new_route.clone().to_vec(), reference_amount_in);
+					let new_route_validation = Self::validate_sell(new_route.clone(), reference_amount_in);
 
 					let inverse_new_route = inverse_route(new_route.clone());
 					let inverse_new_route_validation =
-						Self::validate_sell(inverse_new_route.clone().to_vec(), reference_amount_in_for_inverse);
+						Self::validate_sell(inverse_new_route.clone(), reference_amount_in_for_inverse);
 
 					match (new_route_validation, inverse_new_route_validation) {
 						(Ok(_), Ok(_)) => (),
 						(Err(_), Ok(amount_out)) => {
-							Self::validate_sell(new_route.to_vec(), amount_out).map(|_| ())?;
+							Self::validate_sell(new_route.clone(), amount_out).map(|_| ())?;
 						}
 						(Ok(amount_out), Err(_)) => {
-							Self::validate_sell(inverse_new_route.to_vec(), amount_out).map(|_| ())?;
+							Self::validate_sell(inverse_new_route.clone(), amount_out).map(|_| ())?;
 						}
 						(Err(err), Err(_)) => return Err(err.into()),
 					}
@@ -674,20 +674,21 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_route(route: Route<T::AssetId>) -> Result<(T::Balance, T::Balance), DispatchError> {
-		let reference_amount_in = Self::calculate_reference_amount_in(&route.to_vec())?;
-		let route_validation = Self::validate_sell(route.to_vec(), reference_amount_in);
+		let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
+		let route_validation = Self::validate_sell(route.clone(), reference_amount_in);
 
 		let inverse_route = inverse_route(route.clone());
 		let reference_amount_in_for_inverse_route = Self::calculate_reference_amount_in(&inverse_route)?;
 		let inverse_route_validation =
-			Self::validate_sell(inverse_route.clone().to_vec(), reference_amount_in_for_inverse_route);
+			Self::validate_sell(inverse_route.clone(), reference_amount_in_for_inverse_route);
 
 		match (route_validation, inverse_route_validation) {
 			(Ok(_), Ok(_)) => Ok((reference_amount_in, reference_amount_in_for_inverse_route)),
-			(Err(_), Ok(amount_out)) => Self::validate_sell(route.to_vec(), amount_out)
-				.map(|_| (amount_out, reference_amount_in_for_inverse_route)),
+			(Err(_), Ok(amount_out)) => {
+				Self::validate_sell(route, amount_out).map(|_| (amount_out, reference_amount_in_for_inverse_route))
+			}
 			(Ok(amount_out), Err(_)) => {
-				Self::validate_sell(inverse_route.to_vec(), amount_out).map(|_| (reference_amount_in, amount_out))
+				Self::validate_sell(inverse_route, amount_out).map(|_| (reference_amount_in, amount_out))
 			}
 			(Err(err), Err(_)) => Err(err),
 		}
@@ -718,7 +719,7 @@ impl<T: Config> Pallet<T> {
 		Ok(one_percent_asset_in_liquidity)
 	}
 
-	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> Result<T::Balance, DispatchError> {
+	fn validate_sell(route: Route<T::AssetId>, amount_in: T::Balance) -> Result<T::Balance, DispatchError> {
 		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
 		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
 
