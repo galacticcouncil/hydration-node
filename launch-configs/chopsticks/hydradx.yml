@@ -28,7 +28,5 @@ import-storage:
       - - - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
           - 20 # WETH
         - free: '100000000000000000000'
-  Council:
-    Members: [ 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY ]
   TechnicalCommittee:
     Members: [ 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY ]

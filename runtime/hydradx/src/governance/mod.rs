@@ -25,7 +25,7 @@
 //  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
 //                  $$$
 
-// Gov V1 (to be deprecated)
+// Gov V1 (legacy - remove once all vote locks have expired)
 pub mod old;
 
 pub mod origins;
