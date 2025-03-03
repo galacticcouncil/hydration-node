@@ -67,6 +67,7 @@
 
 use codec::Encode;
 use frame_support::traits::DefensiveOption;
+use frame_support::traits::Time;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -79,16 +80,15 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	Origin,
 };
-use pallet_intent::types::Swap;
-use pallet_intent::types::SwapType;
-use sp_runtime::traits::Zero;
-use frame_support::traits::Time;
 use hydradx_traits::ice::SubmitIntent;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use pallet_intent::types::Intent;
 use pallet_intent::types::Moment;
+use pallet_intent::types::Swap;
+use pallet_intent::types::SwapType;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use sp_runtime::traits::Zero;
 
 use codec::FullCodec;
 use frame_support::dispatch::GetDispatchInfo;
@@ -227,7 +227,23 @@ pub mod pallet {
 					} => {
 						let route = &schedule.order.get_route_or_default::<T::RouteProvider>();
 
-						let Ok(trade_amounts) = T::RouteExecutor::calculate_sell_trade_amounts(route, *amount_in)
+						let amount_to_sell = if !schedule.is_rolling() {
+							let Some(remaining_amount) = RemainingAmounts::<T>::get(schedule_id) else {
+								continue;
+							};
+
+							min(remaining_amount, *amount_in)
+						} else {
+							*amount_in
+						};
+
+						if !schedule.is_rolling() {
+							let Ok(_) = Self::unallocate_amount(schedule_id, &schedule, amount_to_sell) else {
+								continue;
+							};
+						}
+
+						let Ok(trade_amounts) = T::RouteExecutor::calculate_sell_trade_amounts(route, amount_to_sell)
 						else {
 							continue;
 						};
@@ -245,6 +261,7 @@ pub mod pallet {
 							amount_out: amount_out,
 							swap_type: SwapType::ExactIn,
 						};
+						//TODO: (deadline = current block + interval - 2).intoTime()
 						let deadline = T::TimestampProvider::now() + 10000000; //TODO: set deadline properly, already asked in channel
 
 						let fail_callback = on_fail_callback
@@ -280,13 +297,20 @@ pub mod pallet {
 						..
 					} => {
 						let route = &schedule.order.get_route_or_default::<T::RouteProvider>();
+						let Ok(amount_in) = Self::get_amount_in_for_buy(amount_out, &route) else {
+							continue;
+						};
+						let Ok(trade_amounts) = Self::unallocate_amount(schedule_id, &schedule, amount_in) else {
+							continue;
+						};
 
 						let Ok(trade_amounts) = T::RouteExecutor::calculate_buy_trade_amounts(route, *amount_out)
-							else {
-								continue;
-							};
+						else {
+							continue;
+						};
 
-						let Some(first_trade) = trade_amounts.last() else { //TODO: double check if it first or last
+						let Some(first_trade) = trade_amounts.last() else {
+							//TODO: double check if it first or last
 							continue;
 						};
 
@@ -416,7 +440,7 @@ pub mod pallet {
 		type RouteProvider: RouteProvider<Self::AssetId>;
 
 		///Errors we want to explicitly retry on, in case of failing DCA
-		type RetryOnError: Contains<DispatchError>;
+		type RetryOnError: Contains<DispatchError>; //TODO: remove as we dont need it anymore
 
 		///Max price difference allowed between blocks
 		#[pallet::constant]
@@ -680,13 +704,21 @@ pub mod pallet {
 				Error::<T>::MinTradeAmountNotReached
 			);
 
+			//TODO: we should either store this in separate storage, so we know hoch much tor eeturn in the end
+			//TODO: or we do similar like for insuffuciient asset ed, so we conver it to hdx, then returned back as HDX
 			let amount_in_with_transaction_fee = amount_in.saturating_add(transaction_fee).saturating_mul(2);
-			let reserve_amount = if schedule.is_rolling() {
+			ensure!(
+				amount_in_with_transaction_fee >= min_budget,
+				Error::<T>::MinTradeAmountNotReached
+			);
+
+			let reserve_amount = amount_in_with_transaction_fee;
+
+			if schedule.is_rolling() {
 				ensure!(
 					amount_in_with_transaction_fee >= min_budget,
 					Error::<T>::MinTradeAmountNotReached
 				);
-				amount_in_with_transaction_fee
 			} else {
 				ensure!(
 					schedule.total_amount >= min_budget,
@@ -696,7 +728,6 @@ pub mod pallet {
 					amount_in_with_transaction_fee <= schedule.total_amount,
 					Error::<T>::BudgetTooLow
 				);
-				schedule.total_amount
 			};
 
 			let next_schedule_id =
@@ -708,15 +739,18 @@ pub mod pallet {
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
-			RemainingAmounts::<T>::insert(next_schedule_id, reserve_amount);
+			if !schedule.is_rolling() {
+				RemainingAmounts::<T>::insert(next_schedule_id, schedule.total_amount);
+			}
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
 
-			T::Currencies::reserve_named(
+			//TODO: fix, we should reserve some bond then return back
+			/*T::Currencies::reserve_named(
 				&T::NamedReserveId::get(),
 				schedule.order.get_asset_in(),
 				&who,
 				reserve_amount,
-			)?;
+			)?;*/
 
 			let blocknumber_for_first_schedule_execution = Self::get_first_execution_block(start_execution_block)?;
 
@@ -818,6 +852,12 @@ pub mod pallet {
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
 
+			Self::deposit_event(Event::TradeFailed {
+				id: schedule_id,
+				who: schedule.owner.clone(),
+				error,
+			});
+
 			let amount_in = match schedule.order {
 				Order::Sell { amount_in, .. } => amount_in,
 				Order::Buy { amount_out, .. } => {
@@ -829,7 +869,8 @@ pub mod pallet {
 			if free_balance < amount_in {
 				Self::terminate_schedule(schedule_id, &schedule, Error::<T>::BalanceTooLow.into());
 			} else {
-				Self::retry_schedule(schedule_id, &schedule, current_blocknumber, &mut randomness_generator)?; //TODO: test retry logic
+				Self::retry_schedule(schedule_id, &schedule, current_blocknumber, &mut randomness_generator)?;
+				//TODO: test retry logic
 			}
 
 			//TODO: if fails yunexpectredly then terminate
@@ -847,25 +888,35 @@ pub mod pallet {
 		) -> DispatchResult {
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
-			let amounts = AmountInAndOut {
-				amount_in: Balance::zero(),//TODO: fix these zeros
-				amount_out: Balance::zero()
+
+			let amount_in = match schedule.order {
+				Order::Sell { amount_in, .. } => amount_in,
+				Order::Buy { amount_out, .. } => {
+					let route = schedule.order.get_route_or_default::<T::RouteProvider>();
+					Self::get_amount_in_for_buy(&amount_out, &route)?
+				}
 			};
-			if let Err(err) = Self::replan_or_complete(
-				schedule_id,
-				&schedule,
-				current_blocknumber,
-				amounts,
-				&mut randomness_generator,
-			) {
+			//TODO: consider adding this check to on fail too
+
+			if !schedule.is_rolling() {
+				let remaining_amount =
+					RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
+
+				if remaining_amount < amount_in {
+					Self::complete_schedule(schedule_id, &schedule);
+					return Ok(());
+				}
+			}
+
+			let amounts = AmountInAndOut {
+				amount_in: Balance::zero(), //TODO: fix these zeros
+				amount_out: Balance::zero(),
+			};
+			if let Err(err) = Self::replan_or_complete(current_blocknumber, amounts, &mut randomness_generator) {
 				Self::terminate_schedule(schedule_id, &schedule, err);
 			}
 			Ok(())
 		}
-
-
-
-
 	}
 }
 
@@ -1050,11 +1101,21 @@ impl<T: Config> Pallet<T> {
 
 		RetriesOnError::<T>::remove(schedule_id);
 
-		let remaining_amount: Balance =
-			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
+		let leftover = if schedule.is_rolling() {
+			let asset_in = schedule.order.get_asset_in();
+			let free_balance = T::Currencies::free_balance(asset_in, &schedule.owner.clone());
+			free_balance
+		//TODO: use reducible balancez
+		} else {
+			let remaining_amount: Balance =
+				RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
+
+			remaining_amount
+		};
+
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 		let min_amount_for_replanning = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
-		if remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get() {
+		if leftover < min_amount_for_replanning || leftover < T::MinimumTradingLimit::get() {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
@@ -1068,7 +1129,7 @@ impl<T: Config> Pallet<T> {
 				.checked_add(transaction_fee)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			if remaining_amount < amount_for_next_trade {
+			if leftover < amount_for_next_trade {
 				Self::complete_schedule(schedule_id, schedule);
 				return Ok(());
 			}
@@ -1189,7 +1250,7 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
-		let sold_currency = schedule.order.get_asset_in();
+		/*let sold_currency = schedule.order.get_asset_in();
 
 		//TODO: we dont need this anymore, since we have virutal budgeting.
 		let remaining_amount_if_insufficient_balance = T::Currencies::unreserve_named(
@@ -1198,7 +1259,7 @@ impl<T: Config> Pallet<T> {
 			&schedule.owner,
 			amount_to_unreserve,
 		);
-		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
+		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);*/
 
 		Ok(())
 	}
@@ -1281,12 +1342,12 @@ impl<T: Config> Pallet<T> {
 			return;
 		};
 
-		T::Currencies::unreserve_named(
+		/*T::Currencies::unreserve_named(
 			&T::NamedReserveId::get(),
 			sold_currency,
 			&schedule.owner,
 			remaining_amount,
-		);
+		);*/
 	}
 
 	fn weight_to_fee(weight: Weight) -> Balance {

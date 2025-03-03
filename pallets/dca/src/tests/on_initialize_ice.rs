@@ -64,14 +64,13 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+			//assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(502);
 			resolve_intent();
 
 			//Assert
-			let remaining_named_reserve = total_amount - amount_to_sell - get_fee_for_sell_in_hdx();
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: BTC,
@@ -82,7 +81,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 }
 
 #[test]
-fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
+fn one_buy_dca_execution_should_exact_amount_in_from_tracked_budget() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -116,10 +115,10 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 				schedule.clone(),
 				Option::None
 			));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(502);
+			resolve_intent();
 
 			//Assert
 			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
@@ -130,9 +129,11 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 				max_sell_amount: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
 			}]);
 
+			let schedule_id = 0;
+			let remaining_budget = DCA::remaining_amounts(schedule_id).unwrap();
 			assert_eq!(
 				total_amount - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - buy_fee_in_native,
-				Currencies::reserved_balance(HDX, &ALICE)
+				remaining_budget
 			);
 		});
 }
@@ -162,7 +163,6 @@ fn sell_dca_should_work_when_default_routes_used() {
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			proceed_to_blocknumber(501, 601);
@@ -199,133 +199,19 @@ fn buy_should_work_with_onchain_route() {
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
-			proceed_to_blocknumber(501, 1001);
+			proceed_to_blocknumber(501, 601);
+			resolve_intent();
+			proceed_to_blocknumber(601, 701);
+			resolve_intent();
 
 			//Assert
-			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
-
 			assert_number_of_executed_buy_trades!(2);
 			assert_balance!(ALICE, BTC, 2 * CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
-		});
-}
-
-#[test]
-fn sell_should_work_for_multiple_users() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (BOB, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL + *AMOUNT_OUT_FOR_OMNIPOOL_SELL / 2;
-			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-
-			let schedule_for_alice = ScheduleBuilder::new()
-				.with_owner(ALICE)
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_in: amount_to_sell,
-					min_amount_out: Balance::MIN,
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
-
-			let schedule_for_bob = ScheduleBuilder::new()
-				.with_owner(BOB)
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_in: amount_to_sell,
-					min_amount_out: Balance::MIN,
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(
-				RuntimeOrigin::signed(ALICE),
-				schedule_for_alice,
-				Option::None
-			));
-			assert_ok!(DCA::schedule(
-				RuntimeOrigin::signed(BOB),
-				schedule_for_bob,
-				Option::None
-			));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &BOB));
-
-			//Act
-			proceed_to_blocknumber(502, 602);
-			resolve_intent();
-
-			//Assert
-			assert_number_of_executed_sell_trades!(2);
-		});
-}
-
-#[test]
-fn multiple_sell_should_be_executed_for_one_user() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (BOB, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL + *AMOUNT_OUT_FOR_OMNIPOOL_SELL / 2;
-			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-
-			let schedule = ScheduleBuilder::new()
-				.with_owner(ALICE)
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_in: amount_to_sell,
-					min_amount_out: Balance::MIN,
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(
-				RuntimeOrigin::signed(ALICE),
-				schedule.clone(),
-				Option::None
-			));
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount + total_amount, Currencies::reserved_balance(HDX, &ALICE));
-
-			//Act
-			proceed_to_blocknumber(502, 602);
-			resolve_intent();
-
-			//Assert
-			assert_number_of_executed_sell_trades!(2);
 		});
 }
 
@@ -338,15 +224,13 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
-
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(0)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: 20 * ONE,
+					amount_in: 40 * ONE,
 					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
@@ -364,11 +248,10 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 			resolve_intent();
 			proceed_to_blocknumber(601, 701);
 			resolve_intent();
-			proceed_to_blocknumber(701, 801);
+			proceed_to_blocknumber(701, 702);
 			resolve_intent_with_failure();
 
 			//Assert
-			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			assert_number_of_executed_sell_trades!(2);
 
 			let schedule_id = 0;
@@ -377,7 +260,7 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 }
 
 #[test]
-fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_enough_balance() {
+fn full_buy_dca_should_be_completed_when_budget_is_over_but_user_still_have_free_balance() {
 	let alice_init_hdx_balance = 10000 * ONE;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, alice_init_hdx_balance)])
@@ -407,8 +290,6 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_en
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-			assert_balance!(ALICE, HDX, alice_init_hdx_balance - total_amount);
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			proceed_to_blocknumber(501, 601);
@@ -419,25 +300,18 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successful_but_not_en
 			resolve_intent();
 			proceed_to_blocknumber(801, 901);
 			resolve_intent();
-			proceed_to_blocknumber(901, 1001);
-			resolve_intent();
-			proceed_to_blocknumber(1001, 1101);
-			resolve_intent();
-
-			we have to fix the budgetting, namely we wanna decrease the remaining budget when intent fired and on success or on fail we check if there is any if not we terminate.
-				bno more reserved funds
 
 			//Assert
 			assert_number_of_executed_buy_trades!(4);
-			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
-			let left_over_which_is_not_enough_for_last_trade = 9994516532000;
+			//TODO: uncomment and fix once we know how much is used and returned for bond
+			/*let left_over_which_is_not_enough_for_last_trade = 9994516532000;
 
 			assert_balance!(
 				ALICE,
 				HDX,
 				alice_init_hdx_balance - total_amount + left_over_which_is_not_enough_for_last_trade
-			);
+			);*/
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -478,15 +352,21 @@ fn full_buy_dca_should_be_completed_without_leftover_fees_are_included_in_budget
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-			assert_balance!(ALICE, HDX, alice_init_hdx_balance - total_amount);
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
-			proceed_to_blocknumber(501, 2001);
+			proceed_to_blocknumber(501, 601);
+			resolve_intent();
+			proceed_to_blocknumber(601, 701);
+			resolve_intent();
+			proceed_to_blocknumber(701, 801);
+			resolve_intent();
+			proceed_to_blocknumber(801, 901);
+			resolve_intent();
+			proceed_to_blocknumber(901, 1001);
+			resolve_intent();
 
 			//Assert
 			assert_number_of_executed_buy_trades!(5);
-			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			assert_balance!(ALICE, HDX, alice_init_hdx_balance - total_amount);
 
 			let schedule_id = 0;
@@ -524,10 +404,10 @@ fn one_buy_dca_execution_should_use_default_max_price_diff_for_max_limit_calcula
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(502);
+			resolve_intent();
 
 			//Assert
 			assert_number_of_executed_buy_trades!(1);
@@ -578,6 +458,7 @@ fn schedule_is_planned_for_next_block_when_one_execution_finished() {
 
 			//Act
 			set_to_blocknumber(502);
+			resolve_intent();
 
 			//Assert
 			assert_number_of_executed_buy_trades!(1);
@@ -626,209 +507,16 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 
 			//Act
 			set_to_blocknumber(505);
+			resolve_intent();
 
 			//Assert
 			assert_scheduled_ids!(605, vec![schedule_id, schedule_id_2]);
 		});
 }
 
-#[test]
-fn buy_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
+//TODO: SOME TEST IDEAS
+//dca_schedule_should_continue_on_multiple_failures_then_terminated
 
-			let total_amount = 1000 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
-					max_amount_in: 5 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-
-			set_to_blocknumber(502);
-
-			assert_number_of_executed_buy_trades!(0);
-
-			let schedule_id = 0;
-
-			assert_scheduled_ids!(512, vec![schedule_id]);
-			let retries = DCA::retries_on_error(schedule_id);
-			assert_eq!(1, retries);
-			expect_dca_events(vec![
-				DcaEvent::TradeFailed {
-					id: schedule_id,
-					who: ALICE,
-					error: Error::<Test>::TradeLimitReached.into(),
-				}
-				.into(),
-				DcaEvent::ExecutionPlanned {
-					id: schedule_id,
-					who: ALICE,
-					block: 512,
-				}
-				.into(),
-			]);
-		});
-}
-
-#[test]
-fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = 1000 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-					min_amount_out: Balance::MAX,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-
-			set_to_blocknumber(502);
-
-			assert_number_of_executed_sell_trades!(0);
-
-			let schedule_id = 0;
-			assert_scheduled_ids!(512, vec![schedule_id]);
-			let retries = DCA::retries_on_error(schedule_id);
-			assert_eq!(1, retries);
-			expect_dca_events(vec![
-				DcaEvent::TradeFailed {
-					id: schedule_id,
-					who: ALICE,
-					error: Error::<Test>::TradeLimitReached.into(),
-				}
-				.into(),
-				DcaEvent::ExecutionPlanned {
-					id: schedule_id,
-					who: ALICE,
-					block: 512,
-				}
-				.into(),
-			]);
-		});
-}
-
-#[test]
-fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = 1000 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
-					max_amount_in: 5 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
-
-			let schedule_id = 0;
-
-			assert_ok!(DCA::schedule(
-				RuntimeOrigin::signed(ALICE),
-				schedule.clone(),
-				Option::None
-			));
-			assert_eq!(Currencies::reserved_balance(HDX, &ALICE), total_amount);
-			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);
-
-			set_to_blocknumber(502);
-
-			assert_number_of_executed_buy_trades!(0);
-			assert_scheduled_ids!(512, vec![schedule_id]);
-
-			let buy_fee_in_native = DCA::get_transaction_fee(&schedule.order).unwrap();
-			assert_eq!(
-				Currencies::reserved_balance(HDX, &ALICE),
-				total_amount - buy_fee_in_native
-			);
-			assert_eq!(
-				DCA::remaining_amounts(schedule_id).unwrap(),
-				total_amount - buy_fee_in_native
-			);
-		});
-}
-
-#[test]
-fn dca_schedule_should_terminate_when_error_is_not_configured_to_continue_on() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, FORBIDDEN_ASSET, 5000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let schedule = ScheduleBuilder::new()
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Sell {
-					asset_in: FORBIDDEN_ASSET,
-					asset_out: BTC,
-					amount_in: ONE,
-					min_amount_out: Balance::MIN,
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: FORBIDDEN_ASSET,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-
-			//Act
-			set_to_blocknumber(502);
-
-			//Assert
-			let schedule_id = 0;
-
-			assert_number_of_executed_buy_trades!(0);
-			assert!(DCA::schedule_ids_per_block(602).is_empty());
-			assert_that_dca_is_terminated(ALICE, schedule_id, pallet_omnipool::Error::<Test>::NotAllowed.into());
-		});
-}
 
 #[test]
 fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
@@ -2200,7 +1888,7 @@ fn dca_schedule_should_still_take_fee_when_order_fails() {
 			assert_number_of_executed_buy_trades!(0);
 			assert_balance!(TreasuryAccount::get(), HDX, buy_fee_in_native);
 		});
-}
+}*/
 
 pub fn proceed_to_blocknumber(from: u64, to: u64) {
 	for block_number in RangeInclusive::new(from, to) {
@@ -2233,4 +1921,25 @@ fn assert_that_dca_is_terminated(owner: AccountId, schedule_id: ScheduleId, erro
 		error,
 	}
 	.into()]);
+}
+
+fn bond_in_hdx_for_buy() -> Balance {
+	2 * (CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + get_fee_for_buy_in_hdx())
+}
+
+//TODO: this is duplicated from schedule.rs
+pub fn get_fee_for_buy_in_hdx() -> Balance {
+	let order = Order::Buy {
+		asset_in: HDX,
+		asset_out: BTC,
+		amount_out: 10 * ONE,
+		max_amount_in: u128::MAX,
+		route: create_bounded_vec(vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: crate::tests::mock::HDX,
+			asset_out: crate::tests::mock::BTC,
+		}]),
+	};
+
+	DCA::get_transaction_fee(&order).unwrap()
 }

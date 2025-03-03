@@ -4080,6 +4080,11 @@ fn terminate_should_work_for_freshly_created_dca() {
 	});
 }
 
+#[test]
+fn multiple_sell_should_be_executed_for_one_user() {
+	//TODO: add this test
+}
+
 fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {
 	assert_ok!(Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),

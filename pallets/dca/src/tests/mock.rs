@@ -31,7 +31,7 @@ use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle};
-use orml_traits::{MultiCurrency, MultiReservableCurrency, parameter_type_with_key};
+use orml_traits::{parameter_type_with_key, MultiCurrency, MultiReservableCurrency};
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use primitive_types::U128;
 use sp_core::H256;
@@ -1124,93 +1124,102 @@ pub fn set_sell_amount_out(balance: Balance) {
 }
 
 pub fn resolve_intent() {
-	let intents = Intents::get_valid_intents();
-
-	let intent =  Intents::get_valid_intents().last().unwrap().1.clone();
-		match intent.swap.swap_type {
-			SwapType::ExactIn => {
-				SELL_EXECUTIONS.with(|v| {
-					let mut m = v.borrow_mut();
-					m.push(SellExecution {
-						asset_in: intent.swap.asset_in,
-						asset_out: intent.swap.asset_out,
-						amount_in: intent.swap.amount_in,
-						min_buy_amount: intent.swap.amount_out,
-					});
+	let intent = Intents::get_valid_intents().last().unwrap().1.clone();
+	match intent.swap.swap_type {
+		SwapType::ExactIn => {
+			SELL_EXECUTIONS.with(|v| {
+				let mut m = v.borrow_mut();
+				m.push(SellExecution {
+					asset_in: intent.swap.asset_in,
+					asset_out: intent.swap.asset_out,
+					amount_in: intent.swap.amount_in,
+					min_buy_amount: intent.swap.amount_out,
 				});
+			});
 
-				Currencies::transfer(
-					RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
-					intent.who,
-					intent.swap.asset_out,
-					intent.swap.amount_out,
-				)
-				.map_err(ExecutorError::Error)
-				.unwrap();
-				let bal = Currencies::reserved_balance(intent.swap.asset_in, &intent.who);
-				Currencies::transfer(
-					RuntimeOrigin::signed(intent.who),
-					ASSET_PAIR_ACCOUNT,
-					intent.swap.asset_in,
-					intent.swap.amount_in,
-				)
-				.map_err(ExecutorError::Error)
-				.unwrap();
-			}
-			SwapType::ExactOut => {
-				BUY_EXECUTIONS.with(|v| {
-					let mut m = v.borrow_mut();
-					m.push(BuyExecution {
-						asset_in: intent.swap.asset_in,
-						asset_out: intent.swap.asset_out,
-						amount_out: intent.swap.amount_out,
-						max_sell_amount: intent.swap.amount_in,
-					});
+			Currencies::transfer(
+				RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
+				intent.who,
+				intent.swap.asset_out,
+				intent.swap.amount_out,
+			)
+			.map_err(ExecutorError::Error)
+			.unwrap();
+			let bal = Currencies::reserved_balance(intent.swap.asset_in, &intent.who);
+			Currencies::transfer(
+				RuntimeOrigin::signed(intent.who),
+				ASSET_PAIR_ACCOUNT,
+				intent.swap.asset_in,
+				intent.swap.amount_in,
+			)
+			.map_err(ExecutorError::Error)
+			.unwrap();
+		}
+		SwapType::ExactOut => {
+			BUY_EXECUTIONS.with(|v| {
+				let mut m = v.borrow_mut();
+				m.push(BuyExecution {
+					asset_in: intent.swap.asset_in,
+					asset_out: intent.swap.asset_out,
+					amount_out: intent.swap.amount_out,
+					max_sell_amount: intent.swap.amount_in,
 				});
+			});
 
-				Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), intent.who, intent.swap.asset_out, intent.swap.amount_out)
-					.map_err(ExecutorError::Error).unwrap();
-				let bal = Currencies::reserved_balance(intent.swap.asset_in, &intent.who);
-				let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
-				//TODO: also change this for sell
+			Currencies::transfer(
+				RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
+				intent.who,
+				intent.swap.asset_out,
+				intent.swap.amount_out,
+			)
+			.map_err(ExecutorError::Error)
+			.unwrap();
+			let bal = Currencies::free_balance(intent.swap.asset_in, &intent.who);
+			let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
+			//TODO: also change this for sell
 
-				Currencies::transfer(RuntimeOrigin::signed(intent.who), ASSET_PAIR_ACCOUNT, intent.swap.asset_in, amount_in)
-					.map_err(ExecutorError::Error).unwrap();
-			}
+			Currencies::transfer(
+				RuntimeOrigin::signed(intent.who),
+				ASSET_PAIR_ACCOUNT,
+				intent.swap.asset_in,
+				amount_in,
+			)
+			.map_err(ExecutorError::Error)
+			.unwrap();
+		}
+	};
 
-		};
-
-		let call_data = intent.on_success.unwrap().to_vec();
-		let rc0 = RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
-		rc0.dispatch(RuntimeOrigin::signed(intent.who)).unwrap();
+	let call_data = intent.on_success.unwrap().to_vec();
+	let rc0 = RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
+	rc0.dispatch(RuntimeOrigin::signed(intent.who)).unwrap();
 }
 
 use codec::Decode;
 use sp_runtime::traits::Dispatchable;
 pub fn resolve_intent_with_failure() {
 	let intents = Intents::get_valid_intents();
-	let intent =  Intents::get_valid_intents().last().unwrap().1.clone();
+	let intent = Intents::get_valid_intents().last().unwrap().1.clone();
 
-		match intent.swap.swap_type {
-			SwapType::ExactIn => {
-				/*let call: RuntimeCall = intent.on_failure.unwrap().to_vec().into();
-				let call = RuntimeCall::from(call);
-				Utility::batch(RuntimeOrigin::root(), vec![call]);*/
+	match intent.swap.swap_type {
+		SwapType::ExactIn => {
+			/*let call: RuntimeCall = intent.on_failure.unwrap().to_vec().into();
+			let call = RuntimeCall::from(call);
+			Utility::batch(RuntimeOrigin::root(), vec![call]);*/
 
-				let call_data = intent.on_failure.unwrap().to_vec();
-				//let rc0 = <Test as frame_system::Config>::RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
-				let rc0 = RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
-				rc0.dispatch(RuntimeOrigin::signed(intent.who)).unwrap();
+			let call_data = intent.on_failure.unwrap().to_vec();
+			//let rc0 = <Test as frame_system::Config>::RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
+			let rc0 = RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
+			rc0.dispatch(RuntimeOrigin::signed(intent.who)).unwrap();
 
-				//let rc = RuntimeCall::decode(&mut &Vec::from(call_data)[..]).unwrap();
-				//Utility::batch(RuntimeOrigin::root(), vec![rc0.unwrap()]);
-			}
-			SwapType::ExactOut => {
-				let call_data = intent.on_failure.unwrap().to_vec();
-				let rc0 = RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
-				rc0.dispatch(RuntimeOrigin::signed(intent.who)).unwrap();
-			}
-		};
+			//let rc = RuntimeCall::decode(&mut &Vec::from(call_data)[..]).unwrap();
+			//Utility::batch(RuntimeOrigin::root(), vec![rc0.unwrap()]);
+		}
+		SwapType::ExactOut => {
+			let call_data = intent.on_failure.unwrap().to_vec();
+			let rc0 = RuntimeCall::decode(&mut call_data.as_slice()).unwrap();
+			rc0.dispatch(RuntimeOrigin::signed(intent.who)).unwrap();
+		}
+	};
 }
 
 pub fn use_prod_randomness() {

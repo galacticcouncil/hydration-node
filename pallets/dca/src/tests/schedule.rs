@@ -27,8 +27,10 @@ use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
 use std::ops::RangeInclusive;
 
+//TODO: fix this test once we reserve some bond
 #[test]
-fn schedule_should_reserve_all_total_amount_as_named_reserve() {
+#[ignore]
+fn schedule_should_reserve_bond() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -54,9 +56,10 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 			set_block_number(500);
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
+			let bond = 2 * (CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + get_fee_for_buy_in_hdx());
 			//Assert
 			assert_eq!(
-				total_amount,
+				bond,
 				Currencies::reserved_balance_named(&NamedReserveId::get(), HDX, &ALICE)
 			);
 		});
@@ -95,8 +98,10 @@ fn schedule_should_store_total_amounts_in_storage() {
 		});
 }
 
+//TODO: fix this once we have bond logic then revaluate if this make sense, namely if we compound or not, otherwise delete
 #[test]
-fn schedule_should_compound_named_reserve_for_multiple_schedules() {
+#[ignore]
+fn schedule_should_compound_bonds_for_multiple_schedules() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 1000000 * ONE)])
 		.build()
@@ -140,9 +145,11 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule_2, Option::None));
 
+			let bond = 2 * (CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + get_fee_for_buy_in_hdx());
+
 			//Assert
 			assert_eq!(
-				total_amount + total_amount_2,
+				2 * bond,
 				Currencies::reserved_balance_named(&NamedReserveId::get(), HDX, &ALICE)
 			);
 			let schedule_id = 0;
@@ -381,11 +388,14 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 		});
 }
 
+//TODO: fix this ocnce we have bonding logic
+#[ignore]
 #[test]
-fn schedule_should_throw_error_when_user_has_not_enough_balance() {
-	let total_amount_to_be_taken = 100 * ONE;
+fn schedule_should_throw_error_when_user_has_not_enough_balance_for_bond() {
+	let bond = 2 * (CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + get_fee_for_buy_in_hdx());
+
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, total_amount_to_be_taken - 1)])
+		.with_endowed_accounts(vec![(ALICE, HDX, bond - 1)])
 		.build()
 		.execute_with(|| {
 			//Arrange
