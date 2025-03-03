@@ -47,7 +47,6 @@ mod test {
 			.build()
 			.execute_with(|| {
 				// Arrange
-				let total_amount = 100 * ONE;
 				let schedule = ScheduleBuilder::new().build();
 				set_block_number(500);
 				assert_ok!(DCA::schedule(

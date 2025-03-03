@@ -14,6 +14,7 @@
 // limitations under the License.
 
 mod conviction_voting;
+mod democracy;
 mod scheduler;
 
 use super::*;
@@ -30,4 +31,5 @@ pub type Migrations = (
 	pallet_staking::migrations::SetSixSecBlocksSince<Runtime>,
 	scheduler::MigrateSchedulerTo6sBlocks<Runtime>,
 	conviction_voting::MigrateConvictionVotingTo6sBlocks<Runtime>,
+	democracy::MigrateDemocracyTo6sBlocks<Runtime>,
 );
