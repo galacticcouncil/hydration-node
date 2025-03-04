@@ -45,6 +45,7 @@ use primitives::constants::{
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
+use sp_core::ConstU64;
 use sp_runtime::{traits::Zero, ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, Percent};
 
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
@@ -1601,7 +1602,8 @@ parameter_types! {
 impl pallet_lazy_executor::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
-	type BlockNumberProvider = System;
+	type UnsignedPriority = ConstU64<100>;
+	type UnsignedLongevity = ConstU64<3>;
 	type WeightInfo = ();
 }
 
