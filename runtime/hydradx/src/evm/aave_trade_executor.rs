@@ -170,7 +170,7 @@ where
 			interest_rate_strategy_address: EvmAddress::from_slice(
 				decoded[11].clone().into_address().unwrap_or_default().as_ref(),
 			),
-			accrued_to_treasury: decoded[12].clone().into_uint().unwrap_or_default(),
+			accrued_to_treasury: decoded[12]into_uint().unwrap_or_default(),
 		})
 	}
 
