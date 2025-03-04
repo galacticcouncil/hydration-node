@@ -39,6 +39,7 @@ const UNIT: Balance = 1_000_000_000_000;
 pub const ALICE: AccountId = 1_000;
 pub const BOB: AccountId = 1_001;
 pub const CHARLIE: AccountId = 1_002;
+pub const ACC_ZERO_BALANCE: AccountId = 1_003;
 
 construct_runtime!(
 	pub enum Test

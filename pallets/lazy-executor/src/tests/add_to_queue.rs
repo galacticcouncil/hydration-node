@@ -1,7 +1,34 @@
 use crate::*;
-use frame_support::assert_noop;
+use frame_support::{assert_noop, assert_ok};
 use pretty_assertions::assert_eq;
-use tests::mock::*;
+use tests::{has_event, mock::*};
+
+#[test]
+fn add_to_queue_should_work_when_call_is_valid() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
+			allowed_origin: vec![ALICE, BOB],
+			weight: Weight::from_parts(1_000_u64, 1_000_u64),
+		})
+		.encode()
+		.try_into()
+		.expect("failed to create BoundedCall");
+
+		//Act&Assert
+		assert_ok!(LazyExecutor::add_to_queue(Source::ICE(0), ALICE, call));
+
+		assert!(has_event(
+			Event::Queued {
+				id: 0,
+				src: Source::ICE(0),
+				who: ALICE,
+				fees: 107_077_175_u128
+			}
+			.into()
+		))
+	})
+}
 
 #[test]
 fn add_to_queue_should_fail_when_call_is_not_decodeable() {
@@ -58,4 +85,25 @@ fn add_to_queue_should_fail_when_call_is_overweight() {
 			Error::<Test>::Overweight
 		);
 	});
+}
+
+#[test]
+fn add_to_queue_should_fail_when_origin_cant_pay_fees() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let call: BoundedCall = RuntimeCall::MockPallet(MockPalletCall::dummy_call {
+			allowed_origin: vec![BOB],
+			//NOTE: whole call includes dispatch overhead so we need to substract more
+			weight: Weight::from_parts(100_u64, 100_u64),
+		})
+		.encode()
+		.try_into()
+		.expect("failed to create BoundeCall");
+
+		//Act&Assert
+		assert_noop!(
+			LazyExecutor::add_to_queue(Source::ICE(1), ACC_ZERO_BALANCE, call),
+			Error::<Test>::FailedToPayFees
+		);
+	})
 }
