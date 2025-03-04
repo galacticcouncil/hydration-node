@@ -218,13 +218,14 @@ where
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin)?;
 		let on_behalf_of = T::EvmAccounts::evm_address(&who);
+		let referer_code = 0_u16;
 
 		let context = CallContext::new_call(<BorrowingContract<T>>::get(), on_behalf_of);
 		let data = EvmDataWriter::new_with_selector(Function::Supply)
 			.write(asset)
 			.write(amount)
 			.write(on_behalf_of)
-			.write(0_u16)
+			.write(referer_code)
 			.build();
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
