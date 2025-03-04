@@ -12,6 +12,7 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_stableswap.
 pub trait WeightInfo {
 	fn create_pool() -> Weight;
+	fn create_pool_with_pegs() -> Weight;
 	fn add_liquidity() -> Weight;
 	fn add_liquidity_shares() -> Weight;
 	fn remove_liquidity_one_asset() -> Weight;
@@ -407,5 +408,20 @@ impl WeightInfo for () {
 		// Minimum execution time: 336_682_000 picoseconds.
 		Weight::from_parts(337_962_000, 16590)
 			.saturating_add(RocksDbWeight::get().reads(13_u64))
+	}
+	/// Storage: `Stableswap::Pools` (r:1 w:1)
+	/// Proof: `Stableswap::Pools` (`max_values`: None, `max_size`: Some(57), added: 2532, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:6 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `Duster::AccountBlacklist` (r:0 w:1)
+	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	fn create_pool_with_pegs() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `855`
+		//  Estimated: `16590`
+		// Minimum execution time: 53_168_000 picoseconds.
+		Weight::from_parts(53_616_000, 16590)
+			.saturating_add(RocksDbWeight::get().reads(7_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 }
