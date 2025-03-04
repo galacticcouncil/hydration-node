@@ -52,7 +52,6 @@ fn with_aave(execution: impl FnOnce()) {
 		));
 
 		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), 3 * BAG));
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
 
 		let _ = with_transaction(|| {
 			execution();
@@ -146,6 +145,7 @@ fn adot_is_registered() {
 #[test]
 fn alice_can_supply() {
 	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
 		supply(
 			EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice()),
 			EVMAccounts::evm_address(&AccountId::from(ALICE)),

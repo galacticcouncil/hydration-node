@@ -1,12 +1,13 @@
 use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
-use crate::evm::{Erc20Currency, Executor};
+use crate::evm::{Erc20Currency, EvmAccounts, Executor};
 use crate::Runtime;
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
+use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::evm::{CallContext, Erc20Encoding, InspectEvmAccounts, ERC20, EVM};
@@ -14,6 +15,7 @@ use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
+use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
 use polkadot_xcm::v3::MultiLocation;
@@ -22,6 +24,7 @@ use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_arithmetic::FixedU128;
+use sp_core::crypto::AccountId32;
 use sp_runtime::format;
 use sp_runtime::traits::CheckedConversion;
 use sp_runtime::{DispatchError, RuntimeDebug};
@@ -247,6 +250,7 @@ where
 
 	pub fn trade_weight() -> Weight {
 		<T as pallet_evm::Config>::GasWeightMapping::gas_to_weight(TRADE_GAS_LIMIT + VIEW_GAS_LIMIT, true)
+			.saturating_add(<T as pallet_evm_accounts::Config>::WeightInfo::bind_evm_address())
 	}
 }
 
@@ -274,7 +278,7 @@ where
 	T::AssetNativeLocation: Into<MultiLocation>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
-	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
 {
@@ -317,6 +321,8 @@ where
 		}
 
 		ensure!(amount_in >= min_limit, ExecutorError::Error("Slippage exceeded".into()));
+
+		let _ = EvmAccounts::<T>::bind_evm_address(who.clone());
 
 		if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_out) {
 			// Supplying asset_in to get aToken (asset_out)
