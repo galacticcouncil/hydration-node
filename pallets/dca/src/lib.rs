@@ -58,7 +58,7 @@
 //!
 //! ## Terminating a Schedule
 //!
-//! Both users and TerminateOrigin can terminate a DCA schedule. However, users can only terminate schedules that they own.
+//! Both users and TerminateOrigin can terminate a DCA schedule. However, users can only terminate schedules that they own themselves
 //!
 //! Once a schedule is terminated, it is completely and permanently removed from the blockchain.
 
