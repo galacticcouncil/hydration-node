@@ -4103,7 +4103,7 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 	));
 }
 
-fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
+pub fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(DCA::schedule(RuntimeOrigin::signed(owner.into()), schedule1, None));
 }
 
@@ -4151,7 +4151,7 @@ fn schedule_fake_with_buy_order_with_route(
 	}
 }
 
-fn schedule_fake_with_sell_order(
+pub fn schedule_fake_with_sell_order(
 	owner: [u8; 32],
 	pool: PoolType<AssetId>,
 	total_amount: Balance,
