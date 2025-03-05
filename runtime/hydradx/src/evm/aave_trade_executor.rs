@@ -10,7 +10,7 @@ use frame_support::ensure;
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
+use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};

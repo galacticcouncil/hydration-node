@@ -720,10 +720,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> Result<T::Balance, DispatchError> {
-		// Validate that the route is properly structured
-		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
-		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
-
 		// Instead of executing a transaction, just calculate the expected amount out
 		let amount_out = Self::calculate_expected_amount_out(&route, amount_in)?;
 

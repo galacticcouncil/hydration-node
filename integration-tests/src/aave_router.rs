@@ -1,8 +1,6 @@
 #![cfg(test)]
 
 use crate::dca::create_schedule;
-use crate::dca::init_omnipool_with_oracle_for_block_10;
-use crate::dca::run_to_block;
 use crate::dca::schedule_fake_with_sell_order;
 use crate::liquidation::supply;
 use crate::liquidation::PATH_TO_SNAPSHOT;
@@ -15,8 +13,8 @@ use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin, Treasury};
-use hydradx_runtime::{AssetRegistry, Omnipool, Stableswap};
+use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
+use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::router::ExecutorError;
@@ -29,7 +27,6 @@ use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
-use pallet_broadcast::types::Destination;
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use primitives::Balance;
@@ -124,7 +121,6 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 
 const HDX: AssetId = 0;
 const DOT: AssetId = 5;
-const DAI: AssetId = 2;
 const ADOT: AssetId = 1_000_037;
 const ONE: u128 = 1 * 10_u128.pow(10);
 const BAG: u128 = 100000 * ONE;
