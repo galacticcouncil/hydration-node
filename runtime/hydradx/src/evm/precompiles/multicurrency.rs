@@ -60,9 +60,8 @@ where
 	pallet_currencies::Pallet<Runtime>: MultiCurrency<Runtime::AccountId, CurrencyId = AssetId, Balance = Balance>,
 	<Runtime as frame_system::Config>::AccountId:
 		From<sp_runtime::AccountId32> + IsType<sp_runtime::AccountId32> + AsRef<[u8; 32]>,
-	<<Runtime as frame_system::Config>::RuntimeCall as Dispatchable>::RuntimeOrigin: OriginTrait,
 {
-	fn execute(handle: &mut impl PrecompileHandle) -> pallet_evm::PrecompileResult {
+	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		let address = handle.code_address();
 		if let Some(asset_id) = HydraErc20Mapping::decode_evm_address(address) {
 			log::debug!(target: "evm", "multicurrency: currency id: {:?}", asset_id);

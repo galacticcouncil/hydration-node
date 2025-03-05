@@ -12135,7 +12135,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.33.2"
+version = "1.33.3"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
