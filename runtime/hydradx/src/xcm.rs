@@ -258,11 +258,9 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		let prepare_result = Inner::prepare(message.clone());
 
 		//In case of error we need to clean context as xcm execution won't happen
-		if prepare_result.is_err() {
-			if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
-				log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
-				return Err(message);
-			}
+		if prepare_result.is_err() && pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
+			log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
+			return Err(message);
 		}
 
 		prepare_result
