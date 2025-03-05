@@ -22,17 +22,19 @@
 use crate::evm::EvmAddress;
 use crate::Runtime;
 use hex_literal::hex;
-use hydradx_traits::{evm::Erc20Encoding, RegisterAssetHook};
+use hydradx_traits::evm::Erc20Mapping;
+use hydradx_traits::{evm::Erc20Encoding, BoundErc20, RegisterAssetHook};
 use primitive_types::{H160, H256};
 use primitives::AssetId;
 
 pub struct HydraErc20Mapping;
 
-// impl<T: pallet_asset_registry::Config + BoundErc20> Erc20Mapping<AssetId> for HydraErc20Mapping {
-// 	fn asset_address(asset_id: AssetId) -> EvmAddress {
-// 		pallet_asset_registry::Pallet::<T>::contract_address(asset_id).unwrap_or_else(|| Self::encode_evm_address(asset_id))
-// 	}
-// }
+impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn asset_address(asset_id: AssetId) -> EvmAddress {
+		pallet_asset_registry::Pallet::<Runtime>::contract_address(asset_id)
+			.unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset_id))
+	}
+}
 
 /// The asset id (with type u32) is encoded in the last 4 bytes of EVM address
 impl Erc20Encoding<AssetId> for HydraErc20Mapping {

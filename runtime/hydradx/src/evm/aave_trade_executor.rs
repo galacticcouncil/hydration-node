@@ -10,7 +10,7 @@ use frame_support::ensure;
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_traits::evm::{CallContext, Erc20Encoding, InspectEvmAccounts, ERC20, EVM};
+use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -192,11 +192,6 @@ where
 		U256::checked_from(value.as_slice()).ok_or(ExecutorError::Error("Failed to decode scaled total supply".into()))
 	}
 
-	fn get_asset_address(asset: AssetId) -> EvmAddress {
-		pallet_asset_registry::Pallet::<T>::contract_address(asset)
-			.unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset))
-	}
-
 	fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
 		let Some(atoken_address) = pallet_asset_registry::Pallet::<T>::contract_address(atoken) else {
 			// not a contract
@@ -326,7 +321,7 @@ where
 
 		if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_out) {
 			// Supplying asset_in to get aToken (asset_out)
-			let asset_address = AaveTradeExecutor::<T>::get_asset_address(asset_in);
+			let asset_address = HydraErc20Mapping::asset_address(asset_in);
 			ensure!(
 				asset_address == underlying,
 				ExecutorError::Error("Asset mismatch: supplied asset must match aToken's underlying".into())
@@ -334,7 +329,7 @@ where
 			AaveTradeExecutor::<T>::supply(who, asset_address, amount_in).map_err(ExecutorError::Error)?;
 		} else if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_in) {
 			// Withdrawing aToken (asset_in) to get underlying asset
-			let asset_address = AaveTradeExecutor::<T>::get_asset_address(asset_out);
+			let asset_address = HydraErc20Mapping::asset_address(asset_out);
 			ensure!(
 				asset_address == underlying,
 				ExecutorError::Error("Asset mismatch: output asset must match aToken's underlying".into())
@@ -376,7 +371,7 @@ where
 				underlying,
 			))
 		} else {
-			let asset_address = AaveTradeExecutor::<T>::get_asset_address(asset_out);
+			let asset_address = HydraErc20Mapping::asset_address(asset_out);
 			let atoken_address = pallet_asset_registry::Pallet::<T>::contract_address(asset_in);
 			let reserve_data = AaveTradeExecutor::<T>::get_reserve_data(pool, asset_address)?;
 			ensure!(
