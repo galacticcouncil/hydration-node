@@ -26,6 +26,7 @@ use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::H256;
+use hydradx_traits::evm::Erc20Encoding;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -145,6 +146,11 @@ impl EVM<CallResult> for EvmMock {
 }
 
 pub struct HydraErc20Mapping;
+impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn asset_address(asset_id: AssetId) -> EvmAddress {
+		Self::encode_evm_address(asset_id)
+	}
+}
 impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
