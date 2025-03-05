@@ -17,6 +17,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
+use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::{
 	router::{PoolType, RefundEdCalculator},
@@ -26,7 +27,6 @@ use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::H256;
-use hydradx_traits::evm::Erc20Encoding;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 

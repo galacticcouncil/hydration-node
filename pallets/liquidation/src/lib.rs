@@ -37,6 +37,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
+use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
@@ -46,7 +47,6 @@ use pallet_evm::GasWeightMapping;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
 use sp_std::{vec, vec::Vec};
-use hydradx_traits::evm::Erc20Mapping;
 
 #[cfg(test)]
 mod tests;
