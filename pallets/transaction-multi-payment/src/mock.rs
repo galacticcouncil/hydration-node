@@ -34,7 +34,7 @@ use frame_support::{
 use frame_system as system;
 use hydradx_traits::{
 	router::{RouteProvider, Trade},
-	AssetKind, AssetPairAccountIdFor, OraclePeriod, PriceOracle,
+	AssetKind, OraclePeriod, PriceOracle,
 };
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
@@ -307,21 +307,6 @@ impl pallet_transaction_payment::Config for Test {
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
 }
-pub struct AssetPairAccountIdTest();
-
-impl AssetPairAccountIdFor<AssetId, AccountId> for AssetPairAccountIdTest {
-	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> AccountId {
-		let mut a = asset_a as u128;
-		let mut b = asset_b as u128;
-		if a > b {
-			std::mem::swap(&mut a, &mut b)
-		}
-
-		let mut data: [u8; 32] = [0u8; 32];
-		data[28..32].copy_from_slice(&(a * 1000 * b).to_be_bytes());
-		AccountId::new(data)
-	}
-}
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
@@ -335,6 +320,7 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub const MaxReserves: u32 = 50;
+	pub const ReserveAccount: AccountId = AccountId::new([9u8; 32]);
 }
 
 pub struct CurrencyHooks;
@@ -369,6 +355,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = HdxAssetId;
 	type WeightInfo = ();
 }

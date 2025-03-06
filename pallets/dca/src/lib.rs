@@ -44,11 +44,11 @@
 //! A trade can fail due to two main reasons:
 //!
 //! 1. Price Stability Error: If the price difference between the short oracle price and the current price
-//! exceeds the specified threshold. The user can customize this threshold,
-//! or the default value from the pallet configuration will be used.
+//!    exceeds the specified threshold. The user can customize this threshold,
+//!    or the default value from the pallet configuration will be used.
 //! 2. Slippage Error: If the minimum amount out (sell) or maximum amount in (buy) slippage limits are not reached.
-//! These limits are calculated based on the last block's oracle price and the user-specified slippage.
-//! If no slippage is specified, the default value from the pallet configuration will be used.
+//!    These limits are calculated based on the last block's oracle price and the user-specified slippage.
+//!    If no slippage is specified, the default value from the pallet configuration will be used.
 //!
 //! If a trade fails due to these errors, the trade will be retried.
 //! If the number of retries reaches the maximum number of retries, the schedule will be permanently terminated.
@@ -63,6 +63,7 @@
 //! Once a schedule is terminated, it is completely and permanently removed from the blockchain.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::traits::DefensiveOption;
 use frame_support::{
@@ -91,11 +92,8 @@ use sp_std::vec::Vec;
 
 use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{inverse_route, RouteProvider};
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
-use hydradx_traits::OraclePeriod;
-use hydradx_traits::PriceOracle;
+use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
+use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
 pub use pallet::*;
 use pallet_broadcast::types::ExecutionType;
 pub use weights::WeightInfo;
@@ -109,7 +107,6 @@ mod tests;
 pub mod types;
 pub mod weights;
 
-pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 
@@ -713,7 +710,7 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id));
+		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id))?;
 
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 		let trade_result = match &schedule.order {
@@ -801,7 +798,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		pallet_broadcast::Pallet::<T>::remove_from_context();
+		pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 		trade_result
 	}
@@ -871,10 +868,12 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
+		let retry_period = OraclePeriod::Short.as_period() as u32;
+
 		let retry_multiplier = 2u32
 			.checked_pow(number_of_retries.into())
 			.ok_or(ArithmeticError::Overflow)?;
-		let retry_delay = SHORT_ORACLE_BLOCK_PERIOD
+		let retry_delay = retry_period
 			.checked_mul(retry_multiplier)
 			.ok_or(ArithmeticError::Overflow)?;
 		let next_execution_block = current_blocknumber

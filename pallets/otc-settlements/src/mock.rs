@@ -28,11 +28,12 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
+use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::{
 	router::{PoolType, RefundEdCalculator},
 	OraclePeriod, PriceOracle,
 };
-use orml_traits::{parameter_type_with_key, GetByKey};
+use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::offchain::{
@@ -220,6 +221,7 @@ parameter_types! {
 	pub const ExistentialDeposit: u128 = 500;
 	pub ProtocolFee: Permill = Permill::from_percent(0);
 	pub AssetFee: Permill = Permill::from_percent(0);
+	pub BurnFee: Permill = Permill::from_percent(0);
 	pub AssetWeightCap: Permill = Permill::from_percent(100);
 	pub MinAddedLiquidity: Balance = 1000u128;
 	pub MinTradeAmount: Balance = 1000u128;
@@ -255,6 +257,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
 }
@@ -267,26 +270,6 @@ parameter_types! {
 	pub const MinTradingLimit: Balance = 1_000;
 	pub const MinPoolLiquidity: Balance = 1_000;
 	pub const DiscountedFee: (u32, u32) = (7, 10_000);
-}
-
-pub struct AllowPools;
-
-impl hydradx_traits::CanCreatePool<AssetId> for AllowPools {
-	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		true
-	}
-}
-
-pub struct AssetPairAccountIdTest;
-impl hydradx_traits::AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
-	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
-		let mut a = asset_a as u128;
-		let mut b = asset_b as u128;
-		if a > b {
-			std::mem::swap(&mut a, &mut b)
-		}
-		(a * 1000 + b) as u64
-	}
 }
 
 parameter_types! {
@@ -351,6 +334,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct DummyNFT;
@@ -400,9 +384,14 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(Permill::from_percent(0), Permill::from_percent(0))
+	}
+
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
 	}
 }
 

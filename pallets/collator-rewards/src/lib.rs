@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(test)]
 mod mock;
@@ -79,6 +80,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type RewardCurrencyId: Get<Self::CurrencyId>;
 
+		#[pallet::constant]
+		type RewardsBag: Get<Self::AccountId>;
+
 		/// List of collator which will not be rewarded.
 		type ExcludedCollators: Get<Vec<Self::AccountId>>;
 
@@ -138,7 +142,7 @@ impl<T: Config> SessionManager<T::AccountId> for Pallet<T> {
 		for collator in Collators::<T>::take(index) {
 			if !excluded.contains(&collator) {
 				let (currency, amount) = (T::RewardCurrencyId::get(), T::RewardPerCollator::get());
-				match T::Currency::deposit(currency, &collator, amount) {
+				match T::Currency::transfer(currency, &T::RewardsBag::get(), &collator, amount) {
 					Ok(_) => Self::deposit_event(Event::CollatorRewarded {
 						who: collator,
 						amount,

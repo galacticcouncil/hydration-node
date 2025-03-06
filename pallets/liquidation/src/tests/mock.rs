@@ -17,11 +17,13 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
+use hydradx_traits::evm::Erc20Encoding;
+use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::{
 	router::{PoolType, RefundEdCalculator},
 	OraclePeriod, PriceOracle,
 };
-use orml_traits::{parameter_type_with_key, GetByKey};
+use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::H256;
@@ -145,6 +147,11 @@ impl EVM<CallResult> for EvmMock {
 
 pub struct HydraErc20Mapping;
 impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn asset_address(asset_id: AssetId) -> EvmAddress {
+		Self::encode_evm_address(asset_id)
+	}
+}
+impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 
@@ -309,6 +316,7 @@ parameter_types! {
 	pub const ExistentialDeposit: u128 = 500;
 	pub ProtocolFee: Permill = Permill::from_percent(0);
 	pub AssetFee: Permill = Permill::from_percent(0);
+	pub BurnFee: Permill = Permill::from_percent(0);
 	pub AssetWeightCap: Permill = Permill::from_percent(100);
 	pub MinAddedLiquidity: Balance = 1000u128;
 	pub MinTradeAmount: Balance = 1000u128;
@@ -344,6 +352,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
 }
@@ -402,6 +411,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct DummyNFT;
@@ -451,9 +461,14 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(Permill::from_percent(0), Permill::from_percent(0))
+	}
+
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
 	}
 }
 

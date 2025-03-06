@@ -44,6 +44,7 @@ pub mod pallet {
 	}
 }
 
+#[allow(dead_code)]
 pub struct TradeResult<AssetId> {
 	pub amount_in: Balance,
 	pub amount_out: Balance,

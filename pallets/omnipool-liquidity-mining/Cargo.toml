@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.6.1"
+version = "2.6.6"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -56,6 +56,7 @@ pallet-broadcast = { workspace = true }
 orml-tokens = { workspace = true }
 pretty_assertions = { workspace = true }
 test-utils = { workspace = true }
+polkadot-xcm = { workspace = true }
 
 [features]
 default = ["std"]

@@ -36,10 +36,10 @@ use hydra_dx_math::{
 };
 use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
 use hydradx_traits::{
-	liquidity_mining::PriceAdjustment, AggregatedOracle, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
+	liquidity_mining::PriceAdjustment, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
 	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
-use orml_traits::GetByKey;
+use orml_traits::{GetByKey, MultiCurrency};
 use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
@@ -327,13 +327,16 @@ where
 }
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
-pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>(PhantomData<(Origin, NativeAsset, Lrna, Runtime)>);
+pub struct OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient>(
+	PhantomData<(Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient)>,
+);
 
-impl<Origin, NativeAsset, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
-	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime>
+impl<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, NativeAsset, Lrna, Runtime, MC, ProtocolFeeRecipient>
 where
 	Lrna: Get<AssetId>,
 	NativeAsset: Get<AssetId>,
+	ProtocolFeeRecipient: Get<AccountId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
@@ -342,6 +345,7 @@ where
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
+	MC: MultiCurrency<AccountId, CurrencyId = AssetId, Balance = Balance>,
 {
 	type Error = DispatchError;
 
@@ -491,6 +495,16 @@ where
 		)?;
 		Ok(vec![staking_used, referrals_used])
 	}
+
+	fn consume_protocol_fee(
+		fee_account: AccountId,
+		amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
+		//TODO: here in future, we will change this to buyback HDX with the lrna amount
+		// for now, simply transfer the amount to treasury
+		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
+		Ok(Some((amount, ProtocolFeeRecipient::get())))
+	}
 }
 
 /// Passes ema oracle price to the omnipool.
@@ -597,6 +611,7 @@ where
 						Err(_) => return None,
 					}
 				}
+				PoolType::Aave => EmaPrice::from(1),
 				_ => return None,
 			};
 
@@ -818,22 +833,47 @@ impl<
 }
 
 // Dynamic fees volume adapter
-pub struct OracleVolume(Balance, Balance);
-
-impl pallet_dynamic_fees::traits::Volume<Balance> for OracleVolume {
-	fn amount_in(&self) -> Balance {
-		self.0
-	}
-
-	fn amount_out(&self) -> Balance {
-		self.1
+pub struct OracleVolume {
+	amount_in: Balance,
+	amount_out: Balance,
+	liquidity: Balance,
+	updated_at: u128,
+}
+impl OracleVolume {
+	fn new(amount_in: Balance, amount_out: Balance, liquidity: Balance, updated_at: u128) -> Self {
+		Self {
+			amount_in,
+			amount_out,
+			liquidity,
+			updated_at,
+		}
 	}
 }
 
-pub struct OracleAssetVolumeProvider<Runtime, Lrna, Period>(PhantomData<(Runtime, Lrna, Period)>);
+impl pallet_dynamic_fees::traits::Volume<Balance> for OracleVolume {
+	fn amount_in(&self) -> Balance {
+		self.amount_in
+	}
+
+	fn amount_out(&self) -> Balance {
+		self.amount_out
+	}
+
+	fn liquidity(&self) -> Balance {
+		self.liquidity
+	}
+
+	fn updated_at(&self) -> u128 {
+		self.updated_at
+	}
+}
+
+// Provide raw oracle values for given source, asset pair and period.
+// Raw value is not ema adjusted.
+pub struct OmnipoolRawOracleAssetVolumeProvider<Runtime, Lrna, Period>(PhantomData<(Runtime, Lrna, Period)>);
 
 impl<Runtime, Lrna, Period> pallet_dynamic_fees::traits::VolumeProvider<AssetId, Balance>
-	for OracleAssetVolumeProvider<Runtime, Lrna, Period>
+	for OmnipoolRawOracleAssetVolumeProvider<Runtime, Lrna, Period>
 where
 	Runtime: pallet_ema_oracle::Config,
 	Lrna: Get<AssetId>,
@@ -841,18 +881,22 @@ where
 {
 	type Volume = OracleVolume;
 
-	fn asset_volume(asset_id: AssetId) -> Option<Self::Volume> {
-		let entry =
-			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
-				.ok()?;
-		Some(OracleVolume(entry.volume.a_in, entry.volume.a_out))
+	fn last_entry(asset_id: AssetId) -> Option<Self::Volume> {
+		let (entry, _) = pallet_ema_oracle::Pallet::<Runtime>::get_last_oracle_entry(
+			OMNIPOOL_SOURCE,
+			(asset_id, Lrna::get()),
+			Period::get(),
+		)?;
+		Some(OracleVolume::new(
+			entry.volume.a_in,
+			entry.volume.a_out,
+			entry.liquidity.a,
+			entry.updated_at.saturated_into(),
+		))
 	}
 
-	fn asset_liquidity(asset_id: AssetId) -> Option<Balance> {
-		let entry =
-			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
-				.ok()?;
-		Some(entry.liquidity.a)
+	fn period() -> u64 {
+		Period::get().as_period()
 	}
 }
 
@@ -897,7 +941,7 @@ where
 {
 	fn get_by_lock(lock_id: LockIdentifier, currency_id: AssetId, who: T::AccountId) -> Balance {
 		if currency_id == NativeAssetId::get() {
-			match pallet_balances::Pallet::<T>::locks(who)
+			match pallet_balances::Pallet::<T>::locks(&who)
 				.into_iter()
 				.find(|lock| lock.id == lock_id)
 			{
@@ -1015,28 +1059,28 @@ where
 
 /// Price provider that returns a price of an asset that can be used to pay tx fee.
 /// If an asset cannot be used as fee payment asset, None is returned.
-pub struct AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>(
-	PhantomData<(A, AC, RP, Oracle, FallbackPrice, Period)>,
+pub struct AssetFeeOraclePriceProvider<NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period>(
+	PhantomData<(NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period)>,
 );
 
-impl<AssetId, A, RP, AC, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
-	for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
+impl<AssetId, NativeAsset, Router, FeePaymentAsset, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
+	for AssetFeeOraclePriceProvider<NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period>
 where
-	RP: RouteProvider<AssetId>,
+	Router: RouteProvider<AssetId>,
 	Oracle: PriceOracle<AssetId, Price = EmaPrice>,
 	FallbackPrice: GetByKey<AssetId, Option<FixedU128>>,
 	Period: Get<OraclePeriod>,
-	A: Get<AssetId>,
+	NativeAsset: Get<AssetId>,
 	AssetId: Copy + PartialEq,
-	AC: Contains<AssetId>,
+	FeePaymentAsset: Contains<AssetId>,
 {
 	fn price(currency: AssetId) -> Option<EmaPrice> {
-		if currency == A::get() {
+		if currency == NativeAsset::get() {
 			return Some(EmaPrice::one());
 		}
 
-		if AC::contains(&currency) {
-			let route = RP::get_route(AssetPair::new(currency, A::get()));
+		if FeePaymentAsset::contains(&currency) {
+			let route = Router::get_route(AssetPair::new(currency, NativeAsset::get()));
 			if let Some(price) = Oracle::price(&route, Period::get()) {
 				Some(price)
 			} else {

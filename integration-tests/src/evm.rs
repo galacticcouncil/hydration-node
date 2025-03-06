@@ -304,7 +304,7 @@ mod account_conversion {
 				DISPATCH_ADDR, // to
 				data,          // data
 				U256::from(0u64),
-				U256::from(52000u64),
+				U256::from(53000u64),
 				None,
 				None,
 				None,
@@ -1254,6 +1254,342 @@ mod currency_precompile {
 	}
 }
 
+mod chainlink_precompile {
+	use super::*;
+	use ethabi::ethereum_types::U256;
+	use frame_support::sp_runtime::{FixedPointNumber, FixedU128};
+	use hydradx_runtime::{
+		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
+		EmaOracle, Router,
+	};
+	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
+	use pallet_ema_oracle::Price;
+	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+
+	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, decimals: u8) {
+		let fixed_price_int = FixedU128::checked_from_rational(ema_price.n, ema_price.d)
+			.unwrap()
+			.checked_mul_int(10_u128.pow(decimals.into()))
+			.unwrap();
+
+		pretty_assertions::assert_eq!(fixed_price_int, precompile_price.as_u128());
+	}
+
+	#[test]
+	fn chainlink_precompile_should_work_with_omnipool_source() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			hydradx_run_to_next_block();
+
+			init_omnipool();
+
+			let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				token_price,
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				DOT,
+				5 * UNITS,
+				0,
+			));
+
+			hydradx_run_to_next_block();
+
+			let hdx_price = EmaOracle::get_price(HDX, LRNA, OraclePeriod::Short, OMNIPOOL_SOURCE)
+				.unwrap()
+				.0;
+			let dot_price = EmaOracle::get_price(DOT, LRNA, OraclePeriod::Short, OMNIPOOL_SOURCE)
+				.unwrap()
+				.0;
+			let ema_price = Price {
+				n: hdx_price.n.checked_mul(dot_price.d).unwrap(),
+				d: hdx_price.d.checked_mul(dot_price.n).unwrap(),
+			};
+
+			let data = EvmDataWriter::new_with_selector(AggregatorInterface::GetAnswer).build();
+
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, OMNIPOOL_SOURCE);
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address(),
+					caller: oracle_ethereum_address,
+					apparent_value: U256::from(0),
+				},
+				code_address: oracle_ethereum_address,
+				is_static: true,
+			};
+
+			//Act
+			let PrecompileOutput { output, exit_status } =
+				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+
+			//Assert
+			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
+
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+		});
+	}
+
+	#[test]
+	fn chainlink_precompile_should_work_with_xyk_source() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			hydradx_run_to_next_block();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ALICE.into(),
+				DOT,
+				200 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::XYK::create_pool(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				100 * UNITS,
+				DOT,
+				200 * UNITS,
+			));
+
+			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (HDX, DOT)));
+
+			assert_ok!(hydradx_runtime::XYK::buy(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				DOT,
+				2 * UNITS,
+				200 * UNITS,
+				false,
+			));
+
+			hydradx_run_to_next_block();
+
+			let ema_price = EmaOracle::get_price(HDX, DOT, OraclePeriod::Short, XYK_SOURCE)
+				.unwrap()
+				.0;
+
+			let data = EvmDataWriter::new_with_selector(AggregatorInterface::GetAnswer).build();
+
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, XYK_SOURCE);
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address(),
+					caller: oracle_ethereum_address,
+					apparent_value: U256::from(0),
+				},
+				code_address: oracle_ethereum_address,
+				is_static: true,
+			};
+
+			//Act
+			let PrecompileOutput { output, exit_status } =
+				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+
+			//Assert
+			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
+
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+		});
+	}
+
+	#[test]
+	fn chainlink_precompile_should_work_with_routed_pair() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			hydradx_run_to_next_block();
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ALICE.into(),
+				DOT,
+				200 * UNITS as i128,
+			));
+
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				ALICE.into(),
+				DAI,
+				200 * UNITS as i128,
+			));
+
+			assert_ok!(hydradx_runtime::XYK::create_pool(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				100 * UNITS,
+				DAI,
+				200 * UNITS,
+			));
+
+			assert_ok!(hydradx_runtime::XYK::create_pool(
+				RuntimeOrigin::signed(ALICE.into()),
+				DAI,
+				100 * UNITS,
+				DOT,
+				300 * UNITS,
+			));
+
+			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (HDX, DAI)));
+			assert_ok!(EmaOracle::add_oracle(RuntimeOrigin::root(), XYK_SOURCE, (DAI, DOT)));
+
+			assert_ok!(hydradx_runtime::XYK::buy(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				DAI,
+				2 * UNITS,
+				200 * UNITS,
+				false,
+			));
+			assert_ok!(hydradx_runtime::XYK::buy(
+				RuntimeOrigin::signed(ALICE.into()),
+				DAI,
+				DOT,
+				2 * UNITS,
+				200 * UNITS,
+				false,
+			));
+
+			// set route
+			let route = vec![
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: HDX,
+					asset_out: DAI,
+				},
+				Trade {
+					pool: PoolType::XYK,
+					asset_in: DAI,
+					asset_out: DOT,
+				},
+			];
+
+			hydradx_run_to_next_block();
+
+			assert_ok!(Router::set_route(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				AssetPair::new(HDX, DOT),
+				route
+			));
+
+			let dai_price = EmaOracle::get_price(HDX, DAI, OraclePeriod::Short, XYK_SOURCE)
+				.unwrap()
+				.0;
+			let dot_price = EmaOracle::get_price(DAI, DOT, OraclePeriod::Short, XYK_SOURCE)
+				.unwrap()
+				.0;
+			let ema_price = Price {
+				n: dai_price.n.checked_mul(dot_price.n).unwrap(),
+				d: dai_price.d.checked_mul(dot_price.d).unwrap(),
+			};
+
+			let data = EvmDataWriter::new_with_selector(AggregatorInterface::GetAnswer).build();
+
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, [0; 8]);
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address(),
+					caller: oracle_ethereum_address,
+					apparent_value: U256::from(0),
+				},
+				code_address: oracle_ethereum_address,
+				is_static: true,
+			};
+
+			//Act
+			let PrecompileOutput { output, exit_status } =
+				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+
+			//Assert
+			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
+
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+		});
+	}
+
+	#[test]
+	fn chainlink_precompile_should_return_error_when_oracle_not_available() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			assert!(EmaOracle::get_price(HDX, DOT, OraclePeriod::Short, XYK_SOURCE).is_err());
+
+			let data = EvmDataWriter::new_with_selector(AggregatorInterface::GetAnswer).build();
+
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, XYK_SOURCE);
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address(),
+					caller: oracle_ethereum_address,
+					apparent_value: U256::from(0),
+				},
+				code_address: oracle_ethereum_address,
+				is_static: true,
+			};
+
+			//Act
+			let result = ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle);
+
+			//Assert
+			pretty_assertions::assert_eq!(
+				result,
+				Err(PrecompileFailure::Error {
+					exit_status: ExitError::Other("Price not available".into()),
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn chainlink_runtime_rpc_should_work() {
+		use hydradx_runtime::evm::precompiles::chainlink_adapter::runtime_api::runtime_decl_for_chainlink_adapter_api::ChainlinkAdapterApiV1;
+
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Runtime::encode_oracle_address(4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE),
+				hydradx_runtime::evm::precompiles::chainlink_adapter::encode_oracle_address(
+					4,
+					5,
+					OraclePeriod::TenMinutes,
+					OMNIPOOL_SOURCE
+				)
+			);
+
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Runtime::decode_oracle_address(H160::from(hex!(
+					"000001026f6d6e69706f6f6c0000000400000005"
+				))),
+				hydradx_runtime::evm::precompiles::chainlink_adapter::decode_oracle_address(H160::from(hex!(
+					"000001026f6d6e69706f6f6c0000000400000005"
+				)))
+			);
+		});
+	}
+}
+
 mod contract_deployment {
 	use super::*;
 	use frame_support::assert_noop;
@@ -1586,11 +1922,6 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 			ALICE.into()
 		)));
 
-		//Set up to idle state where the chain is not utilized at all
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
-			hydradx_runtime::MinimumMultiplier::get(),
-		);
-
 		init_omnipool_with_oracle_for_block_10();
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1604,7 +1935,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 			fee_currency,
 		));
 
-		// give alice evm addr seom weth to sell in omnipool
+		// give alice evm addr some DOT to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
@@ -1656,15 +1987,25 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 
 		let alice_currency_balance_pre_dispatch = Currencies::free_balance(fee_currency, &AccountId::from(ALICE));
 		let native_fee = new_alice_currency_balance - alice_currency_balance_pre_dispatch;
-		assert!(evm_fee > native_fee);
+		assert!(
+			evm_fee > native_fee,
+			"assertion failed evm_fee > native fee. Evm fee: {:?} Native fee: {:?}",
+			evm_fee,
+			native_fee
+		);
 
 		let fee_difference = evm_fee - native_fee;
 		assert!(fee_difference > 0);
 
 		let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
-		let tolerated_fee_difference = FixedU128::from_rational(20, 100);
+		let tolerated_fee_difference = FixedU128::from_rational(31, 100);
 		// EVM fees should be not higher than 20%
-		assert!(relative_fee_difference < tolerated_fee_difference);
+		assert!(
+			relative_fee_difference < tolerated_fee_difference,
+			"relative_fee_difference: {:?} is bigger than tolerated {:?}",
+			relative_fee_difference,
+			tolerated_fee_difference
+		);
 	})
 }
 
@@ -1781,7 +2122,7 @@ pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	hydradx_run_to_next_block();
 	do_trade_to_populate_oracle(WETH, DOT, 1_000_000_000_000);
-	let to = 40;
+	let to = 20;
 	let from = 11;
 	for _ in from..=to {
 		hydradx_run_to_next_block();

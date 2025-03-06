@@ -21,7 +21,10 @@ use crate::origins::GeneralAdmin;
 use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT},
+	chain::{
+		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT, RELAY_CHAIN_SLOT_DURATION_MILLIS,
+		UNINCLUDED_SEGMENT_CAPACITY,
+	},
 	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
 	time::{DAYS, HOURS, SLOT_DURATION},
 };
@@ -237,6 +240,13 @@ parameter_types! {
 	pub ReservedDmpWeight: Weight = BlockWeights::get().max_block / 4;
 }
 
+type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
+	Runtime,
+	RELAY_CHAIN_SLOT_DURATION_MILLIS,
+	BLOCK_PROCESSING_VELOCITY,
+	UNINCLUDED_SEGMENT_CAPACITY,
+>;
+
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnSystemEvent = pallet_relaychain_info::OnValidationDataHandler<Runtime>;
@@ -248,6 +258,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
+	type ConsensusHook = ConsensusHook;
 }
 
 parameter_types! {
@@ -387,13 +398,13 @@ pub struct ManageExecutionTypeForUnifiedEvent;
 
 impl BatchHook for ManageExecutionTypeForUnifiedEvent {
 	fn on_batch_start() -> DispatchResult {
-		Broadcast::add_to_context(ExecutionType::Batch);
+		Broadcast::add_to_context(ExecutionType::Batch)?;
 
 		Ok(())
 	}
 
 	fn on_batch_end() -> DispatchResult {
-		Broadcast::remove_from_context();
+		Broadcast::remove_from_context()?;
 
 		Ok(())
 	}
@@ -645,6 +656,7 @@ impl pallet_collator_rewards::Config for Runtime {
 	type Currency = Currencies;
 	type RewardPerCollator = RewardPerCollator;
 	type RewardCurrencyId = NativeAssetId;
+	type RewardsBag = TreasuryAccount;
 	type ExcludedCollators = ExcludedCollators;
 	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collators that
 	// we hand out rewards to.

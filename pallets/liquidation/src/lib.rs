@@ -25,6 +25,7 @@
 //! * `liquidate` - Liquidates an existing MM position. Performs flash loan to get funds.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
@@ -36,8 +37,9 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
+use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
-	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
+	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -73,6 +75,7 @@ pub enum Function {
 pub mod pallet {
 	use super::*;
 	use frame_support::traits::DefensiveOption;
+	use hydradx_traits::evm::Erc20Mapping;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -235,6 +238,7 @@ pub mod pallet {
 				debt_asset,
 				&pallet_acc,
 				debt_to_cover,
+				Preservation::Expendable,
 				Precision::Exact,
 				Fortitude::Force,
 			)?;
@@ -284,8 +288,8 @@ impl<T: Config> Pallet<T> {
 		debt_to_cover: Balance,
 		receive_atoken: bool,
 	) -> Vec<u8> {
-		let collateral_address = T::Erc20Mapping::encode_evm_address(collateral_asset);
-		let debt_asset_address = T::Erc20Mapping::encode_evm_address(debt_asset);
+		let collateral_address = T::Erc20Mapping::asset_address(collateral_asset);
+		let debt_asset_address = T::Erc20Mapping::asset_address(debt_asset);
 		let mut data = Into::<u32>::into(Function::LiquidationCall).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(collateral_address).as_bytes());
 		data.extend_from_slice(H256::from(debt_asset_address).as_bytes());

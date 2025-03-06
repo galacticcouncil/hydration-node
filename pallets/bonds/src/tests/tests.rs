@@ -23,8 +23,8 @@ fn parse_name_should_work() {
 	let n = Pallet::<Test>::bond_name(0_u32, 1689844300000_u64);
 	assert_eq!(Pallet::<Test>::parse_bond_name(n), Ok(0_u32));
 
-	let n = Pallet::<Test>::bond_name(u32::max_value(), 1689844300000_u64);
-	assert_eq!(Pallet::<Test>::parse_bond_name(n), Ok(u32::max_value()));
+	let n = Pallet::<Test>::bond_name(u32::MAX, 1689844300000_u64);
+	assert_eq!(Pallet::<Test>::parse_bond_name(n), Ok(u32::MAX));
 
 	let n = Pallet::<Test>::bond_name(1, 1689844300000_u64);
 	assert_eq!(Pallet::<Test>::parse_bond_name(n), Ok(1));

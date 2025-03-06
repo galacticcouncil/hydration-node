@@ -4,8 +4,7 @@ use super::*;
 use codec::MaxEncodedLen;
 use frame_support::pallet_prelude::*;
 use hydra_dx_math::omnipool::types::{AssetReserveState as MathReserveState, AssetStateChange, BalanceUpdate};
-use sp_runtime::{FixedPointNumber, FixedU128};
-use sp_std::ops::{Add, Sub};
+use sp_runtime::{FixedPointNumber, FixedU128, Saturating};
 
 /// Balance type used in Omnipool
 pub type Balance = u128;
@@ -137,82 +136,6 @@ where
 	}
 }
 
-/// Simple type to represent imbalance which can be positive or negative.
-// Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
-#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct SimpleImbalance<Balance> {
-	pub value: Balance,
-	pub negative: bool,
-}
-
-impl<Balance: Default> Default for SimpleImbalance<Balance> {
-	fn default() -> Self {
-		Self {
-			value: Balance::default(),
-			negative: true,
-		}
-	}
-}
-
-/// The addition operator + for SimpleImbalance.
-///
-/// Adds amount to imbalance.
-///
-/// Note that it returns Option<self> rather than Self.
-///
-/// Note: Implements `Add` instead of `CheckedAdd` because `CheckedAdd` requires the second parameter
-/// to be the same type as the first while we want to add a `Balance` here.
-///
-/// # Example
-///
-/// ```ignore
-/// let imbalance = SimpleImbalance{value: 100, negative: false} ;
-/// assert_eq!(imbalance + 200 , Some(SimpleImbalance{value: 300, negative: false}));
-/// ```
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Add<Balance> for SimpleImbalance<Balance> {
-	type Output = Option<Self>;
-
-	fn add(self, amount: Balance) -> Self::Output {
-		let (value, sign) = if !self.negative {
-			(self.value.checked_add(&amount)?, self.negative)
-		} else if self.value < amount {
-			(amount.checked_sub(&self.value)?, false)
-		} else {
-			(self.value.checked_sub(&amount)?, self.negative)
-		};
-		Some(Self { value, negative: sign })
-	}
-}
-
-/// The subtraction operator - for SimpleImbalance.
-///
-/// Subtracts amount from imbalance.
-///
-/// Note that it returns Option<self> rather than Self.
-///
-/// # Example
-///
-/// ```ignore
-/// let imbalance = SimpleImbalance{value: 200, negative: false} ;
-/// assert_eq!(imbalance - 100 , Some(SimpleImbalance{value: 100, negative: false}));
-/// ```
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for SimpleImbalance<Balance> {
-	type Output = Option<Self>;
-
-	fn sub(self, amount: Balance) -> Self::Output {
-		let (value, sign) = if self.negative {
-			(self.value.checked_add(&amount)?, self.negative)
-		} else if self.value < amount {
-			(amount.checked_sub(&self.value)?, true)
-		} else if self.value == amount {
-			(self.value.checked_sub(&amount)?, true)
-		} else {
-			(self.value.checked_sub(&amount)?, self.negative)
-		};
-		Some(Self { value, negative: sign })
-	}
-}
-
 /// Asset state representation including asset pool reserve.
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub struct AssetReserveState<Balance> {
@@ -292,7 +215,14 @@ where
 
 impl<Balance> AssetReserveState<Balance>
 where
-	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner>
+		+ Copy
+		+ CheckedAdd
+		+ CheckedSub
+		+ Default
+		+ PartialOrd
+		+ sp_std::fmt::Debug
+		+ Saturating,
 {
 	pub fn price_as_rational(&self) -> (Balance, Balance) {
 		(self.hub_reserve, self.reserve)
@@ -311,7 +241,7 @@ where
 	pub fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
 		Some(Self {
 			reserve: (delta.delta_reserve + self.reserve)?,
-			hub_reserve: (delta.delta_hub_reserve + self.hub_reserve)?,
+			hub_reserve: (delta.total_delta_hub_reserve() + self.hub_reserve)?,
 			shares: (delta.delta_shares + self.shares)?,
 			protocol_shares: (delta.delta_protocol_shares + self.protocol_shares)?,
 			cap: self.cap,

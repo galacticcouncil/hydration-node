@@ -1,3 +1,4 @@
+use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::executor::{CallResult, Executor};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
@@ -9,7 +10,7 @@ use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
-use primitives::Balance;
+use primitives::{AccountId, Balance};
 use scale_info::prelude::format;
 use sp_core::crypto::AccountId32;
 use sp_core::{H160, H256, U256};
@@ -35,16 +36,16 @@ pub enum Function {
 	Approve = "approve(address,uint256)",
 	TransferFrom = "transferFrom(address,address,uint256)",
 }
-type BalanceOf<T> = <<T as pallet_evm::Config>::Currency as frame_support::traits::Currency<
-	<T as frame_system::Config>::AccountId,
->>::Balance;
 
-pub struct Erc20Currency<T>(sp_std::marker::PhantomData<T>);
+pub struct Erc20Currency<T>(PhantomData<T>);
 
 impl<T> ERC20 for Erc20Currency<T>
 where
 	T: pallet_evm::Config,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
+	NonceIdOf<T>: Into<T::Nonce>,
 {
 	type Balance = Balance;
 
@@ -206,12 +207,15 @@ fn handle_result(result: CallResult) -> DispatchResult {
 	}
 }
 
-impl<T> MultiCurrency<T::AccountId> for Erc20Currency<T>
+impl<T> MultiCurrency<AccountId> for Erc20Currency<T>
 where
 	T: Config + pallet_evm::Config,
-	pallet_evm_accounts::Pallet<T>: InspectEvmAccounts<T::AccountId>,
-	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	pallet_evm_accounts::Pallet<T>: InspectEvmAccounts<AccountId>,
+	AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
+	NonceIdOf<T>: Into<T::Nonce>,
 {
 	type CurrencyId = EvmAddress;
 	type Balance = Balance;
@@ -228,17 +232,17 @@ where
 		})
 	}
 
-	fn total_balance(contract: Self::CurrencyId, who: &T::AccountId) -> Self::Balance {
+	fn total_balance(contract: Self::CurrencyId, who: &AccountId) -> Self::Balance {
 		Self::free_balance(contract, who)
 	}
 
-	fn free_balance(contract: Self::CurrencyId, who: &T::AccountId) -> Self::Balance {
+	fn free_balance(contract: Self::CurrencyId, who: &AccountId) -> Self::Balance {
 		<Self as ERC20>::balance_of(CallContext::new_view(contract), EvmAccounts::<T>::evm_address(who))
 	}
 
 	fn ensure_can_withdraw(
 		contract: Self::CurrencyId,
-		who: &T::AccountId,
+		who: &AccountId,
 		amount: Self::Balance,
 	) -> sp_runtime::DispatchResult {
 		if amount.is_zero() {
@@ -250,8 +254,8 @@ where
 
 	fn transfer(
 		contract: Self::CurrencyId,
-		from: &T::AccountId,
-		to: &T::AccountId,
+		from: &AccountId,
+		to: &AccountId,
 		amount: Self::Balance,
 	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
@@ -266,23 +270,19 @@ where
 		)
 	}
 
-	fn deposit(_contract: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
+	fn deposit(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
 		fail!(Error::<T>::NotSupported)
 	}
 
-	fn withdraw(
-		_contract: Self::CurrencyId,
-		_who: &T::AccountId,
-		_amount: Self::Balance,
-	) -> sp_runtime::DispatchResult {
+	fn withdraw(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
 		fail!(Error::<T>::NotSupported)
 	}
 
-	fn can_slash(_contract: Self::CurrencyId, _who: &T::AccountId, value: Self::Balance) -> bool {
+	fn can_slash(_contract: Self::CurrencyId, _who: &AccountId, value: Self::Balance) -> bool {
 		value.is_zero()
 	}
 
-	fn slash(_contract: Self::CurrencyId, _who: &T::AccountId, _amount: Self::Balance) -> Self::Balance {
+	fn slash(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> Self::Balance {
 		Default::default()
 	}
 }

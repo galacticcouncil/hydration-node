@@ -26,7 +26,6 @@ use frame_support::{
 };
 use frame_system as system;
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::router::RouteProvider;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
@@ -174,10 +173,6 @@ impl Config for Test {
 	type WeightInfo = ();
 }
 
-pub struct DefaultRouteProvider;
-
-impl RouteProvider<AssetId> for DefaultRouteProvider {}
-
 impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
 	/// The type for recording an account's balance.
@@ -229,6 +224,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ();
 	type GetNativeCurrencyId = HdxAssetId;
 	type WeightInfo = ();
 }

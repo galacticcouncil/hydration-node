@@ -16,7 +16,7 @@ use hydradx_runtime::{
 	AssetId, Balance, Currencies, EVMAccounts, Liquidation, Router, RuntimeOrigin, Treasury,
 };
 use hydradx_traits::{
-	evm::{CallContext, Erc20Mapping, EvmAddress, EVM},
+	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
 	router::{AssetPair, RouteProvider},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -24,7 +24,8 @@ use orml_traits::currency::MultiCurrency;
 use sp_core::{H256, U256};
 use sp_runtime::{traits::CheckedConversion, SaturatedConversion};
 
-const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
+// ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens MultiTransactionPayment EmaOracle Balances --uri wss://rpc.nice.hydration.cloud:443
+pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]

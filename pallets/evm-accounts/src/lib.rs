@@ -55,6 +55,7 @@
 //! * `disapprove_contract` - Disapproves contract address to manage balances.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
@@ -190,6 +191,11 @@ pub mod pallet {
 		pub fn bind_evm_address(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(
+				!Self::is_evm_account(who.clone()),
+				Error::<T>::TruncatedAccountAlreadyUsed
+			);
+
 			let evm_address = Self::evm_address(&who);
 
 			// This check is not necessary. It prevents binding the same address multiple times.
@@ -201,10 +207,6 @@ pub mod pallet {
 				Error::<T>::AddressAlreadyBound
 			);
 
-			ensure!(
-				!Self::is_evm_account(who.clone()),
-				Error::<T>::TruncatedAccountAlreadyUsed
-			);
 			let nonce = T::EvmNonceProvider::get_nonce(evm_address);
 			ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
 

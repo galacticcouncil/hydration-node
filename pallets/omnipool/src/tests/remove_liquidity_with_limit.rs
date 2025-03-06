@@ -36,7 +36,7 @@ fn remove_liquidity_works() {
 				liq_removed
 			));
 
-			assert_pool_state!(11_930 * ONE, 23_860_000_000_000_000, SimpleImbalance::default());
+			assert_pool_state!(11_930 * ONE, 23_860_000_000_000_000);
 
 			assert_balance!(LP1, 1_000, 4600 * ONE + liq_removed);
 
@@ -104,7 +104,7 @@ fn full_liquidity_removal_works() {
 				"Position still found"
 			);
 
-			assert_pool_state!(11_800 * ONE, 23_600_000_000_000_000, SimpleImbalance::default());
+			assert_pool_state!(11_800 * ONE, 23_600_000_000_000_000);
 
 			assert_balance!(LP1, 1_000, 5000 * ONE);
 
@@ -165,7 +165,7 @@ fn partial_liquidity_removal_works() {
 				"Position has been removed incorrectly"
 			);
 
-			assert_pool_state!(11_930 * ONE, 23_860_000_000_000_000, SimpleImbalance::default());
+			assert_pool_state!(11_930 * ONE, 23_860_000_000_000_000);
 
 			assert_balance!(LP1, 1_000, 4800 * ONE);
 
@@ -247,7 +247,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 			assert_balance!(LP1, 1000, 4_840_000_000_000_000);
 			assert_balance!(LP1, LRNA, 203_921_568_627_449);
 
-			assert_pool_state!(10391666666666667, 64723183391003641, SimpleImbalance::default());
+			assert_pool_state!(10391666666666667, 64723183391003641);
 		});
 }
 
@@ -388,7 +388,7 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 			assert_balance!(Omnipool::protocol_account(), asset_a, 206557377049181);
 			assert_balance!(LP1, asset_a, 4993442622950819);
 
-			assert_pool_state!(10647404371584700, 21294808743169400, SimpleImbalance::default());
+			assert_pool_state!(10647404371584700, 21294808743169400);
 
 			let expected_state = AssetReserveState {
 				reserve: 206557377049181,
@@ -604,7 +604,7 @@ fn remove_liquidity_should_apply_min_fee_when_price_is_the_same() {
 				liq_removed
 			));
 
-			assert_pool_state!(11931300000000000, 23862600000000000, SimpleImbalance::default());
+			assert_pool_state!(11931300000000000, 23862600000000000);
 
 			assert_balance!(LP1, 1_000, 4798000000000000);
 
@@ -663,7 +663,7 @@ fn remove_liquidity_should_apply_correct_fee_when_price_is_different() {
 				liq_removed
 			));
 
-			assert_pool_state!(11936190476190477, 23872380952380954, SimpleImbalance::default());
+			assert_pool_state!(11936190476190477, 23872380952380954);
 
 			assert_balance!(LP1, 1_000, 4790476190476190);
 

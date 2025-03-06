@@ -242,6 +242,7 @@ impl Config for XcmConfig {
 	type HrmpNewChannelOpenRequestHandler = ();
 	type HrmpChannelClosingHandler = ();
 	type HrmpChannelAcceptedHandler = ();
+	type XcmRecorder = PolkadotXcm;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -265,13 +266,19 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		} else {
 			unique(&message)
 		};
-		pallet_broadcast::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id));
+		if pallet_broadcast::Pallet::<Runtime>::add_to_context(|event_id| ExecutionType::Xcm(unique_id, event_id))
+			.is_err()
+		{
+			log::error!(target: "xcm-executor", "Failed to add to broadcast context.");
+			return Err(message.clone());
+		}
 
-		let prepare_result = Inner::prepare(message);
+		let prepare_result = Inner::prepare(message.clone());
 
 		//In case of error we need to clean context as xcm execution won't happen
-		if prepare_result.is_err() {
-			pallet_broadcast::Pallet::<Runtime>::remove_from_context();
+		if prepare_result.is_err() && pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
+			log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
+			return Err(message);
 		}
 
 		prepare_result
@@ -286,7 +293,11 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		let outcome = Inner::execute(origin, pre, id, weight_credit);
 
 		// Context was added to the stack in `prepare` call.
-		pallet_broadcast::Pallet::<Runtime>::remove_from_context();
+		if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
+			return Outcome::Error {
+				error: XcmError::FailedToTransactAsset("Unexpected error at modifying broadcast execution stack"),
+			};
+		};
 
 		outcome
 	}
@@ -310,12 +321,14 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ChannelInfo = ParachainSystem;
 	type VersionWrapper = PolkadotXcm;
+	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
+	type MaxInboundSuspended = MaxInboundSuspended;
+	type MaxActiveOutboundChannels = ConstU32<128>;
+	type MaxPageSize = ConstU32<{ 128 * 1024 }>;
 	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
 	type WeightInfo = weights::cumulus_pallet_xcmp_queue::HydraWeight<Runtime>;
-	type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
-	type MaxInboundSuspended = MaxInboundSuspended;
 }
 
 const ASSET_HUB_PARA_ID: u32 = 1000;
@@ -462,6 +475,14 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 impl Convert<Asset, Option<AssetId>> for CurrencyIdConvert {
 	fn convert(asset: Asset) -> Option<AssetId> {
 		Self::convert(asset.id.0)
+	}
+}
+
+impl Convert<VersionedLocation, Option<AssetId>> for CurrencyIdConvert {
+	fn convert(versioned_location: VersionedLocation) -> Option<AssetId> {
+		let location = Location::try_from(versioned_location).ok()?;
+
+		Self::convert(location)
 	}
 }
 
