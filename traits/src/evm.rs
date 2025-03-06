@@ -92,4 +92,5 @@ pub trait Erc20Encoding<AssetId> {
 /// Mapping from Assets to ERC20 contract addresses
 pub trait Erc20Mapping<AssetId> {
 	fn asset_address(asset_id: AssetId) -> EvmAddress;
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
 }
