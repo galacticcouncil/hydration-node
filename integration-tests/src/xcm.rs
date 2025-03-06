@@ -375,14 +375,6 @@ fn initiate_teleport_should_fail_as_disabled() {
 
 	// Act
 	Acala::execute_with(|| {
-		let omni_sell =
-			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount: UNITS,
-				min_buy_amount: 0,
-			});
-
 		let hdx_loc = Location::new(
 			1,
 			cumulus_primitives_core::Junctions::X2(Arc::new([

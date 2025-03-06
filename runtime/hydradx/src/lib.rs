@@ -52,13 +52,12 @@ use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	create_runtime_str, generic, impl_opaque_keys, Permill,
 	traits::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
-	DispatchError, Permill, TransactionOutcome,
 };
 
 use sp_std::{convert::From, prelude::*};
@@ -66,7 +65,7 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{assert_ok, construct_runtime, pallet_prelude::Hooks, parameter_types, weights::Weight};
+use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
@@ -443,8 +442,6 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 	}
 }
 
-use frame_support::dispatch::RawOrigin;
-use frame_support::storage::with_transaction;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -453,15 +450,8 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
-use hydradx_traits::Mutate;
-use pallet_omnipool::types::Tradability;
-use pallet_referrals::{FeeDistribution, Level};
-use polkadot_xcm::prelude::{GeneralIndex, Here, InteriorLocation, Junction, NetworkId, NonFungible, Response};
-use polkadot_xcm::v3::prelude::X1;
-use polkadot_xcm::v3::MultiLocation;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
-use sp_arithmetic::FixedU128;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
