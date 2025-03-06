@@ -155,16 +155,13 @@ fn get_fee_amount_from_swapped_event_for_asset(asset_id: AssetId) -> Balance {
 		.collect::<Vec<_>>();
 
 	for event in events.into_iter() {
-		match event {
-			RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { fees, .. }) => {
-				if fees.len() > 0 {
-					let fee = fees.iter().find(|f| f.asset == asset_id);
-					if let Some(fee) = fee {
-						return fee.amount;
-					}
+		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { fees, .. }) = event {
+			if !fees.is_empty() {
+				let fee = fees.iter().find(|f| f.asset == asset_id);
+				if let Some(fee) = fee {
+					return fee.amount;
 				}
 			}
-			_ => {}
 		}
 	}
 	0

@@ -101,7 +101,7 @@ impl<T: frame_system::Config> pallet_scheduler::WeightInfo for HydraWeight<T> {
 		//  Measured:  `246 + s * (1 ±0)`
 		//  Estimated: `4197809`
 		// Minimum execution time: 26_513_000 picoseconds.
-		Weight::from_parts(26_659_000, 4197809)
+		Weight::from_parts(26_659_000, 3711)
 			// Standard Error: 6
 			.saturating_add(Weight::from_parts(1_318, 0).saturating_mul(s.into()))
 			.saturating_add(T::DbWeight::get().reads(3_u64))

@@ -47,6 +47,9 @@ clippy:
 clippy-all:
 	$(cargo) clippy --release --locked --all-targets --all-features -- -A deprecated
 
+clippatorize:
+	$(cargo) clippy --release --locked --all-targets --all-features --fix -- -A deprecated
+
 .PHONY: format
 format:
 	$(cargo) fmt

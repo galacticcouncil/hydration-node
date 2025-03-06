@@ -35,7 +35,7 @@ use crate::{
 };
 use codec::EncodeLike;
 use frame_support::traits::{IsType, OriginTrait};
-use hydradx_traits::evm::{Erc20Mapping, InspectEvmAccounts};
+use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
