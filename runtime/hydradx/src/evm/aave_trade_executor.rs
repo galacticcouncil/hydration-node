@@ -3,10 +3,13 @@ use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::{Erc20Currency, EvmAccounts, Executor};
 use crate::Runtime;
+use crate::Vec;
+use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
+use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
@@ -45,26 +48,27 @@ pub enum Function {
 	Withdraw = "withdraw(address,uint256,address)",
 	GetReserveData = "getReserveData(address)",
 	GetConfiguration = "getConfiguration(address)",
+	GetReservesList = "getReservesList()",
 
 	// AToken
 	UnderlyingAssetAddress = "UNDERLYING_ASSET_ADDRESS()",
 	ScaledTotalSupply = "scaledTotalSupply()",
 }
 
-struct ReserveData {
-	configuration: U256,
-	liquidity_index: U256,
-	current_liquidity_rate: U256,
-	variable_borrow_index: U256,
-	current_variable_borrow_rate: U256,
-	current_stable_borrow_rate: U256,
-	last_update_timestamp: U256,
-	id: u16,
-	atoken_address: EvmAddress,
-	stable_debt_token_address: EvmAddress,
-	variable_debt_token_address: EvmAddress,
-	interest_rate_strategy_address: EvmAddress,
-	accrued_to_treasury: U256,
+pub struct ReserveData {
+	pub configuration: U256,
+	pub liquidity_index: U256,
+	pub current_liquidity_rate: U256,
+	pub variable_borrow_index: U256,
+	pub current_variable_borrow_rate: U256,
+	pub current_stable_borrow_rate: U256,
+	pub last_update_timestamp: U256,
+	pub id: u16,
+	pub atoken_address: EvmAddress,
+	pub stable_debt_token_address: EvmAddress,
+	pub variable_debt_token_address: EvmAddress,
+	pub interest_rate_strategy_address: EvmAddress,
+	pub accrued_to_treasury: U256,
 }
 
 impl ReserveData {
@@ -122,7 +126,37 @@ where
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
 {
-	fn get_reserve_data(pool: EvmAddress, asset: EvmAddress) -> Result<ReserveData, ExecutorError<DispatchError>> {
+	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {
+		let context = CallContext::new_view(pool);
+		let data = EvmDataWriter::new_with_selector(Function::GetReservesList).build();
+
+		let (res, reserves_data) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+
+		ensure!(
+			matches!(res, Succeed(_)),
+			ExecutorError::Error("Failed to get reserves list".into())
+		);
+
+		// The return value is an array of addresses, so we need to decode it
+		let param_types = vec![ParamType::Array(Box::new(ParamType::Address))];
+
+		let decoded = decode(&param_types, reserves_data.as_ref())
+			.map_err(|_| ExecutorError::Error("Failed to decode reserves list".into()))?;
+
+		// Convert decoded addresses to EvmAddress format
+		let addresses = decoded[0]
+			.clone()
+			.into_array()
+			.ok_or(ExecutorError::Error("Invalid reserves list format".into()))?
+			.into_iter()
+			.filter_map(|addr| addr.into_address())
+			.map(|addr| EvmAddress::from_slice(addr.as_bytes()))
+			.collect();
+
+		Ok(addresses)
+	}
+
+	pub fn get_reserve_data(pool: EvmAddress, asset: EvmAddress) -> Result<ReserveData, ExecutorError<DispatchError>> {
 		let context = CallContext::new_view(pool);
 		let data = EvmDataWriter::new_with_selector(Function::GetReserveData)
 			.write(asset)
@@ -398,5 +432,34 @@ where
 
 		// Price is always 1:1
 		Ok(FixedU128::from(1))
+	}
+}
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct PoolData<Balance> {
+	pub reserve: AssetId,
+	pub atoken: AssetId,
+	pub liqudity_in: Balance,
+	pub liqudity_out: Balance,
+}
+
+pub mod runtime_api {
+	#![cfg_attr(not(feature = "std"), no_std)]
+
+	use super::AssetId;
+	use super::PoolData;
+	use crate::Vec;
+	use codec::Codec;
+	use sp_runtime::traits::MaybeDisplay;
+
+	sp_api::decl_runtime_apis! {
+		pub trait AaveTradeExecutor<Balance>
+		  where Balance: Codec + MaybeDisplay
+		{
+			fn pairs() -> Vec<(AssetId, AssetId)>;
+			fn liquidity_depth(asset_in: AssetId, asset_out: AssetId) -> Option<Balance>;
+			fn pool(reserve:AssetId, atoken: AssetId) -> PoolData<Balance>;
+			fn pools() -> Vec<PoolData<Balance>>;
+		}
 	}
 }
