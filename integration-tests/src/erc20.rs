@@ -22,6 +22,8 @@ use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_evm::ExitSucceed::Returned;
+use sp_core::bounded_vec::BoundedVec;
+
 use pallet_evm_accounts::EvmNonceProvider;
 use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
@@ -455,7 +457,7 @@ fn erc20_currency_is_tradeable_in_omnipool() {
 			DAI,
 			1_000,
 			1,
-			vec![],
+			BoundedVec::new(),
 		));
 	});
 }

@@ -36,6 +36,8 @@ pub use pallet::*;
 
 pub const MAX_STACK_SIZE: u32 = 16;
 
+const LOG_TARGET: &str = "runtime::broadcast";
+
 type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
 
 #[frame_support::pallet]
@@ -149,7 +151,7 @@ impl<T: Config> Pallet<T> {
 	pub fn remove_from_context() -> DispatchResult {
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
 			stack.pop().ok_or_else(|| {
-				log::error!(target: "broadcast", "The execution context call stack is empty, unable to decrease level");
+				log::error!(target: LOG_TARGET, "The execution context call stack is empty, unable to decrease level");
 
 				Error::<T>::ExecutionCallStackUnderflow
 			})?;

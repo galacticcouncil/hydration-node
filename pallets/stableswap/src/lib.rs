@@ -694,8 +694,6 @@ pub mod pallet {
 
 			ensure!(shares <= max_share_amount, Error::<T>::SlippageLimit);
 
-			let current_share_balance = T::Currency::free_balance(pool_id, &who);
-
 			// Burn shares and transfer asset to user.
 			T::Currency::withdraw(pool_id, &who, shares)?;
 			T::Currency::transfer(asset_id, &pool_account, &who, amount)?;
