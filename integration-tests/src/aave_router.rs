@@ -69,7 +69,9 @@ fn with_atoken(execution: impl FnOnce()) {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		execution();
 	})
@@ -164,7 +166,9 @@ fn sell_dot() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ONE);
 	})
@@ -183,7 +187,9 @@ fn buy_adot() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ONE);
 	})
@@ -202,7 +208,9 @@ fn sell_adot() {
 				pool: Aave,
 				asset_in: ADOT,
 				asset_out: DOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
 	})
@@ -221,7 +229,9 @@ fn buy_dot() {
 				pool: Aave,
 				asset_in: ADOT,
 				asset_out: DOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
 	})
@@ -241,7 +251,9 @@ fn executor_ensures_that_out_asset_is_underlying() {
 					pool: Aave,
 					asset_in: ADOT,
 					asset_out: HDX,
-				}].try_into().unwrap()
+				}]
+				.try_into()
+				.unwrap()
 			),
 			Other("Asset mismatch: output asset must match aToken's underlying".into())
 		);
@@ -262,7 +274,9 @@ fn executor_ensures_valid_asset_pair() {
 					pool: Aave,
 					asset_in: HDX,
 					asset_out: DOT,
-				}].try_into().unwrap()
+				}]
+				.try_into()
+				.unwrap()
 			),
 			Other("Invalid asset pair".into())
 		);
@@ -357,7 +371,9 @@ fn dca_schedule_selling_atokens_should_be_created() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		create_schedule(
 			ALICE,
@@ -379,7 +395,9 @@ fn buy_adot_from_stablepool() {
 				pool: PoolType::Stableswap(pool),
 				asset_in: DOT,
 				asset_out: ADOT,
-			},].try_into().unwrap()
+			},]
+			.try_into()
+			.unwrap()
 		));
 	});
 }
@@ -409,7 +427,9 @@ fn sell_in_stable_after_rebase() {
 					asset_in: DOT,
 					asset_out: ADOT,
 				},
-			].try_into().unwrap()
+			]
+			.try_into()
+			.unwrap()
 		));
 	});
 }
@@ -439,7 +459,9 @@ fn buy_in_stable_after_rebase() {
 					asset_in: DOT,
 					asset_out: ADOT,
 				},
-			].try_into().unwrap()
+			]
+			.try_into()
+			.unwrap()
 		));
 	});
 }
