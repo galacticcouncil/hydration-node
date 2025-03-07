@@ -13,7 +13,9 @@
     "relay:charlie": "tail -F data/charlie.log",
     "relay:dave": "tail -F data/dave.log",
     "zombienet": "run-p -lr zombie:init para:* relay:*",
-    "start": "run-s -n state:download state:prepare zombienet"
+    "start": "run-s -n state:download state:prepare zombienet",
+    "docker:build": "docker build -t galacticcouncil/fork:latest .",
+    "docker:push": "docker push galacticcouncil/fork:latest"
   },
   "author": "",
   "license": "ISC",
