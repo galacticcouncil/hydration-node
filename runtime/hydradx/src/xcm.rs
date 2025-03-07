@@ -398,7 +398,7 @@ impl pallet_xcm::Config for Runtime {
 }
 
 parameter_types! {
-	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(25) * BlockWeights::get().max_block;
+	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(20) * BlockWeights::get().max_block;
 	pub const MessageQueueMaxStale: u32 = 8;
 	pub const MessageQueueHeapSize: u32 = 128 * 1048;
 }
