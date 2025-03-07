@@ -65,7 +65,7 @@ impl WeighAssets for Assets {
 }
 
 pub struct HydraXcmWeight<Call>(core::marker::PhantomData<Call>);
-///!NOTE - We BaseXcmWeight to not break anything, except for places where we really need to increase weights
+///!NOTE - We use BaseXcmWeight to not break anything, except for instructions where we really need to increase weights
 impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	fn withdraw_asset(_assets: &Assets) -> Weight {
 		BaseXcmWeight::get()
