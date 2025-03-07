@@ -37,6 +37,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
+#![allow(dead_code)] //We dont use most benchmark weights as for now we dont want to break any xcm, only changing what is necessary
 
 use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;

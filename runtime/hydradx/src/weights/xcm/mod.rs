@@ -67,13 +67,13 @@ impl WeighAssets for Assets {
 pub struct HydraXcmWeight<Call>(core::marker::PhantomData<Call>);
 ///!NOTE - We BaseXcmWeight to not break anything, except for places where we really need to increase weights
 impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
-	fn withdraw_asset(assets: &Assets) -> Weight {
+	fn withdraw_asset(_assets: &Assets) -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn reserve_asset_deposited(assets: &Assets) -> Weight {
+	fn reserve_asset_deposited(_assets: &Assets) -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn receive_teleported_asset(assets: &Assets) -> Weight {
+	fn receive_teleported_asset(_assets: &Assets) -> Weight {
 		// XCM Executor does not currently support receive_teleported_asset
 		Weight::MAX
 	}
@@ -85,10 +85,10 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	) -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn transfer_asset(assets: &Assets, _dest: &Location) -> Weight {
+	fn transfer_asset(_assets: &Assets, _dest: &Location) -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn transfer_reserve_asset(assets: &Assets, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
+	fn transfer_reserve_asset(_assets: &Assets, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
 		BaseXcmWeight::get()
 	}
 	fn transact(
@@ -120,10 +120,10 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		BaseXcmWeight::get()
 	}
 
-	fn deposit_asset(assets: &AssetFilter, _dest: &Location) -> Weight {
+	fn deposit_asset(_assets: &AssetFilter, _dest: &Location) -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn deposit_reserve_asset(assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
+	fn deposit_reserve_asset(_assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
 		BaseXcmWeight::get()
 	}
 	fn exchange_asset(_give: &AssetFilter, _receive: &Assets, is_sell: &bool) -> Weight {
@@ -164,7 +164,7 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 
 		XcmGeneric::<Runtime>::exchange_asset().saturating_add(route_weight) //Exchange asset already contains a router trade so we are overestimating it, which is fine
 	}
-	fn initiate_reserve_withdraw(assets: &AssetFilter, _reserve: &Location, _xcm: &Xcm<()>) -> Weight {
+	fn initiate_reserve_withdraw(_assets: &AssetFilter, _reserve: &Location, _xcm: &Xcm<()>) -> Weight {
 		BaseXcmWeight::get()
 	}
 	fn initiate_teleport(_assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {

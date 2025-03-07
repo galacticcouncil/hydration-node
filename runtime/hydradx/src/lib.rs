@@ -1122,6 +1122,8 @@ impl_runtime_apis! {
 			use cumulus_primitives_core::ParaId;
 			use primitives::constants::chain::CORE_ASSET_ID;
 			use sp_std::sync::Arc;
+ 			use polkadot_runtime_common::xcm_sender::ExponentialPrice;
+ 			use primitives::constants::currency::CENTS;
 
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
@@ -1221,11 +1223,17 @@ impl_runtime_apis! {
 			use primitives::constants::currency::UNITS;
 
 			parameter_types! {
+				/// The asset ID for the asset that we use to pay for message delivery fees.
+			pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
+			/// The base fee for the message delivery fees.
+			pub const BaseDeliveryFee: u128 = CENTS.saturating_mul(3);
 				pub ExistentialDepositAsset: Option<Asset> = Some((
 					CoreAssetLocation::get(),
 					ExistentialDeposit::get()
 				).into());
 			}
+
+			pub type PriceForParentDelivery = ExponentialPrice<FeeAssetId, BaseDeliveryFee, TransactionByteFee, ParachainSystem>;
 
 			impl pallet_xcm_benchmarks::Config for Runtime {
 				type XcmConfig = xcm::XcmConfig;
@@ -1233,7 +1241,7 @@ impl_runtime_apis! {
 				type DeliveryHelper = cumulus_primitives_utility::ToParentDeliveryHelper<
 					xcm::XcmConfig,
 					ExistentialDepositAsset,
-					xcm::PriceForParentDelivery,
+					PriceForParentDelivery,
 				>;
 				fn valid_destination() -> Result<Location, BenchmarkError> {
 					Ok(PolkadotLocation::get())
