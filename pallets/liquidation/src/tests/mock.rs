@@ -150,6 +150,9 @@ impl Erc20Mapping<AssetId> for HydraErc20Mapping {
 	fn asset_address(asset_id: AssetId) -> EvmAddress {
 		Self::encode_evm_address(asset_id)
 	}
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
+		Self::decode_evm_address(address)
+	}
 }
 impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
