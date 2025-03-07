@@ -39,6 +39,29 @@ mod system;
 pub mod types;
 pub mod xcm;
 
+use sp_std::sync::Arc;
+use frame_support::{parameter_types};
+use frame_support::assert_ok;
+use sp_runtime::TransactionOutcome;
+use sp_runtime::DispatchError;
+use frame_support::storage::with_transaction;
+use pallet_stableswap::types::Tradability;
+use hydradx_traits::Mutate;
+use pallet_referrals::FeeDistribution;
+use pallet_referrals::Level;
+use frame_system::RawOrigin;
+use sp_runtime::FixedU128;
+use cumulus_primitives_core::GeneralIndex;
+use cumulus_primitives_core::Here;
+use cumulus_primitives_core::NonFungible;
+use cumulus_primitives_core::Response;
+use cumulus_primitives_core::Junctions::X1;
+use polkadot_xcm::opaque::v3::MultiLocation;
+use frame_support::traits::TrackedStorageKey;
+use polkadot_xcm::opaque::lts::InteriorLocation;
+use cumulus_primitives_core::NetworkId;
+
+use cumulus_primitives_core::Junction;
 pub use assets::*;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
@@ -290,6 +313,7 @@ where
 	type Extrinsic = UncheckedExtrinsic;
 }
 
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	frame_support::parameter_types! {
@@ -451,6 +475,7 @@ use frame_support::{
 	weights::WeightToFee as _,
 };
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
+use polkadot_xcm::latest::Location;
 use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
@@ -1385,13 +1410,28 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	let dai = 2;
 	let token_amount = 2000000000000u128 * 1_000_000_000;
 
+	//let loc : MultiLocation = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]))).into();
+//			polkadot_xcm::opaque::lts::Junctions::X1(Arc::new([polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]))
+
+	use polkadot_xcm::v3::Junction::{AccountKey20, GeneralIndex};
+	use polkadot_xcm::v3::Junctions::{Here, X1, X2};
+	use polkadot_xcm::v3::{Junction, MultiLocation};
 	assert_ok!(AssetRegistry::set_location(
 		dai,
 		AssetLocation(MultiLocation::new(
 			0,
-			X1(polkadot_xcm::v3::Junction::GeneralIndex(dai.into()))
+			X1(GeneralIndex(dai.into()))
 		))
 	));
+	/*
+		assert_ok!(AssetRegistry::set_location(
+		dai,
+		AssetLocation(MultiLocation::new(
+			0,
+			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]))
+		))
+	));
+	*/
 
 	Currencies::update_balance(
 		RuntimeOrigin::root(),
@@ -1458,13 +1498,13 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	assert_ok!(Omnipool::set_asset_tradable_state(
 		RuntimeOrigin::root(),
 		hdx,
-		Tradability::SELL | Tradability::BUY
+		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 	));
 
 	assert_ok!(Omnipool::set_asset_tradable_state(
 		RuntimeOrigin::root(),
 		dai,
-		Tradability::SELL | Tradability::BUY
+		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 	));
 
 	with_transaction::<Balance, DispatchError, _>(|| {
