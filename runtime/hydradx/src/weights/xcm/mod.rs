@@ -16,7 +16,7 @@
 mod pallet_xcm_benchmarks_fungible;
 mod pallet_xcm_benchmarks_generic;
 
-use crate::{MaxAssetsIntoHolding, RouterWeightInfo, Runtime};
+use crate::{BaseXcmWeight, MaxAssetsIntoHolding, RouterWeightInfo, Runtime};
 use frame_support::weights::Weight;
 use pallet_xcm_benchmarks_fungible::WeightInfo as XcmFungibleWeight;
 use pallet_xcm_benchmarks_generic::WeightInfo as XcmGeneric;
@@ -65,15 +65,17 @@ impl WeighAssets for Assets {
 }
 
 pub struct HydraXcmWeight<Call>(core::marker::PhantomData<Call>);
+///!NOTE - We BaseXcmWeight to not break anything, except for places where we really need to increase weights
 impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	fn withdraw_asset(assets: &Assets) -> Weight {
-		assets.weigh_assets(XcmFungibleWeight::<Runtime>::withdraw_asset())
+		BaseXcmWeight::get()
 	}
 	fn reserve_asset_deposited(assets: &Assets) -> Weight {
-		assets.weigh_assets(XcmFungibleWeight::<Runtime>::reserve_asset_deposited())
+		BaseXcmWeight::get()
 	}
 	fn receive_teleported_asset(assets: &Assets) -> Weight {
-		assets.weigh_assets(XcmFungibleWeight::<Runtime>::receive_teleported_asset())
+		// XCM Executor does not currently support receive_teleported_asset
+		Weight::MAX
 	}
 	fn query_response(
 		_query_id: &u64,
@@ -81,20 +83,20 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		_max_weight: &Weight,
 		_querier: &Option<Location>,
 	) -> Weight {
-		XcmGeneric::<Runtime>::query_response()
+		BaseXcmWeight::get()
 	}
 	fn transfer_asset(assets: &Assets, _dest: &Location) -> Weight {
-		assets.weigh_assets(XcmFungibleWeight::<Runtime>::transfer_asset())
+		BaseXcmWeight::get()
 	}
 	fn transfer_reserve_asset(assets: &Assets, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
-		assets.weigh_assets(XcmFungibleWeight::<Runtime>::transfer_reserve_asset())
+		BaseXcmWeight::get()
 	}
 	fn transact(
 		_origin_type: &OriginKind,
 		_fallback_max_weight: &cumulus_primitives_core::Weight,
 		_call: &DoubleEncoded<Call>,
 	) -> Weight {
-		XcmGeneric::<Runtime>::transact()
+		BaseXcmWeight::get()
 	}
 	fn hrmp_new_channel_open_request(_sender: &u32, _max_message_size: &u32, _max_capacity: &u32) -> Weight {
 		// XCM Executor does not currently support HRMP channel operations
@@ -109,20 +111,20 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		Weight::MAX
 	}
 	fn clear_origin() -> Weight {
-		XcmGeneric::<Runtime>::clear_origin()
+		BaseXcmWeight::get()
 	}
 	fn descend_origin(_who: &InteriorLocation) -> Weight {
-		XcmGeneric::<Runtime>::descend_origin()
+		BaseXcmWeight::get()
 	}
 	fn report_error(_query_response_info: &QueryResponseInfo) -> Weight {
-		XcmGeneric::<Runtime>::report_error()
+		BaseXcmWeight::get()
 	}
 
 	fn deposit_asset(assets: &AssetFilter, _dest: &Location) -> Weight {
-		assets.weigh_assets(XcmFungibleWeight::<Runtime>::deposit_asset())
+		BaseXcmWeight::get()
 	}
 	fn deposit_reserve_asset(assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
-		assets.weigh_assets(XcmFungibleWeight::<Runtime>::deposit_reserve_asset())
+		BaseXcmWeight::get()
 	}
 	fn exchange_asset(_give: &AssetFilter, _receive: &Assets, is_sell: &bool) -> Weight {
 		//Route can be up max to 5 trades, and stableswap is the most expensive trade, then omnipool
@@ -163,61 +165,61 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		XcmGeneric::<Runtime>::exchange_asset().saturating_add(route_weight) //Exchange asset already contains a router trade so we are overestimating it, which is fine
 	}
 	fn initiate_reserve_withdraw(assets: &AssetFilter, _reserve: &Location, _xcm: &Xcm<()>) -> Weight {
-		assets.weigh_assets(XcmFungibleWeight::<Runtime>::initiate_reserve_withdraw())
+		BaseXcmWeight::get()
 	}
 	fn initiate_teleport(_assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
 		Weight::MAX
 	}
 
 	fn report_holding(_response_info: &QueryResponseInfo, _assets: &AssetFilter) -> Weight {
-		XcmGeneric::<Runtime>::report_holding()
+		BaseXcmWeight::get()
 	}
 	fn buy_execution(_fees: &Asset, _weight_limit: &WeightLimit) -> Weight {
-		XcmGeneric::<Runtime>::buy_execution()
+		BaseXcmWeight::get()
 	}
 
 	fn refund_surplus() -> Weight {
-		XcmGeneric::<Runtime>::refund_surplus()
+		BaseXcmWeight::get()
 	}
 	fn set_error_handler(_xcm: &Xcm<Call>) -> Weight {
-		XcmGeneric::<Runtime>::set_error_handler()
+		BaseXcmWeight::get()
 	}
 	fn set_appendix(_xcm: &Xcm<Call>) -> Weight {
-		XcmGeneric::<Runtime>::set_appendix()
+		BaseXcmWeight::get()
 	}
 	fn clear_error() -> Weight {
-		XcmGeneric::<Runtime>::clear_error()
+		BaseXcmWeight::get()
 	}
 
 	fn claim_asset(_assets: &Assets, _ticket: &Location) -> Weight {
-		XcmGeneric::<Runtime>::claim_asset()
+		BaseXcmWeight::get()
 	}
 	fn trap(_code: &u64) -> Weight {
-		XcmGeneric::<Runtime>::trap()
+		BaseXcmWeight::get()
 	}
 	fn subscribe_version(_query_id: &QueryId, _max_response_weight: &Weight) -> Weight {
-		XcmGeneric::<Runtime>::subscribe_version()
+		BaseXcmWeight::get()
 	}
 	fn unsubscribe_version() -> Weight {
-		XcmGeneric::<Runtime>::unsubscribe_version()
+		BaseXcmWeight::get()
 	}
 	fn burn_asset(assets: &Assets) -> Weight {
-		assets.weigh_assets(XcmGeneric::<Runtime>::burn_asset())
+		BaseXcmWeight::get()
 	}
 	fn expect_asset(assets: &Assets) -> Weight {
-		assets.weigh_assets(XcmGeneric::<Runtime>::expect_asset())
+		BaseXcmWeight::get()
 	}
 	fn expect_origin(_origin: &Option<Location>) -> Weight {
-		XcmGeneric::<Runtime>::expect_origin()
+		BaseXcmWeight::get()
 	}
 	fn expect_error(_error: &Option<(u32, XcmError)>) -> Weight {
-		XcmGeneric::<Runtime>::expect_error()
+		BaseXcmWeight::get()
 	}
 	fn expect_transact_status(_transact_status: &MaybeErrorCode) -> Weight {
-		XcmGeneric::<Runtime>::expect_transact_status()
+		BaseXcmWeight::get()
 	}
 	fn query_pallet(_module_name: &Vec<u8>, _response_info: &QueryResponseInfo) -> Weight {
-		XcmGeneric::<Runtime>::query_pallet()
+		BaseXcmWeight::get()
 	}
 	fn expect_pallet(
 		_index: &u32,
@@ -226,13 +228,13 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		_crate_major: &u32,
 		_min_crate_minor: &u32,
 	) -> Weight {
-		XcmGeneric::<Runtime>::expect_pallet()
+		BaseXcmWeight::get()
 	}
 	fn report_transact_status(_response_info: &QueryResponseInfo) -> Weight {
-		XcmGeneric::<Runtime>::report_transact_status()
+		BaseXcmWeight::get()
 	}
 	fn clear_transact_status() -> Weight {
-		XcmGeneric::<Runtime>::clear_transact_status()
+		BaseXcmWeight::get()
 	}
 	fn universal_origin(_: &Junction) -> Weight {
 		Weight::MAX
@@ -253,18 +255,18 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		Weight::MAX
 	}
 	fn set_fees_mode(_: &bool) -> Weight {
-		XcmGeneric::<Runtime>::set_fees_mode()
+		BaseXcmWeight::get()
 	}
 	fn set_topic(_topic: &[u8; 32]) -> Weight {
-		XcmGeneric::<Runtime>::set_topic()
+		BaseXcmWeight::get()
 	}
 	fn clear_topic() -> Weight {
-		XcmGeneric::<Runtime>::clear_topic()
+		BaseXcmWeight::get()
 	}
 	fn alias_origin(_: &Location) -> Weight {
 		Weight::MAX
 	}
 	fn unpaid_execution(_: &WeightLimit, _: &Option<Location>) -> Weight {
-		XcmGeneric::<Runtime>::unpaid_execution()
+		BaseXcmWeight::get()
 	}
 }
