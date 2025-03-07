@@ -39,30 +39,30 @@ mod system;
 pub mod types;
 pub mod xcm;
 
-use sp_std::sync::Arc;
-use frame_support::{parameter_types};
+use cumulus_primitives_core::GeneralIndex;
+use cumulus_primitives_core::Here;
+use cumulus_primitives_core::Junctions::X1;
+use cumulus_primitives_core::NetworkId;
+use cumulus_primitives_core::NonFungible;
+use cumulus_primitives_core::Response;
 use frame_support::assert_ok;
-use sp_runtime::TransactionOutcome;
-use sp_runtime::DispatchError;
+use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
-use pallet_stableswap::types::Tradability;
+use frame_support::traits::TrackedStorageKey;
+use frame_system::RawOrigin;
 use hydradx_traits::Mutate;
 use pallet_referrals::FeeDistribution;
 use pallet_referrals::Level;
-use frame_system::RawOrigin;
-use sp_runtime::FixedU128;
-use cumulus_primitives_core::GeneralIndex;
-use cumulus_primitives_core::Here;
-use cumulus_primitives_core::NonFungible;
-use cumulus_primitives_core::Response;
-use cumulus_primitives_core::Junctions::X1;
-use polkadot_xcm::opaque::v3::MultiLocation;
-use frame_support::traits::TrackedStorageKey;
+use pallet_stableswap::types::Tradability;
 use polkadot_xcm::opaque::lts::InteriorLocation;
-use cumulus_primitives_core::NetworkId;
+use polkadot_xcm::opaque::v3::MultiLocation;
+use sp_runtime::DispatchError;
+use sp_runtime::FixedU128;
+use sp_runtime::TransactionOutcome;
+use sp_std::sync::Arc;
 
-use cumulus_primitives_core::Junction;
 pub use assets::*;
+use cumulus_primitives_core::Junction;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 use pallet_asset_registry::AssetType;
@@ -75,12 +75,13 @@ use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys, Permill,
+	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
+	Permill,
 };
 
 use sp_std::{convert::From, prelude::*};
@@ -313,7 +314,6 @@ where
 	type Extrinsic = UncheckedExtrinsic;
 }
 
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	frame_support::parameter_types! {
@@ -474,8 +474,8 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
-use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use polkadot_xcm::latest::Location;
+use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
@@ -1411,17 +1411,14 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	let token_amount = 2000000000000u128 * 1_000_000_000;
 
 	//let loc : MultiLocation = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]))).into();
-//			polkadot_xcm::opaque::lts::Junctions::X1(Arc::new([polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]))
+	//			polkadot_xcm::opaque::lts::Junctions::X1(Arc::new([polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]))
 
 	use polkadot_xcm::v3::Junction::{AccountKey20, GeneralIndex};
 	use polkadot_xcm::v3::Junctions::{Here, X1, X2};
 	use polkadot_xcm::v3::{Junction, MultiLocation};
 	assert_ok!(AssetRegistry::set_location(
 		dai,
-		AssetLocation(MultiLocation::new(
-			0,
-			X1(GeneralIndex(dai.into()))
-		))
+		AssetLocation(MultiLocation::new(0, X1(GeneralIndex(dai.into()))))
 	));
 	/*
 		assert_ok!(AssetRegistry::set_location(
