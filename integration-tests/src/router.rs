@@ -18,7 +18,6 @@ use hydradx_traits::{
 use pallet_broadcast::types::Asset;
 use pallet_broadcast::types::ExecutionType;
 use pallet_broadcast::types::Fee;
-use pallet_broadcast::types::Filler;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
 use pallet_omnipool::traits::OmnipoolHooks;

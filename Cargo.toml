@@ -339,6 +339,7 @@ ethereum = { version = "0.15.0", default-features = false, features = ["with-cod
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2", default-features = false }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2", default-features = false }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2", default-features = false }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2", default-features = false, features = [
@@ -511,6 +512,7 @@ xcm-runtime-apis = { git = "https://github.com/galacticcouncil/polkadot-sdk", br
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
@@ -667,6 +669,7 @@ xcm-runtime-apis = { git = "https://github.com/galacticcouncil/polkadot-sdk", br
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch2" }
