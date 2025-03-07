@@ -466,6 +466,9 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 	}
 }
 
+use crate::evm::aave_trade_executor::AaveTradeExecutor;
+use crate::evm::aave_trade_executor::PoolData;
+use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -474,6 +477,9 @@ use frame_support::{
 	},
 	weights::WeightToFee as _,
 };
+use hydradx_traits::evm::Erc20Mapping;
+use pallet_liquidation::BorrowingContract;
+use pallet_route_executor::TradeExecution;
 use polkadot_xcm::latest::Location;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
@@ -1065,6 +1071,41 @@ impl_runtime_apis! {
 
 		fn decode_oracle_address(oracle_address: evm::EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
 			evm::precompiles::chainlink_adapter::decode_oracle_address(oracle_address)
+		}
+	}
+
+	impl evm::aave_trade_executor::runtime_api::AaveTradeExecutor<Block, Balance> for Runtime {
+		fn pairs() -> Vec<(AssetId, AssetId)> {
+			let pool = <BorrowingContract<Runtime>>::get();
+			let reserves = match AaveTradeExecutor::<Runtime>::get_reserves_list(pool) {
+				Ok(reserves) => reserves,
+				Err(_) => return vec![]
+			};
+			reserves.into_iter()
+				.filter_map(|reserve| {
+					let data = AaveTradeExecutor::<Runtime>::get_reserve_data(pool, reserve).ok()?;
+					let reserve_asset = HydraErc20Mapping::address_to_asset(reserve)?;
+					let atoken_asset = HydraErc20Mapping::address_to_asset(data.atoken_address)?;
+					Some((reserve_asset, atoken_asset))
+				})
+				.collect()
+		}
+
+		fn liquidity_depth(asset_in: AssetId, asset_out: AssetId) -> Option<Balance> {
+			AaveTradeExecutor::<Runtime>::get_liquidity_depth(PoolType::Aave, asset_in, asset_out).ok()
+		}
+
+		fn pool(reserve: AssetId, atoken: AssetId) -> PoolData<Balance> {
+			PoolData {
+				reserve,
+				atoken,
+				liqudity_in: Self::liquidity_depth(reserve, atoken).unwrap(),
+				liqudity_out: Self::liquidity_depth(atoken, reserve).unwrap(),
+			}
+		}
+
+		fn pools() -> Vec<PoolData<Balance>> {
+			Self::pairs().into_iter().map(|p| Self::pool(p.0, p.1)).collect()
 		}
 	}
 
