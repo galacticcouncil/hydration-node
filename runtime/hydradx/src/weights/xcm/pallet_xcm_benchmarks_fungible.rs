@@ -40,30 +40,64 @@
 
 use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
-use crate::BaseXcmWeight;
 
 /// Weights for `pallet_xcm_benchmarks::fungible`.
 pub struct WeightInfo<T>(PhantomData<T>);
-
-///!NOTE we use BaseXcmWeight to not break anything, only changing what we really need
 impl<T: frame_system::Config> WeightInfo<T> {
+	// Storage: `UnknownTokens::ConcreteFungibleBalances` (r:1 w:0)
+	// Proof: `UnknownTokens::ConcreteFungibleBalances` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	// Storage: `System::Account` (r:1 w:1)
+	// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	pub(crate) fn withdraw_asset() -> Weight {
-		BaseXcmWeight::get()
+		Weight::from_parts(39_251_000_u64, 0)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-
+	// Storage: `System::Account` (r:2 w:2)
+	// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	pub(crate) fn transfer_asset() -> Weight {
-		BaseXcmWeight::get()
+		Weight::from_parts(54_921_000_u64, 0)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
-
+	// Storage: `System::Account` (r:2 w:2)
+	// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	// Storage: `ParachainInfo::ParachainId` (r:1 w:0)
+	// Proof: `ParachainInfo::ParachainId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	// Storage: `PolkadotXcm::SupportedVersion` (r:1 w:0)
+	// Proof: `PolkadotXcm::SupportedVersion` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	// Storage: `PolkadotXcm::VersionDiscoveryQueue` (r:1 w:1)
+	// Proof: `PolkadotXcm::VersionDiscoveryQueue` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `PolkadotXcm::SafeXcmVersion` (r:1 w:0)
+	// Proof: `PolkadotXcm::SafeXcmVersion` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `ParachainSystem::HostConfiguration` (r:1 w:0)
+	// Proof: `ParachainSystem::HostConfiguration` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `ParachainSystem::PendingUpwardMessages` (r:1 w:1)
+	// Proof: `ParachainSystem::PendingUpwardMessages` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	pub(crate) fn transfer_reserve_asset() -> Weight {
-		BaseXcmWeight::get()
+		Weight::from_parts(83_434_000_u64, 0)
+			.saturating_add(T::DbWeight::get().reads(8_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
 	pub(crate) fn reserve_asset_deposited() -> Weight {
-		BaseXcmWeight::get()
+		Weight::from_parts(1_986_000_u64, 0)
 	}
-
+	// Storage: `ParachainInfo::ParachainId` (r:1 w:0)
+	// Proof: `ParachainInfo::ParachainId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	// Storage: `PolkadotXcm::SupportedVersion` (r:1 w:0)
+	// Proof: `PolkadotXcm::SupportedVersion` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	// Storage: `PolkadotXcm::VersionDiscoveryQueue` (r:1 w:1)
+	// Proof: `PolkadotXcm::VersionDiscoveryQueue` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `PolkadotXcm::SafeXcmVersion` (r:1 w:0)
+	// Proof: `PolkadotXcm::SafeXcmVersion` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `ParachainSystem::HostConfiguration` (r:1 w:0)
+	// Proof: `ParachainSystem::HostConfiguration` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `ParachainSystem::PendingUpwardMessages` (r:1 w:1)
+	// Proof: `ParachainSystem::PendingUpwardMessages` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	pub(crate) fn initiate_reserve_withdraw() -> Weight {
-		BaseXcmWeight::get()
+		Weight::from_parts(76_350_000_u64, 0)
+			.saturating_add(T::DbWeight::get().reads(6_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 	// Storage: `Benchmark::Override` (r:0 w:0)
 	// Proof: `Benchmark::Override` (`max_values`: None, `max_size`: None, mode: `Measured`)
@@ -73,7 +107,9 @@ impl<T: frame_system::Config> WeightInfo<T> {
 	// Storage: `System::Account` (r:1 w:1)
 	// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	pub(crate) fn deposit_asset() -> Weight {
-		BaseXcmWeight::get()
+		Weight::from_parts(32_399_000_u64, 0)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	// Storage: `ParachainInfo::ParachainId` (r:1 w:0)
 	// Proof: `ParachainInfo::ParachainId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
@@ -90,6 +126,8 @@ impl<T: frame_system::Config> WeightInfo<T> {
 	// Storage: `ParachainSystem::PendingUpwardMessages` (r:1 w:1)
 	// Proof: `ParachainSystem::PendingUpwardMessages` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	pub(crate) fn deposit_reserve_asset() -> Weight {
-		BaseXcmWeight::get()
+		Weight::from_parts(80_647_000_u64, 0)
+			.saturating_add(T::DbWeight::get().reads(7_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
 }
