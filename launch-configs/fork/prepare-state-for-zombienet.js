@@ -13,6 +13,11 @@ const COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE = "0x04d43593c715fdd31c61141abd04a99
 const SYSTEM_ACCOUNT_VALUE = "0x000000000000000003000000000000000000e8890423c78a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080";
 
 async function updateChainSpec(inputFile, outputFile) {
+    if (fs.existsSync(outputFile)) {
+        console.log(`Output file ${outputFile} already exists, skipping processing...`);
+        return;
+    }
+
     console.log('Starting the chain spec update script...');
     let chainSpec;
     try {
