@@ -31,12 +31,12 @@ use frame_support::{
 };
 use frame_system::RawOrigin;
 use hydradx_traits::router::PoolType;
+use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, NamedMultiReservableCurrency};
 use pallet_dca::types::{Order, Schedule, ScheduleId};
 use pallet_dca::{ScheduleIdsPerBlock, Schedules};
 use pallet_route_executor::Trade;
-use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchResult;
