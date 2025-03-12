@@ -1181,6 +1181,24 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Add liquidity to selected pool.
+		///
+		/// First call of `add_assets_liquidity` must provide "initial liquidity" of all assets.
+		///
+		/// If there is liquidity already in the pool, LP can provide liquidity of any number of pool assets.
+		///
+		/// LP must have sufficient amount of each asset.
+		///
+		/// Origin is given corresponding amount of shares.
+		///
+		/// Parameters:
+		/// - `origin`: liquidity provider
+		/// - `pool_id`: Pool Id
+		/// - `assets`: asset id and liquidity amount provided
+		/// - `min_shares`: minimum amount of shares to receive
+		///
+		/// Emits `LiquidityAdded` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
 		#[pallet::call_index(12)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_assets_liquidity()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
