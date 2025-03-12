@@ -380,7 +380,7 @@ pub mod pallet {
 		pub fn create_pool(
 			origin: OriginFor<T>,
 			share_asset: T::AssetId,
-			assets: Vec<T::AssetId>,
+			assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
 			amplification: u16,
 			fee: Permill,
 		) -> DispatchResult {
@@ -392,7 +392,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
-				assets,
+				assets: assets.to_vec(),
 				amplification,
 				fee,
 				peg: None,
@@ -438,8 +438,9 @@ pub mod pallet {
 		/// Parameters:
 		/// - `origin`: Must be T::AuthorityOrigin
 		/// - `pool_id`: pool to update
-		/// - `future_amplification`: new desired pool amplification
-		/// - `future_block`: future block number when the amplification is updated
+		/// - `final_amplification`: new desired pool amplification
+		/// - `start_block`: block number when the amplification starts to move towards final_amplication
+		/// - `end_block`: block number when the amplification reaches final_amplification
 		///
 		/// Emits `AmplificationUpdated` event if successful.
 		#[pallet::call_index(2)]
@@ -759,6 +760,9 @@ pub mod pallet {
 				fees,
 			);
 
+			#[cfg(any(feature = "try-runtime", test))]
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+
 			Ok(())
 		}
 
@@ -1042,8 +1046,11 @@ pub mod pallet {
 			// We convert vec of min amounts to a map.
 			// We first ensure the length , and if any asset is not found later on, we can return an error.
 			ensure!(min_amounts_out.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
-			let mut min_amounts_out: BTreeMap<T::AssetId, Balance> =
-				min_amounts_out.into_iter().map(|v| (v.asset_id, v.amount)).collect();
+			let mut min_amounts_out_map = BTreeMap::new();
+			for v in min_amounts_out.into_iter() {
+				let r = min_amounts_out_map.insert(v.asset_id, v.amount);
+				ensure!(r.is_none(), Error::<T>::IncorrectAssets);
+			}
 
 			// Store the amount of each asset that is transferred. Used as info in the event.
 			let mut amounts = Vec::with_capacity(pool.assets.len());
@@ -1056,7 +1063,9 @@ pub mod pallet {
 					Self::is_asset_allowed(pool_id, *asset_id, Tradability::REMOVE_LIQUIDITY),
 					Error::<T>::NotAllowed
 				);
-				let min_amount = min_amounts_out.remove(asset_id).ok_or(Error::<T>::IncorrectAssets)?;
+				let min_amount = min_amounts_out_map
+					.remove(asset_id)
+					.ok_or(Error::<T>::IncorrectAssets)?;
 				let reserve = T::Currency::free_balance(*asset_id, &pool_account);
 
 				// Special case when withdrawing all remaining pool shares, so we can directly send all the remaining assets to the user.
@@ -1087,6 +1096,7 @@ pub mod pallet {
 			} else {
 				// Remove the pool.
 				Pools::<T>::remove(pool_id);
+				PoolPegs::<T>::remove(pool_id);
 				let _ = AssetTradability::<T>::clear_prefix(pool_id, MAX_ASSETS_IN_POOL, None);
 				T::DustAccountHandler::remove_account(&Self::pool_account(pool_id))?;
 				Self::deposit_event(Event::PoolDestroyed { pool_id });
@@ -1139,7 +1149,7 @@ pub mod pallet {
 		pub fn create_pool_with_pegs(
 			origin: OriginFor<T>,
 			share_asset: T::AssetId,
-			assets: Vec<T::AssetId>,
+			assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
 			amplification: u16,
 			fee: Permill,
 			peg_source: BoundedPegSources,
@@ -1162,7 +1172,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
-				assets,
+				assets: assets.to_vec(),
 				amplification,
 				fee,
 				peg: Some(peg_info),

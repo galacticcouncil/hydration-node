@@ -3,6 +3,7 @@ use crate::types::{BoundedPegSources, PegSource};
 use crate::{assert_balance, Error, Event};
 use hydradx_traits::stableswap::AssetAmount;
 
+use crate::tests::to_bounded_asset_vec;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
 use pallet_broadcast::types::{Asset, Destination, Fee};
@@ -26,7 +27,7 @@ fn sell_with_peg_should_work_as_before_when_all_pegs_are_one() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
@@ -78,7 +79,7 @@ fn buy_should_work_as_before_when_all_pegs_are_one() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
@@ -162,7 +163,7 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -251,7 +252,7 @@ fn creating_pool_with_pegs_shoud_fails_when_assets_have_different_decimals() {
 				Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, asset_b, asset_c],
+					to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 					2000,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![
@@ -284,7 +285,7 @@ fn should_fail_when_called_by_invalid_origin() {
 				Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
-					vec![asset_a, asset_b],
+					to_bounded_asset_vec(vec![asset_a, asset_b]),
 					100,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
@@ -313,7 +314,7 @@ fn should_fail_when_invalid_amplification_specified() {
 				Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, asset_b],
+					to_bounded_asset_vec(vec![asset_a, asset_b]),
 					0,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
@@ -342,7 +343,7 @@ fn should_fail_when_asset_decimals_are_not_same() {
 				Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, asset_b],
+					to_bounded_asset_vec(vec![asset_a, asset_b]),
 					100,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]),
@@ -371,7 +372,7 @@ fn should_fail_when_no_target_peg_oracle() {
 				Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, asset_b],
+					to_bounded_asset_vec(vec![asset_a, asset_b]),
 					100,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![

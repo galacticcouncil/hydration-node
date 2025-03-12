@@ -1,4 +1,5 @@
 use crate::tests::mock::*;
+use crate::tests::to_bounded_asset_vec;
 use crate::types::PoolInfo;
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
@@ -29,7 +30,7 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				amplification,
 				Permill::from_percent(0),
 			));
@@ -148,7 +149,7 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				amplification,
 				Permill::from_percent(0),
 			));
@@ -527,7 +528,7 @@ fn add_initial_liquidity_should_work_when_asset_have_different_decimals() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				amplification,
 				Permill::from_percent(0),
 			));
