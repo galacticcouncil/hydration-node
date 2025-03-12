@@ -230,13 +230,14 @@ where
 					Self::remove_liquidity_one_asset(who, pool_id, asset_out, amount_in, min_limit)
 						.map_err(ExecutorError::Error)
 				} else if asset_out == pool_id {
-					Self::add_liquidity(
+					Self::add_assets_liquidity(
 						who,
 						pool_id,
 						BoundedVec::truncate_from(vec![AssetAmount {
 							asset_id: asset_in,
 							amount: amount_in,
 						}]),
+						min_limit,
 					)
 					.map_err(ExecutorError::Error)
 				} else {

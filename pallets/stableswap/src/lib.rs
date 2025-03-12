@@ -494,6 +494,9 @@ pub mod pallet {
 
 		/// Add liquidity to selected pool.
 		///
+		/// Use `add_assets_liquidity` instead.
+		/// This extrinsics will be removed in the future.
+		///
 		/// First call of `add_liquidity` must provide "initial liquidity" of all assets.
 		///
 		/// If there is liquidity already in the pool, LP can provide liquidity of any number of pool assets.
@@ -520,7 +523,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Self::do_add_liquidity(&who, pool_id, &assets)?;
+			Self::do_add_liquidity(&who, pool_id, &assets, Balance::zero())?;
 
 			Ok(())
 		}
@@ -1177,6 +1180,23 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_assets_liquidity()
+							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
+		#[transactional]
+		pub fn add_assets_liquidity(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			assets: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
+			min_shares: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			Self::do_add_liquidity(&who, pool_id, &assets, min_shares)?;
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -1348,6 +1368,7 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		pool_id: T::AssetId,
 		assets: &[AssetAmount<T::AssetId>],
+		min_shares: Balance,
 	) -> Result<Balance, DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
@@ -1414,6 +1435,8 @@ impl<T: Config> Pallet<T> {
 		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(!share_amount.is_zero(), Error::<T>::InvalidAssetAmount);
+		ensure!(share_amount >= min_shares, Error::<T>::SlippageLimit);
+
 		let current_share_balance = T::Currency::free_balance(pool_id, who);
 
 		ensure!(
@@ -1711,7 +1734,7 @@ impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pa
 		pool_id: T::AssetId,
 		assets: Vec<AssetAmount<T::AssetId>>,
 	) -> Result<Balance, DispatchError> {
-		Self::do_add_liquidity(&who, pool_id, &assets)
+		Self::do_add_liquidity(&who, pool_id, &assets, Balance::zero())
 	}
 }
 
