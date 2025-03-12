@@ -61,6 +61,7 @@ async function updateChainSpec(inputFile, outputFile) {
 
     // Define replacements
     const REPLACEMENTS = {
+        "0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f": "0xf2070000", // parachainInfo.parachainId = 2034
         "0x57f8dc2f5ab09467896f47300f0424385e0621c4869aa60c02be9adcc98a0d1d": AURA_AUTHORITIES_VALUE, // aura.authorities
         "0x3c311d57d4daf52904616cf69648081e5e0621c4869aa60c02be9adcc98a0d1d": AURA_AUTHORITIES_VALUE, // auraExt.authorities
         "0xcec5070d609dd3497f72bde07fc96ba088dcde934c658227ee1dfafcd6e16903": AURA_AUTHORITIES_VALUE, // Session validators
@@ -130,6 +131,7 @@ async function updateChainSpec(inputFile, outputFile) {
     chainSpec.name = NEW_NAME;
     chainSpec.id = NEW_ID;
     chainSpec.relay_chain = NEW_RELAY_CHAIN;
+    chainSpec.para_id = 2034
 
     // Save the updated chain spec
     try {
