@@ -3,8 +3,8 @@ const { TypeRegistry } = require('@polkadot/types');
 const { hexToU8a, u8aToHex } = require('@polkadot/util');
 
 // Define network names
-const NEW_NAME = "Hydration Local Testnet";
-const NEW_ID = "local_testnet";
+const NEW_NAME = process.env.CHAIN_NAME || "Hydration Local Testnet";
+const NEW_ID = process.env.CHAIN_ID || "local_testnet";
 const NEW_RELAY_CHAIN = "rococo_local_testnet";
 
 // Define replacement values
