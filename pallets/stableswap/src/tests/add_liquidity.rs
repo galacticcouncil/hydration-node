@@ -924,8 +924,6 @@ fn add_assets_liquidity_should_fail_when_min_required_amount_is_not_reached() {
 
 			let amount_added = 100 * ONE;
 
-			let pool_account = pool_account(pool_id);
-
 			assert_noop!(
 				Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),

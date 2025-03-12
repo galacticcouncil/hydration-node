@@ -48,7 +48,7 @@
 //!
 //! First LP to provide liquidity must add initial liquidity of all pool assets. Subsequent calls to add_liquidity, LP can provide only 1 asset.
 //!
-//! Initial liquidity is first liquidity added to the pool (that is first call of `add_liquidity`).
+//! Initial liquidity is first liquidity added to the pool (that is first call of `add_assets_liquidity`).
 //!
 //! LP is given certain amount of shares by minting a pool's share token.
 //!
@@ -363,7 +363,7 @@ pub mod pallet {
 		/// Create a stable pool with given list of assets.
 		///
 		/// All assets must be correctly registered in `T::AssetRegistry`.
-		/// Note that this does not seed the pool with liquidity. Use `add_liquidity` to provide
+		/// Note that this does not seed the pool with liquidity. Use `add_assets_liquidity` to provide
 		/// initial liquidity.
 		///
 		/// Parameters:
@@ -516,6 +516,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
 		#[transactional]
+		#[deprecated(note = "Use add_assets_liquidity instead")]
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
