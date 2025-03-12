@@ -48,7 +48,7 @@
 //!
 //! First LP to provide liquidity must add initial liquidity of all pool assets. Subsequent calls to add_liquidity, LP can provide only 1 asset.
 //!
-//! Initial liquidity is first liquidity added to the pool (that is first call of `add_liquidity`).
+//! Initial liquidity is first liquidity added to the pool (that is first call of `add_assets_liquidity`).
 //!
 //! LP is given certain amount of shares by minting a pool's share token.
 //!
@@ -363,7 +363,7 @@ pub mod pallet {
 		/// Create a stable pool with given list of assets.
 		///
 		/// All assets must be correctly registered in `T::AssetRegistry`.
-		/// Note that this does not seed the pool with liquidity. Use `add_liquidity` to provide
+		/// Note that this does not seed the pool with liquidity. Use `add_assets_liquidity` to provide
 		/// initial liquidity.
 		///
 		/// Parameters:
@@ -494,6 +494,9 @@ pub mod pallet {
 
 		/// Add liquidity to selected pool.
 		///
+		/// Use `add_assets_liquidity` instead.
+		/// This extrinsics will be removed in the future.
+		///
 		/// First call of `add_liquidity` must provide "initial liquidity" of all assets.
 		///
 		/// If there is liquidity already in the pool, LP can provide liquidity of any number of pool assets.
@@ -513,6 +516,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
 							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
 		#[transactional]
+		#[deprecated(note = "Use add_assets_liquidity instead")]
 		pub fn add_liquidity(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
@@ -520,7 +524,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			Self::do_add_liquidity(&who, pool_id, &assets)?;
+			Self::do_add_liquidity(&who, pool_id, &assets, Balance::zero())?;
 
 			Ok(())
 		}
@@ -1177,6 +1181,41 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Add liquidity to selected pool.
+		///
+		/// First call of `add_assets_liquidity` must provide "initial liquidity" of all assets.
+		///
+		/// If there is liquidity already in the pool, LP can provide liquidity of any number of pool assets.
+		///
+		/// LP must have sufficient amount of each asset.
+		///
+		/// Origin is given corresponding amount of shares.
+		///
+		/// Parameters:
+		/// - `origin`: liquidity provider
+		/// - `pool_id`: Pool Id
+		/// - `assets`: asset id and liquidity amount provided
+		/// - `min_shares`: minimum amount of shares to receive
+		///
+		/// Emits `LiquidityAdded` event when successful.
+		/// Emits `pallet_broadcast::Swapped` event when successful.
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_assets_liquidity()
+							.saturating_add(T::Hooks::on_liquidity_changed_weight(MAX_ASSETS_IN_POOL as usize)))]
+		#[transactional]
+		pub fn add_assets_liquidity(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			assets: BoundedVec<AssetAmount<T::AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>,
+			min_shares: Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			Self::do_add_liquidity(&who, pool_id, &assets, min_shares)?;
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -1348,6 +1387,7 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		pool_id: T::AssetId,
 		assets: &[AssetAmount<T::AssetId>],
+		min_shares: Balance,
 	) -> Result<Balance, DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
@@ -1414,6 +1454,8 @@ impl<T: Config> Pallet<T> {
 		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(!share_amount.is_zero(), Error::<T>::InvalidAssetAmount);
+		ensure!(share_amount >= min_shares, Error::<T>::SlippageLimit);
+
 		let current_share_balance = T::Currency::free_balance(pool_id, who);
 
 		ensure!(
@@ -1711,7 +1753,7 @@ impl<T: Config> StableswapAddLiquidity<T::AccountId, T::AssetId, Balance> for Pa
 		pool_id: T::AssetId,
 		assets: Vec<AssetAmount<T::AssetId>>,
 	) -> Result<Balance, DispatchError> {
-		Self::do_add_liquidity(&who, pool_id, &assets)
+		Self::do_add_liquidity(&who, pool_id, &assets, Balance::zero())
 	}
 }
 

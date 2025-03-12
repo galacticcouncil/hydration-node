@@ -14,6 +14,7 @@ pub trait WeightInfo {
 	fn create_pool() -> Weight;
 	fn create_pool_with_pegs() -> Weight;
 	fn add_liquidity() -> Weight;
+	fn add_assets_liquidity() -> Weight;
 	fn add_liquidity_shares() -> Weight;
 	fn remove_liquidity_one_asset() -> Weight;
 	fn remove_liquidity() -> Weight;
@@ -70,6 +71,39 @@ impl WeightInfo for () {
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
 	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
 	fn add_liquidity() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `3746`
+		//  Estimated: `29403`
+		// Minimum execution time: 1_421_812_000 picoseconds.
+		Weight::from_parts(1_425_672_000, 29403)
+			.saturating_add(RocksDbWeight::get().reads(36_u64))
+			.saturating_add(RocksDbWeight::get().writes(14_u64))
+	}
+	/// Storage: `Stableswap::Pools` (r:1 w:0)
+	/// Proof: `Stableswap::Pools` (`max_values`: None, `max_size`: Some(57), added: 2532, mode: `MaxEncodedLen`)
+	/// Storage: `Stableswap::AssetTradability` (r:5 w:0)
+	/// Proof: `Stableswap::AssetTradability` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:6 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:11 w:11)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:1 w:1)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::BannedAssets` (r:6 w:0)
+	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:1 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
+	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
+	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `Router::SkipEd` (r:1 w:0)
+	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	/// Storage: `Duster::AccountBlacklist` (r:1 w:0)
+	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
+	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
+	fn add_assets_liquidity() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3746`
 		//  Estimated: `29403`
