@@ -100,6 +100,7 @@ pub const X_TOKEN_ID: CurrencyId = 2;
 
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE_CURRENCY_ID;
+	pub const ReserveAccount: AccountId32 = AccountId32::new([9u8; 32]);
 }
 
 impl Config for Runtime {
@@ -108,6 +109,7 @@ impl Config for Runtime {
 	type NativeCurrency = AdaptedBasicCurrency;
 	type Erc20Currency = MockErc20Currency<Runtime>;
 	type BoundErc20 = MockBoundErc20<Runtime>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
 }
