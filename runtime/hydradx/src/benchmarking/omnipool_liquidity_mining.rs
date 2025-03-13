@@ -18,10 +18,10 @@
 use crate::benchmarking::{register_asset, register_asset_with_decimals};
 use crate::*;
 use frame_benchmarking::{account, BenchmarkError};
-use frame_support::{assert_ok, BoundedVec};
 use frame_support::storage::with_transaction;
 use frame_support::traits::EnsureOrigin;
 use frame_support::traits::{OnFinalize, OnInitialize};
+use frame_support::{assert_ok, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::RawOrigin;
 use hydradx_traits::liquidity_mining::{GlobalFarmId, YieldFarmId};
