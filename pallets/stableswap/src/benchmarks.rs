@@ -163,7 +163,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
