@@ -3,7 +3,7 @@ use crate::tests::mock::*;
 use crate::types::{BoundedPegSources, PegSource};
 use hydradx_traits::stableswap::AssetAmount;
 
-use crate::tests::{get_share_price, spot_price};
+use crate::tests::{get_share_price, spot_price, to_bounded_asset_vec};
 use frame_support::{assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
 use num_traits::One;
@@ -51,7 +51,7 @@ fn sell_with_peg_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -128,7 +128,7 @@ fn buy_with_peg_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -208,7 +208,7 @@ fn sell_with_peg_with_fee_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				trade_fee,
 				BoundedPegSources::truncate_from(vec![
@@ -286,7 +286,7 @@ fn buy_with_peg_with_fee_should_work_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				trade_fee,
 				BoundedPegSources::truncate_from(vec![
@@ -365,7 +365,7 @@ fn sell_with_drifting_peg_should_work() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -448,7 +448,7 @@ fn sell_with_drifting_peg_should_not_exceed_max_peg_update() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -533,7 +533,7 @@ fn share_pries_should_be_correct_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -608,7 +608,7 @@ fn spot_prices_should_be_correct_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -696,7 +696,7 @@ fn add_liquidity_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -776,7 +776,7 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -858,7 +858,7 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -951,7 +951,7 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
@@ -1046,7 +1046,7 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
 				amp,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![

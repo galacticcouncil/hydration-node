@@ -302,7 +302,7 @@ impl ExtBuilder {
 				assert_ok!(Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					pool.assets.clone().into(),
+					pool.assets.clone(),
 					pool.initial_amplification.get(),
 					pool.fee,
 				));

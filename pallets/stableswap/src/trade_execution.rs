@@ -40,7 +40,7 @@ where
 
 					let amplification = Self::get_amplification(&pool);
 					let (trade_fee, asset_pegs) =
-						Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
+						Self::get_updated_pegs(pool_id, &pool).map_err(ExecutorError::Error)?;
 					let (amount, _) =
 						hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 							&balances,
@@ -116,7 +116,7 @@ where
 					let amplification = Self::get_amplification(&pool);
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let (trade_fee, asset_pegs) =
-						Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
+						Self::get_updated_pegs(pool_id, &pool).map_err(ExecutorError::Error)?;
 					let (share_amount, _) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 						&initial_reserves,
 						&updated_reserves[..],
@@ -160,7 +160,7 @@ where
 					let share_issuance = T::Currency::total_issuance(pool_id);
 					let amplification = Self::get_amplification(&pool);
 					let (trade_fee, asset_pegs) =
-						Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
+						Self::get_updated_pegs(pool_id, &pool).map_err(ExecutorError::Error)?;
 
 					let liqudity = hydra_dx_math::stableswap::calculate_add_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 						&balances,
@@ -190,7 +190,7 @@ where
 					let pool = Pools::<T>::get(pool_id)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::PoolNotFound.into()))?;
 					let (trade_fee, asset_pegs) =
-						Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
+						Self::get_updated_pegs(pool_id, &pool).map_err(ExecutorError::Error)?;
 
 					let (shares_amount, _fees) =
 						hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -309,8 +309,7 @@ where
 				let amp = Pallet::<T>::get_amplification(&pool);
 				let share_issuance = T::Currency::total_issuance(pool_id);
 				let min_trade_limit = T::MinTradingLimit::get();
-				let (trade_fee, asset_pegs) =
-					Self::get_updated_pegs(pool_id, &pool).map_err(|v| ExecutorError::Error(v.into()))?;
+				let (trade_fee, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(ExecutorError::Error)?;
 
 				let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
 					pool_id.into(),

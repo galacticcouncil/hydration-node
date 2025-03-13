@@ -1,5 +1,7 @@
 use crate::tests::mock::*;
 use crate::*;
+use frame_support::pallet_prelude::ConstU32;
+use frame_support::BoundedVec;
 use sp_runtime::FixedU128;
 
 mod add_liquidity;
@@ -83,4 +85,8 @@ pub(crate) fn spot_price(pool_id: AssetId, asset_id_a: AssetId, asset_id_b: Asse
 		&asset_pegs,
 	)
 	.unwrap()
+}
+
+pub(crate) fn to_bounded_asset_vec(vec: Vec<AssetId>) -> BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>> {
+	vec.try_into().unwrap()
 }

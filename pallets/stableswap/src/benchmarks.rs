@@ -61,7 +61,7 @@ benchmarks! {
 		let trade_fee = Permill::from_percent(1);
 		let caller: T::AccountId = account("caller", 0, 1);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), asset_ids, amplification, trade_fee)
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), BoundedVec::truncate_from(asset_ids), amplification, trade_fee)
 	verify {
 		assert!(<Pools<T>>::get::<T::AssetId>(pool_id.into()).is_some());
 	}
@@ -91,7 +91,7 @@ benchmarks! {
 		let trade_fee = Permill::from_percent(1);
 		let caller: T::AccountId = account("caller", 0, 1);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), asset_ids, amplification, trade_fee, BoundedPegSources::truncate_from(peg_source), Permill::from_percent(100))
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id.into(), BoundedVec::truncate_from(asset_ids), amplification, trade_fee, BoundedPegSources::truncate_from(peg_source), Permill::from_percent(100))
 	verify {
 		assert!(<Pools<T>>::get::<T::AssetId>(pool_id.into()).is_some());
 		assert!(<PoolPegs<T>>::get::<T::AssetId>(pool_id.into()).is_some());
@@ -123,7 +123,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -206,7 +206,7 @@ benchmarks! {
 		let asset_id: T::AssetId = *asset_ids.last().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -249,7 +249,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -302,7 +302,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -354,7 +354,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -406,7 +406,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -460,7 +460,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -513,7 +513,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin.clone(),
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -548,7 +548,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin.clone(),
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			100u16,
 			Permill::from_percent(1),
 		)?;
@@ -583,7 +583,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin.clone(),
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			100u16,
 			Permill::from_percent(1),
 		)?;
@@ -638,7 +638,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -702,7 +702,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
@@ -765,7 +765,7 @@ benchmarks! {
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 		crate::Pallet::<T>::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
