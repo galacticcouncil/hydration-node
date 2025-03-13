@@ -57,17 +57,34 @@ where
 		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
 	}
 
+	// Worst case pool are those with pegs
+	let peg_source = vec![
+		PegSource::Value((1, 1)),
+		PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+		PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+		PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+		PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+	];
+	assert_eq!(peg_source.len() as u32, MAX_ASSETS_IN_POOL);
+	let first_asset_id = asset_ids[0];
+	for asset_id in asset_ids.iter().skip(1) {
+		T::BenchmarkHelper::register_asset_peg((first_asset_id, *asset_id), (1u128, 2u128), *b"benchmar")
+			.expect("Failed to register peg");
+	}
+
 	let pool_id: T::AssetId = (1000u32).into();
 	T::BenchmarkHelper::register_asset(pool_id, 18).expect("Failed to register asset");
 	let amplification = 100u16;
 	let trade_fee = Permill::from_percent(1);
 	let successful_origin = T::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
-	crate::Pallet::<T>::create_pool(
+	crate::Pallet::<T>::create_pool_with_pegs(
 		successful_origin,
 		pool_id,
 		BoundedVec::truncate_from(asset_ids),
 		amplification,
 		trade_fee,
+		BoundedPegSources::truncate_from(peg_source),
+		Permill::from_percent(100),
 	)
 	.expect("Failed to create pool");
 
@@ -190,7 +207,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, desired_shares, used_asset_id, 1221886049851226)
 	verify {
 		assert_eq!(T::Currency::free_balance(pool_id, &caller), desired_shares);
-		assert_eq!(T::Currency::free_balance(used_asset_id, &caller), 998791384905220210);
+		assert_eq!(T::Currency::free_balance(used_asset_id, &caller), 998780919799906332);
 	}
 
 	remove_liquidity_one_asset{
@@ -220,7 +237,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, asset_id_to_withdraw, shares, 0)
 	verify {
 		assert_eq!(T::Currency::free_balance(pool_id, &caller), 0u128);
-		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &caller), 1_281_110_877_933_361);
+		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &caller), 1286858233320391);
 	}
 
 	remove_liquidity{
@@ -314,7 +331,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(seller.clone()), pool_id, asset_in, asset_out, amount_sell, buy_min_amount)
 	verify {
 		assert_eq!(T::Currency::free_balance(asset_in, &seller), 0u128);
-		assert_eq!(T::Currency::free_balance(asset_out, &seller), 98980044791831);
+		assert_eq!(T::Currency::free_balance(asset_out, &seller), 49563515942526);
 	}
 
 	buy{
@@ -339,7 +356,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(buyer.clone()), pool_id, asset_out, asset_in, amount_buy, sell_max_limit)
 	verify {
 		assert_eq!(T::Currency::free_balance(asset_out, &buyer), 10_000_000_000_000);
-		assert_eq!(T::Currency::free_balance(asset_in, &buyer), 89_899_798_379_085);
+		assert_eq!(T::Currency::free_balance(asset_in, &buyer), 94942362212866);
 	}
 
 	set_asset_tradable_state {
@@ -423,7 +440,7 @@ benchmarks! {
 	verify {
 		if e != 0 {
 			assert_eq!(T::Currency::free_balance(asset_in, &seller), 0u128);
-			assert_eq!(T::Currency::free_balance(asset_out, &seller), 98_980_044_791_831);
+			assert_eq!(T::Currency::free_balance(asset_out, &seller), 49563515942526);
 		}
 	}
 
@@ -440,7 +457,7 @@ benchmarks! {
 		let buyer: T::AccountId = account("buyer", 0, 1);
 		T::Currency::update_balance(asset_in, &buyer, 100_000_000_000_000i128)?;
 		let amount_buy = 10_000_000_000_000u128;
-		let sell_max_limit = 11_000_000_000_000u128;
+		let sell_max_limit = 100_000_000_000_000u128;
 		// Worst case is when amplification is changing
 		crate::Pallet::<T>::update_amplification(RawOrigin::Root.into(),
 			pool_id,
@@ -460,7 +477,7 @@ benchmarks! {
 	verify {
 		if e != 0 {
 			assert_eq!(T::Currency::free_balance(asset_out, &buyer), 10_000_000_000_000);
-			assert_eq!(T::Currency::free_balance(asset_in, &buyer), 89_899_798_379_085);
+			assert_eq!(T::Currency::free_balance(asset_in, &buyer), 79829166828138);
 		}
 	}
 
