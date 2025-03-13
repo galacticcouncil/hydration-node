@@ -34,6 +34,56 @@ use sp_runtime::Permill;
 
 const ASSET_ID_OFFSET: u32 = 2_000;
 
+fn setup_pool_with_initial_liquidity<T: Config>(
+	acc: &T::AccountId,
+) -> (T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>)
+where
+	T::AssetId: From<u32>,
+	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+{
+	let initial_liquidity = 1_000_000_000_000_000u128;
+	let liquidity_added = 300_000_000_000_000u128;
+
+	let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
+	let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
+	let mut asset_ids: Vec<T::AssetId> = Vec::new();
+	for idx in 0..MAX_ASSETS_IN_POOL {
+		let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
+		T::BenchmarkHelper::register_asset(asset_id, 12).expect("Failed to register asset");
+		asset_ids.push(asset_id);
+		T::Currency::update_balance(asset_id, acc, 1_000_000_000_000_000_000_000i128)
+			.expect("Failed to update balance");
+		initial.push(AssetAmount::new(asset_id, initial_liquidity));
+		added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+	}
+
+	let pool_id: T::AssetId = (1000u32).into();
+	T::BenchmarkHelper::register_asset(pool_id, 18).expect("Failed to register asset");
+	let amplification = 100u16;
+	let trade_fee = Permill::from_percent(1);
+	let successful_origin = T::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+	crate::Pallet::<T>::create_pool(
+		successful_origin,
+		pool_id,
+		BoundedVec::truncate_from(asset_ids),
+		amplification,
+		trade_fee,
+	)
+	.expect("Failed to create pool");
+
+	crate::Pallet::<T>::add_assets_liquidity(
+		RawOrigin::Signed(acc.clone()).into(),
+		pool_id,
+		BoundedVec::truncate_from(initial),
+		Balance::zero(),
+	)
+	.expect("Failed to add initial liquidity");
+
+	// get pool state
+	let pool = crate::Pools::<T>::get(pool_id).expect("Failed to get pool");
+	(pool_id, pool)
+}
+
 // Stable benchmarks
 // Worst case scenarios in any stableswap calculations are scenarios where "math" does max number of iterations.
 // Therefore, hydra-dx-math build with "runtime-benchmarks" features forces calculations of D and Y to perform all iterations.
@@ -100,322 +150,156 @@ benchmarks! {
 	add_liquidity{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
 		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+		for asset_id in pool.assets.iter() {
+			T::Currency::update_balance(*asset_id, &caller, 300_000_000_000_000i128)?;
+			added_liquidity.push(AssetAmount::new(*asset_id, 300_000_000_000_000u128));
 		}
-
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-
-		// Worst case is adding additional liquidity and not initial liquidity
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, added_liquidity.try_into().unwrap())
+	}: _(RawOrigin::Signed(caller.clone()), pool_id, added_liquidity.try_into().unwrap())
 	verify {
-		assert!(T::Currency::free_balance(pool_id, &lp_provider) > 0u128);
+		assert!(T::Currency::free_balance(pool_id, &caller) > 0u128);
 	}
+
 	add_assets_liquidity{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
 		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+		for asset_id in pool.assets.iter() {
+			T::Currency::update_balance(*asset_id, &caller, 300_000_000_000_000i128)?;
+			added_liquidity.push(AssetAmount::new(*asset_id, 300_000_000_000_000u128));
 		}
-
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-
-		// Worst case is adding additional liquidity and not initial liquidity
-		crate::Pallet::<T>::add_assets_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-			Balance::zero(),
-		)?;
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, added_liquidity.try_into().unwrap(), Balance::zero())
+	}: _(RawOrigin::Signed(caller.clone()), pool_id, added_liquidity.try_into().unwrap(), Balance::zero())
 	verify {
-		assert!(T::Currency::free_balance(pool_id, &lp_provider) > 0u128);
+		assert!(T::Currency::free_balance(pool_id, &caller) > 0u128);
 	}
 
 	add_liquidity_shares{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, 1_000_000_000_000_000i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, 1_000_000_000_000_000_000_000i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
+		let used_asset_id = pool.assets.first().unwrap().clone();
 
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		let asset_id: T::AssetId = *asset_ids.last().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
+		T::Currency::update_balance(used_asset_id, &caller, 1_000_000_000_000_000_000i128)?;
 
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
 		let desired_shares = 1198499641600967085948u128;
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, desired_shares,asset_id, 1221886049851226)
+	}: _(RawOrigin::Signed(caller.clone()), pool_id, desired_shares, used_asset_id, 1221886049851226)
 	verify {
-		assert_eq!(T::Currency::free_balance(pool_id, &lp_provider), desired_shares);
-		assert_eq!(T::Currency::free_balance(asset_id, &lp_provider), 999998791384905220210);
+		assert_eq!(T::Currency::free_balance(pool_id, &caller), desired_shares);
+		assert_eq!(T::Currency::free_balance(used_asset_id, &caller), 998791384905220210);
 	}
 
 	remove_liquidity_one_asset{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
+
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
 		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+		for asset_id in pool.assets.iter(){
+			T::Currency::update_balance(*asset_id, &caller, liquidity_added as i128)?;
+			added_liquidity.push(AssetAmount::new(*asset_id, liquidity_added));
 		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-
-		let asset_id_to_withdraw: T::AssetId = *asset_ids.last().unwrap();
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
+		crate::Pallet::<T>::add_assets_liquidity(RawOrigin::Signed(caller.clone()).into(),
 			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
+			BoundedVec::truncate_from(added_liquidity),
+			Balance::zero(),
 		)?;
 
-		// Worst case is adding additional liquidity and not initial liquidity
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
-			pool_id,
-			BoundedVec::truncate_from(added_liquidity)
-		)?;
+		let asset_id_to_withdraw: T::AssetId = pool.assets.last().unwrap().clone();
 
 		// just make sure that LP provided all his liquidity of this asset
-		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &lp_provider), 0u128);
-		let shares = T::Currency::free_balance(pool_id, &lp_provider);
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, asset_id_to_withdraw, shares, 0)
+		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &caller), 0u128);
+
+		let shares = T::Currency::free_balance(pool_id, &caller);
+	}: _(RawOrigin::Signed(caller.clone()), pool_id, asset_id_to_withdraw, shares, 0)
 	verify {
-		assert_eq!(T::Currency::free_balance(pool_id, &lp_provider), 0u128);
-		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &lp_provider), 1_492_491_167_377_362);
+		assert_eq!(T::Currency::free_balance(pool_id, &caller), 0u128);
+		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &caller), 1_281_110_877_933_361);
 	}
 
 	remove_liquidity{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
+
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
 		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		let mut min_amounts = Vec::new();
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-			min_amounts.push(AssetAmount::new(asset_id, 0));
+		let mut min_amounts = vec![];
+		for asset_id in pool.assets.iter(){
+			T::Currency::update_balance(*asset_id, &caller, liquidity_added as i128)?;
+			added_liquidity.push(AssetAmount::new(*asset_id, liquidity_added));
+			min_amounts.push(AssetAmount::new(*asset_id, 0));
 		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-
-		let asset_id_to_withdraw: T::AssetId = *asset_ids.last().unwrap();
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
+		crate::Pallet::<T>::add_assets_liquidity(RawOrigin::Signed(caller.clone()).into(),
 			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-
-		// Worst case is adding additional liquidity and not initial liquidity
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
-			pool_id,
-			BoundedVec::truncate_from(added_liquidity)
+			BoundedVec::truncate_from(added_liquidity),
+			Balance::zero(),
 		)?;
 
 		// just make sure that LP provided all his liquidity of this asset
-		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &lp_provider), 0u128);
-		let shares = T::Currency::free_balance(pool_id, &lp_provider);
+		for asset_id in pool.assets.iter(){
+			assert_eq!(T::Currency::free_balance(*asset_id, &caller), 0u128);
+		}
+		let shares = T::Currency::free_balance(pool_id, &caller);
 
 		//Still the worst case here is when removing some of the liquidity - not all liquidity
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, shares, BoundedVec::try_from(min_amounts).unwrap())
+	}: _(RawOrigin::Signed(caller.clone()), pool_id, shares, BoundedVec::try_from(min_amounts).unwrap())
 	verify {
-		assert_eq!(T::Currency::free_balance(pool_id, &lp_provider), 0u128);
+		assert_eq!(T::Currency::free_balance(pool_id, &caller), 0u128);
+		for asset_id in pool.assets.iter(){
+			assert!(T::Currency::free_balance(*asset_id, &caller) > 0u128);
+		}
 	}
 
 	withdraw_asset_amount{
 		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
+
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
 		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
+		let mut min_amounts = vec![];
+		for asset_id in pool.assets.iter(){
+			T::Currency::update_balance(*asset_id, &caller, liquidity_added as i128)?;
+			added_liquidity.push(AssetAmount::new(*asset_id, liquidity_added));
+			min_amounts.push(AssetAmount::new(*asset_id, 0));
 		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-
-		let asset_id_to_withdraw: T::AssetId = *asset_ids.last().unwrap();
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
+		crate::Pallet::<T>::add_assets_liquidity(RawOrigin::Signed(caller.clone()).into(),
 			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-
-		// Worst case is adding additional liquidity and not initial liquidity
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
-			pool_id,
-			BoundedVec::truncate_from(added_liquidity)
+			BoundedVec::truncate_from(added_liquidity),
+			Balance::zero(),
 		)?;
 
 		// just make sure that LP provided all his liquidity of this asset
-		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &lp_provider), 0u128);
-		let shares = T::Currency::free_balance(pool_id, &lp_provider);
-	}: _(RawOrigin::Signed(lp_provider.clone()), pool_id, asset_id_to_withdraw, liquidity_added, shares)
+		for asset_id in pool.assets.iter(){
+			assert_eq!(T::Currency::free_balance(*asset_id, &caller), 0u128);
+		}
+
+		let asset_id_to_withdraw: T::AssetId = pool.assets.last().unwrap().clone();
+		let shares = T::Currency::free_balance(pool_id, &caller);
+	}: _(RawOrigin::Signed(caller.clone()), pool_id, asset_id_to_withdraw, liquidity_added, shares)
 	verify {
-		let shares_remaining = T::Currency::free_balance(pool_id, &lp_provider);
+		let shares_remaining = T::Currency::free_balance(pool_id, &caller);
 		assert!(shares_remaining < shares);
-		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &lp_provider), liquidity_added);
+		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &caller), liquidity_added);
 	}
 
 	sell{
-		let caller: T::AccountId = account("caller", 0, 1);
+		let seller: T::AccountId = account("seller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let asset_in: T::AssetId = *asset_ids.last().unwrap();
-		let asset_out: T::AssetId = *asset_ids.first().unwrap();
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
+		let asset_in: T::AssetId = *pool.assets.last().unwrap();
+		let asset_out: T::AssetId = *pool.assets.first().unwrap();
 
-		let seller : T::AccountId = account("seller", 0, 1);
 		let amount_sell  = 100_000_000_000_000u128;
 		T::Currency::update_balance(asset_in, &seller, amount_sell as i128)?;
 		let buy_min_amount = 1_000u128;
@@ -430,46 +314,17 @@ benchmarks! {
 	}: _(RawOrigin::Signed(seller.clone()), pool_id, asset_in, asset_out, amount_sell, buy_min_amount)
 	verify {
 		assert_eq!(T::Currency::free_balance(asset_in, &seller), 0u128);
-		assert_eq!(T::Currency::free_balance(asset_out, &seller), 98_999_980_239_523);
+		assert_eq!(T::Currency::free_balance(asset_out, &seller), 98980044791831);
 	}
 
 	buy{
-		let caller: T::AccountId = account("caller", 0, 1);
-		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
-
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let asset_in: T::AssetId = *asset_ids.last().unwrap();
-		let asset_out: T::AssetId = *asset_ids.first().unwrap();
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
-
 		let buyer: T::AccountId = account("buyer", 0, 1);
+		let lp_provider: T::AccountId = account("provider", 0, 1);
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
+
+		let asset_out: T::AssetId = *pool.assets.last().unwrap();
+		let asset_in: T::AssetId = *pool.assets.first().unwrap();
+
 		T::Currency::update_balance(asset_in, &buyer, 100_000_000_000_000i128)?;
 		let amount_buy = 10_000_000_000_000u128;
 		let sell_max_limit = 11_000_000_000_000u128;
@@ -484,75 +339,28 @@ benchmarks! {
 	}: _(RawOrigin::Signed(buyer.clone()), pool_id, asset_out, asset_in, amount_buy, sell_max_limit)
 	verify {
 		assert_eq!(T::Currency::free_balance(asset_out, &buyer), 10_000_000_000_000);
-		assert_eq!(T::Currency::free_balance(asset_in, &buyer), 89_899_999_798_401);
+		assert_eq!(T::Currency::free_balance(asset_in, &buyer), 89_899_798_379_085);
 	}
 
 	set_asset_tradable_state {
-		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let asset_to_change = asset_ids[0];
+		let asset_to_change = *pool.assets.last().unwrap();
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin.clone(),
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
 
-		let asset_tradability_old = crate::Pallet::<T>::asset_tradability(pool_id, asset_to_change,);
+		let asset_tradability_old = crate::Pallet::<T>::asset_tradability(pool_id, asset_to_change);
+
 	}: _<T::RuntimeOrigin>(successful_origin, pool_id, asset_to_change, Tradability::FROZEN)
 	verify {
-		let asset_tradability_new = crate::Pallet::<T>::asset_tradability(pool_id, asset_to_change,);
+		let asset_tradability_new = crate::Pallet::<T>::asset_tradability(pool_id, asset_to_change);
 		assert_ne!(asset_tradability_old, asset_tradability_new);
 	}
 
 	update_pool_fee{
-		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
-
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin.clone(),
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			100u16,
-			Permill::from_percent(1),
-		)?;
-
 		let new_fee = Permill::from_percent(50);
 	}: _<T::RuntimeOrigin>(successful_origin, pool_id, new_fee)
 	verify {
@@ -561,32 +369,9 @@ benchmarks! {
 	}
 
 	update_amplification{
-		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
-
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin.clone(),
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			100u16,
-			Permill::from_percent(1),
-		)?;
 
 		// Worst case is when amplification is changing
 		crate::Pallet::<T>::update_amplification(RawOrigin::Root.into(),
@@ -601,7 +386,6 @@ benchmarks! {
 	}: _<T::RuntimeOrigin>(successful_origin, pool_id, 5000, 501u32.into(), 1000u32.into())
 	verify {
 		let pool = crate::Pallet::<T>::pools(pool_id).unwrap();
-
 		assert_eq!(pool.initial_amplification, NonZeroU16::new(500).unwrap());
 		assert_eq!(pool.final_amplification, NonZeroU16::new(5000).unwrap());
 		assert_eq!(pool.initial_block, 501u32.into());
@@ -612,40 +396,11 @@ benchmarks! {
 		let c in 1..2;
 		let e in 0..1;	// if e == 1, execute_sell is executed
 
-		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let asset_in: T::AssetId = *asset_ids.last().unwrap();
-		let asset_out: T::AssetId = *asset_ids.first().unwrap();
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
+		let asset_in: T::AssetId = *pool.assets.last().unwrap();
+		let asset_out: T::AssetId = *pool.assets.first().unwrap();
 
 		let seller : T::AccountId = account("seller", 0, 1);
 		let amount_sell  = 100_000_000_000_000u128;
@@ -668,7 +423,7 @@ benchmarks! {
 	verify {
 		if e != 0 {
 			assert_eq!(T::Currency::free_balance(asset_in, &seller), 0u128);
-			assert_eq!(T::Currency::free_balance(asset_out, &seller), 98_999_980_239_523);
+			assert_eq!(T::Currency::free_balance(asset_out, &seller), 98_980_044_791_831);
 		}
 	}
 
@@ -676,40 +431,11 @@ benchmarks! {
 		let c in 1..2;	// number of times calculate_buy is executed
 		let e in 0..1;	// if e == 1, execute_buy is executed
 
-		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let asset_in: T::AssetId = *asset_ids.last().unwrap();
-		let asset_out: T::AssetId = *asset_ids.first().unwrap();
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
+		let asset_in: T::AssetId = *pool.assets.last().unwrap();
+		let asset_out: T::AssetId = *pool.assets.first().unwrap();
 
 		let buyer: T::AccountId = account("buyer", 0, 1);
 		T::Currency::update_balance(asset_in, &buyer, 100_000_000_000_000i128)?;
@@ -734,45 +460,16 @@ benchmarks! {
 	verify {
 		if e != 0 {
 			assert_eq!(T::Currency::free_balance(asset_out, &buyer), 10_000_000_000_000);
-			assert_eq!(T::Currency::free_balance(asset_in, &buyer), 89_899_999_798_401);
+			assert_eq!(T::Currency::free_balance(asset_in, &buyer), 89_899_798_379_085);
 		}
 	}
 
 	calculate_spot_price_with_fee {
-		let caller: T::AccountId = account("caller", 0, 1);
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let initial_liquidity = 1_000_000_000_000_000_000u128;
-		let liquidity_added = 300_000_000_000_000u128;
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let mut initial: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
-		let mut asset_ids: Vec<T::AssetId> = Vec::new() ;
-		for idx in 0..MAX_ASSETS_IN_POOL {
-			let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-			T::BenchmarkHelper::register_asset(asset_id, 12)?;
-			asset_ids.push(asset_id);
-			T::Currency::update_balance(asset_id, &caller, initial_liquidity as i128)?;
-			T::Currency::update_balance(asset_id, &lp_provider, liquidity_added as i128)?;
-			initial.push(AssetAmount::new(asset_id, initial_liquidity));
-			added_liquidity.push(AssetAmount::new(asset_id, liquidity_added));
-		}
-		let pool_id: T::AssetId = (1000u32).into();
-		T::BenchmarkHelper::register_asset(pool_id, 18)?;
-		let amplification = 100u16;
-		let trade_fee = Permill::from_percent(1);
-		let asset_in: T::AssetId = *asset_ids.last().unwrap();
-		let asset_out: T::AssetId = *asset_ids.first().unwrap();
-		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
-		crate::Pallet::<T>::create_pool(successful_origin,
-			pool_id,
-			BoundedVec::truncate_from(asset_ids),
-			amplification,
-			trade_fee,
-		)?;
-		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(caller).into(),
-			pool_id,
-			BoundedVec::truncate_from(initial),
-		)?;
+		let asset_in: T::AssetId = *pool.assets.last().unwrap();
+		let asset_out: T::AssetId = *pool.assets.first().unwrap();
 
 		let buyer: T::AccountId = account("buyer", 0, 1);
 		T::Currency::update_balance(asset_in, &buyer, 100_000_000_000_000i128)?;
