@@ -10,6 +10,13 @@ use std::{
 	path::{Path, PathBuf},
 	str::FromStr,
 };
+use serde_json::Value;
+use std::collections::BTreeMap;
+use frame_remote_externalities::*;
+use frame_support::sp_runtime::traits::Hash;
+use sp_state_machine::backend::AsTrieBackend;
+use jsonrpsee::core::client::ClientT;
+use substrate_rpc_client::{ws_client, ChainApi, SystemApi};
 
 pub fn save_blocks_snapshot<Block: Encode>(data: &Vec<Block>, path: &Path) -> Result<(), &'static str> {
 	let mut path = path.to_path_buf();
@@ -205,4 +212,59 @@ fn save_and_load_externalities_should_work() {
 			1_000_000_000_000
 		);
 	});
+}
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
+pub async fn save_chainspec<B: BlockT<Hash = H256>>(
+	builder: Builder<B>,
+	path: PathBuf
+) -> Result<(), &'static str> {
+	let mut ext = builder.build().await.map_err(|_| "Failed to build externalities")?;
+
+	let rpc = ws_client(String::from("wss://hydradx-rpc.dwellir.com")).await.map_err(|_| "Failed to create RPC client")?; //TODO: introduce fni ctipon param for uri
+
+	// Fetch chain information
+	let system_name = SystemApi::<H256,()>::system_name(&rpc).await.map_err(|_| "Failed to get system name")?;
+	let chain_type = SystemApi::<H256,()>::system_type(&rpc).await.map_err(|_| "Failed to get chain type")?;
+	let properties = SystemApi::<H256,()>::system_properties(&rpc).await.map_err(|_| "Failed to get system properties")?;
+
+	// Get raw storage
+	let raw_storage = ext.backend
+		.backend_storage_mut()
+		.drain()
+		.into_iter()
+		.filter(|(_, (_, r))| *r > 0)
+		.collect::<Vec<(Vec<u8>, (Vec<u8>, i32))>>();
+
+	let mut storage_map = BTreeMap::new();
+
+	// Convert the raw storage into a more friendly format
+	for (key, (value, _refcount)) in raw_storage {
+		storage_map.insert(hex::encode(&key), hex::encode(&value));
+	}
+
+	// Create the chainspec structure with more information
+	let chainspec = serde_json::json!({
+		"name": system_name,
+		"id": system_name.to_lowercase().replace(" ", "-"),
+		"chainType": chain_type,
+		"bootNodes": [], // Could be fetched from network state if needed
+		"telemetryEndpoints": null,
+		"protocolId": format!("{}/1", system_name.to_lowercase().replace(" ", "-")),
+		"properties": properties,
+		"consensusEngine": null,
+		"codeSubstitutes": {},
+		"genesis": {
+			"raw": {
+				"top": storage_map
+			}
+		}
+	});
+
+	// Convert to pretty JSON string and save
+	let json = serde_json::to_string_pretty(&chainspec)
+		.map_err(|_| "Failed to serialize chainspec to JSON")?;
+	
+	fs::write(path, json).map_err(|_| "Failed to write chainspec file")?;
+	
+	Ok(())
 }

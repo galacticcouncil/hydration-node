@@ -31,11 +31,25 @@ struct BlocksCmd {
 	shared: SharedParams,
 }
 
+#[derive(Parser, Debug)]
+struct ExportStateCmd {
+	/// The block hash at which to get the runtime state. Will be latest finalized head if not provided.
+	#[arg(long)]
+	at: Option<<Block as BlockT>::Hash>,
+	/// The pallets to include. If empty, entire chain state will be exported.
+	#[arg(long, num_args = 0..)]
+	pallet: Vec<String>,
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	shared: SharedParams,
+}
+
 /// Possible commands of `scraper`.
 #[derive(Parser, Debug)]
 enum Command {
 	SaveStorage(StorageCmd),
 	SaveBlocks(BlocksCmd),
+	ExportState(ExportStateCmd),
 }
 
 /// Shared parameters of the `scraper` commands.
@@ -147,6 +161,31 @@ fn main() {
 			}
 
 			scraper::save_blocks_snapshot::<Block>(&block_arr, &path).unwrap();
+
+			path
+		}
+		Command::ExportState(cmd) => {
+			let mut path = cmd.shared.get_path();
+			path.set_extension("json"); // Use .json extension for chainspec
+
+			let transport = Transport::Uri(cmd.shared.uri);
+			let online_config = OnlineConfig {
+				at: cmd.at,
+				pallets: cmd.pallet,
+				transport,
+				..Default::default()
+			};
+
+			let mode = Mode::Online(online_config);
+			let builder = Builder::<Block>::new().mode(mode);
+
+			tokio::runtime::Builder::new_current_thread()
+				.enable_all()
+				.build()
+				.unwrap()
+				.block_on(async {
+					scraper::save_chainspec(builder, path.clone()).await.unwrap()
+				});
 
 			path
 		}

@@ -13862,17 +13862,22 @@ name = "scraper"
 version = "1.2.5"
 dependencies = [
  "clap",
+ "fp-rpc",
  "frame-remote-externalities",
  "frame-support",
  "frame-system",
+ "hex",
  "hydradx-runtime",
  "jsonrpsee",
  "pallet-balances",
  "parity-scale-codec",
  "serde",
+ "serde_json",
  "sp-core",
  "sp-io",
  "sp-rpc",
+ "sp-state-machine",
+ "staging-parachain-info",
  "substrate-rpc-client",
  "tokio",
 ]
@@ -14048,6 +14053,7 @@ version = "1.0.133"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7fceb2473b9166b2294ef05efcb65a3db80803f0b03ef86a5fc88a2b85ee377"
 dependencies = [
+ "indexmap 2.7.0",
  "itoa",
  "memchr",
  "ryu",
