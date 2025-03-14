@@ -64,7 +64,7 @@ docker run -d -p 8000:9988 galacticcouncil/fork
 
 Now you have a test node running at [`ws://localhost:8000`](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2Flocalhost%3A8000#/explorer)
 
-More information [here](launch-configs/fork)
+More details [here](launch-configs/fork)
 
 ### Local Testnet with Zombienet
 
