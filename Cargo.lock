@@ -2014,7 +2014,7 @@ dependencies = [
  "cumulus-client-network",
  "cumulus-client-pov-recovery",
  "cumulus-primitives-core",
- "cumulus-primitives-proof-size-hostfunction 0.10.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch2)",
+ "cumulus-primitives-proof-size-hostfunction",
  "cumulus-relay-chain-inprocess-interface",
  "cumulus-relay-chain-interface",
  "cumulus-relay-chain-minimal-node",
@@ -2066,7 +2066,7 @@ dependencies = [
  "cumulus-pallet-parachain-system-proc-macro",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
- "cumulus-primitives-proof-size-hostfunction 0.10.0 (git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch2)",
+ "cumulus-primitives-proof-size-hostfunction",
  "environmental",
  "frame-benchmarking",
  "frame-support",
@@ -2186,16 +2186,6 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-proof-size-hostfunction"
 version = "0.10.0"
-source = "git+https://github.com/moonbeam-foundation/polkadot-sdk?branch=moonbeam-polkadot-stable2409#ff39499e558548a4801c508fd55ee40d66a976e4"
-dependencies = [
- "sp-externalities",
- "sp-runtime-interface",
- "sp-trie",
-]
-
-[[package]]
-name = "cumulus-primitives-proof-size-hostfunction"
-version = "0.10.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch2#102d917df1356688ad83606c269814f1eeab6c9f"
 dependencies = [
  "sp-externalities",
@@ -2206,10 +2196,10 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-storage-weight-reclaim"
 version = "8.0.0"
-source = "git+https://github.com/moonbeam-foundation/polkadot-sdk?branch=moonbeam-polkadot-stable2409#ff39499e558548a4801c508fd55ee40d66a976e4"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch2#102d917df1356688ad83606c269814f1eeab6c9f"
 dependencies = [
  "cumulus-primitives-core",
- "cumulus-primitives-proof-size-hostfunction 0.10.0 (git+https://github.com/moonbeam-foundation/polkadot-sdk?branch=moonbeam-polkadot-stable2409)",
+ "cumulus-primitives-proof-size-hostfunction",
  "docify",
  "frame-support",
  "frame-system",
