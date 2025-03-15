@@ -166,7 +166,7 @@ fn main() {
 		}
 		Command::ExportState(cmd) => {
 			let mut path = cmd.shared.get_path();
-			path.set_extension("json"); // Use .json extension for chainspec
+			path.set_extension("json");
 
 			let transport = Transport::Uri(cmd.shared.uri.clone());
 			let online_config = OnlineConfig {

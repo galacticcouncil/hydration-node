@@ -223,7 +223,6 @@ pub async fn save_chainspec<B: BlockT<Hash = H256>>(
 
 	let rpc = ws_client(uri).await.map_err(|_| "Failed to create RPC client")?;
 
-	// Fetch chain information
 	let system_name = SystemApi::<H256, ()>::system_name(&rpc)
 		.await
 		.map_err(|_| "Failed to get system name")?;
@@ -234,7 +233,6 @@ pub async fn save_chainspec<B: BlockT<Hash = H256>>(
 		.await
 		.map_err(|_| "Failed to get system properties")?;
 
-	// Get raw storage
 	let raw_storage = ext
 		.backend
 		.backend_storage_mut()
@@ -245,12 +243,10 @@ pub async fn save_chainspec<B: BlockT<Hash = H256>>(
 
 	let mut storage_map = BTreeMap::new();
 
-	// Convert the raw storage into a more friendly format
 	for (key, (value, _refcount)) in raw_storage {
 		storage_map.insert(hex::encode(&key), hex::encode(&value));
 	}
 
-	// Create the chainspec structure with more information
 	let chainspec = serde_json::json!({
 		"name": system_name,
 		"id": system_name.to_lowercase().replace(" ", "-"),
@@ -268,7 +264,6 @@ pub async fn save_chainspec<B: BlockT<Hash = H256>>(
 		}
 	});
 
-	// Convert to pretty JSON string and save
 	let json = serde_json::to_string_pretty(&chainspec).map_err(|_| "Failed to serialize chainspec to JSON")?;
 
 	fs::write(path, json).map_err(|_| "Failed to write chainspec file")?;
