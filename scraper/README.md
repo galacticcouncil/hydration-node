@@ -28,6 +28,20 @@ cargo build --release -p scraper
 scraper --uri wss://rpc.hydradx.cloud:443 save-blocks 2039120 5
 ```
 
+#### Export chain state as a chain specification
+```bash
+# Export entire chain state
+scraper export-state --uri wss://rpc.hydradx.cloud:443
+
+# Export specific pallets only
+scraper export-state --pallet Omnipool System --uri wss://rpc.hydradx.cloud:443
+
+# Export state at specific block
+scraper export-state --at 0xfee166d4ba86ef6b33246e22b8d71dcc085923332849c4bc96e618361ba7f446 --uri wss://rpc.hydradx.cloud:443
+```
+
+This command will create a chain specification JSON file from the live chain state. The output can be used to start a new chain with the exact same state.
+
 #### Test
 
 ```rust
