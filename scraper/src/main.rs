@@ -168,7 +168,7 @@ fn main() {
 			let mut path = cmd.shared.get_path();
 			path.set_extension("json"); // Use .json extension for chainspec
 
-			let transport = Transport::Uri(cmd.shared.uri);
+			let transport = Transport::Uri(cmd.shared.uri.clone());
 			let online_config = OnlineConfig {
 				at: cmd.at,
 				pallets: cmd.pallet,
@@ -184,7 +184,9 @@ fn main() {
 				.build()
 				.unwrap()
 				.block_on(async {
-					scraper::save_chainspec(builder, path.clone()).await.unwrap()
+					scraper::save_chainspec(builder, path.clone(), cmd.shared.uri)
+						.await
+						.unwrap()
 				});
 
 			path
