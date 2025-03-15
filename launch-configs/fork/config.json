@@ -39,7 +39,7 @@
       "id": 2034,
       "cumulus_based": true,
       "chain": "local",
-      "chain_spec_path": "forked-chainspec.json",
+      "chain_spec_path": "data/forked-chainspec.json",
       "collators": [
         {
           "name": "alice",
