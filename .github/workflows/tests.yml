@@ -47,6 +47,17 @@ jobs:
       - name: Test benchmarks
         run: make test-benchmarks
 
+      - name: Build benchmarks CLI
+        id: build-benchmarks
+        run: make build-benchmarks
+
+      - name: Upload benchmarks CLI
+        uses: actions/upload-artifact@v4
+        if: steps.build-benchmarks.outcome == 'success'
+        with:
+          name: hydradx-bencher
+          path: target/release/hydradx
+
   version-check:
     runs-on: ubuntu-latest
     permissions:
