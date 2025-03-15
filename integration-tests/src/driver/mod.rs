@@ -178,7 +178,7 @@ impl HydrationTestDriver {
 			assert_ok!(Stableswap::create_pool(
 				hydradx_runtime::RuntimeOrigin::root(),
 				pool_id,
-				asset_ids.iter().map(|(id, _)| *id).collect(),
+				BoundedVec::truncate_from(asset_ids.iter().map(|(id, _)| *id).collect()),
 				amplification,
 				fee,
 			));

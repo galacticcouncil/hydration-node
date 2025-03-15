@@ -1,4 +1,5 @@
 use crate::tests::mock::*;
+use crate::tests::to_bounded_asset_vec;
 use crate::types::{PoolInfo, Tradability};
 use crate::{AssetTradability, Error, Pools};
 use frame_support::{assert_noop, assert_ok};
@@ -21,7 +22,7 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -62,7 +63,7 @@ fn update_pool_should_work_when_only_fee_is_updated() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -123,7 +124,7 @@ fn set_tradable_state_should_work_when_asset_in_pool() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -154,7 +155,7 @@ fn set_tradable_state_should_fail_when_asset_not_in_pool() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));

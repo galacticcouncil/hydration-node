@@ -338,3 +338,22 @@ where
 		Weight::zero()
 	}
 }
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct RawEntry<Balance, BlockNumber> {
+	pub price: (Balance, Balance),
+	pub volume: Volume<Balance>,
+	pub liquidity: Liquidity<Balance>,
+	pub updated_at: BlockNumber,
+}
+
+/// An oracle returning raw entry of oracle data (without aggregation) for given asset pair, period and source.
+pub trait RawOracle<AssetId, Balance, BlockNumber> {
+	type Error;
+	fn get_raw_entry(
+		source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		period: OraclePeriod,
+	) -> Result<RawEntry<Balance, BlockNumber>, Self::Error>;
+}
