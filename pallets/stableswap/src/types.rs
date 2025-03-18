@@ -13,7 +13,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
-use hydra_dx_math::ratio::Ratio;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::{OraclePeriod, Source};
 use orml_traits::MultiCurrency;
@@ -175,24 +174,6 @@ impl PoolPegInfo {
 			source: self.source,
 			max_peg_update: self.max_peg_update,
 			current: BoundedPegs::truncate_from(pegs.to_vec()),
-		}
-	}
-}
-
-// Helper type for cleaner calculation
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct PegDelta {
-	pub(crate) delta: Ratio,
-	pub(crate) neg: bool,
-	pub(crate) block_diff: u128,
-}
-
-impl From<(Ratio, bool, u128)> for PegDelta {
-	fn from(value: (Ratio, bool, u128)) -> Self {
-		Self {
-			delta: value.0,
-			neg: value.1,
-			block_diff: value.2,
 		}
 	}
 }

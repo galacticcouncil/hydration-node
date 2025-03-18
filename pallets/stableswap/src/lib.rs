@@ -64,7 +64,6 @@ use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydradx_traits::{oracle::RawOracle, registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
-use num_traits::ops::saturating::{SaturatingAdd, SaturatingMul, SaturatingSub};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -77,9 +76,8 @@ pub mod types;
 pub mod weights;
 
 use crate::types::{
-	Balance, BoundedPegs, PegDelta, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
+	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
 };
-use hydra_dx_math::ratio::Ratio;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
@@ -1781,11 +1779,15 @@ impl<T: Config> Pallet<T> {
 		// Move pegs to target pegs if necessary
 		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
 		let target_pegs = Self::get_target_pegs(current_block, &pool.assets, &peg_info.source)?;
-		let deltas =
-			Self::calculate_peg_deltas(current_block, &peg_info.current, &target_pegs, peg_info.max_peg_update);
-		let trade_fee = Self::calculate_target_fee(&peg_info.current, &deltas, pool.fee);
-		let new_pegs = Self::calculate_new_pegs(&peg_info.current, &deltas);
-		Ok((trade_fee, new_pegs))
+
+		hydra_dx_math::stableswap::recalculate_pegs(
+			&peg_info.current,
+			&target_pegs,
+			current_block,
+			peg_info.max_peg_update,
+			pool.fee,
+		)
+		.ok_or(ArithmeticError::Overflow.into())
 	}
 
 	// Same as get_current_pegs but it stores new pegs as well
@@ -1839,161 +1841,5 @@ impl<T: Config> Pallet<T> {
 			r.push(p);
 		}
 		Ok(r)
-	}
-
-	fn calculate_peg_deltas(
-		block_no: u128,
-		current: &[PegType],
-		target: &[(PegType, u128)],
-		max_peg_update: Permill,
-	) -> Vec<PegDelta> {
-		debug_assert_eq!(
-			current.len(),
-			target.len(),
-			"Current and target pegs must have the same length"
-		);
-
-		let mut r = vec![];
-		for (current, target) in current.iter().copied().zip(target.iter().copied()) {
-			let c: Ratio = current.into();
-			let t: Ratio = target.0.into();
-			let t_updated_at = target.1;
-			let block_ct = block_no.saturating_sub(t_updated_at).max(1u128);
-
-			let (delta, delta_neg) = if t > c {
-				(t.saturating_sub(&c), false)
-			} else {
-				(c.saturating_sub(&t), true)
-			};
-
-			//Ensure max peg target update
-			let b: Ratio = block_ct.into();
-			let max_move_ratio: Ratio = (max_peg_update.deconstruct() as u128, 1_000_000u128).into();
-			let max_peg_move = max_move_ratio.saturating_mul(&c).saturating_mul(&b);
-
-			if delta <= max_peg_move {
-				r.push((delta, delta_neg, block_ct).into());
-			} else if c < t {
-				r.push((max_peg_move, false, block_ct).into());
-			} else {
-				r.push((max_peg_move, true, block_ct).into());
-			}
-		}
-		r
-	}
-
-	fn calculate_target_fee(current: &[PegType], deltas: &[PegDelta], current_fee: Permill) -> Permill {
-		let peg_relative_changes: Vec<(Ratio, bool)> = deltas
-			.iter()
-			.zip(current.iter().copied())
-			.map(|(delta, current)| {
-				let b: Ratio = delta.block_diff.into();
-				let c: Ratio = current.into();
-				debug_assert!(!b.is_zero(), "Block difference cannot be zero");
-				debug_assert!(!c.is_zero(), "Current peg cannot be zero");
-				let r = delta.delta.saturating_div(&b).saturating_div(&c);
-				(r, delta.neg)
-			})
-			.collect();
-
-		let mut max_change = (Ratio::zero(), false);
-		for (v, neg) in peg_relative_changes.iter() {
-			let c_max_neg = max_change.1;
-
-			match (neg, c_max_neg) {
-				(true, true) => {
-					if v < &max_change.0 {
-						max_change = (*v, true);
-					}
-				}
-				(true, false) => {
-					// no change
-				}
-				(false, true) => {
-					max_change = (*v, true);
-				}
-				(false, false) => {
-					if v > &max_change.0 {
-						max_change = (*v, false);
-					}
-				}
-			}
-		}
-
-		let mut min_change = (Ratio::zero(), false);
-		for (v, neg) in peg_relative_changes.iter() {
-			let c_min_neg = min_change.1;
-			match (neg, c_min_neg) {
-				(true, true) => {
-					if v > &min_change.0 {
-						min_change = (*v, true);
-					}
-				}
-				(true, false) => {
-					min_change = (*v, true);
-				}
-				(false, true) => {
-					// no change
-				}
-				(false, false) => {
-					if v < &min_change.0 {
-						min_change = (*v, false);
-					}
-				}
-			}
-		}
-		let (max_value, max_neg) = if max_change.1 {
-			// negative
-			if max_change.0 > Ratio::one() {
-				(max_change.0.saturating_sub(&Ratio::one()), true)
-			} else {
-				(Ratio::one().saturating_sub(&max_change.0), false)
-			}
-		} else {
-			// positive
-			(max_change.0.saturating_add(&Ratio::one()), false)
-		};
-
-		let (min_value, min_neg) = if min_change.1 {
-			// negative
-			if min_change.0 > Ratio::one() {
-				(min_change.0.saturating_sub(&Ratio::one()), true)
-			} else {
-				(Ratio::one().saturating_sub(&min_change.0), false)
-			}
-		} else {
-			// positive
-			(min_change.0.saturating_add(&Ratio::one()), false)
-		};
-
-		let max_diff = max_value.saturating_div(&min_value);
-		let max_diff_negative = max_neg || min_neg;
-		if max_diff_negative || max_diff < Ratio::one() {
-			return current_fee;
-		}
-		let max_diff = max_diff.saturating_sub(&Ratio::one());
-		let p = Ratio::from(2).saturating_mul(&max_diff);
-		let new_fee = Permill::from_rational(p.n, p.d);
-		new_fee.max(current_fee)
-	}
-
-	fn calculate_new_pegs(current: &[PegType], deltas: &[PegDelta]) -> Vec<PegType> {
-		debug_assert_eq!(
-			current.len(),
-			deltas.len(),
-			"Current and deltas must have the same length"
-		);
-		let mut r = vec![];
-		for (current, delta) in current.iter().copied().zip(deltas.iter().copied()) {
-			let c: Ratio = current.into();
-			let d: Ratio = delta.delta;
-			let new_peg = if delta.neg {
-				c.saturating_sub(&d)
-			} else {
-				c.saturating_add(&d)
-			};
-			r.push(new_peg.into());
-		}
-		r
 	}
 }

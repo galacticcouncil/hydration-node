@@ -1,9 +1,9 @@
-use crate::stableswap::types::AssetReserve;
+use crate::stableswap::types::{AssetReserve, PegDelta};
 
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
 use crate::types::{AssetId, Balance, Ratio};
-use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, SaturatingMul, Zero};
+use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, SaturatingMul, SaturatingSub, Zero};
 use primitive_types::U256;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
@@ -1029,4 +1029,173 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	} else {
 		FixedU128::checked_from_rational(spot_price.0, spot_price.1)
 	}
+}
+
+pub fn recalculate_pegs(
+	current_pegs: &[(Balance, Balance)],
+	target_pegs: &[((Balance, Balance), u128)],
+	block: u128,
+	max_peg_update: Permill,
+	pool_fee: Permill,
+) -> Option<(Permill, Vec<(Balance, Balance)>)> {
+	let deltas = calculate_peg_deltas(block, current_pegs, target_pegs, max_peg_update);
+	let trade_fee = calculate_target_fee(current_pegs, &deltas, pool_fee);
+	let new_pegs = calculate_new_pegs(current_pegs, &deltas);
+	Some((trade_fee, new_pegs))
+}
+
+fn calculate_peg_deltas(
+	block_no: u128,
+	current: &[(Balance, Balance)],
+	target: &[((Balance, Balance), u128)],
+	max_peg_update: Permill,
+) -> Vec<PegDelta> {
+	debug_assert_eq!(
+		current.len(),
+		target.len(),
+		"Current and target pegs must have the same length"
+	);
+
+	let mut r = vec![];
+	for (current, target) in current.iter().copied().zip(target.iter().copied()) {
+		let c: Ratio = current.into();
+		let t: Ratio = target.0.into();
+		let t_updated_at = target.1;
+		let block_ct = block_no.saturating_sub(t_updated_at).max(1u128);
+
+		let (delta, delta_neg) = if t > c {
+			(t.saturating_sub(&c), false)
+		} else {
+			(c.saturating_sub(&t), true)
+		};
+
+		//Ensure max peg target update
+		let b: Ratio = block_ct.into();
+		let max_move_ratio: Ratio = (max_peg_update.deconstruct() as u128, 1_000_000u128).into();
+		let max_peg_move = max_move_ratio.saturating_mul(&c).saturating_mul(&b);
+
+		if delta <= max_peg_move {
+			r.push((delta, delta_neg, block_ct).into());
+		} else if c < t {
+			r.push((max_peg_move, false, block_ct).into());
+		} else {
+			r.push((max_peg_move, true, block_ct).into());
+		}
+	}
+	r
+}
+
+fn calculate_target_fee(current: &[(Balance, Balance)], deltas: &[PegDelta], current_fee: Permill) -> Permill {
+	let peg_relative_changes: Vec<(Ratio, bool)> = deltas
+		.iter()
+		.zip(current.iter().copied())
+		.map(|(delta, current)| {
+			let b: Ratio = delta.block_diff.into();
+			let c: Ratio = current.into();
+			debug_assert!(!b.is_zero(), "Block difference cannot be zero");
+			debug_assert!(!c.is_zero(), "Current peg cannot be zero");
+			let r = delta.delta.saturating_div(&b).saturating_div(&c);
+			(r, delta.neg)
+		})
+		.collect();
+
+	let mut max_change = (Ratio::zero(), false);
+	for (v, neg) in peg_relative_changes.iter() {
+		let c_max_neg = max_change.1;
+
+		match (neg, c_max_neg) {
+			(true, true) => {
+				if v < &max_change.0 {
+					max_change = (*v, true);
+				}
+			}
+			(true, false) => {
+				// no change
+			}
+			(false, true) => {
+				max_change = (*v, true);
+			}
+			(false, false) => {
+				if v > &max_change.0 {
+					max_change = (*v, false);
+				}
+			}
+		}
+	}
+
+	let mut min_change = (Ratio::zero(), false);
+	for (v, neg) in peg_relative_changes.iter() {
+		let c_min_neg = min_change.1;
+		match (neg, c_min_neg) {
+			(true, true) => {
+				if v > &min_change.0 {
+					min_change = (*v, true);
+				}
+			}
+			(true, false) => {
+				min_change = (*v, true);
+			}
+			(false, true) => {
+				// no change
+			}
+			(false, false) => {
+				if v < &min_change.0 {
+					min_change = (*v, false);
+				}
+			}
+		}
+	}
+	let (max_value, max_neg) = if max_change.1 {
+		// negative
+		if max_change.0 > Ratio::one() {
+			(max_change.0.saturating_sub(&Ratio::one()), true)
+		} else {
+			(Ratio::one().saturating_sub(&max_change.0), false)
+		}
+	} else {
+		// positive
+		(max_change.0.saturating_add(&Ratio::one()), false)
+	};
+
+	let (min_value, min_neg) = if min_change.1 {
+		// negative
+		if min_change.0 > Ratio::one() {
+			(min_change.0.saturating_sub(&Ratio::one()), true)
+		} else {
+			(Ratio::one().saturating_sub(&min_change.0), false)
+		}
+	} else {
+		// positive
+		(min_change.0.saturating_add(&Ratio::one()), false)
+	};
+
+	let max_diff = max_value.saturating_div(&min_value);
+	let max_diff_negative = max_neg || min_neg;
+	if max_diff_negative || max_diff < Ratio::one() {
+		return current_fee;
+	}
+	let max_diff = max_diff.saturating_sub(&Ratio::one());
+	let p = Ratio::from(2).saturating_mul(&max_diff);
+	let new_fee = Permill::from_rational(p.n, p.d);
+	new_fee.max(current_fee)
+}
+
+fn calculate_new_pegs(current: &[(Balance, Balance)], deltas: &[PegDelta]) -> Vec<(Balance, Balance)> {
+	debug_assert_eq!(
+		current.len(),
+		deltas.len(),
+		"Current and deltas must have the same length"
+	);
+	let mut r = vec![];
+	for (current, delta) in current.iter().copied().zip(deltas.iter().copied()) {
+		let c: Ratio = current.into();
+		let d: Ratio = delta.delta;
+		let new_peg = if delta.neg {
+			c.saturating_sub(&d)
+		} else {
+			c.saturating_add(&d)
+		};
+		r.push(new_peg.into());
+	}
+	r
 }
