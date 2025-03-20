@@ -5779,7 +5779,7 @@ pub fn init_stableswap_with_details(
 	Stableswap::create_pool(
 		hydradx_runtime::RuntimeOrigin::root(),
 		pool_id,
-		asset_ids,
+		BoundedVec::truncate_from(asset_ids),
 		amplification,
 		fee,
 	)?;
