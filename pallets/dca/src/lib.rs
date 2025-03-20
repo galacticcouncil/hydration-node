@@ -29,13 +29,14 @@
 //! In case the given block is full, the execution will be scheduled for the subsequent block.
 //!
 //! Upon creating a schedule, the user specifies a budget (`total_amount`) that will be reserved.
+//! `total_amount` can be zero, in which case the schedule will be executed until it is terminated.
 //! The currency of this reservation is the sold (`amount_in`) currency.
 //!
 //! ### Executing a Schedule
 //!
 //! Orders are executed during block initialization and are sorted based on randomness derived from the relay chain block hash.
 //!
-//! A trade is executed and replanned as long as there is remaining budget from the initial allocation.
+//! When the `total_amount` is not zero, trades are executed as long as there is budget remaining from the initial allocation.
 //!
 //! For both successful and failed trades, a fee is deducted from the schedule owner.
 //! The fee is deducted in the sold (`amount_in`) currency.
@@ -43,11 +44,11 @@
 //! A trade can fail due to two main reasons:
 //!
 //! 1. Price Stability Error: If the price difference between the short oracle price and the current price
-//! exceeds the specified threshold. The user can customize this threshold,
-//! or the default value from the pallet configuration will be used.
+//!    exceeds the specified threshold. The user can customize this threshold,
+//!    or the default value from the pallet configuration will be used.
 //! 2. Slippage Error: If the minimum amount out (sell) or maximum amount in (buy) slippage limits are not reached.
-//! These limits are calculated based on the last block's oracle price and the user-specified slippage.
-//! If no slippage is specified, the default value from the pallet configuration will be used.
+//!    These limits are calculated based on the last block's oracle price and the user-specified slippage.
+//!    If no slippage is specified, the default value from the pallet configuration will be used.
 //!
 //! If a trade fails due to these errors, the trade will be retried.
 //! If the number of retries reaches the maximum number of retries, the schedule will be permanently terminated.
@@ -57,11 +58,12 @@
 //!
 //! ## Terminating a Schedule
 //!
-//! Both users and technical origin can terminate a DCA schedule. However, users can only terminate schedules that they own.
+//! Both users and TerminateOrigin can terminate a DCA schedule. However, users can only terminate schedules that they own.
 //!
 //! Once a schedule is terminated, it is completely and permanently removed from the blockchain.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use frame_support::traits::DefensiveOption;
 use frame_support::{
@@ -76,12 +78,6 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	Origin,
 };
-use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::router::{inverse_route, RouteProvider};
-use hydradx_traits::router::{AmmTradeWeights, AmountInAndOut, RouterT, Trade};
-use hydradx_traits::NativePriceOracle;
-use hydradx_traits::OraclePeriod;
-use hydradx_traits::PriceOracle;
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -91,9 +87,19 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
 };
-
+use sp_std::cmp::min;
 use sp_std::vec::Vec;
-use sp_std::{cmp::min, vec};
+
+use hydradx_adapters::RelayChainBlockHashProvider;
+use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
+use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
+use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
+pub use pallet::*;
+use pallet_broadcast::types::ExecutionType;
+pub use weights::WeightInfo;
+
+// Re-export pallet items so that they can be accessed from the crate namespace.
+use crate::types::*;
 
 #[cfg(test)]
 mod tests;
@@ -101,29 +107,22 @@ mod tests;
 pub mod types;
 pub mod weights;
 
-pub use weights::WeightInfo;
-
-// Re-export pallet items so that they can be accessed from the crate namespace.
-pub use pallet::*;
-
-use crate::types::*;
-
-pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
 	use frame_support::traits::Contains;
-
 	use frame_support::weights::WeightToFee;
-
 	use frame_system::pallet_prelude::OriginFor;
-	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::{NativePriceOracle, PriceOracle};
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
+
+	use hydra_dx_math::ema::EmaPrice;
+	use hydradx_traits::fee::SwappablePaymentAssetTrader;
+	use hydradx_traits::{NativePriceOracle, PriceOracle};
+
+	use super::*;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -205,7 +204,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -213,7 +212,7 @@ pub mod pallet {
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
 
 		/// Origin able to terminate schedules
-		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type TerminateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		///For named-reserving user's assets
 		type Currencies: NamedMultiReservableCurrency<
@@ -225,6 +224,9 @@ pub mod pallet {
 
 		///Relay chain block hash provider for randomness
 		type RelayChainBlockHashProvider: RelayChainBlockHashProvider;
+
+		/// Supporting swappable assets as fee currencies
+		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<Self::AccountId, Self::AssetId, Balance>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
@@ -282,6 +284,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::AssetId>;
 
+		/// Polkadot Native Asset Id (DOT)
+		#[pallet::constant]
+		type PolkadotNativeAssetId: Get<Self::AssetId>;
+
 		///Minimum budget to be able to schedule a DCA, specified in native currency
 		#[pallet::constant]
 		type MinBudgetInNativeCurrency: Get<Balance>;
@@ -323,7 +329,9 @@ pub mod pallet {
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
-		///The DCA trade is successfully executed
+		/// Deprecated. Use pallet_amm::Event::Swapped instead.
+		/// The DCA trade is successfully executed
+		// TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		TradeExecuted {
 			id: ScheduleId,
 			who: T::AccountId,
@@ -418,6 +426,12 @@ pub mod pallet {
 	#[pallet::getter(fn retries_on_error)]
 	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u8, ValueQuery>;
 
+	/// Keep tracking the blocknumber when the schedule is planned to be executed
+	#[pallet::storage]
+	#[pallet::getter(fn schedule_execution_block)]
+	pub type ScheduleExecutionBlock<T: Config> =
+		StorageMap<_, Blake2_128Concat, ScheduleId, BlockNumberFor<T>, OptionQuery>;
+
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
@@ -436,7 +450,8 @@ pub mod pallet {
 		/// The reservation currency will be the `amount_in` currency of the order.
 		///
 		/// Trades are executed as long as there is budget remaining
-		/// from the initial `total_amount` allocation.
+		/// from the initial `total_amount` allocation, unless `total_amount` is 0, then trades
+		/// are executed until schedule is terminated.
 		///
 		/// If a trade fails due to slippage limit or price stability errors, it will be retried.
 		/// If the number of retries reaches the maximum allowed,
@@ -466,10 +481,6 @@ pub mod pallet {
 				schedule.order.get_asset_in(),
 				T::MinBudgetInNativeCurrency::get(),
 			)?;
-			ensure!(
-				schedule.total_amount >= min_budget,
-				Error::<T>::TotalAmountIsSmallerThanMinBudget
-			);
 			ensure!(
 				schedule.period >= BlockNumberFor::<T>::from(T::MinimalPeriod::get()),
 				Error::<T>::PeriodTooShort
@@ -502,10 +513,23 @@ pub mod pallet {
 			);
 
 			let amount_in_with_transaction_fee = amount_in.saturating_add(transaction_fee).saturating_mul(2);
-			ensure!(
-				amount_in_with_transaction_fee <= schedule.total_amount,
-				Error::<T>::BudgetTooLow
-			);
+			let reserve_amount = if schedule.is_rolling() {
+				ensure!(
+					amount_in_with_transaction_fee >= min_budget,
+					Error::<T>::MinTradeAmountNotReached
+				);
+				amount_in_with_transaction_fee
+			} else {
+				ensure!(
+					schedule.total_amount >= min_budget,
+					Error::<T>::TotalAmountIsSmallerThanMinBudget
+				);
+				ensure!(
+					amount_in_with_transaction_fee <= schedule.total_amount,
+					Error::<T>::BudgetTooLow
+				);
+				schedule.total_amount
+			};
 
 			let next_schedule_id =
 				ScheduleIdSequencer::<T>::try_mutate(|current_id| -> Result<ScheduleId, DispatchError> {
@@ -516,14 +540,14 @@ pub mod pallet {
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
-			RemainingAmounts::<T>::insert(next_schedule_id, schedule.total_amount);
+			RemainingAmounts::<T>::insert(next_schedule_id, reserve_amount);
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
 
 			T::Currencies::reserve_named(
 				&T::NamedReserveId::get(),
 				schedule.order.get_asset_in(),
 				&who,
-				schedule.total_amount,
+				reserve_amount,
 			)?;
 
 			let blocknumber_for_first_schedule_execution = Self::get_first_execution_block(start_execution_block)?;
@@ -552,7 +576,7 @@ pub mod pallet {
 
 		/// Terminates a DCA schedule and remove it completely from the chain.
 		///
-		/// This can be called by both schedule owner or the configured `T::TechnicalOrigin`
+		/// This can be called by both schedule owner or the configured `T::TerminateOrigin`
 		///
 		/// Parameters:
 		/// - `origin`: schedule owner
@@ -571,14 +595,16 @@ pub mod pallet {
 		) -> DispatchResult {
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 
-			if T::TechnicalOrigin::ensure_origin(origin.clone()).is_err() {
+			if T::TerminateOrigin::ensure_origin(origin.clone()).is_err() {
 				let who = ensure_signed(origin)?;
 				ensure!(who == schedule.owner, Error::<T>::Forbidden);
 			}
 
 			Self::try_unreserve_all(schedule_id, &schedule);
 
-			let next_execution_block = next_execution_block.ok_or(Error::<T>::ScheduleNotFound)?;
+			let next_execution_block = next_execution_block
+				.or(Self::schedule_execution_block(schedule_id))
+				.ok_or(Error::<T>::ScheduleNotFound)?;
 
 			//Remove schedule id from next execution block
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(
@@ -684,9 +710,10 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 	) -> Result<AmountInAndOut<Balance>, DispatchError> {
-		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		pallet_broadcast::Pallet::<T>::add_to_context(|id| ExecutionType::DCA(schedule_id, id))?;
 
-		match &schedule.order {
+		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		let trade_result = match &schedule.order {
 			Order::Sell {
 				asset_in,
 				asset_out,
@@ -769,7 +796,11 @@ impl<T: Config> Pallet<T> {
 					amount_out: *amount_out,
 				})
 			}
-		}
+		};
+
+		pallet_broadcast::Pallet::<T>::remove_from_context()?;
+
+		trade_result
 	}
 
 	fn replan_or_complete(
@@ -837,10 +868,12 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
+		let retry_period = OraclePeriod::Short.as_period() as u32;
+
 		let retry_multiplier = 2u32
 			.checked_pow(number_of_retries.into())
 			.ok_or(ArithmeticError::Overflow)?;
-		let retry_delay = SHORT_ORACLE_BLOCK_PERIOD
+		let retry_delay = retry_period
 			.checked_mul(retry_multiplier)
 			.ok_or(ArithmeticError::Overflow)?;
 		let next_execution_block = current_blocknumber
@@ -907,6 +940,10 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 		amount_to_unreserve: Balance,
 	) -> DispatchResult {
+		if schedule.is_rolling() {
+			return Ok(());
+		};
+
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
 			let remaining_amount = maybe_remaining_amount
 				.as_mut()
@@ -943,14 +980,36 @@ impl<T: Config> Pallet<T> {
 		let fee_currency = schedule.order.get_asset_in();
 		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
 
-		Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
+		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(fee_currency) {
+			Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
 
-		T::Currencies::transfer(
-			fee_currency,
-			&schedule.owner,
-			&T::FeeReceiver::get(),
-			fee_amount_in_sold_asset,
-		)?;
+			T::Currencies::transfer(
+				fee_currency,
+				&schedule.owner,
+				&T::FeeReceiver::get(),
+				fee_amount_in_sold_asset,
+			)?;
+		} else {
+			//We buy DOT with insufficient asset, for the treasury
+			//The DOT we need to buy is calculated the same way how we convert weight to insufficient fee
+			let pool_trade_fee = T::SwappablePaymentAssetSupport::calculate_fee_amount(fee_amount_in_sold_asset)?;
+
+			//Since there is a trade fee involved in xyk buy swap, we need to unallocate that, together with amount_in
+			let effective_amount_in = fee_amount_in_sold_asset
+				.checked_add(pool_trade_fee)
+				.ok_or(ArithmeticError::Overflow)?;
+			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
+
+			let fee_in_dot = Self::convert_to_polkadot_native_asset(Self::weight_to_fee(weight_to_charge))?;
+			T::SwappablePaymentAssetSupport::buy(
+				&schedule.owner.clone(),
+				fee_currency,
+				T::PolkadotNativeAssetId::get(),
+				fee_in_dot,
+				effective_amount_in,
+				&T::FeeReceiver::get(),
+			)?;
+		}
 
 		Ok(())
 	}
@@ -1023,6 +1082,8 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})?;
 
+		ScheduleExecutionBlock::<T>::insert(schedule_id, next_free_block);
+
 		Self::deposit_event(Event::ExecutionPlanned {
 			id: schedule_id,
 			who: who.clone(),
@@ -1079,27 +1140,65 @@ impl<T: Config> Pallet<T> {
 	fn get_trade_weight(order: &Order<T::AssetId>) -> Weight {
 		let route = &order.get_route_or_default::<T::RouteProvider>();
 		match order {
-			Order::Sell { .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
-				.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route)),
-			Order::Buy { .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
-				.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route)),
+			Order::Sell { .. } => {
+				let on_initialize_weight =
+					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
+						<T as Config>::WeightInfo::on_initialize_with_sell_trade()
+					} else {
+						<T as Config>::WeightInfo::on_initialize_with_sell_trade_with_insufficient_fee_asset()
+					};
+
+				on_initialize_weight
+					.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route))
+			}
+			Order::Buy { .. } => {
+				let on_initialize_weight =
+					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
+						<T as Config>::WeightInfo::on_initialize_with_buy_trade()
+					} else {
+						<T as Config>::WeightInfo::on_initialize_with_buy_trade_with_insufficient_fee_asset()
+					};
+
+				on_initialize_weight
+					.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route))
+			}
 		}
 	}
 
 	fn convert_native_amount_to_currency(
 		asset_id: T::AssetId,
-		asset_amount: Balance,
+		native_asset_amount: Balance,
 	) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
-			asset_amount
-		} else {
+			native_asset_amount
+		} else if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(asset_id) {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
-			multiply_by_rational_with_rounding(asset_amount, price.n, price.d, Rounding::Up)
+			multiply_by_rational_with_rounding(native_asset_amount, price.n, price.d, Rounding::Up)
 				.ok_or(ArithmeticError::Overflow)?
+		} else {
+			let fee_amount_in_dot = Self::convert_to_polkadot_native_asset(native_asset_amount)?;
+			T::SwappablePaymentAssetSupport::calculate_in_given_out(
+				asset_id,
+				T::PolkadotNativeAssetId::get(),
+				fee_amount_in_dot,
+			)?
 		};
 
 		Ok(amount)
+	}
+
+	fn convert_to_polkadot_native_asset(fee_amount_in_native: Balance) -> Result<Balance, DispatchError> {
+		let dot_per_hdx_price =
+			T::NativePriceOracle::price(T::PolkadotNativeAssetId::get()).ok_or(Error::<T>::CalculatingPriceError)?;
+
+		Ok(multiply_by_rational_with_rounding(
+			fee_amount_in_native,
+			dot_per_hdx_price.n,
+			dot_per_hdx_price.d,
+			Rounding::Up,
+		)
+		.ok_or(ArithmeticError::Overflow)?)
 	}
 
 	fn get_price_from_last_block_oracle(route: &[Trade<T::AssetId>]) -> Result<FixedU128, DispatchError> {
@@ -1127,6 +1226,7 @@ impl<T: Config> Pallet<T> {
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
+		ScheduleExecutionBlock::<T>::remove(schedule_id);
 	}
 }
 

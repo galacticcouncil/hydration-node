@@ -19,6 +19,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
 pub mod evm;
+pub mod fee;
 pub mod liquidity_mining;
 pub mod nft;
 pub mod oracle;
@@ -26,6 +27,7 @@ pub mod pools;
 pub mod price;
 pub mod registry;
 pub mod router;
+pub mod stableswap;
 
 pub use oracle::*;
 pub use registry::*;
@@ -92,6 +94,7 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 		discount: bool,
 	) -> dispatch::DispatchResult {
 		Self::execute_sell(&Self::validate_sell(origin, assets, amount, min_bought, discount)?)?;
+
 		Ok(())
 	}
 
@@ -106,7 +109,10 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
-	fn execute_buy(transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>) -> dispatch::DispatchResult;
+	fn execute_buy(
+		transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>,
+		destination: Option<&AccountId>,
+	) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
 	fn buy(
@@ -116,10 +122,26 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount: Zero> {
 		max_limit: Amount,
 		discount: bool,
 	) -> dispatch::DispatchResult {
-		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit, discount)?)?;
+		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit, discount)?, None)?;
+
 		Ok(())
 	}
 
+	/// Perform asset swap and send bought assets to the destination account.
+	fn buy_for(
+		origin: &AccountId,
+		assets: AssetPair,
+		amount: Amount,
+		max_limit: Amount,
+		discount: bool,
+		dest: &AccountId,
+	) -> dispatch::DispatchResult {
+		Self::execute_buy(
+			&Self::validate_buy(origin, assets, amount, max_limit, discount)?,
+			Some(dest),
+		)?;
+		Ok(())
+	}
 	fn get_min_trading_limit() -> Amount;
 
 	fn get_min_pool_liquidity() -> Amount;
@@ -255,6 +277,17 @@ pub trait AMMPosition<AssetId, Balance> {
 		asset_b: AssetId,
 		shares_amount: Balance,
 	) -> Result<(Balance, Balance), Self::Error>;
+}
+
+/// Implementers of this trait are able to add liquidity to their AMM pool.
+pub trait AMMAddLiquidity<AccountId, AssetId, Balance> {
+	fn add_liquidity(
+		origin: AccountId,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		amount_a: Balance,
+		amount_b_max_limit: Balance,
+	) -> Result<Balance, DispatchError>;
 }
 
 /// Provides account's fee payment asset

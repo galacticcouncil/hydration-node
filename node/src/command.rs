@@ -20,6 +20,7 @@ use crate::cli::{Cli, RelayChainCli, Subcommand};
 use crate::service::new_partial;
 
 use codec::Encode;
+use cumulus_client_service::storage_proof_size::HostFunctions as ReclaimHostFunctions;
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use hydradx_runtime::Block;
@@ -28,7 +29,6 @@ use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
 	RuntimeVersion, SharedParams, SubstrateCli,
 };
-use sc_executor::sp_wasm_interface::ExtendedHostFunctions;
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::{
@@ -194,12 +194,7 @@ pub fn run() -> sc_cli::Result<()> {
 			match cmd {
 				BenchmarkCmd::Pallet(cmd) => {
 					if cfg!(feature = "runtime-benchmarks") {
-						runner.sync_run(|config| {
-							cmd.run::<Block, ExtendedHostFunctions<
-								sp_io::SubstrateHostFunctions,
-								frame_benchmarking::benchmarking::HostFunctions,
-							>>(config)
-						})
+						runner.sync_run(|config| cmd.run_with_spec::<sp_runtime::traits::HashingFor<Block>, ReclaimHostFunctions>(Some(config.chain_spec)))
 					} else {
 						Err("Benchmarking wasn't enabled when building the node. \
 			   You can enable it with `--features runtime-benchmarks`."
@@ -296,7 +291,7 @@ pub fn run() -> sc_cli::Result<()> {
 				let id = ParaId::from(para_id);
 
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v6::AccountId>::into_account_truncating(&id);
+					AccountIdConversion::<polkadot_primitives::v8::AccountId>::into_account_truncating(&id);
 
 				let state_version = Cli::runtime_version().state_version();
 
@@ -373,15 +368,9 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.prometheus_config(default_listen_port, chain_spec)
 	}
 
-	fn init<F>(
-		&self,
-		_support_url: &String,
-		_impl_version: &String,
-		_logger_hook: F,
-		_config: &sc_service::Configuration,
-	) -> Result<()>
+	fn init<F>(&self, _support_url: &String, _impl_version: &String, _logger_hook: F) -> Result<()>
 	where
-		F: FnOnce(&mut sc_cli::LoggerBuilder, &sc_service::Configuration),
+		F: FnOnce(&mut sc_cli::LoggerBuilder),
 	{
 		unreachable!("PolkadotCli is never initialized; qed");
 	}

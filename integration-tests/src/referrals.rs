@@ -1,16 +1,22 @@
 #![cfg(test)]
+
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens};
+use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens, Treasury};
 use orml_traits::MultiCurrency;
+use pallet_broadcast::types::Asset;
+use pallet_broadcast::types::Destination;
+use pallet_broadcast::types::Fee;
+use pallet_broadcast::types::Filler;
+use pallet_broadcast::types::TradeOperation;
 use pallet_referrals::{FeeDistribution, ReferralCode};
 use primitives::AccountId;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
+use std::vec;
 use xcm_emulator::TestExt;
-
 #[test]
 fn registering_a_code_should_charge_registration_fee() {
 	Hydra::execute_with(|| {
@@ -44,7 +50,7 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 			0
 		));
 		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(pot_balance, 29_307_364_722_907_532);
+		assert_eq!(pot_balance, 49238095834051433);
 	});
 }
 
@@ -67,7 +73,7 @@ fn buying_in_omnipool_should_transfer_portion_of_asset_out_fee_to_reward_pot() {
 			u128::MAX,
 		));
 		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(pot_balance, 30_594_591_369_789_397);
+		assert_eq!(pot_balance, 51404718259868230);
 	});
 }
 
@@ -113,7 +119,7 @@ fn trading_in_omnipool_should_increase_referrer_shares() {
 			0
 		));
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 131_950_592);
+		assert_eq!(referrer_shares, 133011250);
 	});
 }
 #[test]
@@ -135,7 +141,7 @@ fn trading_in_omnipool_should_increase_trader_shares() {
 			0
 		));
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 263_901_185);
+		assert_eq!(trader_shares, 88674166);
 	});
 }
 #[test]
@@ -158,7 +164,7 @@ fn trading_in_omnipool_should_increase_external_shares() {
 		));
 
 		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
-		assert_eq!(external_shares, 1_096_284_866_630);
+		assert_eq!(external_shares, 1842264352640);
 	});
 }
 
@@ -181,7 +187,7 @@ fn trading_in_omnipool_should_increase_total_shares_correctly() {
 			0
 		));
 		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, 1_096_680_718_407);
+		assert_eq!(total_shares, 1842486038056);
 	});
 }
 
@@ -247,7 +253,7 @@ fn trading_in_omnipool_should_transfer_some_portion_of_fee_when_no_code_linked()
 			0
 		));
 		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(pot_balance, 29_307_364_722_907_532);
+		assert_eq!(pot_balance, 49238095834051434);
 		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, external_shares);
@@ -273,11 +279,11 @@ fn trading_in_omnipool_should_use_global_rewards_when_not_set() {
 			0
 		));
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 131_950_592);
+		assert_eq!(referrer_shares, 133011250);
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 263_901_185);
+		assert_eq!(trader_shares, 88674166);
 		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
-		assert_eq!(external_shares, 1_096_284_866_630);
+		assert_eq!(external_shares, 1842264352640);
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
 	});
@@ -312,11 +318,11 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 			0
 		));
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 52_780_237);
+		assert_eq!(referrer_shares, 88674166);
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 26_390_118);
+		assert_eq!(trader_shares, 44337083);
 		let external_shares = Referrals::trader_shares::<AccountId>(Staking::pot_account_id());
-		assert_eq!(external_shares, 1_095_625_113_667);
+		assert_eq!(external_shares, 1840712554721);
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, referrer_shares + trader_shares + external_shares);
 	});
@@ -339,23 +345,53 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
-			who: BOB.into(),
-			asset_in: DAI,
-			asset_out: HDX,
-			amount_in: 26_835_579_541_620_354,
-			amount_out: 1_000_000_000_000,
-			hub_amount_in: 1_209_746_177,
-			hub_amount_out: 1_209_141_304,
-			asset_fee_amount: 2_794_789_078,
-			protocol_fee_amount: 604_873,
-		}
-		.into()]);
+		expect_hydra_last_events(vec![
+			pallet_omnipool::Event::BuyExecuted {
+				who: BOB.into(),
+				asset_in: DAI,
+				asset_out: HDX,
+				amount_in: 26992056243690032,
+				amount_out: 1_000_000_000_000,
+				hub_amount_in: 1216802197,
+				hub_amount_out: 1216193797,
+				asset_fee_amount: 8638992975,
+				protocol_fee_amount: 608401,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: Filler::Omnipool,
+				operation: TradeOperation::ExactOut,
+				inputs: vec![Asset::new(DAI, 26992056243690032)],
+				outputs: vec![Asset::new(LRNA, 1216802197)],
+				fees: vec![
+					Fee::new(LRNA, 304200, Destination::Burned),
+					Fee::new(LRNA, 304201, Destination::Account(Treasury::account_id())),
+				],
+				operation_stack: vec![ExecutionType::Omnipool(0)],
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: Filler::Omnipool,
+				operation: TradeOperation::ExactOut,
+				inputs: vec![Asset::new(LRNA, 1216193796)],
+				outputs: vec![Asset::new(HDX, 1_000_000_000_000)],
+				fees: vec![
+					Fee::new(HDX, 1, Destination::Account(Omnipool::protocol_account())),
+					Fee::new(HDX, 8638992974, Destination::Account(Staking::pot_account_id())),
+				],
+				operation_stack: vec![ExecutionType::Omnipool(0)],
+			}
+			.into(),
+		]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
 		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
-		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 2_794_789_077);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 8638992974);
 	});
 }
 
@@ -376,22 +412,62 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
-			who: BOB.into(),
-			asset_in: HDX,
-			asset_out: DAI,
-			amount_in: 37_506_757_329_085,
-			amount_out: 1_000_000_000_000_000_000,
-			hub_amount_in: 45_222_713_080,
-			hub_amount_out: 45_200_101_724,
-			asset_fee_amount: 2_644_977_450_514_458,
-			protocol_fee_amount: 22_611_356,
-		}
-		.into()]);
+		let expected_taken_fee = 2225865033829934;
+
+		expect_hydra_last_events(vec![
+			pallet_omnipool::Event::BuyExecuted {
+				who: BOB.into(),
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: 37574235394795,
+				amount_out: 1_000_000_000_000_000_000,
+				hub_amount_in: 45304282291,
+				hub_amount_out: 45381976261,
+				asset_fee_amount: 4451730067659869,
+				protocol_fee_amount: 22652141,
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_broadcast::types::Filler::Omnipool,
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(HDX, 37574235394795)],
+				outputs: vec![Asset::new(LRNA, 45304282291)],
+				fees: vec![
+					Fee::new(LRNA, 11326070, Destination::Burned),
+					Fee::new(LRNA, 11326071, Destination::Account(Treasury::account_id())),
+				],
+				operation_stack: vec![ExecutionType::Omnipool(0)],
+			}
+			.into(),
+			pallet_broadcast::Event::Swapped {
+				swapper: BOB.into(),
+				filler: Omnipool::protocol_account(),
+				filler_type: pallet_broadcast::types::Filler::Omnipool,
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(LRNA, 45281630150)],
+				outputs: vec![Asset::new(DAI, 1_000_000_000_000_000_000)],
+				fees: vec![
+					Fee::new(
+						DAI,
+						2225865033829935,
+						Destination::Account(Omnipool::protocol_account()),
+					),
+					Fee::new(
+						DAI,
+						expected_taken_fee,
+						Destination::Account(Referrals::pot_account_id()),
+					),
+				],
+				operation_stack: vec![ExecutionType::Omnipool(0)],
+			}
+			.into(),
+		]);
 
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
-		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 2_644_977_450_514_458 / 2 - 1);
+		assert_eq!(ref_dai_balance.abs_diff(orig_balance), expected_taken_fee);
 		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 0);
 	});
 }
@@ -410,7 +486,7 @@ fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 		let staking_acc = Staking::pot_account_id();
 
 		let staking_shares = Referrals::trader_shares::<AccountId>(staking_acc);
-		assert_eq!(staking_shares, 1_096_680_718_408);
+		assert_eq!(staking_shares, 1842486038058);
 
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, staking_shares);
@@ -462,6 +538,14 @@ fn init_omnipool() {
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
 		DAI,
+		stable_price,
+		Permill::from_percent(100),
+		AccountId::from(ALICE),
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::RuntimeOrigin::root(),
+		ETH,
 		stable_price,
 		Permill::from_percent(100),
 		AccountId::from(ALICE),
@@ -521,6 +605,7 @@ fn seed_pot_account() {
 	));
 }
 
+use pallet_broadcast::types::ExecutionType;
 use scraper::ALICE;
 use sp_core::crypto::Ss58Codec;
 

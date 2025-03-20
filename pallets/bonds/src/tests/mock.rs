@@ -63,7 +63,7 @@ pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 thread_local! {
 	// maps AssetId -> existential deposit
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (Balance, AssetKind)>> = RefCell::new(HashMap::default());
-	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
+	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 }
 
 construct_runtime!(
@@ -142,6 +142,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 impl orml_tokens::Config for Test {

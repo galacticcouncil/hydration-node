@@ -28,7 +28,7 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use orml_traits::GetByKey;
+use hydradx_traits::fee::GetDynamicFee;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One, Zero},
@@ -48,7 +48,7 @@ pub(crate) type Fee = Perquintill;
 
 thread_local! {
 	pub static ORACLE: RefCell<Box<dyn CustomOracle>> = RefCell::new(Box::new(Oracle::new()));
-	pub static BLOCK: RefCell<usize> = RefCell::new(0);
+	pub static BLOCK: RefCell<usize> = const { RefCell::new(0) };
 	pub static ASSET_FEE_PARAMS: RefCell<FeeParams<Fee>> = RefCell::new(fee_params_default());
 	pub static PROTOCOL_FEE_PARAMS: RefCell<FeeParams<Fee>> = RefCell::new(fee_params_default());
 }
@@ -95,6 +95,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {
@@ -107,7 +112,7 @@ impl Config for Test {
 	type Fee = Fee;
 	type AssetId = AssetId;
 	type BlockNumberProvider = System;
-	type Oracle = OracleProvider;
+	type RawOracle = OracleProvider;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }
@@ -198,14 +203,12 @@ pub struct OracleProvider;
 impl VolumeProvider<AssetId, Balance> for OracleProvider {
 	type Volume = AssetVolume;
 
-	fn asset_volume(asset_id: AssetId) -> Option<Self::Volume> {
-		let volume = ORACLE.with(|v| v.borrow().volume(asset_id, BLOCK.with(|v| *v.borrow())));
-		Some(volume)
+	fn last_entry(asset_id: AssetId) -> Option<Self::Volume> {
+		Some(ORACLE.with(|v| v.borrow().volume(asset_id, BLOCK.with(|v| *v.borrow()))))
 	}
 
-	fn asset_liquidity(asset_id: AssetId) -> Option<Balance> {
-		let liquidity = ORACLE.with(|v| v.borrow().liquidity(asset_id, BLOCK.with(|v| *v.borrow())));
-		Some(liquidity)
+	fn period() -> u64 {
+		10
 	}
 }
 
@@ -213,6 +216,8 @@ impl VolumeProvider<AssetId, Balance> for OracleProvider {
 pub struct AssetVolume {
 	pub(crate) amount_in: Balance,
 	pub(crate) amount_out: Balance,
+	pub(crate) liquidity: Balance,
+	pub(crate) updated_at: u128,
 }
 
 impl Volume<Balance> for AssetVolume {
@@ -223,13 +228,23 @@ impl Volume<Balance> for AssetVolume {
 	fn amount_out(&self) -> Balance {
 		self.amount_out
 	}
+
+	fn liquidity(&self) -> Balance {
+		self.liquidity
+	}
+
+	fn updated_at(&self) -> u128 {
+		self.updated_at
+	}
 }
 
-impl From<(Balance, Balance, Balance)> for AssetVolume {
-	fn from(value: (Balance, Balance, Balance)) -> Self {
+impl From<(Balance, Balance, Balance, u128)> for AssetVolume {
+	fn from(value: (Balance, Balance, Balance, u128)) -> Self {
 		Self {
 			amount_in: value.0,
 			amount_out: value.1,
+			liquidity: value.2,
+			updated_at: value.3,
 		}
 	}
 }
@@ -240,8 +255,8 @@ pub trait CustomOracle {
 	fn liquidity(&self, _asset_id: AssetId, block: usize) -> Balance;
 }
 
-pub(crate) fn retrieve_fee_entry(asset_id: AssetId) -> (Fee, Fee) {
-	<UpdateAndRetrieveFees<Test> as GetByKey<AssetId, (Fee, Fee)>>::get(&asset_id)
+pub(crate) fn retrieve_fee_entry(asset_id: AssetId, liquidity: Balance) -> (Fee, Fee) {
+	<UpdateAndRetrieveFees<Test> as GetDynamicFee<(AssetId, Balance)>>::get((asset_id, liquidity))
 }
 
 pub(crate) fn get_oracle_entry(asset_id: AssetId, block_number: u64) -> AssetVolume {

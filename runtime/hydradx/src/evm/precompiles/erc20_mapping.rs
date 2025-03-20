@@ -19,24 +19,41 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::precompiles::EvmAddress;
+use crate::evm::EvmAddress;
+use crate::{AssetLocation, Runtime};
 use hex_literal::hex;
-use primitive_types::H160;
+use hydradx_traits::evm::Erc20Mapping;
+use hydradx_traits::{evm::Erc20Encoding, BoundErc20, RegisterAssetHook};
+use polkadot_xcm::v3::Junction::AccountKey20;
+use polkadot_xcm::v3::Junctions::X1;
+use polkadot_xcm::v3::MultiLocation;
+use primitive_types::{H160, H256};
 use primitives::AssetId;
-
-/// A mapping between AssetId and Erc20 EVM address.
-pub trait Erc20Mapping {
-	fn encode_evm_address(asset_id: AssetId) -> Option<EvmAddress>;
-
-	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId>;
-}
 
 pub struct HydraErc20Mapping;
 
-/// Erc20Mapping logic for HydraDX
+impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn asset_address(asset_id: AssetId) -> EvmAddress {
+		pallet_asset_registry::Pallet::<Runtime>::contract_address(asset_id)
+			.unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset_id))
+	}
+
+	fn address_to_asset(address: hydradx_traits::evm::EvmAddress) -> Option<AssetId> {
+		Self::decode_evm_address(address).or_else(|| {
+			pallet_asset_registry::Pallet::<Runtime>::location_to_asset(AssetLocation(MultiLocation::new(
+				0,
+				X1(AccountKey20 {
+					network: None,
+					key: address.into(),
+				}),
+			)))
+		})
+	}
+}
+
 /// The asset id (with type u32) is encoded in the last 4 bytes of EVM address
-impl Erc20Mapping for HydraErc20Mapping {
-	fn encode_evm_address(asset_id: AssetId) -> Option<EvmAddress> {
+impl Erc20Encoding<AssetId> for HydraErc20Mapping {
+	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 
 		let mut evm_address_bytes = [0u8; 20];
@@ -47,7 +64,7 @@ impl Erc20Mapping for HydraErc20Mapping {
 			evm_address_bytes[16 + i] = asset_id_bytes[3 - i];
 		}
 
-		Some(EvmAddress::from(evm_address_bytes))
+		EvmAddress::from(evm_address_bytes)
 	}
 
 	fn decode_evm_address(evm_address: EvmAddress) -> Option<AssetId> {
@@ -68,4 +85,45 @@ pub fn is_asset_address(address: H160) -> bool {
 	let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
 
 	&address.to_fixed_bytes()[0..16] == asset_address_prefix
+}
+
+fn set_code_metadata_for_erc20(asset_id: AssetId, code: &[u8]) {
+	let size = code[..].len() as u64;
+	let hash = H256::from(sp_io::hashing::keccak_256(code));
+	let code_metadata = pallet_evm::CodeMetadata { size, hash };
+	pallet_evm::AccountCodesMetadata::<Runtime>::insert(HydraErc20Mapping::encode_evm_address(asset_id), code_metadata);
+}
+
+pub struct SetCodeForErc20Precompile;
+impl RegisterAssetHook<AssetId> for SetCodeForErc20Precompile {
+	fn on_register_asset(asset_id: AssetId) {
+		pallet_evm::AccountCodes::<Runtime>::insert(HydraErc20Mapping::encode_evm_address(asset_id), &hex!["00"][..]);
+
+		let code = hex!["00"];
+		set_code_metadata_for_erc20(asset_id, &code);
+	}
+}
+
+pub struct SetCodeMetadataForErc20Precompile;
+impl frame_support::traits::OnRuntimeUpgrade for SetCodeMetadataForErc20Precompile {
+	fn on_runtime_upgrade() -> frame_support::weights::Weight {
+		log::info!("Running migration for SetCodeMetadataForErc20Precompile.",);
+
+		let mut reads = 0;
+		let mut writes = 0;
+
+		let code = hex!["00"];
+
+		pallet_asset_registry::Assets::<Runtime>::iter().for_each(|(asset_id, _)| {
+			reads += 1;
+			if !pallet_evm::AccountCodesMetadata::<Runtime>::contains_key(HydraErc20Mapping::encode_evm_address(
+				asset_id,
+			)) {
+				set_code_metadata_for_erc20(asset_id, &code);
+
+				writes += 1;
+			}
+		});
+		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(reads, writes)
+	}
 }

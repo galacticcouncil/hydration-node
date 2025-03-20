@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool"
-version = "4.3.2"
+version = "5.0.3"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -14,8 +14,13 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # parity
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+scale-info = { workspace = true }
+codec = { workspace = true }
+
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+hydra-dx-math = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -28,16 +33,11 @@ frame-system = { workspace = true }
 # ORML
 orml-traits = { workspace = true }
 
-# Warehouse
-hydradx-traits = { workspace = true }
-
-hydra-dx-math = { workspace = true }
-
 # third party
-primitive-types = { version = "0.12.0", default-features = false }
-bitflags = "1.3.2"
-impl-trait-for-tuples = "0.2.2"
-log = { version = "0.4.17", default-features = false }
+primitive-types = { workspace = true }
+bitflags = { workspace = true }
+impl-trait-for-tuples = { workspace = true }
+log = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
@@ -52,8 +52,9 @@ sp-tracing = { workspace = true }
 pallet-balances = { workspace = true }
 frame-benchmarking = { workspace = true }
 orml-tokens = { workspace = true }
-proptest = "1.0.0"
-pretty_assertions = "1.2.1"
+proptest = { workspace = true }
+pretty_assertions = { workspace = true }
+test-utils = { workspace = true }
 
 [features]
 default = ["std"]
@@ -69,6 +70,10 @@ std = [
 	"pallet-balances/std",
 	"orml-tokens/std",
 	"frame-benchmarking/std",
+	"pallet-broadcast/std",
+	'hydradx-traits/std',
+	'hydra-dx-math/std',
+	'orml-traits/std',
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

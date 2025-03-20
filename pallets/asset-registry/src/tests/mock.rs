@@ -27,6 +27,9 @@ use sp_runtime::{
 	BuildStorage,
 };
 
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+
 use frame_support::traits::Everything;
 
 use polkadot_xcm::v3::MultiLocation;
@@ -88,13 +91,21 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
-
-use codec::{Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub MultiLocation);
+
+impl From<AssetLocation> for MultiLocation {
+	fn from(location: AssetLocation) -> Self {
+		location.0
+	}
+}
 
 impl pallet_asset_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -107,6 +118,7 @@ impl pallet_asset_registry::Config for Test {
 	type MinStringLimit = RegistryMinStringLimit;
 	type SequentialIdStartAt = SequentialIdStart;
 	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
+	type RegisterAssetHook = ();
 	type WeightInfo = ();
 }
 

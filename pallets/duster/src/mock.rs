@@ -4,7 +4,7 @@ use frame_support::parameter_types;
 use frame_support::traits::{Everything, Nothing, OnKilledAccount};
 
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 
 use crate::Config;
 use frame_system as system;
@@ -65,7 +65,7 @@ parameter_types! {
 }
 
 thread_local! {
-	pub static KILLED: RefCell<Vec<u64>> = RefCell::new(vec![]);
+	pub static KILLED: RefCell<Vec<u64>> = const { RefCell::new(vec![]) };
 }
 
 pub struct RecordKilled;
@@ -100,6 +100,11 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_type_with_key! {
@@ -128,6 +133,7 @@ impl Config for Test {
 	type Reward = Reward;
 	type NativeCurrencyId = NativeCurrencyId;
 	type BlacklistUpdateOrigin = EnsureRoot<AccountId>;
+	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
 }
 
@@ -149,6 +155,9 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ();
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }

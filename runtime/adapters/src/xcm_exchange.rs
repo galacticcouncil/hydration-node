@@ -1,4 +1,6 @@
+use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::MultiCurrency;
+use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
@@ -27,6 +29,7 @@ where
 	CurrencyIdConvert: Convert<Asset, Option<Runtime::AssetId>>,
 	Currency: MultiCurrency<Runtime::AccountId, CurrencyId = Runtime::AssetId, Balance = Runtime::Balance>,
 	Runtime::Balance: From<u128> + Zero + Into<u128>,
+	Runtime::AssetId: Into<u32>,
 {
 	fn exchange_asset(
 		_origin: Option<&Location>,
@@ -62,7 +65,12 @@ where
 		};
 		let use_onchain_route = vec![];
 
-		if maximal {
+		if pallet_broadcast::Pallet::<Runtime>::add_to_context(ExecutionType::XcmExchange).is_err() {
+			log::error!(target: "xcm::exchange-asset", "Failed to add to context.");
+			return Err(give);
+		};
+
+		let trade_result = if maximal {
 			// sell
 			let Fungible(amount) = given.fun else { return Err(give) };
 			let Fungible(min_buy_amount) = wanted.fun else {
@@ -90,9 +98,10 @@ where
 				);
 				Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
 				let holding: Asset = (wanted.id.clone(), amount_received.into()).into();
+
 				Ok(holding.into())
 			})
-			.map_err(|_| give)
+			.map_err(|_| give.clone())
 		} else {
 			// buy
 			let Fungible(amount) = wanted.fun else { return Err(give) };
@@ -127,7 +136,60 @@ where
 				assets.push(holding);
 				Ok(assets.into())
 			})
-			.map_err(|_| give)
+			.map_err(|_| give.clone())
+		};
+		if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
+			log::error!(target: "xcm::exchange-asset", "Failed to remove from context.");
+			return Err(give);
+		};
+
+		trade_result
+	}
+
+	fn quote_exchange_price(give: &Assets, want: &Assets, maximal: bool) -> Option<Assets> {
+		if give.len() != 1 {
+			log::warn!(target: "xcm::exchange-asset", "Only one give asset is supported.");
+			return None;
+		};
+
+		//We assume only one asset wanted as translating into buy and sell is ambigous for multiple want assets
+		if want.len() != 1 {
+			log::warn!(target: "xcm::exchange-asset", "Only one want asset is supported.");
+			return None;
+		};
+
+		let given = give.get(0)?;
+		let asset_in = CurrencyIdConvert::convert(given.clone())?;
+
+		let wanted = want.get(0)?;
+		let asset_out = CurrencyIdConvert::convert(wanted.clone())?;
+
+		let route = pallet_route_executor::Pallet::<Runtime>::get_route(AssetPair::new(asset_in, asset_out));
+
+		if maximal {
+			// sell
+			let Fungible(amount) = given.fun else { return None };
+			let amount =
+				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_out(&route, amount.into()).ok()?;
+			Some(
+				Asset {
+					id: wanted.id.clone(),
+					fun: Fungible(amount.into()),
+				}
+				.into(),
+			)
+		} else {
+			// buy
+			let Fungible(amount) = wanted.fun else { return None };
+			let amount =
+				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into()).ok()?;
+			Some(
+				Asset {
+					id: given.id.clone(),
+					fun: Fungible(amount.into()),
+				}
+				.into(),
+			)
 		}
 	}
 }

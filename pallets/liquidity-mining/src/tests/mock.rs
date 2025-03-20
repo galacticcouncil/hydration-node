@@ -22,7 +22,7 @@ use crate::Config;
 use crate::{self as liq_mining, types::DefaultPriceAdjustment};
 use frame_support::{parameter_types, traits::Contains, traits::Everything, PalletId};
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Inspect, AssetKind, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Inspect, AssetKind};
 use orml_traits::GetByKey;
 use sp_core::H256;
 use sp_runtime::{
@@ -89,7 +89,6 @@ pub const BSX_ETH_AMM: AccountId = 11_003;
 pub const BSX_HDX_AMM: AccountId = 11_004;
 pub const BSX_TKN1_AMM: AccountId = 11_005;
 pub const BSX_TKN2_AMM: AccountId = 11_006;
-pub const DEFAULT_AMM: AccountId = 11_007;
 pub const KSM_DOT_AMM: AccountId = 11_008;
 pub const ACA_KSM_AMM: AccountId = 11_009;
 
@@ -163,100 +162,16 @@ impl system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
-
-pub struct Amm;
 
 thread_local! {
 	pub static AMM_POOLS: RefCell<HashMap<String, (AccountId, AssetId)>> = RefCell::new(HashMap::new());
-	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
-}
-
-impl AMM<AccountId, AssetId, AssetPair, Balance> for Amm {
-	fn get_max_out_ratio() -> u128 {
-		0_u32.into()
-	}
-
-	fn get_fee(_pool_account_id: &AccountId) -> (u32, u32) {
-		(0, 0)
-	}
-
-	fn get_max_in_ratio() -> u128 {
-		0_u32.into()
-	}
-
-	fn get_pool_assets(_pool_account_id: &AccountId) -> Option<Vec<AssetId>> {
-		None
-	}
-
-	fn get_spot_price_unchecked(_asset_a: AssetId, _asset_b: AssetId, _amount: Balance) -> Balance {
-		Balance::from(0_u32)
-	}
-
-	fn validate_sell(
-		_origin: &AccountId,
-		_assets: AssetPair,
-		_amount: Balance,
-		_min_bought: Balance,
-		_discount: bool,
-	) -> Result<
-		hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		frame_support::sp_runtime::DispatchError,
-	> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn execute_buy(
-		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-	) -> frame_support::dispatch::DispatchResult {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn execute_sell(
-		_transfer: &hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-	) -> frame_support::dispatch::DispatchResult {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn validate_buy(
-		_origin: &AccountId,
-		_assets: AssetPair,
-		_amount: Balance,
-		_max_limit: Balance,
-		_discount: bool,
-	) -> Result<
-		hydradx_traits::AMMTransfer<AccountId, AssetId, AssetPair, Balance>,
-		frame_support::sp_runtime::DispatchError,
-	> {
-		Err(sp_runtime::DispatchError::Other("NotImplemented"))
-	}
-
-	fn get_min_pool_liquidity() -> Balance {
-		Balance::from(0_u32)
-	}
-
-	fn get_min_trading_limit() -> Balance {
-		Balance::from(0_u32)
-	}
-
-	// Fn bellow are used by liq. mining pallet
-	fn exists(assets: AssetPair) -> bool {
-		AMM_POOLS.with(|v| v.borrow().contains_key(&asset_pair_to_map_key(assets)))
-	}
-
-	fn get_pair_id(assets: AssetPair) -> AccountId {
-		AMM_POOLS.with(|v| match v.borrow().get(&asset_pair_to_map_key(assets)) {
-			Some(p) => p.0,
-			None => DEFAULT_AMM,
-		})
-	}
-
-	fn get_share_token(assets: AssetPair) -> AssetId {
-		AMM_POOLS.with(|v| match v.borrow().get(&asset_pair_to_map_key(assets)) {
-			Some(p) => p.1,
-			None => BSX,
-		})
-	}
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 }
 
 pub fn asset_pair_to_map_key(assets: AssetPair) -> String {
@@ -408,11 +323,9 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	type Error = DispatchError;
 
 	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
-		if Whitelist::contains(account) {
-			return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
+		if !Whitelist::contains(account) {
+			DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
 		}
-
-		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
 
 		Ok(())
 	}

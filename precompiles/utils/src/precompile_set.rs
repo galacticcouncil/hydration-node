@@ -414,15 +414,15 @@ impl<'a, H: PrecompileHandle> PrecompileHandle for RestrictiveHandle<'a, H> {
 	fn call(
 		&mut self,
 		address: H160,
-		transfer: Option<evm::Transfer>,
+		transfer: Option<fp_evm::Transfer>,
 		input: Vec<u8>,
 		target_gas: Option<u64>,
 		is_static: bool,
-		context: &evm::Context,
-	) -> (evm::ExitReason, Vec<u8>) {
+		context: &fp_evm::Context,
+	) -> (fp_evm::ExitReason, Vec<u8>) {
 		if !self.allow_subcalls {
 			return (
-				evm::ExitReason::Revert(evm::ExitRevert::Reverted),
+				fp_evm::ExitReason::Revert(fp_evm::ExitRevert::Reverted),
 				crate::solidity::revert::revert_as_bytes("subcalls disabled for this precompile"),
 			);
 		}
@@ -431,7 +431,7 @@ impl<'a, H: PrecompileHandle> PrecompileHandle for RestrictiveHandle<'a, H> {
 			.call(address, transfer, input, target_gas, is_static, context)
 	}
 
-	fn record_cost(&mut self, cost: u64) -> Result<(), evm::ExitError> {
+	fn record_cost(&mut self, cost: u64) -> Result<(), fp_evm::ExitError> {
 		self.handle.record_cost(cost)
 	}
 
@@ -439,7 +439,7 @@ impl<'a, H: PrecompileHandle> PrecompileHandle for RestrictiveHandle<'a, H> {
 		self.handle.remaining_gas()
 	}
 
-	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), evm::ExitError> {
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), fp_evm::ExitError> {
 		self.handle.log(address, topics, data)
 	}
 
@@ -451,7 +451,7 @@ impl<'a, H: PrecompileHandle> PrecompileHandle for RestrictiveHandle<'a, H> {
 		self.handle.input()
 	}
 
-	fn context(&self) -> &evm::Context {
+	fn context(&self) -> &fp_evm::Context {
 		self.handle.context()
 	}
 
@@ -1106,7 +1106,7 @@ impl<R: pallet_evm::Config, P: PrecompileSetFragment> PrecompileSetBuilder<R, P>
 	}
 
 	/// Return the list of addresses contained in this PrecompileSet.
-	pub fn used_addresses() -> impl Iterator<Item = R::AccountId> {
+	pub fn used_addresses() -> impl Iterator<Item = pallet_evm::AccountIdOf<R>> {
 		Self::new()
 			.inner
 			.used_addresses()

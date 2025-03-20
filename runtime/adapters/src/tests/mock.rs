@@ -31,15 +31,16 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::ratio::Ratio;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
+use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::router::{RefundEdCalculator, Trade};
 use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
 	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
 };
-use orml_traits::{parameter_type_with_key, GetByKey};
+use orml_traits::parameter_type_with_key;
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -75,20 +76,20 @@ pub const ONE: Balance = 1_000_000_000_000;
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 thread_local! {
-	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
+	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
-	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_PRICE_DIFF: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
-	pub static WITHDRAWAL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
+	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_OUT_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_PRICE_DIFF: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
+	pub static WITHDRAWAL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 }
 
 construct_runtime!(
@@ -101,6 +102,7 @@ construct_runtime!(
 		RouteExecutor: pallet_route_executor,
 		Currencies: pallet_currencies,
 		XYK: pallet_xyk,
+		Broadcast: pallet_broadcast,
 	}
 );
 
@@ -129,6 +131,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -183,6 +190,8 @@ parameter_types! {
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
+	pub BurnFee: Permill = Permill::zero();
+	pub const ReserveAccount: AccountId = 7;
 }
 
 impl pallet_omnipool::Config for Test {
@@ -200,7 +209,7 @@ impl pallet_omnipool::Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
@@ -211,13 +220,19 @@ impl pallet_omnipool::Config for Test {
 	);
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
+	type BurnProtocolFee = BurnFee;
 }
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
+
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
 	}
 }
 
@@ -225,6 +240,9 @@ impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
@@ -255,6 +273,10 @@ impl pallet_xyk::Config for Test {
 	type AMMHandler = ();
 	type DiscountedFee = DiscountedFee;
 	type NonDustableWhitelistHandler = DummyDuster;
+}
+
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct Whitelist;
@@ -333,7 +355,7 @@ impl pallet_route_executor::Config for Test {
 	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type WeightInfo = ();
 }

@@ -115,6 +115,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {
@@ -245,7 +250,7 @@ impl pallet_omnipool::Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;

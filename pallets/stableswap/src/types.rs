@@ -14,10 +14,12 @@ use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
+use hydradx_traits::{OraclePeriod, Source};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
+
 pub(crate) type Balance = u128;
 
 /// Pool properties for 2-asset pool (v1)
@@ -74,29 +76,6 @@ where
 	}
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo, Default)]
-pub struct AssetAmount<AssetId> {
-	pub asset_id: AssetId,
-	pub amount: Balance,
-}
-
-impl<AssetId: Default> AssetAmount<AssetId> {
-	pub fn new(asset_id: AssetId, amount: Balance) -> Self {
-		Self { asset_id, amount }
-	}
-}
-
-impl<AssetId> From<AssetAmount<AssetId>> for u128 {
-	fn from(value: AssetAmount<AssetId>) -> Self {
-		value.amount
-	}
-}
-impl<AssetId> From<&AssetAmount<AssetId>> for u128 {
-	fn from(value: &AssetAmount<AssetId>) -> Self {
-		value.amount
-	}
-}
-
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
 	#[derive(Encode,Decode, MaxEncodedLen, TypeInfo)]
@@ -123,6 +102,7 @@ impl Default for Tradability {
 #[cfg(feature = "runtime-benchmarks")]
 pub trait BenchmarkHelper<AssetId> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult;
+	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult;
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -165,5 +145,35 @@ impl<AssetId> StableswapHooks<AssetId> for () {
 
 	fn on_trade_weight(_n: usize) -> Weight {
 		Weight::zero()
+	}
+}
+
+pub type PegType = (Balance, Balance);
+
+pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum PegSource {
+	Value(PegType),
+	Oracle((Source, OraclePeriod)),
+}
+
+pub type BoundedPegSources = BoundedVec<PegSource, ConstU32<MAX_ASSETS_IN_POOL>>;
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct PoolPegInfo {
+	pub source: BoundedPegSources,
+	pub max_peg_update: Permill,
+	pub current: BoundedPegs,
+}
+
+impl PoolPegInfo {
+	pub fn with_new_pegs(self, pegs: &[PegType]) -> Self {
+		debug_assert_eq!(self.current.len(), pegs.len(), "Invalid pegs length");
+		PoolPegInfo {
+			source: self.source,
+			max_peg_update: self.max_peg_update,
+			current: BoundedPegs::truncate_from(pegs.to_vec()),
+		}
 	}
 }

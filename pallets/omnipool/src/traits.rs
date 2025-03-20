@@ -7,7 +7,8 @@ use hydra_dx_math::omnipool::types::AssetStateChange;
 use sp_runtime::traits::{CheckedAdd, CheckedMul, Get, Saturating, Zero};
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128, Permill};
 use sp_std::fmt::Debug;
-
+use sp_std::vec;
+use sp_std::vec::Vec;
 /// Asset In/Out information used in hooks.
 pub struct AssetInfo<AssetId, Balance>
 where
@@ -64,7 +65,14 @@ where
 		trader: AccountId,
 		asset: AssetId,
 		amount: Balance,
-	) -> Result<Balance, Self::Error>;
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error>;
+
+	/// Part of the protocol fee that can be consumed.
+	/// Returns the amount that was consumed and by whom.
+	fn consume_protocol_fee(
+		fee_account: AccountId,
+		amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error>;
 }
 
 // Default implementation for no-op hooks.
@@ -103,8 +111,15 @@ where
 		_trader: AccountId,
 		_asset: AssetId,
 		_amount: Balance,
-	) -> Result<Balance, Self::Error> {
-		Ok(Balance::zero())
+	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
+		Ok(vec![])
+	}
+
+	fn consume_protocol_fee(
+		_fee_account: AccountId,
+		_amount: Balance,
+	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
+		Ok(None)
 	}
 }
 

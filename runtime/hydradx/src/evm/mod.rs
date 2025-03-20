@@ -20,36 +20,46 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
+pub use crate::evm::gas_to_weight_mapping::FixedHydraGasWeightMapping;
 use crate::evm::runner::WrapRunner;
+use crate::origins::GeneralAdmin;
 use crate::types::ShortOraclePrice;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{NativeAssetId, LRNA};
+use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
-	traits::{Defensive, FindAuthor},
+	traits::{Defensive, EitherOf, FindAuthor},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
 };
+use frame_system::EnsureRoot;
 use hex_literal::hex;
-use hydradx_adapters::price::ConvertAmount;
-use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
+use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_evm::EnsureAddressTruncated;
+use pallet_evm::{EnsureAddressTruncated, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
-
+pub mod aave_trade_executor;
 mod accounts_conversion;
+mod erc20_currency;
 mod evm_fee;
+mod executor;
+mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;
 mod runner;
+
+pub use erc20_currency::Erc20Currency;
+pub use erc20_currency::Function;
+pub use executor::Executor;
+pub use primitives::AccountId as AccountIdType;
 
 // Current approximation of the gas per second consumption considering
 // EVM execution over compiled WASM (on 4.4Ghz CPU).
@@ -60,14 +70,14 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.015 gwei per gas
-pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 15_000_000;
+// Fixed gas price of 0.016 gwei per gas
+pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 16_000_000;
 
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block
 	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
 
-	pub PrecompilesValue: precompiles::HydraDXPrecompiles<crate::Runtime> = precompiles::HydraDXPrecompiles::<_>::new();
+	pub PrecompilesValue: precompiles::HydraDXPrecompiles<Runtime> = precompiles::HydraDXPrecompiles::<_>::new();
 	pub WeightPerGas: Weight = Weight::from_parts(WEIGHT_PER_GAS, 0);
 }
 
@@ -87,17 +97,17 @@ pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::M
 pub struct WethAssetId;
 impl Get<AssetId> for WethAssetId {
 	fn get() -> AssetId {
-		let invalid_id =
-			pallet_asset_registry::Pallet::<crate::Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
+		let invalid_id = pallet_asset_registry::Pallet::<Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
 
-		match pallet_asset_registry::Pallet::<crate::Runtime>::location_to_asset(WETH_ASSET_LOCATION) {
+		match pallet_asset_registry::Pallet::<Runtime>::location_to_asset(WETH_ASSET_LOCATION) {
 			Some(asset_id) => asset_id,
 			None => invalid_id,
 		}
 	}
 }
 
-type WethCurrency = CurrencyAdapter<crate::Runtime, WethAssetId>;
+pub type EvmAddress = sp_core::H160;
+type WethCurrency = CurrencyAdapter<Runtime, WethAssetId>;
 
 parameter_types! {
 	pub PostLogContent: pallet_ethereum::PostLogContent = pallet_ethereum::PostLogContent::BlockAndTxnHashes;
@@ -110,6 +120,8 @@ impl Get<Multiplier> for TransactionPaymentMultiplier {
 		crate::TransactionPayment::next_fee_multiplier()
 	}
 }
+
+pub const USDT: AssetId = 10u32;
 
 parameter_types! {
 	/// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare
@@ -127,51 +139,54 @@ parameter_types! {
 	pub const SuicideQuickClearLimit: u32 = 0;
 }
 
-impl pallet_evm::Config for crate::Runtime {
-	type AddressMapping = ExtendedAddressMapping;
-	type BlockGasLimit = BlockGasLimit;
+impl pallet_evm::Config for Runtime {
+	type AccountProvider = FrameSystemAccountProvider<Runtime>;
+	type FeeCalculator = crate::DynamicEvmFee;
+	type GasWeightMapping = FixedHydraGasWeightMapping<Self>;
+	type WeightPerGas = WeightPerGas;
 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
 	type CallOrigin = EnsureAddressTruncated;
-	type ChainId = crate::EVMChainId;
+	type WithdrawOrigin = EnsureAddressTruncated;
+	type AddressMapping = ExtendedAddressMapping;
 	type Currency = WethCurrency;
-	type FeeCalculator = crate::DynamicEvmFee;
-	type FindAuthor = FindAuthorTruncated<Aura>;
-	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
-	type OnChargeTransaction = evm_fee::TransferEvmFees<
-		evm_fee::DepositEvmFeeToTreasury,
-		FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
-		WethAssetId,
-		ConvertAmount<ShortOraclePrice>,
-		FungibleCurrencies<crate::Runtime>, // Multi currency support
-	>;
-	type OnCreate = ();
+	type RuntimeEvent = crate::RuntimeEvent;
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
+	type ChainId = crate::EVMChainId;
+	type BlockGasLimit = BlockGasLimit;
 	type Runner = WrapRunner<
 		Self,
 		pallet_evm::runner::stack::Runner<Self>, // Evm runner that we wrap
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
-			crate::Runtime,
-			ConvertAmount<ShortOraclePrice>,
-			FeeCurrencyOverrideOrDefault<WethAssetId>, // Get account's fee payment asset
-			FungibleCurrencies<crate::Runtime>,        // Account balance inspector
+			Runtime,
+			ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
+			FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<Runtime>>, // Get account's fee payment asset
+			FungibleCurrencies<Runtime>,                                     // Account balance inspector
 		>,
 	>;
-	type RuntimeEvent = crate::RuntimeEvent;
-	type WeightPerGas = WeightPerGas;
-	type WithdrawOrigin = EnsureAddressTruncated;
+	type OnChargeTransaction = evm_fee::TransferEvmFees<
+		evm_fee::DepositEvmFeeToTreasury,
+		FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<Runtime>>, // Get account's fee payment asset
+		WethAssetId,
+		ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
+		FungibleCurrencies<Runtime>, // Multi currency support
+		XykPaymentAssetSupport,
+		DotAssetId,
+	>;
+	type OnCreate = ();
+	type FindAuthor = FindAuthorTruncated<Runtime, Aura>;
 	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
+	type SuicideQuickClearLimit = SuicideQuickClearLimit;
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 	type Timestamp = crate::Timestamp;
-	type WeightInfo = pallet_evm::weights::SubstrateWeight<crate::Runtime>;
-	type SuicideQuickClearLimit = SuicideQuickClearLimit;
+	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
 
-impl pallet_evm_chain_id::Config for crate::Runtime {}
+impl pallet_evm_chain_id::Config for Runtime {}
 
-impl pallet_ethereum::Config for crate::Runtime {
+impl pallet_ethereum::Config for Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
-	type StateRoot = pallet_ethereum::IntermediateStateRoot<Self>;
+	type StateRoot = pallet_ethereum::IntermediateStateRoot<Self::Version>;
 	type PostLogContent = PostLogContent;
 	type ExtraDataLength = sp_core::ConstU32<1>;
 }
@@ -183,12 +198,14 @@ impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 	}
 }
 
-impl pallet_evm_accounts::Config for crate::Runtime {
+type EvmAccounts<T> = pallet_evm_accounts::Pallet<T>;
+
+impl pallet_evm_accounts::Config for Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
-	type FeeMultiplier = sp_core::ConstU32<50>;
 	type EvmNonceProvider = EvmNonceProvider;
-	type ControllerOrigin = crate::SuperMajorityTechCommittee;
-	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<crate::Runtime>;
+	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type FeeMultiplier = sp_core::ConstU32<50>;
+	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -197,20 +214,13 @@ parameter_types! {
 	pub const MaxBaseFeePerGas: u128 = 14415000000; //To reach 10 dollar per omnipool trade
 }
 
-impl pallet_dynamic_evm_fee::Config for crate::Runtime {
+impl pallet_dynamic_evm_fee::Config for Runtime {
 	type AssetId = AssetId;
 	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
 	type MinBaseFeePerGas = MinBaseFeePerGas;
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type FeeMultiplier = TransactionPaymentMultiplier;
-	type NativePriceOracle = AssetFeeOraclePriceProvider<
-		NativeAssetId,
-		crate::MultiTransactionPayment,
-		crate::Router,
-		OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
-		crate::MultiTransactionPayment,
-		OracleEvmPeriod,
-	>;
+	type NativePriceOracle = FeePriceOracle;
 	type WethAssetId = WethAssetId;
-	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<crate::Runtime>;
+	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
 }

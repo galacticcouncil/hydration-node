@@ -1,3 +1,4 @@
+use crate::{Config, Error, PhantomData};
 use frame_support::dispatch::PostDispatchInfo;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::DispatchResult;
@@ -86,6 +87,51 @@ impl EVMPermit for () {
 
 	fn dispatch_weight(_gas_limit: u64) -> Weight {
 		Weight::zero()
+	}
+
+	fn permit_nonce(_account: H160) -> U256 {
+		U256::default()
+	}
+
+	fn on_dispatch_permit_error() {}
+}
+
+pub struct DisabledEvmPermitHandler<T>(PhantomData<T>);
+impl<T: Config> EVMPermit for DisabledEvmPermitHandler<T> {
+	fn validate_permit(
+		_source: H160,
+		_target: H160,
+		_data: Vec<u8>,
+		_value: U256,
+		_gas_limit: u64,
+		_deadline: U256,
+		_v: u8,
+		_r: H256,
+		_s: H256,
+	) -> DispatchResult {
+		Err(Error::<T>::EvmPermitCallExecutionError.into())
+	}
+
+	fn dispatch_permit(
+		_source: H160,
+		_target: H160,
+		_data: Vec<u8>,
+		_value: U256,
+		_gas_limit: u64,
+		_max_fee_per_gas: U256,
+		_max_priority_fee_per_gas: Option<U256>,
+		_nonce: Option<U256>,
+		_access_list: Vec<(H160, Vec<H256>)>,
+	) -> DispatchResultWithPostInfo {
+		Err(Error::<T>::EvmPermitCallExecutionError.into())
+	}
+
+	fn gas_price() -> (U256, Weight) {
+		Default::default()
+	}
+
+	fn dispatch_weight(_gas_limit: u64) -> Weight {
+		Weight::MAX
 	}
 
 	fn permit_nonce(_account: H160) -> U256 {

@@ -1,8 +1,9 @@
 use crate::{AccountId, MockedRuntime};
 use hydradx_runtime::RuntimeCall;
-use pallet_stableswap::types::AssetAmount;
+use hydradx_traits::stableswap::AssetAmount;
 use serde::Deserialize;
 use serde::Deserializer;
+use sp_core::bounded_vec::BoundedVec;
 use sp_runtime::{FixedPointNumber, FixedU128, Permill};
 use std::fs;
 
@@ -77,7 +78,7 @@ impl Stablepools {
 			.map(|pool| {
 				RuntimeCall::Stableswap(pallet_stableswap::Call::create_pool {
 					share_asset: pool.pool_id,
-					assets: pool.get_assets(),
+					assets: BoundedVec::try_from(pool.get_assets()).unwrap(),
 					amplification: pool.final_amplification as u16,
 					fee: pool.fee,
 				})
@@ -91,7 +92,7 @@ impl Stablepools {
 			.map(|pool| {
 				RuntimeCall::Stableswap(pallet_stableswap::Call::add_liquidity {
 					pool_id: pool.pool_id,
-					assets: pool.get_asset_amounts(),
+					assets: BoundedVec::truncate_from(pool.get_asset_amounts()),
 				})
 			})
 			.collect()

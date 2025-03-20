@@ -52,12 +52,12 @@ pub fn log_costs(topics: usize, data_len: usize) -> EvmResult<u64> {
 
 // Compute the cost of doing a subcall.
 // Some parameters cannot be known in advance, so we estimate the worst possible cost.
-pub fn call_cost(value: U256, config: &evm::Config) -> u64 {
+pub fn call_cost(value: U256, config: &fp_evm::Config) -> u64 {
 	// Copied from EVM code since not public.
 	pub const G_CALLVALUE: u64 = 9000;
 	pub const G_NEWACCOUNT: u64 = 25000;
 
-	fn address_access_cost(is_cold: bool, regular_value: u64, config: &evm::Config) -> u64 {
+	fn address_access_cost(is_cold: bool, regular_value: u64, config: &fp_evm::Config) -> u64 {
 		if config.increase_state_access_gas {
 			if is_cold {
 				config.gas_account_access_cold
@@ -77,7 +77,7 @@ pub fn call_cost(value: U256, config: &evm::Config) -> u64 {
 		}
 	}
 
-	fn new_cost(is_call_or_staticcall: bool, new_account: bool, transfers_value: bool, config: &evm::Config) -> u64 {
+	fn new_cost(is_call_or_staticcall: bool, new_account: bool, transfers_value: bool, config: &fp_evm::Config) -> u64 {
 		let eip161 = !config.empty_considered_exists;
 		if is_call_or_staticcall {
 			if eip161 {

@@ -3,6 +3,7 @@
 #![cfg(test)]
 
 use super::*;
+use crate as currencies;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64, Everything, Nothing},
@@ -14,8 +15,6 @@ use sp_runtime::{
 	traits::{AccountIdConversion, IdentityLookup},
 	AccountId32, BuildStorage,
 };
-
-use crate as currencies;
 
 pub type AccountId = AccountId32;
 impl frame_system::Config for Runtime {
@@ -43,6 +42,11 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 type CurrencyId = u32;
@@ -96,12 +100,16 @@ pub const X_TOKEN_ID: CurrencyId = 2;
 
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE_CURRENCY_ID;
+	pub const ReserveAccount: AccountId32 = AccountId32::new([9u8; 32]);
 }
 
 impl Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = AdaptedBasicCurrency;
+	type Erc20Currency = MockErc20Currency<Runtime>;
+	type BoundErc20 = MockBoundErc20<Runtime>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
 }

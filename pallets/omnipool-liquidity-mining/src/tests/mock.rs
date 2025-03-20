@@ -26,7 +26,7 @@ use frame_support::BoundedVec;
 use hydradx_traits::liquidity_mining::PriceAdjustment;
 use pallet_omnipool;
 
-use frame_support::traits::{ConstU128, Contains, Everything};
+use frame_support::traits::{ConstU128, Contains, Everything, SortedMembers};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -48,6 +48,7 @@ use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
 use hydradx_traits::{
 	oracle::{OraclePeriod, Source},
 	pools::DustRemovalAccountWhitelist,
+	stableswap::StableswapAddLiquidity,
 	AssetKind,
 };
 
@@ -67,6 +68,7 @@ pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 1_000;
 pub const KSM: AssetId = 1_001;
 pub const ACA: AssetId = 1_002;
+pub const USDT: AssetId = 1_003;
 
 pub const LP1: AccountId = 1;
 pub const LP2: AccountId = 2;
@@ -89,15 +91,15 @@ pub const LM_COLLECTION_ID: u128 = 1;
 thread_local! {
 	pub static NFTS: RefCell<HashMap<(CollectionId, ItemId), AccountId>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
-	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
-	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
+	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
+	pub static MAX_IN_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
+	pub static MAX_OUT_RATIO: RefCell<Balance> = const { RefCell::new(1u128) };
 
-	 pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = RefCell::new(Vec::new());
+	 pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 }
 
 construct_runtime!(
@@ -110,6 +112,7 @@ construct_runtime!(
 		WarehouseLM: warehouse_liquidity_mining::<Instance1>,
 		OmnipoolMining: omnipool_liquidity_mining,
 		EmaOracle: pallet_ema_oracle,
+		Broadcast: pallet_broadcast,
 	}
 );
 
@@ -155,6 +158,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {
@@ -172,10 +180,26 @@ impl omnipool_liquidity_mining::Config for Test {
 	type NFTCollectionId = LMCollectionId;
 	type NFTHandler = DummyNFT;
 	type LiquidityMiningHandler = WarehouseLM;
+	type Stableswap = StableswapAddLiquidityStub;
 	type OracleSource = OracleSource;
 	type OraclePeriod = PeriodOracle;
 	type PriceOracle = DummyOracle;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
 	type WeightInfo = ();
+}
+
+pub const SHARES_FROM_STABLESWAP: u128 = 5 * ONE;
+pub const STABLESWAP_POOL_ID: u32 = 72;
+pub struct StableswapAddLiquidityStub;
+
+impl StableswapAddLiquidity<AccountId, AssetId, Balance> for StableswapAddLiquidityStub {
+	fn add_liquidity(
+		_who: AccountId,
+		_pool_id: AssetId,
+		_asset_amounts: Vec<AssetAmount<AssetId>>,
+	) -> Result<Balance, DispatchError> {
+		Ok(SHARES_FROM_STABLESWAP)
+	}
 }
 
 parameter_types! {
@@ -247,6 +271,16 @@ use pallet_ema_oracle::MAX_PERIODS;
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+
+	pub PriceDifference: Permill = Permill::from_percent(10);
+
+}
+
+pub struct BifrostAcc;
+impl SortedMembers<AccountId> for BifrostAcc {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![ALICE]
+	}
 }
 
 impl pallet_ema_oracle::Config for Test {
@@ -256,6 +290,9 @@ impl pallet_ema_oracle::Config for Test {
 	type SupportedPeriods = SupportedPeriods;
 	type OracleWhitelist = Everything;
 	type MaxUniqueEntries = ConstU32<20>;
+	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
+	type LocationToAssetIdConversion = ();
+	type MaxAllowedPriceDifference = PriceDifference;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type WeightInfo = ();
@@ -274,6 +311,7 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub MinWithdrawFee: Permill = Permill::from_percent(0);
+	pub BurnFee: Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Test {
@@ -290,7 +328,7 @@ impl pallet_omnipool::Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type UpdateTradabilityOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u128;
@@ -299,6 +337,11 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BurnProtocolFee = BurnFee;
+}
+
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct ExtBuilder {
@@ -578,6 +621,8 @@ impl ExtBuilder {
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
 use hydra_dx_math::ema::EmaPrice;
 
+pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -686,8 +731,10 @@ where
 	}
 }
 
+use hydradx_traits::fee::GetDynamicFee;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
+
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T>
 where
@@ -736,6 +783,7 @@ where
 }
 
 use hydradx_traits::oracle::AggregatedPriceOracle;
+use hydradx_traits::stableswap::AssetAmount;
 use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyOracle;
@@ -757,8 +805,22 @@ impl AggregatedPriceOracle<AssetId, BlockNumber, OraclePrice> for DummyOracle {
 				},
 				0,
 			)),
+			DAI => Ok((
+				OraclePrice {
+					n: 650_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
+			STABLESWAP_POOL_ID => Ok((
+				OraclePrice {
+					n: 650_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
 			//Tokens used in benchmarks
-			1_000_001..=1_000_003 => Ok((
+			1_000_001..=1_000_004 => Ok((
 				OraclePrice {
 					n: 1_000_000_000_000_000_000,
 					d: 1_000_000_000_000_000_000,
@@ -803,7 +865,7 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 
 	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
 		if Whitelist::contains(account) {
-			return Err(sp_runtime::DispatchError::Other("Account is already in the whitelist"));
+			return Ok(());
 		}
 
 		DUSTER_WHITELIST.with(|v| v.borrow_mut().push(*account));
@@ -846,8 +908,13 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
+impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
+	type Fee = (Permill, Permill);
+	fn get(_: (AssetId, Balance)) -> Self::Fee {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
+
+	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
+		Self::get(key)
 	}
 }

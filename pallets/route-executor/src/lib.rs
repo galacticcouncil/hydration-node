@@ -16,10 +16,9 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 use codec::MaxEncodedLen;
-use frame_support::storage::with_transaction;
-use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::PalletId;
 use frame_support::{
@@ -30,17 +29,19 @@ use frame_support::{
 };
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 
-use frame_system::pallet_prelude::OriginFor;
-use frame_system::{ensure_signed, Origin};
+use frame_system::ensure_signed;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
+
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use pallet_broadcast::types::IncrementalIdType;
+pub use pallet_broadcast::types::{ExecutionType, Fee};
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TransactionOutcome};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -71,7 +72,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset id type
@@ -124,7 +125,7 @@ pub mod pallet {
 		type DefaultRoutePoolType: Get<PoolType<Self::AssetId>>;
 
 		/// Origin able to set route without validation
-		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type ForceInsertOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
@@ -139,6 +140,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: T::Balance,
 			amount_out: T::Balance,
+			event_id: IncrementalIdType,
 		},
 		///The route with trades has been successfully executed
 		RouteUpdated { asset_ids: Vec<T::AssetId> },
@@ -254,6 +256,9 @@ pub mod pallet {
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			let route_length = route.len();
+
+			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
+
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 				let user_balance_of_asset_out_before_trade =
@@ -287,12 +292,16 @@ pub mod pallet {
 				first_trade.amount_in,
 			)?;
 
+			//TODO: we want to deprecate it once unified events are working fine
 			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
 				amount_in: first_trade.amount_in,
 				amount_out,
+				event_id: next_event_id,
 			});
+
+			pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 			Ok(())
 		}
@@ -386,7 +395,7 @@ pub mod pallet {
 
 		/// Force inserts the on-chain route for a given asset pair, so there is no any validation for the route
 		///
-		/// Can only be called by technical origin
+		/// Can only be called by T::ForceInsertOrigin
 		///
 		/// The route is stored in an ordered manner, based on the oder of the ids in the asset pair.
 		///
@@ -406,7 +415,7 @@ pub mod pallet {
 			mut asset_pair: AssetPair<T::AssetId>,
 			mut new_route: Vec<Trade<T::AssetId>>,
 		) -> DispatchResultWithPostInfo {
-			T::TechnicalOrigin::ensure_origin(origin)?;
+			T::ForceInsertOrigin::ensure_origin(origin)?;
 
 			if !asset_pair.is_ordered() {
 				asset_pair = asset_pair.ordered_pair();
@@ -484,6 +493,9 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let route_length = route.len();
+
+		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
+
 		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
 			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 
@@ -524,7 +536,10 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in,
 			amount_out: last_trade_amount.amount_out,
+			event_id: next_event_id,
 		});
+
+		pallet_broadcast::Pallet::<T>::remove_from_context()?;
 
 		Ok(())
 	}
@@ -680,13 +695,13 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	// TODO: add missing documentation
 	fn calculate_reference_amount_in(route: &[Trade<T::AssetId>]) -> Result<T::Balance, DispatchError> {
 		let first_route = route.first().ok_or(Error::<T>::RouteCalculationFailed)?;
 		let asset_b = match first_route.pool {
 			PoolType::Omnipool => T::NativeAssetId::get(),
 			PoolType::Stableswap(pool_id) => pool_id,
-			PoolType::XYK => first_route.asset_out,
-			PoolType::LBP => first_route.asset_out,
+			_ => first_route.asset_out,
 		};
 
 		let asset_in_liquidity = T::AMM::get_liquidity_depth(first_route.pool, first_route.asset_in, asset_b);
@@ -705,32 +720,13 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_sell(route: Vec<Trade<T::AssetId>>, amount_in: T::Balance) -> Result<T::Balance, DispatchError> {
-		let asset_in = route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
-		let asset_out = route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
+		// Instead of executing a transaction, just calculate the expected amount out
+		let amount_out = Self::calculate_expected_amount_out(&route, amount_in)?;
 
-		with_transaction::<T::Balance, DispatchError, _>(|| {
-			let origin: OriginFor<T> = Origin::<T>::Signed(Self::router_account()).into();
-			let Ok(who) = ensure_signed(origin.clone()) else {
-				return TransactionOutcome::Rollback(Err(Error::<T>::InvalidRoute.into()));
-			};
-			//NOTE: This is necessary so router's account can pay ED for insufficient assets in the
-			//route. Value is 10K to make sure we can pay ED for really long routes.
-			let _ = T::Currency::mint_into(
-				T::NativeAssetId::get(),
-				&Self::router_account(),
-				10_000_000_000_000_000_u128.into(),
-			);
-			let _ = T::Currency::mint_into(asset_in, &Self::router_account(), amount_in);
-
-			let sell_result = Self::sell(origin, asset_in, asset_out, amount_in, u128::MIN.into(), route.clone());
-			let amount_out =
-				T::Currency::reducible_balance(asset_out, &who, Preservation::Expendable, Fortitude::Polite);
-
-			TransactionOutcome::Rollback(sell_result.map(|_| amount_out))
-		})
+		Ok(amount_out)
 	}
 
-	fn calculate_expected_amount_out(
+	pub fn calculate_expected_amount_out(
 		route: &[Trade<<T as Config>::AssetId>],
 		amount_in: T::Balance,
 	) -> Result<T::Balance, DispatchError> {
@@ -763,6 +759,19 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(amount_in_and_outs)
+	}
+
+	pub fn calculate_expected_amount_in(
+		route: &[Trade<<T as Config>::AssetId>],
+		amount_out: T::Balance,
+	) -> Result<T::Balance, DispatchError> {
+		let sell_trade_amounts = Self::calculate_buy_trade_amounts(route, amount_out)?;
+		let amount_in = sell_trade_amounts
+			.last()
+			.ok_or(Error::<T>::RouteCalculationFailed)?
+			.amount_in;
+
+		Ok(amount_in)
 	}
 
 	fn calculate_buy_trade_amounts(

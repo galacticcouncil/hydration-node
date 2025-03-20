@@ -17,19 +17,17 @@
 
 use super::*;
 
-use crate::types::{Conviction, Vote};
+use crate::types::{Conviction, Vote, Voting};
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_system::{Pallet as System, RawOrigin};
 use orml_traits::MultiCurrencyExtended;
 use sp_std::vec::Vec;
-
 const UNIT: u128 = 1_000_000_000_000;
 
 fn init_staking<T: Config>(non_dustable_balance: Balance) -> DispatchResult
 where
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: crate::pallet::Config,
 {
 	let pot = Pallet::<T>::pot_account_id();
 	let hdx = T::NativeAssetId::get();
@@ -41,7 +39,6 @@ where
 fn add_staking_rewards<T: Config>(rewards: Balance) -> DispatchResult
 where
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: crate::pallet::Config,
 {
 	let pot = Pallet::<T>::pot_account_id();
 	let hdx = T::NativeAssetId::get();
@@ -66,7 +63,7 @@ fn generate_votes<T: Config>(position_id: T::PositionItemId, count: u32) {
 		votes: votes.try_into().unwrap(),
 	};
 
-	crate::PositionVotes::<T>::insert(position_id, voting);
+	crate::Votes::<T>::insert(position_id, voting);
 }
 
 fn run_periods<T: Config>(periods: u32) {

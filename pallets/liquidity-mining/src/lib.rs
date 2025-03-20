@@ -54,39 +54,40 @@
 //!
 //! Notes:
 //! * LP shares are returned ONLY if deposit is destroyed - withdrawing LP shares can
-//! be used to "free slot" for re-lock LP shares to different yield farm. Withdrawing LP shares result in
-//! resetting loyalty factor for yield farm user is withdrawing from(other farm entries in the
-//! deposit are not affected). If deposit has no more farm entries, deposit is destroyed and LP
-//! shares are returned back to user.
+//!   be used to "free slot" for re-lock LP shares to different yield farm. Withdrawing LP shares result in
+//!   resetting loyalty factor for yield farm user is withdrawing from(other farm entries in the
+//!   deposit are not affected). If deposit has no more farm entries, deposit is destroyed and LP
+//!   shares are returned back to user.
 //! * `YieldFarm` -  can be in the 3 states: [`Active`, `Stopped`, `Terminated`]
 //!     * `Active` - liquidity mining is running, users are able to deposit, claim and withdraw LP
-//!     shares. `YieldFarm` is rewarded from `GlobalFarm` in this state.
+//!       shares. `YieldFarm` is rewarded from `GlobalFarm` in this state.
 //!     * `Stopped` - liquidity mining is stopped. Users can claim and withdraw LP shares from the
-//!     farm. Users CAN'T deposit new LP shares to stopped farm. Stopped farm is not rewarded from the
-//!     `GlobalFarm`.
-//!     Note: stopped farm can be resumed or destroyed.
+//!       farm. Users CAN'T deposit new LP shares to stopped farm. Stopped farm is not rewarded from the
+//!       `GlobalFarm`.
+//!       Note: stopped farm can be resumed or destroyed.
 //!     * `Terminated` - liquidity mining is ended. User's CAN'T deposit or claim rewards from
-//!     stopped farm. Users CAN only withdraw LP shares(without rewards).
-//!     `YieldFarm` must be stopped before it can be terminated. Terminated farm stays in the storage
-//!     until last farm's entry is withdrawn. Last withdrawn from yield farm will remove terminated
-//!     farm from the storage.
-//!     Note: Terminated farm CAN'T be resumed.
+//!       stopped farm. Users CAN only withdraw LP shares(without rewards).
+//!       `YieldFarm` must be stopped before it can be terminated. Terminated farm stays in the storage
+//!       until last farm's entry is withdrawn. Last withdrawn from yield farm will remove terminated
+//!       farm from the storage.
+//!       Note: Terminated farm CAN'T be resumed.
 //! * `GlobalFarm` - can be in the 2 states: [`Active`, `Terminated`]
 //!     * `Active` - liquidity mining program is running, new yield farms can be added to the
-//!     global farm.
+//!       global farm.
 //!     * `Terminated` - liquidity mining program is ended. Yield farms can't be added to the global
-//!     farm. Global farm MUST be empty(all yield farms in the global farm must be destroyed)
-//!     before it can be destroyed. Destroying global farm transfer undistributed rewards to farm's
-//!     owner. Terminated global farm stay in the storage until all yield farms are removed from
-//!     the storage. Last yield farm removal from storage triggers global farm removal from
-//!     storage.
-//!     Note: Terminated global farm CAN'T be resumed.
+//!       farm. Global farm MUST be empty(all yield farms in the global farm must be destroyed)
+//!       before it can be destroyed. Destroying global farm transfer undistributed rewards to farm's
+//!       owner. Terminated global farm stay in the storage until all yield farms are removed from
+//!       the storage. Last yield farm removal from storage triggers global farm removal from
+//!       storage.
+//!       Note: Terminated global farm CAN'T be resumed.
 //! * Pot - account holding all rewards allocated for all `YieldFarm`s from all `GlobalFarm`s.
 //!   User's rewards are transferred from `pot`'s account to user's accounts.
 //!
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::derive_partial_eq_without_eq)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(test)]
 mod tests;
@@ -564,6 +565,57 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			Self::sync_global_farm(global_farm, current_period)?;
 
 			global_farm.price_adjustment = price_adjustment;
+
+			Ok(())
+		})
+	}
+
+	/// Update global farm's main fields.
+	///
+	///
+	/// Parameters:
+	/// - `global_farm_id`: global farm id.
+	/// - `planned_yielding_periods`: planned number of periods to distribute `total_rewards`.
+	/// - `yield_per_period`: percentage return on `reward_currency` of all pools.
+	/// - `min_deposit`: minimum amount of LP shares to be deposited into liquidity mining by each user.
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: PeriodOf<T>,
+		yield_per_period: Perquintill,
+		min_deposit: Balance,
+	) -> Result<(), DispatchError> {
+		ensure!(min_deposit.ge(&MIN_DEPOSIT), Error::<T, I>::InvalidMinDeposit);
+		ensure!(
+			planned_yielding_periods >= T::MinPlannedYieldingPeriods::get(),
+			Error::<T, I>::InvalidPlannedYieldingPeriods
+		);
+		ensure!(!yield_per_period.is_zero(), Error::<T, I>::InvalidYieldPerPeriod);
+
+		<GlobalFarm<T, I>>::try_mutate(global_farm_id, |maybe_global_farm| {
+			let global_farm = maybe_global_farm.as_mut().ok_or(Error::<T, I>::GlobalFarmNotFound)?;
+
+			ensure!(global_farm.state.is_active(), Error::<T, I>::GlobalFarmNotFound);
+
+			let current_period = Self::get_current_period(global_farm.blocks_per_period)?;
+			Self::sync_global_farm(global_farm, current_period)?;
+
+			//Calculate the new max reward period
+			let global_farm_account = Self::farm_account_id(global_farm.id)?;
+			let total_rewards = T::MultiCurrency::free_balance(global_farm.reward_currency, &global_farm_account);
+			let planned_periods =
+				TryInto::<u128>::try_into(planned_yielding_periods).map_err(|_| ArithmeticError::Overflow)?;
+			let new_max_reward_period = total_rewards
+				.checked_div(planned_periods)
+				.ok_or(Error::<T, I>::InvalidPlannedYieldingPeriods)?;
+			ensure!(
+				!new_max_reward_period.is_zero(),
+				Error::<T, I>::InvalidPlannedYieldingPeriods
+			);
+
+			global_farm.planned_yielding_periods = planned_yielding_periods;
+			global_farm.yield_per_period = yield_per_period;
+			global_farm.min_deposit = min_deposit;
+			global_farm.max_reward_per_period = new_max_reward_period;
 
 			Ok(())
 		})
@@ -1057,7 +1109,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	/// - `yield_farm_id`: yield farm identifier redepositing to.
 	/// - `deposit_id`: identifier of the AMM pool.
 	/// - `get_token_value_of_lp_shares`: callback function returning amount of
-	/// `incentivized_asset` behind `lp_shares`.
+	///   `incentivized_asset` behind `lp_shares`.
 	fn redeposit_lp_shares(
 		global_farm_id: GlobalFarmId,
 		yield_farm_id: YieldFarmId,
@@ -1814,6 +1866,15 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 		price_adjustment: FixedU128,
 	) -> Result<(), Self::Error> {
 		Self::update_global_farm_price_adjustment(who, global_farm_id, price_adjustment)
+	}
+
+	fn update_global_farm(
+		global_farm_id: GlobalFarmId,
+		planned_yielding_periods: Self::Period,
+		yield_per_period: Perquintill,
+		min_deposit: Self::Balance,
+	) -> Result<(), Self::Error> {
+		Self::update_global_farm(global_farm_id, planned_yielding_periods, yield_per_period, min_deposit)
 	}
 
 	fn terminate_global_farm(

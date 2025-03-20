@@ -33,6 +33,7 @@ pub const ALICE: AccountId = 4;
 pub const BOB: AccountId = 5;
 pub const CHARLIE: AccountId = 6;
 pub const DAVE: AccountId = 7;
+pub const BAG: AccountId = 8;
 
 pub const NATIVE_TOKEN: AssetId = 0;
 
@@ -77,6 +78,11 @@ impl system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_type_with_key! {
@@ -123,12 +129,13 @@ impl pallet_balances::Config for Test {
 parameter_types! {
 	pub const RewardPerCollator: Balance = COLLATOR_REWARD;
 	pub const RewardCurrencyId: AssetId = NATIVE_TOKEN;
+	pub const RewardsBag: AccountId = BAG;
 	pub GcCollators: Vec<AccountId> = vec![GC_COLL_1, GC_COLL_2, GC_COLL_3];
 	pub const MaxCandidates: u32 = 50;
 }
 
 thread_local! {
-	pub static SESSION_ENDED: RefCell<bool> = RefCell::new(false);
+	pub static SESSION_ENDED: RefCell<bool> = const { RefCell::new(false) };
 }
 
 pub struct MockSessionManager {}
@@ -149,6 +156,7 @@ impl Config for Test {
 	type Currency = Tokens;
 	type RewardPerCollator = RewardPerCollator;
 	type RewardCurrencyId = RewardCurrencyId;
+	type RewardsBag = RewardsBag;
 	type ExcludedCollators = GcCollators;
 	type SessionManager = MockSessionManager;
 	type MaxCandidates = MaxCandidates;

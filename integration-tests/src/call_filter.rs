@@ -4,11 +4,12 @@ use crate::polkadot_test_net::*;
 use frame_support::{
 	assert_ok,
 	sp_runtime::{FixedU128, Permill},
-	traits::Contains,
-	weights::Weight,
+	traits::{Contains, StorePreimage},
 };
+use hydradx_runtime::{origins, Preimage};
 use polkadot_xcm::v3::prelude::*;
 use polkadot_xcm::VersionedXcm;
+use primitives::constants::currency::UNITS;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -239,21 +240,6 @@ fn calling_pallet_xcm_send_extrinsic_should_not_be_filtered_by_call_filter() {
 }
 
 #[test]
-fn calling_pallet_xcm_extrinsic_should_be_filtered_by_call_filter() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		// the values here don't need to make sense, all we need is a valid Call
-		let call = hydradx_runtime::RuntimeCall::PolkadotXcm(pallet_xcm::Call::execute {
-			message: Box::new(VersionedXcm::from(Xcm(vec![]))),
-			max_weight: Weight::zero(),
-		});
-
-		assert!(!hydradx_runtime::CallFilter::contains(&call));
-	});
-}
-
-#[test]
 fn calling_orml_xcm_extrinsic_should_be_filtered_by_call_filter() {
 	TestNet::reset();
 
@@ -303,5 +289,36 @@ fn create_contract_from_evm_pallet_should_be_filtered_by_call_filter() {
 		});
 
 		assert!(!hydradx_runtime::CallFilter::contains(&call));
+	});
+}
+
+#[test]
+fn referenda_can_not_be_filtered() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		// Try to pause transactions for Referenda/submit
+		assert_ok!(hydradx_runtime::TransactionPause::pause_transaction(
+			hydradx_runtime::RuntimeOrigin::root(),
+			b"Referenda".to_vec(),
+			b"submit".to_vec()
+		));
+
+		// Prepare a Referenda/submit call
+		let spend_call = hydradx_runtime::RuntimeCall::Treasury(pallet_treasury::Call::spend_local {
+			amount: 100 * UNITS,
+			beneficiary: ALICE.into(),
+		});
+		let preimage = <Preimage as StorePreimage>::bound(spend_call).unwrap();
+
+		// Act & Assert
+		let successful_call = hydradx_runtime::RuntimeCall::Referenda(pallet_referenda::Call::submit {
+			proposal_origin: Box::new(hydradx_runtime::OriginCaller::Origins(origins::Origin::Tipper)),
+			proposal: preimage,
+			enactment_moment: frame_support::traits::schedule::DispatchTime::After(100),
+		});
+
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 	});
 }

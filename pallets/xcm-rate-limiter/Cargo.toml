@@ -1,6 +1,6 @@
 [package]
 name = "pallet-xcm-rate-limiter"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -12,9 +12,9 @@ description = "Rate limiter for tokens arriving via XCM"
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-serde = { features = ["derive"], optional = true, version = "1.0.136" }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
+serde = { workspace = true, optional = true }
+codec = { workspace = true }
+scale-info = { workspace = true }
 
 # Hydradx
 hydradx-traits = { workspace = true }
@@ -44,22 +44,22 @@ orml-traits = { workspace = true }
 pallet-balances = { workspace = true, features = ["std"] }
 pallet-omnipool = { workspace = true, features = ["std"] }
 orml-tokens = { workspace = true, features = ["std"] }
-pretty_assertions = "1.2.1"
+pretty_assertions = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-    'sp-std/std',
-    'sp-core/std',
-    'sp-runtime/std',
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'serde/std',
-    'scale-info/std',
-    'cumulus-pallet-xcmp-queue/std',
-    'orml-traits/std',
-    'hydra-dx-math/std',
+    "sp-std/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "serde/std",
+    "scale-info/std",
+    "cumulus-pallet-xcmp-queue/std",
+    "orml-traits/std",
+    "hydra-dx-math/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",

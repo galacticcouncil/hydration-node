@@ -1,6 +1,6 @@
-# HydraDX node
+# Hydration node
 
-CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE
+CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE (Formerly HydraDX)
 
 ## Contributions & Code of Conduct
 
@@ -27,9 +27,7 @@ Find manual setup instructions at the
 
 ### Build
 
-Once the development environment is set up, build the node. This command will build the
-[Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
-[native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
+Once the development environment is set up, build the node:
 
 ```bash
 cargo build --release
@@ -37,15 +35,36 @@ cargo build --release
 
 ## Run
 
-### Chopsticks
+### Mainnet fork with Chopsticks
 
-The easiest way to run and interact with HydraDX node is to use [Chopsticks](https://github.com/acalanetwork/chopsticks)
+The easiest way to run and interact with Hydration node is to use [Chopsticks](https://github.com/acalanetwork/chopsticks)
 
 ```Bash
-npx @acala-network/chopsticks@latest --config=launch-configs/chopsticks/hydradx.yml 
+npx @acala-network/chopsticks@latest --config=hydradx 
 ```
 
 Now you have a test node running at [`ws://localhost:8000`](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2Flocalhost%3A8000#/explorer)
+
+This is also best option to test XCM interactions, as you can run multiple parachains at the same time:
+
+```bash
+npx @acala-network/chopsticks@latest xcm -p hydradx -p polkadot-asset-hub
+```
+
+Refer to the `chopsticks --help` for more options.
+
+### Mainnet fork with Zombienet
+
+If you need to test your app with RPC node which supports everything normal node does like extra RPC methods like `eth_*`. 
+This will spawn forked mainnet chain with regular blocktime.
+
+```bash
+docker run -d -p 8000:9988 galacticcouncil/fork
+```
+
+Now you have a test node running at [`ws://localhost:8000`](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2Flocalhost%3A8000#/explorer)
+
+More details [here](launch-configs/fork)
 
 ### Local Testnet with Zombienet
 
@@ -59,7 +78,7 @@ cd ./rococo-local
 zombienet spawn config-zombienet.json
 ```
 
-### Interaction with the node
+## Interaction with the node
 
 Go to the polkadot apps at https://polkadot.js.org/apps
 
@@ -70,23 +89,18 @@ Connect to
 ### Testing of storage migrations and runtime upgrades
 
 The `try-runtime` tool can be used to test storage migrations and runtime upgrades against state from a real chain.
-Run the following command to test against the state on HydraDX.
+Run the following command to test against the state on Hydration.
 Don't forget to use a runtime built with `try-runtime` feature.
 ```bash
 try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri wss://rpc.hydradx.cloud:443
 ```
-or against HydraDX testnet on Rococo using `--uri wss://rococo-hydradx-rpc.hydration.dev:443`
+or against HydraDX testnet on Rococo using `--uri wss://paseo-rpc.play.hydration.cloud:443`
 
+## Useful resources:
 
-## Security
-Useful resources:
-
-* https://github.com/galacticcouncil/HydraDX-security
+* https://github.com/galacticcouncil/hydration-security
 * https://apidocs.bsx.fi/HydraDX
-* https://docs.hydradx.io/
-* https://docs.hydradx.io/omnipool_design
-* https://docs.hydradx.io/fees
+* https://docs.hydration.net/
 
-Bug bounty: [https://immunefi.com/bounty/hydradx/](https://immunefi.com/bounty/hydradx/)
-
-Reponsible disclosure: security@hydradx.io
+Bug bounty: [https://immunefi.com/bounty/hydration/](https://immunefi.com/bounty/hydration/)
+Reponsible disclosure: security@intergalactic.limited

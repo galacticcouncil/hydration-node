@@ -1,6 +1,7 @@
 use crate::tests::mock::*;
-use crate::types::{AssetAmount, PoolInfo, PoolState};
-use frame_support::assert_ok;
+use crate::types::{PoolInfo, PoolState};
+use frame_support::{assert_ok, BoundedVec};
+use hydradx_traits::stableswap::AssetAmount;
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 
@@ -47,7 +48,7 @@ fn add_liquidity_should_provide_correct_values_in_the_hook() {
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
-				vec![AssetAmount::new(asset_a, amount)],
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, amount)]),
 			));
 			let (p, state) = last_liquidity_changed_hook_state().unwrap();
 			assert_eq!(p, pool_id);

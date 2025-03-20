@@ -1,25 +1,25 @@
 [package]
-name = 'pallet-xyk'
-version = "6.4.4"
-description = 'XYK automated market maker'
-authors = ['GalacticCouncil']
-edition = '2021'
-homepage = 'https://github.com/galacticcouncil/hydradx-node'
-license = 'Apache 2.0'
-repository = 'https://github.com/galacticcouncil/hydradx-node'
+name = "pallet-xyk"
+version = "6.7.1"
+description = "XYK automated market maker"
+authors = ["GalacticCouncil"]
+edition = "2021"
+homepage = "https://github.com/galacticcouncil/hydradx-node"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydradx-node"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
 
 [dependencies]
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.1.5" }
-scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
-primitive-types = { default-features = false, version = "0.12.0" }
-serde = { features = ['derive'], optional = true, version = '1.0.136' }
-log = { version = "0.4.17", default-features = false }
+codec = { workspace = true }
+scale-info = { workspace = true }
+primitive-types = { workspace = true }
+serde = { workspace = true, optional = true }
+log = { workspace = true }
 
 hydra-dx-math = { workspace = true }
 
@@ -29,6 +29,7 @@ orml-traits = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
+pallet-broadcast = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -42,28 +43,29 @@ sp-std = { workspace = true }
 pallet-asset-registry = { workspace = true }
 sp-io = { workspace = true }
 sp-api = { workspace = true }
-proptest = "1.0.0"
+proptest = { workspace = true }
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = [
     "frame-benchmarking",
     "frame-system/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
 ]
 std = [
-    'serde',
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-runtime/std',
-    'sp-core/std',
-    'sp-std/std',
-    'orml-traits/std',
+    "serde",
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "orml-traits/std",
     "hydradx-traits/std",
-    'orml-tokens/std',
-    'frame-benchmarking/std',
+    "orml-tokens/std",
+    "frame-benchmarking/std",
     "scale-info/std",
     "pallet-asset-registry/std",
+    "pallet-broadcast/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

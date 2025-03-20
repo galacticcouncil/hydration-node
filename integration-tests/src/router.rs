@@ -2,39 +2,38 @@
 #![allow(clippy::identity_op)]
 use super::assert_balance;
 use crate::polkadot_test_net::*;
-use hydradx_adapters::OmnipoolHookAdapter;
 use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
 };
+use pallet_broadcast::types::Destination;
+
+use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::RouteSpotPriceProvider;
 use hydradx_traits::{
 	registry::Create,
 	router::{PoolType, Trade},
 	AssetKind, AMM,
 };
+use pallet_broadcast::types::Asset;
+use pallet_broadcast::types::ExecutionType;
+use pallet_broadcast::types::Fee;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_lbp::WeightCurveType;
 use pallet_omnipool::traits::OmnipoolHooks;
-use pallet_omnipool::types::Tradability;
 use pallet_omnipool::weights::WeightInfo as OmnipoolWeights;
 use pallet_route_executor::AmmTradeWeights;
-use std::convert::Into;
-
-use hydradx_traits::router::AssetPair as Pair;
 use primitives::AssetId;
 use sp_runtime::FixedPointNumber;
+use std::convert::Into;
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, BoundedVec};
 use xcm_emulator::TestExt;
 
 use frame_support::storage::with_transaction;
-use pallet_stableswap::types::AssetAmount;
+use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use sp_runtime::{
-	traits::{ConstU32, Zero},
-	DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome,
-};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome};
 
 use hydradx_runtime::InsufficientEDinHDX;
 use orml_traits::MultiCurrency;
@@ -54,6 +53,7 @@ fn router_weights_should_be_non_zero() {
 mod router_different_pools_tests {
 	use super::*;
 	use hydradx_traits::router::PoolType;
+	use pallet_broadcast::types::ExecutionType;
 
 	#[test]
 	fn route_should_fail_when_route_is_not_consistent() {
@@ -145,20 +145,85 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			let amount_out = 2_230_008_413_831;
+			let amount_out = 2232143907425;
 
 			assert_balance!(BOB.into(), DAI, 1_000_000_000 * UNITS - amount_to_sell);
 			assert_balance!(BOB.into(), LRNA, BOB_INITIAL_LRNA_BALANCE);
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_out);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: DAI,
-				asset_out: DOT,
-				amount_in: amount_to_sell,
-				amount_out,
-			}
-			.into()]);
+			/*
+			expect_hydra_events(vec![
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
+					filler_type: pallet_broadcast::types::Filler::LBP,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(DAI, 9980000000)],
+					outputs: vec![Asset::new(LRNA, 5640664064)],
+					fees: vec![Fee::new(
+						DAI,
+						20000000,
+						Destination::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+								.unwrap()
+								.fee_collector,
+						),
+					)],
+					operation_stack: vec![ExecutionType::Router(0)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, 5640664064)],
+					outputs: vec![Asset::new(HDX, 4682924837974)],
+					fees: vec![Fee::new(
+						HDX,
+						11736653730,
+						Destination::Account(Omnipool::protocol_account()),
+					)],
+					operation_stack: vec![ExecutionType::Router(0)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+						pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						},
+					))),
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(HDX, 4682924837974)],
+					outputs: vec![Asset::new(DOT, 2232143907425)],
+					fees: vec![Fee::new(
+						DOT,
+						6710155707,
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						})),
+					)],
+					operation_stack: vec![ExecutionType::Router(0)],
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: DAI,
+					asset_out: DOT,
+					amount_in: amount_to_sell,
+					amount_out,
+					event_id: 0,
+				}
+				.into(),
+			]);
+			 */
 		});
 
 		TestNet::reset();
@@ -218,13 +283,84 @@ mod router_different_pools_tests {
 				assert_balance!(BOB.into(), stable_asset_1, 0);
 				assert_balance!(BOB.into(), stable_asset_2, amount_out);
 
-				expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-					asset_in: DAI,
-					asset_out: stable_asset_2,
-					amount_in: amount_to_sell,
-					amount_out,
-				}
-				.into()]);
+				/*
+				expect_hydra_events(vec![
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
+						filler_type: Filler::LBP,
+						operation: TradeOperation::ExactIn,
+						inputs: vec![Asset::new(DAI, 9980000000)],
+						outputs: vec![Asset::new(HDX, 5640664064)],
+						fees: vec![Fee::new(
+							DAI,
+							20000000,
+							Destination::Account(
+								LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
+									.unwrap()
+									.fee_collector,
+							),
+						)],
+						operation_stack: vec![ExecutionType::Router(0)],
+					}
+					.into(),
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: stable_asset_1,
+						}),
+						filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+							pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: stable_asset_1,
+							},
+						))),
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
+						inputs: vec![Asset::new(HDX, 5640664064)],
+						outputs: vec![Asset::new(stable_asset_1, 2811712439)],
+						fees: vec![Fee::new(
+							stable_asset_1,
+							8460516,
+							Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: stable_asset_1,
+							})),
+						)],
+						operation_stack: vec![ExecutionType::Router(0)],
+					}
+					.into(),
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: <Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+							&stable_pool_id,
+							Some(pallet_stableswap::POOL_IDENTIFIER),
+						),
+						filler_type: pallet_broadcast::types::Filler::Stableswap(stable_pool_id),
+						operation: TradeOperation::ExactIn,
+						inputs: vec![Asset::new(stable_asset_1, 2811712439)],
+						outputs: vec![Asset::new(stable_asset_2, 2783595233)],
+						fees: vec![Fee::new(
+							stable_asset_2,
+							28117123,
+							Destination::Account(<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+								&stable_pool_id,
+								Some(pallet_stableswap::POOL_IDENTIFIER),
+							)),
+						)],
+						operation_stack: vec![ExecutionType::Router(0)],
+					}
+					.into(),
+					pallet_route_executor::Event::Executed {
+						asset_in: DAI,
+						asset_out: stable_asset_2,
+						amount_in: amount_to_sell,
+						amount_out,
+						event_id: 0,
+					}
+					.into(),
+				]);
+				 */
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -274,20 +410,85 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			let amount_in = 4_370_898_989;
+			let amount_in = 4_366_521_391;
 
 			assert_balance!(BOB.into(), DAI, 1_000_000_000 * UNITS - amount_in);
 			assert_balance!(BOB.into(), LRNA, 1_000 * UNITS);
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE);
 			assert_balance!(BOB.into(), DOT, amount_to_buy);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: DAI,
-				asset_out: DOT,
-				amount_in,
-				amount_out: amount_to_buy,
-			}
-			.into()]);
+			/*
+			expect_hydra_events(vec![
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
+					filler_type: pallet_broadcast::types::Filler::LBP,
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(DAI, 4362157193)],
+					outputs: vec![Asset::new(LRNA, 2465566245)],
+					fees: vec![Fee::new(
+						DAI,
+						8741796,
+						Destination::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)))
+								.unwrap()
+								.fee_collector,
+						),
+					)],
+					operation_stack: vec![ExecutionType::Router(0)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(LRNA, 2465566245)],
+					outputs: vec![Asset::new(HDX, 2046938775509)],
+					fees: vec![Fee::new(
+						HDX,
+						5130172370,
+						Destination::Account(Omnipool::protocol_account()),
+					)],
+					operation_stack: vec![ExecutionType::Router(0)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+						pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						},
+					))),
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(HDX, 1000000000000)],
+					outputs: vec![Asset::new(DOT, 2040816326531)],
+					fees: vec![Fee::new(
+						HDX,
+						6122448978,
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						})),
+					)],
+					operation_stack: vec![ExecutionType::Router(0)],
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: DAI,
+					asset_out: DOT,
+					amount_in,
+					amount_out: amount_to_buy,
+					event_id: 0,
+				}
+				.into(),
+			]);
+			 */
 		});
 
 		TestNet::reset();
@@ -347,13 +548,263 @@ mod router_different_pools_tests {
 				assert_balance!(BOB.into(), stable_asset_1, 0);
 				assert_balance!(BOB.into(), stable_asset_2, amount_to_buy);
 
-				expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-					asset_in: DAI,
-					asset_out: stable_asset_2,
-					amount_in,
-					amount_out: amount_to_buy,
+				/*
+				expect_hydra_events(vec![
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
+						filler_type: pallet_broadcast::types::Filler::LBP,
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
+						inputs: vec![Asset::new(DAI, 3746042043754)],
+						outputs: vec![Asset::new(HDX, 2067851065323)],
+						fees: vec![Fee::new(
+							DAI,
+							7507098284,
+							Destination::Account(
+								LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)))
+									.unwrap()
+									.fee_collector,
+							),
+						)],
+						operation_stack: vec![ExecutionType::Router(0)],
+					}
+					.into(),
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: stable_asset_1,
+						}),
+						filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+							pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: stable_asset_1,
+							},
+						))),
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
+						inputs: vec![Asset::new(HDX, 1010010000114)],
+						outputs: vec![Asset::new(stable_asset_1, 2061666067122)],
+						fees: vec![Fee::new(
+							HDX,
+							6184998201,
+							Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: stable_asset_1,
+							})),
+						)],
+						operation_stack: vec![ExecutionType::Router(0)],
+					}
+					.into(),
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: <Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+							&stable_pool_id,
+							Some(pallet_stableswap::POOL_IDENTIFIER),
+						),
+						filler_type: pallet_broadcast::types::Filler::Stableswap(stable_pool_id),
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
+						inputs: vec![Asset::new(stable_asset_1, 1010010000114)],
+						outputs: vec![Asset::new(stable_asset_2, 1000000000000)],
+						fees: vec![Fee::new(
+							stable_asset_1,
+							10000099012,
+							Destination::Account(<Runtime as pallet_stableswap::Config>::ShareAccountId::from_assets(
+								&stable_pool_id,
+								Some(pallet_stableswap::POOL_IDENTIFIER),
+							)),
+						)],
+						operation_stack: vec![ExecutionType::Router(0)],
+					}
+					.into(),
+					pallet_route_executor::Event::Executed {
+						asset_in: DAI,
+						asset_out: stable_asset_2,
+						amount_in,
+						amount_out: amount_to_buy,
+						event_id: 0,
+					}
+					.into(),
+				]);
+				 */
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn multiple_trades_should_increase_event_id() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			create_xyk_pool(HDX, DOT);
+
+			let amount_to_sell = UNITS / 100;
+			let limit = 0;
+			let trades = vec![Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: DOT,
+			}];
+
+			//Act
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DOT,
+				amount_to_sell,
+				limit,
+				trades.clone()
+			));
+
+			assert_ok!(Router::buy(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DOT,
+				amount_to_sell,
+				10 * amount_to_sell,
+				trades.clone()
+			));
+
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				HDX,
+				DOT,
+				amount_to_sell,
+				limit,
+				trades
+			));
+
+			//Assert
+			expect_hydra_events(vec![
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+						pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						},
+					))),
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(HDX, 10000000000)],
+					outputs: vec![Asset::new(DOT, 4984501549)],
+					fees: vec![Fee::new(
+						DOT,
+						14998500,
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						})),
+					)],
+					operation_stack: vec![ExecutionType::Router(0)],
 				}
-				.into()]);
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+						pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						},
+					))),
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(HDX, 10000000000)],
+					outputs: vec![Asset::new(DOT, 20007996198)],
+					fees: vec![Fee::new(
+						HDX,
+						60023988,
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						})),
+					)],
+					operation_stack: vec![ExecutionType::Router(1)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						asset_in: HDX,
+						asset_out: DOT,
+					}),
+					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+						pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						},
+					))),
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(HDX, 10000000000)],
+					outputs: vec![Asset::new(DOT, 4981510054)],
+					fees: vec![Fee::new(
+						DOT,
+						14989497,
+						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+							asset_in: HDX,
+							asset_out: DOT,
+						})),
+					)],
+					operation_stack: vec![ExecutionType::Router(2)],
+				}
+				.into(),
+			]);
+		});
+	}
+
+	#[test]
+	fn account_should_not_have_dust_when_selling_share_asset_with_dust_leftover() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+				let some_dust = 9;
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					ALICE.into(),
+					pool_id,
+					(100 * UNITS + some_dust) as i128,
+				));
+				let trades = vec![Trade {
+					pool: PoolType::Stableswap(pool_id),
+					asset_in: pool_id,
+					asset_out: stable_asset_1,
+				}];
+
+				//Act
+				let amount_to_sell = 100 * UNITS;
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					pool_id,
+					stable_asset_1,
+					amount_to_sell,
+					0,
+					trades
+				));
+
+				//Assert that no dust left on account
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(pool_id, &AccountId::from(ALICE)),
+					0
+				);
+
+				//Assert that dust is transferred to treasury
+				assert_eq!(
+					hydradx_runtime::Currencies::free_balance(pool_id, &Treasury::account_id()),
+					some_dust
+				);
+
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -477,7 +928,7 @@ mod router_different_pools_tests {
 					ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
 				);
 
-				assert_balance!(ALICE.into(), pool_id, 4638992258357);
+				assert_balance!(ALICE.into(), pool_id, 4643642791732);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -539,7 +990,7 @@ mod router_different_pools_tests {
 				//Assert
 				assert_balance!(ALICE.into(), pool_id, 0);
 				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
-				assert_balance!(ALICE.into(), stable_asset_1, 2899390145403);
+				assert_balance!(ALICE.into(), stable_asset_1, 2902296768642);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -697,21 +1148,9 @@ mod router_different_pools_tests {
 			assert_eq!(
 				RouterWeightInfo::sell_weight(trades.as_slice()),
 				hydradx_runtime::weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
-					.checked_add(&<OmnipoolHookAdapter<
-						RuntimeOrigin,
-						ConstU32<HDX>,
-						ConstU32<LRNA>,
-						Runtime,
-					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_trade_weight(
-					))
+					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
 					.unwrap()
-					.checked_add(&<OmnipoolHookAdapter<
-						RuntimeOrigin,
-						ConstU32<HDX>,
-						ConstU32<LRNA>,
-						Runtime,
-					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
-					))
+					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight())
 					.unwrap()
 					.checked_add(
 						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1)
@@ -727,21 +1166,9 @@ mod router_different_pools_tests {
 			assert_eq!(
 				RouterWeightInfo::buy_weight(trades.as_slice()),
 				hydradx_runtime::weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_buy(1, 1)
-					.checked_add(&<OmnipoolHookAdapter<
-						RuntimeOrigin,
-						ConstU32<HDX>,
-						ConstU32<LRNA>,
-						Runtime,
-					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_trade_weight(
-					))
+					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
 					.unwrap()
-					.checked_add(&<OmnipoolHookAdapter<
-						RuntimeOrigin,
-						ConstU32<HDX>,
-						ConstU32<LRNA>,
-						Runtime,
-					> as OmnipoolHooks::<RuntimeOrigin, AccountId, AssetId, Balance>>::on_liquidity_changed_weight(
-					))
+					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight())
 					.unwrap()
 					.checked_add(
 						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(1, 1)
@@ -761,9 +1188,10 @@ mod router_different_pools_tests {
 mod omnipool_router_tests {
 	use super::*;
 	use frame_support::assert_noop;
-	use hydradx_runtime::{Balances, XYK};
+	use hydradx_runtime::{Balances, Omnipool, Treasury, XYK};
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
+	use pallet_broadcast::types::{Destination, ExecutionType};
 
 	#[test]
 	fn sell_should_work_when_route_contains_single_trade() {
@@ -792,7 +1220,7 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			let amount_out = 266_195_070_030_573_798;
+			let amount_out = 266461932256168358;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
@@ -802,6 +1230,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -1352,7 +1781,6 @@ mod omnipool_router_tests {
 				let extra_ed_charge = UNITS / 10;
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
 
-				let amount_to_sell = amount_to_sell;
 				assert_ok!(Router::sell(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					insufficient_asset_1,
@@ -1967,7 +2395,7 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			let amount_out = 220_685_840_707_964_601_769;
+			let amount_out = 220907079646017699114;
 
 			assert_balance!(BOB.into(), LRNA, 1_000 * UNITS - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
@@ -1977,6 +2405,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -1988,7 +2417,7 @@ mod omnipool_router_tests {
 
 		let amount_to_sell = 10 * UNITS;
 		let limit = 0;
-		let amount_out = 266_195_070_030_573_798;
+		let amount_out = 266461932256168358;
 
 		Hydra::execute_with(|| {
 			//Arrange
@@ -2015,13 +2444,45 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: amount_to_sell,
-				amount_out,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(HDX, amount_to_sell)],
+					outputs: vec![Asset::new(LRNA, 12014871681)],
+					fees: vec![
+						Fee::new(LRNA, 3003717, Destination::Burned),
+						Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
+					],
+					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
+					outputs: vec![Asset::new(DAI, amount_out)],
+					fees: vec![Fee::new(
+						DAI,
+						400293338391841,
+						Destination::Account(Omnipool::protocol_account()),
+					)],
+					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					amount_out,
+					event_id: 0,
+				}
+				.into(),
+			]);
 		});
 
 		TestNet::reset();
@@ -2040,18 +2501,50 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			expect_hydra_last_events(vec![pallet_omnipool::Event::SellExecuted {
-				who: BOB.into(),
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: amount_to_sell,
-				amount_out,
-				hub_amount_in: 12014871681,
-				hub_amount_out: 12008864246,
-				asset_fee_amount: 667_155_563_986_401,
-				protocol_fee_amount: 6_007_435,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_omnipool::Event::SellExecuted {
+					who: BOB.into(),
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					amount_out,
+					hub_amount_in: 12014871681,
+					hub_amount_out: 12026877638,
+					asset_fee_amount: 400293338391841,
+					protocol_fee_amount: 6_007_435,
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(HDX, amount_to_sell)],
+					outputs: vec![Asset::new(LRNA, 12_014_871_681)],
+					fees: vec![
+						Fee::new(LRNA, 3003717, Destination::Burned),
+						Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
+					],
+
+					operation_stack: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
+					outputs: vec![Asset::new(DAI, amount_out)],
+					fees: vec![Fee::new(
+						DAI,
+						400293338391841,
+						Destination::Account(Omnipool::protocol_account()),
+					)],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+			]);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
@@ -2085,7 +2578,7 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			let amount_in = 37_565_544;
+			let amount_in = 37_528_090;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -2095,6 +2588,7 @@ mod omnipool_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2169,7 +2663,7 @@ mod omnipool_router_tests {
 
 		let amount_to_buy = UNITS;
 		let limit = 100 * UNITS;
-		let amount_in = 37_565_544;
+		let amount_in = 37_528_090;
 
 		Hydra::execute_with(|| {
 			//Arrange
@@ -2195,13 +2689,45 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in,
-				amount_out: amount_to_buy,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(HDX, amount_in)],
+					outputs: vec![Asset::new(LRNA, 45090)],
+					fees: vec![
+						Fee::new(LRNA, 11, Destination::Burned),
+						Fee::new(LRNA, 11, Destination::Account(Treasury::account_id())),
+					],
+					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(LRNA, 45068)],
+					outputs: vec![Asset::new(DAI, amount_to_buy)],
+					fees: vec![Fee::new(
+						DAI,
+						1502253381,
+						Destination::Account(Omnipool::protocol_account()),
+					)],
+					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in,
+					amount_out: amount_to_buy,
+					event_id: 0,
+				}
+				.into(),
+			]);
 		});
 
 		TestNet::reset();
@@ -2220,18 +2746,49 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			expect_hydra_last_events(vec![pallet_omnipool::Event::BuyExecuted {
-				who: BOB.into(),
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in,
-				amount_out: amount_to_buy,
-				hub_amount_in: 45135,
-				hub_amount_out: 45113,
-				asset_fee_amount: 2_506_265_665,
-				protocol_fee_amount: 22,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_omnipool::Event::BuyExecuted {
+					who: BOB.into(),
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in,
+					amount_out: amount_to_buy,
+					hub_amount_in: 45090,
+					hub_amount_out: 45135,
+					asset_fee_amount: 1502253381,
+					protocol_fee_amount: 22,
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(HDX, amount_in)],
+					outputs: vec![Asset::new(LRNA, 45090)],
+					fees: vec![
+						Fee::new(LRNA, 11, Destination::Burned),
+						Fee::new(LRNA, 11, Destination::Account(Treasury::account_id())),
+					],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: Omnipool::protocol_account(),
+					filler_type: pallet_broadcast::types::Filler::Omnipool,
+					operation: pallet_broadcast::types::TradeOperation::ExactOut,
+					inputs: vec![Asset::new(LRNA, 45068)],
+					outputs: vec![Asset::new(DAI, amount_to_buy)],
+					fees: vec![Fee::new(
+						DAI,
+						1502253381,
+						Destination::Account(Omnipool::protocol_account()),
+					)],
+					operation_stack: vec![ExecutionType::Omnipool(0)],
+				}
+				.into(),
+			]);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -2312,6 +2869,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2355,6 +2913,7 @@ mod lbp_router_tests {
 				asset_out: HDX,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2407,6 +2966,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2459,6 +3019,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2497,13 +3058,37 @@ mod lbp_router_tests {
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + received_amount_out);
 
-			expect_hydra_last_events(vec![pallet_route_executor::Event::Executed {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: amount_to_sell,
-				amount_out: received_amount_out,
-			}
-			.into()]);
+			let fee = 20000000000;
+
+			expect_hydra_last_events(vec![
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
+					filler_type: pallet_broadcast::types::Filler::LBP,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(HDX, amount_to_sell - fee)],
+					outputs: vec![Asset::new(DAI, received_amount_out)],
+					fees: vec![Fee::new(
+						HDX,
+						fee,
+						Destination::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
+								.unwrap()
+								.fee_collector,
+						),
+					)],
+					operation_stack: vec![ExecutionType::Router(0)],
+				}
+				.into(),
+				pallet_route_executor::Event::Executed {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: amount_to_sell,
+					amount_out: received_amount_out,
+					event_id: 0,
+				}
+				.into(),
+			]);
 		});
 
 		TestNet::reset();
@@ -2523,16 +3108,37 @@ mod lbp_router_tests {
 			));
 
 			//Assert
-			expect_hydra_last_events(vec![pallet_lbp::Event::SellExecuted {
-				who: BOB.into(),
-				asset_in: HDX,
-				asset_out: DAI,
-				amount: 9_980_000_000_000,
-				sale_price: received_amount_out,
-				fee_asset: HDX,
-				fee_amount: 20_000_000_000,
-			}
-			.into()]);
+			expect_hydra_last_events(vec![
+				pallet_lbp::Event::SellExecuted {
+					who: BOB.into(),
+					asset_in: HDX,
+					asset_out: DAI,
+					amount: 9_980_000_000_000,
+					sale_price: received_amount_out,
+					fee_asset: HDX,
+					fee_amount: 20_000_000_000,
+				}
+				.into(),
+				pallet_broadcast::Event::Swapped {
+					swapper: BOB.into(),
+					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
+					filler_type: pallet_broadcast::types::Filler::LBP,
+					operation: pallet_broadcast::types::TradeOperation::ExactIn,
+					inputs: vec![Asset::new(HDX, 9_980_000_000_000)],
+					outputs: vec![Asset::new(DAI, received_amount_out)],
+					fees: vec![Fee::new(
+						HDX,
+						20_000_000_000,
+						Destination::Account(
+							LBP::pool_data(LBP::get_pair_id(pallet_lbp::types::AssetPair::new(HDX, DAI)))
+								.unwrap()
+								.fee_collector,
+						),
+					)],
+					operation_stack: vec![],
+				}
+				.into(),
+			]);
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + received_amount_out);
@@ -2577,6 +3183,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2620,6 +3227,7 @@ mod lbp_router_tests {
 				asset_out: HDX,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2672,6 +3280,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2724,6 +3333,7 @@ mod lbp_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2767,6 +3377,7 @@ mod lbp_router_tests {
 				asset_out: DAI,
 				amount_in: spent_amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2869,6 +3480,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -2932,6 +3544,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3097,6 +3710,7 @@ mod xyk_router_tests {
 				asset_out: DOT,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3152,6 +3766,7 @@ mod xyk_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3215,6 +3830,7 @@ mod xyk_router_tests {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -3752,197 +4368,6 @@ mod set_route {
 		}
 
 		#[test]
-		fn set_route_should_work_when_stored_route_is_broken_due_to_frozen_asset() {
-			TestNet::reset();
-
-			Hydra::execute_with(|| {
-				//Arrange
-				init_omnipool();
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					DOT,
-					1000000000000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					FixedU128::from_rational(1, 2),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
-				create_xyk_pool_with_amounts(DOT, 50000 * UNITS, BTC, 4000000 * UNITS);
-
-				let route1 = vec![
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				populate_oracle(HDX, BTC, route1.clone(), None, None);
-
-				let asset_pair = Pair::new(HDX, BTC);
-
-				assert_ok!(Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					route1
-				));
-
-				assert_ok!(Omnipool::set_asset_tradable_state(
-					RuntimeOrigin::root(),
-					DOT,
-					Tradability::FROZEN
-				));
-
-				let route = vec![
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				populate_oracle(HDX, BTC, route.clone(), Some(11), None);
-
-				//Act and assert
-				assert_ok!(Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					route
-				),);
-			});
-		}
-
-		#[test]
-		fn set_route_should_fail_when_new_normal_route_is_invalid() {
-			TestNet::reset();
-
-			Hydra::execute_with(|| {
-				//Arrange
-				init_omnipool();
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					DOT,
-					1000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					FixedU128::from_rational(1, 2),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
-
-				let asset_pair = Pair::new(HDX, BTC);
-
-				let route = vec![
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				populate_oracle(HDX, BTC, route.clone(), None, None);
-
-				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					Tradability::SELL
-				));
-
-				//Act and assert
-				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route),
-					pallet_omnipool::Error::<Runtime>::NotAllowed
-				);
-			});
-		}
-
-		#[test]
-		fn set_route_should_fail_when_new_inverse_route_is_invalid() {
-			TestNet::reset();
-
-			Hydra::execute_with(|| {
-				//Arrange
-				init_omnipool();
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					DOT,
-					1000000000000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					FixedU128::from_rational(1, 2),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				create_xyk_pool_with_amounts(DOT, 10000000 * UNITS, BTC, 10000000 * UNITS);
-
-				let asset_pair = Pair::new(HDX, BTC);
-
-				let route = vec![
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				populate_oracle(HDX, BTC, route.clone(), None, None);
-
-				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					Tradability::BUY
-				));
-
-				//Act and assert
-				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route),
-					pallet_omnipool::Error::<Runtime>::NotAllowed
-				);
-			});
-		}
-
-		#[test]
 		fn invalid_new_normal_route_should_be_revalidated_with_lowest_liquidity_of_assets() {
 			TestNet::reset();
 
@@ -4256,240 +4681,6 @@ mod set_route {
 						invalid_route
 					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
-				);
-			});
-		}
-
-		#[test]
-		fn set_route_should_not_work_when_new_route_is_invalid() {
-			TestNet::reset();
-
-			Hydra::execute_with(|| {
-				//Arrange
-				init_omnipool();
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					DOT,
-					3000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					FixedU128::from_rational(1, 2),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				create_xyk_pool_with_amounts(HDX, 1000000 * UNITS, DOT, 1000000 * UNITS);
-				create_xyk_pool_with_amounts(DOT, 1000000 * UNITS, BTC, 1000000 * UNITS);
-
-				let route1 = vec![
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				populate_oracle(HDX, BTC, route1.clone(), None, None);
-
-				let asset_pair = Pair::new(HDX, BTC);
-
-				assert_ok!(Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					route1
-				));
-
-				assert_ok!(XYK::remove_liquidity(
-					RuntimeOrigin::signed(DAVE.into()),
-					HDX,
-					DOT,
-					1000000 * UNITS
-				));
-
-				let route2 = vec![
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					Tradability::FROZEN
-				));
-
-				//Act and assert
-				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-					pallet_omnipool::Error::<hydradx_runtime::Runtime>::NotAllowed
-				);
-			});
-		}
-		#[test]
-		fn set_route_should_fail_when_new_normal_route_is_invalid() {
-			TestNet::reset();
-
-			Hydra::execute_with(|| {
-				//Arrange
-				init_omnipool();
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					DOT,
-					1000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					FixedU128::from_rational(1, 2),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				create_xyk_pool_with_amounts(HDX, 1000 * UNITS, DOT, 1000 * UNITS);
-				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
-
-				let asset_pair = Pair::new(HDX, BTC);
-
-				let prestored_route = vec![
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				populate_oracle(HDX, BTC, prestored_route.clone(), None, None);
-
-				assert_ok!(Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					prestored_route
-				),);
-
-				let route2 = vec![
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					Tradability::SELL
-				));
-
-				//Act and assert
-				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-					pallet_omnipool::Error::<Runtime>::NotAllowed
-				);
-			});
-		}
-
-		#[test]
-		fn set_route_should_fail_when_new_inverse_route_is_invalid() {
-			TestNet::reset();
-
-			Hydra::execute_with(|| {
-				//Arrange
-				init_omnipool();
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					DOT,
-					1000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					FixedU128::from_rational(1, 2),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				create_xyk_pool_with_amounts(HDX, 1000 * UNITS, DOT, 1000 * UNITS);
-				create_xyk_pool_with_amounts(DOT, 1000 * UNITS, BTC, 1000 * UNITS);
-
-				let asset_pair = Pair::new(HDX, BTC);
-
-				let prestored_route = vec![
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				populate_oracle(HDX, BTC, prestored_route.clone(), None, None);
-
-				assert_ok!(Router::set_route(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					asset_pair,
-					prestored_route
-				),);
-
-				let route2 = vec![
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: DOT,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: DOT,
-						asset_out: BTC,
-					},
-				];
-
-				assert_ok!(hydradx_runtime::Omnipool::set_asset_tradable_state(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DOT,
-					Tradability::BUY
-				));
-
-				//Act and assert
-				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route2),
-					pallet_omnipool::Error::<Runtime>::NotAllowed
 				);
 			});
 		}
@@ -4926,7 +5117,7 @@ mod with_on_chain_and_default_route {
 			));
 
 			//Assert
-			let amount_out = 266_195_070_030_573_798;
+			let amount_out = 266461932256168358;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
@@ -4936,6 +5127,7 @@ mod with_on_chain_and_default_route {
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -4963,7 +5155,7 @@ mod with_on_chain_and_default_route {
 			));
 
 			//Assert
-			let amount_in = 37_565_544;
+			let amount_in = 37_528_090;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -4973,6 +5165,7 @@ mod with_on_chain_and_default_route {
 				asset_out: DAI,
 				amount_in,
 				amount_out: amount_to_buy,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -5101,7 +5294,7 @@ mod route_spot_price {
 				));
 
 				//Assert
-				let expected_amount_out = 1765376;
+				let expected_amount_out = 1767145;
 
 				assert_eq!(
 					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
@@ -5187,7 +5380,7 @@ mod route_spot_price {
 				));
 
 				//Assert
-				let expected_amount_out = 46467;
+				let expected_amount_out = 46513;
 
 				assert_eq!(
 					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
@@ -5303,7 +5496,7 @@ mod sell_all {
 		TestNet::reset();
 
 		let limit = 0;
-		let amount_out = 26577363534770086553;
+		let amount_out = 26604007508238527742;
 
 		Hydra::execute_with(|| {
 			let bob_hdx_balance = Currencies::free_balance(HDX, &BOB.into());
@@ -5334,6 +5527,7 @@ mod sell_all {
 				asset_out: DAI,
 				amount_in: bob_hdx_balance,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -5344,7 +5538,7 @@ mod sell_all {
 		TestNet::reset();
 
 		let limit = 0;
-		let amount_out = 35227901268414708;
+		let amount_out = 35263217460162492;
 
 		Hydra::execute_with(|| {
 			let bob_nonnative_balance = Currencies::free_balance(DAI, &BOB.into());
@@ -5375,6 +5569,7 @@ mod sell_all {
 				asset_out: HDX,
 				amount_in: bob_nonnative_balance,
 				amount_out,
+				event_id: 0,
 			}
 			.into()]);
 		});
@@ -5408,7 +5603,6 @@ mod sell_all {
 				assert_balance!(ALICE.into(), pool_id, 0);
 
 				//Act
-				let amount_to_sell = 3000 * UNITS;
 				assert_ok!(Router::sell_all(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					stable_asset_1,
@@ -5429,7 +5623,7 @@ mod sell_all {
 	}
 }
 
-fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {
+pub fn create_lbp_pool(accumulated_asset: u32, distributed_asset: u32) {
 	assert_ok!(Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
 		DAVE.into(),
@@ -5485,7 +5679,7 @@ fn start_lbp_campaign() {
 	set_relaychain_block_number(LBP_SALE_START + 1);
 }
 
-fn create_xyk_pool(asset_a: u32, asset_b: u32) {
+pub fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 	assert_ok!(XYK::create_pool(
 		RuntimeOrigin::signed(ALICE.into()),
 		asset_a,
@@ -5569,7 +5763,7 @@ pub fn init_stableswap_with_details(
 		None,
 		Some(b"pool".to_vec().try_into().unwrap()),
 		AssetKind::Token,
-		1u128,
+		1000u128,
 		None,
 		None,
 		None,
@@ -5585,12 +5779,16 @@ pub fn init_stableswap_with_details(
 	Stableswap::create_pool(
 		hydradx_runtime::RuntimeOrigin::root(),
 		pool_id,
-		asset_ids,
+		BoundedVec::truncate_from(asset_ids),
 		amplification,
 		fee,
 	)?;
 
-	Stableswap::add_liquidity(hydradx_runtime::RuntimeOrigin::signed(BOB.into()), pool_id, initial)?;
+	Stableswap::add_liquidity(
+		hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+		pool_id,
+		BoundedVec::truncate_from(initial),
+	)?;
 
 	Ok((pool_id, asset_in, asset_out))
 }

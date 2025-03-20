@@ -42,7 +42,6 @@ use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::NetworkBlock;
-use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
@@ -57,7 +56,7 @@ type ParachainClient = TFullClient<
 	Block,
 	RuntimeApi,
 	WasmExecutor<(
-		sp_io::SubstrateHostFunctions,
+		cumulus_client_service::ParachainHostFunctions,
 		frame_benchmarking::benchmarking::HostFunctions,
 	)>,
 >;
@@ -83,7 +82,7 @@ pub fn new_partial(
 			evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
 			Option<Telemetry>,
 			Option<TelemetryWorkerHandle>,
-			Arc<FrontierBackend<Block>>,
+			Arc<FrontierBackend<Block, ParachainClient>>,
 			FilterPool,
 			FeeHistoryCache,
 		),
@@ -102,24 +101,27 @@ pub fn new_partial(
 		.transpose()?;
 
 	let heap_pages = config
+		.executor
 		.default_heap_pages
 		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
 			extra_pages: h as _,
 		});
 
 	let executor = WasmExecutor::builder()
-		.with_execution_method(config.wasm_method)
+		.with_execution_method(config.executor.wasm_method)
 		.with_onchain_heap_alloc_strategy(heap_pages)
 		.with_offchain_heap_alloc_strategy(heap_pages)
-		.with_max_runtime_instances(config.max_runtime_instances)
-		.with_runtime_cache_size(config.runtime_cache_size)
+		.with_max_runtime_instances(config.executor.max_runtime_instances)
+		.with_runtime_cache_size(config.executor.runtime_cache_size)
 		.build();
 
-	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, _>(
-		config,
-		telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
-		executor,
-	)?;
+	let (client, backend, keystore_container, task_manager) =
+		sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
+			config,
+			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+			executor,
+			true,
+		)?;
 
 	let client = Arc::new(client);
 
@@ -200,7 +202,12 @@ async fn start_node_impl(
 	let params = new_partial(&parachain_config)?;
 	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
 		params.other;
-	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
+
+	let prometheus_registry = parachain_config.prometheus_registry().cloned();
+	let net_config = sc_network::config::FullNetworkConfiguration::<_, _, sc_network::NetworkWorker<Block, Hash>>::new(
+		&parachain_config.network,
+		prometheus_registry.clone(),
+	);
 
 	let client = params.client.clone();
 	let backend = params.backend.clone();
@@ -225,13 +232,13 @@ async fn start_node_impl(
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
 		build_network(BuildNetworkParams {
 			parachain_config: &parachain_config,
-			net_config,
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			para_id,
 			spawn_handle: task_manager.spawn_handle(),
 			relay_chain_interface: relay_chain_interface.clone(),
 			import_queue: params.import_queue,
+			net_config,
 			sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
 		})
 		.await?;
@@ -247,7 +254,7 @@ async fn start_node_impl(
 				keystore: Some(params.keystore_container.keystore()),
 				offchain_db: backend.offchain_storage(),
 				transaction_pool: Some(OffchainTransactionPoolFactory::new(transaction_pool.clone())),
-				network_provider: network.clone(),
+				network_provider: Arc::new(network.clone()),
 				is_validator: parachain_config.role.is_authority(),
 				enable_http_requests: false,
 				custom_extensions: move |_| vec![],
@@ -257,7 +264,7 @@ async fn start_node_impl(
 		);
 	}
 
-	let overrides = evm::overrides_handle(client.clone());
+	let overrides = Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone()));
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
 		task_manager.spawn_handle(),
 		overrides.clone(),
@@ -290,11 +297,10 @@ async fn start_node_impl(
 		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
 		let backend = backend.clone();
 
-		Box::new(move |deny_unsafe, subscription_task_executor| {
+		Box::new(move |subscription_task_executor| {
 			let deps = crate::rpc::FullDeps {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
-				deny_unsafe,
 				backend: backend.clone(),
 			};
 
@@ -392,7 +398,6 @@ async fn start_node_impl(
 			&task_manager,
 			relay_chain_interface.clone(),
 			transaction_pool,
-			sync_service.clone(),
 			params.keystore_container.keystore(),
 			relay_chain_slot_duration,
 			para_id,
@@ -415,8 +420,6 @@ fn build_import_queue(
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
 ) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error> {
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-
 	Ok(
 		cumulus_client_consensus_aura::equivocation_import_queue::fully_verifying_import_queue::<
 			sp_consensus_aura::sr25519::AuthorityPair,
@@ -431,7 +434,6 @@ fn build_import_queue(
 				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 				Ok(timestamp)
 			},
-			slot_duration,
 			&task_manager.spawn_essential_handle(),
 			config.prometheus_registry(),
 			telemetry,
@@ -447,7 +449,6 @@ fn start_consensus(
 	task_manager: &TaskManager,
 	relay_chain_interface: Arc<dyn RelayChainInterface>,
 	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient>>,
-	sync_oracle: Arc<SyncingService<Block>>,
 	keystore: KeystorePtr,
 	relay_chain_slot_duration: Duration,
 	para_id: ParaId,
@@ -459,8 +460,6 @@ fn start_consensus(
 
 	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
 	// when starting the network.
-
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 
 	let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
@@ -484,12 +483,10 @@ fn start_consensus(
 		block_import,
 		para_client: client,
 		relay_client: relay_chain_interface,
-		sync_oracle,
 		keystore,
 		collator_key,
 		para_id,
 		overseer_handle,
-		slot_duration,
 		relay_chain_slot_duration,
 		proposer,
 		collator_service,
@@ -498,7 +495,7 @@ fn start_consensus(
 		collation_request_receiver: None,
 	};
 
-	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(params);
+	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _>(params);
 	task_manager.spawn_essential_handle().spawn("aura", None, fut);
 
 	Ok(())

@@ -1,3 +1,4 @@
+use crate::ratio::Ratio;
 use crate::types::Balance;
 use num_traits::Zero;
 
@@ -25,5 +26,22 @@ impl From<AssetReserve> for u128 {
 impl From<&AssetReserve> for u128 {
 	fn from(value: &AssetReserve) -> Self {
 		value.amount
+	}
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PegDelta {
+	pub(crate) delta: Ratio,
+	pub(crate) neg: bool,
+	pub(crate) block_diff: u128,
+}
+
+impl From<(Ratio, bool, u128)> for PegDelta {
+	fn from(value: (Ratio, bool, u128)) -> Self {
+		Self {
+			delta: value.0,
+			neg: value.1,
+			block_diff: value.2,
+		}
 	}
 }

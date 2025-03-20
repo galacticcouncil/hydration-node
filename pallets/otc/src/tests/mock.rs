@@ -57,6 +57,7 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 OTC: otc,
 		 Tokens: orml_tokens,
+		 Broadcast: pallet_broadcast,
 	 }
 );
 
@@ -123,6 +124,11 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 impl orml_tokens::Config for Test {
@@ -137,6 +143,10 @@ impl orml_tokens::Config for Test {
 	type ReserveIdentifier = NamedReserveIdentifier;
 	type MaxReserves = MaxReserves;
 	type CurrencyHooks = ();
+}
+
+impl pallet_broadcast::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 }
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
@@ -304,7 +314,7 @@ impl ExtBuilder {
 }
 
 thread_local! {
-	pub static DUMMYTHREADLOCAL: RefCell<u128> = RefCell::new(100);
+	pub static DUMMYTHREADLOCAL: RefCell<u128> = const { RefCell::new(100) };
 }
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {

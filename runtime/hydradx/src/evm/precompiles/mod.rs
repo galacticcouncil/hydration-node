@@ -21,7 +21,11 @@
 
 use core::marker::PhantomData;
 
-use crate::evm::precompiles::{erc20_mapping::is_asset_address, multicurrency::MultiCurrencyPrecompile};
+use crate::evm::precompiles::{
+	chainlink_adapter::{is_oracle_address, ChainlinkOraclePrecompile},
+	erc20_mapping::is_asset_address,
+	multicurrency::MultiCurrencyPrecompile,
+};
 use codec::Decode;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
 use pallet_evm::{
@@ -40,6 +44,7 @@ use hex_literal::hex;
 use primitive_types::{H160, U256};
 use sp_std::{borrow::ToOwned, vec::Vec};
 
+pub mod chainlink_adapter;
 pub mod costs;
 pub mod erc20_mapping;
 pub mod handle;
@@ -50,8 +55,6 @@ pub type EvmResult<T = ()> = Result<T, PrecompileFailure>;
 
 #[cfg(test)]
 mod tests;
-
-pub type EvmAddress = sp_core::H160;
 
 /// The `address` type of Solidity.
 /// H160 could represent 2 types of data (bytes20 and address) that are not encoded the same way.
@@ -98,26 +101,27 @@ pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a
 
 pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
 
-fn is_standard_precompile(address: H160) -> bool {
+pub fn is_standard_precompile(address: H160) -> bool {
 	!address.is_zero() && address <= ETH_PRECOMPILE_END
 }
 
 impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
-	R: pallet_evm::Config + pallet_currencies::Config,
+	R: pallet_evm::Config + pallet_currencies::Config + pallet_evm_accounts::Config,
 	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
-	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<R::AccountId>>,
+	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
 	MultiCurrencyPrecompile<R>: Precompile,
+	ChainlinkOraclePrecompile<R>: Precompile,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let context = handle.context();
 		let address = handle.code_address();
 
-		// Filter known precompile addresses except Ethereum officials
-		if address > ETH_PRECOMPILE_END && context.address != address {
+		// Disallow calling custom precompiles with DELEGATECALL or CALLCODE
+		if context.address != address && is_precompile(address) && !is_standard_precompile(address) {
 			return Some(Err(PrecompileFailure::Revert {
 				exit_status: ExitRevert::Reverted,
-				output: "cannot be called with DELEGATECALL or CALLCODE".into(),
+				output: "precompile cannot be called with DELEGATECALL or CALLCODE".into(),
 			}));
 		}
 
@@ -147,18 +151,23 @@ where
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
 		} else if is_asset_address(address) {
 			Some(MultiCurrencyPrecompile::<R>::execute(handle))
+		} else if is_oracle_address(address) {
+			Some(ChainlinkOraclePrecompile::<R>::execute(handle))
 		} else {
 			None
 		}
 	}
 
 	fn is_precompile(&self, address: H160, _remaining_gas: u64) -> IsPrecompileResult {
-		let is_precompile = address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address);
 		IsPrecompileResult::Answer {
-			is_precompile,
+			is_precompile: is_precompile(address),
 			extra_cost: 0,
 		}
 	}
+}
+
+pub fn is_precompile(address: H160) -> bool {
+	address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address)
 }
 
 // This is a reimplementation of the upstream u64->H160 conversion
