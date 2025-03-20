@@ -1084,47 +1084,47 @@ fn calculate_target_fee(current: &[(Balance, Balance)], deltas: &[PegDelta], cur
 		.collect();
 
 	let mut max_change = (Ratio::zero(), false);
-	for (v, neg) in peg_relative_changes.iter() {
+	for (change, change_neg) in peg_relative_changes.iter() {
 		let c_max_neg = max_change.1;
 
-		match (neg, c_max_neg) {
+		match (change_neg, c_max_neg) {
 			(true, true) => {
-				if v < &max_change.0 {
-					max_change = (*v, true);
+				if change < &max_change.0 {
+					max_change = (*change, true);
 				}
 			}
 			(true, false) => {
 				// no change
 			}
 			(false, true) => {
-				max_change = (*v, true);
+				max_change = (*change, true);
 			}
 			(false, false) => {
-				if v > &max_change.0 {
-					max_change = (*v, false);
+				if change > &max_change.0 {
+					max_change = (*change, false);
 				}
 			}
 		}
 	}
 
 	let mut min_change = (Ratio::zero(), false);
-	for (v, neg) in peg_relative_changes.iter() {
+	for (change, change_neg) in peg_relative_changes.iter() {
 		let c_min_neg = min_change.1;
-		match (neg, c_min_neg) {
+		match (change_neg, c_min_neg) {
 			(true, true) => {
-				if v > &min_change.0 {
-					min_change = (*v, true);
+				if change > &min_change.0 {
+					min_change = (*change, true);
 				}
 			}
 			(true, false) => {
-				min_change = (*v, true);
+				min_change = (*change, true);
 			}
 			(false, true) => {
 				// no change
 			}
 			(false, false) => {
-				if v < &min_change.0 {
-					min_change = (*v, false);
+				if change < &min_change.0 {
+					min_change = (*change, false);
 				}
 			}
 		}
@@ -1170,18 +1170,21 @@ fn calculate_new_pegs(current: &[(Balance, Balance)], deltas: &[PegDelta]) -> Ve
 		deltas.len(),
 		"Current and deltas must have the same length"
 	);
-	let mut r = vec![];
-	for (current, delta) in current.iter().copied().zip(deltas.iter().copied()) {
-		let c: Ratio = current.into();
-		let d: Ratio = delta.delta;
-		let new_peg = if delta.neg {
-			c.saturating_sub(&d)
-		} else {
-			c.saturating_add(&d)
-		};
-		r.push(new_peg.into());
-	}
-	r
+	current
+		.iter()
+		.copied()
+		.zip(deltas.iter().copied())
+		.map(|(current, delta)| {
+			let c: Ratio = current.into();
+			let d: Ratio = delta.delta;
+			let new_peg = if delta.neg {
+				c.saturating_sub(&d)
+			} else {
+				c.saturating_add(&d)
+			};
+			new_peg.into()
+		})
+		.collect()
 }
 
 #[cfg(test)]

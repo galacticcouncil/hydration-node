@@ -175,6 +175,8 @@ pub mod pallet {
 		type AmplificationRange: Get<RangeInclusive<NonZeroU16>>;
 
 		/// Oracle providing prices for asset pegs (if configured for pool)
+		/// Raw oracle is required because it needs the values that are not delayed.
+		/// It is how the mechanism is designed.
 		type TargetPegOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
 
 		/// Weight information for extrinsics in this pallet.
@@ -349,7 +351,7 @@ pub mod pallet {
 		/// List of provided pegs is incorrect.
 		IncorrectInitialPegs,
 
-		/// FAiled to retrieve oracle entry.
+		/// Failed to retrieve oracle entry.
 		MissingTargetPegOracle,
 
 		/// Creating pool with pegs is not allowed for asset with different decimals.
@@ -742,7 +744,7 @@ pub mod pallet {
 				who: who.clone(),
 				shares,
 				amounts: vec![AssetAmount { asset_id, amount }],
-				fee: 0u128, // dev note: figure out the actual fee amount in this case. For now, we dont need it. is deprecated anyway in favor of unified events
+				fee: 0u128,
 			});
 
 			let fees = fees
@@ -1122,6 +1124,8 @@ pub mod pallet {
 		///
 		/// This function allows the creation of a new stable pool with specified assets, amplification, fee, and peg sources. The pool is identified by a share asset.
 		///
+		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the first asset denominated in the other pool assets.
+		///
 		/// Parameters:
 		/// - `origin`: Must be `T::AuthorityOrigin`.
 		/// - `share_asset`: Preregistered share asset identifier.
@@ -1243,7 +1247,7 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount_in: Balance,
-		update_peg: bool, // This is needed to distinguish between just calculation and trade execution
+		persist_peg: bool,
 	) -> Result<(Balance, Balance), DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 
@@ -1262,7 +1266,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let amplification = Self::get_amplification(&pool);
-		let (trade_fee, asset_pegs) = if update_peg {
+		let (trade_fee, asset_pegs) = if persist_peg {
 			Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?
 		} else {
 			// Only recalculate, do not store
@@ -1287,7 +1291,7 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount_out: Balance,
-		update_peg: bool, // This is needed to distinguish between just calculation and trade execution
+		persist_peg: bool,
 	) -> Result<(Balance, Balance), DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 
@@ -1306,7 +1310,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
 
 		let amplification = Self::get_amplification(&pool);
-		let (trade_fee, asset_pegs) = if update_peg {
+		let (trade_fee, asset_pegs) = if persist_peg {
 			Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?
 		} else {
 			Self::get_updated_pegs(pool_id, &pool)?
