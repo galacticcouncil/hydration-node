@@ -199,7 +199,7 @@ benchmarks! {
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
 
-		let used_asset_id = pool.assets.first().unwrap().clone();
+		let used_asset_id = *pool.assets.first().unwrap();
 
 		T::Currency::update_balance(used_asset_id, &caller, 1_000_000_000_000_000_000i128)?;
 
@@ -228,7 +228,7 @@ benchmarks! {
 			Balance::zero(),
 		)?;
 
-		let asset_id_to_withdraw: T::AssetId = pool.assets.last().unwrap().clone();
+		let asset_id_to_withdraw: T::AssetId = *pool.assets.last().unwrap();
 
 		// just make sure that LP provided all his liquidity of this asset
 		assert_eq!(T::Currency::free_balance(asset_id_to_withdraw, &caller), 0u128);
@@ -300,7 +300,7 @@ benchmarks! {
 			assert_eq!(T::Currency::free_balance(*asset_id, &caller), 0u128);
 		}
 
-		let asset_id_to_withdraw: T::AssetId = pool.assets.last().unwrap().clone();
+		let asset_id_to_withdraw: T::AssetId = *pool.assets.last().unwrap();
 		let shares = T::Currency::free_balance(pool_id, &caller);
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, asset_id_to_withdraw, liquidity_added, shares)
 	verify {
