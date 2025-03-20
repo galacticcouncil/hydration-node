@@ -6,6 +6,7 @@ use crate::types::{AssetId, Balance, Ratio};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, SaturatingMul, SaturatingSub, Zero};
 use primitive_types::U256;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_arithmetic::per_things::Rounding as PTRounding;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
@@ -534,19 +535,7 @@ pub(crate) fn calculate_d_internal<const D: u8>(
 	// Since this is internal crate function - safety checks are checked in the public function
 	let two_u256 = to_u256!(2_u128);
 
-	let xp = xp
-		.iter()
-		.zip(pegs.iter())
-		.try_fold(Vec::with_capacity(xp.len()), |mut acc, (v, peg)| {
-			if let Some(result) =
-				multiply_by_rational_with_rounding(*v, peg.0, peg.1, sp_arithmetic::per_things::Rounding::Down)
-			{
-				acc.push(result);
-				Some(acc)
-			} else {
-				None
-			}
-		})?;
+	let xp = peg_reserves(xp, pegs)?;
 
 	// Filter out zero balance assets, and return error if there is one.
 	// Either all assets are zero balance, or none are zero balance.
@@ -615,19 +604,7 @@ fn calculate_y_internal<const D: u8>(
 	peg_omit: (Balance, Balance),
 ) -> Option<Balance> {
 	// Since this is internal crate function - safety checks are checked in the public function
-	let xp = xp
-		.iter()
-		.zip(pegs.iter())
-		.try_fold(Vec::with_capacity(xp.len()), |mut acc, (v, peg)| {
-			if let Some(result) =
-				multiply_by_rational_with_rounding(*v, peg.0, peg.1, sp_arithmetic::per_things::Rounding::Down)
-			{
-				acc.push(result);
-				Some(acc)
-			} else {
-				None
-			}
-		})?;
+	let xp = peg_reserves(xp, pegs)?;
 
 	// Filter out zero balance assets, and return error if there is one.
 	// Either all assets are zero balance, or none are zero balance.
@@ -670,17 +647,26 @@ fn calculate_y_internal<const D: u8>(
 			// If runtime-benchmarks - don't return and force max iterations
 			if !cfg!(feature = "runtime-benchmarks") {
 				let r = Balance::try_from(y).ok()?;
-				return multiply_by_rational_with_rounding(
-					r,
-					peg_omit.1,
-					peg_omit.0,
-					sp_arithmetic::per_things::Rounding::Down,
-				);
+				return multiply_by_rational_with_rounding(r, peg_omit.1, peg_omit.0, PTRounding::Down);
 			}
 		}
 	}
 	let r = Balance::try_from(y).ok()?;
-	multiply_by_rational_with_rounding(r, peg_omit.1, peg_omit.0, sp_arithmetic::per_things::Rounding::Down)
+	multiply_by_rational_with_rounding(r, peg_omit.1, peg_omit.0, PTRounding::Down)
+}
+
+fn peg_reserves(reserves: &[Balance], pegs: &[(Balance, Balance)]) -> Option<Vec<Balance>> {
+	reserves
+		.iter()
+		.zip(pegs.iter())
+		.try_fold(Vec::with_capacity(reserves.len()), |mut acc, (v, peg)| {
+			if let Some(result) = multiply_by_rational_with_rounding(*v, peg.0, peg.1, PTRounding::Down) {
+				acc.push(result);
+				Some(acc)
+			} else {
+				None
+			}
+		})
 }
 
 /// Calculate current amplification value.
@@ -800,8 +786,8 @@ pub fn calculate_share_price<const D: u8>(
 	provided_d: Option<Balance>,
 	pegs: &[(Balance, Balance)],
 ) -> Option<(Balance, Balance)> {
-	let asset_ct = reserves.len();
-	if asset_ct <= 1 || asset_idx >= asset_ct || pegs.len() != asset_ct {
+	let n_coins = reserves.len();
+	if n_coins <= 1 || asset_idx >= n_coins || pegs.len() != n_coins {
 		return None;
 	}
 	let d = if let Some(v) = provided_d {
@@ -813,8 +799,7 @@ pub fn calculate_share_price<const D: u8>(
 
 	let mut adjusted_reserves = vec![];
 	for (v, mpl) in reserves.iter().zip(pegs.iter()) {
-		let r_new =
-			multiply_by_rational_with_rounding(v.amount, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)?;
+		let r_new = multiply_by_rational_with_rounding(v.amount, mpl.0, mpl.1, PTRounding::Down)?;
 		adjusted_reserves.push(AssetReserve {
 			amount: r_new,
 			decimals: v.decimals,
@@ -827,14 +812,14 @@ pub fn calculate_share_price<const D: u8>(
 		.try_fold(FixedU128::one(), |acc, reserve| {
 			acc.checked_mul(&FixedU128::checked_from_rational(
 				d,
-				(asset_ct as u128).checked_mul(*reserve)?,
+				(n_coins as u128).checked_mul(*reserve)?,
 			)?)
 		})?
 		.checked_mul_int(d)?;
 
 	let ann = calculate_ann(n_reserves.len(), amplification)?;
 
-	let (d, c, xi, n, ann, issuance) = to_u256!(d, c, n_reserves[asset_idx], asset_ct as u128, ann, issuance);
+	let (d, c, xi, n, ann, issuance) = to_u256!(d, c, n_reserves[asset_idx], n_coins as u128, ann, issuance);
 
 	let xann = xi.checked_mul(ann)?;
 	let p1 = d.checked_mul(xann)?;
@@ -892,8 +877,8 @@ pub fn calculate_spot_price(
 	fee: Option<Permill>,
 	pegs: &[(Balance, Balance)],
 ) -> Option<FixedU128> {
-	let asset_ct = asset_reserves.len();
-	if asset_ct <= 1 || asset_in == asset_out || pegs.len() != asset_ct {
+	let n_coins = asset_reserves.len();
+	if n_coins <= 1 || asset_in == asset_out || pegs.len() != n_coins {
 		return None;
 	}
 	let reserves = asset_reserves
@@ -978,19 +963,18 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	fee: Option<Permill>,
 	pegs: &[(Balance, Balance)],
 ) -> Option<FixedU128> {
-	let asset_ct = reserves.len();
-	if asset_ct <= 1 || asset_in_idx >= asset_ct || asset_out_idx >= asset_ct || pegs.len() != asset_ct {
+	let n_coins = reserves.len();
+	if n_coins <= 1 || asset_in_idx >= n_coins || asset_out_idx >= n_coins || pegs.len() != n_coins {
 		return None;
 	}
-	let ann = calculate_ann(asset_ct, amplification)?;
+	let ann = calculate_ann(n_coins, amplification)?;
 
 	let asset_peg_in = pegs[asset_in_idx];
 	let asset_peg_out = pegs[asset_out_idx];
 
 	let mut adjusted_reserves = vec![];
 	for (v, mpl) in reserves.iter().zip(pegs.iter()) {
-		let r_new =
-			multiply_by_rational_with_rounding(v.amount, mpl.0, mpl.1, sp_arithmetic::per_things::Rounding::Down)?;
+		let r_new = multiply_by_rational_with_rounding(v.amount, mpl.0, mpl.1, PTRounding::Down)?;
 		adjusted_reserves.push(AssetReserve {
 			amount: r_new,
 			decimals: v.decimals,
@@ -1002,7 +986,7 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	let x0 = n_reserves[asset_in_idx];
 	let xi = n_reserves[asset_out_idx];
 
-	let (n, d, ann, x0, xi) = to_u256!(asset_ct, d, ann, x0, xi);
+	let (n, d, ann, x0, xi) = to_u256!(n_coins, d, ann, x0, xi);
 
 	n_reserves.sort();
 	let reserves_hp: Vec<U256> = n_reserves.iter().map(|v| U256::from(*v)).collect();
@@ -1198,4 +1182,53 @@ fn calculate_new_pegs(current: &[(Balance, Balance)], deltas: &[PegDelta]) -> Ve
 		r.push(new_peg.into());
 	}
 	r
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use proptest::prelude::*;
+
+	const MAX_BALANCE: u128 = 1_000_000 * 10u128.pow(18);
+	const MIN_BALANCE: u128 = 0;
+
+	fn asset_reserve() -> impl Strategy<Value = Balance> {
+		(MIN_BALANCE..=MAX_BALANCE).prop_map(|value| Balance::from(value))
+	}
+
+	proptest! {
+		#[test]
+		fn test_peg_reserves(
+			length in 2usize..=5usize,
+			reserves in prop::collection::vec(asset_reserve(), 5),
+			pegs in prop::collection::vec(
+				(
+					asset_reserve(),
+					asset_reserve()
+				),
+				5
+			)
+		) {
+			// Slice the reserves and pegs to the selected length
+			let reserves = reserves.into_iter().take(length).collect::<Vec<_>>();
+			let pegs = pegs.into_iter().take(length).collect::<Vec<_>>();
+
+			let result = peg_reserves(&reserves, &pegs);
+
+			if reserves.iter().all(|&r| r > Balance::zero()) {
+				assert!(result.is_some());
+
+				let expected: Vec<Balance> = reserves.iter()
+					.zip(pegs.iter())
+					.map(|(&reserve, &(peg_numerator, peg_denominator))| {
+						multiply_by_rational_with_rounding(reserve, peg_numerator, peg_denominator, PTRounding::Down).unwrap_or(Balance::zero())
+					})
+					.collect();
+
+				assert_eq!(result.unwrap(), expected);
+			} else {
+				assert!(result.is_none());
+			}
+		}
+	}
 }
