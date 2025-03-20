@@ -239,7 +239,8 @@ impl sp_std::fmt::Debug for Ratio {
 #[cfg(test)]
 mod tests {
 	use super::*;
-
+	use rug::Rational;
+	use test_case::test_case;
 	#[test]
 	fn test_add_ratios() {
 		let ratio1 = Ratio::new(1, 2);
@@ -366,5 +367,57 @@ mod tests {
 		let ratio2 = Ratio::new(1, u128::MAX);
 		let result = ratio1 * ratio2;
 		assert_eq!(result, Ratio::new(1, u128::MAX - 1));
+	}
+
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 2), Ratio::new(1, 1) ; "Dividing 1/2 by 1/2 should yield 1")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 4), Ratio::new(2, 1) ; "Dividing 1/2 by 1/4 should yield 2")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(0, 1), Ratio::zero() ; "Dividing by zero should yield zero")]
+	#[test_case(Ratio::new(0, 1), Ratio::new(1, 2), Ratio::zero() ; "Dividing zero by any number should yield zero")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 1), Ratio::new(1, 2) ; "Dividing 1/2 by 1 should yield 1/2")]
+	#[test_case(Ratio::new(1, 1), Ratio::new(1, 2), Ratio::new(2, 1) ; "Dividing 1 by 1/2 should yield 2")]
+	#[test_case(Ratio::new(u128::MAX, 1), Ratio::new(1, 1), Ratio::new(u128::MAX, 1) ; "Dividing max value by 1 should yield max value")]
+	#[test_case(Ratio::new(1, 1), Ratio::new(u128::MAX, 1), Ratio::new(1, u128::MAX) ; "Dividing 1 by max value should yield small value")]
+	fn test_saturating_div(numerator: Ratio, denominator: Ratio, expected: Ratio) {
+		let calculated = numerator.saturating_div(&denominator);
+		let expected_rug: Rational = expected.into();
+		let calculated_rug: Rational = calculated.into();
+		assert_eq!(calculated_rug, expected_rug);
+	}
+
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 2), Ratio::new(1, 4) ; "Multiplying 1/2 by 1/2 should yield 1/4")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 4), Ratio::new(1, 8) ; "Multiplying 1/2 by 1/4 should yield 1/8")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(0, 1), Ratio::zero() ; "Multiplying by zero should yield zero")]
+	#[test_case(Ratio::new(0, 1), Ratio::new(1, 2), Ratio::zero() ; "Multiplying zero by any number should yield zero")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(2, 1), Ratio::new(1, 1) ; "Multiplying 1/2 by 2 should yield 1")]
+	#[test_case(Ratio::new(2, 1), Ratio::new(1, 2), Ratio::new(1, 1) ; "Multiplying 2 by 1/2 should yield 1")]
+	#[test_case(Ratio::new(u128::MAX, 1), Ratio::new(1, 1), Ratio::new(u128::MAX, 1) ; "Multiplying max value by 1 should yield max value")]
+	#[test_case(Ratio::new(1, 1), Ratio::new(u128::MAX, 1), Ratio::new(u128::MAX, 1) ; "Multiplying 1 by max value should yield max value")]
+	fn test_saturating_mul(numerator: Ratio, denominator: Ratio, expected: Ratio) {
+		let calculated = numerator.saturating_mul(&denominator);
+		let expected_rug: Rational = expected.into();
+		let calculated_rug: Rational = calculated.into();
+		assert_eq!(calculated_rug, expected_rug);
+	}
+
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 2), Ratio::new(1, 1) ; "Adding 1/2 and 1/2 should yield 1")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 4), Ratio::new(3, 4) ; "Adding 1/2 and 1/4 should yield 3/4")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(0, 1), Ratio::new(1, 2) ; "Adding 1/2 and 0 should yield 1/2")]
+	#[test_case(Ratio::new(0, 1), Ratio::new(1, 2), Ratio::new(1, 2) ; "Adding 0 and 1/2 should yield 1/2")]
+	fn test_saturating_add(numerator: Ratio, denominator: Ratio, expected: Ratio) {
+		let calculated = numerator.saturating_add(&denominator);
+		let expected_rug: Rational = expected.into();
+		let calculated_rug: Rational = calculated.into();
+		assert_eq!(calculated_rug, expected_rug);
+	}
+
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 2), Ratio::new(0, 1) ; "Subtracting 1/2 from 1/2 should yield 0")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(1, 4), Ratio::new(1, 4) ; "Subtracting 1/4 from 1/2 should yield 1/4")]
+	#[test_case(Ratio::new(1, 2), Ratio::new(0, 1), Ratio::new(1, 2) ; "Subtracting 0 from 1/2 should yield 1/2")]
+	#[test_case(Ratio::new(0, 1), Ratio::new(1, 2), Ratio::zero() ; "Subtracting 1/2 from 0 should yield 0")]
+	fn test_saturating_sub(numerator: Ratio, denominator: Ratio, expected: Ratio) {
+		let calculated = numerator.saturating_sub(&denominator);
+		let expected_rug: Rational = expected.into();
+		let calculated_rug: Rational = calculated.into();
+		assert_eq!(calculated_rug, expected_rug);
 	}
 }
