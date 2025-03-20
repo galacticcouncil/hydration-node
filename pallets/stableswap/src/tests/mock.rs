@@ -29,6 +29,8 @@ use crate as pallet_stableswap;
 
 use crate::Config;
 
+use crate::types::BoundedPegSources;
+use crate::PegType;
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, BoundedVec};
@@ -40,11 +42,11 @@ use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 pub use orml_traits::MultiCurrency;
 use sp_core::H256;
+use sp_runtime::Permill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
 };
-
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
@@ -206,7 +208,12 @@ pub struct InitialLiquidity {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(Vec<u8>, AssetId, u8)>,
-	created_pools: Vec<(AccountId, PoolInfo<AssetId, u64>, InitialLiquidity)>,
+	created_pools: Vec<(
+		AccountId,
+		PoolInfo<AssetId, u64>,
+		InitialLiquidity,
+		Option<Vec<PegType>>,
+	)>,
 }
 
 impl Default for ExtBuilder {
@@ -255,7 +262,18 @@ impl ExtBuilder {
 		pool: PoolInfo<AssetId, u64>,
 		initial_liquidity: InitialLiquidity,
 	) -> Self {
-		self.created_pools.push((who, pool, initial_liquidity));
+		self.created_pools.push((who, pool, initial_liquidity, None));
+		self
+	}
+
+	pub fn with_pool_with_pegs(
+		mut self,
+		who: AccountId,
+		pool: PoolInfo<AssetId, u64>,
+		initial_liquidity: InitialLiquidity,
+		pegs: Vec<PegType>,
+	) -> Self {
+		self.created_pools.push((who, pool, initial_liquidity, Some(pegs)));
 		self
 	}
 
@@ -290,7 +308,7 @@ impl ExtBuilder {
 		r.execute_with(|| {
 			frame_system::Pallet::<Test>::set_block_number(1);
 
-			for (_who, pool, initial_liquid) in self.created_pools {
+			for (_who, pool, initial_liquid, pegs) in self.created_pools {
 				let pool_id = retrieve_current_asset_id();
 				REGISTERED_ASSETS.with(|v| {
 					v.borrow_mut().insert(pool_id, (pool_id, 12));
@@ -299,13 +317,36 @@ impl ExtBuilder {
 					v.borrow_mut().insert(b"main".to_vec(), pool_id);
 				});
 
-				assert_ok!(Stableswap::create_pool(
-					RuntimeOrigin::root(),
-					pool_id,
-					pool.assets.clone(),
-					pool.initial_amplification.get(),
-					pool.fee,
-				));
+				if let Some(pegs) = pegs {
+					assert!(pegs.len() == pool.assets.len());
+					let first_peg = vec![PegSource::Value((1, 1))];
+					let peg_sources = vec![PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock)); pegs.len() - 1];
+					let peg_sources = [first_peg, peg_sources].concat();
+
+					let first_asset = pool.assets[0];
+					for (peg, asset_id) in pegs.into_iter().zip(pool.assets.iter().skip(1)) {
+						set_peg_oracle_value(first_asset, *asset_id, peg, 0);
+					}
+
+					assert_ok!(Stableswap::create_pool_with_pegs(
+						RuntimeOrigin::root(),
+						pool_id,
+						pool.assets.clone(),
+						pool.initial_amplification.get(),
+						pool.fee,
+						BoundedPegSources::truncate_from(peg_sources),
+						Permill::from_percent(100),
+					));
+				} else {
+					assert_ok!(Stableswap::create_pool(
+						RuntimeOrigin::root(),
+						pool_id,
+						pool.assets.clone(),
+						pool.initial_amplification.get(),
+						pool.fee,
+					));
+				}
+
 				POOL_IDS.with(|v| {
 					v.borrow_mut().push(pool_id);
 				});
@@ -326,7 +367,7 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{PoolInfo, PoolState, StableswapHooks};
+use crate::types::{PegSource, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
