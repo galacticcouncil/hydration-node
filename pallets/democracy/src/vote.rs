@@ -116,7 +116,7 @@ impl<Balance: Saturating> AccountVote<Balance> {
 #[derive(
 	Encode, MaxEncodedLen, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo,
 )]
-pub struct PriorLock<BlockNumber, Balance>(BlockNumber, Balance);
+pub struct PriorLock<BlockNumber, Balance>(pub BlockNumber, pub Balance);
 
 impl<BlockNumber: Ord + Copy + Zero, Balance: Ord + Copy + Zero> PriorLock<BlockNumber, Balance> {
 	/// Accumulates an additional lock.
