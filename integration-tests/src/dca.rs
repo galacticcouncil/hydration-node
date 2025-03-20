@@ -4103,7 +4103,7 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 	));
 }
 
-fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
+pub fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(DCA::schedule(RuntimeOrigin::signed(owner.into()), schedule1, None));
 }
 
@@ -4151,7 +4151,7 @@ fn schedule_fake_with_buy_order_with_route(
 	}
 }
 
-fn schedule_fake_with_sell_order(
+pub fn schedule_fake_with_sell_order(
 	owner: [u8; 32],
 	pool: PoolType<AssetId>,
 	total_amount: Balance,
@@ -4406,7 +4406,13 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let asset_in: AssetId = *asset_ids.last().unwrap();
 	let asset_out: AssetId = *asset_ids.first().unwrap();
 
-	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
+	Stableswap::create_pool(
+		RuntimeOrigin::root(),
+		pool_id,
+		BoundedVec::truncate_from(asset_ids),
+		amplification,
+		fee,
+	)?;
 
 	Stableswap::add_liquidity(
 		RuntimeOrigin::signed(BOB.into()),
@@ -4474,7 +4480,13 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	let asset_in: AssetId = asset_ids[1];
 	let asset_out: AssetId = asset_ids[2];
 
-	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
+	Stableswap::create_pool(
+		RuntimeOrigin::root(),
+		pool_id,
+		BoundedVec::truncate_from(asset_ids),
+		amplification,
+		fee,
+	)?;
 
 	Stableswap::add_liquidity(
 		RuntimeOrigin::signed(BOB.into()),

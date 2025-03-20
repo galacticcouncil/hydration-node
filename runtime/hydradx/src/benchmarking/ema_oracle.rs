@@ -19,7 +19,6 @@
 
 use super::*;
 use crate::bifrost_account;
-use codec::Decode;
 use hydradx_traits::oracle::OraclePeriod;
 use hydradx_traits::AggregatedEntry;
 use pallet_ema_oracle::ordered_pair;
@@ -28,17 +27,14 @@ use scale_info::prelude::string::ToString;
 use sp_std::sync::Arc;
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
-use frame_benchmarking::benchmarks;
-use frame_support::{assert_ok, dispatch::RawOrigin, traits::Hooks};
+use frame_support::{assert_ok, dispatch::RawOrigin};
 use hydradx_traits::AggregatedOracle;
 use hydradx_traits::OnLiquidityChangedHandler;
 #[cfg(test)]
 use pretty_assertions::assert_eq;
-use sp_core::crypto::AccountId32;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::boxed::Box;
 
-use frame_benchmarking::{account, whitelisted_caller};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{Liquidity, OnTradeHandler, Source, Volume};

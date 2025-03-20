@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2025  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");

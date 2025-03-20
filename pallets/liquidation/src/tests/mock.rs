@@ -17,6 +17,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
+use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::{
 	router::{PoolType, RefundEdCalculator},
@@ -146,6 +147,14 @@ impl EVM<CallResult> for EvmMock {
 
 pub struct HydraErc20Mapping;
 impl Erc20Mapping<AssetId> for HydraErc20Mapping {
+	fn asset_address(asset_id: AssetId) -> EvmAddress {
+		Self::encode_evm_address(asset_id)
+	}
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
+		Self::decode_evm_address(address)
+	}
+}
+impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
 		let asset_id_bytes: [u8; 4] = asset_id.to_le_bytes();
 
@@ -346,6 +355,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
 }

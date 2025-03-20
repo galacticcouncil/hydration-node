@@ -3,8 +3,8 @@ const { TypeRegistry } = require('@polkadot/types');
 const { hexToU8a, u8aToHex } = require('@polkadot/util');
 
 // Define network names
-const NEW_NAME = "Hydration Local Testnet";
-const NEW_ID = "local_testnet";
+const NEW_NAME = process.env.CHAIN_NAME || "Hydration Local Testnet";
+const NEW_ID = process.env.CHAIN_ID || "local_testnet";
 const NEW_RELAY_CHAIN = "rococo_local_testnet";
 
 // Define replacement values
@@ -13,6 +13,11 @@ const COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE = "0x04d43593c715fdd31c61141abd04a99
 const SYSTEM_ACCOUNT_VALUE = "0x000000000000000003000000000000000000e8890423c78a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080";
 
 async function updateChainSpec(inputFile, outputFile) {
+    if (fs.existsSync(outputFile)) {
+        console.log(`Output file ${outputFile} already exists, skipping processing...`);
+        return;
+    }
+
     console.log('Starting the chain spec update script...');
     let chainSpec;
     try {
@@ -44,15 +49,26 @@ async function updateChainSpec(inputFile, outputFile) {
         },
     });
 
+    const governance = process.env.KEEP_GOVERNANCE ? {} : {
+        "0xaebd463ed9925c488c112434d61debc0ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // Council.members
+        "0xed25f63942de25ac5253ba64b5eb64d1ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // TechnicalCommittee.members
+    }
+
+    const deployer = process.env.NO_DEPLOYER ? {} : {
+        "0x2c2b3fbb4fc221c42de8259db454678fe74405d2678f6b81824443771f6fa86af065818ad972112ab4e06ea85b354e36222222ff7be76052e023ec1a306fcca8f9659d80": "0x", // Contract deployer 0x222222ff7Be76052e023Ec1a306fCca8F9659D80
+        "0x99971b5749ac43e0235e41b0d37869188ee7418a6531173d60d1f6a82d8f4d5173d3a4140c3587d7bc56f1a1c01a1c5e45544800222222ff7be76052e023ec1a306fcca8f9659d8000000000000000001f0e76f06ebd150314000000": "0x000064a7b3b6e00d00000000000000000000000000000000000000000000000000000000000000000000000000000000", // 1 ETH for 0x222222
+    }
+
     // Define replacements
     const REPLACEMENTS = {
+        "0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f": "0xf2070000", // parachainInfo.parachainId = 2034
         "0x57f8dc2f5ab09467896f47300f0424385e0621c4869aa60c02be9adcc98a0d1d": AURA_AUTHORITIES_VALUE, // aura.authorities
         "0x3c311d57d4daf52904616cf69648081e5e0621c4869aa60c02be9adcc98a0d1d": AURA_AUTHORITIES_VALUE, // auraExt.authorities
         "0xcec5070d609dd3497f72bde07fc96ba088dcde934c658227ee1dfafcd6e16903": AURA_AUTHORITIES_VALUE, // Session validators
         "0x15464cac3378d46f113cd5b7a4d71c845579297f4dfb9609e7e4c2ebab9ce40a": AURA_AUTHORITIES_VALUE, // CollatorSelection.invulnerables
-        "0xaebd463ed9925c488c112434d61debc0ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // Council.members
-        "0xed25f63942de25ac5253ba64b5eb64d1ba7fb8745735dc3be2a2c61a72c39e78": COUNCIL_AND_TECHNICAL_COMMITTEE_VALUE, // TechnicalCommittee.members
+        ...governance,
         "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d": SYSTEM_ACCOUNT_VALUE, // System account
+        ...deployer,
     };
 
     // Define keys to delete
@@ -115,6 +131,7 @@ async function updateChainSpec(inputFile, outputFile) {
     chainSpec.name = NEW_NAME;
     chainSpec.id = NEW_ID;
     chainSpec.relay_chain = NEW_RELAY_CHAIN;
+    chainSpec.para_id = 2034
 
     // Save the updated chain spec
     try {

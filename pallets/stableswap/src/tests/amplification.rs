@@ -1,4 +1,5 @@
 use crate::tests::mock::*;
+use crate::tests::to_bounded_asset_vec;
 use crate::types::PoolInfo;
 use crate::{Error, Pools};
 use frame_support::{assert_noop, assert_ok};
@@ -22,7 +23,7 @@ fn update_amplification_should_work_when_correct_params_are_provided() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(10),
 			));
@@ -67,7 +68,7 @@ fn update_amplification_should_fail_when_end_block_is_before_current_block() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(10),
 			));
@@ -97,7 +98,7 @@ fn update_amplification_should_fail_when_end_block_is_smaller_than_start_block()
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(10),
 			));
@@ -127,7 +128,7 @@ fn update_amplification_should_fail_when_start_block_before_current_block() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(10),
 			));
@@ -157,7 +158,7 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(10),
 			));
@@ -223,7 +224,7 @@ fn update_amplification_should_fail_when_new_value_is_same_as_previous_one() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(10),
 			));
@@ -253,7 +254,7 @@ fn update_amplification_should_fail_when_new_value_is_zero_or_outside_allowed_ra
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(10),
 			));
@@ -293,7 +294,7 @@ fn amplification_should_change_when_block_changes() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				2000,
 				Permill::from_percent(10),
 			));

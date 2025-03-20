@@ -340,6 +340,7 @@ ethereum = { version = "0.15.0", default-features = false, features = ["with-cod
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4", default-features = false }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4", default-features = false }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4", default-features = false }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4", default-features = false, features = [
@@ -382,6 +383,7 @@ orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-modu
 orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2409" }
 
 [patch."https://github.com/moonbeam-foundation/polkadot-sdk"]
+cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4", default-features = false }
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
@@ -512,6 +514,7 @@ xcm-runtime-apis = { git = "https://github.com/galacticcouncil/polkadot-sdk", br
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
@@ -668,6 +671,7 @@ xcm-runtime-apis = { git = "https://github.com/galacticcouncil/polkadot-sdk", br
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
+pallet-xcm-benchmarks = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4" }

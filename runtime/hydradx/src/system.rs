@@ -655,6 +655,7 @@ impl pallet_collator_rewards::Config for Runtime {
 	type Currency = Currencies;
 	type RewardPerCollator = RewardPerCollator;
 	type RewardCurrencyId = NativeAssetId;
+	type RewardsBag = TreasuryAccount;
 	type ExcludedCollators = ExcludedCollators;
 	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collators that
 	// we hand out rewards to.

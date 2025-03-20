@@ -16,17 +16,10 @@
 // limitations under the License.
 
 use super::*;
+use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
 use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
-
-use hydradx_adapters::{
-	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OmnipoolRawOracleAssetVolumeProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
-	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
-};
-
-use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -44,6 +37,11 @@ use frame_support::{
 	BoundedVec, PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use hydradx_adapters::{
+	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
+	OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
+	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
+};
 pub use hydradx_traits::{
 	evm::CallContext,
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
@@ -367,6 +365,10 @@ impl orml_tokens::Config for Runtime {
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
+parameter_types! {
+	pub ReserveAccount: AccountId = PalletId( * b"curreser").into_account_truncating();
+}
+
 // The latest versions of the orml-currencies pallet don't emit events.
 // The infrastructure relies on the events from this pallet, so we use the latest version of
 // the pallet that contains and emit events and was updated to the polkadot version we use.
@@ -376,6 +378,7 @@ impl pallet_currencies::Config for Runtime {
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type Erc20Currency = Erc20Currency<Runtime>;
 	type BoundErc20 = AssetRegistry;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
@@ -791,9 +794,6 @@ impl PriceOracle<AssetId> for DummyOraclePriceProvider {
 	}
 }
 
-#[cfg(not(feature = "runtime-benchmarks"))]
-use hydradx_adapters::OraclePriceProvider;
-
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummySpotPriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -833,9 +833,17 @@ parameter_types! {
 	pub BumpChance: Percent = Percent::from_percent(17);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
-	pub DCAOraclePeriod: OraclePeriod = OraclePeriod::Short;
-
+	pub ShortOraclePeriod: OraclePeriod = OraclePeriod::Short;
 }
+
+pub type FeePriceOracle = AssetFeeOraclePriceProvider<
+	NativeAssetId,
+	MultiTransactionPayment,
+	Router,
+	OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+	MultiTransactionPayment,
+	ShortOraclePeriod,
+>;
 
 pub struct RetryOnErrorForDca;
 
@@ -880,14 +888,7 @@ impl pallet_dca::Config for Runtime {
 	type AmmTradeWeights = RouterWeightInfo;
 	type WeightInfo = weights::pallet_dca::HydraWeight<Runtime>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type NativePriceOracle = AssetFeeOraclePriceProvider<
-		NativeAssetId,
-		MultiTransactionPayment,
-		Router,
-		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
-		MultiTransactionPayment,
-		DCAOraclePeriod,
-	>;
+	type NativePriceOracle = FeePriceOracle;
 	#[cfg(feature = "runtime-benchmarks")]
 	type NativePriceOracle = AssetFeeOraclePriceProvider<
 		NativeAssetId,
@@ -895,7 +896,7 @@ impl pallet_dca::Config for Runtime {
 		Router,
 		DummyOraclePriceProvider,
 		MultiTransactionPayment,
-		DCAOraclePeriod,
+		ShortOraclePeriod,
 	>;
 	type RetryOnError = RetryOnErrorForDca;
 	type PolkadotNativeAssetId = DotAssetId;
@@ -990,6 +991,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => Aave::trade_weight(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1024,6 +1026,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => Aave::trade_weight(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1056,6 +1059,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => Weight::zero(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1080,6 +1084,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => Aave::trade_weight(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1104,6 +1109,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
+				PoolType::Aave => Aave::trade_weight(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1136,6 +1142,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::Aave => Aave::trade_weight(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1149,6 +1156,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
+				PoolType::Aave => Aave::trade_weight(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1181,6 +1189,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					weights::pallet_stableswap::HydraWeight::<Runtime>::calculate_spot_price_with_fee()
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
+				PoolType::Aave => Weight::zero(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1205,7 +1214,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Balance = Balance;
 	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
-	type AMM = (Omnipool, Stableswap, XYK, LBP);
+	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type InspectRegistry = AssetRegistry;
@@ -1316,6 +1325,7 @@ use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
 use hydradx_traits::router::RefundEdCalculator;
+use pallet_ema_oracle::OracleEntry;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
@@ -1327,7 +1337,7 @@ use sp_runtime::TransactionOutcome;
 pub struct RegisterAsset<T>(PhantomData<T>);
 
 #[cfg(feature = "runtime-benchmarks")]
-impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsset<T> {
+impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelper<AssetId> for RegisterAsset<T> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
 		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id
 			.to_le_bytes()
@@ -1348,6 +1358,36 @@ impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsse
 			))
 		})?;
 
+		Ok(())
+	}
+
+	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
+		with_transaction(|| {
+			if let Err(e) = pallet_ema_oracle::Pallet::<T>::add_entry(
+				source,
+				asset_pair,
+				OracleEntry {
+					price: EmaPrice::new(peg.0, peg.1),
+					volume: Default::default(),
+					liquidity: Default::default(),
+					updated_at: BlockNumber::default().into(),
+				},
+			) {
+				return TransactionOutcome::Rollback(e.into());
+			}
+
+			let current_block = System::block_number();
+
+			System::on_finalize(current_block);
+			EmaOracle::on_finalize(current_block);
+
+			System::on_initialize(current_block + 1);
+			EmaOracle::on_initialize(current_block + 1);
+
+			System::set_block_number(current_block + 1);
+
+			TransactionOutcome::Commit(Ok(()))
+		})?;
 		Ok(())
 	}
 }
@@ -1392,6 +1432,7 @@ impl pallet_stableswap::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	type AmplificationRange = StableswapAmplificationRange;
+	type TargetPegOracle = EmaOracle;
 	type WeightInfo = weights::pallet_stableswap::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = RegisterAsset<Runtime>;
@@ -1723,8 +1764,10 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 	}
 }
 
+use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
+use pallet_stableswap::types::PegType;
 use pallet_xyk::types::AssetPair;
 
 #[cfg(feature = "runtime-benchmarks")]

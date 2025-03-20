@@ -27,9 +27,7 @@ Find manual setup instructions at the
 
 ### Build
 
-Once the development environment is set up, build the node. This command will build the
-[Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
-[native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
+Once the development environment is set up, build the node:
 
 ```bash
 cargo build --release
@@ -37,15 +35,36 @@ cargo build --release
 
 ## Run
 
-### Chopsticks
+### Mainnet fork with Chopsticks
 
 The easiest way to run and interact with Hydration node is to use [Chopsticks](https://github.com/acalanetwork/chopsticks)
 
 ```Bash
-npx @acala-network/chopsticks@latest --config=launch-configs/chopsticks/hydradx.yml
+npx @acala-network/chopsticks@latest --config=hydradx 
 ```
 
 Now you have a test node running at [`ws://localhost:8000`](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2Flocalhost%3A8000#/explorer)
+
+This is also best option to test XCM interactions, as you can run multiple parachains at the same time:
+
+```bash
+npx @acala-network/chopsticks@latest xcm -p hydradx -p polkadot-asset-hub
+```
+
+Refer to the `chopsticks --help` for more options.
+
+### Mainnet fork with Zombienet
+
+If you need to test your app with RPC node which supports everything normal node does like extra RPC methods like `eth_*`. 
+This will spawn forked mainnet chain with regular blocktime.
+
+```bash
+docker run -d -p 8000:9988 galacticcouncil/fork
+```
+
+Now you have a test node running at [`ws://localhost:8000`](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2Flocalhost%3A8000#/explorer)
+
+More details [here](launch-configs/fork)
 
 ### Local Testnet with Zombienet
 
@@ -59,7 +78,7 @@ cd launch-configs/zombienet/
 zombienet spawn local.json
 ```
 
-### Interaction with the node
+## Interaction with the node
 
 Go to the polkadot apps at https://polkadot.js.org/apps
 
