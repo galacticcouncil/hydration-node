@@ -14,6 +14,8 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
 	Stableswap, Tokens, Treasury, DCA,
 };
+use hydradx_traits::evm::Erc20Encoding;
+use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
@@ -33,6 +35,95 @@ use sp_runtime::{BoundedVec, FixedU128};
 use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
+
+const PATH_TO_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT";
+use hydradx_runtime::Liquidation;
+mod temp {
+	use super::*;
+	use frame_support::assert_ok;
+	use frame_support::traits::fungibles::Inspect;
+	use frame_support::traits::tokens::{Fortitude, Preservation};
+	use hex_literal::hex;
+	use hydradx_runtime::{EVMAccounts, Runtime, DCA};
+	use hydradx_traits::router::{PoolType, Trade};
+	use pallet_currencies::fungibles::FungibleCurrencies;
+
+	const ONE: u128 = 1 * 10_u128.pow(10);
+
+	#[test]
+	fn dca_evm() {
+		TestNet::reset();
+
+		hydra_live_ext(crate::dca::PATH_TO_SNAPSHOT).execute_with(|| {
+			//Arrange
+			assert_eq!(hydradx_runtime::System::block_number(), 5336);
+
+			let acc = use_specific_account("7MopA2Ettt1mm3VJMbS29SNirjTXmNwJ4W4KbbnLsXfN1fY7").unwrap();
+
+			let trades = vec![Trade {
+				pool: PoolType::Aave,
+				asset_in: 1001,
+				asset_out: 5,
+			}];
+
+			//Act
+			let schedule_id = 13883;
+			let schedule = DCA::schedules(schedule_id);
+			assert!(schedule.is_some());
+
+			hydradx_run_to_next_block(); //It fails in router in the first execution of the route
+
+			let schedule_id = 13883;
+			let schedule = DCA::schedules(schedule_id);
+			assert!(schedule.is_none());
+
+			//This is commented the same as happens in DCA,so selling X amount of ATOKEN, but it works well...
+			/*let initBalance = 98899900000000000;
+			assert_eq!(hydradx_runtime::Currencies::free_balance(5, &acc), initBalance);
+
+			let user_balance_of_asset_in_before_trade = FungibleCurrencies::<Runtime>::reducible_balance(
+				1001,
+				&acc.clone(),
+				Preservation::Preserve,
+				Fortitude::Polite,
+			);
+
+			let amount_to_sell = 200000000000;
+			assert_ok!(Router::sell(
+				hydradx_runtime::RuntimeOrigin::signed(acc.clone().into()),
+				1001,
+				5,
+				amount_to_sell,
+				amount_to_sell,
+				trades
+			));
+
+			let user_balance_of_asset_in_after_trade = FungibleCurrencies::<Runtime>::reducible_balance(
+				1001,
+				&acc.clone(),
+				Preservation::Preserve,
+				Fortitude::Polite,
+			);
+
+			let diff = user_balance_of_asset_in_before_trade - user_balance_of_asset_in_after_trade;
+			assert_eq!(diff, amount_to_sell);
+
+			assert_eq!(
+				hydradx_runtime::Currencies::free_balance(5, &acc),
+				initBalance + amount_to_sell
+			);*/
+		});
+	}
+
+	use sp_core::crypto::Ss58Codec;
+	use sp_runtime::AccountId32;
+	fn use_specific_account(ss58_address: &str) -> Result<AccountId32, &'static str> {
+		match AccountId32::from_ss58check(ss58_address) {
+			Ok(account_id) => Ok(account_id),
+			Err(_) => Err("Invalid SS58 address"),
+		}
+	}
+}
 
 mod omnipool {
 	use super::*;
