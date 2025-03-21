@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - run: git describe --tags --abbrev=0
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.12
@@ -44,8 +44,6 @@ jobs:
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
       - name: Clippy
         run: make clippy-all
-      - name: Test benchmarks
-        run: make test-benchmarks
 
       - name: Build benchmarks CLI
         id: build-benchmarks
@@ -53,10 +51,112 @@ jobs:
 
       - name: Upload benchmarks CLI
         uses: actions/upload-artifact@v4
-        if: steps.build-benchmarks.outcome == 'success'
         with:
           name: hydradx-bencher
           path: target/release/hydradx
+
+  benchmark-check:
+    runs-on: toad
+    concurrency: benchmark-execution
+    needs: build
+    permissions:
+      pull-requests: write
+      actions: read
+      contents: write
+    steps:
+      - name: Prepare benchmark execution
+        id: prepare
+        run: |
+          echo "$(git log -1 --pretty=format:"%s")"
+          if [[ ! -z $(git log -1 --pretty=format:"%s" | grep -q "[ignore benchmarks]") ]]; then
+            echo "Skipping job due to 'ignore-benchmark' tag in commit message"
+            exit 78  # Exit code 78 marks the job as 'skipped'
+          fi
+          
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+               echo "benchmark_type=full" >> $GITHUB_OUTPUT
+          else
+               echo "benchmark_type=quick" >> $GITHUB_OUTPUT
+          fi
+          
+          pr_number=${{ github.event.number }}
+          echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
+          
+          if [[ -z "$pr_number" ]]; then
+            pr_number=$(curl -s \
+              -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ github.head_ref }}&state=open" | \
+              grep '"number":' | \
+              sed 's/[^0-9]*//g' | \
+              head -n 1
+            )
+            echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
+          
+            if [[ -z "$pr_number" ]]; then
+              echo "Warning: Could not determine PR number from either event context or API" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Download benchmarks CLI
+        uses: actions/download-artifact@v4
+        with:
+          name: hydradx-bencher
+          path: ./bin
+      - run: chmod +x ./bin/hydradx
+
+      - name: Run ${{ steps.prepare.outputs.benchmark_type }} benchmarks
+        run: |
+          BENCHMARK_FLAGS="--all --bin ./bin/hydradx"
+          if [[ "${{ steps.prepare.outputs.benchmark_type }}" == "quick" ]]; then
+            BENCHMARK_FLAGS="$BENCHMARK_FLAGS --check"
+          fi
+          ./scripts/benchmarking.sh $BENCHMARK_FLAGS 2>&1
+
+      - name: Upload weights directory
+        id: bencher-weights
+        uses: actions/upload-artifact@v4
+        with:
+          name: quick-benchmark-weights
+          path: runtime/hydradx/src/weights/
+          retention-days: 3
+
+      - name: Commit full benchmark results to a pull request
+        if: steps.prepare.outputs.benchmark_type == 'full'
+        run: |
+          user="${{ github.actor }}"
+          git config --global user.name "$user"
+          git config --global user.email "${user}@users.noreply.github.com"
+
+          # Add and check if there are changes
+          git add runtime/hydradx/src/weights/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Commit changes
+          git commit -m "Update pallets weights [ignore benchmarks]"
+
+          # Set up authentication and push
+          # Create the authenticated URL with the token
+          repo_url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+          # Push to the branch that triggered the workflow
+          git push "${repo_url}" HEAD:${{ github.head_ref || github.ref_name }}
+
+          echo "Successfully pushed benchmark results to branch ${{ github.head_ref || github.ref_name }}"
+
+      - name: Comment benchmark results to the pull request
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2.1.0
+        with:
+          header: 'benchmark'
+          recreate: true
+          number: ${{ steps.prepare.outputs.pr_number }}
+          message: |
+            ${{ steps.prepare.outputs.benchmark_type == 'full' && 'Full' || 'Quick' }} benchmark at commit ${{ github.event.pull_request.head.sha }} has been executed successfully.
+            [View results](${{ steps.bencher-weights.outputs.artifact-url }})
 
   version-check:
     runs-on: ubuntu-latest
