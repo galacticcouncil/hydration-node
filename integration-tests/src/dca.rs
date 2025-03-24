@@ -44,7 +44,9 @@ mod temp {
 	use frame_support::traits::fungibles::Inspect;
 	use frame_support::traits::tokens::{Fortitude, Preservation};
 	use hex_literal::hex;
+	use hydradx_runtime::evm::aave_trade_executor::Aave;
 	use hydradx_runtime::{EVMAccounts, Runtime, DCA};
+	use hydradx_traits::router::TradeExecution;
 	use hydradx_traits::router::{PoolType, Trade};
 	use pallet_currencies::fungibles::FungibleCurrencies;
 
@@ -78,25 +80,35 @@ mod temp {
 			assert!(schedule.is_none());
 
 			//This is commented the same as happens in DCA,so selling X amount of ATOKEN, but it works well...
-			/*let initBalance = 98899900000000000;
+			let initBalance = 98899900000000000;
 			assert_eq!(hydradx_runtime::Currencies::free_balance(5, &acc), initBalance);
 
 			let user_balance_of_asset_in_before_trade = FungibleCurrencies::<Runtime>::reducible_balance(
 				1001,
 				&acc.clone(),
-				Preservation::Preserve,
+				Preservation::Expendable,
 				Fortitude::Polite,
 			);
 
 			let amount_to_sell = 200000000000;
-			assert_ok!(Router::sell(
+
+			Aave::execute_sell(
+				hydradx_runtime::RuntimeOrigin::signed(acc.clone().into()),
+				PoolType::Aave,
+				1001,
+				5,
+				amount_to_sell,
+				amount_to_sell,
+			)
+			.unwrap();
+			/*assert_ok!(Router::sell(
 				hydradx_runtime::RuntimeOrigin::signed(acc.clone().into()),
 				1001,
 				5,
 				amount_to_sell,
 				amount_to_sell,
 				trades
-			));
+			));*/
 
 			let user_balance_of_asset_in_after_trade = FungibleCurrencies::<Runtime>::reducible_balance(
 				1001,
@@ -115,8 +127,10 @@ mod temp {
 		});
 	}
 
+	use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 	use sp_core::crypto::Ss58Codec;
 	use sp_runtime::AccountId32;
+
 	fn use_specific_account(ss58_address: &str) -> Result<AccountId32, &'static str> {
 		match AccountId32::from_ss58check(ss58_address) {
 			Ok(account_id) => Ok(account_id),
