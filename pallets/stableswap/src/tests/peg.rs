@@ -1102,3 +1102,91 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 			assert_eq!(bob_c_balance, 1_414_424_170_095); // same as python
 		});
 }
+
+#[test]
+fn asset_oracle_peg_should_work() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+	let asset_c: AssetId = 3;
+	let oracle_asset: AssetId = 4; // Special asset used for oracle pegging
+	let pool_id = 100;
+
+	let amp = 1000;
+	let tvl: u128 = 2_000_000 * ONE;
+
+	let peg2 = (1, 2);
+	let peg3 = (1, 3);
+
+	let max_peg_update = Permill::from_percent(100);
+
+	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
+	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
+	let p1 = peg2_fixed / (peg2_fixed + peg3_fixed + FixedU128::one());
+	let p2 = FixedU128::one() / (peg2_fixed + peg3_fixed + FixedU128::one());
+	let p3 = peg3_fixed / (peg2_fixed + peg3_fixed + FixedU128::one());
+	let liquid_a = p1.saturating_mul_int(tvl);
+	let liquid_b = p2.saturating_mul_int(tvl);
+	let liquid_c = p3.saturating_mul_int(tvl);
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, asset_a, 2_000_000 * ONE),
+			(ALICE, asset_b, 2_000_000 * ONE),
+			(ALICE, asset_c, 2_000_000 * ONE),
+			(BOB, asset_a, 1_000 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_registered_asset("three".as_bytes().to_vec(), asset_c, 12)
+		.with_registered_asset("oracle_asset".as_bytes().to_vec(), oracle_asset, 12)
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.build()
+		.execute_with(|| {
+			System::set_block_number(1);
+			// Set up oracle with asset_a
+			set_peg_oracle_value(oracle_asset, asset_b, peg2, 1);
+
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c]),
+				amp,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(vec![
+					PegSource::Value((1, 1)),
+					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, oracle_asset)),
+					PegSource::Value(peg3)
+				]),
+				max_peg_update,
+			));
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(ALICE),
+				pool_id,
+				BoundedVec::truncate_from(vec![
+					AssetAmount::new(asset_a, liquid_a),
+					AssetAmount::new(asset_b, liquid_b),
+					AssetAmount::new(asset_c, liquid_c),
+				])
+			));
+
+			// Change the oracle price using the oracle_asset instead of first_asset
+			set_peg_oracle_value(oracle_asset, asset_b, (48, 100), 4);
+			System::set_block_number(5);
+
+			assert_balance!(BOB, asset_b, 0);
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				asset_a,
+				asset_b,
+				100 * ONE,
+				25 * ONE,
+			));
+
+			assert_balance!(BOB, asset_a, 900000000000000);
+			assert_balance!(BOB, asset_b, 190961826574751);
+			let pegs = Stableswap::pool_peg_info(pool_id).unwrap();
+			assert_eq!(pegs.current.to_vec(), vec![(1, 1), (192, 400), (1, 3)]);
+		});
+}
