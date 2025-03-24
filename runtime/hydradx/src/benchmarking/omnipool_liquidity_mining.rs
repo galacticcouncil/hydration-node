@@ -18,10 +18,10 @@
 use crate::benchmarking::{register_asset, register_asset_with_decimals};
 use crate::*;
 use frame_benchmarking::{account, BenchmarkError};
-use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_support::traits::EnsureOrigin;
 use frame_support::traits::{OnFinalize, OnInitialize};
+use frame_support::{assert_ok, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::RawOrigin;
 use hydradx_traits::liquidity_mining::{GlobalFarmId, YieldFarmId};
@@ -839,7 +839,7 @@ runtime_benchmarks! {
 		let successful_origin = <crate::Runtime as pallet_stableswap::Config>::AuthorityOrigin::try_successful_origin().unwrap();
 		Stableswap::create_pool(successful_origin,
 			pool_id,
-			asset_ids,
+			BoundedVec::truncate_from(asset_ids),
 			amplification,
 			trade_fee,
 		)?;
