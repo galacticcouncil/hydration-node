@@ -590,9 +590,9 @@ where
 	}
 }
 
-//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
+// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
 pub fn bifrost_account() -> AccountId {
-	hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()
+	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
 }
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
