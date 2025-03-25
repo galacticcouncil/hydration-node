@@ -1,0 +1,78 @@
+name: Build runtime with srtool
+
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+    inputs:
+      # Get the SR Tool image used to build
+      srtool_image:
+        description: Default to use the latest. You can use an alternate image, use with caution!
+        required: false
+
+env:
+  SUBWASM_VERSION: 0.21.3
+  CHAIN: hydradx
+
+jobs:
+  build-release:
+    name: Build and publish hydradx runtime
+    runs-on: lark-test # FIXME: Change to lark
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Srtool build
+        id: srtool_build
+        uses: chevdor/srtool-actions@v0.9.2
+        with:
+          chain: ${{ env.CHAIN }}
+          tag: ${{ github.event.inputs.srtool_image }}
+          profile: release
+
+      - name: Build Summary
+        run: |
+          echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ env.CHAIN }}-srtool-digest.json
+          cat ${{ env.CHAIN }}-srtool-digest.json
+          echo "Runtime location: ${{ steps.srtool_build.outputs.wasm }}"
+
+      - name: Install subwasm ${{ env.SUBWASM_VERSION }}
+        run: |
+          wget https://github.com/chevdor/subwasm/releases/download/v${{ env.SUBWASM_VERSION }}/subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
+          sudo dpkg -i subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
+          subwasm --version
+
+#      - name: Install subwasm ${{ env.SUBWASM_VERSION }}
+#        run: |
+#          cargo install --locked --git https://github.com/chevdor/subwasm --tag v${{ env.SUBWASM_VERSION }}
+#          subwasm --version
+
+      - name: Extract metadata
+        run: |
+          subwasm --json info ${{ steps.srtool_build.outputs.wasm }} > ${{ env.CHAIN }}-info.json
+          subwasm info ${{ steps.srtool_build.outputs.wasm }} > ${{ env.CHAIN }}-info.txt
+          cat ${{ env.CHAIN }}-info.txt
+
+          subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ env.CHAIN }}-subwam-info.json
+          subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ env.CHAIN }}-subwam-info.txt
+          cat ${{ env.CHAIN }}-subwam-info.txt
+
+      - name: Check the metadata diff
+        run: |
+          subwasm diff wss://rpc.${{ env.CHAIN }}.cloud ${{ steps.srtool_build.outputs.wasm }} | tee ${{ env.CHAIN }}-diff.txt
+
+      - name: Upload build artifacts for ${{ env.CHAIN }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.CHAIN }}-runtime
+          path: |
+            ${{ steps.srtool_build.outputs.wasm }}
+            ${{ steps.srtool_build.outputs.wasm_compressed }}
+            ${{ env.CHAIN }}-srtool-digest.json
+            ${{ env.CHAIN }}-metadata.json
+            ${{ env.CHAIN }}-metadata.txt
+            ${{ env.CHAIN }}-subwam-info.json
+            ${{ env.CHAIN }}-subwam-info.txt
+            ${{ env.CHAIN }}-diff.txt
