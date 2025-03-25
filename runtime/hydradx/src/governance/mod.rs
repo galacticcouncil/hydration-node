@@ -184,7 +184,7 @@ impl pallet_conviction_voting::Config for Runtime {
 	type Polls = Referenda;
 	type VotingHooks = pallet_staking::integrations::conviction_voting::StakingConvictionVoting<Runtime>;
 	// Any single technical committee member may remove a vote.
-	type VoteRemovalOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
+	type VoteRemovalOrigin = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
 }
 
 parameter_types! {
