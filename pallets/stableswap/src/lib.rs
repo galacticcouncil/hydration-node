@@ -24,7 +24,6 @@
 //! ### Drifting peg
 //! It is possible to create a pool with so called drifting peg.
 //! Source of target peg for each asset must be provided. Either constant value or external oracle.
-//! First asset in the pool is considered as a base asset and all other assets are pegged to it. Therefore peg of the first asset must be 1.
 //!
 //! ### Stableswap Hooks
 //!
@@ -1124,7 +1123,7 @@ pub mod pallet {
 		///
 		/// This function allows the creation of a new stable pool with specified assets, amplification, fee, and peg sources. The pool is identified by a share asset.
 		///
-		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the first asset denominated in the other pool assets.
+		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the asset from the peg sourcedenominated in the other pool assets.
 		///
 		/// Parameters:
 		/// - `origin`: Must be `T::AuthorityOrigin`.
