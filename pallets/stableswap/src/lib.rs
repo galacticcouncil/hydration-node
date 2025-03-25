@@ -1823,14 +1823,11 @@ impl<T: Config> Pallet<T> {
 			"Pool assets and peg sources must have the same length"
 		);
 
-		// Just to be defensive enough - so we dont panic when accessing by index
 		if pool_assets.is_empty() {
 			// Should never happen
 			debug_assert!(false, "Missing pool info");
 			return Err(Error::<T>::IncorrectAssets.into());
 		}
-
-		let first_asset = pool_assets[0];
 
 		let mut r = vec![];
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
