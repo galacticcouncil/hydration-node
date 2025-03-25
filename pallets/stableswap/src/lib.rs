@@ -1836,7 +1836,7 @@ impl<T: Config> Pallet<T> {
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
 			let p = match source {
 				PegSource::Value(peg) => (*peg, block_no),
-				PegSource::AssetOracle((source, period, oracle_asset)) => {
+				PegSource::Oracle((source, period, oracle_asset)) => {
 					let entry = T::TargetPegOracle::get_raw_entry(*source, *oracle_asset, *asset_id, *period)
 						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
 					((entry.price.0, entry.price.1), entry.updated_at.saturated_into())

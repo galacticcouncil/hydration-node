@@ -377,7 +377,7 @@ fn should_fail_when_no_target_peg_oracle() {
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(vec![
 						PegSource::Value((1, 1)),
-						PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+						PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					]),
 					max_peg_update,
 				),

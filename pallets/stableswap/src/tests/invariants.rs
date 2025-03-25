@@ -1626,7 +1626,7 @@ proptest! {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
 		let peg_a = PegSource::Value((1,1)); // First asset always has a peg of 1
-		let peg_b = PegSource::AssetOracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
 
 		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 
@@ -1706,7 +1706,7 @@ proptest! {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
 		let peg_a = PegSource::Value((1,1));
-		let peg_b = PegSource::AssetOracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
 		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 
 		ExtBuilder::default()
@@ -1786,7 +1786,7 @@ proptest! {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
 		let peg_a = PegSource::Value((1,1));
-		let peg_b = PegSource::AssetOracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
 		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 
 		ExtBuilder::default()
@@ -1867,7 +1867,7 @@ proptest! {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
 		let peg_a = PegSource::Value((1,1));
-		let peg_b = PegSource::AssetOracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
 		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
@@ -1958,7 +1958,7 @@ proptest! {
 		let asset_a: AssetId = 1;
 		let asset_b: AssetId = 2;
 		let peg_a = PegSource::Value((1,1));
-		let peg_b = PegSource::AssetOracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
 		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
@@ -2054,7 +2054,7 @@ proptest! {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
 		let peg_a = PegSource::Value((1,1));
-		let peg_b = PegSource::AssetOracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
 		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
@@ -2171,7 +2171,7 @@ proptest! {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
 		let peg_a = PegSource::Value((1,1));
-		let peg_b = PegSource::AssetOracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
 		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![

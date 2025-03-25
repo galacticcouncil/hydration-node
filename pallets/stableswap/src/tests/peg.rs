@@ -370,7 +370,7 @@ fn sell_with_drifting_peg_should_work() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -453,7 +453,7 @@ fn sell_with_drifting_peg_should_not_exceed_max_peg_update() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -538,7 +538,7 @@ fn share_pries_should_be_correct_with_different_pegs() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -613,7 +613,7 @@ fn spot_prices_should_be_correct_with_different_pegs() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -701,7 +701,7 @@ fn add_liquidity_should_work_correctly_with_different_pegs() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -781,7 +781,7 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -863,7 +863,7 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -956,7 +956,7 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -1051,7 +1051,7 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, asset_a)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, asset_a)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
@@ -1154,7 +1154,7 @@ fn asset_oracle_peg_should_work() {
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(vec![
 					PegSource::Value((1, 1)),
-					PegSource::AssetOracle((*b"testtest", OraclePeriod::Short, oracle_asset)),
+					PegSource::Oracle((*b"testtest", OraclePeriod::Short, oracle_asset)),
 					PegSource::Value(peg3)
 				]),
 				max_peg_update,
