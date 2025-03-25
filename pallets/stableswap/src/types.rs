@@ -153,21 +153,21 @@ pub type PegType = (Balance, Balance);
 pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum PegSource {
+pub enum PegSource<AssetId = ()> {
 	Value(PegType),
-	Oracle((Source, OraclePeriod)),
+	Oracle((Source, OraclePeriod, AssetId)),
 }
 
-pub type BoundedPegSources = BoundedVec<PegSource, ConstU32<MAX_ASSETS_IN_POOL>>;
+pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct PoolPegInfo {
-	pub source: BoundedPegSources,
+pub struct PoolPegInfo<AssetId = ()> {
+	pub source: BoundedPegSources<AssetId>,
 	pub max_peg_update: Permill,
 	pub current: BoundedPegs,
 }
 
-impl PoolPegInfo {
+impl<AssetId> PoolPegInfo<AssetId> {
 	pub fn with_new_pegs(self, pegs: &[PegType]) -> Self {
 		debug_assert_eq!(self.current.len(), pegs.len(), "Invalid pegs length");
 		PoolPegInfo {

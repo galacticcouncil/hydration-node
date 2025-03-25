@@ -24,7 +24,6 @@
 //! ### Drifting peg
 //! It is possible to create a pool with so called drifting peg.
 //! Source of target peg for each asset must be provided. Either constant value or external oracle.
-//! First asset in the pool is considered as a base asset and all other assets are pegged to it. Therefore peg of the first asset must be 1.
 //!
 //! ### Stableswap Hooks
 //!
@@ -194,7 +193,7 @@ pub mod pallet {
 	/// Pool peg info.
 	#[pallet::storage]
 	#[pallet::getter(fn pool_peg_info)]
-	pub type PoolPegs<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo>;
+	pub type PoolPegs<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolPegInfo<T::AssetId>>;
 
 	/// Tradability state of pool assets.
 	#[pallet::storage]
@@ -211,7 +210,7 @@ pub mod pallet {
 			assets: Vec<T::AssetId>,
 			amplification: NonZeroU16,
 			fee: Permill,
-			peg: Option<PoolPegInfo>,
+			peg: Option<PoolPegInfo<T::AssetId>>,
 		},
 		/// Pool fee has been updated.
 		FeeUpdated { pool_id: T::AssetId, fee: Permill },
@@ -1124,7 +1123,7 @@ pub mod pallet {
 		///
 		/// This function allows the creation of a new stable pool with specified assets, amplification, fee, and peg sources. The pool is identified by a share asset.
 		///
-		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the first asset denominated in the other pool assets.
+		/// Peg target price is determined by retrieving the target peg from the oracle - it is the price of the asset from the peg sourcedenominated in the other pool assets.
 		///
 		/// Parameters:
 		/// - `origin`: Must be `T::AuthorityOrigin`.
@@ -1158,7 +1157,7 @@ pub mod pallet {
 			assets: BoundedVec<T::AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
 			amplification: u16,
 			fee: Permill,
-			peg_source: BoundedPegSources,
+			peg_source: BoundedPegSources<T::AssetId>,
 			max_peg_update: Permill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
@@ -1333,7 +1332,7 @@ impl<T: Config> Pallet<T> {
 		assets: &[T::AssetId],
 		amplification: NonZeroU16,
 		fee: Permill,
-		peg_info: Option<&PoolPegInfo>,
+		peg_info: Option<&PoolPegInfo<T::AssetId>>,
 	) -> Result<T::AssetId, DispatchError> {
 		ensure!(!Pools::<T>::contains_key(share_asset), Error::<T>::PoolExists);
 		ensure!(
@@ -1815,7 +1814,7 @@ impl<T: Config> Pallet<T> {
 	fn get_target_pegs(
 		block_no: u128,
 		pool_assets: &[T::AssetId],
-		peg_sources: &[PegSource],
+		peg_sources: &[PegSource<T::AssetId>],
 	) -> Result<Vec<(PegType, u128)>, DispatchError> {
 		debug_assert_eq!(
 			pool_assets.len(),
@@ -1823,21 +1822,18 @@ impl<T: Config> Pallet<T> {
 			"Pool assets and peg sources must have the same length"
 		);
 
-		// Just to be defensive enough - so we dont panic when accessing by index
 		if pool_assets.is_empty() {
 			// Should never happen
 			debug_assert!(false, "Missing pool info");
 			return Err(Error::<T>::IncorrectAssets.into());
 		}
 
-		let first_asset = pool_assets[0];
-
 		let mut r = vec![];
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
 			let p = match source {
 				PegSource::Value(peg) => (*peg, block_no),
-				PegSource::Oracle((source, period)) => {
-					let entry = T::TargetPegOracle::get_raw_entry(*source, first_asset, *asset_id, *period)
+				PegSource::Oracle((source, period, oracle_asset)) => {
+					let entry = T::TargetPegOracle::get_raw_entry(*source, *oracle_asset, *asset_id, *period)
 						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
 					((entry.price.0, entry.price.1), entry.updated_at.saturated_into())
 				}
