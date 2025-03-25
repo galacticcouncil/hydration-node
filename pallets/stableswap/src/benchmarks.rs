@@ -60,10 +60,10 @@ where
 	// Worst case pool are those with pegs
 	let peg_source = vec![
 		PegSource::Value((1, 1)),
-		PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
-		PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
-		PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
-		PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+		PegSource::AssetOracle((*b"benchmar", OraclePeriod::LastBlock, asset_a)),
+		PegSource::AssetOracle((*b"benchmar", OraclePeriod::LastBlock, asset_a)),
+		PegSource::AssetOracle((*b"benchmar", OraclePeriod::LastBlock, asset_a)),
+		PegSource::AssetOracle((*b"benchmar", OraclePeriod::LastBlock, asset_a)),
 	];
 	assert_eq!(peg_source.len() as u32, MAX_ASSETS_IN_POOL);
 	let first_asset_id = asset_ids[0];
@@ -142,10 +142,10 @@ benchmarks! {
 		}
 		// 5 sources
 		let peg_source = vec![PegSource::Value((1,1)),
-			PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
-			PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
-			PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
-			PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock)),
+			PegSource::AssetOracle((*b"benchmar", OraclePeriod::LastBlock, asset_a)),
+			PegSource::AssetOracle((*b"benchmar", OraclePeriod::LastBlock, asset_a)),
+			PegSource::AssetOracle((*b"benchmar", OraclePeriod::LastBlock, asset_a)),
+			PegSource::AssetOracle((*b"benchmar", OraclePeriod::LastBlock, asset_a)),
 		];
 		assert_eq!(peg_source.len() as u32, MAX_ASSETS_IN_POOL);
 		let first_asset_id = asset_ids[0];

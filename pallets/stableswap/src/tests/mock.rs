@@ -320,7 +320,7 @@ impl ExtBuilder {
 				if let Some(pegs) = pegs {
 					assert!(pegs.len() == pool.assets.len());
 					let first_peg = vec![PegSource::Value((1, 1))];
-					let peg_sources = vec![PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock)); pegs.len() - 1];
+					let peg_sources = vec![PegSource::AssetOracle((*b"testorac", OraclePeriod::LastBlock, pool_id)); pegs.len() - 1];
 					let peg_sources = [first_peg, peg_sources].concat();
 
 					let first_asset = pool.assets[0];
