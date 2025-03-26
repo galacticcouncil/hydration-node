@@ -12214,6 +12214,7 @@ dependencies = [
  "precompile-utils",
  "pretty_assertions",
  "primitives",
+ "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
  "scraper",

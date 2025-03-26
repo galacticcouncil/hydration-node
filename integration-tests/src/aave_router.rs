@@ -13,7 +13,7 @@ use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
+use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin, DCA};
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::EvmAddress;
@@ -224,6 +224,75 @@ fn buy_dot() {
 			}]
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
+	})
+}
+
+#[test]
+fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
+	with_atoken(|| {
+		//State needs to be set up so rounding happens in aave contract
+		let amount_to_sell = 384586145866073;
+		hydradx_run_to_next_block();
+		assert_ok!(Currencies::deposit(DOT, &BOB.into(), 6 * BAG));
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			DOT,
+			ADOT,
+			2 * BAG,
+			2 * BAG,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+		));
+
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			BAG / 2,
+			BAG / 2,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+		));
+
+		hydradx_run_to_next_block();
+
+		//Act and assert
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			ADOT,
+			DOT,
+			amount_to_sell,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: ADOT,
+				asset_out: DOT,
+			}]
+		));
+	})
+}
+
+#[test]
+fn sell_dot_should_work_when_more_asset_out_received_due_aave_contract_rounding() {
+	with_aave(|| {
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			55108183363806,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+		));
 	})
 }
 

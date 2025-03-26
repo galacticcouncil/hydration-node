@@ -36,6 +36,7 @@ pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 
+use hydradx_traits::router::PoolType::Aave;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use pallet_broadcast::types::IncrementalIdType;
 pub use pallet_broadcast::types::{ExecutionType, Fee};
@@ -280,6 +281,7 @@ pub mod pallet {
 					trade.asset_out,
 					user_balance_of_asset_out_before_trade,
 					trade_amount.amount_out,
+					Some(trade.pool),
 				)?;
 			}
 
@@ -287,6 +289,7 @@ pub mod pallet {
 
 			Self::ensure_that_user_spent_asset_in_at_least(
 				who,
+				None,
 				asset_in,
 				user_balance_of_asset_in_before_trade,
 				first_trade.amount_in,
@@ -515,6 +518,7 @@ impl<T: Config> Pallet<T> {
 
 			Self::ensure_that_user_spent_asset_in_at_least(
 				who.clone(),
+				Some(trade.pool),
 				trade.asset_in,
 				user_balance_of_asset_in_before_trade,
 				trade_amount.amount_in,
@@ -523,12 +527,14 @@ impl<T: Config> Pallet<T> {
 
 		SkipEd::<T>::kill();
 
+		let last_trade = route.last().ok_or(Error::<T>::InvalidRoute)?;
 		Self::ensure_that_user_received_asset_out_at_most(
 			who,
 			asset_in,
 			asset_out,
 			user_balance_of_asset_out_before_trade,
 			last_trade_amount.amount_out,
+			Some(last_trade.pool),
 		)?;
 
 		Self::deposit_event(Event::Executed {
@@ -582,7 +588,13 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		user_balance_of_asset_out_before_trade: T::Balance,
 		expected_received_amount: T::Balance,
+		pool_type_to_skip: Option<PoolType<T::AssetId>>,
 	) -> Result<(), DispatchError> {
+		if let Some(pool_type) = pool_type_to_skip {
+			if pool_type == Aave {
+				return Ok(());
+			}
+		}
 		let user_balance_of_asset_out_after_trade =
 			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 
@@ -609,10 +621,16 @@ impl<T: Config> Pallet<T> {
 
 	fn ensure_that_user_spent_asset_in_at_least(
 		who: T::AccountId,
+		pool_type_to_skip: Option<PoolType<T::AssetId>>,
 		asset_in: T::AssetId,
 		user_balance_of_asset_in_before_trade: T::Balance,
 		expected_spent_amount: T::Balance,
 	) -> Result<(), DispatchError> {
+		if let Some(pool_type) = pool_type_to_skip {
+			if pool_type == Aave {
+				return Ok(());
+			}
+		}
 		let user_balance_of_asset_in_after_trade =
 			T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
@@ -622,7 +640,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(
 			actual_spent_amount >= expected_spent_amount,
-			Error::<T>::InvalidRouteExecution
+			Error::<T>::InvalidRouteExecution,
 		);
 
 		Ok(())
