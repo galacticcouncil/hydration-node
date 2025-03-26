@@ -30,6 +30,7 @@ mod otc;
 mod polkadot_test_net;
 mod referrals;
 mod router;
+mod stableswap;
 mod staking;
 mod transact_call_filter;
 mod utility;

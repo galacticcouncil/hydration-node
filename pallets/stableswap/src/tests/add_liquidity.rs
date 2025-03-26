@@ -1,4 +1,5 @@
 use crate::tests::mock::*;
+use crate::tests::to_bounded_asset_vec;
 use crate::types::PoolInfo;
 use crate::{assert_balance, to_precision, Error};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
@@ -29,7 +30,7 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				amplification,
 				Permill::from_percent(0),
 			));
@@ -148,7 +149,7 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				amplification,
 				Permill::from_percent(0),
 			));
@@ -176,6 +177,7 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 			assert_balance!(pool_account, asset_b, 0u128);
 		});
 }
+
 #[test]
 fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 	let asset_a: AssetId = 1;
@@ -527,7 +529,7 @@ fn add_initial_liquidity_should_work_when_asset_have_different_decimals() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				amplification,
 				Permill::from_percent(0),
 			));
@@ -823,6 +825,117 @@ fn add_liquidity_shares_should_fail_when_pool_is_empty() {
 					amount + 3, // add liquidity for shares uses slightly more
 				),
 				Error::<Test>::InvalidInitialLiquidity
+			);
+		});
+}
+
+#[test]
+fn add_assets_liquidity_should_work_when_initial_liquidity_has_been_provided() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, 1, 200 * ONE),
+			(BOB, 2, 200 * ONE),
+			(ALICE, 1, 200 * ONE),
+			(ALICE, 2, 200 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 100 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 100 * ONE;
+
+			let pool_account = pool_account(pool_id);
+
+			assert_ok!(Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				BoundedVec::truncate_from(vec![
+					AssetAmount::new(asset_a, amount_added),
+					AssetAmount::new(asset_b, amount_added),
+				]),
+				0u128,
+			));
+
+			assert_balance!(BOB, asset_a, 100 * ONE);
+			assert_balance!(BOB, asset_b, 100 * ONE);
+			assert_balance!(BOB, pool_id, 199999999999999999998);
+			assert_balance!(pool_account, asset_a, 200 * ONE);
+			assert_balance!(pool_account, asset_b, 200 * ONE);
+		});
+}
+
+#[test]
+fn add_assets_liquidity_should_fail_when_min_required_amount_is_not_reached() {
+	let asset_a: AssetId = 1;
+	let asset_b: AssetId = 2;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, 1, 200 * ONE),
+			(BOB, 2, 200 * ONE),
+			(ALICE, 1, 200 * ONE),
+			(ALICE, 2, 200 * ONE),
+		])
+		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
+		.with_pool(
+			ALICE,
+			PoolInfo::<AssetId, u64> {
+				assets: vec![asset_a, asset_b].try_into().unwrap(),
+				initial_amplification: NonZeroU16::new(100).unwrap(),
+				final_amplification: NonZeroU16::new(100).unwrap(),
+				initial_block: 0,
+				final_block: 0,
+				fee: Permill::from_percent(0),
+			},
+			InitialLiquidity {
+				account: ALICE,
+				assets: vec![
+					AssetAmount::new(asset_a, 100 * ONE),
+					AssetAmount::new(asset_b, 100 * ONE),
+				],
+			},
+		)
+		.build()
+		.execute_with(|| {
+			let pool_id = get_pool_id_at(0);
+
+			let amount_added = 100 * ONE;
+
+			assert_noop!(
+				Stableswap::add_assets_liquidity(
+					RuntimeOrigin::signed(BOB),
+					pool_id,
+					BoundedVec::truncate_from(vec![
+						AssetAmount::new(asset_a, amount_added),
+						AssetAmount::new(asset_b, amount_added),
+					]),
+					299999999999999999998u128,
+				),
+				Error::<Test>::SlippageLimit
 			);
 		});
 }

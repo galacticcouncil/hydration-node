@@ -4462,7 +4462,13 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 	let asset_in: AssetId = *asset_ids.last().unwrap();
 	let asset_out: AssetId = *asset_ids.first().unwrap();
 
-	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
+	Stableswap::create_pool(
+		RuntimeOrigin::root(),
+		pool_id,
+		BoundedVec::truncate_from(asset_ids),
+		amplification,
+		fee,
+	)?;
 
 	Stableswap::add_liquidity(
 		RuntimeOrigin::signed(BOB.into()),
@@ -4530,7 +4536,13 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 	let asset_in: AssetId = asset_ids[1];
 	let asset_out: AssetId = asset_ids[2];
 
-	Stableswap::create_pool(RuntimeOrigin::root(), pool_id, asset_ids, amplification, fee)?;
+	Stableswap::create_pool(
+		RuntimeOrigin::root(),
+		pool_id,
+		BoundedVec::truncate_from(asset_ids),
+		amplification,
+		fee,
+	)?;
 
 	Stableswap::add_liquidity(
 		RuntimeOrigin::signed(BOB.into()),
