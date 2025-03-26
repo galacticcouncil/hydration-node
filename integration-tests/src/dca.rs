@@ -45,15 +45,27 @@ mod temp {
 	use frame_support::traits::tokens::{Fortitude, Preservation};
 	use hex_literal::hex;
 	use hydradx_runtime::evm::aave_trade_executor::Aave;
-	use hydradx_runtime::{EVMAccounts, Runtime, DCA};
+	use hydradx_runtime::{Currencies, EVMAccounts, Runtime, DCA};
 	use hydradx_traits::router::TradeExecution;
 	use hydradx_traits::router::{PoolType, Trade};
 	use pallet_currencies::fungibles::FungibleCurrencies;
+	use pallet_omnipool::types::Balance;
 
-	const ONE: u128 = 1 * 10_u128.pow(10);
+	use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
+	use hydradx_traits::evm::EvmAddress;
+	use sp_runtime::AccountId32;
 
+	fn use_specific_account(ss58_address: &str) -> Result<AccountId32, &'static str> {
+		match AccountId32::from_ss58check(ss58_address) {
+			Ok(account_id) => Ok(account_id),
+			Err(_) => Err("Invalid SS58 address"),
+		}
+	}
+
+	use proptest::prelude::*;
+	use sp_core::crypto::Ss58Codec;
 	#[test]
-	fn dca_evm() {
+	fn dca_should_work_when_atoken_is_sold() {
 		TestNet::reset();
 
 		hydra_live_ext(crate::dca::PATH_TO_SNAPSHOT).execute_with(|| {
@@ -62,80 +74,17 @@ mod temp {
 
 			let acc = use_specific_account("7MopA2Ettt1mm3VJMbS29SNirjTXmNwJ4W4KbbnLsXfN1fY7").unwrap();
 
-			let trades = vec![Trade {
-				pool: PoolType::Aave,
-				asset_in: 1001,
-				asset_out: 5,
-			}];
-
 			//Act
 			let schedule_id = 13883;
 			let schedule = DCA::schedules(schedule_id);
 			assert!(schedule.is_some());
 
-			hydradx_run_to_next_block(); //It fails in router in the first execution of the route
+			hydradx_run_to_next_block();
 
-			let schedule_id = 13883;
+			//Assert that the DCA still alive - so not terminated
 			let schedule = DCA::schedules(schedule_id);
-			assert!(schedule.is_none());
-
-			//This is commented the same as happens in DCA,so selling X amount of ATOKEN, but it works well...
-			let initBalance = 98899900000000000;
-			assert_eq!(hydradx_runtime::Currencies::free_balance(5, &acc), initBalance);
-
-			let user_balance_of_asset_in_before_trade = FungibleCurrencies::<Runtime>::reducible_balance(
-				1001,
-				&acc.clone(),
-				Preservation::Expendable,
-				Fortitude::Polite,
-			);
-
-			let amount_to_sell = 200000000000;
-
-			Aave::execute_sell(
-				hydradx_runtime::RuntimeOrigin::signed(acc.clone().into()),
-				PoolType::Aave,
-				1001,
-				5,
-				amount_to_sell,
-				amount_to_sell,
-			)
-			.unwrap();
-			/*assert_ok!(Router::sell(
-				hydradx_runtime::RuntimeOrigin::signed(acc.clone().into()),
-				1001,
-				5,
-				amount_to_sell,
-				amount_to_sell,
-				trades
-			));*/
-
-			let user_balance_of_asset_in_after_trade = FungibleCurrencies::<Runtime>::reducible_balance(
-				1001,
-				&acc.clone(),
-				Preservation::Preserve,
-				Fortitude::Polite,
-			);
-
-			let diff = user_balance_of_asset_in_before_trade - user_balance_of_asset_in_after_trade;
-			assert_eq!(diff, amount_to_sell);
-
-			assert_eq!(
-				hydradx_runtime::Currencies::free_balance(5, &acc),
-				initBalance + amount_to_sell
-			);*/
+			assert!(schedule.is_some());
 		});
-	}
-
-	use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
-	use sp_core::crypto::Ss58Codec;
-	use sp_runtime::AccountId32;
-
-	fn use_specific_account(ss58_address: &str) -> Result<AccountId32, &'static str> {
-		match AccountId32::from_ss58check(ss58_address) {
-			Ok(account_id) => Ok(account_id),
-			Err(_) => Err("Invalid SS58 address"),
-		}
 	}
 }
 
