@@ -289,10 +289,10 @@ pub mod pallet {
 
 			Self::ensure_that_user_spent_asset_in_at_least(
 				who,
-				None,
 				asset_in,
 				user_balance_of_asset_in_before_trade,
 				first_trade.amount_in,
+				None,
 			)?;
 
 			//TODO: we want to deprecate it once unified events are working fine
@@ -518,10 +518,10 @@ impl<T: Config> Pallet<T> {
 
 			Self::ensure_that_user_spent_asset_in_at_least(
 				who.clone(),
-				Some(trade.pool),
 				trade.asset_in,
 				user_balance_of_asset_in_before_trade,
 				trade_amount.amount_in,
+				Some(trade.pool),
 			)?;
 		}
 
@@ -621,10 +621,10 @@ impl<T: Config> Pallet<T> {
 
 	fn ensure_that_user_spent_asset_in_at_least(
 		who: T::AccountId,
-		pool_type_to_skip: Option<PoolType<T::AssetId>>,
 		asset_in: T::AssetId,
 		user_balance_of_asset_in_before_trade: T::Balance,
 		expected_spent_amount: T::Balance,
+		pool_type_to_skip: Option<PoolType<T::AssetId>>,
 	) -> Result<(), DispatchError> {
 		if let Some(pool_type) = pool_type_to_skip {
 			if pool_type == Aave {
