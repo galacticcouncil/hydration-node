@@ -1,8 +1,6 @@
 name: Build runtime with srtool
 
 on:
-  # FIXME: remove `pull_request` trigger after the test run
-  pull_request:
   push:
     tags:
       - v*
@@ -23,7 +21,7 @@ permissions:
 jobs:
   build-release:
     name: Build and publish hydradx runtime
-    runs-on: lark-test # FIXME: Change to lark
+    runs-on: lark
     steps:
       - name: Fix leftovers permissions
         run: |
