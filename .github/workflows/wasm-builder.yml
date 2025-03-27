@@ -46,7 +46,7 @@ jobs:
           cargo install --force --locked --git https://github.com/chevdor/srtool-cli $TAG
           type srtool # Verify the installation
 
-      - name: Fix leftovers permissions
+      - name: Fix permissions before srtool build
         run: |
           sudo chown -R $USER:1001 ${{ github.workspace }}
           sudo chmod -R g+w ${{ github.workspace }}
