@@ -256,22 +256,24 @@ pub mod pallet {
 			let route = Self::get_route_or_default(route, asset_pair)?;
 			Self::ensure_route_arguments(&asset_pair, &route)?;
 
-			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
-
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
-			let route_length = route.len();
+			let user_balance = T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+			ensure!(user_balance >= first_trade.amount_in, Error::<T>::InsufficientBalance);
 
+			let trader_account = Self::router_account();
+
+			T::Currency::transfer(asset_in, &who, &trader_account.clone(), first_trade.amount_in, Preservation::Expendable)?;
+
+			let route_length = route.len();
 			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
-				let user_balance_of_asset_out_before_trade =
-					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
+
+				let origin: OriginFor<T> = Origin::<T>::Signed(trader_account.clone()).into();
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
 					trade.pool,
@@ -282,28 +284,19 @@ pub mod pallet {
 				);
 
 				handle_execution_error!(execution_result);
-
-				Self::ensure_that_user_received_asset_out_at_most(
-					who.clone(),
-					trade.asset_in,
-					trade.asset_out,
-					user_balance_of_asset_out_before_trade,
-					trade_amount.amount_out,
-					Some(trade.pool),
-				)?;
 			}
 
 			SkipEd::<T>::kill();
 
-			Self::ensure_that_user_spent_asset_in_at_least(
-				who,
-				asset_in,
-				user_balance_of_asset_in_before_trade,
-				first_trade.amount_in,
-				None,
-			)?;
+			let final_temp_balance = T::Currency::reducible_balance(
+				asset_out,
+				&trader_account.clone(),
+				Preservation::Expendable,
+				Fortitude::Polite,
+			);
 
-			//TODO: we want to deprecate it once unified events are working fine
+			T::Currency::transfer(asset_out, &trader_account, &who, final_temp_balance, Preservation::Expendable)?;
+
 			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
