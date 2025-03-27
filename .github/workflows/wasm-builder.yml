@@ -1,6 +1,8 @@
 name: Build runtime with srtool
 
 on:
+  # FIXME: remove `pull_request` trigger after the test run
+  pull_request:
   push:
     tags:
       - v*
@@ -14,6 +16,9 @@ on:
 env:
   SUBWASM_VERSION: 0.21.3
   CHAIN: hydradx
+
+permissions:
+  contents: write
 
 jobs:
   build-release:
@@ -53,9 +58,7 @@ jobs:
             | tee srtool-build.log
           
           JSON=$(cat srtool-build.log | tail -n 1)
-
           echo "json=$JSON" >> $GITHUB_OUTPUT
-          echo $JSON | jq .
 
           PROP=`echo $JSON | jq -r .runtimes.compact.prop`
           echo "proposal_hash=$PROP" >> $GITHUB_OUTPUT
@@ -83,9 +86,9 @@ jobs:
           subwasm info ${{ steps.srtool_build.outputs.wasm }} > ${{ env.CHAIN }}-info.txt
           cat ${{ env.CHAIN }}-info.txt
 
-          subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ env.CHAIN }}-subwam-info.json
-          subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ env.CHAIN }}-subwam-info.txt
-          cat ${{ env.CHAIN }}-subwam-info.txt
+          subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ env.CHAIN }}-subwasm-info.json
+          subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ env.CHAIN }}-subwasm-info.txt
+          cat ${{ env.CHAIN }}-subwasm-info.txt
 
       - name: Check the metadata diff
         run: |
@@ -101,6 +104,16 @@ jobs:
             ${{ env.CHAIN }}-srtool-digest.json
             ${{ env.CHAIN }}-metadata.json
             ${{ env.CHAIN }}-metadata.txt
-            ${{ env.CHAIN }}-subwam-info.json
-            ${{ env.CHAIN }}-subwam-info.txt
+            ${{ env.CHAIN }}-subwasm-info.json
+            ${{ env.CHAIN }}-subwasm-info.txt
             ${{ env.CHAIN }}-diff.txt
+
+      - name: Create draft release for this runtime build
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ env.CHAIN }}-subwasm-info.txt
+          generate_release_notes: true
+          draft: true
+          files: |
+            ${{ steps.srtool_build.outputs.wasm }}
+            ${{ steps.srtool_build.outputs.wasm_compressed }}
