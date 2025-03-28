@@ -17,6 +17,7 @@
 
 use crate as router;
 use crate::{Config, Trade};
+use frame_support::PalletId;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -156,7 +157,8 @@ parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
-
+	
+	pub const RouterPalletId: PalletId = PalletId(*b"routerac");
 }
 
 impl Config for Test {
@@ -172,6 +174,7 @@ impl Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
+	type PalletId = RouterPalletId;
 	type WeightInfo = ();
 }
 
@@ -394,6 +397,10 @@ macro_rules! impl_fake_executor {
 				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 				if !matches!(pool_type, $pool_type) {
 					return Err(ExecutorError::NotSupported);
+				}
+
+				if amount_in == INVALID_CALCULATION_AMOUNT {
+					return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
 				}
 
 				EXECUTED_SELLS.with(|v| {

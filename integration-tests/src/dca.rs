@@ -14,6 +14,8 @@ use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
 	Stableswap, Tokens, Treasury, DCA,
 };
+use hydradx_traits::evm::Erc20Encoding;
+use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
@@ -4078,6 +4080,60 @@ fn terminate_should_work_for_freshly_created_dca() {
 		let schedule = DCA::schedules(schedule_id);
 		assert!(schedule.is_none());
 	});
+}
+
+mod aave_atoken {
+	use super::*;
+	use frame_support::assert_ok;
+	use frame_support::traits::fungibles::Inspect;
+	use frame_support::traits::tokens::{Fortitude, Preservation};
+	use hex_literal::hex;
+	use hydradx_runtime::evm::aave_trade_executor::Aave;
+	use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
+	use hydradx_runtime::{Currencies, EVMAccounts, Runtime, DCA};
+	use hydradx_traits::evm::EvmAddress;
+	use hydradx_traits::router::TradeExecution;
+	use hydradx_traits::router::{PoolType, Trade};
+	use pallet_currencies::fungibles::FungibleCurrencies;
+	use pallet_omnipool::types::Balance;
+	use proptest::prelude::*;
+	use sp_core::crypto::Ss58Codec;
+	use sp_runtime::AccountId32;
+
+	const PATH_TO_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT";
+
+	fn use_specific_account(ss58_address: &str) -> Result<AccountId32, &'static str> {
+		match AccountId32::from_ss58check(ss58_address) {
+			Ok(account_id) => Ok(account_id),
+			Err(_) => Err("Invalid SS58 address"),
+		}
+	}
+
+	//Ignored as snapshot too big
+	//To verify locally, download snapshot with command `./target/release/scraper save-storage --uri wss://paseo-rpc.play.hydration.cloud --at 0x3db005212a4ae320a2808c6813880b583dacbf7df60b0314420e88f4f2dfe989`
+	#[ignore]
+	#[test]
+	fn dca_should_work_when_atoken_is_sold() {
+		TestNet::reset();
+
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			//Arrange
+			assert_eq!(hydradx_runtime::System::block_number(), 5336);
+
+			let acc = use_specific_account("7MopA2Ettt1mm3VJMbS29SNirjTXmNwJ4W4KbbnLsXfN1fY7").unwrap();
+
+			//Act
+			let schedule_id = 13883;
+			let schedule = DCA::schedules(schedule_id);
+			assert!(schedule.is_some());
+
+			hydradx_run_to_next_block();
+
+			//Assert that the DCA still alive - so not terminated
+			let schedule = DCA::schedules(schedule_id);
+			assert!(schedule.is_some());
+		});
+	}
 }
 
 fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) {

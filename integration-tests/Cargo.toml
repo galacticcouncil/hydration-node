@@ -141,6 +141,7 @@ hex = { workspace = true }
 pretty_assertions = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
+proptest = { workspace = true }
 test-utils = { workspace = true }
 libsecp256k1 = { workspace = true }
 

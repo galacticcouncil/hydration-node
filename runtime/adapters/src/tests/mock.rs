@@ -357,6 +357,7 @@ impl pallet_route_executor::Config for Test {
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type PalletId = pallet_route_executor::DefaultRouterPalletId;
 	type WeightInfo = ();
 }
 

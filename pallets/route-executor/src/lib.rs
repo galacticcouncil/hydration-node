@@ -21,21 +21,26 @@
 use codec::MaxEncodedLen;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::PalletId;
+use frame_support::traits::fungibles::Mutate;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
+use sp_runtime::traits::Zero;
+use frame_support::traits::tokens::Preservation::Preserve;
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 
-use frame_system::ensure_signed;
+use frame_system::{ensure_signed, Origin};
+use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 
+use hydradx_traits::router::PoolType::Aave;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use pallet_broadcast::types::IncrementalIdType;
 pub use pallet_broadcast::types::{ExecutionType, Fee};
@@ -126,6 +131,10 @@ pub mod pallet {
 
 		/// Origin able to set route without validation
 		type ForceInsertOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		///Router pallet ID
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
@@ -247,22 +256,22 @@ pub mod pallet {
 			let route = Self::get_route_or_default(route, asset_pair)?;
 			Self::ensure_route_arguments(&asset_pair, &route)?;
 
-			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
-
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
-			let route_length = route.len();
+			let trader_account = Self::router_account();
 
+			T::Currency::transfer(asset_in, &who, &trader_account.clone(), first_trade.amount_in, Preservation::Expendable)?;
+
+			let route_length = route.len();
 			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
+			pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
-				let user_balance_of_asset_out_before_trade =
-					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
+
+				let origin: OriginFor<T> = Origin::<T>::Signed(trader_account.clone()).into();
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
 					trade.pool,
@@ -273,26 +282,19 @@ pub mod pallet {
 				);
 
 				handle_execution_error!(execution_result);
-
-				Self::ensure_that_user_received_asset_out_at_most(
-					who.clone(),
-					trade.asset_in,
-					trade.asset_out,
-					user_balance_of_asset_out_before_trade,
-					trade_amount.amount_out,
-				)?;
 			}
 
 			SkipEd::<T>::kill();
 
-			Self::ensure_that_user_spent_asset_in_at_least(
-				who,
-				asset_in,
-				user_balance_of_asset_in_before_trade,
-				first_trade.amount_in,
-			)?;
+			let amount_out = T::Currency::reducible_balance(
+				asset_out,
+				&trader_account.clone(),
+				Preservation::Expendable,
+				Fortitude::Polite,
+			);
 
-			//TODO: we want to deprecate it once unified events are working fine
+			T::Currency::transfer(asset_out, &trader_account, &who, amount_out, Preservation::Expendable)?;
+
 			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
@@ -302,6 +304,7 @@ pub mod pallet {
 			});
 
 			pallet_broadcast::Pallet::<T>::remove_from_context()?;
+			pallet_broadcast::Pallet::<T>::remove_swapper();
 
 			Ok(())
 		}
@@ -460,7 +463,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Pallet account address for do dry-run sell execution as validation
 	pub fn router_account() -> T::AccountId {
-		PalletId(*b"routerex").into_account_truncating()
+		T::PalletId::get().into_account_truncating()
 	}
 
 	fn do_sell(
@@ -474,72 +477,67 @@ impl<T: Config> Pallet<T> {
 		let who = ensure_signed(origin.clone())?;
 
 		ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
-
 		Self::ensure_route_size(route.len())?;
 
 		let asset_pair = AssetPair::new(asset_in, asset_out);
 		let route = Self::get_route_or_default(route, asset_pair)?;
 		Self::ensure_route_arguments(&asset_pair, &route)?;
 
-		let user_balance_of_asset_out_before_trade =
-			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
+		let trader_account = Self::router_account();
 
-		let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
-
-		let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
-		ensure!(
-			last_trade_amount.amount_out >= min_amount_out,
-			Error::<T>::TradingLimitReached
-		);
+		T::Currency::transfer(asset_in, &who, &trader_account.clone(), amount_in, Preservation::Expendable)?;
 
 		let route_length = route.len();
-
 		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
+		pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
-		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
-			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
+		for (trade_index, trade) in route.iter().enumerate() {
+			//TODO: we dont need skip at all
+			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, *trade);
 
-			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+			let temp_balance = T::Currency::reducible_balance(
+				trade.asset_in,
+				&trader_account.clone(),
+				Preservation::Expendable,
+				Fortitude::Polite,
+			);
+
+			let origin: OriginFor<T> = Origin::<T>::Signed(trader_account.clone()).into();
 
 			let execution_result = T::AMM::execute_sell(
-				origin.clone(),
+				origin,
 				trade.pool,
 				trade.asset_in,
 				trade.asset_out,
-				trade_amount.amount_in,
-				trade_amount.amount_out,
+				temp_balance,
+				T::Balance::zero(),
 			);
 
 			handle_execution_error!(execution_result);
-
-			Self::ensure_that_user_spent_asset_in_at_least(
-				who.clone(),
-				trade.asset_in,
-				user_balance_of_asset_in_before_trade,
-				trade_amount.amount_in,
-			)?;
 		}
 
 		SkipEd::<T>::kill();
 
-		Self::ensure_that_user_received_asset_out_at_most(
-			who,
-			asset_in,
+		let amount_out = T::Currency::reducible_balance(
 			asset_out,
-			user_balance_of_asset_out_before_trade,
-			last_trade_amount.amount_out,
-		)?;
+			&trader_account.clone(),
+			Preservation::Expendable,
+			Fortitude::Polite,
+		);
+
+		ensure!(amount_out >= min_amount_out, Error::<T>::TradingLimitReached);
+		T::Currency::transfer(asset_out, &trader_account, &who, amount_out, Preservation::Expendable)?;
 
 		Self::deposit_event(Event::Executed {
 			asset_in,
 			asset_out,
 			amount_in,
-			amount_out: last_trade_amount.amount_out,
+			amount_out,
 			event_id: next_event_id,
 		});
 
 		pallet_broadcast::Pallet::<T>::remove_from_context()?;
+		pallet_broadcast::Pallet::<T>::remove_swapper();
 
 		Ok(())
 	}
@@ -582,7 +580,13 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		user_balance_of_asset_out_before_trade: T::Balance,
 		expected_received_amount: T::Balance,
+		pool_type_to_skip: Option<PoolType<T::AssetId>>,
 	) -> Result<(), DispatchError> {
+		if let Some(pool_type) = pool_type_to_skip {
+			if pool_type == Aave {
+				return Ok(());
+			}
+		}
 		let user_balance_of_asset_out_after_trade =
 			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
 
@@ -612,7 +616,13 @@ impl<T: Config> Pallet<T> {
 		asset_in: T::AssetId,
 		user_balance_of_asset_in_before_trade: T::Balance,
 		expected_spent_amount: T::Balance,
+		pool_type_to_skip: Option<PoolType<T::AssetId>>,
 	) -> Result<(), DispatchError> {
+		if let Some(pool_type) = pool_type_to_skip {
+			if pool_type == Aave {
+				return Ok(());
+			}
+		}
 		let user_balance_of_asset_in_after_trade =
 			T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
 
@@ -622,7 +632,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(
 			actual_spent_amount >= expected_spent_amount,
-			Error::<T>::InvalidRouteExecution
+			Error::<T>::InvalidRouteExecution,
 		);
 
 		Ok(())
@@ -739,6 +749,8 @@ impl<T: Config> Pallet<T> {
 		Ok(amount_out)
 	}
 
+	//TODO: this and all other calculation wont be needed, also in benchmark, remove it
+	//TODO: also remove the ensyure checks
 	fn calculate_sell_trade_amounts(
 		route: &[Trade<T::AssetId>],
 		amount_in: T::Balance,
@@ -1039,5 +1051,12 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
 
 		FixedU128::checked_from_rational(rat_as_u128.0, rat_as_u128.1)
+	}
+}
+
+pub struct DefaultRouterPalletId;
+impl Get<PalletId> for DefaultRouterPalletId {
+	fn get() -> PalletId {
+		PalletId(*b"routerex")
 	}
 }

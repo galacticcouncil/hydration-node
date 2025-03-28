@@ -1206,6 +1206,7 @@ parameter_types! {
 	pub const DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 
+	pub const RouterPalletId: PalletId = PalletId(*b"routerex");
 }
 
 impl pallet_route_executor::Config for Runtime {
@@ -1222,6 +1223,7 @@ impl pallet_route_executor::Config for Runtime {
 	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type OraclePeriod = RouteValidationOraclePeriod;
+	type PalletId = RouterPalletId;
 }
 
 parameter_types! {
