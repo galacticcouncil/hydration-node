@@ -266,6 +266,7 @@ pub mod pallet {
 
 			let route_length = route.len();
 			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
+			pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
 				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
@@ -303,6 +304,7 @@ pub mod pallet {
 			});
 
 			pallet_broadcast::Pallet::<T>::remove_from_context()?;
+			pallet_broadcast::Pallet::<T>::remove_swapper();
 
 			Ok(())
 		}
@@ -487,6 +489,7 @@ impl<T: Config> Pallet<T> {
 
 		let route_length = route.len();
 		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
+		pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
 		for (trade_index, trade) in route.iter().enumerate() {
 			//TODO: we dont need skip at all
@@ -534,6 +537,7 @@ impl<T: Config> Pallet<T> {
 		});
 
 		pallet_broadcast::Pallet::<T>::remove_from_context()?;
+		pallet_broadcast::Pallet::<T>::remove_swapper();
 
 		Ok(())
 	}
