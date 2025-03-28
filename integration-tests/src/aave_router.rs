@@ -397,6 +397,7 @@ fn executor_ensures_that_out_asset_is_underlying() {
 #[test]
 fn executor_ensures_valid_asset_pair() {
 	with_atoken(|| {
+		assert_ok!(Currencies::deposit(HDX, &ALICE.into(), BAG));
 		assert_noop!(
 			Router::sell(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
