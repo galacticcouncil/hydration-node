@@ -108,13 +108,14 @@ jobs:
 
       - name: Generate draft release body
         run: |
+          json="${{ steps.srtool_build.outputs.json }}"
           srtool_version=$(echo "$json" | jq -r .gen)
           rustc_version=$(echo "$json" | jq -r .rustc)
           
           echo "## Runtime" > RELEASE_BODY.md
           echo "" >> RELEASE_BODY.md
           echo "The information about the runtime included in this release can be found below." >> RELEASE_BODY.md
-          echo "The runtime has been built using srtool v${srtool_version} and rustc ${rustc_version}." >> RELEASE_BODY.md
+          echo "The runtime has been built using [${srtool_version}](https://github.com/paritytech/srtool) and \`${rustc_version}\`." >> RELEASE_BODY.md
           echo "" >> RELEASE_BODY.md
           echo "\`\`\`" >> RELEASE_BODY.md
           cat ${{ env.CHAIN }}-subwasm-info.txt >> RELEASE_BODY.md
