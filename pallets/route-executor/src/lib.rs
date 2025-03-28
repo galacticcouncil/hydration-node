@@ -285,14 +285,14 @@ pub mod pallet {
 
 			SkipEd::<T>::kill();
 
-			let final_temp_balance = T::Currency::reducible_balance(
+			let amount_out = T::Currency::reducible_balance(
 				asset_out,
 				&trader_account.clone(),
 				Preservation::Expendable,
 				Fortitude::Polite,
 			);
 
-			T::Currency::transfer(asset_out, &trader_account, &who, final_temp_balance, Preservation::Expendable)?;
+			T::Currency::transfer(asset_out, &trader_account, &who, amount_out, Preservation::Expendable)?;
 
 			Self::deposit_event(Event::Executed {
 				asset_in,
