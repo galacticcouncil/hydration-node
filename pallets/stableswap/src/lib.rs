@@ -75,7 +75,8 @@ pub mod types;
 pub mod weights;
 
 use crate::types::{
-	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
+	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolSnapshot, PoolState, StableswapHooks,
+	Tradability,
 };
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
@@ -1231,6 +1232,14 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+}
+
+// Pallet public functions
+impl<T: Config> Pallet<T> {
+	//  Returns start of the pool at the beginning of the block
+	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
+		None
+	}
 }
 
 impl<T: Config> Pallet<T> {

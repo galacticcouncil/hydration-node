@@ -8358,6 +8358,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-hsm"
+version = "0.1.0"
+dependencies = [
+ "ethabi",
+ "evm",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "hydradx-traits",
+ "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "pallet-evm",
+ "pallet-stableswap",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-identity"
 version = "38.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch2#102d917df1356688ad83606c269814f1eeab6c9f"
