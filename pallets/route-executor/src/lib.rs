@@ -260,9 +260,6 @@ pub mod pallet {
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
-			let user_balance = T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-			ensure!(user_balance >= first_trade.amount_in, Error::<T>::InsufficientBalance);
-
 			let trader_account = Self::router_account();
 
 			T::Currency::transfer(asset_in, &who, &trader_account.clone(), first_trade.amount_in, Preservation::Expendable)?;
@@ -1050,5 +1047,12 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
 
 		FixedU128::checked_from_rational(rat_as_u128.0, rat_as_u128.1)
+	}
+}
+
+pub struct DefaultRouterPalletId;
+impl Get<PalletId> for DefaultRouterPalletId {
+	fn get() -> PalletId {
+		PalletId(*b"routerex")
 	}
 }
