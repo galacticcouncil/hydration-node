@@ -36,7 +36,7 @@ jobs:
         with:
           rustflags: ''
 
-      - name: Install prerequisites
+      - name: Install srtool
         run: |
           [[ -n "${{ github.event.inputs.srtool_image }}" ]] \
             && TAG="--tag ${{ github.event.inputs.srtool_image }}" || TAG=""
@@ -49,7 +49,7 @@ jobs:
           sudo chown -R $USER:1001 ${{ github.workspace }}
           sudo chmod -R g+w ${{ github.workspace }}
 
-      - name: Srtool build
+      - name: Build runtime with srtool
         id: srtool_build
         run: |
           srtool -e docker build -p "${{ env.CHAIN }}-runtime" -r "runtime/${{ env.CHAIN }}" --app --json \
