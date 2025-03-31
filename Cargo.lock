@@ -8366,6 +8366,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex-literal",
+ "hydra-dx-math",
  "hydradx-traits",
  "log",
  "module-evm-utility-macro",

@@ -11,17 +11,35 @@ use frame_support::pallet_prelude::IsType;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::{fungibles::Mutate, ExistenceRequirement};
+use frame_system::offchain::SendTransactionTypes;
+use frame_system::offchain::SubmitTransaction;
+use frame_system::offchain::{AppCrypto, SendUnsignedTransaction, SignedPayload, Signer, SigningTypes};
+use frame_system::pallet_prelude::BlockNumberFor;
+use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_stableswap::types::PoolSnapshot;
+use sp_core::offchain::Duration;
 use sp_core::Get;
 use sp_core::H256;
 use sp_core::U256;
+use sp_runtime::offchain::storage_lock::Time;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::AccountId32;
 use sp_runtime::ArithmeticError;
 use sp_runtime::DispatchError;
+use sp_runtime::FixedI128;
+use sp_runtime::Permill;
 use sp_runtime::RuntimeDebug;
+use sp_runtime::{
+	offchain::{
+		storage::StorageValueRef,
+		storage_lock::{BlockAndTime, StorageLock},
+	},
+	transaction_validity::{
+		InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity, ValidTransaction,
+	},
+};
+use sp_runtime::{AccountId32, FixedPointNumber, FixedU128, Saturating};
 use sp_std::collections;
 use sp_std::vec::Vec;
 
@@ -37,6 +55,14 @@ pub enum ERC20Function {
 	Mint = "mint(address,uint256)",
 	Burn = "burn(uint256)",
 }
+
+/// Unsigned transaction priority for arbitrage
+pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
+
+/// Offchain Worker lock
+pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
+/// Lock timeout in milliseconds
+pub const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -61,7 +87,10 @@ pub mod pallet {
 	pub const HSM_IDENTIFIER: &[u8] = b"hsm/acct";
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_stableswap::Config {
+	pub trait Config: frame_system::Config + pallet_stableswap::Config + SendTransactionTypes<Call<Self>>
+	where
+		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -115,7 +144,10 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {
+	pub enum Event<T: Config>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		/// A new collateral asset was added
 		CollateralAdded {
 			asset_id: T::AssetId,
@@ -151,6 +183,11 @@ pub mod pallet {
 			amount_in: Balance,
 			amount_out: Balance,
 		},
+		/// Arbitrage executed
+		ArbitrageExecuted {
+			asset_id: T::AssetId,
+			hollar_amount: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -175,13 +212,60 @@ pub mod pallet {
 		InvalidEVMInteraction,
 		/// Decimal retrieval failed
 		DecimalRetrievalFailed,
+		/// No arbitrage opportunity
+		NoArbitrageOpportunity,
+		/// Offchain lock error
+		OffchainLockError,
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			// Clear the Hollar Amount Received storage on finalize
 			<HollarAmountReceived<T>>::clear(u32::MAX, None);
+		}
+
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			// Only validators should run the offchain worker
+			if sp_io::offchain::is_validator() {
+				let _ = Self::process_arbitrage_opportunities(block_number);
+			}
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
+		type Call = Call<T>;
+
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match source {
+				TransactionSource::External => {
+					// Disallow external unsigned transactions
+					return InvalidTransaction::Call.into();
+				}
+				TransactionSource::Local => {}   // produced by our offchain worker
+				TransactionSource::InBlock => {} // included in block
+			};
+
+			let valid_tx = |provide| {
+				ValidTransaction::with_tag_prefix("hsm-execute-arbitrage")
+					.priority(UNSIGNED_TXS_PRIORITY)
+					.and_provides([&provide])
+					.longevity(3)
+					.propagate(false)
+					.build()
+			};
+
+			match call {
+				Call::execute_arbitrage { collateral_asset_id } => valid_tx(b"execute_arbitrage".to_vec()),
+				_ => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 
@@ -437,6 +521,60 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Execute arbitrage opportunity between HSM and collateral stable pool
+		///
+		/// This call detects and executes arbitrage opportunities by minting Hollar,
+		/// swapping it for collateral on HSM, then swapping that collateral for Hollar
+		/// on the stable pool, and burning the hollar at the end.
+		///
+		/// The call is unsigned and should only be called by the offchain worker.
+		///
+		/// Parameters:
+		/// - `collateral_asset_id`: The ID of the collateral asset to check for arbitrage
+		#[pallet::call_index(5)]
+		#[pallet::weight(10_000)]
+		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
+			ensure_none(origin)?;
+
+			// Check if the asset is a valid collateral
+			ensure!(Self::is_collateral(collateral_asset_id), Error::<T>::AssetNotApproved);
+
+			// Get the collateral info
+			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
+
+			// Calculate the arbitrage opportunity
+			let (max_buy_amt, hollar_amount_to_trade) =
+				Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
+
+			// If there's an opportunity, execute it
+			if hollar_amount_to_trade > 0 {
+				let hsm_account = Self::account_id();
+
+				// Mint hollar
+				Self::mint_hollar(&hsm_account, hollar_amount_to_trade)?;
+
+				// Sell hollar in HSM for collateral
+				let collateral_received =
+					Self::do_sell_hollar(&hsm_account, collateral_asset_id, hollar_amount_to_trade)?;
+
+				// Buy hollar in the collateral stable pool
+				let hollar_received = Self::do_buy_hollar(&hsm_account, collateral_asset_id, collateral_received)?;
+
+				// Burn the hollar
+				Self::burn_hollar(hollar_received)?;
+
+				// Emit event
+				Self::deposit_event(Event::<T>::ArbitrageExecuted {
+					asset_id: collateral_asset_id,
+					hollar_amount: hollar_amount_to_trade,
+				});
+
+				Ok(())
+			} else {
+				Err(Error::<T>::NoArbitrageOpportunity.into())
+			}
+		}
 	}
 }
 
@@ -478,13 +616,13 @@ where
 			.position(|&asset| asset == collateral_asset)
 			.ok_or(pallet_stableswap::Error::<T>::AssetNotInPool)?;
 
-		return Ok((
+		Ok((
 			hollar_pos,
 			collateral_pos,
 			pool_snapshot.reserves,
 			pool_snapshot.decimals,
 			pool_snapshot.pegs.into_inner(),
-		));
+		))
 	}
 
 	/// Selling Hollar to get collateral asset
@@ -527,9 +665,7 @@ where
 		// 3. Calculate execution price by simulating a swap
 		let input_amount = Self::simulate_in_given_out(pool_id, collateral_asset, T::HollarId::get(), hollar_amount)?;
 
-		let execution_price = input_amount
-			.checked_div(hollar_amount)
-			.ok_or(ArithmeticError::DivisionByZero)?;
+		let execution_price = (input_amount, hollar_amount);
 
 		// 4. Calculate final buy price with fee
 		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
@@ -540,8 +676,11 @@ where
 		// 6. Calculate max price
 		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 
-		// Check if price exceeds max price
-		ensure!(buy_price <= max_price, Error::<T>::MaxBuyPriceExceeded);
+		// Check if price exceeds max price - compare the ratios
+		// For (a,b) <= (c,d), we check a*d <= b*c
+		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
+		let max_price_check = buy_price.1.saturating_mul(max_price.0);
+		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
 
 		// 7. Check max holding limit if configured
 		if let Some(max_holding) = collateral_info.max_in_holding {
@@ -756,9 +895,8 @@ where
 		let hollar_amount =
 			Self::simulate_out_given_in(pool_id, collateral_asset, T::HollarId::get(), collateral_amount)?;
 
-		let execution_price = hollar_amount
-			.checked_div(collateral_amount)
-			.ok_or(ArithmeticError::DivisionByZero)?;
+		// Create a PegType for execution price (hollar_amount/collateral_amount)
+		let execution_price = (hollar_amount, collateral_amount);
 
 		// 4. Calculate final buy price with fee
 		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
@@ -776,8 +914,11 @@ where
 		// 6. Calculate max price
 		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 
-		// Check if price exceeds max price
-		ensure!(buy_price <= max_price, Error::<T>::MaxBuyPriceExceeded);
+		// Check if price exceeds max price - compare the ratios
+		// For (a,b) <= (c,d), we check a*d <= b*c
+		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
+		let max_price_check = buy_price.1.saturating_mul(max_price.0);
+		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
 
 		// Check HSM has enough collateral
 		let current_holding = CollateralHoldings::<T>::get(collateral_asset);
@@ -873,5 +1014,125 @@ where
 		amount_out: Balance,
 	) -> Result<Balance, DispatchError> {
 		Ok(0u128)
+	}
+
+	/// Process arbitrage opportunities for all collateral assets
+	fn process_arbitrage_opportunities(block_number: BlockNumberFor<T>) -> Result<(), DispatchError> {
+		// Create a lock to ensure only one offchain worker runs at a time
+		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT);
+		let mut lock = StorageLock::<'_, Time>::with_deadline(OFFCHAIN_WORKER_LOCK, lock_expiration);
+
+		// Try to obtain the lock, if not possible, return early
+		let r = if let Ok(_guard) = lock.try_lock() {
+			log::debug!(
+				target: "hsm::offchain_worker",
+				"Processing arbitrage opportunities at block: {:?}", block_number
+			);
+
+			// Iterate over all collateral assets
+			for (asset_id, _) in <Collaterals<T>>::iter() {
+				// Check if the asset has collateral holdings
+				if <CollateralHoldings<T>>::get(asset_id) > 0 {
+					// Try to submit an unsigned transaction to execute arbitrage
+					let call = Call::execute_arbitrage {
+						collateral_asset_id: asset_id,
+					};
+
+					if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()) {
+						log::error!(
+							target: "hsm::offchain_worker",
+							"Failed to submit transaction for asset {:?}: {:?}", asset_id, e
+						);
+					}
+				}
+			}
+
+			Ok(())
+		} else {
+			log::debug!(
+				target: "hsm::offchain_worker",
+				"Another instance of the offchain worker is already running"
+			);
+			Err(Error::<T>::OffchainLockError.into())
+		};
+
+		r
+	}
+
+	/// Calculate if there's an arbitrage opportunity for a collateral asset
+	///
+	/// Returns (max_buy_amt, hollar_amount_to_trade)
+	fn calculate_arbitrage_opportunity(
+		collateral_asset_id: T::AssetId,
+		collateral_info: &CollateralInfo<T::AssetId>,
+	) -> Result<(Balance, Balance), DispatchError> {
+		let hollar_id = T::HollarId::get();
+		let pool_id = collateral_info.pool_id;
+
+		// Get pool data
+		let (asset_idx, hollar_idx, assets, decimals, _) = Self::get_pool_data(pool_id, collateral_asset_id)?;
+
+		// Calculate I_i = (H_i - φ_i * R_i) / 2
+		let pool_reserves = assets[asset_idx];
+		let hollar_reserves = assets[hollar_idx];
+		let b_coefficient = collateral_info.b;
+
+		// Calculate φ_i * R_i
+		let phi_r = b_coefficient.mul_floor(pool_reserves);
+
+		// Calculate H_i - φ_i * R_i
+		let h_minus_phi_r = hollar_reserves.checked_sub(phi_r).unwrap_or(0);
+
+		// Calculate I_i = (H_i - φ_i * R_i) / 2
+		let max_buy_amt = h_minus_phi_r.checked_div(2).unwrap_or(0);
+
+		// If max_buy_amt is 0, there's no arbitrage opportunity
+		if max_buy_amt == 0 {
+			return Ok((0, 0));
+		}
+
+		// Simulate swap to determine execution price
+		// How much collateral asset we need to sell to buy max_buy_amt of Hollar
+		let sell_amt = Self::simulate_in_given_out(pool_id, collateral_asset_id, hollar_id, max_buy_amt)?;
+
+		// Execution price is p_i = sell_amt / max_buy_amt
+		let execution_price = (sell_amt, max_buy_amt);
+
+		// Apply fee factor: buy_price = p_i / (1 - f)
+		let fee = collateral_info.purchase_fee;
+		let fee_complement = Permill::from_percent(100).saturating_sub(fee);
+
+		let exec_prica_ratio: hydra_dx_math::ratio::Ratio = execution_price.into();
+		let fee_ratio: hydra_dx_math::ratio::Ratio = (fee_complement.deconstruct() as u128, 1_000_000u128).into();
+		let buy_price_ratio = exec_prica_ratio.saturating_div(&fee_ratio);
+
+		let buy_price = (buy_price_ratio.n, buy_price_ratio.d);
+
+		let buy_price_fixed = FixedU128::from_rational(buy_price.0, buy_price.1);
+
+		// Get max buy price from HSM
+		let max_buy_price_coefficient = collateral_info.max_buy_price_coefficient;
+		let max_buy_price = FixedU128::from_inner(max_buy_price_coefficient.mul_floor(FixedU128::DIV as u128));
+
+		// Check if there's an arbitrage opportunity
+		// If buy_price > max_buy_price, there's no opportunity
+		if buy_price_fixed > max_buy_price {
+			return Ok((0, 0));
+		}
+
+		// Calculate the amount of Hollar to trade
+		// max_buy_amt = min(max_buy_amt, self.liquidity[tkn] / buy_price)
+		let collateral_holdings = Self::collateral_holdings(collateral_asset_id);
+		let max_buy_from_holdings_ratio =
+			Ratio::new(collateral_holdings, 1).saturating_div(&Ratio::new(buy_price.0, buy_price.1));
+		let max_buy_from_holdings = max_buy_from_holdings_ratio.n / max_buy_from_holdings_ratio.d;
+
+		let max_buy_amt = sp_std::cmp::min(max_buy_amt, max_buy_from_holdings);
+
+		// amount of hollar to trade = max(max_buy_amt - _HollarAmountReceived_, 0)
+		let hollar_amount_received = Self::hollar_amount_received(collateral_asset_id);
+		let hollar_amount_to_trade = max_buy_amt.saturating_sub(hollar_amount_received);
+
+		Ok((max_buy_amt, hollar_amount_to_trade))
 	}
 }

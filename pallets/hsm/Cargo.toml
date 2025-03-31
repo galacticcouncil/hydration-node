@@ -31,11 +31,16 @@ frame-system = { workspace = true }
 # Hydra dependencies
 pallet-stableswap = { workspace = true }
 hydradx-traits = { workspace = true }
+hydra-dx-math = {workspace = true}
+
+# EVM dependencies
 evm = { workspace = true, features = ["with-codec"] }
 pallet-evm = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
+
+# Offchain worker dependencies
 
 [dev-dependencies]
 
