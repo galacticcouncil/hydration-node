@@ -171,6 +171,10 @@ impl<T: Config> Pallet<T> {
 		Swapper::<T>::kill();
 	}
 
+	pub fn get_swapper() -> Option<T::AccountId> {
+		Swapper::<T>::get()
+	}
+
 	pub fn get_context() -> Vec<ExecutionType> {
 		ExecutionContext::<T>::get().to_vec()
 	}

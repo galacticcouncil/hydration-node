@@ -265,6 +265,11 @@ impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 		//NOTE: `to` is paying ED if `from` is whitelisted.
 		//This can happen if pallet's account transfers insufficient tokens to another account.
 		if <Runtime as orml_tokens::Config>::DustRemovalWhitelist::contains(from) {
+			//When trade happens in router via temporary trade account, we need to charge the actual swapper instead of the temp account
+			if *to ==  <sp_runtime::AccountId32 as Into<AccountId>>::into(<PalletId as AccountIdConversion<AccountId>>::into_account_truncating(&RouterPalletId::get())) {
+				let swapper = pallet_broadcast::Pallet::<Runtime>::get_swapper().ok_or(DispatchError::Other("Swapper storage of broadcasting pallet is not set. It is expected to be set within router trade."))?;
+				return Self::on_funds(asset, &swapper, &swapper)
+			}
 			Self::on_funds(asset, to, to)
 		} else {
 			Self::on_funds(asset, from, to)
