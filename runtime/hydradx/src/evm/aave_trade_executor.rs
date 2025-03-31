@@ -325,6 +325,7 @@ where
 
 		// For both supply and withdraw, amount out is always 1:1
 		// to save weight we just assume the operation will be available
+		//TODO: ADD .saturating_add(2), and fix tests
 		Ok(amount_in)
 	}
 
@@ -349,7 +350,8 @@ where
 			return Err(ExecutorError::NotSupported);
 		}
 
-		ensure!(amount_in >= min_limit, ExecutorError::Error("Slippage exceeded".into()));
+		//TODO: use the calculate(amount_in) once we added the buffer
+		ensure!(amount_in>= min_limit, ExecutorError::Error("Slippage exceeded".into()));
 
 		let _ = EvmAccounts::<T>::bind_evm_address(who.clone());
 

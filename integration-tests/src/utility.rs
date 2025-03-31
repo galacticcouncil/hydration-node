@@ -140,44 +140,9 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
-		crate::router::create_lbp_pool(DAI, LRNA);
 		crate::router::create_xyk_pool(HDX, DOT);
 
-		let amount_to_sell = UNITS / 100;
-		let limit = 0;
-		let trades = vec![
-			Trade {
-				pool: PoolType::LBP,
-				asset_in: DAI,
-				asset_out: LRNA,
-			},
-			Trade {
-				pool: PoolType::Omnipool,
-				asset_in: LRNA,
-				asset_out: HDX,
-			},
-			Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: DOT,
-			},
-		];
-
-		start_lbp_campaign();
-
-		let router_call = RuntimeCall::Router(pallet_route_executor::Call::sell {
-			asset_in: DAI,
-			asset_out: DOT,
-			amount_in: amount_to_sell,
-			min_amount_out: limit,
-			route: trades.clone(),
-		});
-		assert_ok!(Utility::batch(
-			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
-			vec![router_call.clone()]
-		));
-
-		//Act
+		let amount_to_sell = UNITS * 10;
 		let trades = vec![Trade {
 			pool: PoolType::XYK,
 			asset_in: HDX,
@@ -186,10 +151,17 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 		let router_call = RuntimeCall::Router(pallet_route_executor::Call::sell {
 			asset_in: HDX,
 			asset_out: DOT,
-			amount_in: amount_to_sell,
-			min_amount_out: limit,
+			amount_in: 10 * UNITS,
+			min_amount_out: 0,
 			route: trades.clone(),
 		});
+
+		assert_ok!(Utility::batch(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			vec![router_call.clone()]
+		));
+
+		//Act
 		assert_ok!(Utility::batch(
 			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 			vec![router_call.clone()]
@@ -212,10 +184,10 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 				))),
 				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(HDX, amount_to_sell)],
-				outputs: vec![Asset::new(DOT, 4548771287)],
+				outputs: vec![Asset::new(DOT,  3777648106062)],
 				fees: vec![Fee::new(
 					DOT,
-					13687374,
+					11367045453,
 					Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,

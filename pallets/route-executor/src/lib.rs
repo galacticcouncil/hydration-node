@@ -19,7 +19,7 @@
 #![allow(clippy::manual_inspect)]
 
 use codec::MaxEncodedLen;
-use frame_support::traits::tokens::{Fortitude, Preservation};
+use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::PalletId;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::{
@@ -261,15 +261,22 @@ pub mod pallet {
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
 			let trader_account = Self::router_account();
+			pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
+			let _ = T::Currency::mint_into(
+				T::NativeAssetId::get(),
+				&Self::router_account(),
+				1_000_000_000_000u128.into(),
+			);
 			T::Currency::transfer(asset_in, &who, &trader_account.clone(), first_trade.amount_in, Preservation::Expendable)?;
 
 			let route_length = route.len();
 			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
-			pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
-				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
+				//TODO: if we call this earlier, maybe we dont need this hack on on_funds, namely to check the TO account if router
+
+				//Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
 
 				let origin: OriginFor<T> = Origin::<T>::Signed(trader_account.clone()).into();
 				let execution_result = T::AMM::execute_buy(
@@ -283,6 +290,22 @@ pub mod pallet {
 
 				handle_execution_error!(execution_result);
 			}
+
+			let mut native_left = T::Currency::reducible_balance(
+				T::NativeAssetId::get(),
+				&trader_account.clone(),
+				Preservation::Expendable,
+				Fortitude::Polite,
+			);
+			ensure!(native_left >= 1_000_000_000_000u128.into(), Error::<T>::InvalidRouteExecution);
+			let _ = T::Currency::burn_from(
+				T::NativeAssetId::get(),
+				&Self::router_account(),
+				1_000_000_000_000u128.into(),
+				Preservation::Expendable,
+				Precision::Exact,
+				Fortitude::Polite
+			);
 
 			SkipEd::<T>::kill();
 
@@ -485,6 +508,15 @@ impl<T: Config> Pallet<T> {
 
 		let trader_account = Self::router_account();
 
+		//TODO: also do same for buy
+		let mut user_amount_in_balance = T::Currency::reducible_balance(
+			asset_in,
+			&who.clone(),
+			Preservation::Expendable,
+			Fortitude::Polite,
+		);
+		ensure!(user_amount_in_balance >=amount_in, Error::<T>::InsufficientBalance);
+
 		T::Currency::transfer(asset_in, &who, &trader_account.clone(), amount_in, Preservation::Expendable)?;
 
 		let route_length = route.len();
@@ -492,10 +524,11 @@ impl<T: Config> Pallet<T> {
 		pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
 		for (trade_index, trade) in route.iter().enumerate() {
-			//TODO: we dont need skip at all
-			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, *trade);
+			//TODO: remove all skip related logic and storage
+			//Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, *trade);
 
-			let temp_balance = T::Currency::reducible_balance(
+			//TODO: optimize if possible
+			let mut amount_in_to_sell = T::Currency::reducible_balance(
 				trade.asset_in,
 				&trader_account.clone(),
 				Preservation::Expendable,
@@ -509,14 +542,14 @@ impl<T: Config> Pallet<T> {
 				trade.pool,
 				trade.asset_in,
 				trade.asset_out,
-				temp_balance,
+				amount_in_to_sell,
 				T::Balance::zero(),
 			);
 
 			handle_execution_error!(execution_result);
 		}
 
-		SkipEd::<T>::kill();
+		//SkipEd::<T>::kill();
 
 		let amount_out = T::Currency::reducible_balance(
 			asset_out,
@@ -750,7 +783,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	//TODO: this and all other calculation wont be needed, also in benchmark, remove it
-	//TODO: also remove the ensyure checks
+	//TODO: also remove the ensure checks function
 	fn calculate_sell_trade_amounts(
 		route: &[Trade<T::AssetId>],
 		amount_in: T::Balance,
