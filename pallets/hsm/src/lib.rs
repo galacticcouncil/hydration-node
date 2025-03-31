@@ -3,28 +3,31 @@
 pub use pallet::*;
 
 use crate::types::{Balance, CollateralInfo};
+use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
-use frame_support::traits::ExistenceRequirement;
+use frame_support::pallet_prelude::IsType;
+use frame_support::traits::fungibles::Inspect;
+use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::{fungibles::Mutate, ExistenceRequirement};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pallet_stableswap::types::{AssetReserve, PoolSnapshot};
+use pallet_stableswap::types::PoolSnapshot;
 use sp_core::Get;
 use sp_core::H256;
 use sp_core::U256;
 use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::AccountId32;
 use sp_runtime::ArithmeticError;
 use sp_runtime::DispatchError;
 use sp_runtime::RuntimeDebug;
+use sp_std::collections;
+use sp_std::vec::Vec;
 
 pub mod math;
 pub mod traits;
 pub mod types;
-
-#[cfg(feature = "std")]
-use sp_std::vec::Vec;
 
 // Generate the ERC20 function selectors
 #[module_evm_utility_macro::generate_function_selector]
@@ -42,7 +45,6 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_support::PalletId;
 	use frame_system::pallet_prelude::*;
-	use pallet_stableswap::types::AssetReserve;
 	use sp_core::{H256, U256};
 	use sp_runtime::{
 		traits::{AccountIdConversion, CheckedSub, Convert, Zero},
@@ -184,7 +186,10 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		/// Add a new collateral asset
 		///
 		/// Parameters:
@@ -262,7 +267,7 @@ pub mod pallet {
 					&Self::account_id(),
 					&T::Receiver::get(),
 					amount,
-			Preservation::Expendable,
+					Preservation::Expendable,
 				)?;
 			}
 
@@ -435,7 +440,10 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {
+impl<T: Config> Pallet<T>
+where
+	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+{
 	/// Get the account ID of the HSM
 	pub fn account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
@@ -517,14 +525,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// 3. Calculate execution price by simulating a swap
-		let input_amount = pallet_stableswap::Pallet::<T>::calculate_in_given_out(
-			pool_id,
-			collateral_asset,
-			T::HollarId::get(),
-			hollar_amount,
-			false, // don't persist peg
-		)?
-		.0;
+		let input_amount = Self::simulate_in_given_out(pool_id, collateral_asset, T::HollarId::get(), hollar_amount)?;
 
 		let execution_price = input_amount
 			.checked_div(hollar_amount)
@@ -561,7 +562,7 @@ impl<T: Config> Pallet<T> {
 			who,
 			&Self::account_id(),
 			hollar_amount,
-					Preservation::Expendable,
+			Preservation::Expendable,
 		)?;
 
 		// 2. Burn Hollar by calling GHO contract
@@ -677,14 +678,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(hollar_amount_scaled < buyback_limit, Error::<T>::MaxBuyBackExceeded);
 
 		// 3. Calculate execution price by simulating a swap
-		let input_amount = pallet_stableswap::Pallet::<T>::calculate_in_given_out(
-			pool_id,
-			collateral_asset,
-			T::HollarId::get(),
-			hollar_amount,
-			false, // don't persist peg
-		)?
-		.0;
+		let input_amount = Self::simulate_in_given_out(pool_id, collateral_asset, T::HollarId::get(), hollar_amount)?;
 
 		let execution_price = input_amount
 			.checked_div(hollar_amount)
@@ -701,7 +695,8 @@ impl<T: Config> Pallet<T> {
 
 		// Check user has enough collateral
 		ensure!(
-			<T as Config>::Currency::free_balance(collateral_asset, who) >= collateral_amount,
+			<T as Config>::Currency::reducible_balance(collateral_asset, who, Preservation::Protect, Fortitude::Polite)
+				>= collateral_amount,
 			pallet_stableswap::Error::<T>::InsufficientBalance
 		);
 
@@ -758,14 +753,8 @@ impl<T: Config> Pallet<T> {
 		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
 
 		// 3. Calculate execution price by simulating a swap
-		let hollar_amount = pallet_stableswap::Pallet::<T>::calculate_out_given_in(
-			pool_id,
-			collateral_asset,
-			T::HollarId::get(),
-			collateral_amount,
-			false, // Don't persist peg
-		)?
-		.0;
+		let hollar_amount =
+			Self::simulate_out_given_in(pool_id, collateral_asset, T::HollarId::get(), collateral_amount)?;
 
 		let execution_price = hollar_amount
 			.checked_div(collateral_amount)
@@ -866,5 +855,23 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(())
+	}
+
+	fn simulate_out_given_in(
+		pool_id: T::AssetId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_in: Balance,
+	) -> Result<Balance, DispatchError> {
+		Ok(0u128)
+	}
+
+	fn simulate_in_given_out(
+		pool_id: T::AssetId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_out: Balance,
+	) -> Result<Balance, DispatchError> {
+		Ok(0u128)
 	}
 }
