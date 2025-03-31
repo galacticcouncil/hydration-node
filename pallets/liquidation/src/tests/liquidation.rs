@@ -18,7 +18,8 @@ use hydradx_traits::evm::EvmAddress;
 
 #[test]
 fn liquidation_should_transfer_profit_to_treasury() {
-	ExtBuilder::default().build().execute_with(|| {
+	let (mut ext, _, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
 		// Arrange
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
@@ -96,7 +97,8 @@ fn liquidation_should_transfer_profit_to_treasury() {
 
 #[test]
 fn liquidation_should_work_when_debt_and_collateral_asset_is_same() {
-	ExtBuilder::default().build().execute_with(|| {
+	let (mut ext, _, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
 		// Arrange
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
@@ -135,7 +137,8 @@ fn liquidation_should_work_when_debt_and_collateral_asset_is_same() {
 
 #[test]
 fn liquidation_should_fail_if_not_profitable() {
-	ExtBuilder::default().build().execute_with(|| {
+	let (mut ext, _, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
 		// Arrange
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
@@ -171,7 +174,8 @@ fn liquidation_should_fail_if_not_profitable() {
 
 #[test]
 fn initial_pallet_balance_should_not_change_after_execution() {
-	ExtBuilder::default().build().execute_with(|| {
+	let (mut ext, _, _) = ExtBuilder::default().build();
+	ext.execute_with(|| {
 		// Arrange
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),

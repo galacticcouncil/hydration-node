@@ -20,6 +20,7 @@ hydra-dx-build-script-utils = { workspace = true }
 [dependencies]
 codec = { workspace = true }
 hex-literal = { workspace = true }
+hex = { workspace = true }
 jsonrpsee = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
@@ -27,10 +28,29 @@ serde_json = { workspace = true }
 clap = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
+env_logger = "0.11.6"
+#hyper = { version = "1.3.1", features = ["http2", "client"], default-features = false }
+hyperv14 = { package = "hyper", features = ["http2", "stream"], version = "0.14.29", default-features = true }
+#hyper-rustls = { version = "0.24.2" }
+hyper-rustls = { version = "0.24.2", features = ["http2"], default-features = false }
+#hyper-util = { version = "0.1.5", default-features = false }
+tokio = { workspace = true, default-features = true }
+threadpool = { version = "1.7" }
+num_cpus = { version = "1.13.1" }
+parking_lot = { version = "0.12.1", default-features = false }
+pallet-liquidation-rpc-runtime-api = { workspace = true }
 
 # local dependencies
 hydradx-runtime = { workspace = true, features = ["std"] }
+hydradx-traits = { workspace = true, default-features = false }
 primitives = { workspace = true }
+pallet-transaction-payment = { workspace = true }
+pallet-claims = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-ethereum = { workspace = true }
+ethereum = { workspace = true }
+pallet-liquidation = { workspace = true }
+ethabi = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
@@ -106,6 +126,15 @@ polkadot-parachain = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true }
 
+substrate-test-runtime = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
+substrate-test-runtime-client = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
+sp-keyring = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
+frame-metadata-hash-extension = { workspace = true }
+frame-metadata = { version = "16.0.0", features = ["current"], default-features = true }
+frame-system = { workspace = true }
+frame-support = { workspace = true }
+merkleized-metadata = { version = "0.1.0" }
+
 # Frontier
 fc-consensus = { workspace = true }
 fc-db = { workspace = true, features = ["default"] }
@@ -115,6 +144,7 @@ fc-rpc-core = { workspace = true }
 fp-rpc = { workspace = true }
 fp-storage = { workspace = true }
 fp-consensus = { workspace = true }
+fp-self-contained = { workspace = true }
 
 [features]
 default = [

@@ -3,17 +3,13 @@ use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
 use frame_support::sp_runtime::traits::CheckedConversion;
-use frame_support::{
-	assert_ok, parameter_types,
-	sp_runtime::{
-		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-		BuildStorage, FixedU128, MultiSignature, Permill,
-	},
-	traits::{
-		tokens::nonfungibles::{Create, Inspect, Mutate},
-		Everything, Nothing,
-	},
-};
+use frame_support::{assert_ok, parameter_types, sp_runtime, sp_runtime::{
+	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	BuildStorage, FixedU128, MultiSignature, Permill,
+}, traits::{
+	tokens::nonfungibles::{Create, Inspect, Mutate},
+	Everything, Nothing,
+}};
 use frame_system::{EnsureRoot, EnsureSigned};
 use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
@@ -25,7 +21,12 @@ use hydradx_traits::{
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
+use sp_core::offchain::{
+	testing::PoolState, testing::TestOffchainExt, testing::TestTransactionPoolExt, OffchainDbExt, OffchainWorkerExt,
+	TransactionPoolExt,
+};
 use sp_core::H256;
+use std::sync::Arc;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -48,6 +49,15 @@ pub const ALICE_DOT_INITIAL_BALANCE: Balance = 1_000_000_000_000 * ONE;
 pub const ALICE: AccountId = AccountId::new([1; 32]);
 pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const MONEY_MARKET: AccountId = AccountId::new([9; 32]);
+
+pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+where
+	RuntimeCall: From<C>,
+{
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+}
 
 frame_support::construct_runtime!(
 	pub enum Test
@@ -507,7 +517,13 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub fn build(self) -> sp_io::TestExternalities {
+	pub fn build(
+		self,
+	) -> (
+		sp_io::TestExternalities,
+		Arc<parking_lot::RwLock<PoolState>>,
+		Arc<parking_lot::RwLock<sp_core::offchain::testing::OffchainState>>,
+	) {
 		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 		let registered_assets = vec![
@@ -601,6 +617,14 @@ impl ExtBuilder {
 			});
 		}
 
-		ext
+		let (offchain, offchain_state) = TestOffchainExt::with_offchain_db(ext.offchain_db());
+		ext.register_extension(OffchainDbExt::new(offchain.clone()));
+		ext.register_extension(OffchainWorkerExt::new(offchain));
+		let (pool, pool_state) = TestTransactionPoolExt::new();
+		ext.register_extension(TransactionPoolExt::new(pool));
+
+		ext.persist_offchain_overlay();
+
+		(ext, pool_state, offchain_state)
 	}
 }

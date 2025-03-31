@@ -113,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 288,
+	spec_version: 289,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -394,8 +394,30 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		dispatch_info: &DispatchInfoOf<RuntimeCall>,
 		len: usize,
 	) -> Option<TransactionValidity> {
+		log::info!(target: "rrr", "validate_self_contained.\n");
 		match self {
-			RuntimeCall::Ethereum(call) => call.validate_self_contained(info, dispatch_info, len),
+			RuntimeCall::Ethereum(call) => {
+                let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
+				if let pallet_ethereum::Call::transact { transaction } = call {
+					if let pallet_ethereum::Transaction::Legacy(legacy) = transaction {
+						if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
+							if call_address == H160::from_slice(hex!("3cd0a705a2dc65e5b1e1205896baa2be8a07c6e0").as_slice())
+								|| call_address
+									== H160::from_slice(hex!("5d8320f3ced9575d8e25b6f437e610fc6a03bf52").as_slice())
+								|| call_address
+								== H160::from_slice(hex!("0000000000000000000000000000000100000000").as_slice())
+							{
+								if let Some(ref mut validity_info) = tx_validity {
+									if let Ok(ref mut validity) = validity_info {
+										validity.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+									}
+								}
+							}
+						};
+					};
+				}
+				tx_validity
+            },
 			_ => None,
 		}
 	}
@@ -514,7 +536,14 @@ impl_runtime_apis! {
 			tx: <Block as BlockT>::Extrinsic,
 			block_hash: <Block as BlockT>::Hash,
 		) -> TransactionValidity {
-			Executive::validate_transaction(source, tx, block_hash)
+			let mut tx_validity = Executive::validate_transaction(source, tx.clone(), block_hash);
+			let transaction = tx.clone().0;
+			if let RuntimeCall::Liquidation(pallet_liquidation::Call::dummy_received{ .. }) = transaction.function {
+             	if let Ok(ref mut v) = tx_validity {
+					v.priority = 3 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+                }
+            }
+			tx_validity
 		}
 	}
 

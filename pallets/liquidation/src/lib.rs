@@ -29,6 +29,7 @@
 
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
+use frame_support::sp_runtime::offchain::http;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::AccountIdConversion,
@@ -36,16 +37,24 @@ use frame_support::{
 	traits::tokens::{Fortitude, Precision, Preservation},
 	PalletId,
 };
-use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
+use frame_support::traits::DefensiveOption;
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::{BlockNumberFor, OriginFor},
+	RawOrigin,
+	offchain::{SendTransactionTypes, SubmitTransaction},
+};
 use hydradx_traits::{
 	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
-	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
+	router::{AssetPair, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
+	registry::Inspect as AssetRegistryInspect,
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
+use serde::Deserialize;
 use sp_arithmetic::ArithmeticError;
-use sp_core::{crypto::AccountId32, H256, U256};
-use sp_std::{vec, vec::Vec};
+use sp_core::{crypto::AccountId32, offchain::Duration, H160, H256, U256};
+use sp_std::{vec, vec::Vec, cmp::Ordering, boxed::Box};
 
 #[cfg(test)]
 mod tests;
@@ -63,6 +72,9 @@ pub type Balance = u128;
 pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
+pub const MAX_LIQUIDATIONS: u32 = 5;
+pub const UNSIGNED_TXS_PRIORITY: u64 = 1_000_000;
+
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -70,8 +82,31 @@ pub enum Function {
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
 }
 
+#[derive(Clone, Encode, Decode, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BorrowerDataDetails<AccountId> {
+	pub total_collateral_base: f32,
+	pub total_debt_base: f32,
+	pub available_borrows_base: f32,
+	pub current_liquidation_threshold: f32,
+	pub ltv: f32,
+	pub health_factor: f32,
+	pub updated: u64,
+	pub account: AccountId,
+	pub pool: H160,
+}
+
+#[derive(Clone, Encode, Decode, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BorrowerData<AccountId> {
+	pub last_global_update: u32,
+	pub last_update: u32,
+	pub borrowers: Vec<(H160, BorrowerDataDetails<AccountId>)>,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_support::sp_runtime::offchain::storage::StorageValueRef;
 	use super::*;
 	use frame_support::traits::DefensiveOption;
 
@@ -79,7 +114,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> where <Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> , <Self as frame_system::Config>::AccountId: frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -126,9 +161,42 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type BorrowingContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultBorrowingContract>;
 
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T>
+		where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>, {
+		type Call = Call<T>;
+
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match source {
+				TransactionSource::External => {
+					// receiving unsigned transaction from network - disallow
+					return InvalidTransaction::Call.into();
+				}
+				TransactionSource::Local => {}   // produced by off-chain worker
+				TransactionSource::InBlock => {} // some other node included it in a block
+			};
+
+			let valid_tx = |provide| {
+				ValidTransaction::with_tag_prefix("settle-otc-with-router")
+					.priority(UNSIGNED_TXS_PRIORITY)
+					.and_provides([&provide])
+					.longevity(3)
+					.propagate(false)
+					.build()
+			};
+
+			match call {
+				Call::liquidate_unsigned { .. } => valid_tx(b"settle_otc_order".to_vec()),
+				Call::dummy_send { .. } => valid_tx(b"settle_otc_order".to_vec()),
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config> {
+	pub enum Event<T: Config> where <T as frame_system::Config>::AccountId: AsRef<[u8; 32]> , <T as frame_system::Config>::AccountId: frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>{
 		/// Money market position has been liquidated
 		Liquidated {
 			liquidator: T::AccountId,
@@ -138,6 +206,8 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			profit: Balance,
 		},
+		DummyReceived,
+		DummySend,
 	}
 
 	#[pallet::error]
@@ -186,79 +256,7 @@ pub mod pallet {
 			route: Vec<Trade<AssetId>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let pallet_acc = Self::account_id();
-
-			let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
-			let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
-
-			// mint debt asset
-			<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
-
-			// liquidation call
-			let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
-			let contract = BorrowingContract::<T>::get();
-
-			let context = CallContext::new_call(contract, pallet_address);
-			let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
-
-			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-				log::error!(target: "liquidation",
-					"Evm execution failed. Reason: {:?}", value);
-				return Err(Error::<T>::LiquidationCallFailed.into());
-			}
-
-			// swap collateral if necessary
-			if collateral_asset != debt_asset {
-				let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc)
-					.checked_sub(collateral_original_balance)
-					.defensive_ok_or(ArithmeticError::Underflow)?;
-				T::Router::sell(
-					RawOrigin::Signed(pallet_acc.clone()).into(),
-					collateral_asset,
-					debt_asset,
-					collateral_earned,
-					1,
-					route,
-				)?;
-			}
-
-			// burn debt and transfer profit
-			let debt_gained = <T as Config>::Currency::balance(debt_asset, &pallet_acc)
-				.checked_sub(debt_original_balance)
-				.ok_or(Error::<T>::NotProfitable)?;
-
-			let profit = debt_gained
-				.checked_sub(debt_to_cover)
-				.ok_or(Error::<T>::NotProfitable)?;
-
-			<T as Config>::Currency::burn_from(
-				debt_asset,
-				&pallet_acc,
-				debt_to_cover,
-				Preservation::Expendable,
-				Precision::Exact,
-				Fortitude::Force,
-			)?;
-
-			<T as Config>::Currency::transfer(
-				debt_asset,
-				&pallet_acc,
-				&T::ProfitReceiver::get(),
-				profit,
-				Preservation::Expendable,
-			)?;
-
-			Self::deposit_event(Event::Liquidated {
-				liquidator: who,
-				evm_address: user,
-				collateral_asset,
-				debt_asset,
-				debt_to_cover,
-				profit,
-			});
-
-			Ok(())
+			Self::liquidate_inner(Some(who), collateral_asset, debt_asset, user, debt_to_cover, route)
 		}
 
 		/// Set the borrowing market contract address.
@@ -271,12 +269,136 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
+			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
+			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
+		)]
+		pub fn liquidate_unsigned(
+			_origin: OriginFor<T>,
+			collateral_asset: AssetId,
+			debt_asset: AssetId,
+			user: EvmAddress,
+			debt_to_cover: Balance,
+			route: Vec<Trade<AssetId>>,
+		) -> DispatchResult {
+			Self::liquidate_inner(None, collateral_asset, debt_asset, user, debt_to_cover, route)
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(Weight::zero()
+		)]
+		pub fn dummy_received(
+			origin: OriginFor<T>,
+			debt_to_cover: crate::Balance,
+		) -> DispatchResult {
+			Self::deposit_event(Event::DummyReceived);
+
+			Ok(())
+		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(Weight::zero()
+		)]
+		pub fn dummy_send(
+			origin: OriginFor<T>,
+			debt_to_cover: crate::Balance,
+		) -> DispatchResult {
+			Self::deposit_event(Event::DummySend);
+			Ok(())
+		}
 	}
 }
 
-impl<T: Config> Pallet<T> {
+impl<T: Config> Pallet<T>
+	where
+	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>, {
 	pub fn account_id() -> T::AccountId {
 		PalletId(*b"lqdation").into_account_truncating()
+	}
+
+	pub fn liquidate_inner(
+		maybe_signed_by: Option<T::AccountId>,
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		user: EvmAddress,
+		debt_to_cover: Balance,
+		route: Vec<Trade<AssetId>>,
+	) -> DispatchResult {
+		let pallet_acc = Self::account_id();
+
+		let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
+		let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
+
+		// mint debt asset
+		<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
+
+		// liquidation call
+		let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
+		let contract = BorrowingContract::<T>::get();
+
+		let context = CallContext::new_call(contract, pallet_address);
+		let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
+
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "liquidation",
+					"Evm execution failed. Reason: {:?}", value);
+			return Err(Error::<T>::LiquidationCallFailed.into());
+		}
+
+		// swap collateral if necessary
+		if collateral_asset != debt_asset {
+			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc)
+				.checked_sub(collateral_original_balance)
+				.defensive_ok_or(ArithmeticError::Underflow)?;
+			T::Router::sell(
+				RawOrigin::Signed(pallet_acc.clone()).into(),
+				collateral_asset,
+				debt_asset,
+				collateral_earned,
+				1,
+				route,
+			)?;
+		}
+
+		// burn debt and transfer profit
+		let debt_gained = <T as Config>::Currency::balance(debt_asset, &pallet_acc)
+			.checked_sub(debt_original_balance)
+			.ok_or(Error::<T>::NotProfitable)?;
+
+		let profit = debt_gained
+			.checked_sub(debt_to_cover)
+			.ok_or(Error::<T>::NotProfitable)?;
+
+		<T as Config>::Currency::burn_from(
+			debt_asset,
+			&pallet_acc,
+			debt_to_cover,
+			Preservation::Expendable,
+			Precision::Exact,
+			Fortitude::Force,
+		)?;
+
+		<T as Config>::Currency::transfer(
+			debt_asset,
+			&pallet_acc,
+			&T::ProfitReceiver::get(),
+			profit,
+			Preservation::Expendable,
+		)?;
+
+		Self::deposit_event(Event::Liquidated {
+			liquidator: maybe_signed_by.unwrap_or(pallet_acc),
+			evm_address: user,
+			collateral_asset,
+			debt_asset,
+			debt_to_cover,
+			profit,
+		});
+
+		Ok(())
 	}
 
 	pub fn encode_liquidation_call_data(
@@ -301,4 +423,65 @@ impl<T: Config> Pallet<T> {
 
 		data
 	}
+
+	pub fn process_borrowers_data(oracle_data: BorrowerData<T::AccountId>) -> Vec<(H160, BorrowerDataDetails<T::AccountId>)> {
+		let mut borrowers = oracle_data.borrowers.clone();
+		// remove elements with HF == 1
+		borrowers.retain(|b| b.1.health_factor > 0.0 && b.1.health_factor < 1.0);
+		borrowers.sort_by(|a, b| a.1.health_factor.partial_cmp(&b.1.health_factor).unwrap_or(Ordering::Equal));
+		borrowers.truncate(borrowers.len().min(MAX_LIQUIDATIONS as usize));
+		borrowers
+	}
+
+	/// Parse the borrower data from the given JSON string .
+	///
+	/// Returns `None` when parsing failed or `Some(BorrowerData)` when parsing is successful.
+	fn parse_borrowers_data(oracle_data_str: &str) -> Option<BorrowerData<T::AccountId>> {
+		serde_json::from_str(oracle_data_str).ok()
+	}
+
+	pub fn parse_oracle_transaction(eth_tx: pallet_ethereum::Transaction) -> Option<Vec<(AssetPair<AssetId>, U256)>> {
+		let legacy_transaction = match eth_tx {
+			pallet_ethereum::Transaction::Legacy(legacy_transaction) => legacy_transaction,
+			_ => return None,
+		};
+
+		let decoded = ethabi::decode(
+			&[
+				ethabi::ParamType::Array(Box::new(ethabi::ParamType::String)),
+				ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(32))),
+			],
+			&legacy_transaction.input[4..],// first 4 bytes are function selector
+		).ok()?;
+
+		let mut dai_oracle_data = Vec::new();
+
+		if decoded.len() == 2 {
+			for (asset_str, price) in sp_std::iter::zip(decoded[0].clone().into_array()?.iter(), decoded[1].clone().into_array()?.iter()) {
+				dai_oracle_data.push((asset_str.clone().into_string()?, price.clone().into_uint()?));
+
+			}
+		};
+
+		let mut result = Vec::new();
+		for i in 0..dai_oracle_data.len() {
+			let asset_str: Vec<&str> = dai_oracle_data[i].0.split("/").collect::<Vec<_>>().clone();
+			if asset_str.len() != 2 {
+				return None;
+			}
+			let asset_id_a = <T as Config>::AssetRegistry::asset_id(asset_str[0]);
+			// remove \0 null-terminator from the string
+			let asset_id_b = <T as Config>::AssetRegistry::asset_id(&asset_str[1][0..asset_str[1].len() - 1]);
+
+			if let (Some(asset_id_a), Some(asset_id_b)) = (asset_id_a, asset_id_b) {
+				result.push((AssetPair::new(asset_id_a, asset_id_b), dai_oracle_data[i].1.clone()));
+			} else {
+				return None;
+			}
+		}
+
+		Some(result)
+	}
 }
+
+
