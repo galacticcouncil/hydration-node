@@ -263,11 +263,6 @@ pub mod pallet {
 			let trader_account = Self::router_account();
 			pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
-			let _ = T::Currency::mint_into(
-				T::NativeAssetId::get(),
-				&Self::router_account(),
-				1_000_000_000_000u128.into(),
-			);
 			T::Currency::transfer(asset_in, &who, &trader_account.clone(), first_trade.amount_in, Preservation::Expendable)?;
 
 			let route_length = route.len();
@@ -290,22 +285,6 @@ pub mod pallet {
 
 				handle_execution_error!(execution_result);
 			}
-
-			let mut native_left = T::Currency::reducible_balance(
-				T::NativeAssetId::get(),
-				&trader_account.clone(),
-				Preservation::Expendable,
-				Fortitude::Polite,
-			);
-			ensure!(native_left >= 1_000_000_000_000u128.into(), Error::<T>::InvalidRouteExecution);
-			let _ = T::Currency::burn_from(
-				T::NativeAssetId::get(),
-				&Self::router_account(),
-				1_000_000_000_000u128.into(),
-				Preservation::Expendable,
-				Precision::Exact,
-				Fortitude::Polite
-			);
 
 			SkipEd::<T>::kill();
 
