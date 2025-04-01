@@ -39,6 +39,8 @@ use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
+use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
+use scraper::ALICE;
 
 fn with_aave(execution: impl FnOnce()) {
 	TestNet::reset();
@@ -216,6 +218,8 @@ fn sell_adot() {
 #[test]
 fn buy_dot() {
 	with_atoken(|| {
+		hydradx_run_to_next_block();
+
 		assert_ok!(Router::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			ADOT,
@@ -229,6 +233,24 @@ fn buy_dot() {
 			}]
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE - 2);
+
+		let atoken = HydraErc20Mapping::encode_evm_address(ADOT);
+		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
+
+		let events = get_last_swapped_events();
+		pretty_assertions::assert_eq!(
+			*get_last_swapped_events().last().unwrap(),
+			pallet_broadcast::Event::<Runtime>::Swapped {
+				swapper: ALICE.into(),
+				filler,
+				filler_type: pallet_broadcast::types::Filler::AAVE,
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(ADOT, ONE)],
+				outputs: vec![Asset::new(DOT,  ONE)],
+				fees: vec![],
+				operation_stack: vec![ExecutionType::Router(1)],
+			}
+		);
 	})
 }
 
@@ -284,6 +306,23 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), balance - amount + 1);
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount + 6);
+
+		let atoken = HydraErc20Mapping::encode_evm_address(ADOT);
+		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
+
+		pretty_assertions::assert_eq!(
+			*get_last_swapped_events().last().unwrap(),
+			pallet_broadcast::Event::<Runtime>::Swapped {
+				swapper: ALICE.into(),
+				filler,
+				filler_type: pallet_broadcast::types::Filler::AAVE,
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
+				inputs: vec![Asset::new(ADOT, amount)],
+				outputs: vec![Asset::new(DOT,  amount)],
+				fees: vec![],
+				operation_stack: vec![ExecutionType::Router(3)],
+			}
+		);
 	})
 }
 

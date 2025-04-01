@@ -16,6 +16,7 @@ pub enum Filler {
 	XYK(AssetId),        // share token
 	LBP,
 	OTC(OtcOrderId),
+	AAVE
 	// ICE(solution_id/block id),      swapper: alice, filler: solver
 }
 
