@@ -23,10 +23,6 @@ jobs:
     name: Build and publish hydradx runtime
     runs-on: lark
     steps:
-      - name: Fix leftovers permissions
-        run: |
-          sudo chown -R $USER:1001 ${{ github.workspace }}
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -131,3 +127,9 @@ jobs:
           files: |
             ${{ env.CHAIN }}-srtool-digest.json
             ${{ steps.srtool_build.outputs.wasm_compressed }}
+
+      - name: Fix leftovers permissions
+        if: always()
+        run: |
+          sudo rm -rf runtime/hydradx/target
+          sudo chown -R $USER:$USER ${{ github.workspace }}
