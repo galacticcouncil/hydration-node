@@ -477,7 +477,7 @@ fn sell_should_fail_when_caller_has_not_enough_balance() {
 		//Act and Assert
 		assert_noop!(
 			Router::sell(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_sell, limit, trades),
-			Error::<Test>::InsufficientBalance
+			TokenError::FundsUnavailable
 		);
 	});
 }

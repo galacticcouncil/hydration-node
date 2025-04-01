@@ -46,7 +46,7 @@ use pallet_broadcast::types::IncrementalIdType;
 pub use pallet_broadcast::types::{ExecutionType, Fee};
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TokenError};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -179,10 +179,6 @@ pub mod pallet {
 		NotAllowed,
 	}
 
-	///Flag to indicate when to skip ED handling
-	#[pallet::storage]
-	#[pallet::getter(fn last_trade_position)]
-	pub type SkipEd<T: Config> = StorageValue<_, types::SkipEd, OptionQuery>;
 
 	/// Storing routes for asset pairs
 	#[pallet::storage]
@@ -265,14 +261,9 @@ pub mod pallet {
 
 			T::Currency::transfer(asset_in, &who, &trader_account.clone(), first_trade.amount_in, Preservation::Expendable)?;
 
-			let route_length = route.len();
 			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
 			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
-				//TODO: if we call this earlier, maybe we dont need this hack on on_funds, namely to check the TO account if router
-
-				//Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
-
 				let origin: OriginFor<T> = Origin::<T>::Signed(trader_account.clone()).into();
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
@@ -285,8 +276,6 @@ pub mod pallet {
 
 				handle_execution_error!(execution_result);
 			}
-
-			SkipEd::<T>::kill();
 
 			let amount_out = T::Currency::reducible_balance(
 				asset_out,
@@ -487,14 +476,13 @@ impl<T: Config> Pallet<T> {
 
 		let trader_account = Self::router_account();
 
-		//TODO: also do same for buy
 		let mut user_amount_in_balance = T::Currency::reducible_balance(
 			asset_in,
 			&who.clone(),
 			Preservation::Expendable,
 			Fortitude::Polite,
 		);
-		ensure!(user_amount_in_balance >=amount_in, Error::<T>::InsufficientBalance);
+		ensure!(user_amount_in_balance >=amount_in, TokenError::FundsUnavailable);
 
 		T::Currency::transfer(asset_in, &who, &trader_account.clone(), amount_in, Preservation::Expendable)?;
 
@@ -503,11 +491,7 @@ impl<T: Config> Pallet<T> {
 		pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
 		for (trade_index, trade) in route.iter().enumerate() {
-			//TODO: remove all skip related logic and storage
-			//Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, *trade);
-
-			//TODO: optimize if possible
-			let mut amount_in_to_sell = T::Currency::reducible_balance(
+			let amount_in_to_sell = T::Currency::reducible_balance(
 				trade.asset_in,
 				&trader_account.clone(),
 				Preservation::Expendable,
@@ -527,8 +511,6 @@ impl<T: Config> Pallet<T> {
 
 			handle_execution_error!(execution_result);
 		}
-
-		//SkipEd::<T>::kill();
 
 		let amount_out = T::Currency::reducible_balance(
 			asset_out,
@@ -660,41 +642,6 @@ impl<T: Config> Pallet<T> {
 			<Pallet<T> as RouteProvider<T::AssetId>>::get_route(asset_pair)
 		};
 		Ok(route)
-	}
-
-	pub fn disable_ed_handling_for_insufficient_assets(
-		route_length: usize,
-		trade_index: usize,
-		trade: Trade<T::AssetId>,
-	) {
-		if route_length > 1
-			&& (!T::InspectRegistry::is_sufficient(trade.asset_in)
-				|| !T::InspectRegistry::is_sufficient(trade.asset_out))
-		{
-			//We optimize to set the state for middle trades only once at the first middle trade, then we change no state till the last trade
-			match trade_index {
-				0 => SkipEd::<T>::put(types::SkipEd::Lock),
-				trade_index if trade_index.saturating_add(1) == route_length => SkipEd::<T>::put(types::SkipEd::Unlock),
-				1 => SkipEd::<T>::put(types::SkipEd::LockAndUnlock),
-				_ => (),
-			}
-		}
-	}
-
-	pub fn skip_ed_lock() -> bool {
-		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, types::SkipEd::Lock | types::SkipEd::LockAndUnlock);
-		}
-
-		false
-	}
-
-	pub fn skip_ed_unlock() -> bool {
-		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, types::SkipEd::Unlock | types::SkipEd::LockAndUnlock);
-		}
-
-		false
 	}
 
 	fn validate_route(route: &[Trade<T::AssetId>]) -> Result<(T::Balance, T::Balance), DispatchError> {

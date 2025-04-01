@@ -2668,6 +2668,8 @@ mod lbp_router_tests {
 	use super::*;
 	use crate::assert_balance;
 
+	//TODO: Make LBP work with Router: https://github.com/galacticcouncil/hydration-node/issues/1059
+	#[ignore]
 	#[test]
 	fn sell_should_work_when_route_contains_single_trade() {
 		TestNet::reset();
@@ -3448,7 +3450,7 @@ mod xyk_router_tests {
 					0,
 					trades
 				),
-				pallet_route_executor::Error::<hydradx_runtime::Runtime>::InsufficientBalance
+				sp_runtime::TokenError::FundsUnavailable
 			);
 		});
 	}

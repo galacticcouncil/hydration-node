@@ -627,6 +627,8 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 			return Err(ExecutorError::NotSupported);
 		}
 
+		let who = ensure_signed(_who).unwrap();
+
 		BUY_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
 			m.push(BuyExecution {
@@ -639,9 +641,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 		let amount_in = XYK_BUY_CALCULATION_RESULT;
 
-		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(ExecutorError::Error)?;
-		Currencies::transfer(RuntimeOrigin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
 			.map_err(ExecutorError::Error)?;
 
 		Ok(())
