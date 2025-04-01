@@ -15,7 +15,7 @@ use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::{
-	AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeEvent, RuntimeOrigin, DCA,
+	AssetId, Currencies, EVMAccounts, Liquidation, Router, RouterPalletId, Runtime, RuntimeEvent, RuntimeOrigin, DCA,
 };
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
@@ -124,6 +124,7 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 }
 
 const HDX: AssetId = 0;
+const DAI: AssetId = 1;
 const DOT: AssetId = 5;
 const ADOT: AssetId = 1_000_037;
 const ONE: u128 = 1 * 10_u128.pow(10);
@@ -340,10 +341,10 @@ fn second_hop_should_have_enough_funds_to_swap() {
 			&hydradx_runtime::Treasury::account_id(),
 			2 * BAG
 		));
-		assert_ok!(Currencies::deposit(HDX, &ALICE.into(), 2 * BAG));
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 2 * BAG));
 		assert_ok!(hydradx_runtime::XYK::create_pool(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			HDX,
+			DAI,
 			BAG,
 			ADOT,
 			BAG,
@@ -354,7 +355,7 @@ fn second_hop_should_have_enough_funds_to_swap() {
 		assert_ok!(Router::sell(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			DOT,
-			HDX,
+			DAI,
 			amount,
 			0,
 			vec![
@@ -366,10 +367,53 @@ fn second_hop_should_have_enough_funds_to_swap() {
 				Trade {
 					pool: XYK,
 					asset_in: ADOT,
-					asset_out: HDX,
+					asset_out: DAI,
 				},
 			]
 		));
+	})
+}
+
+#[test]
+fn second_hop_should_have_enough_funds_to_buy() {
+	with_atoken(|| {
+		assert_ok!(Currencies::deposit(
+			HDX,
+			&hydradx_runtime::Treasury::account_id(),
+			2 * BAG
+		));
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 2 * BAG));
+		assert_ok!(hydradx_runtime::XYK::create_pool(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DAI,
+			BAG,
+			ADOT,
+			BAG,
+		));
+
+		// poor mans fuzzer
+		for i in 0..100 {
+			let amount = 55108186 + i;
+			assert_ok!(Router::buy(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				DOT,
+				DAI,
+				amount,
+				amount * 2,
+				vec![
+					Trade {
+						pool: Aave,
+						asset_in: DOT,
+						asset_out: ADOT,
+					},
+					Trade {
+						pool: XYK,
+						asset_in: ADOT,
+						asset_out: DAI,
+					},
+				]
+			));
+		}
 	})
 }
 
@@ -403,7 +447,7 @@ fn executor_ensures_valid_asset_pair() {
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				DOT,
-				ONE,
+				1_000 * ONE,
 				0,
 				vec![Trade {
 					pool: Aave,
