@@ -969,16 +969,13 @@ impl RouterWeightInfo {
 		)
 	}
 
-	pub fn skip_ed_handling_overweight() -> Weight {
-		weights::pallet_route_executor::HydraWeight::<Runtime>::skip_ed_handling_for_trade_with_insufficient_assets()
-	}
 }
 
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	// Used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let c = 1; // number of times AMM::calculate_sell is executed
+		let c = 0; // number of times AMM::calculate_sell is executed. It is zero as we dont calculate there anymore
 		let e = 1; // number of times AMM::execute_sell is executed
 
 		for trade in route {
@@ -999,13 +996,6 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
-		//We add the overweight for skipping ED handling if route has multiple trades and we have any insufficient asset
-		if route.len() > 1
-			&& route.iter().any(|trade| {
-				!AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)
-			}) {
-			weight.saturating_accrue(Self::skip_ed_handling_overweight());
-		}
 
 		weight
 	}
@@ -1034,13 +1024,6 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
-		//We add the overweight for skipping ED handling if we have any insufficient asset
-		if route.len() > 1
-			&& route.iter().any(|trade| {
-				!AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)
-			}) {
-			weight.saturating_accrue(Self::skip_ed_handling_overweight());
-		}
 
 		weight
 	}
