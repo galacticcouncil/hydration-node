@@ -68,7 +68,7 @@ fn with_atoken(execution: impl FnOnce()) {
 			DOT,
 			ADOT,
 			BAG,
-			BAG,
+			BAG + 2, //Tiny we charge due token-atoken is not always 1:1,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -183,7 +183,7 @@ fn buy_adot() {
 			DOT,
 			ADOT,
 			ONE,
-			ONE,
+			ONE + 2, // Small fee we apply for buys,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -221,14 +221,14 @@ fn buy_dot() {
 			ADOT,
 			DOT,
 			ONE,
-			ONE,
+			ONE + 2,
 			vec![Trade {
 				pool: Aave,
 				asset_in: ADOT,
 				asset_out: DOT,
 			}]
 		));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE - 2);
 	})
 }
 
@@ -243,7 +243,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 			DOT,
 			ADOT,
 			2 * BAG,
-			2 * BAG,
+			2 * BAG + 2,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -256,7 +256,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 			DOT,
 			ADOT,
 			BAG / 2,
-			BAG / 2,
+			BAG / 2 + 2,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -282,8 +282,8 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 				asset_out: DOT,
 			}]
 		));
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount);
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), balance - amount + 1);
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount + 6);
 	})
 }
 
@@ -329,7 +329,7 @@ fn not_always_rounding_shall_be_in_your_favor() {
 			}]
 		));
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance - 1);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
 	})
 }
 
@@ -543,7 +543,7 @@ fn dca_schedule_selling_atokens_should_be_created() {
 			DOT,
 			ADOT,
 			1000 * ONE,
-			1000 * ONE,
+			1000 * ONE + 2,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,

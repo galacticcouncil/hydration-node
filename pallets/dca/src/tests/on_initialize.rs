@@ -887,7 +887,7 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
-			assert_number_of_executed_sell_trades!(3);
+			assert_number_of_executed_sell_trades!(2);
 
 			let schedule_id = 0;
 			assert_that_dca_is_terminated(ALICE, schedule_id, sp_runtime::TokenError::FundsUnavailable.into());

@@ -325,7 +325,6 @@ where
 
 		// For both supply and withdraw, amount out is always 1:1
 		// to save weight we just assume the operation will be available
-		//TODO: ADD .saturating_add(2), and fix tests
 		Ok(amount_in)
 	}
 
@@ -335,7 +334,7 @@ where
 		asset_out: AssetId,
 		amount_out: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Self::calculate_sell(pool_type, asset_in, asset_out, amount_out)
+		Self::calculate_sell(pool_type, asset_in, asset_out, amount_out).map(|amount_out| amount_out.saturating_add(2))
 	}
 
 	fn execute_sell(
@@ -350,8 +349,8 @@ where
 			return Err(ExecutorError::NotSupported);
 		}
 
-		//TODO: use the calculate(amount_in) once we added the buffer
-		ensure!(amount_in>= min_limit, ExecutorError::Error("Slippage exceeded".into()));
+		let amount_out = Self::calculate_buy(pool_type, asset_in, asset_out, amount_in)?;
+		ensure!(amount_out >= min_limit, ExecutorError::Error("Slippage exceeded".into()));
 
 		let _ = EvmAccounts::<T>::bind_evm_address(who.clone());
 
