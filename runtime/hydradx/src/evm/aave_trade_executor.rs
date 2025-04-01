@@ -10,15 +10,16 @@ use evm::ExitReason::Succeed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_support::pallet_prelude::TypeInfo;
-use frame_support::traits::{Currency, IsType};
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::tokens::{Fortitude, Preservation};
+use frame_support::traits::{Currency, IsType};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pallet_broadcast::types::{Asset, Destination, Fee};
 use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
@@ -36,9 +37,10 @@ use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
-use pallet_broadcast::types::{Asset, Destination, Fee};
 
-pub struct AaveTradeExecutor<T>(PhantomData<T>) where T: pallet_broadcast::Config;
+pub struct AaveTradeExecutor<T>(PhantomData<T>)
+where
+	T: pallet_broadcast::Config;
 
 pub type Aave = AaveTradeExecutor<Runtime>;
 
@@ -121,7 +123,7 @@ where
 		+ pallet_asset_registry::Config<AssetId = AssetId>
 		+ pallet_liquidation::Config
 		+ pallet_evm_accounts::Config
-	    + pallet_broadcast::Config
+		+ pallet_broadcast::Config
 		+ frame_system::Config,
 	T::AssetNativeLocation: Into<MultiLocation>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
@@ -129,7 +131,7 @@ where
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
-	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>
+	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
 {
 	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {
 		let context = CallContext::new_view(pool);
@@ -300,7 +302,10 @@ where
 		}
 
 		let amount_out = Self::calculate_buy(pool_type, asset_in, asset_out, amount_in)?;
-		ensure!(amount_out >= min_limit, ExecutorError::Error("Slippage exceeded".into()));
+		ensure!(
+			amount_out >= min_limit,
+			ExecutorError::Error("Slippage exceeded".into())
+		);
 
 		let _ = pallet_evm_accounts::Pallet::<T>::bind_evm_address(who.clone());
 
@@ -395,7 +400,7 @@ where
 	) -> Result<(), ExecutorError<Self::Error>> {
 		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_in, min_limit)?;
 
-		let who = ensure_signed(who.clone()).map_err(|_|ExecutorError::Error("Invalid origin".into()))?;
+		let who = ensure_signed(who.clone()).map_err(|_| ExecutorError::Error("Invalid origin".into()))?;
 		let atoken = HydraErc20Mapping::encode_evm_address(trade_result);
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(atoken);
 
@@ -425,7 +430,7 @@ where
 
 		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_out, max_limit)?;
 
-		let who = ensure_signed(who.clone()).map_err(|_|ExecutorError::Error("Invalid origin".into()))?;
+		let who = ensure_signed(who.clone()).map_err(|_| ExecutorError::Error("Invalid origin".into()))?;
 		let atoken = HydraErc20Mapping::encode_evm_address(trade_result);
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(atoken);
 

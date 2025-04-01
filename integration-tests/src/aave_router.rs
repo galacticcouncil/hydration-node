@@ -30,17 +30,17 @@ use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
+use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use primitives::Balance;
 use rococo_runtime::Balances;
+use scraper::ALICE;
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
-use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
-use scraper::ALICE;
 
 fn with_aave(execution: impl FnOnce()) {
 	TestNet::reset();
@@ -246,7 +246,7 @@ fn buy_dot() {
 				filler_type: pallet_broadcast::types::Filler::AAVE,
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
 				inputs: vec![Asset::new(ADOT, ONE)],
-				outputs: vec![Asset::new(DOT,  ONE)],
+				outputs: vec![Asset::new(DOT, ONE)],
 				fees: vec![],
 				operation_stack: vec![ExecutionType::Router(1)],
 			}
@@ -318,7 +318,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 				filler_type: pallet_broadcast::types::Filler::AAVE,
 				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(ADOT, amount)],
-				outputs: vec![Asset::new(DOT,  amount)],
+				outputs: vec![Asset::new(DOT, amount)],
 				fees: vec![],
 				operation_stack: vec![ExecutionType::Router(3)],
 			}

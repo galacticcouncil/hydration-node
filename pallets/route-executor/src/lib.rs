@@ -19,21 +19,21 @@
 #![allow(clippy::manual_inspect)]
 
 use codec::MaxEncodedLen;
+use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::tokens::Preservation::Preserve;
 use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 use frame_support::PalletId;
-use frame_support::traits::fungibles::Mutate;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
 	traits::{fungibles::Inspect, Get},
 	transactional,
 };
-use sp_runtime::traits::Zero;
-use frame_support::traits::tokens::Preservation::Preserve;
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
+use sp_runtime::traits::Zero;
 
-use frame_system::{ensure_signed, Origin};
 use frame_system::pallet_prelude::OriginFor;
+use frame_system::{ensure_signed, Origin};
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
@@ -179,7 +179,6 @@ pub mod pallet {
 		NotAllowed,
 	}
 
-
 	/// Storing routes for asset pairs
 	#[pallet::storage]
 	#[pallet::getter(fn route)]
@@ -259,7 +258,13 @@ pub mod pallet {
 			let trader_account = Self::router_account();
 			pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
-			T::Currency::transfer(asset_in, &who, &trader_account.clone(), first_trade.amount_in, Preservation::Expendable)?;
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&trader_account.clone(),
+				first_trade.amount_in,
+				Preservation::Expendable,
+			)?;
 
 			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
@@ -476,15 +481,17 @@ impl<T: Config> Pallet<T> {
 
 		let trader_account = Self::router_account();
 
-		let mut user_amount_in_balance = T::Currency::reducible_balance(
-			asset_in,
-			&who.clone(),
-			Preservation::Expendable,
-			Fortitude::Polite,
-		);
-		ensure!(user_amount_in_balance >=amount_in, TokenError::FundsUnavailable);
+		let mut user_amount_in_balance =
+			T::Currency::reducible_balance(asset_in, &who.clone(), Preservation::Expendable, Fortitude::Polite);
+		ensure!(user_amount_in_balance >= amount_in, TokenError::FundsUnavailable);
 
-		T::Currency::transfer(asset_in, &who, &trader_account.clone(), amount_in, Preservation::Expendable)?;
+		T::Currency::transfer(
+			asset_in,
+			&who,
+			&trader_account.clone(),
+			amount_in,
+			Preservation::Expendable,
+		)?;
 
 		let route_length = route.len();
 		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;

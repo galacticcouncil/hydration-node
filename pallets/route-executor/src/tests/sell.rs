@@ -18,13 +18,13 @@
 use crate::tests::mock::*;
 use crate::{Error, Event, Trade};
 use frame_support::{assert_noop, assert_ok};
-use pallet_balances::Error::InsufficientBalance;
+use hydradx_traits::router;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
+use pallet_balances::Error::InsufficientBalance;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{DispatchError, TokenError};
-use hydradx_traits::router;
 
 #[test]
 fn sell_should_work_when_route_has_single_trade() {

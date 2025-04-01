@@ -184,7 +184,7 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 				))),
 				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(HDX, amount_to_sell)],
-				outputs: vec![Asset::new(DOT,  3777648106062)],
+				outputs: vec![Asset::new(DOT, 3777648106062)],
 				fees: vec![Fee::new(
 					DOT,
 					11367045453,

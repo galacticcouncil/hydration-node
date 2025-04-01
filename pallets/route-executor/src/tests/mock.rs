@@ -157,7 +157,7 @@ parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
-	
+
 	pub const RouterPalletId: PalletId = PalletId(*b"routerac");
 }
 

@@ -263,9 +263,11 @@ impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 		//	return Ok(());
 		//}
 
-
 		//This is mainly needed to disable charging any ED when we send the initial assetIn insufficient asset to the router account in the beginning of router trades
-		if *to ==  <sp_runtime::AccountId32 as Into<AccountId>>::into(<PalletId as AccountIdConversion<AccountId>>::into_account_truncating(&RouterPalletId::get())) {
+		if *to
+			== <sp_runtime::AccountId32 as Into<AccountId>>::into(
+				<PalletId as AccountIdConversion<AccountId>>::into_account_truncating(&RouterPalletId::get()),
+			) {
 			return Ok(());
 		}
 
@@ -968,7 +970,6 @@ impl RouterWeightInfo {
 			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp().proof_size(),
 		)
 	}
-
 }
 
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
@@ -996,7 +997,6 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			weight.saturating_accrue(amm_weight);
 		}
 
-
 		weight
 	}
 
@@ -1023,7 +1023,6 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			};
 			weight.saturating_accrue(amm_weight);
 		}
-
 
 		weight
 	}

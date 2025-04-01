@@ -2,11 +2,11 @@
 #![allow(clippy::identity_op)]
 use super::assert_balance;
 use crate::polkadot_test_net::*;
+use hydradx_runtime::RuntimeEvent;
 use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
 };
-use hydradx_runtime::RuntimeEvent;
 use pallet_broadcast::types::Destination;
 
 use hydradx_traits::router::AssetPair as Pair;
@@ -527,86 +527,89 @@ mod router_different_pools_tests {
 
 			//Assert
 			let swapped_events = get_last_swapped_events();
-			pretty_assertions::assert_eq!(swapped_events, vec![
-				pallet_broadcast::Event::Swapped {
-					swapper: BOB.into(),
-					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
-						asset_in: HDX,
-						asset_out: DOT,
-					}),
-					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
-						pallet_xyk::types::AssetPair {
+			pretty_assertions::assert_eq!(
+				swapped_events,
+				vec![
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						},
-					))),
-					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(HDX, 2000000000000)],
-					outputs: vec![Asset::new(DOT, 977450980394)],
-					fees: vec![Fee::new(
-						DOT,
-						2941176468,
-						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+						}),
+						filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+							pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: DOT,
+							},
+						))),
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
+						inputs: vec![Asset::new(HDX, 2000000000000)],
+						outputs: vec![Asset::new(DOT, 977450980394)],
+						fees: vec![Fee::new(
+							DOT,
+							2941176468,
+							Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: DOT,
+							})),
+						)],
+						operation_stack: vec![ExecutionType::Router(0)],
+					}
+					.into(),
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						})),
-					)],
-					operation_stack: vec![ExecutionType::Router(0)],
-				}
-				.into(),
-				pallet_broadcast::Event::Swapped {
-					swapper: BOB.into(),
-					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
-						asset_in: HDX,
-						asset_out: DOT,
-					}),
-					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
-						pallet_xyk::types::AssetPair {
+						}),
+						filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+							pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: DOT,
+							},
+						))),
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
+						inputs: vec![Asset::new(HDX, 2000000000000)],
+						outputs: vec![Asset::new(DOT, 4338344140275)],
+						fees: vec![Fee::new(
+							HDX,
+							13015032420,
+							Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: DOT,
+							})),
+						)],
+						operation_stack: vec![ExecutionType::Router(1)],
+					}
+					.into(),
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
 							asset_out: DOT,
-						},
-					))),
-					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(HDX,  2000000000000)],
-					outputs: vec![Asset::new(DOT, 4338344140275)],
-					fees: vec![Fee::new(
-						HDX,
-						13015032420,
-						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
-							asset_in: HDX,
-							asset_out: DOT,
-						})),
-					)],
-					operation_stack: vec![ExecutionType::Router(1)],
-				}
-				.into(),
-				pallet_broadcast::Event::Swapped {
-					swapper: BOB.into(),
-					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
-						asset_in: HDX,
-						asset_out: DOT,
-					}),
-					filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
-						pallet_xyk::types::AssetPair {
-							asset_in: HDX,
-							asset_out: DOT,
-						},
-					))),
-					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(HDX,  2000000000000)],
-					outputs: vec![Asset::new(DOT, 865360282152)],
-					fees: vec![Fee::new(
-						DOT,
-						 2603892522,
-						Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
-							asset_in: HDX,
-							asset_out: DOT,
-						})),
-					)],
-					operation_stack: vec![ExecutionType::Router(2)],
-				}
-				.into(),
-			]);
+						}),
+						filler_type: pallet_broadcast::types::Filler::XYK(XYK::share_token(XYK::get_pair_id(
+							pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: DOT,
+							},
+						))),
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
+						inputs: vec![Asset::new(HDX, 2000000000000)],
+						outputs: vec![Asset::new(DOT, 865360282152)],
+						fees: vec![Fee::new(
+							DOT,
+							2603892522,
+							Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
+								asset_in: HDX,
+								asset_out: DOT,
+							})),
+						)],
+						operation_stack: vec![ExecutionType::Router(2)],
+					}
+					.into(),
+				]
+			);
 		});
 	}
 
@@ -997,13 +1000,13 @@ mod router_different_pools_tests {
 			//Act & Assert
 			assert_eq!(
 				RouterWeightInfo::sell_weight(trades.as_slice()),
-				hydradx_runtime::weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 1)
+				hydradx_runtime::weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(0, 1)
 					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
 					.unwrap()
 					.checked_add(&<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight())
 					.unwrap()
 					.checked_add(
-						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 1)
+						&hydradx_runtime::weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(0, 1)
 					)
 					.unwrap()
 					.checked_add(
@@ -1042,7 +1045,6 @@ mod omnipool_router_tests {
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::{Destination, ExecutionType};
-
 
 	//TODO: Make LBP work with Router: https://github.com/galacticcouncil/hydration-node/issues/1059
 	#[ignore]
@@ -2299,35 +2301,38 @@ mod omnipool_router_tests {
 
 			let swapped_events = get_last_swapped_events();
 
-			pretty_assertions::assert_eq!(swapped_events, vec![
-				pallet_broadcast::Event::Swapped {
-					swapper: BOB.into(),
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_broadcast::types::Filler::Omnipool,
-					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(HDX, amount_to_sell)],
-					outputs: vec![Asset::new(LRNA, 12014871681)],
-					fees: vec![
-						Fee::new(LRNA, 3003717, Destination::Burned),
-						Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
-					],
-					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
-				},
-				pallet_broadcast::Event::Swapped {
-					swapper: BOB.into(),
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_broadcast::types::Filler::Omnipool,
-					operation: pallet_broadcast::types::TradeOperation::ExactIn,
-					inputs: vec![Asset::new(LRNA, 12_008_864_246)],
-					outputs: vec![Asset::new(DAI, amount_out)],
-					fees: vec![Fee::new(
-						DAI,
-						400293338391841,
-						Destination::Account(Omnipool::protocol_account()),
-					)],
-					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
-				}
-			]);
+			pretty_assertions::assert_eq!(
+				swapped_events,
+				vec![
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: Omnipool::protocol_account(),
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
+						inputs: vec![Asset::new(HDX, amount_to_sell)],
+						outputs: vec![Asset::new(LRNA, 12014871681)],
+						fees: vec![
+							Fee::new(LRNA, 3003717, Destination::Burned),
+							Fee::new(LRNA, 3003718, Destination::Account(Treasury::account_id())),
+						],
+						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+					},
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: Omnipool::protocol_account(),
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactIn,
+						inputs: vec![Asset::new(LRNA, 12_008_864_246)],
+						outputs: vec![Asset::new(DAI, amount_out)],
+						fees: vec![Fee::new(
+							DAI,
+							400293338391841,
+							Destination::Account(Omnipool::protocol_account()),
+						)],
+						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+					}
+				]
+			);
 		});
 
 		TestNet::reset();
@@ -2535,35 +2540,38 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
 			let last_swapped_events = get_last_swapped_events();
-			pretty_assertions::assert_eq!(last_swapped_events, vec![
-				pallet_broadcast::Event::Swapped {
-					swapper: BOB.into(),
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_broadcast::types::Filler::Omnipool,
-					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(HDX, amount_in)],
-					outputs: vec![Asset::new(LRNA, 4509023679)],
-					fees: vec![
-						Fee::new(LRNA, 1127255, Destination::Burned),
-						Fee::new(LRNA, 1127256, Destination::Account(Treasury::account_id())),
-					],
-					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
-				},
-				pallet_broadcast::Event::Swapped {
-					swapper: BOB.into(),
-					filler: Omnipool::protocol_account(),
-					filler_type: pallet_broadcast::types::Filler::Omnipool,
-					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(LRNA, 4506769168)],
-					outputs: vec![Asset::new(DAI, amount_to_buy)],
-					fees: vec![Fee::new(
-						DAI,
-						150225338007011,
-						Destination::Account(Omnipool::protocol_account()),
-					)],
-					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
-				}
-			]);
+			pretty_assertions::assert_eq!(
+				last_swapped_events,
+				vec![
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: Omnipool::protocol_account(),
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
+						inputs: vec![Asset::new(HDX, amount_in)],
+						outputs: vec![Asset::new(LRNA, 4509023679)],
+						fees: vec![
+							Fee::new(LRNA, 1127255, Destination::Burned),
+							Fee::new(LRNA, 1127256, Destination::Account(Treasury::account_id())),
+						],
+						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+					},
+					pallet_broadcast::Event::Swapped {
+						swapper: BOB.into(),
+						filler: Omnipool::protocol_account(),
+						filler_type: pallet_broadcast::types::Filler::Omnipool,
+						operation: pallet_broadcast::types::TradeOperation::ExactOut,
+						inputs: vec![Asset::new(LRNA, 4506769168)],
+						outputs: vec![Asset::new(DAI, amount_to_buy)],
+						fees: vec![Fee::new(
+							DAI,
+							150225338007011,
+							Destination::Account(Omnipool::protocol_account()),
+						)],
+						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
+					}
+				]
+			);
 		});
 
 		TestNet::reset();
@@ -2664,9 +2672,9 @@ mod omnipool_router_tests {
 }
 
 mod lbp_router_tests {
-	use pallet_broadcast::types::{Asset, Destination, Fee};
 	use super::*;
 	use crate::assert_balance;
+	use pallet_broadcast::types::{Asset, Destination, Fee};
 
 	//TODO: Make LBP work with Router: https://github.com/galacticcouncil/hydration-node/issues/1059
 	#[ignore]
@@ -2922,7 +2930,8 @@ mod lbp_router_tests {
 						),
 					)],
 					operation_stack: vec![ExecutionType::Router(0)],
-				});
+				}
+			);
 		});
 
 		TestNet::reset();
@@ -3281,7 +3290,6 @@ mod lbp_router_tests {
 
 mod xyk_router_tests {
 	use super::*;
-
 
 	//TODO: Make LBP work with Router: https://github.com/galacticcouncil/hydration-node/issues/1059
 	#[ignore]
@@ -5021,7 +5029,6 @@ mod route_spot_price {
 	use super::*;
 	use hydradx_traits::router::PoolType;
 	use sp_runtime::FixedU128;
-
 
 	//TODO: Make LBP work with Router: https://github.com/galacticcouncil/hydration-node/issues/1059
 	#[ignore]
