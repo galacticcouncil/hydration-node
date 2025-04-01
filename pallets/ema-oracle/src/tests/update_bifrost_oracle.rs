@@ -75,12 +75,8 @@ fn successful_oracle_update_shouldnt_pay_fee() {
 		let dot = polkadot_xcm::v3::MultiLocation::parent().into_versioned();
 
 		//Act
-		let res = EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE),
-			Box::new(hdx),
-			Box::new(dot),
-			(100, 99)
-		);
+		let res =
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 99));
 
 		// Assert
 		assert_eq!(res, Ok(Pays::No.into()));
