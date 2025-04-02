@@ -96,8 +96,8 @@ jobs:
             ${{ steps.srtool_build.outputs.wasm }}
             ${{ steps.srtool_build.outputs.wasm_compressed }}
             ${{ env.CHAIN }}-srtool-digest.json
-            ${{ env.CHAIN }}-metadata.json
-            ${{ env.CHAIN }}-metadata.txt
+            ${{ env.CHAIN }}-info.json
+            ${{ env.CHAIN }}-info.txt
             ${{ env.CHAIN }}-subwasm-info.json
             ${{ env.CHAIN }}-subwasm-info.txt
             ${{ env.CHAIN }}-diff.txt
