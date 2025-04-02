@@ -17,7 +17,7 @@ use frame_support::{
 };
 use frame_system::unique;
 use frame_system::EnsureRoot;
-use hydradx_adapters::{xcm_exchange::XcmAssetExchanger};
+use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
