@@ -404,7 +404,7 @@ impl BatchHook for ManageExecutionTypeForUnifiedEvent {
 	}
 
 	fn on_batch_end() -> DispatchResult {
-		Broadcast::remove_from_context()?;
+		Broadcast::reset_context()?;
 
 		Ok(())
 	}

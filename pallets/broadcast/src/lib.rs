@@ -153,7 +153,9 @@ impl<T: Config> Pallet<T> {
 		Ok(next_id)
 	}
 
-	pub fn remove_from_context() -> DispatchResult {
+	pub fn reset_context() -> DispatchResult {
+		Swapper::<T>::kill();
+
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
 			stack.pop().ok_or_else(|| {
 				log::error!(target: "broadcast", "The execution context call stack is empty, unable to decrease level");
@@ -169,9 +171,6 @@ impl<T: Config> Pallet<T> {
 		Swapper::<T>::put(account_id);
 	}
 
-	pub fn remove_swapper() {
-		Swapper::<T>::kill();
-	}
 
 	pub fn get_swapper() -> Option<T::AccountId> {
 		Swapper::<T>::get()

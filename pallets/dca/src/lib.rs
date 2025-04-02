@@ -798,7 +798,7 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
-		pallet_broadcast::Pallet::<T>::remove_from_context()?;
+		pallet_broadcast::Pallet::<T>::reset_context()?;
 
 		trade_result
 	}
