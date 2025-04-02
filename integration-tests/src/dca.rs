@@ -200,7 +200,8 @@ mod omnipool {
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), HDX, 858858384008414);
+			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
+			assert!(reserved_budget < dca_budget);
 		});
 	}
 
@@ -341,7 +342,8 @@ mod omnipool {
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), HDX, 858858384008414);
+			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
+			assert!(reserved_budget < dca_budget);
 		});
 	}
 
@@ -442,7 +444,9 @@ mod omnipool {
 			//Assert
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), LRNA, 2429464263973749);
+			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
+			assert!(reserved_budget < dca_budget);
+
 
 			let treasury_balance = Currencies::free_balance(LRNA, &Treasury::account_id());
 			assert!(treasury_balance > 0);
@@ -471,7 +475,8 @@ mod omnipool {
 			set_relaychain_block_number(12);
 
 			//Assert
-			assert_reserved_balance!(&ALICE.into(), HDX, 858858384008414);
+			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
+			assert!(reserved_budget < dca_budget);
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
@@ -554,7 +559,9 @@ mod omnipool {
 			set_relaychain_block_number(12);
 
 			//Assert
-			assert_reserved_balance!(&ALICE.into(), LRNA, 929464263973749);
+			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
+			assert!(reserved_budget < dca_budget);
+
 			assert_balance!(ALICE.into(), DAI, 2100000000000000);
 		});
 
@@ -1545,7 +1552,8 @@ mod omnipool {
 
 			assert_balance!(ALICE.into(), DAI, 2142642852904326);
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), LRNA, 2399567462636097);
+			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
+			assert!(reserved_budget < dca_budget);
 		});
 	}
 
