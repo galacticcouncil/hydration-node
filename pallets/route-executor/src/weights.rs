@@ -21,19 +21,6 @@ pub trait WeightInfo {
 /// Weights for `pallet_route_executor` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `Router::SkipEd` (r:0 w:1)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	fn skip_ed_handling_for_trade_with_insufficient_assets() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `944`
-		//  Estimated: `3590`
-		// Minimum execution time: 18_351_000 picoseconds.
-		Weight::from_parts(18_623_000, 3590)
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
 	/// Storage: `LBP::PoolData` (r:1 w:0)
 	/// Proof: `LBP::PoolData` (`max_values`: None, `max_size`: Some(163), added: 2638, mode: `MaxEncodedLen`)
 	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
