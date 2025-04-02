@@ -57,7 +57,7 @@ pub use weights::WeightInfo;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub const MAX_NUMBER_OF_TRADES: u32 = 5;
+pub const MAX_NUMBER_OF_TRADES: u32 = 9;
 
 #[frame_support::pallet]
 pub mod pallet {

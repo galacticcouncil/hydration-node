@@ -145,8 +145,8 @@ fn schedule_sell_fake(
 
 //TODO: make it global
 
-pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade<AssetId>, ConstU32<5>> = trades.try_into().unwrap();
+pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<{pallet_route_executor::MAX_NUMBER_OF_TRADES}>> {
+	let bounded_vec: BoundedVec<Trade<AssetId>, ConstU32<{pallet_route_executor::MAX_NUMBER_OF_TRADES}>> = trades.try_into().unwrap();
 	bounded_vec
 }
 
@@ -397,11 +397,19 @@ runtime_benchmarks! {
 		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_7 = register_asset(b"AS7".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_8 = register_asset(b"AS8".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		create_xyk_pool(asset_1, asset_2);
 		create_xyk_pool(asset_2, asset_3);
 		create_xyk_pool(asset_3, asset_4);
 		create_xyk_pool(asset_4, asset_5);
-		create_xyk_pool(asset_5, HDX);
+		create_xyk_pool(asset_5, asset_6);
+		create_xyk_pool(asset_6, asset_7);
+		create_xyk_pool(asset_7, asset_8);
+		create_xyk_pool(asset_8, asset_9);
+		create_xyk_pool(asset_9, HDX);
 
 		set_period(10);
 
@@ -429,6 +437,26 @@ runtime_benchmarks! {
 			Trade {
 				pool: PoolType::XYK,
 				asset_in: asset_5,
+				asset_out: asset_6,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_6,
+				asset_out: asset_7,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_7,
+				asset_out: asset_8,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_8,
+				asset_out: asset_9,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_9,
 				asset_out: HDX,
 			}
 		];

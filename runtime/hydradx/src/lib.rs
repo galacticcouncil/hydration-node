@@ -66,15 +66,10 @@ use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
-use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
-	traits::{
-		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
-		UniqueSaturatedInto,
-	},
-	transaction_validity::{TransactionValidity, TransactionValidityError},
-	Permill,
-};
+use sp_runtime::{create_runtime_str, generic, impl_opaque_keys, traits::{
+	AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
+	UniqueSaturatedInto,
+}, transaction_validity::{TransactionValidity, TransactionValidityError}, DispatchError, Permill, TransactionOutcome};
 
 use sp_std::{convert::From, prelude::*};
 #[cfg(feature = "std")]
@@ -474,6 +469,8 @@ use hydradx_traits::evm::Erc20Mapping;
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
+use polkadot_xcm::latest::Junction;
+use sp_arithmetic::FixedU128;
 use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
@@ -1460,6 +1457,7 @@ impl_runtime_apis! {
 
 #[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic exchane_asset instruction
 fn init_omnipool(amount_to_sell: Balance) -> Balance {
+	use hydradx_traits::Mutate;
 	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
 	let hdx = 0;
 	let dai = 2;

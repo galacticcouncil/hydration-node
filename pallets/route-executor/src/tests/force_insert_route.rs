@@ -97,6 +97,26 @@ fn force_insert_should_fail_when_called_with_too_big_route() {
 				asset_in: HDX,
 				asset_out: AUSD,
 			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: AUSD,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: AUSD,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: AUSD,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: AUSD,
+			},
 		];
 
 		//Act

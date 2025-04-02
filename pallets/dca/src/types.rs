@@ -9,7 +9,7 @@ pub type Balance = u128;
 pub type ScheduleId = u32;
 pub type NamedReserveIdentifier = [u8; 8];
 
-const MAX_NUMBER_OF_TRADES: u32 = 5;
+const MAX_NUMBER_OF_TRADES: u32 = 9;
 
 /// DCA schedule containing information to execute repeating orders.
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
