@@ -640,8 +640,6 @@ impl<T: Config> Pallet<T> {
 		Ok(amount_out)
 	}
 
-	//TODO: this and all other calculation wont be needed, also in benchmark, remove it
-	//TODO: also remove the ensure checks function
 	fn calculate_sell_trade_amounts(
 		route: &[Trade<T::AssetId>],
 		amount_in: T::Balance,

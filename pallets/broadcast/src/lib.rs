@@ -171,7 +171,6 @@ impl<T: Config> Pallet<T> {
 		Swapper::<T>::put(account_id);
 	}
 
-
 	pub fn get_swapper() -> Option<T::AccountId> {
 		Swapper::<T>::get()
 	}

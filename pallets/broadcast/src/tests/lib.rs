@@ -157,9 +157,6 @@ fn should_return_error_when_stack_reaches_max_size() {
 #[test]
 fn should_return_error_when_trying_to_remove_from_empty_stack() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_err!(
-			Broadcast::reset_context(),
-			Error::<Test>::ExecutionCallStackUnderflow
-		);
+		assert_err!(Broadcast::reset_context(), Error::<Test>::ExecutionCallStackUnderflow);
 	});
 }
