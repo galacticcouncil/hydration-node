@@ -447,7 +447,6 @@ mod omnipool {
 			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
 			assert!(reserved_budget < dca_budget);
 
-
 			let treasury_balance = Currencies::free_balance(LRNA, &Treasury::account_id());
 			assert!(treasury_balance > 0);
 		});
