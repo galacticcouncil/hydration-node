@@ -50,19 +50,11 @@ use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::TrackedStorageKey;
 use frame_system::RawOrigin;
-use hydradx_traits::Mutate;
 use pallet_referrals::FeeDistribution;
 use pallet_referrals::Level;
 use pallet_stableswap::types::Tradability;
 use polkadot_xcm::opaque::lts::InteriorLocation;
-use polkadot_xcm::opaque::v3::MultiLocation;
-use sp_runtime::DispatchError;
-use sp_runtime::FixedU128;
-use sp_runtime::TransactionOutcome;
-use sp_std::sync::Arc;
-
 pub use assets::*;
-use cumulus_primitives_core::Junction;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 use pallet_asset_registry::AssetType;
@@ -481,7 +473,6 @@ use frame_support::{
 use hydradx_traits::evm::Erc20Mapping;
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use polkadot_xcm::latest::Location;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
 use sp_core::OpaqueMetadata;

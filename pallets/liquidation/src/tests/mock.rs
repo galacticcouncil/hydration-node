@@ -20,7 +20,7 @@ use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::{
-	router::{PoolType, RefundEdCalculator},
+	router::{PoolType},
 	OraclePeriod, PriceOracle,
 };
 use orml_traits::parameter_type_with_key;
@@ -217,14 +217,6 @@ parameter_types! {
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
-}
-
 pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId> for PriceProviderMock {
@@ -245,9 +237,7 @@ impl pallet_route_executor::Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = AssetRegistry;
 	type AMM = Omnipool;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;

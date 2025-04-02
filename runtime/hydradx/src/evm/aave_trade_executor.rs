@@ -12,7 +12,7 @@ use frame_support::ensure;
 use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::tokens::{Fortitude, Preservation};
-use frame_support::traits::{Currency, IsType};
+use frame_support::traits::{IsType};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};

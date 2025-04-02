@@ -20,8 +20,7 @@
 
 use codec::MaxEncodedLen;
 use frame_support::traits::fungibles::Mutate;
-use frame_support::traits::tokens::Preservation::Preserve;
-use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
+use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::PalletId;
 use frame_support::{
 	ensure,
@@ -34,19 +33,17 @@ use sp_runtime::traits::Zero;
 
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::{ensure_signed, Origin};
-use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{inverse_route, AssetPair, RefundEdCalculator, RouteProvider, RouteSpotPriceProvider};
+use hydradx_traits::router::{inverse_route, AssetPair, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
 
-use hydradx_traits::router::PoolType::Aave;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use pallet_broadcast::types::IncrementalIdType;
 pub use pallet_broadcast::types::{ExecutionType, Fee};
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating, TokenError};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TokenError};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -68,7 +65,7 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
+	use hydradx_traits::router::{ExecutorError};
 	use hydradx_traits::{OraclePeriod, PriceOracle};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
@@ -105,8 +102,6 @@ pub mod pallet {
 		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
 			+ Mutate<Self::AccountId>;
 
-		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = Self::AssetId>;
-
 		/// Handlers for AMM pools to calculate and execute trades
 		type AMM: TradeExecution<
 			<Self as frame_system::Config>::RuntimeOrigin,
@@ -116,8 +111,6 @@ pub mod pallet {
 			Error = DispatchError,
 		>;
 
-		///Calculate ED for tolerating currency balance difference
-		type EdToRefundCalculator: RefundEdCalculator<Self::Balance>;
 
 		///Oracle price provider to validate if new route has oracle price data
 		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;
@@ -268,7 +261,7 @@ pub mod pallet {
 
 			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
-			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
+			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
 				let origin: OriginFor<T> = Origin::<T>::Signed(trader_account.clone()).into();
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
@@ -481,7 +474,7 @@ impl<T: Config> Pallet<T> {
 
 		let trader_account = Self::router_account();
 
-		let mut user_amount_in_balance =
+		let user_amount_in_balance =
 			T::Currency::reducible_balance(asset_in, &who.clone(), Preservation::Expendable, Fortitude::Polite);
 		ensure!(user_amount_in_balance >= amount_in, TokenError::FundsUnavailable);
 
@@ -493,11 +486,10 @@ impl<T: Config> Pallet<T> {
 			Preservation::Expendable,
 		)?;
 
-		let route_length = route.len();
 		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 		pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
-		for (trade_index, trade) in route.iter().enumerate() {
+		for trade in route.iter() {
 			let amount_in_to_sell = T::Currency::reducible_balance(
 				trade.asset_in,
 				&trader_account.clone(),
@@ -571,70 +563,6 @@ impl<T: Config> Pallet<T> {
 
 			ensure!(asset_out == next_trade_asset_in, Error::<T>::InvalidRoute)
 		}
-
-		Ok(())
-	}
-
-	fn ensure_that_user_received_asset_out_at_most(
-		who: T::AccountId,
-		asset_in: T::AssetId,
-		asset_out: T::AssetId,
-		user_balance_of_asset_out_before_trade: T::Balance,
-		expected_received_amount: T::Balance,
-		pool_type_to_skip: Option<PoolType<T::AssetId>>,
-	) -> Result<(), DispatchError> {
-		if let Some(pool_type) = pool_type_to_skip {
-			if pool_type == Aave {
-				return Ok(());
-			}
-		}
-		let user_balance_of_asset_out_after_trade =
-			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
-
-		let actual_received_amount = user_balance_of_asset_out_after_trade
-			.checked_sub(&user_balance_of_asset_out_before_trade)
-			.ok_or(Error::<T>::InvalidRouteExecution)?;
-
-		if !T::InspectRegistry::is_sufficient(asset_in) && asset_out == T::NativeAssetId::get() {
-			// In case of selling all insufficient asset, ED in HDX is refund to user, so end-balance will be more with ED
-			// In this case we check if the user does not receive more than ED
-			let diff = actual_received_amount.saturating_sub(expected_received_amount);
-			let ed_to_refund = T::EdToRefundCalculator::calculate();
-
-			ensure!(diff <= ed_to_refund, Error::<T>::InvalidRouteExecution);
-		} else {
-			ensure!(
-				actual_received_amount <= expected_received_amount,
-				Error::<T>::InvalidRouteExecution
-			);
-		}
-
-		Ok(())
-	}
-
-	fn ensure_that_user_spent_asset_in_at_least(
-		who: T::AccountId,
-		asset_in: T::AssetId,
-		user_balance_of_asset_in_before_trade: T::Balance,
-		expected_spent_amount: T::Balance,
-		pool_type_to_skip: Option<PoolType<T::AssetId>>,
-	) -> Result<(), DispatchError> {
-		if let Some(pool_type) = pool_type_to_skip {
-			if pool_type == Aave {
-				return Ok(());
-			}
-		}
-		let user_balance_of_asset_in_after_trade =
-			T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
-
-		let actual_spent_amount = user_balance_of_asset_in_before_trade
-			.checked_sub(&user_balance_of_asset_in_after_trade)
-			.ok_or(Error::<T>::InvalidRouteExecution)?;
-
-		ensure!(
-			actual_spent_amount >= expected_spent_amount,
-			Error::<T>::InvalidRouteExecution,
-		);
 
 		Ok(())
 	}
