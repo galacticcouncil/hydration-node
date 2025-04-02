@@ -387,7 +387,8 @@ where
 		asset_out: AssetId,
 		amount_out: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Self::calculate_out_given_in(pool_type, asset_in, asset_out, amount_out).map(|amount_out| amount_out.saturating_add(2))
+		Self::calculate_out_given_in(pool_type, asset_in, asset_out, amount_out)
+			.map(|amount_out| amount_out.saturating_add(2))
 	}
 
 	fn execute_sell(

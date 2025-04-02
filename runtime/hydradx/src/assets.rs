@@ -260,8 +260,7 @@ impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
 		//This is mainly needed to disable charging any ED when we send the initial assetIn insufficient asset to the router account in the beginning of router trades
 		let router_account = pallet_route_executor::Pallet::<Runtime>::router_account();
-		if *to
-			== <sp_runtime::AccountId32 as Into<AccountId>>::into(router_account) {
+		if *to == <sp_runtime::AccountId32 as Into<AccountId>>::into(router_account) {
 			return Ok(());
 		}
 
