@@ -29,10 +29,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::{
-	router::{PoolType},
-	OraclePeriod, PriceOracle,
-};
+use hydradx_traits::{router::PoolType, OraclePeriod, PriceOracle};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -122,7 +119,6 @@ parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 		pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
-
 
 pub struct PriceProviderMock {}
 

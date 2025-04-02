@@ -33,7 +33,7 @@ use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::router::{Trade};
+use hydradx_traits::router::Trade;
 use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
 	Inspect as InspectRegistry, OraclePeriod, PriceOracle,

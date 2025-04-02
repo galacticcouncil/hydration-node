@@ -39,6 +39,7 @@ mod system;
 pub mod types;
 pub mod xcm;
 
+pub use assets::*;
 use cumulus_primitives_core::GeneralIndex;
 use cumulus_primitives_core::Here;
 use cumulus_primitives_core::Junctions::X1;
@@ -50,15 +51,14 @@ use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::TrackedStorageKey;
 use frame_system::RawOrigin;
-use pallet_referrals::FeeDistribution;
-use pallet_referrals::Level;
-use pallet_stableswap::types::Tradability;
-use polkadot_xcm::opaque::lts::InteriorLocation;
-pub use assets::*;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 use pallet_asset_registry::AssetType;
 use pallet_currencies_rpc_runtime_api::AccountData;
+use pallet_referrals::FeeDistribution;
+use pallet_referrals::Level;
+use pallet_stableswap::types::Tradability;
+use polkadot_xcm::opaque::lts::InteriorLocation;
 pub use system::*;
 pub use xcm::*;
 

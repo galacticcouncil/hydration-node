@@ -65,7 +65,7 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::router::{ExecutorError};
+	use hydradx_traits::router::ExecutorError;
 	use hydradx_traits::{OraclePeriod, PriceOracle};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
@@ -110,7 +110,6 @@ pub mod pallet {
 			Self::Balance,
 			Error = DispatchError,
 		>;
-
 
 		///Oracle price provider to validate if new route has oracle price data
 		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;

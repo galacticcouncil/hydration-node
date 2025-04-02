@@ -392,7 +392,6 @@ impl pallet_route_executor::Config for Test {
 	type WeightInfo = ();
 }
 
-
 pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId> for crate::tests::mock::PriceProviderMock {
