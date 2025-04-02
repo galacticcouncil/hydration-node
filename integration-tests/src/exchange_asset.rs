@@ -1302,7 +1302,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 		]);
 		// use local weight for remote message and hope for the best.
 		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
-		Limited(remote_weight)
+		Unlimited
 	};
 
 	// executed on remote (on hydra)
