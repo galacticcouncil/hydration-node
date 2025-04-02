@@ -976,11 +976,11 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	// Used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let c = 0; // number of times AMM::calculate_sell is executed. It is zero as we dont calculate there anymore
+		let c = 0; // number of times AMM::calculate_sell is executed. It is zero as we don't calculate trade amounts upfront in sell anymore
 		let e = 1; // number of times AMM::execute_sell is executed
 
 		for trade in route {
-			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight(0, 1));
+			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight(c, e));
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e)
@@ -1055,11 +1055,11 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	// Used in DCA::on_initialize for Order::Sell, which calls Router::calculate_sell_trade_amounts and Router::sell.
 	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let c = 2; // number of times AMM::calculate_sell is executed
+		let c = 1; // number of times AMM::calculate_sell is executed
 		let e = 1; // number of times AMM::execute_sell is executed
 
 		for trade in route {
-			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight(1, 1));
+			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight(0, 1));
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e),

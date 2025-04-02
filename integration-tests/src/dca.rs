@@ -1545,7 +1545,7 @@ mod omnipool {
 
 			assert_balance!(ALICE.into(), DAI, 2142642852904326);
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
-			assert_reserved_balance!(&ALICE.into(), LRNA, 2399561886966227);
+			assert_reserved_balance!(&ALICE.into(), LRNA, 2399567462636097);
 		});
 	}
 
