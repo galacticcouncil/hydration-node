@@ -124,10 +124,6 @@ pub mod pallet {
 		/// Origin able to set route without validation
 		type ForceInsertOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		///Router pallet ID
-		#[pallet::constant]
-		type PalletId: Get<PalletId>;
-
 		/// Weight information for the extrinsics.
 		type WeightInfo: AmmTradeWeights<Trade<Self::AssetId>>;
 	}
@@ -450,7 +446,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Pallet account address for do dry-run sell execution as validation
 	pub fn router_account() -> T::AccountId {
-		T::PalletId::get().into_account_truncating()
+		PalletId(*b"routerex").into_account_truncating()
 	}
 
 	fn do_sell(
@@ -940,12 +936,5 @@ impl<T: Config> RouteSpotPriceProvider<T::AssetId> for Pallet<T> {
 		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
 
 		FixedU128::checked_from_rational(rat_as_u128.0, rat_as_u128.1)
-	}
-}
-
-pub struct DefaultRouterPalletId;
-impl Get<PalletId> for DefaultRouterPalletId {
-	fn get() -> PalletId {
-		PalletId(*b"routerex")
 	}
 }

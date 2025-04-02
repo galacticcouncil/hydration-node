@@ -15,7 +15,7 @@ use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::{
-	AssetId, Currencies, EVMAccounts, Liquidation, Router, RouterPalletId, Runtime, RuntimeEvent, RuntimeOrigin, DCA,
+	AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeEvent, RuntimeOrigin, DCA,
 };
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;

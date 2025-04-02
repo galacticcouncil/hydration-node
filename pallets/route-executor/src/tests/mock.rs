@@ -172,7 +172,6 @@ impl Config for Test {
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
-	type PalletId = RouterPalletId;
 	type WeightInfo = ();
 }
 pub struct PriceProviderMock {}

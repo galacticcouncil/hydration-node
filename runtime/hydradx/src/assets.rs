@@ -259,10 +259,9 @@ impl SufficiencyCheck {
 impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
 		//This is mainly needed to disable charging any ED when we send the initial assetIn insufficient asset to the router account in the beginning of router trades
+		let router_account = pallet_route_executor::Pallet::<Runtime>::router_account();
 		if *to
-			== <sp_runtime::AccountId32 as Into<AccountId>>::into(
-				<PalletId as AccountIdConversion<AccountId>>::into_account_truncating(&RouterPalletId::get()),
-			) {
+			== <sp_runtime::AccountId32 as Into<AccountId>>::into(router_account) {
 			return Ok(());
 		}
 
@@ -1177,8 +1176,6 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 parameter_types! {
 	pub const DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
-
-	pub const RouterPalletId: PalletId = PalletId(*b"routerex");
 }
 
 impl pallet_route_executor::Config for Runtime {
@@ -1193,7 +1190,6 @@ impl pallet_route_executor::Config for Runtime {
 	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type OraclePeriod = RouteValidationOraclePeriod;
-	type PalletId = RouterPalletId;
 }
 
 parameter_types! {

@@ -388,7 +388,6 @@ impl pallet_route_executor::Config for Test {
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
-	type PalletId = pallet_route_executor::DefaultRouterPalletId;
 	type WeightInfo = ();
 }
 

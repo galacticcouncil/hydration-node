@@ -150,7 +150,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 		VestingPalletId::get().into_account_truncating(),
 		ReferralsPalletId::get().into_account_truncating(),
 		BondsPalletId::get().into_account_truncating(),
-		RouterPalletId::get().into_account_truncating(),
+		pallet_route_executor::Pallet::<Runtime>::router_account(),
 	]
 }
 
