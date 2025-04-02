@@ -922,7 +922,7 @@ impl RouterWeightInfo {
 		);
 		// Handle this case separately. router_execution_buy provides incorrect weight for the case when only calculate_buy is executed.
 		let lbp_weight = if (num_of_calc_buy, num_of_execute_buy) == (1, 0) {
-			weights::pallet_lbp::HydraWeight::<Runtime>::calculate_buy()
+			weights::pallet_lbp::HydraWeight::<Runtime>::calculate_in_given_out()
 		} else {
 			weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(
 				num_of_calc_buy.saturating_add(num_of_execute_buy),

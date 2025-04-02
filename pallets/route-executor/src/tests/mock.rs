@@ -341,7 +341,7 @@ macro_rules! impl_fake_executor {
 		impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for $pool_struct {
 			type Error = DispatchError;
 
-			fn calculate_sell(
+			fn calculate_out_given_in(
 				pool_type: PoolType<AssetId>,
 				_asset_in: AssetId,
 				_asset_out: AssetId,
@@ -358,7 +358,7 @@ macro_rules! impl_fake_executor {
 				Ok($sell_calculation_result)
 			}
 
-			fn calculate_buy(
+			fn calculate_in_given_out(
 				pool_type: PoolType<AssetId>,
 				_asset_in: AssetId,
 				_asset_out: AssetId,

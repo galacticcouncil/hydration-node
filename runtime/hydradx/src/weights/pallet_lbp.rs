@@ -273,7 +273,7 @@ impl<T: frame_system::Config> pallet_lbp::WeightInfo for HydraWeight<T> {
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:2 w:0)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn calculate_buy() -> Weight {
+	fn calculate_in_given_out() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1052`
 		//  Estimated: `6190`

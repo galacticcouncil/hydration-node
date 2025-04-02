@@ -19,7 +19,7 @@ pub trait WeightInfo {
 	fn buy() -> Weight;
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
-	fn calculate_buy() -> Weight;
+	fn calculate_in_given_out() -> Weight;
 	fn calculate_spot_price_with_fee() -> Weight;
 }
 
@@ -241,7 +241,7 @@ impl WeightInfo for () {
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:2 w:0)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn calculate_buy() -> Weight {
+	fn calculate_in_given_out() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1052`
 		//  Estimated: `6190`

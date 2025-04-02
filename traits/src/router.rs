@@ -147,14 +147,14 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 	type Error;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>>;
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
@@ -200,7 +200,7 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 	for_tuples!( where #(Tuple: TradeExecution<Origin,AccountId, AssetId, Balance, Error=E>)*);
 	type Error = E;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
@@ -208,7 +208,7 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		for_tuples!(
 			#(
-				let value = match Tuple::calculate_sell(pool_type, asset_in,asset_out,amount_in) {
+				let value = match Tuple::calculate_out_given_in(pool_type, asset_in,asset_out,amount_in) {
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),
@@ -218,7 +218,7 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 		Err(value)
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
@@ -226,7 +226,7 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		for_tuples!(
 			#(
-				let value = match Tuple::calculate_buy(pool_type, asset_in,asset_out,amount_out) {
+				let value = match Tuple::calculate_in_given_out(pool_type, asset_in,asset_out,amount_out) {
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),

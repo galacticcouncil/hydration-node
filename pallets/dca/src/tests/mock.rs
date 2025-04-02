@@ -415,7 +415,7 @@ pub struct Xyk;
 impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
 	type Error = DispatchError;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -433,7 +433,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		Ok(amount_out)
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -547,7 +547,7 @@ pub const XYK_BUY_CALCULATION_RESULT: Balance = ONE / 3;
 impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 	type Error = DispatchError;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -560,7 +560,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 		Ok(XYK_SELL_CALCULATION_RESULT)
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,

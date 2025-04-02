@@ -301,7 +301,7 @@ where
 			return Err(ExecutorError::NotSupported);
 		}
 
-		let amount_out = Self::calculate_buy(pool_type, asset_in, asset_out, amount_in)?;
+		let amount_out = Self::calculate_in_given_out(pool_type, asset_in, asset_out, amount_in)?;
 		ensure!(
 			amount_out >= min_limit,
 			ExecutorError::Error("Slippage exceeded".into())
@@ -366,7 +366,7 @@ where
 {
 	type Error = DispatchError;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -381,13 +381,13 @@ where
 		Ok(amount_in)
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_out: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Self::calculate_sell(pool_type, asset_in, asset_out, amount_out).map(|amount_out| amount_out.saturating_add(2))
+		Self::calculate_out_given_in(pool_type, asset_in, asset_out, amount_out).map(|amount_out| amount_out.saturating_add(2))
 	}
 
 	fn execute_sell(
@@ -425,7 +425,7 @@ where
 		amount_out: Balance,
 		max_limit: Balance,
 	) -> Result<(), ExecutorError<Self::Error>> {
-		let amount_in = Self::calculate_buy(pool_type, asset_in, asset_out, amount_out)?;
+		let amount_in = Self::calculate_in_given_out(pool_type, asset_in, asset_out, amount_out)?;
 		ensure!(amount_in >= max_limit, ExecutorError::Error("Slippage exceeded".into()));
 
 		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_out, max_limit)?;

@@ -648,7 +648,7 @@ impl<T: Config> Pallet<T> {
 		let mut amount_in = amount_in;
 
 		for trade in route.iter() {
-			let result = T::AMM::calculate_sell(trade.pool, trade.asset_in, trade.asset_out, amount_in);
+			let result = T::AMM::calculate_out_given_in(trade.pool, trade.asset_in, trade.asset_out, amount_in);
 			match result {
 				Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
 				Err(ExecutorError::Error(dispatch_error)) => return Err(dispatch_error),
@@ -683,7 +683,7 @@ impl<T: Config> Pallet<T> {
 		let mut amount_out = amount_out;
 
 		for trade in route.iter().rev() {
-			let result = T::AMM::calculate_buy(trade.pool, trade.asset_in, trade.asset_out, amount_out);
+			let result = T::AMM::calculate_in_given_out(trade.pool, trade.asset_in, trade.asset_out, amount_out);
 
 			match result {
 				Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
