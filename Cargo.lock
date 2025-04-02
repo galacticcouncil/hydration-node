@@ -8410,7 +8410,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-lbp"
-version = "4.10.1"
+version = "4.10.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9050,7 +9050,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "5.1.0"
+version = "5.1.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -9423,7 +9423,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.7.1"
+version = "6.7.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
