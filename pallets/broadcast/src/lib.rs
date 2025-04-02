@@ -68,6 +68,7 @@ pub mod pallet {
 
 	///If filled, we overwrite the original swapper. Mainly used in router to not to use temporary trade account
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	pub(super) type Swapper<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
 	#[pallet::error]
@@ -98,6 +99,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			ExecutionContext::<T>::kill(); //We don't need to account for this weight in on_initialize as we whitelist the storage
+			Swapper::<T>::kill();
 		}
 	}
 
