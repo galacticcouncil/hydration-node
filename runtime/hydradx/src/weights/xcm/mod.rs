@@ -127,7 +127,7 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		BaseXcmWeight::get()
 	}
 	fn exchange_asset(_give: &AssetFilter, _receive: &Assets, is_sell: &bool) -> Weight {
-		//Route can be up max to 5 trades, and stableswap is the most expensive trade, then omnipool
+		//Route can be up max to 9 trades, and stableswap is the most expensive trade, then omnipool
 		let worst_case_trades = vec![
 			Trade {
 				pool: PoolType::Stableswap(100),
@@ -154,6 +154,26 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 				asset_in: 4,
 				asset_out: 5,
 			},
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: 5,
+				asset_out: 6,
+			},
+			Trade {
+				pool: PoolType::Stableswap(103),
+				asset_in: 6,
+				asset_out: 7,
+			},
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: 7,
+				asset_out: 8,
+			},
+			Trade {
+				pool: PoolType::Stableswap(105),
+				asset_in: 8,
+				asset_out: 9,
+			}
 		];
 
 		let route_weight = if *is_sell {
