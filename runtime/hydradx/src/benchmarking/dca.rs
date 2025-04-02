@@ -145,8 +145,11 @@ fn schedule_sell_fake(
 
 //TODO: make it global
 
-pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<{pallet_route_executor::MAX_NUMBER_OF_TRADES}>> {
-	let bounded_vec: BoundedVec<Trade<AssetId>, ConstU32<{pallet_route_executor::MAX_NUMBER_OF_TRADES}>> = trades.try_into().unwrap();
+pub fn create_bounded_vec(
+	trades: Vec<Trade<AssetId>>,
+) -> BoundedVec<Trade<AssetId>, ConstU32<{ pallet_route_executor::MAX_NUMBER_OF_TRADES }>> {
+	let bounded_vec: BoundedVec<Trade<AssetId>, ConstU32<{ pallet_route_executor::MAX_NUMBER_OF_TRADES }>> =
+		trades.try_into().unwrap();
 	bounded_vec
 }
 

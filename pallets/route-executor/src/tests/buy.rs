@@ -233,7 +233,9 @@ fn buy_should_fail_when_max_limit_for_trade_reached() {
 				asset_in: SDN,
 				asset_out: STABLE_SHARE_ASSET,
 			};
-			let trades = vec![trade1, trade2, trade3, trade4, trade5, trade6, trade7, trade8, trade9, trade10];
+			let trades = vec![
+				trade1, trade2, trade3, trade4, trade5, trade6, trade7, trade8, trade9, trade10,
+			];
 
 			//Act and Assert
 			assert_noop!(

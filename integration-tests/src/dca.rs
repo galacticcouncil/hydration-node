@@ -2,9 +2,8 @@
 
 use crate::count_dca_event;
 use crate::polkadot_test_net::*;
-use frame_support::assert_ok;
-use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use crate::{assert_balance, assert_reserved_balance};
+use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
 use hydradx_runtime::AssetPairAccountIdFor;
@@ -26,6 +25,7 @@ use orml_traits::MultiReservableCurrency;
 use pallet_broadcast::types::*;
 use pallet_dca::types::{Order, Schedule};
 use pallet_omnipool::types::Tradability;
+use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::ConstU32;
@@ -4264,8 +4264,11 @@ fn set_alice_lrna_balance(alice_init_lrna_balance: Balance) {
 	));
 }
 
-pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<{MAX_NUMBER_OF_TRADES }>> {
-	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<{MAX_NUMBER_OF_TRADES }>> = trades.try_into().unwrap();
+pub fn create_bounded_vec(
+	trades: Vec<Trade<AssetId>>,
+) -> BoundedVec<Trade<AssetId>, ConstU32<{ MAX_NUMBER_OF_TRADES }>> {
+	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<{ MAX_NUMBER_OF_TRADES }>> =
+		trades.try_into().unwrap();
 	bounded_vec
 }
 
