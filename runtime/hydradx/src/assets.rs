@@ -348,13 +348,6 @@ impl RefundAndLockedEdCalculator {
 	}
 }
 
-impl RefundEdCalculator<Balance> for RefundAndLockedEdCalculator {
-	fn calculate() -> Balance {
-		let (ed_to_refund, _ed_to_lock) = Self::calculate();
-
-		ed_to_refund
-	}
-}
 
 impl orml_tokens::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1309,7 +1302,6 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
-use hydradx_traits::router::RefundEdCalculator;
 use pallet_ema_oracle::OracleEntry;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};

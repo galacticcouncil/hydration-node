@@ -353,7 +353,3 @@ impl<Trade> AmmTradeWeights<Trade> for () {
 		Weight::zero()
 	}
 }
-
-pub trait RefundEdCalculator<Balance> {
-	fn calculate() -> Balance;
-}
