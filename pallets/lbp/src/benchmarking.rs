@@ -233,7 +233,7 @@ benchmarks! {
 	}
 
 	// We need to handle this case separately, because for some unknown reason, router_execution_buy provides incorrect weight when just one calculate_buy is executed
-	calculate_buy {
+	calculate_in_given_out {
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
 		let asset_in: AssetId = ASSET_A_ID;
