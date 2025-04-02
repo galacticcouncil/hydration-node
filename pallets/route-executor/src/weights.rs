@@ -8,7 +8,6 @@ use core::marker::PhantomData;
 
 /// Weight functions needed for `pallet_route_executor`.
 pub trait WeightInfo {
-	fn skip_ed_handling_for_trade_with_insufficient_assets() -> Weight;
 	fn calculate_and_execute_sell_in_lbp(c: u32, ) -> Weight;
 	fn calculate_and_execute_buy_in_lbp(c: u32, b: u32, ) -> Weight;
 	fn set_route_for_xyk() -> Weight;
