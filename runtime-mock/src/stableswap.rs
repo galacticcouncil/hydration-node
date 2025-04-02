@@ -78,7 +78,7 @@ impl Stablepools {
 			.map(|pool| {
 				RuntimeCall::Stableswap(pallet_stableswap::Call::create_pool {
 					share_asset: pool.pool_id,
-					assets: pool.get_assets(),
+					assets: BoundedVec::try_from(pool.get_assets()).unwrap(),
 					amplification: pool.final_amplification as u16,
 					fee: pool.fee,
 				})
