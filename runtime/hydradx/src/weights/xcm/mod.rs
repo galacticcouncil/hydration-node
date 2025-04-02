@@ -173,7 +173,7 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 				pool: PoolType::Stableswap(105),
 				asset_in: 8,
 				asset_out: 9,
-			}
+			},
 		];
 
 		let route_weight = if *is_sell {

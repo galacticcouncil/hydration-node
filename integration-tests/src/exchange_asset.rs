@@ -1203,8 +1203,6 @@ fn one(asset: &Asset) -> Asset {
 	}
 }
 
-
-
 fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	give_asset: Asset,
 	want_asset: Asset,
