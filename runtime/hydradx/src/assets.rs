@@ -590,9 +590,9 @@ where
 	}
 }
 
-//13YMK2eeopZtUNpeHnJ1Ws2HqMQG6Ts9PGCZYGyFbSYoZfcm
+// sibling:2030 = 7LCt6dFs6sraSg31uKfbRH7soQ66GRb3LAkGZJ1ie3369crq
 pub fn bifrost_account() -> AccountId {
-	hex!["70617261ee070000000000000000000000000000000000000000000000000000"].into()
+	hex!["7369626cee070000000000000000000000000000000000000000000000000000"].into()
 }
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
@@ -1325,6 +1325,7 @@ use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
 use hydradx_traits::router::RefundEdCalculator;
+use pallet_ema_oracle::OracleEntry;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]
@@ -1336,7 +1337,7 @@ use sp_runtime::TransactionOutcome;
 pub struct RegisterAsset<T>(PhantomData<T>);
 
 #[cfg(feature = "runtime-benchmarks")]
-impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsset<T> {
+impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelper<AssetId> for RegisterAsset<T> {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
 		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id
 			.to_le_bytes()
@@ -1357,6 +1358,36 @@ impl<T: pallet_asset_registry::Config> BenchmarkHelper<AssetId> for RegisterAsse
 			))
 		})?;
 
+		Ok(())
+	}
+
+	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
+		with_transaction(|| {
+			if let Err(e) = pallet_ema_oracle::Pallet::<T>::add_entry(
+				source,
+				asset_pair,
+				OracleEntry {
+					price: EmaPrice::new(peg.0, peg.1),
+					volume: Default::default(),
+					liquidity: Default::default(),
+					updated_at: BlockNumber::default().into(),
+				},
+			) {
+				return TransactionOutcome::Rollback(e.into());
+			}
+
+			let current_block = System::block_number();
+
+			System::on_finalize(current_block);
+			EmaOracle::on_finalize(current_block);
+
+			System::on_initialize(current_block + 1);
+			EmaOracle::on_initialize(current_block + 1);
+
+			System::set_block_number(current_block + 1);
+
+			TransactionOutcome::Commit(Ok(()))
+		})?;
 		Ok(())
 	}
 }
@@ -1401,6 +1432,7 @@ impl pallet_stableswap::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	type AmplificationRange = StableswapAmplificationRange;
+	type TargetPegOracle = EmaOracle;
 	type WeightInfo = weights::pallet_stableswap::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = RegisterAsset<Runtime>;
@@ -1735,6 +1767,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
+use pallet_stableswap::types::PegType;
 use pallet_xyk::types::AssetPair;
 
 #[cfg(feature = "runtime-benchmarks")]

@@ -1,4 +1,5 @@
 use crate::tests::mock::*;
+use crate::tests::to_bounded_asset_vec;
 use crate::types::PoolInfo;
 use crate::Error;
 use crate::Pools;
@@ -22,7 +23,7 @@ fn create_two_asset_pool_should_work_when_assets_are_registered() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -61,7 +62,7 @@ fn create_multi_asset_pool_should_work_when_assets_are_registered() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b, asset_c, asset_d],
+				to_bounded_asset_vec(vec![asset_a, asset_b, asset_c, asset_d]),
 				100,
 				Permill::from_percent(0),
 			));
@@ -91,7 +92,7 @@ fn create_pool_should_store_assets_correctly_when_input_is_not_sorted() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_c, asset_d, asset_b, asset_a],
+				to_bounded_asset_vec(vec![asset_c, asset_d, asset_b, asset_a]),
 				amplification,
 				Permill::from_percent(5),
 			));
@@ -124,7 +125,7 @@ fn create_pool_should_fail_when_same_assets_is_specified() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, 3, 4, asset_a],
+					to_bounded_asset_vec(vec![asset_a, 3, 4, asset_a]),
 					amplification,
 					Permill::from_percent(0),
 				),
@@ -146,7 +147,7 @@ fn create_pool_should_fail_when_same_assets_is_empty() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![],
+					to_bounded_asset_vec(vec![]),
 					amplification,
 					Permill::from_percent(0),
 				),
@@ -169,7 +170,7 @@ fn create_pool_should_fail_when_single_asset_is_provided() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a],
+					to_bounded_asset_vec(vec![asset_a]),
 					amplification,
 					Permill::from_percent(0),
 				),
@@ -189,7 +190,7 @@ fn create_pool_should_fail_when_share_asset_is_not_registered() {
 			Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, 3, 4],
+				to_bounded_asset_vec(vec![asset_a, 3, 4]),
 				amplification,
 				Permill::from_percent(0),
 			),
@@ -212,7 +213,7 @@ fn create_pool_should_fail_when_share_asset_is_among_assets() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, pool_id],
+					to_bounded_asset_vec(vec![asset_a, pool_id]),
 					amplification,
 					Permill::from_percent(0),
 				),
@@ -237,7 +238,7 @@ fn create_pool_should_fail_when_asset_is_not_registered() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![not_registered, registered],
+					to_bounded_asset_vec(vec![not_registered, registered]),
 					amplification,
 					Permill::from_percent(0),
 				),
@@ -248,7 +249,7 @@ fn create_pool_should_fail_when_asset_is_not_registered() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![registered, not_registered],
+					to_bounded_asset_vec(vec![registered, not_registered]),
 					amplification,
 					Permill::from_percent(0),
 				),
@@ -274,7 +275,7 @@ fn create_pool_should_fail_when_same_share_asset_pool_already_exists() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				amplification,
 				Permill::from_percent(0),
 			));
@@ -283,7 +284,7 @@ fn create_pool_should_fail_when_same_share_asset_pool_already_exists() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, asset_b],
+					to_bounded_asset_vec(vec![asset_a, asset_b]),
 					amplification,
 					Permill::from_percent(0),
 				),
@@ -311,7 +312,7 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, asset_b],
+					to_bounded_asset_vec(vec![asset_a, asset_b]),
 					0,
 					Permill::from_percent(0),
 				),
@@ -322,7 +323,7 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, asset_b],
+					to_bounded_asset_vec(vec![asset_a, asset_b]),
 					amplification_min,
 					Permill::from_percent(0),
 				),
@@ -333,7 +334,7 @@ fn create_pool_should_fail_when_amplification_is_incorrect() {
 				Stableswap::create_pool(
 					RuntimeOrigin::root(),
 					pool_id,
-					vec![asset_a, asset_b],
+					to_bounded_asset_vec(vec![asset_a, asset_b]),
 					amplification_max,
 					Permill::from_percent(0),
 				),
@@ -358,42 +359,12 @@ fn create_pool_should_add_account_to_whitelist() {
 			assert_ok!(Stableswap::create_pool(
 				RuntimeOrigin::root(),
 				pool_id,
-				vec![asset_a, asset_b],
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
 				100,
 				Permill::from_percent(0),
 			));
 
 			let pool_account = pool_account(pool_id);
 			assert!(DUSTER_WHITELIST.with(|v| v.borrow().contains(&pool_account)));
-		});
-}
-
-#[test]
-fn create_pool_should_fail_when_number_of_assets_exceeds_maximum() {
-	let asset_a: AssetId = 1;
-	let asset_b: AssetId = 2;
-	let asset_c: AssetId = 3;
-	let asset_d: AssetId = 4;
-	let asset_e: AssetId = 5;
-	let asset_f: AssetId = 6;
-	let pool_id: AssetId = 100;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Stableswap::create_pool(
-					RuntimeOrigin::root(),
-					pool_id,
-					vec![asset_a, asset_b, asset_c, asset_d, asset_e, asset_f],
-					100,
-					Permill::from_percent(0),
-				),
-				Error::<Test>::MaxAssetsExceeded
-			);
 		});
 }

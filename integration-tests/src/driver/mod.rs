@@ -4,16 +4,20 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use frame_support::BoundedVec;
+use hydradx_runtime::bifrost_account;
+use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
 use pallet_asset_registry::AssetType;
+use pallet_ema_oracle::OracleEntry;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
 use primitives::{AccountId, AssetId};
 use sp_runtime::{FixedU128, Permill};
-use xcm_emulator::TestExt;
+use xcm_emulator::{BlockNumberFor, TestExt};
 
+type BoundedName = BoundedVec<u8, <hydradx_runtime::Runtime as pallet_asset_registry::Config>::StringLimit>;
 pub(crate) struct HydrationTestDriver {
 	omnipool_assets: Vec<AssetId>,
 	stablepools: Vec<(AssetId, Vec<(AssetId, u8)>)>,
@@ -61,6 +65,65 @@ impl HydrationTestDriver {
 			.setup_stableswap()
 			.add_stablepools_to_omnipool()
 			.populate_oracle()
+	}
+
+	pub fn endow_account(&self, account: AccountId, asset_id: AssetId, amount: Balance) -> &Self {
+		self.execute(|| {
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				account,
+				asset_id,
+				amount,
+				0
+			));
+		});
+		self
+	}
+
+	pub fn register_asset(
+		self,
+		asset_id: AssetId,
+		name: &[u8],
+		decimals: u8,
+		location: Option<polkadot_xcm::v4::Location>,
+	) -> Self {
+		self.execute(|| {
+			let location = if let Some(location) = location {
+				Some(AssetLocation::try_from(location).unwrap())
+			} else {
+				None
+			};
+			assert_ok!(AssetRegistry::register(
+				RawOrigin::Root.into(),
+				Some(asset_id),
+				Some(BoundedName::truncate_from(name.to_vec())),
+				AssetType::Token,
+				Some(1000u128),
+				Some(BoundedName::truncate_from(name.to_vec())),
+				Some(decimals),
+				location,
+				None,
+				true
+			));
+		});
+		self
+	}
+
+	pub fn update_bifrost_oracle(
+		&self,
+		asset_a: Box<polkadot_xcm::VersionedLocation>,
+		asset_b: Box<polkadot_xcm::VersionedLocation>,
+		price: (Balance, Balance),
+	) -> &Self {
+		self.execute(|| {
+			assert_ok!(EmaOracle::update_bifrost_oracle(
+				RuntimeOrigin::signed(bifrost_account()),
+				asset_a,
+				asset_b,
+				price,
+			));
+		});
+		self
 	}
 
 	pub(crate) fn setup_omnipool(self) -> Self {
@@ -178,7 +241,7 @@ impl HydrationTestDriver {
 			assert_ok!(Stableswap::create_pool(
 				hydradx_runtime::RuntimeOrigin::root(),
 				pool_id,
-				asset_ids.iter().map(|(id, _)| *id).collect(),
+				BoundedVec::truncate_from(asset_ids.iter().map(|(id, _)| *id).collect()),
 				amplification,
 				fee,
 			));
@@ -275,7 +338,7 @@ impl HydrationTestDriver {
 		self
 	}
 
-	fn new_block(&self) -> &Self {
+	pub fn new_block(&self) -> &Self {
 		self.execute(|| {
 			hydradx_run_to_next_block();
 		});

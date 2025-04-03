@@ -2,14 +2,21 @@
 #![allow(clippy::type_complexity)]
 
 use codec::{Compact, Decode, Encode};
+use frame_remote_externalities::*;
+use frame_support::sp_runtime::traits::Hash;
 use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion};
+use jsonrpsee::core::client::ClientT;
+use serde_json::Value;
 use sp_core::H256;
 use sp_io::TestExternalities;
+use sp_state_machine::backend::AsTrieBackend;
+use std::collections::BTreeMap;
 use std::{
 	fs,
 	path::{Path, PathBuf},
 	str::FromStr,
 };
+use substrate_rpc_client::{ws_client, ChainApi, SystemApi};
 
 pub fn save_blocks_snapshot<Block: Encode>(data: &Vec<Block>, path: &Path) -> Result<(), &'static str> {
 	let mut path = path.to_path_buf();
@@ -205,4 +212,114 @@ fn save_and_load_externalities_should_work() {
 			1_000_000_000_000
 		);
 	});
+}
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
+use sp_core::storage::StorageKey;
+use substrate_rpc_client::StateApi;
+pub async fn save_chainspec<B: BlockT<Hash = H256>>(
+	builder: Builder<B>,
+	path: PathBuf,
+	uri: String,
+) -> Result<(), &'static str> {
+	let mut ext = builder.build().await.map_err(|_| "Failed to build externalities")?;
+
+	let rpc = ws_client(uri).await.map_err(|_| "Failed to create RPC client")?;
+
+	let system_name = SystemApi::<H256, ()>::system_name(&rpc)
+		.await
+		.map_err(|_| "Failed to get system name")?;
+	let chain_type = SystemApi::<H256, ()>::system_type(&rpc)
+		.await
+		.map_err(|_| "Failed to get chain type")?;
+	let properties = SystemApi::<H256, ()>::system_properties(&rpc)
+		.await
+		.map_err(|_| "Failed to get system properties")?;
+
+	println!("Building externalities...");
+	let raw_storage = ext
+		.backend
+		.backend_storage_mut()
+		.drain()
+		.into_iter()
+		.filter(|(_, (_, r))| *r > 0)
+		.collect::<Vec<(Vec<u8>, (Vec<u8>, i32))>>();
+
+	// Fetch WASM code from the chain
+	let code_key = sp_core::storage::well_known_keys::CODE;
+	println!("Fetching WASM code with key: {}", hex::encode(code_key));
+
+	let wasm_code = StateApi::<H256>::storage(&rpc, StorageKey(code_key.to_vec()), None)
+		.await
+		.map_err(|e| {
+			println!("RPC error: {:?}", e);
+			"Failed to fetch WASM code from chain"
+		})?
+		.ok_or("WASM code not found in chain state")?;
+
+	let mut storage_map = BTreeMap::new();
+
+	for (key, (value, _refcount)) in raw_storage {
+		// The key is too long, we need to truncate it to match the expected format
+		let key_hex = format!("0x{}", hex::encode(&key[..(key.len() - 32)])); // Remove the last 32 bytes
+
+		// The value is already SCALE encoded, we just need to hex encode it
+		let value_hex = format!("0x{}", hex::encode(&value));
+
+		storage_map.insert(key_hex, value_hex);
+	}
+
+	// Add WASM code
+	storage_map.insert(
+		format!("0x{}", hex::encode(code_key)),
+		format!("0x{}", hex::encode(wasm_code.0)),
+	);
+
+	let chainspec = serde_json::json!({
+		"name": system_name,
+		"id": "hydra",
+		"chainType": chain_type,
+		"bootNodes": [
+		   "/dns/p2p-01.hydra.hydradx.io/tcp/30333/p2p/12D3KooWHzv7XVVBwY4EX1aKJBU6qzEjqGk6XtoFagr5wEXx6MsH",
+		   "/dns/p2p-02.hydra.hydradx.io/tcp/30333/p2p/12D3KooWR72FwHrkGNTNes6U5UHQezWLmrKu6b45MvcnRGK8J3S6",
+		   "/dns/p2p-03.hydra.hydradx.io/tcp/30333/p2p/12D3KooWFDwxZinAjgmLVgsideCmdB2bz911YgiQdLEiwKovezUz",
+		   "/dns4/boot.helikon.io/tcp/15120/p2p/12D3KooWDcQY1L2ny3F7YPyP4snCZZYc4eKWgPLEzdBvWBUjH5Yt",
+		   "/dns4/boot.helikon.io/tcp/15125/wss/p2p/12D3KooWDcQY1L2ny3F7YPyP4snCZZYc4eKWgPLEzdBvWBUjH5Yt",
+		   "/dns/hydration.boot.stake.plus/tcp/30332/wss/p2p/12D3KooWGZaDfqPyzVxhA3k1qv72P7xqYTJS8W9U7GWUEdXYhtUU",
+		   "/dns/hydration.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWBJMG8LCh6pLYbGapA3SNzjhQWE87ieGux41jKQrrf5js",
+		   "/dns/hydration-bootnode.radiumblock.com/tcp/30333/p2p/12D3KooWCtrMH4H2p5XkGHkU7K4CcbSmErouNuN3j7Bysj4a8hJX",
+		   "/dns/hydration-bootnode.radiumblock.com/tcp/30336/wss/p2p/12D3KooWCtrMH4H2p5XkGHkU7K4CcbSmErouNuN3j7Bysj4a8hJX"
+		],
+		"telemetryEndpoints": [
+		   [
+			"/dns/telemetry.polkadot.io/tcp/443/x-parity-wss/%2Fsubmit%2F",
+			0
+		   ],
+		   [
+			"/dns/telemetry.hydradx.io/tcp/9000/x-parity-wss/%2Fsubmit%2F",
+			0
+		   ]
+		],
+		"protocolId": "hdx",
+		"properties": properties,
+		"relay_chain": "polkadot",
+		"para_id": 2034,
+		"consensusEngine": null,
+		"codeSubstitutes": {},
+		"evm_since": 4006384,
+		"genesis": {
+		   "raw": {
+			  "top": storage_map,
+			  "childrenDefault": {}
+		   }
+		}
+	});
+
+	let json = serde_json::to_string_pretty(&chainspec).map_err(|_| "Failed to serialize chainspec to JSON")?;
+
+	fs::write(path, json).map_err(|err| {
+		println!("Failed to write chainspec to file {:?}", err);
+		"Failed to write chainspec file"
+	})?;
+
+	Ok(())
 }

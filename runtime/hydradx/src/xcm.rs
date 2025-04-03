@@ -17,7 +17,7 @@ use frame_support::{
 };
 use frame_system::unique;
 use frame_system::EnsureRoot;
-use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
+use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
@@ -369,7 +369,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
+	type XcmExecuteFilter = Everything;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
