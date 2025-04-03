@@ -316,7 +316,10 @@ pub async fn save_chainspec<B: BlockT<Hash = H256>>(
 
 	let json = serde_json::to_string_pretty(&chainspec).map_err(|_| "Failed to serialize chainspec to JSON")?;
 
-	fs::write(path, json).map_err(|_| "Failed to write chainspec file")?;
+	fs::write(path, json).map_err(|err| {
+		println!("Failed to write chainspec to file {:?}", err);
+		"Failed to write chainspec file"
+	})?;
 
 	Ok(())
 }
