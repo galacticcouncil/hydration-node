@@ -136,7 +136,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 294,
+	spec_version: 301,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -615,24 +615,24 @@ impl_runtime_apis! {
 					reserved: data.reserved,
 					frozen: data.frozen,
 				}
-			} else if matches!(AssetRegistry::asset_type(asset_id), Some(AssetKind::Erc20)) {
-				AccountData {
-					free: Self::free_balance(asset_id, who),
-					..Default::default()
-				}
 			} else {
-				let data = Tokens::accounts(who, asset_id);
-				AccountData {
-					free: data.free,
-					reserved: data.reserved,
-					frozen: data.frozen,
+				let tokens_data = Tokens::accounts(who.clone(), asset_id);
+				let mut data = AccountData {
+					free: tokens_data.free,
+					reserved: tokens_data.reserved,
+					frozen: tokens_data.frozen,
+				};
+				if matches!(AssetRegistry::asset_type(asset_id), Some(AssetKind::Erc20)) {
+					data.free = Self::free_balance(asset_id, who);
 				}
+				data
 			}
 		}
 
 		fn accounts(who: AccountId) -> Vec<(AssetId, AccountData<Balance>)> {
 			let mut result = Vec::new();
 
+			// Add native token (HDX)
 			let balance = System::account(&who).data;
 			result.push((
 				NativeAssetId::get(),
@@ -643,29 +643,43 @@ impl_runtime_apis! {
 				}
 			));
 
+			// Add tokens from orml_tokens
 			result.extend(
 				orml_tokens::Accounts::<Runtime>::iter_prefix(&who)
-					.map(|(asset_id, data)| (
-						asset_id,
-						AccountData {
+					.map(|(asset_id, data)| {
+						let mut account_data = AccountData {
 							free: data.free,
 							reserved: data.reserved,
 							frozen: data.frozen,
+						};
+
+						// Update free balance for ERC20 tokens
+						if matches!(AssetRegistry::asset_type(asset_id), Some(AssetKind::Erc20)) {
+							account_data.free = Currencies::free_balance(asset_id, &who);
 						}
-					))
+
+						(asset_id, account_data)
+					})
 			);
 
+			// Add ERC20 tokens with non-zero balance not yet added previously
+			let existing_ids: Vec<_> = result.iter().map(|(id, _)| *id).collect();
 			result.extend(
 				pallet_asset_registry::Assets::<Runtime>::iter()
 					.filter(|(_, info)| info.asset_type == AssetType::Erc20)
 					.filter_map(|(asset_id, _)| {
-						let free = Self::free_balance(asset_id, who.clone());
+						if existing_ids.contains(&asset_id) {
+							return None;
+						}
+
+						let free = Currencies::free_balance(asset_id, &who);
 						if free > 0 {
 							Some((
 								asset_id,
 								AccountData {
 									free,
-									..Default::default()
+									reserved: 0,
+									frozen: 0,
 								}
 							))
 						} else {
