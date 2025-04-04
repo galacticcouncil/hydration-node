@@ -218,6 +218,8 @@ pub mod pallet {
 		OffchainLockError,
 		/// Asset not in the pool.
 		AssetNotFound,
+		/// Provided pool state is invalid
+		InvalidPoolState,
 	}
 
 	#[pallet::hooks]
@@ -601,39 +603,6 @@ where
 		Ok(pool_snapshot)
 	}
 
-	/// Get pool data
-	fn get_pool_data(
-		pool_id: T::AssetId,
-		collateral_asset: T::AssetId,
-	) -> Result<(usize, usize, Vec<Balance>, Vec<u8>, Vec<(Balance, Balance)>), DispatchError> {
-		let hollar_id = T::HollarId::get();
-
-		// Try to get the pool snapshot first
-		let Some(pool_snapshot) = pallet_stableswap::Pallet::<T>::initial_pool_snapshot(pool_id) else {
-			return Err(pallet_stableswap::Error::<T>::PoolNotFound.into());
-		};
-		// Find Hollar and collateral asset positions in the pool
-		let hollar_pos = pool_snapshot
-			.assets
-			.iter()
-			.position(|&asset| asset == hollar_id)
-			.ok_or(pallet_stableswap::Error::<T>::AssetNotInPool)?;
-
-		let collateral_pos = pool_snapshot
-			.assets
-			.iter()
-			.position(|&asset| asset == collateral_asset)
-			.ok_or(pallet_stableswap::Error::<T>::AssetNotInPool)?;
-
-		Ok((
-			hollar_pos,
-			collateral_pos,
-			pool_snapshot.reserves,
-			pool_snapshot.decimals,
-			pool_snapshot.pegs.into_inner(),
-		))
-	}
-
 	/// Selling Hollar to get collateral asset
 	fn do_sell_hollar(
 		who: &T::AccountId,
@@ -645,20 +614,39 @@ where
 		let pool_id = collateral_info.pool_id;
 
 		// Get pool data
-		let (hollar_pos, collateral_pos, reserves, decimals, pegs) = Self::get_pool_data(pool_id, collateral_asset)?;
+		let pool_state = Self::get_stablepool_state(pool_id)?;
+
+		let hollar_pos = pool_state
+			.asset_idx(T::HollarId::get())
+			.ok_or(Error::<T>::AssetNotFound)?;
+		let collateral_pos = pool_state
+			.asset_idx(collateral_asset)
+			.ok_or(Error::<T>::AssetNotFound)?;
+
+		// just to be on the safe side
+		ensure!(
+			pool_state.decimals.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
+		ensure!(
+			pool_state.reserves.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
+		ensure!(
+			pool_state.pegs.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
 
 		// Get decimals
-		let hollar_decimals = decimals[hollar_pos];
-		let collateral_decimals = decimals[collateral_pos];
-
-		// Scale Hollar amount to 18 decimals for calculation
-		let hollar_amount_scaled = crate::math::scale_to_18_decimals(hollar_amount, hollar_decimals)?;
+		let hollar_decimals = pool_state.decimals[hollar_pos];
+		let collateral_decimals = pool_state.decimals[collateral_pos];
 
 		// Get reserves and pegs
-		let hollar_reserve = reserves[hollar_pos];
-		let collateral_reserve = reserves[collateral_pos];
-		let peg = pegs[collateral_pos];
+		let hollar_reserve = pool_state.reserves[hollar_pos];
+		let collateral_reserve = pool_state.reserves[collateral_pos];
+		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
 
+		// TODO: take decimals into account
 		// 1. Calculate imbalance
 		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
 
@@ -667,7 +655,7 @@ where
 
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(
-			HollarAmountReceived::<T>::get(collateral_asset).saturating_add(hollar_amount_scaled) <= buyback_limit,
+			HollarAmountReceived::<T>::get(collateral_asset).saturating_add(hollar_amount) <= buyback_limit,
 			Error::<T>::MaxBuyBackExceeded
 		);
 
@@ -680,7 +668,7 @@ where
 		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
 
 		// 5. Calculate amount of collateral to receive
-		let collateral_amount = crate::math::calculate_collateral_amount(hollar_amount_scaled, buy_price)?;
+		let collateral_amount = crate::math::calculate_collateral_amount(hollar_amount, buy_price)?;
 
 		// 6. Calculate max price
 		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
@@ -699,9 +687,6 @@ where
 				Error::<T>::MaxHoldingExceeded
 			);
 		}
-
-		// Scale collateral amount back to its original decimals
-		let collateral_amount = crate::math::scale_from_18_decimals(collateral_amount, collateral_decimals)?;
 
 		// Execute the swap
 		// 1. Transfer Hollar from user to HSM
@@ -727,15 +712,116 @@ where
 
 		// 4. Update HSM holdings
 		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
-			*balance = balance.saturating_sub(collateral_amount);
+			*balance = balance.saturating_sub(collateral_amount); //TODO: this should decrease!
 		});
 
 		// 5. Update Hollar amount received in this block
 		HollarAmountReceived::<T>::mutate(collateral_asset, |amount| {
-			*amount = amount.saturating_add(hollar_amount_scaled);
+			*amount = amount.saturating_add(hollar_amount);
 		});
 
 		Ok(collateral_amount)
+	}
+
+	/// Buying collateral asset using Hollar
+	fn do_buy_collateral(
+		who: &T::AccountId,
+		collateral_asset: T::AssetId,
+		collateral_amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
+
+		let pool_id = collateral_info.pool_id;
+		// Get pool data
+		let pool_state = Self::get_stablepool_state(pool_id)?;
+
+		let hollar_pos = pool_state
+			.asset_idx(T::HollarId::get())
+			.ok_or(Error::<T>::AssetNotFound)?;
+		let collateral_pos = pool_state
+			.asset_idx(collateral_asset)
+			.ok_or(Error::<T>::AssetNotFound)?;
+
+		// just to be on the safe side
+		ensure!(
+			pool_state.decimals.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
+		ensure!(
+			pool_state.reserves.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
+		ensure!(
+			pool_state.pegs.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
+
+		// Get decimals
+		let hollar_decimals = pool_state.decimals[hollar_pos];
+		let collateral_decimals = pool_state.decimals[collateral_pos];
+
+		// Get reserves and pegs
+		let hollar_reserve = pool_state.reserves[hollar_pos];
+		let collateral_reserve = pool_state.reserves[collateral_pos];
+		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
+
+		// 1. Calculate imbalance
+		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
+
+		// 2. Calculate how much Hollar can HSM buy back in a single block
+		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
+
+		// 3. Calculate execution price by simulating a swap
+		let hollar_amount =
+			Self::simulate_out_given_in(pool_id, collateral_asset, T::HollarId::get(), collateral_amount)?;
+
+		// Create a PegType for execution price (hollar_amount/collateral_amount)
+		let execution_price = (hollar_amount, collateral_amount);
+
+		// 4. Calculate final buy price with fee
+		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
+
+		// 5. Calculate amount of Hollar to pay
+		let hollar_amount_to_pay = crate::math::calculate_hollar_amount(collateral_amount, buy_price)?;
+
+		// Check if the requested amount exceeds the buyback limit
+		ensure!(buyback_limit > hollar_amount_to_pay, Error::<T>::MaxBuyBackExceeded);
+
+		// 6. Calculate max price
+		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+
+		// Check if price exceeds max price - compare the ratios
+		// For (a,b) <= (c,d), we check a*d <= b*c
+		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
+		let max_price_check = buy_price.1.saturating_mul(max_price.0);
+		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
+
+		// Check HSM has enough collateral
+		let current_holding = CollateralHoldings::<T>::get(collateral_asset);
+		ensure!(
+			current_holding >= collateral_amount,
+			pallet_stableswap::Error::<T>::InsufficientBalance
+		);
+
+		// Execute the swap
+		// 1. Transfer collateral from user to HSM
+		<T as Config>::Currency::transfer(
+			collateral_asset,
+			who,
+			&Self::account_id(),
+			collateral_amount,
+			Preservation::Expendable,
+		)?;
+
+		// 2. Mint Hollar by calling GHO contract
+		Self::mint_hollar(who, hollar_amount_to_pay)?;
+
+		// 3. Update HSM holdings
+		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
+			*balance = balance.saturating_add(collateral_amount); //TODO: this should decrease!!
+		});
+
+		Ok(hollar_amount_to_pay)
 	}
 
 	/// Selling collateral asset to get Hollar
@@ -837,94 +923,6 @@ where
 		});
 
 		Ok(hollar_amount)
-	}
-
-	/// Buying collateral asset using Hollar
-	fn do_buy_collateral(
-		who: &T::AccountId,
-		collateral_asset: T::AssetId,
-		collateral_amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
-
-		let pool_id = collateral_info.pool_id;
-
-		// Get pool data
-		let (hollar_pos, collateral_pos, reserves, decimals, pegs) = Self::get_pool_data(pool_id, collateral_asset)?;
-
-		// Get decimals
-		let hollar_decimals = decimals[hollar_pos];
-		let collateral_decimals = decimals[collateral_pos];
-
-		// Scale collateral amount to 18 decimals for calculation
-		let collateral_amount_scaled = crate::math::scale_to_18_decimals(collateral_amount, collateral_decimals)?;
-
-		// Get reserves and pegs
-		let hollar_reserve = reserves[hollar_pos];
-		let collateral_reserve = reserves[collateral_pos];
-		let peg = pegs[collateral_pos];
-
-		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
-
-		// 2. Calculate how much Hollar can HSM buy back in a single block
-		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
-
-		// 3. Calculate execution price by simulating a swap
-		let hollar_amount =
-			Self::simulate_out_given_in(pool_id, collateral_asset, T::HollarId::get(), collateral_amount)?;
-
-		// Create a PegType for execution price (hollar_amount/collateral_amount)
-		let execution_price = (hollar_amount, collateral_amount);
-
-		// 4. Calculate final buy price with fee
-		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
-
-		// 5. Calculate amount of Hollar to pay
-		let hollar_amount_to_pay = crate::math::calculate_hollar_amount(collateral_amount_scaled, buy_price)?;
-
-		// Scale Hollar amount back to its decimals
-		let hollar_amount_to_pay = crate::math::scale_from_18_decimals(hollar_amount_to_pay, hollar_decimals)?;
-
-		// Check if the requested amount exceeds the buyback limit
-		let hollar_amount_scaled = crate::math::scale_to_18_decimals(hollar_amount_to_pay, hollar_decimals)?;
-		ensure!(buyback_limit > hollar_amount_scaled, Error::<T>::MaxBuyBackExceeded);
-
-		// 6. Calculate max price
-		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
-
-		// Check if price exceeds max price - compare the ratios
-		// For (a,b) <= (c,d), we check a*d <= b*c
-		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
-		let max_price_check = buy_price.1.saturating_mul(max_price.0);
-		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
-
-		// Check HSM has enough collateral
-		let current_holding = CollateralHoldings::<T>::get(collateral_asset);
-		ensure!(
-			current_holding >= collateral_amount,
-			pallet_stableswap::Error::<T>::InsufficientBalance
-		);
-
-		// Execute the swap
-		// 1. Transfer collateral from user to HSM
-		<T as Config>::Currency::transfer(
-			collateral_asset,
-			who,
-			&Self::account_id(),
-			collateral_amount,
-			Preservation::Expendable,
-		)?;
-
-		// 2. Mint Hollar by calling GHO contract
-		Self::mint_hollar(who, hollar_amount_to_pay)?;
-
-		// 3. Update HSM holdings
-		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
-			*balance = balance.saturating_add(collateral_amount);
-		});
-
-		Ok(hollar_amount_to_pay)
 	}
 
 	/// Mint Hollar by calling the GHO token contract
@@ -1049,18 +1047,38 @@ where
 		let pool_id = collateral_info.pool_id;
 
 		// Get pool data
-		let (asset_idx, hollar_idx, assets, decimals, _) = Self::get_pool_data(pool_id, collateral_asset_id)?;
+		let pool_state = Self::get_stablepool_state(pool_id)?;
 
+		let hollar_pos = pool_state
+			.asset_idx(T::HollarId::get())
+			.ok_or(Error::<T>::AssetNotFound)?;
+		let collateral_pos = pool_state
+			.asset_idx(collateral_asset_id)
+			.ok_or(Error::<T>::AssetNotFound)?;
+
+		// just to be on the safe side
+		ensure!(
+			pool_state.decimals.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
+		ensure!(
+			pool_state.reserves.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
+		ensure!(
+			pool_state.pegs.len() > hollar_pos.max(collateral_pos),
+			Error::<T>::InvalidPoolState
+		);
 		// Calculate I_i = (H_i - φ_i * R_i) / 2
-		let pool_reserves = assets[asset_idx];
-		let hollar_reserves = assets[hollar_idx];
+		let asset_reserve = pool_state.reserves[collateral_pos];
+		let hollar_reserve = pool_state.reserves[hollar_pos];
 		let b_coefficient = collateral_info.b;
 
 		// Calculate φ_i * R_i
-		let phi_r = b_coefficient.mul_floor(pool_reserves);
+		let phi_r = b_coefficient.mul_floor(asset_reserve);
 
 		// Calculate H_i - φ_i * R_i
-		let h_minus_phi_r = hollar_reserves.checked_sub(phi_r).unwrap_or(0);
+		let h_minus_phi_r = hollar_reserve.checked_sub(phi_r).unwrap_or(0);
 
 		// Calculate I_i = (H_i - φ_i * R_i) / 2
 		let max_buy_amt = h_minus_phi_r.checked_div(2).unwrap_or(0);

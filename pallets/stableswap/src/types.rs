@@ -192,4 +192,9 @@ impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
 	pub fn asset_idx(&self, asset_id: AssetId) -> Option<usize> {
 		self.assets.iter().position(|&asset| asset == asset_id)
 	}
+
+	// Safe retrieval of asset decimals info - we like to be on the safe side.
+	pub fn asset_decimals_at(&self, idx: usize) -> Option<u8> {
+		self.decimals.get(idx).copied()
+	}
 }
