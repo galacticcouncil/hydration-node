@@ -1,3 +1,5 @@
+# FIXME: https://github.com/orgs/community/discussions/50468#discussioncomment-5366823
+# This workflow won't trigger on a weights commit, which was pushed automatically from this workflow
 name: build-and-deploy
 on:
   push:
@@ -72,10 +74,9 @@ jobs:
       - name: Prepare benchmark execution
         id: prepare
         run: |
-          echo "$(git log -1 --pretty=format:"%s")"
-          if [[ ! -z $(git log -1 --pretty=format:"%s" | grep -q "[ignore benchmarks]") ]]; then
+          if git log -1 --pretty=format:"%s" | grep -q "\[ignore benchmarks\]"; then
             echo "Skipping job due to 'ignore-benchmark' tag in commit message"
-            exit 78  # Exit code 78 marks the job as 'skipped'
+            exit 78
           fi
           
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
