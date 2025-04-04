@@ -1,3 +1,5 @@
+# FIXME: https://github.com/orgs/community/discussions/50468#discussioncomment-5366823
+# This workflow won't trigger on a weights commit, which was pushed automatically from this workflow
 name: build-and-deploy
 on:
   push:
