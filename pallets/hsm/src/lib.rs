@@ -216,6 +216,8 @@ pub mod pallet {
 		NoArbitrageOpportunity,
 		/// Offchain lock error
 		OffchainLockError,
+		/// Asset not in the pool.
+		AssetNotFound,
 	}
 
 	#[pallet::hooks]
@@ -592,6 +594,13 @@ where
 		Collaterals::<T>::contains_key(asset_id)
 	}
 
+	fn get_stablepool_state(pool_id: T::AssetId) -> Result<PoolSnapshot<T::AssetId>, DispatchError> {
+		let Some(pool_snapshot) = pallet_stableswap::Pallet::<T>::initial_pool_snapshot(pool_id) else {
+			return Err(pallet_stableswap::Error::<T>::PoolNotFound.into());
+		};
+		Ok(pool_snapshot)
+	}
+
 	/// Get pool data
 	fn get_pool_data(
 		pool_id: T::AssetId,
@@ -739,29 +748,23 @@ where
 
 		let pool_id = collateral_info.pool_id;
 
-		// Get pool data
-		let (hollar_pos, collateral_pos, _, decimals, pegs) = Self::get_pool_data(pool_id, collateral_asset)?;
+		let pool_state = Self::get_stablepool_state(pool_id)?;
 
-		// Get decimals
-		let hollar_decimals = decimals[hollar_pos];
-		let collateral_decimals = decimals[collateral_pos];
-
-		// Scale collateral amount to 18 decimals for calculation
-		let collateral_amount_scaled = crate::math::scale_to_18_decimals(collateral_amount, collateral_decimals)?;
+		let collateral_pos = pool_state
+			.asset_idx(collateral_asset)
+			.ok_or(Error::<T>::AssetNotFound)?;
 
 		// Get the peg for this asset
-		let peg = pegs[collateral_pos];
+		// peg is  price hollar / collateral asset
+		let peg = pool_state.pegs[collateral_pos];
 
-		// Calculate purchase price
+		// Calculate purchase pice
 		let purchase_price = crate::math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
 		// Calculate Hollar amount to mint
-		let hollar_amount = crate::math::calculate_hollar_amount(collateral_amount_scaled, purchase_price)?;
+		let hollar_amount = crate::math::calculate_hollar_amount(collateral_amount, purchase_price)?;
 
-		// Scale Hollar amount back to its decimals
-		let hollar_amount = crate::math::scale_from_18_decimals(hollar_amount, hollar_decimals)?;
-
-		// Execute the swap
+		// Execute the "swap"
 		// 1. Transfer collateral from user to HSM
 		<T as Config>::Currency::transfer(
 			collateral_asset,
@@ -792,45 +795,21 @@ where
 
 		let pool_id = collateral_info.pool_id;
 
-		// Get pool data
-		let (hollar_pos, collateral_pos, reserves, decimals, pegs) = Self::get_pool_data(pool_id, collateral_asset)?;
+		let pool_state = Self::get_stablepool_state(pool_id)?;
 
-		// Get decimals
-		let hollar_decimals = decimals[hollar_pos];
-		let collateral_decimals = decimals[collateral_pos];
+		let collateral_pos = pool_state
+			.asset_idx(collateral_asset)
+			.ok_or(Error::<T>::AssetNotFound)?;
 
-		// Scale Hollar amount to 18 decimals for calculation
-		let hollar_amount_scaled = crate::math::scale_to_18_decimals(hollar_amount, hollar_decimals)?;
+		// Get the peg for this asset
+		// peg is  price hollar / collateral asset
+		let peg = pool_state.pegs[collateral_pos];
 
-		// Get reserves and pegs
-		let hollar_reserve = reserves[hollar_pos];
-		let collateral_reserve = reserves[collateral_pos];
-		let peg = pegs[collateral_pos];
-
-		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
-
-		// 2. Calculate how much Hollar can HSM mint in a single block
-		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
-
-		// Check if the requested amount exceeds the buyback limit
-		ensure!(hollar_amount_scaled < buyback_limit, Error::<T>::MaxBuyBackExceeded);
-
-		// 3. Calculate execution price by simulating a swap
-		let input_amount = Self::simulate_in_given_out(pool_id, collateral_asset, T::HollarId::get(), hollar_amount)?;
-
-		let execution_price = input_amount
-			.checked_div(hollar_amount)
-			.ok_or(ArithmeticError::DivisionByZero)?;
-
-		// 4. Calculate final purchase price with fee
+		// 1. Calculate purchase price with fee
 		let purchase_price = crate::math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
-		// 5. Calculate amount of collateral needed
-		let collateral_amount = crate::math::calculate_collateral_amount(hollar_amount_scaled, purchase_price)?;
-
-		// Scale collateral amount back to its original decimals
-		let collateral_amount = crate::math::scale_from_18_decimals(collateral_amount, collateral_decimals)?;
+		// 2. Calculate amount of collateral needed
+		let collateral_amount = crate::math::calculate_collateral_amount(hollar_amount, purchase_price)?;
 
 		// Check user has enough collateral
 		ensure!(
@@ -839,7 +818,7 @@ where
 			pallet_stableswap::Error::<T>::InsufficientBalance
 		);
 
-		// Execute the swap
+		// Execute the "swap"
 		// 1. Transfer collateral from user to HSM
 		<T as Config>::Currency::transfer(
 			collateral_asset,

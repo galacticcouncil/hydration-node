@@ -187,3 +187,9 @@ pub struct PoolSnapshot<AssetId> {
 	pub decimals: Vec<u8>,
 	pub pegs: BoundedPegs,
 }
+
+impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
+	pub fn asset_idx(&self, asset_id: AssetId) -> Option<usize> {
+		self.assets.iter().position(|&asset| asset == asset_id)
+	}
+}
