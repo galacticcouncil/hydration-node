@@ -97,7 +97,7 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 		assert_ok!(Stableswap::create_pool(
 			hydradx_runtime::RuntimeOrigin::root(),
 			pool,
-			[DOT, ADOT].to_vec(),
+			BoundedVec::truncate_from([DOT, ADOT].to_vec()),
 			amplification,
 			fee,
 		));

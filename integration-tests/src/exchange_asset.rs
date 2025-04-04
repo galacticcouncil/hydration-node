@@ -24,7 +24,6 @@ use sp_runtime::{
 	DispatchResult, FixedU128, Permill, TransactionOutcome,
 };
 use sp_std::sync::Arc;
-use xcm_builder::FixedWeightBounds;
 use xcm_emulator::TestExt;
 use xcm_executor::traits::WeightBounds;
 
@@ -1199,7 +1198,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	want_asset: Asset,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
+	type Weigher<RC> = hydradx_runtime::xcm::DynamicWeigher<RC>;
 
 	let give_reserve_chain = Location::new(
 		1,

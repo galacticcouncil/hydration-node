@@ -20,10 +20,13 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::EvmAddress;
-use crate::Runtime;
+use crate::{AssetLocation, Runtime};
 use hex_literal::hex;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{evm::Erc20Encoding, BoundErc20, RegisterAssetHook};
+use polkadot_xcm::v3::Junction::AccountKey20;
+use polkadot_xcm::v3::Junctions::X1;
+use polkadot_xcm::v3::MultiLocation;
 use primitive_types::{H160, H256};
 use primitives::AssetId;
 
@@ -33,6 +36,18 @@ impl Erc20Mapping<AssetId> for HydraErc20Mapping {
 	fn asset_address(asset_id: AssetId) -> EvmAddress {
 		pallet_asset_registry::Pallet::<Runtime>::contract_address(asset_id)
 			.unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset_id))
+	}
+
+	fn address_to_asset(address: hydradx_traits::evm::EvmAddress) -> Option<AssetId> {
+		Self::decode_evm_address(address).or_else(|| {
+			pallet_asset_registry::Pallet::<Runtime>::location_to_asset(AssetLocation(MultiLocation::new(
+				0,
+				X1(AccountKey20 {
+					network: None,
+					key: address.into(),
+				}),
+			)))
+		})
 	}
 }
 
