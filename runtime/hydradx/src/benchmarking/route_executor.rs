@@ -199,7 +199,7 @@ runtime_benchmarks! {
 		if c != 0 {
 			Router::calculate_sell_trade_amounts(trades.as_slice(), amount_to_sell)?;
 		}
-		Router::sell(RawOrigin::Signed(seller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades.clone())?;
+		Router::sell(RawOrigin::Signed(seller.clone()).into(), asset_in, asset_out, amount_to_sell, 0u128, trades.clone().try_into().unwrap())?;
 	}
 	verify {
 		assert_eq!(<Currencies as MultiCurrency<_>>::free_balance(
@@ -233,7 +233,7 @@ runtime_benchmarks! {
 			Router::calculate_buy_trade_amounts(trades.as_slice(), amount_to_buy)?;
 		}
 		if b != 0 {
-			Router::buy(RawOrigin::Signed(buyer.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades)?
+			Router::buy(RawOrigin::Signed(buyer.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades.try_into().unwrap())?
 		}
 	}
 	verify {
@@ -300,7 +300,7 @@ runtime_benchmarks! {
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
 			AssetPair::new(HDX, asset_6),
-			route,
+			route.try_into().unwrap(),
 		)?;
 
 		let better_route = vec![Trade {
@@ -313,7 +313,7 @@ runtime_benchmarks! {
 		Router::set_route(
 			RawOrigin::Signed(caller.clone()).into(),
 			AssetPair::new(HDX, asset_6),
-			better_route.clone(),
+			better_route.clone().try_into().unwrap(),
 		)?;
 	}
 	verify {
@@ -362,13 +362,13 @@ runtime_benchmarks! {
 		Router::force_insert_route(
 			RawOrigin::Root.into(),
 			AssetPair::new(asset_6, HDX),
-			route.clone(),
+			route.clone().try_into().unwrap(),
 		)?;
 	}
 	verify {
 
 		let stored_route = Router::route(AssetPair::new(HDX, asset_6)).unwrap();
-		assert_eq!(inverse_route(stored_route.to_vec()), route);
+		assert_eq!(inverse_route(stored_route), route);
 	}
 
 	get_route {
@@ -381,7 +381,7 @@ runtime_benchmarks! {
 		Router::force_insert_route(
 			RawOrigin::Root.into(),
 			AssetPair::new(HDX, DAI),
-			route,
+			route.try_into().unwrap(),
 		)?;
 	}: {
 		Router::get_route(AssetPair::new(HDX, DAI))

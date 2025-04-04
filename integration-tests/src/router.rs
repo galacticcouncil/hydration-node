@@ -6,6 +6,8 @@ use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
 };
+use sp_core::bounded_vec::BoundedVec;
+
 use pallet_broadcast::types::Destination;
 
 use hydradx_traits::router::AssetPair as Pair;
@@ -27,7 +29,7 @@ use primitives::AssetId;
 use sp_runtime::FixedPointNumber;
 use std::convert::Into;
 
-use frame_support::{assert_noop, assert_ok, BoundedVec};
+use frame_support::{assert_noop, assert_ok};
 use xcm_emulator::TestExt;
 
 use frame_support::storage::with_transaction;
@@ -95,7 +97,7 @@ mod router_different_pools_tests {
 					DOT,
 					amount_to_sell,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_route_executor::Error::<Runtime>::InvalidRoute
 			);
@@ -141,7 +143,7 @@ mod router_different_pools_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -272,7 +274,7 @@ mod router_different_pools_tests {
 					stable_asset_2,
 					amount_to_sell,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -406,7 +408,7 @@ mod router_different_pools_tests {
 				DOT,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -537,7 +539,7 @@ mod router_different_pools_tests {
 					stable_asset_2,
 					amount_to_buy,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -655,7 +657,7 @@ mod router_different_pools_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				trades.clone()
+				BoundedVec::truncate_from(trades.clone())
 			));
 
 			assert_ok!(Router::buy(
@@ -664,7 +666,7 @@ mod router_different_pools_tests {
 				DOT,
 				amount_to_sell,
 				10 * amount_to_sell,
-				trades.clone()
+				BoundedVec::truncate_from(trades.clone())
 			));
 
 			assert_ok!(Router::sell(
@@ -673,7 +675,7 @@ mod router_different_pools_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -790,7 +792,7 @@ mod router_different_pools_tests {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert that no dust left on account
@@ -857,7 +859,7 @@ mod router_different_pools_tests {
 					stable_asset_2,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -919,7 +921,7 @@ mod router_different_pools_tests {
 					pool_id,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -984,7 +986,7 @@ mod router_different_pools_tests {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -1046,7 +1048,7 @@ mod router_different_pools_tests {
 					stable_asset_1,
 					amount_to_buy,
 					u128::MAX,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -1114,7 +1116,7 @@ mod router_different_pools_tests {
 					HDX,
 					amount_to_buy,
 					u128::MAX,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -1216,7 +1218,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -1271,7 +1273,7 @@ mod omnipool_router_tests {
 					pool_id,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -1335,7 +1337,7 @@ mod omnipool_router_tests {
 						altcoin,
 						amount_to_sell,
 						0,
-						trades
+						trades.try_into().unwrap()
 					),
 					orml_tokens::Error::<Runtime>::ExistentialDeposit
 				);
@@ -1395,7 +1397,7 @@ mod omnipool_router_tests {
 					altcoin,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -1485,7 +1487,7 @@ mod omnipool_router_tests {
 					ETH,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - amount_to_sell);
@@ -1613,7 +1615,7 @@ mod omnipool_router_tests {
 					insufficient_asset4,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
@@ -1707,7 +1709,7 @@ mod omnipool_router_tests {
 					ETH,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 				let alice_balance_after_trade = Balances::free_balance(AccountId::from(ALICE));
 
@@ -1787,7 +1789,7 @@ mod omnipool_router_tests {
 					insufficient_asset_2,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				),);
 
 				//ED for insufficient_asset_1 is refunded, but ED for insufficient_asset_2 is charged plus extra 10%
@@ -1916,7 +1918,7 @@ mod omnipool_router_tests {
 					insufficient_asset4,
 					amount_to_buy,
 					u128::MAX,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
@@ -1986,7 +1988,7 @@ mod omnipool_router_tests {
 					HDX,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2110,7 +2112,7 @@ mod omnipool_router_tests {
 					BTC,
 					UNITS,
 					u128::MAX,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2168,7 +2170,7 @@ mod omnipool_router_tests {
 					shitcoin,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2205,7 +2207,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_sell,
 				0,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2278,7 +2280,7 @@ mod omnipool_router_tests {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -2354,7 +2356,7 @@ mod omnipool_router_tests {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -2391,7 +2393,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2436,7 +2438,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2574,7 +2576,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2618,7 +2620,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2650,7 +2652,7 @@ mod omnipool_router_tests {
 					LRNA,
 					amount_to_buy,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_omnipool::Error::<Runtime>::NotAllowed
 			);
@@ -2682,7 +2684,7 @@ mod omnipool_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2819,7 +2821,7 @@ mod omnipool_router_tests {
 					ACA,
 					amount_to_sell,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_omnipool::Error::<Runtime>::AssetNotFound
 			);
@@ -2855,7 +2857,7 @@ mod lbp_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2899,7 +2901,7 @@ mod lbp_router_tests {
 				HDX,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -2951,7 +2953,7 @@ mod lbp_router_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3004,7 +3006,7 @@ mod lbp_router_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3051,7 +3053,7 @@ mod lbp_router_tests {
 				DAI,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3169,7 +3171,7 @@ mod lbp_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3213,7 +3215,7 @@ mod lbp_router_tests {
 				HDX,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3265,7 +3267,7 @@ mod lbp_router_tests {
 				DOT,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3318,7 +3320,7 @@ mod lbp_router_tests {
 				DOT,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3365,7 +3367,7 @@ mod lbp_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3429,7 +3431,7 @@ mod lbp_router_tests {
 					ACA,
 					amount_to_sell,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_lbp::Error::<Runtime>::PoolNotFound
 			);
@@ -3466,7 +3468,7 @@ mod xyk_router_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3528,7 +3530,7 @@ mod xyk_router_tests {
 				DOT,
 				amount_to_sell,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3574,7 +3576,7 @@ mod xyk_router_tests {
 					DAI,
 					amount_to_sell * UNITS,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::TokenPoolNotFound
 			);
@@ -3603,7 +3605,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_sell * UNITS,
 					0,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientAssetBalance
 			);
@@ -3633,7 +3635,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_sell,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientTradingAmount
 			);
@@ -3663,7 +3665,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_sell,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::MaxInRatioExceeded
 			);
@@ -3696,7 +3698,7 @@ mod xyk_router_tests {
 				DOT,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3751,7 +3753,7 @@ mod xyk_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3814,7 +3816,7 @@ mod xyk_router_tests {
 				DAI,
 				amount_to_buy,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -3860,7 +3862,7 @@ mod xyk_router_tests {
 					DAI,
 					amount_to_sell * UNITS,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::TokenPoolNotFound
 			);
@@ -3890,7 +3892,7 @@ mod xyk_router_tests {
 					HDX,
 					amount_to_buy,
 					150 * UNITS,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientAssetBalance
 			);
@@ -3920,7 +3922,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_buy,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::InsufficientTradingAmount
 			);
@@ -3950,7 +3952,7 @@ mod xyk_router_tests {
 					DOT,
 					amount_to_buy,
 					limit,
-					trades
+					trades.try_into().unwrap()
 				),
 				pallet_xyk::Error::<hydradx_runtime::Runtime>::MaxOutRatioExceeded
 			);
@@ -3995,7 +3997,7 @@ mod omnipool_stableswap_router_tests {
 					pool_id,
 					amount_to_sell,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -4041,7 +4043,7 @@ mod omnipool_stableswap_router_tests {
 					pool_id,
 					amount_to_buy,
 					u128::MAX,
-					trades
+					trades.try_into().unwrap()
 				));
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4079,7 +4081,7 @@ mod omnipool_stableswap_router_tests {
 					stable_asset_1,
 					amount_to_buy,
 					u128::MAX,
-					trades
+					trades.try_into().unwrap()
 				));
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4101,6 +4103,7 @@ mod set_route {
 		use hydradx_runtime::EmaOracle;
 		use hydradx_traits::AssetKind;
 		use primitives::constants::chain::XYK_SOURCE;
+		use sp_runtime::BoundedVec;
 
 		#[test]
 		fn set_route_should_work_with_omnipool_xyk_and_stable_pools() {
@@ -4171,7 +4174,7 @@ mod set_route {
 								DOT,
 								amount_to_sell,
 								0,
-								route1.clone()
+								BoundedVec::truncate_from(route1.clone())
 							));
 							let alice_received_dot =
 								Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
@@ -4188,7 +4191,7 @@ mod set_route {
 								DOT,
 								amount_to_sell,
 								0,
-								route2_cheaper.clone()
+								BoundedVec::truncate_from(route2_cheaper.clone())
 							));
 							let alice_received_dot =
 								Currencies::free_balance(DOT, &AccountId::from(ALICE)) - ALICE_INITIAL_DOT_BALANCE;
@@ -4208,7 +4211,7 @@ mod set_route {
 								HDX,
 								amount_to_sell,
 								0,
-								inverse_route(route1.clone())
+								inverse_route(route1.clone().try_into().unwrap())
 							));
 							let alice_received_hdx =
 								Currencies::free_balance(HDX, &AccountId::from(ALICE)) - alice_hdx_balance;
@@ -4225,7 +4228,7 @@ mod set_route {
 								HDX,
 								amount_to_sell,
 								0,
-								inverse_route(route2_cheaper.clone())
+								inverse_route(route2_cheaper.clone().try_into().unwrap())
 							));
 							let alice_received_hdx =
 								Currencies::free_balance(HDX, &AccountId::from(ALICE)) - alice_hdx_balance;
@@ -4243,7 +4246,7 @@ mod set_route {
 						assert_ok!(Router::set_route(
 							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 							asset_pair,
-							route1.clone()
+							route1.clone().try_into().unwrap()
 						));
 						assert_eq!(Router::route(asset_pair).unwrap(), route1);
 
@@ -4252,13 +4255,17 @@ mod set_route {
 						assert_ok!(Router::set_route(
 							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 							asset_pair,
-							route2_cheaper.clone()
+							route2_cheaper.clone().try_into().unwrap()
 						));
 						assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
 
 						//We try to set back the more expensive but did not replace
 						assert_noop!(
-							Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
+							Router::set_route(
+								hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+								asset_pair,
+								route1.try_into().unwrap()
+							),
 							pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 						);
 						assert_eq!(Router::route(asset_pair).unwrap(), route2_cheaper);
@@ -4310,7 +4317,11 @@ mod set_route {
 
 				//Act and assert
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route1.try_into().unwrap()
+					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 				);
 			});
@@ -4362,7 +4373,7 @@ mod set_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					route
+					route.try_into().unwrap()
 				),);
 			});
 		}
@@ -4422,7 +4433,7 @@ mod set_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					route
+					route.try_into().unwrap()
 				),);
 			});
 		}
@@ -4473,7 +4484,7 @@ mod set_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					route
+					route.try_into().unwrap()
 				),);
 			});
 		}
@@ -4507,7 +4518,7 @@ mod set_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					route1
+					route1.try_into().unwrap()
 				));
 			});
 		}
@@ -4545,7 +4556,7 @@ mod set_route {
 							Router::set_route(
 								hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 								Pair::new(DOT, insufficient_asset),
-								route1.clone()
+								route1.clone().try_into().unwrap()
 							),
 							pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteHasNoOracle
 						);
@@ -4598,7 +4609,7 @@ mod set_route {
 						assert_ok!(Router::set_route(
 							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 							Pair::new(DOT, insufficient_asset),
-							route1.clone()
+							route1.clone().try_into().unwrap()
 						),);
 
 						TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -4657,7 +4668,7 @@ mod set_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					route1
+					route1.try_into().unwrap()
 				));
 
 				create_xyk_pool_with_amounts(ETH, 1000 * UNITS, BTC, 1000 * UNITS);
@@ -4678,7 +4689,7 @@ mod set_route {
 					Router::set_route(
 						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 						asset_pair,
-						invalid_route
+						invalid_route.try_into().unwrap()
 					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::InvalidRoute
 				);
@@ -4745,7 +4756,11 @@ mod set_route {
 
 				//Validation is fine so no AMM error, but since the route is not better, it results in unsuccessfull route setting
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route.try_into().unwrap()
+					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 				);
 			});
@@ -4811,7 +4826,11 @@ mod set_route {
 
 				//Validation is fine, but since the route is not better, it results in unsuccessfull route setting
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route.try_into().unwrap()
+					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 				);
 			});
@@ -4851,7 +4870,11 @@ mod set_route {
 				let asset_pair = Pair::new(HDX, DOT);
 
 				assert_noop!(
-					Router::set_route(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), asset_pair, route1),
+					Router::set_route(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						asset_pair,
+						route1.try_into().unwrap()
+					),
 					pallet_route_executor::Error::<hydradx_runtime::Runtime>::RouteUpdateIsNotSuccessful
 				);
 			});
@@ -4862,6 +4885,7 @@ mod set_route {
 mod with_on_chain_and_default_route {
 	use super::*;
 	use frame_support::assert_ok;
+	use sp_runtime::BoundedVec;
 
 	#[test]
 	fn buy_should_work_with_onchain_route() {
@@ -4917,7 +4941,7 @@ mod with_on_chain_and_default_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					route1.clone()
+					route1.clone().try_into().unwrap()
 				));
 				assert_eq!(Router::route(asset_pair).unwrap(), route1);
 
@@ -4936,7 +4960,7 @@ mod with_on_chain_and_default_route {
 					DOT,
 					amount_to_buy,
 					u128::MAX,
-					vec![],
+					BoundedVec::new(),
 				));
 
 				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE + amount_to_buy);
@@ -4999,7 +5023,7 @@ mod with_on_chain_and_default_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					route1.clone()
+					route1.clone().try_into().unwrap()
 				));
 				assert_eq!(Router::route(asset_pair).unwrap(), route1);
 
@@ -5011,7 +5035,7 @@ mod with_on_chain_and_default_route {
 					DOT,
 					amount_to_sell,
 					0,
-					vec![],
+					BoundedVec::new(),
 				));
 
 				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
@@ -5074,7 +5098,7 @@ mod with_on_chain_and_default_route {
 				assert_ok!(Router::set_route(
 					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 					asset_pair,
-					route1.clone()
+					route1.clone().try_into().unwrap()
 				));
 				assert_eq!(Router::route(asset_pair).unwrap(), route1);
 
@@ -5086,7 +5110,7 @@ mod with_on_chain_and_default_route {
 					HDX,
 					amount_to_sell,
 					0,
-					vec![],
+					BoundedVec::new(),
 				));
 
 				assert_balance!(ALICE.into(), DOT, ALICE_INITIAL_DOT_BALANCE - amount_to_sell);
@@ -5113,7 +5137,7 @@ mod with_on_chain_and_default_route {
 				DAI,
 				amount_to_sell,
 				limit,
-				vec![]
+				BoundedVec::new()
 			));
 
 			//Assert
@@ -5151,7 +5175,7 @@ mod with_on_chain_and_default_route {
 				DAI,
 				amount_to_buy,
 				limit,
-				vec![]
+				BoundedVec::new()
 			));
 
 			//Assert
@@ -5202,7 +5226,7 @@ mod route_spot_price {
 				DOT,
 				amount_to_sell,
 				limit,
-				trades.clone()
+				BoundedVec::truncate_from(trades.clone())
 			));
 
 			//Assert
@@ -5290,7 +5314,7 @@ mod route_spot_price {
 					DOT,
 					amount_to_sell,
 					0,
-					trades.clone()
+					BoundedVec::truncate_from(trades.clone())
 				));
 
 				//Assert
@@ -5376,7 +5400,7 @@ mod route_spot_price {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					trades.clone()
+					BoundedVec::truncate_from(trades.clone())
 				));
 
 				//Assert
@@ -5447,7 +5471,7 @@ mod route_spot_price {
 					stable_asset_1,
 					amount_to_sell,
 					0,
-					trades.clone()
+					BoundedVec::truncate_from(trades.clone())
 				));
 
 				//Assert
@@ -5516,7 +5540,7 @@ mod sell_all {
 				HDX,
 				DAI,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -5558,7 +5582,7 @@ mod sell_all {
 				DAI,
 				HDX,
 				limit,
-				trades
+				trades.try_into().unwrap()
 			));
 
 			//Assert
@@ -5608,7 +5632,7 @@ mod sell_all {
 					stable_asset_1,
 					pool_id,
 					0,
-					trades
+					trades.try_into().unwrap()
 				));
 
 				//Assert
@@ -5813,7 +5837,7 @@ fn populate_oracle(
 		asset_out,
 		amount.unwrap_or(1 * UNITS),
 		0,
-		route.clone()
+		BoundedVec::truncate_from(route.clone())
 	));
 	set_relaychain_block_number(block.unwrap_or(10));
 }
