@@ -40,9 +40,10 @@ module-evm-utility-macro = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
 
-# Offchain worker dependencies
-
 [dev-dependencies]
+orml-tokens = {workspace = true}
+orml-traits = {workspace = true}
+pallet-broadcast = { workspace = true }
 
 [features]
 default = ["std"]
@@ -64,5 +65,8 @@ std = [
     "pallet-stableswap/std",
     "hydradx-traits/std",
     "pallet-evm/std",
+    "orml-tokens/std",
+    "orml-traits/std",
+    "pallet-broadcast/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

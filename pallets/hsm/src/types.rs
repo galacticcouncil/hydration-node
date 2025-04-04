@@ -4,10 +4,14 @@
 use serde::{Deserialize, Serialize};
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use evm::ExitReason;
 use frame_support::traits::Get;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_runtime::{Perbill, Permill};
+
+/// Type for EVM call result
+pub type CallResult = (ExitReason, Vec<u8>);
 
 /// Balance type used in the pallet
 pub type Balance = u128;

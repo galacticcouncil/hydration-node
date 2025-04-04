@@ -47,6 +47,9 @@ pub mod math;
 pub mod traits;
 pub mod types;
 
+#[cfg(test)]
+pub mod tests;
+
 // Generate the ERC20 function selectors
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -80,9 +83,6 @@ pub mod pallet {
 
 	// EVM imports
 
-	// Type for EVM call result
-	type CallResult = (ExitReason, Vec<u8>);
-
 	/// HSM account id identifier
 	pub const HSM_IDENTIFIER: &[u8] = b"hsm/acct";
 
@@ -110,7 +110,7 @@ pub mod pallet {
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
 
 		/// EVM handler
-		type Evm: EVM<CallResult>;
+		type Evm: EVM<crate::types::CallResult>;
 
 		/// EVM address converter
 		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
