@@ -35,7 +35,6 @@ use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use sp_runtime::traits::Zero;
 
 use frame_system::ensure_signed;
-use hydradx_traits::registry::Inspect as RegistryInspect;
 use hydradx_traits::router::{inverse_route, AssetPair, Route, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
