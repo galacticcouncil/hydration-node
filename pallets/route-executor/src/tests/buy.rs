@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::{Error, Event, Trade};
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, BoundedVec};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
@@ -39,7 +39,7 @@ fn buy_should_work_when_route_has_single_trade() {
 			AUSD,
 			amount_to_buy,
 			limit,
-			trades
+			BoundedVec::truncate_from(trades)
 		));
 
 		//Assert
@@ -69,7 +69,7 @@ fn buy_should_work_with_omnipool_when_no_route_or_onchain_route_exist() {
 			DOT,
 			amount_to_buy,
 			limit,
-			vec![]
+			BoundedVec::new()
 		));
 
 		//Assert
@@ -114,7 +114,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 			assert_ok!(Router::set_route(
 				RuntimeOrigin::signed(ALICE),
 				AssetPair::new(HDX, KSM),
-				trades,
+				BoundedVec::truncate_from(trades),
 			));
 
 			//Act
@@ -124,7 +124,7 @@ fn buy_should_work_when_onchain_route_present_in_reverse_order() {
 				HDX,
 				amount_to_buy,
 				limit,
-				vec![]
+				BoundedVec::new()
 			));
 
 			//Assert
@@ -168,7 +168,7 @@ fn buy_should_work_when_route_has_single_trade_without_native_balance() {
 				KSM,
 				amount_to_buy,
 				limit,
-				trades
+				BoundedVec::truncate_from(trades)
 			));
 
 			//Assert
@@ -213,34 +213,12 @@ fn buy_should_fail_when_max_limit_for_trade_reached() {
 				asset_in: SDN,
 				asset_out: STABLE_SHARE_ASSET,
 			};
-			let trade7 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trade8 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trade9 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trade10 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trades = vec![
-				trade1, trade2, trade3, trade4, trade5, trade6, trade7, trade8, trade9, trade10,
-			];
+			let trades = vec![trade1, trade2, trade3, trade4, trade5, trade6];
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), HDX, RMRK, 10, 5, trades),
-				Error::<Test>::MaxTradesExceeded
+				Router::buy(RuntimeOrigin::signed(ALICE), HDX, RMRK, 10, 5, trades.try_into().unwrap()),
+				Error::<Test>::InvalidRoute
 			);
 		});
 }
@@ -264,7 +242,7 @@ fn buy_should_fail_when_route_has_single_trade_producing_calculation_error() {
 					AUSD,
 					INVALID_CALCULATION_AMOUNT,
 					limit,
-					trades
+					BoundedVec::truncate_from(trades)
 				),
 				DispatchError::Other("Some error happened")
 			);
@@ -304,7 +282,7 @@ fn buy_should_when_route_has_multiple_trades_with_same_pool_type() {
 				KSM,
 				amount_to_buy,
 				limit,
-				trades
+				BoundedVec::truncate_from(trades)
 			));
 
 			//Assert
@@ -358,7 +336,7 @@ fn buy_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 				KSM,
 				amount_to_buy,
 				limit,
-				trades
+				BoundedVec::truncate_from(trades)
 			));
 
 			//Assert
@@ -408,7 +386,7 @@ fn buy_should_work_with_onchain_route_when_no_route_specified() {
 			assert_ok!(Router::set_route(
 				RuntimeOrigin::signed(ALICE),
 				AssetPair::new(HDX, KSM),
-				trades,
+				BoundedVec::truncate_from(trades),
 			));
 
 			//Act
@@ -418,7 +396,7 @@ fn buy_should_work_with_onchain_route_when_no_route_specified() {
 				KSM,
 				amount_to_buy,
 				limit,
-				vec![]
+				BoundedVec::new()
 			));
 
 			//Assert
@@ -467,7 +445,7 @@ fn buy_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 				KSM,
 				amount_to_buy,
 				limit,
-				trades
+				BoundedVec::truncate_from(trades)
 			));
 
 			//Assert
@@ -492,7 +470,14 @@ fn buy_should_fail_when_called_with_non_signed_origin() {
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::none(), HDX, AUSD, amount_to_buy, limit, trades),
+				Router::buy(
+					RuntimeOrigin::none(),
+					HDX,
+					AUSD,
+					amount_to_buy,
+					limit,
+					BoundedVec::truncate_from(trades)
+				),
 				sp_runtime::DispatchError::BadOrigin
 			);
 		});
@@ -512,7 +497,14 @@ fn buy_should_fail_when_max_limit_to_spend_is_reached() {
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_buy, limit, trades),
+				Router::buy(
+					RuntimeOrigin::signed(ALICE),
+					HDX,
+					AUSD,
+					amount_to_buy,
+					limit,
+					BoundedVec::truncate_from(trades)
+				),
 				Error::<Test>::TradingLimitReached
 			);
 		});
@@ -543,7 +535,14 @@ fn buy_should_fail_when_assets_dont_correspond_to_route() {
 
 			//Act
 			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), MOVR, AUSD, amount_to_buy, limit, trades),
+				Router::buy(
+					RuntimeOrigin::signed(ALICE),
+					MOVR,
+					AUSD,
+					amount_to_buy,
+					limit,
+					BoundedVec::truncate_from(trades)
+				),
 				Error::<Test>::InvalidRoute
 			);
 		});

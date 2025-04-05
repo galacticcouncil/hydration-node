@@ -58,7 +58,7 @@
 //!
 //! ## Terminating a Schedule
 //!
-//! Both users and TerminateOrigin can terminate a DCA schedule. However, users can only terminate schedules that they own.
+//! Both users and TerminateOrigin can terminate a DCA schedule. However, users can only terminate schedules that they own themselves
 //!
 //! Once a schedule is terminated, it is completely and permanently removed from the blockchain.
 
@@ -728,7 +728,7 @@ impl<T: Config> Pallet<T> {
 
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
-				let route_for_slippage = inverse_route(route.to_vec());
+				let route_for_slippage = inverse_route(route.clone());
 				let (estimated_amount_out, slippage_amount) =
 					Self::calculate_last_block_slippage(&route_for_slippage, amount_to_sell, schedule.slippage)?;
 				let last_block_slippage_min_limit = estimated_amount_out
@@ -748,14 +748,7 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::RouteExecutor::sell(
-					origin,
-					*asset_in,
-					*asset_out,
-					amount_to_sell,
-					amount_out,
-					route.to_vec(),
-				)?;
+				T::RouteExecutor::sell(origin, *asset_in, *asset_out, amount_to_sell, amount_out, route.clone())?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,
@@ -789,7 +782,7 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::RouteExecutor::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route.to_vec())?;
+				T::RouteExecutor::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route)?;
 
 				Ok(AmountInAndOut {
 					amount_in,

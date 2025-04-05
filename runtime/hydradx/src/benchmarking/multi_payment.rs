@@ -30,10 +30,10 @@ use frame_system::RawOrigin;
 use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::RouteProvider;
+use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
-use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use pallet_transaction_payment::OnChargeTransaction;
 use primitives::{BlockNumber, Price};
 use sp_core::Get;
@@ -181,7 +181,7 @@ runtime_benchmarks! {
 
 		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
 
-		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, asset_10), route)?;
+		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, asset_10), route.try_into().unwrap())?;
 
 		let mut _price = None;//Named with underscore because clippy thinks that the price in the Act part is unused.
 

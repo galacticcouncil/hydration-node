@@ -42,6 +42,7 @@ use hydradx_adapters::{
 	OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
 	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
+use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 pub use hydradx_traits::{
 	evm::CallContext,
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
@@ -62,8 +63,9 @@ use pallet_omnipool::{
 	weights::WeightInfo as OmnipoolWeights,
 };
 use pallet_otc::NamedReserveIdentifier;
-use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights, MAX_NUMBER_OF_TRADES};
+use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
+
 use pallet_staking::{
 	types::{Action, Point},
 	SigmoidPercentage,
@@ -1118,7 +1120,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		}
 
 		//Calculate sell amounts for the inversed new route
-		for trade in inverse_route(route.to_vec()) {
+		for trade in inverse_route(BoundedVec::truncate_from(route.to_vec())) {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),

@@ -18,6 +18,7 @@ use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use pallet_broadcast::types::Fee;
+use sp_core::bounded_vec::BoundedVec;
 #[test]
 fn batch_execution_type_should_be_included_in_batch() {
 	TestNet::reset();
@@ -56,7 +57,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 			asset_out: DOT,
 			amount_in: amount_to_sell,
 			min_amount_out: limit,
-			route: trades.clone(),
+			route: BoundedVec::truncate_from(trades.clone()),
 		});
 		assert_ok!(Utility::batch(
 			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
@@ -151,9 +152,9 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 		let router_call = RuntimeCall::Router(pallet_route_executor::Call::sell {
 			asset_in: HDX,
 			asset_out: DOT,
-			amount_in: 10 * UNITS,
+			amount_in: amount_to_sell,
 			min_amount_out: 0,
-			route: trades.clone(),
+			route: trades.clone().try_into().unwrap(),
 		});
 
 		assert_ok!(Utility::batch(
@@ -239,7 +240,7 @@ fn nested_batch_should_represent_embeddedness() {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				min_amount_out: limit,
-				route: trades.clone(),
+				route: BoundedVec::truncate_from(trades.clone()),
 			})],
 		});
 

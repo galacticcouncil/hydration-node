@@ -158,7 +158,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			ACA,
 			UNITS,
 			0,
-			vec![],
+			BoundedVec::new(),
 		));
 
 		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
@@ -1184,16 +1184,6 @@ fn fungible_amount(asset: &Asset) -> u128 {
 }
 
 fn half(asset: &Asset) -> Asset {
-	let half_amount = fungible_amount(asset)
-		.checked_div(2)
-		.expect("div 2 can't overflow; qed");
-	Asset {
-		fun: Fungible(half_amount),
-		id: asset.clone().id,
-	}
-}
-
-fn one(asset: &Asset) -> Asset {
 	let half_amount = fungible_amount(asset)
 		.checked_div(2)
 		.expect("div 2 can't overflow; qed");

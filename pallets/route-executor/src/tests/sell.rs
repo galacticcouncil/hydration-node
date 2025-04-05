@@ -22,7 +22,7 @@ use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;
 use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::{DispatchError, TokenError};
+use sp_runtime::{BoundedVec, DispatchError, TokenError};
 
 #[test]
 fn sell_should_work_when_route_has_single_trade() {
@@ -40,7 +40,7 @@ fn sell_should_work_when_route_has_single_trade() {
 			AUSD,
 			amount_to_sell,
 			limit,
-			trades
+			BoundedVec::truncate_from(trades)
 		));
 
 		//Assert
@@ -70,7 +70,7 @@ fn sell_should_work_with_omnipool_when_no_specified_or_onchain_route_exist() {
 			AUSD,
 			amount_to_sell,
 			limit,
-			vec![]
+			BoundedVec::new()
 		));
 
 		//Assert
@@ -109,7 +109,7 @@ fn sell_should_work_when_route_has_single_trade_without_native_balance() {
 				AUSD,
 				amount_to_sell,
 				limit,
-				trades
+				BoundedVec::truncate_from(trades)
 			));
 
 			//Assert
@@ -136,7 +136,7 @@ fn sell_should_fail_when_route_has_single_trade_producing_calculation_error() {
 					AUSD,
 					INVALID_CALCULATION_AMOUNT,
 					limit,
-					trades
+					BoundedVec::truncate_from(trades)
 				),
 				DispatchError::Other("Some error happened")
 			);
@@ -173,7 +173,7 @@ fn sell_should_work_when_route_has_multiple_trades_with_same_pooltype() {
 			KSM,
 			amount_to_sell,
 			limit,
-			trades
+			BoundedVec::truncate_from(trades)
 		));
 
 		//Assert
@@ -223,7 +223,7 @@ fn sell_should_work_when_route_has_multiple_trades_with_different_pool_type() {
 			KSM,
 			amount_to_sell,
 			limit,
-			trades
+			BoundedVec::truncate_from(trades)
 		));
 
 		//Assert
@@ -269,7 +269,7 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 		assert_ok!(Router::set_route(
 			RuntimeOrigin::signed(ALICE),
 			AssetPair::new(HDX, KSM),
-			trades,
+			BoundedVec::truncate_from(trades),
 		));
 
 		//Act
@@ -279,7 +279,7 @@ fn sell_should_work_with_onchain_route_when_no_routes_specified() {
 			KSM,
 			amount_to_sell,
 			limit,
-			vec![]
+			BoundedVec::new()
 		));
 
 		//Assert
@@ -331,7 +331,7 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 			assert_ok!(Router::set_route(
 				RuntimeOrigin::signed(ALICE),
 				AssetPair::new(HDX, KSM),
-				trades,
+				BoundedVec::truncate_from(trades),
 			));
 
 			//Act
@@ -342,7 +342,7 @@ fn sell_should_work_with_onchain_route_when_onchain_route_present_in_reverse_ord
 				HDX,
 				amount_to_sell,
 				limit,
-				vec![]
+				BoundedVec::new()
 			));
 
 			//Assert
@@ -391,7 +391,7 @@ fn sell_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 			KSM,
 			amount_to_sell,
 			limit,
-			trades
+			BoundedVec::truncate_from(trades)
 		));
 
 		//Assert
@@ -400,74 +400,6 @@ fn sell_should_work_when_first_trade_is_not_supported_in_the_first_pool() {
 			(PoolType::XYK, STABLESWAP_SELL_CALCULATION_RESULT, AUSD, KSM),
 		]);
 	});
-}
-#[test]
-fn sell_should_fail_when_max_limit_for_trade_reached() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 1000)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			let trade1 = Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: AUSD,
-			};
-			let trade2 = Trade {
-				pool: PoolType::XYK,
-				asset_in: AUSD,
-				asset_out: MOVR,
-			};
-			let trade3 = Trade {
-				pool: PoolType::XYK,
-				asset_in: MOVR,
-				asset_out: KSM,
-			};
-			let trade4 = Trade {
-				pool: PoolType::XYK,
-				asset_in: KSM,
-				asset_out: RMRK,
-			};
-			let trade5 = Trade {
-				pool: PoolType::XYK,
-				asset_in: RMRK,
-				asset_out: SDN,
-			};
-			let trade6 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trade7 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trade8 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trade9 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trade10 = Trade {
-				pool: PoolType::XYK,
-				asset_in: SDN,
-				asset_out: STABLE_SHARE_ASSET,
-			};
-			let trades = vec![
-				trade1, trade2, trade3, trade4, trade5, trade6, trade7, trade8, trade9, trade10,
-			];
-
-			//Act and Assert
-			assert_noop!(
-				Router::sell(RuntimeOrigin::signed(ALICE), HDX, SDN, 10, 5, trades),
-				Error::<Test>::MaxTradesExceeded
-			);
-		});
 }
 
 #[test]
@@ -480,7 +412,14 @@ fn sell_should_fail_when_called_with_non_signed_origin() {
 
 		//Act and Assert
 		assert_noop!(
-			Router::sell(RuntimeOrigin::none(), HDX, AUSD, amount_to_sell, limit, trades),
+			Router::sell(
+				RuntimeOrigin::none(),
+				HDX,
+				AUSD,
+				amount_to_sell,
+				limit,
+				BoundedVec::truncate_from(trades)
+			),
 			BadOrigin
 		);
 	});
@@ -496,7 +435,14 @@ fn sell_should_fail_when_caller_has_not_enough_balance() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Act and Assert
 		assert_noop!(
-			Router::sell(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_sell, limit, trades),
+			Router::sell(
+				RuntimeOrigin::signed(ALICE),
+				HDX,
+				AUSD,
+				amount_to_sell,
+				limit,
+				BoundedVec::truncate_from(trades)
+			),
 			TokenError::FundsUnavailable
 		);
 	});
@@ -513,7 +459,14 @@ fn sell_should_fail_when_min_limit_to_receive_is_not_reached() {
 
 		//Act and Assert
 		assert_noop!(
-			Router::sell(RuntimeOrigin::signed(ALICE), HDX, AUSD, amount_to_sell, limit, trades),
+			Router::sell(
+				RuntimeOrigin::signed(ALICE),
+				HDX,
+				AUSD,
+				amount_to_sell,
+				limit,
+				BoundedVec::truncate_from(trades)
+			),
 			Error::<Test>::TradingLimitReached
 		);
 	});
@@ -544,7 +497,14 @@ fn sell_should_fail_when_assets_dont_correspond_to_route() {
 
 			//Act and assert
 			assert_noop!(
-				Router::sell(RuntimeOrigin::signed(ALICE), MOVR, AUSD, amount_to_sell, limit, trades),
+				Router::sell(
+					RuntimeOrigin::signed(ALICE),
+					MOVR,
+					AUSD,
+					amount_to_sell,
+					limit,
+					BoundedVec::truncate_from(trades)
+				),
 				Error::<Test>::InvalidRoute
 			);
 		});
@@ -575,7 +535,14 @@ fn sell_should_fail_when_intermediare_assets_are_inconsistent() {
 
 		//Act
 		assert_noop!(
-			Router::sell(RuntimeOrigin::signed(ALICE), HDX, KSM, amount_to_sell, limit, trades),
+			Router::sell(
+				RuntimeOrigin::signed(ALICE),
+				HDX,
+				KSM,
+				amount_to_sell,
+				limit,
+				BoundedVec::truncate_from(trades)
+			),
 			Error::<Test>::InvalidRoute
 		);
 	});

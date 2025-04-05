@@ -76,6 +76,8 @@ fn with_atoken(execution: impl FnOnce()) {
 				asset_in: DOT,
 				asset_out: ADOT,
 			}]
+			.try_into()
+			.unwrap()
 		));
 		execution();
 	})
@@ -172,6 +174,8 @@ fn sell_dot() {
 				asset_in: DOT,
 				asset_out: ADOT,
 			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ONE);
 	})
@@ -191,6 +195,8 @@ fn buy_adot() {
 				asset_in: DOT,
 				asset_out: ADOT,
 			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ONE);
 	})
@@ -210,6 +216,8 @@ fn sell_adot() {
 				asset_in: ADOT,
 				asset_out: DOT,
 			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
 	})
@@ -231,6 +239,8 @@ fn buy_dot() {
 				asset_in: ADOT,
 				asset_out: DOT,
 			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE - 2);
 
@@ -270,7 +280,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}]
+			}].try_into().unwrap()
 		));
 
 		assert_ok!(Router::buy(
@@ -283,7 +293,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}]
+			}].try_into().unwrap()
 		));
 
 		hydradx_run_to_next_block();
@@ -302,7 +312,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 				pool: Aave,
 				asset_in: ADOT,
 				asset_out: DOT,
-			}]
+			}].try_into().unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), balance - amount + 1);
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount + 6);
@@ -342,7 +352,7 @@ fn sell_dot_should_work_when_more_asset_out_received_due_aave_contract_rounding(
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}]
+			}].try_into().unwrap()
 		));
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
@@ -365,7 +375,7 @@ fn not_always_rounding_shall_be_in_your_favor() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}]
+			}].try_into().unwrap()
 		));
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
@@ -408,7 +418,7 @@ fn second_hop_should_have_enough_funds_to_swap() {
 					asset_in: ADOT,
 					asset_out: DAI,
 				},
-			]
+			].try_into().unwrap()
 		));
 	})
 }
@@ -450,7 +460,7 @@ fn second_hop_should_have_enough_funds_to_buy() {
 						asset_in: ADOT,
 						asset_out: DAI,
 					},
-				]
+				].try_into().unwrap()
 			));
 		}
 	})
@@ -471,6 +481,8 @@ fn executor_ensures_that_out_asset_is_underlying() {
 					asset_in: ADOT,
 					asset_out: HDX,
 				}]
+				.try_into()
+				.unwrap()
 			),
 			Other("Asset mismatch: output asset must match aToken's underlying".into())
 		);
@@ -493,6 +505,8 @@ fn executor_ensures_valid_asset_pair() {
 					asset_in: HDX,
 					asset_out: DOT,
 				}]
+				.try_into()
+				.unwrap()
 			),
 			Other("Invalid asset pair".into())
 		);
@@ -552,7 +566,7 @@ fn router_should_set_on_chain_route() {
 		assert_ok!(Router::set_route(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			pair,
-			route.clone()
+			route.clone().try_into().unwrap()
 		));
 		assert_eq!(Router::get_route(pair), route);
 	})
@@ -588,6 +602,8 @@ fn dca_schedule_selling_atokens_should_be_created() {
 				asset_in: DOT,
 				asset_out: ADOT,
 			}]
+			.try_into()
+			.unwrap()
 		));
 		create_schedule(
 			ALICE,
@@ -610,6 +626,8 @@ fn buy_adot_from_stablepool() {
 				asset_in: DOT,
 				asset_out: ADOT,
 			},]
+			.try_into()
+			.unwrap()
 		));
 	});
 }
@@ -640,6 +658,8 @@ fn sell_in_stable_after_rebase() {
 					asset_out: ADOT,
 				},
 			]
+			.try_into()
+			.unwrap()
 		));
 	});
 }
@@ -670,6 +690,8 @@ fn buy_in_stable_after_rebase() {
 					asset_out: ADOT,
 				},
 			]
+			.try_into()
+			.unwrap()
 		));
 	});
 }
