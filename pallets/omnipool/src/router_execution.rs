@@ -13,7 +13,7 @@ use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<T::AssetId>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
@@ -59,7 +59,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 		Ok(*state_changes.asset_out.delta_reserve)
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<T::AssetId>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,

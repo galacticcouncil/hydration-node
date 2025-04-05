@@ -1102,7 +1102,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_broadcast::Pallet::<T>::remove_from_context()?;
+			pallet_broadcast::Pallet::<T>::reset_context()?;
 
 			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(
@@ -1345,7 +1345,7 @@ pub mod pallet {
 				trade_fees,
 			);
 
-			pallet_broadcast::Pallet::<T>::remove_from_context()?;
+			pallet_broadcast::Pallet::<T>::reset_context()?;
 
 			#[cfg(any(feature = "try-runtime", test))]
 			Self::ensure_trade_invariant(

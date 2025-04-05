@@ -8,17 +8,20 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
+use frame_support::traits::tokens::Precision;
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
+use hydradx_runtime::{
+	AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeEvent, RuntimeOrigin, DCA,
+};
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::router::ExecutorError;
-use hydradx_traits::router::PoolType::Aave;
+use hydradx_traits::router::PoolType::{Aave, Omnipool, XYK};
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::router::Trade;
 use hydradx_traits::router::{AssetPair, PoolType};
@@ -27,9 +30,12 @@ use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
+use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use primitives::Balance;
+use rococo_runtime::Balances;
+use scraper::ALICE;
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
@@ -64,7 +70,7 @@ fn with_atoken(execution: impl FnOnce()) {
 			DOT,
 			ADOT,
 			BAG,
-			BAG,
+			BAG + 2, //Tiny we charge due token-atoken is not always 1:1,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -122,6 +128,7 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 }
 
 const HDX: AssetId = 0;
+const DAI: AssetId = 1;
 const DOT: AssetId = 5;
 const ADOT: AssetId = 1_000_037;
 const ONE: u128 = 1 * 10_u128.pow(10);
@@ -182,7 +189,7 @@ fn buy_adot() {
 			DOT,
 			ADOT,
 			ONE,
-			ONE,
+			ONE + 2, // Small fee we apply for buys,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -219,12 +226,14 @@ fn sell_adot() {
 #[test]
 fn buy_dot() {
 	with_atoken(|| {
+		hydradx_run_to_next_block();
+
 		assert_ok!(Router::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			ADOT,
 			DOT,
 			ONE,
-			ONE,
+			ONE + 2,
 			vec![Trade {
 				pool: Aave,
 				asset_in: ADOT,
@@ -233,7 +242,241 @@ fn buy_dot() {
 			.try_into()
 			.unwrap()
 		));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE - 2);
+
+		let atoken = HydraErc20Mapping::encode_evm_address(ADOT);
+		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
+
+		let events = get_last_swapped_events();
+		pretty_assertions::assert_eq!(
+			*get_last_swapped_events().last().unwrap(),
+			pallet_broadcast::Event::<Runtime>::Swapped {
+				swapper: ALICE.into(),
+				filler,
+				filler_type: pallet_broadcast::types::Filler::AAVE,
+				operation: pallet_broadcast::types::TradeOperation::ExactOut,
+				inputs: vec![Asset::new(ADOT, ONE)],
+				outputs: vec![Asset::new(DOT, ONE)],
+				fees: vec![],
+				operation_stack: vec![ExecutionType::Router(1)],
+			}
+		);
+	})
+}
+
+#[test]
+fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
+	with_atoken(|| {
+		//State needs to be set up so rounding happens in aave contract
+		hydradx_run_to_next_block();
+		assert_ok!(Currencies::deposit(DOT, &BOB.into(), 6 * BAG));
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			DOT,
+			ADOT,
+			2 * BAG,
+			2 * BAG + 2,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			BAG / 2,
+			BAG / 2 + 2,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+
+		hydradx_run_to_next_block();
+
+		let amount = 384586145866073;
+		let balance = Currencies::free_balance(ADOT, &ALICE.into());
+		let dots = Currencies::free_balance(DOT, &ALICE.into());
+		//Act and assert
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			ADOT,
+			DOT,
+			amount,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: ADOT,
+				asset_out: DOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), balance - amount + 1);
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount + 6);
+
+		let atoken = HydraErc20Mapping::encode_evm_address(ADOT);
+		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
+
+		pretty_assertions::assert_eq!(
+			*get_last_swapped_events().last().unwrap(),
+			pallet_broadcast::Event::<Runtime>::Swapped {
+				swapper: ALICE.into(),
+				filler,
+				filler_type: pallet_broadcast::types::Filler::AAVE,
+				operation: pallet_broadcast::types::TradeOperation::ExactIn,
+				inputs: vec![Asset::new(ADOT, amount)],
+				outputs: vec![Asset::new(DOT, amount)],
+				fees: vec![],
+				operation_stack: vec![ExecutionType::Router(3)],
+			}
+		);
+	})
+}
+
+#[test]
+fn sell_dot_should_work_when_more_asset_out_received_due_aave_contract_rounding() {
+	with_aave(|| {
+		let amount = 55108183363806;
+		let balance = Currencies::free_balance(ADOT, &ALICE.into());
+		let dots = Currencies::free_balance(DOT, &ALICE.into());
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			amount,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
+	})
+}
+
+#[test]
+fn not_always_rounding_shall_be_in_your_favor() {
+	with_atoken(|| {
+		let amount = 55108186;
+		let balance = Currencies::free_balance(ADOT, &ALICE.into());
+		let dots = Currencies::free_balance(DOT, &ALICE.into());
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			amount,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
+	})
+}
+
+#[test]
+fn second_hop_should_have_enough_funds_to_swap() {
+	with_atoken(|| {
+		assert_ok!(Currencies::deposit(
+			HDX,
+			&hydradx_runtime::Treasury::account_id(),
+			2 * BAG
+		));
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 2 * BAG));
+		assert_ok!(hydradx_runtime::XYK::create_pool(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DAI,
+			BAG,
+			ADOT,
+			BAG,
+		));
+
+		let amount = 55108186;
+
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			DAI,
+			amount,
+			0,
+			vec![
+				Trade {
+					pool: Aave,
+					asset_in: DOT,
+					asset_out: ADOT,
+				},
+				Trade {
+					pool: XYK,
+					asset_in: ADOT,
+					asset_out: DAI,
+				},
+			]
+			.try_into()
+			.unwrap()
+		));
+	})
+}
+
+#[test]
+fn second_hop_should_have_enough_funds_to_buy() {
+	with_atoken(|| {
+		assert_ok!(Currencies::deposit(
+			HDX,
+			&hydradx_runtime::Treasury::account_id(),
+			2 * BAG
+		));
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 2 * BAG));
+		assert_ok!(hydradx_runtime::XYK::create_pool(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DAI,
+			BAG,
+			ADOT,
+			BAG,
+		));
+
+		// poor mans fuzzer
+		for i in 0..100 {
+			let amount = 55108186 + i;
+			assert_ok!(Router::buy(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				DOT,
+				DAI,
+				amount,
+				amount * 2,
+				vec![
+					Trade {
+						pool: Aave,
+						asset_in: DOT,
+						asset_out: ADOT,
+					},
+					Trade {
+						pool: XYK,
+						asset_in: ADOT,
+						asset_out: DAI,
+					},
+				]
+				.try_into()
+				.unwrap()
+			));
+		}
 	})
 }
 
@@ -263,12 +506,13 @@ fn executor_ensures_that_out_asset_is_underlying() {
 #[test]
 fn executor_ensures_valid_asset_pair() {
 	with_atoken(|| {
+		assert_ok!(Currencies::deposit(HDX, &ALICE.into(), BAG));
 		assert_noop!(
 			Router::sell(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				HDX,
 				DOT,
-				ONE,
+				1_000 * ONE,
 				0,
 				vec![Trade {
 					pool: Aave,
@@ -366,7 +610,7 @@ fn dca_schedule_selling_atokens_should_be_created() {
 			DOT,
 			ADOT,
 			1000 * ONE,
-			1000 * ONE,
+			1000 * ONE + 2,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,

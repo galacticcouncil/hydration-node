@@ -18,7 +18,7 @@ where
 {
 	type Error = DispatchError;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<T::AssetId>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
@@ -138,7 +138,7 @@ where
 		}
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<T::AssetId>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,

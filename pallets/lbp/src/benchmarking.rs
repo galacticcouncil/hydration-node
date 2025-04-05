@@ -181,7 +181,7 @@ benchmarks! {
 
 	}: {
 		for _ in 1..c {
-			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_sell(PoolType::LBP, asset_in, asset_out, amount).is_ok());
+			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_out_given_in(PoolType::LBP, asset_in, asset_out, amount).is_ok());
 		}
 		if e != 0 {
 			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(caller.clone()).into(), PoolType::LBP, asset_in, asset_out, amount, max_limit).is_ok());
@@ -219,7 +219,7 @@ benchmarks! {
 
 	}: {
 		for _ in 1..c {
-			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_buy(PoolType::LBP, asset_in, asset_out, amount).is_ok());
+			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_in_given_out(PoolType::LBP, asset_in, asset_out, amount).is_ok());
 		}
 		if e != 0 {
 			assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(caller.clone()).into(), PoolType::LBP, asset_in, asset_out, amount, max_limit).is_ok());
@@ -233,7 +233,7 @@ benchmarks! {
 	}
 
 	// We need to handle this case separately, because for some unknown reason, router_execution_buy provides incorrect weight when just one calculate_buy is executed
-	calculate_buy {
+	calculate_in_given_out {
 		let caller = funded_account::<T>("caller", 0);
 		let fee_collector = funded_account::<T>("fee_collector", 0);
 		let asset_in: AssetId = ASSET_A_ID;
@@ -254,7 +254,7 @@ benchmarks! {
 		frame_system::Pallet::<T>::set_block_number(BlockNumberFor::<T>::from(2u32));
 
 	}: {
-		assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_buy(PoolType::LBP, asset_in, asset_out, amount).is_ok());
+		assert!(<LBP::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance>>::calculate_in_given_out(PoolType::LBP, asset_in, asset_out, amount).is_ok());
 	}
 	verify{}
 

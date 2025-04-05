@@ -399,7 +399,7 @@ pub mod zeitgeist_use_cases {
 	use super::*;
 	use frame_support::traits::tokens::Precision;
 	use polkadot_xcm::latest::{NetworkId, Parent};
-	use polkadot_xcm::prelude::Parachain;
+	use polkadot_xcm::prelude::{Parachain, Unlimited};
 	use std::sync::Arc;
 
 	use primitives::constants::chain::CORE_ASSET_ID;
@@ -484,7 +484,7 @@ pub mod zeitgeist_use_cases {
 			.into();
 			let max_assets = assets.len() as u32 + 1;
 
-			let give_amount = 10 * UNITS;
+			let give_amount = 100 * UNITS;
 			let give_asset = Asset::from((hydradx_runtime::CurrencyIdConvert::convert(0).unwrap(), give_amount));
 			let want_asset = Asset::from((
 				Location::new(
@@ -508,7 +508,7 @@ pub mod zeitgeist_use_cases {
 				.reanchored(&dest, &want_reserve_chain.interior)
 				.expect("should reanchor");
 
-			let weight_limit = Limited(Weight::from_parts(u64::MAX, u64::MAX));
+			let weight_limit = Unlimited;
 
 			// executed on local (zeitgeist)
 			let message = Xcm(vec![
@@ -1302,7 +1302,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 		]);
 		// use local weight for remote message and hope for the best.
 		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
-		Limited(remote_weight)
+		Unlimited
 	};
 
 	// executed on remote (on hydra)
