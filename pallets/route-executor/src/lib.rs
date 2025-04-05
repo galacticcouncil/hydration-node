@@ -22,8 +22,8 @@ use codec::MaxEncodedLen;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::PalletId;
-use frame_system::Origin;
 use frame_system::pallet_prelude::OriginFor;
+use frame_system::Origin;
 
 use frame_support::{
 	ensure,
@@ -36,9 +36,7 @@ use sp_runtime::traits::Zero;
 
 use frame_system::ensure_signed;
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{
-	inverse_route, AssetPair, Route, RouteProvider, RouteSpotPriceProvider,
-};
+use hydradx_traits::router::{inverse_route, AssetPair, Route, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -583,9 +581,8 @@ impl<T: Config> Pallet<T> {
 
 		match (route_validation, inverse_route_validation) {
 			(Ok(_), Ok(_)) => Ok((reference_amount_in, reference_amount_in_for_inverse_route)),
-			(Err(_), Ok(amount_out)) => {
-				Self::validate_sell(route.clone(), amount_out).map(|_| (amount_out, reference_amount_in_for_inverse_route))
-			}
+			(Err(_), Ok(amount_out)) => Self::validate_sell(route.clone(), amount_out)
+				.map(|_| (amount_out, reference_amount_in_for_inverse_route)),
 			(Ok(amount_out), Err(_)) => {
 				Self::validate_sell(inverse_route, amount_out).map(|_| (reference_amount_in, amount_out))
 			}

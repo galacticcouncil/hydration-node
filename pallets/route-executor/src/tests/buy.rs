@@ -217,7 +217,14 @@ fn buy_should_fail_when_max_limit_for_trade_reached() {
 
 			//Act and Assert
 			assert_noop!(
-				Router::buy(RuntimeOrigin::signed(ALICE), HDX, RMRK, 10, 5, trades.try_into().unwrap()),
+				Router::buy(
+					RuntimeOrigin::signed(ALICE),
+					HDX,
+					RMRK,
+					10,
+					5,
+					trades.try_into().unwrap()
+				),
 				Error::<Test>::InvalidRoute
 			);
 		});

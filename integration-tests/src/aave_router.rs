@@ -280,7 +280,9 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 
 		assert_ok!(Router::buy(
@@ -293,7 +295,9 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 
 		hydradx_run_to_next_block();
@@ -312,7 +316,9 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 				pool: Aave,
 				asset_in: ADOT,
 				asset_out: DOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), balance - amount + 1);
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount + 6);
@@ -352,7 +358,9 @@ fn sell_dot_should_work_when_more_asset_out_received_due_aave_contract_rounding(
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
@@ -375,7 +383,9 @@ fn not_always_rounding_shall_be_in_your_favor() {
 				pool: Aave,
 				asset_in: DOT,
 				asset_out: ADOT,
-			}].try_into().unwrap()
+			}]
+			.try_into()
+			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
@@ -418,7 +428,9 @@ fn second_hop_should_have_enough_funds_to_swap() {
 					asset_in: ADOT,
 					asset_out: DAI,
 				},
-			].try_into().unwrap()
+			]
+			.try_into()
+			.unwrap()
 		));
 	})
 }
@@ -460,7 +472,9 @@ fn second_hop_should_have_enough_funds_to_buy() {
 						asset_in: ADOT,
 						asset_out: DAI,
 					},
-				].try_into().unwrap()
+				]
+				.try_into()
+				.unwrap()
 			));
 		}
 	})
