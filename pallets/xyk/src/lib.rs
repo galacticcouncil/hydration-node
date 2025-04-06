@@ -1104,8 +1104,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			pair_account.clone(),
 			pallet_broadcast::types::Filler::XYK(Self::share_token(&pair_account)),
 			pallet_broadcast::types::TradeOperation::ExactOut,
-			vec![Asset::new(transfer.assets.asset_in, transfer.amount)],
-			vec![Asset::new(transfer.assets.asset_out, transfer.amount_b)],
+			vec![Asset::new(transfer.assets.asset_in, transfer.amount_b)],
+			vec![Asset::new(transfer.assets.asset_out, transfer.amount)],
 			vec![Fee {
 				asset: transfer.fee.0,
 				amount: transfer.fee.1,
