@@ -680,7 +680,7 @@ mod router_different_pools_tests {
 
 			//Assert
 			expect_hydra_events(vec![
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
@@ -706,7 +706,7 @@ mod router_different_pools_tests {
 					operation_stack: vec![ExecutionType::Router(0)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
@@ -732,7 +732,7 @@ mod router_different_pools_tests {
 					operation_stack: vec![ExecutionType::Router(1)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
@@ -2447,7 +2447,7 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
 			expect_hydra_last_events(vec![
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2461,7 +2461,7 @@ mod omnipool_router_tests {
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2516,7 +2516,7 @@ mod omnipool_router_tests {
 					protocol_fee_amount: 6_007_435,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2531,7 +2531,7 @@ mod omnipool_router_tests {
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2692,7 +2692,7 @@ mod omnipool_router_tests {
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
 
 			expect_hydra_last_events(vec![
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2706,7 +2706,7 @@ mod omnipool_router_tests {
 					operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2761,7 +2761,7 @@ mod omnipool_router_tests {
 					protocol_fee_amount: 22,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2775,7 +2775,7 @@ mod omnipool_router_tests {
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -3063,7 +3063,7 @@ mod lbp_router_tests {
 			let fee = 20000000000;
 
 			expect_hydra_last_events(vec![
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
 					filler_type: pallet_broadcast::types::Filler::LBP,
@@ -3121,7 +3121,7 @@ mod lbp_router_tests {
 					fee_amount: 20_000_000_000,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
 					filler_type: pallet_broadcast::types::Filler::LBP,

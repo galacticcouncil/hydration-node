@@ -146,7 +146,7 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -234,7 +234,7 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -317,7 +317,7 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -417,7 +417,7 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -509,7 +509,7 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -590,7 +590,7 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
