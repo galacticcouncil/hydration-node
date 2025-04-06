@@ -167,7 +167,6 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-
 	pub fn remove_swapper() {
 		Swapper::<T>::kill();
 	}
