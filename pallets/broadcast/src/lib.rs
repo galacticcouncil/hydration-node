@@ -81,7 +81,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Trade executed.
 		///
-		/// Swapped2 is a fixed and reamed version of original Swapped,
+		/// Swapped2 is a fixed and renamed version of original Swapped,
 		/// as Swapped contained wrong input/output amounts for XYK buy trade
 		Swapped2 {
 			swapper: T::AccountId,
