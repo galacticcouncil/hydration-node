@@ -138,7 +138,7 @@ where
 			})
 			.map_err(|_| give.clone())
 		};
-		if pallet_broadcast::Pallet::<Runtime>::reset_context().is_err() {
+		if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
 			log::error!(target: "xcm::exchange-asset", "Failed to remove from context.");
 			return Err(give);
 		};

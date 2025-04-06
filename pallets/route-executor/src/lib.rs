@@ -284,7 +284,8 @@ pub mod pallet {
 				event_id: next_event_id,
 			});
 
-			pallet_broadcast::Pallet::<T>::reset_context()?;
+			pallet_broadcast::Pallet::<T>::remove_from_context()?;
+			pallet_broadcast::Pallet::<T>::remove_swapper();
 
 			Ok(())
 		}
@@ -520,7 +521,8 @@ impl<T: Config> Pallet<T> {
 			event_id: next_event_id,
 		});
 
-		pallet_broadcast::Pallet::<T>::reset_context()?;
+		pallet_broadcast::Pallet::<T>::remove_from_context()?;
+		pallet_broadcast::Pallet::<T>::remove_swapper();
 
 		Ok(())
 	}
