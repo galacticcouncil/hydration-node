@@ -665,7 +665,7 @@ fn single_buy_should_work() {
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(asset_b, 22_068_963_235 )],
+				inputs: vec![Asset::new(asset_b, 22_068_963_235)],
 				outputs: vec![Asset::new(asset_a, 6_666_666)],
 				fees: vec![Fee::new(asset_b, 44_137_926, Destination::Account(pair_account))],
 				operation_stack: vec![],

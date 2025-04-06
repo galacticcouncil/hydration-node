@@ -720,7 +720,7 @@ mod router_different_pools_tests {
 					))),
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, 20007996198)],
-					outputs: vec![Asset::new(DOT,  10000000000)],
+					outputs: vec![Asset::new(DOT, 10000000000)],
 					fees: vec![Fee::new(
 						HDX,
 						60023988,
