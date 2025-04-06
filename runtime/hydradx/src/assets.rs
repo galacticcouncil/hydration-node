@@ -818,7 +818,7 @@ impl Get<AssetId> for DotAssetId {
 
 parameter_types! {
 	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
-	pub MaxSchedulesPerBlock: u32 = 20;
+	pub MaxSchedulesPerBlock: u32 = 6;
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(5);
 	pub MinimalPeriod: u32 = 5;
