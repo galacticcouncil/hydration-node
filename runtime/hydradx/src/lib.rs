@@ -1577,7 +1577,7 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 			dai,
 			amount_to_sell,
 			0,
-			vec![],
+			vec![].try_into().unwrap(),
 		));
 		let received = Currencies::free_balance(dai, &caller2);
 		TransactionOutcome::Rollback(Ok(received))
