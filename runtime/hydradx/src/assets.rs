@@ -260,7 +260,9 @@ impl SufficiencyCheck {
 
 impl OnTransfer<AccountId, AssetId, Balance> for SufficiencyCheck {
 	fn on_transfer(asset: AssetId, from: &AccountId, to: &AccountId, _amount: Balance) -> DispatchResult {
-		if pallet_route_executor::Pallet::<Runtime>::skip_ed_lock() {
+		//This is mainly needed to disable charging any ED when we send the initial assetIn insufficient asset to the router account in the beginning of router trades
+		let router_account = pallet_route_executor::Pallet::<Runtime>::router_account();
+		if *to == <sp_runtime::AccountId32 as Into<AccountId>>::into(router_account) {
 			return Ok(());
 		}
 
@@ -283,10 +285,6 @@ impl OnDeposit<AccountId, AssetId, Balance> for SufficiencyCheck {
 pub struct OnKilledTokenAccount;
 impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 	fn happened((who, asset): &(AccountId, AssetId)) {
-		if pallet_route_executor::Pallet::<Runtime>::skip_ed_unlock() {
-			return;
-		}
-
 		if AssetRegistry::is_sufficient(*asset) || frame_system::Pallet::<Runtime>::account(who).sufficients.is_zero() {
 			return;
 		}
@@ -342,14 +340,6 @@ impl RefundAndLockedEdCalculator {
 		};
 
 		(ed_to_refund, locked_ed)
-	}
-}
-
-impl RefundEdCalculator<Balance> for RefundAndLockedEdCalculator {
-	fn calculate() -> Balance {
-		let (ed_to_refund, _ed_to_lock) = Self::calculate();
-
-		ed_to_refund
 	}
 }
 
@@ -828,7 +818,7 @@ impl Get<AssetId> for DotAssetId {
 
 parameter_types! {
 	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
-	pub MaxSchedulesPerBlock: u32 = 20;
+	pub MaxSchedulesPerBlock: u32 = 6;
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(5);
 	pub MinimalPeriod: u32 = 5;
@@ -932,7 +922,7 @@ impl RouterWeightInfo {
 		);
 		// Handle this case separately. router_execution_buy provides incorrect weight for the case when only calculate_buy is executed.
 		let lbp_weight = if (num_of_calc_buy, num_of_execute_buy) == (1, 0) {
-			weights::pallet_lbp::HydraWeight::<Runtime>::calculate_buy()
+			weights::pallet_lbp::HydraWeight::<Runtime>::calculate_in_given_out()
 		} else {
 			weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_buy(
 				num_of_calc_buy.saturating_add(num_of_execute_buy),
@@ -967,21 +957,17 @@ impl RouterWeightInfo {
 			weights::pallet_route_executor::HydraWeight::<Runtime>::calculate_spot_price_with_fee_in_lbp().proof_size(),
 		)
 	}
-
-	pub fn skip_ed_handling_overweight() -> Weight {
-		weights::pallet_route_executor::HydraWeight::<Runtime>::skip_ed_handling_for_trade_with_insufficient_assets()
-	}
 }
 
 impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	// Used in Router::sell extrinsic, which calls AMM::calculate_sell and AMM::execute_sell
 	fn sell_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let c = 1; // number of times AMM::calculate_sell is executed
+		let c = 0; // number of times AMM::calculate_sell is executed. It is zero as we don't calculate trade amounts upfront in sell anymore
 		let e = 1; // number of times AMM::execute_sell is executed
 
 		for trade in route {
-			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight(0, 1));
+			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight(c, e));
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e)
@@ -996,14 +982,6 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Aave => Aave::trade_weight(),
 			};
 			weight.saturating_accrue(amm_weight);
-		}
-
-		//We add the overweight for skipping ED handling if route has multiple trades and we have any insufficient asset
-		if route.len() > 1
-			&& route.iter().any(|trade| {
-				!AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)
-			}) {
-			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 
 		weight
@@ -1031,14 +1009,6 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Aave => Aave::trade_weight(),
 			};
 			weight.saturating_accrue(amm_weight);
-		}
-
-		//We add the overweight for skipping ED handling if we have any insufficient asset
-		if route.len() > 1
-			&& route.iter().any(|trade| {
-				!AssetRegistry::is_sufficient(trade.asset_in) || !AssetRegistry::is_sufficient(trade.asset_out)
-			}) {
-			weight.saturating_accrue(Self::skip_ed_handling_overweight());
 		}
 
 		weight
@@ -1072,11 +1042,11 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 	// Used in DCA::on_initialize for Order::Sell, which calls Router::calculate_sell_trade_amounts and Router::sell.
 	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
-		let c = 2; // number of times AMM::calculate_sell is executed
+		let c = 1; // number of times AMM::calculate_sell is executed
 		let e = 1; // number of times AMM::execute_sell is executed
 
 		for trade in route {
-			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight(1, 1));
+			weight.saturating_accrue(Self::sell_and_calculate_sell_trade_amounts_overhead_weight(0, 1));
 
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e),
@@ -1207,7 +1177,6 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 parameter_types! {
 	pub const DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
-
 }
 
 impl pallet_route_executor::Config for Runtime {
@@ -1219,9 +1188,7 @@ impl pallet_route_executor::Config for Runtime {
 	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
-	type InspectRegistry = AssetRegistry;
 	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
-	type EdToRefundCalculator = RefundAndLockedEdCalculator;
 	type OraclePriceProvider = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	type OraclePeriod = RouteValidationOraclePeriod;
 }
@@ -1326,7 +1293,6 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
-use hydradx_traits::router::RefundEdCalculator;
 use pallet_ema_oracle::OracleEntry;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};

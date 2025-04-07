@@ -19,8 +19,12 @@
 #![allow(clippy::manual_inspect)]
 
 use codec::MaxEncodedLen;
+use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::PalletId;
+use frame_system::pallet_prelude::OriginFor;
+use frame_system::Origin;
+
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -28,12 +32,10 @@ use frame_support::{
 	transactional,
 };
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
+use sp_runtime::traits::Zero;
 
 use frame_system::ensure_signed;
-use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::{
-	inverse_route, AssetPair, RefundEdCalculator, Route, RouteProvider, RouteSpotPriceProvider,
-};
+use hydradx_traits::router::{inverse_route, AssetPair, Route, RouteProvider, RouteSpotPriceProvider};
 pub use hydradx_traits::router::{
 	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
 };
@@ -43,7 +45,7 @@ use pallet_broadcast::types::IncrementalIdType;
 pub use pallet_broadcast::types::{ExecutionType, Fee};
 use sp_core::U512;
 use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Saturating};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TokenError};
 use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
@@ -57,13 +59,15 @@ pub use weights::WeightInfo;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+pub const MAX_NUMBER_OF_TRADES: u32 = 9;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::traits::fungibles::Mutate;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::router::{ExecutorError, RefundEdCalculator};
+	use hydradx_traits::router::ExecutorError;
 	use hydradx_traits::{OraclePeriod, PriceOracle};
 	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
 	use sp_runtime::Saturating;
@@ -100,8 +104,6 @@ pub mod pallet {
 		type Currency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::Balance>
 			+ Mutate<Self::AccountId>;
 
-		type InspectRegistry: hydradx_traits::registry::Inspect<AssetId = Self::AssetId>;
-
 		/// Handlers for AMM pools to calculate and execute trades
 		type AMM: TradeExecution<
 			<Self as frame_system::Config>::RuntimeOrigin,
@@ -110,9 +112,6 @@ pub mod pallet {
 			Self::Balance,
 			Error = DispatchError,
 		>;
-
-		///Calculate ED for tolerating currency balance difference
-		type EdToRefundCalculator: RefundEdCalculator<Self::Balance>;
 
 		///Oracle price provider to validate if new route has oracle price data
 		type OraclePriceProvider: PriceOracle<Self::AssetId, Price = EmaPrice>;
@@ -169,11 +168,6 @@ pub mod pallet {
 		/// Trading same assets is not allowed.
 		NotAllowed,
 	}
-
-	///Flag to indicate when to skip ED handling
-	#[pallet::storage]
-	#[pallet::getter(fn last_trade_position)]
-	pub type SkipEd<T: Config> = StorageValue<_, types::SkipEd, OptionQuery>;
 
 	/// Storing routes for asset pairs
 	#[pallet::storage]
@@ -242,22 +236,25 @@ pub mod pallet {
 			let route = Self::get_route_or_default(route, asset_pair)?;
 			Self::ensure_route_arguments(&asset_pair, &route)?;
 
-			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(asset_in, &who, Preservation::Expendable, Fortitude::Polite);
-
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
-
 			let first_trade = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(first_trade.amount_in <= max_amount_in, Error::<T>::TradingLimitReached);
 
-			let route_length = route.len();
+			let trader_account = Self::router_account();
+			pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
+
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&trader_account.clone(),
+				first_trade.amount_in,
+				Preservation::Expendable,
+			)?;
 
 			let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
 
-			for (trade_index, (trade_amount, trade)) in trade_amounts.iter().rev().zip(route).enumerate() {
-				Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
-				let user_balance_of_asset_out_before_trade =
-					T::Currency::reducible_balance(trade.asset_out, &who, Preservation::Preserve, Fortitude::Polite);
+			for (trade_amount, trade) in trade_amounts.iter().rev().zip(route) {
+				let origin: OriginFor<T> = Origin::<T>::Signed(trader_account.clone()).into();
 				let execution_result = T::AMM::execute_buy(
 					origin.clone(),
 					trade.pool,
@@ -268,26 +265,17 @@ pub mod pallet {
 				);
 
 				handle_execution_error!(execution_result);
-
-				Self::ensure_that_user_received_asset_out_at_most(
-					who.clone(),
-					trade.asset_in,
-					trade.asset_out,
-					user_balance_of_asset_out_before_trade,
-					trade_amount.amount_out,
-				)?;
 			}
 
-			SkipEd::<T>::kill();
+			let amount_out = T::Currency::reducible_balance(
+				asset_out,
+				&trader_account.clone(),
+				Preservation::Expendable,
+				Fortitude::Polite,
+			);
 
-			Self::ensure_that_user_spent_asset_in_at_least(
-				who,
-				asset_in,
-				user_balance_of_asset_in_before_trade,
-				first_trade.amount_in,
-			)?;
+			T::Currency::transfer(asset_out, &trader_account, &who, amount_out, Preservation::Expendable)?;
 
-			//TODO: we want to deprecate it once unified events are working fine
 			Self::deposit_event(Event::Executed {
 				asset_in,
 				asset_out,
@@ -297,6 +285,7 @@ pub mod pallet {
 			});
 
 			pallet_broadcast::Pallet::<T>::remove_from_context()?;
+			pallet_broadcast::Pallet::<T>::remove_swapper();
 
 			Ok(())
 		}
@@ -342,7 +331,7 @@ pub mod pallet {
 
 			let existing_route = Self::get_route(asset_pair);
 
-			match Self::validate_route(existing_route.clone()) {
+			match Self::validate_route(&existing_route.clone()) {
 				Ok((reference_amount_in, reference_amount_in_for_inverse)) => {
 					let new_route_validation = Self::validate_sell(new_route.clone(), reference_amount_in);
 
@@ -379,7 +368,7 @@ pub mod pallet {
 					}
 				}
 				Err(_) => {
-					Self::validate_route(new_route.clone())?;
+					Self::validate_route(&new_route.clone())?;
 
 					return Self::insert_route(asset_pair, new_route);
 				}
@@ -469,72 +458,71 @@ impl<T: Config> Pallet<T> {
 		let who = ensure_signed(origin.clone())?;
 
 		ensure!(asset_in != asset_out, Error::<T>::NotAllowed);
-
 		Self::ensure_route_size(route.len())?;
 
 		let asset_pair = AssetPair::new(asset_in, asset_out);
 		let route = Self::get_route_or_default(route, asset_pair)?;
 		Self::ensure_route_arguments(&asset_pair, &route)?;
 
-		let user_balance_of_asset_out_before_trade =
-			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
+		let trader_account = Self::router_account();
 
-		let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
+		let user_amount_in_balance =
+			T::Currency::reducible_balance(asset_in, &who.clone(), Preservation::Expendable, Fortitude::Polite);
+		ensure!(user_amount_in_balance >= amount_in, TokenError::FundsUnavailable);
 
-		let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
-		ensure!(
-			last_trade_amount.amount_out >= min_amount_out,
-			Error::<T>::TradingLimitReached
-		);
-
-		let route_length = route.len();
+		T::Currency::transfer(
+			asset_in,
+			&who,
+			&trader_account.clone(),
+			amount_in,
+			Preservation::Expendable,
+		)?;
 
 		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
+		pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
-		for (trade_index, (trade_amount, trade)) in trade_amounts.iter().zip(route.clone()).enumerate() {
-			Self::disable_ed_handling_for_insufficient_assets(route_length, trade_index, trade);
+		for trade in route.iter() {
+			let amount_in_to_sell = T::Currency::reducible_balance(
+				trade.asset_in,
+				&trader_account.clone(),
+				Preservation::Expendable,
+				Fortitude::Polite,
+			);
 
-			let user_balance_of_asset_in_before_trade =
-				T::Currency::reducible_balance(trade.asset_in, &who, Preservation::Expendable, Fortitude::Polite);
+			let origin: OriginFor<T> = Origin::<T>::Signed(trader_account.clone()).into();
 
 			let execution_result = T::AMM::execute_sell(
-				origin.clone(),
+				origin,
 				trade.pool,
 				trade.asset_in,
 				trade.asset_out,
-				trade_amount.amount_in,
-				trade_amount.amount_out,
+				amount_in_to_sell,
+				T::Balance::zero(),
 			);
 
 			handle_execution_error!(execution_result);
-
-			Self::ensure_that_user_spent_asset_in_at_least(
-				who.clone(),
-				trade.asset_in,
-				user_balance_of_asset_in_before_trade,
-				trade_amount.amount_in,
-			)?;
 		}
 
-		SkipEd::<T>::kill();
-
-		Self::ensure_that_user_received_asset_out_at_most(
-			who,
-			asset_in,
+		let amount_out = T::Currency::reducible_balance(
 			asset_out,
-			user_balance_of_asset_out_before_trade,
-			last_trade_amount.amount_out,
-		)?;
+			&trader_account.clone(),
+			Preservation::Expendable,
+			Fortitude::Polite,
+		);
+
+		ensure!(amount_out >= min_amount_out, Error::<T>::TradingLimitReached);
+		T::Currency::transfer(asset_out, &trader_account, &who, amount_out, Preservation::Expendable)?;
 
 		Self::deposit_event(Event::Executed {
 			asset_in,
 			asset_out,
 			amount_in,
-			amount_out: last_trade_amount.amount_out,
+			amount_out,
 			event_id: next_event_id,
 		});
 
 		pallet_broadcast::Pallet::<T>::remove_from_context()?;
+		pallet_broadcast::Pallet::<T>::remove_swapper();
 
 		Ok(())
 	}
@@ -571,58 +559,6 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn ensure_that_user_received_asset_out_at_most(
-		who: T::AccountId,
-		asset_in: T::AssetId,
-		asset_out: T::AssetId,
-		user_balance_of_asset_out_before_trade: T::Balance,
-		expected_received_amount: T::Balance,
-	) -> Result<(), DispatchError> {
-		let user_balance_of_asset_out_after_trade =
-			T::Currency::reducible_balance(asset_out, &who, Preservation::Preserve, Fortitude::Polite);
-
-		let actual_received_amount = user_balance_of_asset_out_after_trade
-			.checked_sub(&user_balance_of_asset_out_before_trade)
-			.ok_or(Error::<T>::InvalidRouteExecution)?;
-
-		if !T::InspectRegistry::is_sufficient(asset_in) && asset_out == T::NativeAssetId::get() {
-			// In case of selling all insufficient asset, ED in HDX is refund to user, so end-balance will be more with ED
-			// In this case we check if the user does not receive more than ED
-			let diff = actual_received_amount.saturating_sub(expected_received_amount);
-			let ed_to_refund = T::EdToRefundCalculator::calculate();
-
-			ensure!(diff <= ed_to_refund, Error::<T>::InvalidRouteExecution);
-		} else {
-			ensure!(
-				actual_received_amount <= expected_received_amount,
-				Error::<T>::InvalidRouteExecution
-			);
-		}
-
-		Ok(())
-	}
-
-	fn ensure_that_user_spent_asset_in_at_least(
-		who: T::AccountId,
-		asset_in: T::AssetId,
-		user_balance_of_asset_in_before_trade: T::Balance,
-		expected_spent_amount: T::Balance,
-	) -> Result<(), DispatchError> {
-		let user_balance_of_asset_in_after_trade =
-			T::Currency::reducible_balance(asset_in, &who, Preservation::Preserve, Fortitude::Polite);
-
-		let actual_spent_amount = user_balance_of_asset_in_before_trade
-			.checked_sub(&user_balance_of_asset_in_after_trade)
-			.ok_or(Error::<T>::InvalidRouteExecution)?;
-
-		ensure!(
-			actual_spent_amount >= expected_spent_amount,
-			Error::<T>::InvalidRouteExecution
-		);
-
-		Ok(())
-	}
-
 	fn get_route_or_default(
 		route: Route<T::AssetId>,
 		asset_pair: AssetPair<T::AssetId>,
@@ -635,43 +571,8 @@ impl<T: Config> Pallet<T> {
 		Ok(route)
 	}
 
-	pub fn disable_ed_handling_for_insufficient_assets(
-		route_length: usize,
-		trade_index: usize,
-		trade: Trade<T::AssetId>,
-	) {
-		if route_length > 1
-			&& (!T::InspectRegistry::is_sufficient(trade.asset_in)
-				|| !T::InspectRegistry::is_sufficient(trade.asset_out))
-		{
-			//We optimize to set the state for middle trades only once at the first middle trade, then we change no state till the last trade
-			match trade_index {
-				0 => SkipEd::<T>::put(types::SkipEd::Lock),
-				trade_index if trade_index.saturating_add(1) == route_length => SkipEd::<T>::put(types::SkipEd::Unlock),
-				1 => SkipEd::<T>::put(types::SkipEd::LockAndUnlock),
-				_ => (),
-			}
-		}
-	}
-
-	pub fn skip_ed_lock() -> bool {
-		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, types::SkipEd::Lock | types::SkipEd::LockAndUnlock);
-		}
-
-		false
-	}
-
-	pub fn skip_ed_unlock() -> bool {
-		if let Ok(v) = SkipEd::<T>::try_get() {
-			return matches!(v, types::SkipEd::Unlock | types::SkipEd::LockAndUnlock);
-		}
-
-		false
-	}
-
-	fn validate_route(route: Route<T::AssetId>) -> Result<(T::Balance, T::Balance), DispatchError> {
-		let reference_amount_in = Self::calculate_reference_amount_in(&route)?;
+	fn validate_route(route: &Route<T::AssetId>) -> Result<(T::Balance, T::Balance), DispatchError> {
+		let reference_amount_in = Self::calculate_reference_amount_in(route)?;
 		let route_validation = Self::validate_sell(route.clone(), reference_amount_in);
 
 		let inverse_route = inverse_route(route.clone());
@@ -681,9 +582,8 @@ impl<T: Config> Pallet<T> {
 
 		match (route_validation, inverse_route_validation) {
 			(Ok(_), Ok(_)) => Ok((reference_amount_in, reference_amount_in_for_inverse_route)),
-			(Err(_), Ok(amount_out)) => {
-				Self::validate_sell(route, amount_out).map(|_| (amount_out, reference_amount_in_for_inverse_route))
-			}
+			(Err(_), Ok(amount_out)) => Self::validate_sell(route.clone(), amount_out)
+				.map(|_| (amount_out, reference_amount_in_for_inverse_route)),
 			(Ok(amount_out), Err(_)) => {
 				Self::validate_sell(inverse_route, amount_out).map(|_| (reference_amount_in, amount_out))
 			}
@@ -743,7 +643,7 @@ impl<T: Config> Pallet<T> {
 		let mut amount_in = amount_in;
 
 		for trade in route.iter() {
-			let result = T::AMM::calculate_sell(trade.pool, trade.asset_in, trade.asset_out, amount_in);
+			let result = T::AMM::calculate_out_given_in(trade.pool, trade.asset_in, trade.asset_out, amount_in);
 			match result {
 				Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),
 				Err(ExecutorError::Error(dispatch_error)) => return Err(dispatch_error),
@@ -778,7 +678,7 @@ impl<T: Config> Pallet<T> {
 		let mut amount_out = amount_out;
 
 		for trade in route.iter().rev() {
-			let result = T::AMM::calculate_buy(trade.pool, trade.asset_in, trade.asset_out, amount_out);
+			let result = T::AMM::calculate_in_given_out(trade.pool, trade.asset_in, trade.asset_out, amount_out);
 
 			match result {
 				Err(ExecutorError::NotSupported) => return Err(Error::<T>::PoolNotSupported.into()),

@@ -4609,7 +4609,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4808,7 +4808,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.15.0"
+version = "3.15.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7877,7 +7877,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.8.8"
+version = "1.9.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8436,7 +8436,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "ethabi",
  "evm",
@@ -8772,7 +8772,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.1.56"
+version = "1.1.7"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8952,7 +8952,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.9.0"
+version = "2.10.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12215,6 +12215,7 @@ dependencies = [
  "precompile-utils",
  "pretty_assertions",
  "primitives",
+ "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
  "scraper",

@@ -68,6 +68,11 @@ pub mod pallet {
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
+	///If filled, we overwrite the original swapper. Mainly used in router to not to use temporary trade account
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	pub(super) type Swapper<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
+
 	#[pallet::error]
 	pub enum Error<T> {
 		///The execution context call stack has reached its maximum size
@@ -99,6 +104,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			ExecutionContext::<T>::kill(); //We don't need to account for this weight in on_initialize as we whitelist the storage
+			Swapper::<T>::kill();
 		}
 	}
 
@@ -116,9 +122,10 @@ impl<T: Config> Pallet<T> {
 		outputs: Vec<Asset>,
 		fees: Vec<Fee<T::AccountId>>,
 	) {
+		let trade_swapper = Swapper::<T>::get().unwrap_or(swapper);
 		let operation_stack = Self::get_context();
 		Self::deposit_event(Event::<T>::Swapped2 {
-			swapper,
+			swapper: trade_swapper,
 			filler,
 			filler_type,
 			operation,
@@ -161,6 +168,18 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})
+	}
+
+	pub fn remove_swapper() {
+		Swapper::<T>::kill();
+	}
+
+	pub fn set_swapper(account_id: T::AccountId) {
+		Swapper::<T>::put(account_id);
+	}
+
+	pub fn get_swapper() -> Option<T::AccountId> {
+		Swapper::<T>::get()
 	}
 
 	pub fn get_context() -> Vec<ExecutionType> {

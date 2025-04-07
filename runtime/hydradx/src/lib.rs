@@ -39,6 +39,7 @@ mod system;
 pub mod types;
 pub mod xcm;
 
+pub use assets::*;
 use cumulus_primitives_core::GeneralIndex;
 use cumulus_primitives_core::Here;
 use cumulus_primitives_core::Junctions::X1;
@@ -50,23 +51,14 @@ use frame_support::parameter_types;
 use frame_support::storage::with_transaction;
 use frame_support::traits::TrackedStorageKey;
 use frame_system::RawOrigin;
-use hydradx_traits::Mutate;
-use pallet_referrals::FeeDistribution;
-use pallet_referrals::Level;
-use pallet_stableswap::types::Tradability;
-use polkadot_xcm::opaque::lts::InteriorLocation;
-use polkadot_xcm::opaque::v3::MultiLocation;
-use sp_runtime::DispatchError;
-use sp_runtime::FixedU128;
-use sp_runtime::TransactionOutcome;
-use sp_std::sync::Arc;
-
-pub use assets::*;
-use cumulus_primitives_core::Junction;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 use pallet_asset_registry::AssetType;
 use pallet_currencies_rpc_runtime_api::AccountData;
+use pallet_referrals::FeeDistribution;
+use pallet_referrals::Level;
+use pallet_stableswap::types::Tradability;
+use polkadot_xcm::opaque::lts::InteriorLocation;
 pub use system::*;
 pub use xcm::*;
 
@@ -81,7 +73,7 @@ use sp_runtime::{
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
-	Permill,
+	DispatchError, Permill, TransactionOutcome,
 };
 
 use sp_std::{convert::From, prelude::*};
@@ -158,6 +150,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 		VestingPalletId::get().into_account_truncating(),
 		ReferralsPalletId::get().into_account_truncating(),
 		BondsPalletId::get().into_account_truncating(),
+		pallet_route_executor::Pallet::<Runtime>::router_account(),
 	]
 }
 
@@ -480,9 +473,10 @@ use frame_support::{
 use hydradx_traits::evm::Erc20Mapping;
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use polkadot_xcm::latest::Location;
+use polkadot_xcm::latest::Junction;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
+use sp_arithmetic::FixedU128;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -1468,6 +1462,7 @@ impl_runtime_apis! {
 
 #[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic exchane_asset instruction
 fn init_omnipool(amount_to_sell: Balance) -> Balance {
+	use hydradx_traits::Mutate;
 	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
 	let hdx = 0;
 	let dai = 2;
