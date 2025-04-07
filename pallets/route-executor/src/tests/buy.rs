@@ -177,6 +177,60 @@ fn buy_should_work_when_route_has_single_trade_without_native_balance() {
 }
 
 #[test]
+fn buy_should_fail_when_max_limit_for_trade_reached() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, RMRK, 1000)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let trade1 = Trade {
+				pool: PoolType::XYK,
+				asset_in: HDX,
+				asset_out: AUSD,
+			};
+			let trade2 = Trade {
+				pool: PoolType::XYK,
+				asset_in: AUSD,
+				asset_out: MOVR,
+			};
+			let trade3 = Trade {
+				pool: PoolType::XYK,
+				asset_in: MOVR,
+				asset_out: KSM,
+			};
+			let trade4 = Trade {
+				pool: PoolType::XYK,
+				asset_in: KSM,
+				asset_out: RMRK,
+			};
+			let trade5 = Trade {
+				pool: PoolType::XYK,
+				asset_in: RMRK,
+				asset_out: SDN,
+			};
+			let trade6 = Trade {
+				pool: PoolType::XYK,
+				asset_in: SDN,
+				asset_out: STABLE_SHARE_ASSET,
+			};
+			let trades = vec![trade1, trade2, trade3, trade4, trade5, trade6];
+
+			//Act and Assert
+			assert_noop!(
+				Router::buy(
+					RuntimeOrigin::signed(ALICE),
+					HDX,
+					RMRK,
+					10,
+					5,
+					trades.try_into().unwrap()
+				),
+				Error::<Test>::InvalidRoute
+			);
+		});
+}
+
+#[test]
 fn buy_should_fail_when_route_has_single_trade_producing_calculation_error() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, AUSD, INVALID_CALCULATION_AMOUNT)])

@@ -33,7 +33,7 @@ use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::router::{RefundEdCalculator, Trade};
+use hydradx_traits::router::Trade;
 use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
 	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
@@ -350,24 +350,13 @@ impl pallet_route_executor::Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = DummyRegistry<Test>;
 	type AMM = Pools;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type WeightInfo = ();
 }
-
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
-}
-
 pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId> for PriceProviderMock {
