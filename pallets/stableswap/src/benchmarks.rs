@@ -432,7 +432,7 @@ benchmarks! {
 		)?;
 		System::<T>::set_block_number(500u32.into());
 	}: {
-		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_sell(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_sell).is_ok());
+		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_out_given_in(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_sell).is_ok());
 		if e != 0 {
 			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::execute_sell(RawOrigin::Signed(seller.clone()).into(), PoolType::Stableswap(pool_id), asset_in, asset_out, amount_sell, buy_min_amount).is_ok());
 		}
@@ -468,7 +468,7 @@ benchmarks! {
 		System::<T>::set_block_number(500u32.into());
 	}: {
 		for _ in 1..c {
-			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_buy(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy).is_ok());
+			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_in_given_out(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy).is_ok());
 		}
 		if e != 0 {
 			assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::execute_buy(RawOrigin::Signed(buyer.clone()).into(), PoolType::Stableswap(pool_id), asset_in, asset_out, amount_buy, sell_max_limit).is_ok());

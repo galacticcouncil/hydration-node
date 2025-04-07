@@ -209,7 +209,7 @@ runtime_benchmarks! {
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
 	}: {
 		for _ in 1..c {
-			assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_sell(PoolType::XYK, asset_a, asset_b, amount).is_ok());
+			assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_out_given_in(PoolType::XYK, asset_a, asset_b, amount).is_ok());
 		}
 		if e != 0 {
 			assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_sell(RawOrigin::Signed(caller.clone()).into(), PoolType::XYK, asset_a, asset_b, amount, min_bought).is_ok());
@@ -251,7 +251,7 @@ runtime_benchmarks! {
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
 	}: {
 		for _ in 1..c {
-			assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_buy(PoolType::XYK, asset_a, asset_b, amount).is_ok());
+			assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_in_given_out(PoolType::XYK, asset_a, asset_b, amount).is_ok());
 		}
 		if e != 0 {
 			assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::execute_buy(RawOrigin::Signed(caller.clone()).into(), PoolType::XYK, asset_a, asset_b, amount, max_sold).is_ok());
