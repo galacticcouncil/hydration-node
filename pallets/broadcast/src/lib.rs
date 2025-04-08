@@ -85,7 +85,10 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Trade executed.
-		Swapped {
+		///
+		/// Swapped2 is a fixed and renamed version of original Swapped,
+		/// as Swapped contained wrong input/output amounts for XYK buy trade
+		Swapped2 {
 			swapper: T::AccountId,
 			filler: T::AccountId,
 			filler_type: Filler,
@@ -121,7 +124,7 @@ impl<T: Config> Pallet<T> {
 	) {
 		let trade_swapper = Swapper::<T>::get().unwrap_or(swapper);
 		let operation_stack = Self::get_context();
-		Self::deposit_event(Event::<T>::Swapped {
+		Self::deposit_event(Event::<T>::Swapped2 {
 			swapper: trade_swapper,
 			filler,
 			filler_type,

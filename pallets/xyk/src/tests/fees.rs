@@ -146,7 +146,7 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -234,7 +234,7 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -317,7 +317,7 @@ fn discount_sell_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -417,13 +417,13 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(asset_b, 10_000_000)],
-				outputs: vec![Asset::new(asset_a, 20_000_002)],
+				inputs: vec![Asset::new(asset_b, 20_000_002)],
+				outputs: vec![Asset::new(asset_a, 10_000_000)],
 				fees: vec![Fee::new(asset_b, 14_000, Destination::Account(pair_account))],
 				operation_stack: vec![],
 			}
@@ -509,13 +509,13 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(asset_b, 10_000_000)],
-				outputs: vec![Asset::new(asset_a, 20_000_002)],
+				inputs: vec![Asset::new(asset_b, 20_000_002)],
+				outputs: vec![Asset::new(asset_a, 10_000_000)],
 				fees: vec![Fee::new(asset_b, 20_000, Destination::Account(pair_account))],
 				operation_stack: vec![],
 			}
@@ -590,13 +590,13 @@ fn discount_buy_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(asset_b, 10_000_000)],
-				outputs: vec![Asset::new(asset_a, 20_000_002)],
+				inputs: vec![Asset::new(asset_b, 20_000_002)],
+				outputs: vec![Asset::new(asset_a, 10_000_000)],
 				fees: vec![Fee::new(asset_b, 0, Destination::Account(pair_account))],
 				operation_stack: vec![],
 			}
