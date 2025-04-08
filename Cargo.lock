@@ -8112,7 +8112,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
