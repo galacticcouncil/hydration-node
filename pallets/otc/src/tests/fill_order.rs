@@ -80,7 +80,7 @@ fn complete_fill_order_should_work() {
 				fee: ONE,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: BOB,
 				filler: ALICE,
 				filler_type: pallet_broadcast::types::Filler::OTC(0),
@@ -160,7 +160,7 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 				fee: ONE,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: BOB,
 				filler: ALICE,
 				filler_type: pallet_broadcast::types::Filler::OTC(order_id),
@@ -252,7 +252,7 @@ fn complete_fill_order_should_work_when_there_are_multiple_orders() {
 				fee: ONE,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: BOB,
 				filler: ALICE,
 				filler_type: pallet_broadcast::types::Filler::OTC(order_id),

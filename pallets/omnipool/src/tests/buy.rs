@@ -430,7 +430,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					protocol_fee_amount: 0,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -441,7 +441,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -481,7 +481,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					protocol_fee_amount: 0,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -492,7 +492,7 @@ fn buy_should_emit_event_with_correct_asset_fee_amount() {
 					operation_stack: vec![ExecutionType::Omnipool(1)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -554,7 +554,7 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 					protocol_fee_amount: 5698005698005,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -569,7 +569,7 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount() {
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -628,7 +628,7 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount_and_burn_fee() {
 					protocol_fee_amount: 5698005698005,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -642,7 +642,7 @@ fn buy_should_emit_event_with_correct_protocol_fee_amount_and_burn_fee() {
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: LP1,
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
