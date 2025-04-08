@@ -32,13 +32,17 @@ use frame_support::traits::Contains;
 use frame_support::traits::{ConstU128, ConstU16, ConstU32, ConstU64, Everything};
 use frame_support::{construct_runtime, parameter_types};
 use frame_system::EnsureRoot;
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::{
+	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
+	stableswap::AssetAmount,
+};
 use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use orml_traits::parameter_type_with_key;
-use pallet_stableswap::types::PoolSnapshot;
+use pallet_stableswap::types::{BoundedPegSources, PegSource, PoolSnapshot};
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
+use sp_runtime::BoundedVec;
 use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Permill};
 use sp_std::num::NonZeroU16;
 use std::cell::RefCell;
@@ -72,7 +76,6 @@ macro_rules! assert_balance {
 
 thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (u32,u8)>> = RefCell::new(HashMap::default());
-	pub static POOL_SNAPSHOTS: RefCell<HashMap<AssetId, PoolSnapshot<AssetId>>> = RefCell::new(HashMap::default());
 	pub static EVM_CALLS: RefCell<Vec<(EvmAddress, Vec<u8>)>> = RefCell::new(Vec::new());
 	pub static EVM_CALL_RESULTS: RefCell<HashMap<Vec<u8>, Vec<u8>>> = RefCell::new(HashMap::default());
 	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
@@ -179,7 +182,6 @@ parameter_types! {
 	pub PalletId: frame_support::PalletId = frame_support::PalletId(*b"py/hsmdx");
 	pub GhoContractAddress: EvmAddress = EvmAddress::from(GHO_ADDRESS);
 	pub const GasLimit: u64 = 1_000_000;
-	pub Receiver: AccountId = CHARLIE;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }
 
@@ -330,7 +332,6 @@ impl Config for Test {
 	type Evm = MockEvm;
 	type EvmAccounts = MockEvmAccounts;
 	type GasLimit = GasLimit;
-	type Receiver = Receiver;
 }
 
 pub struct Whitelist;
@@ -357,15 +358,14 @@ pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(AssetId, u8)>,
 	collaterals: Vec<(AssetId, AssetId, Permill, Permill, Permill)>,
+	pools: Vec<(AssetId, Vec<AssetId>, u16, Permill, Vec<PegSource<AssetId>>)>,
+	initial_pool_liquidity: Vec<(AssetId, Vec<AssetAmount<AssetId>>)>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		// Clear thread-local storage for each test
 		REGISTERED_ASSETS.with(|v| {
-			v.borrow_mut().clear();
-		});
-		POOL_SNAPSHOTS.with(|v| {
 			v.borrow_mut().clear();
 		});
 		EVM_CALLS.with(|v| {
@@ -379,6 +379,8 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![],
 			registered_assets: vec![],
 			collaterals: vec![],
+			pools: vec![],
+			initial_pool_liquidity: vec![],
 		}
 	}
 }
@@ -396,6 +398,23 @@ impl ExtBuilder {
 
 	pub fn with_registered_assets(mut self, assets: Vec<(AssetId, u8)>) -> Self {
 		self.registered_assets.extend(assets);
+		self
+	}
+
+	pub fn with_pool(
+		mut self,
+		pool_id: AssetId,
+		assets: Vec<AssetId>,
+		amplification: u16,
+		fee: Permill,
+		pegs: Vec<PegSource<AssetId>>,
+	) -> Self {
+		self.pools.push((pool_id, assets, amplification, fee, pegs));
+		self
+	}
+
+	pub fn with_initial_pool_liquidity(mut self, pool_id: AssetId, liquidity: Vec<AssetAmount<AssetId>>) -> Self {
+		self.initial_pool_liquidity.push((pool_id, liquidity));
 		self
 	}
 
@@ -441,6 +460,29 @@ impl ExtBuilder {
 					buy_back_fee,
 					sp_runtime::Perbill::from_percent(50),
 					None,
+				)
+				.unwrap();
+			}
+
+			for (pool_id, assets, amplification, fee, pegs) in self.pools {
+				Stableswap::create_pool_with_pegs(
+					RuntimeOrigin::root(),
+					pool_id,
+					BoundedVec::try_from(assets).unwrap(),
+					amplification,
+					fee,
+					BoundedPegSources::try_from(pegs).unwrap(),
+					Permill::from_percent(100),
+				)
+				.unwrap();
+			}
+
+			for (pool_id, liquidity) in self.initial_pool_liquidity {
+				Stableswap::add_assets_liquidity(
+					RuntimeOrigin::root(),
+					pool_id,
+					BoundedVec::try_from(liquidity).unwrap(),
+					0,
 				)
 				.unwrap();
 			}

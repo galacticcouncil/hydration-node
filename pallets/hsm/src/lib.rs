@@ -118,10 +118,6 @@ pub mod pallet {
 		/// The gas limit for the execution of EVM calls
 		#[pallet::constant]
 		type GasLimit: Get<u64>;
-
-		/// Receiver account that receives all collateral balance of HSM account when asset is removed from the list
-		#[pallet::constant]
-		type Receiver: Get<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -220,6 +216,8 @@ pub mod pallet {
 		AssetNotFound,
 		/// Provided pool state is invalid
 		InvalidPoolState,
+		/// Collateral is not empty
+		CollateralNotEmpty,
 	}
 
 	#[pallet::hooks]
@@ -310,6 +308,12 @@ pub mod pallet {
 			for (_, info) in Collaterals::<T>::iter() {
 				ensure!(info.pool_id != pool_id, Error::<T>::PoolAlreadyHasCollateral);
 			}
+			// Ensure pool exists and pool assets contains hollar
+			let pool_state = Self::get_stablepool_state(pool_id)?;
+			ensure!(
+				pool_state.assets.contains(&T::HollarId::get()),
+				Error::<T>::InvalidPoolState
+			);
 
 			let collateral_info = CollateralInfo {
 				pool_id,
@@ -348,16 +352,8 @@ pub mod pallet {
 			// Get the current holding balance
 			let amount = CollateralHoldings::<T>::get(asset_id);
 
-			// Transfer all holdings to the receiver account
-			if !amount.is_zero() {
-				<T as Config>::Currency::transfer(
-					asset_id,
-					&Self::account_id(),
-					&T::Receiver::get(),
-					amount,
-					Preservation::Expendable,
-				)?;
-			}
+			// Ensure the collateral is empty
+			ensure!(amount.is_zero(), Error::<T>::CollateralNotEmpty);
 
 			// Remove from storages
 			Collaterals::<T>::remove(asset_id);
