@@ -1,0 +1,135 @@
+name: Build runtime with srtool
+
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+    inputs:
+      # Get the SR Tool image used to build
+      srtool_image:
+        description: Default to use the latest. You can use an alternate image, use with caution!
+        required: false
+
+env:
+  SUBWASM_VERSION: 0.21.3
+  CHAIN: hydradx
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build and publish hydradx runtime
+    runs-on: lark
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
+
+      - name: Install srtool
+        run: |
+          [[ -n "${{ github.event.inputs.srtool_image }}" ]] \
+            && TAG="--tag ${{ github.event.inputs.srtool_image }}" || TAG=""
+          
+          cargo install --force --locked --git https://github.com/chevdor/srtool-cli $TAG
+          type srtool # Verify the installation
+
+      - name: Fix permissions before srtool build
+        run: |
+          sudo chown -R $USER:1001 ${{ github.workspace }}
+          sudo chmod -R g+w ${{ github.workspace }}
+
+      - name: Build runtime with srtool
+        id: srtool_build
+        run: |
+          srtool -e docker build -p "${{ env.CHAIN }}-runtime" -r "runtime/${{ env.CHAIN }}" --app --json \
+            | tee srtool-build.log
+          
+          JSON=$(cat srtool-build.log | tail -n 1)
+          echo "json=$JSON" >> $GITHUB_OUTPUT
+
+          PROP=`echo $JSON | jq -r .runtimes.compact.prop`
+          echo "proposal_hash=$PROP" >> $GITHUB_OUTPUT
+
+          WASM=`echo $JSON | jq -r .runtimes.compact.wasm`
+          echo "wasm=$WASM" >> $GITHUB_OUTPUT
+
+          Z_WASM=`echo $JSON | jq -r .runtimes.compressed.wasm`
+          echo "wasm_compressed=$Z_WASM" >> $GITHUB_OUTPUT
+
+      - name: Build Summary
+        run: |
+          echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ env.CHAIN }}-srtool-digest.json
+          cat ${{ env.CHAIN }}-srtool-digest.json
+          echo "Runtime location: ${{ steps.srtool_build.outputs.wasm }}"
+
+      - name: Install subwasm ${{ env.SUBWASM_VERSION }}
+        run: |
+          cargo install --force --locked --git https://github.com/chevdor/subwasm --tag v${{ env.SUBWASM_VERSION }}
+          subwasm --version # Verify the installation
+
+      - name: Extract metadata
+        run: |
+          subwasm --json info ${{ steps.srtool_build.outputs.wasm }} > ${{ env.CHAIN }}-info.json
+          subwasm info ${{ steps.srtool_build.outputs.wasm }} > ${{ env.CHAIN }}-info.txt
+          cat ${{ env.CHAIN }}-info.txt
+
+          subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ env.CHAIN }}-subwasm-info.json
+          subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ env.CHAIN }}-subwasm-info.txt
+          cat ${{ env.CHAIN }}-subwasm-info.txt
+
+      - name: Check the metadata diff
+        run: |
+          subwasm diff wss://rpc.${{ env.CHAIN }}.cloud ${{ steps.srtool_build.outputs.wasm }} | tee ${{ env.CHAIN }}-diff.txt
+
+      - name: Upload build artifacts for ${{ env.CHAIN }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.CHAIN }}-runtime
+          path: |
+            ${{ steps.srtool_build.outputs.wasm }}
+            ${{ steps.srtool_build.outputs.wasm_compressed }}
+            ${{ env.CHAIN }}-srtool-digest.json
+            ${{ env.CHAIN }}-info.json
+            ${{ env.CHAIN }}-info.txt
+            ${{ env.CHAIN }}-subwasm-info.json
+            ${{ env.CHAIN }}-subwasm-info.txt
+            ${{ env.CHAIN }}-diff.txt
+
+      - name: Generate draft release body
+        run: |
+          json='${{ steps.srtool_build.outputs.json }}'
+          srtool_version=$(echo "$json" | jq -r '.gen')
+          rustc_version=$(echo "$json" | jq -r '.rustc')  
+
+          echo "## Runtime" > RELEASE_BODY.md
+          echo "" >> RELEASE_BODY.md
+          echo "The information about the runtime included in this release can be found below." >> RELEASE_BODY.md
+          echo "The runtime has been built using [${srtool_version}](https://github.com/paritytech/srtool) and \`${rustc_version}\`." >> RELEASE_BODY.md
+          echo "" >> RELEASE_BODY.md
+          echo "\`\`\`" >> RELEASE_BODY.md
+          cat ${{ env.CHAIN }}-subwasm-info.txt >> RELEASE_BODY.md
+          echo "\`\`\`" >> RELEASE_BODY.md
+
+      - name: Create draft release for this runtime build
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: true
+          append_body: true
+          body_path: RELEASE_BODY.md
+          files: |
+            ${{ env.CHAIN }}-srtool-digest.json
+            ${{ steps.srtool_build.outputs.wasm_compressed }}
+
+      - name: Fix leftovers permissions
+        if: always()
+        run: |
+          sudo rm -rf runtime/hydradx/target
+          sudo chown -R $USER:$USER ${{ github.workspace }}
