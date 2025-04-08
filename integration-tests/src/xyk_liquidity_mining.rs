@@ -480,7 +480,8 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			asset_pair.asset_in,
 			asset_pair.asset_out,
 			100 * UNITS,
-			100000 * UNITS
+			100000 * UNITS,
+			0,
 		));
 
 		let existing_shares = 1000 * UNITS;

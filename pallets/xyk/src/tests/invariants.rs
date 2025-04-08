@@ -99,7 +99,8 @@ proptest! {
 					asset_a,
 					asset_b,
 					added_liquidity,
-					added_liquidity * 1_000_000, // do not care about the limit here
+					added_liquidity * 1_000_000,
+					0
 				));
 
 				let new_pool_balance_a = Currency::free_balance(asset_a, &pool_account);
@@ -199,7 +200,8 @@ proptest! {
 					asset_a,
 					asset_b,
 					added_liquidity,
-					added_liquidity * 1_000_000, // do not care about the limit here
+					added_liquidity * 1_000_000,
+					0
 				));
 				let pool_balance_a = Currency::free_balance(asset_a, &pool_account);
 				let pool_balance_b = Currency::free_balance(asset_b, &pool_account);
@@ -216,6 +218,8 @@ proptest! {
 						asset_a,
 						asset_b,
 						bob_shares,
+						0,
+						0
 				));
 
 				let new_pool_balance_a = Currency::free_balance(asset_a, &pool_account);
@@ -309,7 +313,8 @@ proptest! {
 					asset_a,
 					asset_b,
 					added_liquidity,
-					added_liquidity * 1_000_000, // do not care about the limit here
+					added_liquidity * 1_000_000,
+					0
 				));
 				let pool_balance_a = Currency::free_balance(asset_a, &pool_account);
 				let pool_balance_b = Currency::free_balance(asset_b, &pool_account);
@@ -378,7 +383,8 @@ proptest! {
 					asset_a,
 					asset_b,
 					added_liquidity,
-					added_liquidity * 1_000_000, // do not care about the limit here
+					added_liquidity * 1_000_000,
+					0
 				));
 				let pool_balance_a = Currency::free_balance(asset_a, &pool_account);
 				let pool_balance_b = Currency::free_balance(asset_b, &pool_account);
@@ -456,7 +462,8 @@ proptest! {
 					asset_a,
 					asset_b,
 					added_liquidity,
-					added_liquidity * 1_000_000, // do not care about the limit here
+					added_liquidity * 1_000_000,
+					0
 				));
 				let _pool_balance_a = Currency::free_balance(asset_a, &pool_account);
 				let _pool_balance_b = Currency::free_balance(asset_b, &pool_account);
@@ -533,7 +540,8 @@ proptest! {
 					asset_a,
 					asset_b,
 					added_liquidity,
-					added_liquidity * 1_000_000, // do not care about the limit here
+					added_liquidity * 1_000_000,
+					0
 				));
 				let _pool_balance_a = Currency::free_balance(asset_a, &pool_account);
 				let _pool_balance_b = Currency::free_balance(asset_b, &pool_account);

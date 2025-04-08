@@ -33,7 +33,8 @@ fn add_liquidity_should_work() {
 			asset_a,
 			asset_b,
 			400_000,
-			1_000_000_000_000
+			1_000_000_000_000,
+			0
 		));
 
 		assert_eq!(Currency::free_balance(share_token, &user), 65661600);
@@ -85,7 +86,8 @@ fn add_liquidity_mints_correct_shares() {
 			asset_b,
 			asset_a,
 			261600,
-			1_000_000_000_000
+			1_000_000_000_000,
+			0
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -116,7 +118,8 @@ fn add_liquidity_as_another_user_should_work() {
 			asset_b,
 			asset_a,
 			400_000,
-			1_000_000_000_000
+			1_000_000_000_000,
+			0
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -136,7 +139,8 @@ fn add_liquidity_as_another_user_should_work() {
 			asset_b,
 			asset_a,
 			1_000_000,
-			1_000_000_000_000
+			1_000_000_000_000,
+			0
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1014000000002);
@@ -207,6 +211,7 @@ fn add_liquidity_should_work_when_limit_is_set_above_account_balance() {
 			asset_b,
 			400_000,
 			amount_b_max_limit,
+			0
 		));
 	});
 }
@@ -241,7 +246,9 @@ fn remove_liquidity_should_work() {
 			RuntimeOrigin::signed(user),
 			asset_a,
 			asset_b,
-			355_000
+			355_000,
+			0,
+			0
 		));
 
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 996450000000);
@@ -301,7 +308,7 @@ fn remove_liquidity_without_shares_should_not_work() {
 		));
 
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 355_000),
+			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 355_000, 0, 0),
 			Error::<Test>::InsufficientAssetBalance
 		);
 
@@ -362,7 +369,7 @@ fn remove_liquidity_from_reduced_pool_should_not_work() {
 		));
 
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 200_000_000),
+			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 200_000_000, 0, 0),
 			Error::<Test>::InsufficientLiquidity
 		);
 
@@ -382,7 +389,7 @@ fn remove_liquidity_from_reduced_pool_should_not_work() {
 		));
 
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 200_000_000),
+			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 200_000_000, 0, 0),
 			Error::<Test>::InsufficientLiquidity
 		);
 
@@ -446,7 +453,8 @@ fn add_liquidity_more_than_owner_should_not_work() {
 				HDX,
 				ACA,
 				200_000_000_000_000_000,
-				600_000_000
+				600_000_000,
+				0
 			),
 			Error::<Test>::InsufficientAssetBalance
 		);
@@ -457,7 +465,8 @@ fn add_liquidity_more_than_owner_should_not_work() {
 				HDX,
 				ACA,
 				600_000_000,
-				200_000_000_000_000_000
+				200_000_000_000_000_000,
+				0
 			),
 			Error::<Test>::InsufficientAssetBalance
 		);
@@ -470,17 +479,17 @@ fn add_insufficient_liquidity_should_not_work() {
 		assert_ok!(XYK::create_pool(RuntimeOrigin::signed(ALICE), HDX, 1000, ACA, 1500,));
 
 		assert_noop!(
-			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 0, 0),
+			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 0, 0, 0),
 			Error::<Test>::InsufficientTradingAmount
 		);
 
 		assert_noop!(
-			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 1000, 0),
+			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 1000, 0, 0),
 			Error::<Test>::ZeroLiquidity
 		);
 
 		assert_noop!(
-			XYK::add_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 1000, 2000),
+			XYK::add_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 1000, 2000, 0),
 			Error::<Test>::InsufficientLiquidity
 		);
 	});
@@ -498,7 +507,7 @@ fn add_liquidity_exceeding_max_limit_should_not_work() {
 		));
 
 		assert_noop!(
-			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 10_000_000, 1_000_000),
+			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 10_000_000, 1_000_000, 0),
 			Error::<Test>::AssetAmountExceededLimit
 		);
 	});
@@ -508,10 +517,10 @@ fn remove_liquidity_should_respect_min_pool_limit() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(XYK::create_pool(RuntimeOrigin::signed(ALICE), HDX, 1000, ACA, 1500,));
 
-		assert_ok!(XYK::add_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 2000, 2000));
+		assert_ok!(XYK::add_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 2000, 2000, 0));
 
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 500),
+			XYK::remove_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 500, 0, 0),
 			Error::<Test>::InsufficientLiquidity
 		);
 	});
@@ -521,7 +530,7 @@ fn remove_liquidity_should_respect_min_pool_limit() {
 fn remove_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 0),
+			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 0, 0, 0),
 			Error::<Test>::ZeroLiquidity
 		);
 	});
@@ -536,7 +545,8 @@ fn add_liquidity_to_non_existing_pool_should_not_work() {
 				HDX,
 				ACA,
 				200_000_000_000_000_000,
-				600_000_000
+				600_000_000,
+				0
 			),
 			Error::<Test>::TokenPoolNotFound
 		);
@@ -547,7 +557,7 @@ fn add_liquidity_to_non_existing_pool_should_not_work() {
 fn remove_zero_liquidity_from_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 100),
+			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 100, 0, 0),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
@@ -576,7 +586,8 @@ fn add_liquidity_overflow_work() {
 					asset_a,
 					asset_b,
 					10_u128.pow(33),
-					1_000_000_000_000
+					1_000_000_000_000,
+					0
 				),
 				Error::<Test>::AddAssetAmountInvalid
 			);
@@ -615,7 +626,8 @@ fn share_ratio_calculations_are_correct() {
 				asset_b,
 				asset_a,
 				10 * ONE,
-				200 * ONE
+				200 * ONE,
+				0
 			));
 
 			let pair_account = XYK::get_pair_id(AssetPair {
@@ -641,7 +653,9 @@ fn share_ratio_calculations_are_correct() {
 				RuntimeOrigin::signed(BOB),
 				asset_a,
 				asset_b,
-				expected_shares
+				expected_shares,
+				0,
+				0
 			));
 
 			assert_eq!(Currency::free_balance(share_token, &BOB), 0);
@@ -662,7 +676,8 @@ fn share_ratio_calculations_are_correct() {
 					asset_b,
 					asset_a,
 					10 * ONE,
-					200 * ONE
+					200 * ONE,
+					0
 				));
 
 				let shares = Currency::free_balance(share_token, &BOB);
@@ -671,7 +686,9 @@ fn share_ratio_calculations_are_correct() {
 					RuntimeOrigin::signed(BOB),
 					asset_a,
 					asset_b,
-					shares
+					shares,
+					0,
+					0
 				));
 				let balance_a = Currency::free_balance(asset_a, &BOB);
 				let balance_b = Currency::free_balance(asset_b, &BOB);

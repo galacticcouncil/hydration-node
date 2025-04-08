@@ -85,6 +85,7 @@ fn xyk_add_liquidity(caller: AccountId, assets: AssetPair, amount_a: Balance, am
 		assets.asset_out,
 		amount_a,
 		amount_b_max,
+		0,
 	)
 }
 

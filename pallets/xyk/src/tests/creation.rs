@@ -246,7 +246,9 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 			RuntimeOrigin::signed(user),
 			asset_a,
 			asset_b,
-			100_000_000
+			100_000_000,
+			0,
+			0
 		));
 
 		assert_eq!(XYK::total_liquidity(pair_account), 0);

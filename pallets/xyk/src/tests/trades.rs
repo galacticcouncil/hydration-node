@@ -184,7 +184,8 @@ fn work_flow_happy_path_should_work() {
 				asset_a,
 				asset_b,
 				800_000_000_000_000_000,
-				100
+				100,
+				0
 			),
 			Error::<Test>::InsufficientAssetBalance
 		);
@@ -215,7 +216,8 @@ fn work_flow_happy_path_should_work() {
 			asset_a,
 			asset_b,
 			300_000_000_000,
-			current_b_balance
+			current_b_balance,
+			0
 		));
 
 		assert_eq!(XYK::total_liquidity(pair_account), 650_000_000_000);
@@ -283,7 +285,9 @@ fn work_flow_happy_path_should_work() {
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
-			10_000
+			10_000,
+			0,
+			0
 		));
 
 		let user_2_remove_1_balance_1 = Currency::free_balance(asset_a, &user_2);
@@ -297,7 +301,9 @@ fn work_flow_happy_path_should_work() {
 			RuntimeOrigin::signed(user_2),
 			asset_b,
 			asset_a,
-			10_000
+			10_000,
+			0,
+			0
 		));
 
 		let user_2_remove_2_balance_1 = Currency::free_balance(asset_a, &user_2);
@@ -325,7 +331,9 @@ fn work_flow_happy_path_should_work() {
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
-			18_000
+			18_000,
+			0,
+			0
 		));
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_962_000);
 
@@ -699,7 +707,8 @@ fn add_liquidity_to_non_existing_pool_should_not_work() {
 				HDX,
 				ACA,
 				200_000_000_000_000_000,
-				600_000_000
+				600_000_000,
+				0
 			),
 			Error::<Test>::TokenPoolNotFound
 		);
@@ -710,7 +719,7 @@ fn add_liquidity_to_non_existing_pool_should_not_work() {
 fn remove_zero_liquidity_from_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 100),
+			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 100, 0, 0),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
@@ -829,7 +838,9 @@ fn money_in_sell_money_out_should_leave_the_same_balance() {
 			RuntimeOrigin::signed(user_1),
 			asset_a,
 			asset_b,
-			600000000000000
+			600000000000000,
+			0,
+			0
 		));
 
 		let user_1_balance_a_after = Currency::free_balance(asset_a, &user_1);
@@ -876,7 +887,8 @@ fn money_in_money_out_should_leave_the_same_balance_for_both_accounts() {
 			asset_a,
 			asset_b,
 			100_000_000,
-			1_100_000_000_000
+			1_100_000_000_000,
+			0
 		));
 
 		assert_eq!(Currency::free_balance(share_token, &user_1), 100_000_000);
@@ -886,14 +898,18 @@ fn money_in_money_out_should_leave_the_same_balance_for_both_accounts() {
 			RuntimeOrigin::signed(user_1),
 			asset_a,
 			asset_b,
-			100_000_000
+			100_000_000,
+			0,
+			0
 		));
 
 		assert_ok!(XYK::remove_liquidity(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
-			100_000_000
+			100_000_000,
+			0,
+			0
 		));
 
 		assert_eq!(XYK::total_liquidity(pair_account), 0);
