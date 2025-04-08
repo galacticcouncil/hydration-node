@@ -101,6 +101,7 @@ where
 	/// If `source` is empty, the route is obtained from the Router pallet and final price calculated by multiplication.
 	/// Oracle prices for omnipool are quoted by LRNA, so in the case that the Omnipool is specified as a source,
 	/// two prices (one for Asset_A/LRNA and second one for Asset_B/LRNA) are fetched and one final price is calculated from them.
+	/// Returned price has 8 decimals.
 	fn get_oracle_entry(
 		asset_id_a: AssetId,
 		asset_id_b: AssetId,
@@ -113,11 +114,6 @@ where
 		// Parse input
 		let input = handle.read_input()?;
 		input.expect_arguments(0)?;
-
-		let decimals =
-			<pallet_asset_registry::Pallet<Runtime>>::decimals(asset_id_a.into()).ok_or(PrecompileFailure::Error {
-				exit_status: pallet_evm::ExitError::Other("Decimals not available".into()),
-			})?;
 
 		// In case of empty source, we retrieve onchain route
 		let price = if source == EMPTY_SOURCE {
@@ -178,7 +174,7 @@ where
 		};
 
 		// return value should be int256, but the price is always a positive number so we can use uint256
-		let price_u256 = convert_price_to_u256(price, decimals)?;
+		let price_u256 = normalize_price_to_u256(price)?;
 		let encoded = Output::encode_uint::<U256>(price_u256);
 
 		Ok(succeed(encoded))
@@ -197,18 +193,13 @@ pub fn is_oracle_address(address: H160) -> bool {
 	&address.to_fixed_bytes()[0..3] == oracle_address_prefix
 }
 
-/// Converts pallet_ema_oracle::Price to U256. The price is stored as integer, integer part + fractional part.
-/// The fractional part contains `decimals` number of decimal places.
-/// E.g. 123.456789 is stored as 123456 if three decimals are used.
-fn convert_price_to_u256(price: Price, decimals: u8) -> Result<U256, PrecompileFailure> {
-	// avoid panic in exponentiation. Max 256bit number has 78 digits.
-	if decimals > 70 {
-		return Err(PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::Other("Too many decimals".into()),
-		});
-	};
+/// Converts pallet_ema_oracle::Price to U256. The price is stored as one integer: integer part + fractional part.
+/// The fractional part contains 8 decimals.
+/// E.g. 7.1234 is stored as 712_340_000.
+fn normalize_price_to_u256(price: Price) -> Result<U256, PrecompileFailure> {
+	let decimals: usize = 8;
 
-	U256::exp10(decimals.into())
+	U256::exp10(decimals)
 		.checked_mul(price.n.into())
 		.ok_or(PrecompileFailure::Error {
 			exit_status: pallet_evm::ExitError::Other("Price conversion failed.".into()),
@@ -219,6 +210,40 @@ fn convert_price_to_u256(price: Price, decimals: u8) -> Result<U256, PrecompileF
 		})
 }
 
+#[test]
+fn normalize_price_to_u256_should_work() {
+	// price = 111_222_333_444.555
+	let price = Price {
+		n: 111_222_333_444_555u128,
+		d: 1_000u128,
+	};
+	let price_u256 = normalize_price_to_u256(price).unwrap();
+	assert_eq!(price_u256, 11_122_233_344_455_500_000u128.into());
+
+	// price = 111_222_333.111222333
+	let price = Price {
+		n: 111_222_333_111_222_333u128,
+		d: 1_000_000_000u128,
+	};
+	let price_u256 = normalize_price_to_u256(price).unwrap();
+	assert_eq!(price_u256, 11_122_233_311_122_233u128.into());
+
+	// price = 0.1234
+	let price = Price {
+		n: 1_234u128,
+		d: 10_000u128,
+	};
+	let price_u256 = normalize_price_to_u256(price).unwrap();
+	assert_eq!(price_u256, 12_340_000u128.into());
+
+	// price = 0.000001234
+	let price = Price {
+		n: 1_234u128,
+		d: 1_000_000_000u128,
+	};
+	let price_u256 = normalize_price_to_u256(price).unwrap();
+	assert_eq!(price_u256, 123u128.into());
+}
 /// Encoding is 3 bytes for precompile prefix 0x000001,
 /// followed by 1 byte for encoded OraclePeriod enum, 8 bytes for Source, and two times 4 bytes for AssetId.
 pub fn encode_oracle_address(

@@ -1268,10 +1268,11 @@ mod chainlink_precompile {
 	use pallet_ema_oracle::Price;
 	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 
-	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, decimals: u8) {
+	fn assert_prices_are_same(ema_price: Price, precompile_price: U256) {
+		let decimals = 8u32;
 		let fixed_price_int = FixedU128::checked_from_rational(ema_price.n, ema_price.d)
 			.unwrap()
-			.checked_mul_int(10_u128.pow(decimals.into()))
+			.checked_mul_int(10_u128.pow(decimals))
 			.unwrap();
 
 		pretty_assertions::assert_eq!(fixed_price_int, precompile_price.as_u128());
@@ -1340,7 +1341,7 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
 		});
 	}
 
@@ -1407,7 +1408,7 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
 		});
 	}
 
@@ -1473,7 +1474,7 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
 		});
 	}
 
@@ -1539,7 +1540,7 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
 		});
 	}
 
@@ -1656,7 +1657,7 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
 		});
 	}
 
@@ -1773,7 +1774,7 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output), 12);
+			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
 		});
 	}
 
