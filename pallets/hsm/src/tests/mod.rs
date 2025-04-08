@@ -22,6 +22,9 @@ pub mod add_collateral_tests;
 pub mod remove_collateral_tests;
 pub mod update_collateral_tests;
 
+// Test modules for EVM operations
+pub mod evm_tests;
+
 // Any test modules should be declared here
 // For example:
 // pub mod collateral_tests;

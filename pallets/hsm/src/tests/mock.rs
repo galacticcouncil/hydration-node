@@ -21,9 +21,10 @@
 use crate as pallet_hsm;
 use crate::types::CallResult;
 use crate::Config;
+use crate::ERC20Function;
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
-use evm::{ExitReason, ExitSucceed};
+use evm::{ExitError, ExitReason, ExitSucceed};
 use frame_support::sp_runtime::{
 	traits::{IdentifyAccount, Verify},
 	MultiSignature,
@@ -286,10 +287,72 @@ impl AccountIdFor<AssetId> for DummyAccountIdConstructor {
 // Mock EVM implementation
 pub struct MockEvm;
 
-impl EVM<(evm::ExitReason, Vec<u8>)> for MockEvm {
+impl EVM<CallResult> for MockEvm {
 	fn call(context: CallContext, data: Vec<u8>, _value: U256, _gas: u64) -> CallResult {
-		//TODO: see liquidation pallet
-		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
+		EVM_CALLS.with(|v| v.borrow_mut().push((context.contract, data.clone())));
+
+		// Check if the call has a pre-defined result in our mock
+		let maybe_predefined = EVM_CALL_RESULTS.with(|v| v.borrow().get(&data).cloned());
+		if let Some(result) = maybe_predefined {
+			return (ExitReason::Succeed(ExitSucceed::Returned), result);
+		}
+
+		// Handle the EVM functions
+		if data.len() >= 4 {
+			let function_bytes: [u8; 4] = data[0..4].try_into().unwrap_or([0; 4]);
+			let function_u32 = u32::from_be_bytes(function_bytes);
+
+			if let Ok(function) = ERC20Function::try_from(function_u32) {
+				match function {
+					ERC20Function::Mint => {
+						// Should include recipient (32 bytes) and amount (32 bytes) parameters after the 4-byte selector
+						if data.len() >= 4 + 32 + 32 {
+							// Extract recipient address (padded to 32 bytes in ABI encoding)
+							let recipient_bytes: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
+							let recipient_evm = EvmAddress::from_slice(&recipient_bytes[12..32]);
+
+							// Extract amount (32 bytes)
+							let amount_bytes: [u8; 32] = data[4 + 32..4 + 64].try_into().unwrap_or([0; 32]);
+							let amount = U256::from_big_endian(&amount_bytes);
+
+							// Convert to Balance and account IDs for our operation
+							if let Ok(amount) = Balance::try_from(amount) {
+								let recipient = MockEvmAccounts::account_id(recipient_evm);
+								let hollar_id = <Test as pallet_hsm::Config>::HollarId::get();
+
+								// Increase the balance of the recipient
+								let _ = Tokens::update_balance(hollar_id, &recipient, amount as i128);
+
+								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+							}
+						}
+					}
+					ERC20Function::Burn => {
+						// Should include amount (32 bytes) parameter after the 4-byte selector
+						if data.len() >= 4 + 32 {
+							// Extract amount (32 bytes)
+							let amount_bytes: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
+							let amount = U256::from_big_endian(&amount_bytes);
+
+							// Convert to Balance and account IDs for our operation
+							if let Ok(amount) = Balance::try_from(amount) {
+								let sender = context.sender;
+								let account_id = MockEvmAccounts::account_id(sender);
+								let hollar_id = <Test as pallet_hsm::Config>::HollarId::get();
+
+								// Decrease the balance of the caller
+								let _ = Tokens::update_balance(hollar_id, &account_id, -(amount as i128));
+
+								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Default failure for unrecognized calls
+		(ExitReason::Error(ExitError::DesignatedInvalid), vec![])
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -300,13 +363,24 @@ impl EVM<(evm::ExitReason, Vec<u8>)> for MockEvm {
 // Mock EvmAccounts implementation
 pub struct MockEvmAccounts;
 
+impl MockEvmAccounts {
+	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
+		&account_id[0..4] == b"ETH\0" && account_id[24..32] == [0u8; 8]
+	}
+}
+
 impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
 	fn is_evm_account(account_id: AccountId) -> bool {
 		todo!()
 	}
 
 	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
-		todo!()
+		let acc = account_id.as_ref();
+		if Self::_is_evm_account(acc) {
+			EvmAddress::from_slice(&acc[4..24])
+		} else {
+			EvmAddress::from_slice(&acc[..20])
+		}
 	}
 
 	fn truncated_account_id(evm_address: EvmAddress) -> AccountId {
@@ -314,11 +388,11 @@ impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
 	}
 
 	fn bound_account_id(evm_address: EvmAddress) -> Option<AccountId> {
-		todo!()
+		Some(AccountId::new([1; 32]))
 	}
 
 	fn account_id(evm_address: EvmAddress) -> AccountId {
-		todo!()
+		Self::bound_account_id(evm_address).unwrap_or_else(|| Self::truncated_account_id(evm_address))
 	}
 
 	fn can_deploy_contracts(evm_address: EvmAddress) -> bool {
