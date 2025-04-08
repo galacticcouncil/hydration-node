@@ -1238,7 +1238,21 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	//  Returns start of the pool at the beginning of the block
 	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
-		None
+		let pool = Pools::<T>::get(pool_id)?;
+		let pool_account = Self::pool_account(pool_id);
+		let amplification = Self::get_amplification(&pool);
+		let share_issuance = T::Currency::total_issuance(pool_id);
+		let reserves = pool.reserves_with_decimals::<T>(&pool_account)?;
+		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
+
+		Some(PoolSnapshot {
+			assets: pool.assets,
+			amplification,
+			fee: pool.fee,
+			reserves,
+			pegs: asset_pegs,
+			share_issuance,
+		})
 	}
 }
 

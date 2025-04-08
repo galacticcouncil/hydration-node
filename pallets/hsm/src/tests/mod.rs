@@ -17,6 +17,11 @@
 
 pub mod mock;
 
+// Test modules for collateral operations
+pub mod add_collateral_tests;
+pub mod remove_collateral_tests;
+pub mod update_collateral_tests;
+
 // Any test modules should be declared here
 // For example:
 // pub mod collateral_tests;

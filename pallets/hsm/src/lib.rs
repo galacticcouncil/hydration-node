@@ -218,6 +218,10 @@ pub mod pallet {
 		InvalidPoolState,
 		/// Collateral is not empty
 		CollateralNotEmpty,
+		/// Asset not in the pool
+		AssetNotInPool,
+		/// Hollar is not in the pool
+		HollarNotInPool,
 	}
 
 	#[pallet::hooks]
@@ -312,8 +316,10 @@ pub mod pallet {
 			let pool_state = Self::get_stablepool_state(pool_id)?;
 			ensure!(
 				pool_state.assets.contains(&T::HollarId::get()),
-				Error::<T>::InvalidPoolState
+				Error::<T>::HollarNotInPool
 			);
+			// also collateral asset must be in the pool
+			ensure!(pool_state.assets.contains(&asset_id), Error::<T>::AssetNotInPool);
 
 			let collateral_info = CollateralInfo {
 				pool_id,
@@ -621,10 +627,6 @@ where
 
 		// just to be on the safe side
 		ensure!(
-			pool_state.decimals.len() > hollar_pos.max(collateral_pos),
-			Error::<T>::InvalidPoolState
-		);
-		ensure!(
 			pool_state.reserves.len() > hollar_pos.max(collateral_pos),
 			Error::<T>::InvalidPoolState
 		);
@@ -633,13 +635,13 @@ where
 			Error::<T>::InvalidPoolState
 		);
 
-		// Get decimals
-		let hollar_decimals = pool_state.decimals[hollar_pos];
-		let collateral_decimals = pool_state.decimals[collateral_pos];
-
 		// Get reserves and pegs
-		let hollar_reserve = pool_state.reserves[hollar_pos];
-		let collateral_reserve = pool_state.reserves[collateral_pos];
+		let hollar_reserve = pool_state
+			.asset_reserve_at(hollar_pos)
+			.ok_or(Error::<T>::AssetNotFound)?;
+		let collateral_reserve = pool_state
+			.asset_reserve_at(collateral_pos)
+			.ok_or(Error::<T>::AssetNotFound)?;
 		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
 
 		// TODO: take decimals into account
@@ -740,10 +742,6 @@ where
 
 		// just to be on the safe side
 		ensure!(
-			pool_state.decimals.len() > hollar_pos.max(collateral_pos),
-			Error::<T>::InvalidPoolState
-		);
-		ensure!(
 			pool_state.reserves.len() > hollar_pos.max(collateral_pos),
 			Error::<T>::InvalidPoolState
 		);
@@ -752,13 +750,13 @@ where
 			Error::<T>::InvalidPoolState
 		);
 
-		// Get decimals
-		let hollar_decimals = pool_state.decimals[hollar_pos];
-		let collateral_decimals = pool_state.decimals[collateral_pos];
-
 		// Get reserves and pegs
-		let hollar_reserve = pool_state.reserves[hollar_pos];
-		let collateral_reserve = pool_state.reserves[collateral_pos];
+		let hollar_reserve = pool_state
+			.asset_reserve_at(hollar_pos)
+			.ok_or(Error::<T>::AssetNotFound)?;
+		let collateral_reserve = pool_state
+			.asset_reserve_at(collateral_pos)
+			.ok_or(Error::<T>::AssetNotFound)?;
 		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
 
 		// 1. Calculate imbalance
@@ -1054,10 +1052,6 @@ where
 
 		// just to be on the safe side
 		ensure!(
-			pool_state.decimals.len() > hollar_pos.max(collateral_pos),
-			Error::<T>::InvalidPoolState
-		);
-		ensure!(
 			pool_state.reserves.len() > hollar_pos.max(collateral_pos),
 			Error::<T>::InvalidPoolState
 		);
@@ -1066,8 +1060,12 @@ where
 			Error::<T>::InvalidPoolState
 		);
 		// Calculate I_i = (H_i - φ_i * R_i) / 2
-		let asset_reserve = pool_state.reserves[collateral_pos];
-		let hollar_reserve = pool_state.reserves[hollar_pos];
+		let asset_reserve = pool_state
+			.asset_reserve_at(collateral_pos)
+			.ok_or(Error::<T>::AssetNotFound)?;
+		let hollar_reserve = pool_state
+			.asset_reserve_at(hollar_pos)
+			.ok_or(Error::<T>::AssetNotFound)?;
 		let b_coefficient = collateral_info.b;
 
 		// Calculate φ_i * R_i

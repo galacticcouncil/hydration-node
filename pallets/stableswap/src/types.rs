@@ -178,14 +178,14 @@ impl<AssetId> PoolPegInfo<AssetId> {
 	}
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct PoolSnapshot<AssetId> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
-	pub amplification: NonZeroU16,
+	pub amplification: u128,
 	pub fee: Permill,
-	pub reserves: Vec<Balance>,
-	pub decimals: Vec<u8>,
-	pub pegs: BoundedPegs,
+	pub reserves: Vec<AssetReserve>,
+	pub pegs: Vec<PegType>,
+	pub share_issuance: Balance,
 }
 
 impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
@@ -195,6 +195,10 @@ impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
 
 	// Safe retrieval of asset decimals info - we like to be on the safe side.
 	pub fn asset_decimals_at(&self, idx: usize) -> Option<u8> {
-		self.decimals.get(idx).copied()
+		self.reserves.get(idx).map(|reserve| reserve.decimals)
+	}
+
+	pub fn asset_reserve_at(&self, idx: usize) -> Option<Balance> {
+		self.reserves.get(idx).map(|reserve| reserve.amount)
 	}
 }

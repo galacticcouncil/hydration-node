@@ -39,6 +39,7 @@ use hydradx_traits::{
 };
 use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use orml_traits::parameter_type_with_key;
+use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::{BoundedPegSources, PegSource, PoolSnapshot};
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
@@ -265,12 +266,18 @@ impl AccountIdFor<AssetId> for DummyAccountIdConstructor {
 	}
 
 	fn name(asset: &u32, identifier: Option<&[u8]>) -> Vec<u8> {
+		// This must return length 32
+
 		let mut buf: Vec<u8> = if let Some(ident) = identifier {
 			ident.to_vec()
 		} else {
 			vec![]
 		};
 		buf.extend_from_slice(&(asset).to_le_bytes());
+
+		while buf.len() < 32 {
+			buf.push(0);
+		}
 
 		buf
 	}
@@ -450,20 +457,6 @@ impl ExtBuilder {
 			}
 
 			// Set up collaterals
-			for (asset_id, pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee) in self.collaterals {
-				HSM::add_collateral_asset(
-					RuntimeOrigin::root(),
-					asset_id,
-					pool_id,
-					purchase_fee,
-					max_buy_price_coefficient,
-					buy_back_fee,
-					sp_runtime::Perbill::from_percent(50),
-					None,
-				)
-				.unwrap();
-			}
-
 			for (pool_id, assets, amplification, fee, pegs) in self.pools {
 				Stableswap::create_pool_with_pegs(
 					RuntimeOrigin::root(),
@@ -478,11 +471,29 @@ impl ExtBuilder {
 			}
 
 			for (pool_id, liquidity) in self.initial_pool_liquidity {
+				// mint alice and bob with pool tokens
+				for asset in liquidity.iter() {
+					Tokens::update_balance(asset.asset_id, &AccountId::from(ALICE), asset.amount as i128);
+				}
+
 				Stableswap::add_assets_liquidity(
-					RuntimeOrigin::root(),
+					RuntimeOrigin::signed(ALICE),
 					pool_id,
 					BoundedVec::try_from(liquidity).unwrap(),
 					0,
+				)
+				.unwrap();
+			}
+			for (asset_id, pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee) in self.collaterals {
+				HSM::add_collateral_asset(
+					RuntimeOrigin::root(),
+					asset_id,
+					pool_id,
+					purchase_fee,
+					max_buy_price_coefficient,
+					buy_back_fee,
+					sp_runtime::Perbill::from_percent(50),
+					None,
 				)
 				.unwrap();
 			}
@@ -513,4 +524,8 @@ pub fn clear_evm_calls() {
 	EVM_CALLS.with(|v| {
 		v.borrow_mut().clear();
 	});
+}
+
+pub fn default_peg() -> PegSource<AssetId> {
+	PegSource::Value((1, 1))
 }
