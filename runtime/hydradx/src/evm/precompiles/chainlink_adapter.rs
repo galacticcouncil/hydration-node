@@ -70,7 +70,7 @@ where
 			handle.check_function_modifier(FunctionModifier::View)?;
 
 			return match selector {
-				AggregatorInterface::GetAnswer => {
+				AggregatorInterface::GetAnswer | AggregatorInterface::LatestAnswer => {
 					Self::get_oracle_entry(asset_id_a, asset_id_b, period, source, handle)
 				}
 				_ => Self::not_supported(),
