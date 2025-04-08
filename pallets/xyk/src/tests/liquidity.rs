@@ -704,3 +704,131 @@ fn share_ratio_calculations_are_correct() {
 			}
 		});
 }
+
+#[test]
+fn add_liquidity_respects_min_shares_parameter() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = DOT;
+		let asset_b = HDX;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user),
+			asset_a,
+			100_000_000,
+			asset_b,
+			65_400_000
+		));
+
+		// Calculate expected shares to be minted
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		let asset_a_reserve = Currency::free_balance(asset_a, &pair_account);
+		let total_shares = XYK::total_liquidity(pair_account);
+
+		// Adding 400_000 of asset_a should result in approximately 261,600 shares
+		// We'll set a min_shares value that's just slightly higher to make it fail
+		let expected_shares = hydra_dx_math::xyk::calculate_shares(asset_a_reserve, 400_000, total_shares).unwrap();
+
+		let min_shares_too_high = expected_shares + 1;
+
+		// This should fail because min_shares is higher than what will be minted
+		assert_noop!(
+			XYK::add_liquidity(
+				RuntimeOrigin::signed(user),
+				asset_a,
+				asset_b,
+				400_000,
+				1_000_000_000_000,
+				min_shares_too_high
+			),
+			Error::<Test>::SlippageLimit
+		);
+
+		// This should succeed because min_shares is equal to what will be minted
+		assert_ok!(XYK::add_liquidity(
+			RuntimeOrigin::signed(user),
+			asset_a,
+			asset_b,
+			400_000,
+			1_000_000_000_000,
+			expected_shares
+		));
+	});
+}
+
+#[test]
+fn remove_liquidity_respects_min_amounts_parameters() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user),
+			asset_a,
+			100_000_000,
+			asset_b,
+			1_000_000_000_000
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		let share_token = XYK::share_token(pair_account);
+		let share_amount = 355_000;
+
+		// Calculate expected amounts to be removed
+		let asset_a_reserve = Currency::free_balance(asset_a, &pair_account);
+		let asset_b_reserve = Currency::free_balance(asset_b, &pair_account);
+		let total_shares = XYK::total_liquidity(pair_account);
+
+		let liquidity_out =
+			hydra_dx_math::xyk::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, share_amount, total_shares)
+				.unwrap();
+
+		let expected_amount_a = liquidity_out.0;
+		let expected_amount_b = liquidity_out.1;
+
+		// This should fail because min_amount_a is higher than what will be returned
+		assert_noop!(
+			XYK::remove_liquidity(
+				RuntimeOrigin::signed(user),
+				asset_a,
+				asset_b,
+				share_amount,
+				expected_amount_a + 1,
+				0
+			),
+			Error::<Test>::SlippageLimit
+		);
+
+		// This should fail because min_amount_b is higher than what will be returned
+		assert_noop!(
+			XYK::remove_liquidity(
+				RuntimeOrigin::signed(user),
+				asset_a,
+				asset_b,
+				share_amount,
+				0,
+				expected_amount_b + 1
+			),
+			Error::<Test>::SlippageLimit
+		);
+
+		// This should succeed because both min amounts are equal to what will be returned
+		assert_ok!(XYK::remove_liquidity(
+			RuntimeOrigin::signed(user),
+			asset_a,
+			asset_b,
+			share_amount,
+			expected_amount_a,
+			expected_amount_b
+		));
+	});
+}
