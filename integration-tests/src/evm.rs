@@ -8,6 +8,8 @@ use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
+use sp_core::bounded_vec::BoundedVec;
+
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
@@ -1485,7 +1487,7 @@ mod chainlink_precompile {
 			assert_ok!(Router::set_route(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				AssetPair::new(HDX, DOT),
-				route
+				route.try_into().unwrap()
 			));
 
 			let dai_price = EmaOracle::get_price(HDX, DAI, OraclePeriod::Short, XYK_SOURCE)
@@ -1781,7 +1783,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 			asset_out: altcoin,
 			amount_out: UNITS,
 			max_amount_in: u128::MAX,
-			route: swap_route,
+			route: BoundedVec::truncate_from(swap_route),
 		});
 
 		//Arrange
