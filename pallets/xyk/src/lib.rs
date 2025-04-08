@@ -211,6 +211,9 @@ pub mod pallet {
 
 		/// Pool cannot be created due to outside factors.
 		CannotCreatePool,
+
+		/// Slippage protection.
+		SlippageLimit,
 	}
 
 	#[pallet::event]
@@ -405,9 +408,10 @@ pub mod pallet {
 			asset_b: AssetId,
 			amount_a: Balance,
 			amount_b_max_limit: Balance,
+			min_shares: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit)?;
+			Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit, min_shares)?;
 
 			Ok(())
 		}
@@ -428,7 +432,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_a: AssetId,
 			asset_b: AssetId,
-			liquidity_amount: Balance,
+			share_amount: Balance,
+			min_amount_a: Balance,
+			min_amount_b: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -437,7 +443,7 @@ pub mod pallet {
 				asset_out: asset_b,
 			};
 
-			ensure!(!liquidity_amount.is_zero(), Error::<T>::ZeroLiquidity);
+			ensure!(share_amount > Balance::zero(), Error::<T>::ZeroLiquidity);
 
 			ensure!(Self::exists(asset_pair), Error::<T>::TokenPoolNotFound);
 
@@ -449,14 +455,14 @@ pub mod pallet {
 
 			let account_shares = T::Currency::free_balance(share_token, &who);
 
-			ensure!(total_shares >= liquidity_amount, Error::<T>::InsufficientLiquidity);
+			ensure!(total_shares >= share_amount, Error::<T>::InsufficientLiquidity);
 
-			ensure!(account_shares >= liquidity_amount, Error::<T>::InsufficientAssetBalance);
+			ensure!(account_shares >= share_amount, Error::<T>::InsufficientAssetBalance);
 
 			// Account's liquidity left should be either 0 or at least MinPoolLiquidity
 			ensure!(
-				(account_shares.saturating_sub(liquidity_amount)) >= T::MinPoolLiquidity::get()
-					|| (account_shares == liquidity_amount),
+				(account_shares.saturating_sub(share_amount)) >= T::MinPoolLiquidity::get()
+					|| (account_shares == share_amount),
 				Error::<T>::InsufficientLiquidity
 			);
 
@@ -466,7 +472,7 @@ pub mod pallet {
 			let liquidity_out = hydra_dx_math::xyk::calculate_liquidity_out(
 				asset_a_reserve,
 				asset_b_reserve,
-				liquidity_amount,
+				share_amount,
 				total_shares,
 			)
 			.map_err(|_| Error::<T>::RemoveAssetAmountInvalid)?;
@@ -482,14 +488,17 @@ pub mod pallet {
 				Error::<T>::InsufficientPoolAssetBalance
 			);
 
+			ensure!(remove_amount_a >= min_amount_a, Error::<T>::SlippageLimit);
+			ensure!(remove_amount_b >= min_amount_b, Error::<T>::SlippageLimit);
+
 			let liquidity_left = total_shares
-				.checked_sub(liquidity_amount)
+				.checked_sub(share_amount)
 				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
 			T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
 			T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
 
-			T::Currency::withdraw(share_token, &who, liquidity_amount)?;
+			T::Currency::withdraw(share_token, &who, share_amount)?;
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
 
@@ -511,7 +520,7 @@ pub mod pallet {
 				who: who.clone(),
 				asset_a,
 				asset_b,
-				shares: liquidity_amount,
+				shares: share_amount,
 			});
 
 			if liquidity_left == 0 {
@@ -600,6 +609,7 @@ impl<T: Config> Pallet<T> {
 		asset_b: AssetId,
 		amount_a: Balance,
 		amount_b_max_limit: Balance,
+		min_shares: Balance,
 	) -> Result<Balance, DispatchError> {
 		let asset_pair = AssetPair {
 			asset_in: asset_a,
@@ -644,6 +654,8 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::Overflow)?;
 
 		ensure!(!shares_added.is_zero(), Error::<T>::InvalidMintedLiquidity);
+
+		ensure!(shares_added >= min_shares, Error::<T>::SlippageLimit);
 
 		// Make sure that account share liquidity is at least MinPoolLiquidity
 		ensure!(
@@ -1178,6 +1190,6 @@ impl<T: Config> AMMAddLiquidity<T::AccountId, AssetId, Balance> for Pallet<T> {
 		amount_a: Balance,
 		amount_b_max_limit: Balance,
 	) -> Result<Balance, DispatchError> {
-		Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit)
+		Self::do_add_liquidity(who, asset_a, asset_b, amount_a, amount_b_max_limit, Balance::zero())
 	}
 }
