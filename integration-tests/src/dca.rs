@@ -227,7 +227,7 @@ mod omnipool {
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped2 {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -244,7 +244,7 @@ mod omnipool {
 							ExecutionType::Omnipool(2)
 						]
 					},
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped2 {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -272,7 +272,7 @@ mod omnipool {
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped2 {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -289,7 +289,7 @@ mod omnipool {
 							ExecutionType::Omnipool(5)
 						],
 					},
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped2 {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -752,7 +752,7 @@ mod omnipool {
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped2 {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -769,7 +769,7 @@ mod omnipool {
 							ExecutionType::Omnipool(2)
 						],
 					},
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped2 {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -797,7 +797,7 @@ mod omnipool {
 			pretty_assertions::assert_eq!(
 				last_two_swapped_events,
 				vec![
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped2 {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -814,7 +814,7 @@ mod omnipool {
 							ExecutionType::Omnipool(5)
 						],
 					},
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped2 {
 						swapper: ALICE.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,

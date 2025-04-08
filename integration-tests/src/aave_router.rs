@@ -250,7 +250,7 @@ fn buy_dot() {
 		let events = get_last_swapped_events();
 		pretty_assertions::assert_eq!(
 			*get_last_swapped_events().last().unwrap(),
-			pallet_broadcast::Event::<Runtime>::Swapped {
+			pallet_broadcast::Event::<Runtime>::Swapped2 {
 				swapper: ALICE.into(),
 				filler,
 				filler_type: pallet_broadcast::types::Filler::AAVE,
@@ -328,7 +328,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 
 		pretty_assertions::assert_eq!(
 			*get_last_swapped_events().last().unwrap(),
-			pallet_broadcast::Event::<Runtime>::Swapped {
+			pallet_broadcast::Event::<Runtime>::Swapped2 {
 				swapper: ALICE.into(),
 				filler,
 				filler_type: pallet_broadcast::types::Filler::AAVE,

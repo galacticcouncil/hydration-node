@@ -124,7 +124,7 @@ fn buy_should_work_as_before_when_all_pegs_are_one() {
 					fee: 0,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB,
 					filler: pool_account,
 					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
@@ -213,7 +213,7 @@ fn remove_liquidity_with_peg_should_work_as_before_when_pegs_are_one() {
 
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
-				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped {
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
 					swapper: BOB,
 					filler: pool_account,
 					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
