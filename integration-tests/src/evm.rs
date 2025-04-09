@@ -1269,11 +1269,12 @@ mod chainlink_precompile {
 		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
 		EmaOracle, Router, Runtime,
 	};
-	use hydradx_traits::evm::CallContext;
 	use hydradx_traits::evm::EVM;
+	use hydradx_traits::evm::{CallContext, EvmAddress};
 	use hydradx_traits::router::{PoolType, RouteProvider, Trade};
 	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
 	use pallet_ema_oracle::Price;
+	use pallet_lbp::AssetId;
 	use pretty_assertions::assert_eq;
 	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 
@@ -1851,29 +1852,27 @@ mod chainlink_precompile {
 		});
 	}
 
-	#[test]
-	fn prices_should_be_comparable_with_dia() {
+	fn prices_should_be_comparable_with_dia(asset: AssetId, reference_oracle: EvmAddress) {
 		TestNet::reset();
 		hydra_live_ext("evm-snapshot/router").execute_with(|| {
-			let WBTC = 19;
-			let USDT = 10;
+			let base = 10;
 			let route = vec![
 				Trade {
 					pool: PoolType::Omnipool,
-					asset_in: WBTC,
+					asset_in: asset,
 					asset_out: 102,
 				},
 				Trade {
 					pool: PoolType::Stableswap(102),
 					asset_in: 102,
-					asset_out: USDT,
+					asset_out: base,
 				},
 			];
 			assert_ok!(Router::force_insert_route(
 				RuntimeOrigin::root(),
 				AssetPair {
-					asset_in: WBTC,
-					asset_out: USDT
+					asset_in: asset,
+					asset_out: base
 				},
 				BoundedVec::truncate_from(route)
 			));
@@ -1881,7 +1880,7 @@ mod chainlink_precompile {
 			let input = EvmDataWriter::new_with_selector(AggregatorInterface::LatestAnswer).build();
 
 			// kinda weird that asset order is reversed, would expect WBTC/USDT instead
-			let address = chainlink_adapter::encode_oracle_address(USDT, WBTC, OraclePeriod::TenMinutes, [0; 8]);
+			let address = chainlink_adapter::encode_oracle_address(base, asset, OraclePeriod::TenMinutes, [0; 8]);
 			let mut handle = MockHandle {
 				input: input.clone(),
 				context: Context {
@@ -1898,7 +1897,7 @@ mod chainlink_precompile {
 
 			let (.., output) = Executor::<Runtime>::view(
 				CallContext {
-					contract: hex!["eDD9A7C47A9F91a0F2db93978A88844167B4a04f"].into(),
+					contract: reference_oracle,
 					sender: Default::default(),
 					origin: Default::default(),
 				},
@@ -1910,6 +1909,16 @@ mod chainlink_precompile {
 			//TODO: shouldn't be exactly same, but comparable within 5%
 			assert_eq!(dia_price, precompile_price);
 		});
+	}
+
+	#[test]
+	fn dot_price_should_be_comparable() {
+		prices_should_be_comparable_with_dia(5, hex!["FBCa0A6dC5B74C042DF23025D99ef0F1fcAC6702"].into())
+	}
+
+	#[test]
+	fn bitcoin_price_should_be_comparable() {
+		prices_should_be_comparable_with_dia(19, hex!["eDD9A7C47A9F91a0F2db93978A88844167B4a04f"].into())
 	}
 }
 
