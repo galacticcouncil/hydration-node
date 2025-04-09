@@ -1195,11 +1195,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = T::VoteRemovalOrigin::ensure_origin(origin)?;
 			let target = T::Lookup::lookup(target)?;
-			let scope = if target == who {
-				crate::types::UnvoteScope::Any
-			} else {
-				crate::types::UnvoteScope::OnlyExpired
-			};
+			let scope = crate::types::UnvoteScope::Any;
 			Self::try_remove_vote(&target, index, scope, true)?;
 			Ok(())
 		}
