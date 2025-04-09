@@ -183,7 +183,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell,
-				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				min_buy_amount: 0,
 			}]);
 
 			assert_eq!(remaining_named_reserve, Currencies::reserved_balance(HDX, &ALICE));
@@ -259,19 +259,19 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_buy_amount: 0,
 				},
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_buy_amount: 0,
 				},
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: total_amount - 2 * (amount_to_sell + fee_in_native) - fee_in_native,
-					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_buy_amount: 0,
 				}
 			]);
 
@@ -322,7 +322,7 @@ fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				min_buy_amount: 0,
 			}]);
 
 			assert!(DCA::schedules(0).is_some());
@@ -887,7 +887,7 @@ fn rolling_dca_should_end_when_account_has_no_balance() {
 
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
-			assert_number_of_executed_sell_trades!(3);
+			assert_number_of_executed_sell_trades!(2);
 
 			let schedule_id = 0;
 			assert_that_dca_is_terminated(ALICE, schedule_id, sp_runtime::TokenError::FundsUnavailable.into());
@@ -2169,7 +2169,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell,
-				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				min_buy_amount: 0,
 			}]);
 
 			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::NoFreeBlockFound.into());

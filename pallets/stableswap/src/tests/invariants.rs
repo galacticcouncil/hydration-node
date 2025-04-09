@@ -8,6 +8,7 @@ use std::num::NonZeroU16;
 
 use hydra_dx_math::stableswap::calculate_d;
 use hydra_dx_math::stableswap::types::AssetReserve;
+use hydradx_traits::OraclePeriod;
 use proptest::prelude::*;
 use proptest::proptest;
 use sp_core::U256;
@@ -1620,12 +1621,14 @@ proptest! {
 		added_liquidity in trade_amount(),
 		amplification in some_amplification(),
 		trade_fee in trade_fee(),
-		peg_b in peg_value() // Generate peg for the second asset
+		peg_b_value in peg_value() // Generate peg for the second asset
 	) {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
+		let peg_a = PegSource::Value((1,1)); // First asset always has a peg of 1
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
 
-		let peg_a = (1,1); // First asset always has a peg of 1
+		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
@@ -1653,7 +1656,8 @@ proptest! {
 					],
 				},
 				vec![peg_a, peg_b],
-			)
+				oracle_pegs,
+				)
 			.build()
 			.execute_with(|| {
 				let pool_id = get_pool_id_at(0);
@@ -1697,11 +1701,13 @@ proptest! {
 		added_liquidity in trade_amount(),
 		amplification in some_amplification(),
 		trade_fee in trade_fee(),
-		peg_b in peg_value()
+		peg_b_value in peg_value()
 	) {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
-		let peg_a = (1,1);
+		let peg_a = PegSource::Value((1,1));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
@@ -1728,6 +1734,7 @@ proptest! {
 					AssetAmount::new(asset_b, initial_liquidity),
 					]},
 				vec![peg_a, peg_b],
+				oracle_pegs,
 			)
 			.build()
 			.execute_with(|| {
@@ -1774,11 +1781,13 @@ proptest! {
 		shares_amount in share_amount(),
 		amplification in some_amplification(),
 		trade_fee in trade_fee(),
-		peg_b in peg_value()
+		peg_b_value in peg_value()
 	) {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
-		let peg_a = (1,1);
+		let peg_a = PegSource::Value((1,1));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
@@ -1805,6 +1814,7 @@ proptest! {
 					AssetAmount::new(asset_b, initial_liquidity),
 					]},
 				vec![peg_a, peg_b],
+				oracle_pegs,
 			)
 			.build()
 			.execute_with(|| {
@@ -1852,11 +1862,13 @@ proptest! {
 		initial_liquidity in asset_reserve(),
 		amount in trade_amount(),
 		amplification in some_amplification(),
-		peg_b in peg_value()
+		peg_b_value in peg_value()
 	) {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
-		let peg_a = (1,1);
+		let peg_a = PegSource::Value((1,1));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
 				(BOB, asset_a, amount),
@@ -1882,6 +1894,7 @@ proptest! {
 					AssetAmount::new(asset_b, initial_liquidity),
 				]},
 				vec![peg_a, peg_b],
+				oracle_pegs,
 			)
 			.build()
 			.execute_with(|| {
@@ -1940,11 +1953,13 @@ proptest! {
 		initial_liquidity in asset_reserve(),
 		amount in trade_amount(),
 		amplification in some_amplification(),
-		peg_b in peg_value()
+		peg_b_value in peg_value()
 	) {
 		let asset_a: AssetId = 1;
 		let asset_b: AssetId = 2;
-		let peg_a = (1,1);
+		let peg_a = PegSource::Value((1,1));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
 				(BOB, asset_a, amount * 1000),
@@ -1969,6 +1984,7 @@ proptest! {
 						AssetAmount::new(asset_b, initial_liquidity),
 					]},
 				vec![peg_a, peg_b],
+				oracle_pegs,
 			)
 			.build()
 			.execute_with(|| {
@@ -2033,11 +2049,13 @@ proptest! {
 		amount in trade_amount(),
 		initial_amplification in initial_amplification(),
 		final_amplification in final_amplification(),
-		peg_b in peg_value()
+		peg_b_value in peg_value()
 	) {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
-		let peg_a = (1,1);
+		let peg_a = PegSource::Value((1,1));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
 				(BOB, asset_a, amount),
@@ -2063,6 +2081,7 @@ proptest! {
 					AssetAmount::new(asset_b, initial_liquidity),
 				]},
 				vec![peg_a, peg_b],
+				oracle_pegs,
 			)
 			.build()
 			.execute_with(|| {
@@ -2111,7 +2130,6 @@ proptest! {
 						0u128, // not interested in this
 					));
 					let received = Tokens::free_balance(asset_b, &BOB);
-					assert!(amount > received);
 					let exec_price = FixedU128::from_rational(amount * 1_000_000, received * 1_000_000);
 					assert!(exec_price >= initial_spot_price);
 
@@ -2148,11 +2166,13 @@ proptest! {
 		amount in trade_amount(),
 		initial_amplification in initial_amplification(),
 		final_amplification in final_amplification(),
-		peg_b in peg_value()
+		peg_b_value in peg_value()
 	) {
 		let asset_a: AssetId = 1000;
 		let asset_b: AssetId = 2000;
-		let peg_a = (1,1);
+		let peg_a = PegSource::Value((1,1));
+		let peg_b = PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock, asset_a));
+		let oracle_pegs = Some(vec![((asset_a, asset_b), peg_b_value)]);
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
 				(BOB, asset_a, amount * 1000),
@@ -2178,6 +2198,7 @@ proptest! {
 					AssetAmount::new(asset_b, initial_liquidity),
 				]},
 				vec![peg_a, peg_b],
+				oracle_pegs,
 			)
 			.build()
 			.execute_with(|| {

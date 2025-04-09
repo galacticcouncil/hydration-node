@@ -212,8 +212,9 @@ pub struct ExtBuilder {
 		AccountId,
 		PoolInfo<AssetId, u64>,
 		InitialLiquidity,
-		Option<Vec<PegType>>,
+		Option<Vec<PegSource<AssetId>>>,
 	)>,
+	oracle_pegs: Option<Vec<((AssetId, AssetId), PegType)>>,
 }
 
 impl Default for ExtBuilder {
@@ -234,6 +235,7 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![],
 			registered_assets: vec![],
 			created_pools: vec![],
+			oracle_pegs: None,
 		}
 	}
 }
@@ -271,9 +273,11 @@ impl ExtBuilder {
 		who: AccountId,
 		pool: PoolInfo<AssetId, u64>,
 		initial_liquidity: InitialLiquidity,
-		pegs: Vec<PegType>,
+		pegs: Vec<PegSource<AssetId>>,
+		pegs_values: Option<Vec<((AssetId, AssetId), PegType)>>,
 	) -> Self {
 		self.created_pools.push((who, pool, initial_liquidity, Some(pegs)));
+		self.oracle_pegs = pegs_values;
 		self
 	}
 
@@ -319,13 +323,10 @@ impl ExtBuilder {
 
 				if let Some(pegs) = pegs {
 					assert!(pegs.len() == pool.assets.len());
-					let first_peg = vec![PegSource::Value((1, 1))];
-					let peg_sources = vec![PegSource::Oracle((*b"testorac", OraclePeriod::LastBlock)); pegs.len() - 1];
-					let peg_sources = [first_peg, peg_sources].concat();
-
-					let first_asset = pool.assets[0];
-					for (peg, asset_id) in pegs.into_iter().zip(pool.assets.iter().skip(1)) {
-						set_peg_oracle_value(first_asset, *asset_id, peg, 0);
+					if let Some(ref pegs_values) = self.oracle_pegs {
+						for ((asset_a, asset_b), peg) in pegs_values.iter() {
+							set_peg_oracle_value(*asset_a, *asset_b, *peg, 0);
+						}
 					}
 
 					assert_ok!(Stableswap::create_pool_with_pegs(
@@ -334,7 +335,7 @@ impl ExtBuilder {
 						pool.assets.clone(),
 						pool.initial_amplification.get(),
 						pool.fee,
-						BoundedPegSources::truncate_from(peg_sources),
+						BoundedPegSources::truncate_from(pegs),
 						Permill::from_percent(100),
 					));
 				} else {
@@ -513,7 +514,7 @@ pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { .. }) = e {
+		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 { .. }) = e {
 			swapped_events.push(e);
 		}
 	}

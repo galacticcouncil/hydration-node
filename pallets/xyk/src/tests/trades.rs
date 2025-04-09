@@ -71,7 +71,7 @@ fn sell_test() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -135,7 +135,7 @@ fn execute_sell_should_use_event_id() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -442,7 +442,7 @@ fn sell_with_correct_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: user_1,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -660,13 +660,13 @@ fn single_buy_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped2 {
 				swapper: user_1,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(asset_b, 6_666_666)],
-				outputs: vec![Asset::new(asset_a, 22_068_963_235)],
+				inputs: vec![Asset::new(asset_b, 22_068_963_235)],
+				outputs: vec![Asset::new(asset_a, 6_666_666)],
 				fees: vec![Fee::new(asset_b, 44_137_926, Destination::Account(pair_account))],
 				operation_stack: vec![],
 			}
