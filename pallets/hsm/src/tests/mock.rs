@@ -42,6 +42,7 @@ use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, R
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::{BoundedPegSources, PegSource, PoolSnapshot};
+use sp_core::crypto::AccountId32;
 use sp_core::H256;
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
 use sp_runtime::BoundedVec;
@@ -384,11 +385,15 @@ impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
 	}
 
 	fn truncated_account_id(evm_address: EvmAddress) -> AccountId {
-		todo!()
+		let mut data: [u8; 32] = [0u8; 32];
+		data[0..4].copy_from_slice(b"ETH\0");
+		data[4..24].copy_from_slice(&evm_address[..]);
+		AccountId32::from(data).into()
 	}
 
 	fn bound_account_id(evm_address: EvmAddress) -> Option<AccountId> {
-		Some(AccountId::new([1; 32]))
+		None
+		//Some(AccountId::new([1; 32]))
 	}
 
 	fn account_id(evm_address: EvmAddress) -> AccountId {

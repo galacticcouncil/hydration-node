@@ -648,9 +648,15 @@ where
 		// 1. Calculate imbalance
 		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
 
+		dbg!(imbalance);
+		dbg!(collateral_info.b);
+
 		// 2. Calculate how much Hollar can HSM buy back in a single block
 		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
 
+		dbg!(buyback_limit);
+		dbg!(HollarAmountReceived::<T>::get(collateral_asset));
+		dbg!(hollar_amount);
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(
 			HollarAmountReceived::<T>::get(collateral_asset).saturating_add(hollar_amount) <= buyback_limit,
@@ -658,15 +664,28 @@ where
 		);
 
 		// 3. Calculate execution price by simulating a swap
-		let input_amount = Self::simulate_in_given_out(pool_id, collateral_asset, T::HollarId::get(), hollar_amount)?;
+		let input_amount = Self::simulate_in_given_out(
+			pool_id,
+			collateral_asset,
+			T::HollarId::get(),
+			hollar_amount,
+			Balance::MAX,
+			&pool_state,
+		)?;
+
+		dbg!(input_amount);
 
 		let execution_price = (input_amount, hollar_amount);
 
 		// 4. Calculate final buy price with fee
 		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
+		dbg!(buy_price);
 
 		// 5. Calculate amount of collateral to receive
-		let collateral_amount = crate::math::calculate_collateral_amount(hollar_amount, buy_price)?;
+		let collateral_amount =
+			crate::math::calculate_collateral_amount(hollar_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
+
+		dbg!(collateral_amount);
 
 		// 6. Calculate max price
 		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
@@ -766,8 +785,14 @@ where
 		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
 
 		// 3. Calculate execution price by simulating a swap
-		let hollar_amount =
-			Self::simulate_out_given_in(pool_id, collateral_asset, T::HollarId::get(), collateral_amount)?;
+		let hollar_amount = Self::simulate_out_given_in(
+			pool_id,
+			collateral_asset,
+			T::HollarId::get(),
+			collateral_amount,
+			0,
+			&pool_state,
+		)?;
 
 		// Create a PegType for execution price (hollar_amount/collateral_amount)
 		let execution_price = (hollar_amount, collateral_amount);
@@ -889,7 +914,8 @@ where
 		let purchase_price = crate::math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
 		// 2. Calculate amount of collateral needed
-		let collateral_amount = crate::math::calculate_collateral_amount(hollar_amount, purchase_price)?;
+		let collateral_amount =
+			crate::math::calculate_collateral_amount(hollar_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
 
 		// Check user has enough collateral
 		ensure!(
@@ -974,8 +1000,18 @@ where
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount_in: Balance,
+		min_amount_out: Balance,
+		pool_state: &PoolSnapshot<T::AssetId>,
 	) -> Result<Balance, DispatchError> {
-		Ok(0u128)
+		let (amount_out, _) = pallet_stableswap::Pallet::<T>::simulate_sell(
+			pool_id,
+			asset_in,
+			asset_out,
+			amount_in,
+			min_amount_out,
+			None,
+		)?;
+		Ok(amount_out)
 	}
 
 	fn simulate_in_given_out(
@@ -983,8 +1019,18 @@ where
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount_out: Balance,
+		max_amount_in: Balance,
+		pool_state: &PoolSnapshot<T::AssetId>,
 	) -> Result<Balance, DispatchError> {
-		Ok(0u128)
+		let (amount_in, _) = pallet_stableswap::Pallet::<T>::simulate_buy(
+			pool_id,
+			asset_in,
+			asset_out,
+			amount_out,
+			max_amount_in,
+			Some(pool_state.clone()),
+		)?;
+		Ok(amount_in)
 	}
 
 	/// Process arbitrage opportunities for all collateral assets
@@ -1084,7 +1130,14 @@ where
 
 		// Simulate swap to determine execution price
 		// How much collateral asset we need to sell to buy max_buy_amt of Hollar
-		let sell_amt = Self::simulate_in_given_out(pool_id, collateral_asset_id, hollar_id, max_buy_amt)?;
+		let sell_amt = Self::simulate_in_given_out(
+			pool_id,
+			collateral_asset_id,
+			hollar_id,
+			max_buy_amt,
+			Balance::MAX,
+			&pool_state,
+		)?;
 
 		// Execution price is p_i = sell_amt / max_buy_amt
 		let execution_price = (sell_amt, max_buy_amt);

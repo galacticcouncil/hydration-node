@@ -1866,3 +1866,101 @@ impl<T: Config> Pallet<T> {
 		Ok(r)
 	}
 }
+
+// Simluation support
+impl<T: Config> Pallet<T> {
+	pub fn simulate_sell(
+		pool_id: T::AssetId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_in: Balance,
+		min_buy_amount: Balance,
+		use_snapshot: Option<PoolSnapshot<T::AssetId>>,
+	) -> Result<(Balance, PoolSnapshot<T::AssetId>), DispatchError> {
+		let snapshot = if let Some(snapshot) = use_snapshot {
+			snapshot
+		} else {
+			// if not snaphost, get current pool state
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			todo!()
+		};
+
+		let index_in = snapshot.asset_idx(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
+		let index_out = snapshot.asset_idx(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
+		//let pool_account = Self::pool_account(pool_id);
+		let initial_reserves = &snapshot.reserves;
+
+		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(
+			!initial_reserves[index_out].is_zero(),
+			Error::<T>::InsufficientLiquidity
+		);
+
+		let amplification = snapshot.amplification;
+		let (trade_fee, asset_pegs) = (snapshot.fee, &snapshot.pegs);
+
+		let (amount_out, _) = hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+			initial_reserves,
+			index_in,
+			index_out,
+			amount_in,
+			amplification,
+			trade_fee,
+			&asset_pegs,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(amount_out >= min_buy_amount, Error::<T>::SlippageLimit);
+
+		//todo: in future, update state and return it
+		let updated_pool_state = snapshot;
+
+		Ok((amount_out, updated_pool_state))
+	}
+
+	pub fn simulate_buy(
+		pool_id: T::AssetId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_out: Balance,
+		max_amount_in: Balance,
+		use_snapshot: Option<PoolSnapshot<T::AssetId>>,
+	) -> Result<(Balance, PoolSnapshot<T::AssetId>), DispatchError> {
+		let snapshot = if let Some(snapshot) = use_snapshot {
+			snapshot
+		} else {
+			// if not snaphost, get current pool state
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			todo!()
+		};
+
+		let index_in = snapshot.asset_idx(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
+		let index_out = snapshot.asset_idx(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
+		//let pool_account = Self::pool_account(pool_id);
+		let initial_reserves = &snapshot.reserves;
+		ensure!(
+			initial_reserves[index_out].amount > amount_out,
+			Error::<T>::InsufficientLiquidity
+		);
+		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
+
+		let amplification = snapshot.amplification;
+		let (trade_fee, asset_pegs) = (snapshot.fee, &snapshot.pegs);
+		let (amount_in, _) = hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+			initial_reserves,
+			index_in,
+			index_out,
+			amount_out,
+			amplification,
+			trade_fee,
+			asset_pegs,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(amount_in <= max_amount_in, Error::<T>::SlippageLimit);
+
+		//todo: in future, update state an return
+		let update_pool_state = snapshot;
+		Ok((amount_in, update_pool_state))
+	}
+}

@@ -1,6 +1,7 @@
 use crate::types::Balance;
-use sp_runtime::Saturating;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{ArithmeticError, Perbill, Permill};
+use sp_runtime::{Rounding, Saturating};
 
 /// Peg type is a ratio of (numerator, denominator)
 pub type PegType = (Balance, Balance);
@@ -101,11 +102,8 @@ pub fn calculate_max_buy_price(peg: PegType, coefficient: Permill) -> PegType {
 
 /// Calculate how much collateral asset user receives for amount of Hollar
 /// ΔR_i = p * ΔH
-pub fn calculate_collateral_amount(hollar_amount: Balance, price: PegType) -> Result<Balance, ArithmeticError> {
-	// Convert price to a value by dividing numerator by denominator
-	let price_value = price.0.checked_div(price.1).ok_or(ArithmeticError::DivisionByZero)?;
-
-	hollar_amount.checked_mul(price_value).ok_or(ArithmeticError::Overflow)
+pub fn calculate_collateral_amount(hollar_amount: Balance, price: PegType) -> Option<Balance> {
+	multiply_by_rational_with_rounding(hollar_amount, price.0, price.1, Rounding::Down)
 }
 
 /// Scale an amount to 18 decimals
