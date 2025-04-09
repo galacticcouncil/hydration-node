@@ -278,11 +278,16 @@ fn sell_with_insufficient_balance_fails() {
 #[test]
 fn sell_hollar_with_max_buy_price_exceeded_fails() {
 	setup_test_with_dai_collateral().execute_with(|| {
-		// Set initial collateral holdings for HSM
-		CollateralHoldings::<Test>::insert(DAI, 100 * ONE);
-
-		// Set a peg oracle value that makes the price too high
-		set_peg_oracle_value(HOLLAR, DAI, (150, 100), 1);
+		// SEt max hollar price to lower than current price
+		assert_ok!(HSM::update_collateral_asset(
+			RuntimeOrigin::root(),
+			DAI,
+			None,
+			Some((90, 100)),
+			None,
+			None,
+			Some(Some(10 * ONE)), // Set max holding to a low value
+		));
 
 		// Try to sell HOLLAR, should fail due to max buy price exceeded
 		assert_err!(
