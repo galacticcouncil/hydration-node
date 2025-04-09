@@ -648,15 +648,9 @@ where
 		// 1. Calculate imbalance
 		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
 
-		dbg!(imbalance);
-		dbg!(collateral_info.b);
-
 		// 2. Calculate how much Hollar can HSM buy back in a single block
 		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
 
-		dbg!(buyback_limit);
-		dbg!(HollarAmountReceived::<T>::get(collateral_asset));
-		dbg!(hollar_amount);
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(
 			HollarAmountReceived::<T>::get(collateral_asset).saturating_add(hollar_amount) <= buyback_limit,
@@ -673,19 +667,14 @@ where
 			&pool_state,
 		)?;
 
-		dbg!(input_amount);
-
 		let execution_price = (input_amount, hollar_amount);
 
 		// 4. Calculate final buy price with fee
 		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
-		dbg!(buy_price);
 
 		// 5. Calculate amount of collateral to receive
 		let collateral_amount =
 			crate::math::calculate_collateral_amount(hollar_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
-
-		dbg!(collateral_amount);
 
 		// 6. Calculate max price
 		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
@@ -729,7 +718,7 @@ where
 
 		// 4. Update HSM holdings
 		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
-			*balance = balance.saturating_sub(collateral_amount); //TODO: this should decrease!
+			*balance = balance.saturating_sub(collateral_amount);
 		});
 
 		// 5. Update Hollar amount received in this block

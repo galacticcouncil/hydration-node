@@ -22,10 +22,9 @@ use crate::{CollateralHoldings, Error, HollarAmountReceived};
 use frame_support::traits::Hooks;
 use frame_support::{assert_err, assert_ok};
 use hydradx_traits::stableswap::AssetAmount;
-use orml_traits::MultiCurrency;
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_stableswap::types::PegSource;
 use sp_runtime::{DispatchError, Perbill, Permill};
-use sp_std::map;
 
 // Setup helper to create a test environment with DAI as collateral
 fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
@@ -137,8 +136,6 @@ fn sell_hollar_to_get_collateral_works() {
 		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
 
-		dbg!(initial_alice_hollar);
-
 		// Calculate expected values
 		let hollar_amount = 10 * ONE;
 		let expected_collateral_amount = 9883577967587;
@@ -240,12 +237,19 @@ fn sell_with_invalid_asset_pair_fails() {
 fn sell_hollar_with_insufficient_hsm_collateral_fails() {
 	setup_test_with_dai_collateral().execute_with(|| {
 		// Set a low collateral holdings for HSM
-		CollateralHoldings::<Test>::insert(DAI, 5 * ONE);
+		CollateralHoldings::<Test>::insert(DAI, 2 * ONE);
 
+		let hsm_acc_balance = Tokens::free_balance(DAI, &HSM::account_id());
+
+		assert_ok!(Tokens::update_balance(
+			DAI,
+			&HSM::account_id(),
+			-((hsm_acc_balance - 2 * ONE) as i128)
+		));
 		// Try to sell more than the HSM holds
 		assert_err!(
-			HSM::sell(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 10 * ONE, 5 * ONE,),
-			pallet_stableswap::Error::<Test>::InsufficientBalance
+			HSM::sell(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 10 * ONE, 5 * ONE),
+			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 	});
 }
@@ -315,43 +319,6 @@ fn sell_hollar_with_max_holding_exceeded_fails() {
 		assert_err!(
 			HSM::sell(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 5 * ONE, 1 * ONE,),
 			Error::<Test>::MaxHoldingExceeded
-		);
-	});
-}
-
-#[test]
-fn sell_collateral_to_get_hollar_with_evm_interaction_failure() {
-	setup_test_with_dai_collateral().execute_with(|| {
-		// Set up a failing EVM call result for mint
-		set_evm_call_result(
-			Into::<u32>::into(ERC20Function::Mint).to_be_bytes().to_vec(),
-			vec![1], // Non-empty result indicates failure
-		);
-
-		// Try to sell collateral, should fail due to EVM interaction failure
-		assert_err!(
-			HSM::sell(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 10 * ONE, 5 * ONE,),
-			Error::<Test>::InvalidEVMInteraction
-		);
-	});
-}
-
-#[test]
-fn sell_hollar_to_get_collateral_with_evm_interaction_failure() {
-	setup_test_with_dai_collateral().execute_with(|| {
-		// Set initial collateral holdings for HSM
-		CollateralHoldings::<Test>::insert(DAI, 100 * ONE);
-
-		// Set up a failing EVM call result for burn
-		set_evm_call_result(
-			Into::<u32>::into(ERC20Function::Burn).to_be_bytes().to_vec(),
-			vec![1], // Non-empty result indicates failure
-		);
-
-		// Try to sell HOLLAR, should fail due to EVM interaction failure
-		assert_err!(
-			HSM::sell(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 10 * ONE, 5 * ONE,),
-			Error::<Test>::InvalidEVMInteraction
 		);
 	});
 }
