@@ -792,11 +792,15 @@ where
 		// 5. Calculate amount of Hollar to pay
 		let hollar_amount_to_pay = crate::math::calculate_hollar_amount(collateral_amount, buy_price)?;
 
+		dbg!(buyback_limit, hollar_amount_to_pay);
+
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(buyback_limit > hollar_amount_to_pay, Error::<T>::MaxBuyBackExceeded);
 
 		// 6. Calculate max price
 		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+		dbg!(max_price);
+		dbg!(buy_price);
 
 		// Check if price exceeds max price - compare the ratios
 		// For (a,b) <= (c,d), we check a*d <= b*c
@@ -998,7 +1002,7 @@ where
 			asset_out,
 			amount_in,
 			min_amount_out,
-			None,
+			Some(pool_state.clone()),
 		)?;
 		Ok(amount_out)
 	}

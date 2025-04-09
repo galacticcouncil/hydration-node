@@ -27,9 +27,9 @@ pub mod evm_tests;
 
 // Test modules for core functionality
 pub mod sell_tests;
+pub mod buy_tests;
 
 // Any test modules should be declared here
 // For example:
 // pub mod collateral_tests;
-// pub mod buy_tests;
 // pub mod arbitrage_tests;

@@ -40,6 +40,9 @@ pub fn calculate_imbalance(
 	peg: PegType,
 	collateral_reserve: Balance,
 ) -> Result<Balance, ArithmeticError> {
+	//TODO: handler negative imbalance correctly
+
+
 	// Convert peg to a price by dividing numerator by denominator
 	let peg_price = peg.0.checked_div(peg.1).ok_or(ArithmeticError::DivisionByZero)?;
 
