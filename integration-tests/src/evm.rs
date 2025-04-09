@@ -1259,15 +1259,17 @@ mod currency_precompile {
 
 mod chainlink_precompile {
 	use super::*;
-	use ethabi::ethereum_types::U256;
+	use ethabi::ethereum_types::{U128, U256};
+	use fp_evm::PrecompileFailure;
 	use frame_support::assert_ok;
 	use frame_support::sp_runtime::{FixedPointNumber, FixedU128};
 	use hex_literal::hex;
+	use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 	use hydradx_runtime::evm::precompiles::chainlink_adapter;
 	use hydradx_runtime::evm::Executor;
 	use hydradx_runtime::{
 		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
-		EmaOracle, Router, Runtime,
+		EmaOracle, Inspect, Router, Runtime,
 	};
 	use hydradx_traits::evm::EVM;
 	use hydradx_traits::evm::{CallContext, EvmAddress};
@@ -1278,9 +1280,25 @@ mod chainlink_precompile {
 	use pretty_assertions::assert_eq;
 	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 
-	fn assert_prices_are_same(ema_price: Price, precompile_price: U256) {
+	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, asset_a_decimals: u8, asset_b_decimals: u8) {
+		/// EMA price does not take into account decimals of the asset. Adjust the price accordingly.
+		let decimals_diff = U128::from(asset_a_decimals.abs_diff(asset_b_decimals));
+		let adjusted_price = if asset_a_decimals > asset_b_decimals {
+			let nominator = U256::from(ema_price.n);
+			let denominator = U128::full_mul(ema_price.d.into(), U128::from(10u128).pow(decimals_diff));
+
+			round_to_rational((nominator, denominator), Rounding::Nearest).into()
+		} else if asset_b_decimals > asset_a_decimals {
+			let nominator = U128::full_mul(ema_price.n.into(), U128::from(10u128).pow(decimals_diff));
+			let denominator = U256::from(ema_price.d);
+
+			round_to_rational((nominator, denominator), Rounding::Nearest).into()
+		} else {
+			ema_price
+		};
+
 		let decimals = 8u32;
-		let fixed_price_int = FixedU128::checked_from_rational(ema_price.n, ema_price.d)
+		let fixed_price_int = FixedU128::checked_from_rational(adjusted_price.n, adjusted_price.d)
 			.unwrap()
 			.checked_mul_int(10_u128.pow(decimals))
 			.unwrap();
@@ -1351,7 +1369,14 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
+			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			assert_prices_are_same(
+				ema_price,
+				U256::from_big_endian(&output),
+				asset_a_decimals,
+				asset_b_decimals,
+			);
 		});
 	}
 
@@ -1418,7 +1443,14 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
+			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			assert_prices_are_same(
+				ema_price,
+				U256::from_big_endian(&output),
+				asset_a_decimals,
+				asset_b_decimals,
+			);
 		});
 	}
 
@@ -1484,7 +1516,14 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
+			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			assert_prices_are_same(
+				ema_price,
+				U256::from_big_endian(&output),
+				asset_a_decimals,
+				asset_b_decimals,
+			);
 		});
 	}
 
@@ -1550,7 +1589,14 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
+			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			assert_prices_are_same(
+				ema_price,
+				U256::from_big_endian(&output),
+				asset_a_decimals,
+				asset_b_decimals,
+			);
 		});
 	}
 
@@ -1667,7 +1713,14 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
+			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			assert_prices_are_same(
+				ema_price,
+				U256::from_big_endian(&output),
+				asset_a_decimals,
+				asset_b_decimals,
+			);
 		});
 	}
 
@@ -1784,7 +1837,14 @@ mod chainlink_precompile {
 			//Assert
 			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
 
-			assert_prices_are_same(ema_price, U256::from_big_endian(&output));
+			let asset_a_decimals = hydradx_runtime::AssetRegistry::decimals(HDX).unwrap();
+			let asset_b_decimals = hydradx_runtime::AssetRegistry::decimals(DOT).unwrap();
+			assert_prices_are_same(
+				ema_price,
+				U256::from_big_endian(&output),
+				asset_a_decimals,
+				asset_b_decimals,
+			);
 		});
 	}
 
@@ -1854,6 +1914,7 @@ mod chainlink_precompile {
 
 	fn prices_should_be_comparable_with_dia(asset: AssetId, reference_oracle: EvmAddress) {
 		TestNet::reset();
+		// ./target/release/scraper save-storage --pallet AssetRegistry EmaOracle Router EVM --uri wss://rpc.hydradx.cloud --at 0x8c5aaf89eb976d1b1f9c12e517bf33bbc1f34c05b76811a288fd6e7912ff2bbc
 		hydra_live_ext("evm-snapshot/router").execute_with(|| {
 			let base = 10;
 			let route = vec![
@@ -1906,14 +1967,21 @@ mod chainlink_precompile {
 			);
 			let dia_price = U256::from(output.as_slice());
 
-			//TODO: shouldn't be exactly same, but comparable within 5%
-			assert_eq!(dia_price, precompile_price);
+			// Prices doesn't need to be exactly same, but comparable within 5%
+			let tolerance = dia_price
+				.checked_mul(5.into())
+				.unwrap()
+				.checked_div(100.into())
+				.unwrap();
+			let price_diff = dia_price.abs_diff(precompile_price);
+			assert!(price_diff < tolerance);
 		});
 	}
 
 	#[test]
 	fn dot_price_should_be_comparable() {
 		prices_should_be_comparable_with_dia(5, hex!["FBCa0A6dC5B74C042DF23025D99ef0F1fcAC6702"].into())
+		// 336479050
 	}
 
 	#[test]

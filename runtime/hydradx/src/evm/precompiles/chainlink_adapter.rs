@@ -12,7 +12,7 @@ use codec::{Decode, Encode, EncodeLike};
 use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
-use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
+use hydra_dx_math::support::rational::{round_to_rational, round_u512_to_rational, Rounding};
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_traits::{
 	oracle::PriceOracle,
@@ -22,7 +22,7 @@ use hydradx_traits::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use primitive_types::{H160, U256, U512};
+use primitive_types::{H160, U128, U256, U512};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
 use sp_std::marker::PhantomData;
@@ -148,18 +148,10 @@ where
 				)?;
 			log::debug!(target: "evm", "chainlink: base asset: {:?}, quote asset: {:?}, price: {:?}, source {:?}", LRNA::get(), asset_id_b, asset_b_price, source);
 
-			let nominator = U512::from(asset_a_price.n)
-				.checked_mul(U512::from(asset_b_price.d))
-				.ok_or(PrecompileFailure::Error {
-					exit_status: pallet_evm::ExitError::Other("Price conversion failed.".into()),
-				})?;
-			let denominator = U512::from(asset_a_price.d)
-				.checked_mul(U512::from(asset_b_price.n))
-				.ok_or(PrecompileFailure::Error {
-					exit_status: pallet_evm::ExitError::Other("Price conversion failed.".into()),
-				})?;
+			let nominator = U128::full_mul(asset_a_price.n.into(), asset_b_price.d.into());
+			let denominator = U128::full_mul(asset_a_price.d.into(), asset_b_price.n.into());
 
-			let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
+			let rat_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
 
 			Price::from(rat_as_u128)
 		} else {
@@ -173,8 +165,39 @@ where
 			price
 		};
 
+		let asset_a_decimals =
+			<pallet_asset_registry::Pallet<Runtime>>::decimals(asset_id_a.into()).ok_or(PrecompileFailure::Error {
+				exit_status: pallet_evm::ExitError::Other("Decimals not available".into()),
+			})?;
+		let asset_b_decimals =
+			<pallet_asset_registry::Pallet<Runtime>>::decimals(asset_id_b.into()).ok_or(PrecompileFailure::Error {
+				exit_status: pallet_evm::ExitError::Other("Decimals not available".into()),
+			})?;
+
+		let decimals_diff = U128::from(asset_a_decimals.abs_diff(asset_b_decimals));
+		let decimals_adjustment =
+			U128::from(10u128)
+				.checked_pow(decimals_diff.into())
+				.ok_or(PrecompileFailure::Error {
+					exit_status: pallet_evm::ExitError::Other("Price conversion failed".into()),
+				})?;
+
+		let price = if asset_a_decimals > asset_b_decimals {
+			let nominator = U256::from(price.n);
+			let denominator = U128::full_mul(price.d.into(), decimals_adjustment);
+
+			round_to_rational((nominator, denominator), Rounding::Nearest).into()
+		} else if asset_b_decimals > asset_a_decimals {
+			let nominator = U128::full_mul(price.n.into(), decimals_adjustment);
+			let denominator = U256::from(price.d);
+
+			round_to_rational((nominator, denominator), Rounding::Nearest).into()
+		} else {
+			price
+		};
+
 		// return value should be int256, but the price is always a positive number so we can use uint256
-		let price_u256 = normalize_price_to_u256(price)?;
+		let price_u256 = convert_price_to_u256(price)?;
 		let encoded = Output::encode_uint::<U256>(price_u256);
 
 		Ok(succeed(encoded))
@@ -196,17 +219,12 @@ pub fn is_oracle_address(address: H160) -> bool {
 /// Converts pallet_ema_oracle::Price to U256. The price is stored as one integer: integer part + fractional part.
 /// The fractional part contains 8 decimals.
 /// E.g. 7.1234 is stored as 712_340_000.
-fn normalize_price_to_u256(price: Price) -> Result<U256, PrecompileFailure> {
-	let decimals: usize = 8;
-
-	U256::exp10(decimals)
-		.checked_mul(price.n.into())
-		.ok_or(PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::Other("Price conversion failed.".into()),
-		})?
+fn convert_price_to_u256(price: Price) -> Result<U256, PrecompileFailure> {
+	U128::from(100_000_000) // 8 decimals
+		.full_mul(price.n.into())
 		.checked_div(price.d.into())
 		.ok_or(PrecompileFailure::Error {
-			exit_status: pallet_evm::ExitError::Other("Price conversion failed.".into()),
+			exit_status: pallet_evm::ExitError::Other("Price conversion failed".into()),
 		})
 }
 
@@ -217,7 +235,7 @@ fn normalize_price_to_u256_should_work() {
 		n: 111_222_333_444_555u128,
 		d: 1_000u128,
 	};
-	let price_u256 = normalize_price_to_u256(price).unwrap();
+	let price_u256 = convert_price_to_u256(price).unwrap();
 	assert_eq!(price_u256, 11_122_233_344_455_500_000u128.into());
 
 	// price = 111_222_333.111222333
@@ -225,7 +243,7 @@ fn normalize_price_to_u256_should_work() {
 		n: 111_222_333_111_222_333u128,
 		d: 1_000_000_000u128,
 	};
-	let price_u256 = normalize_price_to_u256(price).unwrap();
+	let price_u256 = convert_price_to_u256(price).unwrap();
 	assert_eq!(price_u256, 11_122_233_311_122_233u128.into());
 
 	// price = 0.1234
@@ -233,7 +251,7 @@ fn normalize_price_to_u256_should_work() {
 		n: 1_234u128,
 		d: 10_000u128,
 	};
-	let price_u256 = normalize_price_to_u256(price).unwrap();
+	let price_u256 = convert_price_to_u256(price).unwrap();
 	assert_eq!(price_u256, 12_340_000u128.into());
 
 	// price = 0.000001234
@@ -241,7 +259,7 @@ fn normalize_price_to_u256_should_work() {
 		n: 1_234u128,
 		d: 1_000_000_000u128,
 	};
-	let price_u256 = normalize_price_to_u256(price).unwrap();
+	let price_u256 = convert_price_to_u256(price).unwrap();
 	assert_eq!(price_u256, 123u128.into());
 }
 /// Encoding is 3 bytes for precompile prefix 0x000001,
