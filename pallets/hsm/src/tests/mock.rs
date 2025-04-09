@@ -368,10 +368,13 @@ pub struct MockEvmAccounts;
 
 fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 	let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
+	let bob_evm = EvmAddress::from_slice(&BOB.as_slice()[0..20]);
 	let hsm_evm = EvmAddress::from_slice(&HSM::account_id().as_slice()[0..20]);
 
 	if evm_addr == alice_evm {
 		ALICE
+	} else if evm_addr == bob_evm {
+		BOB
 	} else if evm_addr == hsm_evm {
 		HSM::account_id()
 	} else {
