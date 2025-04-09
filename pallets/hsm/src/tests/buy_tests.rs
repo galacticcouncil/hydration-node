@@ -247,7 +247,7 @@ fn buy_collateral_with_insufficient_hsm_collateral_fails() {
 		// Try to buy more than the HSM holds
 		assert_err!(
 			HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 3 * ONE, 10 * ONE),
-			pallet_stableswap::Error::<Test>::InsufficientBalance
+			Error::<Test>::InsufficientCollateralBalance
 		);
 	});
 }
@@ -265,7 +265,7 @@ fn buy_hollar_with_insufficient_balance_fails() {
 		// Try to buy more than ALICE has
 		assert_err!(
 			HSM::buy(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 10 * ONE, 20 * ONE),
-			pallet_stableswap::Error::<Test>::InsufficientBalance
+			Error::<Test>::InsufficientCollateralBalance
 		);
 	});
 }
@@ -274,19 +274,12 @@ fn buy_hollar_with_insufficient_balance_fails() {
 fn buy_collateral_with_insufficient_hollar_balance_fails() {
 	setup_test_with_dai_collateral().execute_with(|| {
 		// Ensure HSM has collateral
-		CollateralHoldings::<Test>::insert(DAI, 100 * ONE);
-
-		// Set a low HOLLAR balance for ALICE
-		assert_ok!(Tokens::update_balance(
-			HOLLAR,
-			&ALICE,
-			-((Tokens::free_balance(HOLLAR, &ALICE) - ONE) as i128)
-		));
+		CollateralHoldings::<Test>::insert(DAI, ONE);
 
 		// Try to buy more than ALICE has HOLLAR for
 		assert_err!(
 			HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 10 * ONE, 20 * ONE),
-			pallet_stableswap::Error::<Test>::InsufficientBalance
+			Error::<Test>::InsufficientCollateralBalance
 		);
 	});
 }

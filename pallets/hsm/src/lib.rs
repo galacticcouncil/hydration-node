@@ -222,6 +222,8 @@ pub mod pallet {
 		AssetNotInPool,
 		/// Hollar is not in the pool
 		HollarNotInPool,
+		/// Insufficient collateral balance
+		InsufficientCollateralBalance,
 	}
 
 	#[pallet::hooks]
@@ -807,7 +809,7 @@ where
 		let current_holding = CollateralHoldings::<T>::get(collateral_asset);
 		ensure!(
 			current_holding >= collateral_amount,
-			pallet_stableswap::Error::<T>::InsufficientBalance
+			Error::<T>::InsufficientCollateralBalance
 		);
 
 		// Execute the swap
@@ -923,8 +925,16 @@ where
 		ensure!(
 			<T as Config>::Currency::reducible_balance(collateral_asset, who, Preservation::Protect, Fortitude::Polite)
 				>= collateral_amount,
-			pallet_stableswap::Error::<T>::InsufficientBalance
+			Error::<T>::InsufficientCollateralBalance
 		);
+
+		if let Some(max_holding) = collateral_info.max_in_holding {
+			let current_holding = CollateralHoldings::<T>::get(collateral_asset);
+			ensure!(
+				current_holding.saturating_add(collateral_amount) <= max_holding,
+				Error::<T>::MaxHoldingExceeded
+			);
+		}
 
 		// Execute the "swap"
 		// 1. Transfer collateral from user to HSM
