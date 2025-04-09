@@ -20,8 +20,8 @@
 
 use crate as pallet_hsm;
 use crate::types::CallResult;
-use crate::Config;
 use crate::ERC20Function;
+use crate::{pallet, Config};
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
 use evm::{ExitError, ExitReason, ExitSucceed};
@@ -43,7 +43,7 @@ use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::{BoundedPegSources, PegSource, PoolSnapshot};
 use sp_core::crypto::AccountId32;
-use sp_core::H256;
+use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
 use sp_runtime::BoundedVec;
 use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Permill};
@@ -364,9 +364,18 @@ impl EVM<CallResult> for MockEvm {
 // Mock EvmAccounts implementation
 pub struct MockEvmAccounts;
 
-impl MockEvmAccounts {
-	fn _is_evm_account(account_id: &[u8; 32]) -> bool {
-		&account_id[0..4] == b"ETH\0" && account_id[24..32] == [0u8; 8]
+//pub const ALICE: AccountId = AccountId::new([1; 32]);
+
+fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
+	let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
+	let hsm_evm = EvmAddress::from_slice(&HSM::account_id().as_slice()[0..20]);
+
+	if evm_addr == alice_evm {
+		ALICE
+	} else if evm_addr == hsm_evm {
+		HSM::account_id()
+	} else {
+		panic!("not assigned")
 	}
 }
 
@@ -377,35 +386,28 @@ impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
 
 	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
 		let acc = account_id.as_ref();
-		if Self::_is_evm_account(acc) {
-			EvmAddress::from_slice(&acc[4..24])
-		} else {
-			EvmAddress::from_slice(&acc[..20])
-		}
+		EvmAddress::from_slice(&acc[..20])
 	}
 
 	fn truncated_account_id(evm_address: EvmAddress) -> AccountId {
-		let mut data: [u8; 32] = [0u8; 32];
-		data[0..4].copy_from_slice(b"ETH\0");
-		data[4..24].copy_from_slice(&evm_address[..]);
-		AccountId32::from(data).into()
+		unimplemented!()
 	}
 
 	fn bound_account_id(evm_address: EvmAddress) -> Option<AccountId> {
-		None
-		//Some(AccountId::new([1; 32]))
+		unimplemented!()
 	}
 
 	fn account_id(evm_address: EvmAddress) -> AccountId {
-		Self::bound_account_id(evm_address).unwrap_or_else(|| Self::truncated_account_id(evm_address))
+		map_to_acc(evm_address)
+		//Self::bound_account_id(evm_address).unwrap_or_else(|| Self::truncated_account_id(evm_address))
 	}
 
 	fn can_deploy_contracts(evm_address: EvmAddress) -> bool {
-		todo!()
+		unimplemented!()
 	}
 
 	fn is_approved_contract(address: EvmAddress) -> bool {
-		todo!()
+		unimplemented!()
 	}
 }
 

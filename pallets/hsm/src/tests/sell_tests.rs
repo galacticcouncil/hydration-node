@@ -25,6 +25,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use pallet_stableswap::types::PegSource;
 use sp_runtime::{DispatchError, Perbill, Permill};
+use sp_std::map;
 
 // Setup helper to create a test environment with DAI as collateral
 fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
@@ -261,8 +262,8 @@ fn sell_with_insufficient_balance_fails() {
 
 		// Try to sell DAI
 		assert_err!(
-			HSM::sell(RuntimeOrigin::signed(CHARLIE), DAI, HOLLAR, 10 * ONE, 5 * ONE,),
-			pallet_stableswap::Error::<Test>::InsufficientBalance
+			HSM::sell(RuntimeOrigin::signed(CHARLIE), DAI, HOLLAR, 10 * ONE, 5 * ONE),
+			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 
 		// CHARLIE has no HOLLAR either
@@ -271,7 +272,7 @@ fn sell_with_insufficient_balance_fails() {
 		// Try to sell HOLLAR
 		assert_err!(
 			HSM::sell(RuntimeOrigin::signed(CHARLIE), HOLLAR, DAI, 10 * ONE, 5 * ONE,),
-			pallet_stableswap::Error::<Test>::InsufficientBalance
+			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 	});
 }
