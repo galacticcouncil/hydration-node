@@ -42,7 +42,7 @@ use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
 
-fn with_aave(execution: impl FnOnce()) {
+pub fn with_aave(execution: impl FnOnce()) {
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {

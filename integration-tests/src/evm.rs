@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use crate::aave_router::with_aave;
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
@@ -1259,13 +1260,21 @@ mod currency_precompile {
 mod chainlink_precompile {
 	use super::*;
 	use ethabi::ethereum_types::U256;
+	use frame_support::assert_ok;
 	use frame_support::sp_runtime::{FixedPointNumber, FixedU128};
+	use hex_literal::hex;
+	use hydradx_runtime::evm::precompiles::chainlink_adapter;
+	use hydradx_runtime::evm::Executor;
 	use hydradx_runtime::{
 		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
-		EmaOracle, Router,
+		EmaOracle, Router, Runtime,
 	};
+	use hydradx_traits::evm::CallContext;
+	use hydradx_traits::evm::EVM;
+	use hydradx_traits::router::{PoolType, RouteProvider, Trade};
 	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
 	use pallet_ema_oracle::Price;
+	use pretty_assertions::assert_eq;
 	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 
 	fn assert_prices_are_same(ema_price: Price, precompile_price: U256) {
@@ -1839,6 +1848,67 @@ mod chainlink_precompile {
 					"000001026f6d6e69706f6f6c0000000400000005"
 				)))
 			);
+		});
+	}
+
+	#[test]
+	fn prices_should_be_comparable_with_dia() {
+		TestNet::reset();
+		hydra_live_ext("evm-snapshot/router").execute_with(|| {
+			let WBTC = 19;
+			let USDT = 10;
+			let route = vec![
+				Trade {
+					pool: PoolType::Omnipool,
+					asset_in: WBTC,
+					asset_out: 102,
+				},
+				Trade {
+					pool: PoolType::Stableswap(102),
+					asset_in: 102,
+					asset_out: USDT,
+				},
+			];
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				AssetPair {
+					asset_in: WBTC,
+					asset_out: USDT
+				},
+				BoundedVec::truncate_from(route)
+			));
+
+			let input = EvmDataWriter::new_with_selector(AggregatorInterface::LatestAnswer).build();
+
+			// kinda weird that asset order is reversed, would expect WBTC/USDT instead
+			let address = chainlink_adapter::encode_oracle_address(USDT, WBTC, OraclePeriod::TenMinutes, [0; 8]);
+			let mut handle = MockHandle {
+				input: input.clone(),
+				context: Context {
+					address,
+					caller: Default::default(),
+					apparent_value: Default::default(),
+				},
+				code_address: address,
+				is_static: true,
+			};
+			let PrecompileOutput { output, .. } =
+				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+			let precompile_price = U256::from(output.as_slice());
+
+			let (.., output) = Executor::<Runtime>::view(
+				CallContext {
+					contract: hex!["eDD9A7C47A9F91a0F2db93978A88844167B4a04f"].into(),
+					sender: Default::default(),
+					origin: Default::default(),
+				},
+				input,
+				100_000,
+			);
+			let dia_price = U256::from(output.as_slice());
+
+			//TODO: shouldn't be exactly same, but comparable within 5%
+			assert_eq!(dia_price, precompile_price);
 		});
 	}
 }
