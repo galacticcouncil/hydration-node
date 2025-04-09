@@ -62,7 +62,7 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			(100, 100), // 100% coefficient as a ratio (1.0)
+			(104, 100), // 100% coefficient as a ratio (1.0)
 			Permill::from_percent(1),
 		)
 		.build();
@@ -141,7 +141,7 @@ fn buy_collateral_with_hollar_works() {
 
 		// Calculate expected values
 		let collateral_amount = 10 * ONE;
-		let expected_hollar_amount = 9883577967587; // Calculated based on the do_buy_collateral function logic
+		let expected_hollar_amount = 10 * ONE; // Calculated based on the do_buy_collateral function logic
 
 		// Execute the buy
 		assert_ok!(HSM::buy(

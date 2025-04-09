@@ -792,16 +792,11 @@ where
 		// 5. Calculate amount of Hollar to pay
 		let hollar_amount_to_pay = crate::math::calculate_hollar_amount(collateral_amount, buy_price)?;
 
-		dbg!(buyback_limit, hollar_amount_to_pay);
-
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(buyback_limit > hollar_amount_to_pay, Error::<T>::MaxBuyBackExceeded);
 
 		// 6. Calculate max price
 		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
-		dbg!(max_price);
-		dbg!(buy_price);
-
 		// Check if price exceeds max price - compare the ratios
 		// For (a,b) <= (c,d), we check a*d <= b*c
 		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
@@ -816,21 +811,35 @@ where
 		);
 
 		// Execute the swap
-		// 1. Transfer collateral from user to HSM
+		// 1. Transfer hollar from user to HSM
 		<T as Config>::Currency::transfer(
-			collateral_asset,
+			T::HollarId::get(),
 			who,
 			&Self::account_id(),
+			hollar_amount_to_pay,
+			Preservation::Expendable,
+		)?;
+
+		// 2. Transfer collateral from HSM to user
+		<T as Config>::Currency::transfer(
+			collateral_asset,
+			&Self::account_id(),
+			who,
 			collateral_amount,
 			Preservation::Expendable,
 		)?;
 
-		// 2. Mint Hollar by calling GHO contract
-		Self::mint_hollar(who, hollar_amount_to_pay)?;
+		// 3. Burn Hollar by calling GHO contract
+		Self::burn_hollar(hollar_amount_to_pay)?;
 
 		// 3. Update HSM holdings
 		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
-			*balance = balance.saturating_add(collateral_amount); //TODO: this should decrease!!
+			*balance = balance.saturating_sub(collateral_amount);
+		});
+
+		// 5. Update Hollar amount received in this block
+		HollarAmountReceived::<T>::mutate(collateral_asset, |amount| {
+			*amount = amount.saturating_add(hollar_amount_to_pay);
 		});
 
 		Ok(hollar_amount_to_pay)
