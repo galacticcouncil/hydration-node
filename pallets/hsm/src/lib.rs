@@ -460,10 +460,10 @@ pub mod pallet {
 
 			let amount_out = if asset_in == hollar_id {
 				// Selling Hollar to get collateral
-				Self::do_sell_hollar(&who, asset_out, amount_in)?
+				Self::do_collateral_out_given_hollar_in(&who, asset_out, amount_in)?
 			} else {
 				// Selling collateral to get Hollar
-				Self::do_sell_collateral(&who, asset_in, amount_in)?
+				Self::do_hollar_out_given_collateral_in(&who, asset_in, amount_in)?
 			};
 
 			// Check slippage
@@ -510,10 +510,10 @@ pub mod pallet {
 
 			let amount_in = if asset_out == hollar_id {
 				// Buying Hollar with collateral
-				Self::do_buy_hollar(&who, asset_in, amount_out)?
+				Self::do_collateral_in_given_hollar_out(&who, asset_in, amount_out)?
 			} else {
 				// Buying collateral with Hollar
-				Self::do_buy_collateral(&who, asset_out, amount_out)?
+				Self::do_hollar_in_given_collateral_out(&who, asset_out, amount_out)?
 			};
 
 			// Check slippage
@@ -564,10 +564,10 @@ pub mod pallet {
 
 				// Sell hollar in HSM for collateral
 				let collateral_received =
-					Self::do_sell_hollar(&hsm_account, collateral_asset_id, hollar_amount_to_trade)?;
+					Self::do_collateral_out_given_hollar_in(&hsm_account, collateral_asset_id, hollar_amount_to_trade)?;
 
 				// Buy hollar in the collateral stable pool
-				let hollar_received = Self::do_buy_hollar(&hsm_account, collateral_asset_id, collateral_received)?;
+				let hollar_received = Self::do_hollar_in_given_collateral_out(&hsm_account, collateral_asset_id, collateral_received)?;
 
 				// Burn the hollar
 				Self::burn_hollar(hollar_received)?;
@@ -608,7 +608,7 @@ where
 	}
 
 	/// Selling Hollar to get collateral asset
-	fn do_sell_hollar(
+	fn do_collateral_out_given_hollar_in(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
 		hollar_amount: Balance,
@@ -732,7 +732,7 @@ where
 	}
 
 	/// Buying collateral asset using Hollar
-	fn do_buy_collateral(
+	fn do_hollar_in_given_collateral_out(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
 		collateral_amount: Balance,
@@ -848,7 +848,7 @@ where
 	}
 
 	/// Selling collateral asset to get Hollar
-	fn do_sell_collateral(
+	fn do_hollar_out_given_collateral_in(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
 		collateral_amount: Balance,
@@ -895,7 +895,7 @@ where
 	}
 
 	/// Buying Hollar using collateral asset
-	fn do_buy_hollar(
+	fn do_collateral_in_given_hollar_out(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
 		hollar_amount: Balance,
