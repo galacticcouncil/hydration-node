@@ -16,9 +16,8 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::types::CollateralInfo;
-use crate::{Collaterals, Error};
-use frame_support::{assert_err, assert_ok, error::BadOrigin};
+use crate::{CollateralInfo, Collaterals, Error};
+use frame_support::{assert_err, assert_ok};
 use frame_system::EnsureRoot;
 use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::types::PegSource;
@@ -53,7 +52,7 @@ fn update_collateral_asset_works() {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			Permill::from_percent(110),
+			(110, 100), // 110% as a ratio
 			Permill::from_percent(1),
 		)
 		.build()
@@ -76,7 +75,7 @@ fn update_collateral_asset_works() {
 				CollateralInfo {
 					pool_id: 100,
 					purchase_fee: Permill::from_percent(2), // Updated
-					max_buy_price_coefficient: Permill::from_percent(110),
+					max_buy_price_coefficient: (110, 100),
 					buy_back_fee: Permill::from_percent(1),
 					b: Perbill::from_percent(50), // Default from mock builder
 					max_in_holding: None,
@@ -88,7 +87,7 @@ fn update_collateral_asset_works() {
 				RuntimeOrigin::root(),
 				DAI,
 				None,
-				Some(Permill::from_percent(120)),
+				Some((120, 100)), // 120% as a ratio
 				Some(Permill::from_percent(2)),
 				Some(Perbill::from_percent(15)),
 				Some(Some(2_000_000 * ONE)),
@@ -101,65 +100,14 @@ fn update_collateral_asset_works() {
 				CollateralInfo {
 					pool_id: 100,
 					purchase_fee: Permill::from_percent(2),
-					max_buy_price_coefficient: Permill::from_percent(120), // Updated
-					buy_back_fee: Permill::from_percent(2),                // Updated
-					b: Perbill::from_percent(15),                          // Updated
-					max_in_holding: Some(2_000_000 * ONE),                 // Updated
+					max_buy_price_coefficient: (120, 100),  // Updated
+					buy_back_fee: Permill::from_percent(2), // Updated
+					b: Perbill::from_percent(15),           // Updated
+					max_in_holding: Some(2_000_000 * ONE),  // Updated
 				}
 			);
-		});
-}
 
-#[test]
-fn update_collateral_asset_removing_max_holding_works() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HOLLAR, ONE), (ALICE, DAI, ONE)])
-		.with_registered_assets(vec![(HDX, 12), (DAI, 18), (HOLLAR, 18), (100, 18)])
-		.with_pool(
-			100,
-			vec![HOLLAR, DAI],
-			2,
-			Permill::from_percent(1),
-			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
-		)
-		.with_initial_pool_liquidity(
-			100,
-			vec![
-				AssetAmount {
-					asset_id: HOLLAR,
-					amount: 1000 * ONE,
-				},
-				AssetAmount {
-					asset_id: DAI,
-					amount: 1000 * ONE,
-				},
-			],
-		)
-		.with_collateral(
-			DAI,
-			100,
-			Permill::from_percent(1),
-			Permill::from_percent(110),
-			Permill::from_percent(1),
-		)
-		.build()
-		.execute_with(|| {
-			// First, set max_in_holding
-			assert_ok!(HSM::update_collateral_asset(
-				RuntimeOrigin::root(),
-				DAI,
-				None,
-				None,
-				None,
-				None,
-				Some(Some(1_000_000 * ONE)),
-			));
-
-			// Verify it was set
-			let collateral = Collaterals::<Test>::get(DAI).unwrap();
-			assert_eq!(collateral.max_in_holding, Some(1_000_000 * ONE));
-
-			// Now, remove max_in_holding by setting it to None
+			// Check that the collateral update can remove max_in_holding
 			assert_ok!(HSM::update_collateral_asset(
 				RuntimeOrigin::root(),
 				DAI,
@@ -170,14 +118,29 @@ fn update_collateral_asset_removing_max_holding_works() {
 				Some(None),
 			));
 
-			// Verify it was removed
+			// Check that max_in_holding was removed
 			let collateral = Collaterals::<Test>::get(DAI).unwrap();
 			assert_eq!(collateral.max_in_holding, None);
+
+			// Update with a different ratio for max_buy_price_coefficient
+			assert_ok!(HSM::update_collateral_asset(
+				RuntimeOrigin::root(),
+				DAI,
+				None,
+				Some((200, 100)), // 200% as a ratio (greater than 100%)
+				None,
+				None,
+				None,
+			));
+
+			// Check the ratio was updated correctly
+			let collateral = Collaterals::<Test>::get(DAI).unwrap();
+			assert_eq!(collateral.max_buy_price_coefficient, (200, 100));
 		});
 }
 
 #[test]
-fn update_collateral_asset_requires_sudo() {
+fn update_collateral_asset_fails_for_non_existent_asset() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HOLLAR, ONE), (ALICE, DAI, ONE)])
 		.with_registered_assets(vec![(HDX, 12), (DAI, 18), (HOLLAR, 18), (100, 18)])
@@ -205,32 +168,32 @@ fn update_collateral_asset_requires_sudo() {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			Permill::from_percent(110),
+			(110, 100), // 110% as a ratio
 			Permill::from_percent(1),
 		)
 		.build()
 		.execute_with(|| {
-			// Attempt to update collateral as ALICE (not sudo)
+			// Try to update a non-existent collateral
 			assert_err!(
 				HSM::update_collateral_asset(
-					RuntimeOrigin::signed(ALICE),
-					DAI,
+					RuntimeOrigin::root(),
+					HDX, // HDX is not a collateral
 					Some(Permill::from_percent(2)),
 					None,
 					None,
 					None,
 					None,
 				),
-				BadOrigin
+				Error::<Test>::AssetNotApproved
 			);
 		});
 }
 
 #[test]
-fn update_collateral_asset_fails_when_asset_not_approved() {
+fn update_collateral_asset_fails_for_non_root() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HOLLAR, ONE), (ALICE, DAI, ONE), (ALICE, USDC, ONE)])
-		.with_registered_assets(vec![(HDX, 12), (DAI, 18), (USDC, 6), (HOLLAR, 18), (100, 18)])
+		.with_endowed_accounts(vec![(ALICE, HOLLAR, ONE), (ALICE, DAI, ONE)])
+		.with_registered_assets(vec![(HDX, 12), (DAI, 18), (HOLLAR, 18), (100, 18)])
 		.with_pool(
 			100,
 			vec![HOLLAR, DAI],
@@ -255,23 +218,23 @@ fn update_collateral_asset_fails_when_asset_not_approved() {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			Permill::from_percent(110),
+			(110, 100), // 110% as a ratio
 			Permill::from_percent(1),
 		)
 		.build()
 		.execute_with(|| {
-			// Try to update USDC which is not a collateral
+			// Try to update as a non-root user
 			assert_err!(
 				HSM::update_collateral_asset(
-					RuntimeOrigin::root(),
-					USDC,
+					RuntimeOrigin::signed(ALICE),
+					DAI,
 					Some(Permill::from_percent(2)),
 					None,
 					None,
 					None,
 					None,
 				),
-				Error::<Test>::AssetNotApproved
+				sp_runtime::DispatchError::BadOrigin
 			);
 		});
 }
@@ -305,7 +268,7 @@ fn update_collateral_asset_with_no_changes_works() {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			Permill::from_percent(110),
+			(110, 100), // 110% as a ratio
 			Permill::from_percent(1),
 		)
 		.build()

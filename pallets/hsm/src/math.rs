@@ -1,4 +1,5 @@
 use crate::types::Balance;
+use crate::types::CoefficientRatio;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{ArithmeticError, Perbill, Permill};
 use sp_runtime::{Rounding, Saturating};
@@ -41,7 +42,6 @@ pub fn calculate_imbalance(
 	collateral_reserve: Balance,
 ) -> Result<Balance, ArithmeticError> {
 	//TODO: handler negative imbalance correctly
-
 
 	// Convert peg to a price by dividing numerator by denominator
 	let peg_price = peg.0.checked_div(peg.1).ok_or(ArithmeticError::DivisionByZero)?;
@@ -94,13 +94,16 @@ pub fn calculate_buy_price_with_fee(
 }
 
 /// Calculate max buy price
-/// p_m = c_i * peg_i
-pub fn calculate_max_buy_price(peg: PegType, coefficient: Permill) -> PegType {
-	// Apply coefficient to the numerator
-	let numerator = coefficient.mul_floor(peg.0);
+/// p_m = coefficient * peg
+/// Where coefficient is now a Ratio instead of Permill
+pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> PegType {
+	// Multiply the two ratios
+	// For (a,b) * (c,d) = (a*c, b*d)
+	let numerator = peg.0.saturating_mul(coefficient.0);
+	let denominator = peg.1.saturating_mul(coefficient.1);
 
 	// Return the new ratio
-	(numerator, peg.1)
+	(numerator, denominator)
 }
 
 /// Calculate how much collateral asset user receives for amount of Hollar

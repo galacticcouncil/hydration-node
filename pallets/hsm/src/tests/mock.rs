@@ -19,7 +19,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate as pallet_hsm;
-use crate::types::CallResult;
+use crate::types::{CallResult, CoefficientRatio};
 use crate::ERC20Function;
 use crate::{pallet, Config};
 use core::ops::RangeInclusive;
@@ -445,7 +445,7 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(AssetId, u8)>,
-	collaterals: Vec<(AssetId, AssetId, Permill, Permill, Permill)>,
+	collaterals: Vec<(AssetId, AssetId, Permill, CoefficientRatio, Permill)>,
 	pools: Vec<(AssetId, Vec<AssetId>, u16, Permill, Vec<PegSource<AssetId>>)>,
 	initial_pool_liquidity: Vec<(AssetId, Vec<AssetAmount<AssetId>>)>,
 }
@@ -485,7 +485,7 @@ impl ExtBuilder {
 	}
 
 	pub fn with_registered_assets(mut self, assets: Vec<(AssetId, u8)>) -> Self {
-		self.registered_assets.extend(assets);
+		self.registered_assets = assets;
 		self
 	}
 
@@ -511,7 +511,7 @@ impl ExtBuilder {
 		asset_id: AssetId,
 		pool_id: AssetId,
 		purchase_fee: Permill,
-		max_buy_price_coefficient: Permill,
+		max_buy_price_coefficient: CoefficientRatio,
 		buy_back_fee: Permill,
 	) -> Self {
 		self.collaterals

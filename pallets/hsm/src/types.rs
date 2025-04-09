@@ -16,6 +16,9 @@ pub type CallResult = (ExitReason, Vec<u8>);
 /// Balance type used in the pallet
 pub type Balance = u128;
 
+/// Ratio type represented as (numerator, denominator)
+pub type CoefficientRatio = (Balance, Balance);
+
 /// Information about a collateral asset
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -25,7 +28,8 @@ pub struct CollateralInfo<AssetId> {
 	/// Purchase fee applied when buying Hollar with this asset
 	pub purchase_fee: Permill,
 	/// Maximum buy price coefficient - max buy price coefficient for HSM to buy back Hollar
-	pub max_buy_price_coefficient: Permill,
+	/// Represented as a ratio (numerator, denominator)
+	pub max_buy_price_coefficient: CoefficientRatio,
 	/// Parameter that controls how quickly HSM can buy Hollar with this asset
 	pub b: Perbill,
 	/// Fee applied when buying back Hollar

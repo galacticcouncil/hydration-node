@@ -62,7 +62,7 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			Permill::from_percent(100),
+			(100, 100), // 100% coefficient as a ratio (1.0)
 			Permill::from_percent(1),
 		)
 		.build();
@@ -91,7 +91,10 @@ fn buy_hollar_with_collateral_works() {
 		));
 
 		// Check that ALICE's balances are updated correctly
-		assert_eq!(Tokens::free_balance(DAI, &ALICE), initial_alice_dai - expected_collateral_amount);
+		assert_eq!(
+			Tokens::free_balance(DAI, &ALICE),
+			initial_alice_dai - expected_collateral_amount
+		);
 		assert_eq!(
 			Tokens::free_balance(HOLLAR, &ALICE),
 			initial_alice_hollar + hollar_amount
@@ -154,20 +157,14 @@ fn buy_collateral_with_hollar_works() {
 			Tokens::free_balance(HOLLAR, &ALICE),
 			initial_alice_hollar - expected_hollar_amount
 		);
-		assert_eq!(
-			Tokens::free_balance(DAI, &ALICE),
-			initial_alice_dai + collateral_amount
-		);
+		assert_eq!(Tokens::free_balance(DAI, &ALICE), initial_alice_dai + collateral_amount);
 
 		// Check that HSM holdings are updated correctly
 		assert_eq!(
 			Tokens::free_balance(DAI, &HSM::account_id()),
 			initial_hsm_dai - collateral_amount
 		);
-		assert_eq!(
-			CollateralHoldings::<Test>::get(DAI),
-			100 * ONE - collateral_amount
-		);
+		assert_eq!(CollateralHoldings::<Test>::get(DAI), 100 * ONE - collateral_amount);
 
 		// Check that HollarAmountReceived was updated correctly
 		assert_eq!(HollarAmountReceived::<Test>::get(DAI), expected_hollar_amount);
@@ -302,7 +299,7 @@ fn buy_collateral_with_max_buy_price_exceeded_fails() {
 			RuntimeOrigin::root(),
 			DAI,
 			None,
-			Some(Permill::from_percent(1)), // Lower coefficient to force max buy price failure
+			Some((1, 100)), // 1/100 = 1% ratio to force max buy price failure
 			None,
 			None,
 			None,
@@ -381,4 +378,4 @@ fn on_finalize_clears_hollar_amount_received() {
 		// Check that HollarAmountReceived was cleared
 		assert_eq!(HollarAmountReceived::<Test>::get(DAI), 0);
 	});
-} 
+}

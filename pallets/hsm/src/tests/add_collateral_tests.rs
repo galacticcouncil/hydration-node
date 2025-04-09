@@ -58,7 +58,7 @@ fn add_collateral_asset_works() {
 				DAI,
 				100, // pool id
 				Permill::from_percent(1),
-				Permill::from_percent(110),
+				(100, 100),
 				Permill::from_percent(1),
 				Perbill::from_percent(10),
 				Some(1_000_000 * ONE),
@@ -71,7 +71,7 @@ fn add_collateral_asset_works() {
 				CollateralInfo {
 					pool_id: 100,
 					purchase_fee: Permill::from_percent(1),
-					max_buy_price_coefficient: Permill::from_percent(110),
+					max_buy_price_coefficient: (100, 100),
 					buy_back_fee: Permill::from_percent(1),
 					b: Perbill::from_percent(10),
 					max_in_holding: Some(1_000_000 * ONE),
@@ -114,7 +114,7 @@ fn add_collateral_asset_requires_sudo() {
 					DAI,
 					100,
 					Permill::from_percent(1),
-					Permill::from_percent(110),
+					(100, 100),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),
@@ -149,13 +149,7 @@ fn add_collateral_asset_fails_when_asset_already_approved() {
 				},
 			],
 		)
-		.with_collateral(
-			DAI,
-			100,
-			Permill::from_percent(1),
-			Permill::from_percent(110),
-			Permill::from_percent(1),
-		)
+		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
 		.build()
 		.execute_with(|| {
 			// Try to add DAI as collateral again
@@ -165,7 +159,7 @@ fn add_collateral_asset_fails_when_asset_already_approved() {
 					DAI,
 					100,
 					Permill::from_percent(1),
-					Permill::from_percent(110),
+					(100, 100),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),
@@ -208,13 +202,7 @@ fn add_collateral_asset_fails_when_pool_already_has_collateral() {
 				},
 			],
 		)
-		.with_collateral(
-			DAI,
-			100,
-			Permill::from_percent(1),
-			Permill::from_percent(110),
-			Permill::from_percent(1),
-		)
+		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
 		.build()
 		.execute_with(|| {
 			// Try to add USDC as collateral from the same pool
@@ -224,7 +212,7 @@ fn add_collateral_asset_fails_when_pool_already_has_collateral() {
 					USDC,
 					100,
 					Permill::from_percent(1),
-					Permill::from_percent(110),
+					(100, 100),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),
@@ -268,7 +256,7 @@ fn add_collateral_asset_fails_when_asset_not_in_pool() {
 					USDC,
 					100,
 					Permill::from_percent(1),
-					Permill::from_percent(110),
+					(100, 100),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),
@@ -312,7 +300,7 @@ fn add_collateral_asset_fails_when_hollar_not_in_pool() {
 					DAI,
 					100,
 					Permill::from_percent(1),
-					Permill::from_percent(110),
+					(100, 100),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),

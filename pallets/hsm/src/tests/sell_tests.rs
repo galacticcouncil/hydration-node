@@ -58,13 +58,7 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 				},
 			],
 		)
-		.with_collateral(
-			DAI,
-			100,
-			Permill::from_percent(1),
-			Permill::from_percent(110),
-			Permill::from_percent(1),
-		)
+		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
 		.build();
 	ext
 }

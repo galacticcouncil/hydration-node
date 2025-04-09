@@ -2,7 +2,7 @@
 
 pub use pallet::*;
 
-use crate::types::{Balance, CollateralInfo};
+use crate::types::{Balance, CoefficientRatio, CollateralInfo};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::dispatch::DispatchResult;
@@ -149,7 +149,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			pool_id: T::AssetId,
 			purchase_fee: Permill,
-			max_buy_price_coefficient: Permill,
+			max_buy_price_coefficient: CoefficientRatio,
 			buy_back_fee: Permill,
 			b: Perbill,
 		},
@@ -159,7 +159,7 @@ pub mod pallet {
 		CollateralUpdated {
 			asset_id: T::AssetId,
 			purchase_fee: Option<Permill>,
-			max_buy_price_coefficient: Option<Permill>,
+			max_buy_price_coefficient: Option<CoefficientRatio>,
 			buy_back_fee: Option<Permill>,
 			b: Option<Perbill>,
 		},
@@ -296,7 +296,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			pool_id: T::AssetId,
 			purchase_fee: Permill,
-			max_buy_price_coefficient: Permill,
+			max_buy_price_coefficient: CoefficientRatio,
 			buy_back_fee: Permill,
 			b: Perbill,
 			max_in_holding: Option<Balance>,
@@ -384,7 +384,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			purchase_fee: Option<Permill>,
-			max_buy_price_coefficient: Option<Permill>,
+			max_buy_price_coefficient: Option<CoefficientRatio>,
 			buy_back_fee: Option<Permill>,
 			b: Option<Perbill>,
 			max_in_holding: Option<Option<Balance>>,
@@ -1149,7 +1149,7 @@ where
 
 		// Get max buy price from HSM
 		let max_buy_price_coefficient = collateral_info.max_buy_price_coefficient;
-		let max_buy_price = FixedU128::from_inner(max_buy_price_coefficient.mul_floor(FixedU128::DIV as u128));
+		let max_buy_price = FixedU128::from_rational(max_buy_price_coefficient.0, max_buy_price_coefficient.1);
 
 		// Check if there's an arbitrage opportunity
 		// If buy_price > max_buy_price, there's no opportunity
