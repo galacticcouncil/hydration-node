@@ -40,7 +40,7 @@ fn setup_test_for_comparison() -> sp_io::TestExternalities {
 			100,
 			vec![HOLLAR, DAI],
 			2,
-			Permill::from_percent(1),
+			Permill::from_percent(0),
 			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
 		)
 		.with_initial_pool_liquidity(
@@ -59,9 +59,9 @@ fn setup_test_for_comparison() -> sp_io::TestExternalities {
 		.with_collateral(
 			DAI,
 			100,
-			Permill::from_percent(1), // purchase_fee
-			(104, 100),               // max_buy_price_coefficient
-			Permill::from_percent(1), // buy_back_fee
+			Permill::from_percent(0), // purchase_fee
+			(100, 100),               // max_buy_price_coefficient
+			Permill::from_percent(0), // buy_back_fee
 		)
 		.build();
 	ext

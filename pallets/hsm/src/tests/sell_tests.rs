@@ -506,7 +506,7 @@ fn sell_hollar_zero_fee_works() {
 				},
 				AssetAmount {
 					asset_id: DAI,
-					amount: 990 * ONE_18,
+					amount: 900 * ONE_18,
 				},
 			],
 		)
@@ -536,7 +536,7 @@ fn sell_hollar_zero_fee_works() {
 
 			// ACT - sell hollar back
 			let hollar_to_sell = 1 * ONE_18;
-			let expected_collateral = 999606782921898160;
+			let expected_collateral = 995456489239760326;
 
 			assert_ok!(HSM::sell(
 				RuntimeOrigin::signed(ALICE),
@@ -578,7 +578,7 @@ fn sell_hollar_nonzero_fee_works() {
 				},
 				AssetAmount {
 					asset_id: DAI,
-					amount: 990 * ONE_18,
+					amount: 900 * ONE_18,
 				},
 			],
 		)
@@ -586,7 +586,7 @@ fn sell_hollar_nonzero_fee_works() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(101, 100),
+			(100, 100),
 			Permill::from_float(0.001),
 			Perbill::from_percent(75),
 		)
@@ -608,7 +608,7 @@ fn sell_hollar_nonzero_fee_works() {
 
 			// ACT - sell hollar back
 			let hollar_to_sell = 1 * ONE_18;
-			let expected_collateral = 1000607390312210370; // little more than with no bb fee
+			let expected_collateral = 996452942181942268;
 
 			assert_ok!(HSM::sell(
 				RuntimeOrigin::signed(ALICE),
@@ -617,6 +617,8 @@ fn sell_hollar_nonzero_fee_works() {
 				hollar_to_sell,
 				1, // Minimal slippage limit
 			));
+			let spent = Tokens::free_balance(DAI, &ALICE) - alice_dai;
+			dbg!(spent);
 			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + expected_collateral);
 			assert_eq!(Tokens::free_balance(HOLLAR, &ALICE), alice_hollar - hollar_to_sell);
 

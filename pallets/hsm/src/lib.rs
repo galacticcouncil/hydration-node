@@ -792,7 +792,7 @@ where
 		)?;
 
 		// Create a PegType for execution price (hollar_amount/collateral_amount)
-		let execution_price = (hollar_amount, collateral_amount);
+		let execution_price = (collateral_amount, hollar_amount);
 
 		// 4. Calculate final buy price with fee
 		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
@@ -962,7 +962,7 @@ where
 			*balance = balance.saturating_add(collateral_amount);
 		});
 
-		Ok(hollar_amount)
+		Ok(collateral_amount)
 	}
 
 	/// Mint Hollar by calling the GHO token contract
