@@ -17,6 +17,7 @@ scale-info = { workspace = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 hex-literal = { workspace = true }
 log = {workspace=true}
+num-traits = {  workspace = true }
 
 # parity
 sp-std = { workspace = true }

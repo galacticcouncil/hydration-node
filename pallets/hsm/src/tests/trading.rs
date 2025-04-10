@@ -17,11 +17,11 @@
 
 use crate::*;
 use frame_support::{assert_ok, traits::Hooks};
-use sp_runtime::{Permill, Perbill};
+use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
-use hydradx_traits::stableswap::AssetAmount;
+use sp_runtime::{Perbill, Permill};
 
 use crate::tests::mock::*;
 
@@ -59,9 +59,9 @@ fn setup_test_for_comparison() -> sp_io::TestExternalities {
 		.with_collateral(
 			DAI,
 			100,
-			Permill::from_percent(1),  // purchase_fee 
-			(104, 100),                // max_buy_price_coefficient
-			Permill::from_percent(1),  // buy_back_fee
+			Permill::from_percent(1), // purchase_fee
+			(104, 100),               // max_buy_price_coefficient
+			Permill::from_percent(1), // buy_back_fee
 		)
 		.build();
 	ext
@@ -72,13 +72,13 @@ fn selling_collateral_for_hollar_equals_buying_hollar_with_collateral() {
 	setup_test_for_comparison().execute_with(|| {
 		// Define a fixed amount of collateral to use in both operations
 		let collateral_amount = 10 * ONE;
-		
+
 		// Scenario 1: Sell collateral to get Hollar
 		let hollar_from_sell = {
 			// Record initial balances
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
-			
+
 			// Execute sell (collateral -> Hollar)
 			assert_ok!(HSM::sell(
 				RuntimeOrigin::signed(ALICE),
@@ -87,23 +87,23 @@ fn selling_collateral_for_hollar_equals_buying_hollar_with_collateral() {
 				collateral_amount,
 				0, // Minimum amount out (we don't care about slippage here)
 			));
-			
+
 			// Calculate how much Hollar ALICE received
 			let final_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 			final_alice_hollar - initial_alice_hollar
 		};
-		
+
 		// Reset state for next test
 		System::reset_events();
 		HSM::on_finalize(1);
 		clear_evm_calls();
-		
+
 		// Scenario 2: Buy Hollar with collateral
 		let collateral_for_buy = {
 			// Record initial balances
 			let initial_bob_dai = Tokens::free_balance(DAI, &BOB);
 			let initial_bob_hollar = Tokens::free_balance(HOLLAR, &BOB);
-			
+
 			// Execute buy (buying the exact amount of Hollar we got from selling)
 			assert_ok!(HSM::buy(
 				RuntimeOrigin::signed(BOB),
@@ -112,19 +112,17 @@ fn selling_collateral_for_hollar_equals_buying_hollar_with_collateral() {
 				hollar_from_sell,
 				2 * collateral_amount, // High slippage limit
 			));
-			
+
 			// Calculate how much collateral BOB paid
 			let final_bob_dai = Tokens::free_balance(DAI, &BOB);
 			initial_bob_dai - final_bob_dai
 		};
-		
+
 		// Compare: collateral_amount should equal collateral_for_buy
 		assert_eq!(
-			collateral_amount, 
-			collateral_for_buy, 
+			collateral_amount, collateral_for_buy,
 			"Selling {} DAI for Hollar should equal buying {} Hollar with DAI",
-			collateral_amount, 
-			hollar_from_sell
+			collateral_amount, hollar_from_sell
 		);
 	});
 }
@@ -142,16 +140,16 @@ fn selling_hollar_for_collateral_equals_buying_collateral_with_hollar() {
 				(100 * ONE - hsm_acc_balance) as i128
 			));
 		}
-		
+
 		// Define a fixed amount of Hollar to use in both operations
 		let hollar_amount = 10 * ONE;
-		
+
 		// Scenario 1: Sell Hollar to get collateral
 		let collateral_from_sell = {
 			// Record initial balances
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
-			
+
 			// Execute sell (Hollar -> collateral)
 			assert_ok!(HSM::sell(
 				RuntimeOrigin::signed(ALICE),
@@ -160,23 +158,23 @@ fn selling_hollar_for_collateral_equals_buying_collateral_with_hollar() {
 				hollar_amount,
 				0, // Minimum amount out (we don't care about slippage here)
 			));
-			
+
 			// Calculate how much collateral ALICE received
 			let final_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			final_alice_dai - initial_alice_dai
 		};
-		
+
 		// Reset state for next test
 		System::reset_events();
 		HSM::on_finalize(1);
 		clear_evm_calls();
-		
+
 		// Scenario 2: Buy collateral with Hollar
 		let hollar_for_buy = {
 			// Record initial balances
 			let initial_bob_hollar = Tokens::free_balance(HOLLAR, &BOB);
 			let initial_bob_dai = Tokens::free_balance(DAI, &BOB);
-			
+
 			// Execute buy (buying the exact amount of collateral we got from selling)
 			assert_ok!(HSM::buy(
 				RuntimeOrigin::signed(BOB),
@@ -185,19 +183,17 @@ fn selling_hollar_for_collateral_equals_buying_collateral_with_hollar() {
 				collateral_from_sell,
 				2 * hollar_amount, // High slippage limit
 			));
-			
+
 			// Calculate how much Hollar BOB paid
 			let final_bob_hollar = Tokens::free_balance(HOLLAR, &BOB);
 			initial_bob_hollar - final_bob_hollar
 		};
-		
+
 		// Compare: hollar_amount should equal hollar_for_buy
 		assert_eq!(
-			hollar_amount, 
-			hollar_for_buy, 
+			hollar_amount, hollar_for_buy,
 			"Selling {} Hollar for DAI should equal buying {} DAI with Hollar",
-			hollar_amount, 
-			collateral_from_sell
+			hollar_amount, collateral_from_sell
 		);
 	});
 }

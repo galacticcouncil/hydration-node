@@ -567,7 +567,8 @@ pub mod pallet {
 					Self::do_collateral_out_given_hollar_in(&hsm_account, collateral_asset_id, hollar_amount_to_trade)?;
 
 				// Buy hollar in the collateral stable pool
-				let hollar_received = Self::do_hollar_in_given_collateral_out(&hsm_account, collateral_asset_id, collateral_received)?;
+				let hollar_received =
+					Self::do_hollar_in_given_collateral_out(&hsm_account, collateral_asset_id, collateral_received)?;
 
 				// Burn the hollar
 				Self::burn_hollar(hollar_received)?;
@@ -792,7 +793,8 @@ where
 		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
 
 		// 5. Calculate amount of Hollar to pay
-		let hollar_amount_to_pay = crate::math::calculate_hollar_amount(collateral_amount, buy_price)?;
+		let hollar_amount_to_pay =
+			crate::math::calculate_hollar_amount(collateral_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
 
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(buyback_limit > hollar_amount_to_pay, Error::<T>::MaxBuyBackExceeded);
@@ -869,9 +871,12 @@ where
 
 		// Calculate purchase pice
 		let purchase_price = crate::math::calculate_purchase_price(peg, collateral_info.purchase_fee);
+		dbg!(purchase_price);
 
 		// Calculate Hollar amount to mint
-		let hollar_amount = crate::math::calculate_hollar_amount(collateral_amount, purchase_price)?;
+		let hollar_amount =
+			crate::math::calculate_hollar_amount(collateral_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
+		dbg!(hollar_amount);
 
 		// Execute the "swap"
 		// 1. Transfer collateral from user to HSM

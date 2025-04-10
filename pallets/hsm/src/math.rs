@@ -1,7 +1,10 @@
 use crate::types::Balance;
 use crate::types::CoefficientRatio;
+use hydra_dx_math::ratio::Ratio;
+use num_traits::SaturatingAdd;
+use num_traits::SaturatingMul;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::{ArithmeticError, Perbill, Permill};
+use sp_runtime::{ArithmeticError, PerThing, Perbill, Permill};
 use sp_runtime::{Rounding, Saturating};
 
 /// Peg type is a ratio of (numerator, denominator)
@@ -10,28 +13,18 @@ pub type PegType = (Balance, Balance);
 /// Calculate purchase price for Hollar with collateral asset
 /// p_i = (1 + fee_i) * peg_i
 pub fn calculate_purchase_price(peg: PegType, fee: Permill) -> PegType {
-	// Apply fee to the numerator first: (1 + fee) * peg.0
-	let numerator_with_fee = peg.0.saturating_add(fee.mul_floor(peg.0));
+	let fee_ratio: Ratio = (fee.deconstruct() as u128, Permill::one().deconstruct() as u128).into();
+	let one_ratio: Ratio = Ratio::one();
+	let peg_ratio: Ratio = peg.into();
 
-	// Return as a ratio (numerator, denominator)
-	(numerator_with_fee, peg.1)
+	let price = one_ratio.saturating_add(&fee_ratio).saturating_mul(&peg_ratio);
+	(price.n, price.d)
 }
 
 /// Calculate the amount of Hollar received for a given amount of collateral
 /// ΔH = ΔR_i / p_i
-pub fn calculate_hollar_amount(
-	collateral_amount: Balance,
-	purchase_price: PegType,
-) -> Result<Balance, ArithmeticError> {
-	// Convert purchase_price to a price by dividing numerator by denominator
-	let price = purchase_price
-		.0
-		.checked_div(purchase_price.1)
-		.ok_or(ArithmeticError::DivisionByZero)?;
-
-	collateral_amount
-		.checked_div(price)
-		.ok_or(ArithmeticError::DivisionByZero)
+pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: PegType) -> Option<Balance> {
+	multiply_by_rational_with_rounding(collateral_amount, purchase_price.1, purchase_price.0, Rounding::Down)
 }
 
 /// Calculate imbalance of a stablepool

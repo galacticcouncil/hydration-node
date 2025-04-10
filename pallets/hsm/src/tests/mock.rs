@@ -66,8 +66,11 @@ pub const HOLLAR: AssetId = 3;
 pub const ALICE: AccountId = AccountId::new([1; 32]);
 pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const CHARLIE: AccountId = AccountId::new([3; 32]);
+pub const PROVIDER: AccountId = AccountId::new([4; 32]);
 
 pub const ONE: Balance = 1_000_000_000_000;
+pub const ONE_18: Balance = 1_000_000_000_000_000_000;
+
 pub const GHO_ADDRESS: [u8; 20] = [1u8; 20];
 
 #[macro_export]
@@ -364,15 +367,16 @@ impl EVM<CallResult> for MockEvm {
 // Mock EvmAccounts implementation
 pub struct MockEvmAccounts;
 
-//pub const ALICE: AccountId = AccountId::new([1; 32]);
-
 fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 	let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
+	let provider_evm = EvmAddress::from_slice(&PROVIDER.as_slice()[0..20]);
 	let bob_evm = EvmAddress::from_slice(&BOB.as_slice()[0..20]);
 	let hsm_evm = EvmAddress::from_slice(&HSM::account_id().as_slice()[0..20]);
 
 	if evm_addr == alice_evm {
 		ALICE
+	} else if evm_addr == provider_evm {
+		PROVIDER
 	} else if evm_addr == bob_evm {
 		BOB
 	} else if evm_addr == hsm_evm {
@@ -557,11 +561,11 @@ impl ExtBuilder {
 			for (pool_id, liquidity) in self.initial_pool_liquidity {
 				// mint alice and bob with pool tokens
 				for asset in liquidity.iter() {
-					Tokens::update_balance(asset.asset_id, &AccountId::from(ALICE), asset.amount as i128);
+					Tokens::update_balance(asset.asset_id, &AccountId::from(PROVIDER), asset.amount as i128);
 				}
 
 				Stableswap::add_assets_liquidity(
-					RuntimeOrigin::signed(ALICE),
+					RuntimeOrigin::signed(PROVIDER),
 					pool_id,
 					BoundedVec::try_from(liquidity).unwrap(),
 					0,

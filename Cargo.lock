@@ -8370,6 +8370,7 @@ dependencies = [
  "hydradx-traits",
  "log",
  "module-evm-utility-macro",
+ "num-traits",
  "num_enum",
  "orml-tokens",
  "orml-traits",
