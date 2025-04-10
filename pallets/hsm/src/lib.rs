@@ -18,6 +18,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_traits::Zero;
 use pallet_stableswap::types::PoolSnapshot;
 use sp_core::offchain::Duration;
 use sp_core::Get;
@@ -224,6 +225,8 @@ pub mod pallet {
 		HollarNotInPool,
 		/// Insufficient collateral balance
 		InsufficientCollateralBalance,
+		/// This collateral asset is not accepted now.
+		CollateralNotWanted,
 	}
 
 	#[pallet::hooks]
@@ -650,6 +653,8 @@ where
 		// TODO: take decimals into account
 		// 1. Calculate imbalance
 		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
+
+		ensure!(!imbalance.is_zero(), Error::<T>::CollateralNotWanted);
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
 		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);

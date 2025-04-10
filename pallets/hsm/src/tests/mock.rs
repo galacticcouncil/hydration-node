@@ -45,7 +45,7 @@ use pallet_stableswap::types::{BoundedPegSources, PegSource, PoolSnapshot};
 use sp_core::crypto::AccountId32;
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
-use sp_runtime::BoundedVec;
+use sp_runtime::{BoundedVec, Perbill};
 use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Permill};
 use sp_std::num::NonZeroU16;
 use std::cell::RefCell;
@@ -452,7 +452,7 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(AssetId, u8)>,
-	collaterals: Vec<(AssetId, AssetId, Permill, CoefficientRatio, Permill)>,
+	collaterals: Vec<(AssetId, AssetId, Permill, CoefficientRatio, Permill, Option<Perbill>)>,
 	pools: Vec<(AssetId, Vec<AssetId>, u16, Permill, Vec<PegSource<AssetId>>)>,
 	initial_pool_liquidity: Vec<(AssetId, Vec<AssetAmount<AssetId>>)>,
 }
@@ -521,8 +521,34 @@ impl ExtBuilder {
 		max_buy_price_coefficient: CoefficientRatio,
 		buy_back_fee: Permill,
 	) -> Self {
-		self.collaterals
-			.push((asset_id, pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee));
+		self.collaterals.push((
+			asset_id,
+			pool_id,
+			purchase_fee,
+			max_buy_price_coefficient,
+			buy_back_fee,
+			None,
+		));
+		self
+	}
+
+	pub fn with_collateral_buyback_limit(
+		mut self,
+		asset_id: AssetId,
+		pool_id: AssetId,
+		purchase_fee: Permill,
+		max_buy_price_coefficient: CoefficientRatio,
+		buy_back_fee: Permill,
+		buyback_limit: Perbill,
+	) -> Self {
+		self.collaterals.push((
+			asset_id,
+			pool_id,
+			purchase_fee,
+			max_buy_price_coefficient,
+			buy_back_fee,
+			Some(buyback_limit),
+		));
 		self
 	}
 
@@ -572,7 +598,14 @@ impl ExtBuilder {
 				)
 				.unwrap();
 			}
-			for (asset_id, pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee) in self.collaterals {
+			for (asset_id, pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee, bblimit) in self.collaterals
+			{
+				let limit = if let Some(l) = bblimit {
+					l
+				} else {
+					Perbill::from_percent(50)
+				};
+
 				HSM::add_collateral_asset(
 					RuntimeOrigin::root(),
 					asset_id,
@@ -580,7 +613,7 @@ impl ExtBuilder {
 					purchase_fee,
 					max_buy_price_coefficient,
 					buy_back_fee,
-					sp_runtime::Perbill::from_percent(50),
+					limit,
 					None,
 				)
 				.unwrap();

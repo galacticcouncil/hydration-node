@@ -20,7 +20,7 @@ use crate::ERC20Function;
 use crate::EvmAddress;
 use crate::{CollateralHoldings, Error, HollarAmountReceived};
 use frame_support::traits::Hooks;
-use frame_support::{assert_err, assert_ok};
+use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_stableswap::types::PegSource;
@@ -73,7 +73,7 @@ fn sell_collateral_to_get_hollar_works() {
 
 		// Calculate expected values based on implementation
 		let collateral_amount = 10 * ONE;
-		let expected_hollar_amount = collateral_amount; // 1:1 peg with 1% fee = roughly same amount
+		let expected_hollar_amount = 9900990099009; // 1:1 peg with 1% fee = roughly same amount
 
 		// Execute the sell
 		assert_ok!(HSM::sell(
@@ -480,5 +480,272 @@ fn sell_purchase_nonzero_fee_works() {
 				initial_hsm_dai + collateral_amount
 			);
 			assert_eq!(CollateralHoldings::<Test>::get(DAI), collateral_amount);
+		});
+}
+
+#[test]
+fn sell_hollar_zero_fee_works() {
+	let pool_id = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
+		// Create a stablepool for HOLLAR and DAI
+		.with_pool(
+			pool_id,
+			vec![HOLLAR, DAI],
+			22,
+			Permill::from_percent(0),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_initial_pool_liquidity(
+			100,
+			vec![
+				AssetAmount {
+					asset_id: HOLLAR,
+					amount: 1_000 * ONE_18,
+				},
+				AssetAmount {
+					asset_id: DAI,
+					amount: 990 * ONE_18,
+				},
+			],
+		)
+		.with_collateral_buyback_limit(
+			DAI,
+			pool_id,
+			Permill::from_percent(0),
+			(100, 100),
+			Permill::from_percent(0),
+			Perbill::from_percent(75),
+		)
+		.build()
+		.execute_with(|| {
+			// First buy some hollar by selling collateral
+			let collateral_amount = 10 * ONE_18;
+			assert_ok!(HSM::sell(
+				RuntimeOrigin::signed(ALICE),
+				DAI,
+				HOLLAR,
+				collateral_amount,
+				1, // Minimal slippage limit
+			));
+
+			let alice_dai = Tokens::free_balance(DAI, &ALICE);
+			let alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+			let hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+			// ACT - sell hollar back
+			let hollar_to_sell = 1 * ONE_18;
+			let expected_collateral = 999606782921898160;
+
+			assert_ok!(HSM::sell(
+				RuntimeOrigin::signed(ALICE),
+				HOLLAR,
+				DAI,
+				hollar_to_sell,
+				1, // Minimal slippage limit
+			));
+			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + expected_collateral);
+			assert_eq!(Tokens::free_balance(HOLLAR, &ALICE), alice_hollar - hollar_to_sell);
+
+			// Check that HSM holdings are updated correctly
+			let hsm_dai_final = Tokens::free_balance(DAI, &HSM::account_id());
+			assert_eq!(hsm_dai_final, hsm_dai - expected_collateral);
+			assert_eq!(CollateralHoldings::<Test>::get(DAI), hsm_dai_final);
+		});
+}
+
+#[test]
+fn sell_hollar_nonzero_fee_works() {
+	let pool_id = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
+		// Create a stablepool for HOLLAR and DAI
+		.with_pool(
+			pool_id,
+			vec![HOLLAR, DAI],
+			22,
+			Permill::from_percent(0),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_initial_pool_liquidity(
+			100,
+			vec![
+				AssetAmount {
+					asset_id: HOLLAR,
+					amount: 1_000 * ONE_18,
+				},
+				AssetAmount {
+					asset_id: DAI,
+					amount: 990 * ONE_18,
+				},
+			],
+		)
+		.with_collateral_buyback_limit(
+			DAI,
+			pool_id,
+			Permill::from_percent(0),
+			(101, 100),
+			Permill::from_float(0.001),
+			Perbill::from_percent(75),
+		)
+		.build()
+		.execute_with(|| {
+			// First buy some hollar by selling collateral
+			let collateral_amount = 10 * ONE_18;
+			assert_ok!(HSM::sell(
+				RuntimeOrigin::signed(ALICE),
+				DAI,
+				HOLLAR,
+				collateral_amount,
+				1, // Minimal slippage limit
+			));
+
+			let alice_dai = Tokens::free_balance(DAI, &ALICE);
+			let alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+			let hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+			// ACT - sell hollar back
+			let hollar_to_sell = 1 * ONE_18;
+			let expected_collateral = 1000607390312210370; // little more than with no bb fee
+
+			assert_ok!(HSM::sell(
+				RuntimeOrigin::signed(ALICE),
+				HOLLAR,
+				DAI,
+				hollar_to_sell,
+				1, // Minimal slippage limit
+			));
+			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + expected_collateral);
+			assert_eq!(Tokens::free_balance(HOLLAR, &ALICE), alice_hollar - hollar_to_sell);
+
+			// Check that HSM holdings are updated correctly
+			let hsm_dai_final = Tokens::free_balance(DAI, &HSM::account_id());
+			assert_eq!(hsm_dai_final, hsm_dai - expected_collateral);
+			assert_eq!(CollateralHoldings::<Test>::get(DAI), hsm_dai_final);
+		});
+}
+
+#[test]
+fn sell_hollar_fail_when_buyback_limit_exceeded() {
+	let pool_id = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
+		// Create a stablepool for HOLLAR and DAI
+		.with_pool(
+			pool_id,
+			vec![HOLLAR, DAI],
+			22,
+			Permill::from_percent(0),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_initial_pool_liquidity(
+			100,
+			vec![
+				AssetAmount {
+					asset_id: HOLLAR,
+					amount: 1_000 * ONE_18,
+				},
+				AssetAmount {
+					asset_id: DAI,
+					amount: 990 * ONE_18,
+				},
+			],
+		)
+		.with_collateral_buyback_limit(
+			DAI,
+			pool_id,
+			Permill::from_percent(0),
+			(100, 100),
+			Permill::from_percent(0),
+			Perbill::from_percent(50),
+		)
+		.build()
+		.execute_with(|| {
+			// First buy some hollar by selling collateral
+			let collateral_amount = 10 * ONE_18;
+			assert_ok!(HSM::sell(
+				RuntimeOrigin::signed(ALICE),
+				DAI,
+				HOLLAR,
+				collateral_amount,
+				1, // Minimal slippage limit
+			));
+
+			// ACT - sell hollar back
+			let hollar_to_sell = 5 * ONE_18;
+			assert_noop!(
+				HSM::sell(
+					RuntimeOrigin::signed(ALICE),
+					HOLLAR,
+					DAI,
+					hollar_to_sell,
+					1, // Minimal slippage limit
+				),
+				Error::<Test>::MaxBuyBackExceeded
+			);
+		});
+}
+
+#[test]
+fn sell_hollar_nonzero_fee_should_fail_when_max_price_exceeded() {
+	let pool_id = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
+		// Create a stablepool for HOLLAR and DAI
+		.with_pool(
+			pool_id,
+			vec![HOLLAR, DAI],
+			22,
+			Permill::from_percent(0),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_initial_pool_liquidity(
+			100,
+			vec![
+				AssetAmount {
+					asset_id: HOLLAR,
+					amount: 1_000 * ONE_18,
+				},
+				AssetAmount {
+					asset_id: DAI,
+					amount: 990 * ONE_18,
+				},
+			],
+		)
+		.with_collateral_buyback_limit(
+			DAI,
+			pool_id,
+			Permill::from_percent(0),
+			(100, 100),
+			Permill::from_float(0.001),
+			Perbill::from_percent(75),
+		)
+		.build()
+		.execute_with(|| {
+			// First buy some hollar by selling collateral
+			let collateral_amount = 10 * ONE_18;
+			assert_ok!(HSM::sell(
+				RuntimeOrigin::signed(ALICE),
+				DAI,
+				HOLLAR,
+				collateral_amount,
+				1, // Minimal slippage limit
+			));
+
+			let hollar_to_sell = 1 * ONE_18;
+			assert_noop!(
+				HSM::sell(
+					RuntimeOrigin::signed(ALICE),
+					HOLLAR,
+					DAI,
+					hollar_to_sell,
+					1, // Minimal slippage limit
+				),
+				Error::<Test>::MaxBuyPriceExceeded
+			);
 		});
 }
