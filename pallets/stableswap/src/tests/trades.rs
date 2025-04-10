@@ -67,7 +67,7 @@ fn sell_should_work_when_correct_input_provided() {
 					fee: 0,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB,
 					filler: pool_account,
 					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
@@ -141,7 +141,7 @@ fn buy_should_work_when_correct_input_provided() {
 					fee: 0,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped2 {
 					swapper: BOB,
 					filler: pool_account,
 					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
