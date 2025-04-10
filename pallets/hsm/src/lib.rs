@@ -871,12 +871,10 @@ where
 
 		// Calculate purchase pice
 		let purchase_price = crate::math::calculate_purchase_price(peg, collateral_info.purchase_fee);
-		dbg!(purchase_price);
 
 		// Calculate Hollar amount to mint
 		let hollar_amount =
 			crate::math::calculate_hollar_amount(collateral_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
-		dbg!(hollar_amount);
 
 		// Execute the "swap"
 		// 1. Transfer collateral from user to HSM

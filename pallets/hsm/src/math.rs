@@ -102,7 +102,7 @@ pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> P
 /// Calculate how much collateral asset user receives for amount of Hollar
 /// ΔR_i = p * ΔH
 pub fn calculate_collateral_amount(hollar_amount: Balance, price: PegType) -> Option<Balance> {
-	multiply_by_rational_with_rounding(hollar_amount, price.0, price.1, Rounding::Down)
+	multiply_by_rational_with_rounding(hollar_amount, price.0, price.1, Rounding::Up)
 }
 
 /// Scale an amount to 18 decimals

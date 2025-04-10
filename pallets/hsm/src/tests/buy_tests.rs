@@ -372,3 +372,153 @@ fn on_finalize_clears_hollar_amount_received() {
 		assert_eq!(HollarAmountReceived::<Test>::get(DAI), 0);
 	});
 }
+
+#[test]
+fn buy_purchase_zero_fee_works() {
+	let pool_id = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
+		// Create a stablepool for HOLLAR and DAI
+		.with_pool(
+			pool_id,
+			vec![HOLLAR, DAI],
+			22,
+			Permill::from_percent(0),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_initial_pool_liquidity(
+			100,
+			vec![
+				AssetAmount {
+					asset_id: HOLLAR,
+					amount: 1_000 * ONE_18,
+				},
+				AssetAmount {
+					asset_id: DAI,
+					amount: 990 * ONE_18,
+				},
+			],
+		)
+		.with_collateral(
+			DAI,
+			pool_id,
+			Permill::from_percent(0),
+			(100, 100),
+			Permill::from_percent(0),
+		)
+		.build()
+		.execute_with(|| {
+			// Initial state
+			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+			let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+			assert_eq!(initial_alice_dai, 1000 * ONE_18);
+			assert_eq!(initial_alice_hollar, 0);
+			assert_eq!(initial_hsm_dai, 0);
+
+			let hollar_amount = 10 * ONE;
+			let expected_collateral_amount = hollar_amount; // 1:1 peg with no fee - same amount
+
+			// Execute the sell
+			assert_ok!(HSM::buy(
+				RuntimeOrigin::signed(ALICE),
+				DAI,
+				HOLLAR,
+				hollar_amount,
+				u128::MAX,
+			));
+
+			// Check that ALICE's balances are updated correctly
+			assert_eq!(
+				Tokens::free_balance(DAI, &ALICE),
+				initial_alice_dai - expected_collateral_amount
+			);
+			assert_eq!(
+				Tokens::free_balance(HOLLAR, &ALICE),
+				initial_alice_hollar + hollar_amount
+			);
+
+			// Check that HSM holdings are updated correctly
+			assert_eq!(
+				Tokens::free_balance(DAI, &HSM::account_id()),
+				initial_hsm_dai + expected_collateral_amount
+			);
+			assert_eq!(CollateralHoldings::<Test>::get(DAI), expected_collateral_amount);
+		});
+}
+
+#[test]
+fn buy_purchase_nonzero_fee_works() {
+	let pool_id = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
+		// Create a stablepool for HOLLAR and DAI
+		.with_pool(
+			pool_id,
+			vec![HOLLAR, DAI],
+			22,
+			Permill::from_percent(0),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_initial_pool_liquidity(
+			100,
+			vec![
+				AssetAmount {
+					asset_id: HOLLAR,
+					amount: 1_000 * ONE_18,
+				},
+				AssetAmount {
+					asset_id: DAI,
+					amount: 990 * ONE_18,
+				},
+			],
+		)
+		.with_collateral(
+			DAI,
+			pool_id,
+			Permill::from_percent(1),
+			(100, 100),
+			Permill::from_percent(0),
+		)
+		.build()
+		.execute_with(|| {
+			// Initial state
+			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+			let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+			assert_eq!(initial_alice_dai, 1000 * ONE_18);
+			assert_eq!(initial_alice_hollar, 0);
+			assert_eq!(initial_hsm_dai, 0);
+
+			let expected_collateral_amount = 10 * ONE;
+			let hollar_amount = 9900990099009; // 1:1 peg with 1% fee
+
+			// Execute the sell
+			assert_ok!(HSM::buy(
+				RuntimeOrigin::signed(ALICE),
+				DAI,
+				HOLLAR,
+				hollar_amount,
+				u128::MAX,
+			));
+
+			// Check that ALICE's balances are updated correctly
+			assert_eq!(
+				Tokens::free_balance(DAI, &ALICE),
+				initial_alice_dai - expected_collateral_amount
+			);
+			assert_eq!(
+				Tokens::free_balance(HOLLAR, &ALICE),
+				initial_alice_hollar + hollar_amount
+			);
+
+			// Check that HSM holdings are updated correctly
+			assert_eq!(
+				Tokens::free_balance(DAI, &HSM::account_id()),
+				initial_hsm_dai + expected_collateral_amount
+			);
+			assert_eq!(CollateralHoldings::<Test>::get(DAI), expected_collateral_amount);
+		});
+}
