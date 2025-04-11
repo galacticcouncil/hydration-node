@@ -24,9 +24,9 @@ use sp_core::offchain::Duration;
 use sp_core::Get;
 use sp_core::H256;
 use sp_core::U256;
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::offchain::storage_lock::Time;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::ArithmeticError;
 use sp_runtime::DispatchError;
 use sp_runtime::FixedI128;
 use sp_runtime::Permill;
@@ -41,6 +41,7 @@ use sp_runtime::{
 	},
 };
 use sp_runtime::{AccountId32, FixedPointNumber, FixedU128, Saturating};
+use sp_runtime::{ArithmeticError, Rounding};
 use sp_std::collections;
 use sp_std::vec::Vec;
 
@@ -555,8 +556,9 @@ pub mod pallet {
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 
 			// Calculate the arbitrage opportunity
-			let (max_buy_amt, hollar_amount_to_trade) =
-				Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
+			let hollar_amount_to_trade = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
+
+			dbg!(hollar_amount_to_trade);
 
 			// If there's an opportunity, execute it
 			if hollar_amount_to_trade > 0 {
@@ -1102,7 +1104,7 @@ where
 	fn calculate_arbitrage_opportunity(
 		collateral_asset_id: T::AssetId,
 		collateral_info: &CollateralInfo<T::AssetId>,
-	) -> Result<(Balance, Balance), DispatchError> {
+	) -> Result<Balance, DispatchError> {
 		let hollar_id = T::HollarId::get();
 		let pool_id = collateral_info.pool_id;
 
@@ -1126,26 +1128,24 @@ where
 			Error::<T>::InvalidPoolState
 		);
 		// Calculate I_i = (H_i - φ_i * R_i) / 2
-		let asset_reserve = pool_state
+		let collateral_reserve = pool_state
 			.asset_reserve_at(collateral_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
 		let hollar_reserve = pool_state
 			.asset_reserve_at(hollar_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
+
+		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
+
+		// TODO: take decimals into account
+		// 1. Calculate imbalance
+		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
+		ensure!(!imbalance.is_zero(), Error::<T>::NoArbitrageOpportunity);
 		let b_coefficient = collateral_info.b;
-
-		// Calculate φ_i * R_i
-		let phi_r = b_coefficient.mul_floor(asset_reserve);
-
-		// Calculate H_i - φ_i * R_i
-		let h_minus_phi_r = hollar_reserve.checked_sub(phi_r).unwrap_or(0);
-
-		// Calculate I_i = (H_i - φ_i * R_i) / 2
-		let max_buy_amt = h_minus_phi_r.checked_div(2).unwrap_or(0);
-
+		let max_buy_amt = b_coefficient.mul_floor(imbalance);
 		// If max_buy_amt is 0, there's no arbitrage opportunity
 		if max_buy_amt == 0 {
-			return Ok((0, 0));
+			return Ok(0);
 		}
 
 		// Simulate swap to determine execution price
@@ -1158,45 +1158,39 @@ where
 			Balance::MAX,
 			&pool_state,
 		)?;
-
 		// Execution price is p_i = sell_amt / max_buy_amt
 		let execution_price = (sell_amt, max_buy_amt);
 
 		// Apply fee factor: buy_price = p_i / (1 - f)
-		let fee = collateral_info.purchase_fee;
+		let fee = collateral_info.buy_back_fee;
 		let fee_complement = Permill::from_percent(100).saturating_sub(fee);
 
 		let exec_prica_ratio: hydra_dx_math::ratio::Ratio = execution_price.into();
 		let fee_ratio: hydra_dx_math::ratio::Ratio = (fee_complement.deconstruct() as u128, 1_000_000u128).into();
 		let buy_price_ratio = exec_prica_ratio.saturating_div(&fee_ratio);
-
 		let buy_price = (buy_price_ratio.n, buy_price_ratio.d);
 
-		let buy_price_fixed = FixedU128::from_rational(buy_price.0, buy_price.1);
+		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 
-		// Get max buy price from HSM
-		let max_buy_price_coefficient = collateral_info.max_buy_price_coefficient;
-		let max_buy_price = FixedU128::from_rational(max_buy_price_coefficient.0, max_buy_price_coefficient.1);
-
-		// Check if there's an arbitrage opportunity
-		// If buy_price > max_buy_price, there's no opportunity
-		if buy_price_fixed > max_buy_price {
-			return Ok((0, 0));
-		}
+		// Check if price exceeds max price - compare the ratios
+		// For (a,b) <= (c,d), we check a*d <= b*c
+		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
+		let max_price_check = buy_price.1.saturating_mul(max_price.0);
+		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
 
 		// Calculate the amount of Hollar to trade
 		// max_buy_amt = min(max_buy_amt, self.liquidity[tkn] / buy_price)
-		let collateral_holdings = Self::collateral_holdings(collateral_asset_id);
-		let max_buy_from_holdings_ratio =
-			Ratio::new(collateral_holdings, 1).saturating_div(&Ratio::new(buy_price.0, buy_price.1));
-		let max_buy_from_holdings = max_buy_from_holdings_ratio.n / max_buy_from_holdings_ratio.d;
+		let asset_holding = Self::collateral_holdings(collateral_asset_id);
+		let max_holding_liquidity_amt =
+			multiply_by_rational_with_rounding(asset_holding, buy_price.1, buy_price.0, Rounding::Down)
+				.ok_or(ArithmeticError::Overflow)?;
 
-		let max_buy_amt = sp_std::cmp::min(max_buy_amt, max_buy_from_holdings);
+		let max_buy_amt = sp_std::cmp::min(max_buy_amt, max_holding_liquidity_amt);
 
 		// amount of hollar to trade = max(max_buy_amt - _HollarAmountReceived_, 0)
 		let hollar_amount_received = Self::hollar_amount_received(collateral_asset_id);
 		let hollar_amount_to_trade = max_buy_amt.saturating_sub(hollar_amount_received);
 
-		Ok((max_buy_amt, hollar_amount_to_trade))
+		Ok(hollar_amount_to_trade)
 	}
 }
