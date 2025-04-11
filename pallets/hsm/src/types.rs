@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use evm::ExitReason;
-use frame_support::traits::Get;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_runtime::{Perbill, Permill};

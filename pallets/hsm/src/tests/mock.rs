@@ -20,8 +20,8 @@
 
 use crate as pallet_hsm;
 use crate::types::{CallResult, CoefficientRatio};
+use crate::Config;
 use crate::ERC20Function;
-use crate::{pallet, Config};
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
 use evm::{ExitError, ExitReason, ExitSucceed};
@@ -30,7 +30,7 @@ use frame_support::sp_runtime::{
 	MultiSignature,
 };
 use frame_support::traits::Contains;
-use frame_support::traits::{ConstU128, ConstU16, ConstU32, ConstU64, Everything};
+use frame_support::traits::{ConstU128, ConstU32, ConstU64, Everything};
 use frame_support::{construct_runtime, parameter_types};
 use frame_system::EnsureRoot;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
@@ -38,15 +38,14 @@ use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
 	stableswap::AssetAmount,
 };
-use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
+use hydradx_traits::{AccountIdFor, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
-use pallet_stableswap::types::{BoundedPegSources, PegSource, PoolSnapshot};
-use sp_core::crypto::AccountId32;
+use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
 use sp_runtime::{BoundedVec, Perbill};
-use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Permill};
+use sp_runtime::{BuildStorage, DispatchError, Permill};
 use sp_std::num::NonZeroU16;
 use std::cell::RefCell;
 use std::collections::HashMap;

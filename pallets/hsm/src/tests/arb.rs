@@ -1,13 +1,10 @@
 use crate::tests::mock::*;
-use crate::ERC20Function;
-use crate::EvmAddress;
-use crate::{CollateralHoldings, Error, HollarAmountReceived};
-use frame_support::traits::Hooks;
-use frame_support::{assert_err, assert_noop, assert_ok};
+use crate::CollateralHoldings;
+use frame_support::assert_ok;
 use hydradx_traits::stableswap::AssetAmount;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::MultiCurrency;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{DispatchError, Perbill, Permill};
+use sp_runtime::{Perbill, Permill};
 
 #[test]
 fn arbitrage_should_work() {

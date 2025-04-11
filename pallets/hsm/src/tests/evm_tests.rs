@@ -17,7 +17,6 @@
 
 use super::mock::*;
 use crate::*;
-use ethabi::ethereum_types::U256;
 use frame_support::assert_ok;
 use orml_traits::MultiCurrency;
 

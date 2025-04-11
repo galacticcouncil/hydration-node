@@ -19,10 +19,9 @@ use crate::tests::mock::*;
 use crate::types::CollateralInfo;
 use crate::{Collaterals, Error};
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
-use frame_system::EnsureRoot;
 use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{DispatchError, Perbill, Permill};
+use sp_runtime::{Perbill, Permill};
 
 #[test]
 fn add_collateral_asset_works() {

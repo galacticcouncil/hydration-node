@@ -18,7 +18,6 @@
 use crate::tests::mock::*;
 use crate::{CollateralHoldings, Collaterals, Error};
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
-use frame_system::EnsureRoot;
 use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::types::PegSource;
 use sp_runtime::Permill;

@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::ERC20Function;
 use crate::EvmAddress;
 use crate::{CollateralHoldings, Error, HollarAmountReceived};
 use frame_support::traits::Hooks;
@@ -24,7 +23,7 @@ use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{DispatchError, Perbill, Permill};
+use sp_runtime::{Perbill, Permill};
 
 // Setup helper to create a test environment with DAI as collateral
 fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {

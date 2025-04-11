@@ -21,7 +21,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::Permill;
 
 use crate::tests::mock::*;
 

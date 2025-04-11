@@ -9,13 +9,12 @@ use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_support::pallet_prelude::IsType;
 use frame_support::traits::fungibles::Inspect;
+use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::{Fortitude, Preservation};
-use frame_support::traits::{fungibles::Mutate, ExistenceRequirement};
 use frame_system::offchain::SendTransactionTypes;
+use frame_system::offchain::SendUnsignedTransaction;
 use frame_system::offchain::SubmitTransaction;
-use frame_system::offchain::{AppCrypto, SendUnsignedTransaction, SignedPayload, Signer, SigningTypes};
 use frame_system::pallet_prelude::BlockNumberFor;
-use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
@@ -28,22 +27,14 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::offchain::storage_lock::Time;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::DispatchError;
-use sp_runtime::FixedI128;
 use sp_runtime::Permill;
 use sp_runtime::RuntimeDebug;
 use sp_runtime::{
-	offchain::{
-		storage::StorageValueRef,
-		storage_lock::{BlockAndTime, StorageLock},
-	},
-	transaction_validity::{
-		InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity, ValidTransaction,
-	},
+	offchain::storage_lock::StorageLock,
+	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
 };
-use sp_runtime::{AccountId32, FixedPointNumber, FixedU128, Saturating};
+use sp_runtime::{AccountId32, Saturating};
 use sp_runtime::{ArithmeticError, Rounding};
-use sp_std::collections;
-use sp_std::vec::Vec;
 
 pub mod math;
 pub mod traits;
@@ -72,17 +63,11 @@ pub const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::math::PegType;
-	use crate::tests::mock::RuntimeOrigin;
 	use frame_support::pallet_prelude::*;
 	use frame_support::PalletId;
 	use frame_system::pallet_prelude::*;
 	use frame_system::Origin;
-	use sp_core::{H256, U256};
-	use sp_runtime::{
-		traits::{AccountIdConversion, CheckedSub, Convert, Zero},
-		ArithmeticError, Perbill, Permill,
-	};
+	use sp_runtime::{traits::Zero, Perbill, Permill};
 	use sp_std::prelude::*;
 	// EVM imports
 
