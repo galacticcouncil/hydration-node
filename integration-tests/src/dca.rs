@@ -3,10 +3,10 @@
 use crate::count_dca_event;
 use crate::polkadot_test_net::*;
 use crate::{assert_balance, assert_reserved_balance};
+use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
-use frame_support::{assert_noop};
 
 use hydradx_runtime::AssetPairAccountIdFor;
 use hydradx_runtime::DOT_ASSET_LOCATION;
@@ -939,7 +939,7 @@ mod omnipool {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 				create_xyk_pool(insufficient_asset, 10000 * UNITS, DAI, 20000 * UNITS);
 				create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 1000000000000);
 				assert_ok!(hydradx_runtime::EmaOracle::add_oracle(
@@ -1062,7 +1062,7 @@ mod omnipool {
 					None,
 					None,
 				)
-					.unwrap();
+				.unwrap();
 
 				//Arrange
 				let block_id = 11;
@@ -1079,17 +1079,15 @@ mod omnipool {
 					insufficient_asset,
 					5000 * UNITS as i128,
 				));
-				assert_noop!(DCA::schedule(
-					RuntimeOrigin::signed(ALICE.into()),
-					schedule1.clone(),
-					None
-				), DispatchError::Other("XYK pool does not exist for fee payment asset"));
+				assert_noop!(
+					DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule1.clone(), None),
+					DispatchError::Other("XYK pool does not exist for fee payment asset")
+				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
 	}
-
 
 	#[test]
 	fn insufficient_fee_asset_should_be_swapped_for_dot_when_dot_reseve_is_relative_low() {

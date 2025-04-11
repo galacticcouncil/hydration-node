@@ -997,7 +997,7 @@ fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() 
 				None,
 				None,
 			)
-				.unwrap();
+			.unwrap();
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -1050,7 +1050,6 @@ fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() 
 		});
 	})
 }
-
 
 #[test]
 fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset() {
