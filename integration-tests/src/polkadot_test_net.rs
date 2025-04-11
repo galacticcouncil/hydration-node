@@ -523,7 +523,7 @@ pub mod hydra {
 						Some(b"DOT".to_vec().try_into().unwrap()),
 						1_000_000u128,
 						None,
-						None,
+						Some(10),
 						None,
 						true,
 					),
