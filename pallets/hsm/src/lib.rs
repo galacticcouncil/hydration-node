@@ -73,16 +73,17 @@ pub const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
 pub mod pallet {
 	use super::*;
 	use crate::math::PegType;
+	use crate::tests::mock::RuntimeOrigin;
 	use frame_support::pallet_prelude::*;
 	use frame_support::PalletId;
 	use frame_system::pallet_prelude::*;
+	use frame_system::Origin;
 	use sp_core::{H256, U256};
 	use sp_runtime::{
 		traits::{AccountIdConversion, CheckedSub, Convert, Zero},
 		ArithmeticError, Perbill, Permill,
 	};
 	use sp_std::prelude::*;
-
 	// EVM imports
 
 	/// HSM account id identifier
@@ -558,8 +559,6 @@ pub mod pallet {
 			// Calculate the arbitrage opportunity
 			let hollar_amount_to_trade = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
 
-			dbg!(hollar_amount_to_trade);
-
 			// If there's an opportunity, execute it
 			if hollar_amount_to_trade > 0 {
 				let hsm_account = Self::account_id();
@@ -572,11 +571,18 @@ pub mod pallet {
 					Self::do_collateral_out_given_hollar_in(&hsm_account, collateral_asset_id, hollar_amount_to_trade)?;
 
 				// Buy hollar in the collateral stable pool
-				let hollar_received =
-					Self::do_hollar_in_given_collateral_out(&hsm_account, collateral_asset_id, collateral_received)?;
+				let origin: OriginFor<T> = Origin::<T>::Signed(hsm_account.clone()).into();
+				pallet_stableswap::Pallet::<T>::buy(
+					origin,
+					collateral_info.pool_id,
+					T::HollarId::get(),
+					collateral_asset_id,
+					hollar_amount_to_trade,
+					collateral_received,
+				)?;
 
 				// Burn the hollar
-				Self::burn_hollar(hollar_received)?;
+				Self::burn_hollar(hollar_amount_to_trade)?;
 
 				// Emit event
 				Self::deposit_event(Event::<T>::ArbitrageExecuted {

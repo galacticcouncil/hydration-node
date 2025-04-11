@@ -1620,7 +1620,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[inline]
-	fn pool_account(pool_id: T::AssetId) -> T::AccountId {
+	pub fn pool_account(pool_id: T::AssetId) -> T::AccountId {
 		T::ShareAccountId::from_assets(&pool_id, Some(POOL_IDENTIFIER))
 	}
 

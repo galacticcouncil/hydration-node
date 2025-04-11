@@ -45,11 +45,21 @@ fn arbitrage_should_work() {
 			Permill::from_percent(0),
 			(100, 100),
 			Permill::from_float(0.),
-			Perbill::from_percent(100),
+			Perbill::from_percent(10),
 		)
 		.build()
 		.execute_with(|| {
 			CollateralHoldings::<Test>::insert(DAI, 100 * ONE_18);
+			let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
+			let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
+			let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
 			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI,));
+			let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
+			let arb_amount = pool_balance_dai_after - pool_balance_dai_before;
+
+			let hsm_balance_dai_after = Tokens::free_balance(DAI, &HSM::account_id());
+			assert_eq!(hsm_balance_dai_before - hsm_balance_dai_after, arb_amount);
+			let holding = CollateralHoldings::<Test>::get(DAI);
+			assert_eq!(holding, 100 * ONE_18 - arb_amount);
 		});
 }
