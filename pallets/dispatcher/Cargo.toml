@@ -13,6 +13,7 @@ readme = "README.md"
 # parity
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 scale-info = { workspace = true }
+log = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -23,12 +24,18 @@ sp-core = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+
+# EVM dependencies
+pallet-evm = { workspace = true }
+evm = { workspace = true, features = ["with-codec"] }
+
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
-hydradx-traits = { workspace = true }
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
 test-utils = { workspace = true }
@@ -46,6 +53,7 @@ std = [
     'hydradx-traits/std',
     'orml-tokens/std',
     'orml-traits/std',
+    'pallet-evm/std',
 ]
 
 runtime-benchmarks = [

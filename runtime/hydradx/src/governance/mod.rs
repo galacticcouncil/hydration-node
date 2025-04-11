@@ -234,11 +234,22 @@ parameter_types! {
 }
 
 impl pallet_dispatcher::Config for Runtime {
-	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
-	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Evm = evm::Executor<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Evm = DummyEvm;
+	type EvmAccounts = EVMAccounts;
+	type GasLimit = LiquidationGasLimit;
+	// FIXME: change to proper gaslimit;
+	type BatchLimit = ConstU32<50_000>;
+	// FIXME: change to proper batch limit;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
+	type EvmBatchOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = AaveManagerAccount;
+	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>; // FIXME: change to proper origin;
 }
