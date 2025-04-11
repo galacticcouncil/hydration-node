@@ -37,13 +37,20 @@ mod benchmarking;
 
 pub mod weights;
 
-use frame_support::dispatch::PostDispatchInfo;
+use evm::ExitReason;
+use frame_support::dispatch::{PostDispatchInfo, WithPostDispatchInfo};
+use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use pallet_evm::GasWeightMapping;
+use sp_core::{crypto::AccountId32, U256};
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
+use sp_std::{vec, vec::Vec};
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::pallet_prelude::Weight;
 pub use pallet::*;
+
+pub type CallResult = (ExitReason, Vec<u8>);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -73,8 +80,26 @@ pub mod pallet {
 			+ From<frame_system::Call<Self>>
 			+ Parameter;
 
+		/// EVM handler.
+		type Evm: EVM<CallResult>;
+
+		/// EVM account mapping
+		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
+
+		/// Gas limit for EVM calls
+		#[pallet::constant]
+		type GasLimit: Get<u64>;
+
+		/// Maximum number of EVM calls in a batch
+		#[pallet::constant]
+		type BatchLimit: Get<u32>;
+
+		/// Convert gas to weight
+		type GasWeightMapping: GasWeightMapping;
+
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type EvmBatchOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
@@ -90,6 +115,15 @@ pub mod pallet {
 	#[pallet::getter(fn aave_manager_account)]
 	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
 
+	#[pallet::error]
+	pub enum Error<T> {
+		TreasuryManagerCallFailed,
+		AaveManagerCallFailed,
+		TooManyCalls,
+		EvmCallFailed,
+		EmptyBatch,
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -101,10 +135,22 @@ pub mod pallet {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
+		EvmBatchDispatched {
+			caller: T::AccountId,
+			num_calls: u32,
+		},
+		/// An individual EVM call in a batch completed successfully
+		EvmCallCompleted {
+			index: u32,
+			target: EvmAddress,
+		},
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		#[pallet::call_index(0)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().weight;
@@ -167,6 +213,81 @@ pub mod pallet {
 			ensure_root(origin)?;
 			AaveManagerAccount::<T>::put(account);
 			Ok(())
+		}
+
+		/// Execute multiple EVM calls in a batch.
+		/// If any call fails, the entire batch is reverted.
+		///
+		/// Parameters:
+		/// - `origin`: Signed origin.
+		/// - `calls`: A vector of tuples containing (target, input, value) for each EVM call.
+		///
+		/// Emits `EvmBatchDispatched` event when successful.
+		#[pallet::call_index(3)]
+		#[pallet::weight({
+			let call_count = calls.len().min(T::BatchLimit::get() as usize) as u32;
+			T::WeightInfo::dispatch_batch_all_evm(call_count)
+		})]
+		pub fn dispatch_batch_all_evm(
+			origin: OriginFor<T>,
+			calls: Vec<(EvmAddress, Vec<u8>, U256)>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			T::EvmBatchOrigin::ensure_origin(frame_system::Origin::<T>::Signed(who.clone()).into())?;
+
+			ensure!(!calls.is_empty(), Error::<T>::EmptyBatch);
+
+			let calls_len = calls.len();
+			ensure!(calls_len <= T::BatchLimit::get() as usize, Error::<T>::TooManyCalls);
+
+			let caller_evm_address = T::EvmAccounts::evm_address(&who);
+			let mut total_gas_used = 0u64;
+
+			// Execute each call in sequence
+			for (index, (target, input, value)) in calls.iter().enumerate() {
+				let context = CallContext::new_call(*target, caller_evm_address);
+
+				let (exit_reason, output) = T::Evm::call(context, input.clone(), *value, T::GasLimit::get());
+
+				// If any call fails, revert the entire batch
+				match exit_reason {
+					ExitReason::Succeed(_) => {
+						// Add estimated gas used for this call
+						total_gas_used = total_gas_used.saturating_add(T::GasLimit::get());
+						Self::deposit_event(Event::<T>::EvmCallCompleted {
+							index: index as u32,
+							target: *target,
+						});
+					}
+					_ => {
+						log::debug!(
+							target: "dispatcher",
+							"EVM batch execution failed at index {}: {:?}, Output: {:?}",
+							index,
+							exit_reason,
+							output
+						);
+
+						// Calculate the base weight plus the weight of the executed calls so far
+						let base_weight = T::WeightInfo::dispatch_batch_all_evm(calls_len as u32);
+						let call_weight = T::GasWeightMapping::gas_to_weight(total_gas_used, true);
+						let total_weight = base_weight.saturating_add(call_weight);
+
+						return Err(Error::<T>::EvmCallFailed.with_weight(total_weight));
+					}
+				}
+			}
+
+			Self::deposit_event(Event::<T>::EvmBatchDispatched {
+				caller: who,
+				num_calls: calls_len as u32,
+			});
+
+			// Calculate total weight: base plus per-call weight
+			let base_weight = T::WeightInfo::dispatch_batch_all_evm(calls_len as u32);
+			let call_weight = T::GasWeightMapping::gas_to_weight(total_gas_used, true);
+
+			Ok(Some(base_weight.saturating_add(call_weight)).into())
 		}
 	}
 }
