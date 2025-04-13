@@ -397,15 +397,16 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		log::info!(target: "rrr", "validate_self_contained.\n");
 		match self {
 			RuntimeCall::Ethereum(call) => {
-                let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
+				let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
 				if let pallet_ethereum::Call::transact { transaction } = call {
 					if let pallet_ethereum::Transaction::Legacy(legacy) = transaction {
 						if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
-							if call_address == H160::from_slice(hex!("3cd0a705a2dc65e5b1e1205896baa2be8a07c6e0").as_slice())
+							if call_address
+								== H160::from_slice(hex!("3cd0a705a2dc65e5b1e1205896baa2be8a07c6e0").as_slice())
 								|| call_address
 									== H160::from_slice(hex!("5d8320f3ced9575d8e25b6f437e610fc6a03bf52").as_slice())
 								|| call_address
-								== H160::from_slice(hex!("0000000000000000000000000000000100000000").as_slice())
+									== H160::from_slice(hex!("0000000000000000000000000000000100000000").as_slice())
 							{
 								if let Some(ref mut validity_info) = tx_validity {
 									if let Ok(ref mut validity) = validity_info {
@@ -417,7 +418,7 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 					};
 				}
 				tx_validity
-            },
+			}
 			_ => None,
 		}
 	}
@@ -539,10 +540,10 @@ impl_runtime_apis! {
 			let mut tx_validity = Executive::validate_transaction(source, tx.clone(), block_hash);
 			let transaction = tx.clone().0;
 			if let RuntimeCall::Liquidation(pallet_liquidation::Call::dummy_received{ .. }) = transaction.function {
-             	if let Ok(ref mut v) = tx_validity {
+				 if let Ok(ref mut v) = tx_validity {
 					v.priority = 3 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
-                }
-            }
+				}
+			}
 			tx_validity
 		}
 	}

@@ -1,9 +1,9 @@
 // we don't need to run tests with benchmarking feature
 #![cfg(not(feature = "runtime-benchmarks"))]
 
+pub use crate::tests::mock::*;
 use ethabi::ethereum_types::{H160, H256, U256};
 use frame_support::assert_ok;
-pub use crate::tests::mock::*;
 use frame_support::traits::Hooks;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
@@ -52,24 +52,24 @@ fn parse_oracle_data_should_work() {
 			00000000000000000000000029b5c33700000000000000000000000067acbce5\
 			000000000000000000000005939a32ea00000000000000000000000067acbce5"
 			)
-				.encode_as(),
+			.encode_as(),
 			signature: ethereum::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 			)
-				.unwrap(),
+			.unwrap(),
 		});
 
 		println!("RRR: {:x?}\n", hex::encode(tx.encode_as()));
 		// "8d24152600000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000876444f542f5553440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008414156452f555344000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000029b5c33700000000000000000000000067acbce5000000000000000000000005939a32ea00000000000000000000000067acbce5"
-		println!("RRRRR: {:?}    {:?}",
-		H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
-		H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
+		println!(
+			"RRRRR: {:?}    {:?}",
+			H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
+			H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 		);
 
 		assert!(Liquidation::parse_oracle_transaction(tx).is_some());
-
 	});
 }
 fn price_oracle_response(state: &mut sp_core::offchain::testing::OffchainState) {
@@ -99,7 +99,7 @@ fn create_unsigned_legacy_transaction() -> LegacyUnsignedTransaction {
 		)),
 		value: U256::zero(),
 		input: hex!(
-				"8d241526\
+			"8d241526\
 			0000000000000000000000000000000000000000000000000000000000000040\
 			0000000000000000000000000000000000000000000000000000000000000120\
 			0000000000000000000000000000000000000000000000000000000000000002\
@@ -112,8 +112,8 @@ fn create_unsigned_legacy_transaction() -> LegacyUnsignedTransaction {
 			0000000000000000000000000000000000000000000000000000000000000002\
 			00000000000000000000000029b5c33700000000000000000000000067acbce5\
 			000000000000000000000005939a32ea00000000000000000000000067acbce5"
-			)
-			.encode_as(),
+		)
+		.encode_as(),
 	}
 }
 
@@ -126,10 +126,9 @@ fn create_transaction(account: &AccountInfo) -> Transaction {
 			hex!("0000000000000000000000000000000100000000").as_slice(),
 		)),
 		value: U256::zero(),
-		input: hex!(
-				"18160ddd")
-			.encode_as(),
-	}.sign(&account.private_key)
+		input: hex!("18160ddd").encode_as(),
+	}
+	.sign(&account.private_key)
 }
 
 pub fn create_legacy_transaction(account: &AccountInfo) -> Transaction {
@@ -142,7 +141,6 @@ fn print_tx() {
 	let tx = create_legacy_transaction(&alice);
 	println!("- - - - {:?}", tx);
 	println!("\n- - - - {:?}", hex::encode(&tx.encode_payload()[..]));
-
 
 	let tx = create_transaction(&alice);
 	println!("\n- - - - {:?}", tx);
@@ -159,25 +157,19 @@ fn recover_signer(transaction: &Transaction) -> Option<H160> {
 			sig[0..32].copy_from_slice(&t.signature.r()[..]);
 			sig[32..64].copy_from_slice(&t.signature.s()[..]);
 			sig[64] = t.signature.standard_v();
-			msg.copy_from_slice(
-				&ethereum::LegacyTransactionMessage::from(t.clone()).hash()[..],
-			);
+			msg.copy_from_slice(&ethereum::LegacyTransactionMessage::from(t.clone()).hash()[..]);
 		}
 		Transaction::EIP2930(t) => {
 			sig[0..32].copy_from_slice(&t.r[..]);
 			sig[32..64].copy_from_slice(&t.s[..]);
 			sig[64] = t.odd_y_parity as u8;
-			msg.copy_from_slice(
-				&ethereum::EIP2930TransactionMessage::from(t.clone()).hash()[..],
-			);
+			msg.copy_from_slice(&ethereum::EIP2930TransactionMessage::from(t.clone()).hash()[..]);
 		}
 		Transaction::EIP1559(t) => {
 			sig[0..32].copy_from_slice(&t.r[..]);
 			sig[32..64].copy_from_slice(&t.s[..]);
 			sig[64] = t.odd_y_parity as u8;
-			msg.copy_from_slice(
-				&ethereum::EIP1559TransactionMessage::from(t.clone()).hash()[..],
-			);
+			msg.copy_from_slice(&ethereum::EIP1559TransactionMessage::from(t.clone()).hash()[..]);
 		}
 	}
 	let pubkey = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &msg).ok()?;
@@ -191,7 +183,8 @@ pub struct AccountInfo {
 }
 
 fn alice_keys() -> AccountInfo {
-	let private_key = H256::from_slice(hex!("e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a").as_slice());
+	let private_key =
+		H256::from_slice(hex!("e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a").as_slice());
 	let secret_key = libsecp256k1::SecretKey::parse_slice(&private_key[..]).unwrap();
 	let public_key = &libsecp256k1::PublicKey::from_secret_key(&secret_key).serialize()[1..65];
 	println!("- - - - public key: {:?}", hex::encode(public_key));
@@ -241,10 +234,7 @@ impl LegacyUnsignedTransaction {
 	pub fn sign_with_chain_id(&self, key: &H256, chain_id: u64) -> Transaction {
 		let hash = self.signing_hash();
 		let msg = libsecp256k1::Message::parse(hash.as_fixed_bytes());
-		let s = libsecp256k1::sign(
-			&msg,
-			&libsecp256k1::SecretKey::parse_slice(&key[..]).unwrap(),
-		);
+		let s = libsecp256k1::sign(&msg, &libsecp256k1::SecretKey::parse_slice(&key[..]).unwrap());
 		let sig = s.0.serialize();
 
 		let sig = TransactionSignature::new(
@@ -252,7 +242,7 @@ impl LegacyUnsignedTransaction {
 			H256::from_slice(&sig[0..32]),
 			H256::from_slice(&sig[32..64]),
 		)
-			.unwrap();
+		.unwrap();
 
 		Transaction::Legacy(ethereum::LegacyTransaction {
 			nonce: self.nonce,
@@ -267,11 +257,11 @@ impl LegacyUnsignedTransaction {
 }
 
 // -----------------------------------------------------------
-use ethereum::TransactionV2 as EthereumTransaction;
 use ethereum::EnvelopedEncodable;
-use jsonrpsee::types::ErrorObjectOwned;
-use fc_rpc_core::types::TransactionMessage;
+use ethereum::TransactionV2 as EthereumTransaction;
 use fc_rpc::{internal_err, EthSigner};
+use fc_rpc_core::types::TransactionMessage;
+use jsonrpsee::types::ErrorObjectOwned;
 
 pub struct EthDevSigner {
 	keys: Vec<libsecp256k1::SecretKey>,
@@ -280,18 +270,18 @@ pub struct EthDevSigner {
 impl EthDevSigner {
 	pub fn new() -> Self {
 		Self {
-			keys: vec![libsecp256k1::SecretKey::parse(&[
-				0xe5, 0xbe, 0x9a, 0x50, 0x92, 0xb8, 0x1b, 0xca, 0x64, 0xbe, 0x81, 0xd2, 0x12, 0xe7,
-				0xf2, 0xf9, 0xeb, 0xa1, 0x83, 0xbb, 0x7a, 0x90, 0x95, 0x4f, 0x7b, 0x76, 0x36, 0x1f,
-				0x6e, 0xdb, 0x5c, 0xa,
-			])
+			keys: vec![
+				libsecp256k1::SecretKey::parse(&[
+					0xe5, 0xbe, 0x9a, 0x50, 0x92, 0xb8, 0x1b, 0xca, 0x64, 0xbe, 0x81, 0xd2, 0x12, 0xe7, 0xf2, 0xf9,
+					0xeb, 0xa1, 0x83, 0xbb, 0x7a, 0x90, 0x95, 0x4f, 0x7b, 0x76, 0x36, 0x1f, 0x6e, 0xdb, 0x5c, 0xa,
+				])
 				.expect("Test key is valid; qed"),
-					   libsecp256k1::SecretKey::parse(&[
-				0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-				0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-				0x11, 0x11, 0x11, 0x11,
-			])
-				.expect("Test key is valid; qed")],
+				libsecp256k1::SecretKey::parse(&[
+					0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+					0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+				])
+				.expect("Test key is valid; qed"),
+			],
 		}
 	}
 }
@@ -312,11 +302,7 @@ impl EthSigner for EthDevSigner {
 		self.keys.iter().map(secret_key_address).collect()
 	}
 
-	fn sign(
-		&self,
-		message: TransactionMessage,
-		address: &H160,
-	) -> Result<EthereumTransaction, ErrorObjectOwned> {
+	fn sign(&self, message: TransactionMessage, address: &H160) -> Result<EthereumTransaction, ErrorObjectOwned> {
 		let mut transaction = None;
 
 		for secret in &self.keys {
@@ -335,19 +321,16 @@ impl EthSigner for EthDevSigner {
 						let rs = signature.serialize();
 						let r = H256::from_slice(&rs[0..32]);
 						let s = H256::from_slice(&rs[32..64]);
-						transaction =
-							Some(EthereumTransaction::Legacy(ethereum::LegacyTransaction {
-								nonce: m.nonce,
-								gas_price: m.gas_price,
-								gas_limit: m.gas_limit,
-								action: m.action,
-								value: m.value,
-								input: m.input,
-								signature: ethereum::TransactionSignature::new(v, r, s)
-									.ok_or_else(|| {
-										internal_err("signer generated invalid signature")
-									})?,
-							}));
+						transaction = Some(EthereumTransaction::Legacy(ethereum::LegacyTransaction {
+							nonce: m.nonce,
+							gas_price: m.gas_price,
+							gas_limit: m.gas_limit,
+							action: m.action,
+							value: m.value,
+							input: m.input,
+							signature: ethereum::TransactionSignature::new(v, r, s)
+								.ok_or_else(|| internal_err("signer generated invalid signature"))?,
+						}));
 					}
 					TransactionMessage::EIP2930(m) => {
 						let signing_message = libsecp256k1::Message::parse_slice(&m.hash()[..])
@@ -356,20 +339,19 @@ impl EthSigner for EthDevSigner {
 						let rs = signature.serialize();
 						let r = H256::from_slice(&rs[0..32]);
 						let s = H256::from_slice(&rs[32..64]);
-						transaction =
-							Some(EthereumTransaction::EIP2930(ethereum::EIP2930Transaction {
-								chain_id: m.chain_id,
-								nonce: m.nonce,
-								gas_price: m.gas_price,
-								gas_limit: m.gas_limit,
-								action: m.action,
-								value: m.value,
-								input: m.input.clone(),
-								access_list: m.access_list,
-								odd_y_parity: recid.serialize() != 0,
-								r,
-								s,
-							}));
+						transaction = Some(EthereumTransaction::EIP2930(ethereum::EIP2930Transaction {
+							chain_id: m.chain_id,
+							nonce: m.nonce,
+							gas_price: m.gas_price,
+							gas_limit: m.gas_limit,
+							action: m.action,
+							value: m.value,
+							input: m.input.clone(),
+							access_list: m.access_list,
+							odd_y_parity: recid.serialize() != 0,
+							r,
+							s,
+						}));
 					}
 					TransactionMessage::EIP1559(m) => {
 						let signing_message = libsecp256k1::Message::parse_slice(&m.hash()[..])
@@ -378,21 +360,20 @@ impl EthSigner for EthDevSigner {
 						let rs = signature.serialize();
 						let r = H256::from_slice(&rs[0..32]);
 						let s = H256::from_slice(&rs[32..64]);
-						transaction =
-							Some(EthereumTransaction::EIP1559(ethereum::EIP1559Transaction {
-								chain_id: m.chain_id,
-								nonce: m.nonce,
-								max_priority_fee_per_gas: m.max_priority_fee_per_gas,
-								max_fee_per_gas: m.max_fee_per_gas,
-								gas_limit: m.gas_limit,
-								action: m.action,
-								value: m.value,
-								input: m.input.clone(),
-								access_list: m.access_list,
-								odd_y_parity: recid.serialize() != 0,
-								r,
-								s,
-							}));
+						transaction = Some(EthereumTransaction::EIP1559(ethereum::EIP1559Transaction {
+							chain_id: m.chain_id,
+							nonce: m.nonce,
+							max_priority_fee_per_gas: m.max_priority_fee_per_gas,
+							max_fee_per_gas: m.max_fee_per_gas,
+							gas_limit: m.gas_limit,
+							action: m.action,
+							value: m.value,
+							input: m.input.clone(),
+							access_list: m.access_list,
+							odd_y_parity: recid.serialize() != 0,
+							r,
+							s,
+						}));
 					}
 				}
 				break;
@@ -415,7 +396,7 @@ fn eth_tx() {
 		)),
 		value: U256::zero(),
 		input: hex!(
-				"8d241526\
+			"8d241526\
 			0000000000000000000000000000000000000000000000000000000000000040\
 			0000000000000000000000000000000000000000000000000000000000000120\
 			0000000000000000000000000000000000000000000000000000000000000002\
@@ -428,18 +409,19 @@ fn eth_tx() {
 			0000000000000000000000000000000000000000000000000000000000000002\
 			00000000000000000000000029b5c33700000000000000000000000067acbce5\
 			000000000000000000000005939a32ea00000000000000000000000067acbce5"
-			)
-			.encode_as(),
-		chain_id: Some(CHAIN_ID)
+		)
+		.encode_as(),
+		chain_id: Some(CHAIN_ID),
 	};
 
 	let signer = EthDevSigner::new();
 	let addr = secret_key_address(&signer.keys[0].clone());
 	println!("- - - - EVM address: {:?}", addr);
-	let tx = signer.sign(fc_rpc_core::types::TransactionMessage::Legacy(msg), &addr).unwrap();
+	let tx = signer
+		.sign(fc_rpc_core::types::TransactionMessage::Legacy(msg), &addr)
+		.unwrap();
 	println!("\n- - - - {:?}", tx);
 	println!("\n- - - - {:?}", hex::encode(&tx.encode_payload()[..]));
-
 }
 
 #[test]
@@ -447,45 +429,42 @@ fn eth_tx_second() {
 	let msg = ethereum::LegacyTransactionMessage {
 		nonce: U256::from(NONCE),
 
-
 		gas_price: U256::from(51436290),
 		gas_limit: U256::from(806740),
 		action: pallet_ethereum::TransactionAction::Call(H160::from_slice(
 			hex!("0000000000000000000000000000000100000000").as_slice(),
 		)),
 		value: U256::zero(),
-		input: hex!(
-				"18160ddd")
-			.encode_as(),
-		chain_id: Some(CHAIN_ID)
+		input: hex!("18160ddd").encode_as(),
+		chain_id: Some(CHAIN_ID),
 	};
 
 	let signer = EthDevSigner::new();
 	let addr = secret_key_address(&signer.keys[0].clone());
-	let tx = signer.sign(fc_rpc_core::types::TransactionMessage::Legacy(msg), &addr).unwrap();
+	let tx = signer
+		.sign(fc_rpc_core::types::TransactionMessage::Legacy(msg), &addr)
+		.unwrap();
 	println!("\n- - - - {:?}", hex::encode(&tx.encode_payload()[..]));
 
 	let msg = ethereum::LegacyTransactionMessage {
 		nonce: U256::from(NONCE + 1),
 
-
 		gas_price: U256::from(51436290),
 		gas_limit: U256::from(806740),
 		action: pallet_ethereum::TransactionAction::Call(H160::from_slice(
 			hex!("0000000000000000000000000000000100000000").as_slice(),
 		)),
 		value: U256::zero(),
-		input: hex!(
-				"18160ddd")
-			.encode_as(),
-		chain_id: Some(CHAIN_ID)
+		input: hex!("18160ddd").encode_as(),
+		chain_id: Some(CHAIN_ID),
 	};
 
 	let signer = EthDevSigner::new();
 	let addr = secret_key_address(&signer.keys[0].clone());
-	let tx = signer.sign(fc_rpc_core::types::TransactionMessage::Legacy(msg), &addr).unwrap();
+	let tx = signer
+		.sign(fc_rpc_core::types::TransactionMessage::Legacy(msg), &addr)
+		.unwrap();
 	println!("\n- - - - {:?}", hex::encode(&tx.encode_payload()[..]));
-
 }
 
 // EVM account 		7KATdGb5uUXrET6mzKwHK9U3BhTZ9tQQMthCCqr4enLwWsVE

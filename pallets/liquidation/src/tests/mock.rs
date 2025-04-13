@@ -3,13 +3,17 @@ use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
 use frame_support::sp_runtime::traits::CheckedConversion;
-use frame_support::{assert_ok, parameter_types, sp_runtime, sp_runtime::{
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	BuildStorage, FixedU128, MultiSignature, Permill,
-}, traits::{
-	tokens::nonfungibles::{Create, Inspect, Mutate},
-	Everything, Nothing,
-}};
+use frame_support::{
+	assert_ok, parameter_types, sp_runtime,
+	sp_runtime::{
+		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+		BuildStorage, FixedU128, MultiSignature, Permill,
+	},
+	traits::{
+		tokens::nonfungibles::{Create, Inspect, Mutate},
+		Everything, Nothing,
+	},
+};
 use frame_system::{EnsureRoot, EnsureSigned};
 use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};

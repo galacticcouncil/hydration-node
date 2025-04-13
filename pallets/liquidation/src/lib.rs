@@ -31,6 +31,7 @@ use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
 use frame_support::sp_runtime::offchain::http;
+use frame_support::traits::DefensiveOption;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::AccountIdConversion,
@@ -38,24 +39,23 @@ use frame_support::{
 	traits::tokens::{Fortitude, Precision, Preservation},
 	PalletId,
 };
-use frame_support::traits::DefensiveOption;
 use frame_system::{
 	ensure_signed,
+	offchain::{SendTransactionTypes, SubmitTransaction},
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	RawOrigin,
-	offchain::{SendTransactionTypes, SubmitTransaction},
 };
 use hydradx_traits::{
 	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
-	router::{AssetPair, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
 	registry::Inspect as AssetRegistryInspect,
+	router::{AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
 use serde::Deserialize;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, offchain::Duration, H160, H256, U256};
-use sp_std::{vec, vec::Vec, cmp::Ordering, boxed::Box};
+use sp_std::{boxed::Box, cmp::Ordering, vec, vec::Vec};
 
 pub mod types;
 pub use types::*;
@@ -70,20 +70,25 @@ pub mod weights;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
-pub use pallet::*;
 use crate::offchain_worker::{percent_mul, LiquidationOption, MoneyMarketData, UserData};
+pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::sp_runtime::offchain::storage::StorageValueRef;
 	use super::*;
+	use frame_support::sp_runtime::offchain::storage::StorageValueRef;
 	use frame_support::traits::DefensiveOption;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> where <Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> , <Self as frame_system::Config>::AccountId: frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>{
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>>
+	where
+		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+		<Self as frame_system::Config>::AccountId:
+			frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>,
+	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -132,8 +137,9 @@ pub mod pallet {
 
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T>
-		where
-		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>, {
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		type Call = Call<T>;
 
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
@@ -165,7 +171,11 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config> where <T as frame_system::Config>::AccountId: AsRef<[u8; 32]> , <T as frame_system::Config>::AccountId: frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>{
+	pub enum Event<T: Config>
+	where
+		<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+		<T as frame_system::Config>::AccountId: frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>,
+	{
 		/// Money market position has been liquidated
 		Liquidated {
 			liquidator: T::AccountId,
@@ -256,24 +266,16 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(3)]
-		#[pallet::weight(Weight::zero()
-		)]
-		pub fn dummy_received(
-			origin: OriginFor<T>,
-			debt_to_cover: crate::Balance,
-		) -> DispatchResult {
+		#[pallet::weight(Weight::zero())]
+		pub fn dummy_received(origin: OriginFor<T>, debt_to_cover: crate::Balance) -> DispatchResult {
 			Self::deposit_event(Event::DummyReceived);
 
 			Ok(())
 		}
 
 		#[pallet::call_index(4)]
-		#[pallet::weight(Weight::zero()
-		)]
-		pub fn dummy_send(
-			origin: OriginFor<T>,
-			debt_to_cover: crate::Balance,
-		) -> DispatchResult {
+		#[pallet::weight(Weight::zero())]
+		pub fn dummy_send(origin: OriginFor<T>, debt_to_cover: crate::Balance) -> DispatchResult {
 			Self::deposit_event(Event::DummySend);
 			Ok(())
 		}
@@ -281,8 +283,9 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T>
-	where
-	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>, {
+where
+	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+{
 	pub fn account_id() -> T::AccountId {
 		PalletId(*b"lqdation").into_account_truncating()
 	}
@@ -393,11 +396,17 @@ impl<T: Config> Pallet<T>
 		data
 	}
 
-	pub fn process_borrowers_data(oracle_data: BorrowerData<T::AccountId>) -> Vec<(H160, BorrowerDataDetails<T::AccountId>)> {
+	pub fn process_borrowers_data(
+		oracle_data: BorrowerData<T::AccountId>,
+	) -> Vec<(H160, BorrowerDataDetails<T::AccountId>)> {
 		let mut borrowers = oracle_data.borrowers.clone();
 		// remove elements with HF == 1
 		borrowers.retain(|b| b.1.health_factor > 0.0 && b.1.health_factor < 1.0);
-		borrowers.sort_by(|a, b| a.1.health_factor.partial_cmp(&b.1.health_factor).unwrap_or(Ordering::Equal));
+		borrowers.sort_by(|a, b| {
+			a.1.health_factor
+				.partial_cmp(&b.1.health_factor)
+				.unwrap_or(Ordering::Equal)
+		});
 		borrowers.truncate(borrowers.len().min(MAX_LIQUIDATIONS as usize));
 		borrowers
 	}

@@ -19,7 +19,10 @@
 
 #![allow(clippy::all)]
 
-use hydradx_runtime::{opaque::{Block, Hash}, RuntimeApi};
+use hydradx_runtime::{
+	opaque::{Block, Hash},
+	RuntimeApi,
+};
 use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
@@ -47,7 +50,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, rpc, liquidation_worker};
+use crate::{chain_spec, liquidation_worker, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -264,11 +267,7 @@ async fn start_node_impl(
 	task_manager.spawn_handle().spawn(
 		"liquidation-worker",
 		None,
-		liquidation_worker::LiquidationTask::run(
-			client.clone(),
-			transaction_pool.clone(),
-			task_manager.spawn_handle(),
-		)
+		liquidation_worker::LiquidationTask::run(client.clone(), transaction_pool.clone(), task_manager.spawn_handle()),
 	);
 
 	let overrides = Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone()));
