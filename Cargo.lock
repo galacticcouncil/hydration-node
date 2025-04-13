@@ -5152,7 +5152,6 @@ dependencies = [
  "pallet-claims",
  "pallet-ethereum",
  "pallet-liquidation",
- "pallet-liquidation-rpc-runtime-api",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -5347,7 +5346,6 @@ dependencies = [
  "pallet-identity",
  "pallet-lbp",
  "pallet-liquidation",
- "pallet-liquidation-rpc-runtime-api",
  "pallet-liquidity-mining",
  "pallet-message-queue",
  "pallet-multisig",
@@ -9192,6 +9190,8 @@ dependencies = [
  "eyre",
  "fc-rpc",
  "fc-rpc-core",
+ "fp-evm",
+ "fp-rpc",
  "fp-self-contained",
  "frame-benchmarking",
  "frame-support",
@@ -9231,15 +9231,6 @@ dependencies = [
  "sp-io",
  "sp-std",
  "test-utils",
-]
-
-[[package]]
-name = "pallet-liquidation-rpc-runtime-api"
-version = "1.0.1"
-dependencies = [
- "pallet-ethereum",
- "parity-scale-codec",
- "sp-api",
 ]
 
 [[package]]

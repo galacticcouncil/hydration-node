@@ -29,6 +29,7 @@
 
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
 use frame_support::sp_runtime::offchain::http;
 use frame_support::{
 	pallet_prelude::*,
@@ -56,6 +57,9 @@ use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, offchain::Duration, H160, H256, U256};
 use sp_std::{vec, vec::Vec, cmp::Ordering, boxed::Box};
 
+pub mod types;
+pub use types::*;
+
 #[cfg(test)]
 mod tests;
 
@@ -67,42 +71,7 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-
-pub type Balance = u128;
-pub type AssetId = u32;
-pub type CallResult = (ExitReason, Vec<u8>);
-
-pub const MAX_LIQUIDATIONS: u32 = 5;
-pub const UNSIGNED_TXS_PRIORITY: u64 = 1_000_000;
-
-#[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
-#[repr(u32)]
-pub enum Function {
-	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
-}
-
-#[derive(Clone, Encode, Decode, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct BorrowerDataDetails<AccountId> {
-	pub total_collateral_base: f32,
-	pub total_debt_base: f32,
-	pub available_borrows_base: f32,
-	pub current_liquidation_threshold: f32,
-	pub ltv: f32,
-	pub health_factor: f32,
-	pub updated: u64,
-	pub account: AccountId,
-	pub pool: H160,
-}
-
-#[derive(Clone, Encode, Decode, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct BorrowerData<AccountId> {
-	pub last_global_update: u32,
-	pub last_update: u32,
-	pub borrowers: Vec<(H160, BorrowerDataDetails<AccountId>)>,
-}
+use crate::offchain_worker::{percent_mul, LiquidationOption, MoneyMarketData, UserData};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -440,48 +409,46 @@ impl<T: Config> Pallet<T>
 		serde_json::from_str(oracle_data_str).ok()
 	}
 
-	pub fn parse_oracle_transaction(eth_tx: pallet_ethereum::Transaction) -> Option<Vec<(AssetPair<AssetId>, U256)>> {
-		let legacy_transaction = match eth_tx {
-			pallet_ethereum::Transaction::Legacy(legacy_transaction) => legacy_transaction,
-			_ => return None,
-		};
-
-		let decoded = ethabi::decode(
-			&[
-				ethabi::ParamType::Array(Box::new(ethabi::ParamType::String)),
-				ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(32))),
-			],
-			&legacy_transaction.input[4..],// first 4 bytes are function selector
-		).ok()?;
-
-		let mut dai_oracle_data = Vec::new();
-
-		if decoded.len() == 2 {
-			for (asset_str, price) in sp_std::iter::zip(decoded[0].clone().into_array()?.iter(), decoded[1].clone().into_array()?.iter()) {
-				dai_oracle_data.push((asset_str.clone().into_string()?, price.clone().into_uint()?));
-
-			}
-		};
-
-		let mut result = Vec::new();
-		for i in 0..dai_oracle_data.len() {
-			let asset_str: Vec<&str> = dai_oracle_data[i].0.split("/").collect::<Vec<_>>().clone();
-			if asset_str.len() != 2 {
-				return None;
-			}
-			let asset_id_a = <T as Config>::AssetRegistry::asset_id(asset_str[0]);
-			// remove \0 null-terminator from the string
-			let asset_id_b = <T as Config>::AssetRegistry::asset_id(&asset_str[1][0..asset_str[1].len() - 1]);
-
-			if let (Some(asset_id_a), Some(asset_id_b)) = (asset_id_a, asset_id_b) {
-				result.push((AssetPair::new(asset_id_a, asset_id_b), dai_oracle_data[i].1.clone()));
-			} else {
-				return None;
-			}
-		}
-
-		Some(result)
-	}
+	// pub fn parse_oracle_transaction(eth_tx: pallet_ethereum::Transaction) -> Option<Vec<(AssetPair<AssetId>, U256)>> {
+	// 	let legacy_transaction = match eth_tx {
+	// 		pallet_ethereum::Transaction::Legacy(legacy_transaction) => legacy_transaction,
+	// 		_ => return None,
+	// 	};
+	//
+	// 	let decoded = ethabi::decode(
+	// 		&[
+	// 			ethabi::ParamType::Array(Box::new(ethabi::ParamType::String)),
+	// 			ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(32))),
+	// 		],
+	// 		&legacy_transaction.input[4..],// first 4 bytes are function selector
+	// 	).ok()?;
+	//
+	// 	let mut dai_oracle_data = Vec::new();
+	//
+	// 	if decoded.len() == 2 {
+	// 		for (asset_str, price) in sp_std::iter::zip(decoded[0].clone().into_array()?.iter(), decoded[1].clone().into_array()?.iter()) {
+	// 			dai_oracle_data.push((asset_str.clone().into_string()?, price.clone().into_uint()?));
+	//
+	// 		}
+	// 	};
+	//
+	// 	let mut result = Vec::new();
+	// 	for i in 0..dai_oracle_data.len() {
+	// 		let asset_str: Vec<&str> = dai_oracle_data[i].0.split("/").collect::<Vec<_>>().clone();
+	// 		if asset_str.len() != 2 {
+	// 			return None;
+	// 		}
+	// 		let asset_id_a = <T as Config>::AssetRegistry::asset_id(asset_str[0]);
+	// 		// remove \0 null-terminator from the string
+	// 		let asset_id_b = <T as Config>::AssetRegistry::asset_id(&asset_str[1][0..asset_str[1].len() - 1]);
+	//
+	// 		if let (Some(asset_id_a), Some(asset_id_b)) = (asset_id_a, asset_id_b) {
+	// 			result.push((AssetPair::new(asset_id_a, asset_id_b), dai_oracle_data[i].1.clone()));
+	// 		} else {
+	// 			return None;
+	// 		}
+	// 	}
+	//
+	// 	Some(result)
+	// }
 }
-
-

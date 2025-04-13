@@ -38,7 +38,6 @@ tokio = { workspace = true, default-features = true }
 threadpool = { version = "1.7" }
 num_cpus = { version = "1.13.1" }
 parking_lot = { version = "0.12.1", default-features = false }
-pallet-liquidation-rpc-runtime-api = { workspace = true }
 
 # local dependencies
 hydradx-runtime = { workspace = true, features = ["std"] }
