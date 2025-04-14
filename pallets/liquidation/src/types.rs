@@ -48,8 +48,7 @@ pub mod offchain_worker {
 	use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
 	use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
 	use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
-	use hex_literal::hex;
-	use hydradx_traits::evm::{CallContext, EvmAddress};
+	use hydradx_traits::evm::EvmAddress;
 	use sp_core::{H256, U256};
 	use sp_std::{boxed::Box, ops::BitAnd};
 
@@ -118,6 +117,15 @@ pub mod offchain_worker {
 		res.try_into().ok()
 	}
 
+	pub fn current_evm_block_timestamp<Block, Runtime>() -> Option<u64>
+	where
+		Block: BlockT,
+		Runtime: EthereumRuntimeRPCApiV5<Block>,
+	{
+		let timestamp = Runtime::current_block().map(|block| block.header.timestamp)?;
+		timestamp.checked_div(1_000)
+	}
+
 	/// Executes a percentage multiplication.
 	/// Params:
 	///     value: The value of which the percentage needs to be calculated
@@ -128,7 +136,7 @@ pub mod offchain_worker {
 		}
 
 		let percentage_factor = U512::from(10u128.pow(4));
-		let half_percentage_factor = U512::from(percentage_factor / 2);
+		let half_percentage_factor = percentage_factor / 2;
 		let nominator = value.full_mul(percentage).checked_add(half_percentage_factor)?;
 		let res = nominator.checked_div(percentage_factor)?;
 		res.try_into().ok()
@@ -151,14 +159,14 @@ pub mod offchain_worker {
 		/// Returns `true` if the asset is used as collateral by the user.
 		/// The asset index is the position of the asset in the `get_reserves_list()` array.
 		pub fn is_collateral(&self, asset_index: usize) -> bool {
-			let bit_mask = U256::from(2 << 2 * asset_index);
+			let bit_mask = U256::from(2 << (2 * asset_index));
 			!(self.0 & bit_mask).is_zero()
 		}
 
 		/// Returns `true` if the asset is used as debt by the user.
 		/// The asset index is the position of the asset in the `get_reserves_list()` array.
 		pub fn is_debt(&self, asset_index: usize) -> bool {
-			let bit_mask = U256::from(1 << 2 * asset_index);
+			let bit_mask = U256::from(1 << (2 * asset_index));
 			!(self.0 & bit_mask).is_zero()
 		}
 	}
@@ -402,7 +410,7 @@ pub mod offchain_worker {
 	}
 
 	impl ReserveData {
-		pub fn new(data: &Vec<ethabi::Token>) -> Option<Self> {
+		pub fn new(data: &[ethabi::Token]) -> Option<Self> {
 			Some(Self {
 				configuration: data[0].clone().into_uint()?,
 				liquidity_index: data[1].clone().into_uint()?.try_into().ok()?,
@@ -450,10 +458,10 @@ pub mod offchain_worker {
 		/// Get addresses of collateral and debt assets.
 		pub fn get_collateral_and_debt_addresses(&self) -> (EvmAddress, (EvmAddress, EvmAddress)) {
 			(
-				self.reserve_data.a_token_address.clone(),
+				self.reserve_data.a_token_address,
 				(
-					self.reserve_data.stable_debt_token_address.clone(),
-					self.reserve_data.variable_debt_token_address.clone(),
+					self.reserve_data.stable_debt_token_address,
+					self.reserve_data.variable_debt_token_address,
 				),
 			)
 		}
@@ -576,7 +584,7 @@ pub mod offchain_worker {
 				total_debt = ray_mul(total_debt, normalized_debt)?;
 			}
 
-			total_debt = total_debt + BalanceOf::<Block, Runtime>::balance_of(stable_debt_address, user, caller)?;
+			total_debt = total_debt.checked_add(BalanceOf::<Block, Runtime>::balance_of(stable_debt_address, user, caller)?)?;
 
 			total_debt
 				.checked_mul(self.price)?
@@ -839,14 +847,14 @@ pub mod offchain_worker {
 		/// The formula:
 		/// `debt_to_liquidate = (THF * Td - Sum(Ci * Pci * LTi)) / (Pd * (THF - LB * LTc))`
 		/// where
-		/// 	`THF` - target healt factor
-		/// 	`Td` - total debt in base currency
-		/// 	`Ci` - collateral amount
-		/// 	`Pci` - collateral asset price
-		/// 	`LTi` - liquidity threshold of collateral asset
-		/// 	`Pd` - debt asset price
-		/// 	`LB` - liquidation bonus of the collateral asset
-		/// 	`LTc` - liquidity threshold of collateral asset
+		///    `THF` - target healt factor
+		///    `Td` - total debt in base currency
+		///    `Ci` - collateral amount
+		///    `Pci` - collateral asset price
+		///    `LTi` - liquidity threshold of collateral asset
+		///    `Pd` - debt asset price
+		///    `LB` - liquidation bonus of the collateral asset
+		///    `LTc` - liquidity threshold of collateral asset
 		///
 		/// `user_address` - Address of the user that will be liquidated
 		/// `target_health_factor` - 10 decimal places
@@ -893,7 +901,7 @@ pub mod offchain_worker {
 					// Get liquidation threshold of the collateral asset
 					collateral_liquidation_threshold = reserve.liquidation_threshold().into();
 					// Get liquidation bonus of the collateral asset
-					liquidation_bonus = reserve.liquidation_bonus().clone().into();
+					liquidation_bonus = reserve.liquidation_bonus();
 				}
 
 				// Get price of the collateral and debt asset
@@ -928,7 +936,7 @@ pub mod offchain_worker {
 
 			let debt_to_liquidate = n.checked_div(d)?;
 
-			let health_factor = user_data.health_factor(&self)?;
+			let health_factor = user_data.health_factor(self)?;
 			let close_factor = if health_factor > CLOSE_FACTOR_HF_THRESHOLD.into() {
 				DEFAULT_LIQUIDATION_CLOSE_FACTOR
 			} else {
@@ -978,7 +986,7 @@ pub mod offchain_worker {
 			&mut self,
 			user_data: &UserData,
 			target_health_factor: U256,
-			future_price: (EvmAddress, U256),
+			new_price: (EvmAddress, U256),
 		) -> Option<Vec<LiquidationOption>> {
 			let mut liquidation_options = Vec::new();
 			let mut collateral_assets = Vec::new();
@@ -986,23 +994,21 @@ pub mod offchain_worker {
 
 			for (index, reserve) in self.reserves().iter().enumerate() {
 				if user_data.is_collateral(index) {
-					collateral_assets.push((index, reserve.asset_address().clone()));
+					collateral_assets.push((index, reserve.asset_address()));
 				}
 
 				if user_data.is_debt(index) {
-					debt_assets.push((index, reserve.asset_address().clone()));
+					debt_assets.push((index, reserve.asset_address()));
 				}
 			}
 
 			// update the price
-			let mut old_price = Default::default();
-			let maybe_reserve = self.reserves().iter().find(|x| x.asset_address() == future_price.0);
-			if let Some(reserve) = maybe_reserve.cloned() {
-				self.update_reserve_price(future_price.0, future_price.1);
-				old_price = reserve.price();
-			} else {
-				return None;
-			}
+			let reserve_index = self.reserves().iter().position(|x| x.asset_address() == new_price.0)?;
+			let reserve = self.reserves().get(reserve_index)?;
+			let old_price = reserve.price();
+			self.update_reserve_price(new_price.0, new_price.1);
+
+			// TODO: continue if the price of callateral decreased/debt increased (the cases when HF decreases)
 
 			// calculate amount of debt that needs to be liquidated to get the HF closer
 			// to `target_health_factor`. Calculated for all combinations of collateral and debt assets
@@ -1011,7 +1017,7 @@ pub mod offchain_worker {
 					let Some((
 						(debt_to_liquidate, _collateral_received),
 						(debt_to_liquidate_in_base, collateral_received_in_base),
-					)) = self.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
+					)) = self.calculate_debt_to_liquidate(user_data, target_health_factor, collateral_asset, debt_asset)
 					else {
 						continue;
 					};
@@ -1032,8 +1038,8 @@ pub mod offchain_worker {
 					if let Some(hf) = maybe_hf {
 						liquidation_options.push(LiquidationOption::new(
 							hf,
-							debt_asset.clone(),
-							collateral_asset.clone(),
+							debt_asset,
+							collateral_asset,
 							debt_to_liquidate,
 						));
 					}
@@ -1041,9 +1047,29 @@ pub mod offchain_worker {
 			}
 
 			// revert the price back
-			self.update_reserve_price(future_price.0, old_price);
+			self.update_reserve_price(new_price.0, old_price);
 
 			Some(liquidation_options)
+		}
+
+		/// Evaluates all liquidation options and return the one that is closest to the `target_health_factor`.
+		pub fn get_best_liquidation_option(
+			&mut self,
+			user_data: &UserData,
+			target_health_factor: U256,
+			new_price: (EvmAddress, U256),
+		) -> Option<LiquidationOption> {
+			let mut liquidation_options =
+				self.calculate_liquidation_options(user_data, target_health_factor, new_price)?;
+
+			// TODO: find better criteria for determining which liquidation option to choose as the best one
+			liquidation_options.sort_by(|a, b| {
+				a.health_factor
+					.abs_diff(target_health_factor)
+					.cmp(&b.health_factor.abs_diff(target_health_factor))
+			});
+
+			liquidation_options.first().cloned()
 		}
 	}
 

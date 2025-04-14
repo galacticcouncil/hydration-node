@@ -29,8 +29,6 @@
 
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
-use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
-use frame_support::sp_runtime::offchain::http;
 use frame_support::traits::DefensiveOption;
 use frame_support::{
 	pallet_prelude::*,
@@ -41,21 +39,18 @@ use frame_support::{
 };
 use frame_system::{
 	ensure_signed,
-	offchain::{SendTransactionTypes, SubmitTransaction},
-	pallet_prelude::{BlockNumberFor, OriginFor},
+	offchain::SendTransactionTypes,
+	pallet_prelude::OriginFor,
 	RawOrigin,
 };
 use hydradx_traits::{
 	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
-	registry::Inspect as AssetRegistryInspect,
-	router::{AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouterT, Trade},
+	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
 };
-use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
-use serde::Deserialize;
 use sp_arithmetic::ArithmeticError;
-use sp_core::{crypto::AccountId32, offchain::Duration, H160, H256, U256};
-use sp_std::{boxed::Box, cmp::Ordering, vec, vec::Vec};
+use sp_core::{crypto::AccountId32, H256, U256};
+use sp_std::{vec, vec::Vec};
 
 pub mod types;
 pub use types::*;
@@ -70,14 +65,11 @@ pub mod weights;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
-use crate::offchain_worker::{percent_mul, LiquidationOption, MoneyMarketData, UserData};
 pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::sp_runtime::offchain::storage::StorageValueRef;
-	use frame_support::traits::DefensiveOption;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -395,69 +387,4 @@ where
 
 		data
 	}
-
-	pub fn process_borrowers_data(
-		oracle_data: BorrowerData<T::AccountId>,
-	) -> Vec<(H160, BorrowerDataDetails<T::AccountId>)> {
-		let mut borrowers = oracle_data.borrowers.clone();
-		// remove elements with HF == 1
-		borrowers.retain(|b| b.1.health_factor > 0.0 && b.1.health_factor < 1.0);
-		borrowers.sort_by(|a, b| {
-			a.1.health_factor
-				.partial_cmp(&b.1.health_factor)
-				.unwrap_or(Ordering::Equal)
-		});
-		borrowers.truncate(borrowers.len().min(MAX_LIQUIDATIONS as usize));
-		borrowers
-	}
-
-	/// Parse the borrower data from the given JSON string .
-	///
-	/// Returns `None` when parsing failed or `Some(BorrowerData)` when parsing is successful.
-	fn parse_borrowers_data(oracle_data_str: &str) -> Option<BorrowerData<T::AccountId>> {
-		serde_json::from_str(oracle_data_str).ok()
-	}
-
-	// pub fn parse_oracle_transaction(eth_tx: pallet_ethereum::Transaction) -> Option<Vec<(AssetPair<AssetId>, U256)>> {
-	// 	let legacy_transaction = match eth_tx {
-	// 		pallet_ethereum::Transaction::Legacy(legacy_transaction) => legacy_transaction,
-	// 		_ => return None,
-	// 	};
-	//
-	// 	let decoded = ethabi::decode(
-	// 		&[
-	// 			ethabi::ParamType::Array(Box::new(ethabi::ParamType::String)),
-	// 			ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(32))),
-	// 		],
-	// 		&legacy_transaction.input[4..],// first 4 bytes are function selector
-	// 	).ok()?;
-	//
-	// 	let mut dai_oracle_data = Vec::new();
-	//
-	// 	if decoded.len() == 2 {
-	// 		for (asset_str, price) in sp_std::iter::zip(decoded[0].clone().into_array()?.iter(), decoded[1].clone().into_array()?.iter()) {
-	// 			dai_oracle_data.push((asset_str.clone().into_string()?, price.clone().into_uint()?));
-	//
-	// 		}
-	// 	};
-	//
-	// 	let mut result = Vec::new();
-	// 	for i in 0..dai_oracle_data.len() {
-	// 		let asset_str: Vec<&str> = dai_oracle_data[i].0.split("/").collect::<Vec<_>>().clone();
-	// 		if asset_str.len() != 2 {
-	// 			return None;
-	// 		}
-	// 		let asset_id_a = <T as Config>::AssetRegistry::asset_id(asset_str[0]);
-	// 		// remove \0 null-terminator from the string
-	// 		let asset_id_b = <T as Config>::AssetRegistry::asset_id(&asset_str[1][0..asset_str[1].len() - 1]);
-	//
-	// 		if let (Some(asset_id_a), Some(asset_id_b)) = (asset_id_a, asset_id_b) {
-	// 			result.push((AssetPair::new(asset_id_a, asset_id_b), dai_oracle_data[i].1.clone()));
-	// 		} else {
-	// 			return None;
-	// 		}
-	// 	}
-	//
-	// 	Some(result)
-	// }
 }

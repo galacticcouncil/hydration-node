@@ -107,11 +107,6 @@ pub fn get_asset_configuration(mm_pool: EvmAddress, asset: EvmAddress) -> U256 {
 	U256::checked_from(&value[0..32]).unwrap()
 }
 
-pub fn current_evm_block_timestamp() -> u64 {
-	use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
-	hydradx_runtime::Runtime::current_block().unwrap().header.timestamp / 1_000
-}
-
 pub fn update_oracle_price(oracle_data: Vec<(&str, U256)>) {
 	let caller = EvmAddress::from_slice(&hex!("6c345254C4da3B16559e60570fe35311b9597f07"));
 	let oracle_address = EvmAddress::from_slice(&hex!("C756bD338A97c1d2FAAB4F13B5444a08a1566917"));
@@ -350,88 +345,6 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 	});
 }
 
-#[test]
-fn rrr() {
-	env_logger::init();
-	TestNet::reset();
-	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
-		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
-
-		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
-		let caller = EVMAccounts::evm_address(&AccountId::from(ALICE));
-
-		let pool_contract = MoneyMarketData::<Block, Runtime>::get_pool(pap_contract, caller).unwrap();
-		assert_ok!(Liquidation::set_borrowing_contract(
-			RuntimeOrigin::root(),
-			pool_contract
-		));
-		let pallet_acc = Liquidation::account_id();
-
-		let evm_acc = H160::from_slice(hex!("81d58b3083589b6053e7bd8caeb06757068592fb").as_slice());
-		let acc = hydradx_runtime::EVMAccounts::account_id(evm_acc);
-		assert_ok!(Currencies::deposit(
-			WETH,
-			&acc.clone().into(),
-			ALICE_INITIAL_WETH_BALANCE
-		));
-
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(pallet_acc.clone()),));
-
-		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
-
-		// Act
-		// let _result = hydradx_runtime::Executive::apply_extrinsic(unchecked_eth_tx(VALID_ETH_TX));
-
-		let mut tx = ethereum_transaction(VALID_ETH_TX);
-		if let pallet_ethereum::Transaction::EIP1559(ref mut inner_tx) = tx {
-			inner_tx.chain_id = 0u64;
-		}
-		let tx = pallet_ethereum::Transaction::Legacy(ethereum::LegacyTransaction {
-			nonce: U256::from(9264),
-			gas_price: U256::from(5143629),
-			gas_limit: U256::from(80674),
-			action: pallet_ethereum::TransactionAction::Call(H160::from_slice(
-				hex!("5d8320f3ced9575d8e25b6f437e610fc6a03bf52").as_slice(),
-			)),
-			value: U256::from(0), // 0x40	= 64	/ 120 = 288 / 80 = 128
-			input: hex!(
-				"8d241526\
-			0000000000000000000000000000000000000000000000000000000000000040\
-			0000000000000000000000000000000000000000000000000000000000000120\
-			0000000000000000000000000000000000000000000000000000000000000002\
-			0000000000000000000000000000000000000000000000000000000000000040\
-			0000000000000000000000000000000000000000000000000000000000000080\
-			0000000000000000000000000000000000000000000000000000000000000008\
-			76444f542f555344000000000000000000000000000000000000000000000000\
-			0000000000000000000000000000000000000000000000000000000000000008\
-			414156452f555344000000000000000000000000000000000000000000000000\
-			0000000000000000000000000000000000000000000000000000000000000002\
-			00000000000000000000000029b5c33700000000000000000000000067acbce5\
-			000000000000000000000005939a32ea00000000000000000000000067acbce5"
-			)
-			.encode_as(),
-			signature: ethereum::TransactionSignature::new(
-				444480,
-				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
-				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
-			)
-			.unwrap(),
-		});
-
-		let unchecked_tx = hydradx_runtime::TransactionConverter.convert_transaction(tx);
-
-		let result = hydradx_runtime::Executive::validate_transaction(
-			sp_runtime::transaction_validity::TransactionSource::External,
-			unchecked_tx,
-			Default::default(),
-		);
-		println!("Result: {:?}\n", result);
-	});
-}
-
 // A valid signed Alice transfer.
 pub const VALID_ETH_TX: &str = "02f869820501808085e8d4a51000825208943cd0a705a2dc65e5b1e1205896baa2be8a07c6e00180c\
 	001a061087911e877a5802142a89a40d231d50913db399eb50839bb2d04e612b22ec8a01aa313efdf2\
@@ -594,7 +507,7 @@ fn call_methods_for_liquidation_worker() {
 
 		println!("\n\n   ----    -----    BEFORE PRICE UPDATE");
 		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let current_evm_timestamp = current_evm_block_timestamp() + primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
+		let current_evm_timestamp = current_evm_block_timestamp::<Block, Runtime>().unwrap() + primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
 		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 		println!("HF: {:?}", user_data.health_factor(&money_market_data).unwrap());
@@ -735,7 +648,7 @@ fn fetch_dummy_data() -> Vec<(
 	) -> Vec<(H160, BorrowerDataDetails<hydradx_runtime::AccountId>)> {
 		let mut borrowers = oracle_data.borrowers.clone();
 		// remove elements with HF == 1
-		borrowers.retain(|b| b.1.health_factor > 0.0 && b.1.health_factor < 1.0);
+		borrowers.retain(|b| b.1.health_factor > 0.0);
 		borrowers.sort_by(|a, b| {
 			a.1.health_factor
 				.partial_cmp(&b.1.health_factor)
