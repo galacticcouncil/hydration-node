@@ -4660,7 +4660,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "305.0.0"
+version = "306.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4809,7 +4809,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.15.1"
+version = "3.15.2"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
