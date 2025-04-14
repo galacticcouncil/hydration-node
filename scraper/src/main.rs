@@ -47,12 +47,26 @@ struct ExportStateCmd {
 	shared: SharedParams,
 }
 
+#[derive(Parser, Debug)]
+struct CreateChainspecCmd {
+	/// The path to the SNAPSHOT file
+	#[arg(long)]
+	snapshot: PathBuf,
+	/// The path where to save the chainspec file
+	#[arg(long)]
+	output: PathBuf,
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	shared: SharedParams,
+}
+
 /// Possible commands of `scraper`.
 #[derive(Parser, Debug)]
 enum Command {
 	SaveStorage(StorageCmd),
 	SaveBlocks(BlocksCmd),
 	ExportState(ExportStateCmd),
+	CreateChainspec(CreateChainspecCmd),
 }
 
 /// Shared parameters of the `scraper` commands.
@@ -190,6 +204,25 @@ fn main() {
 					scraper::save_chainspec(builder, path.clone(), cmd.shared.uri)
 						.await
 						.unwrap()
+				});
+
+			path
+		}
+		Command::CreateChainspec(cmd) => {
+			let path = cmd.output.clone();
+
+			tokio::runtime::Builder::new_current_thread()
+				.enable_all()
+				.build()
+				.unwrap()
+				.block_on(async {
+					scraper::create_chainspec_from_snapshot::<hydradx_runtime::Block>(
+						cmd.snapshot,
+						path.clone(),
+						cmd.shared.uri,
+					)
+					.await
+					.unwrap()
 				});
 
 			path
