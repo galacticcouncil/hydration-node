@@ -154,11 +154,18 @@ benchmarks! {
 		// Setup HSM account with enough balance
 		<T as Config>::Currency::set_balance(hollar, &Pallet::<T>::account_id(), 10_000 * ONE);
 
+		let hb = <T as Config>::Currency::balance(hollar, &caller);
+		assert!(hb.is_zero());
+
 		// Setup slippage limit (worst case)
 		let amount_in = 100 * ONE;
 		let slippage_limit = 1; // Minimum possible amount out
 	}: _(RawOrigin::Signed(caller.clone()), collateral, hollar, amount_in, slippage_limit)
 	verify {
+		let caller_balance = <T as Config>::Currency::balance(collateral, &caller);
+		let caller_hollar_balance = <T as Config>::Currency::balance(hollar, &caller);
+		assert_eq!(caller_balance, 1000 * ONE - amount_in);
+		assert!(caller_hollar_balance > 0);
 	}
 
 	buy {
@@ -199,6 +206,10 @@ benchmarks! {
 		let slippage_limit = 1_000 * ONE;
 	}: _(RawOrigin::Signed(caller.clone()), hollar, collateral, amount_out, slippage_limit)
 	verify {
+		let caller_balance = <T as Config>::Currency::balance(collateral, &caller);
+		let caller_hollar_balance = <T as Config>::Currency::balance(hollar, &caller);
+		assert_eq!(caller_balance, amount_out);
+		assert!(caller_hollar_balance < 1000 * ONE);
 	}
 
 	execute_arbitrage {
