@@ -124,97 +124,6 @@ pub fn extend_externalities<B: BlockT>(
 	Ok(ext)
 }
 
-pub const ALICE: [u8; 32] = [4u8; 32];
-pub const BOB: [u8; 32] = [5u8; 32];
-
-#[cfg(test)]
-/// used in tests to generate TestExternalities
-fn externalities_from_genesis() -> TestExternalities {
-	use frame_support::sp_runtime::BuildStorage;
-
-	let mut storage = frame_system::GenesisConfig::<hydradx_runtime::Runtime>::default()
-		.build_storage()
-		.unwrap();
-
-	pallet_balances::GenesisConfig::<hydradx_runtime::Runtime> {
-		balances: vec![(hydradx_runtime::AccountId::from(ALICE), 1_000_000_000_000_000)],
-	}
-	.assimilate_storage(&mut storage)
-	.unwrap();
-
-	TestExternalities::new(storage)
-}
-
-#[test]
-fn extend_externalities_should_work() {
-	use frame_support::assert_ok;
-
-	let ext = externalities_from_genesis();
-
-	let mut modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			0
-		);
-		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			BOB.into(),
-			1_000_000_000_000,
-		));
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			1_000_000_000_000
-		);
-	})
-	.unwrap();
-
-	modified_ext.execute_with(|| {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			1_000_000_000_000
-		);
-	});
-}
-
-#[test]
-fn save_and_load_externalities_should_work() {
-	use frame_support::assert_ok;
-
-	let ext = externalities_from_genesis();
-
-	let modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			0
-		);
-		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			BOB.into(),
-			1_000_000_000_000,
-		));
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			1_000_000_000_000
-		);
-	})
-	.unwrap();
-
-	let path = std::path::PathBuf::from("./SNAPSHOT");
-
-	save_externalities::<hydradx_runtime::Block>(modified_ext, path.clone()).unwrap();
-
-	let mut ext_from_snapshot = load_snapshot::<hydradx_runtime::Block>(path.clone()).unwrap();
-
-	fs::remove_file(path).unwrap();
-
-	ext_from_snapshot.execute_with(|| {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			1_000_000_000_000
-		);
-	});
-}
-
 pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Result<(), &'static str> {
 	let rpc = ws_client(uri.clone())
 		.await
@@ -318,4 +227,99 @@ pub async fn fetch_all_storage(uri: String) -> Result<Vec<(StorageKey, StorageDa
 
 	pb.finish_with_message("✅ Done fetching all storage.");
 	Ok(all_pairs)
+}
+
+mod test {
+	use super::*;
+
+	pub const ALICE: [u8; 32] = [4u8; 32];
+	pub const BOB: [u8; 32] = [5u8; 32];
+
+	#[cfg(test)]
+	/// used in tests to generate TestExternalities
+	fn externalities_from_genesis() -> TestExternalities {
+		use frame_support::sp_runtime::BuildStorage;
+
+		let mut storage = frame_system::GenesisConfig::<hydradx_runtime::Runtime>::default()
+			.build_storage()
+			.unwrap();
+
+		pallet_balances::GenesisConfig::<hydradx_runtime::Runtime> {
+			balances: vec![(hydradx_runtime::AccountId::from(ALICE), 1_000_000_000_000_000)],
+		}
+		.assimilate_storage(&mut storage)
+		.unwrap();
+
+		TestExternalities::new(storage)
+	}
+
+	#[test]
+	fn extend_externalities_should_work() {
+		use frame_support::assert_ok;
+
+		let ext = externalities_from_genesis();
+
+		let mut modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				0
+			);
+			assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				1_000_000_000_000,
+			));
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				1_000_000_000_000
+			);
+		})
+		.unwrap();
+
+		modified_ext.execute_with(|| {
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				1_000_000_000_000
+			);
+		});
+	}
+
+	#[test]
+	fn save_and_load_externalities_should_work() {
+		use frame_support::assert_ok;
+
+		let ext = externalities_from_genesis();
+
+		let modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				0
+			);
+			assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				1_000_000_000_000,
+			));
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				1_000_000_000_000
+			);
+		})
+		.unwrap();
+
+		let path = std::path::PathBuf::from("./SNAPSHOT");
+
+		save_externalities::<hydradx_runtime::Block>(modified_ext, path.clone()).unwrap();
+
+		let mut ext_from_snapshot = load_snapshot::<hydradx_runtime::Block>(path.clone()).unwrap();
+
+		fs::remove_file(path).unwrap();
+
+		ext_from_snapshot.execute_with(|| {
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				1_000_000_000_000
+			);
+		});
+	}
 }
