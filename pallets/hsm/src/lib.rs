@@ -651,14 +651,33 @@ where
 			.ok_or(Error::<T>::AssetNotFound)?;
 		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
 
-		// TODO: take decimals into account
+		// for imbalance calculation, we need to take decimals into account, adjust it to match hollar precision
+		// but only if peg source for that asset is not provided by Oracle
+		// because oracle provides price would correctly pegged the reserve to correct hollar decimals.
+		let normalized_collateral_reserve = if pool_state.is_oracle_peg_source::<T>(pool_id, collateral_pos) {
+			collateral_reserve
+		} else {
+			let hollar_decimals = pool_state
+				.asset_decimals_at(hollar_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			let collateral_decimals = pool_state
+				.asset_decimals_at(collateral_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			hydra_dx_math::stableswap::normalize_value(
+				collateral_reserve,
+				collateral_decimals,
+				hollar_decimals,
+				hydra_dx_math::stableswap::Rounding::Down,
+			)
+		};
+
 		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
+		let imbalance = math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)?;
 
 		ensure!(!imbalance.is_zero(), Error::<T>::CollateralNotWanted);
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
-		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
+		let buyback_limit = math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(
@@ -679,14 +698,14 @@ where
 		let execution_price = (input_amount, hollar_amount);
 
 		// 4. Calculate final buy price with fee
-		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
+		let buy_price = math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
 
 		// 5. Calculate amount of collateral to receive
 		let collateral_amount =
-			crate::math::calculate_collateral_amount(hollar_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
+			math::calculate_collateral_amount(hollar_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
 
 		// 6. Calculate max price
-		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 
 		// Check if price exceeds max price - compare the ratios
 		// For (a,b) <= (c,d), we check a*d <= b*c
@@ -776,8 +795,28 @@ where
 			.ok_or(Error::<T>::AssetNotFound)?;
 		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
 
+		// for imbalance calculation, we need to take decimals into account, adjust it to match hollar precision
+		// but only if peg source for that asset is not provided by Oracle
+		// because oracle provides price would correctly pegged the reserve to correct hollar decimals.
+		let normalized_collateral_reserve = if pool_state.is_oracle_peg_source::<T>(pool_id, collateral_pos) {
+			collateral_reserve
+		} else {
+			let hollar_decimals = pool_state
+				.asset_decimals_at(hollar_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			let collateral_decimals = pool_state
+				.asset_decimals_at(collateral_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			hydra_dx_math::stableswap::normalize_value(
+				collateral_reserve,
+				collateral_decimals,
+				hollar_decimals,
+				hydra_dx_math::stableswap::Rounding::Down,
+			)
+		};
+
 		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
+		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)?;
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
 		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
@@ -1138,9 +1177,27 @@ where
 
 		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
 
-		// TODO: take decimals into account
+		// for imbalance calculation, we need to take decimals into account, adjust it to match hollar precision
+		// but only if peg source for that asset is not provided by Oracle
+		// because oracle provides price would correctly pegged the reserve to correct hollar decimals.
+		let normalized_collateral_reserve = if pool_state.is_oracle_peg_source::<T>(pool_id, collateral_pos) {
+			collateral_reserve
+		} else {
+			let hollar_decimals = pool_state
+				.asset_decimals_at(hollar_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			let collateral_decimals = pool_state
+				.asset_decimals_at(collateral_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			hydra_dx_math::stableswap::normalize_value(
+				collateral_reserve,
+				collateral_decimals,
+				hollar_decimals,
+				hydra_dx_math::stableswap::Rounding::Down,
+			)
+		};
 		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
+		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)?;
 		ensure!(!imbalance.is_zero(), Error::<T>::NoArbitrageOpportunity);
 		let b_coefficient = collateral_info.buyback_rate;
 		let max_buy_amt = b_coefficient.mul_floor(imbalance);

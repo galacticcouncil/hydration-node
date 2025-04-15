@@ -91,6 +91,7 @@ pub fn calculate_buy_price_with_fee(
 pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> PegType {
 	// Multiply the two ratios
 	// For (a,b) * (c,d) = (a*c, b*d)
+	//TODO: use saturating mul from ratio because this wont work
 	let numerator = peg.0.saturating_mul(coefficient.0);
 	let denominator = peg.1.saturating_mul(coefficient.1);
 

@@ -3,7 +3,7 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, Pallet, MAX_ASSETS_IN_POOL};
+use crate::{Config, Pallet, PoolPegs, MAX_ASSETS_IN_POOL};
 use sp_runtime::Permill;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
@@ -200,5 +200,18 @@ impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
 
 	pub fn asset_reserve_at(&self, idx: usize) -> Option<Balance> {
 		self.reserves.get(idx).map(|reserve| reserve.amount)
+	}
+
+	pub fn is_oracle_peg_source<T: Config>(&self, pool_id: T::AssetId, asset_idx: usize) -> bool {
+		let Some(pegs) = PoolPegs::<T>::get(pool_id) else {
+			return false;
+		};
+
+		if pegs.source.len() >= asset_idx {
+			false
+		} else {
+			let source = &pegs.source[asset_idx];
+			matches!(source, PegSource::Oracle(_))
+		}
 	}
 }
