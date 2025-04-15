@@ -20,18 +20,14 @@ hydradx-runtime = { workspace = true }
 hydradx = { workspace = true }
 sc-chain-spec = { workspace = true }
 sc-service = { workspace = true }
-sc-client-db = { workspace = true }
-sp-trie = { workspace = true }
 indicatif = "0.17"
 
 # Substrate dependencies
 frame-support = { workspace = true }
-frame-metadata-hash-extension = { workspace = true }
 sp-io = { workspace = true }
 sp-rpc = { workspace = true }
 sp-core = { workspace = true }
 sp-state-machine = { workspace = true }
-staging-parachain-info = { workspace = true }
 substrate-rpc-client = { workspace = true }
 fp-rpc = { workspace = true }
 frame-remote-externalities = { workspace = true }
@@ -41,8 +37,6 @@ pallet-balances = { workspace = true }
 
 serde_json = { version = "1.0", features = ["preserve_order"] }
 hex = "0.4"
-zerocopy = "0.7.32"
-tempfile = "3.8.1"
 futures = "0.3.30"
 
 [features]

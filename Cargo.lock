@@ -13855,7 +13855,6 @@ version = "1.3.0"
 dependencies = [
  "clap",
  "fp-rpc",
- "frame-metadata-hash-extension",
  "frame-remote-externalities",
  "frame-support",
  "frame-system",
@@ -13868,7 +13867,6 @@ dependencies = [
  "pallet-balances",
  "parity-scale-codec",
  "sc-chain-spec",
- "sc-client-db",
  "sc-service",
  "serde",
  "serde_json",
@@ -13876,12 +13874,8 @@ dependencies = [
  "sp-io",
  "sp-rpc",
  "sp-state-machine",
- "sp-trie",
- "staging-parachain-info",
  "substrate-rpc-client",
- "tempfile",
  "tokio",
- "zerocopy",
 ]
 
 [[package]]
@@ -17624,7 +17618,6 @@ version = "0.7.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74d4d3961e53fa4c9a25a8637fc2bfaf2595b3d3ae34875568a5cf64787716be"
 dependencies = [
- "byteorder",
  "zerocopy-derive",
 ]
 
