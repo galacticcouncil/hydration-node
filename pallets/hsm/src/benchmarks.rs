@@ -26,7 +26,10 @@ use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
 use sp_runtime::{Perbill, Permill};
 
-pub const ONE: Balance = 1_000_000_000_000;
+const DECIMALS: u8 = 18;
+const ONE: Balance = 1_000_000_000_000_000_000;
+const INITIAL_LIQUDITY: Balance = 1_000;
+
 const ASSET_ID_OFFSET: u32 = 2_000;
 
 benchmarks! {
@@ -163,7 +166,7 @@ benchmarks! {
 		let hollar = T::HollarId::get();
 		let (pool_id, assets) = seed_pool::<T>(hollar)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = (101, 100 );
+		let max_buy_price_coefficient = (111, 100 );
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -189,9 +192,10 @@ benchmarks! {
 		let caller: T::AccountId = account("buyer", 0, 0);
 		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
 		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
+		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10_000 * ONE);
 
 		// Setup slippage limit (worst case) - maximum possible amount in
-		let amount_out = 100 * ONE;
+		let amount_out = 10 * ONE;
 		let slippage_limit = 1_000 * ONE;
 	}: _(RawOrigin::Signed(caller.clone()), hollar, collateral, amount_out, slippage_limit)
 	verify {
@@ -202,7 +206,7 @@ benchmarks! {
 		let hollar = T::HollarId::get();
 		let (pool_id, assets) = seed_pool::<T>(hollar)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = (200, 100 ); // Large gap to ensure arbitrage opportunity
+		let max_buy_price_coefficient = (110, 100 );
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = None; // No limit for arbitrage test
@@ -258,17 +262,20 @@ where
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	let pool_id = 222_222u32.into(); // Use a fixed ID for testing
-	seed_asset::<T>(pool_id, 18u8)?;
-	seed_asset::<T>(hollar_id, 18u8)?;
+	seed_asset::<T>(pool_id, DECIMALS)?;
+	seed_asset::<T>(hollar_id, DECIMALS)?;
 	let mut assets = vec![hollar_id];
+
+	let mut initial_liquidity = vec![INITIAL_LIQUDITY * ONE];
 
 	//TODO: we should probably create a peg source in oracle for the worst case!
 	let mut pegs = vec![PegSource::Value((1, 1))];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
 		let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-		seed_asset::<T>(asset_id, 18)?;
+		seed_asset::<T>(asset_id, DECIMALS)?;
 		assets.push(asset_id);
 		pegs.push(PegSource::Value((1, 1)));
+		initial_liquidity.push(INITIAL_LIQUDITY * ONE - 50 * ONE);
 	}
 
 	let amplification = 22;
@@ -286,6 +293,24 @@ where
 		Permill::from_percent(100),
 	)
 	.unwrap();
+
+	let provider: T::AccountId = account("provider", 0, 0);
+	<T as Config>::BenchmarkHelper::bind_address(provider.clone()).unwrap();
+
+	let mut liquidity_amounts = vec![];
+
+	for (asset_id, liquidity) in assets.iter().zip(initial_liquidity) {
+		<T as Config>::Currency::set_balance(*asset_id, &provider, liquidity);
+		liquidity_amounts.push(AssetAmount::new(*asset_id, liquidity));
+	}
+
+	pallet_stableswap::Pallet::<T>::add_assets_liquidity(
+		RawOrigin::Signed(provider.clone()).into(),
+		pool_id,
+		BoundedVec::truncate_from(liquidity_amounts),
+		0,
+	)
+	.expect("To provide initial liquidity");
 
 	Ok((pool_id, assets))
 }
