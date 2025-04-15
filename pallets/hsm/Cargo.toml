@@ -28,6 +28,7 @@ sp-io = { workspace = true }
 # FRAME
 frame-support = { workspace = true }
 frame-system = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
 
 # Hydra dependencies
 pallet-stableswap = { workspace = true }
@@ -49,9 +50,11 @@ pallet-broadcast = { workspace = true }
 [features]
 default = ["std"]
 runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
+    "pallet-stableswap/runtime-benchmarks",
 ]
 std = [
     "codec/std",

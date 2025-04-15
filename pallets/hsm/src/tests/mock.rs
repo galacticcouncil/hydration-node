@@ -41,10 +41,11 @@ use hydradx_traits::{
 use hydradx_traits::{AccountIdFor, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
-use pallet_stableswap::types::{BoundedPegSources, PegSource};
+use pallet_stableswap::types::{BoundedPegSources, PegSource, PegType};
+use pallet_stableswap::BenchmarkHelper;
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
-use sp_runtime::{BoundedVec, Perbill};
+use sp_runtime::{BoundedVec, DispatchResult, Perbill};
 use sp_runtime::{BuildStorage, DispatchError, Permill};
 use sp_std::num::NonZeroU16;
 use std::cell::RefCell;
@@ -179,7 +180,7 @@ impl pallet_stableswap::Config for Test {
 	type Hooks = ();
 	type TargetPegOracle = PegOracle;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = MockBenchmarkHelper;
 }
 
 parameter_types! {
@@ -648,4 +649,18 @@ pub fn clear_evm_calls() {
 
 pub fn default_peg() -> PegSource<AssetId> {
 	PegSource::Value((1, 1))
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct MockBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AssetId> for MockBenchmarkHelper {
+	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
+		todo!()
+	}
+
+	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
+		todo!()
+	}
 }

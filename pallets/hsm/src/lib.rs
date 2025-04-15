@@ -43,6 +43,11 @@ pub mod types;
 #[cfg(test)]
 pub mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarks;
+#[cfg(feature = "runtime-benchmarks")]
+use frame_benchmarking::v2::*;
+
 // Generate the ERC20 function selectors
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]

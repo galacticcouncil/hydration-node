@@ -8363,6 +8363,7 @@ version = "0.1.0"
 dependencies = [
  "ethabi",
  "evm",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal",
