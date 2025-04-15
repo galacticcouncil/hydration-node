@@ -1,47 +1,23 @@
 #![allow(dead_code)]
 #![allow(clippy::type_complexity)]
 
-use codec::{Compact, Decode, Encode, KeyedVec};
-use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
-use frame_remote_externalities::*;
-use frame_support::__private::log;
-use frame_support::__private::log::info;
-use frame_support::__private::metadata::v15::{StorageEntryType, StorageHasher};
-use frame_support::__private::metadata::RuntimeMetadata::V15;
-use frame_support::__private::metadata::{v15, RuntimeMetadata, RuntimeMetadataPrefixed};
-use frame_support::__private::metadata_ir::frame_metadata;
-use frame_support::pallet_prelude::StorageMap;
-use frame_support::sp_runtime::scale_info::TypeDef::Primitive;
-use frame_support::sp_runtime::scale_info::{PortableRegistry, TypeDef, TypeDefPrimitive};
-use frame_support::sp_runtime::traits::Hash;
+use codec::{Compact, Decode, Encode};
 use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion, Storage};
-use frame_support::traits::dynamic_params::IntoKey;
-use frame_support::traits::StorageInfo;
-use frame_support::StorageValue;
-use futures::{future, stream::FuturesUnordered, StreamExt};
+use futures::StreamExt;
 use hydradx::chain_spec::hydradx::parachain_config;
-use jsonrpsee::core::client::ClientT;
-use sc_chain_spec::{ChainSpec, ChainSpecBuilder, ChainType, GenericChainSpec, NoExtension};
-use sc_service::config::TelemetryEndpoints;
-use serde_json::Value;
-use sp_core::storage::{well_known_keys, StorageData, StorageKey};
-use sp_core::{blake2_128, blake2_256, twox_128, twox_64, H256};
-use sp_io::hashing::twox_256;
+use sc_chain_spec::ChainSpec;
+use sp_core::storage::{StorageData, StorageKey};
+use sp_core::H256;
 use sp_io::TestExternalities;
-use sp_state_machine::backend::AsTrieBackend;
 use std::collections::{BTreeMap, HashMap};
-use std::fs::OpenOptions;
-use std::io::prelude::*;
-use std::io::Write;
 use std::sync::Arc;
 use std::{
 	fs,
 	path::{Path, PathBuf},
 	str::FromStr,
 };
+use substrate_rpc_client::ws_client;
 use substrate_rpc_client::StateApi;
-use substrate_rpc_client::{ws_client, ChainApi, SystemApi};
-use tokio::sync::Semaphore;
 
 pub fn save_blocks_snapshot<Block: Encode>(data: &Vec<Block>, path: &Path) -> Result<(), &'static str> {
 	let mut path = path.to_path_buf();
@@ -276,7 +252,7 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 	let mut input_spec = parachain_config().unwrap();
 	input_spec.set_storage(storage);
 
-	info!("Generating new chain spec...");
+	println!("Generating new chain spec...");
 	let json = sc_service::chain_ops::build_spec(&input_spec, true).unwrap();
 
 	fs::write(path, json).map_err(|err| {
