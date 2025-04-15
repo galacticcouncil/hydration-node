@@ -657,7 +657,10 @@ pub struct MockBenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 impl BenchmarkHelper<AssetId> for MockBenchmarkHelper {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
-		todo!()
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
+		});
+		Ok(())
 	}
 
 	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {

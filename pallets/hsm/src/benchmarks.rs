@@ -16,12 +16,17 @@ use super::*;
 use crate::types::Balance;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::EnsureOrigin;
+use frame_support::BoundedVec;
 use frame_system::RawOrigin;
-use hydradx_traits::{AssetKind, Create};
-use pallet_stableswap::BenchmarkHelper;
+use hydradx_traits::stableswap::AssetAmount;
+use hydradx_traits::{AssetKind, Create, OraclePeriod};
+use pallet_stableswap::types::{BoundedPegSources, PegSource};
+use pallet_stableswap::{BenchmarkHelper, MAX_ASSETS_IN_POOL};
 use sp_runtime::{Perbill, Permill};
 
 pub const ONE: Balance = 1_000_000_000_000;
+const ASSET_ID_OFFSET: u32 = 2_000;
 
 benchmarks! {
 	where_clause { where
@@ -249,10 +254,35 @@ where
 	T::AssetId: From<u32>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
-	let pool_id = 100u32.into(); // Use a fixed ID for testing
+	let pool_id = 222_222u32.into(); // Use a fixed ID for testing
+	seed_asset::<T>(pool_id, 18u8)?;
+	seed_asset::<T>(hollar_id, 18u8)?;
+	let mut assets = vec![hollar_id];
 
-	// In a real implementation, this would create the pool
-	// For benchmarking, we'll just return a pool ID and assume it exists
+	//TODO: we should probably create a peg source in oracle for the worst case!
+	let mut pegs = vec![PegSource::Value((1, 1))];
+	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
+		let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
+		T::BenchmarkHelper::register_asset(asset_id, 18).expect("Failed to register asset");
+		assets.push(asset_id);
+		pegs.push(PegSource::Value((1, 1)));
+	}
 
-	Ok((pool_id, vec![]))
+	let amplification = 22;
+	let fee = Permill::from_percent(1);
+
+	let successful_origin = T::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+
+	pallet_stableswap::Pallet::<T>::create_pool_with_pegs(
+		successful_origin,
+		pool_id,
+		BoundedVec::try_from(assets.clone()).unwrap(),
+		amplification,
+		fee,
+		BoundedPegSources::try_from(pegs).unwrap(),
+		Permill::from_percent(100),
+	)
+	.unwrap();
+
+	Ok((pool_id, assets))
 }
