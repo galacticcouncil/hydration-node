@@ -103,33 +103,3 @@ pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> P
 pub fn calculate_collateral_amount(hollar_amount: Balance, price: PegType) -> Option<Balance> {
 	multiply_by_rational_with_rounding(hollar_amount, price.0, price.1, Rounding::Up)
 }
-
-/// Scale an amount to 18 decimals
-pub fn scale_to_18_decimals(amount: Balance, asset_decimals: u8) -> Result<Balance, ArithmeticError> {
-	if asset_decimals == 18 {
-		Ok(amount)
-	} else if asset_decimals > 18 {
-		// Scale down
-		let scale_factor = 10u128.saturating_pow((asset_decimals - 18) as u32);
-		amount.checked_div(scale_factor).ok_or(ArithmeticError::DivisionByZero)
-	} else {
-		// Scale up
-		let scale_factor = 10u128.saturating_pow((18 - asset_decimals) as u32);
-		amount.checked_mul(scale_factor).ok_or(ArithmeticError::Overflow)
-	}
-}
-
-/// Scale an amount from 18 decimals back to asset's decimals
-pub fn scale_from_18_decimals(amount: Balance, asset_decimals: u8) -> Result<Balance, ArithmeticError> {
-	if asset_decimals == 18 {
-		Ok(amount)
-	} else if asset_decimals > 18 {
-		// Scale up
-		let scale_factor = 10u128.saturating_pow((asset_decimals - 18) as u32);
-		amount.checked_mul(scale_factor).ok_or(ArithmeticError::Overflow)
-	} else {
-		// Scale down
-		let scale_factor = 10u128.saturating_pow((18 - asset_decimals) as u32);
-		amount.checked_div(scale_factor).ok_or(ArithmeticError::DivisionByZero)
-	}
-}

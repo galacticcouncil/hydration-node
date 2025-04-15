@@ -219,7 +219,7 @@ pub mod pallet {
 		InsufficientCollateralBalance,
 		/// This collateral asset is not accepted now.
 		CollateralNotWanted,
-		///
+		/// GHO Contract address not found.
 		HollarContractAddressNotFound,
 	}
 
@@ -290,6 +290,7 @@ pub mod pallet {
 		/// - `b`: Parameter that controls how quickly HSM can buy Hollar with this asset
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_collateral_asset())]
+		#[allow(clippy::too_many_arguments)]
 		pub fn add_collateral_asset(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
