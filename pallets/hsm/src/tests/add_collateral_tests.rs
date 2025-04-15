@@ -72,7 +72,7 @@ fn add_collateral_asset_works() {
 					purchase_fee: Permill::from_percent(1),
 					max_buy_price_coefficient: (100, 100),
 					buy_back_fee: Permill::from_percent(1),
-					b: Perbill::from_percent(10),
+					buyback_rate: Perbill::from_percent(10),
 					max_in_holding: Some(1_000_000 * ONE),
 				}
 			);

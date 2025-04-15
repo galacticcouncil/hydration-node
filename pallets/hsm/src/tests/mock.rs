@@ -37,6 +37,7 @@ use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
 	stableswap::AssetAmount,
+	AssetKind, BoundErc20, Inspect,
 };
 use hydradx_traits::{AccountIdFor, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use orml_traits::parameter_type_with_key;
@@ -187,7 +188,6 @@ impl pallet_stableswap::Config for Test {
 parameter_types! {
 	pub const HollarId: AssetId = HOLLAR;
 	pub PalletId: frame_support::PalletId = frame_support::PalletId(*b"py/hsmdx");
-	pub GhoContractAddress: EvmAddress = EvmAddress::from(GHO_ADDRESS);
 	pub const GasLimit: u64 = 1_000_000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 }
@@ -416,6 +416,52 @@ impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
 
 	fn is_approved_contract(address: EvmAddress) -> bool {
 		unimplemented!()
+	}
+}
+
+pub struct GhoContractAddress;
+
+impl Inspect for GhoContractAddress {
+	type AssetId = AssetId;
+	type Location = ();
+
+	fn is_sufficient(id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn exists(id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn decimals(id: Self::AssetId) -> Option<u8> {
+		todo!()
+	}
+
+	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
+		todo!()
+	}
+
+	fn is_banned(id: Self::AssetId) -> bool {
+		todo!()
+	}
+
+	fn asset_name(id: Self::AssetId) -> Option<Vec<u8>> {
+		todo!()
+	}
+
+	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>> {
+		todo!()
+	}
+
+	fn existential_deposit(id: Self::AssetId) -> Option<u128> {
+		todo!()
+	}
+}
+
+impl BoundErc20 for GhoContractAddress {
+	fn contract_address(id: Self::AssetId) -> Option<EvmAddress> {
+		assert_eq!(id, HollarId::get());
+		Some(GHO_ADDRESS.into())
 	}
 }
 

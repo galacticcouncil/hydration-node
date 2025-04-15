@@ -17,6 +17,7 @@ use frame_system::offchain::SendUnsignedTransaction;
 use frame_system::offchain::SubmitTransaction;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_traits::registry::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
 use pallet_stableswap::types::PoolSnapshot;
@@ -94,8 +95,7 @@ pub mod pallet {
 		type PalletId: Get<PalletId>;
 
 		/// GHO contract address - EVM address of GHO token contract
-		#[pallet::constant]
-		type GhoContractAddress: Get<EvmAddress>; //TODO: get from registry
+		type GhoContractAddress: BoundErc20<AssetId = Self::AssetId>;
 
 		/// Currency - fungible tokens trait to access token transfers
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
@@ -148,7 +148,7 @@ pub mod pallet {
 			purchase_fee: Permill,
 			max_buy_price_coefficient: CoefficientRatio,
 			buy_back_fee: Permill,
-			b: Perbill,
+			buyback_rate: Perbill,
 		},
 		/// A collateral asset was removed
 		CollateralRemoved { asset_id: T::AssetId, amount: Balance },
@@ -158,7 +158,7 @@ pub mod pallet {
 			purchase_fee: Option<Permill>,
 			max_buy_price_coefficient: Option<CoefficientRatio>,
 			buy_back_fee: Option<Permill>,
-			b: Option<Perbill>,
+			buyback_rate: Option<Perbill>,
 		},
 		/// Sell executed
 		SellExecuted {
@@ -223,6 +223,8 @@ pub mod pallet {
 		InsufficientCollateralBalance,
 		/// This collateral asset is not accepted now.
 		CollateralNotWanted,
+		///
+		HollarContractAddressNotFound,
 	}
 
 	#[pallet::hooks]
@@ -299,7 +301,7 @@ pub mod pallet {
 			purchase_fee: Permill,
 			max_buy_price_coefficient: CoefficientRatio,
 			buy_back_fee: Permill,
-			b: Perbill,
+			buyback_rate: Perbill,
 			max_in_holding: Option<Balance>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
@@ -326,7 +328,7 @@ pub mod pallet {
 				pool_id,
 				purchase_fee,
 				max_buy_price_coefficient,
-				b,
+				buyback_rate,
 				buy_back_fee,
 				max_in_holding,
 			};
@@ -339,7 +341,7 @@ pub mod pallet {
 				purchase_fee,
 				max_buy_price_coefficient,
 				buy_back_fee,
-				b,
+				buyback_rate,
 			});
 
 			Ok(())
@@ -387,7 +389,7 @@ pub mod pallet {
 			purchase_fee: Option<Permill>,
 			max_buy_price_coefficient: Option<CoefficientRatio>,
 			buy_back_fee: Option<Permill>,
-			b: Option<Perbill>,
+			buyback_rate: Option<Perbill>,
 			max_in_holding: Option<Option<Balance>>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
@@ -407,8 +409,8 @@ pub mod pallet {
 					info.buy_back_fee = fee;
 				}
 
-				if let Some(param_b) = b {
-					info.b = param_b;
+				if let Some(param_b) = buyback_rate {
+					info.buyback_rate = param_b;
 				}
 
 				if let Some(holding) = max_in_holding {
@@ -423,7 +425,7 @@ pub mod pallet {
 				purchase_fee,
 				max_buy_price_coefficient,
 				buy_back_fee,
-				b,
+				buyback_rate,
 			});
 
 			Ok(())
@@ -659,7 +661,7 @@ where
 		ensure!(!imbalance.is_zero(), Error::<T>::CollateralNotWanted);
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
-		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
+		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(
@@ -781,7 +783,7 @@ where
 		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
-		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.b);
+		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
 		// 3. Calculate execution price by simulating a swap
 		let hollar_amount = Self::simulate_out_given_in(
@@ -969,7 +971,8 @@ where
 
 	/// Mint Hollar by calling the GHO token contract
 	fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
-		let contract = T::GhoContractAddress::get();
+		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
+			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
 		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
 		// Create the context for the EVM call
@@ -995,7 +998,8 @@ where
 
 	/// Burn Hollar by calling the GHO token contract
 	fn burn_hollar(amount: Balance) -> DispatchResult {
-		let contract = T::GhoContractAddress::get();
+		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
+			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
 		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
 		// Create the context for the EVM call
@@ -1141,7 +1145,7 @@ where
 		// 1. Calculate imbalance
 		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, collateral_reserve)?;
 		ensure!(!imbalance.is_zero(), Error::<T>::NoArbitrageOpportunity);
-		let b_coefficient = collateral_info.b;
+		let b_coefficient = collateral_info.buyback_rate;
 		let max_buy_amt = b_coefficient.mul_floor(imbalance);
 		// If max_buy_amt is 0, there's no arbitrage opportunity
 		if max_buy_amt == 0 {

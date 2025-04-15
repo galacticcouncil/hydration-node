@@ -118,7 +118,7 @@ benchmarks! {
 		assert_eq!(info.purchase_fee, Permill::from_percent(2));
 		assert_eq!(info.max_buy_price_coefficient, (102,100));
 		assert_eq!(info.buy_back_fee, Permill::from_percent(2));
-		assert_eq!(info.b, Perbill::from_percent(60));
+		assert_eq!(info.buyback_rate, Perbill::from_percent(60));
 		assert_eq!(info.max_in_holding, Some(20_000 * ONE));
 	}
 

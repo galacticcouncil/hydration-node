@@ -30,7 +30,7 @@ pub struct CollateralInfo<AssetId> {
 	/// Represented as a ratio (numerator, denominator)
 	pub max_buy_price_coefficient: CoefficientRatio,
 	/// Parameter that controls how quickly HSM can buy Hollar with this asset
-	pub b: Perbill,
+	pub buyback_rate: Perbill,
 	/// Fee applied when buying back Hollar
 	pub buy_back_fee: Permill,
 	/// Maximum amount of collateral that HSM can hold

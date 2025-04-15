@@ -76,7 +76,7 @@ fn update_collateral_asset_works() {
 					purchase_fee: Permill::from_percent(2), // Updated
 					max_buy_price_coefficient: (110, 100),
 					buy_back_fee: Permill::from_percent(1),
-					b: Perbill::from_percent(50), // Default from mock builder
+					buyback_rate: Perbill::from_percent(50), // Default from mock builder
 					max_in_holding: None,
 				}
 			);
@@ -99,10 +99,10 @@ fn update_collateral_asset_works() {
 				CollateralInfo {
 					pool_id: 100,
 					purchase_fee: Permill::from_percent(2),
-					max_buy_price_coefficient: (120, 100),  // Updated
-					buy_back_fee: Permill::from_percent(2), // Updated
-					b: Perbill::from_percent(15),           // Updated
-					max_in_holding: Some(2_000_000 * ONE),  // Updated
+					max_buy_price_coefficient: (120, 100),   // Updated
+					buy_back_fee: Permill::from_percent(2),  // Updated
+					buyback_rate: Perbill::from_percent(15), // Updated
+					max_in_holding: Some(2_000_000 * ONE),   // Updated
 				}
 			);
 
