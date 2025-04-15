@@ -428,6 +428,7 @@ impl Config for Test {
 	type Evm = MockEvm;
 	type EvmAccounts = MockEvmAccounts;
 	type GasLimit = GasLimit;
+	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = MockHSMBenchmarkHelper;
 }

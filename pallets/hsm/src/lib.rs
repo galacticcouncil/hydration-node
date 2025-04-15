@@ -3,6 +3,7 @@
 pub use pallet::*;
 
 use crate::types::{Balance, CoefficientRatio, CollateralInfo};
+use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::dispatch::DispatchResult;
@@ -45,10 +46,11 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarks;
+pub mod weights;
+
 #[cfg(feature = "runtime-benchmarks")]
 use frame_benchmarking::v2::*;
 
-// Generate the ERC20 function selectors
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -74,10 +76,6 @@ pub mod pallet {
 	use frame_system::Origin;
 	use sp_runtime::{traits::Zero, Perbill, Permill};
 	use sp_std::prelude::*;
-	// EVM imports
-
-	/// HSM account id identifier
-	pub const HSM_IDENTIFIER: &[u8] = b"hsm/acct";
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_stableswap::Config + SendTransactionTypes<Call<Self>>
@@ -97,7 +95,7 @@ pub mod pallet {
 
 		/// GHO contract address - EVM address of GHO token contract
 		#[pallet::constant]
-		type GhoContractAddress: Get<EvmAddress>;
+		type GhoContractAddress: Get<EvmAddress>; //TODO: get from registry
 
 		/// Currency - fungible tokens trait to access token transfers
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
@@ -111,6 +109,9 @@ pub mod pallet {
 		/// The gas limit for the execution of EVM calls
 		#[pallet::constant]
 		type GasLimit: Get<u64>;
+
+		/// Weight information for the extrinsics.
+		type WeightInfo: WeightInfo;
 
 		#[cfg(feature = "runtime-benchmarks")]
 		type BenchmarkHelper: traits::BenchmarkHelper<Self::AccountId>;
@@ -231,7 +232,7 @@ pub mod pallet {
 	{
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			// Clear the Hollar Amount Received storage on finalize
-			<HollarAmountReceived<T>>::clear(u32::MAX, None);
+			let _ = <HollarAmountReceived<T>>::clear(u32::MAX, None);
 		}
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
@@ -290,7 +291,7 @@ pub mod pallet {
 		/// - `buy_back_fee`: Fee applied when buying back Hollar
 		/// - `b`: Parameter that controls how quickly HSM can buy Hollar with this asset
 		#[pallet::call_index(0)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_collateral_asset())]
 		pub fn add_collateral_asset(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
@@ -349,7 +350,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `asset_id`: Asset ID to remove from collaterals
 		#[pallet::call_index(1)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_collateral_asset())]
 		pub fn remove_collateral_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -379,7 +380,7 @@ pub mod pallet {
 		/// - `buy_back_fee`: New buy back fee (optional)
 		/// - `b`: New b parameter (optional)
 		#[pallet::call_index(2)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_collateral_asset())]
 		pub fn update_collateral_asset(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
@@ -438,7 +439,7 @@ pub mod pallet {
 		/// - `amount_in`: Amount of asset_in to sell
 		/// - `slippage_limit`: Minimum amount out for slippage protection
 		#[pallet::call_index(3)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		pub fn sell(
 			origin: OriginFor<T>,
 			asset_in: T::AssetId,
@@ -488,7 +489,7 @@ pub mod pallet {
 		/// - `amount_out`: Amount of asset_out to buy
 		/// - `slippage_limit`: Maximum amount in for slippage protection
 		#[pallet::call_index(4)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		pub fn buy(
 			origin: OriginFor<T>,
 			asset_in: T::AssetId,
@@ -539,7 +540,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `collateral_asset_id`: The ID of the collateral asset to check for arbitrage
 		#[pallet::call_index(5)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage())]
 		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
 			ensure_none(origin)?;
 
