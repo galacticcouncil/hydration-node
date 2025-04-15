@@ -244,9 +244,8 @@ benchmarks! {
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
 	}: _(RawOrigin::None, collateral)
 	verify {
-		// Verify arbitrage was attempted
-		// Note: In benchmarking, the actual arbitrage may not succeed due to mock constraints
-		// We're verifying the execution path was completed
+		let acc_balance = <T as Config>::Currency::balance(collateral, &Pallet::<T>::account_id());
+		assert!(acc_balance < 10 * ONE);
 	}
 
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
