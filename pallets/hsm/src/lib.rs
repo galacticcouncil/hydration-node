@@ -13,10 +13,9 @@ use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_system::offchain::SendTransactionTypes;
-use frame_system::offchain::SendUnsignedTransaction;
 use frame_system::offchain::SubmitTransaction;
 use frame_system::pallet_prelude::BlockNumberFor;
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_traits::evm::{CallContext, InspectEvmAccounts, EVM};
 use hydradx_traits::registry::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::Zero;
@@ -48,9 +47,6 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarks;
 pub mod weights;
-
-#[cfg(feature = "runtime-benchmarks")]
-use frame_benchmarking::v2::*;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -272,7 +268,7 @@ pub mod pallet {
 			};
 
 			match call {
-				Call::execute_arbitrage { collateral_asset_id } => valid_tx(b"execute_arbitrage".to_vec()),
+				Call::execute_arbitrage { .. } => valid_tx(b"execute_arbitrage".to_vec()),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}

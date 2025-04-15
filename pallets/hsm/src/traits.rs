@@ -1,3 +1,4 @@
+#[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchResult;
 
 #[cfg(feature = "runtime-benchmarks")]

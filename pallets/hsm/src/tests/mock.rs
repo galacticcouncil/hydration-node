@@ -255,6 +255,7 @@ impl RawOracle<AssetId, Balance, u64> for PegOracle {
 	}
 }
 
+#[allow(unused)]
 pub(crate) fn set_peg_oracle_value(asset_a: AssetId, asset_b: AssetId, price: (Balance, Balance), updated_at: u64) {
 	PEG_ORACLE_VALUES.with(|v| {
 		v.borrow_mut()
@@ -388,8 +389,8 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 }
 
 impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
-	fn is_evm_account(account_id: AccountId) -> bool {
-		todo!()
+	fn is_evm_account(_account_id: AccountId) -> bool {
+		unimplemented!()
 	}
 
 	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
@@ -397,24 +398,23 @@ impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
 		EvmAddress::from_slice(&acc[..20])
 	}
 
-	fn truncated_account_id(evm_address: EvmAddress) -> AccountId {
+	fn truncated_account_id(_evm_address: EvmAddress) -> AccountId {
 		unimplemented!()
 	}
 
-	fn bound_account_id(evm_address: EvmAddress) -> Option<AccountId> {
+	fn bound_account_id(_evm_address: EvmAddress) -> Option<AccountId> {
 		unimplemented!()
 	}
 
 	fn account_id(evm_address: EvmAddress) -> AccountId {
 		map_to_acc(evm_address)
-		//Self::bound_account_id(evm_address).unwrap_or_else(|| Self::truncated_account_id(evm_address))
 	}
 
-	fn can_deploy_contracts(evm_address: EvmAddress) -> bool {
+	fn can_deploy_contracts(_evm_address: EvmAddress) -> bool {
 		unimplemented!()
 	}
 
-	fn is_approved_contract(address: EvmAddress) -> bool {
+	fn is_approved_contract(_address: EvmAddress) -> bool {
 		unimplemented!()
 	}
 }
@@ -425,36 +425,36 @@ impl Inspect for GhoContractAddress {
 	type AssetId = AssetId;
 	type Location = ();
 
-	fn is_sufficient(id: Self::AssetId) -> bool {
-		todo!()
+	fn is_sufficient(_id: Self::AssetId) -> bool {
+		unimplemented!()
 	}
 
-	fn exists(id: Self::AssetId) -> bool {
-		todo!()
+	fn exists(_id: Self::AssetId) -> bool {
+		unimplemented!()
 	}
 
-	fn decimals(id: Self::AssetId) -> Option<u8> {
-		todo!()
+	fn decimals(_id: Self::AssetId) -> Option<u8> {
+		unimplemented!()
 	}
 
-	fn asset_type(id: Self::AssetId) -> Option<AssetKind> {
-		todo!()
+	fn asset_type(_id: Self::AssetId) -> Option<AssetKind> {
+		unimplemented!()
 	}
 
-	fn is_banned(id: Self::AssetId) -> bool {
-		todo!()
+	fn is_banned(_id: Self::AssetId) -> bool {
+		unimplemented!()
 	}
 
-	fn asset_name(id: Self::AssetId) -> Option<Vec<u8>> {
-		todo!()
+	fn asset_name(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
 	}
 
-	fn asset_symbol(id: Self::AssetId) -> Option<Vec<u8>> {
-		todo!()
+	fn asset_symbol(_id: Self::AssetId) -> Option<Vec<u8>> {
+		unimplemented!()
 	}
 
-	fn existential_deposit(id: Self::AssetId) -> Option<u128> {
-		todo!()
+	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
+		unimplemented!()
 	}
 }
 
@@ -482,7 +482,7 @@ impl Config for Test {
 pub struct Whitelist;
 
 impl Contains<AccountId> for Whitelist {
-	fn contains(account: &AccountId) -> bool {
+	fn contains(_account: &AccountId) -> bool {
 		false
 	}
 }
@@ -490,11 +490,11 @@ impl Contains<AccountId> for Whitelist {
 impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 	type Error = DispatchError;
 
-	fn add_account(account: &AccountId) -> Result<(), Self::Error> {
+	fn add_account(_account: &AccountId) -> Result<(), Self::Error> {
 		Ok(())
 	}
 
-	fn remove_account(account: &AccountId) -> Result<(), Self::Error> {
+	fn remove_account(_account: &AccountId) -> Result<(), Self::Error> {
 		Ok(())
 	}
 }
@@ -640,7 +640,11 @@ impl ExtBuilder {
 			for (pool_id, liquidity) in self.initial_pool_liquidity {
 				// mint alice and bob with pool tokens
 				for asset in liquidity.iter() {
-					Tokens::update_balance(asset.asset_id, &AccountId::from(PROVIDER), asset.amount as i128);
+					frame_support::assert_ok!(Tokens::update_balance(
+						asset.asset_id,
+						&AccountId::from(PROVIDER),
+						asset.amount as i128
+					));
 				}
 
 				Stableswap::add_assets_liquidity(
@@ -716,7 +720,7 @@ impl BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
 		Ok(())
 	}
 
-	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
+	fn register_asset_peg(_asset_pair: (AssetId, AssetId), _peg: PegType, _source: Source) -> DispatchResult {
 		todo!()
 	}
 }

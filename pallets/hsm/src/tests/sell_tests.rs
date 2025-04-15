@@ -16,10 +16,10 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::EvmAddress;
 use crate::{CollateralHoldings, Error, HollarAmountReceived};
 use frame_support::traits::Hooks;
 use frame_support::{assert_err, assert_noop, assert_ok};
+use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_stableswap::types::PegSource;
@@ -27,7 +27,7 @@ use sp_runtime::{Perbill, Permill};
 
 // Setup helper to create a test environment with DAI as collateral
 fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
-	let mut ext = ExtBuilder::default()
+	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HOLLAR, 1_000 * ONE),
 			(ALICE, DAI, 1_000 * ONE),
@@ -58,8 +58,7 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 			],
 		)
 		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
-		.build();
-	ext
+		.build()
 }
 
 #[test]
@@ -98,7 +97,7 @@ fn sell_collateral_to_get_hollar_works() {
 		assert_eq!(CollateralHoldings::<Test>::get(DAI), collateral_amount);
 
 		// Check that EVM mint call was made
-		let (contract, data) = last_evm_call().unwrap();
+		let (contract, _data) = last_evm_call().unwrap();
 		assert_eq!(contract, EvmAddress::from(GHO_ADDRESS));
 
 		// Check that the event was emitted correctly
@@ -166,7 +165,7 @@ fn sell_hollar_to_get_collateral_works() {
 		assert_eq!(HollarAmountReceived::<Test>::get(DAI), hollar_amount);
 
 		// Check that EVM burn call was made
-		let (contract, data) = last_evm_call().unwrap();
+		let (contract, _data) = last_evm_call().unwrap();
 		assert_eq!(contract, EvmAddress::from(GHO_ADDRESS));
 
 		// Check that the event was emitted correctly

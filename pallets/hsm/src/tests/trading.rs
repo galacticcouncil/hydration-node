@@ -26,7 +26,7 @@ use sp_runtime::Permill;
 use crate::tests::mock::*;
 
 fn setup_test_for_comparison() -> sp_io::TestExternalities {
-	let mut ext = ExtBuilder::default()
+	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HOLLAR, 1_000 * ONE),
 			(ALICE, DAI, 1_000 * ONE),
@@ -63,8 +63,7 @@ fn setup_test_for_comparison() -> sp_io::TestExternalities {
 			(100, 100),               // max_buy_price_coefficient
 			Permill::from_percent(0), // buy_back_fee
 		)
-		.build();
-	ext
+		.build()
 }
 
 #[test]
@@ -76,7 +75,6 @@ fn selling_collateral_for_hollar_equals_buying_hollar_with_collateral() {
 		// Scenario 1: Sell collateral to get Hollar
 		let hollar_from_sell = {
 			// Record initial balances
-			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 
 			// Execute sell (collateral -> Hollar)
@@ -102,7 +100,6 @@ fn selling_collateral_for_hollar_equals_buying_hollar_with_collateral() {
 		let collateral_for_buy = {
 			// Record initial balances
 			let initial_bob_dai = Tokens::free_balance(DAI, &BOB);
-			let initial_bob_hollar = Tokens::free_balance(HOLLAR, &BOB);
 
 			// Execute buy (buying the exact amount of Hollar we got from selling)
 			assert_ok!(HSM::buy(
@@ -147,7 +144,6 @@ fn selling_hollar_for_collateral_equals_buying_collateral_with_hollar() {
 		// Scenario 1: Sell Hollar to get collateral
 		let collateral_from_sell = {
 			// Record initial balances
-			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 
 			// Execute sell (Hollar -> collateral)
@@ -173,7 +169,6 @@ fn selling_hollar_for_collateral_equals_buying_collateral_with_hollar() {
 		let hollar_for_buy = {
 			// Record initial balances
 			let initial_bob_hollar = Tokens::free_balance(HOLLAR, &BOB);
-			let initial_bob_dai = Tokens::free_balance(DAI, &BOB);
 
 			// Execute buy (buying the exact amount of collateral we got from selling)
 			assert_ok!(HSM::buy(

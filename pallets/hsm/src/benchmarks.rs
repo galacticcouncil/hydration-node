@@ -21,7 +21,6 @@ use frame_support::traits::EnsureOrigin;
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AssetKind, Create, OraclePeriod};
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
 use sp_runtime::{Perbill, Permill};
