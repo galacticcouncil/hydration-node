@@ -35,8 +35,8 @@ struct BlocksCmd {
 }
 
 #[derive(Parser, Debug)]
-struct ExportStateCmd {
-	/// The block hash at which to get the runtime state. Will be latest finalized head if not provided.
+struct SaveChainspecCmd {
+	/// The block hash at which to get the runtime chainspec. Will be latest finalized head if not provided.
 	#[arg(long)]
 	at: Option<<Block as BlockT>::Hash>,
 	/// The pallets to include. If empty, entire chain state will be exported.
@@ -52,7 +52,7 @@ struct ExportStateCmd {
 enum Command {
 	SaveStorage(StorageCmd),
 	SaveBlocks(BlocksCmd),
-	ExportState(ExportStateCmd),
+	SaveChainspec(SaveChainspecCmd),
 }
 
 /// Shared parameters of the `scraper` commands.
@@ -167,7 +167,7 @@ fn main() {
 
 			path
 		}
-		Command::ExportState(cmd) => {
+		Command::SaveChainspec(cmd) => {
 			let mut path = cmd.shared.get_path();
 			path.set_extension("json");
 
