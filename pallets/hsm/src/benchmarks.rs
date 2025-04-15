@@ -251,9 +251,9 @@ benchmarks! {
 }
 
 // Helper function to create a new asset for testing
-fn seed_asset<T: Config>(asset_id: T::AssetId, decimals: u8) -> DispatchResult
+fn seed_asset<T>(asset_id: T::AssetId, decimals: u8) -> DispatchResult
 where
-	T: pallet_stableswap::Config,
+	T: Config + pallet_stableswap::Config,
 	T::AssetId: From<u32>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
@@ -261,9 +261,9 @@ where
 }
 
 // Helper function to create a new stable pool for testing
-fn seed_pool<T: Config>(hollar_id: T::AssetId) -> Result<(T::AssetId, Vec<T::AssetId>), DispatchError>
+fn seed_pool<T>(hollar_id: T::AssetId) -> Result<(T::AssetId, Vec<T::AssetId>), DispatchError>
 where
-	T: pallet_stableswap::Config,
+	T: Config + pallet_stableswap::Config,
 	T::AssetId: From<u32>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {

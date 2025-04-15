@@ -1906,7 +1906,7 @@ impl<T: Config> Pallet<T> {
 			amount_in,
 			amplification,
 			trade_fee,
-			&asset_pegs,
+			asset_pegs,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 

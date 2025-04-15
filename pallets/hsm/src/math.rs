@@ -35,6 +35,7 @@ pub fn calculate_imbalance(
 	collateral_reserve: Balance,
 ) -> Result<Balance, ArithmeticError> {
 	// Convert peg to a price by dividing numerator by denominator
+	//TODO: this is incorrect! should be fixed when decimals taken into account
 	let peg_price = peg.0.checked_div(peg.1).ok_or(ArithmeticError::DivisionByZero)?;
 
 	let pegged_collateral = peg_price
@@ -106,7 +107,7 @@ pub fn calculate_collateral_amount(hollar_amount: Balance, price: PegType) -> Op
 /// Scale an amount to 18 decimals
 pub fn scale_to_18_decimals(amount: Balance, asset_decimals: u8) -> Result<Balance, ArithmeticError> {
 	if asset_decimals == 18 {
-		return Ok(amount);
+		Ok(amount)
 	} else if asset_decimals > 18 {
 		// Scale down
 		let scale_factor = 10u128.saturating_pow((asset_decimals - 18) as u32);
@@ -121,7 +122,7 @@ pub fn scale_to_18_decimals(amount: Balance, asset_decimals: u8) -> Result<Balan
 /// Scale an amount from 18 decimals back to asset's decimals
 pub fn scale_from_18_decimals(amount: Balance, asset_decimals: u8) -> Result<Balance, ArithmeticError> {
 	if asset_decimals == 18 {
-		return Ok(amount);
+		Ok(amount)
 	} else if asset_decimals > 18 {
 		// Scale up
 		let scale_factor = 10u128.saturating_pow((asset_decimals - 18) as u32);
