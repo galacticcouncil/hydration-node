@@ -246,7 +246,6 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 
 	let mut storage_map = BTreeMap::new();
 
-	// Add WASM code
 	let code_key = sp_core::storage::well_known_keys::CODE;
 	println!("Fetching WASM code with key: {}", hex::encode(code_key));
 
@@ -260,7 +259,6 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 
 	storage_map.insert(code_key.to_vec(), wasm_code.0);
 
-	//Get all
 	println!("Getting all storare key-alue pairs");
 	let all_pairs = fetch_all_storage(uri)
 		.await
