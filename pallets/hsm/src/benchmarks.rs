@@ -225,15 +225,12 @@ benchmarks! {
 			max_in_holding
 		)?;
 
-		// Setup HSM account with hollar minting permissions
-		// Note: In a real environment, we would need to set up the EVM contract and permissions
-		// For benchmarking, we'll assume minting works
+		// Setup HSM collateral holdings
+		CollateralHoldings::<T>::insert(collateral, 10 * ONE);
 
-		// Setup stable pool with imbalanced prices to create arbitrage opportunity
-		// This would typically be done by manipulating the pool balances
-
-		// For testing, we'll just mock the arbitrage calculation to return a positive opportunity
-		// This might need adjustment in real testing
+		// Create account with hollar
+		let arb: T::AccountId = account("arber", 0, 0);
+		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
 	}: _(RawOrigin::None, collateral)
 	verify {
 		// Verify arbitrage was attempted
