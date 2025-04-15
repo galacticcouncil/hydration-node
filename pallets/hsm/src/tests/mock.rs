@@ -20,8 +20,8 @@
 
 use crate as pallet_hsm;
 use crate::types::{CallResult, CoefficientRatio};
-use crate::Config;
 use crate::ERC20Function;
+use crate::{traits, Config};
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
 use evm::{ExitError, ExitReason, ExitSucceed};
@@ -85,6 +85,7 @@ thread_local! {
 	pub static EVM_CALLS: RefCell<Vec<(EvmAddress, Vec<u8>)>> = RefCell::new(Vec::new());
 	pub static EVM_CALL_RESULTS: RefCell<HashMap<Vec<u8>, Vec<u8>>> = RefCell::new(HashMap::default());
 	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
+	pub static EVM_ADDRESS_MAP: RefCell<HashMap<EvmAddress, AccountId>> = RefCell::new(HashMap::default());
 }
 
 construct_runtime!(
@@ -180,7 +181,7 @@ impl pallet_stableswap::Config for Test {
 	type Hooks = ();
 	type TargetPegOracle = PegOracle;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = MockBenchmarkHelper;
+	type BenchmarkHelper = MockStableswapBenchmarkHelper;
 }
 
 parameter_types! {
@@ -382,7 +383,7 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 	} else if evm_addr == hsm_evm {
 		HSM::account_id()
 	} else {
-		panic!("not assigned")
+		EVM_ADDRESS_MAP.with(|v| v.borrow().get(&evm_addr).cloned().expect("EVM address not found"))
 	}
 }
 
@@ -427,6 +428,8 @@ impl Config for Test {
 	type Evm = MockEvm;
 	type EvmAccounts = MockEvmAccounts;
 	type GasLimit = GasLimit;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = MockHSMBenchmarkHelper;
 }
 
 pub struct Whitelist;
@@ -467,6 +470,9 @@ impl Default for ExtBuilder {
 			v.borrow_mut().clear();
 		});
 		EVM_CALL_RESULTS.with(|v| {
+			v.borrow_mut().clear();
+		});
+		EVM_ADDRESS_MAP.with(|v| {
 			v.borrow_mut().clear();
 		});
 
@@ -652,10 +658,10 @@ pub fn default_peg() -> PegSource<AssetId> {
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-pub struct MockBenchmarkHelper;
+pub struct MockStableswapBenchmarkHelper;
 
 #[cfg(feature = "runtime-benchmarks")]
-impl BenchmarkHelper<AssetId> for MockBenchmarkHelper {
+impl BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
 		REGISTERED_ASSETS.with(|v| {
 			v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
@@ -665,5 +671,18 @@ impl BenchmarkHelper<AssetId> for MockBenchmarkHelper {
 
 	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
 		todo!()
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct MockHSMBenchmarkHelper;
+
+impl traits::BenchmarkHelper<AccountId> for MockHSMBenchmarkHelper {
+	fn bind_address(account: AccountId) -> DispatchResult {
+		let evm_addr = EvmAddress::from_slice(&account.as_slice()[0..20]);
+		EVM_ADDRESS_MAP.with(|v| {
+			v.borrow_mut().insert(evm_addr, account);
+		});
+		Ok(())
 	}
 }

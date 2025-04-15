@@ -1,2 +1,6 @@
-// We're using hydradx-traits EVM functionality instead of a custom trait
-// This file is kept empty for potential future trait definitions
+use sp_runtime::DispatchResult;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub trait BenchmarkHelper<AccountId> {
+	fn bind_address(account: AccountId) -> DispatchResult;
+}

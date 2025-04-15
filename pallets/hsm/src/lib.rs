@@ -111,6 +111,9 @@ pub mod pallet {
 		/// The gas limit for the execution of EVM calls
 		#[pallet::constant]
 		type GasLimit: Get<u64>;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: traits::BenchmarkHelper<Self::AccountId>;
 	}
 
 	#[pallet::pallet]

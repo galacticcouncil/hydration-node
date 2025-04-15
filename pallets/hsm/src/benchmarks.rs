@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::traits::BenchmarkHelper;
 use crate::types::Balance;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::fungibles::Mutate;
@@ -22,7 +23,7 @@ use frame_system::RawOrigin;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{AssetKind, Create, OraclePeriod};
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
-use pallet_stableswap::{BenchmarkHelper, MAX_ASSETS_IN_POOL};
+use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
 use sp_runtime::{Perbill, Permill};
 
 pub const ONE: Balance = 1_000_000_000_000;
@@ -144,6 +145,7 @@ benchmarks! {
 
 		// Create account with collateral
 		let caller: T::AccountId = account("seller", 0, 0);
+		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
 		<T as Config>::Currency::set_balance(collateral, &caller, 1_000 * ONE);
 
 		// Setup HSM account with enough balance
@@ -185,6 +187,7 @@ benchmarks! {
 
 		// Create account with hollar
 		let caller: T::AccountId = account("buyer", 0, 0);
+		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
 		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
 
 		// Setup slippage limit (worst case) - maximum possible amount in
@@ -244,7 +247,7 @@ where
 	T::AssetId: From<u32>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
-	T::BenchmarkHelper::register_asset(asset_id, decimals)
+	<T as pallet_stableswap::Config>::BenchmarkHelper::register_asset(asset_id, decimals)
 }
 
 // Helper function to create a new stable pool for testing
@@ -263,7 +266,7 @@ where
 	let mut pegs = vec![PegSource::Value((1, 1))];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
 		let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
-		T::BenchmarkHelper::register_asset(asset_id, 18).expect("Failed to register asset");
+		seed_asset::<T>(asset_id, 18)?;
 		assets.push(asset_id);
 		pegs.push(PegSource::Value((1, 1)));
 	}
