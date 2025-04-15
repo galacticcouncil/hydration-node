@@ -171,23 +171,12 @@ fn main() {
 			let mut path = cmd.shared.get_path();
 			path.set_extension("json");
 
-			let transport = Transport::Uri(cmd.shared.uri.clone());
-			let online_config = OnlineConfig {
-				at: cmd.at,
-				pallets: cmd.pallet,
-				transport,
-				..Default::default()
-			};
-
-			let mode = Mode::Online(online_config);
-			let builder = Builder::<Block>::new().mode(mode);
-
 			tokio::runtime::Builder::new_current_thread()
 				.enable_all()
 				.build()
 				.unwrap()
 				.block_on(async {
-					scraper::save_chainspec(builder, path.clone(), cmd.shared.uri)
+					scraper::save_chainspec(cmd.at, path.clone(), cmd.shared.uri)
 						.await
 						.unwrap()
 				});

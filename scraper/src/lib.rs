@@ -1,22 +1,47 @@
 #![allow(dead_code)]
 #![allow(clippy::type_complexity)]
 
-use codec::{Compact, Decode, Encode};
+use codec::{Compact, Decode, Encode, KeyedVec};
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
 use frame_remote_externalities::*;
+use frame_support::__private::log;
+use frame_support::__private::log::info;
+use frame_support::__private::metadata::v15::{StorageEntryType, StorageHasher};
+use frame_support::__private::metadata::RuntimeMetadata::V15;
+use frame_support::__private::metadata::{v15, RuntimeMetadata, RuntimeMetadataPrefixed};
+use frame_support::__private::metadata_ir::frame_metadata;
+use frame_support::pallet_prelude::StorageMap;
+use frame_support::sp_runtime::scale_info::TypeDef::Primitive;
+use frame_support::sp_runtime::scale_info::{PortableRegistry, TypeDef, TypeDefPrimitive};
 use frame_support::sp_runtime::traits::Hash;
-use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion};
+use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion, Storage};
+use frame_support::traits::dynamic_params::IntoKey;
+use frame_support::traits::StorageInfo;
+use frame_support::StorageValue;
+use futures::{future, stream::FuturesUnordered, StreamExt};
+use hydradx::chain_spec::hydradx::parachain_config;
 use jsonrpsee::core::client::ClientT;
+use sc_chain_spec::{ChainSpec, ChainSpecBuilder, ChainType, GenericChainSpec, NoExtension};
+use sc_service::config::TelemetryEndpoints;
 use serde_json::Value;
-use sp_core::H256;
+use sp_core::storage::{well_known_keys, StorageData, StorageKey};
+use sp_core::{blake2_128, blake2_256, twox_128, twox_64, H256};
+use sp_io::hashing::twox_256;
 use sp_io::TestExternalities;
 use sp_state_machine::backend::AsTrieBackend;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::fs::OpenOptions;
+use std::io::prelude::*;
+use std::io::Write;
+use std::sync::Arc;
 use std::{
 	fs,
 	path::{Path, PathBuf},
 	str::FromStr,
 };
+use substrate_rpc_client::StateApi;
 use substrate_rpc_client::{ws_client, ChainApi, SystemApi};
+use tokio::sync::Semaphore;
 
 pub fn save_blocks_snapshot<Block: Encode>(data: &Vec<Block>, path: &Path) -> Result<(), &'static str> {
 	let mut path = path.to_path_buf();
@@ -213,42 +238,19 @@ fn save_and_load_externalities_should_work() {
 		);
 	});
 }
-use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
-use sp_core::storage::StorageKey;
-use substrate_rpc_client::StateApi;
-pub async fn save_chainspec<B: BlockT<Hash = H256>>(
-	builder: Builder<B>,
-	path: PathBuf,
-	uri: String,
-) -> Result<(), &'static str> {
-	let mut ext = builder.build().await.map_err(|_| "Failed to build externalities")?;
 
-	let rpc = ws_client(uri).await.map_err(|_| "Failed to create RPC client")?;
-
-	let system_name = SystemApi::<H256, ()>::system_name(&rpc)
+pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Result<(), &'static str> {
+	let rpc = ws_client(uri.clone())
 		.await
-		.map_err(|_| "Failed to get system name")?;
-	let chain_type = SystemApi::<H256, ()>::system_type(&rpc)
-		.await
-		.map_err(|_| "Failed to get chain type")?;
-	let properties = SystemApi::<H256, ()>::system_properties(&rpc)
-		.await
-		.map_err(|_| "Failed to get system properties")?;
+		.map_err(|_| "Failed to create RPC client")?;
 
-	println!("Building externalities...");
-	let raw_storage = ext
-		.backend
-		.backend_storage_mut()
-		.drain()
-		.into_iter()
-		.filter(|(_, (_, r))| *r > 0)
-		.collect::<Vec<(Vec<u8>, (Vec<u8>, i32))>>();
+	let mut storage_map = BTreeMap::new();
 
-	// Fetch WASM code from the chain
+	// Add WASM code
 	let code_key = sp_core::storage::well_known_keys::CODE;
 	println!("Fetching WASM code with key: {}", hex::encode(code_key));
 
-	let wasm_code = StateApi::<H256>::storage(&rpc, StorageKey(code_key.to_vec()), None)
+	let wasm_code = StateApi::<H256>::storage(&rpc, StorageKey(code_key.to_vec()), at)
 		.await
 		.map_err(|e| {
 			println!("RPC error: {:?}", e);
@@ -256,65 +258,28 @@ pub async fn save_chainspec<B: BlockT<Hash = H256>>(
 		})?
 		.ok_or("WASM code not found in chain state")?;
 
-	let mut storage_map = BTreeMap::new();
+	storage_map.insert(code_key.to_vec(), wasm_code.0);
 
-	for (key, (value, _refcount)) in raw_storage {
-		// The key is too long, we need to truncate it to match the expected format
-		let key_hex = format!("0x{}", hex::encode(&key[..(key.len() - 32)])); // Remove the last 32 bytes
+	//Get all
+	println!("Getting all storare key-alue pairs");
+	let all_pairs = fetch_all_storage(uri)
+		.await
+		.map_err(|_| "Failed to fetch storage")
+		.unwrap();
 
-		// The value is already SCALE encoded, we just need to hex encode it
-		let value_hex = format!("0x{}", hex::encode(&value));
-
-		storage_map.insert(key_hex, value_hex);
+	for (k, v) in all_pairs {
+		storage_map.insert(k.as_ref().to_vec(), v.0.to_vec());
 	}
+	let storage = Storage {
+		top: storage_map,
+		children_default: HashMap::new(),
+	};
 
-	// Add WASM code
-	storage_map.insert(
-		format!("0x{}", hex::encode(code_key)),
-		format!("0x{}", hex::encode(wasm_code.0)),
-	);
+	let mut input_spec = parachain_config().unwrap();
+	input_spec.set_storage(storage);
 
-	let chainspec = serde_json::json!({
-		"name": system_name,
-		"id": "hydra",
-		"chainType": chain_type,
-		"bootNodes": [
-		   "/dns/p2p-01.hydra.hydradx.io/tcp/30333/p2p/12D3KooWHzv7XVVBwY4EX1aKJBU6qzEjqGk6XtoFagr5wEXx6MsH",
-		   "/dns/p2p-02.hydra.hydradx.io/tcp/30333/p2p/12D3KooWR72FwHrkGNTNes6U5UHQezWLmrKu6b45MvcnRGK8J3S6",
-		   "/dns/p2p-03.hydra.hydradx.io/tcp/30333/p2p/12D3KooWFDwxZinAjgmLVgsideCmdB2bz911YgiQdLEiwKovezUz",
-		   "/dns4/boot.helikon.io/tcp/15120/p2p/12D3KooWDcQY1L2ny3F7YPyP4snCZZYc4eKWgPLEzdBvWBUjH5Yt",
-		   "/dns4/boot.helikon.io/tcp/15125/wss/p2p/12D3KooWDcQY1L2ny3F7YPyP4snCZZYc4eKWgPLEzdBvWBUjH5Yt",
-		   "/dns/hydration.boot.stake.plus/tcp/30332/wss/p2p/12D3KooWGZaDfqPyzVxhA3k1qv72P7xqYTJS8W9U7GWUEdXYhtUU",
-		   "/dns/hydration.boot.stake.plus/tcp/31332/wss/p2p/12D3KooWBJMG8LCh6pLYbGapA3SNzjhQWE87ieGux41jKQrrf5js",
-		   "/dns/hydration-bootnode.radiumblock.com/tcp/30333/p2p/12D3KooWCtrMH4H2p5XkGHkU7K4CcbSmErouNuN3j7Bysj4a8hJX",
-		   "/dns/hydration-bootnode.radiumblock.com/tcp/30336/wss/p2p/12D3KooWCtrMH4H2p5XkGHkU7K4CcbSmErouNuN3j7Bysj4a8hJX"
-		],
-		"telemetryEndpoints": [
-		   [
-			"/dns/telemetry.polkadot.io/tcp/443/x-parity-wss/%2Fsubmit%2F",
-			0
-		   ],
-		   [
-			"/dns/telemetry.hydradx.io/tcp/9000/x-parity-wss/%2Fsubmit%2F",
-			0
-		   ]
-		],
-		"protocolId": "hdx",
-		"properties": properties,
-		"relay_chain": "polkadot",
-		"para_id": 2034,
-		"consensusEngine": null,
-		"codeSubstitutes": {},
-		"evm_since": 4006384,
-		"genesis": {
-		   "raw": {
-			  "top": storage_map,
-			  "childrenDefault": {}
-		   }
-		}
-	});
-
-	let json = serde_json::to_string_pretty(&chainspec).map_err(|_| "Failed to serialize chainspec to JSON")?;
+	info!("Generating new chain spec...");
+	let json = sc_service::chain_ops::build_spec(&input_spec, true).unwrap();
 
 	fs::write(path, json).map_err(|err| {
 		println!("Failed to write chainspec to file {:?}", err);
@@ -322,4 +287,61 @@ pub async fn save_chainspec<B: BlockT<Hash = H256>>(
 	})?;
 
 	Ok(())
+}
+use futures::stream::{self};
+use indicatif::{ProgressBar, ProgressStyle};
+
+const PAGE_SIZE: u32 = 1000;
+const CONCURRENCY: usize = 1000;
+
+const ESTIMATED_TOTAL_KEYS: u64 = 350_000;
+
+//Using the StateApi is the only good way to fetch all storage entries
+//Loading the SNAPSHOT or getting raw storage entries don't help as the keys contain additional hashing data,
+//so the keys are difficult to trim/cleanup for chainspec
+pub async fn fetch_all_storage(uri: String) -> Result<Vec<(StorageKey, StorageData)>, &'static str> {
+	let rpc = Arc::new(ws_client(uri).await.map_err(|_| "Failed to create RPC client")?);
+
+	let mut all_pairs = Vec::new();
+	let mut start_key: Option<StorageKey> = None;
+
+	let pb = ProgressBar::new(ESTIMATED_TOTAL_KEYS);
+	pb.set_style(
+		ProgressStyle::with_template("{spinner} [{elapsed_precise}] [{wide_bar}] {pos}/{len}(aprox) keys")
+			.unwrap()
+			.progress_chars("#>-"),
+	);
+
+	loop {
+		let keys =
+			StateApi::<H256>::storage_keys_paged(&*rpc, Some(StorageKey(vec![])), PAGE_SIZE, start_key.clone(), None)
+				.await
+				.map_err(|_| "Failed to get keys")?;
+
+		if keys.is_empty() {
+			break;
+		}
+
+		let fetched: Vec<(StorageKey, StorageData)> = stream::iter(keys.clone())
+			.map(|key| {
+				let rpc = Arc::clone(&rpc);
+				async move {
+					let value = StateApi::<H256>::storage(&*rpc, key.clone(), None)
+						.await
+						.unwrap_or(Some(StorageData(vec![])));
+					(key, value.unwrap())
+				}
+			})
+			.buffer_unordered(CONCURRENCY)
+			.inspect(|_| pb.inc(1))
+			.collect()
+			.await;
+
+		all_pairs.extend(fetched);
+
+		start_key = keys.last().cloned();
+	}
+
+	pb.finish_with_message("✅ Done fetching all storage.");
+	Ok(all_pairs)
 }
