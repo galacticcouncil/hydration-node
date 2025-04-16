@@ -121,11 +121,6 @@ pub mod pallet {
 	#[pallet::getter(fn collaterals)]
 	pub type Collaterals<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, CollateralInfo<T::AssetId>>;
 
-	/// List of assets that HSM holds as collateral
-	#[pallet::storage]
-	#[pallet::getter(fn collateral_holdings)]
-	pub type CollateralHoldings<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
-
 	/// Amount of Hollar bought with an asset in single block
 	#[pallet::storage]
 	#[pallet::getter(fn hollar_amount_received)]
@@ -355,11 +350,10 @@ pub mod pallet {
 
 			ensure!(Collaterals::<T>::contains_key(asset_id), Error::<T>::AssetNotApproved);
 
-			let amount = CollateralHoldings::<T>::get(asset_id);
+			let amount = <T as Config>::Currency::balance(asset_id, &Self::account_id());
 			ensure!(amount.is_zero(), Error::<T>::CollateralNotEmpty);
 
 			Collaterals::<T>::remove(asset_id);
-			CollateralHoldings::<T>::remove(asset_id);
 
 			Self::deposit_event(Event::<T>::CollateralRemoved { asset_id, amount });
 
@@ -700,7 +694,7 @@ where
 
 		// 7. Check max holding limit if configured
 		if let Some(max_holding) = collateral_info.max_in_holding {
-			let current_holding = CollateralHoldings::<T>::get(collateral_asset);
+			let current_holding = <T as Config>::Currency::balance(collateral_asset, &Self::account_id());
 			ensure!(
 				current_holding.saturating_add(collateral_amount) <= max_holding,
 				Error::<T>::MaxHoldingExceeded
@@ -729,12 +723,7 @@ where
 			Preservation::Preserve,
 		)?;
 
-		// 4. Update HSM holdings
-		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
-			*balance = balance.saturating_sub(collateral_amount);
-		});
-
-		// 5. Update Hollar amount received in this block
+		// 4. Update Hollar amount received in this block
 		HollarAmountReceived::<T>::mutate(collateral_asset, |amount| {
 			*amount = amount.saturating_add(hollar_amount);
 		});
@@ -826,6 +815,9 @@ where
 		let hollar_amount_to_pay =
 			math::calculate_hollar_amount(collateral_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
 
+		dbg!(hollar_amount_to_pay);
+		dbg!(buyback_limit);
+
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(buyback_limit > hollar_amount_to_pay, Error::<T>::MaxBuyBackExceeded);
 
@@ -838,7 +830,7 @@ where
 		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
 
 		// Check HSM has enough collateral
-		let current_holding = CollateralHoldings::<T>::get(collateral_asset);
+		let current_holding = <T as Config>::Currency::balance(collateral_asset, &Self::account_id());
 		ensure!(
 			current_holding >= collateral_amount,
 			Error::<T>::InsufficientCollateralBalance
@@ -866,11 +858,6 @@ where
 		// 3. Burn Hollar by calling GHO contract
 		Self::burn_hollar(hollar_amount_to_pay)?;
 
-		// 3. Update HSM holdings
-		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
-			*balance = balance.saturating_sub(collateral_amount);
-		});
-
 		// 5. Update Hollar amount received in this block
 		HollarAmountReceived::<T>::mutate(collateral_asset, |amount| {
 			*amount = amount.saturating_add(hollar_amount_to_pay);
@@ -886,6 +873,14 @@ where
 		collateral_amount: Balance,
 	) -> Result<Balance, DispatchError> {
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
+
+		if let Some(max_holding) = collateral_info.max_in_holding {
+			let current_holding = <T as Config>::Currency::balance(collateral_asset, &Self::account_id());
+			ensure!(
+				current_holding.saturating_add(collateral_amount) <= max_holding,
+				Error::<T>::MaxHoldingExceeded
+			);
+		}
 
 		let pool_id = collateral_info.pool_id;
 
@@ -915,11 +910,6 @@ where
 
 		// 2. Mint Hollar by calling GHO contract
 		Self::mint_hollar(who, hollar_amount)?;
-
-		// 3. Update HSM holdings
-		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
-			*balance = balance.saturating_add(collateral_amount);
-		});
 
 		Ok(hollar_amount)
 	}
@@ -958,7 +948,7 @@ where
 		);
 
 		if let Some(max_holding) = collateral_info.max_in_holding {
-			let current_holding = CollateralHoldings::<T>::get(collateral_asset);
+			let current_holding = <T as Config>::Currency::balance(collateral_asset, &Self::account_id());
 			ensure!(
 				current_holding.saturating_add(collateral_amount) <= max_holding,
 				Error::<T>::MaxHoldingExceeded
@@ -977,11 +967,6 @@ where
 
 		// 2. Mint Hollar by calling GHO contract
 		Self::mint_hollar(who, hollar_amount)?;
-
-		// 3. Update HSM holdings
-		CollateralHoldings::<T>::mutate(collateral_asset, |balance| {
-			*balance = balance.saturating_add(collateral_amount);
-		});
 
 		Ok(collateral_amount)
 	}
@@ -1088,7 +1073,7 @@ where
 			);
 
 			for (asset_id, _) in <Collaterals<T>>::iter() {
-				if <CollateralHoldings<T>>::get(asset_id) > 0 {
+				if <T as Config>::Currency::balance(asset_id, &Self::account_id()) > 0 {
 					let call = Call::execute_arbitrage {
 						collateral_asset_id: asset_id,
 					};
@@ -1214,7 +1199,7 @@ where
 
 		// Calculate the amount of Hollar to trade
 		// max_buy_amt = min(max_buy_amt, self.liquidity[tkn] / buy_price)
-		let asset_holding = Self::collateral_holdings(collateral_asset_id);
+		let asset_holding = <T as Config>::Currency::balance(collateral_asset_id, &Self::account_id());
 		let max_holding_liquidity_amt =
 			multiply_by_rational_with_rounding(asset_holding, buy_price.1, buy_price.0, Rounding::Down)
 				.ok_or(ArithmeticError::Overflow)?;

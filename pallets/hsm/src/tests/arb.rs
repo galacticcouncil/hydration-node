@@ -1,8 +1,8 @@
 use crate::tests::mock::*;
-use crate::CollateralHoldings;
 use frame_support::assert_ok;
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
+use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
 use sp_runtime::{Perbill, Permill};
 
@@ -10,10 +10,7 @@ use sp_runtime::{Perbill, Permill};
 fn arbitrage_should_work() {
 	let pool_id = 100u32;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(ALICE, DAI, 1_000 * ONE_18),
-			(HSM::account_id(), DAI, 100 * ONE_18),
-		])
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE)])
 		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
 		// Create a stablepool for HOLLAR and DAI
 		.with_pool(
@@ -28,11 +25,11 @@ fn arbitrage_should_work() {
 			vec![
 				AssetAmount {
 					asset_id: HOLLAR,
-					amount: 1_000 * ONE_18,
+					amount: 1_000 * ONE,
 				},
 				AssetAmount {
 					asset_id: DAI,
-					amount: 900 * ONE_18,
+					amount: 900 * ONE,
 				},
 			],
 		)
@@ -46,17 +43,20 @@ fn arbitrage_should_work() {
 		)
 		.build()
 		.execute_with(|| {
-			CollateralHoldings::<Test>::insert(DAI, 100 * ONE_18);
+			// Set HSM collateral holdings
+			assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
+
 			let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
 			let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
 			let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
 			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI,));
+
 			let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
 			let arb_amount = pool_balance_dai_after - pool_balance_dai_before;
 
 			let hsm_balance_dai_after = Tokens::free_balance(DAI, &HSM::account_id());
 			assert_eq!(hsm_balance_dai_before - hsm_balance_dai_after, arb_amount);
-			let holding = CollateralHoldings::<Test>::get(DAI);
-			assert_eq!(holding, 100 * ONE_18 - arb_amount);
+			// Check final HSM balance
+			assert_eq!(hsm_balance_dai_after, 100 * ONE - arb_amount);
 		});
 }

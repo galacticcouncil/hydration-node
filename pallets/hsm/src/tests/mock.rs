@@ -69,8 +69,7 @@ pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const CHARLIE: AccountId = AccountId::new([3; 32]);
 pub const PROVIDER: AccountId = AccountId::new([4; 32]);
 
-pub const ONE: Balance = 1_000_000_000_000;
-pub const ONE_18: Balance = 1_000_000_000_000_000_000;
+pub const ONE: Balance = 1_000_000_000_000_000_000;
 
 pub const GHO_ADDRESS: [u8; 20] = [1u8; 20];
 

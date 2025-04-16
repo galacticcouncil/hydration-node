@@ -1,5 +1,3 @@
-// This file is part of HydraDX-node.
-
 // Copyright (C) 2020-2024  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
@@ -16,7 +14,7 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::{CollateralHoldings, Error, HollarAmountReceived};
+use crate::{Error, HollarAmountReceived};
 use frame_support::traits::Hooks;
 use frame_support::{assert_err, assert_ok};
 use hydradx_traits::evm::EvmAddress;
@@ -31,7 +29,6 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 		.with_endowed_accounts(vec![
 			(ALICE, HOLLAR, 1_000 * ONE),
 			(ALICE, DAI, 1_000 * ONE),
-			(BOB, HOLLAR, 1_000 * ONE),
 			(BOB, DAI, 1_000 * ONE),
 			(HSM::account_id(), DAI, 1_000 * ONE),
 		])
@@ -77,7 +74,7 @@ fn buy_hollar_with_collateral_works() {
 
 		// Calculate expected values based on implementation
 		let hollar_amount = 10 * ONE;
-		let expected_collateral_amount = 10100000000000;
+		let expected_collateral_amount = 10100000000000000000;
 
 		// Execute the buy
 		assert_ok!(HSM::buy(
@@ -103,7 +100,6 @@ fn buy_hollar_with_collateral_works() {
 			Tokens::free_balance(DAI, &HSM::account_id()),
 			initial_hsm_dai + expected_collateral_amount
 		);
-		assert_eq!(CollateralHoldings::<Test>::get(DAI), expected_collateral_amount);
 
 		// Check that EVM mint call was made
 		let (contract, _data) = last_evm_call().unwrap();
@@ -130,7 +126,7 @@ fn buy_hollar_with_collateral_works() {
 fn buy_collateral_with_hollar_works() {
 	setup_test_with_dai_collateral().execute_with(|| {
 		// Set initial collateral holdings for HSM
-		CollateralHoldings::<Test>::insert(DAI, 100 * ONE);
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
 
 		// Initial state
 		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
@@ -139,7 +135,7 @@ fn buy_collateral_with_hollar_works() {
 
 		// Calculate expected values
 		let collateral_amount = 10 * ONE;
-		let expected_hollar_amount = 10115651205295;
+		let expected_hollar_amount = 10115651205298638227;
 
 		// Execute the buy
 		assert_ok!(HSM::buy(
@@ -162,7 +158,6 @@ fn buy_collateral_with_hollar_works() {
 			Tokens::free_balance(DAI, &HSM::account_id()),
 			initial_hsm_dai - collateral_amount
 		);
-		assert_eq!(CollateralHoldings::<Test>::get(DAI), 100 * ONE - collateral_amount);
 
 		// Check that HollarAmountReceived was updated correctly
 		assert_eq!(HollarAmountReceived::<Test>::get(DAI), expected_hollar_amount);
@@ -232,7 +227,11 @@ fn buy_with_invalid_asset_pair_fails() {
 fn buy_collateral_with_insufficient_hsm_collateral_fails() {
 	setup_test_with_dai_collateral().execute_with(|| {
 		// Set a low collateral holdings for HSM
-		CollateralHoldings::<Test>::insert(DAI, 2 * ONE);
+		assert_ok!(Tokens::update_balance(
+			DAI,
+			&HSM::account_id(),
+			-((Tokens::free_balance(DAI, &HSM::account_id()) - 2 * ONE) as i128)
+		));
 
 		let hsm_acc_balance = Tokens::free_balance(DAI, &HSM::account_id());
 
@@ -272,12 +271,12 @@ fn buy_hollar_with_insufficient_balance_fails() {
 fn buy_collateral_with_insufficient_hollar_balance_fails() {
 	setup_test_with_dai_collateral().execute_with(|| {
 		// Ensure HSM has collateral
-		CollateralHoldings::<Test>::insert(DAI, ONE);
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 2 * ONE as i128));
 
 		// Try to buy more than ALICE has HOLLAR for
 		assert_err!(
-			HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 10 * ONE, 20 * ONE),
-			Error::<Test>::InsufficientCollateralBalance
+			HSM::buy(RuntimeOrigin::signed(BOB), HOLLAR, DAI, 1 * ONE, 20 * ONE),
+			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 	});
 }
@@ -297,7 +296,7 @@ fn buy_collateral_with_max_buy_price_exceeded_fails() {
 		));
 
 		// Ensure HSM has collateral
-		CollateralHoldings::<Test>::insert(DAI, 100 * ONE);
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
 
 		// Try to buy collateral, should exceed max buy price
 		assert_err!(
@@ -325,7 +324,7 @@ fn buy_collateral_with_max_buyback_exceeded_fails() {
 		HollarAmountReceived::<Test>::insert(DAI, 10 * ONE);
 
 		// Ensure HSM has collateral
-		CollateralHoldings::<Test>::insert(DAI, 100 * ONE);
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
 
 		// Try to buy collateral, should exceed max buyback
 		assert_err!(
@@ -375,7 +374,7 @@ fn on_finalize_clears_hollar_amount_received() {
 fn buy_purchase_zero_fee_works() {
 	let pool_id = 100u32;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE)])
 		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
 		// Create a stablepool for HOLLAR and DAI
 		.with_pool(
@@ -390,11 +389,11 @@ fn buy_purchase_zero_fee_works() {
 			vec![
 				AssetAmount {
 					asset_id: HOLLAR,
-					amount: 1_000 * ONE_18,
+					amount: 1_000 * ONE,
 				},
 				AssetAmount {
 					asset_id: DAI,
-					amount: 900 * ONE_18,
+					amount: 900 * ONE,
 				},
 			],
 		)
@@ -411,7 +410,7 @@ fn buy_purchase_zero_fee_works() {
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 			let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_eq!(initial_alice_dai, 1000 * ONE_18);
+			assert_eq!(initial_alice_dai, 1000 * ONE);
 			assert_eq!(initial_alice_hollar, 0);
 			assert_eq!(initial_hsm_dai, 0);
 
@@ -442,7 +441,6 @@ fn buy_purchase_zero_fee_works() {
 				Tokens::free_balance(DAI, &HSM::account_id()),
 				initial_hsm_dai + expected_collateral_amount
 			);
-			assert_eq!(CollateralHoldings::<Test>::get(DAI), expected_collateral_amount);
 		});
 }
 
@@ -450,7 +448,7 @@ fn buy_purchase_zero_fee_works() {
 fn buy_one_hollar_works_when_purchase_nonzero_fee() {
 	let pool_id = 100u32;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE)])
 		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
 		// Create a stablepool for HOLLAR and DAI
 		.with_pool(
@@ -465,11 +463,11 @@ fn buy_one_hollar_works_when_purchase_nonzero_fee() {
 			vec![
 				AssetAmount {
 					asset_id: HOLLAR,
-					amount: 1_000 * ONE_18,
+					amount: 1_000 * ONE,
 				},
 				AssetAmount {
 					asset_id: DAI,
-					amount: 900 * ONE_18,
+					amount: 900 * ONE,
 				},
 			],
 		)
@@ -486,12 +484,12 @@ fn buy_one_hollar_works_when_purchase_nonzero_fee() {
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 			let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_eq!(initial_alice_dai, 1000 * ONE_18);
+			assert_eq!(initial_alice_dai, 1000 * ONE);
 			assert_eq!(initial_alice_hollar, 0);
 			assert_eq!(initial_hsm_dai, 0);
 
 			let expected_collateral_amount = 1010000000000000000;
-			let hollar_amount = 1 * ONE_18; // 1:1 peg with 1% fee
+			let hollar_amount = 1 * ONE; // 1:1 peg with 1% fee
 
 			// Execute the sell
 			assert_ok!(HSM::buy(
@@ -517,7 +515,6 @@ fn buy_one_hollar_works_when_purchase_nonzero_fee() {
 				Tokens::free_balance(DAI, &HSM::account_id()),
 				initial_hsm_dai + expected_collateral_amount
 			);
-			assert_eq!(CollateralHoldings::<Test>::get(DAI), expected_collateral_amount);
 		});
 }
 
@@ -525,7 +522,7 @@ fn buy_one_hollar_works_when_purchase_nonzero_fee() {
 fn buy_purchase_nonzero_fee_works() {
 	let pool_id = 100u32;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE)])
 		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
 		// Create a stablepool for HOLLAR and DAI
 		.with_pool(
@@ -540,11 +537,11 @@ fn buy_purchase_nonzero_fee_works() {
 			vec![
 				AssetAmount {
 					asset_id: HOLLAR,
-					amount: 1_000 * ONE_18,
+					amount: 1_000 * ONE,
 				},
 				AssetAmount {
 					asset_id: DAI,
-					amount: 900 * ONE_18,
+					amount: 900 * ONE,
 				},
 			],
 		)
@@ -561,11 +558,11 @@ fn buy_purchase_nonzero_fee_works() {
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 			let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_eq!(initial_alice_dai, 1000 * ONE_18);
+			assert_eq!(initial_alice_dai, 1000 * ONE);
 			assert_eq!(initial_alice_hollar, 0);
 			assert_eq!(initial_hsm_dai, 0);
 
-			let expected_collateral_amount = 10 * ONE;
+			let expected_collateral_amount = 10000000000000;
 			let hollar_amount = 9900990099009; // 1:1 peg with 1% fee
 
 			// Execute the sell
@@ -577,6 +574,9 @@ fn buy_purchase_nonzero_fee_works() {
 				u128::MAX,
 			));
 
+			let spent = initial_alice_dai - Tokens::free_balance(DAI, &ALICE);
+			dbg!(spent);
+
 			// Check that ALICE's balances are updated correctly
 			assert_eq!(
 				Tokens::free_balance(DAI, &ALICE),
@@ -592,7 +592,6 @@ fn buy_purchase_nonzero_fee_works() {
 				Tokens::free_balance(DAI, &HSM::account_id()),
 				initial_hsm_dai + expected_collateral_amount
 			);
-			assert_eq!(CollateralHoldings::<Test>::get(DAI), expected_collateral_amount);
 		});
 }
 
@@ -600,7 +599,7 @@ fn buy_purchase_nonzero_fee_works() {
 fn buy_collateral_works_when_buy_fee_is_zero() {
 	let pool_id = 100u32;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE)])
 		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
 		// Create a stablepool for HOLLAR and DAI
 		.with_pool(
@@ -615,11 +614,11 @@ fn buy_collateral_works_when_buy_fee_is_zero() {
 			vec![
 				AssetAmount {
 					asset_id: HOLLAR,
-					amount: 1_000 * ONE_18,
+					amount: 1_000 * ONE,
 				},
 				AssetAmount {
 					asset_id: DAI,
-					amount: 900 * ONE_18,
+					amount: 900 * ONE,
 				},
 			],
 		)
@@ -632,13 +631,7 @@ fn buy_collateral_works_when_buy_fee_is_zero() {
 		)
 		.build()
 		.execute_with(|| {
-			assert_ok!(HSM::buy(
-				RuntimeOrigin::signed(ALICE),
-				DAI,
-				HOLLAR,
-				10 * ONE_18,
-				u128::MAX,
-			));
+			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 10 * ONE, u128::MAX,));
 
 			let alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
@@ -646,24 +639,17 @@ fn buy_collateral_works_when_buy_fee_is_zero() {
 
 			let expected_hollar_amount = 1004564035979960838;
 
-			assert_ok!(HSM::buy(
-				RuntimeOrigin::signed(ALICE),
-				HOLLAR,
-				DAI,
-				1 * ONE_18,
-				u128::MAX,
-			));
+			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 1 * ONE, u128::MAX,));
 
 			// Check that ALICE's balances are updated correctly
-			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + ONE_18,);
+			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + ONE,);
 			assert_eq!(
 				Tokens::free_balance(HOLLAR, &ALICE),
 				alice_hollar - expected_hollar_amount
 			);
 
 			// Check that HSM holdings are updated correctly
-			assert_eq!(Tokens::free_balance(DAI, &HSM::account_id()), hsm_dai - ONE_18,);
-			assert_eq!(CollateralHoldings::<Test>::get(DAI), hsm_dai - ONE_18);
+			assert_eq!(Tokens::free_balance(DAI, &HSM::account_id()), hsm_dai - ONE,);
 		});
 }
 
@@ -671,7 +657,7 @@ fn buy_collateral_works_when_buy_fee_is_zero() {
 fn buy_collateral_works_when_buy_fee_is_nonzero() {
 	let pool_id = 100u32;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE_18)])
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE)])
 		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
 		// Create a stablepool for HOLLAR and DAI
 		.with_pool(
@@ -686,11 +672,11 @@ fn buy_collateral_works_when_buy_fee_is_nonzero() {
 			vec![
 				AssetAmount {
 					asset_id: HOLLAR,
-					amount: 1_000 * ONE_18,
+					amount: 1_000 * ONE,
 				},
 				AssetAmount {
 					asset_id: DAI,
-					amount: 900 * ONE_18,
+					amount: 900 * ONE,
 				},
 			],
 		)
@@ -703,13 +689,7 @@ fn buy_collateral_works_when_buy_fee_is_nonzero() {
 		)
 		.build()
 		.execute_with(|| {
-			assert_ok!(HSM::buy(
-				RuntimeOrigin::signed(ALICE),
-				DAI,
-				HOLLAR,
-				10 * ONE_18,
-				u128::MAX,
-			));
+			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 10 * ONE, u128::MAX,));
 
 			let alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
@@ -717,23 +697,16 @@ fn buy_collateral_works_when_buy_fee_is_nonzero() {
 
 			let expected_hollar_amount = 1003559471943980877; // should be less by the fee than amount with 0 fee
 
-			assert_ok!(HSM::buy(
-				RuntimeOrigin::signed(ALICE),
-				HOLLAR,
-				DAI,
-				1 * ONE_18,
-				u128::MAX,
-			));
+			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 1 * ONE, u128::MAX,));
 
 			// Check that ALICE's balances are updated correctly
-			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + ONE_18,);
+			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + ONE,);
 			assert_eq!(
 				Tokens::free_balance(HOLLAR, &ALICE),
 				alice_hollar - expected_hollar_amount
 			);
 
 			// Check that HSM holdings are updated correctly
-			assert_eq!(Tokens::free_balance(DAI, &HSM::account_id()), hsm_dai - ONE_18,);
-			assert_eq!(CollateralHoldings::<Test>::get(DAI), hsm_dai - ONE_18);
+			assert_eq!(Tokens::free_balance(DAI, &HSM::account_id()), hsm_dai - ONE,);
 		});
 }

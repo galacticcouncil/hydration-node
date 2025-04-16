@@ -191,9 +191,6 @@ benchmarks! {
 			max_in_holding
 		)?;
 
-		// Setup HSM collateral holdings
-		CollateralHoldings::<T>::insert(collateral, 1_000 * ONE);
-
 		// Create account with hollar
 		let caller: T::AccountId = account("buyer", 0, 0);
 		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
@@ -234,9 +231,6 @@ benchmarks! {
 			b,
 			max_in_holding
 		)?;
-
-		// Setup HSM collateral holdings
-		CollateralHoldings::<T>::insert(collateral, 10 * ONE);
 
 		// Create account with hollar
 		let arb: T::AccountId = account("arber", 0, 0);

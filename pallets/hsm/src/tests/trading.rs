@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::*;
 use frame_support::{assert_ok, traits::Hooks};
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
@@ -128,15 +127,7 @@ fn selling_collateral_for_hollar_equals_buying_hollar_with_collateral() {
 fn selling_hollar_for_collateral_equals_buying_collateral_with_hollar() {
 	setup_test_for_comparison().execute_with(|| {
 		// Ensure HSM has enough collateral
-		CollateralHoldings::<Test>::insert(DAI, 100 * ONE);
-		let hsm_acc_balance = Tokens::free_balance(DAI, &HSM::account_id());
-		if hsm_acc_balance < 100 * ONE {
-			assert_ok!(Tokens::update_balance(
-				DAI,
-				&HSM::account_id(),
-				(100 * ONE - hsm_acc_balance) as i128
-			));
-		}
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
 
 		// Define a fixed amount of Hollar to use in both operations
 		let hollar_amount = 10 * ONE;

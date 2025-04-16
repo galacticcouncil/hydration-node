@@ -16,9 +16,11 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::{CollateralHoldings, Collaterals, Error};
+use crate::{Collaterals, Error};
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
 use hydradx_traits::stableswap::AssetAmount;
+use orml_traits::MultiCurrency;
+use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
 use sp_runtime::Permill;
 
@@ -159,7 +161,7 @@ fn remove_collateral_asset_fails_when_collateral_not_empty() {
 		.build()
 		.execute_with(|| {
 			// Set some collateral holdings
-			CollateralHoldings::<Test>::insert(DAI, 100 * ONE);
+			assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
 
 			// Try to remove DAI as collateral when it still has holdings
 			assert_err!(
@@ -198,7 +200,11 @@ fn remove_collateral_asset_works_with_zero_holdings() {
 		.build()
 		.execute_with(|| {
 			// Explicitly set collateral holdings to zero
-			CollateralHoldings::<Test>::insert(DAI, 0);
+			assert_ok!(Tokens::update_balance(
+				DAI,
+				&HSM::account_id(),
+				-((Tokens::free_balance(DAI, &HSM::account_id())) as i128)
+			));
 
 			// Should be able to remove DAI as collateral with zero holdings
 			assert_ok!(HSM::remove_collateral_asset(RuntimeOrigin::root(), DAI));
