@@ -32,7 +32,7 @@ pub enum Function {
 	InitializePayload = "initialize(address,address,bytes)",
 }
 
-pub fn is_contract(checker: EvmAddress, address: EvmAddress) -> bool {
+fn is_contract(checker: EvmAddress, address: EvmAddress) -> bool {
 	let mut data = Into::<u32>::into(Function::Check).to_be_bytes().to_vec();
 	data.extend_from_slice(H256::from(address).as_bytes());
 	let context = CallContext {
