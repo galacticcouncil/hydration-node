@@ -6,38 +6,37 @@ use crate::types::{Balance, CoefficientRatio, CollateralInfo};
 use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
-use frame_support::dispatch::DispatchResult;
-use frame_support::ensure;
-use frame_support::pallet_prelude::IsType;
-use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::fungibles::Mutate;
-use frame_support::traits::tokens::{Fortitude, Preservation};
-use frame_system::offchain::SendTransactionTypes;
-use frame_system::offchain::SubmitTransaction;
-use frame_system::pallet_prelude::BlockNumberFor;
-use hydradx_traits::evm::{CallContext, InspectEvmAccounts, EVM};
-use hydradx_traits::registry::BoundErc20;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-use num_traits::Zero;
-use pallet_stableswap::types::PoolSnapshot;
-use sp_core::offchain::Duration;
-use sp_core::Get;
-use sp_core::H256;
-use sp_core::U256;
-use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::offchain::storage_lock::Time;
-use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::DispatchError;
-use sp_runtime::Permill;
-use sp_runtime::RuntimeDebug;
-use sp_runtime::{
-	offchain::storage_lock::StorageLock,
-	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	pallet_prelude::*,
+	traits::{
+		fungibles::{Inspect, Mutate},
+		tokens::Preservation,
+	},
+	PalletId,
 };
-use sp_runtime::{AccountId32, Saturating};
-use sp_runtime::{ArithmeticError, Rounding};
+use frame_system::{
+	offchain::{SendTransactionTypes, SubmitTransaction},
+	pallet_prelude::*,
+	Origin,
+};
+use hydradx_traits::{
+	evm::{CallContext, InspectEvmAccounts, EVM},
+	registry::BoundErc20,
+};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pallet_stableswap::types::PoolSnapshot;
+use sp_core::{offchain::Duration, Get, H256, U256};
+use sp_runtime::{
+	helpers_128bit::multiply_by_rational_with_rounding,
+	offchain::storage_lock::{StorageLock, Time},
+	traits::{AccountIdConversion, Zero},
+	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
+	AccountId32, ArithmeticError, DispatchError, Perbill, Permill, Rounding, RuntimeDebug, Saturating,
+};
 
-pub mod math;
+mod math;
 pub mod traits;
 pub mod types;
 
@@ -67,12 +66,6 @@ pub const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
-	use frame_support::PalletId;
-	use frame_system::pallet_prelude::*;
-	use frame_system::Origin;
-	use sp_runtime::{traits::Zero, Perbill, Permill};
-	use sp_std::prelude::*;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_stableswap::Config + SendTransactionTypes<Call<Self>>
@@ -121,7 +114,7 @@ pub mod pallet {
 	#[pallet::getter(fn collaterals)]
 	pub type Collaterals<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, CollateralInfo<T::AssetId>>;
 
-	/// Amount of Hollar bought with an asset in single block
+	/// Amount of Hollar bought with an asset in a single block
 	#[pallet::storage]
 	#[pallet::getter(fn hollar_amount_received)]
 	pub type HollarAmountReceived<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
@@ -224,12 +217,10 @@ pub mod pallet {
 		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
 		fn on_finalize(_n: BlockNumberFor<T>) {
-			// Clear the Hollar Amount Received storage on finalize
 			let _ = <HollarAmountReceived<T>>::clear(u32::MAX, None);
 		}
 
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
-			// Only validators should run the offchain worker
 			if sp_io::offchain::is_validator() {
 				let _ = Self::process_arbitrage_opportunities(block_number);
 			}
@@ -246,7 +237,6 @@ pub mod pallet {
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match source {
 				TransactionSource::External => {
-					// Disallow external unsigned transactions
 					return InvalidTransaction::Call.into();
 				}
 				TransactionSource::Local => {}   // produced by our offchain worker
@@ -307,13 +297,12 @@ pub mod pallet {
 			for (_, info) in Collaterals::<T>::iter() {
 				ensure!(info.pool_id != pool_id, Error::<T>::PoolAlreadyHasCollateral);
 			}
-			// Ensure pool exists and pool assets contains hollar
+			// Ensure pool exists and pool assets contains hollar and collateral asset
 			let pool_state = Self::get_stablepool_state(pool_id)?;
 			ensure!(
 				pool_state.assets.contains(&T::HollarId::get()),
 				Error::<T>::HollarNotInPool
 			);
-			// also collateral asset must be in the pool
 			ensure!(pool_state.assets.contains(&asset_id), Error::<T>::AssetNotInPool);
 
 			let collateral_info = CollateralInfo {
@@ -350,7 +339,7 @@ pub mod pallet {
 
 			ensure!(Collaterals::<T>::contains_key(asset_id), Error::<T>::AssetNotApproved);
 
-			let amount = <T as Config>::Currency::balance(asset_id, &Self::account_id());
+			let amount = <T as Config>::Currency::total_balance(asset_id, &Self::account_id());
 			ensure!(amount.is_zero(), Error::<T>::CollateralNotEmpty);
 
 			Collaterals::<T>::remove(asset_id);
@@ -450,8 +439,13 @@ pub mod pallet {
 				// Selling Hollar to get collateral
 				Self::do_collateral_out_given_hollar_in(&who, asset_out, amount_in)?
 			} else {
-				// Selling collateral to get Hollar
-				Self::do_hollar_out_given_collateral_in(&who, asset_in, amount_in)?
+				// HOLLAR OUT given COLLATERAL IN
+				let (hollar_amount, _) = Self::do_hollar_out(&who, asset_in, |purchase_price| {
+					let hollar_amount =
+						math::calculate_hollar_amount(amount_in, purchase_price).ok_or(ArithmeticError::Overflow)?;
+					Ok((hollar_amount, amount_in))
+				})?;
+				hollar_amount
 			};
 
 			ensure!(amount_out >= slippage_limit, Error::<T>::SlippageLimitExceeded);
@@ -496,8 +490,13 @@ pub mod pallet {
 			);
 
 			let amount_in = if asset_out == hollar_id {
-				// Buying Hollar with collateral
-				Self::do_collateral_in_given_hollar_out(&who, asset_in, amount_out)?
+				// COLLATERAL IN given HOLLAR OUT
+				let (_, collateral_in) = Self::do_hollar_out(&who, asset_in, |purchase_price| {
+					let collateral_amount = math::calculate_collateral_amount(amount_out, purchase_price)
+						.ok_or(ArithmeticError::Overflow)?;
+					Ok((amount_out, collateral_amount))
+				})?;
+				collateral_in
 			} else {
 				// Buying collateral with Hollar
 				Self::do_hollar_in_given_collateral_out(&who, asset_out, amount_out)?
@@ -590,6 +589,19 @@ where
 			return Err(pallet_stableswap::Error::<T>::PoolNotFound.into());
 		};
 		Ok(pool_snapshot)
+	}
+
+	fn ensure_max_collateral_holding(
+		asset_id: T::AssetId,
+		info: &CollateralInfo<T::AssetId>,
+		collateral_in: Balance,
+	) -> bool {
+		if let Some(max_holding) = info.max_in_holding {
+			let current_holding = <T as Config>::Currency::total_balance(asset_id, &Self::account_id());
+			current_holding.saturating_add(collateral_in) <= max_holding
+		} else {
+			true
+		}
 	}
 
 	/// Selling Hollar to get collateral asset
@@ -693,13 +705,10 @@ where
 		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
 
 		// 7. Check max holding limit if configured
-		if let Some(max_holding) = collateral_info.max_in_holding {
-			let current_holding = <T as Config>::Currency::balance(collateral_asset, &Self::account_id());
-			ensure!(
-				current_holding.saturating_add(collateral_amount) <= max_holding,
-				Error::<T>::MaxHoldingExceeded
-			);
-		}
+		ensure!(
+			Self::ensure_max_collateral_holding(collateral_asset, &collateral_info, collateral_amount),
+			Error::<T>::MaxHoldingExceeded
+		);
 
 		// Execute the swap
 		// 1. Transfer Hollar from user to HSM
@@ -816,6 +825,7 @@ where
 			math::calculate_hollar_amount(collateral_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
 
 		// Check if the requested amount exceeds the buyback limit
+		//TODO: this should include hollar amount received per block too
 		ensure!(buyback_limit > hollar_amount_to_pay, Error::<T>::MaxBuyBackExceeded);
 
 		// 6. Calculate max price
@@ -863,97 +873,26 @@ where
 		Ok(hollar_amount_to_pay)
 	}
 
-	/// Selling collateral asset to get Hollar
-	fn do_hollar_out_given_collateral_in(
+	fn do_hollar_out(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
-		collateral_amount: Balance,
-	) -> Result<Balance, DispatchError> {
+		f: impl FnOnce((Balance, Balance)) -> Result<(Balance, Balance), DispatchError>,
+	) -> Result<(Balance, Balance), DispatchError> {
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
-
-		if let Some(max_holding) = collateral_info.max_in_holding {
-			let current_holding = <T as Config>::Currency::balance(collateral_asset, &Self::account_id());
-			ensure!(
-				current_holding.saturating_add(collateral_amount) <= max_holding,
-				Error::<T>::MaxHoldingExceeded
-			);
-		}
-
-		let pool_id = collateral_info.pool_id;
-
-		let pool_state = Self::get_stablepool_state(pool_id)?;
-
+		let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
 		let collateral_pos = pool_state
 			.asset_idx(collateral_asset)
 			.ok_or(Error::<T>::AssetNotFound)?;
-
-		// Get the peg for this asset
-		// peg is  price hollar / collateral asset
-		let peg = pool_state.pegs[collateral_pos];
+		let peg = pool_state.pegs[collateral_pos]; //hollar/collateral
 		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
-		let hollar_amount =
-			math::calculate_hollar_amount(collateral_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
-
-		// Execute the "swap"
-		// 1. Transfer collateral from user to HSM
-		<T as Config>::Currency::transfer(
-			collateral_asset,
-			who,
-			&Self::account_id(),
-			collateral_amount,
-			Preservation::Expendable,
-		)?;
-
-		// 2. Mint Hollar by calling GHO contract
-		Self::mint_hollar(who, hollar_amount)?;
-
-		Ok(hollar_amount)
-	}
-
-	/// Buying Hollar using collateral asset
-	fn do_collateral_in_given_hollar_out(
-		who: &T::AccountId,
-		collateral_asset: T::AssetId,
-		hollar_amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
-
-		let pool_id = collateral_info.pool_id;
-
-		let pool_state = Self::get_stablepool_state(pool_id)?;
-
-		let collateral_pos = pool_state
-			.asset_idx(collateral_asset)
-			.ok_or(Error::<T>::AssetNotFound)?;
-
-		// Get the peg for this asset
-		// peg is  price hollar / collateral asset
-		let peg = pool_state.pegs[collateral_pos];
-
-		// 1. Calculate purchase price with fee
-		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
-
-		// 2. Calculate amount of collateral needed
-		let collateral_amount =
-			math::calculate_collateral_amount(hollar_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
+		let (hollar_amount, collateral_amount) = f(purchase_price)?;
 
 		ensure!(
-			<T as Config>::Currency::reducible_balance(collateral_asset, who, Preservation::Protect, Fortitude::Polite)
-				>= collateral_amount,
-			Error::<T>::InsufficientCollateralBalance
+			Self::ensure_max_collateral_holding(collateral_asset, &collateral_info, collateral_amount),
+			Error::<T>::MaxHoldingExceeded
 		);
 
-		if let Some(max_holding) = collateral_info.max_in_holding {
-			let current_holding = <T as Config>::Currency::balance(collateral_asset, &Self::account_id());
-			ensure!(
-				current_holding.saturating_add(collateral_amount) <= max_holding,
-				Error::<T>::MaxHoldingExceeded
-			);
-		}
-
-		// Execute the "swap"
-		// 1. Transfer collateral from user to HSM
 		<T as Config>::Currency::transfer(
 			collateral_asset,
 			who,
@@ -962,10 +901,9 @@ where
 			Preservation::Expendable,
 		)?;
 
-		// 2. Mint Hollar by calling GHO contract
 		Self::mint_hollar(who, hollar_amount)?;
 
-		Ok(collateral_amount)
+		Ok((hollar_amount, collateral_amount))
 	}
 
 	/// Mint Hollar by calling the GHO token contract

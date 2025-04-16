@@ -262,7 +262,7 @@ fn buy_hollar_with_insufficient_balance_fails() {
 		// Try to buy more than ALICE has
 		assert_err!(
 			HSM::buy(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 10 * ONE, 20 * ONE),
-			Error::<Test>::InsufficientCollateralBalance
+			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 	});
 }
