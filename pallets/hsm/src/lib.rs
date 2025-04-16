@@ -10,6 +10,7 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::*,
+	require_transactional,
 	traits::{
 		fungibles::{Inspect, Mutate},
 		tokens::Preservation,
@@ -393,18 +394,15 @@ pub mod pallet {
 					info.max_in_holding = holding;
 				}
 
+				Self::deposit_event(Event::<T>::CollateralUpdated {
+					asset_id,
+					purchase_fee,
+					max_buy_price_coefficient,
+					buy_back_fee,
+					buyback_rate,
+				});
 				Ok(())
-			})?;
-
-			Self::deposit_event(Event::<T>::CollateralUpdated {
-				asset_id,
-				purchase_fee,
-				max_buy_price_coefficient,
-				buy_back_fee,
-				buyback_rate,
-			});
-
-			Ok(())
+			})
 		}
 
 		/// Sell asset to HSM
@@ -530,7 +528,6 @@ pub mod pallet {
 		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
 			ensure_none(origin)?;
 
-			ensure!(Self::is_collateral(collateral_asset_id), Error::<T>::AssetNotApproved);
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 
 			let hollar_amount_to_trade = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
@@ -580,6 +577,7 @@ where
 	}
 
 	/// Check if an asset is an approved collateral
+	#[inline]
 	pub fn is_collateral(asset_id: T::AssetId) -> bool {
 		Collaterals::<T>::contains_key(asset_id)
 	}
@@ -605,6 +603,7 @@ where
 	}
 
 	/// Selling Hollar to get collateral asset
+	#[require_transactional]
 	fn do_collateral_out_given_hollar_in(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
@@ -873,6 +872,7 @@ where
 		Ok(hollar_amount_to_pay)
 	}
 
+	#[require_transactional]
 	fn do_hollar_out(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,

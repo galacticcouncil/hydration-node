@@ -1,5 +1,5 @@
-use crate::types::Balance;
 use crate::types::CoefficientRatio;
+use crate::types::{Balance, PegType, Price};
 use hydra_dx_math::ratio::Ratio;
 use num_traits::SaturatingAdd;
 use num_traits::SaturatingMul;
@@ -7,12 +7,9 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{Perbill, Permill};
 use sp_runtime::{Rounding, Saturating};
 
-/// Peg type is a ratio of (numerator, denominator)
-pub type PegType = (Balance, Balance);
-
 /// Calculate purchase price for Hollar with collateral asset
 /// p_i = (1 + fee_i) * peg_i
-pub fn calculate_purchase_price(peg: PegType, fee: Permill) -> PegType {
+pub fn calculate_purchase_price(peg: PegType, fee: Permill) -> Price {
 	let fee_ratio: Ratio = (fee.deconstruct() as u128, Permill::one().deconstruct() as u128).into();
 	let one_ratio: Ratio = Ratio::one();
 	let peg_ratio: Ratio = peg.into();
@@ -23,7 +20,7 @@ pub fn calculate_purchase_price(peg: PegType, fee: Permill) -> PegType {
 
 /// Calculate the amount of Hollar received for a given amount of collateral
 /// ΔH = ΔR_i / p_i
-pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: PegType) -> Option<Balance> {
+pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: Price) -> Option<Balance> {
 	multiply_by_rational_with_rounding(collateral_amount, purchase_price.1, purchase_price.0, Rounding::Down)
 }
 
@@ -48,7 +45,7 @@ pub fn calculate_buyback_limit(imbalance: Balance, b: Perbill) -> Balance {
 
 /// Calculate the final buy price with fee adjustment
 /// p = p_e / (1 - f_i)
-pub fn calculate_buy_price_with_fee(execution_price: PegType, buy_back_fee: Permill) -> Option<PegType> {
+pub fn calculate_buy_price_with_fee(execution_price: Price, buy_back_fee: Permill) -> Option<PegType> {
 	if buy_back_fee.is_one() {
 		return None;
 	}
@@ -64,9 +61,7 @@ pub fn calculate_buy_price_with_fee(execution_price: PegType, buy_back_fee: Perm
 
 /// Calculate max buy price
 /// p_m = coefficient * peg
-/// Where coefficient is now a Ratio instead of Permill
-pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> PegType {
-	// Multiply the two ratios
+pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> Price {
 	let peg_ratio: Ratio = peg.into();
 	let c_ratio: Ratio = coefficient.into();
 	let result = peg_ratio.saturating_mul(&c_ratio);
@@ -75,6 +70,6 @@ pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> P
 
 /// Calculate how much collateral asset user receives for amount of Hollar
 /// ΔR_i = p * ΔH
-pub fn calculate_collateral_amount(hollar_amount: Balance, price: PegType) -> Option<Balance> {
+pub fn calculate_collateral_amount(hollar_amount: Balance, price: Price) -> Option<Balance> {
 	multiply_by_rational_with_rounding(hollar_amount, price.0, price.1, Rounding::Up)
 }

@@ -16,8 +16,11 @@ pub type CallResult = (ExitReason, Vec<u8>);
 /// Balance type used in the pallet
 pub type Balance = u128;
 
-/// Ratio type represented as (numerator, denominator)
-pub type CoefficientRatio = (Balance, Balance);
+pub type PegType = (Balance, Balance);
+
+pub type Price = PegType;
+
+pub type CoefficientRatio = (Balance, Balance); //TODO: consider FixedU128??!
 
 /// Information about a collateral asset
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
