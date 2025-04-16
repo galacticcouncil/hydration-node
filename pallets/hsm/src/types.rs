@@ -8,6 +8,7 @@ use evm::ExitReason;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_runtime::{Perbill, Permill};
+use sp_std::vec::Vec;
 
 /// Type for EVM call result
 pub type CallResult = (ExitReason, Vec<u8>);

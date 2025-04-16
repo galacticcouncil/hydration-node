@@ -1644,6 +1644,26 @@ impl pallet_broadcast::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
 
+parameter_types! {
+	pub const HsmGasLimit: u64 = 4_000_000;
+	pub const HsmPalletId: PalletId = PalletId(*b"py/hsmod");
+	pub const HOLLAR: AssetId = 222;
+}
+
+impl pallet_hsm::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type HollarId = HOLLAR;
+	type PalletId = HsmPalletId;
+	type GhoContractAddress = AssetRegistry;
+	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
+	type Evm = evm::Executor<Runtime>;
+	type EvmAccounts = EVMAccounts;
+	type GasLimit = HsmGasLimit;
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where

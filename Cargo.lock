@@ -4734,6 +4734,7 @@ dependencies = [
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
+ "pallet-hsm",
  "pallet-identity",
  "pallet-lbp",
  "pallet-liquidation",
