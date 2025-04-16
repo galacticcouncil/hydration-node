@@ -615,7 +615,6 @@ fn sell_hollar_nonzero_fee_works() {
 				hollar_to_sell,
 				1, // Minimal slippage limit
 			));
-			let spent = Tokens::free_balance(DAI, &ALICE) - alice_dai;
 			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + expected_collateral);
 			assert_eq!(Tokens::free_balance(HOLLAR, &ALICE), alice_hollar - hollar_to_sell);
 

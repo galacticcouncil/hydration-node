@@ -97,7 +97,7 @@ pub mod pallet {
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
 
 		/// EVM handler
-		type Evm: EVM<crate::types::CallResult>;
+		type Evm: EVM<types::CallResult>;
 
 		/// EVM address converter
 		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
@@ -818,11 +818,11 @@ where
 		};
 
 		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
+		let imbalance = math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
 			.ok_or(ArithmeticError::Overflow)?;
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
-		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
+		let buyback_limit = math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
 		// 3. Calculate execution price by simulating a swap
 		let hollar_amount = Self::simulate_out_given_in(
@@ -838,18 +838,18 @@ where
 		let execution_price = (collateral_amount, hollar_amount);
 
 		// 4. Calculate final buy price with fee
-		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
+		let buy_price = math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
 			.ok_or(ArithmeticError::Overflow)?;
 
 		// 5. Calculate amount of Hollar to pay
 		let hollar_amount_to_pay =
-			crate::math::calculate_hollar_amount(collateral_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
+			math::calculate_hollar_amount(collateral_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
 
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(buyback_limit > hollar_amount_to_pay, Error::<T>::MaxBuyBackExceeded);
 
 		// 6. Calculate max price
-		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 		// Check if price exceeds max price - compare the ratios
 		// For (a,b) <= (c,d), we check a*d <= b*c
 		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
@@ -919,11 +919,11 @@ where
 		let peg = pool_state.pegs[collateral_pos];
 
 		// Calculate purchase pice
-		let purchase_price = crate::math::calculate_purchase_price(peg, collateral_info.purchase_fee);
+		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
 		// Calculate Hollar amount to mint
 		let hollar_amount =
-			crate::math::calculate_hollar_amount(collateral_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
+			math::calculate_hollar_amount(collateral_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
 
 		// Execute the "swap"
 		// 1. Transfer collateral from user to HSM
@@ -1201,7 +1201,7 @@ where
 			)
 		};
 		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
+		let imbalance = math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
 			.ok_or(ArithmeticError::Overflow)?;
 		ensure!(!imbalance.is_zero(), Error::<T>::NoArbitrageOpportunity);
 		let b_coefficient = collateral_info.buyback_rate;

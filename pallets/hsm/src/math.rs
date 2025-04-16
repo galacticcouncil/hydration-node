@@ -4,7 +4,7 @@ use hydra_dx_math::ratio::Ratio;
 use num_traits::SaturatingAdd;
 use num_traits::SaturatingMul;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::{ArithmeticError, Perbill, Permill};
+use sp_runtime::{Perbill, Permill};
 use sp_runtime::{Rounding, Saturating};
 
 /// Peg type is a ratio of (numerator, denominator)
