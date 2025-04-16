@@ -355,13 +355,9 @@ pub mod pallet {
 
 			ensure!(Collaterals::<T>::contains_key(asset_id), Error::<T>::AssetNotApproved);
 
-			// Get the current holding balance
 			let amount = CollateralHoldings::<T>::get(asset_id);
-
-			// Ensure the collateral is empty
 			ensure!(amount.is_zero(), Error::<T>::CollateralNotEmpty);
 
-			// Remove from storages
 			Collaterals::<T>::remove(asset_id);
 			CollateralHoldings::<T>::remove(asset_id);
 
@@ -464,7 +460,6 @@ pub mod pallet {
 				Self::do_hollar_out_given_collateral_in(&who, asset_in, amount_in)?
 			};
 
-			// Check slippage
 			ensure!(amount_out >= slippage_limit, Error::<T>::SlippageLimitExceeded);
 
 			Self::deposit_event(Event::<T>::SellExecuted {
@@ -514,7 +509,6 @@ pub mod pallet {
 				Self::do_hollar_in_given_collateral_out(&who, asset_out, amount_out)?
 			};
 
-			// Check slippage
 			ensure!(amount_in <= slippage_limit, Error::<T>::SlippageLimitExceeded);
 
 			Self::deposit_event(Event::<T>::BuyExecuted {
@@ -543,20 +537,14 @@ pub mod pallet {
 		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
 			ensure_none(origin)?;
 
-			// Check if the asset is a valid collateral
 			ensure!(Self::is_collateral(collateral_asset_id), Error::<T>::AssetNotApproved);
-
-			// Get the collateral info
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 
-			// Calculate the arbitrage opportunity
 			let hollar_amount_to_trade = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
 
-			// If there's an opportunity, execute it
 			if hollar_amount_to_trade > 0 {
 				let hsm_account = Self::account_id();
 
-				// Mint hollar
 				Self::mint_hollar(&hsm_account, hollar_amount_to_trade)?;
 
 				// Sell hollar in HSM for collateral
@@ -574,10 +562,8 @@ pub mod pallet {
 					collateral_received,
 				)?;
 
-				// Burn the hollar
 				Self::burn_hollar(hollar_amount_to_trade)?;
 
-				// Emit event
 				Self::deposit_event(Event::<T>::ArbitrageExecuted {
 					asset_id: collateral_asset_id,
 					hollar_amount: hollar_amount_to_trade,
@@ -622,7 +608,6 @@ where
 
 		let pool_id = collateral_info.pool_id;
 
-		// Get pool data
 		let pool_state = Self::get_stablepool_state(pool_id)?;
 
 		let hollar_pos = pool_state
@@ -642,7 +627,6 @@ where
 			Error::<T>::InvalidPoolState
 		);
 
-		// Get reserves and pegs
 		let hollar_reserve = pool_state
 			.asset_reserve_at(hollar_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
@@ -680,7 +664,6 @@ where
 		// 2. Calculate how much Hollar can HSM buy back in a single block
 		let buyback_limit = math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
-		// Check if the requested amount exceeds the buyback limit
 		ensure!(
 			HollarAmountReceived::<T>::get(collateral_asset).saturating_add(hollar_amount) <= buyback_limit,
 			Error::<T>::MaxBuyBackExceeded
@@ -768,7 +751,6 @@ where
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
 
 		let pool_id = collateral_info.pool_id;
-		// Get pool data
 		let pool_state = Self::get_stablepool_state(pool_id)?;
 
 		let hollar_pos = pool_state
@@ -788,7 +770,6 @@ where
 			Error::<T>::InvalidPoolState
 		);
 
-		// Get reserves and pegs
 		let hollar_reserve = pool_state
 			.asset_reserve_at(hollar_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
@@ -917,11 +898,8 @@ where
 		// Get the peg for this asset
 		// peg is  price hollar / collateral asset
 		let peg = pool_state.pegs[collateral_pos];
-
-		// Calculate purchase pice
 		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
-		// Calculate Hollar amount to mint
 		let hollar_amount =
 			math::calculate_hollar_amount(collateral_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
 
@@ -973,7 +951,6 @@ where
 		let collateral_amount =
 			math::calculate_collateral_amount(hollar_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
 
-		// Check user has enough collateral
 		ensure!(
 			<T as Config>::Currency::reducible_balance(collateral_asset, who, Preservation::Protect, Fortitude::Polite)
 				>= collateral_amount,
@@ -1101,22 +1078,17 @@ where
 
 	/// Process arbitrage opportunities for all collateral assets
 	fn process_arbitrage_opportunities(block_number: BlockNumberFor<T>) -> Result<(), DispatchError> {
-		// Create a lock to ensure only one offchain worker runs at a time
 		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT);
 		let mut lock = StorageLock::<'_, Time>::with_deadline(OFFCHAIN_WORKER_LOCK, lock_expiration);
 
-		// Try to obtain the lock, if not possible, return early
 		let r = if let Ok(_guard) = lock.try_lock() {
 			log::debug!(
 				target: "hsm::offchain_worker",
 				"Processing arbitrage opportunities at block: {:?}", block_number
 			);
 
-			// Iterate over all collateral assets
 			for (asset_id, _) in <Collaterals<T>>::iter() {
-				// Check if the asset has collateral holdings
 				if <CollateralHoldings<T>>::get(asset_id) > 0 {
-					// Try to submit an unsigned transaction to execute arbitrage
 					let call = Call::execute_arbitrage {
 						collateral_asset_id: asset_id,
 					};
@@ -1152,7 +1124,6 @@ where
 		let hollar_id = T::HollarId::get();
 		let pool_id = collateral_info.pool_id;
 
-		// Get pool data
 		let pool_state = Self::get_stablepool_state(pool_id)?;
 
 		let hollar_pos = pool_state
