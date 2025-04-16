@@ -2,7 +2,7 @@
 
 pub use pallet::*;
 
-use crate::types::{Balance, CoefficientRatio, CollateralInfo};
+use crate::types::{Balance, CoefficientRatio, CollateralInfo, Price};
 use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
@@ -872,11 +872,12 @@ where
 		Ok(hollar_amount_to_pay)
 	}
 
+	/// Returns trades amount (hollar amount, collateral amount)
 	#[require_transactional]
 	fn do_hollar_out(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
-		f: impl FnOnce((Balance, Balance)) -> Result<(Balance, Balance), DispatchError>,
+		f: impl FnOnce(Price) -> Result<(Balance, Balance), DispatchError>,
 	) -> Result<(Balance, Balance), DispatchError> {
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
 		let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
