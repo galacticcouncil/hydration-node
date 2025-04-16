@@ -39,6 +39,7 @@ mod vesting;
 mod xcm;
 mod xyk;
 mod xyk_liquidity_mining;
+mod hsm;
 
 #[macro_export]
 macro_rules! assert_balance {
