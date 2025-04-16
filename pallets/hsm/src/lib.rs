@@ -815,9 +815,6 @@ where
 		let hollar_amount_to_pay =
 			math::calculate_hollar_amount(collateral_amount, buy_price).ok_or(ArithmeticError::Overflow)?;
 
-		dbg!(hollar_amount_to_pay);
-		dbg!(buyback_limit);
-
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(buyback_limit > hollar_amount_to_pay, Error::<T>::MaxBuyBackExceeded);
 
