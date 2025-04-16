@@ -130,7 +130,7 @@ fn sell_hollar_to_get_collateral_works() {
 
 		// Calculate expected values
 		let hollar_amount = 10 * ONE;
-		let expected_collateral_amount = 9883577967587;
+		let expected_collateral_amount = 9883577967588;
 
 		// Execute the sell
 		assert_ok!(HSM::sell(
@@ -606,7 +606,7 @@ fn sell_hollar_nonzero_fee_works() {
 
 			// ACT - sell hollar back
 			let hollar_to_sell = 1 * ONE_18;
-			let expected_collateral = 996452942181942268;
+			let expected_collateral = 996452942181942269;
 
 			assert_ok!(HSM::sell(
 				RuntimeOrigin::signed(ALICE),
@@ -616,7 +616,6 @@ fn sell_hollar_nonzero_fee_works() {
 				1, // Minimal slippage limit
 			));
 			let spent = Tokens::free_balance(DAI, &ALICE) - alice_dai;
-			dbg!(spent);
 			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + expected_collateral);
 			assert_eq!(Tokens::free_balance(HOLLAR, &ALICE), alice_hollar - hollar_to_sell);
 

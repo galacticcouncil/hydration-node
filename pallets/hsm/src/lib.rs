@@ -672,7 +672,8 @@ where
 		};
 
 		// 1. Calculate imbalance
-		let imbalance = math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)?;
+		let imbalance = math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(!imbalance.is_zero(), Error::<T>::CollateralNotWanted);
 
@@ -698,7 +699,8 @@ where
 		let execution_price = (input_amount, hollar_amount);
 
 		// 4. Calculate final buy price with fee
-		let buy_price = math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
+		let buy_price = math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		// 5. Calculate amount of collateral to receive
 		let collateral_amount =
@@ -816,7 +818,8 @@ where
 		};
 
 		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)?;
+		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
 		let buyback_limit = crate::math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
@@ -835,7 +838,8 @@ where
 		let execution_price = (collateral_amount, hollar_amount);
 
 		// 4. Calculate final buy price with fee
-		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)?;
+		let buy_price = crate::math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		// 5. Calculate amount of Hollar to pay
 		let hollar_amount_to_pay =
@@ -963,11 +967,11 @@ where
 		let peg = pool_state.pegs[collateral_pos];
 
 		// 1. Calculate purchase price with fee
-		let purchase_price = crate::math::calculate_purchase_price(peg, collateral_info.purchase_fee);
+		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
 		// 2. Calculate amount of collateral needed
 		let collateral_amount =
-			crate::math::calculate_collateral_amount(hollar_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
+			math::calculate_collateral_amount(hollar_amount, purchase_price).ok_or(ArithmeticError::Overflow)?;
 
 		// Check user has enough collateral
 		ensure!(
@@ -1197,7 +1201,8 @@ where
 			)
 		};
 		// 1. Calculate imbalance
-		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)?;
+		let imbalance = crate::math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
+			.ok_or(ArithmeticError::Overflow)?;
 		ensure!(!imbalance.is_zero(), Error::<T>::NoArbitrageOpportunity);
 		let b_coefficient = collateral_info.buyback_rate;
 		let max_buy_amt = b_coefficient.mul_floor(imbalance);
@@ -1228,7 +1233,7 @@ where
 		let buy_price_ratio = exec_prica_ratio.saturating_div(&fee_ratio);
 		let buy_price = (buy_price_ratio.n, buy_price_ratio.d);
 
-		let max_price = crate::math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 
 		// Check if price exceeds max price - compare the ratios
 		// For (a,b) <= (c,d), we check a*d <= b*c

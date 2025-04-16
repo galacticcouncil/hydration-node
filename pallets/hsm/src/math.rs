@@ -29,30 +29,15 @@ pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: PegTy
 
 /// Calculate imbalance of a stablepool
 /// I_i = (H_i - peg_i * R_i) / 2
-pub fn calculate_imbalance(
-	hollar_reserve: Balance,
-	peg: PegType,
-	collateral_reserve: Balance,
-) -> Result<Balance, ArithmeticError> {
-	// Convert peg to a price by dividing numerator by denominator
-	//TODO: this is incorrect! should be fixed when decimals taken into account
-	let peg_price = peg.0.checked_div(peg.1).ok_or(ArithmeticError::DivisionByZero)?;
-
-	let pegged_collateral = peg_price
-		.checked_mul(collateral_reserve)
-		.ok_or(ArithmeticError::Overflow)?;
-
+pub fn calculate_imbalance(hollar_reserve: Balance, peg: PegType, collateral_reserve: Balance) -> Option<Balance> {
+	let pegged_collateral = multiply_by_rational_with_rounding(collateral_reserve, peg.0, peg.1, Rounding::Down)?;
 	// If hollar reserve is less than pegged collateral, we're considering zero imbalance
 	// as we only care about positive imbalance (excess Hollar in the pool)
 	if hollar_reserve <= pegged_collateral {
-		return Ok(0);
+		return Some(0);
 	}
 
-	hollar_reserve
-		.checked_sub(pegged_collateral)
-		.ok_or(ArithmeticError::Underflow)?
-		.checked_div(2)
-		.ok_or(ArithmeticError::DivisionByZero)
+	Some(hollar_reserve.saturating_sub(pegged_collateral).saturating_div(2))
 }
 
 /// Calculate how much Hollar HSM can buy back in a single block
@@ -63,26 +48,18 @@ pub fn calculate_buyback_limit(imbalance: Balance, b: Perbill) -> Balance {
 
 /// Calculate the final buy price with fee adjustment
 /// p = p_e / (1 - f_i)
-pub fn calculate_buy_price_with_fee(
-	execution_price: PegType,
-	buy_back_fee: Permill,
-) -> Result<PegType, ArithmeticError> {
-	if buy_back_fee == Permill::one() {
-		return Err(ArithmeticError::DivisionByZero);
+pub fn calculate_buy_price_with_fee(execution_price: PegType, buy_back_fee: Permill) -> Option<PegType> {
+	if buy_back_fee.is_one() {
+		return None;
 	}
-
-	let denominator = Permill::one().saturating_sub(buy_back_fee);
-	let denominator_value = denominator.deconstruct() as Balance;
-
-	// Scale the numerator by dividing by (1 - fee)
-	let scaled_numerator = execution_price
-		.0
-		.checked_mul(Permill::one().deconstruct() as Balance)
-		.ok_or(ArithmeticError::Overflow)?
-		.checked_div(denominator_value)
-		.ok_or(ArithmeticError::DivisionByZero)?;
-
-	Ok((scaled_numerator, execution_price.1))
+	let exec_price_ratio: Ratio = execution_price.into();
+	let fee_ratio: Ratio = (
+		Permill::one().saturating_sub(buy_back_fee).deconstruct() as u128,
+		Permill::one().deconstruct() as u128,
+	)
+		.into();
+	let result = exec_price_ratio.saturating_div(&fee_ratio);
+	Some((result.n, result.d))
 }
 
 /// Calculate max buy price
@@ -90,13 +67,10 @@ pub fn calculate_buy_price_with_fee(
 /// Where coefficient is now a Ratio instead of Permill
 pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> PegType {
 	// Multiply the two ratios
-	// For (a,b) * (c,d) = (a*c, b*d)
-	//TODO: use saturating mul from ratio because this wont work
-	let numerator = peg.0.saturating_mul(coefficient.0);
-	let denominator = peg.1.saturating_mul(coefficient.1);
-
-	// Return the new ratio
-	(numerator, denominator)
+	let peg_ratio: Ratio = peg.into();
+	let c_ratio: Ratio = coefficient.into();
+	let result = peg_ratio.saturating_mul(&c_ratio);
+	(result.n, result.d)
 }
 
 /// Calculate how much collateral asset user receives for amount of Hollar
