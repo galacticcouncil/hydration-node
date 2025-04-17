@@ -563,43 +563,6 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 }
 
 #[test]
-fn buying_with_hdx_in_router_should_transfer_correct_fee() {
-	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_12();
-		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
-		let staking_acc = Staking::pot_account_id();
-		let ref_account = Referrals::pot_account_id();
-		let orig_balance = Currencies::free_balance(DAI, &ref_account);
-		let stak_orig_balance = Currencies::free_balance(HDX, &staking_acc);
-		assert_ok!(Omnipool::buy(
-			RuntimeOrigin::signed(BOB.into()),
-			DAI,
-			HDX,
-			1_000_000_000_000_000_000,
-			u128::MAX,
-		));
-
-		/*assert_ok!(hydradx_runtime::Router::buy(
-			RuntimeOrigin::signed(BOB.into()),
-			HDX,
-			DAI,
-			1_000_000_000_000_000_000,
-			u128::MAX,
-			vec![].try_into().unwrap(),
-		));*/
-
-		let expected_taken_fee = 2225865033829934;
-
-		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
-		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
-		assert_eq!(ref_dai_balance.abs_diff(orig_balance), expected_taken_fee);
-		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 0);
-
-		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(BOB.into())));
-	});
-}
-
-#[test]
 fn trading_in_omnipool_should_increase_staking_shares_when_no_code_linked() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_12();
