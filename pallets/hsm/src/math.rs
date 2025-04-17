@@ -18,12 +18,6 @@ pub fn calculate_purchase_price(peg: PegType, fee: Permill) -> Price {
 	(price.n, price.d)
 }
 
-/// Calculate the amount of Hollar received for a given amount of collateral
-/// ΔH = ΔR_i / p_i
-pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: Price) -> Option<Balance> {
-	multiply_by_rational_with_rounding(collateral_amount, purchase_price.1, purchase_price.0, Rounding::Down)
-}
-
 /// Calculate imbalance of a stablepool
 /// I_i = (H_i - peg_i * R_i) / 2
 pub fn calculate_imbalance(hollar_reserve: Balance, peg: PegType, collateral_reserve: Balance) -> Option<Balance> {
@@ -72,4 +66,10 @@ pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> P
 /// ΔR_i = p * ΔH
 pub fn calculate_collateral_amount(hollar_amount: Balance, price: Price) -> Option<Balance> {
 	multiply_by_rational_with_rounding(hollar_amount, price.0, price.1, Rounding::Up)
+}
+
+/// Calculate the amount of Hollar received for a given amount of collateral
+/// ΔH = ΔR_i / p_i
+pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: Price) -> Option<Balance> {
+	multiply_by_rational_with_rounding(collateral_amount, purchase_price.1, purchase_price.0, Rounding::Down)
 }

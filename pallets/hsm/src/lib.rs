@@ -206,8 +206,6 @@ pub mod pallet {
 		HollarNotInPool,
 		/// Insufficient collateral balance
 		InsufficientCollateralBalance,
-		/// This collateral asset is not accepted now.
-		CollateralNotWanted,
 		/// GHO Contract address not found.
 		HollarContractAddressNotFound,
 	}
@@ -1044,9 +1042,9 @@ where
 		let fee = collateral_info.buy_back_fee;
 		let fee_complement = Permill::from_percent(100).saturating_sub(fee);
 
-		let exec_prica_ratio: hydra_dx_math::ratio::Ratio = execution_price.into();
+		let exec_price_ratio: hydra_dx_math::ratio::Ratio = execution_price.into();
 		let fee_ratio: hydra_dx_math::ratio::Ratio = (fee_complement.deconstruct() as u128, 1_000_000u128).into();
-		let buy_price_ratio = exec_prica_ratio.saturating_div(&fee_ratio);
+		let buy_price_ratio = exec_price_ratio.saturating_div(&fee_ratio);
 		let buy_price = (buy_price_ratio.n, buy_price_ratio.d);
 
 		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
