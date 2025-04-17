@@ -230,6 +230,7 @@ pub async fn fetch_all_storage(uri: String, at: Option<H256>) -> Result<Vec<(Sto
 	Ok(all_pairs)
 }
 
+#[cfg(test)]
 mod test {
 	use super::*;
 
