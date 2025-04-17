@@ -35,6 +35,7 @@ num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
 hex-literal = { workspace = true }
 serde_json = { version = "1.0.138", default-features = false, features = ["alloc"] }
+ethereum = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
@@ -57,7 +58,6 @@ sp-api = { workspace = true }
 polkadot-primitives = { workspace = true }
 orml-traits = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
-ethereum = { workspace = true }
 proptest = { workspace = true }
 pretty_assertions = { workspace = true }
 test-utils = { workspace = true }

@@ -400,19 +400,17 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 				let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
 				if let pallet_ethereum::Call::transact { transaction } = call {
 					if let pallet_ethereum::Transaction::Legacy(legacy) = transaction {
+						// check if the transaction is DIA oracle update
 						if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
-							if call_address
-								== H160::from_slice(hex!("3cd0a705a2dc65e5b1e1205896baa2be8a07c6e0").as_slice())
-								|| call_address
-									== H160::from_slice(hex!("5d8320f3ced9575d8e25b6f437e610fc6a03bf52").as_slice())
-								|| call_address
-									== H160::from_slice(hex!("0000000000000000000000000000000100000000").as_slice())
-							{
-								if let Some(ref mut validity_info) = tx_validity {
-									if let Ok(ref mut validity) = validity_info {
-										validity.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
-									}
-								}
+							if call_address == H160::from_slice(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice()) {
+								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
+								if pallet_liquidation::offchain_worker::verify_signer(&transaction,  H160::from_slice(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice())) {
+									if let Some(ref mut validity_info) = tx_validity {
+										if let Ok(ref mut validity) = validity_info {
+											validity.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+										}
+									};
+								};
 							}
 						};
 					};
@@ -539,7 +537,7 @@ impl_runtime_apis! {
 		) -> TransactionValidity {
 			let mut tx_validity = Executive::validate_transaction(source, tx.clone(), block_hash);
 			let transaction = tx.clone().0;
-			if let RuntimeCall::Liquidation(pallet_liquidation::Call::dummy_received{ .. }) = transaction.function {
+			if let RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_unsigned{ .. }) = transaction.function {
 				 if let Ok(ref mut v) = tx_validity {
 					v.priority = 3 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
 				}

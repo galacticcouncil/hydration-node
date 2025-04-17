@@ -13,7 +13,7 @@ use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use pallet_ethereum::Transaction;
 use pallet_liquidation::{
-	offchain_worker::{current_evm_block_timestamp, MoneyMarketData, UserData},
+	offchain_worker::*,
 	BorrowerData, BorrowerDataDetails, MAX_LIQUIDATIONS,
 };
 use parking_lot::Mutex;
@@ -299,11 +299,11 @@ where
 								};
 
 								let transaction = dummy_dia_tx_single_value();
-								let Some(signer) = Self::recover_signer(&transaction) else {
-									log::info!("- - - - - - - - - - - - - - -liquidation worker recover signer failed");
-									return };
-
-								log::info!("- - - - - - - - - - - - - - -liquidation worker SIGNER {:?}", signer);
+								// let Some(signer) = verify_signer(&transaction, ORACLE_UPDATE_CALLER) else {
+								// 	log::info!("- - - - - - - - - - - - - - -liquidation worker recover signer failed");
+								// 	return };
+								//
+								// log::info!("- - - - - - - - - - - - - - -liquidation worker SIGNER {:?}", signer);
 
 								let Some(oracle_data) = parse_oracle_transaction(transaction) else {
 									log::info!("- - - - - - - - - - - - - - -liquidation worker parse_oracle_transaction failed");
@@ -393,22 +393,7 @@ where
 		thread_pool.lock().execute(f);
 	}
 
-	/// Recover signer from EVM transaction.
-	fn recover_signer(transaction: &Transaction) -> Option<H160> {
-		let mut sig = [0u8; 65];
-		let mut msg = [0u8; 32];
-		match transaction {
-			Transaction::Legacy(t) => {
-				sig[0..32].copy_from_slice(&t.signature.r()[..]);
-				sig[32..64].copy_from_slice(&t.signature.s()[..]);
-				sig[64] = t.signature.standard_v();
-				msg.copy_from_slice(&pallet_ethereum::LegacyTransactionMessage::from(t.clone()).hash()[..]);
-			}
-			_ => return None,
-		}
-		let pubkey = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &msg).ok()?;
-		Some(H160::from(H256::from(sp_io::hashing::keccak_256(&pubkey))))
-	}
+
 
 	/// Check if the provided transaction is valid DIA oracle update.
 	fn verify_oracle_update_transaction(
@@ -425,10 +410,8 @@ where
 				if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
 					if call_address == ORACLE_UPDATE_CALL_ADDRESS {
 						// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-						if let Some(signer) = Self::recover_signer(&transaction) {
-							if signer == ORACLE_UPDATE_CALLER {
+						if verify_signer(&transaction, ORACLE_UPDATE_CALLER) {
 								return Some(transaction);
-							};
 						};
 					};
 				};

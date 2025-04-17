@@ -48,6 +48,7 @@ pub mod offchain_worker {
 	use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
 	use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
 	use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
+	use pallet_ethereum::Transaction;
 	use hydradx_traits::evm::EvmAddress;
 	use sp_core::{H256, U256};
 	use sp_std::{boxed::Box, ops::BitAnd};
@@ -117,7 +118,8 @@ pub mod offchain_worker {
 		res.try_into().ok()
 	}
 
-	pub fn current_evm_block_timestamp<Block, Runtime>() -> Option<u64>
+	/// Calls Runtime API.
+	pub fn fetch_current_evm_block_timestamp<Block, Runtime>() -> Option<u64>
 	where
 		Block: BlockT,
 		Runtime: EthereumRuntimeRPCApiV5<Block>,
@@ -152,19 +154,19 @@ pub mod offchain_worker {
 	/// The configuration of the user across all the reserves.
 	/// Bitmap of the users collaterals and borrows. It is divided into pairs of bits, one pair per asset.
 	/// The first bit indicates if an asset is used as collateral by the user, the second whether an asset is borrowed by the user.
-	/// The corresponding assets are in the same position as `get_reserves_list()`.
+	/// The corresponding assets are in the same position as `fetch_reserves_list()`.
 	#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
-	pub struct UserConfiguration(U256);
+	struct UserConfiguration(U256);
 	impl UserConfiguration {
 		/// Returns `true` if the asset is used as collateral by the user.
-		/// The asset index is the position of the asset in the `get_reserves_list()` array.
+		/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 		pub fn is_collateral(&self, asset_index: usize) -> bool {
 			let bit_mask = U256::from(2 << (2 * asset_index));
 			!(self.0 & bit_mask).is_zero()
 		}
 
 		/// Returns `true` if the asset is used as debt by the user.
-		/// The asset index is the position of the asset in the `get_reserves_list()` array.
+		/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 		pub fn is_debt(&self, asset_index: usize) -> bool {
 			let bit_mask = U256::from(1 << (2 * asset_index));
 			!(self.0 & bit_mask).is_zero()
@@ -176,10 +178,11 @@ pub mod offchain_worker {
 	pub struct UserData {
 		address: EvmAddress,
 		configuration: UserConfiguration,
-		reserves: Vec<UserReserve>, // the order of reserves is given by get_reserves_list()
+		reserves: Vec<UserReserve>, // the order of reserves is given by fetch_reserves_list()
 		pub current_evm_timestamp: u64,
 	}
 	impl UserData {
+		/// Calls Runtime API.
 		pub fn new<Block, Runtime>(
 			money_market: &MoneyMarketData<Block, Runtime>,
 			address: H160,
@@ -190,7 +193,7 @@ pub mod offchain_worker {
 			Block: BlockT,
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
 		{
-			let configuration = UserConfiguration(Self::get_user_configuration::<Block, Runtime>(
+			let configuration = UserConfiguration(Self::fetch_user_configuration::<Block, Runtime>(
 				money_market.pool_contract,
 				address,
 				caller,
@@ -232,13 +235,13 @@ pub mod offchain_worker {
 		}
 
 		/// Returns `true` if the asset is used as collateral by the user.
-		/// The asset index is the position of the asset in the `get_reserves_list()` array.
+		/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 		pub fn is_collateral(&self, asset_index: usize) -> bool {
 			self.configuration.is_collateral(asset_index)
 		}
 
 		/// Returns `true` if the asset is used as debt by the user.
-		/// The asset index is the position of the asset in the `get_reserves_list()` array.
+		/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 		pub fn is_debt(&self, asset_index: usize) -> bool {
 			self.configuration.is_debt(asset_index)
 		}
@@ -287,7 +290,8 @@ pub mod offchain_worker {
 		/// It is divided into pairs of bits, one pair per asset.
 		/// The first bit indicates if an asset is used as collateral by the user, the second whether an asset is borrowed by the user.
 		/// The corresponding assets are in the same position as getReservesList().
-		pub fn get_user_configuration<Block, Runtime>(
+		/// Calls Runtime API.
+		pub fn fetch_user_configuration<Block, Runtime>(
 			mm_pool: EvmAddress,
 			user: EvmAddress,
 			caller: EvmAddress,
@@ -327,15 +331,16 @@ pub mod offchain_worker {
 		Block: BlockT,
 		Runtime: EthereumRuntimeRPCApiV5<Block>,
 	{
-		fn scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256>;
-		fn balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256>;
+		fn fetch_scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256>;
+		fn fetch_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256>;
 	}
 	impl<Block, Runtime> BalanceOf<Block, Runtime> for EvmAddress
 	where
 		Block: BlockT,
 		Runtime: EthereumRuntimeRPCApiV5<Block>,
 	{
-		fn scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256> {
+		/// Calls Runtime API.
+		fn fetch_scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256> {
 			let mut data = Into::<u32>::into(Function::ScaledBalanceOf).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(user).as_bytes());
 
@@ -361,7 +366,8 @@ pub mod offchain_worker {
 			}
 		}
 
-		fn balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256> {
+		/// Calls Runtime API.
+		fn fetch_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256> {
 			let mut data = Into::<u32>::into(Function::BalanceOf).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(user).as_bytes());
 
@@ -489,7 +495,7 @@ pub mod offchain_worker {
 		}
 
 		/// Get the number of decimals of the reserve.
-		pub fn get_decimals(&self) -> u8 {
+		pub fn decimals(&self) -> u8 {
 			let config = self.reserve_data.configuration;
 			// bits [48..55]
 			let res = config >> 48;
@@ -506,6 +512,7 @@ pub mod offchain_worker {
 		}
 
 		/// Get user's collateral in base currency.
+		/// Calls Runtime API.
 		pub fn get_user_collateral_in_base_currency<Block, Runtime>(
 			&self,
 			user: EvmAddress,
@@ -517,12 +524,12 @@ pub mod offchain_worker {
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
 		{
 			let (collateral_address, _) = self.get_collateral_and_debt_addresses();
-			let scaled_balance = BalanceOf::<Block, Runtime>::scaled_balance_of(collateral_address, user, caller)?;
+			let scaled_balance = BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(collateral_address, user, caller)?;
 			let normalized_income = self.get_normalized_income(current_timestamp)?;
 
 			ray_mul(scaled_balance, normalized_income)?
 				.checked_mul(self.price)?
-				.checked_div(U256::from(10u128.pow(self.get_decimals() as u32)))
+				.checked_div(U256::from(10u128.pow(self.decimals() as u32)))
 		}
 
 		fn get_normalized_debt(&self, current_timestamp: u64) -> Option<U256> {
@@ -567,6 +574,7 @@ pub mod offchain_worker {
 		}
 
 		/// Get user's debt in base currency.
+		/// Calls Runtime API.
 		pub fn get_user_debt_in_base_currency<Block, Runtime>(
 			&self,
 			user: EvmAddress,
@@ -578,17 +586,17 @@ pub mod offchain_worker {
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
 		{
 			let (_, (stable_debt_address, variable_debt_address)) = self.get_collateral_and_debt_addresses();
-			let mut total_debt = BalanceOf::<Block, Runtime>::scaled_balance_of(variable_debt_address, user, caller)?;
+			let mut total_debt = BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(variable_debt_address, user, caller)?;
 			if !total_debt.is_zero() {
 				let normalized_debt = self.get_normalized_debt(current_timestamp)?;
 				total_debt = ray_mul(total_debt, normalized_debt)?;
 			}
 
-			total_debt = total_debt.checked_add(BalanceOf::<Block, Runtime>::balance_of(stable_debt_address, user, caller)?)?;
+			total_debt = total_debt.checked_add(BalanceOf::<Block, Runtime>::fetch_balance_of(stable_debt_address, user, caller)?)?;
 
 			total_debt
 				.checked_mul(self.price)?
-				.checked_div(U256::from(10u128.pow(self.get_decimals() as u32)))
+				.checked_div(U256::from(10u128.pow(self.decimals() as u32)))
 		}
 	}
 
@@ -603,20 +611,21 @@ pub mod offchain_worker {
 		pap_contract: EvmAddress, // PoolAddressesProvider
 		pool_contract: EvmAddress,
 		oracle_contract: EvmAddress,
-		reserves: Vec<Reserve>, // the order of reserves is given by get_reserves_list()
+		reserves: Vec<Reserve>, // the order of reserves is given by fetch_reserves_list()
 		pub caller: EvmAddress,
 		_phantom: PhantomData<(Block, Runtime)>,
 	}
 	impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Block, Runtime> {
+		/// Calls Runtime API.
 		pub fn new(pap_contract: EvmAddress, caller: EvmAddress) -> Option<Self> {
-			let pool_contract = Self::get_pool(pap_contract, caller)?;
-			let oracle_contract = Self::get_price_oracle(pap_contract, caller)?;
+			let pool_contract = Self::fetch_pool(pap_contract, caller)?;
+			let oracle_contract = Self::fetch_price_oracle(pap_contract, caller)?;
 
 			let mut reserves = Vec::new();
-			for asset_address in Self::get_reserves_list(pool_contract, caller)?.into_iter() {
-				let reserve_data = Self::get_reserve_data(pool_contract, asset_address, caller)?;
-				let symbol = Self::get_asset_symbol(&asset_address, caller)?;
-				let price = Self::get_asset_price(oracle_contract, asset_address, caller)?;
+			for asset_address in Self::fetch_reserves_list(pool_contract, caller)?.into_iter() {
+				let reserve_data = Self::fetch_reserve_data(pool_contract, asset_address, caller)?;
+				let symbol = Self::fetch_asset_symbol(&asset_address, caller)?;
+				let price = Self::fetch_asset_price(oracle_contract, asset_address, caller)?;
 				reserves.push(Reserve {
 					reserve_data,
 					asset_address,
@@ -645,7 +654,8 @@ pub mod offchain_worker {
 			&self.reserves
 		}
 
-		pub fn get_pool(pap_contract: EvmAddress, caller: EvmAddress) -> Option<EvmAddress> {
+		/// Calls Runtime API.
+		pub fn fetch_pool(pap_contract: EvmAddress, caller: EvmAddress) -> Option<EvmAddress> {
 			let data = Into::<u32>::into(Function::GetPool).to_be_bytes().to_vec();
 			let gas_limit = U256::from(100_000);
 			let call_info = Runtime::call(
@@ -669,7 +679,8 @@ pub mod offchain_worker {
 			}
 		}
 
-		pub fn get_price_oracle(pap_contract: EvmAddress, caller: EvmAddress) -> Option<EvmAddress> {
+		/// Calls Runtime API.
+		pub fn fetch_price_oracle(pap_contract: EvmAddress, caller: EvmAddress) -> Option<EvmAddress> {
 			let data = Into::<u32>::into(Function::GetPriceOracle).to_be_bytes().to_vec();
 			let gas_limit = U256::from(100_000);
 
@@ -695,7 +706,8 @@ pub mod offchain_worker {
 		}
 
 		/// Get the list of reserve assets.
-		fn get_reserves_list(mm_pool: EvmAddress, caller: EvmAddress) -> Option<Vec<EvmAddress>> {
+		/// Calls Runtime API.
+		fn fetch_reserves_list(mm_pool: EvmAddress, caller: EvmAddress) -> Option<Vec<EvmAddress>> {
 			let data = Into::<u32>::into(Function::GetReservesList).to_be_bytes().to_vec();
 			let gas_limit = U256::from(500_000);
 
@@ -732,7 +744,8 @@ pub mod offchain_worker {
 			}
 		}
 
-		fn get_reserve_data(mm_pool: EvmAddress, asset_address: EvmAddress, caller: EvmAddress) -> Option<ReserveData> {
+		/// Calls Runtime API.
+		fn fetch_reserve_data(mm_pool: EvmAddress, asset_address: EvmAddress, caller: EvmAddress) -> Option<ReserveData> {
 			let mut data = Into::<u32>::into(Function::GetReserveData).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(asset_address).as_bytes());
 
@@ -780,7 +793,8 @@ pub mod offchain_worker {
 			}
 		}
 
-		fn get_asset_symbol(asset_address: &EvmAddress, caller: EvmAddress) -> Option<Vec<u8>> {
+		/// Calls Runtime API.
+		fn fetch_asset_symbol(asset_address: &EvmAddress, caller: EvmAddress) -> Option<Vec<u8>> {
 			let data = Into::<u32>::into(Function::Symbol).to_be_bytes().to_vec();
 			let gas_limit = U256::from(500_000);
 
@@ -808,8 +822,9 @@ pub mod offchain_worker {
 			}
 		}
 
-		/// Get price of an asset
-		pub fn get_asset_price(oracle_address: EvmAddress, asset: EvmAddress, caller: EvmAddress) -> Option<U256> {
+		/// Get price of an asset.
+		/// Calls Runtime API.
+		pub fn fetch_asset_price(oracle_address: EvmAddress, asset: EvmAddress, caller: EvmAddress) -> Option<U256> {
 			let mut data = Into::<u32>::into(Function::GetAssetPrice).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(asset).as_bytes());
 
@@ -835,7 +850,13 @@ pub mod offchain_worker {
 			}
 		}
 
+		pub fn get_asset_address(&self, asset_str: &str) -> Option<EvmAddress> {
+			let reserve_index = self.reserves().iter().position(|x| x.symbol == asset_str.as_bytes().to_vec())?;
+			Some(self.reserves[reserve_index].asset_address)
+		}
+
 		/// Change the stored price of some reserve asset.
+		/// Reserves are not recalculated.
 		pub fn update_reserve_price(&mut self, asset_address: EvmAddress, new_price: U256) {
 			let maybe_reserve = self.reserves.iter_mut().find(|x| x.asset_address == asset_address);
 
@@ -857,7 +878,7 @@ pub mod offchain_worker {
 		///    `LTc` - liquidity threshold of collateral asset
 		///
 		/// `user_address` - Address of the user that will be liquidated
-		/// `target_health_factor` - 10 decimal places
+		/// `target_health_factor` - 18 decimal places
 		/// `caller` - Account executing runtime RPC call, needs to have some WETH balance.
 		///
 		/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
@@ -870,12 +891,15 @@ pub mod offchain_worker {
 		) -> Option<((U256, U256), (U256, U256))> {
 			// all amounts are in base currency
 			let mut weighted_total_collateral = U256::zero();
-			let mut total_collateral = U256::zero();
-			let mut total_debt = U256::zero();
+			let mut total_collateral_in_base = U256::zero();
+			let mut total_debt_in_base = U256::zero();
 			let mut collateral_liquidation_threshold = U256::zero();
 			let mut liquidation_bonus = U256::zero();
 			let mut collateral_price = U256::zero();
 			let mut debt_price = U256::zero();
+			let mut debt_decimals = 0u8;
+			let mut user_collateral_amount = U256::zero();
+			let mut user_debt_amount = U256::zero();
 			let unit_price = U256::from(10_000_000_000u128);
 			let percentage_factor = U256::from(10u128.pow(4));
 
@@ -893,48 +917,59 @@ pub mod offchain_worker {
 						.checked_mul(U256::from(reserve.liquidation_threshold()))?,
 				)?;
 
-				total_collateral = total_collateral.checked_add(user_balances.collateral)?;
+				total_collateral_in_base = total_collateral_in_base.checked_add(user_balances.collateral)?;
 
-				total_debt = total_debt.checked_add(user_balances.debt)?;
+				total_debt_in_base = total_debt_in_base.checked_add(user_balances.debt)?;
 
 				if reserve.asset_address() == collateral_asset_address {
 					// Get liquidation threshold of the collateral asset
 					collateral_liquidation_threshold = reserve.liquidation_threshold().into();
 					// Get liquidation bonus of the collateral asset
 					liquidation_bonus = reserve.liquidation_bonus();
+					// Get price of the collateral asset
+					collateral_price = reserve.price();
+					user_collateral_amount = user_balances.collateral;
 				}
 
-				// Get price of the collateral and debt asset
-				if reserve.asset_address() == collateral_asset_address {
-					collateral_price = reserve.price();
-				}
 				if reserve.asset_address() == debt_asset_address {
-					// Get price of the debt asset
+					// Get price and decimals of the debt asset
 					debt_price = reserve.price();
+					debt_decimals = reserve.decimals();
+					user_debt_amount = user_balances.debt;
 				}
 			}
 
 			// convert percentage to decimal number
 			weighted_total_collateral = weighted_total_collateral.checked_div(percentage_factor)?;
 
-			let n = total_debt
-				.checked_mul(target_health_factor)?
-				.checked_div(unit_price)?
-				.checked_sub(weighted_total_collateral)?
-				.checked_mul(unit_price)?;
+			let target_health_factor = target_health_factor.checked_div(U256::from(10).pow(8.into()))?;
 
-			let d = percentage_factor
-				.checked_mul(target_health_factor)?
-				.checked_div(unit_price)?
+			let n: U256 = total_debt_in_base
+				.full_mul(target_health_factor)
+				.checked_div(unit_price.into())?
+				.checked_sub(weighted_total_collateral.into())?
+				.checked_mul(unit_price.into())?.try_into().ok()?;
+
+			let d: U256 = percentage_factor
+				.full_mul(target_health_factor)
+				.checked_div(unit_price.into())?
 				.checked_sub(
 					liquidation_bonus
-						.checked_mul(collateral_liquidation_threshold)?
-						.checked_div(percentage_factor)?,
-				)?;
+						.full_mul(collateral_liquidation_threshold.into())
+						.checked_div(percentage_factor.into())?,
+				)?.try_into().ok()?;
 
+			log::info!("\n-- - - \nn: {:?}\nd: {:?}", n, d);
 			let d = percent_mul(debt_price, d)?;
 
 			let debt_to_liquidate = n.checked_div(d)?;
+			log::info!("\nd: {:?}\ndtl: {:?}", d, debt_to_liquidate);
+
+			let total_debt: U256 = total_debt_in_base.full_mul(U256::from(10u128.pow(debt_decimals.into()))).checked_div(debt_price.into())?.try_into().ok()?;
+
+			// Our calculation provides theoretical amount that needs to be liquidated to get the HF close to `target_health_factor`.
+			// But there is no guarantee that user has required amount of debt and collateral assets.
+			// Adjust these amounts based on how much can be actually liquidated.
 
 			let health_factor = user_data.health_factor(self)?;
 			let close_factor = if health_factor > CLOSE_FACTOR_HF_THRESHOLD.into() {
@@ -944,13 +979,47 @@ pub mod offchain_worker {
 			}
 			.into();
 
-			let max_liquidatable_debt = percent_mul(total_debt, close_factor)?;
+			// in debt asset
+			user_debt_amount = user_debt_amount.full_mul(U256::from(10u128.pow(debt_decimals.into()))).checked_div(debt_price.into())?.try_into().ok()?;
 
-			let actual_debt_to_liquidate = if debt_to_liquidate > max_liquidatable_debt {
+			// Calculate max debt that can be liquidated. Max amount is affected by the close factor and user's total debt amount.
+			let max_liquidatable_debt = percent_mul(user_debt_amount, close_factor)?;
+
+			let mut actual_debt_to_liquidate = if debt_to_liquidate > max_liquidatable_debt {
 				max_liquidatable_debt
 			} else {
 				debt_to_liquidate
 			};
+
+			// Adjust the liquidation amounts if user doesn't have expected amount of the collateral asset.
+			let base_collateral_amount = actual_debt_to_liquidate
+				.full_mul(debt_price)
+				.checked_div(collateral_price.into())?
+				.try_into()
+				.ok()?;
+			let collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
+
+			// let debt_in_base_currency = actual_debt_to_liquidate
+			// 	.full_mul(debt_price)
+			// 	.checked_div(unit_price.into())?
+			// 	.try_into()
+			// 	.ok()?;
+			let collateral_in_base_currency: U256 = collateral_amount
+				.full_mul(collateral_price)
+				.checked_div(unit_price.into())?
+				.try_into()
+				.ok()?;
+
+			if collateral_in_base_currency > user_collateral_amount {
+				// collateral in base currency, without bonus
+				actual_debt_to_liquidate = user_collateral_amount
+					.full_mul(percentage_factor)
+					.checked_div(liquidation_bonus.into())?
+					.checked_div(debt_price.into())?
+					.checked_mul(unit_price.into())?
+					.try_into()
+					.ok()?;
+			}
 
 			let base_collateral_amount = actual_debt_to_liquidate
 				.full_mul(debt_price)
@@ -969,13 +1038,9 @@ pub mod offchain_worker {
 				.checked_div(unit_price.into())?
 				.try_into()
 				.ok()?;
-			log::info!(
-				"\n\n\n\n\n ------- {:?}",
-				(
-					(actual_debt_to_liquidate, collateral_amount),
-					(debt_in_base_currency, collateral_in_base_currency)
-				)
-			);
+
+			// //////////////////////
+
 			Some((
 				(actual_debt_to_liquidate, collateral_amount),
 				(debt_in_base_currency, collateral_in_base_currency),
@@ -1038,8 +1103,8 @@ pub mod offchain_worker {
 					if let Some(hf) = maybe_hf {
 						liquidation_options.push(LiquidationOption::new(
 							hf,
-							debt_asset,
 							collateral_asset,
+							debt_asset,
 							debt_to_liquidate,
 						));
 					}
@@ -1093,6 +1158,41 @@ pub mod offchain_worker {
 				debt_asset,
 				debt_to_liquidate,
 			}
+		}
+	}
+
+	/// Recover signer from EVM transaction.
+	fn recover_signer(transaction: &Transaction) -> Option<H160> {
+		let mut sig = [0u8; 65];
+		let mut msg = [0u8; 32];
+		match transaction {
+			Transaction::Legacy(t) => {
+				sig[0..32].copy_from_slice(&t.signature.r()[..]);
+				sig[32..64].copy_from_slice(&t.signature.s()[..]);
+				sig[64] = t.signature.standard_v();
+				msg.copy_from_slice(&ethereum::LegacyTransactionMessage::from(t.clone()).hash()[..]);
+			}
+			Transaction::EIP2930(t) => {
+				sig[0..32].copy_from_slice(&t.r[..]);
+				sig[32..64].copy_from_slice(&t.s[..]);
+				sig[64] = t.odd_y_parity as u8;
+				msg.copy_from_slice(&ethereum::EIP2930TransactionMessage::from(t.clone()).hash()[..]);
+			}
+			Transaction::EIP1559(t) => {
+				sig[0..32].copy_from_slice(&t.r[..]);
+				sig[32..64].copy_from_slice(&t.s[..]);
+				sig[64] = t.odd_y_parity as u8;
+				msg.copy_from_slice(&ethereum::EIP1559TransactionMessage::from(t.clone()).hash()[..]);
+			}
+		}
+		let pubkey = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &msg).ok()?;
+		Some(H160::from(H256::from(sp_io::hashing::keccak_256(&pubkey))))
+	}
+
+	pub fn verify_signer(transaction: &Transaction, maybe_signer: EvmAddress) -> bool {
+		match recover_signer(transaction) {
+			Some(signer) => signer == maybe_signer,
+			None => false,
 		}
 	}
 }
