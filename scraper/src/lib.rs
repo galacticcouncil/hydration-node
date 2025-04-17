@@ -144,7 +144,7 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 
 	storage_map.insert(code_key.to_vec(), wasm_code.0);
 
-	println!("Getting all storare key-alue pairs");
+	println!("Reading all storage key-value pairs remotely");
 	let all_pairs = fetch_all_storage(uri)
 		.await
 		.map_err(|_| "Failed to fetch storage")
@@ -174,14 +174,15 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 use futures::stream::{self};
 use indicatif::{ProgressBar, ProgressStyle};
 
-const PAGE_SIZE: u32 = 1000;
+const PAGE_SIZE: u32 = 1000; //Limiting as bigger values lead to error when calling PROD RPCs
 const CONCURRENCY: usize = 1000;
 
 const ESTIMATED_TOTAL_KEYS: u64 = 350_000;
 
-//Using the StateApi is the only good way to fetch all storage entries
-//Loading the SNAPSHOT or getting raw storage entries don't help as the keys contain additional hashing data,
-//so the keys are difficult to trim/cleanup for chainspec
+// Using the StateApi is the only easily working way to fetch all storage entries
+// Loading the SNAPSHOT or getting raw storage entries don't help as the keys contain additional hashing data,
+// so the keys are difficult to be cleaned up by trimming
+// StateApi call performances needed to be improved by using concurrency
 pub async fn fetch_all_storage(uri: String) -> Result<Vec<(StorageKey, StorageData)>, &'static str> {
 	let rpc = Arc::new(ws_client(uri).await.map_err(|_| "Failed to create RPC client")?);
 
@@ -190,7 +191,7 @@ pub async fn fetch_all_storage(uri: String) -> Result<Vec<(StorageKey, StorageDa
 
 	let pb = ProgressBar::new(ESTIMATED_TOTAL_KEYS);
 	pb.set_style(
-		ProgressStyle::with_template("{spinner} [{elapsed_precise}] [{wide_bar}] {pos}/{len}(aprox) keys")
+		ProgressStyle::with_template("{spinner} [{elapsed_precise}] [{wide_bar}] {pos}/{len}(approx.) keys")
 			.unwrap()
 			.progress_chars("#>-"),
 	);
@@ -225,7 +226,7 @@ pub async fn fetch_all_storage(uri: String) -> Result<Vec<(StorageKey, StorageDa
 		start_key = keys.last().cloned();
 	}
 
-	pb.finish_with_message("✅ Done fetching all storage.");
+	pb.finish_with_message("✅ Done fetching all storage key-value pairs..");
 	Ok(all_pairs)
 }
 
