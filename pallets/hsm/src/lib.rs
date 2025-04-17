@@ -830,6 +830,7 @@ where
 	}
 
 	/// Mint Hollar by calling the GHO token contract
+	#[require_transactional]
 	fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
 		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
 			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
@@ -857,6 +858,7 @@ where
 	}
 
 	/// Burn Hollar by calling the GHO token contract
+	#[require_transactional]
 	fn burn_hollar(amount: Balance) -> DispatchResult {
 		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
 			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
