@@ -233,7 +233,7 @@ fn sell_hollar_with_insufficient_hsm_collateral_fails() {
 		// Try to sell more than the HSM holds
 		assert_err!(
 			HSM::sell(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 10 * ONE, 5 * ONE),
-			orml_tokens::Error::<Test>::BalanceTooLow
+			Error::<Test>::InsufficientCollateralBalance
 		);
 	});
 }
@@ -304,9 +304,8 @@ fn sell_hollar_with_max_holding_exceeded_fails() {
 		// The current holding is already at or near the limit
 		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 9 * ONE as i128));
 
-		// Try to sell HOLLAR, should fail due to max holding exceeded
 		assert_err!(
-			HSM::sell(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 5 * ONE, 1 * ONE,),
+			HSM::sell(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 5 * ONE, 1 * ONE,),
 			Error::<Test>::MaxHoldingExceeded
 		);
 	});
