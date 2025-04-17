@@ -218,6 +218,96 @@ fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 	});
 }
 
+//Since we use router account for executing trade,
+//we have to verify if trader rewards is accrued for the actual trader, not in the router account
+#[test]
+fn claim_should_work_when_trade_happens_via_router() {
+	let claimed_amount = 853605689;
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_12();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
+
+		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
+
+		let old_balance = Currencies::free_balance(HDX, &ALICE.into());
+
+		//Do a trade to accrue some rewards
+		assert_ok!(hydradx_runtime::Router::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			1_000_000_000_000,
+			0,
+			vec![].try_into().unwrap()
+		));
+		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
+		assert!(pot_balance > 0);
+
+		//Act
+		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
+
+		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
+		assert_eq!(pot_balance, 0);
+
+		//Assert that user receives claim amounts
+		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let claimed_amount = new_balance - old_balance;
+		assert!(claimed_amount > 0);
+		assert_eq!(claimed_amount, claimed_amount)
+	});
+
+	//We check if the same happens with normal omni trade
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_12();
+		let code =
+			ReferralCode::<<Runtime as pallet_referrals::Config>::CodeLength>::truncate_from(b"BALLS69".to_vec());
+		assert_ok!(Referrals::register_code(
+			RuntimeOrigin::signed(ALICE.into()),
+			code.clone()
+		));
+		assert_ok!(Referrals::link_code(RuntimeOrigin::signed(BOB.into()), code));
+
+		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
+
+		let old_balance = Currencies::free_balance(HDX, &ALICE.into());
+		//We do some trade to accrue some rewards
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DAI,
+			1_000_000_000_000,
+			0
+		));
+
+		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
+		assert!(pot_balance > 0);
+
+		//Act
+		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
+
+		let pot_balance = Currencies::free_balance(DAI, &Referrals::pot_account_id());
+		assert_eq!(pot_balance, 0);
+
+		//Assert that user receives claim amounts
+		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let claimed_amount = new_balance - old_balance;
+		assert!(claimed_amount > 0);
+		assert_eq!(claimed_amount, claimed_amount);
+	});
+}
+
 #[test]
 fn trading_hdx_in_omnipool_should_skip_referrals_program() {
 	Hydra::execute_with(|| {
