@@ -150,7 +150,7 @@ async function updateChainSpec(inputFile, outputFile) {
 
                 console.log(`✅ Updated ${key} → updatedAt: 0, blockNumber: 0`);
             } catch (err) {
-                console.error(`Error processing globalFarm for key ${key}:`, err);
+                console.error(`Error processing emaOracle for key ${key}:`, err);
             }
         }
         else if (key.startsWith("0xa1a851f6ddab88c23c6615f42a0062df8d84255c07d18453a739a171ac5cf629")) {
