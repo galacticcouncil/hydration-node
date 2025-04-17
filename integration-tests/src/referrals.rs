@@ -606,7 +606,6 @@ fn seed_pot_account() {
 }
 
 use pallet_broadcast::types::ExecutionType;
-use scraper::ALICE;
 use sp_core::crypto::Ss58Codec;
 
 pub const PARACHAIN_CODES: [(&str, &str); 12] = [

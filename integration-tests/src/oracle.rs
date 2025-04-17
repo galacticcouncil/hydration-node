@@ -44,7 +44,6 @@ use hydra_dx_math::ema::smoothing_from_period;
 use pallet_ema_oracle::into_smoothing;
 use pallet_ema_oracle::OracleError;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
-use scraper::ALICE;
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
