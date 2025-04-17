@@ -445,7 +445,7 @@ pub mod pallet {
 							T::HollarId::get(),
 							amount_in,
 							Balance::MAX,
-							&state,
+							state,
 						)?;
 						Ok((amount_in, collateral_amount))
 					},
@@ -528,7 +528,7 @@ pub mod pallet {
 						//we need to know how much hollar needs to be paid for given collateral amount
 						//so we simulate by selling exact collateral in
 						let hollar_amount =
-							Self::simulate_out_given_in(pool_id, asset_out, T::HollarId::get(), amount_out, 0, &state)?;
+							Self::simulate_out_given_in(pool_id, asset_out, T::HollarId::get(), amount_out, 0, state)?;
 						Ok((hollar_amount, amount_out))
 					},
 					|(_, collateral_amount), price| {
@@ -592,7 +592,7 @@ pub mod pallet {
 							T::HollarId::get(),
 							hollar_amount_to_trade,
 							Balance::MAX,
-							&state,
+							state,
 						)?;
 						Ok((hollar_amount_to_trade, collateral_amount))
 					},
