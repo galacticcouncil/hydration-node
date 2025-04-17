@@ -4,7 +4,7 @@ use hydra_dx_math::ratio::Ratio;
 use num_traits::SaturatingAdd;
 use num_traits::SaturatingMul;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{FixedPointNumber, FixedU128, Perbill, Permill};
 use sp_runtime::{Rounding, Saturating};
 
 /// Calculate purchase price for Hollar with collateral asset
@@ -56,8 +56,10 @@ pub fn calculate_buy_price_with_fee(execution_price: Price, buy_back_fee: Permil
 /// Calculate max buy price
 /// p_m = coefficient * peg
 pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> Price {
+	dbg!(peg);
+	dbg!(coefficient);
 	let peg_ratio: Ratio = peg.into();
-	let c_ratio: Ratio = coefficient.into();
+	let c_ratio: Ratio = (coefficient.into_inner(), FixedU128::DIV).into();
 	let result = peg_ratio.saturating_mul(&c_ratio);
 	(result.n, result.d)
 }
@@ -72,4 +74,11 @@ pub fn calculate_collateral_amount(hollar_amount: Balance, price: Price) -> Opti
 /// ΔH = ΔR_i / p_i
 pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: Price) -> Option<Balance> {
 	multiply_by_rational_with_rounding(collateral_amount, purchase_price.1, purchase_price.0, Rounding::Down)
+}
+
+use primitive_types::U128;
+pub fn enusure_max_price(buy_price: Price, max_price: Price) -> bool {
+	let buy_price_check = U128::from(buy_price.0).full_mul(U128::from(max_price.1));
+	let max_price_check = U128::from(buy_price.1).full_mul(U128::from(max_price.0));
+	buy_price_check <= max_price_check
 }

@@ -23,7 +23,7 @@ use frame_system::RawOrigin;
 use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{FixedU128, Perbill, Permill};
 
 const DECIMALS: u8 = 18;
 const ONE: Balance = 1_000_000_000_000_000_000;
@@ -43,7 +43,7 @@ benchmarks! {
 		let hollar = T::HollarId::get();
 		let (pool_id, assets) = seed_pool::<T>(hollar)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = ( 101, 100 );
+		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -59,7 +59,7 @@ benchmarks! {
 		let hollar = T::HollarId::get();
 		let (pool_id, assets) = seed_pool::<T>(hollar)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = (101, 100 );
+		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -86,7 +86,7 @@ benchmarks! {
 		let hollar = T::HollarId::get();
 		let (pool_id, assets) = seed_pool::<T>(hollar)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = ( 101, 100 );
+		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -107,7 +107,7 @@ benchmarks! {
 
 		// New values
 		let new_purchase_fee = Some(Permill::from_percent(2));
-		let new_max_buy_price_coefficient = Some((102, 100 ));
+		let new_max_buy_price_coefficient = Some(FixedU128::from_rational(102, 100));
 		let new_buy_back_fee = Some(Permill::from_percent(2));
 		let new_b = Some(Perbill::from_percent(60));
 		let new_max_in_holding = Some(Some(20_000 * ONE));
@@ -115,7 +115,7 @@ benchmarks! {
 	verify {
 		let info = Collaterals::<T>::get(collateral).unwrap();
 		assert_eq!(info.purchase_fee, Permill::from_percent(2));
-		assert_eq!(info.max_buy_price_coefficient, (102,100));
+		assert_eq!(info.max_buy_price_coefficient, FixedU128::from_rational(102, 100));
 		assert_eq!(info.buy_back_fee, Permill::from_percent(2));
 		assert_eq!(info.buyback_rate, Perbill::from_percent(60));
 		assert_eq!(info.max_in_holding, Some(20_000 * ONE));
@@ -126,7 +126,7 @@ benchmarks! {
 		let hollar = T::HollarId::get();
 		let (pool_id, assets) = seed_pool::<T>(hollar)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = (101, 100 );
+		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -172,7 +172,7 @@ benchmarks! {
 		let hollar = T::HollarId::get();
 		let (pool_id, assets) = seed_pool::<T>(hollar)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = (111, 100 );
+		let max_buy_price_coefficient = FixedU128::from_rational(111, 100);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -213,7 +213,7 @@ benchmarks! {
 		let hollar = T::HollarId::get();
 		let (pool_id, assets) = seed_pool::<T>(hollar)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = (110, 100 );
+		let max_buy_price_coefficient = FixedU128::from_rational(110, 100);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = None; // No limit for arbitrage test

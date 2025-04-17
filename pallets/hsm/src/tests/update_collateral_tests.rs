@@ -19,8 +19,9 @@ use crate::tests::mock::*;
 use crate::{CollateralInfo, Collaterals, Error};
 use frame_support::{assert_err, assert_ok};
 use hydradx_traits::stableswap::AssetAmount;
+use num_traits::One;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{FixedU128, Perbill, Permill};
 
 #[test]
 fn update_collateral_asset_works() {
@@ -51,7 +52,7 @@ fn update_collateral_asset_works() {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			(110, 100), // 110% as a ratio
+			FixedU128::from_rational(110, 100), // 110% as a ratio
 			Permill::from_percent(1),
 		)
 		.build()
@@ -74,7 +75,7 @@ fn update_collateral_asset_works() {
 				CollateralInfo {
 					pool_id: 100,
 					purchase_fee: Permill::from_percent(2), // Updated
-					max_buy_price_coefficient: (110, 100),
+					max_buy_price_coefficient: FixedU128::from_rational(110, 100),
 					buy_back_fee: Permill::from_percent(1),
 					buyback_rate: Perbill::from_percent(50), // Default from mock builder
 					max_in_holding: None,
@@ -86,7 +87,7 @@ fn update_collateral_asset_works() {
 				RuntimeOrigin::root(),
 				DAI,
 				None,
-				Some((120, 100)), // 120% as a ratio
+				Some(FixedU128::from_rational(120, 100)), // 120% as a ratio
 				Some(Permill::from_percent(2)),
 				Some(Perbill::from_percent(15)),
 				Some(Some(2_000_000 * ONE)),
@@ -99,10 +100,10 @@ fn update_collateral_asset_works() {
 				CollateralInfo {
 					pool_id: 100,
 					purchase_fee: Permill::from_percent(2),
-					max_buy_price_coefficient: (120, 100),   // Updated
-					buy_back_fee: Permill::from_percent(2),  // Updated
-					buyback_rate: Perbill::from_percent(15), // Updated
-					max_in_holding: Some(2_000_000 * ONE),   // Updated
+					max_buy_price_coefficient: FixedU128::from_rational(120, 100), // Updated
+					buy_back_fee: Permill::from_percent(2),                        // Updated
+					buyback_rate: Perbill::from_percent(15),                       // Updated
+					max_in_holding: Some(2_000_000 * ONE),                         // Updated
 				}
 			);
 
@@ -126,7 +127,7 @@ fn update_collateral_asset_works() {
 				RuntimeOrigin::root(),
 				DAI,
 				None,
-				Some((200, 100)), // 200% as a ratio (greater than 100%)
+				Some(FixedU128::from_rational(200, 100)), // 200% as a ratio (greater than 100%)
 				None,
 				None,
 				None,
@@ -134,7 +135,7 @@ fn update_collateral_asset_works() {
 
 			// Check the ratio was updated correctly
 			let collateral = Collaterals::<Test>::get(DAI).unwrap();
-			assert_eq!(collateral.max_buy_price_coefficient, (200, 100));
+			assert_eq!(collateral.max_buy_price_coefficient, FixedU128::from_rational(200, 100));
 		});
 }
 
@@ -167,7 +168,7 @@ fn update_collateral_asset_fails_for_non_existent_asset() {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			(110, 100), // 110% as a ratio
+			FixedU128::from_rational(110, 100), // 110% as a ratio
 			Permill::from_percent(1),
 		)
 		.build()
@@ -217,7 +218,7 @@ fn update_collateral_asset_fails_for_non_root() {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			(110, 100), // 110% as a ratio
+			FixedU128::from_rational(110, 100), // 110% as a ratio
 			Permill::from_percent(1),
 		)
 		.build()
@@ -267,7 +268,7 @@ fn update_collateral_asset_with_no_changes_works() {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			(110, 100), // 110% as a ratio
+			FixedU128::from_rational(110, 100), // 110% as a ratio
 			Permill::from_percent(1),
 		)
 		.build()

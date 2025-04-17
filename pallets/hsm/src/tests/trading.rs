@@ -17,10 +17,11 @@
 
 use frame_support::{assert_ok, traits::Hooks};
 use hydradx_traits::stableswap::AssetAmount;
+use num_traits::One;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::Permill;
+use sp_runtime::{FixedU128, Permill};
 
 use crate::tests::mock::*;
 
@@ -59,7 +60,7 @@ fn setup_test_for_comparison() -> sp_io::TestExternalities {
 			DAI,
 			100,
 			Permill::from_percent(0), // purchase_fee
-			(100, 100),               // max_buy_price_coefficient
+			FixedU128::one(),         // max_buy_price_coefficient
 			Permill::from_percent(0), // buy_back_fee
 		)
 		.build()

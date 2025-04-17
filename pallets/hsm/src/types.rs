@@ -7,7 +7,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use evm::ExitReason;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{FixedU128, Perbill, Permill};
 use sp_std::vec::Vec;
 
 /// Type for EVM call result
@@ -20,7 +20,7 @@ pub type PegType = (Balance, Balance);
 
 pub type Price = PegType;
 
-pub type CoefficientRatio = (Balance, Balance); //TODO: consider FixedU128??!
+pub type CoefficientRatio = FixedU128;
 
 /// Information about a collateral asset
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -31,7 +31,6 @@ pub struct CollateralInfo<AssetId> {
 	/// Purchase fee applied when buying Hollar with this asset
 	pub purchase_fee: Permill,
 	/// Maximum buy price coefficient - max buy price coefficient for HSM to buy back Hollar
-	/// Represented as a ratio (numerator, denominator)
 	pub max_buy_price_coefficient: CoefficientRatio,
 	/// Parameter that controls how quickly HSM can buy Hollar with this asset
 	pub buyback_rate: Perbill,

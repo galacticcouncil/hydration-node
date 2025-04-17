@@ -1,10 +1,11 @@
 use crate::tests::mock::*;
 use frame_support::assert_ok;
 use hydradx_traits::stableswap::AssetAmount;
+use num_traits::One;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{FixedU128, Perbill, Permill};
 
 #[test]
 fn arbitrage_should_work() {
@@ -37,7 +38,7 @@ fn arbitrage_should_work() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_float(0.),
 			Perbill::from_percent(10),
 		)

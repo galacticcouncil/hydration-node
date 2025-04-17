@@ -20,7 +20,9 @@ use crate::types::CollateralInfo;
 use crate::{Collaterals, Error};
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
 use hydradx_traits::stableswap::AssetAmount;
+use num_traits::One;
 use pallet_stableswap::types::PegSource;
+use sp_runtime::FixedU128;
 use sp_runtime::{Perbill, Permill};
 
 #[test]
@@ -57,7 +59,7 @@ fn add_collateral_asset_works() {
 				DAI,
 				100, // pool id
 				Permill::from_percent(1),
-				(100, 100),
+				FixedU128::one(),
 				Permill::from_percent(1),
 				Perbill::from_percent(10),
 				Some(1_000_000 * ONE),
@@ -70,7 +72,7 @@ fn add_collateral_asset_works() {
 				CollateralInfo {
 					pool_id: 100,
 					purchase_fee: Permill::from_percent(1),
-					max_buy_price_coefficient: (100, 100),
+					max_buy_price_coefficient: FixedU128::one(),
 					buy_back_fee: Permill::from_percent(1),
 					buyback_rate: Perbill::from_percent(10),
 					max_in_holding: Some(1_000_000 * ONE),
@@ -113,7 +115,7 @@ fn add_collateral_asset_requires_sudo() {
 					DAI,
 					100,
 					Permill::from_percent(1),
-					(100, 100),
+					FixedU128::one(),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),
@@ -148,7 +150,13 @@ fn add_collateral_asset_fails_when_asset_already_approved() {
 				},
 			],
 		)
-		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
 		.build()
 		.execute_with(|| {
 			// Try to add DAI as collateral again
@@ -158,7 +166,7 @@ fn add_collateral_asset_fails_when_asset_already_approved() {
 					DAI,
 					100,
 					Permill::from_percent(1),
-					(100, 100),
+					FixedU128::one(),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),
@@ -201,7 +209,13 @@ fn add_collateral_asset_fails_when_pool_already_has_collateral() {
 				},
 			],
 		)
-		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
 		.build()
 		.execute_with(|| {
 			// Try to add USDC as collateral from the same pool
@@ -211,7 +225,7 @@ fn add_collateral_asset_fails_when_pool_already_has_collateral() {
 					USDC,
 					100,
 					Permill::from_percent(1),
-					(100, 100),
+					FixedU128::one(),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),
@@ -255,7 +269,7 @@ fn add_collateral_asset_fails_when_asset_not_in_pool() {
 					USDC,
 					100,
 					Permill::from_percent(1),
-					(100, 100),
+					FixedU128::one(),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),
@@ -299,7 +313,7 @@ fn add_collateral_asset_fails_when_hollar_not_in_pool() {
 					DAI,
 					100,
 					Permill::from_percent(1),
-					(100, 100),
+					FixedU128::one(),
 					Permill::from_percent(1),
 					Perbill::from_percent(10),
 					Some(1_000_000 * ONE),

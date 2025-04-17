@@ -749,11 +749,10 @@ where
 
 		// 6. Calculate max price
 		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
-		// Check if price exceeds max price - compare the ratios
-		// For (a,b) <= (c,d), we check a*d <= b*c
-		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
-		let max_price_check = buy_price.1.saturating_mul(max_price.0);
-		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
+		ensure!(
+			math::enusure_max_price(buy_price, max_price),
+			Error::<T>::MaxBuyPriceExceeded
+		);
 
 		// Check HSM has enough collateral
 		let current_holding = <T as Config>::Currency::balance(collateral_asset, &Self::account_id());
@@ -828,7 +827,6 @@ where
 	}
 
 	/// Mint Hollar by calling the GHO token contract
-	#[require_transactional]
 	fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
 		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
 			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
@@ -856,7 +854,6 @@ where
 	}
 
 	/// Burn Hollar by calling the GHO token contract
-	#[require_transactional]
 	fn burn_hollar(amount: Balance) -> DispatchResult {
 		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
 			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
@@ -1050,10 +1047,10 @@ where
 		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 
 		// Check if price exceeds max price - compare the ratios
-		// For (a,b) <= (c,d), we check a*d <= b*c
-		let buy_price_check = buy_price.0.saturating_mul(max_price.1);
-		let max_price_check = buy_price.1.saturating_mul(max_price.0);
-		ensure!(buy_price_check <= max_price_check, Error::<T>::MaxBuyPriceExceeded);
+		ensure!(
+			math::enusure_max_price(buy_price, max_price),
+			Error::<T>::MaxBuyPriceExceeded
+		);
 
 		// Calculate the amount of Hollar to trade
 		// max_buy_amt = min(max_buy_amt, self.liquidity[tkn] / buy_price)

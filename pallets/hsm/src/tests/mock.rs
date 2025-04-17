@@ -43,7 +43,6 @@ use hydradx_traits::{AccountIdFor, Liquidity, OraclePeriod, RawEntry, RawOracle,
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::{BoundedPegSources, PegSource, PegType};
-use pallet_stableswap::BenchmarkHelper;
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
 use sp_runtime::{BoundedVec, DispatchResult, Perbill};
@@ -711,7 +710,7 @@ pub fn default_peg() -> PegSource<AssetId> {
 pub struct MockStableswapBenchmarkHelper;
 
 #[cfg(feature = "runtime-benchmarks")]
-impl BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
+impl pallet_stableswap::BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
 	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
 		REGISTERED_ASSETS.with(|v| {
 			v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
@@ -727,6 +726,7 @@ impl BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
 #[cfg(feature = "runtime-benchmarks")]
 pub struct MockHSMBenchmarkHelper;
 
+#[cfg(feature = "runtime-benchmarks")]
 impl traits::BenchmarkHelper<AccountId> for MockHSMBenchmarkHelper {
 	fn bind_address(account: AccountId) -> DispatchResult {
 		let evm_addr = EvmAddress::from_slice(&account.as_slice()[0..20]);

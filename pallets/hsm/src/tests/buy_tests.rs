@@ -19,9 +19,10 @@ use frame_support::traits::Hooks;
 use frame_support::{assert_err, assert_ok};
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
+use num_traits::One;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{FixedU128, Perbill, Permill};
 
 // Setup helper to create a test environment with DAI as collateral
 fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
@@ -58,7 +59,7 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			(104, 100), // 100% coefficient as a ratio (1.0)
+			FixedU128::from_rational(104, 100), // 100% coefficient as a ratio (1.0)
 			Permill::from_percent(1),
 		)
 		.build()
@@ -289,7 +290,7 @@ fn buy_collateral_with_max_buy_price_exceeded_fails() {
 			RuntimeOrigin::root(),
 			DAI,
 			None,
-			Some((1, 100)), // 1/100 = 1% ratio to force max buy price failure
+			Some(FixedU128::from_rational(1, 100)), // 1/100 = 1% ratio to force max buy price failure
 			None,
 			None,
 			None,
@@ -401,7 +402,7 @@ fn buy_purchase_zero_fee_works() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_percent(0),
 		)
 		.build()
@@ -475,7 +476,7 @@ fn buy_one_hollar_works_when_purchase_nonzero_fee() {
 			DAI,
 			pool_id,
 			Permill::from_percent(1),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_percent(0),
 		)
 		.build()
@@ -549,7 +550,7 @@ fn buy_purchase_nonzero_fee_works() {
 			DAI,
 			pool_id,
 			Permill::from_percent(1),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_percent(0),
 		)
 		.build()
@@ -626,7 +627,7 @@ fn buy_collateral_works_when_buy_fee_is_zero() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_percent(0),
 		)
 		.build()
@@ -684,7 +685,7 @@ fn buy_collateral_works_when_buy_fee_is_nonzero() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_float(0.001),
 		)
 		.build()

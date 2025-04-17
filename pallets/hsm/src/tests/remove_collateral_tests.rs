@@ -19,10 +19,11 @@ use crate::tests::mock::*;
 use crate::{Collaterals, Error};
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
 use hydradx_traits::stableswap::AssetAmount;
+use num_traits::One;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::Permill;
+use sp_runtime::{FixedU128, Permill};
 
 #[test]
 fn remove_collateral_asset_works() {
@@ -49,7 +50,13 @@ fn remove_collateral_asset_works() {
 				},
 			],
 		)
-		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
 		.build()
 		.execute_with(|| {
 			// Remove DAI as collateral
@@ -85,7 +92,13 @@ fn remove_collateral_asset_requires_sudo() {
 				},
 			],
 		)
-		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
 		.build()
 		.execute_with(|| {
 			// Attempt to remove collateral as ALICE (not sudo)
@@ -121,7 +134,13 @@ fn remove_collateral_asset_fails_when_asset_not_approved() {
 				},
 			],
 		)
-		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
 		.build()
 		.execute_with(|| {
 			// Try to remove USDC which is not a collateral
@@ -157,7 +176,13 @@ fn remove_collateral_asset_fails_when_collateral_not_empty() {
 				},
 			],
 		)
-		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
 		.build()
 		.execute_with(|| {
 			// Set some collateral holdings
@@ -196,7 +221,13 @@ fn remove_collateral_asset_works_with_zero_holdings() {
 				},
 			],
 		)
-		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
 		.build()
 		.execute_with(|| {
 			// Explicitly set collateral holdings to zero

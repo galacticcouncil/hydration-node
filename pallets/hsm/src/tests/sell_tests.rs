@@ -21,8 +21,10 @@ use frame_support::traits::Hooks;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
+use num_traits::One;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_stableswap::types::PegSource;
+use sp_runtime::FixedU128;
 use sp_runtime::{Perbill, Permill};
 
 // Setup helper to create a test environment with DAI as collateral
@@ -57,7 +59,13 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 				},
 			],
 		)
-		.with_collateral(DAI, 100, Permill::from_percent(1), (100, 100), Permill::from_percent(1))
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
 		.build()
 }
 
@@ -273,7 +281,7 @@ fn sell_hollar_with_max_buy_price_exceeded_fails() {
 			RuntimeOrigin::root(),
 			DAI,
 			None,
-			Some((90, 100)),
+			Some(FixedU128::from_rational(90, 100)),
 			None,
 			None,
 			Some(Some(10 * ONE)), // Set max holding to a low value
@@ -359,7 +367,7 @@ fn sell_purchase_zero_fee_works() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_percent(0),
 		)
 		.build()
@@ -430,7 +438,7 @@ fn sell_purchase_nonzero_fee_works() {
 			DAI,
 			pool_id,
 			Permill::from_percent(1),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_percent(0),
 		)
 		.build()
@@ -499,7 +507,7 @@ fn sell_hollar_zero_fee_works() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_percent(0),
 			Perbill::from_percent(75),
 		)
@@ -574,7 +582,7 @@ fn sell_hollar_nonzero_fee_works() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_float(0.001),
 			Perbill::from_percent(75),
 		)
@@ -649,7 +657,7 @@ fn sell_hollar_fail_when_buyback_limit_exceeded() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_percent(0),
 			Perbill::from_percent(50),
 		)
@@ -711,7 +719,7 @@ fn sell_hollar_nonzero_fee_should_fail_when_max_price_exceeded() {
 			DAI,
 			pool_id,
 			Permill::from_percent(0),
-			(100, 100),
+			FixedU128::one(),
 			Permill::from_float(0.001),
 			Perbill::from_percent(75),
 		)
