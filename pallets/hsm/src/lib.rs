@@ -462,11 +462,12 @@ pub mod pallet {
 				collateral_out
 			} else {
 				// HOLLAR OUT given COLLATERAL IN
-				let (hollar_amount, _) = Self::do_hollar_out(&who, asset_in, |purchase_price| {
+				let (hollar_amount, collateral_amount) = Self::do_hollar_out(&who, asset_in, |purchase_price| {
 					let hollar_amount =
 						math::calculate_hollar_amount(amount_in, purchase_price).ok_or(ArithmeticError::Overflow)?;
 					Ok((hollar_amount, amount_in))
 				})?;
+				debug_assert_eq!(amount_in, collateral_amount);
 				hollar_amount
 			};
 
@@ -513,15 +514,16 @@ pub mod pallet {
 
 			let amount_in = if asset_out == hollar_id {
 				// COLLATERAL IN given HOLLAR OUT
-				let (_, collateral_in) = Self::do_hollar_out(&who, asset_in, |purchase_price| {
+				let (hollar_out, collateral_in) = Self::do_hollar_out(&who, asset_in, |purchase_price| {
 					let collateral_amount = math::calculate_collateral_amount(amount_out, purchase_price)
 						.ok_or(ArithmeticError::Overflow)?;
 					Ok((amount_out, collateral_amount))
 				})?;
+				debug_assert_eq!(hollar_out, amount_out);
 				collateral_in
 			} else {
 				// HOLLAR IN given COLLATERAL OUT
-				let (hollar_in, _) = Self::do_hollar_in(
+				let (hollar_in, collateral_out) = Self::do_hollar_in(
 					&who,
 					asset_out,
 					|pool_id, state| {
@@ -538,6 +540,7 @@ pub mod pallet {
 					},
 				)?;
 
+				debug_assert_eq!(amount_out, collateral_out);
 				hollar_in
 			};
 
