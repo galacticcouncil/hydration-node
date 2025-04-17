@@ -98,13 +98,13 @@ impl ScheduleBuilder {
 	}
 }
 
-pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
+pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<9>> {
+	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<9>> = trades.try_into().unwrap();
 	bounded_vec
 }
 
-pub fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
-	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
+pub fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<9>> {
+	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<9>> = schedule_ids.try_into().unwrap();
 	bounded_vec
 }
 #[macro_export]

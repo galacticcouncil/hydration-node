@@ -67,6 +67,23 @@ fn add_oracle_should_add_entry_to_storage() {
 }
 
 #[test]
+fn successful_oracle_update_shouldnt_pay_fee() {
+	new_test_ext().execute_with(|| {
+		//Arrange
+		let hdx =
+			polkadot_xcm::v3::MultiLocation::new(0, polkadot_xcm::v3::Junctions::X1(GeneralIndex(0))).into_versioned();
+		let dot = polkadot_xcm::v3::MultiLocation::parent().into_versioned();
+
+		//Act
+		let res =
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 99));
+
+		// Assert
+		assert_eq!(res, Ok(Pays::No.into()));
+	});
+}
+
+#[test]
 fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 	new_test_ext().execute_with(|| {
 		//Arrange
