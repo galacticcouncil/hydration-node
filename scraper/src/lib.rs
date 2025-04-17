@@ -145,7 +145,7 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 	storage_map.insert(code_key.to_vec(), wasm_code.0);
 
 	println!("Reading all storage key-value pairs remotely");
-	let all_pairs = fetch_all_storage(uri)
+	let all_pairs = fetch_all_storage(uri, at)
 		.await
 		.map_err(|_| "Failed to fetch storage")
 		.unwrap();
@@ -183,7 +183,7 @@ const ESTIMATED_TOTAL_KEYS: u64 = 350_000;
 // Loading the SNAPSHOT or getting raw storage entries don't help as the keys contain additional hashing data,
 // so the keys are difficult to be cleaned up by trimming
 // StateApi call performances needed to be improved by using concurrency
-pub async fn fetch_all_storage(uri: String) -> Result<Vec<(StorageKey, StorageData)>, &'static str> {
+pub async fn fetch_all_storage(uri: String, at: Option<H256>) -> Result<Vec<(StorageKey, StorageData)>, &'static str> {
 	let rpc = Arc::new(ws_client(uri).await.map_err(|_| "Failed to create RPC client")?);
 
 	let mut all_pairs = Vec::new();
@@ -198,7 +198,7 @@ pub async fn fetch_all_storage(uri: String) -> Result<Vec<(StorageKey, StorageDa
 
 	loop {
 		let keys =
-			StateApi::<H256>::storage_keys_paged(&*rpc, Some(StorageKey(vec![])), PAGE_SIZE, start_key.clone(), None)
+			StateApi::<H256>::storage_keys_paged(&*rpc, Some(StorageKey(vec![])), PAGE_SIZE, start_key.clone(), at)
 				.await
 				.map_err(|_| "Failed to get keys")?;
 
@@ -210,7 +210,7 @@ pub async fn fetch_all_storage(uri: String) -> Result<Vec<(StorageKey, StorageDa
 			.map(|key| {
 				let rpc = Arc::clone(&rpc);
 				async move {
-					let value = StateApi::<H256>::storage(&*rpc, key.clone(), None)
+					let value = StateApi::<H256>::storage(&*rpc, key.clone(), at)
 						.await
 						.unwrap_or(Some(StorageData(vec![])));
 					(key, value.unwrap())
