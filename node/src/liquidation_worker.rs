@@ -6,16 +6,11 @@ use frame_support::__private::sp_tracing::tracing;
 use futures::{future::ready, StreamExt};
 use hex_literal::hex;
 use hydradx_runtime::{evm::precompiles::erc20_mapping::HydraErc20Mapping, Block, Runtime, RuntimeCall};
-use hydradx_traits::{
-	evm::{Erc20Mapping, EvmAddress},
-};
+use hydradx_traits::evm::{Erc20Mapping, EvmAddress};
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use pallet_ethereum::Transaction;
-use pallet_liquidation::{
-	offchain_worker::*,
-	BorrowerData, BorrowerDataDetails, MAX_LIQUIDATIONS,
-};
+use pallet_liquidation::{offchain_worker::*, BorrowerData, BorrowerDataDetails, MAX_LIQUIDATIONS};
 use parking_lot::Mutex;
 use polkadot_primitives::EncodeAs;
 use primitives::AccountId;
@@ -26,10 +21,7 @@ use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
 use sp_core::{RuntimeDebug, H160, H256};
 use sp_offchain::OffchainWorkerApi;
-use sp_runtime::{
-	traits::Header,
-	transaction_validity::TransactionSource,
-};
+use sp_runtime::{traits::Header, transaction_validity::TransactionSource};
 use std::{cmp::Ordering, marker::PhantomData, sync::Arc};
 use threadpool::ThreadPool;
 
@@ -393,8 +385,6 @@ where
 		thread_pool.lock().execute(f);
 	}
 
-
-
 	/// Check if the provided transaction is valid DIA oracle update.
 	fn verify_oracle_update_transaction(
 		transaction: sp_runtime::generic::UncheckedExtrinsic<
@@ -411,7 +401,7 @@ where
 					if call_address == ORACLE_UPDATE_CALL_ADDRESS {
 						// additional check to prevent running the worker for DIA oracle updates signed by invalid address
 						if verify_signer(&transaction, ORACLE_UPDATE_CALLER) {
-								return Some(transaction);
+							return Some(transaction);
 						};
 					};
 				};
@@ -441,13 +431,13 @@ fn dummy_dia_tx_single_value() -> Transaction {
 				0000000000000000000000000000000000000000000000000000000000000008\
 				744254432f555344000000000000000000000000000000000000000000000000"
 		)
-			.encode_as(),
+		.encode_as(),
 		signature: ethereum::TransactionSignature::new(
 			444480,
 			H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 			H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 		)
-			.unwrap(),
+		.unwrap(),
 	})
 }
 
@@ -527,9 +517,13 @@ pub fn parse_oracle_transaction(eth_tx: Transaction) -> Option<Vec<OracleUpdataD
 			],
 			&legacy_transaction.input[4..], // first 4 bytes are function selector
 		)
-			.ok()?;
+		.ok()?;
 
-		dia_oracle_data.push((decoded[0].clone().into_string()?, decoded[1].clone().into_uint()?, decoded[2].clone().into_uint()?));
+		dia_oracle_data.push((
+			decoded[0].clone().into_string()?,
+			decoded[1].clone().into_uint()?,
+			decoded[2].clone().into_uint()?,
+		));
 	}
 	// setMultipleValues
 	else if fn_selector == hex!("8d241526") {
@@ -540,7 +534,7 @@ pub fn parse_oracle_transaction(eth_tx: Transaction) -> Option<Vec<OracleUpdataD
 			],
 			&legacy_transaction.input[4..], // first 4 bytes are function selector
 		)
-			.ok()?;
+		.ok()?;
 
 		if decoded.len() == 2 {
 			for (asset_str, price_and_timestamp) in sp_std::iter::zip(
@@ -554,7 +548,6 @@ pub fn parse_oracle_transaction(eth_tx: Transaction) -> Option<Vec<OracleUpdataD
 			}
 		};
 	}
-
 
 	let mut result = Vec::new();
 	for (asset_str, price, timestamp) in dia_oracle_data.iter() {
@@ -588,14 +581,12 @@ pub fn parse_oracle_transaction(eth_tx: Transaction) -> Option<Vec<OracleUpdataD
 fn parse_oracle_transaction_should_work() {
 	// set single value
 	let tx = dummy_dia_tx_single_value();
-	let expected = vec![
-		OracleUpdataData::new(
-			"tBTC".as_bytes().to_vec(),
-			"USD".as_bytes().to_vec(),
-			U256::from(8461182308381u128),
-			U256::from(1744644693u128),
-		),
-	];
+	let expected = vec![OracleUpdataData::new(
+		"tBTC".as_bytes().to_vec(),
+		"USD".as_bytes().to_vec(),
+		U256::from(8461182308381u128),
+		U256::from(1744644693u128),
+	)];
 	assert_eq!(expected, parse_oracle_transaction(tx).unwrap());
 
 	// set multiple values

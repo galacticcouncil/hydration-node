@@ -3,13 +3,13 @@
 
 pub use crate::tests::mock::*;
 use ethabi::ethereum_types::{H160, H256, U256};
+use ethereum::{TransactionAction, TransactionSignature};
 use frame_support::assert_ok;
 use frame_support::traits::Hooks;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
 use pallet_ethereum::Transaction;
 use polkadot_primitives::EncodeAs;
-use ethereum::{TransactionAction, TransactionSignature};
 use rlp::RlpStream;
 use sp_core::crypto::AccountId32;
 use sp_core::hashing::keccak_256;
@@ -60,7 +60,6 @@ fn create_transaction(account: &AccountInfo) -> Transaction {
 pub fn create_legacy_transaction(account: &AccountInfo) -> Transaction {
 	create_unsigned_legacy_transaction().sign(&account.private_key)
 }
-
 
 pub struct AccountInfo {
 	// pub address: H160,

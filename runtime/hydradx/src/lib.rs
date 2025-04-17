@@ -402,9 +402,14 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 					if let pallet_ethereum::Transaction::Legacy(legacy) = transaction {
 						// check if the transaction is DIA oracle update
 						if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
-							if call_address == H160::from_slice(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice()) {
+							if call_address
+								== H160::from_slice(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice())
+							{
 								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-								if pallet_liquidation::offchain_worker::verify_signer(&transaction,  H160::from_slice(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice())) {
+								if pallet_liquidation::offchain_worker::verify_signer(
+									&transaction,
+									H160::from_slice(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice()),
+								) {
 									if let Some(ref mut validity_info) = tx_validity {
 										if let Ok(ref mut validity) = validity_info {
 											validity.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;

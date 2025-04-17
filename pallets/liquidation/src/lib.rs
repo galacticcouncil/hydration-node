@@ -37,12 +37,7 @@ use frame_support::{
 	traits::tokens::{Fortitude, Precision, Preservation},
 	PalletId,
 };
-use frame_system::{
-	ensure_signed,
-	offchain::SendTransactionTypes,
-	pallet_prelude::OriginFor,
-	RawOrigin,
-};
+use frame_system::{ensure_signed, offchain::SendTransactionTypes, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::{
 	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},

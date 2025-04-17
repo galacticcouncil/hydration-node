@@ -48,8 +48,8 @@ pub mod offchain_worker {
 	use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
 	use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
 	use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
-	use pallet_ethereum::Transaction;
 	use hydradx_traits::evm::EvmAddress;
+	use pallet_ethereum::Transaction;
 	use sp_core::{H256, U256};
 	use sp_std::{boxed::Box, ops::BitAnd};
 
@@ -524,7 +524,8 @@ pub mod offchain_worker {
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
 		{
 			let (collateral_address, _) = self.get_collateral_and_debt_addresses();
-			let scaled_balance = BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(collateral_address, user, caller)?;
+			let scaled_balance =
+				BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(collateral_address, user, caller)?;
 			let normalized_income = self.get_normalized_income(current_timestamp)?;
 
 			ray_mul(scaled_balance, normalized_income)?
@@ -586,13 +587,18 @@ pub mod offchain_worker {
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
 		{
 			let (_, (stable_debt_address, variable_debt_address)) = self.get_collateral_and_debt_addresses();
-			let mut total_debt = BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(variable_debt_address, user, caller)?;
+			let mut total_debt =
+				BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(variable_debt_address, user, caller)?;
 			if !total_debt.is_zero() {
 				let normalized_debt = self.get_normalized_debt(current_timestamp)?;
 				total_debt = ray_mul(total_debt, normalized_debt)?;
 			}
 
-			total_debt = total_debt.checked_add(BalanceOf::<Block, Runtime>::fetch_balance_of(stable_debt_address, user, caller)?)?;
+			total_debt = total_debt.checked_add(BalanceOf::<Block, Runtime>::fetch_balance_of(
+				stable_debt_address,
+				user,
+				caller,
+			)?)?;
 
 			total_debt
 				.checked_mul(self.price)?
@@ -745,7 +751,11 @@ pub mod offchain_worker {
 		}
 
 		/// Calls Runtime API.
-		fn fetch_reserve_data(mm_pool: EvmAddress, asset_address: EvmAddress, caller: EvmAddress) -> Option<ReserveData> {
+		fn fetch_reserve_data(
+			mm_pool: EvmAddress,
+			asset_address: EvmAddress,
+			caller: EvmAddress,
+		) -> Option<ReserveData> {
 			let mut data = Into::<u32>::into(Function::GetReserveData).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(asset_address).as_bytes());
 
@@ -851,7 +861,10 @@ pub mod offchain_worker {
 		}
 
 		pub fn get_asset_address(&self, asset_str: &str) -> Option<EvmAddress> {
-			let reserve_index = self.reserves().iter().position(|x| x.symbol == asset_str.as_bytes().to_vec())?;
+			let reserve_index = self
+				.reserves()
+				.iter()
+				.position(|x| x.symbol == asset_str.as_bytes().to_vec())?;
 			Some(self.reserves[reserve_index].asset_address)
 		}
 
@@ -948,7 +961,9 @@ pub mod offchain_worker {
 				.full_mul(target_health_factor)
 				.checked_div(unit_price.into())?
 				.checked_sub(weighted_total_collateral.into())?
-				.checked_mul(unit_price.into())?.try_into().ok()?;
+				.checked_mul(unit_price.into())?
+				.try_into()
+				.ok()?;
 
 			let d: U256 = percentage_factor
 				.full_mul(target_health_factor)
@@ -957,7 +972,9 @@ pub mod offchain_worker {
 					liquidation_bonus
 						.full_mul(collateral_liquidation_threshold.into())
 						.checked_div(percentage_factor.into())?,
-				)?.try_into().ok()?;
+				)?
+				.try_into()
+				.ok()?;
 
 			log::info!("\n-- - - \nn: {:?}\nd: {:?}", n, d);
 			let d = percent_mul(debt_price, d)?;
@@ -965,7 +982,11 @@ pub mod offchain_worker {
 			let debt_to_liquidate = n.checked_div(d)?;
 			log::info!("\nd: {:?}\ndtl: {:?}", d, debt_to_liquidate);
 
-			let total_debt: U256 = total_debt_in_base.full_mul(U256::from(10u128.pow(debt_decimals.into()))).checked_div(debt_price.into())?.try_into().ok()?;
+			let total_debt: U256 = total_debt_in_base
+				.full_mul(U256::from(10u128.pow(debt_decimals.into())))
+				.checked_div(debt_price.into())?
+				.try_into()
+				.ok()?;
 
 			// Our calculation provides theoretical amount that needs to be liquidated to get the HF close to `target_health_factor`.
 			// But there is no guarantee that user has required amount of debt and collateral assets.
@@ -980,7 +1001,11 @@ pub mod offchain_worker {
 			.into();
 
 			// in debt asset
-			user_debt_amount = user_debt_amount.full_mul(U256::from(10u128.pow(debt_decimals.into()))).checked_div(debt_price.into())?.try_into().ok()?;
+			user_debt_amount = user_debt_amount
+				.full_mul(U256::from(10u128.pow(debt_decimals.into())))
+				.checked_div(debt_price.into())?
+				.try_into()
+				.ok()?;
 
 			// Calculate max debt that can be liquidated. Max amount is affected by the close factor and user's total debt amount.
 			let max_liquidatable_debt = percent_mul(user_debt_amount, close_factor)?;

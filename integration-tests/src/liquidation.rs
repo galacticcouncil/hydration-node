@@ -902,7 +902,8 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 
 		// get Pool contract address
 		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(pap_contract, alice_evm_address).unwrap();
-		let oracle_contract = MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
+		let oracle_contract =
+			MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -931,16 +932,26 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 		hydradx_run_to_next_block();
 
 		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap() + primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
+		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap()
+			+ primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
 
 		let weth_address = money_market_data.get_asset_address("WETH").unwrap();
 		let new_price = get_oracle_price("WETH/USD").0.as_u128() / 3;
 		let dot_address = money_market_data.get_asset_address("DOT").unwrap();
 		money_market_data.update_reserve_price(weth_address, new_price.into());
 
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
-		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) = money_market_data.calculate_debt_to_liquidate(&user_data, target_health_factor, weth_address, dot_address).unwrap();
+		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) =
+			money_market_data
+				.calculate_debt_to_liquidate(&user_data, target_health_factor, weth_address, dot_address)
+				.unwrap();
 
 		// update WETH price
 		let (price, timestamp) = get_oracle_price("WETH/USD");
@@ -954,22 +965,44 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 		assert!(usr_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
 
-		let weth_reserve = money_market_data.reserves().iter().find(|x| x.asset_address() == weth_address).unwrap();
-		let collateral_reserve = weth_reserve.get_user_collateral_in_base_currency::<Block, Runtime>(user_data.address(), current_evm_timestamp, alice_evm_address).unwrap();
+		let weth_reserve = money_market_data
+			.reserves()
+			.iter()
+			.find(|x| x.asset_address() == weth_address)
+			.unwrap();
+		let collateral_reserve = weth_reserve
+			.get_user_collateral_in_base_currency::<Block, Runtime>(
+				user_data.address(),
+				current_evm_timestamp,
+				alice_evm_address,
+			)
+			.unwrap();
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),
-			WETH,			// collateral
-			DOT,			// debt
+			WETH, // collateral
+			DOT,  // debt
 			alice_evm_address,
 			debt_to_liquidate.try_into().unwrap(),
 			vec![]
 		));
 
 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 
-		let remaining_collateral_reserve = weth_reserve.get_user_collateral_in_base_currency::<Block, Runtime>(user_data.address(), current_evm_timestamp, alice_evm_address).unwrap();
+		let remaining_collateral_reserve = weth_reserve
+			.get_user_collateral_in_base_currency::<Block, Runtime>(
+				user_data.address(),
+				current_evm_timestamp,
+				alice_evm_address,
+			)
+			.unwrap();
 		println!("remaining_collateral_reserve: {:?}", remaining_collateral_reserve);
 		assert!(remaining_collateral_reserve < collateral_reserve / 1_000);
 	});
