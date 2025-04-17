@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "state:download": "wget -O data/state.json ${STATE_SOURCE:-https://snapshots.play.hydration.cloud/state.json}",
-    "state:scrape": "rm -rf data && ../../target/release/scraper save-chainspec --uri wss://7.rpc.hydration.cloud --path ./ && mkdir -p data && mv SNAPSHOT.json data/state.json",
+    "state:scrape": "rm -rf data && ../../target/release/scraper save-chainspec --uri wss://4.rpc.hydration.cloud --path ./ && mkdir -p data && mv SNAPSHOT.json data/state.json",
     "state:prepare": "node prepare-state-for-zombienet.js data/state.json data/forked-chainspec.json",
     "zombie:init": "zombienet -l text -fd data spawn config.json",
     "para:alice": "tail -F data/alice-1.log",
