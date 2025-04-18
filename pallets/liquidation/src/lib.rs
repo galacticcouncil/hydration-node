@@ -352,7 +352,9 @@ where
 	) -> Vec<u8> {
 		let collateral_address = T::Erc20Mapping::asset_address(collateral_asset);
 		let debt_asset_address = T::Erc20Mapping::asset_address(debt_asset);
-		let mut data = Into::<u32>::into(money_market::Function::LiquidationCall).to_be_bytes().to_vec();
+		let mut data = Into::<u32>::into(money_market::Function::LiquidationCall)
+			.to_be_bytes()
+			.to_vec();
 		data.extend_from_slice(H256::from(collateral_address).as_bytes());
 		data.extend_from_slice(H256::from(debt_asset_address).as_bytes());
 		data.extend_from_slice(H256::from(user).as_bytes());
