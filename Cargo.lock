@@ -12334,6 +12334,7 @@ dependencies = [
  "test-utils",
  "tokio",
  "xcm-emulator",
+ "xcm-runtime-apis",
 ]
 
 [[package]]

@@ -72,9 +72,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config
 	where
-		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
-		<Self as frame_system::Config>::AccountId:
-			frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>,
+		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -159,8 +157,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config>
 	where
-		<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
-		<T as frame_system::Config>::AccountId: frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>,
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
 		/// Money market position has been liquidated
 		Liquidated {
