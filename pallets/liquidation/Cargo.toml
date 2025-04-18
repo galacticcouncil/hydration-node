@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidation"
-version = "1.0.7"
+version = "1.1.0"
 description = "A pallet for money market liquidations"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -54,17 +54,9 @@ pallet-route-executor = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }
 sp-api = { workspace = true }
-polkadot-primitives = { workspace = true }
 orml-traits = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
 test-utils = { workspace = true }
-parking_lot = { workspace = true }
-hex = { workspace = true }
-rlp = { version = "0.5.2", default-features = false }
-libsecp256k1 = { version = "0.7.1", default-features = false }
-jsonrpsee = { workspace = true }
-fc-rpc = { workspace = true }
-fc-rpc-core = { workspace = true }
 ethereum-types = "0.15.1"
 
 [features]

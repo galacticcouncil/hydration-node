@@ -4543,7 +4543,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.1.0"
+version = "14.2.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -4681,7 +4681,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "306.0.0"
+version = "307.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8484,26 +8484,21 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.0.7"
+version = "1.1.0"
 dependencies = [
  "ethabi",
  "ethereum",
  "ethereum-types 0.15.1",
  "evm",
- "fc-rpc",
- "fc-rpc-core",
  "fp-evm",
  "fp-rpc",
  "fp-self-contained",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex",
  "hex-literal",
  "hydra-dx-math",
  "hydradx-traits",
- "jsonrpsee",
- "libsecp256k1",
  "log",
  "module-evm-utility-macro",
  "num_enum",
@@ -8519,9 +8514,6 @@ dependencies = [
  "pallet-omnipool",
  "pallet-route-executor",
  "parity-scale-codec",
- "parking_lot 0.12.3",
- "polkadot-primitives",
- "rlp 0.5.2",
  "scale-info",
  "serde",
  "sp-api",
@@ -8832,7 +8824,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8851,8 +8843,6 @@ dependencies = [
  "pallet-route-executor",
  "parity-scale-codec",
  "parking_lot 0.12.3",
- "pretty_assertions",
- "proptest",
  "scale-info",
  "sp-api",
  "sp-arithmetic",
@@ -12210,7 +12200,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.38.2"
+version = "1.38.3"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
