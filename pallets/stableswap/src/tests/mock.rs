@@ -17,6 +17,7 @@
 
 //! Test environment for Assets pallet.
 #![allow(clippy::type_complexity)]
+#![allow(deprecated)]
 
 use core::ops::RangeInclusive;
 use sp_runtime::DispatchResult;
