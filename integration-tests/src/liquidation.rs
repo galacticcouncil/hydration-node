@@ -8,12 +8,17 @@ use fp_evm::{
 };
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
 use fp_rpc::ConvertTransaction;
+use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok, sp_runtime::RuntimeDebug};
 use hex_literal::hex;
-use hydradx_runtime::{evm::{
-	precompiles::{erc20_mapping::HydraErc20Mapping, handle::EvmDataWriter},
-	Executor,
-}, AssetId, Balance, Block, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeCall, RuntimeOrigin, Treasury};
+use hydradx_runtime::{
+	evm::{
+		precompiles::{erc20_mapping::HydraErc20Mapping, handle::EvmDataWriter},
+		Executor,
+	},
+	AssetId, Balance, Block, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeCall, RuntimeOrigin,
+	Treasury,
+};
 use hydradx_traits::{
 	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
 	router::{AssetPair, RouteProvider},
@@ -28,7 +33,6 @@ use sp_runtime::traits::CheckedConversion;
 use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::ops::BitAnd;
-use frame_support::BoundedVec;
 
 // ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
 pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT_LIQUIDATIONS";
@@ -440,7 +444,8 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 
 		// get Pool contract address
 		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(pap_contract, alice_evm_address).unwrap();
-		let oracle_contract = MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
+		let oracle_contract =
+			MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -471,7 +476,13 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		// calculate HF before price update
 		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
 		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap();
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 
@@ -483,22 +494,36 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		let new_price = get_oracle_price("DOT/USD").0.as_u128() * 6 / 2;
 		money_market_data.update_reserve_price(dot_address, new_price.into());
 
-		let mut user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let mut user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("DOT").unwrap();
-		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) = money_market_data.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset).unwrap();
+		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) =
+			money_market_data
+				.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
+				.unwrap();
 
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 
 		let mut user_reserve = user_data.reserves()[4].clone();
 		user_reserve.collateral = user_reserve.collateral.saturating_sub(collateral_received_in_base);
 		user_reserve.debt = user_reserve.debt.saturating_sub(debt_to_liquidate_in_base);
-		user_data.update_reserves(vec!((4, user_reserve)));
+		user_data.update_reserves(vec![(4, user_reserve)]);
 		println!("\n\nHF: {:?}", user_data.health_factor(&money_market_data).unwrap());
 		let target_hf_diff = target_health_factor.abs_diff(user_data.health_factor(&money_market_data).unwrap());
-		assert!(target_hf_diff < U256::from(1_000_000_000_000_000_000u128).checked_div(10_000u128.into()).unwrap());
+		assert!(
+			target_hf_diff
+				< U256::from(1_000_000_000_000_000_000u128)
+					.checked_div(10_000u128.into())
+					.unwrap()
+		);
 
 		// update the price
 		let (price, timestamp) = get_oracle_price("DOT/USD");
@@ -515,8 +540,8 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		// Act
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),
-			DOT,			// collateral
-			DOT,			// debt
+			DOT, // collateral
+			DOT, // debt
 			alice_evm_address,
 			debt_to_liquidate.try_into().unwrap(),
 			BoundedVec::new(),
@@ -524,8 +549,10 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 
 		// Assert
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
-		assert!(usr_data.health_factor.abs_diff(target_health_factor) < U256::from(1_000_000_000_000_000_000u128 / 10_000u128));
-
+		assert!(
+			usr_data.health_factor.abs_diff(target_health_factor)
+				< U256::from(1_000_000_000_000_000_000u128 / 10_000u128)
+		);
 	});
 }
 
@@ -555,7 +582,8 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 
 		// get Pool contract address
 		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(pap_contract, alice_evm_address).unwrap();
-		let oracle_contract = MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
+		let oracle_contract =
+			MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -584,8 +612,15 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 		hydradx_run_to_next_block();
 
 		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap() + primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap()
+			+ primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 
@@ -593,15 +628,28 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 		let new_price = get_oracle_price("DOT/USD").0.as_u128() * 5 / 2;
 		money_market_data.update_reserve_price(dot_address, new_price.into());
 
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 		println!("HF: {:?}", user_data.health_factor(&money_market_data).unwrap());
 
 		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
-		let liquidation_options = money_market_data.calculate_liquidation_options(&user_data, target_health_factor, (dot_address, new_price.into()));
+		let liquidation_options = money_market_data.calculate_liquidation_options(
+			&user_data,
+			target_health_factor,
+			(dot_address, new_price.into()),
+		);
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
-		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) = money_market_data.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset).unwrap();
+		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) =
+			money_market_data
+				.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
+				.unwrap();
 
 		let (price, timestamp) = get_oracle_price("DOT/USD");
 		let price = price.as_u128() * 5 / 2;
@@ -615,19 +663,31 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 		assert!(usr_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
 
 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),
-			WETH,			// collateral
-			DOT,			// debt
+			WETH, // collateral
+			DOT,  // debt
 			alice_evm_address,
 			debt_to_liquidate.try_into().unwrap(),
 			BoundedVec::new(),
 		));
 
 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 	});
 }
@@ -792,7 +852,8 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 
 		// get Pool contract address
 		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(pap_contract, alice_evm_address).unwrap();
-		let oracle_contract = MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
+		let oracle_contract =
+			MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -821,8 +882,15 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 		hydradx_run_to_next_block();
 
 		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap() + primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap()
+			+ primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 
@@ -830,14 +898,27 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 		let new_price = get_oracle_price("WETH/USD").0.as_u128() * 5 / 2;
 		money_market_data.update_reserve_price(weth_address, new_price.into());
 
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 
 		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
-		let liquidation_options = money_market_data.calculate_liquidation_options(&user_data, target_health_factor, (weth_address, new_price.into()));
+		let liquidation_options = money_market_data.calculate_liquidation_options(
+			&user_data,
+			target_health_factor,
+			(weth_address, new_price.into()),
+		);
 
 		let debt_asset = money_market_data.get_asset_address("WETH").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
-		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) = money_market_data.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset).unwrap();
+		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) =
+			money_market_data
+				.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
+				.unwrap();
 
 		let (price, timestamp) = get_oracle_price("WETH/USD");
 		let price = price.as_u128() * 5 / 2;
@@ -851,20 +932,32 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 		assert!(usr_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
 
 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 
 		// Act
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),
-			WETH,			// collateral
-			WETH,			// debt
+			WETH, // collateral
+			WETH, // debt
 			alice_evm_address,
 			debt_to_liquidate.try_into().unwrap(),
 			BoundedVec::new(),
 		));
 
 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+		let user_data = UserData::new(
+			&money_market_data,
+			alice_evm_address,
+			current_evm_timestamp,
+			alice_evm_address,
+		)
+		.unwrap();
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 
 		// Assert

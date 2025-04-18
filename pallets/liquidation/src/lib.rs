@@ -29,21 +29,21 @@
 
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
-use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::AccountIdConversion,
 	traits::{
-		DefensiveOption,
 		fungibles::{Inspect, Mutate},
 		tokens::{Fortitude, Precision, Preservation},
+		DefensiveOption,
 	},
 	PalletId,
 };
+use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
-	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, Route, RouterT, Trade},
+	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
 use pallet_evm::GasWeightMapping;
 use sp_arithmetic::ArithmeticError;

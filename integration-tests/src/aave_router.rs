@@ -13,7 +13,9 @@ use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_runtime::{AssetId, Block, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeEvent, RuntimeOrigin, DCA};
+use hydradx_runtime::{
+	AssetId, Block, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeEvent, RuntimeOrigin, DCA,
+};
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::EvmAddress;
@@ -47,7 +49,11 @@ pub fn with_aave(execution: impl FnOnce()) {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
-		let pool_contract = pallet_liquidation::types::money_market::MoneyMarketData::<Block, Runtime>::fetch_pool(pap_contract, RUNTIME_API_CALLER).unwrap();
+		let pool_contract = pallet_liquidation::types::money_market::MoneyMarketData::<Block, Runtime>::fetch_pool(
+			pap_contract,
+			RUNTIME_API_CALLER,
+		)
+		.unwrap();
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
