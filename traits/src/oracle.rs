@@ -58,7 +58,7 @@ pub enum OraclePeriod {
 	/// The oracle data was aggregated over the blocks of the last week.
 	Week,
 }
-const MILLISECS_PER_BLOCK: u64 = 12_000; //TODO: i wonder if we should include primitives and take it from there!
+const MILLISECS_PER_BLOCK: u64 = 6_000; //TODO: i wonder if we should include primitives and take it from there!
 const MINUTES: u64 = 60_000 / MILLISECS_PER_BLOCK;
 const HOURS: u64 = MINUTES * 60;
 const DAYS: u64 = HOURS * 24;
