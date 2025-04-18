@@ -12,7 +12,7 @@ use codec::{Decode, Encode, EncodeLike};
 use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
-use hydra_dx_math::support::rational::{round_to_rational, round_u512_to_rational, Rounding};
+use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_traits::{
 	oracle::PriceOracle,
@@ -22,7 +22,7 @@ use hydradx_traits::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use primitive_types::{H160, U128, U256, U512};
+use primitive_types::{H160, U128, U256};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
 use sp_std::marker::PhantomData;
@@ -177,7 +177,7 @@ where
 		let decimals_diff = U128::from(asset_a_decimals.abs_diff(asset_b_decimals));
 		let decimals_adjustment =
 			U128::from(10u128)
-				.checked_pow(decimals_diff.into())
+				.checked_pow(decimals_diff)
 				.ok_or(PrecompileFailure::Error {
 					exit_status: pallet_evm::ExitError::Other("Price conversion failed".into()),
 				})?;

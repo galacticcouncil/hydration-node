@@ -18,7 +18,6 @@ mod pallet_xcm_benchmarks_generic;
 
 use crate::{BaseXcmWeight, MaxAssetsIntoHolding, RouterWeightInfo, Runtime};
 use frame_support::weights::Weight;
-use pallet_xcm_benchmarks_fungible::WeightInfo as XcmFungibleWeight;
 use pallet_xcm_benchmarks_generic::WeightInfo as XcmGeneric;
 use polkadot_xcm::latest::InteriorLocation;
 use polkadot_xcm::v4::{QueryId, Response, WeightLimit, WildFungibility, Xcm, XcmWeightInfo};

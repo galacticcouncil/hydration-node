@@ -40,25 +40,10 @@ pub mod types;
 pub mod xcm;
 
 pub use assets::*;
-use cumulus_primitives_core::GeneralIndex;
-use cumulus_primitives_core::Here;
-use cumulus_primitives_core::Junctions::X1;
-use cumulus_primitives_core::NetworkId;
-use cumulus_primitives_core::NonFungible;
-use cumulus_primitives_core::Response;
-use frame_support::assert_ok;
-use frame_support::parameter_types;
-use frame_support::storage::with_transaction;
-use frame_support::traits::TrackedStorageKey;
-use frame_system::RawOrigin;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
 use pallet_asset_registry::AssetType;
 use pallet_currencies_rpc_runtime_api::AccountData;
-use pallet_referrals::FeeDistribution;
-use pallet_referrals::Level;
-use pallet_stableswap::types::Tradability;
-use polkadot_xcm::opaque::lts::InteriorLocation;
 pub use system::*;
 pub use xcm::*;
 
@@ -72,8 +57,7 @@ use sp_runtime::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
-	transaction_validity::{TransactionValidity, TransactionValidityError},
-	DispatchError, Permill, TransactionOutcome,
+	transaction_validity::{TransactionValidity, TransactionValidityError}, Permill,
 };
 
 use sp_std::{convert::From, prelude::*};
@@ -473,10 +457,8 @@ use frame_support::{
 use hydradx_traits::evm::Erc20Mapping;
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use polkadot_xcm::latest::Junction;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
-use sp_arithmetic::FixedU128;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},

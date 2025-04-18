@@ -1,7 +1,7 @@
 use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
-use crate::evm::{Erc20Currency, EvmAccounts, Executor};
+use crate::evm::{Erc20Currency, Executor};
 use crate::Runtime;
 use crate::Vec;
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -10,8 +10,6 @@ use evm::ExitReason::Succeed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_support::pallet_prelude::TypeInfo;
-use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
@@ -19,7 +17,7 @@ use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAc
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pallet_broadcast::types::{Asset, Destination, Fee};
+use pallet_broadcast::types::Asset;
 use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
