@@ -34,7 +34,6 @@ fp-self-contained = { workspace = true, features = ["serde"] }
 num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
 hex-literal = { workspace = true }
-serde_json = { version = "1.0.138", default-features = false, features = ["alloc"] }
 ethereum = { workspace = true }
 
 # HydraDX dependencies
@@ -58,18 +57,11 @@ sp-api = { workspace = true }
 polkadot-primitives = { workspace = true }
 orml-traits = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
-proptest = { workspace = true }
-pretty_assertions = { workspace = true }
 test-utils = { workspace = true }
 parking_lot = { workspace = true }
-env_logger = "0.11.6"
 hex = { workspace = true }
 rlp = { version = "0.5.2", default-features = false }
 libsecp256k1 = { version = "0.7.1", default-features = false }
-ethers = "2.0.14"
-dotenv = "0.15.0"
-eyre = "0.6.12"
-clap = "4.5.31"
 jsonrpsee = { workspace = true }
 fc-rpc = { workspace = true }
 fc-rpc-core = { workspace = true }

@@ -178,7 +178,7 @@ where
 						let Some(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, RUNTIME_API_CALLER) else { return };
 
 						// our calculations "happen" in the next block
-						let Some(current_evm_timestamp) = current_evm_block_timestamp::<Block, Runtime>().and_then(|timestamp| timestamp.checked_add(primitives::constants::time::SECS_PER_BLOCK)) else { return };
+						let Some(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>().and_then(|timestamp| timestamp.checked_add(primitives::constants::time::SECS_PER_BLOCK)) else { return };
 
 						// get address of the asset whose price is about to be updated
 						let Some(asset_reserve) = money_market_data.reserves().iter().find(|asset| *asset.symbol() == *base_asset) else { return };

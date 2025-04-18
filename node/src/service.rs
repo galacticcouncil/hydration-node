@@ -256,7 +256,7 @@ async fn start_node_impl(
 				transaction_pool: Some(OffchainTransactionPoolFactory::new(transaction_pool.clone())),
 				network_provider: Arc::new(network.clone()),
 				is_validator: parachain_config.role.is_authority(),
-				enable_http_requests: true,
+				enable_http_requests: false,
 				custom_extensions: move |_| vec![],
 			})
 			.run(client.clone(), task_manager.spawn_handle())

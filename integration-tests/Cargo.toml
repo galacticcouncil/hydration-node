@@ -14,7 +14,7 @@ frame-remote-externalities = { workspace = true }
 tokio = { workspace = true }
 scraper = { workspace = true }
 primitives = { workspace = true }
-hydradx-runtime = { workspace = true, features = ["metadata-hash"] }
+hydradx-runtime = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
@@ -121,13 +121,13 @@ sp-transaction-pool = { workspace = true }
 sp-version = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
+sp-consensus = { workspace = true }
 sp-consensus-babe = { workspace = true }
 sp-consensus-beefy = { workspace = true }
 sp-authority-discovery = { workspace = true }
 sc-consensus-grandpa = { workspace = true }
 
 polkadot-primitives = { workspace = true }
-polkadot-service = { workspace = true, features = ["full-node"] }
 polkadot-runtime-parachains = { workspace = true }
 rococo-runtime = { workspace = true }
 ethereum = { workspace = true }
@@ -140,31 +140,12 @@ ethabi = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
 
-futures = { version = "0.3.30" }
-log = { version = "0.4.22", default-features = false }
-parking_lot = { version = "0.12.1", default-features = false }
-tempfile = { version = "3.8.1" }
-sc-network = { workspace = true }
-sc-client-api = { workspace = true }
-sc-service = { features = ["test-helpers"], workspace = true, default-features = true }
-sc-block-builder= { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
-sc-network-sync = { workspace = true }
-sc-transaction-pool-api = { workspace = true }
-sp-blockchain = { workspace = true }
-sp-state-machine = { workspace = true }
-sp-consensus = { workspace = true }
-sp-tracing = { workspace = true }
-fdlimit = { version = "0.3.0" }
-substrate-test-runtime = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
-substrate-test-runtime-client = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch", default-features = false }
-
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 pallet-relaychain-info = { workspace = true }
 xcm-emulator = { workspace = true }
 test-utils = { workspace = true }
 libsecp256k1 = { workspace = true }
-env_logger = "0.11.6"
 
 
 [features]
