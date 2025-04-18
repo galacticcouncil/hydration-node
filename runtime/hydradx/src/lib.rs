@@ -40,10 +40,15 @@ pub mod types;
 pub mod xcm;
 
 pub use assets::*;
+pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
+pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
+pub use frame_system::RawOrigin;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
-use pallet_asset_registry::AssetType;
-use pallet_currencies_rpc_runtime_api::AccountData;
+pub use pallet_asset_registry::AssetType;
+pub use pallet_currencies_rpc_runtime_api::AccountData;
+pub use pallet_referrals::{FeeDistribution, Level};
+pub use polkadot_xcm::opaque::lts::InteriorLocation;
 pub use system::*;
 pub use xcm::*;
 
@@ -51,13 +56,14 @@ use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
-use sp_runtime::{
+pub use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
-	transaction_validity::{TransactionValidity, TransactionValidityError}, Permill,
+	transaction_validity::{TransactionValidity, TransactionValidityError},
+	DispatchError, Permill, TransactionOutcome,
 };
 
 use sp_std::{convert::From, prelude::*};
@@ -457,8 +463,10 @@ use frame_support::{
 use hydradx_traits::evm::Erc20Mapping;
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
+pub use polkadot_xcm::latest::Junction;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
+pub use sp_arithmetic::FixedU128;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -1253,7 +1261,7 @@ impl_runtime_apis! {
 
 			use primitives::constants::currency::UNITS;
 
-			parameter_types! {
+			frame_support::parameter_types! {
 				/// The asset ID for the asset that we use to pay for message delivery fees.
 			pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
 			/// The base fee for the message delivery fees.
@@ -1285,14 +1293,14 @@ impl_runtime_apis! {
 					(0..holding_fungibles)
 						.map(|i| {
 							Asset {
-								id: AssetId(GeneralIndex(i as u128).into()),
+								id: AssetId(cumulus_primitives_core::GeneralIndex(i as u128).into()),
 								fun: Fungible(fungibles_amount * (i + 1) as u128), // non-zero amount
 							}
 						})
 						.chain(core::iter::once(Asset { id: AssetId(Here.into()), fun: Fungible(u128::MAX) }))
 						.chain(core::iter::once(Asset { id: AssetId(PolkadotLocation::get()), fun: Fungible(1_000_000 * UNITS) }))
 						.chain((0..holding_non_fungibles).map(|i| Asset {
-							id: AssetId(GeneralIndex(i as u128).into()),
+							id: AssetId(cumulus_primitives_core::GeneralIndex(i as u128).into()),
 							fun: NonFungible(pallet_xcm_benchmarks::asset_instance_from(i)),
 						}))
 						.collect::<Vec<_>>()
@@ -1300,7 +1308,7 @@ impl_runtime_apis! {
 				}
 			}
 
-			parameter_types! {
+			frame_support::parameter_types! {
 				pub const TrustedTeleporter: Option<(Location, Asset)> = Some((
 					PolkadotLocation::get(),
 					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
@@ -1387,6 +1395,7 @@ impl_runtime_apis! {
 			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
 			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
 
+			#[allow(unused_variables)] // TODO: this variable is not used
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
 				hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
@@ -1453,9 +1462,10 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	//let loc : MultiLocation = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]))).into();
 	//			polkadot_xcm::opaque::lts::Junctions::X1(Arc::new([polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]))
 
-	use polkadot_xcm::v3::Junction::{AccountKey20, GeneralIndex};
-	use polkadot_xcm::v3::Junctions::{Here, X1, X2};
-	use polkadot_xcm::v3::{Junction, MultiLocation};
+	use frame_support::assert_ok;
+	use polkadot_xcm::v3::Junction::GeneralIndex;
+	use polkadot_xcm::v3::Junctions::X1;
+	use polkadot_xcm::v3::MultiLocation;
 	assert_ok!(AssetRegistry::set_location(
 		dai,
 		AssetLocation(MultiLocation::new(0, X1(GeneralIndex(dai.into()))))

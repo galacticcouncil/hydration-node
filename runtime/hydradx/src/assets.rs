@@ -78,6 +78,7 @@ use primitives::constants::{
 	time::DAYS,
 };
 use sp_std::num::NonZeroU16;
+
 parameter_types! {
 	pub const NativeExistentialDeposit: u128 = NATIVE_EXISTENTIAL_DEPOSIT;
 	pub const MaxLocks: u32 = 50;
@@ -1293,8 +1294,12 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_ema_oracle::OracleEntry;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_stableswap::types::PegType;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]

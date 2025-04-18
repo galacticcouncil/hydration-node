@@ -32,10 +32,12 @@ use cumulus_primitives_core::{
 use hydradx_traits::router::{AmmTradeWeights, PoolType, Trade};
 use polkadot_xcm::prelude::{MaybeErrorCode, NetworkId, XcmError};
 
+#[allow(dead_code)]
 trait WeighAssets {
 	fn weigh_assets(&self, weight: Weight) -> Weight;
 }
 
+#[allow(dead_code)]
 const MAX_ASSETS: u64 = 100;
 
 impl WeighAssets for AssetFilter {
@@ -64,6 +66,7 @@ impl WeighAssets for Assets {
 }
 
 pub struct HydraXcmWeight<Call>(core::marker::PhantomData<Call>);
+#[allow(clippy::suspicious_doc_comments)]
 ///!NOTE - We use BaseXcmWeight to not break anything, except for instructions where we really need to increase weights
 impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	fn withdraw_asset(_assets: &Assets) -> Weight {
@@ -222,10 +225,10 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	fn unsubscribe_version() -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn burn_asset(assets: &Assets) -> Weight {
+	fn burn_asset(_assets: &Assets) -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn expect_asset(assets: &Assets) -> Weight {
+	fn expect_asset(_assets: &Assets) -> Weight {
 		BaseXcmWeight::get()
 	}
 	fn expect_origin(_origin: &Option<Location>) -> Weight {
