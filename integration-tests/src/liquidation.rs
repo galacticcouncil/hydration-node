@@ -35,7 +35,7 @@ use std::marker::PhantomData;
 use std::ops::BitAnd;
 
 // ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
-pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT_LIQUIDATIONS";
+pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/LIQUIDATION_SNAPSHOT";
 
 const DOT: AssetId = 5;
 const DOT_UNIT: Balance = 10_000_000_000;
