@@ -242,7 +242,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 
 		assert!(XYK::exists(asset_pair));
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user),
 			asset_a,
 			asset_b,

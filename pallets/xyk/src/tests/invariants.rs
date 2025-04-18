@@ -94,7 +94,7 @@ proptest! {
 
 				let issuance = XYK::total_liquidity(pool_account);
 
-				assert_ok!(XYK::add_liquidity(
+				assert_ok!(XYK::add_liquidity_with_limits(
 					RuntimeOrigin::signed(BOB),
 					asset_a,
 					asset_b,
@@ -195,7 +195,7 @@ proptest! {
 				});
 				let share_token = XYK::share_token(pool_account);
 
-				assert_ok!(XYK::add_liquidity(
+				assert_ok!(XYK::add_liquidity_with_limits(
 					RuntimeOrigin::signed(BOB),
 					asset_a,
 					asset_b,
@@ -213,7 +213,7 @@ proptest! {
 
 				let issuance = XYK::total_liquidity(pool_account);
 
-				assert_ok!(XYK::remove_liquidity(
+				assert_ok!(XYK::remove_liquidity_with_limits(
 						RuntimeOrigin::signed(BOB),
 						asset_a,
 						asset_b,
@@ -308,7 +308,7 @@ proptest! {
 					asset_out: asset_b,
 				});
 
-				assert_ok!(XYK::add_liquidity(
+				assert_ok!(XYK::add_liquidity_with_limits(
 					RuntimeOrigin::signed(BOB),
 					asset_a,
 					asset_b,
@@ -378,7 +378,7 @@ proptest! {
 					asset_out: asset_b,
 				});
 
-				assert_ok!(XYK::add_liquidity(
+				assert_ok!(XYK::add_liquidity_with_limits(
 					RuntimeOrigin::signed(BOB),
 					asset_a,
 					asset_b,
@@ -457,7 +457,7 @@ proptest! {
 					asset_out: asset_b,
 				});
 
-				assert_ok!(XYK::add_liquidity(
+				assert_ok!(XYK::add_liquidity_with_limits(
 					RuntimeOrigin::signed(BOB),
 					asset_a,
 					asset_b,
@@ -535,7 +535,7 @@ proptest! {
 					asset_out: asset_b,
 				});
 
-				assert_ok!(XYK::add_liquidity(
+				assert_ok!(XYK::add_liquidity_with_limits(
 					RuntimeOrigin::signed(BOB),
 					asset_a,
 					asset_b,

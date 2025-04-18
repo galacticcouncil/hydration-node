@@ -179,7 +179,7 @@ fn work_flow_happy_path_should_work() {
 
 		// User 1 really tries!
 		assert_noop!(
-			XYK::add_liquidity(
+			XYK::add_liquidity_with_limits(
 				RuntimeOrigin::signed(user_1),
 				asset_a,
 				asset_b,
@@ -211,7 +211,7 @@ fn work_flow_happy_path_should_work() {
 
 		// User 2 adds liquidity
 		let current_b_balance = Currency::free_balance(asset_b, &user_2);
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
@@ -281,7 +281,7 @@ fn work_flow_happy_path_should_work() {
 
 		// User 2 removes liquidity
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
@@ -297,7 +297,7 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(user_2_remove_1_balance_2, 994_487_000_225_286);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_990_000);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_b,
 			asset_a,
@@ -327,7 +327,7 @@ fn work_flow_happy_path_should_work() {
 
 		assert_eq!(XYK::total_liquidity(pair_account), 649_999_980_000);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
@@ -702,7 +702,7 @@ fn create_pool_with_insufficient_liquidity_should_not_work() {
 fn add_liquidity_to_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::add_liquidity(
+			XYK::add_liquidity_with_limits(
 				RuntimeOrigin::signed(ALICE),
 				HDX,
 				ACA,
@@ -719,7 +719,7 @@ fn add_liquidity_to_non_existing_pool_should_not_work() {
 fn remove_zero_liquidity_from_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 100, 0, 0),
+			XYK::remove_liquidity_with_limits(RuntimeOrigin::signed(ALICE), HDX, ACA, 100, 0, 0),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
@@ -834,7 +834,7 @@ fn money_in_sell_money_out_should_leave_the_same_balance() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200456444678);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 598636516408212);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -882,7 +882,7 @@ fn money_in_money_out_should_leave_the_same_balance_for_both_accounts() {
 
 		assert!(XYK::exists(asset_pair));
 
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,
@@ -894,7 +894,7 @@ fn money_in_money_out_should_leave_the_same_balance_for_both_accounts() {
 		assert_eq!(Currency::free_balance(share_token, &user_1), 100_000_000);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 100_000_000);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -903,7 +903,7 @@ fn money_in_money_out_should_leave_the_same_balance_for_both_accounts() {
 			0
 		));
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user_2),
 			asset_a,
 			asset_b,

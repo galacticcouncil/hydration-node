@@ -90,7 +90,7 @@ runtime_benchmarks! {
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, INITIAL_BALANCE - amount)?;
 
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 2);
-	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, max_limit, 0)
+	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, max_limit)
 	verify {
 		assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 		assert_eq!(Currencies::free_balance(asset_b, &caller), 499_999_999_999_999_u128);// Due to rounding in favor of pool
@@ -114,7 +114,7 @@ runtime_benchmarks! {
 
 		//Only for XYK shares
 		assert_eq!(frame_system::Pallet::<Runtime>::account(maker.clone()).sufficients, 1);
-	}: _(RawOrigin::Signed(maker.clone()), asset_a, asset_b, INITIAL_BALANCE, 0, 0)
+	}: _(RawOrigin::Signed(maker.clone()), asset_a, asset_b, INITIAL_BALANCE)
 	verify {
 		assert_eq!(Currencies::free_balance(asset_a, &maker), INITIAL_BALANCE);
 		assert_eq!(Currencies::free_balance(asset_b, &maker), INITIAL_BALANCE);
