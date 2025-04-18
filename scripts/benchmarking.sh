@@ -7,7 +7,8 @@
 # The hydradx binary is required to be compiled with --features=runtime-benchmarks
 # in release mode.
 
-set -e
+set -e          # Exit immediately if a command exits with non-zero status
+set -o pipefail # Ensure pipeline commands also trigger failures
 
 BINARY="./target/release/hydradx"
 OUTPUT="runtime/hydradx/src/weights/"
