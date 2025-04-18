@@ -21,7 +21,7 @@ permissions:
 jobs:
   build-release:
     name: Build and publish hydradx runtime
-    runs-on: lark
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +36,7 @@ jobs:
         run: |
           [[ -n "${{ github.event.inputs.srtool_image }}" ]] \
             && TAG="--tag ${{ github.event.inputs.srtool_image }}" || TAG=""
-          
+
           cargo install --force --locked --git https://github.com/chevdor/srtool-cli $TAG
           type srtool # Verify the installation
 
@@ -50,7 +50,7 @@ jobs:
         run: |
           srtool -e docker build -p "${{ env.CHAIN }}-runtime" -r "runtime/${{ env.CHAIN }}" --app --json \
             | tee srtool-build.log
-          
+
           JSON=$(cat srtool-build.log | tail -n 1)
           echo "json=$JSON" >> $GITHUB_OUTPUT
 
@@ -106,7 +106,7 @@ jobs:
         run: |
           json='${{ steps.srtool_build.outputs.json }}'
           srtool_version=$(echo "$json" | jq -r '.gen')
-          rustc_version=$(echo "$json" | jq -r '.rustc')  
+          rustc_version=$(echo "$json" | jq -r '.rustc')
 
           echo "## Runtime" > RELEASE_BODY.md
           echo "" >> RELEASE_BODY.md
