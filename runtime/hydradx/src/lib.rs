@@ -422,7 +422,7 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 								== H160::from_slice(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice())
 							{
 								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-								if pallet_liquidation::offchain_worker::verify_signer(
+								if pallet_liquidation::money_market::verify_signer(
 									&transaction,
 									H160::from_slice(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice()),
 								) {

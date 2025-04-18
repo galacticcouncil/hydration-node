@@ -20,7 +20,7 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::currency::MultiCurrency;
-use pallet_liquidation::{types::offchain_worker::*, BorrowerData, BorrowerDataDetails, MAX_LIQUIDATIONS};
+use pallet_liquidation::{types::money_market::*, BorrowerData, BorrowerDataDetails, MAX_LIQUIDATIONS};
 use pallet_xyk::Call::add_liquidity;
 use polkadot_primitives::EncodeAs;
 use sp_core::{H160, H256, U256, U512};
@@ -28,9 +28,10 @@ use sp_runtime::traits::CheckedConversion;
 use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::ops::BitAnd;
+use frame_support::BoundedVec;
 
-// ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens MultiTransactionPayment EmaOracle Balances --uri wss://rpc.nice.hydration.cloud:443
-pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
+// ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
+pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT_LIQUIDATIONS";
 
 const DOT: AssetId = 5;
 const DOT_UNIT: Balance = 10_000_000_000;
@@ -518,7 +519,7 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 			DOT,			// debt
 			alice_evm_address,
 			debt_to_liquidate.try_into().unwrap(),
-			vec![]
+			BoundedVec::new(),
 		));
 
 		// Assert
@@ -622,7 +623,7 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 			DOT,			// debt
 			alice_evm_address,
 			debt_to_liquidate.try_into().unwrap(),
-			vec![]
+			BoundedVec::new(),
 		));
 
 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
@@ -740,7 +741,7 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 			DOT,  // debt
 			alice_evm_address,
 			debt_to_liquidate.try_into().unwrap(),
-			vec![]
+			BoundedVec::new(),
 		));
 
 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
@@ -859,7 +860,7 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 			WETH,			// debt
 			alice_evm_address,
 			debt_to_liquidate.try_into().unwrap(),
-			vec![]
+			BoundedVec::new(),
 		));
 
 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();

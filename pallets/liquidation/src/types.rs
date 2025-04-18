@@ -42,7 +42,7 @@ pub struct BorrowerData<AccountId> {
 	pub borrowers: Vec<(H160, BorrowerDataDetails<AccountId>)>,
 }
 
-pub mod offchain_worker {
+pub mod money_market {
 	use super::*;
 	use ethabi::ethereum_types::U512;
 	use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};

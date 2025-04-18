@@ -244,7 +244,7 @@ pub mod pallet {
 			debt_asset: AssetId,
 			user: EvmAddress,
 			debt_to_cover: Balance,
-			route: Vec<Trade<AssetId>>,
+			route: Route<AssetId>,
 		) -> DispatchResult {
 			Self::liquidate_inner(None, collateral_asset, debt_asset, user, debt_to_cover, route)
 		}
@@ -265,7 +265,7 @@ where
 		debt_asset: AssetId,
 		user: EvmAddress,
 		debt_to_cover: Balance,
-		route: Vec<Trade<AssetId>>,
+		route: Route<AssetId>,
 	) -> DispatchResult {
 		let pallet_acc = Self::account_id();
 

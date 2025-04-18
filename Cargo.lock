@@ -4625,6 +4625,7 @@ dependencies = [
  "substrate-state-trie-migration-rpc",
  "threadpool",
  "tokio",
+ "xcm-runtime-apis",
 ]
 
 [[package]]

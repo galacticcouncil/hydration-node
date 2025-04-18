@@ -79,6 +79,7 @@ sp-offchain = { workspace = true }
 sc-offchain = { workspace = true }
 substrate-prometheus-endpoint = { workspace = true }
 substrate-state-trie-migration-rpc = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # Cumulus dependencies
 cumulus-client-cli = { workspace = true }
