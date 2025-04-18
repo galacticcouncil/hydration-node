@@ -62,7 +62,7 @@ fn pair_account_should_be_removed_from_whitelist_when_pool_was_destroyed() {
 			RuntimeOrigin::signed(ALICE.into()),
 			asset_a,
 			asset_b,
-			100 * UNITS,
+			100 * UNITS
 		));
 
 		//assert
@@ -90,7 +90,7 @@ fn pool_should_be_created_when_it_was_destroyed_previously() {
 			RuntimeOrigin::signed(ALICE.into()),
 			asset_a,
 			asset_b,
-			100 * UNITS,
+			100 * UNITS
 		));
 
 		//act & assert
