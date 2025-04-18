@@ -394,7 +394,6 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		dispatch_info: &DispatchInfoOf<RuntimeCall>,
 		len: usize,
 	) -> Option<TransactionValidity> {
-		log::info!(target: "rrr", "validate_self_contained.\n");
 		match self {
 			RuntimeCall::Ethereum(call) => {
 				let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
@@ -544,6 +543,7 @@ impl_runtime_apis! {
 			let transaction = tx.clone().0;
 			if let RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_unsigned{ .. }) = transaction.function {
 				 if let Ok(ref mut v) = tx_validity {
+					// TODO: priority multiplier
 					v.priority = 3 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
 				}
 			}

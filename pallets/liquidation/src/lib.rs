@@ -37,7 +37,7 @@ use frame_support::{
 	traits::tokens::{Fortitude, Precision, Preservation},
 	PalletId,
 };
-use frame_system::{ensure_signed, offchain::SendTransactionTypes, pallet_prelude::OriginFor, RawOrigin};
+use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::{
 	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
@@ -70,11 +70,11 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>>
+	pub trait Config: frame_system::Config
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 		<Self as frame_system::Config>::AccountId:
-			frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>,
+		frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>,
 	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -150,7 +150,6 @@ pub mod pallet {
 
 			match call {
 				Call::liquidate_unsigned { .. } => valid_tx(b"settle_otc_order".to_vec()),
-				Call::dummy_send { .. } => valid_tx(b"settle_otc_order".to_vec()),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -172,8 +171,6 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			profit: Balance,
 		},
-		DummyReceived,
-		DummySend,
 	}
 
 	#[pallet::error]
@@ -250,21 +247,6 @@ pub mod pallet {
 			route: Vec<Trade<AssetId>>,
 		) -> DispatchResult {
 			Self::liquidate_inner(None, collateral_asset, debt_asset, user, debt_to_cover, route)
-		}
-
-		#[pallet::call_index(3)]
-		#[pallet::weight(Weight::zero())]
-		pub fn dummy_received(origin: OriginFor<T>, debt_to_cover: crate::Balance) -> DispatchResult {
-			Self::deposit_event(Event::DummyReceived);
-
-			Ok(())
-		}
-
-		#[pallet::call_index(4)]
-		#[pallet::weight(Weight::zero())]
-		pub fn dummy_send(origin: OriginFor<T>, debt_to_cover: crate::Balance) -> DispatchResult {
-			Self::deposit_event(Event::DummySend);
-			Ok(())
 		}
 	}
 }

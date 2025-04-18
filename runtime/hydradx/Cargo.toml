@@ -21,7 +21,6 @@ smallvec = { workspace = true }
 log = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
-array-bytes = {  version = "6.2.2", default-features = true }
 
 # local dependencies
 primitives = { workspace = true }
