@@ -4734,6 +4734,7 @@ dependencies = [
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
+ "pallet-hsm",
  "pallet-identity",
  "pallet-lbp",
  "pallet-liquidation",
@@ -8355,6 +8356,37 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
+]
+
+[[package]]
+name = "pallet-hsm"
+version = "0.1.0"
+dependencies = [
+ "ethabi",
+ "evm",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "log",
+ "module-evm-utility-macro",
+ "num-traits",
+ "num_enum",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-broadcast",
+ "pallet-evm",
+ "pallet-stableswap",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

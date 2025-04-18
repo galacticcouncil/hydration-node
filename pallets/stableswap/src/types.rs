@@ -3,7 +3,7 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, Pallet, MAX_ASSETS_IN_POOL};
+use crate::{Config, Pallet, PoolPegs, MAX_ASSETS_IN_POOL};
 use sp_runtime::Permill;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
@@ -174,6 +174,44 @@ impl<AssetId> PoolPegInfo<AssetId> {
 			source: self.source,
 			max_peg_update: self.max_peg_update,
 			current: BoundedPegs::truncate_from(pegs.to_vec()),
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct PoolSnapshot<AssetId> {
+	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
+	pub reserves: Vec<AssetReserve>,
+	pub amplification: u128,
+	pub fee: Permill,
+	pub pegs: Vec<PegType>,
+	pub share_issuance: Balance,
+}
+
+impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
+	pub fn asset_idx(&self, asset_id: AssetId) -> Option<usize> {
+		self.assets.iter().position(|&asset| asset == asset_id)
+	}
+
+	// Safe retrieval of asset decimals info - we like to be on the safe side.
+	pub fn asset_decimals_at(&self, idx: usize) -> Option<u8> {
+		self.reserves.get(idx).map(|reserve| reserve.decimals)
+	}
+
+	pub fn asset_reserve_at(&self, idx: usize) -> Option<Balance> {
+		self.reserves.get(idx).map(|reserve| reserve.amount)
+	}
+
+	pub fn is_oracle_peg_source<T: Config>(&self, pool_id: T::AssetId, asset_idx: usize) -> bool {
+		let Some(pegs) = PoolPegs::<T>::get(pool_id) else {
+			return false;
+		};
+
+		if pegs.source.len() >= asset_idx {
+			false
+		} else {
+			let source = &pegs.source[asset_idx];
+			matches!(source, PegSource::Oracle(_))
 		}
 	}
 }

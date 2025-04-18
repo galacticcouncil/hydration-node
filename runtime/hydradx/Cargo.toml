@@ -59,6 +59,7 @@ pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-hsm = {workspace = true}
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -222,6 +223,7 @@ runtime-benchmarks = [
     "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
     "pallet-xyk/runtime-benchmarks",
+    "pallet-hsm/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
@@ -311,6 +313,7 @@ std = [
     "pallet-lbp/std",
     "pallet-xyk/std",
     "pallet-duster/std",
+    "pallet-hsm/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
     "sp-arithmetic/std",
@@ -420,6 +423,7 @@ try-runtime = [
     "pallet-evm/try-runtime",
     "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
+    "pallet-hsm/try-runtime",
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",

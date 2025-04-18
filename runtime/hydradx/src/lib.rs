@@ -209,6 +209,7 @@ construct_runtime!(
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
+		HSM: pallet_hsm = 82,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
