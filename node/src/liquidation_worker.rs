@@ -336,7 +336,7 @@ pub fn parse_oracle_transaction(eth_tx: Transaction) -> Option<Vec<OracleUpdataD
 			],
 			&legacy_transaction.input[4..], // first 4 bytes are function selector
 		)
-			.ok()?;
+		.ok()?;
 
 		dia_oracle_data.push((
 			decoded[0].clone().into_string()?,
@@ -353,7 +353,7 @@ pub fn parse_oracle_transaction(eth_tx: Transaction) -> Option<Vec<OracleUpdataD
 			],
 			&legacy_transaction.input[4..], // first 4 bytes are function selector
 		)
-			.ok()?;
+		.ok()?;
 
 		if decoded.len() == 2 {
 			for (asset_str, price_and_timestamp) in sp_std::iter::zip(
@@ -412,20 +412,20 @@ mod tests {
 			value: U256::from(0),
 			//
 			input: hex!(
-			"7898e0c2\
+				"7898e0c2\
 				0000000000000000000000000000000000000000000000000000000000000060\
 				000000000000000000000000000000000000000000000000000007b205c4101d\
 				0000000000000000000000000000000000000000000000000000000067fd2a55\
 				0000000000000000000000000000000000000000000000000000000000000008\
 				744254432f555344000000000000000000000000000000000000000000000000"
-		)
-				.encode_as(),
+			)
+			.encode_as(),
 			signature: ethereum::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 			)
-				.unwrap(),
+			.unwrap(),
 		})
 	}
 
@@ -442,7 +442,7 @@ mod tests {
 			value: U256::from(0),
 			//
 			input: hex!(
-			"8d241526\
+				"8d241526\
                 0000000000000000000000000000000000000000000000000000000000000040\
                 0000000000000000000000000000000000000000000000000000000000000120\
                 0000000000000000000000000000000000000000000000000000000000000002\
@@ -455,14 +455,14 @@ mod tests {
                 0000000000000000000000000000000000000000000000000000000000000002\
                 00000000000000000000000029b5c33700000000000000000000000067acbce5\
                 000000000000000000000005939a32ea00000000000000000000000067acbce5"
-		)
-				.encode_as(),
+			)
+			.encode_as(),
 			signature: ethereum::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
 			)
-				.unwrap(),
+			.unwrap(),
 		})
 	}
 
@@ -497,4 +497,3 @@ mod tests {
 		assert_eq!(expected, parse_oracle_transaction(tx).unwrap());
 	}
 }
-

@@ -74,7 +74,7 @@ pub mod pallet {
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 		<Self as frame_system::Config>::AccountId:
-		frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>,
+			frame_support::traits::IsType<frame_support::sp_runtime::AccountId32>,
 	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
