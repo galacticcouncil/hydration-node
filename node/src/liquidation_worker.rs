@@ -8,7 +8,7 @@ use frame_support::BoundedVec;
 use futures::{future::ready, StreamExt};
 use hex_literal::hex;
 use hydradx_runtime::{evm::precompiles::erc20_mapping::HydraErc20Mapping, Block, Runtime, RuntimeCall};
-use hydradx_traits::evm::{Erc20Mapping, EvmAddress};
+use hydradx_traits::evm::{Erc20Encoding, EvmAddress};
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use pallet_ethereum::Transaction;
@@ -192,10 +192,10 @@ where
 
 							if let Some(liquidation_option) = money_market_data.get_best_liquidation_option(&user_data, TARGET_HF.into(), (base_asset_address, price.into())) {
 								let (Some(collateral_asset_id), Some(debt_asset_id)) = (HydraErc20Mapping::decode_evm_address(liquidation_option.collateral_asset), HydraErc20Mapping::decode_evm_address(liquidation_option.debt_asset)) else {
-									return
+									continue
 								};
 								let Ok(debt_to_liquidate) = liquidation_option.debt_to_liquidate.try_into() else {
-									return
+									continue
 								};
 
 								let liquidation_tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_unsigned {
@@ -205,6 +205,18 @@ where
 									debt_to_cover: debt_to_liquidate,
 									route: BoundedVec::new(),
 								});
+
+
+								// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
+								let dry_run_result = Runtime::dry_run_call(
+									hydradx_runtime::RuntimeOrigin::none().caller,
+									liquidation_tx.clone());
+								if let Ok(call_result) = dry_run_result{
+									if call_result.execution_result.is_err() {
+										continue
+									}
+								}
+
 								let encoded_tx: fp_self_contained::UncheckedExtrinsic<hydradx_runtime::Address, RuntimeCall, hydradx_runtime::Signature, hydradx_runtime::SignedExtra> = fp_self_contained::UncheckedExtrinsic::new_unsigned(liquidation_tx);
 								let encoded = encoded_tx.encode();
 								let opaque_tx = sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
