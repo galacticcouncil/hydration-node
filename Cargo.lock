@@ -9423,7 +9423,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "7.0.0"
+version = "7.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
