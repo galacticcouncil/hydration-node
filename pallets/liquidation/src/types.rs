@@ -239,6 +239,8 @@ pub mod money_market {
 			self.configuration.is_debt(asset_index)
 		}
 
+		/// Update the state of reserve.
+		/// Calling `health_factor()` with updated reserved calculates the updated health factor.
 		pub fn update_reserves(&mut self, reserves: Vec<(usize, UserReserve)>) {
 			let len = self.reserves.len();
 
@@ -1128,7 +1130,7 @@ pub mod money_market {
 					user_reserve.debt = user_reserve.debt.saturating_sub(debt_to_liquidate_in_base);
 					new_user_data.update_reserves(sp_std::vec!((index_d, user_reserve)));
 
-					// calculate HF based on updated price
+					// calculate HF based on updated price and reserves
 					let maybe_hf = new_user_data.health_factor(self);
 
 					if let Some(hf) = maybe_hf {

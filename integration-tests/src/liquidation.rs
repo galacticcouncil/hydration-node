@@ -25,7 +25,7 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::currency::MultiCurrency;
-use pallet_liquidation::{types::money_market::*, BorrowerData, BorrowerDataDetails, MAX_LIQUIDATIONS};
+use pallet_liquidation::types::money_market::*;
 use pallet_xyk::Call::add_liquidity;
 use polkadot_primitives::EncodeAs;
 use sp_core::{H160, H256, U256, U512};
