@@ -911,10 +911,13 @@ pub mod offchain_worker {
 			let mut collateral_price = U256::zero();
 			let mut debt_price = U256::zero();
 			let mut debt_decimals = 0u8;
+			let mut collateral_decimals = 0u8;
 			let mut user_collateral_amount = U256::zero();
 			let mut user_debt_amount = U256::zero();
 			let unit_price = U256::from(10_000_000_000u128);
 			let percentage_factor = U256::from(10u128.pow(4));
+			let hf_one = U256::from(10).pow(18.into());
+			let oracle_price_decimals = 10;
 
 			// Iterate through all reserves to calculate total collateral and debt in base currency, and weighted total collateral
 			for (index, reserve) in self.reserves().iter().enumerate() {
@@ -941,6 +944,7 @@ pub mod offchain_worker {
 					liquidation_bonus = reserve.liquidation_bonus();
 					// Get price of the collateral asset
 					collateral_price = reserve.price();
+					collateral_decimals = reserve.decimals();
 					user_collateral_amount = user_balances.collateral;
 				}
 
@@ -955,11 +959,9 @@ pub mod offchain_worker {
 			// convert percentage to decimal number
 			weighted_total_collateral = weighted_total_collateral.checked_div(percentage_factor)?;
 
-			let target_health_factor = target_health_factor.checked_div(U256::from(10).pow(8.into()))?;
-
 			let n: U256 = total_debt_in_base
 				.full_mul(target_health_factor)
-				.checked_div(unit_price.into())?
+				.checked_div(hf_one.into())?
 				.checked_sub(weighted_total_collateral.into())?
 				.checked_mul(unit_price.into())?
 				.try_into()
@@ -967,7 +969,7 @@ pub mod offchain_worker {
 
 			let d: U256 = percentage_factor
 				.full_mul(target_health_factor)
-				.checked_div(unit_price.into())?
+				.checked_div(hf_one.into())?
 				.checked_sub(
 					liquidation_bonus
 						.full_mul(collateral_liquidation_threshold.into())
@@ -976,17 +978,8 @@ pub mod offchain_worker {
 				.try_into()
 				.ok()?;
 
-			log::info!("\n-- - - \nn: {:?}\nd: {:?}", n, d);
 			let d = percent_mul(debt_price, d)?;
-
 			let debt_to_liquidate = n.checked_div(d)?;
-			log::info!("\nd: {:?}\ndtl: {:?}", d, debt_to_liquidate);
-
-			let total_debt: U256 = total_debt_in_base
-				.full_mul(U256::from(10u128.pow(debt_decimals.into())))
-				.checked_div(debt_price.into())?
-				.try_into()
-				.ok()?;
 
 			// Our calculation provides theoretical amount that needs to be liquidated to get the HF close to `target_health_factor`.
 			// But there is no guarantee that user has required amount of debt and collateral assets.
@@ -1017,20 +1010,22 @@ pub mod offchain_worker {
 			};
 
 			// Adjust the liquidation amounts if user doesn't have expected amount of the collateral asset.
-			let base_collateral_amount = actual_debt_to_liquidate
+			let mut base_collateral_amount = actual_debt_to_liquidate
 				.full_mul(debt_price)
 				.checked_div(collateral_price.into())?
 				.try_into()
 				.ok()?;
-			let collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
 
-			// let debt_in_base_currency = actual_debt_to_liquidate
-			// 	.full_mul(debt_price)
-			// 	.checked_div(unit_price.into())?
-			// 	.try_into()
-			// 	.ok()?;
-			let collateral_in_base_currency: U256 = collateral_amount
+			let mut collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
+
+			let mut collateral_in_base_currency: U256 = collateral_amount
 				.full_mul(collateral_price)
+				.checked_div(unit_price.into())?
+				.try_into()
+				.ok()?;
+
+			let mut debt_in_base_currency = actual_debt_to_liquidate
+				.full_mul(debt_price)
 				.checked_div(unit_price.into())?
 				.try_into()
 				.ok()?;
@@ -1044,27 +1039,42 @@ pub mod offchain_worker {
 					.checked_mul(unit_price.into())?
 					.try_into()
 					.ok()?;
+
+				base_collateral_amount = actual_debt_to_liquidate
+					.full_mul(debt_price)
+					.checked_div(collateral_price.into())?
+					.try_into()
+					.ok()?;
+				collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
+
+				debt_in_base_currency = actual_debt_to_liquidate
+					.full_mul(debt_price)
+					.checked_div(unit_price.into())?
+					.try_into()
+					.ok()?;
+				collateral_in_base_currency = collateral_amount
+					.full_mul(collateral_price)
+					.checked_div(unit_price.into())?
+					.try_into()
+					.ok()?;
 			}
 
-			let base_collateral_amount = actual_debt_to_liquidate
-				.full_mul(debt_price)
-				.checked_div(collateral_price.into())?
-				.try_into()
-				.ok()?;
-			let collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
+			// adjust decimals
+			actual_debt_to_liquidate = if debt_decimals > oracle_price_decimals {
+				actual_debt_to_liquidate
+					.checked_mul(U256::from(10).pow((debt_decimals - oracle_price_decimals).into()))?
+			} else {
+				actual_debt_to_liquidate
+					.checked_div(U256::from(10).pow((oracle_price_decimals - debt_decimals).into()))?
+			};
 
-			let debt_in_base_currency = actual_debt_to_liquidate
-				.full_mul(debt_price)
-				.checked_div(unit_price.into())?
-				.try_into()
-				.ok()?;
-			let collateral_in_base_currency = collateral_amount
-				.full_mul(collateral_price)
-				.checked_div(unit_price.into())?
-				.try_into()
-				.ok()?;
-
-			// //////////////////////
+			collateral_amount = if collateral_decimals > 10 {
+				collateral_amount
+					.checked_mul(U256::from(10).pow((collateral_decimals - oracle_price_decimals).into()))?
+			} else {
+				collateral_amount
+					.checked_div(U256::from(10).pow((oracle_price_decimals - collateral_decimals).into()))?
+			};
 
 			Some((
 				(actual_debt_to_liquidate, collateral_amount),

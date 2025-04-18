@@ -38,6 +38,8 @@ const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 
 const DOT: AssetId = 5;
 const DOT_UNIT: Balance = 10_000_000_000;
+const USDT: AssetId = 10;
+const USDT_UNIT: Balance = 1_000_000;
 const WETH: AssetId = 20;
 const WETH_UNIT: Balance = 1_000_000_000_000_000_000;
 const ALICE_INITIAL_WETH_BALANCE: Balance = 20 * WETH_UNIT;
@@ -1059,7 +1061,6 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 
 		let borrow_weth_amount: Balance = 21 * WETH_UNIT;
 		borrow(pool_contract, alice_evm_address, weth_asset_address, borrow_weth_amount);
-		// 2 694 327 636 072 636 522
 
 		hydradx_run_to_next_block();
 
@@ -1185,7 +1186,186 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 		}
 		println!("______________________________");
 		println!("\n\n");
-
-
 	});
 }
+
+// #[test]
+// fn calculate_debt_to_liquidate_with_assets_with_different_decimals_than_price_oracle() {
+// 	TestNet::reset();
+// 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
+// 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+// 		// Arrange
+// 		hydradx_run_to_next_block();
+//
+// 		let pallet_acc = Liquidation::account_id();
+// 		let usdt_asset_address = HydraErc20Mapping::encode_evm_address(USDT);
+// 		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+//
+// 		assert_ok!(Currencies::deposit(USDT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
+// 		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
+//
+// 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
+// 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
+// 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(pallet_acc.clone()),));
+//
+// 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+//
+// 		// PoolAddressesProvider contract
+// 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
+//
+// 		// get Pool contract address
+// 		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(pap_contract, alice_evm_address).unwrap();
+// 		let oracle_contract = MoneyMarketData::<Block, Runtime>::fetch_price_oracle(pap_contract, alice_evm_address).unwrap();
+// 		assert_ok!(Liquidation::set_borrowing_contract(
+// 			RuntimeOrigin::root(),
+// 			pool_contract
+// 		));
+//
+// 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+//
+// 		let collateral_weth_amount: Balance = 2 * WETH_UNIT;
+// 		let collateral_usdt_amount = 4_000 * USDT_UNIT;
+// 		supply(
+// 			pool_contract,
+// 			alice_evm_address,
+// 			weth_asset_address,
+// 			collateral_weth_amount,
+// 		);
+// 		supply(
+// 			pool_contract,
+// 			alice_evm_address,
+// 			usdt_asset_address,
+// 			collateral_usdt_amount,
+// 		);
+//
+// 		let borrow_weth_amount: Balance = 2 * WETH_UNIT;
+// 		borrow(pool_contract, alice_evm_address, weth_asset_address, borrow_weth_amount);
+//
+// 		hydradx_run_to_next_block();
+//
+// 		println!("\n\n   ----    -----    BEFORE PRICE UPDATE");
+// 		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
+// 		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap() + primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
+// 		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+//
+// 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+// 		println!("\n\n\nUSR DATA: \n total coll {:?} \n total debt {:?}\n avg liq threshold {:?}\n HF {:?}", usr_data.total_collateral_base, usr_data.total_debt_base, usr_data.current_liquidation_threshold, usr_data.health_factor);
+// 		println!("HF: {:?}", user_data.health_factor(&money_market_data).unwrap());
+//
+// 		println!("______________________________");
+// 		for (i, reserve) in money_market_data.reserves().iter().enumerate() {
+// 			if user_data.is_debt(i) || user_data.is_collateral(i) {
+// 				println!("|\n| LIQ THRESHOLD  {:?} {:?}", String::from_utf8(reserve.symbol().clone()).unwrap(), reserve.liquidation_threshold());
+// 				println!("| LIQ BONUS  {:?}", reserve.liquidation_bonus());
+// 				println!("| INDEX  {:?}", i);
+// 				println!("| DECIMALS: {:?}", reserve.decimals());
+// 				println!("| PRICE: {:?}", reserve.price());
+// 				println!("| COLL  {:?}", reserve.get_user_collateral_in_base_currency::<Block, Runtime>(user_data.address(), current_evm_timestamp, alice_evm_address).unwrap());
+// 				println!("| DEBT  {:?}", reserve.get_user_debt_in_base_currency::<Block, Runtime>(user_data.address(), current_evm_timestamp, alice_evm_address).unwrap());
+// 			}
+// 		}
+// 		println!("______________________________");
+//
+// 		println!("\n\n   ----    -----    BEFORE PRICE UPDATE, MM UPDATED");
+// 		let weth_address = money_market_data.get_asset_address("WETH").unwrap();
+// 		let new_price = get_oracle_price("WETH/USD").0.as_u128() * 5 / 2;
+// 		money_market_data.update_reserve_price(weth_address, new_price.into());
+//
+// 		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+// 		println!("HF: {:?}", user_data.health_factor(&money_market_data).unwrap());
+//
+// 		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
+// 		let liquidation_options = money_market_data.calculate_liquidation_options(&user_data, target_health_factor, (weth_address, new_price.into()));
+// 		println!("CALCULATE LIQUIDATION OPTIONS    RESULT:");
+// 		if let Some(liq_opts) = liquidation_options {
+// 			for i in liq_opts.iter() {
+// 				println!("{:?}", i);
+// 			}
+// 		}
+//
+// 		let debt_asset = money_market_data.get_asset_address("WETH").unwrap();
+// 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
+// 		let ((debt_to_liquidate, collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) = money_market_data.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset).unwrap();
+// 		println!("\nCALCULATE DEBT TO LIQUIDATE       RESULT: \
+// 			\n debt_to_liquidate: {:?}\n collateral_amount: {:?}\n debt_to_liquidate_in_base: {:?}\n collateral_received_in_base: {:?}",
+// 				 debt_to_liquidate, collateral_amount, debt_to_liquidate_in_base, collateral_received_in_base);
+//
+//
+// 		let mut user_data_c = user_data.clone();
+//
+// 		let mut user_reserve = user_data_c.reserves()[2].clone();
+// 		user_reserve.collateral = user_reserve.collateral.saturating_sub(collateral_received_in_base);
+// 		user_data_c.update_reserves(vec!((2, user_reserve)));
+//
+// 		let mut user_reserve = user_data_c.reserves()[2].clone();
+// 		user_reserve.debt = user_reserve.debt.saturating_sub(debt_to_liquidate_in_base);
+// 		user_data_c.update_reserves(vec!((2, user_reserve)));
+//
+// 		println!("HF AFTER: {:?}", user_data_c.health_factor(&money_market_data).unwrap());
+//
+// 		println!("\n\n   ----    -----    AFTER PRICE UPDATE");
+// 		let (price, timestamp) = get_oracle_price("WETH/USD");
+// 		let price = price.as_u128() * 5 / 2;
+// 		let timestamp = timestamp.as_u128() + 6;
+// 		let mut data = price.to_be_bytes().to_vec();
+// 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+// 		update_oracle_price(vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())]);
+//
+// 		// ensure that the health_factor < 1
+// 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+// 		assert!(usr_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
+//
+// 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
+// 		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+// 		println!("\n\n\nUSR DATA: \n total coll {:?} \n total debt {:?}\n avg liq threshold {:?}\n HF {:?}", usr_data.total_collateral_base, usr_data.total_debt_base, usr_data.current_liquidation_threshold, usr_data.health_factor);
+// 		println!("HF: {:?}", user_data.health_factor(&money_market_data).unwrap());
+//
+// 		println!("______________________________");
+// 		for (i, reserve) in money_market_data.reserves().iter().enumerate() {
+// 			if user_data.is_debt(i) || user_data.is_collateral(i) {
+// 				println!("| \n| LIQ THRESHOLD  {:?} {:?}", String::from_utf8(reserve.symbol().clone()).unwrap(), reserve.liquidation_threshold());
+// 				println!("| LIQ BONUS  {:?}", reserve.liquidation_bonus());
+// 				println!("| PRICE: {:?}", reserve.price());
+// 				println!("| COLL  {:?}", reserve.get_user_collateral_in_base_currency::<Block, Runtime>(user_data.address(), current_evm_timestamp, alice_evm_address).unwrap());
+// 				println!("| DEBT  {:?}", reserve.get_user_debt_in_base_currency::<Block, Runtime>(user_data.address(), current_evm_timestamp, alice_evm_address).unwrap());
+// 			}
+// 		}
+// 		println!("______________________________");
+//
+// 		let route = Router::get_route(AssetPair {
+// 			asset_in: USDT,
+// 			asset_out: WETH,
+// 		});
+//
+// 		println!("\n\n   ----    -----    AFTER LIQUIDATION");
+// 		assert_ok!(Liquidation::liquidate(
+// 			RuntimeOrigin::signed(BOB.into()),
+// 			USDT,			// collateral
+// 			WETH,			// debt
+// 			alice_evm_address,
+// 			debt_to_liquidate.try_into().unwrap(),
+// 			route
+// 		));
+//
+// 		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
+// 		let user_data = UserData::new(&money_market_data, alice_evm_address, current_evm_timestamp, alice_evm_address).unwrap();
+// 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+// 		println!("\n\n\nUSR DATA: \n total coll {:?} \n total debt {:?}\n avg liq threshold {:?}\n HF {:?}", usr_data.total_collateral_base, usr_data.total_debt_base, usr_data.current_liquidation_threshold, usr_data.health_factor);
+// 		println!("HF: {:?}", user_data.health_factor(&money_market_data).unwrap());
+//
+// 		println!("______________________________");
+// 		for (i, reserve) in money_market_data.reserves().iter().enumerate() {
+// 			if user_data.is_debt(i) || user_data.is_collateral(i) {
+// 				println!("| \n| LIQ THRESHOLD  {:?} {:?}", String::from_utf8(reserve.symbol().clone()).unwrap(), reserve.liquidation_threshold());
+// 				println!("| LIQ BONUS  {:?}", reserve.liquidation_bonus());
+// 				println!("| PRICE: {:?} {:?}", reserve.price(), reserve.decimals());
+// 				println!("| COLL  {:?}", reserve.get_user_collateral_in_base_currency::<Block, Runtime>(user_data.address(), current_evm_timestamp, alice_evm_address).unwrap());
+// 				println!("| DEBT  {:?}", reserve.get_user_debt_in_base_currency::<Block, Runtime>(user_data.address(), current_evm_timestamp, alice_evm_address).unwrap());
+// 			}
+// 		}
+// 		println!("______________________________");
+// 		println!("\n\n");
+//
+//
+// 	});
+// }
