@@ -24,7 +24,6 @@ use sp_runtime::{
 	DispatchResult, FixedU128, Permill, TransactionOutcome,
 };
 use sp_std::sync::Arc;
-use xcm_builder::FixedWeightBounds;
 use xcm_emulator::TestExt;
 use xcm_executor::traits::WeightBounds;
 
@@ -159,7 +158,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			ACA,
 			UNITS,
 			0,
-			vec![],
+			BoundedVec::new(),
 		));
 
 		let last_swapped_events: Vec<pallet_broadcast::Event<hydradx_runtime::Runtime>> = get_last_swapped_events();
@@ -400,7 +399,7 @@ pub mod zeitgeist_use_cases {
 	use super::*;
 	use frame_support::traits::tokens::Precision;
 	use polkadot_xcm::latest::{NetworkId, Parent};
-	use polkadot_xcm::prelude::Parachain;
+	use polkadot_xcm::prelude::{Parachain, Unlimited};
 	use std::sync::Arc;
 
 	use primitives::constants::chain::CORE_ASSET_ID;
@@ -485,7 +484,7 @@ pub mod zeitgeist_use_cases {
 			.into();
 			let max_assets = assets.len() as u32 + 1;
 
-			let give_amount = 10 * UNITS;
+			let give_amount = 100 * UNITS;
 			let give_asset = Asset::from((hydradx_runtime::CurrencyIdConvert::convert(0).unwrap(), give_amount));
 			let want_asset = Asset::from((
 				Location::new(
@@ -509,7 +508,7 @@ pub mod zeitgeist_use_cases {
 				.reanchored(&dest, &want_reserve_chain.interior)
 				.expect("should reanchor");
 
-			let weight_limit = Limited(Weight::from_parts(u64::MAX, u64::MAX));
+			let weight_limit = Unlimited;
 
 			// executed on local (zeitgeist)
 			let message = Xcm(vec![
@@ -1199,7 +1198,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 	want_asset: Asset,
 	is_sell: bool,
 ) -> VersionedXcm<RC> {
-	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
+	type Weigher<RC> = hydradx_runtime::xcm::DynamicWeigher<RC>;
 
 	let give_reserve_chain = Location::new(
 		1,
@@ -1303,7 +1302,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 		]);
 		// use local weight for remote message and hope for the best.
 		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
-		Limited(remote_weight)
+		Unlimited
 	};
 
 	// executed on remote (on hydra)

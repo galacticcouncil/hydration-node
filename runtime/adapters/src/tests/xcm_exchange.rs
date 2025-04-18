@@ -123,7 +123,9 @@ fn xcm_exchanger_should_work_with_onchain_route() {
 						asset_in: HDX,
 						asset_out: DOT,
 					},
-				],
+				]
+				.try_into()
+				.unwrap(),
 			));
 
 			let give = Asset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();

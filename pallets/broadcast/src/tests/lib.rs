@@ -18,7 +18,6 @@
 use crate::tests::mock::*;
 use crate::Event;
 use frame_support::assert_err;
-use frame_support::traits::Len;
 
 #[test]
 fn stack_should_be_populated_when_pushed() {
@@ -113,7 +112,7 @@ fn event_should_be_deposited() {
 			],
 		);
 
-		expect_events(vec![Event::Swapped {
+		expect_events(vec![Event::Swapped2 {
 			swapper: ALICE,
 			filler: BOB,
 			filler_type: Filler::Omnipool,

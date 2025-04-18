@@ -12,22 +12,22 @@
         "args": [
           "--pruning=archive"
         ],
-        "ws_port": 9944,
+        "rpc_port": 9944,
         "invulnerable": true
       },
       {
         "name": "bob",
-        "ws_port": 9955,
+        "rpc_port": 9955,
         "invulnerable": true
       },
       {
         "name": "charlie",
-        "ws_port": 9966,
+        "rpc_port": 9966,
         "invulnerable": true
       },
       {
         "name": "dave",
-        "ws_port": 9977,
+        "rpc_port": 9977,
         "invulnerable": true
       }
     ]
@@ -39,7 +39,7 @@
       "id": 2034,
       "cumulus_based": true,
       "chain": "local",
-      "chain_spec_path": "forked-chainspec.json",
+      "chain_spec_path": "data/forked-chainspec.json",
       "collators": [
         {
           "name": "alice",
@@ -48,7 +48,6 @@
             "--pruning=archive",
             "--log=info"
           ],
-          "ws_port": 9988,
           "rpc_port": 9999
         },
         {
@@ -58,7 +57,7 @@
             "--pruning=archive",
             "--log=info"
           ],
-          "ws_port": 9989
+          "rpc_port": 9989
         }
       ]
     }

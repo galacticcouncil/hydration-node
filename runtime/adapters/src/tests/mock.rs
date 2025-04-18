@@ -33,7 +33,7 @@ use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
-use hydradx_traits::router::{RefundEdCalculator, Trade};
+use hydradx_traits::router::Trade;
 use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
 	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
@@ -191,6 +191,7 @@ parameter_types! {
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 	pub BurnFee: Permill = Permill::zero();
+	pub const ReserveAccount: AccountId = 7;
 }
 
 impl pallet_omnipool::Config for Test {
@@ -241,6 +242,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
@@ -348,24 +350,13 @@ impl pallet_route_executor::Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = DummyRegistry<Test>;
 	type AMM = Pools;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type WeightInfo = ();
 }
-
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
-}
-
 pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId> for PriceProviderMock {

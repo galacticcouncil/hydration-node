@@ -523,7 +523,7 @@ pub mod hydra {
 						Some(b"DOT".to_vec().try_into().unwrap()),
 						1_000_000u128,
 						None,
-						None,
+						Some(10),
 						None,
 						true,
 					),
@@ -763,6 +763,9 @@ pub fn hydradx_run_to_next_block() {
 	hydradx_runtime::CircuitBreaker::on_finalize(b);
 	hydradx_runtime::DCA::on_finalize(b);
 	hydradx_runtime::EmaOracle::on_finalize(b);
+	hydradx_runtime::EVM::on_finalize(b);
+	hydradx_runtime::Ethereum::on_finalize(b);
+	hydradx_runtime::EVMAccounts::on_finalize(b);
 
 	hydradx_runtime::System::set_block_number(b + 1);
 	hydradx_runtime::System::on_initialize(b + 1);
@@ -773,6 +776,9 @@ pub fn hydradx_run_to_next_block() {
 	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
 	hydradx_runtime::DCA::on_initialize(b + 1);
 	hydradx_runtime::EmaOracle::on_initialize(b + 1);
+	hydradx_runtime::EVM::on_initialize(b + 1);
+	hydradx_runtime::Ethereum::on_initialize(b + 1);
+	hydradx_runtime::EVMAccounts::on_initialize(b + 1);
 
 	hydradx_runtime::System::set_block_number(b + 1);
 }
@@ -956,7 +962,7 @@ pub fn get_last_swapped_events() -> Vec<pallet_broadcast::Event<hydradx_runtime:
 	last_events
 		.into_iter()
 		.filter_map(|event| {
-			if let RuntimeEvent::Broadcast(inner_event @ pallet_broadcast::Event::Swapped { .. }) = event {
+			if let RuntimeEvent::Broadcast(inner_event @ pallet_broadcast::Event::Swapped2 { .. }) = event {
 				Some(inner_event)
 			} else {
 				None
@@ -968,7 +974,7 @@ pub fn get_last_swapped_events() -> Vec<pallet_broadcast::Event<hydradx_runtime:
 #[macro_export]
 macro_rules! assert_operation_stack {
     ($event:expr, [$($pattern:pat),*]) => {
-        if let pallet_broadcast::Event::Swapped { operation_stack, .. } = $event {
+        if let pallet_broadcast::Event::Swapped2 { operation_stack, .. } = $event {
             assert!(matches!(&operation_stack[..],
                 [
                     $($pattern),*

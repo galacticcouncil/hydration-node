@@ -320,6 +320,7 @@ parameter_type_with_key! {
 
 parameter_types! {
 	pub const MaxReserves: u32 = 50;
+	pub const ReserveAccount: AccountId = AccountId::new([9u8; 32]);
 }
 
 pub struct CurrencyHooks;
@@ -354,6 +355,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = HdxAssetId;
 	type WeightInfo = ();
 }

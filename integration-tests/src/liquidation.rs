@@ -15,7 +15,7 @@ use hydradx_runtime::{evm::{
 	Executor,
 }, AssetId, Balance, Block, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeCall, RuntimeOrigin, Treasury};
 use hydradx_traits::{
-	evm::{CallContext, Erc20Mapping, EvmAddress, EVM},
+	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
 	router::{AssetPair, RouteProvider},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -29,9 +29,8 @@ use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::ops::BitAnd;
 
-// ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
-const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
-// const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT_NEW";
+// ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens MultiTransactionPayment EmaOracle Balances --uri wss://rpc.nice.hydration.cloud:443
+pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 
 const DOT: AssetId = 5;
 const DOT_UNIT: Balance = 10_000_000_000;

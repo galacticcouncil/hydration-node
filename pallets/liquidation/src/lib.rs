@@ -29,18 +29,21 @@
 
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
-use frame_support::traits::DefensiveOption;
+use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::AccountIdConversion,
-	traits::fungibles::{Inspect, Mutate},
-	traits::tokens::{Fortitude, Precision, Preservation},
+	traits::{
+		DefensiveOption,
+		fungibles::{Inspect, Mutate},
+		tokens::{Fortitude, Precision, Preservation},
+	},
 	PalletId,
 };
-use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
+use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
-	evm::{CallContext, Erc20Mapping, EvmAddress, InspectEvmAccounts, EVM},
-	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
+	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
+	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, Route, RouterT, Trade},
 };
 use pallet_evm::GasWeightMapping;
 use sp_arithmetic::ArithmeticError;
@@ -213,7 +216,7 @@ pub mod pallet {
 			debt_asset: AssetId,
 			user: EvmAddress,
 			debt_to_cover: Balance,
-			route: Vec<Trade<AssetId>>,
+			route: Route<AssetId>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::liquidate_inner(Some(who), collateral_asset, debt_asset, user, debt_to_cover, route)
@@ -346,8 +349,8 @@ where
 		debt_to_cover: Balance,
 		receive_atoken: bool,
 	) -> Vec<u8> {
-		let collateral_address = T::Erc20Mapping::encode_evm_address(collateral_asset);
-		let debt_asset_address = T::Erc20Mapping::encode_evm_address(debt_asset);
+		let collateral_address = T::Erc20Mapping::asset_address(collateral_asset);
+		let debt_asset_address = T::Erc20Mapping::asset_address(debt_asset);
 		let mut data = Into::<u32>::into(Function::LiquidationCall).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(collateral_address).as_bytes());
 		data.extend_from_slice(H256::from(debt_asset_address).as_bytes());

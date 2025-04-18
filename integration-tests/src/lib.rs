@@ -1,6 +1,7 @@
 #![cfg(test)]
 // DCA pallet uses dummy router for benchmarks and some tests fail when benchmarking feature is enabled
 #![cfg(not(feature = "runtime-benchmarks"))]
+mod aave_router;
 mod asset_registry;
 mod bonds;
 mod call_filter;
@@ -29,6 +30,7 @@ mod otc;
 mod polkadot_test_net;
 mod referrals;
 mod router;
+mod stableswap;
 mod staking;
 mod transact_call_filter;
 mod utility;

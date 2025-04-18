@@ -17,6 +17,7 @@
 
 use crate as router;
 use crate::{Config, Trade};
+use frame_support::PalletId;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -24,7 +25,7 @@ use frame_support::{
 use frame_system::EnsureRoot;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ratio::Ratio;
-use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pretty_assertions::assert_eq;
@@ -116,6 +117,7 @@ impl orml_tokens::Config for Test {
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxReserves: u32 = 50;
+	pub const ReserveAccount: AccountId = 7;
 }
 
 impl pallet_balances::Config for Test {
@@ -140,6 +142,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
@@ -155,6 +158,7 @@ parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 
+	pub const RouterPalletId: PalletId = PalletId(*b"routerac");
 }
 
 impl Config for Test {
@@ -163,24 +167,13 @@ impl Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = MockedAssetRegistry;
 	type AMM = Pools;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
-
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
-}
-
 pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId> for PriceProviderMock {
@@ -347,7 +340,7 @@ macro_rules! impl_fake_executor {
 		impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for $pool_struct {
 			type Error = DispatchError;
 
-			fn calculate_sell(
+			fn calculate_out_given_in(
 				pool_type: PoolType<AssetId>,
 				_asset_in: AssetId,
 				_asset_out: AssetId,
@@ -364,7 +357,7 @@ macro_rules! impl_fake_executor {
 				Ok($sell_calculation_result)
 			}
 
-			fn calculate_buy(
+			fn calculate_in_given_out(
 				pool_type: PoolType<AssetId>,
 				_asset_in: AssetId,
 				_asset_out: AssetId,
@@ -392,6 +385,10 @@ macro_rules! impl_fake_executor {
 				let who = ensure_signed(who).map_err(|_| ExecutorError::Error(DispatchError::Other("Wrong origin")))?;
 				if !matches!(pool_type, $pool_type) {
 					return Err(ExecutorError::NotSupported);
+				}
+
+				if amount_in == INVALID_CALCULATION_AMOUNT {
+					return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
 				}
 
 				EXECUTED_SELLS.with(|v| {
