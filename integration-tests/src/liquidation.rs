@@ -516,7 +516,6 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		user_reserve.collateral = user_reserve.collateral.saturating_sub(collateral_received_in_base);
 		user_reserve.debt = user_reserve.debt.saturating_sub(debt_to_liquidate_in_base);
 		user_data.update_reserves(vec![(4, user_reserve)]);
-		println!("\n\nHF: {:?}", user_data.health_factor(&money_market_data).unwrap());
 		let target_hf_diff = target_health_factor.abs_diff(user_data.health_factor(&money_market_data).unwrap());
 		assert!(
 			target_hf_diff
@@ -635,7 +634,6 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 			alice_evm_address,
 		)
 		.unwrap();
-		println!("HF: {:?}", user_data.health_factor(&money_market_data).unwrap());
 
 		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
 		let liquidation_options = money_market_data.calculate_liquidation_options(

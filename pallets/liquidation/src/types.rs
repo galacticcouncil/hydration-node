@@ -10,37 +10,7 @@ pub type Balance = u128;
 pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
-pub const MAX_LIQUIDATIONS: u32 = 5;
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1_000_000;
-
-#[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
-#[repr(u32)]
-pub enum Function {
-	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
-}
-
-#[derive(Clone, Encode, Decode, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct BorrowerDataDetails<AccountId> {
-	pub total_collateral_base: f32,
-	pub total_debt_base: f32,
-	pub available_borrows_base: f32,
-	pub current_liquidation_threshold: f32,
-	pub ltv: f32,
-	pub health_factor: f32,
-	pub updated: u64,
-	pub account: AccountId,
-	pub pool: H160,
-}
-
-#[derive(Clone, Encode, Decode, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct BorrowerData<AccountId> {
-	pub last_global_update: u32,
-	pub last_update: u32,
-	pub borrowers: Vec<(H160, BorrowerDataDetails<AccountId>)>,
-}
 
 pub mod money_market {
 	use super::*;
@@ -52,6 +22,9 @@ pub mod money_market {
 	use pallet_ethereum::Transaction;
 	use sp_core::{H256, U256};
 	use sp_std::{boxed::Box, ops::BitAnd};
+
+	/// maximum number of liquidation we try to execute
+	pub const MAX_LIQUIDATIONS: u32 = 5;
 
 	/// Default percentage of borrower's debt to be repaid in a liquidation.
 	/// Percentage applied when the users health factor is above `CLOSE_FACTOR_HF_THRESHOLD`
@@ -89,6 +62,28 @@ pub mod money_market {
 		GetValue = "getValue(string)",
 		LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
 		Symbol = "symbol()",
+	}
+
+	#[derive(Clone, Encode, Decode, Deserialize, Debug)]
+	#[serde(rename_all = "camelCase")]
+	pub struct BorrowerDataDetails<AccountId> {
+		pub total_collateral_base: f32,
+		pub total_debt_base: f32,
+		pub available_borrows_base: f32,
+		pub current_liquidation_threshold: f32,
+		pub ltv: f32,
+		pub health_factor: f32,
+		pub updated: u64,
+		pub account: AccountId,
+		pub pool: H160,
+	}
+
+	#[derive(Clone, Encode, Decode, Deserialize, Debug)]
+	#[serde(rename_all = "camelCase")]
+	pub struct BorrowerData<AccountId> {
+		pub last_global_update: u32,
+		pub last_update: u32,
+		pub borrowers: Vec<(H160, BorrowerDataDetails<AccountId>)>,
 	}
 
 	/// Multiplies two ray, rounding half up to the nearest ray.
@@ -179,7 +174,6 @@ pub mod money_market {
 		address: EvmAddress,
 		configuration: UserConfiguration,
 		reserves: Vec<UserReserve>, // the order of reserves is given by fetch_reserves_list()
-		pub current_evm_timestamp: u64,
 	}
 	impl UserData {
 		/// Calls Runtime API.
@@ -220,7 +214,6 @@ pub mod money_market {
 				address,
 				configuration,
 				reserves,
-				current_evm_timestamp,
 			})
 		}
 
@@ -256,6 +249,7 @@ pub mod money_market {
 			}
 		}
 
+		// TODO: improve precision
 		/// Calculates user's health factor.
 		pub fn health_factor<Block, Runtime>(&self, money_market: &MoneyMarketData<Block, Runtime>) -> Option<U256>
 		where
@@ -289,7 +283,7 @@ pub mod money_market {
 		/// Returns Bitmap of the users collaterals and borrows.
 		/// It is divided into pairs of bits, one pair per asset.
 		/// The first bit indicates if an asset is used as collateral by the user, the second whether an asset is borrowed by the user.
-		/// The corresponding assets are in the same position as getReservesList().
+		/// The corresponding assets are in the same position as `getReservesList()`.
 		/// Calls Runtime API.
 		pub fn fetch_user_configuration<Block, Runtime>(
 			mm_pool: EvmAddress,
@@ -304,6 +298,7 @@ pub mod money_market {
 			data.extend_from_slice(H256::from(user).as_bytes());
 
 			let gas_limit = U256::from(500_000);
+			// TODO: return Result type
 			let call_info = Runtime::call(
 				caller,
 				mm_pool,
@@ -394,6 +389,7 @@ pub mod money_market {
 		}
 	}
 
+	// TODO: not all fields are used, remove unnecessary
 	/// Configuration of the reserve.
 	/// https://github.com/aave/aave-v3-core/blob/782f51917056a53a2c228701058a6c3fb233684a/contracts/protocol/libraries/types/DataTypes.sol#L5
 	#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
@@ -437,7 +433,7 @@ pub mod money_market {
 		}
 	}
 
-	/// State of the reserve.
+	/// State of asset reserve.
 	#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 	pub struct Reserve {
 		reserve_data: ReserveData,
@@ -1009,7 +1005,6 @@ pub mod money_market {
 				debt_to_liquidate
 			};
 
-			// Adjust the liquidation amounts if user doesn't have expected amount of the collateral asset.
 			let mut base_collateral_amount = actual_debt_to_liquidate
 				.full_mul(debt_price)
 				.checked_div(collateral_price.into())?
@@ -1030,6 +1025,7 @@ pub mod money_market {
 				.try_into()
 				.ok()?;
 
+			// Adjust the liquidation amounts if user doesn't have expected amount of the collateral asset.
 			if collateral_in_base_currency > user_collateral_amount {
 				// collateral in base currency, without bonus
 				actual_debt_to_liquidate = user_collateral_amount

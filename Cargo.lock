@@ -8801,7 +8801,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.1.5"
+version = "2.1.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

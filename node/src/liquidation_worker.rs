@@ -11,7 +11,7 @@ use hydradx_traits::evm::{Erc20Encoding, EvmAddress};
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use pallet_ethereum::Transaction;
-use pallet_liquidation::{money_market::*, BorrowerData, BorrowerDataDetails, MAX_LIQUIDATIONS};
+use pallet_liquidation::money_market::*;
 use parking_lot::Mutex;
 use polkadot_primitives::EncodeAs;
 use primitives::AccountId;
@@ -27,7 +27,7 @@ use std::{cmp::Ordering, marker::PhantomData, sync::Arc};
 use threadpool::ThreadPool;
 use xcm_runtime_apis::dry_run::runtime_decl_for_dry_run_api::DryRunApiV1;
 
-const LOG_TARGET: &str = "offchain-worker";
+const LOG_TARGET: &str = "liquidation-worker";
 const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691")); // TODO: check
 const RUNTIME_API_CALLER: EvmAddress = H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6")); // TODO
 const ORACLE_UPDATE_CALLER: EvmAddress = H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3"));
@@ -60,7 +60,7 @@ where
 	pub async fn run(client: Arc<C>, transaction_pool: Arc<P>, spawner: SpawnTaskHandle) {
 		// liquidation calculations are performed in a separate thread.
 		let thread_pool = Arc::new(Mutex::new(ThreadPool::with_name(
-			"offchain-worker".into(),
+			"liquidation-worker".into(),
 			num_cpus::get(), // TODO
 		)));
 
@@ -81,7 +81,7 @@ where
 			.import_notification_stream()
 			.for_each(move |n| {
 				if n.is_new_best {
-					spawner.spawn("offchain-on-block", Some("offchain-worker"), {
+					spawner.spawn("liquidation-worker-on-block", Some("liquidation-worker"), {
 						{
 							let Ok(mut m_best_block) = best_block.lock() else {
 								return ready(());
@@ -103,7 +103,7 @@ where
 				} else {
 					tracing::debug!(
 						target: LOG_TARGET,
-						"Skipping offchain workers for non-canon block: {:?}",
+						"Skipping liquidation worker for non-canon block: {:?}",
 						n.header,
 					)
 				}
@@ -177,6 +177,7 @@ where
 					// iterate over all price updates
 					// all oracle updates we are interested in are quoted in USD
 					for OracleUpdataData{base_asset, quote_asset: _, price, timestamp: _} in oracle_data.iter() {
+						// TODO: maybe we can use `price` to determine if HF will increase or decrease
 						let Some(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, RUNTIME_API_CALLER) else { return };
 
 						// our calculations "happen" in the next block
@@ -214,6 +215,8 @@ where
 								if let Ok(call_result) = dry_run_result{
 									if call_result.execution_result.is_err() {
 										continue
+									} else {
+										// TODO: add logs to track what's happening
 									}
 								}
 
@@ -223,8 +226,8 @@ where
 
 								let tx_pool_cc = tx_pool_c.clone();
 								spawner_c.spawn(
-									"offchain-on-block",
-									Some("offchain-worker"),
+									"liquidation-worker-on-submit",
+									Some("liquidation-worker"),
 									async move {
 										let _ = tx_pool_cc.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into()).await;
 									}

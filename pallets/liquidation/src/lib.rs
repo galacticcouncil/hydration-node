@@ -141,7 +141,7 @@ pub mod pallet {
 			};
 
 			let valid_tx = |provide| {
-				ValidTransaction::with_tag_prefix("settle-otc-with-router")
+				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
 					.priority(UNSIGNED_TXS_PRIORITY)
 					.and_provides([&provide])
 					.longevity(3)
@@ -150,7 +150,7 @@ pub mod pallet {
 			};
 
 			match call {
-				Call::liquidate_unsigned { .. } => valid_tx(b"settle_otc_order".to_vec()),
+				Call::liquidate_unsigned { .. } => valid_tx(b"liquidate_unsigned".to_vec()),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -233,6 +233,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Unsigned version of the `liquidate` extrinsic. Used by the liquidation worker.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
 			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
@@ -351,7 +352,7 @@ where
 	) -> Vec<u8> {
 		let collateral_address = T::Erc20Mapping::asset_address(collateral_asset);
 		let debt_asset_address = T::Erc20Mapping::asset_address(debt_asset);
-		let mut data = Into::<u32>::into(Function::LiquidationCall).to_be_bytes().to_vec();
+		let mut data = Into::<u32>::into(money_market::Function::LiquidationCall).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(collateral_address).as_bytes());
 		data.extend_from_slice(H256::from(debt_asset_address).as_bytes());
 		data.extend_from_slice(H256::from(user).as_bytes());
