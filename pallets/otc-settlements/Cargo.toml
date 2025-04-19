@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-otc-settlements'
-version = '1.1.7'
+version = '1.1.8'
 description = 'A pallet with offchain worker closing OTC arbs'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -43,8 +43,6 @@ pallet-broadcast = { workspace = true }
 sp-api = { workspace = true }
 orml-traits = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
-proptest = { workspace = true }
-pretty_assertions = { workspace = true }
 test-utils = { workspace = true }
 parking_lot = { workspace = true }
 

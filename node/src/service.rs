@@ -50,7 +50,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, rpc};
+use crate::{chain_spec, liquidation_worker, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -263,6 +263,12 @@ async fn start_node_impl(
 			.boxed(),
 		);
 	}
+
+	task_manager.spawn_handle().spawn(
+		"liquidation-worker",
+		None,
+		liquidation_worker::LiquidationTask::run(client.clone(), transaction_pool.clone(), task_manager.spawn_handle()),
+	);
 
 	let overrides = Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone()));
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
