@@ -29,7 +29,6 @@ use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
 use primitives::AccountId;
-use scraper::{ALICE, BOB};
 use sp_core::keccak_256;
 use sp_core::Encode;
 use sp_core::{H256, U256};

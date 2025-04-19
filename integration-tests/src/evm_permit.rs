@@ -30,7 +30,6 @@ use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::constants::currency::UNITS;
 use primitives::{AssetId, Balance};
-use scraper::BOB;
 use sp_core::{H256, U256};
 use sp_runtime::traits::Convert;
 use sp_runtime::traits::SignedExtension;

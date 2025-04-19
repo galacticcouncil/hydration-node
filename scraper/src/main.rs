@@ -31,11 +31,25 @@ struct BlocksCmd {
 	shared: SharedParams,
 }
 
+#[derive(Parser, Debug)]
+struct SaveChainspecCmd {
+	/// The block hash at which to get the runtime chainspec. Will be latest finalized head if not provided.
+	#[arg(long)]
+	at: Option<<Block as BlockT>::Hash>,
+	/// The pallets to include. If empty, entire chain state will be exported.
+	#[arg(long, num_args = 0..)]
+	pallet: Vec<String>,
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	shared: SharedParams,
+}
+
 /// Possible commands of `scraper`.
 #[derive(Parser, Debug)]
 enum Command {
 	SaveStorage(StorageCmd),
 	SaveBlocks(BlocksCmd),
+	SaveChainspec(SaveChainspecCmd),
 }
 
 /// Shared parameters of the `scraper` commands.
@@ -147,6 +161,22 @@ fn main() {
 			}
 
 			scraper::save_blocks_snapshot::<Block>(&block_arr, &path).unwrap();
+
+			path
+		}
+		Command::SaveChainspec(cmd) => {
+			let mut path = cmd.shared.get_path();
+			path.set_extension("json");
+
+			tokio::runtime::Builder::new_current_thread()
+				.enable_all()
+				.build()
+				.unwrap()
+				.block_on(async {
+					scraper::save_chainspec(cmd.at, path.clone(), cmd.shared.uri)
+						.await
+						.unwrap()
+				});
 
 			path
 		}
