@@ -4681,7 +4681,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "307.0.0"
+version = "308.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12200,7 +12200,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.38.3"
+version = "1.38.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
