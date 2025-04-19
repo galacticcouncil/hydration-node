@@ -28,12 +28,13 @@ fn add_liquidity_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 65_400_000);
 		assert_eq!(XYK::total_liquidity(pair_account), 65400000);
 
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(user),
 			asset_a,
 			asset_b,
 			400_000,
-			1_000_000_000_000
+			1_000_000_000_000,
+			0
 		));
 
 		assert_eq!(Currency::free_balance(share_token, &user), 65661600);
@@ -80,12 +81,13 @@ fn add_liquidity_mints_correct_shares() {
 			65_400_000
 		));
 
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(user),
 			asset_b,
 			asset_a,
 			261600,
-			1_000_000_000_000
+			1_000_000_000_000,
+			0
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -111,12 +113,13 @@ fn add_liquidity_as_another_user_should_work() {
 			asset_a,
 			1_000_000_000_000
 		));
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(user),
 			asset_b,
 			asset_a,
 			400_000,
-			1_000_000_000_000
+			1_000_000_000_000,
+			0
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -131,12 +134,13 @@ fn add_liquidity_as_another_user_should_work() {
 		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
 		assert_eq!(XYK::total_liquidity(pair_account), 1004000000000);
 
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(BOB),
 			asset_b,
 			asset_a,
 			1_000_000,
-			1_000_000_000_000
+			1_000_000_000_000,
+			0
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1014000000002);
@@ -201,12 +205,13 @@ fn add_liquidity_should_work_when_limit_is_set_above_account_balance() {
 
 		assert!(Currency::free_balance(asset_b, &user) < amount_b_max_limit);
 
-		assert_ok!(XYK::add_liquidity(
+		assert_ok!(XYK::add_liquidity_with_limits(
 			RuntimeOrigin::signed(user),
 			asset_a,
 			asset_b,
 			400_000,
 			amount_b_max_limit,
+			0
 		));
 	});
 }
@@ -237,11 +242,13 @@ fn remove_liquidity_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000000);
 
-		assert_ok!(XYK::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity_with_limits(
 			RuntimeOrigin::signed(user),
 			asset_a,
 			asset_b,
-			355_000
+			355_000,
+			0,
+			0
 		));
 
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 996450000000);
@@ -301,7 +308,7 @@ fn remove_liquidity_without_shares_should_not_work() {
 		));
 
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 355_000),
+			XYK::remove_liquidity_with_limits(RuntimeOrigin::signed(user), asset_a, asset_b, 355_000, 0, 0),
 			Error::<Test>::InsufficientAssetBalance
 		);
 
@@ -362,7 +369,7 @@ fn remove_liquidity_from_reduced_pool_should_not_work() {
 		));
 
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 200_000_000),
+			XYK::remove_liquidity_with_limits(RuntimeOrigin::signed(user), asset_a, asset_b, 200_000_000, 0, 0),
 			Error::<Test>::InsufficientLiquidity
 		);
 
@@ -382,7 +389,7 @@ fn remove_liquidity_from_reduced_pool_should_not_work() {
 		));
 
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(user), asset_a, asset_b, 200_000_000),
+			XYK::remove_liquidity_with_limits(RuntimeOrigin::signed(user), asset_a, asset_b, 200_000_000, 0, 0),
 			Error::<Test>::InsufficientLiquidity
 		);
 
@@ -441,23 +448,25 @@ fn add_liquidity_more_than_owner_should_not_work() {
 		assert_eq!(Currency::free_balance(ACA, &ALICE), 400_000_000_000_000);
 
 		assert_noop!(
-			XYK::add_liquidity(
+			XYK::add_liquidity_with_limits(
 				RuntimeOrigin::signed(ALICE),
 				HDX,
 				ACA,
 				200_000_000_000_000_000,
-				600_000_000
+				600_000_000,
+				0
 			),
 			Error::<Test>::InsufficientAssetBalance
 		);
 
 		assert_noop!(
-			XYK::add_liquidity(
+			XYK::add_liquidity_with_limits(
 				RuntimeOrigin::signed(ALICE),
 				HDX,
 				ACA,
 				600_000_000,
-				200_000_000_000_000_000
+				200_000_000_000_000_000,
+				0
 			),
 			Error::<Test>::InsufficientAssetBalance
 		);
@@ -470,17 +479,17 @@ fn add_insufficient_liquidity_should_not_work() {
 		assert_ok!(XYK::create_pool(RuntimeOrigin::signed(ALICE), HDX, 1000, ACA, 1500,));
 
 		assert_noop!(
-			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 0, 0),
+			XYK::add_liquidity_with_limits(RuntimeOrigin::signed(ALICE), HDX, ACA, 0, 0, 0),
 			Error::<Test>::InsufficientTradingAmount
 		);
 
 		assert_noop!(
-			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 1000, 0),
+			XYK::add_liquidity_with_limits(RuntimeOrigin::signed(ALICE), HDX, ACA, 1000, 0, 0),
 			Error::<Test>::ZeroLiquidity
 		);
 
 		assert_noop!(
-			XYK::add_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 1000, 2000),
+			XYK::add_liquidity_with_limits(RuntimeOrigin::signed(BOB), ACA, HDX, 1000, 2000, 0),
 			Error::<Test>::InsufficientLiquidity
 		);
 	});
@@ -498,7 +507,7 @@ fn add_liquidity_exceeding_max_limit_should_not_work() {
 		));
 
 		assert_noop!(
-			XYK::add_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 10_000_000, 1_000_000),
+			XYK::add_liquidity_with_limits(RuntimeOrigin::signed(ALICE), HDX, ACA, 10_000_000, 1_000_000, 0),
 			Error::<Test>::AssetAmountExceededLimit
 		);
 	});
@@ -508,10 +517,17 @@ fn remove_liquidity_should_respect_min_pool_limit() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(XYK::create_pool(RuntimeOrigin::signed(ALICE), HDX, 1000, ACA, 1500,));
 
-		assert_ok!(XYK::add_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 2000, 2000));
+		assert_ok!(XYK::add_liquidity_with_limits(
+			RuntimeOrigin::signed(BOB),
+			ACA,
+			HDX,
+			2000,
+			2000,
+			0
+		));
 
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(BOB), ACA, HDX, 500),
+			XYK::remove_liquidity_with_limits(RuntimeOrigin::signed(BOB), ACA, HDX, 500, 0, 0),
 			Error::<Test>::InsufficientLiquidity
 		);
 	});
@@ -521,7 +537,7 @@ fn remove_liquidity_should_respect_min_pool_limit() {
 fn remove_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 0),
+			XYK::remove_liquidity_with_limits(RuntimeOrigin::signed(ALICE), HDX, ACA, 0, 0, 0),
 			Error::<Test>::ZeroLiquidity
 		);
 	});
@@ -531,12 +547,13 @@ fn remove_zero_liquidity_should_not_work() {
 fn add_liquidity_to_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::add_liquidity(
+			XYK::add_liquidity_with_limits(
 				RuntimeOrigin::signed(ALICE),
 				HDX,
 				ACA,
 				200_000_000_000_000_000,
-				600_000_000
+				600_000_000,
+				0
 			),
 			Error::<Test>::TokenPoolNotFound
 		);
@@ -547,7 +564,7 @@ fn add_liquidity_to_non_existing_pool_should_not_work() {
 fn remove_zero_liquidity_from_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::remove_liquidity(RuntimeOrigin::signed(ALICE), HDX, ACA, 100),
+			XYK::remove_liquidity_with_limits(RuntimeOrigin::signed(ALICE), HDX, ACA, 100, 0, 0),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
@@ -571,12 +588,13 @@ fn add_liquidity_overflow_work() {
 			));
 
 			assert_noop!(
-				XYK::add_liquidity(
+				XYK::add_liquidity_with_limits(
 					RuntimeOrigin::signed(user),
 					asset_a,
 					asset_b,
 					10_u128.pow(33),
-					1_000_000_000_000
+					1_000_000_000_000,
+					0
 				),
 				Error::<Test>::AddAssetAmountInvalid
 			);
@@ -610,12 +628,13 @@ fn share_ratio_calculations_are_correct() {
 
 			assert_eq!(bob_initial_balance, 2000 * ONE);
 
-			assert_ok!(XYK::add_liquidity(
+			assert_ok!(XYK::add_liquidity_with_limits(
 				RuntimeOrigin::signed(BOB),
 				asset_b,
 				asset_a,
 				10 * ONE,
-				200 * ONE
+				200 * ONE,
+				0
 			));
 
 			let pair_account = XYK::get_pair_id(AssetPair {
@@ -637,11 +656,13 @@ fn share_ratio_calculations_are_correct() {
 				false,
 			));
 
-			assert_ok!(XYK::remove_liquidity(
+			assert_ok!(XYK::remove_liquidity_with_limits(
 				RuntimeOrigin::signed(BOB),
 				asset_a,
 				asset_b,
-				expected_shares
+				expected_shares,
+				0,
+				0
 			));
 
 			assert_eq!(Currency::free_balance(share_token, &BOB), 0);
@@ -657,21 +678,24 @@ fn share_ratio_calculations_are_correct() {
 
 				let initial_pool_liquidity = balance_pool_a + balance_pool_b;
 
-				assert_ok!(XYK::add_liquidity(
+				assert_ok!(XYK::add_liquidity_with_limits(
 					RuntimeOrigin::signed(BOB),
 					asset_b,
 					asset_a,
 					10 * ONE,
-					200 * ONE
+					200 * ONE,
+					0
 				));
 
 				let shares = Currency::free_balance(share_token, &BOB);
 
-				assert_ok!(XYK::remove_liquidity(
+				assert_ok!(XYK::remove_liquidity_with_limits(
 					RuntimeOrigin::signed(BOB),
 					asset_a,
 					asset_b,
-					shares
+					shares,
+					0,
+					0
 				));
 				let balance_a = Currency::free_balance(asset_a, &BOB);
 				let balance_b = Currency::free_balance(asset_b, &BOB);
@@ -686,4 +710,131 @@ fn share_ratio_calculations_are_correct() {
 				assert!(initial_pool_liquidity <= total_pool_liquidity);
 			}
 		});
+}
+
+#[test]
+fn add_liquidity_respects_min_shares_parameter() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = DOT;
+		let asset_b = HDX;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user),
+			asset_a,
+			100_000_000,
+			asset_b,
+			65_400_000
+		));
+
+		// Calculate expected shares to be minted
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		let asset_a_reserve = Currency::free_balance(asset_a, &pair_account);
+		let total_shares = XYK::total_liquidity(pair_account);
+
+		// Adding 400_000 of asset_a should result in approximately 261,600 shares
+		// We'll set a min_shares value that's just slightly higher to make it fail
+		let expected_shares = hydra_dx_math::xyk::calculate_shares(asset_a_reserve, 400_000, total_shares).unwrap();
+
+		let min_shares_too_high = expected_shares + 1;
+
+		// This should fail because min_shares is higher than what will be minted
+		assert_noop!(
+			XYK::add_liquidity_with_limits(
+				RuntimeOrigin::signed(user),
+				asset_a,
+				asset_b,
+				400_000,
+				1_000_000_000_000,
+				min_shares_too_high
+			),
+			Error::<Test>::SlippageLimit
+		);
+
+		// This should succeed because min_shares is equal to what will be minted
+		assert_ok!(XYK::add_liquidity_with_limits(
+			RuntimeOrigin::signed(user),
+			asset_a,
+			asset_b,
+			400_000,
+			1_000_000_000_000,
+			expected_shares
+		));
+	});
+}
+
+#[test]
+fn remove_liquidity_respects_min_amounts_parameters() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			RuntimeOrigin::signed(user),
+			asset_a,
+			100_000_000,
+			asset_b,
+			1_000_000_000_000
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		let share_amount = 355_000;
+
+		// Calculate expected amounts to be removed
+		let asset_a_reserve = Currency::free_balance(asset_a, &pair_account);
+		let asset_b_reserve = Currency::free_balance(asset_b, &pair_account);
+		let total_shares = XYK::total_liquidity(pair_account);
+
+		let liquidity_out =
+			hydra_dx_math::xyk::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, share_amount, total_shares)
+				.unwrap();
+
+		let expected_amount_a = liquidity_out.0;
+		let expected_amount_b = liquidity_out.1;
+
+		// This should fail because min_amount_a is higher than what will be returned
+		assert_noop!(
+			XYK::remove_liquidity_with_limits(
+				RuntimeOrigin::signed(user),
+				asset_a,
+				asset_b,
+				share_amount,
+				expected_amount_a + 1,
+				0
+			),
+			Error::<Test>::SlippageLimit
+		);
+
+		// This should fail because min_amount_b is higher than what will be returned
+		assert_noop!(
+			XYK::remove_liquidity_with_limits(
+				RuntimeOrigin::signed(user),
+				asset_a,
+				asset_b,
+				share_amount,
+				0,
+				expected_amount_b + 1
+			),
+			Error::<Test>::SlippageLimit
+		);
+
+		// This should succeed because both min amounts are equal to what will be returned
+		assert_ok!(XYK::remove_liquidity_with_limits(
+			RuntimeOrigin::signed(user),
+			asset_a,
+			asset_b,
+			share_amount,
+			expected_amount_a,
+			expected_amount_b
+		));
+	});
 }
