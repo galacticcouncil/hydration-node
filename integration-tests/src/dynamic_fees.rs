@@ -356,7 +356,7 @@ fn init_oracle() {
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 		ETH,
 		HDX,
-		1 * ETH_UNITS,
+		ETH_UNITS,
 		u128::MAX
 	));
 	hydradx_run_to_next_block();
@@ -374,7 +374,7 @@ fn init_oracle() {
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 		BTC,
 		HDX,
-		1 * BTC_UNITS,
+		BTC_UNITS,
 		u128::MAX
 	));
 	hydradx_run_to_next_block();

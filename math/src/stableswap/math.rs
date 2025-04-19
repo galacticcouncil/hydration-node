@@ -1196,7 +1196,7 @@ mod tests {
 	const MIN_BALANCE: u128 = 0;
 
 	fn asset_reserve() -> impl Strategy<Value = Balance> {
-		(MIN_BALANCE..=MAX_BALANCE).prop_map(|value| Balance::from(value))
+		(MIN_BALANCE..=MAX_BALANCE).prop_map(Balance::from)
 	}
 
 	proptest! {

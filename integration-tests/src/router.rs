@@ -2,7 +2,6 @@
 #![allow(clippy::identity_op)]
 use super::assert_balance;
 use crate::polkadot_test_net::*;
-use hydradx_runtime::RuntimeEvent;
 use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
@@ -483,8 +482,7 @@ mod router_different_pools_tests {
 							})),
 						)],
 						operation_stack: vec![ExecutionType::Router(0)],
-					}
-					.into(),
+					},
 					pallet_broadcast::Event::Swapped2 {
 						swapper: BOB.into(),
 						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
@@ -509,8 +507,7 @@ mod router_different_pools_tests {
 							})),
 						)],
 						operation_stack: vec![ExecutionType::Router(1)],
-					}
-					.into(),
+					},
 					pallet_broadcast::Event::Swapped2 {
 						swapper: BOB.into(),
 						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
@@ -536,7 +533,6 @@ mod router_different_pools_tests {
 						)],
 						operation_stack: vec![ExecutionType::Router(2)],
 					}
-					.into(),
 				]
 			);
 		});
