@@ -401,16 +401,16 @@ pub mod money_market {
 		current_liquidity_rate: u128,
 		variable_borrow_index: u128,
 		current_variable_borrow_rate: u128,
-		current_stable_borrow_rate: u128,
+		// current_stable_borrow_rate: u128,
 		last_update_timestamp: u64,
-		id: u16,
+		// id: u16,
 		a_token_address: H160,
 		stable_debt_token_address: H160,
 		variable_debt_token_address: H160,
-		interest_rate_strategy_address: H160,
-		accrued_to_treasury: u128,
-		unbacked: u128,
-		isolation_mode_total_debt: u128,
+		// interest_rate_strategy_address: H160,
+		// accrued_to_treasury: u128,
+		// unbacked: u128,
+		// isolation_mode_total_debt: u128,
 	}
 
 	impl ReserveData {
@@ -421,16 +421,10 @@ pub mod money_market {
 				current_liquidity_rate: data[2].clone().into_uint()?.try_into().ok()?,
 				variable_borrow_index: data[3].clone().into_uint()?.try_into().ok()?,
 				current_variable_borrow_rate: data[4].clone().into_uint()?.try_into().ok()?,
-				current_stable_borrow_rate: data[5].clone().into_uint()?.try_into().ok()?,
 				last_update_timestamp: data[6].clone().into_uint()?.try_into().ok()?,
-				id: data[7].clone().into_uint()?.try_into().ok()?,
 				a_token_address: data[8].clone().into_address()?,
 				stable_debt_token_address: data[9].clone().into_address()?,
 				variable_debt_token_address: data[10].clone().into_address()?,
-				interest_rate_strategy_address: data[11].clone().into_address()?,
-				accrued_to_treasury: data[12].clone().into_uint()?.try_into().ok()?,
-				unbacked: data[13].clone().into_uint()?.try_into().ok()?,
-				isolation_mode_total_debt: data[14].clone().into_uint()?.try_into().ok()?,
 			})
 		}
 	}
