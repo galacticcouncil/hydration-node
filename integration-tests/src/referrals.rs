@@ -222,7 +222,6 @@ fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 //we have to verify if trader rewards is accrued for the actual trader, not in the router account
 #[test]
 fn claim_should_work_when_trade_happens_via_router() {
-	let claimed_amount = 853605689;
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
