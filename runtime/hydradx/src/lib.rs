@@ -413,13 +413,11 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 							{
 								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
 								if pallet_liquidation::money_market::verify_signer(
-									&transaction,
+									transaction,
 									H160::from_slice(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice()),
 								) {
-									if let Some(ref mut validity_info) = tx_validity {
-										if let Ok(ref mut validity) = validity_info {
-											validity.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
-										}
+									if let Some(Ok(ref mut validity_info)) = tx_validity {
+										validity_info.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
 									};
 								};
 							}

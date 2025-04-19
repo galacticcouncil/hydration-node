@@ -970,7 +970,7 @@ pub mod money_market {
 				.checked_div(hf_one.into())?
 				.checked_sub(
 					liquidation_bonus
-						.full_mul(collateral_liquidation_threshold.into())
+						.full_mul(collateral_liquidation_threshold)
 						.checked_div(percentage_factor.into())?,
 				)?
 				.try_into()

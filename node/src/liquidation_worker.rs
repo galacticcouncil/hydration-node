@@ -20,7 +20,7 @@ use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
 use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_core::{RuntimeDebug, H160, H256};
+use sp_core::{RuntimeDebug, H160};
 use sp_offchain::OffchainWorkerApi;
 use sp_runtime::{traits::Header, transaction_validity::TransactionSource};
 use std::{cmp::Ordering, marker::PhantomData, sync::Arc};
@@ -113,6 +113,7 @@ where
 			.await;
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	async fn on_block_imported(
 		client: Arc<C>,
 		spawner: SpawnTaskHandle,
@@ -242,7 +243,7 @@ where
 
 	// TODO: return Result type
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
-	async fn fetch_borrowers_data(http_client: HttpClient) -> Option<BorrowerData<hydradx_runtime::AccountId>> {
+	async fn fetch_borrowers_data(http_client: HttpClient) -> Option<BorrowerData<AccountId>> {
 		let url = ("https://omniwatch.play.hydration.cloud/api/borrowers/by-health")
 			.parse()
 			.ok()?;
@@ -253,15 +254,13 @@ where
 
 		let data = String::from_utf8(bytes.to_vec()).expect("response was not valid utf-8");
 		let data = data.as_str();
-		let data = serde_json::from_str::<BorrowerData<hydradx_runtime::AccountId>>(data);
+		let data = serde_json::from_str::<BorrowerData<AccountId>>(data);
 		data.ok()
 	}
 
 	/// Returns borrowers sorted by HF.
 	/// Maximum size of the returned list is `MAX_LIQUIDATIONS`.
-	pub fn process_borrowers_data(
-		oracle_data: BorrowerData<hydradx_runtime::AccountId>,
-	) -> Vec<(H160, BorrowerDataDetails<hydradx_runtime::AccountId>)> {
+	pub fn process_borrowers_data(oracle_data: BorrowerData<AccountId>) -> Vec<(H160, BorrowerDataDetails<AccountId>)> {
 		let mut borrowers = oracle_data.borrowers.clone();
 		// remove elements with HF == 0
 		borrowers.retain(|b| b.1.health_factor > 0.0);
@@ -417,6 +416,7 @@ pub fn parse_oracle_transaction(eth_tx: Transaction) -> Option<Vec<OracleUpdataD
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use sp_core::H256;
 
 	fn dummy_dia_tx_single_value() -> Transaction {
 		Transaction::Legacy(ethereum::LegacyTransaction {
