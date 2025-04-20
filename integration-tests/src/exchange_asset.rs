@@ -18,7 +18,6 @@ use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
 use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
-use rococo_runtime::xcm_config::BaseXcmWeight;
 use sp_runtime::{
 	traits::{Convert, Zero},
 	DispatchResult, FixedU128, Permill, TransactionOutcome,
@@ -1301,7 +1300,7 @@ fn craft_transfer_and_swap_xcm_with_4_hops<RC: Decode + GetDispatchInfo>(
 			},
 		]);
 		// use local weight for remote message and hope for the best.
-		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
+		let _remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
 		Unlimited
 	};
 
