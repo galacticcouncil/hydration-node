@@ -62,6 +62,7 @@ pub fn borrow(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: 
 	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 }
 
+#[allow(dead_code)]
 pub struct UserAccountData {
 	pub total_collateral_base: U256,
 	pub total_debt_base: U256,
@@ -333,6 +334,16 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 	});
 }
 
+fn assert_health_factor_is_within_tolerance(health_factor: U256, target_health_factor: U256) {
+	let health_factor_diff = health_factor.abs_diff(target_health_factor);
+	// HF uses 18 decimal places
+	assert!(
+		health_factor_diff
+			< U256::from(10).pow((14).into()),
+		"HF diff: {:?}", health_factor_diff
+	);
+}
+
 #[test]
 fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 	TestNet::reset();
@@ -451,10 +462,7 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 
 		// Assert
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
-		assert!(
-			usr_data.health_factor.abs_diff(target_health_factor)
-				< U256::from(1_000_000_000_000_000_000u128 / 10_000u128)
-		);
+		assert_health_factor_is_within_tolerance(usr_data.health_factor, target_health_factor);
 	});
 }
 
@@ -547,6 +555,7 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 		assert!(usr_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
 
+		// Act
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),
 			WETH, // collateral
@@ -556,8 +565,9 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 			BoundedVec::new(),
 		));
 
-		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
+		// Assert
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+		assert_health_factor_is_within_tolerance(usr_data.health_factor, target_health_factor);
 	});
 }
 
@@ -792,9 +802,8 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 			BoundedVec::new(),
 		));
 
-		let money_market_data = MoneyMarketData::<Block, Runtime>::new(pap_contract, alice_evm_address).unwrap();
-		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
-
 		// Assert
+		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+		assert_health_factor_is_within_tolerance(usr_data.health_factor, target_health_factor);
 	});
 }
