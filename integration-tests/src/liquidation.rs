@@ -338,9 +338,9 @@ fn assert_health_factor_is_within_tolerance(health_factor: U256, target_health_f
 	let health_factor_diff = health_factor.abs_diff(target_health_factor);
 	// HF uses 18 decimal places
 	assert!(
+		health_factor_diff < U256::from(10).pow((14).into()),
+		"HF diff: {:?}",
 		health_factor_diff
-			< U256::from(10).pow((14).into()),
-		"HF diff: {:?}", health_factor_diff
 	);
 }
 
