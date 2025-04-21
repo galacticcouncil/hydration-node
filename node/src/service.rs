@@ -395,7 +395,7 @@ async fn start_node_impl(
 	if validator {
 		start_consensus(
 			client.clone(),
-			backend.clone(),
+			backend,
 			block_import,
 			prometheus_registry.as_ref(),
 			telemetry.as_ref().map(|t| t.handle()),
