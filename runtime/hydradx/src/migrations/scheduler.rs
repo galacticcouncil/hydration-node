@@ -47,15 +47,6 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo6sBlocks<T> {
 
 			pallet_scheduler::Agenda::<T>::remove(old_block);
 			pallet_scheduler::Agenda::<T>::insert(new_block, schedules);
-
-			agenda_len.saturating_inc();
-
-			// At the time before the migration there are ~60 items in the Agenda.
-			// Setting a safe limit which can be executed in 1 block
-			if agenda_len == 150 {
-				log::info!("Hit limit of 150 Agenda items, exiting loop");
-				break;
-			}
 		}
 
 		log::info!("MigrateSchedulerTo6sBlocks processed agenda items: {:?}", agenda_len);
