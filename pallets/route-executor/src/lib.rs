@@ -617,7 +617,7 @@ impl<T: Config> Pallet<T> {
 
 	fn validate_sell(route: Route<T::AssetId>, amount_in: T::Balance) -> Result<T::Balance, DispatchError> {
 		// Instead of executing a transaction, just calculate the expected amount out
-		let amount_out = Self::calculate_expected_amount_out(&route.to_vec(), amount_in)?;
+		let amount_out = Self::calculate_expected_amount_out(route.as_ref(), amount_in)?;
 
 		Ok(amount_out)
 	}

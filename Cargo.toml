@@ -383,7 +383,7 @@ orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-modu
 orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2409" }
 
 [patch."https://github.com/moonbeam-foundation/polkadot-sdk"]
-cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }
+cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
