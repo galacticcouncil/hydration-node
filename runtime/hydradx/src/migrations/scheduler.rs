@@ -33,7 +33,12 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo6sBlocks<T> {
 			BlockNumberFor<T>,
 			BoundedVec<Option<ScheduledOf<T>>, T::MaxScheduledPerBlock>,
 		)> = pallet_scheduler::Agenda::<T>::iter().collect();
-		let mut agenda_len = 0;
+		let agenda_len = agenda.len() as u64;
+		if agenda_len >= 150 {
+			log::error!("Error: more than 150 agendas existis, len: {:?}", agenda_len);
+			return T::DbWeight::get().reads_writes(agenda_len, 0);
+		}
+
 
 		for (old_block, schedules) in agenda {
 			let old_spread = old_block.saturating_sub(current_block);
