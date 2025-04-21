@@ -39,7 +39,6 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo6sBlocks<T> {
 			return T::DbWeight::get().reads_writes(agenda_len, 0);
 		}
 
-
 		for (old_block, schedules) in agenda {
 			let old_spread = old_block.saturating_sub(current_block);
 			let new_spread = old_spread.saturating_mul(2u32.into());
