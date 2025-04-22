@@ -130,20 +130,23 @@ where
 		let _ = tokio::time::timeout(std::time::Duration::from_secs(8), async {
             // Fetch the data with borrowers info.
             // We don't need to set a deadline, because it's wrapped in a task with a deadline.
-            let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone()).await else { return };
+            let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone()).await else {
+				tracing::error!(target: LOG_TARGET, "fetch_borrowers_data failed");
+				return
+			};
             let sorted_borrowers_data = Self::process_borrowers_data(borrowers_data);
 
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
             while let Some(notification) = notification_st.next().await {
-                {
-                    // If `current_block_hash != best_block_hash`, this task is most probably from previous block.
-                    let Ok(m_best_block_hash) = best_block_hash.lock() else { return }; // return if the mutex is poisoned
-                    if current_block_hash != *m_best_block_hash {
-                        // Break from the loop and end the task.
-                        break
-                    }
-                }
+				let now = std::time::Instant::now();
+
+				// If `current_block_hash != best_block_hash`, this task is most probably from previous block.
+				let Ok(m_best_block_hash) = best_block_hash.lock() else { return }; // return if the mutex is poisoned
+				if current_block_hash != *m_best_block_hash {
+					// Break from the loop and end the task.
+					break
+				}
 
                 // Variables used in tasks are captured by the value, so we need to clone them.
                 let tx_pool = transaction_pool.clone();
@@ -157,13 +160,20 @@ where
 				let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
 
 				let Ok(transaction) = tx else { return };
+
 				let tx_pool_c = tx_pool.clone();
 
-				let Some(transaction) = Self::verify_oracle_update_transaction(transaction.0) else {return};
+				let Some(transaction) = Self::verify_oracle_update_transaction(transaction.0)
+					else {
+						tracing::debug!(target: LOG_TARGET, "parse_oracle_transaction failed");
+						return
+					};
+
 				Self::spawn_worker(thread_pool.clone(), move || {
 					let runtime_api = client_c.runtime_api();
 					let hash = header_c.hash();
 					let has_api_v2 = runtime_api.has_api_with::<dyn OffchainWorkerApi<B>, _>(hash, |v| v == 2);
+
 					if let Ok(true) = has_api_v2 {} else {
 						tracing::error!(
 							target: LOG_TARGET,
@@ -173,6 +183,7 @@ where
 					};
 
 					let Some(oracle_data) = parse_oracle_transaction(transaction) else {
+						tracing::debug!(target: LOG_TARGET, "parse_oracle_transaction failed");
 						return
 					};
 
@@ -180,26 +191,39 @@ where
 					// all oracle updates we are interested in are quoted in USD
 					for OracleUpdataData{base_asset, quote_asset: _, price, timestamp: _} in oracle_data.iter() {
 						// TODO: maybe we can use `price` to determine if HF will increase or decrease
-						let Ok(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, RUNTIME_API_CALLER) else { return };
+						let Ok(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, RUNTIME_API_CALLER)
+							else { return };
 
 						// our calculations "happen" in the next block
-						let Ok(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>().and_then(|timestamp| timestamp.checked_add(primitives::constants::time::SECS_PER_BLOCK).ok_or(ArithmeticError::Overflow.into())) else { return };
+						let Ok(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>()
+							.and_then(|timestamp| timestamp.checked_add(primitives::constants::time::SECS_PER_BLOCK)
+							.ok_or(ArithmeticError::Overflow.into())) else { return };
 
 						// get address of the asset whose price is about to be updated
-						let Some(asset_reserve) = money_market_data.reserves().iter().find(|asset| *asset.symbol() == *base_asset) else { return };
+						let Some(asset_reserve) = money_market_data.reserves().iter().find(|asset| *asset.symbol() == *base_asset)
+							else { return };
+
 						let base_asset_address = asset_reserve.asset_address();
 
 						// iterate over all borrowers
 						for borrower in sorted_borrowers_data_c.iter() {
-							let Ok(user_data) = UserData::new(&money_market_data, borrower.0, current_evm_timestamp, RUNTIME_API_CALLER) else { return };
+							let Ok(user_data) = UserData::new(&money_market_data, borrower.0, current_evm_timestamp, RUNTIME_API_CALLER)
+								else { return };
 
-							if let Ok(Some(liquidation_option)) = money_market_data.get_best_liquidation_option(&user_data, TARGET_HF.into(), (base_asset_address, price.into())) {
-								let (Some(collateral_asset_id), Some(debt_asset_id)) = (HydraErc20Mapping::decode_evm_address(liquidation_option.collateral_asset), HydraErc20Mapping::decode_evm_address(liquidation_option.debt_asset)) else {
-									continue
-								};
-								let Ok(debt_to_liquidate) = liquidation_option.debt_to_liquidate.try_into() else {
-									continue
-								};
+							if let Ok(Some(liquidation_option)) = money_market_data
+								.get_best_liquidation_option(&user_data, TARGET_HF.into(), (base_asset_address, price.into())) {
+
+								let (Some(collateral_asset_id), Some(debt_asset_id)) =
+									(HydraErc20Mapping::decode_evm_address(liquidation_option.collateral_asset),
+									 HydraErc20Mapping::decode_evm_address(liquidation_option.debt_asset))
+									else {
+										continue
+									};
+
+								let Ok(debt_to_liquidate) = liquidation_option.debt_to_liquidate.try_into()
+									else {
+										continue
+									};
 
 								let liquidation_tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_unsigned {
 									collateral_asset: collateral_asset_id,
@@ -214,6 +238,7 @@ where
 								let dry_run_result = Runtime::dry_run_call(
 									hydradx_runtime::RuntimeOrigin::none().caller,
 									liquidation_tx.clone());
+
 								if let Ok(call_result) = dry_run_result {
 									if call_result.execution_result.is_err() {
 										tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
@@ -221,17 +246,20 @@ where
 									}
 								}
 
-								let encoded_tx: fp_self_contained::UncheckedExtrinsic<hydradx_runtime::Address, RuntimeCall, hydradx_runtime::Signature, hydradx_runtime::SignedExtra> = fp_self_contained::UncheckedExtrinsic::new_unsigned(liquidation_tx);
+								let encoded_tx: fp_self_contained::UncheckedExtrinsic<hydradx_runtime::Address, RuntimeCall, hydradx_runtime::Signature, hydradx_runtime::SignedExtra> =
+									fp_self_contained::UncheckedExtrinsic::new_unsigned(liquidation_tx);
 								let encoded = encoded_tx.encode();
 								let opaque_tx = sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
 
 								let tx_pool_cc = tx_pool_c.clone();
+								// `tx_pool::submit_one()` returns a Future type, so we need to spawn a new task
 								spawner_c.spawn(
 									"liquidation-worker-on-submit",
 									Some("liquidation-worker"),
 									async move {
 										tracing::debug!(target: LOG_TARGET, "Submitting liquidation extrinsic {opaque_tx:?}");
 										let _ = tx_pool_cc.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into()).await;
+										tracing::debug!(target: LOG_TARGET, "Liquidation execution time: {:?}", now.elapsed().as_millis());
 									}
 								);
 							}
