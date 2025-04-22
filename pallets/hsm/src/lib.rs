@@ -845,8 +845,8 @@ where
 		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: "hsm", "Mint Hollar EVM execution failed. Reason: {:?}", value);
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
 			return Err(Error::<T>::InvalidEVMInteraction.into());
 		}
 
@@ -870,7 +870,7 @@ where
 		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
 			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}", value);
 			return Err(Error::<T>::InvalidEVMInteraction.into());
 		}

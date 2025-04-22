@@ -16,6 +16,7 @@ use hydradx_runtime::{
 };
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
 use polkadot_xcm::v3::Junction::{GeneralIndex, Parachain};
 use polkadot_xcm::v3::Junctions::X1;
@@ -42,7 +43,7 @@ pub enum Function {
 }
 
 fn hollar_contract_address() -> EvmAddress {
-	EvmAddress::from_slice(&hex!("C130c89F2b1066a77BD820AAFebCF4519D0103D8"))
+	EvmAddress::from_slice(&hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"))
 }
 
 fn hollar_contract_manager() -> EvmAddress {
@@ -89,14 +90,14 @@ fn add_facilitator(facilitator: EvmAddress, label: &str, capacity: u128) {
 	std::assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
 }
 
-fn mint(to: EvmAddress, amount: u128) {
-	let context = CallContext::new_call(hollar_contract_address(), minter());
+fn mint(facilitator: EvmAddress, to: EvmAddress, amount: u128) {
+	let context = CallContext::new_call(hollar_contract_address(), facilitator);
 	let data = EvmDataWriter::new_with_selector(Function::Mint)
 		.write(to)
 		.write(amount)
 		.build();
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
+	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 4_000_000);
 	std::assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
 }
 
@@ -131,7 +132,7 @@ fn buying_hollar_from_hsm_should_work() {
 			ALICE.into()
 		),));
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-		mint(alice_evm_address, 1000_000_000_000_000_000_000);
+		mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
 		let alice_hollar_balance = balance_of(alice_evm_address);
 		assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
 
@@ -188,6 +189,14 @@ fn buying_hollar_from_hsm_should_work() {
 			1_000_000_000_000_000_000,
 			u128::MAX,
 		));
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1001_000_000_000_000_000_000u128));
+
+		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+		assert_eq!(hsm_dai_balance, 1000000000000000000);
+
+		let alice_dai_balance = Tokens::free_balance(2, &AccountId::from(ALICE));
+		assert_eq!(alice_dai_balance, 20_000_000_000_000_000_000 - hsm_dai_balance);
 	});
 }
 
