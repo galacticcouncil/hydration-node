@@ -5,19 +5,25 @@ use crate::utils::contracts::{deploy_contract, deploy_contract_code, get_contrac
 use fp_evm::ExitSucceed::Returned;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped, FeeCalculator};
 use frame_support::assert_ok;
+use frame_support::dispatch::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, EVMAccounts, FixedU128, Runtime, RuntimeEvent, System, HSM,
+	AccountId, AssetRegistry, EVMAccounts, FixedU128, Runtime, RuntimeEvent, System, Tokens, HSM,
 };
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pallet_asset_registry::AssetType;
+use polkadot_xcm::v3::Junction::{GeneralIndex, Parachain};
+use polkadot_xcm::v3::Junctions::X1;
+use polkadot_xcm::v3::MultiLocation;
 use pretty_assertions::assert_eq;
 use sp_core::{RuntimeDebug, H256, U256};
 use sp_runtime::traits::One;
+use sp_runtime::BoundedVec;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::SaturatedConversion;
@@ -125,19 +131,62 @@ fn buying_hollar_from_hsm_should_work() {
 			ALICE.into()
 		),));
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-		mint(alice_evm_address, 1_500_000_000_000_000_000);
+		mint(alice_evm_address, 1000_000_000_000_000_000_000);
 		let alice_hollar_balance = balance_of(alice_evm_address);
-		assert_eq!(alice_hollar_balance, U256::from(1_500_000_000_000_000_000u128));
+		assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, 2];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_percent(1);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			20_000_000_000_000_000_000,
+			0,
+		));
 
 		assert_ok!(HSM::add_collateral_asset(
 			hydradx_runtime::RuntimeOrigin::root(),
-			100,
-			10,
+			2,
+			pool_id,
 			Permill::zero(),
 			FixedU128::one(),
 			Permill::zero(),
 			Perbill::one(),
 			None
+		));
+
+		assert_ok!(HSM::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			2,
+			222,
+			1_000_000_000_000_000_000,
+			u128::MAX,
 		));
 	});
 }
