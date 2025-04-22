@@ -50,9 +50,12 @@ pub fn add_facilitator(facilitator: EvmAddress, capacity: u128) {
 fn add_hsm_facilitator_should_work() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let hollar_address = EvmAddress::from_slice(&hex!("C130c89F2b1066a77BD820AAFebCF4519D0103D8"));
+		let code_meta  = pallet_evm::AccountCodesMetadata::<hydradx_runtime::Runtime>::get(&hollar_address);
+		assert!(code_meta.is_some());
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		let hsm_evm_address = hydradx_runtime::EVMAccounts::evm_address((&hsm_address).into());
-		add_facilitator(hsm_evm_address.clone(), 10000);
+		add_facilitator(hsm_evm_address.clone(), 1_000_000_000_000_000_000_000_000);
 	});
 }
 
