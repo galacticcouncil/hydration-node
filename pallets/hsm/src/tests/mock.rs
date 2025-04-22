@@ -25,6 +25,7 @@ use crate::{traits, Config};
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
 use evm::{ExitError, ExitReason, ExitSucceed};
+use frame_support::pallet_prelude::Hooks;
 use frame_support::sp_runtime::{
 	traits::{IdentifyAccount, Verify},
 	MultiSignature,
@@ -44,7 +45,7 @@ use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::{BoundedPegSources, PegSource, PegType};
 use sp_core::{ByteArray, H256};
-use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
+use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::{BoundedVec, DispatchResult, Perbill};
 use sp_runtime::{BuildStorage, DispatchError, Permill};
 use sp_std::num::NonZeroU16;
@@ -735,4 +736,11 @@ impl traits::BenchmarkHelper<AccountId> for MockHSMBenchmarkHelper {
 		});
 		Ok(())
 	}
+}
+
+pub fn move_block() {
+	let current_block = System::current_block_number();
+	HSM::on_finalize(current_block);
+	Stableswap::on_finalize(current_block);
+	System::set_block_number(current_block + 1);
 }

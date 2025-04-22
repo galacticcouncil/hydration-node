@@ -631,6 +631,8 @@ pub mod pallet {
 			let amplification = Self::get_amplification(&pool);
 			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
 
+			Self::save_snapshot(pool_id);
+
 			//Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 				&initial_reserves,
@@ -723,6 +725,8 @@ pub mod pallet {
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
 			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
+
+			Self::save_snapshot(pool_id);
 
 			// Calculate how much shares user needs to provide to receive `amount` of asset.
 			let (shares, fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -830,6 +834,8 @@ pub mod pallet {
 			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in, true)?;
 			ensure!(amount_out >= min_buy_amount, Error::<T>::BuyLimitNotReached);
 
+			Self::save_snapshot(pool_id);
+
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
 
@@ -922,6 +928,8 @@ pub mod pallet {
 				T::Currency::free_balance(asset_in, &who) >= amount_in,
 				Error::<T>::InsufficientBalance
 			);
+
+			Self::save_snapshot(pool_id);
 
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
@@ -1061,6 +1069,8 @@ pub mod pallet {
 				let r = min_amounts_out_map.insert(v.asset_id, v.amount);
 				ensure!(r.is_none(), Error::<T>::IncorrectAssets);
 			}
+
+			Self::save_snapshot(pool_id);
 
 			// Store the amount of each asset that is transferred. Used as info in the event.
 			let mut amounts = Vec::with_capacity(pool.assets.len());
@@ -1237,10 +1247,13 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			let _ = <PoolSnapshots<T>>::clear(u32::MAX, None);
+		}
+	}
 }
 
-// Pallet public functions
 impl<T: Config> Pallet<T> {
 	//  Returns start of the pool at the beginning of the block
 	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
@@ -1267,6 +1280,12 @@ impl<T: Config> Pallet<T> {
 			pegs: BoundedVec::truncate_from(asset_pegs),
 			share_issuance,
 		})
+	}
+
+	fn save_snapshot(pool_id: T::AssetId) {
+		if let Some(snapshot) = Self::create_snapshot(pool_id) {
+			PoolSnapshots::<T>::insert(pool_id, snapshot);
+		}
 	}
 }
 
@@ -1458,6 +1477,8 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
+		Self::save_snapshot(pool_id);
+
 		let pool_account = Self::pool_account(pool_id);
 		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
 		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
@@ -1601,6 +1622,8 @@ impl<T: Config> Pallet<T> {
 			current_share_balance.saturating_add(shares) >= T::MinPoolLiquidity::get(),
 			Error::<T>::InsufficientShareBalance
 		);
+
+		Self::save_snapshot(pool_id);
 
 		T::Currency::deposit(pool_id, who, shares)?;
 		T::Currency::transfer(asset_id, who, &pool_account, amount_in)?;

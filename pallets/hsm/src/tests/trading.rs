@@ -26,7 +26,7 @@ use sp_runtime::{FixedU128, Permill};
 use crate::tests::mock::*;
 
 fn setup_test_for_comparison() -> sp_io::TestExternalities {
-	ExtBuilder::default()
+	let mut ext = ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HOLLAR, 1_000 * ONE),
 			(ALICE, DAI, 1_000 * ONE),
@@ -63,7 +63,13 @@ fn setup_test_for_comparison() -> sp_io::TestExternalities {
 			FixedU128::one(),         // max_buy_price_coefficient
 			Permill::from_percent(0), // buy_back_fee
 		)
-		.build()
+		.build();
+
+	ext.execute_with(|| {
+		move_block();
+	});
+
+	ext
 }
 
 #[test]

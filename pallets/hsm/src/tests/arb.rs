@@ -44,6 +44,7 @@ fn arbitrage_should_work() {
 		)
 		.build()
 		.execute_with(|| {
+			move_block();
 			// Set HSM collateral holdings
 			assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
 

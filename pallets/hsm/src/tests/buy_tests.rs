@@ -26,7 +26,7 @@ use sp_runtime::{FixedU128, Perbill, Permill};
 
 // Setup helper to create a test environment with DAI as collateral
 fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
-	ExtBuilder::default()
+	let mut ext = ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HOLLAR, 1_000 * ONE),
 			(ALICE, DAI, 1_000 * ONE),
@@ -62,12 +62,20 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 			FixedU128::from_rational(104, 100), // 100% coefficient as a ratio (1.0)
 			Permill::from_percent(1),
 		)
-		.build()
+		.build();
+
+	ext.execute_with(|| {
+		move_block();
+	});
+
+	ext
 }
 
 #[test]
 fn buy_hollar_with_collateral_works() {
 	setup_test_with_dai_collateral().execute_with(|| {
+		move_block();
+
 		// Initial state
 		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
@@ -407,6 +415,7 @@ fn buy_purchase_zero_fee_works() {
 		)
 		.build()
 		.execute_with(|| {
+			move_block();
 			// Initial state
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
@@ -481,6 +490,7 @@ fn buy_one_hollar_works_when_purchase_nonzero_fee() {
 		)
 		.build()
 		.execute_with(|| {
+			move_block();
 			// Initial state
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
@@ -555,6 +565,7 @@ fn buy_purchase_nonzero_fee_works() {
 		)
 		.build()
 		.execute_with(|| {
+			move_block();
 			// Initial state
 			let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 			let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
@@ -632,6 +643,7 @@ fn buy_collateral_works_when_buy_fee_is_zero() {
 		)
 		.build()
 		.execute_with(|| {
+			move_block();
 			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 10 * ONE, u128::MAX,));
 
 			let alice_dai = Tokens::free_balance(DAI, &ALICE);
@@ -690,6 +702,7 @@ fn buy_collateral_works_when_buy_fee_is_nonzero() {
 		)
 		.build()
 		.execute_with(|| {
+			move_block();
 			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 10 * ONE, u128::MAX,));
 
 			let alice_dai = Tokens::free_balance(DAI, &ALICE);
@@ -715,12 +728,8 @@ fn buy_collateral_works_when_buy_fee_is_nonzero() {
 #[test]
 fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_sell() {
 	setup_test_with_dai_collateral().execute_with(|| {
-		// Set initial collateral holdings for HSM
+		move_block();
 		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
-
-		System::set_block_number(System::block_number() + 1);
-
-		// Initial state
 		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
 		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
 		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
@@ -769,10 +778,9 @@ fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_
 #[test]
 fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_buy() {
 	setup_test_with_dai_collateral().execute_with(|| {
+		move_block();
 		// Set initial collateral holdings for HSM
 		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
-
-		System::set_block_number(System::block_number() + 1);
 
 		// Initial state
 		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
@@ -787,8 +795,8 @@ fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_
 		assert_ok!(Stableswap::buy(
 			RuntimeOrigin::signed(BOB),
 			100,
-			DAI,
 			HOLLAR,
+			DAI,
 			10 * ONE,
 			u128::MAX,
 		));
@@ -823,10 +831,8 @@ fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_
 #[test]
 fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_add_liquidity() {
 	setup_test_with_dai_collateral().execute_with(|| {
-		// Set initial collateral holdings for HSM
+		move_block();
 		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
-
-		System::set_block_number(System::block_number() + 1);
 
 		// Initial state
 		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
@@ -873,10 +879,8 @@ fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_
 #[test]
 fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_remove_liquidity() {
 	setup_test_with_dai_collateral().execute_with(|| {
-		// Set initial collateral holdings for HSM
+		move_block();
 		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
-
-		System::set_block_number(System::block_number() + 1);
 
 		// Initial state
 		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
