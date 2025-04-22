@@ -391,7 +391,6 @@ pub mod money_market {
 		}
 	}
 
-	// TODO: not all fields are used, remove unnecessary
 	/// Configuration of the reserve.
 	/// https://github.com/aave/aave-v3-core/blob/782f51917056a53a2c228701058a6c3fb233684a/contracts/protocol/libraries/types/DataTypes.sol#L5
 	#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
@@ -1074,6 +1073,13 @@ pub mod money_market {
 			))
 		}
 
+		/// Calculate liquidation options based on user's reserve, price update and target health factor.
+		/// Liquidation options are calculated for all collateral/debt asset pairs.
+		/// `user_data` - User's data.
+		/// `target_health_factor` - 18 decimal places.
+		/// `new_price` - Price update.
+		///
+		/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
 		pub fn calculate_liquidation_options(
 			&mut self,
 			user_data: &UserData,
@@ -1144,7 +1150,12 @@ pub mod money_market {
 			Some(liquidation_options)
 		}
 
-		/// Evaluates all liquidation options and return the one that is closest to the `target_health_factor`.
+		/// Evaluates all liquidation options and returns one that is closest to the `target_health_factor`.
+		/// `user_data` - User's data.
+		/// `target_health_factor` - 18 decimal places.
+		/// `new_price` - Price update.
+		///
+		/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`.
 		pub fn get_best_liquidation_option(
 			&mut self,
 			user_data: &UserData,

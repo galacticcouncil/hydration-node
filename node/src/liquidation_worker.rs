@@ -32,7 +32,7 @@ const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fc
 const RUNTIME_API_CALLER: EvmAddress = H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6")); // TODO
 const ORACLE_UPDATE_CALLER: EvmAddress = H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3"));
 const ORACLE_UPDATE_CALL_ADDRESS: EvmAddress = H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5"));
-const TARGET_HF: u128 = 10_500_000_000u128; // TODO
+const TARGET_HF: u128 = 10_010_000_000u128;	// 1.001
 
 pub type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
 
@@ -61,7 +61,7 @@ where
 		// liquidation calculations are performed in a separate thread.
 		let thread_pool = Arc::new(Mutex::new(ThreadPool::with_name(
 			"liquidation-worker".into(),
-			num_cpus::get(), // TODO
+			num_cpus::get(),
 		)));
 
 		// initialize the client once and reuse it.
@@ -213,11 +213,10 @@ where
 								let dry_run_result = Runtime::dry_run_call(
 									hydradx_runtime::RuntimeOrigin::none().caller,
 									liquidation_tx.clone());
-								if let Ok(call_result) = dry_run_result{
+								if let Ok(call_result) = dry_run_result {
 									if call_result.execution_result.is_err() {
+										tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
 										continue
-									} else {
-										// TODO: add logs to track what's happening
 									}
 								}
 
@@ -230,6 +229,7 @@ where
 									"liquidation-worker-on-submit",
 									Some("liquidation-worker"),
 									async move {
+										tracing::debug!(target: LOG_TARGET, "Submitting liquidation extrinsic {opaque_tx:?}");
 										let _ = tx_pool_cc.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into()).await;
 									}
 								);
