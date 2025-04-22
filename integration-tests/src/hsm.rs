@@ -11,12 +11,15 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, EVMAccounts, Runtime, RuntimeEvent, System,
+	AccountId, EVMAccounts, FixedU128, Runtime, RuntimeEvent, System, HSM,
 };
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pretty_assertions::assert_eq;
 use sp_core::{RuntimeDebug, H256, U256};
+use sp_runtime::traits::One;
+use sp_runtime::Perbill;
+use sp_runtime::Permill;
 use sp_runtime::SaturatedConversion;
 use test_utils::expect_events;
 use xcm_emulator::{Network, TestExt};
@@ -46,7 +49,7 @@ pub fn add_facilitator(facilitator: EvmAddress, label: &str, capacity: u128) {
 		.write(capacity)
 		.build();
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000_000_000);
+	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
 	std::assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
 }
 
@@ -59,7 +62,31 @@ fn add_hsm_facilitator_should_work() {
 			hsm_address.clone().into()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
-		add_facilitator(hsm_evm_address.clone(), "hsm", 1_000_000);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+	});
+}
+
+#[test]
+fn buying_hollar_from_hsm_should_work() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			100,
+			10,
+			Permill::zero(),
+			FixedU128::one(),
+			Permill::zero(),
+			Perbill::one(),
+			None
+		));
 	});
 }
 
@@ -69,6 +96,6 @@ fn deploy_gho_token_should_work() {
 	TestNet::reset();
 	crate::polkadot_test_net::Hydra::execute_with(|| {
 		let admin_evm: EvmAddress = hex!["52341e77341788Ebda44C8BcB4C8BD1B1913B204"].into();
-		let gho_contract_addr = crate::utils::contracts::deploy_contract("GhoToken", admin_evm);
+		let _gho_contract_addr = crate::utils::contracts::deploy_contract("GhoToken", admin_evm);
 	});
 }
