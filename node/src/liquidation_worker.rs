@@ -19,6 +19,7 @@ use sc_client_api::{Backend, BlockchainEvents, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
 use sp_api::{ApiExt, ProvideRuntimeApi};
+use sp_arithmetic::ArithmeticError;
 use sp_blockchain::HeaderBackend;
 use sp_core::{RuntimeDebug, H160};
 use sp_offchain::OffchainWorkerApi;
@@ -179,10 +180,10 @@ where
 					// all oracle updates we are interested in are quoted in USD
 					for OracleUpdataData{base_asset, quote_asset: _, price, timestamp: _} in oracle_data.iter() {
 						// TODO: maybe we can use `price` to determine if HF will increase or decrease
-						let Some(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, RUNTIME_API_CALLER) else { return };
+						let Ok(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, RUNTIME_API_CALLER) else { return };
 
 						// our calculations "happen" in the next block
-						let Some(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>().and_then(|timestamp| timestamp.checked_add(primitives::constants::time::SECS_PER_BLOCK)) else { return };
+						let Ok(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>().and_then(|timestamp| timestamp.checked_add(primitives::constants::time::SECS_PER_BLOCK).ok_or(ArithmeticError::Overflow.into())) else { return };
 
 						// get address of the asset whose price is about to be updated
 						let Some(asset_reserve) = money_market_data.reserves().iter().find(|asset| *asset.symbol() == *base_asset) else { return };
@@ -190,9 +191,9 @@ where
 
 						// iterate over all borrowers
 						for borrower in sorted_borrowers_data_c.iter() {
-							let Some(user_data) = UserData::new(&money_market_data, borrower.0, current_evm_timestamp, RUNTIME_API_CALLER) else { return };
+							let Ok(user_data) = UserData::new(&money_market_data, borrower.0, current_evm_timestamp, RUNTIME_API_CALLER) else { return };
 
-							if let Some(liquidation_option) = money_market_data.get_best_liquidation_option(&user_data, TARGET_HF.into(), (base_asset_address, price.into())) {
+							if let Ok(Some(liquidation_option)) = money_market_data.get_best_liquidation_option(&user_data, TARGET_HF.into(), (base_asset_address, price.into())) {
 								let (Some(collateral_asset_id), Some(debt_asset_id)) = (HydraErc20Mapping::decode_evm_address(liquidation_option.collateral_asset), HydraErc20Mapping::decode_evm_address(liquidation_option.debt_asset)) else {
 									continue
 								};

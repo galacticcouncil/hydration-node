@@ -20,8 +20,48 @@ pub mod money_market {
 	use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
 	use hydradx_traits::evm::EvmAddress;
 	use pallet_ethereum::Transaction;
-	use sp_core::{H256, U256};
+	use sp_arithmetic::ArithmeticError;
+	use sp_core::{RuntimeDebug, H256, U256};
 	use sp_std::{boxed::Box, ops::BitAnd};
+
+	#[derive(RuntimeDebug)]
+	pub enum LiquidationError {
+		DispatchError(DispatchError),
+		EvmError(ExitReason),
+		EthAbiError(ethabi::Error),
+		ReserveNotFound,
+		CurrentBlockNotAvailable,
+	}
+
+	impl From<ArithmeticError> for LiquidationError {
+		fn from(e: ArithmeticError) -> Self {
+			Self::DispatchError(DispatchError::Arithmetic(e))
+		}
+	}
+
+	impl From<primitive_types::Error> for LiquidationError {
+		fn from(_e: primitive_types::Error) -> Self {
+			Self::DispatchError(DispatchError::Arithmetic(ArithmeticError::Overflow))
+		}
+	}
+
+	impl From<DispatchError> for LiquidationError {
+		fn from(e: DispatchError) -> Self {
+			Self::DispatchError(e)
+		}
+	}
+
+	impl From<ExitReason> for LiquidationError {
+		fn from(e: ExitReason) -> Self {
+			Self::EvmError(e)
+		}
+	}
+
+	impl From<ethabi::Error> for LiquidationError {
+		fn from(e: ethabi::Error) -> Self {
+			Self::EthAbiError(e)
+		}
+	}
 
 	/// maximum number of liquidation we try to execute
 	pub const MAX_LIQUIDATIONS: u32 = 5;
@@ -87,56 +127,66 @@ pub mod money_market {
 	}
 
 	/// Multiplies two ray, rounding half up to the nearest ray.
-	pub fn ray_mul(a: U256, b: U256) -> Option<U256> {
+	pub fn ray_mul(a: U256, b: U256) -> Result<U256, LiquidationError> {
 		if a.is_zero() || b.is_zero() {
-			return Some(U256::zero());
+			return Ok(U256::zero());
 		}
 
 		let ray = U512::from(10u128.pow(27));
 
-		let res512 = a.full_mul(b).checked_add(ray / 2)?.checked_div(ray)?;
-		res512.try_into().ok()
+		let res512 = a
+			.full_mul(b)
+			.checked_add(ray / 2)
+			.and_then(|r| r.checked_div(ray))
+			.ok_or(ArithmeticError::Overflow)?;
+		res512.try_into().map_err(|_| ArithmeticError::Overflow.into())
 	}
 
 	/// Divides two wad, rounding half up to the nearest wad.
-	pub fn wad_div(a: U256, b: U256) -> Option<U256> {
+	pub fn wad_div(a: U256, b: U256) -> Result<U256, LiquidationError> {
 		if a.is_zero() {
-			return Some(U256::zero());
+			return Ok(U256::zero());
 		}
 		if b.is_zero() {
-			return None;
+			return Err(ArithmeticError::DivisionByZero.into());
 		}
 
 		let wad = U256::from(10u128.pow(18));
-		let nominator = a.full_mul(wad).checked_add(U512::from(b / 2))?;
-		let res = nominator.checked_div(U512::from(b))?;
-		res.try_into().ok()
+		let nominator = a.full_mul(wad).checked_add(U512::from(b / 2));
+		let res = nominator
+			.and_then(|n| n.checked_div(U512::from(b)))
+			.ok_or(ArithmeticError::DivisionByZero)?;
+		res.try_into().map_err(|_| ArithmeticError::Overflow.into())
 	}
 
 	/// Calls Runtime API.
-	pub fn fetch_current_evm_block_timestamp<Block, Runtime>() -> Option<u64>
+	pub fn fetch_current_evm_block_timestamp<Block, Runtime>() -> Result<u64, LiquidationError>
 	where
 		Block: BlockT,
 		Runtime: EthereumRuntimeRPCApiV5<Block>,
 	{
-		let timestamp = Runtime::current_block().map(|block| block.header.timestamp)?;
-		timestamp.checked_div(1_000)
+		let timestamp: u64 = Runtime::current_block()
+			.map(|block| block.header.timestamp)
+			.ok_or(LiquidationError::CurrentBlockNotAvailable)?;
+		timestamp.checked_div(1_000).ok_or(ArithmeticError::Overflow.into())
 	}
 
 	/// Executes a percentage multiplication.
 	/// Params:
 	///     value: The value of which the percentage needs to be calculated
 	///     percentage: The percentage of the value to be calculated, in basis points.
-	pub fn percent_mul(value: U256, percentage: U256) -> Option<U256> {
+	pub fn percent_mul(value: U256, percentage: U256) -> Result<U256, LiquidationError> {
 		if percentage.is_zero() {
-			return Some(U256::zero());
+			return Ok(U256::zero());
 		}
 
 		let percentage_factor = U512::from(10u128.pow(4));
 		let half_percentage_factor = percentage_factor / 2;
-		let nominator = value.full_mul(percentage).checked_add(half_percentage_factor)?;
-		let res = nominator.checked_div(percentage_factor)?;
-		res.try_into().ok()
+		let nominator = value.full_mul(percentage).checked_add(half_percentage_factor);
+		let res: U512 = nominator
+			.and_then(|n| n.checked_div(percentage_factor))
+			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+		res.try_into().map_err(|_| ArithmeticError::Overflow.into())
 	}
 
 	/// Collateral and debt amounts of some reserve in the base currency.
@@ -182,7 +232,7 @@ pub mod money_market {
 			address: H160,
 			current_evm_timestamp: u64,
 			caller: EvmAddress,
-		) -> Option<Self>
+		) -> Result<Self, LiquidationError>
 		where
 			Block: BlockT,
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
@@ -210,7 +260,7 @@ pub mod money_market {
 				reserves.push(UserReserve { collateral, debt });
 			}
 
-			Some(Self {
+			Ok(Self {
 				address,
 				configuration,
 				reserves,
@@ -253,7 +303,10 @@ pub mod money_market {
 
 		// TODO: improve precision
 		/// Calculates user's health factor.
-		pub fn health_factor<Block, Runtime>(&self, money_market: &MoneyMarketData<Block, Runtime>) -> Option<U256>
+		pub fn health_factor<Block, Runtime>(
+			&self,
+			money_market: &MoneyMarketData<Block, Runtime>,
+		) -> Result<U256, LiquidationError>
 		where
 			Block: BlockT,
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
@@ -270,13 +323,27 @@ pub mod money_market {
 				};
 
 				let partial_collateral = user_reserve.collateral;
+
 				avg_liquidation_threshold = avg_liquidation_threshold
-					.checked_add(partial_collateral.checked_mul(U256::from(reserve.liquidation_threshold()))?)?;
-				total_collateral = total_collateral.checked_add(partial_collateral)?;
-				total_debt = total_debt.checked_add(user_reserve.debt)?;
+					.checked_add(
+						partial_collateral
+							.checked_mul(U256::from(reserve.liquidation_threshold()))
+							.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?,
+					)
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+
+				total_collateral = total_collateral
+					.checked_add(partial_collateral)
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+
+				total_debt = total_debt
+					.checked_add(user_reserve.debt)
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 			}
 
-			avg_liquidation_threshold = avg_liquidation_threshold.checked_div(total_collateral)?;
+			avg_liquidation_threshold = avg_liquidation_threshold
+				.checked_div(total_collateral)
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 			let nominator = percent_mul(total_collateral, avg_liquidation_threshold)?;
 			wad_div(nominator, total_debt)
@@ -291,7 +358,7 @@ pub mod money_market {
 			mm_pool: EvmAddress,
 			user: EvmAddress,
 			caller: EvmAddress,
-		) -> Option<U256>
+		) -> Result<U256, LiquidationError>
 		where
 			Block: BlockT,
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
@@ -300,7 +367,6 @@ pub mod money_market {
 			data.extend_from_slice(H256::from(user).as_bytes());
 
 			let gas_limit = U256::from(500_000);
-			// TODO: return Result type
 			let call_info = Runtime::call(
 				caller,
 				mm_pool,
@@ -312,13 +378,13 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
-				Some(U256::checked_from(&call_info.value[0..32])?)
+				Ok(U256::checked_from(&call_info.value[0..32])
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 	}
@@ -328,8 +394,8 @@ pub mod money_market {
 		Block: BlockT,
 		Runtime: EthereumRuntimeRPCApiV5<Block>,
 	{
-		fn fetch_scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256>;
-		fn fetch_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256>;
+		fn fetch_scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError>;
+		fn fetch_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError>;
 	}
 	impl<Block, Runtime> BalanceOf<Block, Runtime> for EvmAddress
 	where
@@ -337,7 +403,7 @@ pub mod money_market {
 		Runtime: EthereumRuntimeRPCApiV5<Block>,
 	{
 		/// Calls Runtime API.
-		fn fetch_scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256> {
+		fn fetch_scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError> {
 			let mut data = Into::<u32>::into(Function::ScaledBalanceOf).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(user).as_bytes());
 
@@ -353,18 +419,18 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
-				Some(U256::checked_from(&call_info.value[0..32])?)
+				Ok(U256::checked_from(&call_info.value[0..32])
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 
 		/// Calls Runtime API.
-		fn fetch_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Option<U256> {
+		fn fetch_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError> {
 			let mut data = Into::<u32>::into(Function::BalanceOf).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(user).as_bytes());
 
@@ -380,13 +446,13 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
-				Some(U256::checked_from(&call_info.value[0..32])?)
+				Ok(U256::checked_from(&call_info.value[0..32])
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 	}
@@ -463,17 +529,30 @@ pub mod money_market {
 			)
 		}
 
-		fn get_normalized_income(&self, current_timestamp: u64) -> Option<U256> {
+		fn get_normalized_income(&self, current_timestamp: u64) -> Result<U256, LiquidationError> {
 			if current_timestamp == self.reserve_data.last_update_timestamp {
-				Some(U256::from(self.reserve_data.liquidity_index))
+				Ok(U256::from(self.reserve_data.liquidity_index))
 			} else {
 				let current_liquidity_rate = U256::from(self.reserve_data.current_liquidity_rate);
-				let timestamp_diff =
-					U256::from(current_timestamp.checked_sub(self.reserve_data.last_update_timestamp)?);
-				let nominator = current_liquidity_rate.checked_mul(timestamp_diff)?;
+
+				let timestamp_diff = U256::from(
+					current_timestamp
+						.checked_sub(self.reserve_data.last_update_timestamp)
+						.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?,
+				);
+
+				let nominator: U256 = current_liquidity_rate
+					.checked_mul(timestamp_diff)
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+
 				let seconds_per_year = U256::from(365 * 24 * 60 * 60);
 				let ray = U256::from(10u128.pow(27));
-				let linear_interest = nominator.checked_div(seconds_per_year)?.checked_add(ray)?;
+
+				let linear_interest = nominator
+					.checked_div(seconds_per_year)
+					.and_then(|r| r.checked_add(ray))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+
 				ray_mul(linear_interest, self.reserve_data.liquidity_index.into())
 			}
 		}
@@ -509,57 +588,82 @@ pub mod money_market {
 			user: EvmAddress,
 			current_timestamp: u64,
 			caller: EvmAddress,
-		) -> Option<U256>
+		) -> Result<U256, LiquidationError>
 		where
 			Block: BlockT,
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
 		{
 			let (collateral_address, _) = self.get_collateral_and_debt_addresses();
+
 			let scaled_balance =
 				BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(collateral_address, user, caller)?;
+
 			let normalized_income = self.get_normalized_income(current_timestamp)?;
 
 			ray_mul(scaled_balance, normalized_income)?
-				.checked_mul(self.price)?
-				.checked_div(U256::from(10u128.pow(self.decimals() as u32)))
+				.checked_mul(self.price)
+				.and_then(|r| r.checked_div(U256::from(10u128.pow(self.decimals() as u32))))
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())
 		}
 
-		fn get_normalized_debt(&self, current_timestamp: u64) -> Option<U256> {
+		fn get_normalized_debt(&self, current_timestamp: u64) -> Result<U256, LiquidationError> {
 			let variable_borrow_index = U256::from(self.reserve_data.variable_borrow_index);
 			if current_timestamp == self.reserve_data.last_update_timestamp {
-				Some(variable_borrow_index)
+				Ok(variable_borrow_index)
 			} else {
-				let exp = U256::from(current_timestamp.checked_sub(self.reserve_data.last_update_timestamp)?);
+				let exp = U256::from(
+					current_timestamp
+						.checked_sub(self.reserve_data.last_update_timestamp)
+						.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?,
+				);
+
 				let ray = U256::from(10u128.pow(27));
+
 				if exp.is_zero() {
-					return Some(ray);
+					return Ok(ray);
 				}
 
-				let exp_minus_one = exp.checked_sub(U256::from(1))?;
+				let exp_minus_one = exp
+					.checked_sub(U256::from(1))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+
 				let exp_minus_two = if exp > U256::from(2) {
-					exp.checked_sub(U256::from(2))?
+					exp.checked_sub(U256::from(2))
+						.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				} else {
 					U256::zero()
 				};
 
 				let seconds_per_year = U256::from(365 * 24 * 60 * 60);
+
 				let rate = U256::from(self.reserve_data.current_variable_borrow_rate);
-				let base_power_two = ray_mul(rate, rate)?.checked_div(seconds_per_year * seconds_per_year)?;
+
+				let base_power_two = ray_mul(rate, rate)?
+					.checked_div(seconds_per_year * seconds_per_year)
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+
 				let base_power_three = ray_mul(base_power_two, rate)?;
 
-				let second_term = exp.checked_mul(exp_minus_one)?.checked_mul(base_power_two)? / 2;
+				let second_term = exp
+					.checked_mul(exp_minus_one)
+					.and_then(|r| r.checked_mul(base_power_two))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+					/ 2;
+
 				let third_term = exp
-					.checked_mul(exp_minus_one)?
-					.checked_mul(exp_minus_two)?
-					.checked_mul(base_power_three)?
+					.checked_mul(exp_minus_one)
+					.and_then(|r| r.checked_mul(exp_minus_two))
+					.and_then(|r| r.checked_mul(base_power_three))
+					.ok_or(ArithmeticError::Overflow)?
 					/ 6;
 
 				let compound_interest = rate
-					.checked_mul(exp)?
-					.checked_div(seconds_per_year)?
-					.checked_add(ray)?
-					.checked_add(second_term)?
-					.checked_add(third_term)?;
+					.checked_mul(exp)
+					.and_then(|r| r.checked_div(seconds_per_year))
+					.and_then(|r| r.checked_add(ray))
+					.and_then(|r| r.checked_add(second_term))
+					.and_then(|r| r.checked_add(third_term))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 				ray_mul(compound_interest, variable_borrow_index)
 			}
@@ -572,29 +676,42 @@ pub mod money_market {
 			user: EvmAddress,
 			current_timestamp: u64,
 			caller: EvmAddress,
-		) -> Option<U256>
+		) -> Result<U256, LiquidationError>
 		where
 			Block: BlockT,
 			Runtime: EthereumRuntimeRPCApiV5<Block>,
 		{
 			let (_, (stable_debt_address, variable_debt_address)) = self.get_collateral_and_debt_addresses();
+
 			let mut total_debt =
 				BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(variable_debt_address, user, caller)?;
+
 			if !total_debt.is_zero() {
 				let normalized_debt = self.get_normalized_debt(current_timestamp)?;
 				total_debt = ray_mul(total_debt, normalized_debt)?;
 			}
 
-			total_debt = total_debt.checked_add(BalanceOf::<Block, Runtime>::fetch_balance_of(
-				stable_debt_address,
-				user,
-				caller,
-			)?)?;
+			total_debt = total_debt
+				.checked_add(BalanceOf::<Block, Runtime>::fetch_balance_of(
+					stable_debt_address,
+					user,
+					caller,
+				)?)
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 			total_debt
-				.checked_mul(self.price)?
-				.checked_div(U256::from(10u128.pow(self.decimals() as u32)))
+				.checked_mul(self.price)
+				.and_then(|r| r.checked_div(U256::from(10u128.pow(self.decimals() as u32))))
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())
 		}
+	}
+
+	#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+	pub struct LiquidationAmounts {
+		pub debt_amount: U256,
+		pub collateral_amount: U256,
+		pub debt_in_base_currency: U256,
+		pub collateral_in_base_currency: U256,
 	}
 
 	/// Captures the state of the money market related to liquidations.
@@ -614,7 +731,7 @@ pub mod money_market {
 	}
 	impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Block, Runtime> {
 		/// Calls Runtime API.
-		pub fn new(pap_contract: EvmAddress, caller: EvmAddress) -> Option<Self> {
+		pub fn new(pap_contract: EvmAddress, caller: EvmAddress) -> Result<Self, LiquidationError> {
 			let pool_contract = Self::fetch_pool(pap_contract, caller)?;
 			let oracle_contract = Self::fetch_price_oracle(pap_contract, caller)?;
 
@@ -631,7 +748,7 @@ pub mod money_market {
 				});
 			}
 
-			Some(Self {
+			Ok(Self {
 				pap_contract,
 				pool_contract,
 				oracle_contract,
@@ -652,7 +769,7 @@ pub mod money_market {
 		}
 
 		/// Calls Runtime API.
-		pub fn fetch_pool(pap_contract: EvmAddress, caller: EvmAddress) -> Option<EvmAddress> {
+		pub fn fetch_pool(pap_contract: EvmAddress, caller: EvmAddress) -> Result<EvmAddress, LiquidationError> {
 			let data = Into::<u32>::into(Function::GetPool).to_be_bytes().to_vec();
 			let gas_limit = U256::from(100_000);
 			let call_info = Runtime::call(
@@ -666,18 +783,20 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
-				Some(EvmAddress::from(H256::from_slice(&call_info.value)))
+				Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 
 		/// Calls Runtime API.
-		pub fn fetch_price_oracle(pap_contract: EvmAddress, caller: EvmAddress) -> Option<EvmAddress> {
+		pub fn fetch_price_oracle(
+			pap_contract: EvmAddress,
+			caller: EvmAddress,
+		) -> Result<EvmAddress, LiquidationError> {
 			let data = Into::<u32>::into(Function::GetPriceOracle).to_be_bytes().to_vec();
 			let gas_limit = U256::from(100_000);
 
@@ -692,19 +811,18 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
-				Some(EvmAddress::from(H256::from_slice(&call_info.value)))
+				Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 
 		/// Get the list of reserve assets.
 		/// Calls Runtime API.
-		fn fetch_reserves_list(mm_pool: EvmAddress, caller: EvmAddress) -> Option<Vec<EvmAddress>> {
+		fn fetch_reserves_list(mm_pool: EvmAddress, caller: EvmAddress) -> Result<Vec<EvmAddress>, LiquidationError> {
 			let data = Into::<u32>::into(Function::GetReservesList).to_be_bytes().to_vec();
 			let gas_limit = U256::from(500_000);
 
@@ -719,25 +837,24 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
 				let decoded = ethabi::decode(
 					&[ethabi::ParamType::Array(Box::new(ethabi::ParamType::Address))],
 					&call_info.value,
 				)
-				.ok()?;
+				.map_err(LiquidationError::EthAbiError)?;
 
-				let decoded = decoded[0].clone().into_array()?;
+				let decoded = decoded[0].clone().into_array().ok_or(ethabi::Error::InvalidData)?;
 				let mut address_arr = Vec::new();
 				for i in decoded.iter() {
-					address_arr.push(i.clone().into_address()?);
+					address_arr.push(i.clone().into_address().ok_or(ethabi::Error::InvalidData)?);
 				}
 
-				Some(address_arr)
+				Ok(address_arr)
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 
@@ -746,7 +863,7 @@ pub mod money_market {
 			mm_pool: EvmAddress,
 			asset_address: EvmAddress,
 			caller: EvmAddress,
-		) -> Option<ReserveData> {
+		) -> Result<ReserveData, LiquidationError> {
 			let mut data = Into::<u32>::into(Function::GetReserveData).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(asset_address).as_bytes());
 
@@ -762,8 +879,7 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
 				let decoded = ethabi::decode(
@@ -785,17 +901,16 @@ pub mod money_market {
 						ethabi::ParamType::Uint(16), // isolationModeTotalDebt
 					],
 					&call_info.value,
-				)
-				.ok()?;
+				)?;
 
-				ReserveData::new(&decoded)
+				Ok(ReserveData::new(&decoded).ok_or(ethabi::Error::InvalidData)?)
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 
 		/// Calls Runtime API.
-		fn fetch_asset_symbol(asset_address: &EvmAddress, caller: EvmAddress) -> Option<Vec<u8>> {
+		fn fetch_asset_symbol(asset_address: &EvmAddress, caller: EvmAddress) -> Result<Vec<u8>, LiquidationError> {
 			let data = Into::<u32>::into(Function::Symbol).to_be_bytes().to_vec();
 			let gas_limit = U256::from(500_000);
 
@@ -810,22 +925,25 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
-				let decoded = ethabi::decode(&[ethabi::ParamType::String], &call_info.value).ok()?;
+				let decoded = ethabi::decode(&[ethabi::ParamType::String], &call_info.value)?;
 
-				let symbol = decoded[0].clone().into_string()?;
-				Some(symbol.into_bytes())
+				let symbol = decoded[0].clone().into_string().ok_or(ethabi::Error::InvalidData)?;
+				Ok(symbol.into_bytes())
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 
 		/// Get price of an asset.
 		/// Calls Runtime API.
-		pub fn fetch_asset_price(oracle_address: EvmAddress, asset: EvmAddress, caller: EvmAddress) -> Option<U256> {
+		pub fn fetch_asset_price(
+			oracle_address: EvmAddress,
+			asset: EvmAddress,
+			caller: EvmAddress,
+		) -> Result<U256, LiquidationError> {
 			let mut data = Into::<u32>::into(Function::GetAssetPrice).to_be_bytes().to_vec();
 			data.extend_from_slice(H256::from(asset).as_bytes());
 
@@ -841,22 +959,23 @@ pub mod money_market {
 				None,
 				true,
 				None,
-			)
-			.ok()?;
+			)?;
 
 			if call_info.exit_reason == Succeed(Returned) {
-				Some(U256::checked_from(&call_info.value[0..32])?)
+				Ok(U256::checked_from(&call_info.value[0..32])
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
 			} else {
-				None
+				Err(LiquidationError::EvmError(call_info.exit_reason))
 			}
 		}
 
-		pub fn get_asset_address(&self, asset_str: &str) -> Option<EvmAddress> {
+		pub fn get_asset_address(&self, asset_str: &str) -> Result<EvmAddress, LiquidationError> {
 			let reserve_index = self
 				.reserves()
 				.iter()
-				.position(|x| x.symbol == asset_str.as_bytes().to_vec())?;
-			Some(self.reserves[reserve_index].asset_address)
+				.position(|x| x.symbol == asset_str.as_bytes().to_vec())
+				.ok_or(LiquidationError::ReserveNotFound)?;
+			Ok(self.reserves[reserve_index].asset_address)
 		}
 
 		/// Change the stored price of some reserve asset.
@@ -892,7 +1011,7 @@ pub mod money_market {
 			target_health_factor: U256,
 			collateral_asset_address: EvmAddress,
 			debt_asset_address: EvmAddress,
-		) -> Option<((U256, U256), (U256, U256))> {
+		) -> Result<LiquidationAmounts, LiquidationError> {
 			// all amounts are in base currency
 			let mut weighted_total_collateral = U256::zero();
 			let mut total_collateral_in_base = U256::zero();
@@ -918,15 +1037,22 @@ pub mod money_market {
 					Default::default()
 				};
 
-				weighted_total_collateral = weighted_total_collateral.checked_add(
-					user_balances
-						.collateral
-						.checked_mul(U256::from(reserve.liquidation_threshold()))?,
-				)?;
+				weighted_total_collateral = weighted_total_collateral
+					.checked_add(
+						user_balances
+							.collateral
+							.checked_mul(U256::from(reserve.liquidation_threshold()))
+							.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?,
+					)
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
-				total_collateral_in_base = total_collateral_in_base.checked_add(user_balances.collateral)?;
+				total_collateral_in_base = total_collateral_in_base
+					.checked_add(user_balances.collateral)
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
-				total_debt_in_base = total_debt_in_base.checked_add(user_balances.debt)?;
+				total_debt_in_base = total_debt_in_base
+					.checked_add(user_balances.debt)
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 				if reserve.asset_address() == collateral_asset_address {
 					// Get liquidation threshold of the collateral asset
@@ -948,29 +1074,37 @@ pub mod money_market {
 			}
 
 			// convert percentage to decimal number
-			weighted_total_collateral = weighted_total_collateral.checked_div(percentage_factor)?;
+			weighted_total_collateral = weighted_total_collateral
+				.checked_div(percentage_factor)
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 			let n: U256 = total_debt_in_base
 				.full_mul(target_health_factor)
-				.checked_div(hf_one.into())?
-				.checked_sub(weighted_total_collateral.into())?
-				.checked_mul(unit_price.into())?
+				.checked_div(hf_one.into())
+				.and_then(|r| r.checked_sub(weighted_total_collateral.into()))
+				.and_then(|r| r.checked_mul(unit_price.into()))
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
-				.ok()?;
+				.map_err(|_| ArithmeticError::Overflow)?;
 
 			let d: U256 = percentage_factor
 				.full_mul(target_health_factor)
-				.checked_div(hf_one.into())?
+				.checked_div(hf_one.into())
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.checked_sub(
 					liquidation_bonus
 						.full_mul(collateral_liquidation_threshold)
-						.checked_div(percentage_factor.into())?,
-				)?
+						.checked_div(percentage_factor.into())
+						.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?,
+				)
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
-				.ok()?;
+				.map_err(|_| ArithmeticError::Overflow)?;
 
 			let d = percent_mul(debt_price, d)?;
-			let debt_to_liquidate = n.checked_div(d)?;
+			let debt_to_liquidate = n
+				.checked_div(d)
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 			// Our calculation provides theoretical amount that needs to be liquidated to get the HF close to `target_health_factor`.
 			// But there is no guarantee that user has required amount of debt and collateral assets.
@@ -987,9 +1121,10 @@ pub mod money_market {
 			// in debt asset
 			user_debt_amount = user_debt_amount
 				.full_mul(U256::from(10u128.pow(debt_decimals.into())))
-				.checked_div(debt_price.into())?
+				.checked_div(debt_price.into())
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
-				.ok()?;
+				.map_err(|_| ArithmeticError::Overflow)?;
 
 			// Calculate max debt that can be liquidated. Max amount is affected by the close factor and user's total debt amount.
 			let max_liquidatable_debt = percent_mul(user_debt_amount, close_factor)?;
@@ -1002,75 +1137,90 @@ pub mod money_market {
 
 			let mut base_collateral_amount = actual_debt_to_liquidate
 				.full_mul(debt_price)
-				.checked_div(collateral_price.into())?
+				.checked_div(collateral_price.into())
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
-				.ok()?;
+				.map_err(|_| ArithmeticError::Overflow)?;
 
 			let mut collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
 
 			let mut collateral_in_base_currency: U256 = collateral_amount
 				.full_mul(collateral_price)
-				.checked_div(unit_price.into())?
+				.checked_div(unit_price.into())
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
-				.ok()?;
+				.map_err(|_| ArithmeticError::Overflow)?;
 
 			let mut debt_in_base_currency = actual_debt_to_liquidate
 				.full_mul(debt_price)
-				.checked_div(unit_price.into())?
+				.checked_div(unit_price.into())
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
-				.ok()?;
+				.map_err(|_| ArithmeticError::Overflow)?;
 
 			// Adjust the liquidation amounts if user doesn't have expected amount of the collateral asset.
 			if collateral_in_base_currency > user_collateral_amount {
 				// collateral in base currency, without bonus
 				actual_debt_to_liquidate = user_collateral_amount
 					.full_mul(percentage_factor)
-					.checked_div(liquidation_bonus.into())?
-					.checked_div(debt_price.into())?
-					.checked_mul(unit_price.into())?
+					.checked_div(liquidation_bonus.into())
+					.and_then(|r| r.checked_div(debt_price.into()))
+					.and_then(|r| r.checked_mul(unit_price.into()))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 					.try_into()
-					.ok()?;
+					.map_err(|_| ArithmeticError::Overflow)?;
 
 				base_collateral_amount = actual_debt_to_liquidate
 					.full_mul(debt_price)
-					.checked_div(collateral_price.into())?
+					.checked_div(collateral_price.into())
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 					.try_into()
-					.ok()?;
+					.map_err(|_| ArithmeticError::Overflow)?;
+
 				collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
 
 				debt_in_base_currency = actual_debt_to_liquidate
 					.full_mul(debt_price)
-					.checked_div(unit_price.into())?
+					.checked_div(unit_price.into())
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 					.try_into()
-					.ok()?;
+					.map_err(|_| ArithmeticError::Overflow)?;
+
 				collateral_in_base_currency = collateral_amount
 					.full_mul(collateral_price)
-					.checked_div(unit_price.into())?
+					.checked_div(unit_price.into())
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 					.try_into()
-					.ok()?;
+					.map_err(|_| ArithmeticError::Overflow)?;
 			}
 
 			// adjust decimals
 			actual_debt_to_liquidate = if debt_decimals > oracle_price_decimals {
 				actual_debt_to_liquidate
-					.checked_mul(U256::from(10).pow((debt_decimals - oracle_price_decimals).into()))?
+					.checked_mul(U256::from(10).pow((debt_decimals - oracle_price_decimals).into()))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 			} else {
 				actual_debt_to_liquidate
-					.checked_div(U256::from(10).pow((oracle_price_decimals - debt_decimals).into()))?
+					.checked_div(U256::from(10).pow((oracle_price_decimals - debt_decimals).into()))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 			};
 
 			collateral_amount = if collateral_decimals > 10 {
 				collateral_amount
-					.checked_mul(U256::from(10).pow((collateral_decimals - oracle_price_decimals).into()))?
+					.checked_mul(U256::from(10).pow((collateral_decimals - oracle_price_decimals).into()))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 			} else {
 				collateral_amount
-					.checked_div(U256::from(10).pow((oracle_price_decimals - collateral_decimals).into()))?
+					.checked_div(U256::from(10).pow((oracle_price_decimals - collateral_decimals).into()))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 			};
 
-			Some((
-				(actual_debt_to_liquidate, collateral_amount),
-				(debt_in_base_currency, collateral_in_base_currency),
-			))
+			Ok(LiquidationAmounts {
+				debt_amount: actual_debt_to_liquidate,
+				collateral_amount,
+				debt_in_base_currency,
+				collateral_in_base_currency,
+			})
 		}
 
 		/// Calculate liquidation options based on user's reserve, price update and target health factor.
@@ -1085,7 +1235,7 @@ pub mod money_market {
 			user_data: &UserData,
 			target_health_factor: U256,
 			new_price: (EvmAddress, U256),
-		) -> Option<Vec<LiquidationOption>> {
+		) -> Result<Vec<LiquidationOption>, LiquidationError> {
 			let mut liquidation_options = Vec::new();
 			let mut collateral_assets = Vec::new();
 			let mut debt_assets = Vec::new();
@@ -1101,8 +1251,17 @@ pub mod money_market {
 			}
 
 			// update the price
-			let reserve_index = self.reserves().iter().position(|x| x.asset_address() == new_price.0)?;
-			let reserve = self.reserves().get(reserve_index)?;
+			let reserve_index = self
+				.reserves()
+				.iter()
+				.position(|x| x.asset_address() == new_price.0)
+				.ok_or(LiquidationError::ReserveNotFound)?;
+
+			let reserve = self
+				.reserves()
+				.get(reserve_index)
+				.ok_or(LiquidationError::ReserveNotFound)?;
+
 			let old_price = reserve.price();
 			self.update_reserve_price(new_price.0, new_price.1);
 
@@ -1112,10 +1271,12 @@ pub mod money_market {
 			// to `target_health_factor`. Calculated for all combinations of collateral and debt assets
 			for &(index_c, collateral_asset) in collateral_assets.iter() {
 				for &(index_d, debt_asset) in debt_assets.iter() {
-					let Some((
-						(debt_to_liquidate, _collateral_received),
-						(debt_to_liquidate_in_base, collateral_received_in_base),
-					)) = self.calculate_debt_to_liquidate(user_data, target_health_factor, collateral_asset, debt_asset)
+					let Ok(LiquidationAmounts {
+						debt_amount,
+						collateral_amount: _,
+						debt_in_base_currency,
+						collateral_in_base_currency,
+					}) = self.calculate_debt_to_liquidate(user_data, target_health_factor, collateral_asset, debt_asset)
 					else {
 						continue;
 					};
@@ -1123,23 +1284,18 @@ pub mod money_market {
 					let mut new_user_data = user_data.clone();
 
 					let mut user_reserve = new_user_data.reserves()[index_c].clone();
-					user_reserve.collateral = user_reserve.collateral.saturating_sub(collateral_received_in_base);
+					user_reserve.collateral = user_reserve.collateral.saturating_sub(collateral_in_base_currency);
 					new_user_data.update_reserves(sp_std::vec!((index_c, user_reserve)));
 
 					let mut user_reserve = new_user_data.reserves()[index_d].clone();
-					user_reserve.debt = user_reserve.debt.saturating_sub(debt_to_liquidate_in_base);
+					user_reserve.debt = user_reserve.debt.saturating_sub(debt_in_base_currency);
 					new_user_data.update_reserves(sp_std::vec!((index_d, user_reserve)));
 
 					// calculate HF based on updated price and reserves
 					let maybe_hf = new_user_data.health_factor(self);
 
-					if let Some(hf) = maybe_hf {
-						liquidation_options.push(LiquidationOption::new(
-							hf,
-							collateral_asset,
-							debt_asset,
-							debt_to_liquidate,
-						));
+					if let Ok(hf) = maybe_hf {
+						liquidation_options.push(LiquidationOption::new(hf, collateral_asset, debt_asset, debt_amount));
 					}
 				}
 			}
@@ -1147,7 +1303,7 @@ pub mod money_market {
 			// revert the price back
 			self.update_reserve_price(new_price.0, old_price);
 
-			Some(liquidation_options)
+			Ok(liquidation_options)
 		}
 
 		/// Evaluates all liquidation options and returns one that is closest to the `target_health_factor`.
@@ -1161,7 +1317,7 @@ pub mod money_market {
 			user_data: &UserData,
 			target_health_factor: U256,
 			new_price: (EvmAddress, U256),
-		) -> Option<LiquidationOption> {
+		) -> Result<Option<LiquidationOption>, LiquidationError> {
 			let mut liquidation_options =
 				self.calculate_liquidation_options(user_data, target_health_factor, new_price)?;
 
@@ -1172,7 +1328,7 @@ pub mod money_market {
 					.cmp(&b.health_factor.abs_diff(target_health_factor))
 			});
 
-			liquidation_options.first().cloned()
+			Ok(liquidation_options.first().cloned())
 		}
 	}
 

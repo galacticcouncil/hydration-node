@@ -35,6 +35,7 @@ num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
 hex-literal = { workspace = true }
 ethereum = { workspace = true }
+primitive-types = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }

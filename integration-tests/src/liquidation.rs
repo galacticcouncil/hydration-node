@@ -421,14 +421,18 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("DOT").unwrap();
-		let ((debt_to_liquidate, _collateral_amount), (debt_to_liquidate_in_base, collateral_received_in_base)) =
-			money_market_data
-				.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
-				.unwrap();
+		let LiquidationAmounts {
+			debt_amount,
+			collateral_amount: _,
+			debt_in_base_currency,
+			collateral_in_base_currency,
+		} = money_market_data
+			.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
+			.unwrap();
 
 		let mut user_reserve = user_data.reserves()[4].clone();
-		user_reserve.collateral = user_reserve.collateral.saturating_sub(collateral_received_in_base);
-		user_reserve.debt = user_reserve.debt.saturating_sub(debt_to_liquidate_in_base);
+		user_reserve.collateral = user_reserve.collateral.saturating_sub(collateral_in_base_currency);
+		user_reserve.debt = user_reserve.debt.saturating_sub(debt_in_base_currency);
 		user_data.update_reserves(vec![(4, user_reserve)]);
 		let target_hf_diff = target_health_factor.abs_diff(user_data.health_factor(&money_market_data).unwrap());
 		assert!(
@@ -456,7 +460,7 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 			DOT, // collateral
 			DOT, // debt
 			alice_evm_address,
-			debt_to_liquidate.try_into().unwrap(),
+			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
 		));
 
@@ -539,10 +543,14 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
-		let ((debt_to_liquidate, _collateral_amount), (_debt_to_liquidate_in_base, _collateral_received_in_base)) =
-			money_market_data
-				.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
-				.unwrap();
+		let LiquidationAmounts {
+			debt_amount,
+			collateral_amount: _,
+			debt_in_base_currency: _,
+			collateral_in_base_currency: _,
+		} = money_market_data
+			.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
+			.unwrap();
 
 		let (price, timestamp) = get_oracle_price("DOT/USD");
 		let price = price.as_u128() * 5 / 2;
@@ -561,7 +569,7 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 			WETH, // collateral
 			DOT,  // debt
 			alice_evm_address,
-			debt_to_liquidate.try_into().unwrap(),
+			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
 		));
 
@@ -641,10 +649,14 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 		)
 		.unwrap();
 		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
-		let ((debt_to_liquidate, _collateral_amount), (_debt_to_liquidate_in_base, _collateral_received_in_base)) =
-			money_market_data
-				.calculate_debt_to_liquidate(&user_data, target_health_factor, weth_address, dot_address)
-				.unwrap();
+		let LiquidationAmounts {
+			debt_amount,
+			collateral_amount: _,
+			debt_in_base_currency: _,
+			collateral_in_base_currency: _,
+		} = money_market_data
+			.calculate_debt_to_liquidate(&user_data, target_health_factor, weth_address, dot_address)
+			.unwrap();
 
 		// update WETH price
 		let (price, timestamp) = get_oracle_price("WETH/USD");
@@ -677,7 +689,7 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 			WETH, // collateral
 			DOT,  // debt
 			alice_evm_address,
-			debt_to_liquidate.try_into().unwrap(),
+			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
 		));
 
@@ -776,10 +788,14 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 
 		let debt_asset = money_market_data.get_asset_address("WETH").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
-		let ((debt_to_liquidate, _collateral_amount), (_debt_to_liquidate_in_base, _collateral_received_in_base)) =
-			money_market_data
-				.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
-				.unwrap();
+		let LiquidationAmounts {
+			debt_amount,
+			collateral_amount: _,
+			debt_in_base_currency: _,
+			collateral_in_base_currency: _,
+		} = money_market_data
+			.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
+			.unwrap();
 
 		let (price, timestamp) = get_oracle_price("WETH/USD");
 		let price = price.as_u128() * 5 / 2;
@@ -798,7 +814,7 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 			WETH, // collateral
 			WETH, // debt
 			alice_evm_address,
-			debt_to_liquidate.try_into().unwrap(),
+			debt_amount.try_into().unwrap(),
 			BoundedVec::new(),
 		));
 
