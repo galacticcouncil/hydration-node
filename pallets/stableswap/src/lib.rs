@@ -202,7 +202,7 @@ pub mod pallet {
 	pub type AssetTradability<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, T::AssetId, Tradability, ValueQuery>;
 
-	///
+	/// Temporary pool state storage. Used to save a state of pool in a single block.
 	#[pallet::storage]
 	#[pallet::getter(fn pool_snapshot)]
 	pub type PoolSnapshots<T: Config> =
@@ -1257,7 +1257,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	//  Returns start of the pool at the beginning of the block
 	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
-		if let Some(snapshot) = Self::pool_snapshot(&pool_id) {
+		if let Some(snapshot) = Self::pool_snapshot(pool_id) {
 			Some(snapshot)
 		} else {
 			Self::create_snapshot(pool_id)
