@@ -56,8 +56,6 @@ pub fn calculate_buy_price_with_fee(execution_price: Price, buy_back_fee: Permil
 /// Calculate max buy price
 /// p_m = coefficient * peg
 pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> Price {
-	dbg!(peg);
-	dbg!(coefficient);
 	let peg_ratio: Ratio = peg.into();
 	let c_ratio: Ratio = (coefficient.into_inner(), FixedU128::DIV).into();
 	let result = peg_ratio.saturating_mul(&c_ratio);

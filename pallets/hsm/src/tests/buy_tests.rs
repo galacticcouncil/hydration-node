@@ -16,7 +16,7 @@
 use crate::tests::mock::*;
 use crate::{Error, HollarAmountReceived};
 use frame_support::traits::Hooks;
-use frame_support::{assert_err, assert_ok};
+use frame_support::{assert_err, assert_ok, BoundedVec};
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
@@ -710,4 +710,214 @@ fn buy_collateral_works_when_buy_fee_is_nonzero() {
 			// Check that HSM holdings are updated correctly
 			assert_eq!(Tokens::free_balance(DAI, &HSM::account_id()), hsm_dai - ONE,);
 		});
+}
+
+#[test]
+fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_sell() {
+	setup_test_with_dai_collateral().execute_with(|| {
+		// Set initial collateral holdings for HSM
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
+
+		System::set_block_number(System::block_number() + 1);
+
+		// Initial state
+		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+		// Calculate expected values
+		let collateral_amount = 10 * ONE;
+		let expected_hollar_amount = 10115651205298638227;
+
+		// Do a stablepool trade
+		assert_ok!(Stableswap::sell(
+			RuntimeOrigin::signed(BOB),
+			100,
+			DAI,
+			HOLLAR,
+			10 * ONE,
+			0
+		));
+
+		// Execute the buy
+		assert_ok!(HSM::buy(
+			RuntimeOrigin::signed(ALICE),
+			HOLLAR,
+			DAI,
+			collateral_amount,
+			2 * expected_hollar_amount, // Higher than expected amount (slippage limit)
+		));
+
+		// Check that ALICE's balances are updated correctly
+		assert_eq!(
+			Tokens::free_balance(HOLLAR, &ALICE),
+			initial_alice_hollar - expected_hollar_amount
+		);
+		assert_eq!(Tokens::free_balance(DAI, &ALICE), initial_alice_dai + collateral_amount);
+
+		// Check that HSM holdings are updated correctly
+		assert_eq!(
+			Tokens::free_balance(DAI, &HSM::account_id()),
+			initial_hsm_dai - collateral_amount
+		);
+
+		// Check that HollarAmountReceived was updated correctly
+		assert_eq!(HollarAmountReceived::<Test>::get(DAI), expected_hollar_amount);
+	});
+}
+
+#[test]
+fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_buy() {
+	setup_test_with_dai_collateral().execute_with(|| {
+		// Set initial collateral holdings for HSM
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
+
+		System::set_block_number(System::block_number() + 1);
+
+		// Initial state
+		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+		// Calculate expected values
+		let collateral_amount = 10 * ONE;
+		let expected_hollar_amount = 10115651205298638227;
+
+		// Do a stablepool trade
+		assert_ok!(Stableswap::buy(
+			RuntimeOrigin::signed(BOB),
+			100,
+			DAI,
+			HOLLAR,
+			10 * ONE,
+			u128::MAX,
+		));
+
+		// Execute the buy
+		assert_ok!(HSM::buy(
+			RuntimeOrigin::signed(ALICE),
+			HOLLAR,
+			DAI,
+			collateral_amount,
+			2 * expected_hollar_amount, // Higher than expected amount (slippage limit)
+		));
+
+		// Check that ALICE's balances are updated correctly
+		assert_eq!(
+			Tokens::free_balance(HOLLAR, &ALICE),
+			initial_alice_hollar - expected_hollar_amount
+		);
+		assert_eq!(Tokens::free_balance(DAI, &ALICE), initial_alice_dai + collateral_amount);
+
+		// Check that HSM holdings are updated correctly
+		assert_eq!(
+			Tokens::free_balance(DAI, &HSM::account_id()),
+			initial_hsm_dai - collateral_amount
+		);
+
+		// Check that HollarAmountReceived was updated correctly
+		assert_eq!(HollarAmountReceived::<Test>::get(DAI), expected_hollar_amount);
+	});
+}
+
+#[test]
+fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_add_liquidity() {
+	setup_test_with_dai_collateral().execute_with(|| {
+		// Set initial collateral holdings for HSM
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
+
+		System::set_block_number(System::block_number() + 1);
+
+		// Initial state
+		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+		// Calculate expected values
+		let collateral_amount = 10 * ONE;
+		let expected_hollar_amount = 10115651205298638227;
+		// Do a stablepool add liquidity
+		assert_ok!(Stableswap::add_assets_liquidity(
+			RuntimeOrigin::signed(BOB),
+			100,
+			BoundedVec::truncate_from(vec![AssetAmount::new(DAI, 10 * ONE)]),
+			9,
+		));
+
+		// Execute the buy
+		assert_ok!(HSM::buy(
+			RuntimeOrigin::signed(ALICE),
+			HOLLAR,
+			DAI,
+			collateral_amount,
+			2 * expected_hollar_amount, // Higher than expected amount (slippage limit)
+		));
+
+		// Check that ALICE's balances are updated correctly
+		assert_eq!(
+			Tokens::free_balance(HOLLAR, &ALICE),
+			initial_alice_hollar - expected_hollar_amount
+		);
+		assert_eq!(Tokens::free_balance(DAI, &ALICE), initial_alice_dai + collateral_amount);
+
+		// Check that HSM holdings are updated correctly
+		assert_eq!(
+			Tokens::free_balance(DAI, &HSM::account_id()),
+			initial_hsm_dai - collateral_amount
+		);
+
+		// Check that HollarAmountReceived was updated correctly
+		assert_eq!(HollarAmountReceived::<Test>::get(DAI), expected_hollar_amount);
+	});
+}
+#[test]
+fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_remove_liquidity() {
+	setup_test_with_dai_collateral().execute_with(|| {
+		// Set initial collateral holdings for HSM
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
+
+		System::set_block_number(System::block_number() + 1);
+
+		// Initial state
+		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+		// Calculate expected values
+		let collateral_amount = 10 * ONE;
+		let expected_hollar_amount = 10115651205298638227;
+
+		// Do a stablepool remove liquidity
+		assert_ok!(Stableswap::remove_liquidity(
+			RuntimeOrigin::signed(PROVIDER),
+			100,
+			ONE,
+			BoundedVec::truncate_from(vec![AssetAmount::new(DAI, 0), AssetAmount::new(HOLLAR, 0)]),
+		));
+
+		// Execute the buy
+		assert_ok!(HSM::buy(
+			RuntimeOrigin::signed(ALICE),
+			HOLLAR,
+			DAI,
+			collateral_amount,
+			2 * expected_hollar_amount, // Higher than expected amount (slippage limit)
+		));
+
+		// Check that ALICE's balances are updated correctly
+		assert_eq!(
+			Tokens::free_balance(HOLLAR, &ALICE),
+			initial_alice_hollar - expected_hollar_amount
+		);
+		assert_eq!(Tokens::free_balance(DAI, &ALICE), initial_alice_dai + collateral_amount);
+
+		// Check that HSM holdings are updated correctly
+		assert_eq!(
+			Tokens::free_balance(DAI, &HSM::account_id()),
+			initial_hsm_dai - collateral_amount
+		);
+
+		// Check that HollarAmountReceived was updated correctly
+		assert_eq!(HollarAmountReceived::<Test>::get(DAI), expected_hollar_amount);
+	});
 }
