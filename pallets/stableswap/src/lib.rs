@@ -1238,6 +1238,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	//  Returns start of the pool at the beginning of the block
 	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
+		//TODO: use the temporary storage first, if set
 		let pool = Pools::<T>::get(pool_id)?;
 		let pool_account = Self::pool_account(pool_id);
 		let amplification = Self::get_amplification(&pool);
