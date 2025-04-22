@@ -20,8 +20,8 @@
 
 use crate as pallet_hsm;
 use crate::types::{CallResult, CoefficientRatio};
+use crate::Config;
 use crate::ERC20Function;
-use crate::{traits, Config};
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
 use evm::{ExitError, ExitReason, ExitSucceed};
@@ -43,10 +43,10 @@ use hydradx_traits::{
 use hydradx_traits::{AccountIdFor, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
-use pallet_stableswap::types::{BoundedPegSources, PegSource, PegType};
+use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
-use sp_runtime::{BoundedVec, DispatchResult, Perbill};
+use sp_runtime::{BoundedVec, Perbill};
 use sp_runtime::{BuildStorage, DispatchError, Permill};
 use sp_std::num::NonZeroU16;
 use std::cell::RefCell;

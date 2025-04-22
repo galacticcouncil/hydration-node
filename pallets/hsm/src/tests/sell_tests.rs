@@ -944,3 +944,60 @@ fn sell_hollar_to_get_collateral_should_yield_same_results_when_stablepool_state
 		assert_eq!(HollarAmountReceived::<Test>::get(DAI), hollar_amount);
 	});
 }
+
+#[test]
+fn sell_hollar_to_get_collateral_should_yield_same_results_when_stablepool_state_changes_in_block_due_to_multiple_operations(
+) {
+	setup_test_with_dai_collateral().execute_with(|| {
+		move_block();
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * ONE as i128));
+		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+		// Do a stablepool remove liquidity
+		assert_ok!(Stableswap::remove_liquidity(
+			RuntimeOrigin::signed(PROVIDER),
+			100,
+			ONE,
+			BoundedVec::truncate_from(vec![AssetAmount::new(DAI, 0), AssetAmount::new(HOLLAR, 0)]),
+		));
+
+		// Do a stablepool trade
+		assert_ok!(Stableswap::sell(
+			RuntimeOrigin::signed(BOB),
+			100,
+			DAI,
+			HOLLAR,
+			10 * ONE,
+			0,
+		));
+
+		let hollar_amount = 10 * ONE;
+		let expected_collateral_amount = 9883577967582916609;
+
+		assert_ok!(HSM::sell(
+			RuntimeOrigin::signed(ALICE),
+			HOLLAR,
+			DAI,
+			hollar_amount,
+			1, // Minimal slippage limit
+		));
+
+		assert_eq!(
+			Tokens::free_balance(HOLLAR, &ALICE),
+			initial_alice_hollar - hollar_amount
+		);
+		assert_eq!(
+			Tokens::free_balance(DAI, &ALICE),
+			initial_alice_dai + expected_collateral_amount
+		);
+
+		assert_eq!(
+			Tokens::free_balance(DAI, &HSM::account_id()),
+			initial_hsm_dai - expected_collateral_amount
+		);
+
+		assert_eq!(HollarAmountReceived::<Test>::get(DAI), hollar_amount);
+	});
+}

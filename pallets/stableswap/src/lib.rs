@@ -1283,8 +1283,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn save_snapshot(pool_id: T::AssetId) {
-		if let Some(snapshot) = Self::create_snapshot(pool_id) {
-			PoolSnapshots::<T>::insert(pool_id, snapshot);
+		// Only save snapshot if there isn't one.
+		if Self::pool_snapshot(pool_id).is_none() {
+			if let Some(snapshot) = Self::create_snapshot(pool_id) {
+				PoolSnapshots::<T>::insert(pool_id, snapshot);
+			}
 		}
 	}
 }
