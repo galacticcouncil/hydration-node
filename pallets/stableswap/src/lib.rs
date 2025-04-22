@@ -59,7 +59,7 @@
 extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::{ensure, require_transactional, transactional, PalletId};
+use frame_support::{ensure, require_transactional, transactional, BoundedVec, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydradx_traits::{oracle::RawOracle, registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
@@ -201,6 +201,12 @@ pub mod pallet {
 	#[pallet::getter(fn asset_tradability)]
 	pub type AssetTradability<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, T::AssetId, Tradability, ValueQuery>;
+
+	///
+	#[pallet::storage]
+	#[pallet::getter(fn pool_snapshot)]
+	pub type PoolSnapshots<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, PoolSnapshot<T::AssetId>, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -1238,7 +1244,14 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	//  Returns start of the pool at the beginning of the block
 	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
-		//TODO: use the temporary storage first, if set
+		if let Some(snapshot) = Self::pool_snapshot(&pool_id) {
+			Some(snapshot)
+		} else {
+			Self::create_snapshot(pool_id)
+		}
+	}
+
+	pub fn create_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
 		let pool = Pools::<T>::get(pool_id)?;
 		let pool_account = Self::pool_account(pool_id);
 		let amplification = Self::get_amplification(&pool);
@@ -1250,8 +1263,8 @@ impl<T: Config> Pallet<T> {
 			assets: pool.assets,
 			amplification,
 			fee: pool.fee,
-			reserves,
-			pegs: asset_pegs,
+			reserves: BoundedVec::truncate_from(reserves),
+			pegs: BoundedVec::truncate_from(asset_pegs),
 			share_issuance,
 		})
 	}
@@ -1881,9 +1894,8 @@ impl<T: Config> Pallet<T> {
 		let snapshot = if let Some(snapshot) = use_snapshot {
 			snapshot
 		} else {
-			// if not snaphost, get current pool state
-			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-			todo!()
+			// if no state provided, get current pool state
+			Self::create_snapshot(pool_id).ok_or(Error::<T>::PoolNotFound)?
 		};
 
 		let index_in = snapshot.asset_idx(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
@@ -1930,9 +1942,8 @@ impl<T: Config> Pallet<T> {
 		let snapshot = if let Some(snapshot) = use_snapshot {
 			snapshot
 		} else {
-			// if not snaphost, get current pool state
-			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
-			todo!()
+			// if no state provided, get current pool state
+			Self::create_snapshot(pool_id).ok_or(Error::<T>::PoolNotFound)?
 		};
 
 		let index_in = snapshot.asset_idx(asset_in).ok_or(Error::<T>::AssetNotInPool)?;

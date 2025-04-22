@@ -178,13 +178,13 @@ impl<AssetId> PoolPegInfo<AssetId> {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct PoolSnapshot<AssetId> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
-	pub reserves: Vec<AssetReserve>,
+	pub reserves: BoundedVec<AssetReserve, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub amplification: u128,
 	pub fee: Permill,
-	pub pegs: Vec<PegType>,
+	pub pegs: BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub share_issuance: Balance,
 }
 
