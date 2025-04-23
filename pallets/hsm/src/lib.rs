@@ -424,12 +424,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let hollar_id = T::HollarId::get();
 
-			// Ensure it's a pair of Hollar and collateral asset
-			ensure!(
-				(asset_in == hollar_id && Self::is_collateral(asset_out))
-					|| (asset_out == hollar_id && Self::is_collateral(asset_in)),
-				Error::<T>::InvalidAssetPair
-			);
+			Self::ensure_pair(asset_in, asset_out)?;
 
 			let amount_out = if asset_in == hollar_id {
 				// COLLATERAL OUT given HOLLAR IN
@@ -503,12 +498,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let hollar_id = T::HollarId::get();
 
-			// Ensure it's a pair of Hollar and collateral asset
-			ensure!(
-				(asset_in == hollar_id && Self::is_collateral(asset_out))
-					|| (asset_out == hollar_id && Self::is_collateral(asset_in)),
-				Error::<T>::InvalidAssetPair
-			);
+			Self::ensure_pair(asset_in, asset_out)?;
 
 			let amount_in = if asset_out == hollar_id {
 				// COLLATERAL IN given HOLLAR OUT
@@ -641,8 +631,18 @@ where
 
 	/// Check if an asset is an approved collateral
 	#[inline]
-	pub fn is_collateral(asset_id: T::AssetId) -> bool {
+	fn is_collateral(asset_id: T::AssetId) -> bool {
 		Collaterals::<T>::contains_key(asset_id)
+	}
+
+	fn ensure_pair(asset_in: T::AssetId, asset_out: T::AssetId) -> DispatchResult {
+		ensure!(
+			(asset_in == T::HollarId::get() && Self::is_collateral(asset_out))
+				|| (asset_out == T::HollarId::get() && Self::is_collateral(asset_in)),
+			Error::<T>::InvalidAssetPair
+		);
+
+		Ok(())
 	}
 
 	fn get_stablepool_state(pool_id: T::AssetId) -> Result<PoolSnapshot<T::AssetId>, DispatchError> {

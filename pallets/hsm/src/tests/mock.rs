@@ -299,7 +299,7 @@ impl EVM<CallResult> for MockEvm {
 		// Check if the call has a pre-defined result in our mock
 		let maybe_predefined = EVM_CALL_RESULTS.with(|v| v.borrow().get(&data).cloned());
 		if let Some(result) = maybe_predefined {
-			return (ExitReason::Succeed(ExitSucceed::Returned), result);
+			return (ExitReason::Succeed(ExitSucceed::Stopped), result);
 		}
 
 		// Handle the EVM functions
@@ -328,7 +328,7 @@ impl EVM<CallResult> for MockEvm {
 								// Increase the balance of the recipient
 								let _ = Tokens::update_balance(hollar_id, &recipient, amount as i128);
 
-								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
 							}
 						}
 					}
@@ -348,7 +348,7 @@ impl EVM<CallResult> for MockEvm {
 								// Decrease the balance of the caller
 								let _ = Tokens::update_balance(hollar_id, &account_id, -(amount as i128));
 
-								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
 							}
 						}
 					}

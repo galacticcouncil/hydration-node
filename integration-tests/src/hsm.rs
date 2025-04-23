@@ -1,10 +1,8 @@
-use crate::evm::dai_ethereum_address;
 use crate::polkadot_test_net::hydra_live_ext;
 use crate::polkadot_test_net::hydradx_run_to_next_block;
-use crate::polkadot_test_net::{Hydra, TestNet, ALICE, BOB, UNITS, WETH};
-use crate::utils::contracts::{deploy_contract, deploy_contract_code, get_contract_bytecode};
+use crate::polkadot_test_net::{TestNet, ALICE};
 use fp_evm::ExitSucceed::Returned;
-use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped, FeeCalculator};
+use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
 use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
 use hex_literal::hex;
@@ -13,23 +11,19 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, AssetRegistry, EVMAccounts, FixedU128, Runtime, RuntimeEvent, System, Tokens, HSM,
+	AccountId, EVMAccounts, FixedU128, Tokens, HSM,
 };
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use hydradx_traits::stableswap::AssetAmount;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
-use polkadot_xcm::v3::Junction::{GeneralIndex, Parachain};
-use polkadot_xcm::v3::Junctions::X1;
-use polkadot_xcm::v3::MultiLocation;
 use pretty_assertions::assert_eq;
 use sp_core::{RuntimeDebug, H256, U256};
 use sp_runtime::traits::One;
 use sp_runtime::BoundedVec;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
-use sp_runtime::SaturatedConversion;
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
