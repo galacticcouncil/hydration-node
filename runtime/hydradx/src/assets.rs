@@ -1659,13 +1659,17 @@ impl pallet_hsm::Config for Runtime {
 	type HollarId = HOLLAR;
 	type PalletId = HsmPalletId;
 	type GhoContractAddress = AssetRegistry;
-	type Currency = pallet_currencies::fungibles::FungibleCurrencies<Runtime>;
+	type Currency = FungibleCurrencies<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Evm = helpers::benchmark_helpers::DummyEvmForHsm;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Evm = evm::Executor<Runtime>;
 	type EvmAccounts = EVMAccounts;
 	type GasLimit = HsmGasLimit;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

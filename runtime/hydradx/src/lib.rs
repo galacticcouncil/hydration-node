@@ -35,6 +35,7 @@ pub mod weights;
 mod assets;
 pub mod evm;
 pub mod governance;
+mod helpers;
 mod system;
 pub mod types;
 pub mod xcm;
@@ -344,6 +345,7 @@ mod benches {
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
+		[pallet_hsm, HSM]
 	);
 }
 

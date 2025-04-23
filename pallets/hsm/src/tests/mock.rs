@@ -25,7 +25,7 @@ use crate::ERC20Function;
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
 use evm::{ExitError, ExitReason, ExitSucceed};
-use frame_support::pallet_prelude::Hooks;
+use frame_support::pallet_prelude::{Hooks, Weight};
 use frame_support::sp_runtime::{
 	traits::{IdentifyAccount, Verify},
 	MultiSignature,
@@ -473,6 +473,7 @@ impl Config for Test {
 	type Evm = MockEvm;
 	type EvmAccounts = MockEvmAccounts;
 	type GasLimit = GasLimit;
+	type GasWeightMapping = MockGasWeightMapping;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = MockHSMBenchmarkHelper;
@@ -495,6 +496,16 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 
 	fn remove_account(_account: &AccountId) -> Result<(), Self::Error> {
 		Ok(())
+	}
+}
+
+pub struct MockGasWeightMapping;
+impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
+	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
+		Weight::zero()
+	}
+	fn weight_to_gas(_weight: Weight) -> u64 {
+		0
 	}
 }
 

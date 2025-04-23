@@ -92,6 +92,7 @@ pub const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use pallet_evm::GasWeightMapping;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_stableswap::Config + SendTransactionTypes<Call<Self>>
@@ -124,6 +125,9 @@ pub mod pallet {
 		/// The gas limit for the execution of EVM calls
 		#[pallet::constant]
 		type GasLimit: Get<u64>;
+
+		/// Gas to Weight conversion.
+		type GasWeightMapping: GasWeightMapping;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -160,7 +164,7 @@ pub mod pallet {
 		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
 		/// A new collateral asset was added
-		/// 
+		///
 		/// Parameters:
 		/// - `asset_id`: The ID of the asset added as collateral
 		/// - `pool_id`: The StableSwap pool ID where this asset belongs
@@ -177,13 +181,13 @@ pub mod pallet {
 			buyback_rate: Perbill,
 		},
 		/// A collateral asset was removed
-		/// 
+		///
 		/// Parameters:
 		/// - `asset_id`: The ID of the asset removed from collaterals
 		/// - `amount`: The amount of the asset that was returned (should be zero)
 		CollateralRemoved { asset_id: T::AssetId, amount: Balance },
 		/// A collateral asset was updated
-		/// 
+		///
 		/// Parameters:
 		/// - `asset_id`: The ID of the updated collateral asset
 		/// - `purchase_fee`: New purchase fee if updated (None if not changed)
@@ -198,7 +202,7 @@ pub mod pallet {
 			buyback_rate: Option<Perbill>,
 		},
 		/// Sell executed successfully
-		/// 
+		///
 		/// Parameters:
 		/// - `who`: Account that executed the sell
 		/// - `asset_in`: Asset that was sold
@@ -213,7 +217,7 @@ pub mod pallet {
 			amount_out: Balance,
 		},
 		/// Buy executed successfully
-		/// 
+		///
 		/// Parameters:
 		/// - `who`: Account that executed the buy
 		/// - `asset_in`: Asset that was sold by the user
@@ -228,7 +232,7 @@ pub mod pallet {
 			amount_out: Balance,
 		},
 		/// Arbitrage executed successfully
-		/// 
+		///
 		/// Parameters:
 		/// - `asset_id`: The collateral asset used in the arbitrage
 		/// - `hollar_amount`: Amount of Hollar that was included in the arbitrage operation
@@ -241,79 +245,79 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Asset is not approved as collateral
-		/// 
+		///
 		/// The operation attempted to use an asset that is not registered as an approved collateral.
 		AssetNotApproved,
 		/// Asset is already approved as collateral
-		/// 
+		///
 		/// Attempted to add an asset that is already registered as a collateral.
 		AssetAlreadyApproved,
 		/// Another asset from the same pool is already approved
-		/// 
+		///
 		/// Only one asset from each StableSwap pool can be used as collateral.
 		PoolAlreadyHasCollateral,
 		/// Invalid asset pair, must be Hollar and approved collateral
-		/// 
+		///
 		/// The asset pair for buy/sell operations must include Hollar as one side and an approved collateral as the other.
 		InvalidAssetPair,
 		/// Max buy price exceeded
-		/// 
+		///
 		/// The calculated buy price exceeds the maximum allowed buy price for the collateral.
 		MaxBuyPriceExceeded,
 		/// Max buy back amount in single block exceeded
-		/// 
+		///
 		/// The amount of Hollar being sold to HSM exceeds the maximum allowed in a single block for this collateral.
 		MaxBuyBackExceeded,
 		/// Max holding amount for collateral exceeded
-		/// 
+		///
 		/// The operation would cause the HSM to hold more of the collateral than the configured maximum.
 		MaxHoldingExceeded,
 		/// Slippage limit exceeded
-		/// 
+		///
 		/// The calculated amount is worse than the provided slippage limit.
 		SlippageLimitExceeded,
 		/// Invalid EVM contract interaction
-		/// 
+		///
 		/// The call to the EVM contract (GHO Hollar token) failed.
 		InvalidEVMInteraction,
 		/// Decimal retrieval failed
-		/// 
+		///
 		/// Failed to retrieve the decimal information for an asset.
 		DecimalRetrievalFailed,
 		/// No arbitrage opportunity
-		/// 
+		///
 		/// There is no profitable arbitrage opportunity for the specified collateral.
 		NoArbitrageOpportunity,
 		/// Offchain lock error
-		/// 
+		///
 		/// Failed to acquire the lock for offchain workers, likely because another operation is in progress.
 		OffchainLockError,
 		/// Asset not in the pool
-		/// 
+		///
 		/// The specified asset was not found in the pool.
 		AssetNotFound,
 		/// Provided pool state is invalid
-		/// 
+		///
 		/// The retrieved pool state has inconsistent or invalid data.
 		InvalidPoolState,
 		/// Collateral is not empty
-		/// 
+		///
 		/// Cannot remove a collateral asset that still has a non-zero balance in the HSM account.
 		CollateralNotEmpty,
 		/// Asset not in the pool
-		/// 
+		///
 		/// The collateral asset is not present in the specified pool.
 		AssetNotInPool,
 		/// Hollar is not in the pool
-		/// 
+		///
 		/// The Hollar asset is not present in the specified pool.
 		HollarNotInPool,
 		/// Insufficient collateral balance
-		/// 
+		///
 		/// The HSM does not have enough of the collateral asset to complete the operation.
 		InsufficientCollateralBalance,
 		/// GHO Contract address not found
-		/// 
+		///
 		/// The EVM address for the GHO (Hollar) token contract was not found.
 		HollarContractAddressNotFound,
 	}
@@ -403,7 +407,7 @@ pub mod pallet {
 		/// - `CollateralAdded` when the collateral is successfully added
 		///
 		/// Errors:
-		/// - `AssetAlreadyApproved` if the asset is already registered as a collateral 
+		/// - `AssetAlreadyApproved` if the asset is already registered as a collateral
 		/// - `PoolAlreadyHasCollateral` if another asset from the same pool is already approved
 		/// - `HollarNotInPool` if Hollar is not found in the specified pool
 		/// - `AssetNotInPool` if the collateral asset is not found in the specified pool
@@ -499,7 +503,7 @@ pub mod pallet {
 		///
 		/// Updates the parameters for an existing collateral asset. Only callable by the governance (root origin).
 		/// Each parameter is optional and only provided parameters will be updated.
-		/// 
+		///
 		/// Parameters:
 		/// - `origin`: Must be Root
 		/// - `asset_id`: Asset ID to update
@@ -589,7 +593,9 @@ pub mod pallet {
 		/// - `InvalidEVMInteraction` if there's an error interacting with the Hollar ERC20 contract
 		/// - Other errors from underlying calls
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::sell())]
+		#[pallet::weight(<T as Config>::WeightInfo::sell()
+			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
+		)]
 		pub fn sell(
 			origin: OriginFor<T>,
 			asset_in: T::AssetId,
@@ -679,7 +685,9 @@ pub mod pallet {
 		/// - `InvalidEVMInteraction` if there's an error interacting with the Hollar ERC20 contract
 		/// - Other errors from underlying calls
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::buy())]
+		#[pallet::weight(<T as Config>::WeightInfo::buy()
+			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
+		)]
 		pub fn buy(
 			origin: OriginFor<T>,
 			asset_in: T::AssetId,
