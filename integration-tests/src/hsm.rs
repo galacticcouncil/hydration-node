@@ -1,5 +1,6 @@
 use crate::evm::dai_ethereum_address;
 use crate::polkadot_test_net::hydra_live_ext;
+use crate::polkadot_test_net::hydradx_run_to_next_block;
 use crate::polkadot_test_net::{Hydra, TestNet, ALICE, BOB, UNITS, WETH};
 use crate::utils::contracts::{deploy_contract, deploy_contract_code, get_contract_bytecode};
 use fp_evm::ExitSucceed::Returned;
@@ -15,6 +16,7 @@ use hydradx_runtime::{
 	AccountId, AssetRegistry, EVMAccounts, FixedU128, Runtime, RuntimeEvent, System, Tokens, HSM,
 };
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_traits::stableswap::AssetAmount;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
@@ -197,6 +199,120 @@ fn buying_hollar_from_hsm_should_work() {
 
 		let alice_dai_balance = Tokens::free_balance(2, &AccountId::from(ALICE));
 		assert_eq!(alice_dai_balance, 20_000_000_000_000_000_000 - hsm_dai_balance);
+	});
+}
+
+#[test]
+fn selling_hollar_to_hsm_should_work() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, 2];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_percent(1);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			920_000_000_000_000_000_000,
+			0,
+		));
+		let initial_liquidity = vec![
+			AssetAmount::new(2, 900_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 1000_000_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(110, 100),
+			Permill::zero(),
+			Perbill::from_percent(70),
+			None
+		));
+		assert_ok!(HSM::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			2,
+			222,
+			1_000_000_000_000_000_000,
+			u128::MAX,
+		));
+
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		let alice_dai_balance = Tokens::free_balance(2, &AccountId::from(ALICE));
+		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+
+		assert_ok!(HSM::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			222,
+			2,
+			300_000_000_000_000_000,
+			0,
+		));
+
+		let alice_final_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(
+			alice_final_hollar_balance,
+			alice_hollar_balance - U256::from(300_000_000_000_000_000u128)
+		);
+
+		let hsm_final_dai_balance = Tokens::free_balance(2, &hsm_address);
+		let paid_dai = hsm_dai_balance - hsm_final_dai_balance;
+
+		let alice_final_dai_balance = Tokens::free_balance(2, &AccountId::from(ALICE));
+		assert_eq!(alice_final_dai_balance, alice_dai_balance + paid_dai);
+
+		let hsm_hollar_balance = balance_of(hsm_evm_address);
+		assert_eq!(hsm_hollar_balance, U256::zero());
 	});
 }
 
