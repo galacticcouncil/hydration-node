@@ -88,14 +88,21 @@ fn first_add_liquidity_should_work_when_pool_account_has_balance_that_user_provi
 			let initial_liquidity_amount = 100 * ONE;
 
 			let pool_account = pool_account(pool_id);
-			Tokens::set_balance(RuntimeOrigin::root(), pool_account, asset_b, 100 * ONE, 0)
-				.expect("set pool_account balance failed");
+			let reserve_b_initial_balance = 100 * ONE;
+			Tokens::set_balance(
+				RuntimeOrigin::root(),
+				pool_account,
+				asset_b,
+				reserve_b_initial_balance,
+				0,
+			)
+			.expect("set pool_account balance failed");
 
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
 				BoundedVec::truncate_from(vec![
-					AssetAmount::new(asset_a, 200 * ONE),
+					AssetAmount::new(asset_a, 2 * initial_liquidity_amount),
 					AssetAmount::new(asset_b, initial_liquidity_amount),
 				])
 			));
@@ -103,8 +110,29 @@ fn first_add_liquidity_should_work_when_pool_account_has_balance_that_user_provi
 			assert_balance!(BOB, asset_a, 0);
 			assert_balance!(BOB, asset_b, 100 * ONE);
 			assert_balance!(BOB, pool_id, 400 * ONE * 1_000_000);
-			assert_balance!(pool_account, asset_a, 200 * ONE);
-			assert_balance!(pool_account, asset_b, 200 * ONE);
+			assert_balance!(pool_account, asset_a, 2 * initial_liquidity_amount);
+			assert_balance!(
+				pool_account,
+				asset_b,
+				initial_liquidity_amount + reserve_b_initial_balance
+			);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
+					inputs: vec![
+						Asset::new(asset_a, 2 * initial_liquidity_amount),
+						Asset::new(asset_b, initial_liquidity_amount + reserve_b_initial_balance)
+					],
+					outputs: vec![Asset::new(pool_id, 400 * ONE * 1_000_000)],
+					fees: vec![],
+					operation_stack: vec![],
+				})
+			)
 		});
 }
 
@@ -137,9 +165,16 @@ fn first_add_liquidity_should_work_when_pool_has_balance_that_user_not_providing
 
 			let initial_liquidity_amount = 100 * ONE;
 
+			let reserve_b_initial_balance = 100 * ONE;
 			let pool_account = pool_account(pool_id);
-			Tokens::set_balance(RuntimeOrigin::root(), pool_account, asset_b, 100 * ONE, 0)
-				.expect("set pool_account balance failed");
+			Tokens::set_balance(
+				RuntimeOrigin::root(),
+				pool_account,
+				asset_b,
+				reserve_b_initial_balance,
+				0,
+			)
+			.expect("set pool_account balance failed");
 
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -147,11 +182,28 @@ fn first_add_liquidity_should_work_when_pool_has_balance_that_user_not_providing
 				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, initial_liquidity_amount),])
 			));
 
-			assert_balance!(BOB, asset_a, 100 * ONE);
+			assert_balance!(BOB, asset_a, initial_liquidity_amount);
 			assert_balance!(BOB, asset_b, 200 * ONE);
 			assert_balance!(BOB, pool_id, 200 * ONE * 1_000_000);
 			assert_balance!(pool_account, asset_a, 100 * ONE);
-			assert_balance!(pool_account, asset_b, 100 * ONE);
+			assert_balance!(pool_account, asset_b, reserve_b_initial_balance);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
+					inputs: vec![
+						Asset::new(asset_a, initial_liquidity_amount),
+						Asset::new(asset_b, reserve_b_initial_balance)
+					],
+					outputs: vec![Asset::new(pool_id, 200 * ONE * 1_000_000)],
+					fees: vec![],
+					operation_stack: vec![],
+				})
+			)
 		});
 }
 
