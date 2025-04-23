@@ -1322,13 +1322,15 @@ pub mod money_market {
 				self.calculate_liquidation_options(user_data, target_health_factor, new_price)?;
 
 			// TODO: find better criteria for determining which liquidation option to choose as the best one
+			// choose liquidation option with the highest HF. All HFs should be less or close to the target HF.
 			liquidation_options.sort_by(|a, b| {
-				a.health_factor
-					.abs_diff(target_health_factor)
-					.cmp(&b.health_factor.abs_diff(target_health_factor))
+				// a.health_factor
+				// 	.abs_diff(target_health_factor)
+				// 	.cmp(&b.health_factor.abs_diff(target_health_factor))
+				a.health_factor.cmp(&b.health_factor)
 			});
 
-			Ok(liquidation_options.first().cloned())
+			Ok(liquidation_options.last().cloned())
 		}
 	}
 

@@ -29,8 +29,8 @@ use threadpool::ThreadPool;
 use xcm_runtime_apis::dry_run::runtime_decl_for_dry_run_api::DryRunApiV1;
 
 pub const LOG_TARGET: &str = "liquidation-worker";
-const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691")); // TODO: check
-const RUNTIME_API_CALLER: EvmAddress = H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6")); // TODO
+const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691")); // TODO: verify
+const RUNTIME_API_CALLER: EvmAddress = H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6")); // TODO: verify
 const ORACLE_UPDATE_CALLER: EvmAddress = H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3"));
 const ORACLE_UPDATE_CALL_ADDRESS: EvmAddress = H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5"));
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
@@ -93,7 +93,6 @@ where
 	P: TransactionPool<Block = B> + 'static,
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
 {
-	// TODO: use some flag to disable the execution of the worker
 	pub async fn run(
 		client: Arc<C>,
 		config: LiquidationWorkerConfig,
