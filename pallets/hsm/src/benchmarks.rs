@@ -24,6 +24,8 @@ use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
 use sp_runtime::{FixedU128, Perbill, Permill};
+use sp_std::vec;
+use sp_std::vec::Vec;
 
 const DECIMALS: u8 = 18;
 const ONE: Balance = 1_000_000_000_000_000_000;
@@ -197,6 +199,8 @@ benchmarks! {
 		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10_000 * ONE);
 
+		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
+
 		// Setup slippage limit (worst case) - maximum possible amount in
 		let amount_out = 10 * ONE;
 		let slippage_limit = 1_000 * ONE;
@@ -235,6 +239,9 @@ benchmarks! {
 		// Create account with hollar
 		let arb: T::AccountId = account("arber", 0, 0);
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
+
+		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
+
 	}: _(RawOrigin::None, collateral)
 	verify {
 		let acc_balance = <T as Config>::Currency::balance(collateral, &Pallet::<T>::account_id());

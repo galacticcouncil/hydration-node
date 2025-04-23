@@ -5,6 +5,7 @@ pub mod benchmark_helpers {
 	use primitive_types::U256;
 	use primitives::AccountId;
 	use sp_runtime::DispatchResult;
+	use sp_std::prelude::*;
 
 	pub struct HsmBenchmarkHelper;
 

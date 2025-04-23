@@ -181,7 +181,7 @@ impl pallet_stableswap::Config for Test {
 	type Hooks = ();
 	type TargetPegOracle = PegOracle;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = MockStableswapBenchmarkHelper;
+	type BenchmarkHelper = for_benchmark_tests::MockStableswapBenchmarkHelper;
 }
 
 parameter_types! {
@@ -476,7 +476,7 @@ impl Config for Test {
 	type GasWeightMapping = MockGasWeightMapping;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = MockHSMBenchmarkHelper;
+	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
 }
 
 pub struct Whitelist;
@@ -718,40 +718,42 @@ pub fn default_peg() -> PegSource<AssetId> {
 	PegSource::Value((1, 1))
 }
 
-#[cfg(feature = "runtime-benchmarks")]
-pub struct MockStableswapBenchmarkHelper;
-
-#[cfg(feature = "runtime-benchmarks")]
-impl pallet_stableswap::BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
-	fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
-		REGISTERED_ASSETS.with(|v| {
-			v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
-		});
-		Ok(())
-	}
-
-	fn register_asset_peg(_asset_pair: (AssetId, AssetId), _peg: PegType, _source: Source) -> DispatchResult {
-		todo!()
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-pub struct MockHSMBenchmarkHelper;
-
-#[cfg(feature = "runtime-benchmarks")]
-impl traits::BenchmarkHelper<AccountId> for MockHSMBenchmarkHelper {
-	fn bind_address(account: AccountId) -> DispatchResult {
-		let evm_addr = EvmAddress::from_slice(&account.as_slice()[0..20]);
-		EVM_ADDRESS_MAP.with(|v| {
-			v.borrow_mut().insert(evm_addr, account);
-		});
-		Ok(())
-	}
-}
-
 pub fn move_block() {
 	let current_block = System::current_block_number();
 	HSM::on_finalize(current_block);
 	Stableswap::on_finalize(current_block);
 	System::set_block_number(current_block + 1);
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+mod for_benchmark_tests {
+	use super::*;
+	use crate::types::PegType;
+	use frame_support::dispatch::DispatchResult;
+	pub struct MockStableswapBenchmarkHelper;
+
+	impl pallet_stableswap::BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
+		fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
+			REGISTERED_ASSETS.with(|v| {
+				v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
+			});
+			Ok(())
+		}
+
+		fn register_asset_peg(_asset_pair: (AssetId, AssetId), _peg: PegType, _source: Source) -> DispatchResult {
+			todo!()
+		}
+	}
+
+	pub struct MockHSMBenchmarkHelper;
+
+	impl crate::traits::BenchmarkHelper<AccountId> for MockHSMBenchmarkHelper {
+		fn bind_address(account: AccountId) -> DispatchResult {
+			let evm_addr = EvmAddress::from_slice(&account.as_slice()[0..20]);
+			EVM_ADDRESS_MAP.with(|v| {
+				v.borrow_mut().insert(evm_addr, account);
+			});
+			Ok(())
+		}
+	}
 }
