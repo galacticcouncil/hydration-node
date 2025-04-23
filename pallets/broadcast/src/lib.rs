@@ -86,9 +86,12 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Trade executed.
 		///
-		/// Swapped2 is a fixed and renamed version of original Swapped,
+		/// Swapped3 is a fixed and renamed version of original Swapped,
 		/// as Swapped contained wrong input/output amounts for XYK buy trade
-		Swapped2 {
+		///
+		/// Swapped3 is a fixed and renamed version of original Swapped3,
+		/// as Swapped contained wrong filler account on AAVE trades
+		Swapped3 {
 			swapper: T::AccountId,
 			filler: T::AccountId,
 			filler_type: Filler,
@@ -124,7 +127,7 @@ impl<T: Config> Pallet<T> {
 	) {
 		let trade_swapper = Swapper::<T>::get().unwrap_or(swapper);
 		let operation_stack = Self::get_context();
-		Self::deposit_event(Event::<T>::Swapped2 {
+		Self::deposit_event(Event::<T>::Swapped3 {
 			swapper: trade_swapper,
 			filler,
 			filler_type,
