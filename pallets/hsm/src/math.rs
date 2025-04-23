@@ -75,7 +75,7 @@ pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: Price
 }
 
 use primitive_types::U128;
-pub fn enusure_max_price(buy_price: Price, max_price: Price) -> bool {
+pub fn ensure_max_price(buy_price: Price, max_price: Price) -> bool {
 	let buy_price_check = U128::from(buy_price.0).full_mul(U128::from(max_price.1));
 	let max_price_check = U128::from(buy_price.1).full_mul(U128::from(max_price.0));
 	buy_price_check <= max_price_check

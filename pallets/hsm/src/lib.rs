@@ -750,7 +750,7 @@ where
 		// 6. Calculate max price
 		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 		ensure!(
-			math::enusure_max_price(buy_price, max_price),
+			math::ensure_max_price(buy_price, max_price),
 			Error::<T>::MaxBuyPriceExceeded
 		);
 
@@ -1048,7 +1048,7 @@ where
 
 		// Check if price exceeds max price - compare the ratios
 		ensure!(
-			math::enusure_max_price(buy_price, max_price),
+			math::ensure_max_price(buy_price, max_price),
 			Error::<T>::MaxBuyPriceExceeded
 		);
 
