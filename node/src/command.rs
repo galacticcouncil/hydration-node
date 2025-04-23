@@ -313,7 +313,7 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id)
+				crate::service::start_node(config, polkadot_config, cli.ethereum_config, cli.liquidation_worker_config, collator_options, id)
 					.await
 					.map(|r| r.0)
 					.map_err(Into::into)

@@ -28,14 +28,50 @@ use std::{cmp::Ordering, marker::PhantomData, sync::Arc};
 use threadpool::ThreadPool;
 use xcm_runtime_apis::dry_run::runtime_decl_for_dry_run_api::DryRunApiV1;
 
-const LOG_TARGET: &str = "liquidation-worker";
+pub const LOG_TARGET: &str = "liquidation-worker";
 const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691")); // TODO: check
 const RUNTIME_API_CALLER: EvmAddress = H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6")); // TODO
 const ORACLE_UPDATE_CALLER: EvmAddress = H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3"));
 const ORACLE_UPDATE_CALL_ADDRESS: EvmAddress = H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5"));
-const TARGET_HF: u128 = 10_010_000_000u128; // 1.001
+const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 
 pub type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
+
+/// The configuration for the liquidation worker.
+/// By default, the worker is enabled and uses `MAX_LIQUIDATIONS`, `PAP_CONTRACT`,
+/// `RUNTIME_API_CALLER` and `TARGET_HF` values.
+#[derive(Clone, Copy, Debug, clap::Parser)]
+pub struct LiquidationWorkerConfig {
+	/// Maximum number of accounts we try to liquidate.
+	#[clap(long, default_value = "5")]
+	pub max_liquidations: u8,
+
+	/// Disable liquidation worker.
+	#[clap(long, default_value = "false")]
+	pub disable_liquidation_worker: bool,
+
+	/// Address of the Pool Address Provider contract.
+	#[clap(long)]
+	pub pap_contract: Option<EvmAddress>,
+
+	/// EVM address of the account that calls Runtime API. Account needs to have WETH balance.
+	#[clap(long)]
+	pub runtime_api_caller: Option<EvmAddress>,
+
+	/* TODO: would be nice if we can also configure oracle_update_caller and oracle_update_call_address,
+	 * but these are hardcoded in the runtime in validate_self_contained.
+	 */
+	// /// EVM address of the account that signs DIA oracle update.
+	// #[clap(long)]
+	// pub oracle_update_caller: Option<EvmAddress>,
+	//
+	// /// EVM address of the DIA oracle update call address.
+	// #[clap(long)]
+	// pub oracle_update_call_address: Option<EvmAddress>,
+	/// Target health factor
+	#[clap(long, default_value_t = TARGET_HF)]
+	pub target_hf: u128,
+}
 
 // TODO: maybe use struct with data:
 // pub struct LiquidationTask<B, C, BE, P> {
@@ -58,7 +94,12 @@ where
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
 {
 	// TODO: use some flag to disable the execution of the worker
-	pub async fn run(client: Arc<C>, transaction_pool: Arc<P>, spawner: SpawnTaskHandle) {
+	pub async fn run(
+		client: Arc<C>,
+		config: LiquidationWorkerConfig,
+		transaction_pool: Arc<P>,
+		spawner: SpawnTaskHandle,
+	) {
 		// liquidation calculations are performed in a separate thread.
 		let thread_pool = Arc::new(Mutex::new(ThreadPool::with_name(
 			"liquidation-worker".into(),
@@ -99,6 +140,7 @@ where
 							http_client.clone(),
 							transaction_pool.clone(),
 							thread_pool.clone(),
+							config,
 						)
 					});
 				} else {
@@ -124,6 +166,7 @@ where
 		http_client: HttpClient,
 		transaction_pool: Arc<P>,
 		thread_pool: Arc<Mutex<ThreadPool>>,
+		config: LiquidationWorkerConfig,
 	) {
 		// We can ignore the result, because it's not important for us.
 		// All we want is to have some upper bound for execution time of this task.
@@ -134,7 +177,7 @@ where
 				tracing::error!(target: LOG_TARGET, "fetch_borrowers_data failed");
 				return
 			};
-            let sorted_borrowers_data = Self::process_borrowers_data(borrowers_data);
+            let sorted_borrowers_data = Self::process_borrowers_data(borrowers_data, config.max_liquidations);
 
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
@@ -191,7 +234,7 @@ where
 					// all oracle updates we are interested in are quoted in USD
 					for OracleUpdataData{base_asset, quote_asset: _, price, timestamp: _} in oracle_data.iter() {
 						// TODO: maybe we can use `price` to determine if HF will increase or decrease
-						let Ok(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, RUNTIME_API_CALLER)
+						let Ok(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(config.pap_contract.unwrap_or(PAP_CONTRACT), config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER))
 							else { return };
 
 						// our calculations "happen" in the next block
@@ -207,11 +250,11 @@ where
 
 						// iterate over all borrowers
 						for borrower in sorted_borrowers_data_c.iter() {
-							let Ok(user_data) = UserData::new(&money_market_data, borrower.0, current_evm_timestamp, RUNTIME_API_CALLER)
+							let Ok(user_data) = UserData::new(&money_market_data, borrower.0, current_evm_timestamp, config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER))
 								else { return };
 
 							if let Ok(Some(liquidation_option)) = money_market_data
-								.get_best_liquidation_option(&user_data, TARGET_HF.into(), (base_asset_address, price.into())) {
+								.get_best_liquidation_option(&user_data, config.target_hf.into(), (base_asset_address, price.into())) {
 
 								let (Some(collateral_asset_id), Some(debt_asset_id)) =
 									(HydraErc20Mapping::decode_evm_address(liquidation_option.collateral_asset),
@@ -289,7 +332,10 @@ where
 
 	/// Returns borrowers sorted by HF.
 	/// Maximum size of the returned list is `MAX_LIQUIDATIONS`.
-	pub fn process_borrowers_data(oracle_data: BorrowerData<AccountId>) -> Vec<(H160, BorrowerDataDetails<AccountId>)> {
+	pub fn process_borrowers_data(
+		oracle_data: BorrowerData<AccountId>,
+		max_liquidations: u8,
+	) -> Vec<(H160, BorrowerDataDetails<AccountId>)> {
 		let mut borrowers = oracle_data.borrowers.clone();
 		// remove elements with HF == 0
 		borrowers.retain(|b| b.1.health_factor > 0.0);
@@ -298,7 +344,7 @@ where
 				.partial_cmp(&b.1.health_factor)
 				.unwrap_or(Ordering::Equal)
 		});
-		borrowers.truncate(borrowers.len().min(MAX_LIQUIDATIONS as usize));
+		borrowers.truncate(borrowers.len().min(max_liquidations as usize));
 		borrowers
 	}
 
