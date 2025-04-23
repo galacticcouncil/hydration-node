@@ -1,5 +1,5 @@
 use crate::pallet;
-use frame_support::traits::{Get, OnRuntimeUpgrade};
+use frame_support::traits::{Get, GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
 use sp_runtime::Saturating;
 
 // This migration multiplies the periods of schedules by 2 to account for 2x faster block times
@@ -9,23 +9,37 @@ use sp_runtime::Saturating;
 pub struct MultiplySchedulesPeriodBy2<T: pallet::Config>(sp_std::marker::PhantomData<T>);
 impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy2<T> {
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
-		let mut schedules_len = 0;
+		let mut reads = 0u64;
+		let mut writes = 0u64;
+
+		let on_chain_version = StorageVersion::get::<crate::Pallet<T>>();
+		let in_code_version = crate::Pallet::<T>::in_code_storage_version();
+		reads.saturating_inc();
+
+		if on_chain_version == in_code_version {
+			// Already migrated
+			return T::DbWeight::get().reads(reads);
+		}
 
 		for (key, mut schedule) in crate::Schedules::<T>::iter() {
 			schedule.period = schedule.period.saturating_mul(2u32.into());
 			crate::Schedules::<T>::insert(key, schedule);
-			schedules_len.saturating_inc();
+			reads.saturating_inc();
+			writes.saturating_inc();
 
 			// At the time before the migration there are ~60 schedules.
 			// Setting a safe limit which can be executed in 1 block
-			if schedules_len == 150 {
+			if writes == 150 {
 				log::info!("Hit limit of 150 schedules, exiting loop");
 				break;
 			}
 		}
 
-		log::info!("MultiplySchedulesPeriodBy2 processed schedules: {:?}", schedules_len);
-		T::DbWeight::get().reads_writes(schedules_len, schedules_len)
+		// Increase on-chain StorageVersion
+		StorageVersion::new(2).put::<crate::Pallet<T>>();
+
+		log::info!("MultiplySchedulesPeriodBy2 processed schedules: {:?}", writes);
+		T::DbWeight::get().reads_writes(reads, writes)
 	}
 }
 
@@ -64,6 +78,11 @@ mod test {
 
 				// Assert
 				assert_eq!(updated_schedule.period, 200);
+
+				// Storage version has been updated
+				let on_chain_version = StorageVersion::get::<DCA>();
+				let in_code_version = DCA::in_code_storage_version();
+				assert_eq!(on_chain_version, StorageVersion::new(2));
 			});
 	}
 }
