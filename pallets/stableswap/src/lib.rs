@@ -62,7 +62,13 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-use hydradx_traits::{oracle::RawOracle, registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
+use hydradx_traits::{
+	evm::{CallContext, EVM},
+	oracle::RawOracle,
+	registry::Inspect,
+	stableswap::StableswapAddLiquidity,
+	AccountIdFor,
+};
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
@@ -75,7 +81,7 @@ pub mod types;
 pub mod weights;
 
 use crate::types::{
-	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
+	Balance, BoundedPegs, EvmResult, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
 };
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
@@ -177,6 +183,8 @@ pub mod pallet {
 		/// Raw oracle is required because it needs the values that are not delayed.
 		/// It is how the mechanism is designed.
 		type TargetPegOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
+
+		type EVM: EVM<EvmResult>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -1836,6 +1844,15 @@ impl<T: Config> Pallet<T> {
 					let entry = T::TargetPegOracle::get_raw_entry(*source, *oracle_asset, *asset_id, *period)
 						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
 					((entry.price.0, entry.price.1), entry.updated_at.saturated_into())
+				}
+				PegSource::ChainlinkOracle(contract) => {
+					let pallet_account = Self::pallet_account();
+
+					let ctx = CallContext::new_call(contract, pallet_account);
+
+					//TODO: read value from evm
+					//TODO: normalize value to decimals
+					todo!()
 				}
 			};
 			r.push(p);

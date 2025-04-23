@@ -24,6 +24,8 @@ serde = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-broadcast = { workspace = true }
 
+evm = { workspace = true, features = ["with-codec"] }
+
 # primitives
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }

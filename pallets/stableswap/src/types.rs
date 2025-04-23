@@ -10,17 +10,20 @@ use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use evm::ExitReason;
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
-use hydradx_traits::{OraclePeriod, Source};
+use hydradx_traits::{evm::EvmAddress, OraclePeriod, Source};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
 
 pub(crate) type Balance = u128;
+
+pub(crate) type EvmResult = (ExitReason, Vec<u8>);
 
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets
@@ -156,6 +159,7 @@ pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
 pub enum PegSource<AssetId = ()> {
 	Value(PegType),
 	Oracle((Source, OraclePeriod, AssetId)),
+	ChainlinkOracle(EvmAddress),
 }
 
 pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;
