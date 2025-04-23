@@ -1,5 +1,30 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+//! # Hollar Stability Mechanism (HSM) Pallet
+//!
+//! ## Overview
+//!
+//! The HSM pallet implements a stability mechanism for the Hollar stablecoin within the HydraDX ecosystem.
+//! It provides the infrastructure to maintain Hollar's peg by managing collateral assets and
+//! facilitating the buying and selling of Hollar against these collaterals.
+//!
+//! The mechanism works by:
+//! - Managing approved collateral assets for Hollar
+//! - Handling minting and burning of Hollar through integration with the GHO ERC20 token contract
+//! - Providing buy/sell functionality for users to exchange Hollar against collateral assets
+//! - Executing arbitrage opportunities to maintain price stability via offchain workers
+//!
+//! ## Interface
+//!
+//! ### Dispatchable Functions
+//!
+//! * `add_collateral_asset` - Add a new collateral asset for Hollar.
+//! * `remove_collateral_asset` - Remove a collateral asset from the approved list.
+//! * `update_collateral_asset` - Update parameters for an existing collateral asset.
+//! * `sell` - Sell Hollar in exchange for collateral, or sell collateral for Hollar.
+//! * `buy` - Buy Hollar with collateral, or buy collateral with Hollar.
+//! * `execute_arbitrage` - Execute arbitrage opportunity between HSM and collateral stable pool (called by offchain worker).
+
 pub use pallet::*;
 
 use crate::types::{Balance, CoefficientRatio, CollateralInfo, Price};
@@ -111,11 +136,19 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	/// List of approved assets that Hollar can be purchased with
+	///
+	/// This storage maps asset IDs to their collateral configuration information.
+	/// Only assets in this map can be used to mint or redeem Hollar through HSM.
+	/// Each collateral has specific parameters controlling its usage in the HSM mechanism.
 	#[pallet::storage]
 	#[pallet::getter(fn collaterals)]
 	pub type Collaterals<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, CollateralInfo<T::AssetId>>;
 
 	/// Amount of Hollar bought with an asset in a single block
+	///
+	/// This storage tracks how much Hollar has been bought back by HSM for each collateral
+	/// asset within the current block. This is used to enforce rate limiting on Hollar redemptions.
+	/// Values are reset to zero at the end of each block in on_finalize.
 	#[pallet::storage]
 	#[pallet::getter(fn hollar_amount_received)]
 	pub type HollarAmountReceived<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
@@ -127,6 +160,14 @@ pub mod pallet {
 		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
 		/// A new collateral asset was added
+		/// 
+		/// Parameters:
+		/// - `asset_id`: The ID of the asset added as collateral
+		/// - `pool_id`: The StableSwap pool ID where this asset belongs
+		/// - `purchase_fee`: Fee applied when buying Hollar with this asset
+		/// - `max_buy_price_coefficient`: Maximum buy price coefficient for HSM to buy back Hollar
+		/// - `buy_back_fee`: Fee applied when buying back Hollar
+		/// - `buyback_rate`: Parameter that controls how quickly HSM can buy Hollar with this asset
 		CollateralAdded {
 			asset_id: T::AssetId,
 			pool_id: T::AssetId,
@@ -136,8 +177,19 @@ pub mod pallet {
 			buyback_rate: Perbill,
 		},
 		/// A collateral asset was removed
+		/// 
+		/// Parameters:
+		/// - `asset_id`: The ID of the asset removed from collaterals
+		/// - `amount`: The amount of the asset that was returned (should be zero)
 		CollateralRemoved { asset_id: T::AssetId, amount: Balance },
 		/// A collateral asset was updated
+		/// 
+		/// Parameters:
+		/// - `asset_id`: The ID of the updated collateral asset
+		/// - `purchase_fee`: New purchase fee if updated (None if not changed)
+		/// - `max_buy_price_coefficient`: New max buy price coefficient if updated (None if not changed)
+		/// - `buy_back_fee`: New buy back fee if updated (None if not changed)
+		/// - `buyback_rate`: New buyback rate if updated (None if not changed)
 		CollateralUpdated {
 			asset_id: T::AssetId,
 			purchase_fee: Option<Permill>,
@@ -145,7 +197,14 @@ pub mod pallet {
 			buy_back_fee: Option<Permill>,
 			buyback_rate: Option<Perbill>,
 		},
-		/// Sell executed
+		/// Sell executed successfully
+		/// 
+		/// Parameters:
+		/// - `who`: Account that executed the sell
+		/// - `asset_in`: Asset that was sold
+		/// - `asset_out`: Asset that was received
+		/// - `amount_in`: Amount of asset_in that was sold
+		/// - `amount_out`: Amount of asset_out that was received
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -153,7 +212,14 @@ pub mod pallet {
 			amount_in: Balance,
 			amount_out: Balance,
 		},
-		/// Buy executed
+		/// Buy executed successfully
+		/// 
+		/// Parameters:
+		/// - `who`: Account that executed the buy
+		/// - `asset_in`: Asset that was sold by the user
+		/// - `asset_out`: Asset that was bought by the user
+		/// - `amount_in`: Amount of asset_in that was paid
+		/// - `amount_out`: Amount of asset_out that was received
 		BuyExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
@@ -161,7 +227,11 @@ pub mod pallet {
 			amount_in: Balance,
 			amount_out: Balance,
 		},
-		/// Arbitrage executed
+		/// Arbitrage executed successfully
+		/// 
+		/// Parameters:
+		/// - `asset_id`: The collateral asset used in the arbitrage
+		/// - `hollar_amount`: Amount of Hollar that was included in the arbitrage operation
 		ArbitrageExecuted {
 			asset_id: T::AssetId,
 			hollar_amount: Balance,
@@ -171,42 +241,80 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Asset is not approved as collateral
+		/// 
+		/// The operation attempted to use an asset that is not registered as an approved collateral.
 		AssetNotApproved,
 		/// Asset is already approved as collateral
+		/// 
+		/// Attempted to add an asset that is already registered as a collateral.
 		AssetAlreadyApproved,
 		/// Another asset from the same pool is already approved
+		/// 
+		/// Only one asset from each StableSwap pool can be used as collateral.
 		PoolAlreadyHasCollateral,
 		/// Invalid asset pair, must be Hollar and approved collateral
+		/// 
+		/// The asset pair for buy/sell operations must include Hollar as one side and an approved collateral as the other.
 		InvalidAssetPair,
 		/// Max buy price exceeded
+		/// 
+		/// The calculated buy price exceeds the maximum allowed buy price for the collateral.
 		MaxBuyPriceExceeded,
 		/// Max buy back amount in single block exceeded
+		/// 
+		/// The amount of Hollar being sold to HSM exceeds the maximum allowed in a single block for this collateral.
 		MaxBuyBackExceeded,
 		/// Max holding amount for collateral exceeded
+		/// 
+		/// The operation would cause the HSM to hold more of the collateral than the configured maximum.
 		MaxHoldingExceeded,
 		/// Slippage limit exceeded
+		/// 
+		/// The calculated amount is worse than the provided slippage limit.
 		SlippageLimitExceeded,
 		/// Invalid EVM contract interaction
+		/// 
+		/// The call to the EVM contract (GHO Hollar token) failed.
 		InvalidEVMInteraction,
 		/// Decimal retrieval failed
+		/// 
+		/// Failed to retrieve the decimal information for an asset.
 		DecimalRetrievalFailed,
 		/// No arbitrage opportunity
+		/// 
+		/// There is no profitable arbitrage opportunity for the specified collateral.
 		NoArbitrageOpportunity,
 		/// Offchain lock error
+		/// 
+		/// Failed to acquire the lock for offchain workers, likely because another operation is in progress.
 		OffchainLockError,
-		/// Asset not in the pool.
+		/// Asset not in the pool
+		/// 
+		/// The specified asset was not found in the pool.
 		AssetNotFound,
 		/// Provided pool state is invalid
+		/// 
+		/// The retrieved pool state has inconsistent or invalid data.
 		InvalidPoolState,
 		/// Collateral is not empty
+		/// 
+		/// Cannot remove a collateral asset that still has a non-zero balance in the HSM account.
 		CollateralNotEmpty,
 		/// Asset not in the pool
+		/// 
+		/// The collateral asset is not present in the specified pool.
 		AssetNotInPool,
 		/// Hollar is not in the pool
+		/// 
+		/// The Hollar asset is not present in the specified pool.
 		HollarNotInPool,
 		/// Insufficient collateral balance
+		/// 
+		/// The HSM does not have enough of the collateral asset to complete the operation.
 		InsufficientCollateralBalance,
-		/// GHO Contract address not found.
+		/// GHO Contract address not found
+		/// 
+		/// The EVM address for the GHO (Hollar) token contract was not found.
 		HollarContractAddressNotFound,
 	}
 
@@ -215,10 +323,19 @@ pub mod pallet {
 	where
 		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
+		/// Cleans up the HollarAmountReceived storage at the end of each block
+		///
+		/// This ensures that the rate limiting for Hollar buybacks is reset for the next block.
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			let _ = <HollarAmountReceived<T>>::clear(u32::MAX, None);
 		}
 
+		/// Offchain worker entry point that processes arbitrage opportunities
+		///
+		/// This function:
+		/// 1. Checks if the node is a validator
+		/// 2. If so, attempts to find and execute arbitrage opportunities for all collateral assets
+		/// 3. Only runs if it can obtain a lock (to prevent concurrent execution)
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			if sp_io::offchain::is_validator() {
 				let _ = Self::process_arbitrage_opportunities(block_number);
@@ -233,6 +350,10 @@ pub mod pallet {
 	{
 		type Call = Call<T>;
 
+		/// Validates unsigned transactions for arbitrage execution
+		///
+		/// This function ensures that only valid arbitrage transactions originating from
+		/// offchain workers are accepted, and prevents unauthorized external calls.
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match source {
 				TransactionSource::External => {
@@ -265,13 +386,28 @@ pub mod pallet {
 	{
 		/// Add a new collateral asset
 		///
+		/// This function adds a new asset as an approved collateral for Hollar. Only callable by
+		/// the governance (root origin).
+		///
 		/// Parameters:
+		/// - `origin`: Must be Root
 		/// - `asset_id`: Asset ID to be added as collateral
-		/// - `pool_id`: Pool ID where this asset belongs
-		/// - `purchase_fee`: Fee applied when buying Hollar with this asset
+		/// - `pool_id`: StableSwap pool ID where this asset and Hollar are paired
+		/// - `purchase_fee`: Fee applied when buying Hollar with this asset (added to purchase price)
 		/// - `max_buy_price_coefficient`: Maximum buy price coefficient for HSM to buy back Hollar
-		/// - `buy_back_fee`: Fee applied when buying back Hollar
-		/// - `b`: Parameter that controls how quickly HSM can buy Hollar with this asset
+		/// - `buy_back_fee`: Fee applied when buying back Hollar (subtracted from buy price)
+		/// - `buyback_rate`: Parameter that controls how quickly HSM can buy Hollar with this asset
+		/// - `max_in_holding`: Optional maximum amount of collateral HSM can hold
+		///
+		/// Emits:
+		/// - `CollateralAdded` when the collateral is successfully added
+		///
+		/// Errors:
+		/// - `AssetAlreadyApproved` if the asset is already registered as a collateral 
+		/// - `PoolAlreadyHasCollateral` if another asset from the same pool is already approved
+		/// - `HollarNotInPool` if Hollar is not found in the specified pool
+		/// - `AssetNotInPool` if the collateral asset is not found in the specified pool
+		/// - Other errors from underlying calls
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_collateral_asset())]
 		#[allow(clippy::too_many_arguments)]
@@ -329,8 +465,19 @@ pub mod pallet {
 
 		/// Remove a collateral asset
 		///
+		/// Removes an asset from the approved collaterals list. Only callable by the governance (root origin).
+		/// The collateral must have a zero balance in the HSM account before it can be removed.
+		///
 		/// Parameters:
+		/// - `origin`: Must be Root
 		/// - `asset_id`: Asset ID to remove from collaterals
+		///
+		/// Emits:
+		/// - `CollateralRemoved` when the collateral is successfully removed
+		///
+		/// Errors:
+		/// - `AssetNotApproved` if the asset is not a registered collateral
+		/// - `CollateralNotEmpty` if the HSM account still holds some of this asset
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_collateral_asset())]
 		pub fn remove_collateral_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
@@ -350,12 +497,23 @@ pub mod pallet {
 
 		/// Update collateral asset parameters
 		///
+		/// Updates the parameters for an existing collateral asset. Only callable by the governance (root origin).
+		/// Each parameter is optional and only provided parameters will be updated.
+		/// 
 		/// Parameters:
+		/// - `origin`: Must be Root
 		/// - `asset_id`: Asset ID to update
 		/// - `purchase_fee`: New purchase fee (optional)
 		/// - `max_buy_price_coefficient`: New max buy price coefficient (optional)
 		/// - `buy_back_fee`: New buy back fee (optional)
-		/// - `b`: New b parameter (optional)
+		/// - `buyback_rate`: New buyback rate parameter (optional)
+		/// - `max_in_holding`: New maximum holding amount (optional)
+		///
+		/// Emits:
+		/// - `CollateralUpdated` when the collateral is successfully updated
+		///
+		/// Errors:
+		/// - `AssetNotApproved` if the asset is not a registered collateral
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_collateral_asset())]
 		pub fn update_collateral_asset(
@@ -405,13 +563,31 @@ pub mod pallet {
 
 		/// Sell asset to HSM
 		///
-		/// Either selling Hollar back to HSM or selling collateral asset in exchange of Hollar
+		/// This function allows users to:
+		/// 1. Sell Hollar back to HSM in exchange for collateral assets
+		/// 2. Sell collateral assets to HSM in exchange for newly minted Hollar
+		///
+		/// The valid pairs must include Hollar as one side and an approved collateral as the other side.
 		///
 		/// Parameters:
-		/// - `asset_in`: Asset being sold
-		/// - `asset_out`: Asset being received
+		/// - `origin`: Account selling the asset
+		/// - `asset_in`: Asset ID being sold
+		/// - `asset_out`: Asset ID being bought
 		/// - `amount_in`: Amount of asset_in to sell
 		/// - `slippage_limit`: Minimum amount out for slippage protection
+		///
+		/// Emits:
+		/// - `SellExecuted` when the sell is successful
+		///
+		/// Errors:
+		/// - `InvalidAssetPair` if the pair is not Hollar and an approved collateral
+		/// - `AssetNotApproved` if the collateral asset isn't registered
+		/// - `SlippageLimitExceeded` if the amount received is less than the slippage limit
+		/// - `MaxBuyBackExceeded` if the sell would exceed the maximum buy back rate
+		/// - `MaxBuyPriceExceeded` if the sell would exceed the maximum buy price
+		/// - `InsufficientCollateralBalance` if HSM doesn't have enough collateral
+		/// - `InvalidEVMInteraction` if there's an error interacting with the Hollar ERC20 contract
+		/// - Other errors from underlying calls
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		pub fn sell(
@@ -479,13 +655,29 @@ pub mod pallet {
 
 		/// Buy asset from HSM
 		///
-		/// Either buying Hollar from HSM or buying collateral asset with Hollar
+		/// This function allows users to:
+		/// 1. Buy Hollar from HSM using collateral assets
+		/// 2. Buy collateral assets from HSM using Hollar
+		///
+		/// The valid pairs must include Hollar as one side and an approved collateral as the other side.
 		///
 		/// Parameters:
-		/// - `asset_in`: Asset being sold
-		/// - `asset_out`: Asset being bought
+		/// - `origin`: Account buying the asset
+		/// - `asset_in`: Asset ID being sold by the user
+		/// - `asset_out`: Asset ID being bought by the user
 		/// - `amount_out`: Amount of asset_out to buy
 		/// - `slippage_limit`: Maximum amount in for slippage protection
+		///
+		/// Emits:
+		/// - `BuyExecuted` when the buy is successful
+		///
+		/// Errors:
+		/// - `InvalidAssetPair` if the pair is not Hollar and an approved collateral
+		/// - `AssetNotApproved` if the collateral asset isn't registered
+		/// - `SlippageLimitExceeded` if the amount input exceeds the slippage limit
+		/// - `MaxHoldingExceeded` if the buy would cause HSM to exceed its maximum holding
+		/// - `InvalidEVMInteraction` if there's an error interacting with the Hollar ERC20 contract
+		/// - Other errors from underlying calls
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		pub fn buy(
@@ -547,14 +739,28 @@ pub mod pallet {
 
 		/// Execute arbitrage opportunity between HSM and collateral stable pool
 		///
-		/// This call detects and executes arbitrage opportunities by minting Hollar,
-		/// swapping it for collateral on HSM, then swapping that collateral for Hollar
-		/// on the stable pool, and burning the hollar at the end.
+		/// This call is designed to be triggered automatically by offchain workers. It:
+		/// 1. Detects price imbalances between HSM and a stable pool for a collateral
+		/// 2. If an opportunity exists, mints Hollar, swaps it for collateral on HSM
+		/// 3. Swaps that collateral for Hollar on the stable pool
+		/// 4. Burns the Hollar received from the arbitrage
 		///
-		/// The call is unsigned and should only be called by the offchain worker.
+		/// This helps maintain the peg of Hollar by profiting from and correcting price imbalances.
+		/// The call is unsigned and should only be executed by offchain workers.
 		///
 		/// Parameters:
+		/// - `origin`: Must be None (unsigned)
 		/// - `collateral_asset_id`: The ID of the collateral asset to check for arbitrage
+		///
+		/// Emits:
+		/// - `ArbitrageExecuted` when the arbitrage is successful
+		///
+		/// Errors:
+		/// - `AssetNotApproved` if the asset is not a registered collateral
+		/// - `NoArbitrageOpportunity` if there's no profitable arbitrage opportunity
+		/// - `MaxBuyPriceExceeded` if the arbitrage would exceed the maximum buy price
+		/// - `InvalidEVMInteraction` if there's an error interacting with the Hollar ERC20 contract
+		/// - Other errors from underlying calls
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage())]
 		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
@@ -625,16 +831,25 @@ where
 	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	/// Get the account ID of the HSM
+	///
+	/// Returns the account that holds all HSM funds and interacts with the GHO contract.
+	/// The account is derived from the configured PalletId.
 	pub fn account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
 
 	/// Check if an asset is an approved collateral
+	///
+	/// Returns true if the asset is in the Collaterals storage map, false otherwise.
 	#[inline]
 	fn is_collateral(asset_id: T::AssetId) -> bool {
 		Collaterals::<T>::contains_key(asset_id)
 	}
 
+	/// Ensures that the asset pair is valid for HSM operations
+	///
+	/// A valid pair must include Hollar as one side and an approved collateral as the other.
+	/// Returns Ok if the pair is valid, or an error otherwise.
 	fn ensure_pair(asset_in: T::AssetId, asset_out: T::AssetId) -> DispatchResult {
 		ensure!(
 			(asset_in == T::HollarId::get() && Self::is_collateral(asset_out))
@@ -645,6 +860,10 @@ where
 		Ok(())
 	}
 
+	/// Retrieves the state of a StableSwap pool
+	///
+	/// Gets the pool snapshot containing assets, reserves, pegs and other pool information.
+	/// Returns an error if the pool doesn't exist or other retrieval errors occur.
 	fn get_stablepool_state(pool_id: T::AssetId) -> Result<PoolSnapshot<T::AssetId>, DispatchError> {
 		let Some(pool_snapshot) = pallet_stableswap::Pallet::<T>::initial_pool_snapshot(pool_id) else {
 			return Err(pallet_stableswap::Error::<T>::PoolNotFound.into());
@@ -652,6 +871,11 @@ where
 		Ok(pool_snapshot)
 	}
 
+	/// Checks if adding more collateral would exceed the maximum holding limit
+	///
+	/// Returns true if either:
+	/// 1. There is no maximum holding configured for this collateral, or
+	/// 2. The current balance plus the new amount is within the maximum holding limit
 	fn ensure_max_collateral_holding(
 		asset_id: T::AssetId,
 		info: &CollateralInfo<T::AssetId>,
@@ -665,6 +889,17 @@ where
 		}
 	}
 
+	/// Processes Hollar coming into HSM in exchange for collateral
+	///
+	/// This function handles:
+	/// 1. Calculating the execution price and fees
+	/// 2. Ensuring various limits are not exceeded
+	/// 3. Transferring Hollar from user to HSM
+	/// 4. Transferring collateral from HSM to user
+	/// 5. Burning the received Hollar
+	/// 6. Updating the amount of Hollar received in this block
+	///
+	/// Returns the final Hollar and collateral amounts traded.
 	#[require_transactional]
 	fn do_hollar_in(
 		who: &T::AccountId,
@@ -791,7 +1026,15 @@ where
 		Ok((final_hollar_amount, final_collateral_amount))
 	}
 
-	/// Returns trades amount (hollar amount, collateral amount)
+	/// Processes Hollar going out from HSM in exchange for collateral coming in
+	///
+	/// This function handles:
+	/// 1. Calculating the purchase price with fees
+	/// 2. Ensuring maximum collateral holding isn't exceeded
+	/// 3. Transferring collateral from user to HSM
+	/// 4. Minting new Hollar to the user
+	///
+	/// Returns the Hollar and collateral amounts traded.
 	#[require_transactional]
 	fn do_hollar_out(
 		who: &T::AccountId,
@@ -827,6 +1070,11 @@ where
 	}
 
 	/// Mint Hollar by calling the GHO token contract
+	///
+	/// Creates new Hollar tokens by interacting with the GHO ERC20 contract.
+	/// The HSM pallet acts as the facilitator for minting.
+	///
+	/// Returns Ok if successful, or an error if the EVM interaction fails.
 	fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
 		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
 			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
@@ -854,6 +1102,11 @@ where
 	}
 
 	/// Burn Hollar by calling the GHO token contract
+	///
+	/// Destroys Hollar tokens by interacting with the GHO ERC20 contract.
+	/// The HSM pallet acts as the facilitator for burning.
+	///
+	/// Returns Ok if successful, or an error if the EVM interaction fails.
 	fn burn_hollar(amount: Balance) -> DispatchResult {
 		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
 			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
@@ -878,6 +1131,10 @@ where
 		Ok(())
 	}
 
+	/// Simulates selling an asset with exact input in a StableSwap pool
+	///
+	/// Calculates how much of asset_out would be received by selling a specific amount of asset_in.
+	/// Uses the StableSwap pool mechanism with the provided pool state snapshot.
 	fn simulate_out_given_in(
 		pool_id: T::AssetId,
 		asset_in: T::AssetId,
@@ -897,6 +1154,10 @@ where
 		Ok(amount_out)
 	}
 
+	/// Simulates buying an asset with exact output in a StableSwap pool
+	///
+	/// Calculates how much of asset_in would be required to buy a specific amount of asset_out.
+	/// Uses the StableSwap pool mechanism with the provided pool state snapshot.
 	fn simulate_in_given_out(
 		pool_id: T::AssetId,
 		asset_in: T::AssetId,
@@ -917,6 +1178,13 @@ where
 	}
 
 	/// Process arbitrage opportunities for all collateral assets
+	///
+	/// This function:
+	/// 1. Acquires a lock to prevent concurrent execution
+	/// 2. Checks each collateral asset for arbitrage opportunities
+	/// 3. Submits unsigned transactions to execute profitable arbitrages
+	///
+	/// This is called from the offchain worker to maintain the Hollar peg.
 	fn process_arbitrage_opportunities(block_number: BlockNumberFor<T>) -> Result<(), DispatchError> {
 		let lock_expiration = Duration::from_millis(LOCK_TIMEOUT);
 		let mut lock = StorageLock::<'_, Time>::with_deadline(OFFCHAIN_WORKER_LOCK, lock_expiration);
@@ -956,7 +1224,11 @@ where
 
 	/// Calculate if there's an arbitrage opportunity for a collateral asset
 	///
-	/// Returns (max_buy_amt, hollar_amount_to_trade)
+	/// Determines if there's a profitable arbitrage between the HSM and StableSwap pool
+	/// for a specific collateral asset.
+	///
+	/// Returns the amount of Hollar to trade if there's an opportunity, or 0 otherwise.
+	/// Also returns errors if conditions prevent arbitrage execution.
 	fn calculate_arbitrage_opportunity(
 		collateral_asset_id: T::AssetId,
 		collateral_info: &CollateralInfo<T::AssetId>,
