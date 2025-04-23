@@ -16,6 +16,7 @@ use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
+use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::router::ExecutorError;
 use hydradx_traits::router::PoolType::{Aave, XYK};
@@ -37,7 +38,6 @@ use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
-
 pub fn with_aave(execution: impl FnOnce()) {
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
@@ -240,7 +240,7 @@ fn buy_dot() {
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE - 2);
 
-		let atoken = HydraErc20Mapping::encode_evm_address(ADOT);
+		let atoken = HydraErc20Mapping::asset_address(ADOT);
 		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
 
 		pretty_assertions::assert_eq!(
@@ -318,7 +318,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), balance - amount + 1);
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount + 6);
 
-		let atoken = HydraErc20Mapping::encode_evm_address(ADOT);
+		let atoken = HydraErc20Mapping::asset_address(ADOT);
 		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
 
 		pretty_assertions::assert_eq!(
