@@ -349,6 +349,9 @@ fn handle_result(result: CallResult) -> DispatchResult {
 	}
 }
 
+/// Buffer value to account for rounding in Aave contract operations.
+const AAVE_ROUNDING_BUFFER: Balance = 2;
+
 impl<T> TradeExecution<OriginFor<T>, AccountId, AssetId, Balance> for AaveTradeExecutor<T>
 where
 	T: pallet_evm::Config
@@ -376,19 +379,26 @@ where
 			return Err(ExecutorError::NotSupported);
 		}
 
-		// For both supply and withdraw, amount out is always 1:1
+		// For both supply and withdraw, amount out is almost 1:1
 		// to save weight we just assume the operation will be available
-		Ok(amount_in)
+		// We add a buffer to account for rounding in aave contract
+		Ok(amount_in.saturating_sub(AAVE_ROUNDING_BUFFER))
 	}
 
 	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
 		amount_out: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Self::calculate_out_given_in(pool_type, asset_in, asset_out, amount_out)
-			.map(|amount_out| amount_out.saturating_add(2))
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		// For both supply and withdraw, amount out is almost 1:1
+		// to save weight we just assume the operation will be available
+		// We add a buffer to account for rounding in aave contract
+		Ok(amount_out.saturating_add(AAVE_ROUNDING_BUFFER))
 	}
 
 	fn execute_sell(
