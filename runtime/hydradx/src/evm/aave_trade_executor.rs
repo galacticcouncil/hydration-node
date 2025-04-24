@@ -387,13 +387,18 @@ where
 
 	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
 		amount_out: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
-		let buffer = AAVE_ROUNDING_BUFFER.saturating_mul(2);
-		Self::calculate_out_given_in(pool_type, asset_in, asset_out, amount_out)
-			.map(|amount_out| amount_out.saturating_add(buffer))
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		// For both supply and withdraw, amount out is almost 1:1
+		// to save weight we just assume the operation will be available
+		// We add a buffer to account for rounding in aave contract
+		Ok(amount_out.saturating_add(AAVE_ROUNDING_BUFFER))
 	}
 
 	fn execute_sell(
