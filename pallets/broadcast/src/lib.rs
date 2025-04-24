@@ -91,6 +91,7 @@ pub mod pallet {
 		///
 		/// Swapped3 is a fixed and renamed version of original Swapped3,
 		/// as Swapped contained wrong filler account on AAVE trades
+		///
 		Swapped3 {
 			swapper: T::AccountId,
 			filler: T::AccountId,
