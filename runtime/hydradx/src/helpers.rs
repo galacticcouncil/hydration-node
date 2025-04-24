@@ -1,20 +1,14 @@
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmark_helpers {
-	use crate::{AssetRegistry, EVMAccounts, Runtime, RuntimeOrigin, Tokens};
+	use crate::{EVMAccounts, Runtime, RuntimeOrigin, Tokens};
 	use evm::ExitRevert::Reverted;
 	use evm::{ExitReason, ExitSucceed};
-	use frame_support::storage::with_transaction;
-	use hex_literal::hex;
 	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
 	use orml_traits::MultiCurrencyExtended;
-	use pallet_asset_registry::AssetType;
 	use pallet_hsm::ERC20Function;
-	use polkadot_xcm::v3::Junction::AccountKey20;
-	use polkadot_xcm::v3::Junctions::X1;
-	use polkadot_xcm::v3::MultiLocation;
 	use primitive_types::U256;
 	use primitives::{AccountId, Balance, EvmAddress};
-	use sp_runtime::{DispatchResult, TransactionOutcome};
+	use sp_runtime::{DispatchResult};
 	use sp_std::prelude::*;
 
 	pub struct HsmBenchmarkHelper;
