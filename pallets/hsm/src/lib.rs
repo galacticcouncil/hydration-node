@@ -47,6 +47,8 @@ use frame_system::{
 	pallet_prelude::*,
 	Origin,
 };
+use hex_literal::hex;
+use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
 	registry::BoundErc20,
@@ -1077,6 +1079,22 @@ where
 		Ok((hollar_amount, collateral_amount))
 	}
 
+	/// Retrieve hollar contract address
+	fn get_hollar_contract_address() -> Result<EvmAddress, DispatchError> {
+		if cfg!(feature = "runtime-benchmarks") {
+			// for benchmarking purposes, we simply return some address
+			// it is because we dont have Hollar registered in registry as Erc20,
+			// but we still read the hollar from registry storage, to account for registry read weight
+			let _ = T::GhoContractAddress::contract_address(T::HollarId::get());
+			Ok(EvmAddress::from_slice(&hex!(
+				"c130c89f2b1066a77bd820aafebcf4519d0103d8"
+			)))
+		} else {
+			T::GhoContractAddress::contract_address(T::HollarId::get())
+				.ok_or(Error::<T>::HollarContractAddressNotFound.into())
+		}
+	}
+
 	/// Mint Hollar by calling the GHO token contract
 	///
 	/// Creates new Hollar tokens by interacting with the GHO ERC20 contract.
@@ -1084,8 +1102,7 @@ where
 	///
 	/// Returns Ok if successful, or an error if the EVM interaction fails.
 	fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
-		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
-			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
+		let contract = Self::get_hollar_contract_address()?;
 		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
 		// Create the context for the EVM call
@@ -1116,8 +1133,7 @@ where
 	///
 	/// Returns Ok if successful, or an error if the EVM interaction fails.
 	fn burn_hollar(amount: Balance) -> DispatchResult {
-		let contract = T::GhoContractAddress::contract_address(T::HollarId::get())
-			.ok_or(Error::<T>::HollarContractAddressNotFound)?;
+		let contract = Self::get_hollar_contract_address()?;
 		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
 		// Create the context for the EVM call
@@ -1132,7 +1148,7 @@ where
 
 		// Check if the call was successful
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}", value);
+			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", exit_reason, value);
 			return Err(Error::<T>::InvalidEVMInteraction.into());
 		}
 

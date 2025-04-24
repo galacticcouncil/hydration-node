@@ -23,56 +23,6 @@ pub mod benchmark_helpers {
 		fn bind_address(account: AccountId) -> DispatchResult {
 			EVMAccounts::bind_evm_address(RuntimeOrigin::signed(account))
 		}
-
-		fn set_hollar_as_erc20() -> DispatchResult {
-			let hollar_asset_id = <Runtime as pallet_hsm::Config>::HollarId::get();
-			let hollar_contract_address = EvmAddress::from_slice(&hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"));
-
-			let hollar_location = crate::AssetLocation(MultiLocation::new(
-				1,
-				X1(AccountKey20 {
-					network: None,
-					key: hollar_contract_address.into(),
-				}),
-			));
-
-			with_transaction(|| {
-				TransactionOutcome::Commit(AssetRegistry::update(
-					RuntimeOrigin::root(),
-					hollar_asset_id,
-					None,
-					Some(AssetType::Erc20),
-					None,
-					None,
-					None,
-					None,
-					None,
-					Some(hollar_location),
-				))
-			})?;
-
-			Ok(())
-		}
-
-		fn set_hollar_as_token() -> DispatchResult {
-			let hollar_asset_id = <Runtime as pallet_hsm::Config>::HollarId::get();
-			with_transaction(|| {
-				TransactionOutcome::Commit(AssetRegistry::update(
-					RuntimeOrigin::root(),
-					hollar_asset_id,
-					None,
-					Some(AssetType::Token),
-					None,
-					None,
-					None,
-					None,
-					None,
-					None,
-				))
-			})?;
-
-			Ok(())
-		}
 	}
 
 	pub struct DummyEvmForHsm;

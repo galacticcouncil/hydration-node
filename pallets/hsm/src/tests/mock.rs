@@ -755,13 +755,5 @@ mod for_benchmark_tests {
 			});
 			Ok(())
 		}
-
-		fn set_hollar_as_erc20() -> sp_runtime::DispatchResult {
-			Ok(())
-		}
-
-		fn set_hollar_as_token() -> sp_runtime::DispatchResult {
-			Ok(())
-		}
 	}
 }
