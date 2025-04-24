@@ -18,7 +18,7 @@ pub type Balance = u128;
 
 pub type PegType = (Balance, Balance);
 
-pub type Price = PegType;
+pub type Price = (Balance, Balance);
 
 pub type CoefficientRatio = FixedU128;
 

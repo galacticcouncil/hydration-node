@@ -43,23 +43,39 @@ benchmarks! {
 
 	add_collateral_asset {
 		let hollar = T::HollarId::get();
-		let (pool_id, assets) = seed_pool::<T>(hollar)?;
+		// main pool
+		let (main_pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
+		let main_collateral = assets[1];
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
 
-		let collateral = assets[1];
-
-	}: _(RawOrigin::Root, collateral, pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee, b, max_in_holding)
+		// Setup: Add collateral asset - worst is cased is adding last possible asset
+		// create and fill up to MAX_COLLATERALS - 1 assets
+		for idx in 2..=MAX_COLLATERALS{
+			let (pool_id, assets) = seed_pool::<T>((222_222u32 +idx).into(), hollar, ASSET_ID_OFFSET * idx)?;
+			let collateral = assets[1];
+			Pallet::<T>::add_collateral_asset(
+				RawOrigin::Root.into(),
+				collateral,
+				pool_id,
+				purchase_fee,
+				max_buy_price_coefficient,
+				buy_back_fee,
+				b,
+				max_in_holding
+			)?;
+		}
+	}: _(RawOrigin::Root, main_collateral, main_pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee, b, max_in_holding)
 	verify {
-		assert!(Collaterals::<T>::contains_key(collateral));
+		assert!(Collaterals::<T>::contains_key(main_collateral));
 	}
 
 	remove_collateral_asset {
 		let hollar = T::HollarId::get();
-		let (pool_id, assets) = seed_pool::<T>(hollar)?;
+		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
 		let buy_back_fee = Permill::from_percent(1);
@@ -86,7 +102,7 @@ benchmarks! {
 
 	update_collateral_asset {
 		let hollar = T::HollarId::get();
-		let (pool_id, assets) = seed_pool::<T>(hollar)?;
+		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
 		let buy_back_fee = Permill::from_percent(1);
@@ -126,9 +142,9 @@ benchmarks! {
 	sell {
 		// Set up a scenario for selling collateral to get Hollar (worst case)
 		let hollar = T::HollarId::get();
-		let (pool_id, assets) = seed_pool::<T>(hollar)?;
+		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
+		let max_buy_price_coefficient = FixedU128::from_rational(111, 100);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -147,31 +163,34 @@ benchmarks! {
 			max_in_holding
 		)?;
 
-		// Create account with collateral
+		// Worst case is selling hollar back into hsm
 		let caller: T::AccountId = account("seller", 0, 0);
 		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
-		<T as Config>::Currency::set_balance(collateral, &caller, 1_000 * ONE);
+		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
 
 		// Setup HSM account with enough balance
-		<T as Config>::Currency::set_balance(hollar, &Pallet::<T>::account_id(), 10_000 * ONE);
-		let hb = <T as Config>::Currency::balance(hollar, &caller);
-		assert!(hb.is_zero());
+		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10_000 * ONE);
+		let cb = <T as Config>::Currency::balance(collateral, &caller);
+		assert!(cb.is_zero());
 
 		// Setup slippage limit (worst case)
-		let amount_in = 100 * ONE;
+		let amount_in = 10 * ONE;
 		let slippage_limit = 1; // Minimum possible amount out
-	}: _(RawOrigin::Signed(caller.clone()), collateral, hollar, amount_in, slippage_limit)
+
+		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
+
+	}: _(RawOrigin::Signed(caller.clone()), hollar, collateral, amount_in, slippage_limit)
 	verify {
-		let caller_balance = <T as Config>::Currency::balance(collateral, &caller);
-		let caller_hollar_balance = <T as Config>::Currency::balance(hollar, &caller);
+		let caller_balance = <T as Config>::Currency::balance(hollar, &caller);
+		let caller_collateral_balance = <T as Config>::Currency::balance(collateral, &caller);
 		assert_eq!(caller_balance, 1000 * ONE - amount_in);
-		assert!(caller_hollar_balance > 0);
+		assert!(caller_balance > 0);
 	}
 
 	buy {
 		// Set up a scenario for buying collateral with Hollar (worst case)
 		let hollar = T::HollarId::get();
-		let (pool_id, assets) = seed_pool::<T>(hollar)?;
+		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(111, 100);
 		let buy_back_fee = Permill::from_percent(1);
@@ -192,7 +211,7 @@ benchmarks! {
 			max_in_holding
 		)?;
 
-		// Create account with hollar
+		// setup balances - worst case is buying collateral
 		let caller: T::AccountId = account("buyer", 0, 0);
 		<T as Config>::BenchmarkHelper::bind_address(caller.clone())?;
 		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
@@ -214,7 +233,7 @@ benchmarks! {
 	execute_arbitrage {
 		// Set up a scenario for arbitrage (worst case)
 		let hollar = T::HollarId::get();
-		let (pool_id, assets) = seed_pool::<T>(hollar)?;
+		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(110, 100);
 		let buy_back_fee = Permill::from_percent(1);
@@ -245,6 +264,16 @@ benchmarks! {
 		assert!(acc_balance < 10 * ONE);
 	}
 
+	on_finalize {
+		let block_num: BlockNumberFor<T> = 5u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
+		// Clear one asset
+		HollarAmountReceived::<T>::insert::<T::AssetId, u128>(100u32.into(), 1000000u128);
+	}: { Pallet::<T>::on_finalize(block_num); }
+	verify {
+		assert!(HollarAmountReceived::<T>::iter().count().is_zero());
+	}
+
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
 }
 
@@ -259,13 +288,16 @@ where
 }
 
 // Helper function to create a new stable pool for testing
-fn seed_pool<T>(hollar_id: T::AssetId) -> Result<(T::AssetId, Vec<T::AssetId>), DispatchError>
+fn seed_pool<T>(
+	pool_id: T::AssetId,
+	hollar_id: T::AssetId,
+	offset: u32,
+) -> Result<(T::AssetId, Vec<T::AssetId>), DispatchError>
 where
 	T: Config + pallet_stableswap::Config,
 	T::AssetId: From<u32>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
-	let pool_id = 222_222u32.into(); // Use a fixed ID for testing
 	seed_asset::<T>(pool_id, DECIMALS)?;
 	seed_asset::<T>(hollar_id, DECIMALS)?;
 	let mut assets = vec![hollar_id];
@@ -275,7 +307,7 @@ where
 	//TODO: we should probably create a peg source in oracle for the worst case!
 	let mut pegs = vec![PegSource::Value((1, 1))];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
-		let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
+		let asset_id: T::AssetId = (idx + offset).into();
 		seed_asset::<T>(asset_id, DECIMALS)?;
 		assets.push(asset_id);
 		pegs.push(PegSource::Value((1, 1)));

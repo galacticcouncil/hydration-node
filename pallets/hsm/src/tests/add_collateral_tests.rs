@@ -18,7 +18,7 @@
 use crate::tests::mock::*;
 use crate::types::CollateralInfo;
 use crate::{Collaterals, Error};
-use frame_support::{assert_err, assert_ok, error::BadOrigin};
+use frame_support::{assert_err, assert_noop, assert_ok, error::BadOrigin};
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
 use pallet_stableswap::types::PegSource;
@@ -319,6 +319,98 @@ fn add_collateral_asset_fails_when_hollar_not_in_pool() {
 					Some(1_000_000 * ONE),
 				),
 				Error::<Test>::HollarNotInPool
+			);
+		});
+}
+
+#[test]
+fn add_collateral_should_fail_when_max_is_reached() {
+	let dai2 = 1000;
+	let dai3 = 2000;
+	let dai4 = 3000;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HOLLAR, ONE), (ALICE, DAI, ONE), (ALICE, USDC, ONE)])
+		.with_registered_assets(vec![
+			(HDX, 12),
+			(DAI, 18),
+			(USDC, 6),
+			(HOLLAR, 18),
+			(100, 18),
+			(200, 18),
+			(300, 18),
+			(dai2, 18),
+			(dai3, 18),
+			(dai4, 18),
+		])
+		// Create a stablepool for HOLLAR and DAI
+		.with_pool(
+			100,
+			vec![HOLLAR, DAI],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			200,
+			vec![HOLLAR, dai2],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			300,
+			vec![HOLLAR, dai3],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.build()
+		.execute_with(|| {
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				DAI,
+				100, // pool id
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai2,
+				200, // pool id
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai3,
+				300,
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_noop!(
+				HSM::add_collateral_asset(
+					RuntimeOrigin::root(),
+					dai4,
+					400,
+					Permill::from_percent(1),
+					FixedU128::one(),
+					Permill::from_percent(1),
+					Perbill::from_percent(10),
+					Some(1_000_000 * ONE),
+				),
+				Error::<Test>::MaxNumberOfCollateralsReached
 			);
 		});
 }

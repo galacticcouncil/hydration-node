@@ -83,6 +83,13 @@ pub enum ERC20Function {
 	Burn = "burn(uint256)",
 }
 
+/// Max number of approved assets.
+/// The reason to have it is easier accounting for weight.
+/// And since approved collateral asset must be in a pool with Hollar,
+/// and there can be only one asset from a single pool -3 should be enough.
+/// That means that we would have to have 3 pools with Hollar and some different assets.
+pub const MAX_COLLATERALS: u32 = 3;
+
 /// Unsigned transaction priority for arbitrage
 pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
 
@@ -322,6 +329,9 @@ pub mod pallet {
 		///
 		/// The EVM address for the GHO (Hollar) token contract was not found.
 		HollarContractAddressNotFound,
+
+		/// HSM contains maximum number of allowed collateral assets.
+		MaxNumberOfCollateralsReached,
 	}
 
 	#[pallet::hooks]
@@ -329,6 +339,11 @@ pub mod pallet {
 	where
 		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
+		/// Accounting for weight in on finalize
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			<T as Config>::WeightInfo::on_finalize() * MAX_COLLATERALS as u64
+		}
+
 		/// Cleans up the HollarAmountReceived storage at the end of each block
 		///
 		/// This ensures that the rate limiting for Hollar buybacks is reset for the next block.
@@ -428,6 +443,13 @@ pub mod pallet {
 			max_in_holding: Option<Balance>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
+
+			let current_collateral_count = Collaterals::<T>::iter().count() as u32;
+
+			ensure!(
+				current_collateral_count < MAX_COLLATERALS,
+				Error::<T>::MaxNumberOfCollateralsReached
+			);
 
 			ensure!(
 				!Collaterals::<T>::contains_key(asset_id),

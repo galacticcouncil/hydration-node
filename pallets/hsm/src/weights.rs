@@ -14,6 +14,7 @@ pub trait WeightInfo {
 	fn sell() -> Weight;
 	fn buy() -> Weight;
 	fn execute_arbitrage() -> Weight;
+	fn on_finalize() -> Weight;
 }
 /// Default weights
 impl WeightInfo for () {
@@ -38,6 +39,10 @@ impl WeightInfo for () {
 	}
 
 	fn execute_arbitrage() -> Weight {
+		Weight::zero()
+	}
+
+	fn on_finalize() -> Weight {
 		Weight::zero()
 	}
 }
