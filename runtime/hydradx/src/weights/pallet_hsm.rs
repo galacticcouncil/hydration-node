@@ -205,4 +205,8 @@ impl<T: frame_system::Config> pallet_hsm::weights::WeightInfo for HydraWeight<T>
 			.saturating_add(T::DbWeight::get().reads(35_u64))
 			.saturating_add(T::DbWeight::get().writes(13_u64))
 	}
+
+	fn on_finalize() -> Weight {
+		Weight::zero()
+	}
 }
