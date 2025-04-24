@@ -1,34 +1,142 @@
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmark_helpers {
-	use crate::EVMAccounts;
-	use hydradx_traits::evm::CallContext;
+	use crate::{AssetRegistry, EVMAccounts, Runtime, RuntimeOrigin, Tokens};
+	use evm::ExitRevert::Reverted;
+	use evm::{ExitReason, ExitSucceed};
+	use frame_support::storage::with_transaction;
+	use hex_literal::hex;
+	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
+	use orml_traits::MultiCurrencyExtended;
+	use pallet_asset_registry::AssetType;
+	use pallet_hsm::ERC20Function;
+	use polkadot_xcm::v3::Junction::AccountKey20;
+	use polkadot_xcm::v3::Junctions::X1;
+	use polkadot_xcm::v3::MultiLocation;
 	use primitive_types::U256;
-	use primitives::AccountId;
-	use sp_runtime::DispatchResult;
+	use primitives::{AccountId, Balance, EvmAddress};
+	use sp_runtime::{DispatchResult, TransactionOutcome};
 	use sp_std::prelude::*;
 
 	pub struct HsmBenchmarkHelper;
 
 	impl pallet_hsm::traits::BenchmarkHelper<AccountId> for HsmBenchmarkHelper {
 		fn bind_address(account: AccountId) -> DispatchResult {
-			EVMAccounts::bind_evm_address(crate::RuntimeOrigin::signed(account))
+			EVMAccounts::bind_evm_address(RuntimeOrigin::signed(account))
+		}
+
+		fn set_hollar_as_erc20() -> DispatchResult {
+			let hollar_asset_id = <Runtime as pallet_hsm::Config>::HollarId::get();
+			let hollar_contract_address = EvmAddress::from_slice(&hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"));
+
+			let hollar_location = crate::AssetLocation(MultiLocation::new(
+				1,
+				X1(AccountKey20 {
+					network: None,
+					key: hollar_contract_address.into(),
+				}),
+			));
+
+			with_transaction(|| {
+				TransactionOutcome::Commit(AssetRegistry::update(
+					RuntimeOrigin::root(),
+					hollar_asset_id,
+					None,
+					Some(AssetType::Erc20),
+					None,
+					None,
+					None,
+					None,
+					None,
+					Some(hollar_location),
+				))
+			})?;
+
+			Ok(())
+		}
+
+		fn set_hollar_as_token() -> DispatchResult {
+			let hollar_asset_id = <Runtime as pallet_hsm::Config>::HollarId::get();
+			with_transaction(|| {
+				TransactionOutcome::Commit(AssetRegistry::update(
+					RuntimeOrigin::root(),
+					hollar_asset_id,
+					None,
+					Some(AssetType::Token),
+					None,
+					None,
+					None,
+					None,
+					None,
+					None,
+				))
+			})?;
+
+			Ok(())
 		}
 	}
 
 	pub struct DummyEvmForHsm;
 	impl hydradx_traits::evm::EVM<pallet_hsm::types::CallResult> for DummyEvmForHsm {
-		fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_hsm::types::CallResult {
-			(
-				pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Stopped),
-				vec![],
-			)
+		fn call(context: CallContext, data: Vec<u8>, _value: U256, _gas: u64) -> pallet_hsm::types::CallResult {
+			// For the HSM benchmarks - since we mock the evm executor here, we still need to update balances of HOLLAR
+			if data.len() >= 4 {
+				let function_bytes: [u8; 4] = data[0..4].try_into().unwrap_or([0; 4]);
+				let function_u32 = u32::from_be_bytes(function_bytes);
+
+				if let Ok(function) = ERC20Function::try_from(function_u32) {
+					match function {
+						ERC20Function::Mint => {
+							// Should include recipient (32 bytes) and amount (32 bytes) parameters after the 4-byte selector
+							if data.len() >= 4 + 32 + 32 {
+								// Extract recipient address (padded to 32 bytes in ABI encoding)
+								let recipient_bytes: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
+								let recipient_evm = EvmAddress::from_slice(&recipient_bytes[12..32]);
+
+								// Extract amount (32 bytes)
+								let amount_bytes: [u8; 32] = data[4 + 32..4 + 64].try_into().unwrap_or([0; 32]);
+								let amount = U256::from_big_endian(&amount_bytes);
+
+								// Convert to Balance and account IDs for our operation
+								if let Ok(amount) = Balance::try_from(amount) {
+									let recipient = EVMAccounts::account_id(recipient_evm);
+									let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
+
+									// Increase the balance of the recipient
+									let _ = Tokens::update_balance(hollar_id, &recipient, amount as i128);
+
+									return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+								}
+							}
+						}
+						ERC20Function::Burn => {
+							// Should include amount (32 bytes) parameter after the 4-byte selector
+							if data.len() >= 4 + 32 {
+								// Extract amount (32 bytes)
+								let amount_bytes: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
+								let amount = U256::from_big_endian(&amount_bytes);
+
+								// Convert to Balance and account IDs for our operation
+								if let Ok(amount) = Balance::try_from(amount) {
+									let sender = context.sender;
+									let account_id = EVMAccounts::account_id(sender);
+									let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
+
+									// Decrease the balance of the caller
+									let _ = Tokens::update_balance(hollar_id, &account_id, -(amount as i128));
+
+									return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+								}
+							}
+						}
+					}
+				}
+			}
+
+			(ExitReason::Revert(Reverted), vec![])
 		}
 
 		fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_hsm::types::CallResult {
-			(
-				pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Stopped),
-				vec![],
-			)
+			(ExitReason::Succeed(ExitSucceed::Stopped), vec![])
 		}
 	}
 }

@@ -29,7 +29,7 @@ use sp_std::vec::Vec;
 
 const DECIMALS: u8 = 18;
 const ONE: Balance = 1_000_000_000_000_000_000;
-const INITIAL_LIQUDITY: Balance = 1_000;
+const INITIAL_LIQUIDITY: Balance = 1_000;
 
 const ASSET_ID_OFFSET: u32 = 2_000;
 
@@ -154,15 +154,16 @@ benchmarks! {
 
 		// Setup HSM account with enough balance
 		<T as Config>::Currency::set_balance(hollar, &Pallet::<T>::account_id(), 10_000 * ONE);
-
 		let hb = <T as Config>::Currency::balance(hollar, &caller);
 		assert!(hb.is_zero());
 
 		// Setup slippage limit (worst case)
 		let amount_in = 100 * ONE;
 		let slippage_limit = 1; // Minimum possible amount out
+		<T as Config>::BenchmarkHelper::set_hollar_as_erc20()?;
 	}: _(RawOrigin::Signed(caller.clone()), collateral, hollar, amount_in, slippage_limit)
 	verify {
+		<T as Config>::BenchmarkHelper::set_hollar_as_token()?;
 		let caller_balance = <T as Config>::Currency::balance(collateral, &caller);
 		let caller_hollar_balance = <T as Config>::Currency::balance(hollar, &caller);
 		assert_eq!(caller_balance, 1000 * ONE - amount_in);
@@ -195,7 +196,7 @@ benchmarks! {
 
 		// Create account with hollar
 		let caller: T::AccountId = account("buyer", 0, 0);
-		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
+		<T as Config>::BenchmarkHelper::bind_address(caller.clone())?;
 		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10_000 * ONE);
 
@@ -204,8 +205,10 @@ benchmarks! {
 		// Setup slippage limit (worst case) - maximum possible amount in
 		let amount_out = 10 * ONE;
 		let slippage_limit = 1_000 * ONE;
+		<T as Config>::BenchmarkHelper::set_hollar_as_erc20()?;
 	}: _(RawOrigin::Signed(caller.clone()), hollar, collateral, amount_out, slippage_limit)
 	verify {
+		<T as Config>::BenchmarkHelper::set_hollar_as_token()?;
 		let caller_balance = <T as Config>::Currency::balance(collateral, &caller);
 		let caller_hollar_balance = <T as Config>::Currency::balance(hollar, &caller);
 		assert_eq!(caller_balance, amount_out);
@@ -224,7 +227,6 @@ benchmarks! {
 
 		let collateral = assets[1];
 
-		// Add collateral asset
 		Pallet::<T>::add_collateral_asset(
 			RawOrigin::Root.into(),
 			collateral,
@@ -242,6 +244,7 @@ benchmarks! {
 
 		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
 
+		<T as Config>::BenchmarkHelper::set_hollar_as_erc20()?;
 	}: _(RawOrigin::None, collateral)
 	verify {
 		let acc_balance = <T as Config>::Currency::balance(collateral, &Pallet::<T>::account_id());
@@ -273,7 +276,7 @@ where
 	seed_asset::<T>(hollar_id, DECIMALS)?;
 	let mut assets = vec![hollar_id];
 
-	let mut initial_liquidity = vec![INITIAL_LIQUDITY * ONE];
+	let mut initial_liquidity = vec![INITIAL_LIQUIDITY * ONE];
 
 	//TODO: we should probably create a peg source in oracle for the worst case!
 	let mut pegs = vec![PegSource::Value((1, 1))];
@@ -282,7 +285,7 @@ where
 		seed_asset::<T>(asset_id, DECIMALS)?;
 		assets.push(asset_id);
 		pegs.push(PegSource::Value((1, 1)));
-		initial_liquidity.push(INITIAL_LIQUDITY * ONE - 50 * ONE);
+		initial_liquidity.push(INITIAL_LIQUIDITY * ONE - 50 * ONE);
 	}
 
 	let amplification = 22;
@@ -298,11 +301,10 @@ where
 		fee,
 		BoundedPegSources::try_from(pegs).unwrap(),
 		Permill::from_percent(100),
-	)
-	.unwrap();
+	)?;
 
 	let provider: T::AccountId = account("provider", 0, 0);
-	<T as Config>::BenchmarkHelper::bind_address(provider.clone()).unwrap();
+	<T as Config>::BenchmarkHelper::bind_address(provider.clone())?;
 
 	let mut liquidity_amounts = vec![];
 

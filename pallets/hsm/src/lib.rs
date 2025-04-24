@@ -610,7 +610,7 @@ pub mod pallet {
 
 			let amount_out = if asset_in == hollar_id {
 				// COLLATERAL OUT given HOLLAR IN
-				let (hollar_in, collateral_out) = Self::do_hollar_in(
+				let (hollar_in, collateral_out) = Self::do_trade_hollar_in(
 					&who,
 					asset_out,
 					|pool_id, state| {
@@ -637,7 +637,7 @@ pub mod pallet {
 				collateral_out
 			} else {
 				// HOLLAR OUT given COLLATERAL IN
-				let (hollar_amount, collateral_amount) = Self::do_hollar_out(&who, asset_in, |purchase_price| {
+				let (hollar_amount, collateral_amount) = Self::do_trade_hollar_out(&who, asset_in, |purchase_price| {
 					let hollar_amount =
 						math::calculate_hollar_amount(amount_in, purchase_price).ok_or(ArithmeticError::Overflow)?;
 					Ok((hollar_amount, amount_in))
@@ -702,7 +702,7 @@ pub mod pallet {
 
 			let amount_in = if asset_out == hollar_id {
 				// COLLATERAL IN given HOLLAR OUT
-				let (hollar_out, collateral_in) = Self::do_hollar_out(&who, asset_in, |purchase_price| {
+				let (hollar_out, collateral_in) = Self::do_trade_hollar_out(&who, asset_in, |purchase_price| {
 					let collateral_amount = math::calculate_collateral_amount(amount_out, purchase_price)
 						.ok_or(ArithmeticError::Overflow)?;
 					Ok((amount_out, collateral_amount))
@@ -711,7 +711,7 @@ pub mod pallet {
 				collateral_in
 			} else {
 				// HOLLAR IN given COLLATERAL OUT
-				let (hollar_in, collateral_out) = Self::do_hollar_in(
+				let (hollar_in, collateral_out) = Self::do_trade_hollar_in(
 					&who,
 					asset_out,
 					|pool_id, state| {
@@ -784,7 +784,7 @@ pub mod pallet {
 				Self::mint_hollar(&hsm_account, hollar_amount_to_trade)?;
 
 				// Sell hollar to HSM for collateral
-				let (hollar_amount, collateral_received) = Self::do_hollar_in(
+				let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
 					&hsm_account,
 					collateral_asset_id,
 					|pool_id, state| {
@@ -909,7 +909,7 @@ where
 	///
 	/// Returns the final Hollar and collateral amounts traded.
 	#[require_transactional]
-	fn do_hollar_in(
+	fn do_trade_hollar_in(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
 		simulate_swap: impl FnOnce(T::AssetId, &PoolSnapshot<T::AssetId>) -> Result<(Balance, Balance), DispatchError>,
@@ -1044,7 +1044,7 @@ where
 	///
 	/// Returns the Hollar and collateral amounts traded.
 	#[require_transactional]
-	fn do_hollar_out(
+	fn do_trade_hollar_out(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
 		calculate_amounts: impl FnOnce(Price) -> Result<(Balance, Balance), DispatchError>,
