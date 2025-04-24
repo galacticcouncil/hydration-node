@@ -1087,7 +1087,7 @@ where
 			// but we still read the hollar from registry storage, to account for registry read weight
 			let _ = T::GhoContractAddress::contract_address(T::HollarId::get());
 			Ok(EvmAddress::from_slice(&hex!(
-				"c130c89f2b1066a77bd820aafebcf4519d0103d8"
+				"0101010101010101010101010101010101010101"
 			)))
 		} else {
 			T::GhoContractAddress::contract_address(T::HollarId::get())
