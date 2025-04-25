@@ -79,7 +79,7 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
-				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 {
 					swapper: BOB,
 					filler: pool_account,
 					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
@@ -1132,7 +1132,7 @@ fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
 
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
-				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 {
 					swapper: BOB,
 					filler: pool_account,
 					filler_type: pallet_broadcast::types::Filler::Stableswap(4),

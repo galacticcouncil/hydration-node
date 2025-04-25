@@ -260,7 +260,7 @@ fn add_liquidity_should_emit_swapped_events() {
 
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
-				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 {
 					swapper: BOB,
 					filler: pool_account,
 					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
@@ -864,7 +864,7 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 			let pool_account = pool_account(pool_id);
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
-				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 {
 					swapper: BOB,
 					filler: pool_account,
 					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
