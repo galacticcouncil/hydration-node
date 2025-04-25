@@ -19,6 +19,23 @@ impl AssetReserve {
 	pub fn is_zero(&self) -> bool {
 		self.amount == Balance::zero()
 	}
+
+	pub fn saturating_add(self, amount: Balance) -> Self {
+		let amount = self.amount.saturating_add(amount);
+
+		Self {
+			amount,
+			decimals: self.decimals,
+		}
+	}
+	pub fn saturating_sub(self, amount: Balance) -> Self {
+		let amount = self.amount.saturating_sub(amount);
+
+		Self {
+			amount,
+			decimals: self.decimals,
+		}
+	}
 }
 
 impl From<AssetReserve> for u128 {

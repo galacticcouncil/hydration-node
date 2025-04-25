@@ -14,6 +14,7 @@ use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
+use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{OraclePeriod, Source};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
@@ -213,5 +214,24 @@ impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
 			let source = &pegs.source[asset_idx];
 			matches!(source, PegSource::Oracle(_))
 		}
+	}
+
+	pub fn update_reserves(mut self, amount_in: AssetAmount<AssetId>, amount_out: AssetAmount<AssetId>) -> Self {
+		let Some(asset_in_idx) = self.asset_idx(amount_in.asset_id) else {
+			return self;
+		};
+
+		let Some(asset_out_idx) = self.asset_idx(amount_out.asset_id) else {
+			return self;
+		};
+		let Some(a) = self.reserves.get_mut(asset_in_idx) else {
+			return self;
+		};
+		*a = a.saturating_add(amount_in.amount);
+		let Some(b) = self.reserves.get_mut(asset_out_idx) else {
+			return self;
+		};
+		*b = b.saturating_sub(amount_out.amount);
+		self
 	}
 }

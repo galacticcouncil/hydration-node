@@ -1951,9 +1951,10 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(amount_out >= min_buy_amount, Error::<T>::SlippageLimit);
 
-		//todo: in future, update state and return it
-		let updated_pool_state = snapshot;
-
+		let updated_pool_state = snapshot.update_reserves(
+			AssetAmount::new(asset_in, amount_in),
+			AssetAmount::new(asset_out, amount_out),
+		);
 		Ok((amount_out, updated_pool_state))
 	}
 
@@ -1997,8 +1998,10 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(amount_in <= max_amount_in, Error::<T>::SlippageLimit);
 
-		//todo: in future, update state an return
-		let update_pool_state = snapshot;
-		Ok((amount_in, update_pool_state))
+		let updated_pool_state = snapshot.update_reserves(
+			AssetAmount::new(asset_in, amount_in),
+			AssetAmount::new(asset_out, amount_out),
+		);
+		Ok((amount_in, updated_pool_state))
 	}
 }
