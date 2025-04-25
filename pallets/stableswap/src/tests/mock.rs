@@ -514,7 +514,7 @@ pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 { .. }) = e {
+		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 { .. }) = e {
 			swapped_events.push(e);
 		}
 	}

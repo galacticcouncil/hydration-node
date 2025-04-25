@@ -400,7 +400,7 @@ where
 		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_in, min_limit)?;
 
 		let who = ensure_signed(who.clone()).map_err(|_| ExecutorError::Error("Invalid origin".into()))?;
-		let atoken = HydraErc20Mapping::encode_evm_address(trade_result);
+		let atoken = HydraErc20Mapping::asset_address(trade_result);
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(atoken);
 
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -430,7 +430,7 @@ where
 		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_out, max_limit)?;
 
 		let who = ensure_signed(who.clone()).map_err(|_| ExecutorError::Error("Invalid origin".into()))?;
-		let atoken = HydraErc20Mapping::encode_evm_address(trade_result);
+		let atoken = HydraErc20Mapping::asset_address(trade_result);
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(atoken);
 
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
