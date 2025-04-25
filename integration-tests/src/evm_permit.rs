@@ -927,7 +927,7 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			let insufficient_amount = 10 * UNITS;
 			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount)).unwrap();
 			assert_eq!(
-				(4293123327072534587, Ratio::new(4293123327072534587, 10000000000000)),
+				(4292926597696669208, Ratio::new(4292926597696669208, 10000000000000)),
 				amount_in_weth
 			);
 
@@ -1059,7 +1059,7 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 			let weth_amount = 10 * UNITS;
 			let amount_in_insufficient_asset = Convert::convert((WETH, insufficient_asset, weth_amount)).unwrap();
 			assert_eq!(
-				(23293066, Ratio::new(23293066, 10000000000000)),
+				(23294133, Ratio::new(23294133, 10000000000000)),
 				amount_in_insufficient_asset
 			);
 
@@ -1677,7 +1677,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 4491170241294);
+		assert_eq!(tx_fee, 4491170299119);
 	})
 }
 
@@ -1884,7 +1884,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 4491170241294);
+		assert_eq!(tx_fee, 4491170299119);
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
