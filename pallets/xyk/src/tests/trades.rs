@@ -71,7 +71,7 @@ fn sell_test() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -135,7 +135,7 @@ fn execute_sell_should_use_event_id() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: ALICE,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -450,7 +450,7 @@ fn sell_with_correct_fees_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: user_1,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
@@ -668,7 +668,7 @@ fn single_buy_should_work() {
 				pool: pair_account,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: user_1,
 				filler: pair_account,
 				filler_type: pallet_broadcast::types::Filler::XYK(share_token),
