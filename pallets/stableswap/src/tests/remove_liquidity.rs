@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::tests::mock::*;
 use crate::tests::to_bounded_asset_vec;
 use crate::types::{BoundedPegSources, PegSource, PoolInfo};

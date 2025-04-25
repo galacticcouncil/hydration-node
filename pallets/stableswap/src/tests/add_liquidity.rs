@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::tests::mock::*;
 use crate::tests::to_bounded_asset_vec;
 use crate::types::PoolInfo;
@@ -53,6 +55,155 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			assert_balance!(BOB, pool_id, 200 * ONE * 1_000_000);
 			assert_balance!(pool_account, asset_a, 100 * ONE);
 			assert_balance!(pool_account, asset_b, 100 * ONE);
+		});
+}
+
+#[test]
+fn first_add_liquidity_should_work_when_pool_account_has_balance_that_user_providing() {
+	let pool_id: AssetId = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, 1, 200 * ONE),
+			(BOB, 2, 200 * ONE),
+			(ALICE, 1, 200 * ONE),
+			(ALICE, 2, 200 * ONE),
+		])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.build()
+		.execute_with(|| {
+			let asset_a: AssetId = 1;
+			let asset_b: AssetId = 2;
+			let amplification: u16 = 100;
+
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
+				amplification,
+				Permill::from_percent(0),
+			));
+
+			let initial_liquidity_amount = 100 * ONE;
+
+			let pool_account = pool_account(pool_id);
+			let reserve_b_initial_balance = 100 * ONE;
+			Tokens::set_balance(
+				RuntimeOrigin::root(),
+				pool_account,
+				asset_b,
+				reserve_b_initial_balance,
+				0,
+			)
+			.expect("set pool_account balance failed");
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				BoundedVec::truncate_from(vec![
+					AssetAmount::new(asset_a, 2 * initial_liquidity_amount),
+					AssetAmount::new(asset_b, initial_liquidity_amount),
+				])
+			));
+
+			assert_balance!(BOB, asset_a, 0);
+			assert_balance!(BOB, asset_b, 100 * ONE);
+			assert_balance!(BOB, pool_id, 400 * ONE * 1_000_000);
+			assert_balance!(pool_account, asset_a, 2 * initial_liquidity_amount);
+			assert_balance!(
+				pool_account,
+				asset_b,
+				initial_liquidity_amount + reserve_b_initial_balance
+			);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
+					inputs: vec![
+						Asset::new(asset_a, 2 * initial_liquidity_amount),
+						Asset::new(asset_b, initial_liquidity_amount + reserve_b_initial_balance)
+					],
+					outputs: vec![Asset::new(pool_id, 400 * ONE * 1_000_000)],
+					fees: vec![],
+					operation_stack: vec![],
+				})
+			)
+		});
+}
+
+#[test]
+fn first_add_liquidity_should_work_when_pool_has_balance_that_user_not_providing() {
+	let pool_id: AssetId = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(BOB, 1, 200 * ONE),
+			(BOB, 2, 200 * ONE),
+			(ALICE, 1, 200 * ONE),
+			(ALICE, 2, 200 * ONE),
+		])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
+		.with_registered_asset("one".as_bytes().to_vec(), 1, 12)
+		.with_registered_asset("two".as_bytes().to_vec(), 2, 12)
+		.build()
+		.execute_with(|| {
+			let asset_a: AssetId = 1;
+			let asset_b: AssetId = 2;
+			let amplification: u16 = 100;
+
+			assert_ok!(Stableswap::create_pool(
+				RuntimeOrigin::root(),
+				pool_id,
+				to_bounded_asset_vec(vec![asset_a, asset_b]),
+				amplification,
+				Permill::from_percent(0),
+			));
+
+			let initial_liquidity_amount = 100 * ONE;
+
+			let reserve_b_initial_balance = 100 * ONE;
+			let pool_account = pool_account(pool_id);
+			Tokens::set_balance(
+				RuntimeOrigin::root(),
+				pool_account,
+				asset_b,
+				reserve_b_initial_balance,
+				0,
+			)
+			.expect("set pool_account balance failed");
+
+			assert_ok!(Stableswap::add_liquidity(
+				RuntimeOrigin::signed(BOB),
+				pool_id,
+				BoundedVec::truncate_from(vec![AssetAmount::new(asset_a, initial_liquidity_amount),])
+			));
+
+			assert_balance!(BOB, asset_a, initial_liquidity_amount);
+			assert_balance!(BOB, asset_b, 200 * ONE);
+			assert_balance!(BOB, pool_id, 200 * ONE * 1_000_000);
+			assert_balance!(pool_account, asset_a, 100 * ONE);
+			assert_balance!(pool_account, asset_b, reserve_b_initial_balance);
+
+			pretty_assertions::assert_eq!(
+				*get_last_swapped_events().last().unwrap(),
+				RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 {
+					swapper: BOB,
+					filler: pool_account,
+					filler_type: pallet_broadcast::types::Filler::Stableswap(pool_id),
+					operation: pallet_broadcast::types::TradeOperation::LiquidityAdd,
+					inputs: vec![
+						Asset::new(asset_a, initial_liquidity_amount),
+						Asset::new(asset_b, reserve_b_initial_balance)
+					],
+					outputs: vec![Asset::new(pool_id, 200 * ONE * 1_000_000)],
+					fees: vec![],
+					operation_stack: vec![],
+				})
+			)
 		});
 }
 
