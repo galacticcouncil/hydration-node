@@ -28,7 +28,7 @@
 pub use pallet::*;
 
 use crate::types::{Balance, CoefficientRatio, CollateralInfo, Price};
-use crate::weights::WeightInfo;
+pub use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::{
