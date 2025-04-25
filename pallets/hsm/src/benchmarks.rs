@@ -31,7 +31,7 @@ const DECIMALS: u8 = 18;
 const ONE: Balance = 1_000_000_000_000_000_000;
 const INITIAL_LIQUIDITY: Balance = 1_000;
 
-const ASSET_ID_OFFSET: u32 = 2_000;
+const ASSET_ID_OFFSET: u32 = 5_000;
 
 benchmarks! {
 	where_clause { where
@@ -43,6 +43,7 @@ benchmarks! {
 
 	add_collateral_asset {
 		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
 		// main pool
 		let (main_pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let main_collateral = assets[1];
@@ -57,7 +58,7 @@ benchmarks! {
 		for idx in 2..=MAX_COLLATERALS{
 			let (pool_id, assets) = seed_pool::<T>((222_222u32 +idx).into(), hollar, ASSET_ID_OFFSET * idx)?;
 			let collateral = assets[1];
-			Pallet::<T>::add_collateral_asset(
+			let r = Pallet::<T>::add_collateral_asset(
 				RawOrigin::Root.into(),
 				collateral,
 				pool_id,
@@ -68,6 +69,9 @@ benchmarks! {
 				max_in_holding
 			)?;
 		}
+
+		let collateral_count = Collaterals::<T>::iter().count() as u32;
+		assert_eq!(collateral_count, MAX_COLLATERALS - 1);
 	}: _(RawOrigin::Root, main_collateral, main_pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee, b, max_in_holding)
 	verify {
 		assert!(Collaterals::<T>::contains_key(main_collateral));
@@ -75,6 +79,7 @@ benchmarks! {
 
 	remove_collateral_asset {
 		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
 		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
@@ -102,6 +107,7 @@ benchmarks! {
 
 	update_collateral_asset {
 		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
 		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(101, 100);
@@ -142,6 +148,7 @@ benchmarks! {
 	sell {
 		// Set up a scenario for selling collateral to get Hollar (worst case)
 		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
 		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(111, 100);
@@ -190,6 +197,7 @@ benchmarks! {
 	buy {
 		// Set up a scenario for buying collateral with Hollar (worst case)
 		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
 		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(111, 100);
@@ -233,6 +241,7 @@ benchmarks! {
 	execute_arbitrage {
 		// Set up a scenario for arbitrage (worst case)
 		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
 		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
 		let max_buy_price_coefficient = FixedU128::from_rational(110, 100);
@@ -299,7 +308,6 @@ where
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	seed_asset::<T>(pool_id, DECIMALS)?;
-	seed_asset::<T>(hollar_id, DECIMALS)?;
 	let mut assets = vec![hollar_id];
 
 	let mut initial_liquidity = vec![INITIAL_LIQUIDITY * ONE];
@@ -308,7 +316,7 @@ where
 	let mut pegs = vec![PegSource::Value((1, 1))];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
 		let asset_id: T::AssetId = (idx + offset).into();
-		seed_asset::<T>(asset_id, DECIMALS)?;
+		let _ = seed_asset::<T>(asset_id, DECIMALS);
 		assets.push(asset_id);
 		pegs.push(PegSource::Value((1, 1)));
 		initial_liquidity.push(INITIAL_LIQUIDITY * ONE - 50 * ONE);
@@ -329,8 +337,11 @@ where
 		Permill::from_percent(100),
 	)?;
 
-	let provider: T::AccountId = account("provider", 0, 0);
-	<T as Config>::BenchmarkHelper::bind_address(provider.clone())?;
+	let provider: T::AccountId = account("provider", 1, 1);
+	let r = <T as Config>::BenchmarkHelper::bind_address(provider.clone());
+	if r.is_err() {
+		log::warn!(target: "hsm", "Benchmarks - address already bounded.")
+	}
 
 	let mut liquidity_amounts = vec![];
 
