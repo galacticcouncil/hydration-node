@@ -94,7 +94,7 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 				fee,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: order.owner,
 				filler: BOB,
 				filler_type: pallet_broadcast::types::Filler::OTC(order_id),

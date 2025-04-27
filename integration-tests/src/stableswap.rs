@@ -4,10 +4,7 @@ use frame_support::assert_ok;
 use frame_support::BoundedVec;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::Liquidity;
-use hydradx_traits::Volume;
 use orml_traits::MultiCurrency;
-use pallet_ema_oracle::OracleEntry;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
@@ -97,7 +94,7 @@ fn gigadot_pool_should_work() {
 				GIGADOT,
 				VDOT,
 				ADOT,
-				1 * 10u128.pow(VDOT_DECIMALS as u32),
+				10u128.pow(VDOT_DECIMALS as u32),
 				0,
 			));
 
@@ -107,7 +104,7 @@ fn gigadot_pool_should_work() {
 
 			let adot_received = final_alice_adot_balance - initial_alice_adot_balance;
 			// use vdot adot price to calculate expected adot received
-			let expected_adot_received = (1 * 10u128.pow(VDOT_DECIMALS as u32)) * DOT_VDOT_PRICE.0 / DOT_VDOT_PRICE.1;
+			let expected_adot_received = (10u128.pow(VDOT_DECIMALS as u32)) * DOT_VDOT_PRICE.0 / DOT_VDOT_PRICE.1;
 			// ensure that it is approximately equal
 			assert_eq_approx!(
 				adot_received,

@@ -222,7 +222,6 @@ fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 //we have to verify if trader rewards is accrued for the actual trader, not in the router account
 #[test]
 fn claim_should_work_when_trade_happens_via_router() {
-	let claimed_amount = 853605689;
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -448,7 +447,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				protocol_fee_amount: 608401,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
@@ -462,7 +461,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
@@ -517,7 +516,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				protocol_fee_amount: 22652141,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
 				filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -531,7 +530,7 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped2 {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: BOB.into(),
 				filler: Omnipool::protocol_account(),
 				filler_type: pallet_broadcast::types::Filler::Omnipool,
