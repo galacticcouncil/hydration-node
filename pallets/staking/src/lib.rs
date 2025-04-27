@@ -186,6 +186,11 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
+	#[pallet::type_value]
+	pub fn DefaultSixSecSince<T: Config>() -> BlockNumberFor<T> {
+		u32::max_value().into()
+	}
+
 	#[pallet::storage]
 	/// Global staking state.
 	#[pallet::getter(fn staking)]
@@ -245,7 +250,8 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Block number when we switched to 6 sec. blocks.
 	#[pallet::getter(fn six_sec_blocks_since)]
-	pub(super) type SixSecBlocksSince<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+	pub(super) type SixSecBlocksSince<T: Config> =
+		StorageValue<_, BlockNumberFor<T>, ValueQuery, DefaultSixSecSince<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]

@@ -11,7 +11,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for SetSixSecBlocksSince<T> {
 		let current_block_height = T::BlockNumberProvider::current_block_number();
 
 		crate::SixSecBlocksSince::<T>::mutate(|block_height| {
-			if *block_height == 0u32.into() {
+			if *block_height == u32::max_value().into() {
 				*block_height = current_block_height
 			}
 		});
