@@ -962,7 +962,7 @@ pub fn get_last_swapped_events() -> Vec<pallet_broadcast::Event<hydradx_runtime:
 	last_events
 		.into_iter()
 		.filter_map(|event| {
-			if let RuntimeEvent::Broadcast(inner_event @ pallet_broadcast::Event::Swapped2 { .. }) = event {
+			if let RuntimeEvent::Broadcast(inner_event @ pallet_broadcast::Event::Swapped3 { .. }) = event {
 				Some(inner_event)
 			} else {
 				None
@@ -974,7 +974,7 @@ pub fn get_last_swapped_events() -> Vec<pallet_broadcast::Event<hydradx_runtime:
 #[macro_export]
 macro_rules! assert_operation_stack {
     ($event:expr, [$($pattern:pat),*]) => {
-        if let pallet_broadcast::Event::Swapped2 { operation_stack, .. } = $event {
+        if let pallet_broadcast::Event::Swapped3 { operation_stack, .. } = $event {
             assert!(matches!(&operation_stack[..],
                 [
                     $($pattern),*

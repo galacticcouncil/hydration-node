@@ -79,12 +79,13 @@ fn create_yfarm(caller: AccountId, farm_id: GlobalFarmId, assets: AssetPair, mul
 }
 
 fn xyk_add_liquidity(caller: AccountId, assets: AssetPair, amount_a: Balance, amount_b_max: Balance) -> DispatchResult {
-	XYK::add_liquidity(
+	XYK::add_liquidity_with_limits(
 		RawOrigin::Signed(caller).into(),
 		assets.asset_in,
 		assets.asset_out,
 		amount_a,
 		amount_b_max,
+		0,
 	)
 }
 
