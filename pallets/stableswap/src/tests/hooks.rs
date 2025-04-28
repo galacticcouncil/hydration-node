@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::tests::mock::*;
 use crate::types::{PoolInfo, PoolState};
 use frame_support::{assert_ok, BoundedVec};
