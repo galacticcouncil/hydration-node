@@ -10,6 +10,7 @@ use sp_core::storage::{StorageData, StorageKey};
 use sp_core::H256;
 use sp_io::TestExternalities;
 use std::collections::{BTreeMap, HashMap};
+use std::ops::Deref;
 use std::sync::Arc;
 use std::{
 	fs,
@@ -142,6 +143,8 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 		})?
 		.ok_or("WASM code not found in chain state")?;
 
+	println!("Saving WASM code with key: {}", hex::encode(code_key));
+
 	storage_map.insert(code_key.to_vec(), wasm_code.0);
 
 	println!("Reading all storage key-value pairs remotely");
@@ -206,18 +209,38 @@ pub async fn fetch_all_storage(uri: String, at: Option<H256>) -> Result<Vec<(Sto
 			break;
 		}
 
+		let forbidden_keys = [
+			sp_core::storage::well_known_keys::HEAP_PAGES,
+			sp_core::storage::well_known_keys::EXTRINSIC_INDEX,
+			sp_core::storage::well_known_keys::INTRABLOCK_ENTROPY,
+			sp_core::storage::well_known_keys::CHILD_STORAGE_KEY_PREFIX,
+			sp_core::storage::well_known_keys::DEFAULT_CHILD_STORAGE_KEY_PREFIX,
+		];
+
 		let fetched: Vec<(StorageKey, StorageData)> = stream::iter(keys.clone())
 			.map(|key| {
 				let rpc = Arc::clone(&rpc);
 				async move {
-					let value = StateApi::<H256>::storage(&*rpc, key.clone(), at)
-						.await
-						.unwrap_or(Some(StorageData(vec![])));
-					(key, value.unwrap())
+					match StateApi::<H256>::storage(&*rpc, key.clone(), at).await {
+						Ok(Some(value)) => Some((key, value)),
+						_ => None,
+					}
 				}
 			})
 			.buffer_unordered(CONCURRENCY)
-			.inspect(|_| pb.inc(1))
+			.inspect(|res| {
+				if res.is_some() {
+					pb.inc(1);
+				}
+			})
+			.filter_map(futures::future::ready)
+			.filter(|(key, _value)| {
+				let raw_key = key.as_ref();
+				futures::future::ready({
+					raw_key == sp_core::storage::well_known_keys::CODE
+						|| !forbidden_keys.iter().any(|prefix| raw_key.starts_with(prefix))
+				})
+			})
 			.collect()
 			.await;
 
