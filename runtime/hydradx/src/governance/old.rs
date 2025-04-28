@@ -160,7 +160,8 @@ impl pallet_democracy::Config for Runtime {
 	type Slash = Treasury;
 	type DemocracyHooks = pallet_staking::integrations::democracy_legacy::LegacyStakingDemocracy<Runtime>;
 	// Any single technical committee member may remove a vote.
-	type VoteRemovalOrigin = frame_system::EnsureSignedBy<TechCommAccounts, AccountId>;
+	// Note: call has to be wrapped with tc.execute
+	type VoteRemovalOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 }
 
 parameter_types! {
