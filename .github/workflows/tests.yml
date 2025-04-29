@@ -212,7 +212,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: galacticcouncil/polkadot-ecosystem-tests
-          ref: 1ad4db1c546f31a4f8e8987ada39dc7ef71100fe
+          ref: 88879372334e2f410a9b1ef6780525f3121e8f5b
 
       - name: Download WASM artifact
         uses: actions/download-artifact@v4
