@@ -25,7 +25,8 @@ RUN for binary in polkadot polkadot-execute-worker polkadot-prepare-worker; do \
 
 RUN mkdir -p /zombienet/hydration-node/target/release
 RUN wget -q https://github.com/galacticcouncil/hydration-node/releases/latest/download/hydradx -O /zombienet/hydration-node/target/release/hydradx && \
-    chmod +x /zombienet/hydration-node/target/release/hydradx
+    wget -q https://github.com/galacticcouncil/hydration-node/releases/latest/download/scraper -O /zombienet/hydration-node/target/release/scraper && \
+    chmod +x /zombienet/hydration-node/target/release/*
 RUN /zombienet/hydration-node/target/release/hydradx --version
 
 COPY . .
@@ -34,7 +35,5 @@ RUN npm i
 
 VOLUME /zombienet/hydration-node/launch-configs/fork/data
 EXPOSE 9988
-
-ENV STATE_SOURCE=https://snapshots.play.hydration.cloud/state.json
 
 CMD npm start

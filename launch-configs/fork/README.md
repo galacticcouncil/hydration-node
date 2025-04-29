@@ -1,4 +1,6 @@
-starts zombienet instance with forked state downloaded from `STATE_SOURCE` (by default loaded from latest snapshot
+starts zombienet instance with forked state downloaded from either:
+- rpc endpoint in `STATE_RPC` and block `STATE_BLOCK` (latest block by default)
+- url of json defined in `STATE_SOURCE` (by default loaded from latest snapshot
 available)
 
 ### run with docker
