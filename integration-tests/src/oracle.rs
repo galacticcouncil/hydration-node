@@ -29,7 +29,6 @@ use pallet_ema_oracle::OracleError;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
-use scraper::ALICE;
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
@@ -38,12 +37,6 @@ use sp_std::sync::Arc;
 use xcm_builder::{DescribeAllTerminal, DescribeFamily, HashedDescription};
 use xcm_emulator::ConvertLocation;
 
-use hydra_dx_math::ema::smoothing_from_period;
-
-use pallet_ema_oracle::into_smoothing;
-use pallet_ema_oracle::OracleError;
-use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
-use scraper::ALICE;
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {

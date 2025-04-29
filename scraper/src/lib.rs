@@ -10,7 +10,6 @@ use sp_core::storage::{StorageData, StorageKey};
 use sp_core::H256;
 use sp_io::TestExternalities;
 use std::collections::{BTreeMap, HashMap};
-use std::ops::Deref;
 use std::sync::Arc;
 use std::{
 	fs,
