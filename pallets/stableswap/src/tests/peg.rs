@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::assert_balance;
 use crate::tests::mock::*;
 use crate::types::{BoundedPegSources, PegSource};
