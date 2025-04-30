@@ -1,6 +1,6 @@
 const fs = require('fs');
-const { TypeRegistry } = require('@polkadot/types');
-const { hexToU8a, u8aToHex } = require('@polkadot/util');
+const {TypeRegistry} = require('@polkadot/types');
+const {hexToU8a, u8aToHex} = require('@polkadot/util');
 
 // Define network names
 const NEW_NAME = process.env.CHAIN_NAME || "Hydration Local Testnet";
@@ -48,7 +48,7 @@ async function updateChainSpec(inputFile, outputFile) {
             price: 'HydraDxMathRatio',
             volume: 'HydradxTraitsOracleVolume',
             liquidity: 'HydradxTraitsOracleLiquidity',
-            updatedAt: 'u64',
+            updatedAt: 'u32',
         },
         OracleValue: '(EmaOracleEntry, u32)',
         PalletLiquidityMiningFarmState: {
@@ -138,22 +138,35 @@ async function updateChainSpec(inputFile, outputFile) {
     for (const [key, value] of Object.entries(chainSpec.genesis.raw.top)) {
         if (key.startsWith("0x5258a12472693b34a3ed25509781e55fb79")) {
             try {
-                const decoded = registry.createType('OracleValue', hexToU8a(value));
-                const [entry, blockNumber] = decoded.toJSON();
+                const originalBytes = hexToU8a(value);
+
+                // ✅ Decode as (EmaOracleEntry, u32) tuple
+                const decoded = registry.createType('(EmaOracleEntry, u32)', originalBytes);
+
+                const [entry, _blockNumber] = decoded;
 
                 console.log(`🔍 Key: ${key}`);
-                console.log('🔬 Original:', JSON.stringify({ updatedAt: entry.updatedAt, blockNumber }));
+                //console.log(`🔍 entry (human):`, entry.toHuman());
+                //console.log(`🔍 blockNumber (u32):`, blockNumber.toHuman());
 
-                entry.updatedAt = 0;
-                const updated = registry.createType('OracleValue', [entry, 0]);
-                chainSpec.genesis.raw.top[key] = u8aToHex(updated.toU8a());
+                entry.set('updatedAt', registry.createType('u32', 0));
 
-                console.log(`✅ Updated ${key} → updatedAt: 0, blockNumber: 0`);
+                // Update: reset blockNumber to 0
+                const updated = registry.createType('(EmaOracleEntry, u32)', [entry, 0]);
+                const reEncodedBytes = updated.toU8a();
+
+                if (originalBytes.length !== reEncodedBytes.length) {
+                    console.warn(`⚠️ Probably an encoding problem from incorrectly registered oracle types, please double check if the registered types correspond to the rust storage entry definition. Skipping key ${key}: original length ${originalBytes.length}, re-encoded length ${reEncodedBytes.length}`);
+                    continue;
+                }
+
+                chainSpec.genesis.raw.top[key] = u8aToHex(reEncodedBytes);
+
+                console.log(`✅ Updated ${key} → blockNumber reset to 0`);
             } catch (err) {
-                console.error(`Error processing emaOracle for key ${key}:`, err);
+                console.error(`❌ Error processing oracle key ${key}:`, err);
             }
-        }
-        else if (key.startsWith("0xa1a851f6ddab88c23c6615f42a0062df8d84255c07d18453a739a171ac5cf629")) {
+        } else if (key.startsWith("0xa1a851f6ddab88c23c6615f42a0062df8d84255c07d18453a739a171ac5cf629")) {
             try {
                 const decoded = registry.createType('PalletLiquidityMiningGlobalFarmData', hexToU8a(value));
                 const json = decoded.toJSON();
