@@ -96,8 +96,8 @@ pub mod pallet {
 	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn account_gas_limits)]
-	pub type AccountGasLimits<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u64, OptionQuery>;
+	#[pallet::getter(fn account_extra_gas)]
+	pub type AccountExtraGas<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u64, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -199,13 +199,13 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// Store the gas limit for this account
-			AccountGasLimits::<T>::insert(&who, extra_gas);
+			AccountExtraGas::<T>::insert(&who, extra_gas);
 
 			// Dispatch the call
 			let (result, _) = Self::do_dispatch(who.clone(), *call);
 
 			// Clean up storage
-			AccountGasLimits::<T>::remove(&who);
+			AccountExtraGas::<T>::remove(&who);
 			result
 		}
 	}
@@ -232,22 +232,22 @@ impl<T: Config> Pallet<T> {
 
 // PUBLIC API
 impl<T: Config> Pallet<T> {
-	/// Get the gas limit for a specific account.
-	pub fn get_gas_limit(account: &T::AccountId) -> u64 {
-		AccountGasLimits::<T>::get(account).unwrap_or(0u64)
+	/// Get the extra gas for a specific account.
+	pub fn get_account_extra_gas(account: &T::AccountId) -> u64 {
+		AccountExtraGas::<T>::get(account).unwrap_or(0u64)
 	}
 
-	/// Set the gas limit for a specific account.
-	pub fn decrease_gas_limit(account: &T::AccountId, amount: u64) {
+	/// Decrease the gas for a specific account.
+	pub fn decrease_gas(account: &T::AccountId, amount: u64) {
 		if amount == 0 {
 			return;
 		}
-		let Some(current_limit) = AccountGasLimits::<T>::take(account) else {
+		let Some(current_limit) = AccountExtraGas::<T>::take(account) else {
 			return;
 		};
 		let new_limit = current_limit.saturating_sub(amount);
 		if new_limit > 0 {
-			AccountGasLimits::<T>::insert(account, new_limit);
+			AccountExtraGas::<T>::insert(account, new_limit);
 		}
 	}
 }
