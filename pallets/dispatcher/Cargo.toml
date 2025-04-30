@@ -14,6 +14,8 @@ readme = "README.md"
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 scale-info = { workspace = true }
 
+pallet-evm = { workspace = true }
+
 # primitives
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
@@ -46,6 +48,7 @@ std = [
     'hydradx-traits/std',
     'orml-tokens/std',
     'orml-traits/std',
+    "pallet-evm/std",
 ]
 
 runtime-benchmarks = [

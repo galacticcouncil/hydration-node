@@ -7977,6 +7977,7 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
+ "pallet-evm",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

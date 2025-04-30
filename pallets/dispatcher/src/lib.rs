@@ -39,6 +39,7 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
+use pallet_evm::GasWeightMapping;
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
 pub use weights::WeightInfo;
 
@@ -79,6 +80,9 @@ pub mod pallet {
 
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
+
+		/// Gas to Weight conversion.
+		type GasWeightMapping: GasWeightMapping;
 
 		/// The weight information for this pallet.
 		type WeightInfo: WeightInfo;
@@ -174,26 +178,28 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Dispatch a call with a gas limit.
+		/// Dispatch a call with extra gas.
 		///
-		/// This allows executing calls with a specified maximum weight (gas) limit.
+		/// This allows executing calls with additional weight (gas) limit.
 		/// The call will fail if it would consume more weight than the specified limit.
 		#[pallet::call_index(3)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().weight;
 			let call_len = call.encoded_size() as u32;
-			T::WeightInfo::dispatch_with_gas_limit(call_len)
-				.saturating_add(call_weight.min(Weight::from_parts(*gas_limit, 0)))
+			let gas_weight = T::GasWeightMapping::gas_to_weight(*extra_gas, true);
+			T::WeightInfo::dispatch_with_extra_gas(call_len)
+				.saturating_add(call_weight)
+				.saturating_add(gas_weight)
 		})]
-		pub fn dispatch_with_gas_limit(
+		pub fn dispatch_with_extra_gas(
 			origin: OriginFor<T>,
 			call: Box<<T as Config>::RuntimeCall>,
-			gas_limit: u64,
+			extra_gas: u64,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
 			// Store the gas limit for this account
-			AccountGasLimits::<T>::insert(&who, gas_limit);
+			AccountGasLimits::<T>::insert(&who, extra_gas);
 
 			// Dispatch the call
 			let (result, _) = Self::do_dispatch(who.clone(), *call);

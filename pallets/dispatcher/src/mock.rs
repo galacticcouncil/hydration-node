@@ -27,6 +27,7 @@
 
 use crate as dispatcher;
 use crate::Config;
+use frame_support::pallet_prelude::Weight;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -93,6 +94,16 @@ parameter_type_with_key! {
 	};
 }
 
+pub struct MockGasWeightMapping;
+impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
+	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
+		Weight::zero()
+	}
+	fn weight_to_gas(_weight: Weight) -> u64 {
+		0
+	}
+}
+
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
@@ -101,6 +112,7 @@ impl dispatcher::Config for Test {
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
+	type GasWeightMapping = MockGasWeightMapping;
 }
 
 parameter_types! {

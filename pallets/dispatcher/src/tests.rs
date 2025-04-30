@@ -55,7 +55,7 @@ fn dispatch_as_treasury_should_fail_when_bad_origin() {
 }
 
 #[test]
-fn dispatch_with_gas_limit_should_work() {
+fn dispatch_with_extra_gas_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange
 		let call = Box::new(RuntimeCall::Tokens(orml_tokens::Call::transfer {
@@ -66,13 +66,13 @@ fn dispatch_with_gas_limit_should_work() {
 
 		let alice_initial_balance = Tokens::free_balance(HDX, &ALICE);
 		let bob_initial_balance = Tokens::free_balance(HDX, &BOB);
-		let gas_limit = 1_000_000_000;
+		let extra_gas = 1_000_000_000;
 
 		// Act
-		assert_ok!(Dispatcher::dispatch_with_gas_limit(
+		assert_ok!(Dispatcher::dispatch_with_extra_gas(
 			RuntimeOrigin::signed(ALICE),
 			call,
-			gas_limit
+			extra_gas
 		));
 
 		// Assert
@@ -86,7 +86,7 @@ fn dispatch_with_gas_limit_should_work() {
 }
 
 #[test]
-fn dispatch_with_gas_limit_should_fail_when_call_fails() {
+fn dispatch_with_extra_gas_should_fail_when_call_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange - try to transfer more than available balance
 		let alice_initial_balance = Tokens::free_balance(HDX, &ALICE);
@@ -98,10 +98,10 @@ fn dispatch_with_gas_limit_should_fail_when_call_fails() {
 			amount: alice_initial_balance + 1, // more than ALICE has
 		}));
 
-		let gas_limit = 1_000_000_000;
+		let extra_gas = 1_000_000_000;
 
 		// Act
-		let result = Dispatcher::dispatch_with_gas_limit(RuntimeOrigin::signed(ALICE), call, gas_limit);
+		let result = Dispatcher::dispatch_with_extra_gas(RuntimeOrigin::signed(ALICE), call, extra_gas);
 
 		// Assert
 		assert!(result.is_err());
@@ -123,7 +123,7 @@ fn get_gas_limit_should_work() {
 
 		// Set a gas limit through dispatch
 		let call = Box::new(RuntimeCall::System(frame_system::Call::remark { remark: vec![] }));
-		assert_ok!(Dispatcher::dispatch_with_gas_limit(
+		assert_ok!(Dispatcher::dispatch_with_extra_gas(
 			RuntimeOrigin::signed(ALICE),
 			call,
 			1000
