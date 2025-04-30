@@ -91,6 +91,10 @@ pub mod pallet {
 	#[pallet::getter(fn aave_manager_account)]
 	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn account_gas_limits)]
+	pub type AccountGasLimits<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u64, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -169,6 +173,35 @@ pub mod pallet {
 			AaveManagerAccount::<T>::put(account);
 			Ok(())
 		}
+
+		/// Dispatch a call with a gas limit.
+		///
+		/// This allows executing calls with a specified maximum weight (gas) limit.
+		/// The call will fail if it would consume more weight than the specified limit.
+		#[pallet::call_index(3)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().weight;
+			let call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_with_gas_limit(call_len)
+				.saturating_add(call_weight.min(Weight::from_parts(*gas_limit, 0)))
+		})]
+		pub fn dispatch_with_gas_limit(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+			gas_limit: u64,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			// Store the gas limit for this account
+			AccountGasLimits::<T>::insert(&who, gas_limit);
+
+			// Dispatch the call
+			let (result, _) = Self::do_dispatch(who.clone(), *call);
+
+			// Clean up storage
+			AccountGasLimits::<T>::remove(&who);
+			result
+		}
 	}
 }
 
@@ -188,5 +221,27 @@ impl<T: Config> Pallet<T> {
 		};
 
 		(result, call_actual_weight)
+	}
+}
+
+// PUBLIC API
+impl<T: Config> Pallet<T> {
+	/// Get the gas limit for a specific account.
+	pub fn get_gas_limit(account: &T::AccountId) -> u64 {
+		AccountGasLimits::<T>::get(account).unwrap_or(0u64)
+	}
+
+	/// Set the gas limit for a specific account.
+	pub fn decrease_gas_limit(account: &T::AccountId, amount: u64) {
+		if amount == 0 {
+			return;
+		}
+		let Some(current_limit) = AccountGasLimits::<T>::take(account) else {
+			return;
+		};
+		let new_limit = current_limit.saturating_sub(amount);
+		if new_limit > 0 {
+			AccountGasLimits::<T>::insert(account, new_limit);
+		}
 	}
 }
