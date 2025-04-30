@@ -4814,6 +4814,7 @@ dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
  "parity-scale-codec",
+ "primitives",
  "scale-info",
  "serde",
  "sp-arithmetic",

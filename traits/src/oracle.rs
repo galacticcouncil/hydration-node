@@ -4,6 +4,7 @@ use crate::router::Trade;
 use codec::MaxEncodedLen;
 use frame_support::sp_runtime::traits::{AtLeast32BitUnsigned, One};
 use scale_info::TypeInfo;
+use primitives::constants::time::{MINUTES, HOURS, DAYS};
 
 /// Implementers of this trait provide the price of a given asset compared to the native currency.
 ///
@@ -58,10 +59,6 @@ pub enum OraclePeriod {
 	/// The oracle data was aggregated over the blocks of the last week.
 	Week,
 }
-const MILLISECS_PER_BLOCK: u64 = 6_000; //TODO: i wonder if we should include primitives and take it from there!
-const MINUTES: u64 = 60_000 / MILLISECS_PER_BLOCK;
-const HOURS: u64 = MINUTES * 60;
-const DAYS: u64 = HOURS * 24;
 
 impl OraclePeriod {
 	pub const fn all_periods() -> &'static [OraclePeriod] {
@@ -78,10 +75,10 @@ impl OraclePeriod {
 		match self {
 			OraclePeriod::LastBlock => 1,
 			OraclePeriod::Short => 20,
-			OraclePeriod::TenMinutes => 10 * MINUTES,
-			OraclePeriod::Hour => HOURS,
-			OraclePeriod::Day => DAYS,
-			OraclePeriod::Week => 7 * DAYS,
+			OraclePeriod::TenMinutes => 10 * MINUTES as u64,
+			OraclePeriod::Hour => HOURS as u64,
+			OraclePeriod::Day => DAYS as u64,
+			OraclePeriod::Week => 7 * DAYS as u64,
 		}
 	}
 }

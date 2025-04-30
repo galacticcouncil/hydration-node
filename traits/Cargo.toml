@@ -14,6 +14,9 @@ serde = { workspace = true }
 impl-trait-for-tuples = { workspace = true }
 sp-arithmetic = { workspace = true }
 
+# Local dependencies
+primitives = { workspace = true }
+
 # Substrate dependencies
 frame-support = { workspace = true }
 sp-std = { workspace = true }
