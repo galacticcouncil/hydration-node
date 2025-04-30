@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use crate::aave_router::with_aave;
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
@@ -33,7 +32,7 @@ use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
-use std::borrow::Cow;
+use std::{borrow::Cow, cmp::Ordering};
 use xcm_emulator::TestExt;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
@@ -1273,28 +1272,29 @@ mod chainlink_precompile {
 	};
 	use hydradx_traits::evm::EVM;
 	use hydradx_traits::evm::{CallContext, EvmAddress};
-	use hydradx_traits::router::{PoolType, RouteProvider, Trade};
+	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
 	use pallet_ema_oracle::Price;
 	use pallet_lbp::AssetId;
-	use pretty_assertions::assert_eq;
 	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
 
 	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, asset_a_decimals: u8, asset_b_decimals: u8) {
-		/// EMA price does not take into account decimals of the asset. Adjust the price accordingly.
+		// EMA price does not take into account decimals of the asset. Adjust the price accordingly.
 		let decimals_diff = U128::from(asset_a_decimals.abs_diff(asset_b_decimals));
-		let adjusted_price = if asset_a_decimals > asset_b_decimals {
-			let nominator = U256::from(ema_price.n);
-			let denominator = U128::full_mul(ema_price.d.into(), U128::from(10u128).pow(decimals_diff));
+		let adjusted_price = match asset_a_decimals.cmp(&asset_b_decimals) {
+			Ordering::Greater => {
+				let nominator = U256::from(ema_price.n);
+				let denominator = U128::full_mul(ema_price.d.into(), U128::from(10u128).pow(decimals_diff));
 
-			round_to_rational((nominator, denominator), Rounding::Nearest).into()
-		} else if asset_b_decimals > asset_a_decimals {
-			let nominator = U128::full_mul(ema_price.n.into(), U128::from(10u128).pow(decimals_diff));
-			let denominator = U256::from(ema_price.d);
+				round_to_rational((nominator, denominator), Rounding::Nearest).into()
+			}
+			Ordering::Less => {
+				let nominator = U128::full_mul(ema_price.n.into(), U128::from(10u128).pow(decimals_diff));
+				let denominator = U256::from(ema_price.d);
 
-			round_to_rational((nominator, denominator), Rounding::Nearest).into()
-		} else {
-			ema_price
+				round_to_rational((nominator, denominator), Rounding::Nearest).into()
+			}
+			Ordering::Equal => ema_price,
 		};
 
 		let decimals = 8u32;

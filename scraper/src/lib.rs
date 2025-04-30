@@ -2,14 +2,22 @@
 #![allow(clippy::type_complexity)]
 
 use codec::{Compact, Decode, Encode};
-use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion};
+use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion, Storage};
+use futures::StreamExt;
+use hydradx::chain_spec::hydradx::parachain_config;
+use sc_chain_spec::ChainSpec;
+use sp_core::storage::{StorageData, StorageKey};
 use sp_core::H256;
 use sp_io::TestExternalities;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 use std::{
 	fs,
 	path::{Path, PathBuf},
 	str::FromStr,
 };
+use substrate_rpc_client::ws_client;
+use substrate_rpc_client::StateApi;
 
 pub fn save_blocks_snapshot<Block: Encode>(data: &Vec<Block>, path: &Path) -> Result<(), &'static str> {
 	let mut path = path.to_path_buf();
@@ -116,93 +124,226 @@ pub fn extend_externalities<B: BlockT>(
 	Ok(ext)
 }
 
-pub const ALICE: [u8; 32] = [4u8; 32];
-pub const BOB: [u8; 32] = [5u8; 32];
+pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Result<(), &'static str> {
+	let rpc = ws_client(uri.clone())
+		.await
+		.map_err(|_| "Failed to create RPC client")?;
 
-#[cfg(test)]
-/// used in tests to generate TestExternalities
-fn externalities_from_genesis() -> TestExternalities {
-	use frame_support::sp_runtime::BuildStorage;
+	let mut storage_map = BTreeMap::new();
 
-	let mut storage = frame_system::GenesisConfig::<hydradx_runtime::Runtime>::default()
-		.build_storage()
+	let code_key = sp_core::storage::well_known_keys::CODE;
+	println!("Fetching WASM code with key: {}", hex::encode(code_key));
+
+	let wasm_code = StateApi::<H256>::storage(&rpc, StorageKey(code_key.to_vec()), at)
+		.await
+		.map_err(|e| {
+			println!("RPC error: {:?}", e);
+			"Failed to fetch WASM code from chain"
+		})?
+		.ok_or("WASM code not found in chain state")?;
+
+	println!("Saving WASM code with key: {}", hex::encode(code_key));
+
+	storage_map.insert(code_key.to_vec(), wasm_code.0);
+
+	println!("Reading all storage key-value pairs remotely");
+	let all_pairs = fetch_all_storage(uri, at)
+		.await
+		.map_err(|_| "Failed to fetch storage")
 		.unwrap();
 
-	pallet_balances::GenesisConfig::<hydradx_runtime::Runtime> {
-		balances: vec![(hydradx_runtime::AccountId::from(ALICE), 1_000_000_000_000_000)],
+	for (k, v) in all_pairs {
+		storage_map.insert(k.as_ref().to_vec(), v.0.to_vec());
 	}
-	.assimilate_storage(&mut storage)
-	.unwrap();
+	let storage = Storage {
+		top: storage_map,
+		children_default: HashMap::new(),
+	};
 
-	TestExternalities::new(storage)
+	let mut input_spec = parachain_config().unwrap();
+	input_spec.set_storage(storage);
+
+	println!("Generating new chain spec...");
+	let json = sc_service::chain_ops::build_spec(&input_spec, true).unwrap();
+
+	fs::write(path, json).map_err(|err| {
+		println!("Failed to write chainspec to file {:?}", err);
+		"Failed to write chainspec file"
+	})?;
+
+	Ok(())
+}
+use futures::stream::{self};
+use indicatif::{ProgressBar, ProgressStyle};
+
+const PAGE_SIZE: u32 = 1000; //Limiting as bigger values lead to error when calling PROD RPCs
+const CONCURRENCY: usize = 1000;
+
+const ESTIMATED_TOTAL_KEYS: u64 = 350_000;
+
+// Using the StateApi is the only easily working way to fetch all storage entries
+// Loading the SNAPSHOT or getting raw storage entries don't help as the keys contain additional hashing data,
+// so the keys are difficult to be cleaned up by trimming
+// StateApi call performances needed to be improved by using concurrency
+pub async fn fetch_all_storage(uri: String, at: Option<H256>) -> Result<Vec<(StorageKey, StorageData)>, &'static str> {
+	let rpc = Arc::new(ws_client(uri).await.map_err(|_| "Failed to create RPC client")?);
+
+	let mut all_pairs = Vec::new();
+	let mut start_key: Option<StorageKey> = None;
+
+	let pb = ProgressBar::new(ESTIMATED_TOTAL_KEYS);
+	pb.set_style(
+		ProgressStyle::with_template("{spinner} [{elapsed_precise}] [{wide_bar}] {pos}/{len}(approx.) keys")
+			.unwrap()
+			.progress_chars("#>-"),
+	);
+
+	loop {
+		let keys =
+			StateApi::<H256>::storage_keys_paged(&*rpc, Some(StorageKey(vec![])), PAGE_SIZE, start_key.clone(), at)
+				.await
+				.map_err(|_| "Failed to get keys")?;
+
+		if keys.is_empty() {
+			break;
+		}
+
+		let forbidden_keys = [
+			sp_core::storage::well_known_keys::HEAP_PAGES,
+			sp_core::storage::well_known_keys::EXTRINSIC_INDEX,
+			sp_core::storage::well_known_keys::INTRABLOCK_ENTROPY,
+			sp_core::storage::well_known_keys::CHILD_STORAGE_KEY_PREFIX,
+			sp_core::storage::well_known_keys::DEFAULT_CHILD_STORAGE_KEY_PREFIX,
+		];
+
+		let fetched: Vec<(StorageKey, StorageData)> = stream::iter(keys.clone())
+			.map(|key| {
+				let rpc = Arc::clone(&rpc);
+				async move {
+					match StateApi::<H256>::storage(&*rpc, key.clone(), at).await {
+						Ok(Some(value)) => Some((key, value)),
+						_ => None,
+					}
+				}
+			})
+			.buffer_unordered(CONCURRENCY)
+			.inspect(|res| {
+				if res.is_some() {
+					pb.inc(1);
+				}
+			})
+			.filter_map(futures::future::ready)
+			.filter(|(key, _value)| {
+				let raw_key = key.as_ref();
+				futures::future::ready({
+					raw_key == sp_core::storage::well_known_keys::CODE
+						|| !forbidden_keys.iter().any(|prefix| raw_key.starts_with(prefix))
+				})
+			})
+			.collect()
+			.await;
+
+		all_pairs.extend(fetched);
+
+		start_key = keys.last().cloned();
+	}
+
+	pb.finish_with_message("✅ Done fetching all storage key-value pairs..");
+	Ok(all_pairs)
 }
 
-#[test]
-fn extend_externalities_should_work() {
-	use frame_support::assert_ok;
+#[cfg(test)]
+mod test {
+	use super::*;
 
-	let ext = externalities_from_genesis();
+	pub const ALICE: [u8; 32] = [4u8; 32];
+	pub const BOB: [u8; 32] = [5u8; 32];
 
-	let mut modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			0
-		);
-		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			BOB.into(),
-			1_000_000_000_000,
-		));
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			1_000_000_000_000
-		);
-	})
-	.unwrap();
+	#[cfg(test)]
+	/// used in tests to generate TestExternalities
+	fn externalities_from_genesis() -> TestExternalities {
+		use frame_support::sp_runtime::BuildStorage;
 
-	modified_ext.execute_with(|| {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			1_000_000_000_000
-		);
-	});
-}
+		let mut storage = frame_system::GenesisConfig::<hydradx_runtime::Runtime>::default()
+			.build_storage()
+			.unwrap();
 
-#[test]
-fn save_and_load_externalities_should_work() {
-	use frame_support::assert_ok;
+		pallet_balances::GenesisConfig::<hydradx_runtime::Runtime> {
+			balances: vec![(hydradx_runtime::AccountId::from(ALICE), 1_000_000_000_000_000)],
+		}
+		.assimilate_storage(&mut storage)
+		.unwrap();
 
-	let ext = externalities_from_genesis();
+		TestExternalities::new(storage)
+	}
 
-	let modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			0
-		);
-		assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			BOB.into(),
-			1_000_000_000_000,
-		));
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			1_000_000_000_000
-		);
-	})
-	.unwrap();
+	#[test]
+	fn extend_externalities_should_work() {
+		use frame_support::assert_ok;
 
-	let path = std::path::PathBuf::from("./SNAPSHOT");
+		let ext = externalities_from_genesis();
 
-	save_externalities::<hydradx_runtime::Block>(modified_ext, path.clone()).unwrap();
+		let mut modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				0
+			);
+			assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				1_000_000_000_000,
+			));
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				1_000_000_000_000
+			);
+		})
+		.unwrap();
 
-	let mut ext_from_snapshot = load_snapshot::<hydradx_runtime::Block>(path.clone()).unwrap();
+		modified_ext.execute_with(|| {
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				1_000_000_000_000
+			);
+		});
+	}
 
-	fs::remove_file(path).unwrap();
+	#[test]
+	fn save_and_load_externalities_should_work() {
+		use frame_support::assert_ok;
 
-	ext_from_snapshot.execute_with(|| {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
-			1_000_000_000_000
-		);
-	});
+		let ext = externalities_from_genesis();
+
+		let modified_ext = extend_externalities::<hydradx_runtime::Block>(ext, || {
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				0
+			);
+			assert_ok!(hydradx_runtime::Balances::transfer_allow_death(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				1_000_000_000_000,
+			));
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				1_000_000_000_000
+			);
+		})
+		.unwrap();
+
+		let path = std::path::PathBuf::from("./SNAPSHOT");
+
+		save_externalities::<hydradx_runtime::Block>(modified_ext, path.clone()).unwrap();
+
+		let mut ext_from_snapshot = load_snapshot::<hydradx_runtime::Block>(path.clone()).unwrap();
+
+		fs::remove_file(path).unwrap();
+
+		ext_from_snapshot.execute_with(|| {
+			assert_eq!(
+				hydradx_runtime::Balances::free_balance(hydradx_runtime::AccountId::from(BOB)),
+				1_000_000_000_000
+			);
+		});
+	}
 }
