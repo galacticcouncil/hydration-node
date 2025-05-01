@@ -38,6 +38,7 @@ pub enum AggregatorInterface {
 	LatestRound = "latestRound()",
 	GetAnswer = "getAnswer(uint256)",
 	GetTimestamp = "getTimestamp(uint256)",
+	Decimals = "decimals()",
 }
 
 pub struct ChainlinkOraclePrecompile<Runtime>(PhantomData<Runtime>);
@@ -73,6 +74,7 @@ where
 				AggregatorInterface::GetAnswer | AggregatorInterface::LatestAnswer => {
 					Self::get_oracle_entry(asset_id_a, asset_id_b, period, source, handle)
 				}
+				AggregatorInterface::Decimals => Ok(succeed(Output::encode_uint::<u8>(8_u8))),
 				_ => Self::not_supported(),
 			};
 		}
