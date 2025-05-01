@@ -90,4 +90,9 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
         Weight::from_parts(3_864_000, 0)
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
+
+    fn dispatch_with_extra_gas(n: u32) -> Weight {
+        Weight::from_parts(3_864_000, 0)
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
 }

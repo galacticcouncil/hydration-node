@@ -41,7 +41,7 @@ pub struct Erc20Currency<T>(PhantomData<T>);
 
 impl<T> ERC20 for Erc20Currency<T>
 where
-	T: pallet_evm::Config,
+	T: pallet_evm::Config + pallet_dispatcher::Config,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
@@ -209,7 +209,7 @@ fn handle_result(result: CallResult) -> DispatchResult {
 
 impl<T> MultiCurrency<AccountId> for Erc20Currency<T>
 where
-	T: Config + pallet_evm::Config,
+	T: Config + pallet_evm::Config + pallet_dispatcher::Config,
 	pallet_evm_accounts::Pallet<T>: InspectEvmAccounts<AccountId>,
 	AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,

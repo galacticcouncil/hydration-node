@@ -1,3 +1,4 @@
+use crate::evm::ExtendedAddressMapping;
 use evm::executor::stack::{StackExecutor, StackSubstateMetadata};
 use evm::ExitFatal::Other;
 use evm::ExitReason;
@@ -52,15 +53,28 @@ where
 
 impl<T> EVM<CallResult> for Executor<T>
 where
-	T: Config + frame_system::Config,
+	T: Config + frame_system::Config + pallet_dispatcher::Config,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
 {
 	fn call(context: CallContext, data: Vec<u8>, value: U256, gas: u64) -> CallResult {
-		Self::execute(context.origin, gas, |executor| {
-			executor.transact_call(context.sender, context.contract, value, data, gas, vec![])
+		let extra_gas = pallet_dispatcher::Pallet::<T>::get_account_extra_gas(&context.sender);
+		let gas_limit = gas.saturating_add(extra_gas);
+		log::trace!(target: "evm::executor", "Call with extra gas {:?}", extra_gas);
+
+		Self::execute(context.origin, gas_limit, |executor| {
+			let result = executor.transact_call(context.sender, context.contract, value, data, gas_limit, vec![]);
+			log::trace!(target: "evm::executor", "Call executed - used gas {:?}", executor.used_gas());
+
+			if extra_gas > 0 {
+				let extra_gas_used = executor.used_gas().saturating_sub(gas);
+				log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
+				pallet_dispatcher::Pallet::<T>::decrease_extra_gas(&context.sender, extra_gas_used);
+			}
+
+			result
 		})
 	}
 

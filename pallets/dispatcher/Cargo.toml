@@ -15,6 +15,7 @@ codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 scale-info = { workspace = true }
 
 pallet-evm = { workspace = true }
+hydradx-traits = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -49,6 +50,7 @@ std = [
     'orml-tokens/std',
     'orml-traits/std',
     "pallet-evm/std",
+    "hydradx-traits/std",
 ]
 
 runtime-benchmarks = [

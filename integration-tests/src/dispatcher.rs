@@ -1,8 +1,15 @@
+use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
-use frame_support::assert_ok;
+use fp_evm::PrecompileSet;
+use frame_support::{assert_noop, assert_ok};
+use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
+use orml_traits::MultiCurrency;
 use primitives::EvmAddress;
+use scraper::BOB;
+use sp_core::crypto::AccountId32;
+use sp_core::Encode;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
 use test_utils::last_events;
@@ -80,5 +87,66 @@ fn dispatch_as_aave_admin_can_modify_supply_cap_on_testnet() {
 			}) => {}
 			_ => panic!("Unexpected event: {:?}", event),
 		}
+	});
+}
+
+#[test]
+fn dispatch_with_extra_gas_should_work() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = crate::utils::contracts::deploy_contract("GasEater", crate::contracts::deployer());
+		let erc20 = crate::erc20::bind_erc20(contract);
+
+		// Act
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: erc20,
+			amount: 100,
+		});
+
+		let batch = RuntimeCall::Utility(
+			(pallet_utility::Call::batch_all {
+				calls: vec![call.clone(), call.clone(), call.clone()],
+			}),
+		);
+		assert_ok!(Dispatcher::dispatch_with_extra_gas(
+			RuntimeOrigin::signed(ALICE.into()),
+			Box::new(batch.clone()),
+			130_000,
+		));
+
+		//Assert
+		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 300);
+	});
+}
+
+#[test]
+fn dispatch_with_extra_gas_should_fail_when_extra_gas_is_not_enough() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = crate::utils::contracts::deploy_contract("GasEater", crate::contracts::deployer());
+		let erc20 = crate::erc20::bind_erc20(contract);
+
+		// Act
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: erc20,
+			amount: 100,
+		});
+
+		let batch = RuntimeCall::Utility(
+			(pallet_utility::Call::batch_all {
+				calls: vec![call.clone(), call.clone(), call.clone()],
+			}),
+		);
+		let result =
+			Dispatcher::dispatch_with_extra_gas(RuntimeOrigin::signed(ALICE.into()), Box::new(batch.clone()), 50_000);
+
+		assert!(result.is_err());
+
+		//Assert
+		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 0);
 	});
 }
