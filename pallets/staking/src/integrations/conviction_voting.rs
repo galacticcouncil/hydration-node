@@ -56,7 +56,7 @@ where
 
 			// We are capping vote by min(position stake, user's balance - vested amount - locked
 			// rewards).
-			// Sub of vested and lockek rewards is necessary because locks overlay so users may end
+			// Sub of vested and locked rewards is necessary because locks overlay so users may end
 			// up in the situation where portion of the staking lock is also vested or locked
 			// rewads and we don't want to assign points for it.
 			let max_vote = T::Currency::free_balance(T::NativeAssetId::get(), who)
@@ -119,8 +119,12 @@ where
 							position.action_points = position.action_points.saturating_add(points);
 						}
 					}
-					Votes::<T>::mutate(position_id, |voting| {
+					Votes::<T>::mutate_exists(position_id, |voting| {
 						voting.votes.remove(vote_idx);
+						// Clear the entry from Votes if position has no more votes stored
+						if voting.len() == 0 {
+							voting = None;
+						}
 					});
 				}
 			}
