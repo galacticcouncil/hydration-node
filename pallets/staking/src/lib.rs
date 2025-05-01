@@ -442,7 +442,7 @@ pub mod pallet {
 
 		/// Extrinsic to increase staked amount of existing staking position by specified `amount`.
 		///
-		/// `increase_stake` increases staked amount of position specified by `postion_id` by the
+		/// `increase_stake` increases staked amount of position specified by `position_id` by the
 		/// `amount` specified by the user.
 		/// Staking position must exist and `origin` has to be the owner of the position.
 		/// Users can stake tokens which are not vested or already staked.
