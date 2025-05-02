@@ -117,6 +117,9 @@ impl Contains<RuntimeCall> for CallFilter {
 			RuntimeCall::EVM(pallet_evm::Call::create { .. }) => false,
 			RuntimeCall::EVM(pallet_evm::Call::create2 { .. }) => false,
 			RuntimeCall::OrmlXcm(_) => false,
+			//NOTE: this prevents creation of thombstone positions if nft was burned outside
+			//of pallet that created it.
+			RuntimeCall::Uniques(pallet_uniques::Call::burn { .. }) => false,
 			_ => true,
 		}
 	}
@@ -155,7 +158,7 @@ parameter_types! {
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: frame_system::limits::BlockLength =
 		frame_system::limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub const SS58Prefix: u16 = 63;
+	pub const SS58Prefix: u16 = 0;
 }
 
 //We get the base and add the multi payment overhead until we have proper solution for calculating ExtrinsicBaseWeight by using the benchmark overhead command.

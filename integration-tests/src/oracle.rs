@@ -4,7 +4,6 @@ use crate::polkadot_test_net::*;
 
 use frame_support::assert_noop;
 use frame_support::dispatch::GetDispatchInfo;
-use frame_support::pallet_prelude::Encode;
 use frame_support::storage::with_transaction;
 use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
@@ -13,6 +12,7 @@ use frame_support::{
 	sp_runtime::{FixedU128, Permill},
 	traits::tokens::fungibles::Mutate,
 };
+use hydra_dx_math::ema::smoothing_from_period;
 use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::AssetRegistry;
@@ -24,14 +24,12 @@ use hydradx_traits::{
 	OraclePeriod::{self, *},
 };
 use orml_traits::MultiCurrency;
+use pallet_ema_oracle::into_smoothing;
+use pallet_ema_oracle::OracleError;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_transaction_payment::ChargeTransactionPayment;
-use polkadot_xcm::latest::{Asset, Location, MaybeErrorCode, OriginKind, Xcm};
-use polkadot_xcm::prelude::{
-	AccountId32, All, BuyExecution, DepositAsset, ExpectTransactStatus, Fungible, Here, RefundSurplus, Transact,
-	Unlimited, Wild, WithdrawAsset,
-};
-use sp_runtime::traits::{AccountIdConversion, SignedExtension};
+use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
@@ -39,12 +37,6 @@ use sp_std::sync::Arc;
 use xcm_builder::{DescribeAllTerminal, DescribeFamily, HashedDescription};
 use xcm_emulator::ConvertLocation;
 
-use hydra_dx_math::ema::smoothing_from_period;
-
-use pallet_ema_oracle::into_smoothing;
-use pallet_ema_oracle::OracleError;
-use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
-use scraper::ALICE;
 use xcm_emulator::TestExt;
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
@@ -421,7 +413,7 @@ fn bifrost_oracle_should_be_added_when_pair_not_whitelisted() {
 fn bifrost_oracle_update_should_return_fee() {
 	// arrange
 	TestNet::reset();
-	let (asset_a_id, asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
+	let (_asset_a_id, _asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 	let balance = 10 * UNITS;
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -471,7 +463,7 @@ fn bifrost_oracle_update_should_return_fee() {
 fn bifrost_oracle_update_fail_should_charge_fee() {
 	// arrange
 	TestNet::reset();
-	let (asset_a_id, asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
+	let (_asset_a_id, _asset_b_id, asset_a, asset_b) = arrange_bifrost_assets();
 	Hydra::execute_with(|| {
 		let balance = hydradx_runtime::Currencies::free_balance(0, &ALICE.into());
 		let oracle_call = hydradx_runtime::RuntimeCall::EmaOracle(

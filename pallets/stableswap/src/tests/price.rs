@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::tests::*;
 use crate::types::PoolInfo;
 use frame_support::assert_ok;

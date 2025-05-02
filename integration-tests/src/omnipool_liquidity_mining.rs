@@ -892,8 +892,8 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 				who: CHARLIE.into(),
 				shares: 20044549999405,
 				assets: vec![
-					AssetAmount::new(stable_asset_1, 10 * UNITS),
 					AssetAmount::new(stable_asset_2, 10 * UNITS),
+					AssetAmount::new(stable_asset_1, 10 * UNITS),
 				],
 			}
 			.into()]);
@@ -1035,8 +1035,8 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_whe
 				who: CHARLIE.into(),
 				shares: 20044549999405,
 				assets: vec![
-					AssetAmount::new(stable_asset_1, 10 * UNITS),
 					AssetAmount::new(stable_asset_2, 10 * UNITS),
+					AssetAmount::new(stable_asset_1, 10 * UNITS),
 				],
 			}
 			.into()]);

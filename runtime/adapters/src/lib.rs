@@ -340,7 +340,8 @@ where
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
-		+ pallet_referrals::Config,
+		+ pallet_referrals::Config
+		+ pallet_broadcast::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
@@ -477,6 +478,9 @@ where
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
+		//Within router, we use router as trader account, so we should get the actual user account to correctly process trade fee and accrue rewards
+		let trader = pallet_broadcast::Pallet::<Runtime>::get_swapper().unwrap_or(trader);
+
 		if asset == Lrna::get() {
 			return Ok(vec![]);
 		}
