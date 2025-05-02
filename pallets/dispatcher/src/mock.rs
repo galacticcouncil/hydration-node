@@ -26,7 +26,7 @@
 //                  $$$
 
 use crate as dispatcher;
-use crate::Config;
+use crate::*;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -37,16 +37,19 @@ use frame_system::EnsureRoot;
 use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
-use sp_core::H256;
+use sp_core::{ByteArray, H256, U256};
 use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
-	BuildStorage, Permill,
+	BuildStorage, MultiSignature, Permill,
 };
 use std::{cell::RefCell, collections::HashMap};
+use evm::{ExitReason, ExitSucceed};
+use frame_support::pallet_prelude::Weight;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
-pub type AccountId = u64;
+pub type Signature = MultiSignature;
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type Amount = i128;
 pub type AssetId = u32;
 pub type Balance = u128;
@@ -59,8 +62,8 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-pub const ALICE: AccountId = 1;
-pub const BOB: AccountId = 2;
+pub const ALICE: AccountId = AccountId::new([1; 32]);
+pub const BOB: AccountId = AccountId::new([2; 32]);
 
 pub const TREASURY_INITIAL_BALANCE: Balance = 1_000_000 * ONE;
 
@@ -93,6 +96,31 @@ parameter_type_with_key! {
 	};
 }
 
+pub struct DummyGasWeightMapping;
+impl GasWeightMapping for DummyGasWeightMapping {
+	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
+		Weight::zero()
+	}
+	fn weight_to_gas(_weight: Weight) -> u64 {
+		0
+	}
+}
+
+pub struct EvmMock;
+impl EVM<CallResult> for EvmMock {
+	fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> CallResult {
+		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
+	}
+
+	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
+		unimplemented!()
+	}
+}
+
+parameter_types! {
+	pub const DispatcherGasLimit: u64 = 1_000_000;
+}
+
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
@@ -101,6 +129,10 @@ impl dispatcher::Config for Test {
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
+	type Evm = EvmMock;
+	type EvmAccounts = MockEvmAccounts;
+	type GasLimit = DispatcherGasLimit;
+	type GasWeightMapping = DummyGasWeightMapping;
 }
 
 parameter_types! {
@@ -120,7 +152,7 @@ impl system::Config for Test {
 	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
@@ -195,10 +227,13 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 }
 
+use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
+use sp_runtime::traits::{IdentifyAccount, Verify};
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchError;
+
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T> {
 	type Error = DispatchError;
@@ -244,7 +279,7 @@ impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T> {
 }
 
 pub struct ExtBuilder {
-	endowed_accounts: Vec<(u64, AssetId, Balance)>,
+	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<AssetId>,
 }
 
@@ -300,7 +335,7 @@ impl ExtBuilder {
 			balances: self
 				.endowed_accounts
 				.iter()
-				.flat_map(|(x, asset, amount)| vec![(*x, *asset, *amount * 10u128.pow(precision(*asset)))])
+				.flat_map(|(x, asset, amount)| vec![(x.clone(), *asset, *amount * 10u128.pow(precision(*asset)))])
 				.collect(),
 		}
 		.assimilate_storage(&mut t)
@@ -316,9 +351,9 @@ impl ExtBuilder {
 	}
 }
 
-// thread_local! {
-// 	pub static DUMMYTHREADLOCAL: RefCell<u128> = const { RefCell::new(100) };
-// }
+thread_local! {
+	pub static EVM_ADDRESS_MAP: RefCell<HashMap<EvmAddress, AccountId>> = RefCell::new(HashMap::default());
+}
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
@@ -326,4 +361,48 @@ pub fn expect_events(e: Vec<RuntimeEvent>) {
 
 pub fn precision(asset_id: AssetId) -> u32 {
 	PRECISIONS.with(|v| *v.borrow().get(&asset_id).unwrap_or(&12))
+}
+
+// Mock EvmAccounts implementation
+pub struct MockEvmAccounts;
+
+fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
+	let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
+
+	if evm_addr == alice_evm {
+		ALICE
+	} else {
+		EVM_ADDRESS_MAP.with(|v| v.borrow().get(&evm_addr).cloned().expect("EVM address not found"))
+	}
+}
+
+impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
+	fn is_evm_account(_account_id: AccountId) -> bool {
+		unimplemented!()
+	}
+
+	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
+		let acc = account_id.as_ref();
+		EvmAddress::from_slice(&acc[..20])
+	}
+
+	fn truncated_account_id(_evm_address: EvmAddress) -> AccountId {
+		unimplemented!()
+	}
+
+	fn bound_account_id(_evm_address: EvmAddress) -> Option<AccountId> {
+		unimplemented!()
+	}
+
+	fn account_id(evm_address: EvmAddress) -> AccountId {
+		map_to_acc(evm_address)
+	}
+
+	fn can_deploy_contracts(_evm_address: EvmAddress) -> bool {
+		unimplemented!()
+	}
+
+	fn is_approved_contract(_address: EvmAddress) -> bool {
+		unimplemented!()
+	}
 }

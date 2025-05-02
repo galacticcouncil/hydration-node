@@ -28,12 +28,14 @@
 use super::*;
 
 use frame_benchmarking::benchmarks;
+use frame_support::traits::IsType;
 use frame_system::RawOrigin;
 use sp_std::boxed::Box;
 
 benchmarks! {
 	where_clause { where
 		T: crate::Config,
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	}
 
 	dispatch_as_treasury {

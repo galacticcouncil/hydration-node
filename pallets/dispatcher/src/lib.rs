@@ -27,10 +27,10 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// #[cfg(test)]
-// pub mod mock;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+pub mod mock;
+#[cfg(test)]
+mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -43,7 +43,7 @@ use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use pallet_evm::GasWeightMapping;
 use sp_core::{crypto::AccountId32, U256};
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
-use sp_std::{vec, vec::Vec};
+use sp_std::vec::Vec;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -56,6 +56,7 @@ pub type CallResult = (ExitReason, Vec<u8>);
 pub mod pallet {
 	use super::*;
 	use codec::FullCodec;
+	use evm::ExitSucceed;
 	use frame_support::{
 		dispatch::{GetDispatchInfo, PostDispatchInfo},
 		pallet_prelude::*,
@@ -114,9 +115,7 @@ pub mod pallet {
 	pub enum Error<T> {
 		TreasuryManagerCallFailed,
 		AaveManagerCallFailed,
-		TooManyCalls,
 		EvmCallFailed,
-		EmptyBatch,
 	}
 
 	#[pallet::event]
@@ -129,16 +128,6 @@ pub mod pallet {
 		AaveManagerCallDispatched {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
-		},
-		EvmBatchDispatched {
-			caller: T::AccountId,
-			num_calls: u32,
-		},
-		/// An individual EVM call in a batch completed successfully
-		EvmCallCompleted {
-			caller: T::AccountId,
-			target: EvmAddress,
-			input: Vec<u8>,
 		},
 	}
 
@@ -224,10 +213,7 @@ pub mod pallet {
 		///
 		/// Emits `EvmCallSuccess` event when successful.
 		#[pallet::call_index(4)]
-		#[pallet::weight({
-			let gas_weight = T::GasWeightMapping::gas_to_weight(T::GasLimit::get(), true);
-			T::WeightInfo::dispatch_evm_call().saturating_add(gas_weight)
-		})]
+		#[pallet::weight(T::GasWeightMapping::gas_to_weight(T::GasLimit::get(), false))]
 		pub fn dispatch_evm_call(
 			origin: OriginFor<T>,
 			target: EvmAddress,
@@ -242,15 +228,7 @@ pub mod pallet {
 
 			// If the call fails, return an error
 			match exit_reason {
-				ExitReason::Succeed(_) => {
-					let gas_used = T::GasLimit::get(); // TODO: We could potentially get actual gas used from EVM
-					let call_weight = T::GasWeightMapping::gas_to_weight(gas_used, true);
-					let total_weight = T::WeightInfo::dispatch_evm_call().saturating_add(call_weight);
-
-					Self::deposit_event(Event::<T>::EvmCallCompleted { caller: who, target, input });
-
-					Ok(Some(total_weight).into())
-				}
+				ExitReason::Succeed(ExitSucceed::Returned) => Ok(Pays::No.into()),
 				_ => {
 					log::debug!(
 						target: "dispatcher",
@@ -259,10 +237,8 @@ pub mod pallet {
 						output
 					);
 
-					let gas_used = T::GasLimit::get(); // Use maximum gas as an approximation
-					let call_weight = T::GasWeightMapping::gas_to_weight(gas_used, true);
-					let total_weight = T::WeightInfo::dispatch_evm_call().saturating_add(call_weight);
-
+					// TODO: can we get actual gas used?
+					let total_weight = T::GasWeightMapping::gas_to_weight(T::GasLimit::get(), false);
 					Err(Error::<T>::EvmCallFailed.with_weight(total_weight))
 				}
 			}

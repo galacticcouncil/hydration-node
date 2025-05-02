@@ -241,8 +241,7 @@ impl pallet_dispatcher::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type Evm = DummyEvm;
 	type EvmAccounts = EVMAccounts;
-	// FIXME: change to proper gaslimit;
-	type GasLimit = LiquidationGasLimit;
+	type GasLimit = LiquidationGasLimit; // FIXME: change to proper gaslimit;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
