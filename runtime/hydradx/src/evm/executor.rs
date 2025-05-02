@@ -60,7 +60,7 @@ where
 	NonceIdOf<T>: Into<T::Nonce>,
 {
 	fn call(context: CallContext, data: Vec<u8>, value: U256, gas: u64) -> CallResult {
-		let extra_gas = pallet_dispatcher::Pallet::<T>::get_account_extra_gas(&context.sender);
+		let extra_gas = pallet_dispatcher::Pallet::<T>::extra_gas();
 		let gas_limit = gas.saturating_add(extra_gas);
 		log::trace!(target: "evm::executor", "Call with extra gas {:?}", extra_gas);
 
@@ -71,7 +71,7 @@ where
 			if extra_gas > 0 {
 				let extra_gas_used = executor.used_gas().saturating_sub(gas);
 				log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
-				pallet_dispatcher::Pallet::<T>::decrease_extra_gas(&context.sender, extra_gas_used);
+				pallet_dispatcher::Pallet::<T>::decrease_extra_gas(extra_gas_used);
 			}
 
 			result

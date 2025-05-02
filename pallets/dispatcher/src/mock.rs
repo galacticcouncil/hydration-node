@@ -38,17 +38,16 @@ use frame_system::EnsureRoot;
 use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
-use sp_core::{ByteArray, H256};
+use sp_core::H256;
 use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
-	BuildStorage, MultiSignature, Permill,
+	BuildStorage, Permill,
 };
 use std::{cell::RefCell, collections::HashMap};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
-pub type Signature = MultiSignature;
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type AccountId = u64;
 pub type Amount = i128;
 pub type AssetId = u32;
 pub type Balance = u128;
@@ -61,8 +60,8 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-pub const ALICE: AccountId = AccountId::new([1; 32]);
-pub const BOB: AccountId = AccountId::new([2; 32]);
+pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
 
 pub const TREASURY_INITIAL_BALANCE: Balance = 1_000_000 * ONE;
 
@@ -114,7 +113,6 @@ impl dispatcher::Config for Test {
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
 	type GasWeightMapping = MockGasWeightMapping;
-	type EvmAccounts = MockEvmAccounts;
 }
 
 parameter_types! {
@@ -209,10 +207,8 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 }
 
-use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
-use sp_runtime::traits::{IdentifyAccount, Verify};
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchError;
 
@@ -333,58 +329,10 @@ impl ExtBuilder {
 	}
 }
 
-thread_local! {
-	pub static EVM_ADDRESS_MAP: RefCell<HashMap<EvmAddress, AccountId>> = RefCell::new(HashMap::default());
-}
-
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
 
 pub fn precision(asset_id: AssetId) -> u32 {
 	PRECISIONS.with(|v| *v.borrow().get(&asset_id).unwrap_or(&12))
-}
-
-// Mock EvmAccounts implementation
-pub struct MockEvmAccounts;
-
-fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
-	let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
-
-	if evm_addr == alice_evm {
-		ALICE
-	} else {
-		EVM_ADDRESS_MAP.with(|v| v.borrow().get(&evm_addr).cloned().expect("EVM address not found"))
-	}
-}
-
-impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
-	fn is_evm_account(_account_id: AccountId) -> bool {
-		unimplemented!()
-	}
-
-	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
-		let acc = account_id.as_ref();
-		EvmAddress::from_slice(&acc[..20])
-	}
-
-	fn truncated_account_id(_evm_address: EvmAddress) -> AccountId {
-		unimplemented!()
-	}
-
-	fn bound_account_id(_evm_address: EvmAddress) -> Option<AccountId> {
-		unimplemented!()
-	}
-
-	fn account_id(evm_address: EvmAddress) -> AccountId {
-		map_to_acc(evm_address)
-	}
-
-	fn can_deploy_contracts(_evm_address: EvmAddress) -> bool {
-		unimplemented!()
-	}
-
-	fn is_approved_contract(_address: EvmAddress) -> bool {
-		unimplemented!()
-	}
 }

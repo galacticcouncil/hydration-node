@@ -45,7 +45,6 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::pallet_prelude::Weight;
-use hydradx_traits::evm::EvmAddress;
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -57,7 +56,6 @@ pub mod pallet {
 		pallet_prelude::*,
 	};
 	use frame_system::pallet_prelude::*;
-	use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
 	use sp_runtime::traits::{Dispatchable, Hash};
 	use sp_std::boxed::Box;
 
@@ -83,9 +81,6 @@ pub mod pallet {
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
 
-		/// EVM address converter.
-		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
-
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
 
@@ -101,8 +96,8 @@ pub mod pallet {
 	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn account_extra_gas)]
-	pub type AccountExtraGas<T: Config> = StorageMap<_, Blake2_128Concat, EvmAddress, u64, OptionQuery>;
+	#[pallet::getter(fn extra_gas)]
+	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -118,10 +113,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
-	{
+	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().weight;
@@ -203,22 +195,17 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			call: Box<<T as Config>::RuntimeCall>,
 			extra_gas: u64,
-		) -> DispatchResultWithPostInfo
-		where
-			<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
-		{
+		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			let evm_address = T::EvmAccounts::evm_address(&who);
-
 			// Store the gas limit for this account
-			AccountExtraGas::<T>::insert(&evm_address, extra_gas);
+			ExtraGas::<T>::set(extra_gas);
 
 			// Dispatch the call
 			let (result, _) = Self::do_dispatch(who.clone(), *call);
 
 			// Clean up storage
-			AccountExtraGas::<T>::remove(&evm_address);
+			ExtraGas::<T>::kill();
 			result
 		}
 	}
@@ -245,22 +232,15 @@ impl<T: Config> Pallet<T> {
 
 // PUBLIC API
 impl<T: Config> Pallet<T> {
-	/// Get the extra gas for a specific account.
-	pub fn get_account_extra_gas(account: &EvmAddress) -> u64 {
-		AccountExtraGas::<T>::get(account).unwrap_or(0u64)
-	}
-
 	/// Decrease the gas for a specific account.
-	pub fn decrease_extra_gas(account: &EvmAddress, amount: u64) {
+	pub fn decrease_extra_gas(amount: u64) {
 		if amount == 0 {
 			return;
 		}
-		let Some(current_limit) = AccountExtraGas::<T>::take(account) else {
-			return;
-		};
-		let new_limit = current_limit.saturating_sub(amount);
-		if new_limit > 0 {
-			AccountExtraGas::<T>::insert(account, new_limit);
+		let current_value = ExtraGas::<T>::take();
+		let new_value = current_value.saturating_sub(amount);
+		if new_value > 0 {
+			ExtraGas::<T>::set(new_value);
 		}
 	}
 }

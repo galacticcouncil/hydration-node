@@ -1,8 +1,7 @@
 use crate::mock::*;
-use crate::{AccountExtraGas, Event};
+use crate::{Event, ExtraGas};
 use frame_support::dispatch::Pays;
 use frame_support::{assert_noop, assert_ok, dispatch::PostDispatchInfo};
-use hydradx_traits::evm::InspectEvmAccounts;
 use orml_tokens::Error;
 use orml_traits::MultiCurrency;
 use sp_runtime::{
@@ -83,7 +82,7 @@ fn dispatch_with_extra_gas_should_work() {
 		assert_eq!(Tokens::free_balance(HDX, &BOB), bob_initial_balance + 1_000);
 
 		// Verify storage was cleaned up
-		assert!(Dispatcher::account_extra_gas(&MockEvmAccounts::evm_address(&ALICE)).is_none());
+		assert_eq!(Dispatcher::extra_gas(), 0);
 	});
 }
 
@@ -114,16 +113,15 @@ fn dispatch_with_extra_gas_should_fail_when_call_fails() {
 		assert_eq!(Tokens::free_balance(HDX, &BOB), bob_initial_balance);
 
 		// Verify storage was cleaned up even after failure
-		assert!(Dispatcher::account_extra_gas(&MockEvmAccounts::evm_address(&ALICE)).is_none());
+		assert_eq!(Dispatcher::extra_gas(), 0u64);
 	});
 }
 
 #[test]
 fn get_gas_limit_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let alice_evm = MockEvmAccounts::evm_address(&ALICE);
 		// Should return 0 when no limit is set
-		assert_eq!(Dispatcher::get_account_extra_gas(&alice_evm), 0);
+		assert_eq!(Dispatcher::extra_gas(), 0);
 
 		// Set a gas limit through dispatch
 		let call = Box::new(RuntimeCall::System(frame_system::Call::remark { remark: vec![] }));
@@ -134,44 +132,43 @@ fn get_gas_limit_should_work() {
 		));
 
 		// Should return 0 after dispatch (storage is cleaned)
-		assert_eq!(Dispatcher::get_account_extra_gas(&alice_evm), 0);
+		assert_eq!(Dispatcher::extra_gas(), 0);
 
 		// Manually insert a gas limit
-		AccountExtraGas::<Test>::insert(&alice_evm, 500u64);
-		assert_eq!(Dispatcher::get_account_extra_gas(&alice_evm), 500);
+		ExtraGas::<Test>::set(500u64);
+		assert_eq!(Dispatcher::extra_gas(), 500);
 	});
 }
 
 #[test]
 fn decrease_gas_limit_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		let alice_evm = MockEvmAccounts::evm_address(&ALICE);
 		// Should do nothing when no limit is set
-		Dispatcher::decrease_extra_gas(&alice_evm, 100);
-		assert_eq!(Dispatcher::get_account_extra_gas(&alice_evm), 0);
+		Dispatcher::decrease_extra_gas(100);
+		assert_eq!(Dispatcher::extra_gas(), 0);
 
 		// Set initial gas limit
-		AccountExtraGas::<Test>::insert(&alice_evm, 1000u64);
+		ExtraGas::<Test>::set(1000u64);
 
 		// Decrease by zero should not change anything
-		Dispatcher::decrease_extra_gas(&alice_evm, 0);
-		assert_eq!(Dispatcher::get_account_extra_gas(&alice_evm), 1000);
+		Dispatcher::decrease_extra_gas(0);
+		assert_eq!(Dispatcher::extra_gas(), 1000);
 
 		// Decrease by some amount
-		Dispatcher::decrease_extra_gas(&alice_evm, 300);
-		assert_eq!(Dispatcher::get_account_extra_gas(&alice_evm), 700);
+		Dispatcher::decrease_extra_gas(300);
+		assert_eq!(Dispatcher::extra_gas(), 700);
 
 		// Decrease by more than remaining should remove the entry
-		Dispatcher::decrease_extra_gas(&alice_evm, 800);
-		assert_eq!(Dispatcher::get_account_extra_gas(&alice_evm), 0);
-		assert!(AccountExtraGas::<Test>::get(&alice_evm).is_none());
+		Dispatcher::decrease_extra_gas(800);
+		assert_eq!(Dispatcher::extra_gas(), 0);
+		assert_eq!(ExtraGas::<Test>::get(), 0u64);
 
 		// Set initial gas limit again
-		AccountExtraGas::<Test>::insert(&alice_evm, 1000u64);
+		ExtraGas::<Test>::set(1000u64);
 
 		// Decrease by exact amount should remove the entry
-		Dispatcher::decrease_extra_gas(&alice_evm, 1000);
-		assert_eq!(Dispatcher::get_account_extra_gas(&alice_evm), 0);
-		assert!(AccountExtraGas::<Test>::get(&alice_evm).is_none());
+		Dispatcher::decrease_extra_gas(1000);
+		assert_eq!(Dispatcher::extra_gas(), 0);
+		assert_eq!(ExtraGas::<Test>::get(), 0u64);
 	});
 }
