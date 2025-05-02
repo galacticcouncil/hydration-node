@@ -8,13 +8,13 @@ use sp_runtime::{FixedPointNumber, FixedU128, Perbill, Permill};
 use sp_runtime::{Rounding, Saturating};
 
 /// Calculate purchase price for Hollar with collateral asset
-/// p_i = (1 + fee_i) * peg_i
+/// p_i = (1 + fee_i) / peg_i
 pub fn calculate_purchase_price(peg: PegType, fee: Permill) -> Price {
 	let fee_ratio: Ratio = (fee.deconstruct() as u128, Permill::one().deconstruct() as u128).into();
 	let one_ratio: Ratio = Ratio::one();
 	let peg_ratio: Ratio = peg.into();
 
-	let price = one_ratio.saturating_add(&fee_ratio).saturating_mul(&peg_ratio);
+	let price = one_ratio.saturating_add(&fee_ratio).saturating_div(&peg_ratio);
 	(price.n, price.d)
 }
 

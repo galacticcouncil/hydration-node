@@ -1008,6 +1008,7 @@ where
 		let (final_hollar_amount, final_collateral_amount) =
 			calculate_final_amounts((sim_hollar_amount, sim_collateral_amount), buy_price)?;
 
+		log::trace!(target: "hsm", "Hollar amount {:?}, buyback limit {:?}", final_hollar_amount, buyback_limit);
 		// Check if the requested amount exceeds the buyback limit
 		ensure!(
 			HollarAmountReceived::<T>::get(collateral_asset).saturating_add(final_hollar_amount) <= buyback_limit,
@@ -1080,6 +1081,8 @@ where
 			.ok_or(Error::<T>::AssetNotFound)?;
 		let peg = pool_state.pegs[collateral_pos]; //hollar/collateral
 		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
+
+		log::trace!(target: "hsm", "Peg: {:?}, Purchase price {:?}", peg, purchase_price);
 
 		let (hollar_amount, collateral_amount) = calculate_amounts(purchase_price)?;
 
