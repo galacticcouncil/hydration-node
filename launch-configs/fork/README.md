@@ -1,16 +1,39 @@
-starts zombienet instance with forked state downloaded from `STATE_SOURCE` (by default loaded from latest snapshot available)
+starts zombienet instance with forked state downloaded from either:
+- rpc endpoint in `STATE_RPC` and block `STATE_BLOCK` (latest block by default)
+- url of json defined in `STATE_SOURCE` (by default loaded from latest snapshot
+available)
 
 ### run with docker
+
 ```
 docker run -d -p 9988:9988 galacticcouncil/fork
 ```
 
 ### run locally
+
 - node >18 required
 - you have to have all binaries present on correct paths in `config.json`
+
 ```
 npm i && npm start
 ```
+
+### run with live PROD chainspec
+
+- It gets the chainspec based on the latest best block of PROD environment then spins up the fork via zombienet
+
+```
+npm run start:live
+```
+
+### run with custom chainspec
+
+If you want to run fork with a custom chainspec, do the followings:
+
+1. First save a chainspec by using the scraper. For more info about saving chainspec, check
+   `hydration-node/scraper/README.md`
+2. Place it to `./data` folder with name `state.json`
+3. Run `npm run start:raw`
 
 ### test accounts
 

@@ -1988,6 +1988,40 @@ mod chainlink_precompile {
 	fn bitcoin_price_should_be_comparable() {
 		prices_should_be_comparable_with_dia(19, hex!["eDD9A7C47A9F91a0F2db93978A88844167B4a04f"].into())
 	}
+
+	#[test]
+	fn chainlink_decimasl_should_return_8() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			//Arrange
+			let data = EvmDataWriter::new_with_selector(AggregatorInterface::Decimals).build();
+
+			let oracle_ethereum_address = encode_oracle_address(HDX, DOT, OraclePeriod::Short, OMNIPOOL_SOURCE);
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: evm_address(),
+					caller: oracle_ethereum_address,
+					apparent_value: U256::from(0),
+				},
+				code_address: oracle_ethereum_address,
+				is_static: true,
+			};
+
+			//Act
+			let PrecompileOutput { output, exit_status } =
+				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
+
+			//Assert
+			pretty_assertions::assert_eq!(exit_status, ExitSucceed::Returned,);
+
+			let expected_decimals: u8 = 8;
+			let r: u8 = U256::from(output.as_slice()).try_into().unwrap();
+			pretty_assertions::assert_eq!(r, expected_decimals);
+		});
+	}
 }
 
 mod contract_deployment {
