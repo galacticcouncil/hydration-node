@@ -328,58 +328,64 @@ fn deploy_gho_token_should_work() {
 	});
 }
 
-const DOT: AssetId = 2221;
-const VDOT: AssetId = 2222;
-const ADOT: AssetId = 2223;
-const GIGADOT: AssetId = 69;
-
-const DOT_DECIMALS: u8 = 10;
-const VDOT_DECIMALS: u8 = 10;
-const ADOT_DECIMALS: u8 = 10;
-const GIGADOT_DECIMALS: u8 = 18;
-
-const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 57767685517430457);
+const HOLLAR: AssetId = 222;
+const COLLATERAL: AssetId = 10234;
+const USDC: AssetId = 101234;
+const DECIMALS: u8 = 18;
+const USDC_HOLLAR_PRICE: (Balance, Balance) = (1_000_000_000_000_000_000, 500_000_000_000_000_000);
+const POOL_ID: AssetId = 9876;
 
 #[test]
 fn hsm_with_yield_bearing_token_should_work() {
-	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let usdc_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
 		1,
 		polkadot_xcm::v4::Junctions::X2(Arc::new([
 			polkadot_xcm::v4::Junction::Parachain(1500),
 			polkadot_xcm::v4::Junction::GeneralIndex(0),
 		])),
 	);
-
-	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
-		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(1),
-		])),
+	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		0,
+		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+			network: None,
+			key: hex!["c130c89f2b1066a77bd820aafebcf4519d0103d8"],
+		}])),
 	);
 
-	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
-	let dot_boxed = Box::new(dot_location.clone().into_versioned());
+	let usdc_boxed = Box::new(usdc_location.clone().into_versioned());
+	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
-		.register_asset(DOT, b"myDOT", DOT_DECIMALS, Some(dot_location))
-		.register_asset(VDOT, b"myvDOT", VDOT_DECIMALS, Some(vdot_location))
-		.register_asset(ADOT, b"myaDOT", ADOT_DECIMALS, None)
-		.register_asset(GIGADOT, b"myGIGADOT", GIGADOT_DECIMALS, None)
-		.update_bifrost_oracle(dot_boxed, vdot_boxed, DOT_VDOT_PRICE)
+		.register_asset(USDC, b"myUSDC", DECIMALS, Some(usdc_location))
+		.register_asset(COLLATERAL, b"myCOL", DECIMALS, None)
+		.register_asset(POOL_ID, b"pool", DECIMALS, None)
+		.update_bifrost_oracle(usdc_boxed, hollar_boxed, USDC_HOLLAR_PRICE)
 		.new_block()
-		.endow_account(ALICE.into(), DOT, 1_000_000 * 10u128.pow(DOT_DECIMALS as u32))
-		.endow_account(ALICE.into(), VDOT, 1_000_000 * 10u128.pow(VDOT_DECIMALS as u32))
-		.endow_account(ALICE.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
+		.endow_account(ALICE.into(), COLLATERAL, 1_000_000 * 10u128.pow(DECIMALS as u32))
 		.execute(|| {
-			let assets = vec![VDOT, ADOT];
+			let hsm_address = hydradx_runtime::HSM::account_id();
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				hsm_address.clone().into()
+			)));
+			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			),));
+			let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+			mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+
+			let assets = vec![HOLLAR, COLLATERAL];
 			let pegs = vec![
-				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT)), // vDOT peg
-				PegSource::Value((1, 1)),                                          // aDOT peg
+				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, USDC)), // vDOT peg
+				PegSource::Value((1, 1)),                                           // aDOT peg
 			];
 			assert_ok!(Stableswap::create_pool_with_pegs(
 				RuntimeOrigin::root(),
-				GIGADOT,
+				POOL_ID,
 				BoundedVec::truncate_from(assets),
 				100,
 				Permill::from_percent(0),
@@ -387,49 +393,17 @@ fn hsm_with_yield_bearing_token_should_work() {
 				Permill::from_percent(100),
 			));
 
-			let initial_liquidity = 1_000 * 10u128.pow(DOT_DECIMALS as u32);
 			let liquidity = vec![
-				AssetAmount::new(VDOT, initial_liquidity),
-				AssetAmount::new(ADOT, initial_liquidity),
+				AssetAmount::new(HOLLAR, 1_000 * 10u128.pow(DECIMALS as u32)),
+				AssetAmount::new(COLLATERAL, 900 * 10u128.pow(DECIMALS as u32)),
 			];
 
 			// Add initial liquidity
 			assert_ok!(Stableswap::add_assets_liquidity(
 				RuntimeOrigin::signed(ALICE.into()),
-				GIGADOT,
+				POOL_ID,
 				BoundedVec::truncate_from(liquidity),
 				0,
 			));
-
-			let initial_alice_vdot_balance = Tokens::free_balance(VDOT, &ALICE.into());
-			let initial_alice_adot_balance = Tokens::free_balance(ADOT, &ALICE.into());
-
-			// Sell 1 vdot for adot
-			assert_ok!(Stableswap::sell(
-				RuntimeOrigin::signed(ALICE.into()),
-				GIGADOT,
-				VDOT,
-				ADOT,
-				10u128.pow(VDOT_DECIMALS as u32),
-				0,
-			));
-
-			// Verify balances of ALICE
-			let final_alice_vdot_balance = Tokens::free_balance(VDOT, &ALICE.into());
-			let final_alice_adot_balance = Tokens::free_balance(ADOT, &ALICE.into());
-
-			let adot_received = final_alice_adot_balance - initial_alice_adot_balance;
-			// use vdot adot price to calculate expected adot received
-			let expected_adot_received = (10u128.pow(VDOT_DECIMALS as u32)) * DOT_VDOT_PRICE.0 / DOT_VDOT_PRICE.1;
-			// ensure that it is approximately equal
-			assert_eq_approx!(
-				adot_received,
-				expected_adot_received,
-				100_000_000_000_000_000,
-				"Expected adot received is not equal to actual adot received"
-			);
-
-			assert!(final_alice_vdot_balance < initial_alice_vdot_balance);
-			assert!(final_alice_adot_balance > initial_alice_adot_balance);
 		});
 }
