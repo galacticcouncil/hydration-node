@@ -56,7 +56,7 @@ pub struct WeightInfo<T>(PhantomData<T>);
 
 /// Weights for `pallet_collective_technical_committee` using the HydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_collective_technical_committee::WeightInfo for HydraWeight<T> {
+impl<T: frame_system::Config> pallet_collective::WeightInfo for HydraWeight<T> {
 	/// Storage: `TechnicalCommittee::Members` (r:1 w:1)
 	/// Proof: `TechnicalCommittee::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// Storage: `TechnicalCommittee::Proposals` (r:1 w:0)
