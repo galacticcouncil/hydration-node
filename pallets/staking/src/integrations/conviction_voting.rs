@@ -119,13 +119,13 @@ where
 							position.action_points = position.action_points.saturating_add(points);
 						}
 					}
-					Votes::<T>::mutate_exists(position_id, |voting| {
+					Votes::<T>::mutate(position_id, |voting| {
 						voting.votes.remove(vote_idx);
-						// Clear the entry from Votes if position has no more votes stored
-						if voting.len() == 0 {
-							voting = None;
-						}
 					});
+					// Clear the entry from Votes if positionid has no more votes stored
+					if Votes::<T>::get(position_id).votes.last_mut() == None {
+						Votes::<T>::remove(position_id)
+					};
 				}
 			}
 			Ok(())

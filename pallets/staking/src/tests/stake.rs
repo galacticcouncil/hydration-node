@@ -254,7 +254,7 @@ fn stake_should_not_work_when_stake_amount_is_lt_min_stake() {
 }
 
 #[test]
-fn stake_should_not_work_when_tokens_are_vestred() {
+fn stake_should_not_work_when_tokens_are_vested() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(VESTED_100K, HDX, 150_000 * ONE)])
 		.with_initialized_staking()
