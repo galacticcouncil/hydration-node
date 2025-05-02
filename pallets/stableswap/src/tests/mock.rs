@@ -17,6 +17,7 @@
 
 //! Test environment for Assets pallet.
 #![allow(clippy::type_complexity)]
+#![allow(deprecated)]
 
 use core::ops::RangeInclusive;
 use sp_runtime::DispatchResult;
@@ -514,7 +515,7 @@ pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { .. }) = e {
+		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 { .. }) = e {
 			swapped_events.push(e);
 		}
 	}

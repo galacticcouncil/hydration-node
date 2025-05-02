@@ -112,7 +112,7 @@ fn event_should_be_deposited() {
 			],
 		);
 
-		expect_events(vec![Event::Swapped {
+		expect_events(vec![Event::Swapped3 {
 			swapper: ALICE,
 			filler: BOB,
 			filler_type: Filler::Omnipool,

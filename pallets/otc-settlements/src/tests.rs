@@ -300,7 +300,7 @@ fn existing_arb_opportunity_should_trigger_trade_when_correct_amount_can_be_foun
 				profit: 17_736_110_470_326,
 			}
 			.into(),
-			pallet_broadcast::Event::Swapped {
+			pallet_broadcast::Event::Swapped3 {
 				swapper: otc.owner,
 				filler: OtcSettlements::account_id(),
 				filler_type: pallet_broadcast::types::Filler::OTC(otc_id),

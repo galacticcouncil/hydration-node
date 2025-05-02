@@ -72,7 +72,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 		pretty_assertions::assert_eq!(
 			swapped_events,
 			vec![
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_broadcast::types::Filler::LBP,
@@ -90,7 +90,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -104,7 +104,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
@@ -171,7 +171,7 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 		//Assert
 		pretty_assertions::assert_eq!(
 			*get_last_swapped_events().last().unwrap(),
-			pallet_broadcast::Event::<Runtime>::Swapped {
+			pallet_broadcast::Event::<Runtime>::Swapped3 {
 				swapper: BOB.into(),
 				filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 					asset_in: HDX,
@@ -257,7 +257,7 @@ fn nested_batch_should_represent_embeddedness() {
 		pretty_assertions::assert_eq!(
 			swapped_events,
 			vec![
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_broadcast::types::Filler::LBP,
@@ -279,7 +279,7 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Router(2)
 					],
 				},
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -297,7 +297,7 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Router(2)
 					],
 				},
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,

@@ -1,7 +1,7 @@
 use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
-use crate::evm::{Erc20Currency, EvmAccounts, Executor};
+use crate::evm::{Erc20Currency, Executor};
 use crate::Runtime;
 use crate::Vec;
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -10,8 +10,6 @@ use evm::ExitReason::Succeed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_support::pallet_prelude::TypeInfo;
-use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
@@ -19,7 +17,7 @@ use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAc
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pallet_broadcast::types::{Asset, Destination, Fee};
+use pallet_broadcast::types::Asset;
 use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
@@ -349,6 +347,9 @@ fn handle_result(result: CallResult) -> DispatchResult {
 	}
 }
 
+/// Buffer value to account for rounding in Aave contract operations.
+const AAVE_ROUNDING_BUFFER: Balance = 2;
+
 impl<T> TradeExecution<OriginFor<T>, AccountId, AssetId, Balance> for AaveTradeExecutor<T>
 where
 	T: pallet_evm::Config
@@ -376,19 +377,26 @@ where
 			return Err(ExecutorError::NotSupported);
 		}
 
-		// For both supply and withdraw, amount out is always 1:1
+		// For both supply and withdraw, amount out is almost 1:1
 		// to save weight we just assume the operation will be available
-		Ok(amount_in)
+		// We add a buffer to account for rounding in aave contract
+		Ok(amount_in.saturating_sub(AAVE_ROUNDING_BUFFER))
 	}
 
 	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
 		amount_out: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Self::calculate_out_given_in(pool_type, asset_in, asset_out, amount_out)
-			.map(|amount_out| amount_out.saturating_add(2))
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		// For both supply and withdraw, amount out is almost 1:1
+		// to save weight we just assume the operation will be available
+		// We add a buffer to account for rounding in aave contract
+		Ok(amount_out.saturating_add(AAVE_ROUNDING_BUFFER))
 	}
 
 	fn execute_sell(
@@ -402,7 +410,7 @@ where
 		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_in, min_limit)?;
 
 		let who = ensure_signed(who.clone()).map_err(|_| ExecutorError::Error("Invalid origin".into()))?;
-		let atoken = HydraErc20Mapping::encode_evm_address(trade_result);
+		let atoken = HydraErc20Mapping::asset_address(trade_result);
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(atoken);
 
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -432,7 +440,7 @@ where
 		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_out, max_limit)?;
 
 		let who = ensure_signed(who.clone()).map_err(|_| ExecutorError::Error("Invalid origin".into()))?;
-		let atoken = HydraErc20Mapping::encode_evm_address(trade_result);
+		let atoken = HydraErc20Mapping::asset_address(trade_result);
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(atoken);
 
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(

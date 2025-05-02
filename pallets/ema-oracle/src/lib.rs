@@ -317,7 +317,7 @@ pub mod pallet {
 			asset_a: Box<polkadot_xcm::VersionedLocation>,
 			asset_b: Box<polkadot_xcm::VersionedLocation>,
 			price: (Balance, Balance),
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			T::BifrostOrigin::ensure_origin(origin)?;
 
 			let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
@@ -350,7 +350,7 @@ pub mod pallet {
 
 			Self::on_entry(BIFROST_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 	}
 }

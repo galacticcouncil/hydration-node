@@ -2,7 +2,6 @@
 #![allow(clippy::identity_op)]
 use super::assert_balance;
 use crate::polkadot_test_net::*;
-use hydradx_runtime::RuntimeEvent;
 use hydradx_runtime::{
 	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
 	LBP, XYK,
@@ -459,7 +458,7 @@ mod router_different_pools_tests {
 			pretty_assertions::assert_eq!(
 				swapped_events,
 				vec![
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped3 {
 						swapper: BOB.into(),
 						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
@@ -483,9 +482,8 @@ mod router_different_pools_tests {
 							})),
 						)],
 						operation_stack: vec![ExecutionType::Router(0)],
-					}
-					.into(),
-					pallet_broadcast::Event::Swapped {
+					},
+					pallet_broadcast::Event::Swapped3 {
 						swapper: BOB.into(),
 						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
@@ -498,8 +496,8 @@ mod router_different_pools_tests {
 							},
 						))),
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 2000000000000)],
-						outputs: vec![Asset::new(DOT, 4338344140275)],
+						inputs: vec![Asset::new(HDX, 4338344140275)],
+						outputs: vec![Asset::new(DOT, 2000000000000)],
 						fees: vec![Fee::new(
 							HDX,
 							13015032420,
@@ -509,9 +507,8 @@ mod router_different_pools_tests {
 							})),
 						)],
 						operation_stack: vec![ExecutionType::Router(1)],
-					}
-					.into(),
-					pallet_broadcast::Event::Swapped {
+					},
+					pallet_broadcast::Event::Swapped3 {
 						swapper: BOB.into(),
 						filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 							asset_in: HDX,
@@ -536,7 +533,6 @@ mod router_different_pools_tests {
 						)],
 						operation_stack: vec![ExecutionType::Router(2)],
 					}
-					.into(),
 				]
 			);
 		});
@@ -2233,7 +2229,7 @@ mod omnipool_router_tests {
 			pretty_assertions::assert_eq!(
 				swapped_events,
 				vec![
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped3 {
 						swapper: BOB.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2246,7 +2242,7 @@ mod omnipool_router_tests {
 						],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					},
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped3 {
 						swapper: BOB.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2293,7 +2289,7 @@ mod omnipool_router_tests {
 					protocol_fee_amount: 6_007_435,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped3 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2308,7 +2304,7 @@ mod omnipool_router_tests {
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped3 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2472,7 +2468,7 @@ mod omnipool_router_tests {
 			pretty_assertions::assert_eq!(
 				last_swapped_events,
 				vec![
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped3 {
 						swapper: BOB.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2485,7 +2481,7 @@ mod omnipool_router_tests {
 						],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					},
-					pallet_broadcast::Event::Swapped {
+					pallet_broadcast::Event::Swapped3 {
 						swapper: BOB.into(),
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2532,7 +2528,7 @@ mod omnipool_router_tests {
 					protocol_fee_amount: 2254511,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped3 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2546,7 +2542,7 @@ mod omnipool_router_tests {
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped3 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -2842,7 +2838,7 @@ mod lbp_router_tests {
 
 			pretty_assertions::assert_eq!(
 				*get_last_swapped_events().last().unwrap(),
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
 					filler_type: pallet_broadcast::types::Filler::LBP,
@@ -2891,7 +2887,7 @@ mod lbp_router_tests {
 					fee_amount: 20_000_000_000,
 				}
 				.into(),
-				pallet_broadcast::Event::Swapped {
+				pallet_broadcast::Event::Swapped3 {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, HDX)),
 					filler_type: pallet_broadcast::types::Filler::LBP,

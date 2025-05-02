@@ -213,7 +213,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: galacticcouncil/polkadot-ecosystem-tests
-          ref: 1ad4db1c546f31a4f8e8987ada39dc7ef71100fe
+          ref: 06a82e72a688e94d778ade6502981bb6f741558f
 
       - name: Download WASM artifact
         uses: actions/download-artifact@v4
@@ -227,6 +227,6 @@ jobs:
 
           # Run specific tests doing XCM between hydradx and other parachains
           yarn install
-          yarn test upgrade.test.ts
+          yarn test xcm.test.ts dca.test.ts
         env:
           HYDRADX_RUNTIME_WASM_PATH: ${{ env.HYDRADX_RUNTIME_WASM_PATH }}

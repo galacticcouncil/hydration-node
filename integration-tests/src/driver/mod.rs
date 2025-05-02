@@ -10,12 +10,11 @@ use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
 use pallet_asset_registry::AssetType;
-use pallet_ema_oracle::OracleEntry;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
 use primitives::{AccountId, AssetId};
 use sp_runtime::{FixedU128, Permill};
-use xcm_emulator::{BlockNumberFor, TestExt};
+use xcm_emulator::TestExt;
 
 type BoundedName = BoundedVec<u8, <hydradx_runtime::Runtime as pallet_asset_registry::Config>::StringLimit>;
 pub(crate) struct HydrationTestDriver {
@@ -88,11 +87,7 @@ impl HydrationTestDriver {
 		location: Option<polkadot_xcm::v4::Location>,
 	) -> Self {
 		self.execute(|| {
-			let location = if let Some(location) = location {
-				Some(AssetLocation::try_from(location).unwrap())
-			} else {
-				None
-			};
+			let location = location.map(|location| AssetLocation::try_from(location).unwrap());
 			assert_ok!(AssetRegistry::register(
 				RawOrigin::Root.into(),
 				Some(asset_id),
@@ -193,7 +188,7 @@ impl HydrationTestDriver {
 
 			for idx in 0u32..MAX_ASSETS_IN_POOL {
 				let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-				let decimals = possible_decimals[idx as usize % possible_decimals.len() as usize];
+				let decimals = possible_decimals[idx as usize % possible_decimals.len()];
 				let result = AssetRegistry::register(
 					RawOrigin::Root.into(),
 					Some(asset_offset + idx),
@@ -265,7 +260,7 @@ impl HydrationTestDriver {
 				let pool_id_issuance = Tokens::total_issuance(pool_id);
 				assert_ok!(hydradx_runtime::Currencies::transfer(
 					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
-					omnipool_acc.clone().into(),
+					omnipool_acc.clone(),
 					*pool_id,
 					pool_id_issuance,
 				));
@@ -313,7 +308,7 @@ impl HydrationTestDriver {
 					for two_assets in assets.windows(2) {
 						let asset_a = two_assets[0];
 						let asset_b = two_assets[1];
-						let amount = 1u128 * 10u128.pow(asset_a.1 as u32);
+						let amount = 10u128.pow(asset_a.1 as u32);
 						assert_ok!(Tokens::set_balance(
 							RawOrigin::Root.into(),
 							CHARLIE.into(),
@@ -368,7 +363,7 @@ fn test_hydration_setup() {
 			));
 
 			assert_eq!(driver.omnipool_assets, vec![HDX, DOT, WETH, 222_222]);
-			assert!(driver.stablepools.len() > 0);
+			assert!(!driver.stablepools.is_empty());
 
 			let stablepool_1 = driver.stablepools[0].clone();
 			let first_asset_id = stablepool_1.1[0].0;
