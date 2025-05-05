@@ -403,7 +403,7 @@ fn test_fees_update_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.04372));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.04364));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0015));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0015));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0015));
@@ -426,17 +426,17 @@ fn test_fees_update_in_multi_blocks() {
 		assert_eq!(hdx_final_fees, (Permill::from_float(0.05), Permill::from_float(0.0005)));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003547), Permill::from_float(0.0005))
+			(Permill::from_float(0.002888), Permill::from_float(0.0005))
 		);
 		assert_eq!(
 			dot_final_fees,
-			(Permill::from_float(0.0015), Permill::from_float(0.001723))
+			(Permill::from_float(0.0015), Permill::from_float(0.001524))
 		);
 		assert_eq!(
 			eth_final_fees,
 			(Permill::from_float(0.0015), Permill::from_float(0.0025))
 		);
-		assert_eq!(btc_final_fees, (Permill::from_float(0.0015), Permill::from_parts(798)));
+		assert_eq!(btc_final_fees, (Permill::from_float(0.0015), Permill::from_parts(778)));
 
 		let dai_state = hydradx_runtime::Omnipool::load_asset_state(DAI).unwrap();
 
@@ -445,21 +445,21 @@ fn test_fees_update_in_multi_blocks() {
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003682), Permill::from_float(0.0005))
+			(Permill::from_float(0.00291), Permill::from_float(0.0005))
 		);
 
 		hydradx_run_to_next_block();
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003799), Permill::from_float(0.0005))
+			(Permill::from_float(0.002918), Permill::from_float(0.0005))
 		);
 
 		hydradx_run_to_next_block();
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003899), Permill::from_float(0.0005))
+			(Permill::from_float(0.002914), Permill::from_float(0.0005))
 		);
 
 		hydradx_run_to_next_block();
@@ -468,7 +468,7 @@ fn test_fees_update_in_multi_blocks() {
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.004114), Permill::from_float(0.0005))
+			(Permill::from_float(0.002854), Permill::from_float(0.0005))
 		);
 	});
 }
@@ -490,7 +490,7 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.04372));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.04364));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0015));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0015));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0015));
@@ -517,7 +517,7 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 		//ASSERT
 		assert_eq!(
 			(dai_fee.0, dai_fee.1),
-			(Permill::from_float(0.003858), Permill::from_float(0.0005))
+			(Permill::from_float(0.003199), Permill::from_float(0.0005))
 		);
 	});
 }
@@ -539,7 +539,7 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.04372));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.04364));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0015));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0015));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0015));
@@ -566,7 +566,7 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 		//ASSERT
 		assert_eq!(
 			(dai_fee.0, dai_fee.1),
-			(Permill::from_float(0.00369), Permill::from_float(0.0005))
+			(Permill::from_float(0.003031), Permill::from_float(0.0005))
 		);
 	});
 }

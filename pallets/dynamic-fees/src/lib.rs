@@ -193,7 +193,7 @@ where
 			debug_assert!(false, "Oracle period is 0");
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 		}
-		let decay_factor = FixedU128::from_rational(2u128, period);
+		let decay_factor = FixedU128::from_rational(4u128, period);
 		log::trace!(target: "dynamic-fees", "decay factor: {:?}", decay_factor);
 
 		let fee_updated_at: u128 = current_fee_entry.timestamp.saturated_into();
