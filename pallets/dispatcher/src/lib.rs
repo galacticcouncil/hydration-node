@@ -26,6 +26,7 @@
 //                  $$$
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(test)]
 pub mod mock;

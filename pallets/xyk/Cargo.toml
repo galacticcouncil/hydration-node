@@ -1,6 +1,6 @@
 [package]
 name = "pallet-xyk"
-version = "6.8.0"
+version = "6.9.0"
 description = "XYK automated market maker"
 authors = ["GalacticCouncil"]
 edition = "2021"

@@ -12,7 +12,7 @@ use codec::{Decode, Encode, EncodeLike};
 use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
-use hydra_dx_math::support::rational::{round_to_rational, round_u512_to_rational, Rounding};
+use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_traits::{
 	oracle::PriceOracle,
@@ -22,10 +22,10 @@ use hydradx_traits::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use primitive_types::{H160, U128, U256, U512};
+use primitive_types::{H160, U128, U256};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
-use sp_std::marker::PhantomData;
+use sp_std::{cmp::Ordering, marker::PhantomData};
 
 const EMPTY_SOURCE: Source = [0u8; 8];
 
@@ -38,6 +38,7 @@ pub enum AggregatorInterface {
 	LatestRound = "latestRound()",
 	GetAnswer = "getAnswer(uint256)",
 	GetTimestamp = "getTimestamp(uint256)",
+	Decimals = "decimals()",
 }
 
 pub struct ChainlinkOraclePrecompile<Runtime>(PhantomData<Runtime>);
@@ -73,6 +74,7 @@ where
 				AggregatorInterface::GetAnswer | AggregatorInterface::LatestAnswer => {
 					Self::get_oracle_entry(asset_id_a, asset_id_b, period, source, handle)
 				}
+				AggregatorInterface::Decimals => Ok(succeed(Output::encode_uint::<u8>(8_u8))),
 				_ => Self::not_supported(),
 			};
 		}
@@ -175,25 +177,26 @@ where
 			})?;
 
 		let decimals_diff = U128::from(asset_a_decimals.abs_diff(asset_b_decimals));
-		let decimals_adjustment =
-			U128::from(10u128)
-				.checked_pow(decimals_diff.into())
-				.ok_or(PrecompileFailure::Error {
-					exit_status: pallet_evm::ExitError::Other("Price conversion failed".into()),
-				})?;
+		let decimals_adjustment = U128::from(10u128)
+			.checked_pow(decimals_diff)
+			.ok_or(PrecompileFailure::Error {
+				exit_status: pallet_evm::ExitError::Other("Price conversion failed".into()),
+			})?;
 
-		let price = if asset_a_decimals > asset_b_decimals {
-			let nominator = U256::from(price.n);
-			let denominator = U128::full_mul(price.d.into(), decimals_adjustment);
+		let price = match asset_a_decimals.cmp(&asset_b_decimals) {
+			Ordering::Greater => {
+				let nominator = U256::from(price.n);
+				let denominator = U128::full_mul(price.d.into(), decimals_adjustment);
 
-			round_to_rational((nominator, denominator), Rounding::Nearest).into()
-		} else if asset_b_decimals > asset_a_decimals {
-			let nominator = U128::full_mul(price.n.into(), decimals_adjustment);
-			let denominator = U256::from(price.d);
+				round_to_rational((nominator, denominator), Rounding::Nearest).into()
+			}
+			Ordering::Less => {
+				let nominator = U128::full_mul(price.n.into(), decimals_adjustment);
+				let denominator = U256::from(price.d);
 
-			round_to_rational((nominator, denominator), Rounding::Nearest).into()
-		} else {
-			price
+				round_to_rational((nominator, denominator), Rounding::Nearest).into()
+			}
+			Ordering::Equal => price,
 		};
 
 		// return value should be int256, but the price is always a positive number so we can use uint256
