@@ -123,7 +123,7 @@ where
 						voting.votes.remove(vote_idx);
 					});
 					// Clear the entry from Votes if positionid has no more votes stored
-					if Votes::<T>::get(position_id).votes.last_mut() == None {
+					if Votes::<T>::get(position_id).votes.is_empty() {
 						Votes::<T>::remove(position_id)
 					};
 				}
