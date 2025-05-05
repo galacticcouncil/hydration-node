@@ -186,7 +186,7 @@ use sp_std::vec;
 pub use types::{
 	Delegations, MetadataOwner, PropIndex, ReferendumIndex, ReferendumInfo, ReferendumStatus, Tally, UnvoteScope,
 };
-pub use vote::{AccountVote, Vote, Voting};
+pub use vote::{AccountVote, PriorLock, Vote, Voting};
 pub use vote_threshold::{Approved, VoteThreshold};
 pub use weights::WeightInfo;
 
