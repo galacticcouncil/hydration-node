@@ -91,7 +91,7 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
     /// The range of component `n` is `[1, 10000]`.
-    fn dispatch_with_extra_gas(n: u32, ) -> Weight {
+    fn dispatch_with_extra_gas(n: u32) -> Weight {
         // Minimum execution time: 11_000_000 picoseconds (estimated)
         Weight::from_parts(11_500_000, 0)
             .saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))

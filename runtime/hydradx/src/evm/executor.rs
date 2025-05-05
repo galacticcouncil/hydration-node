@@ -80,8 +80,12 @@ where
 
 	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> CallResult {
 		with_transaction(|| {
-			let result = Self::execute(context.origin, gas, |executor| {
-				executor.transact_call(context.sender, context.contract, U256::zero(), data, gas, vec![])
+			let extra_gas = pallet_dispatcher::Pallet::<T>::extra_gas();
+			let gas_limit = gas.saturating_add(extra_gas);
+			log::trace!(target: "evm::executor", "Call with extra gas {:?}", extra_gas);
+
+			let result = Self::execute(context.origin, gas_limit, |executor| {
+				executor.transact_call(context.sender, context.contract, U256::zero(), data, gas_limit, vec![])
 			});
 			TransactionOutcome::Rollback(Ok::<CallResult, DispatchError>(result))
 		})

@@ -27,7 +27,7 @@
 
 use super::*;
 
-use frame_benchmarking::benchmarks;
+use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use sp_std::boxed::Box;
 
@@ -52,6 +52,15 @@ benchmarks! {
 
 	note_aave_manager {
 	}: _(RawOrigin::Root, Pallet::<T>::aave_manager_account())
+
+	dispatch_with_extra_gas{
+		let n in 1 .. 10_000;
+		let remark = sp_std::vec![1u8; n as usize];
+
+		let call: <T as pallet::Config>::RuntimeCall = frame_system::Call::remark { remark }.into();
+		let caller: T::AccountId = account("caller", 0, 1);
+
+	}: _(RawOrigin::Signed(caller), Box::new(call), 50_000)
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }
