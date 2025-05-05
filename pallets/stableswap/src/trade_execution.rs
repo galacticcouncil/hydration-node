@@ -6,7 +6,7 @@ use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use sp_core::Get;
-use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -322,6 +322,8 @@ where
 					Some(trade_fee),
 					&asset_pegs,
 				)
+				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?
+				.reciprocal()
 				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 				Ok(spot_price)
