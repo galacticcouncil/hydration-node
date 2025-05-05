@@ -333,9 +333,7 @@ pub mod pallet {
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
-		/// Deprecated. Use pallet_amm::Event::Swapped instead.
 		/// The DCA trade is successfully executed
-		// TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		TradeExecuted {
 			id: ScheduleId,
 			who: T::AccountId,

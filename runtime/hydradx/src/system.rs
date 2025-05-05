@@ -117,6 +117,9 @@ impl Contains<RuntimeCall> for CallFilter {
 			RuntimeCall::EVM(pallet_evm::Call::create { .. }) => false,
 			RuntimeCall::EVM(pallet_evm::Call::create2 { .. }) => false,
 			RuntimeCall::OrmlXcm(_) => false,
+			//NOTE: this prevents creation of thombstone positions if nft was burned outside
+			//of pallet that created it.
+			RuntimeCall::Uniques(pallet_uniques::Call::burn { .. }) => false,
 			_ => true,
 		}
 	}
