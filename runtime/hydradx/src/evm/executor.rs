@@ -1,4 +1,3 @@
-use crate::evm::ExtendedAddressMapping;
 use evm::executor::stack::{StackExecutor, StackSubstateMetadata};
 use evm::ExitFatal::Other;
 use evm::ExitReason;
@@ -79,16 +78,30 @@ where
 	}
 
 	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> CallResult {
-		with_transaction(|| {
-			let extra_gas = pallet_dispatcher::Pallet::<T>::extra_gas();
-			let gas_limit = gas.saturating_add(extra_gas);
-			log::trace!(target: "evm::executor", "View call with extra gas {:?}", extra_gas);
+		let extra_gas = pallet_dispatcher::Pallet::<T>::extra_gas();
+		let gas_limit = gas.saturating_add(extra_gas);
+		log::trace!(target: "evm::executor", "View call with extra gas {:?}", extra_gas);
 
+		let mut extra_gas_used = 0u64;
+
+		let result = with_transaction(|| {
 			let result = Self::execute(context.origin, gas_limit, |executor| {
-				executor.transact_call(context.sender, context.contract, U256::zero(), data, gas_limit, vec![])
+				let result =
+					executor.transact_call(context.sender, context.contract, U256::zero(), data, gas_limit, vec![]);
+				if extra_gas > 0 {
+					extra_gas_used = executor.used_gas().saturating_sub(gas);
+					log::trace!(target: "evm::executor", "View used extra gas -{:?}", extra_gas_used);
+				}
+				result
 			});
 			TransactionOutcome::Rollback(Ok::<CallResult, DispatchError>(result))
 		})
-		.unwrap_or((ExitReason::Fatal(Other("TransactionalError".into())), Vec::new()))
+		.unwrap_or((ExitReason::Fatal(Other("TransactionalError".into())), Vec::new()));
+
+		if extra_gas_used > 0 {
+			log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
+			pallet_dispatcher::Pallet::<T>::decrease_extra_gas(extra_gas_used);
+		}
+		result
 	}
 }
