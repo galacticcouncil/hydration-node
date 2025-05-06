@@ -1944,7 +1944,6 @@ impl<T: Config> Pallet<T> {
 
 		let index_in = snapshot.asset_idx(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
 		let index_out = snapshot.asset_idx(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
-		//let pool_account = Self::pool_account(pool_id);
 		let initial_reserves = &snapshot.reserves;
 
 		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
@@ -1993,7 +1992,6 @@ impl<T: Config> Pallet<T> {
 
 		let index_in = snapshot.asset_idx(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
 		let index_out = snapshot.asset_idx(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
-		//let pool_account = Self::pool_account(pool_id);
 		let initial_reserves = &snapshot.reserves;
 		ensure!(
 			initial_reserves[index_out].amount > amount_out,

@@ -328,6 +328,13 @@ fn add_collateral_should_fail_when_max_is_reached() {
 	let dai2 = 1000;
 	let dai3 = 2000;
 	let dai4 = 3000;
+	let dai5 = 4000;
+	let dai6 = 5000;
+	let dai7 = 6000;
+	let dai8 = 7000;
+	let dai9 = 8000;
+	let dai10 = 9000;
+	let dai11 = 10000;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HOLLAR, ONE), (ALICE, DAI, ONE), (ALICE, USDC, ONE)])
 		.with_registered_assets(vec![
@@ -338,9 +345,24 @@ fn add_collateral_should_fail_when_max_is_reached() {
 			(100, 18),
 			(200, 18),
 			(300, 18),
+			(400, 18),
+			(500, 18),
+			(600, 18),
+			(700, 18),
+			(800, 18),
+			(900, 18),
+			(1000, 18),
+			(1100, 18),
 			(dai2, 18),
 			(dai3, 18),
 			(dai4, 18),
+			(dai5, 18),
+			(dai6, 18),
+			(dai7, 18),
+			(dai8, 18),
+			(dai9, 18),
+			(dai10, 18),
+			(dai11, 18),
 		])
 		// Create a stablepool for HOLLAR and DAI
 		.with_pool(
@@ -360,6 +382,55 @@ fn add_collateral_should_fail_when_max_is_reached() {
 		.with_pool(
 			300,
 			vec![HOLLAR, dai3],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			400,
+			vec![HOLLAR, dai4],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			500,
+			vec![HOLLAR, dai5],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			600,
+			vec![HOLLAR, dai6],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			700,
+			vec![HOLLAR, dai7],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			800,
+			vec![HOLLAR, dai8],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			900,
+			vec![HOLLAR, dai9],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_pool(
+			1000,
+			vec![HOLLAR, dai10],
 			2,
 			Permill::from_percent(1),
 			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
@@ -399,11 +470,88 @@ fn add_collateral_should_fail_when_max_is_reached() {
 				Some(1_000_000 * ONE),
 			));
 
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai5,
+				500,
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai6,
+				600,
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai7,
+				700,
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai8,
+				800,
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai9,
+				900,
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai10,
+				1000,
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
+			assert_ok!(HSM::add_collateral_asset(
+				RuntimeOrigin::root(),
+				dai4,
+				400,
+				Permill::from_percent(1),
+				FixedU128::one(),
+				Permill::from_percent(1),
+				Perbill::from_percent(10),
+				Some(1_000_000 * ONE),
+			));
+
 			assert_noop!(
 				HSM::add_collateral_asset(
 					RuntimeOrigin::root(),
-					dai4,
-					400,
+					dai11,
+					1100,
 					Permill::from_percent(1),
 					FixedU128::one(),
 					Permill::from_percent(1),

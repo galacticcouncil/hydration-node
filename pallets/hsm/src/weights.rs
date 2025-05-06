@@ -17,6 +17,7 @@ pub trait WeightInfo {
 	fn on_finalize() -> Weight;
 }
 /// Default weights
+#[cfg(test)]
 impl WeightInfo for () {
 	fn add_collateral_asset() -> Weight {
 		Weight::zero()

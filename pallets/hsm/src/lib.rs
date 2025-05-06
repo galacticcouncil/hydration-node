@@ -88,7 +88,7 @@ pub enum ERC20Function {
 /// And since approved collateral asset must be in a pool with Hollar,
 /// and there can be only one asset from a single pool -3 should be enough.
 /// That means that we would have to have 3 pools with Hollar and some different assets.
-pub const MAX_COLLATERALS: u32 = 3;
+pub const MAX_COLLATERALS: u32 = 10;
 
 /// Unsigned transaction priority for arbitrage
 pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
