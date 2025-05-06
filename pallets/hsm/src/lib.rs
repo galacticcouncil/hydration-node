@@ -101,10 +101,13 @@ pub const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use pallet_broadcast::types::Asset;
 	use pallet_evm::GasWeightMapping;
+	use sp_std::vec;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_stableswap::Config + SendTransactionTypes<Call<Self>>
+	pub trait Config:
+		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + SendTransactionTypes<Call<Self>>
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
@@ -212,36 +215,6 @@ pub mod pallet {
 			max_buy_price_coefficient: Option<CoefficientRatio>,
 			buy_back_fee: Option<Permill>,
 			buyback_rate: Option<Perbill>,
-		},
-		/// Sell executed successfully
-		///
-		/// Parameters:
-		/// - `who`: Account that executed the sell
-		/// - `asset_in`: Asset that was sold
-		/// - `asset_out`: Asset that was received
-		/// - `amount_in`: Amount of asset_in that was sold
-		/// - `amount_out`: Amount of asset_out that was received
-		SellExecuted {
-			who: T::AccountId,
-			asset_in: T::AssetId,
-			asset_out: T::AssetId,
-			amount_in: Balance,
-			amount_out: Balance,
-		},
-		/// Buy executed successfully
-		///
-		/// Parameters:
-		/// - `who`: Account that executed the buy
-		/// - `asset_in`: Asset that was sold by the user
-		/// - `asset_out`: Asset that was bought by the user
-		/// - `amount_in`: Amount of asset_in that was paid
-		/// - `amount_out`: Amount of asset_out that was received
-		BuyExecuted {
-			who: T::AccountId,
-			asset_in: T::AssetId,
-			asset_out: T::AssetId,
-			amount_in: Balance,
-			amount_out: Balance,
 		},
 		/// Arbitrage executed successfully
 		///
@@ -608,7 +581,7 @@ pub mod pallet {
 		/// - `slippage_limit`: Minimum amount out for slippage protection
 		///
 		/// Emits:
-		/// - `SellExecuted` when the sell is successful
+		/// - `Swapped3` when the sell is successful
 		///
 		/// Errors:
 		/// - `InvalidAssetPair` if the pair is not Hollar and an approved collateral
@@ -675,13 +648,15 @@ pub mod pallet {
 
 			ensure!(amount_out >= slippage_limit, Error::<T>::SlippageLimitExceeded);
 
-			Self::deposit_event(Event::<T>::SellExecuted {
-				who: who.clone(),
-				asset_in,
-				asset_out,
-				amount_in,
-				amount_out,
-			});
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
+				who,
+				Self::account_id(),
+				pallet_broadcast::types::Filler::HSM,
+				pallet_broadcast::types::TradeOperation::ExactIn,
+				vec![Asset::new(asset_in.into(), amount_in)],
+				vec![Asset::new(asset_out.into(), amount_out)],
+				vec![],
+			);
 
 			Ok(())
 		}
@@ -702,7 +677,7 @@ pub mod pallet {
 		/// - `slippage_limit`: Maximum amount in for slippage protection
 		///
 		/// Emits:
-		/// - `BuyExecuted` when the buy is successful
+		/// - `Swapped3` when the buy is successful
 		///
 		/// Errors:
 		/// - `InvalidAssetPair` if the pair is not Hollar and an approved collateral
@@ -761,13 +736,15 @@ pub mod pallet {
 
 			ensure!(amount_in <= slippage_limit, Error::<T>::SlippageLimitExceeded);
 
-			Self::deposit_event(Event::<T>::BuyExecuted {
-				who: who.clone(),
-				asset_in,
-				asset_out,
-				amount_in,
-				amount_out,
-			});
+			pallet_broadcast::Pallet::<T>::deposit_trade_event(
+				who,
+				Self::account_id(),
+				pallet_broadcast::types::Filler::HSM,
+				pallet_broadcast::types::TradeOperation::ExactOut,
+				vec![Asset::new(asset_in.into(), amount_in)],
+				vec![Asset::new(asset_out.into(), amount_out)],
+				vec![],
+			);
 
 			Ok(())
 		}

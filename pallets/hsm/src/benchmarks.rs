@@ -58,7 +58,7 @@ benchmarks! {
 		for idx in 2..=MAX_COLLATERALS{
 			let (pool_id, assets) = seed_pool::<T>((222_222u32 +idx).into(), hollar, ASSET_ID_OFFSET * idx)?;
 			let collateral = assets[1];
-			let r = Pallet::<T>::add_collateral_asset(
+			Pallet::<T>::add_collateral_asset(
 				RawOrigin::Root.into(),
 				collateral,
 				pool_id,

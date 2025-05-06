@@ -330,9 +330,7 @@ fn deploy_gho_token_should_work() {
 
 const HOLLAR: AssetId = 222;
 const COLLATERAL: AssetId = 10234;
-const USDC: AssetId = 101234;
 const DECIMALS: u8 = 18;
-const USDC_COLLATERAL_PRICE: (Balance, Balance) = (1_000_000_000_000_000_000, 500_000_000_000_000_000);
 const HOLLAR_COLLATERAL_PRICE: (Balance, Balance) = (1_000_000_000_000_000_000, 500_000_000_000_000_000);
 const POOL_ID: AssetId = 9876;
 

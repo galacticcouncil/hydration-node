@@ -8381,6 +8381,7 @@ dependencies = [
  "pallet-evm",
  "pallet-stableswap",
  "parity-scale-codec",
+ "pretty_assertions",
  "primitive-types",
  "scale-info",
  "serde",

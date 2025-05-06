@@ -21,6 +21,7 @@ use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use pallet_broadcast::types::{Asset, Filler, TradeOperation};
 use pallet_stableswap::types::PegSource;
 use sp_runtime::{FixedU128, Perbill, Permill};
 
@@ -116,12 +117,15 @@ fn buy_hollar_with_collateral_works() {
 
 		// Check that the event was emitted correctly
 		System::assert_has_event(
-			crate::Event::<Test>::BuyExecuted {
-				who: ALICE,
-				asset_in: DAI,
-				asset_out: HOLLAR,
-				amount_in: expected_collateral_amount,
-				amount_out: hollar_amount,
+			pallet_broadcast::Event::<Test>::Swapped3 {
+				swapper: ALICE,
+				filler: HSM::account_id(),
+				filler_type: Filler::HSM,
+				operation: TradeOperation::ExactOut,
+				inputs: vec![Asset::new(DAI, expected_collateral_amount)],
+				outputs: vec![Asset::new(HOLLAR, hollar_amount)],
+				fees: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		);
@@ -177,12 +181,15 @@ fn buy_collateral_with_hollar_works() {
 
 		// Check that the event was emitted correctly
 		System::assert_has_event(
-			crate::Event::<Test>::BuyExecuted {
-				who: ALICE,
-				asset_in: HOLLAR,
-				asset_out: DAI,
-				amount_in: expected_hollar_amount,
-				amount_out: collateral_amount,
+			pallet_broadcast::Event::<Test>::Swapped3 {
+				swapper: ALICE,
+				filler: HSM::account_id(),
+				filler_type: Filler::HSM,
+				operation: TradeOperation::ExactOut,
+				inputs: vec![Asset::new(HOLLAR, expected_hollar_amount)],
+				outputs: vec![Asset::new(DAI, collateral_amount)],
+				fees: vec![],
+				operation_stack: vec![],
 			}
 			.into(),
 		);
