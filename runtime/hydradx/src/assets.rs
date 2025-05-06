@@ -1658,6 +1658,7 @@ impl pallet_hsm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type HollarId = HOLLAR;
 	type PalletId = HsmPalletId;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type GhoContractAddress = AssetRegistry;
 	type Currency = FungibleCurrencies<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]

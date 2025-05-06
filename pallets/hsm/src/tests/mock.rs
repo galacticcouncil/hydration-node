@@ -466,6 +466,7 @@ impl BoundErc20 for GhoContractAddress {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type HollarId = HollarId;
 	type PalletId = PalletId;
 	type GhoContractAddress = GhoContractAddress;

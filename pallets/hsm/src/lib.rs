@@ -119,6 +119,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// Origin that can manage collateral assets
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// GHO contract address - EVM address of GHO token contract
 		type GhoContractAddress: BoundErc20<AssetId = Self::AssetId>;
 
@@ -442,7 +445,7 @@ pub mod pallet {
 			buyback_rate: Perbill,
 			max_in_holding: Option<Balance>,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
 
 			let current_collateral_count = Collaterals::<T>::iter().count() as u32;
 
@@ -509,7 +512,7 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_collateral_asset())]
 		pub fn remove_collateral_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
-			ensure_root(origin)?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(Collaterals::<T>::contains_key(asset_id), Error::<T>::AssetNotApproved);
 
@@ -553,7 +556,7 @@ pub mod pallet {
 			buyback_rate: Option<Perbill>,
 			max_in_holding: Option<Option<Balance>>,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
 
 			Collaterals::<T>::try_mutate(asset_id, |maybe_info| -> DispatchResult {
 				let info = maybe_info.as_mut().ok_or(Error::<T>::AssetNotApproved)?;

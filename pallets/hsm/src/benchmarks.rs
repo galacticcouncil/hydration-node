@@ -72,7 +72,8 @@ benchmarks! {
 
 		let collateral_count = Collaterals::<T>::iter().count() as u32;
 		assert_eq!(collateral_count, MAX_COLLATERALS - 1);
-	}: _(RawOrigin::Root, main_collateral, main_pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee, b, max_in_holding)
+		let successful_origin = <T as crate::Config>::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+	}: _<T::RuntimeOrigin>(successful_origin, main_collateral, main_pool_id, purchase_fee, max_buy_price_coefficient, buy_back_fee, b, max_in_holding)
 	verify {
 		assert!(Collaterals::<T>::contains_key(main_collateral));
 	}
@@ -100,7 +101,8 @@ benchmarks! {
 			b,
 			max_in_holding
 		)?;
-	}: _(RawOrigin::Root, collateral)
+		let successful_origin = <T as crate::Config>::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+	}: _<T::RuntimeOrigin>(successful_origin, collateral)
 	verify {
 		assert!(!Collaterals::<T>::contains_key(collateral));
 	}
@@ -135,7 +137,8 @@ benchmarks! {
 		let new_buy_back_fee = Some(Permill::from_percent(2));
 		let new_b = Some(Perbill::from_percent(60));
 		let new_max_in_holding = Some(Some(20_000 * ONE));
-	}: _(RawOrigin::Root, collateral, new_purchase_fee, new_max_buy_price_coefficient, new_buy_back_fee, new_b, new_max_in_holding)
+		let successful_origin = <T as crate::Config>::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+	}: _<T::RuntimeOrigin>(successful_origin, collateral, new_purchase_fee, new_max_buy_price_coefficient, new_buy_back_fee, new_b, new_max_in_holding)
 	verify {
 		let info = Collaterals::<T>::get(collateral).unwrap();
 		assert_eq!(info.purchase_fee, Permill::from_percent(2));
@@ -325,7 +328,8 @@ where
 	let amplification = 22;
 	let fee = Permill::from_percent(1);
 
-	let successful_origin = T::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+	let successful_origin = <T as pallet_stableswap::Config>::AuthorityOrigin::try_successful_origin()
+		.expect("Failed to get successful origin");
 
 	pallet_stableswap::Pallet::<T>::create_pool_with_pegs(
 		successful_origin,
