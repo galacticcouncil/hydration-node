@@ -639,9 +639,6 @@ fn buy_purchase_nonzero_fee_works() {
 				u128::MAX,
 			));
 
-			let spent = initial_alice_dai - Tokens::free_balance(DAI, &ALICE);
-			dbg!(spent);
-
 			// Check that ALICE's balances are updated correctly
 			assert_eq!(
 				Tokens::free_balance(DAI, &ALICE),

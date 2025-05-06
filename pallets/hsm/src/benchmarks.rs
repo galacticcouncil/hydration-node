@@ -21,6 +21,7 @@ use frame_support::traits::EnsureOrigin;
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
 use hydradx_traits::stableswap::AssetAmount;
+use hydradx_traits::OraclePeriod;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
 use sp_runtime::{FixedU128, Perbill, Permill};
@@ -154,7 +155,7 @@ benchmarks! {
 		seed_asset::<T>(hollar, DECIMALS)?;
 		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = FixedU128::from_rational(111, 100);
+		let max_buy_price_coefficient = FixedU128::from_rational(4, 1);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -203,7 +204,7 @@ benchmarks! {
 		seed_asset::<T>(hollar, DECIMALS)?;
 		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = FixedU128::from_rational(111, 100);
+		let max_buy_price_coefficient = FixedU128::from_rational(4, 1);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
@@ -247,7 +248,7 @@ benchmarks! {
 		seed_asset::<T>(hollar, DECIMALS)?;
 		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
 		let purchase_fee = Permill::from_percent(1);
-		let max_buy_price_coefficient = FixedU128::from_rational(110, 100);
+		let max_buy_price_coefficient = FixedU128::from_rational(4, 1);
 		let buy_back_fee = Permill::from_percent(1);
 		let b = Perbill::from_percent(50);
 		let max_in_holding: Option<Balance> = None; // No limit for arbitrage test
@@ -315,13 +316,18 @@ where
 
 	let mut initial_liquidity = vec![INITIAL_LIQUIDITY * ONE];
 
-	//TODO: we should probably create a peg source in oracle for the worst case!
 	let mut pegs = vec![PegSource::Value((1, 1))];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
 		let asset_id: T::AssetId = (idx + offset).into();
 		let _ = seed_asset::<T>(asset_id, DECIMALS);
 		assets.push(asset_id);
-		pegs.push(PegSource::Value((1, 1)));
+		<T as pallet_stableswap::Config>::BenchmarkHelper::register_asset_peg(
+			(hollar_id, asset_id),
+			(1u128, 2u128),
+			*b"benchmar",
+		)?;
+		let source = PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock, hollar_id));
+		pegs.push(source);
 		initial_liquidity.push(INITIAL_LIQUIDITY * ONE - 50 * ONE);
 	}
 

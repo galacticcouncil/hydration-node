@@ -741,8 +741,9 @@ mod for_benchmark_tests {
 			Ok(())
 		}
 
-		fn register_asset_peg(_asset_pair: (AssetId, AssetId), _peg: PegType, _source: Source) -> DispatchResult {
-			todo!()
+		fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, _source: Source) -> DispatchResult {
+			set_peg_oracle_value(asset_pair.0, asset_pair.1, peg, 0);
+			Ok(())
 		}
 	}
 
