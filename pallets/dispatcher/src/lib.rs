@@ -38,18 +38,26 @@ mod benchmarking;
 
 pub mod weights;
 
-use frame_support::dispatch::PostDispatchInfo;
+use evm::ExitReason;
+use frame_support::dispatch::{PostDispatchInfo, WithPostDispatchInfo};
+use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use pallet_evm::GasWeightMapping;
+use sp_core::{crypto::AccountId32, U256};
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
+use sp_std::vec::Vec;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::pallet_prelude::Weight;
 pub use pallet::*;
 
+pub type CallResult = (ExitReason, Vec<u8>);
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use codec::FullCodec;
+	use evm::ExitSucceed;
 	use frame_support::{
 		dispatch::{GetDispatchInfo, PostDispatchInfo},
 		pallet_prelude::*,
@@ -74,6 +82,19 @@ pub mod pallet {
 			+ From<frame_system::Call<Self>>
 			+ Parameter;
 
+		/// EVM handler.
+		type Evm: EVM<CallResult>;
+
+		/// EVM account mapping
+		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
+
+		/// Gas limit for EVM calls
+		#[pallet::constant]
+		type GasLimit: Get<u64>;
+
+		/// Convert gas to weight
+		type GasWeightMapping: GasWeightMapping;
+
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
@@ -91,6 +112,13 @@ pub mod pallet {
 	#[pallet::getter(fn aave_manager_account)]
 	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
 
+	#[pallet::error]
+	pub enum Error<T> {
+		TreasuryManagerCallFailed,
+		AaveManagerCallFailed,
+		EvmCallFailed,
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -105,7 +133,10 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		#[pallet::call_index(0)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().weight;
@@ -168,6 +199,50 @@ pub mod pallet {
 			ensure_root(origin)?;
 			AaveManagerAccount::<T>::put(account);
 			Ok(())
+		}
+
+		/// Execute a single EVM call.
+		/// This extrinsic will fail if the EVM call reverts.
+		///
+		/// This can be used with pallet_utility::batch_all to achieve the same
+		/// functionality as batch_all itself with automatic revert on EVM call failure.
+		///
+		/// Parameters:
+		/// - `origin`: Signed origin.
+		/// - `target`: The EVM address of the contract to call.
+		/// - `input`: The input data for the call.
+		///
+		/// Emits `EvmCallSuccess` event when successful.
+		#[pallet::call_index(4)]
+		#[pallet::weight(T::GasWeightMapping::gas_to_weight(T::GasLimit::get(), false))]
+		pub fn dispatch_evm_call(
+			origin: OriginFor<T>,
+			target: EvmAddress,
+			input: Vec<u8>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			let caller_evm_address = T::EvmAccounts::evm_address(&who);
+			let context = CallContext::new_call(target, caller_evm_address);
+
+			let (exit_reason, output) = T::Evm::call(context, input.clone(), U256::zero(), T::GasLimit::get());
+
+			// If the call fails, return an error
+			match exit_reason {
+				ExitReason::Succeed(ExitSucceed::Returned) => Ok(Pays::No.into()),
+				_ => {
+					log::debug!(
+						target: "dispatcher",
+						"EVM call execution failed: {:?}, Output: {:?}",
+						exit_reason,
+						output
+					);
+
+					// TODO: can we get actual gas used?
+					let total_weight = T::GasWeightMapping::gas_to_weight(T::GasLimit::get(), false);
+					Err(Error::<T>::EvmCallFailed.with_weight(total_weight))
+				}
+			}
 		}
 	}
 }

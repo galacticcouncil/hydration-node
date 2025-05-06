@@ -7973,12 +7973,15 @@ dependencies = [
 name = "pallet-dispatcher"
 version = "1.0.1"
 dependencies = [
+ "evm",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydradx-traits",
+ "log",
  "orml-tokens",
  "orml-traits",
+ "pallet-evm",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
