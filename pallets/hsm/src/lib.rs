@@ -944,32 +944,27 @@ where
 		let collateral_reserve = pool_state
 			.asset_reserve_at(collateral_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
-		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
 
-		// for imbalance calculation, we need to take decimals into account, adjust it to match hollar precision
-		// but only if peg source for that asset is not provided by Oracle
-		// because oracle provides price would correctly pegged the reserve to correct hollar decimals.
-		let normalized_collateral_reserve =
-			if pool_state.is_oracle_peg_source::<T>(collateral_info.pool_id, collateral_pos) {
-				collateral_reserve
-			} else {
-				let hollar_decimals = pool_state
-					.asset_decimals_at(hollar_pos)
-					.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-				let collateral_decimals = pool_state
-					.asset_decimals_at(collateral_pos)
-					.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-				hydra_dx_math::stableswap::normalize_value(
-					collateral_reserve,
-					collateral_decimals,
-					hollar_decimals,
-					hydra_dx_math::stableswap::Rounding::Down,
-				)
-			};
+		// If a pool does not have peg source set,
+		// we need to correctly set the peg, respecting asset decimals
+		let peg = if pool_state.has_peg_source_set::<T>(collateral_info.pool_id) {
+			pool_state.pegs[collateral_pos]
+		} else {
+			let hollar_decimals = pool_state
+				.asset_decimals_at(hollar_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			let collateral_decimals = pool_state
+				.asset_decimals_at(collateral_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			(
+				10u128.pow(hollar_decimals as u32),
+				10u128.pow(collateral_decimals as u32),
+			)
+		};
 
 		// 1. Calculate imbalance
-		let imbalance = math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
-			.ok_or(ArithmeticError::Overflow)?;
+		let imbalance =
+			math::calculate_imbalance(hollar_reserve, peg, collateral_reserve).ok_or(ArithmeticError::Overflow)?;
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
 		let buyback_limit = math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
@@ -1059,7 +1054,26 @@ where
 		let collateral_pos = pool_state
 			.asset_idx(collateral_asset)
 			.ok_or(Error::<T>::AssetNotFound)?;
-		let peg = pool_state.pegs[collateral_pos]; //hollar/collateral
+		let hollar_pos = pool_state
+			.asset_idx(T::HollarId::get())
+			.ok_or(Error::<T>::AssetNotFound)?;
+
+		// If a pool does not have peg source set,
+		// we need to correctly set the peg, respecting asset decimals
+		let peg = if pool_state.has_peg_source_set::<T>(collateral_info.pool_id) {
+			pool_state.pegs[collateral_pos]
+		} else {
+			let hollar_decimals = pool_state
+				.asset_decimals_at(hollar_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			let collateral_decimals = pool_state
+				.asset_decimals_at(collateral_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			(
+				10u128.pow(hollar_decimals as u32),
+				10u128.pow(collateral_decimals as u32),
+			)
+		};
 		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
 		log::trace!(target: "hsm", "Peg: {:?}, Purchase price {:?}", peg, purchase_price);
@@ -1283,7 +1297,6 @@ where
 			pool_state.pegs.len() > hollar_pos.max(collateral_pos),
 			Error::<T>::InvalidPoolState
 		);
-		// Calculate I_i = (H_i - φ_i * R_i) / 2
 		let collateral_reserve = pool_state
 			.asset_reserve_at(collateral_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
@@ -1291,13 +1304,10 @@ where
 			.asset_reserve_at(hollar_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
 
-		let peg = pool_state.pegs[collateral_pos]; // hollar/collateral
-
-		// for imbalance calculation, we need to take decimals into account, adjust it to match hollar precision
-		// but only if peg source for that asset is not provided by Oracle
-		// because oracle provides price would correctly pegged the reserve to correct hollar decimals.
-		let normalized_collateral_reserve = if pool_state.is_oracle_peg_source::<T>(pool_id, collateral_pos) {
-			collateral_reserve
+		// If a pool does not have peg source set,
+		// we need to correctly set the peg, respecting asset decimals
+		let peg = if pool_state.has_peg_source_set::<T>(collateral_info.pool_id) {
+			pool_state.pegs[collateral_pos]
 		} else {
 			let hollar_decimals = pool_state
 				.asset_decimals_at(hollar_pos)
@@ -1305,16 +1315,15 @@ where
 			let collateral_decimals = pool_state
 				.asset_decimals_at(collateral_pos)
 				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-			hydra_dx_math::stableswap::normalize_value(
-				collateral_reserve,
-				collateral_decimals,
-				hollar_decimals,
-				hydra_dx_math::stableswap::Rounding::Down,
+			(
+				10u128.pow(hollar_decimals as u32),
+				10u128.pow(collateral_decimals as u32),
 			)
 		};
+
 		// 1. Calculate imbalance
-		let imbalance = math::calculate_imbalance(hollar_reserve, peg, normalized_collateral_reserve)
-			.ok_or(ArithmeticError::Overflow)?;
+		let imbalance =
+			math::calculate_imbalance(hollar_reserve, peg, collateral_reserve).ok_or(ArithmeticError::Overflow)?;
 		ensure!(!imbalance.is_zero(), Error::<T>::NoArbitrageOpportunity);
 		let b_coefficient = collateral_info.buyback_rate;
 		let max_buy_amt = b_coefficient.mul_floor(imbalance);

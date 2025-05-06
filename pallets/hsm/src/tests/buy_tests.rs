@@ -72,6 +72,52 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 	ext
 }
 
+fn setup_test_with_dai_collateral_with_different_decimals(decimals: u8) -> sp_io::TestExternalities {
+	let one = 10u128.pow(decimals as u32);
+	let mut ext = ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HOLLAR, 1_000 * ONE),
+			(ALICE, DAI, 1_000 * one),
+			(BOB, HOLLAR, 1_000 * ONE),
+			(BOB, DAI, 1_000 * one),
+			(PROVIDER, HOLLAR, 1_000 * ONE),
+			(PROVIDER, DAI, 1_000 * one),
+			(HSM::account_id(), DAI, 1_000 * one),
+		])
+		.with_registered_assets(vec![(HDX, 12), (DAI, decimals), (HOLLAR, 18), (100, 18)])
+		// Create a stablepool for HOLLAR and DAI
+		.build();
+	ext.execute_with(|| {
+		assert_ok!(Stableswap::create_pool(
+			RuntimeOrigin::root(),
+			100,
+			BoundedVec::try_from(vec![HOLLAR, DAI]).unwrap(),
+			2,
+			Permill::from_percent(1),
+		));
+		let liquidity = vec![AssetAmount::new(HOLLAR, 1000 * ONE), AssetAmount::new(DAI, 900 * one)];
+		assert_ok!(Stableswap::add_assets_liquidity(
+			RuntimeOrigin::signed(PROVIDER),
+			100,
+			BoundedVec::try_from(liquidity).unwrap(),
+			0,
+		));
+		assert_ok!(HSM::add_collateral_asset(
+			RuntimeOrigin::root(),
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+			Perbill::from_percent(50),
+			None,
+		));
+		move_block();
+	});
+
+	ext
+}
+
 #[test]
 fn buy_hollar_with_collateral_works() {
 	setup_test_with_dai_collateral().execute_with(|| {
@@ -930,5 +976,131 @@ fn buy_collateral_should_yield_same_results_when_stabepool_state_changes_due_to_
 
 		// Check that HollarAmountReceived was updated correctly
 		assert_eq!(HollarAmountReceived::<Test>::get(DAI), expected_hollar_amount);
+	});
+}
+
+#[test]
+fn buy_hollar_with_collateral_works_when_collateral_has_different_decimals() {
+	setup_test_with_dai_collateral_with_different_decimals(12).execute_with(|| {
+		// Initial state
+		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+		// Calculate expected values based on implementation
+		let hollar_amount = 10 * ONE;
+		let expected_collateral_amount = 10100000000000;
+
+		// Execute the buy
+		assert_ok!(HSM::buy(
+			RuntimeOrigin::signed(ALICE),
+			DAI,
+			HOLLAR,
+			hollar_amount,
+			2 * expected_collateral_amount, // Higher than expected amount (slippage limit)
+		));
+
+		// Check that ALICE's balances are updated correctly
+		assert_eq!(
+			Tokens::free_balance(DAI, &ALICE),
+			initial_alice_dai - expected_collateral_amount
+		);
+		assert_eq!(
+			Tokens::free_balance(HOLLAR, &ALICE),
+			initial_alice_hollar + hollar_amount
+		);
+
+		// Check that HSM holdings are updated correctly
+		assert_eq!(
+			Tokens::free_balance(DAI, &HSM::account_id()),
+			initial_hsm_dai + expected_collateral_amount
+		);
+
+		// Check that EVM mint call was made
+		let (contract, _data) = last_evm_call().unwrap();
+		assert_eq!(contract, EvmAddress::from(GHO_ADDRESS));
+
+		// Check that the event was emitted correctly
+		System::assert_has_event(
+			pallet_broadcast::Event::<Test>::Swapped3 {
+				swapper: ALICE,
+				filler: HSM::account_id(),
+				filler_type: Filler::HSM,
+				operation: TradeOperation::ExactOut,
+				inputs: vec![Asset::new(DAI, expected_collateral_amount)],
+				outputs: vec![Asset::new(HOLLAR, hollar_amount)],
+				fees: vec![],
+				operation_stack: vec![],
+			}
+			.into(),
+		);
+
+		// Clean up for next test
+		clear_evm_calls();
+	});
+}
+
+#[test]
+fn buy_collateral_with_hollar_works_when_collateral_has_different_decimals() {
+	let one = 10u128.pow(12);
+	setup_test_with_dai_collateral_with_different_decimals(12).execute_with(|| {
+		// Set initial collateral holdings for HSM
+		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 100 * one as i128));
+
+		// Initial state
+		let initial_alice_dai = Tokens::free_balance(DAI, &ALICE);
+		let initial_alice_hollar = Tokens::free_balance(HOLLAR, &ALICE);
+		let initial_hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
+
+		// Calculate expected values
+		let collateral_amount = 10 * one;
+		let expected_hollar_amount = 10115651205298638227;
+
+		// Execute the buy
+		assert_ok!(HSM::buy(
+			RuntimeOrigin::signed(ALICE),
+			HOLLAR,
+			DAI,
+			collateral_amount,
+			2 * expected_hollar_amount, // Higher than expected amount (slippage limit)
+		));
+
+		// Check that ALICE's balances are updated correctly
+		assert_eq!(
+			Tokens::free_balance(HOLLAR, &ALICE),
+			initial_alice_hollar - expected_hollar_amount
+		);
+		assert_eq!(Tokens::free_balance(DAI, &ALICE), initial_alice_dai + collateral_amount);
+
+		// Check that HSM holdings are updated correctly
+		assert_eq!(
+			Tokens::free_balance(DAI, &HSM::account_id()),
+			initial_hsm_dai - collateral_amount
+		);
+
+		// Check that HollarAmountReceived was updated correctly
+		assert_eq!(HollarAmountReceived::<Test>::get(DAI), expected_hollar_amount);
+
+		// Check that EVM call was made for burning Hollar
+		let (contract, _data) = last_evm_call().unwrap();
+		assert_eq!(contract, EvmAddress::from(GHO_ADDRESS));
+
+		// Check that the event was emitted correctly
+		System::assert_has_event(
+			pallet_broadcast::Event::<Test>::Swapped3 {
+				swapper: ALICE,
+				filler: HSM::account_id(),
+				filler_type: Filler::HSM,
+				operation: TradeOperation::ExactOut,
+				inputs: vec![Asset::new(HOLLAR, expected_hollar_amount)],
+				outputs: vec![Asset::new(DAI, collateral_amount)],
+				fees: vec![],
+				operation_stack: vec![],
+			}
+			.into(),
+		);
+
+		// Clean up for next test
+		clear_evm_calls();
 	});
 }

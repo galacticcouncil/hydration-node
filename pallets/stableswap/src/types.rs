@@ -203,17 +203,8 @@ impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
 		self.reserves.get(idx).map(|reserve| reserve.amount)
 	}
 
-	pub fn is_oracle_peg_source<T: Config>(&self, pool_id: T::AssetId, asset_idx: usize) -> bool {
-		let Some(pegs) = PoolPegs::<T>::get(pool_id) else {
-			return false;
-		};
-
-		if pegs.source.len() >= asset_idx {
-			false
-		} else {
-			let source = &pegs.source[asset_idx];
-			matches!(source, PegSource::Oracle(_))
-		}
+	pub fn has_peg_source_set<T: Config>(&self, pool_id: T::AssetId) -> bool {
+		PoolPegs::<T>::get(pool_id).is_some()
 	}
 
 	pub fn update_reserves(mut self, amount_in: AssetAmount<AssetId>, amount_out: AssetAmount<AssetId>) -> Self {
