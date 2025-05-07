@@ -3,7 +3,10 @@ services:
   hydration:
     image: galacticcouncil/fork:latest
     environment:
-      - STATE_SOURCE: https://snapshots.play.hydration.cloud/state.json
+      - CHAIN_NAME: Hydration Fork
+      #- STATE_SOURCE: https://snapshots.play.hydration.cloud/state.json
+      #- STATE_RPC: wss://rpc.hydradx.cloud
+      #- STATE_BLOCK: 0x98923290c2d8f032d371dd65b239ebde6be2318c5d6ca1ed8de33fe966799933
     volumes:
       - data:/zombienet/hydration-node/launch-configs/fork/data
     networks:

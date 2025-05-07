@@ -17,9 +17,9 @@
 
 //! Test environment for Assets pallet.
 #![allow(clippy::type_complexity)]
+#![allow(deprecated)]
 
 use core::ops::RangeInclusive;
-use core::u64;
 use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 use std::cell::RefCell;
@@ -373,7 +373,7 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PegSource, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod};
+use hydradx_traits::{AccountIdFor, Inspect};
 use sp_runtime::traits::Zero;
 
 use super::types::RawEntry;
@@ -519,7 +519,7 @@ pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped2 { .. }) = e {
+		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 { .. }) = e {
 			swapped_events.push(e);
 		}
 	}

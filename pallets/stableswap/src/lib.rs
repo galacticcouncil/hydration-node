@@ -63,20 +63,21 @@ use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
+use num_traits::zero;
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
-use types::OracleSource;
 
 mod trade_execution;
 pub mod types;
 pub mod weights;
 
 use crate::types::{
-	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, RawOracle, StableswapHooks, Tradability,
+	Balance, BoundedPegs, OracleSource, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, RawOracle,
+	StableswapHooks, Tradability,
 };
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
@@ -1422,13 +1423,27 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
+		let share_issuance = T::Currency::total_issuance(pool_id);
 		let pool_account = Self::pool_account(pool_id);
 		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
 		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
 		let mut added_amounts = Vec::with_capacity(pool.assets.len());
+		//NOTE: This incluceds reserves balances if they are not zero for fist add liq. see comment code bellow.
+		let mut provided_assets = Vec::<AssetAmount<T::AssetId>>::with_capacity(pool.assets.len());
 		for pool_asset in pool.assets.iter() {
 			let decimals = Self::retrieve_decimals(*pool_asset).ok_or(Error::<T>::UnknownDecimals)?;
-			let reserve = T::Currency::free_balance(*pool_asset, &pool_account);
+			let mut reserve = T::Currency::free_balance(*pool_asset, &pool_account);
+			//NOTE: Pool must be empty when `share_issuance` is zero so existing `reserves` belongs
+			//to first liquidity provider.
+			if !reserve.is_zero() && share_issuance.is_zero() {
+				if let Some(liq_added) = added_assets.get_mut(pool_asset) {
+					*liq_added = liq_added.saturating_add(reserve);
+				} else {
+					added_assets.insert(*pool_asset, reserve);
+				}
+				reserve = zero()
+			};
+
 			initial_reserves.push(AssetReserve {
 				amount: reserve,
 				decimals,
@@ -1440,6 +1455,7 @@ impl<T: Config> Pallet<T> {
 					decimals,
 				});
 				added_amounts.push(liq_added);
+				provided_assets.push(AssetAmount::new(*pool_asset, liq_added));
 			} else {
 				ensure!(!reserve.is_zero(), Error::<T>::InvalidInitialLiquidity);
 				updated_reserves.push(AssetReserve {
@@ -1453,7 +1469,6 @@ impl<T: Config> Pallet<T> {
 		ensure!(added_assets.is_empty(), Error::<T>::AssetNotInPool);
 
 		let amplification = Self::get_amplification(&pool);
-		let share_issuance = T::Currency::total_issuance(pool_id);
 		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
 		let (share_amount, fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
@@ -1491,13 +1506,14 @@ impl<T: Config> Pallet<T> {
 			pool_id,
 			who: who.clone(),
 			shares: share_amount,
-			assets: assets.to_vec(),
+			assets: provided_assets.to_vec(),
 		});
 
-		let inputs = assets
+		let inputs = provided_assets
 			.iter()
 			.map(|asset| Asset::new(asset.asset_id.into(), asset.amount))
 			.collect();
+
 		let fees = fees
 			.iter()
 			.zip(pool.assets.iter())
@@ -1505,6 +1521,7 @@ impl<T: Config> Pallet<T> {
 				Fee::new((*asset_id).into(), *balance, Destination::Account(pool_account.clone()))
 			})
 			.collect::<Vec<_>>();
+
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
 			pool_account.clone(),
