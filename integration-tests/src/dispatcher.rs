@@ -1,16 +1,19 @@
 use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use fp_evm::PrecompileSet;
+use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
+use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::EvmAddress;
 use sp_core::crypto::AccountId32;
 use sp_core::Encode;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
+use sp_runtime::traits::SignedExtension;
 use test_utils::last_events;
 use xcm_emulator::TestExt;
 
@@ -148,4 +151,223 @@ fn dispatch_with_extra_gas_should_fail_when_extra_gas_is_not_enough() {
 		//Assert
 		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 0);
 	});
+}
+
+#[test]
+fn dispatch_with_extra_gas_should_pay_for_extra_gas_used() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let hydra_contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+		let contract = crate::utils::contracts::deploy_contract("GasEater", crate::contracts::deployer());
+		let hydra_erc20 = crate::erc20::bind_erc20(hydra_contract);
+		let erc20 = crate::erc20::bind_erc20(contract);
+
+		// Get HydraToken tx fee
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: hydra_erc20,
+			amount: 100,
+		});
+
+		let batch = RuntimeCall::Utility(
+			(pallet_utility::Call::batch_all {
+				calls: vec![call.clone()],
+			}),
+		);
+
+		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(batch.clone()),
+			extra_gas: 50_000,
+		});
+		let info = dispatch_call.get_dispatch_info();
+		let info_len = dispatch_call.encoded_size();
+
+		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+		assert_ok!(&pre);
+		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
+		assert_ok!(result);
+		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&result.unwrap(),
+			info_len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(hydra_erc20, &BOB.into()), 100);
+
+		let alice_balance_final = Currencies::free_balance(HDX, &ALICE.into());
+		let hydra_paid_fee = initial_alice_hdx_balance - alice_balance_final;
+
+		// Get GasEater tx fee
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: erc20,
+			amount: 100,
+		});
+
+		let batch = RuntimeCall::Utility(
+			(pallet_utility::Call::batch_all {
+				calls: vec![call.clone()],
+			}),
+		);
+
+		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(batch.clone()),
+			extra_gas: 50_000,
+		});
+		let info = dispatch_call.get_dispatch_info();
+		let info_len = dispatch_call.encoded_size();
+
+		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+		assert_ok!(&pre);
+		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
+		assert_ok!(result);
+		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&result.unwrap(),
+			info_len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 100);
+
+		let alice_balance_final = Currencies::free_balance(HDX, &ALICE.into());
+		let gas_eater_paid_fee = initial_alice_hdx_balance - alice_balance_final;
+		assert!(
+			gas_eater_paid_fee > hydra_paid_fee,
+			"GasEater transfer should cost more than HydraToken transfer: {:?} > {:?}",
+			gas_eater_paid_fee,
+			hydra_paid_fee
+		);
+	});
+}
+
+#[test]
+fn dispatch_with_extra_gas_should_refund_extra_gas_correctly() {
+	// Test scenario to compare the fees paid for two transactions with different extra gas limits.
+	// The first transaction has a low extra gas limit, while the second transaction has a high extra gas limit.
+	// The expectation is that the fees paid for both transactions should be the same, as the unused gas should be refunded correctly.
+
+	// Fee charged on tx submit
+	let mut fee_charge_1 = 0;
+	let mut fee_charge_2 = 0;
+
+	// Final fees paid after refund
+	let mut actual_fee_paid_1 = 0;
+	let mut actual_fee_paid_2 = 0;
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = crate::utils::contracts::deploy_contract("GasEater", crate::contracts::deployer());
+		let erc20 = crate::erc20::bind_erc20(contract);
+
+		// Get GasEater tx fee
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: erc20,
+			amount: 100,
+		});
+
+		let batch = RuntimeCall::Utility(
+			(pallet_utility::Call::batch_all {
+				calls: vec![call.clone()],
+			}),
+		);
+
+		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(batch.clone()),
+			extra_gas: 50_000,
+		});
+		let info = dispatch_call.get_dispatch_info();
+		let info_len = dispatch_call.encoded_size();
+
+		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+		assert_ok!(&pre);
+		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		fee_charge_1 = initial_alice_hdx_balance - alice_hdx_balance;
+
+		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
+		assert_ok!(result);
+		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&result.unwrap(),
+			info_len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 100);
+
+		let alice_balance_final = Currencies::free_balance(HDX, &ALICE.into());
+		actual_fee_paid_1 = initial_alice_hdx_balance - alice_balance_final;
+	});
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let contract = crate::utils::contracts::deploy_contract("GasEater", crate::contracts::deployer());
+		let erc20 = crate::erc20::bind_erc20(contract);
+
+		// Get GasEater tx fee
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: erc20,
+			amount: 100,
+		});
+
+		let batch = RuntimeCall::Utility(
+			(pallet_utility::Call::batch_all {
+				calls: vec![call.clone()],
+			}),
+		);
+
+		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(batch.clone()),
+			extra_gas: 1_050_000,
+		});
+		let info = dispatch_call.get_dispatch_info();
+		let info_len = dispatch_call.encoded_size();
+
+		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+		assert_ok!(&pre);
+		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		fee_charge_2 = initial_alice_hdx_balance - alice_hdx_balance;
+
+		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
+		assert_ok!(result);
+		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&result.unwrap(),
+			info_len,
+			&Ok(())
+		));
+		assert_eq!(Currencies::free_balance(erc20, &BOB.into()), 100);
+
+		let alice_balance_final = Currencies::free_balance(HDX, &ALICE.into());
+		actual_fee_paid_2 = initial_alice_hdx_balance - alice_balance_final;
+	});
+
+	// Fee charged on tx submit should be higher in the second case
+	assert!(
+		fee_charge_2 > fee_charge_1,
+		"Fee charged on tx submit should be higher in the second case: {:?} > {:?}",
+		fee_charge_2,
+		fee_charge_1
+	);
+
+	// the two tx fees should be the same because it should refund correctly the unused gas
+	assert_eq!(
+		actual_fee_paid_1, actual_fee_paid_2,
+		"Paid fee should be the same for both transactions: {:?} != {:?}",
+		actual_fee_paid_1, actual_fee_paid_2
+	);
 }

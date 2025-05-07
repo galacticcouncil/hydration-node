@@ -51,6 +51,7 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	use codec::FullCodec;
+	use frame_support::dispatch::DispatchErrorWithPostInfo;
 	use frame_support::{
 		dispatch::{GetDispatchInfo, PostDispatchInfo},
 		pallet_prelude::*,
@@ -202,11 +203,36 @@ pub mod pallet {
 			ExtraGas::<T>::set(extra_gas);
 
 			// Dispatch the call
-			let (result, _) = Self::do_dispatch(who.clone(), *call);
+			let (result, actual_weight) = Self::do_dispatch(who.clone(), *call);
 
-			// Clean up storage
-			ExtraGas::<T>::kill();
-			result
+			let remaining_extra_gas = ExtraGas::<T>::take();
+			let gas_used = extra_gas.saturating_sub(remaining_extra_gas);
+
+			// if gas used is zero, we can return the result directly
+			if gas_used == 0 {
+				return result;
+			}
+			// we can return result directly also when the actual weight is None ( for some reason)
+			let Some(actual_weight) = actual_weight else {
+				return result;
+			};
+			//Otherwise, we need to account for the extra gas used.
+			let extra_weight = T::GasWeightMapping::gas_to_weight(gas_used, true);
+			let actual_weight = Some(actual_weight.saturating_add(extra_weight));
+
+			match result {
+				Ok(call_post_info) => Ok(PostDispatchInfo {
+					actual_weight,
+					pays_fee: call_post_info.pays_fee,
+				}),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: err.post_info.pays_fee,
+					},
+					error: err.error,
+				}),
+			}
 		}
 	}
 }
