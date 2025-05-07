@@ -182,7 +182,12 @@ impl<AssetId> PoolPegInfo<AssetId> {
 //TODO: move to appropriate place
 pub trait RawOracle<AssetId, Balance, BlockNumber> {
 	type Error;
-	fn get_raw_entry(source: OracleSource<AssetId>) -> Result<(PegType, BlockNumber), Self::Error>;
+	fn get_raw_entry(source: OracleSource<AssetId>) -> Result<RawEntry<BlockNumber>, Self::Error>;
+}
+
+pub struct RawEntry<BlockNumber> {
+	pub peg: PegType,
+	pub updated_at: BlockNumber,
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]

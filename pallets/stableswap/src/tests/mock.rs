@@ -19,6 +19,7 @@
 #![allow(clippy::type_complexity)]
 
 use core::ops::RangeInclusive;
+use core::u64;
 use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 use std::cell::RefCell;
@@ -31,6 +32,7 @@ use crate::Config;
 
 use crate::types::BoundedPegSources;
 use crate::PegType;
+use crate::RawOracle;
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, BoundedVec};
@@ -371,8 +373,11 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PegSource, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
+use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod};
 use sp_runtime::traits::Zero;
+
+use super::types::RawEntry;
+use super::OracleSource;
 
 pub struct DummyRegistry;
 
@@ -537,22 +542,26 @@ pub struct PegOracle;
 impl RawOracle<AssetId, Balance, u64> for PegOracle {
 	type Error = ();
 
-	fn get_raw_entry(
-		_source: Source,
-		asset_a: AssetId,
-		asset_b: AssetId,
-		_period: OraclePeriod,
-	) -> Result<RawEntry<Balance, u64>, Self::Error> {
-		let (n, d, u) = PEG_ORACLE_VALUES
-			.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
-			.ok_or(())?;
+	fn get_raw_entry(source: OracleSource<AssetId>) -> Result<RawEntry<u64>, Self::Error> {
+		match source {
+			OracleSource::Oracle((_, _, asset_a, asset_b)) => {
+				let (n, d, u) = PEG_ORACLE_VALUES
+					.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
+					.ok_or(())?;
 
-		Ok(RawEntry {
-			price: (n, d),
-			volume: Volume::default(),
-			liquidity: Liquidity::default(),
-			updated_at: u,
-		})
+				return Ok(RawEntry {
+					peg: (n, d),
+					updated_at: u,
+				});
+			}
+			OracleSource::Value(peg) => {
+				return Ok(RawEntry {
+					peg,
+					updated_at: System::block_number(),
+				});
+			}
+			_ => panic!("unusupported oracle types: {:?}", source),
+		}
 	}
 }
 
