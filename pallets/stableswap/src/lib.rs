@@ -63,8 +63,6 @@ use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydradx_traits::{
-	evm::{CallContext, EVM},
-	oracle::RawOracle,
 	registry::Inspect,
 	stableswap::StableswapAddLiquidity,
 	AccountIdFor,
@@ -75,13 +73,15 @@ use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
+use types::OracleSource;
 
 mod trade_execution;
 pub mod types;
 pub mod weights;
 
 use crate::types::{
-	Balance, BoundedPegs, EvmResult, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
+	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, RawOracle, StableswapHooks,
+	Tradability,
 };
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
@@ -182,9 +182,7 @@ pub mod pallet {
 		/// Oracle providing prices for asset pegs (if configured for pool)
 		/// Raw oracle is required because it needs the values that are not delayed.
 		/// It is how the mechanism is designed.
-		type TargetPegOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
-
-		type EVM: EVM<EvmResult>;
+		type TargetPegOracle: RawOracle<Self::AssetId, Balance, u128>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -1820,7 +1818,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Retrieve new target pegs
 	fn get_target_pegs(
-		block_no: u128,
+		_block_no: u128, //TODO: remove & refactor
 		pool_assets: &[T::AssetId],
 		peg_sources: &[PegSource<T::AssetId>],
 	) -> Result<Vec<(PegType, u128)>, DispatchError> {
@@ -1838,24 +1836,8 @@ impl<T: Config> Pallet<T> {
 
 		let mut r = vec![];
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
-			let p = match source {
-				PegSource::Value(peg) => (*peg, block_no),
-				PegSource::Oracle((source, period, oracle_asset)) => {
-					let entry = T::TargetPegOracle::get_raw_entry(*source, *oracle_asset, *asset_id, *period)
-						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
-					((entry.price.0, entry.price.1), entry.updated_at.saturated_into())
-				}
-				PegSource::ChainlinkOracle(contract) => {
-					let pallet_account = Self::pallet_account();
-
-					let ctx = CallContext::new_call(contract, pallet_account);
-
-					//TODO: read value from evm
-					//TODO: normalize value to decimals
-					todo!()
-				}
-			};
-			r.push(p);
+			r.push(T::TargetPegOracle::get_raw_entry(OracleSource::from((source.clone(), *asset_id)))
+				.map_err(|_| Error::<T>::MissingTargetPegOracle)?);
 		}
 		Ok(r)
 	}

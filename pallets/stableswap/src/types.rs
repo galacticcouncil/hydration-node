@@ -10,7 +10,6 @@ use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use evm::ExitReason;
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
@@ -22,8 +21,6 @@ use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
 
 pub(crate) type Balance = u128;
-
-pub(crate) type EvmResult = (ExitReason, Vec<u8>);
 
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets
@@ -179,5 +176,30 @@ impl<AssetId> PoolPegInfo<AssetId> {
 			max_peg_update: self.max_peg_update,
 			current: BoundedPegs::truncate_from(pegs.to_vec()),
 		}
+	}
+}
+
+//TODO: move to appropriate place
+pub trait RawOracle<AssetId, Balance, BlockNumber> {
+	type Error;
+	fn get_raw_entry(source: OracleSource<AssetId>) -> Result<(PegType, BlockNumber), Self::Error>;
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum OracleSource<AssetId> {
+	Value(PegType),
+	Oracle((Source, OraclePeriod, AssetId, AssetId)),
+	ChainlinkOracle(EvmAddress),
+}
+
+impl<AssetId> From<(PegSource<AssetId>, AssetId)> for OracleSource<AssetId> {
+	fn from(item: (PegSource<AssetId>, AssetId)) -> Self {
+		return match item.0 {
+			PegSource::Value(peg) => OracleSource::Value(peg),
+			PegSource::Oracle((source, period, oracle_asset)) => {
+				OracleSource::Oracle((source, period, oracle_asset, item.1))
+			}
+			PegSource::ChainlinkOracle(addr) => OracleSource::ChainlinkOracle(addr),
+		};
 	}
 }
