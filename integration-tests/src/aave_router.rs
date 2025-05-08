@@ -185,7 +185,7 @@ fn buy_adot() {
 			DOT,
 			ADOT,
 			ONE,
-			ONE + 2, // Small fee we apply for buys,
+			ONE + 2,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -194,7 +194,7 @@ fn buy_adot() {
 			.try_into()
 			.unwrap()
 		));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ONE);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ONE + 2);
 	})
 }
 
@@ -215,7 +215,7 @@ fn sell_adot() {
 			.try_into()
 			.unwrap()
 		));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE + 2);
 	})
 }
 
@@ -238,7 +238,7 @@ fn buy_dot() {
 			.try_into()
 			.unwrap()
 		));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE - 2);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
 
 		let atoken = HydraErc20Mapping::asset_address(ADOT);
 		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
@@ -316,7 +316,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), balance - amount + 1);
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount + 6);
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount);
 
 		let atoken = HydraErc20Mapping::asset_address(ADOT);
 		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
@@ -383,7 +383,7 @@ fn not_always_rounding_shall_be_in_your_favor() {
 			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance - 1);
 	})
 }
 
