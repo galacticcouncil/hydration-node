@@ -58,7 +58,8 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{Dispatchable, Hash};
-	use sp_std::boxed::Box;
+	use sp_runtime::{FixedPointNumber, FixedU128, Permill, Saturating};
+	use sp_std::{boxed::Box, cmp::min};
 
 	pub type AccountId = u64;
 
@@ -182,7 +183,7 @@ pub mod pallet {
 		/// Dispatch a call with extra gas.
 		///
 		/// This allows executing calls with additional weight (gas) limit.
-		/// The call will fail if it would consume more weight than the specified limit.
+		/// The extra gas is not refunded, even if not used.
 		#[pallet::call_index(3)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().weight;
@@ -199,36 +200,33 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			// Store the gas limit for this account
 			ExtraGas::<T>::set(extra_gas);
-
-			// Dispatch the call
 			let (result, actual_weight) = Self::do_dispatch(who.clone(), *call);
+			ExtraGas::<T>::kill();
 
-			let remaining_extra_gas = ExtraGas::<T>::take();
-			let gas_used = extra_gas.saturating_sub(remaining_extra_gas);
-
-			// if gas used is zero, we can return the result directly
-			if gas_used == 0 {
+			if extra_gas == 0u64 {
 				return result;
 			}
-			// we can return result directly also when the actual weight is None ( for some reason)
-			let Some(actual_weight) = actual_weight else {
-				return result;
+
+			// We need to add the extra gas to the actual weight - because evm execution does not account for it
+			// If actual weight is None, we still account for extra gas
+			let actual_weight = if let Some(weight) = actual_weight {
+				weight
+			} else {
+				Weight::zero()
 			};
-			//Otherwise, we need to account for the extra gas used.
-			let extra_weight = T::GasWeightMapping::gas_to_weight(gas_used, true);
+			let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, true);
 			let actual_weight = Some(actual_weight.saturating_add(extra_weight));
 
 			match result {
-				Ok(call_post_info) => Ok(PostDispatchInfo {
+				Ok(_) => Ok(PostDispatchInfo {
 					actual_weight,
-					pays_fee: call_post_info.pays_fee,
+					pays_fee: Pays::Yes,
 				}),
 				Err(err) => Err(DispatchErrorWithPostInfo {
 					post_info: PostDispatchInfo {
 						actual_weight,
-						pays_fee: err.post_info.pays_fee,
+						pays_fee: Pays::Yes,
 					},
 					error: err.error,
 				}),

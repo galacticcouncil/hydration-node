@@ -2,7 +2,7 @@ use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use fp_evm::PrecompileSet;
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
@@ -154,7 +154,7 @@ fn dispatch_with_extra_gas_should_fail_when_extra_gas_is_not_enough() {
 }
 
 #[test]
-fn dispatch_with_extra_gas_should_pay_for_extra_gas_used() {
+fn dispatch_with_extra_gas_should_pay_for_extra_gas_used_when_it_is_not_used() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Arrange
@@ -208,11 +208,9 @@ fn dispatch_with_extra_gas_should_pay_for_extra_gas_used() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			(pallet_utility::Call::batch_all {
-				calls: vec![call.clone()],
-			}),
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone()],
+		});
 
 		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
 			call: Box::new(batch.clone()),
@@ -238,20 +236,18 @@ fn dispatch_with_extra_gas_should_pay_for_extra_gas_used() {
 
 		let alice_balance_final = Currencies::free_balance(HDX, &ALICE.into());
 		let gas_eater_paid_fee = initial_alice_hdx_balance - alice_balance_final;
-		assert!(
-			gas_eater_paid_fee > hydra_paid_fee,
-			"GasEater transfer should cost more than HydraToken transfer: {:?} > {:?}",
-			gas_eater_paid_fee,
-			hydra_paid_fee
+		assert_eq!(
+			gas_eater_paid_fee, hydra_paid_fee,
+			"GasEater transfer should cost the same as HydraToken transfer: {:?} == {:?}",
+			gas_eater_paid_fee, hydra_paid_fee
 		);
 	});
 }
 
 #[test]
-fn dispatch_with_extra_gas_should_refund_extra_gas_correctly() {
+fn dispatch_with_extra_gas_should_not_refund_extra_gas_correctly() {
 	// Test scenario to compare the fees paid for two transactions with different extra gas limits.
-	// The first transaction has a low extra gas limit, while the second transaction has a high extra gas limit.
-	// The expectation is that the fees paid for both transactions should be the same, as the unused gas should be refunded correctly.
+	// The expectation is that the fees paid much be higher for the second transaction
 
 	// Fee charged on tx submit
 	let mut fee_charge_1 = 0;
@@ -273,11 +269,9 @@ fn dispatch_with_extra_gas_should_refund_extra_gas_correctly() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			(pallet_utility::Call::batch_all {
-				calls: vec![call.clone()],
-			}),
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone()],
+		});
 
 		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
 			call: Box::new(batch.clone()),
@@ -321,11 +315,9 @@ fn dispatch_with_extra_gas_should_refund_extra_gas_correctly() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			(pallet_utility::Call::batch_all {
-				calls: vec![call.clone()],
-			}),
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone()],
+		});
 
 		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
 			call: Box::new(batch.clone()),
@@ -365,9 +357,84 @@ fn dispatch_with_extra_gas_should_refund_extra_gas_correctly() {
 	);
 
 	// the two tx fees should be the same because it should refund correctly the unused gas
-	assert_eq!(
-		actual_fee_paid_1, actual_fee_paid_2,
-		"Paid fee should be the same for both transactions: {:?} != {:?}",
-		actual_fee_paid_1, actual_fee_paid_2
+	assert!(
+		actual_fee_paid_1 < actual_fee_paid_2,
+		"Paid fee should be higher for the second tx: {:?} < {:?}",
+		actual_fee_paid_1,
+		actual_fee_paid_2
 	);
+}
+
+#[test]
+fn dispatch_with_extra_gas_should_charge_extra_gas_when_calls_fail() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: 1234,
+			amount: 100,
+		});
+
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone()],
+		});
+
+		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(batch.clone()),
+			extra_gas: 0,
+		});
+		let info = dispatch_call.get_dispatch_info();
+		let info_len = dispatch_call.encoded_size();
+
+		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+		assert_ok!(&pre);
+
+		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let fee_charge = initial_alice_hdx_balance - alice_hdx_balance;
+
+		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
+		assert!(result.is_err());
+		let r = result.unwrap_err();
+		let _ = ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&r.post_info,
+			info_len,
+			&Ok(()),
+		);
+
+		let final_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let no_gas_fee = initial_alice_hdx_balance - final_alice_hdx_balance;
+
+		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+			call: Box::new(batch.clone()),
+			extra_gas: 100_000,
+		});
+		let info = dispatch_call.get_dispatch_info();
+		let info_len = dispatch_call.encoded_size();
+
+		let initial_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
+		assert_ok!(&pre);
+		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
+		assert!(result.is_err());
+		let r = result.unwrap_err();
+		let _ = ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
+			Some(pre.unwrap()),
+			&info,
+			&r.post_info,
+			info_len,
+			&Ok(()),
+		);
+
+		let final_alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		let extra_gas_fee = initial_alice_hdx_balance - final_alice_hdx_balance;
+		assert!(
+			no_gas_fee < extra_gas_fee,
+			"No gas fee should be less than extra gas fee"
+		);
+	});
 }
