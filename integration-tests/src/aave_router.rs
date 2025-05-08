@@ -186,7 +186,7 @@ fn buy_adot() {
 			DOT,
 			ADOT,
 			ONE,
-			ONE + 2,
+			ONE + 2 // Small fee we apply for buys,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
