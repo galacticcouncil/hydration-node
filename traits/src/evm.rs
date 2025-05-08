@@ -1,7 +1,10 @@
 use codec::{Decode, Encode};
+use frame_support::__private::DispatchError;
 use frame_support::sp_runtime::app_crypto::sp_core::{H160, U256};
 use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
+use primitives::{AssetId, Balance};
 use sp_std::vec::Vec;
+
 pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the account is EVM truncated account.
 	fn is_evm_account(account_id: AccountId) -> bool;
@@ -93,4 +96,17 @@ pub trait Erc20Encoding<AssetId> {
 pub trait Erc20Mapping<AssetId> {
 	fn asset_address(asset_id: AssetId) -> EvmAddress;
 	fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
+}
+
+pub trait AaveLending<Origin, AccountId> {
+	fn withdraw_all(origin: &AccountId, asset: primitives::EvmAddress) -> Result<(), DispatchError>;
+
+	fn get_underlying_asset_from(contract: EvmAddress) -> Option<primitives::EvmAddress>;
+
+	fn supply_on_behalf_of(
+		who: &AccountId,
+		on_behalf_of: &AccountId,
+		asset: primitives::EvmAddress,
+		amount: Balance,
+	) -> Result<(), DispatchError>;
 }

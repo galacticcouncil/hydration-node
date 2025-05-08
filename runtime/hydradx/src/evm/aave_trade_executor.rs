@@ -13,7 +13,7 @@ use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
+use hydradx_traits::evm::{AaveLending, CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -41,6 +41,42 @@ where
 	T: pallet_broadcast::Config;
 
 pub type Aave = AaveTradeExecutor<Runtime>;
+
+impl<T> AaveLending<OriginFor<T>, T::AccountId> for AaveTradeExecutor<T>
+where
+	T: pallet_evm::Config
+		+ pallet_asset_registry::Config<AssetId = AssetId>
+		+ pallet_liquidation::Config
+		+ pallet_evm_accounts::Config
+		+ pallet_broadcast::Config
+		+ frame_system::Config,
+	T::AssetNativeLocation: Into<MultiLocation>,
+	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
+	NonceIdOf<T>: Into<T::Nonce>,
+	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
+{
+	fn withdraw_all(from: &T::AccountId, asset: EvmAddress) -> Result<(), DispatchError> {
+		AaveTradeExecutor::<T>::do_withdraw_all(from, asset)
+	}
+
+	fn get_underlying_asset_from(contract: EvmAddress) -> Option<EvmAddress> {
+		let atoken = HydraErc20Mapping::address_to_asset(contract)?;
+
+		AaveTradeExecutor::<T>::get_underlying_asset(atoken)
+	}
+
+	fn supply_on_behalf_of(
+		who: &T::AccountId,
+		on_behalf_of: &T::AccountId,
+		asset: EvmAddress,
+		amount: Balance,
+	) -> Result<(), DispatchError> {
+		AaveTradeExecutor::<T>::do_supply_on_behalf_of(who, on_behalf_of, asset, amount)
+	}
+}
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -253,11 +289,22 @@ where
 	}
 
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
-		let who = ensure_signed(origin)?;
-		let on_behalf_of = T::EvmAccounts::evm_address(&who);
+		let who = ensure_signed(origin.clone())?;
+
+		Self::do_supply_on_behalf_of(&who, &who, asset, amount)
+	}
+
+	fn do_supply_on_behalf_of(
+		who: &T::AccountId,
+		on_behalf_of: &T::AccountId,
+		asset: EvmAddress,
+		amount: Balance,
+	) -> Result<(), DispatchError> {
+		let who = T::EvmAccounts::evm_address(&who);
+		let on_behalf_of = T::EvmAccounts::evm_address(on_behalf_of);
 		let referer_code = 0_u16;
 
-		let context = CallContext::new_call(<BorrowingContract<T>>::get(), on_behalf_of);
+		let context = CallContext::new_call(<BorrowingContract<T>>::get(), who);
 		let data = EvmDataWriter::new_with_selector(Function::Supply)
 			.write(asset)
 			.write(amount)
@@ -267,7 +314,6 @@ where
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
-
 	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin)?;
 		let to = T::EvmAccounts::evm_address(&who);
@@ -277,6 +323,19 @@ where
 			.write(asset)
 			.write(amount)
 			.write(to)
+			.build();
+
+		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+	}
+
+	fn do_withdraw_all(from: &T::AccountId, asset: EvmAddress) -> Result<(), DispatchError> {
+		let from = T::EvmAccounts::evm_address(from);
+
+		let context = CallContext::new_call(<BorrowingContract<T>>::get(), from);
+		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
+			.write(asset)
+			.write(U256::MAX)
+			.write(from)
 			.build();
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))

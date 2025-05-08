@@ -1,15 +1,21 @@
+use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::executor::{CallResult, Executor};
+use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
 use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
-use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
+use frame_system::pallet_prelude::OriginFor;
+use frame_system::Origin;
+use hydradx_traits::evm::{AaveLending, CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
+use hydradx_traits::{BoundErc20, Inspect};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
+use polkadot_xcm::v3::MultiLocation;
 use primitives::{AccountId, Balance};
 use scale_info::prelude::format;
 use sp_core::crypto::AccountId32;
@@ -209,13 +215,22 @@ fn handle_result(result: CallResult) -> DispatchResult {
 
 impl<T> MultiCurrency<AccountId> for Erc20Currency<T>
 where
-	T: Config + pallet_evm::Config,
+	T: Config
+		+ pallet_evm::Config
+		+ pallet_asset_registry::Config<AssetId = u32>
+		+ pallet_liquidation::Config
+		+ pallet_evm_accounts::Config
+		+ pallet_broadcast::Config
+		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
 	pallet_evm_accounts::Pallet<T>: InspectEvmAccounts<AccountId>,
 	AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
-	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	T::AssetNativeLocation: Into<MultiLocation>,
+	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
+	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 {
 	type CurrencyId = EvmAddress;
 	type Balance = Balance;
@@ -259,15 +274,35 @@ where
 		amount: Self::Balance,
 	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
-		<Self as ERC20>::transfer(
-			CallContext {
-				contract,
-				sender,
-				origin: sender,
-			},
-			EvmAccounts::<T>::evm_address(to),
-			amount,
-		)
+		let call_context = CallContext {
+			contract,
+			sender,
+			origin: sender,
+		};
+
+		if let Some(underlying_asset) = AaveTradeExecutor::<T>::get_underlying_asset_from(contract) {
+			let asset_id = HydraErc20Mapping::address_to_asset(contract)
+				.ok_or(DispatchError::Other("No substrate asset found for address"))?;
+			let ed = pallet_asset_registry::Pallet::<T>::existential_deposit(asset_id).unwrap_or_default();
+			let atoken_balance = Self::free_balance(contract, from);
+
+			let diff = atoken_balance.saturating_sub(amount);
+			if diff <= ed {
+				//We withdraw all AToken and supply underlying asset amount on behalf of the receiver
+				//We need to do this as Aave ScaledBalanceTokenBase.sol has rounding in transfer method so we can't always transfer total balance
+				AaveTradeExecutor::<T>::withdraw_all(from, underlying_asset)?;
+				let underlying_balance = Self::free_balance(underlying_asset, from);
+				AaveTradeExecutor::<T>::supply_on_behalf_of(from, to, underlying_asset, underlying_balance)?;
+			} else {
+				//When we don't transfer total balance of atokens
+				<Self as ERC20>::transfer(call_context, EvmAccounts::<T>::evm_address(to), amount)?;
+			}
+		} else {
+			//Every other erc20 token that is not present in Aave
+			<Self as ERC20>::transfer(call_context, EvmAccounts::<T>::evm_address(to), amount)?;
+		}
+
+		Ok(())
 	}
 
 	fn deposit(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
