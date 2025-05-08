@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-traits"
-version = "3.15.1"
+version = "3.15.2"
 description = "Shared traits"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -13,6 +13,9 @@ scale-info = { workspace = true }
 serde = { workspace = true }
 impl-trait-for-tuples = { workspace = true }
 sp-arithmetic = { workspace = true }
+
+# Local dependencies
+primitives = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }

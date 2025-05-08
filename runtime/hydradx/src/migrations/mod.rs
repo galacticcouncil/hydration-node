@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2025  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod conviction_voting;
+mod democracy;
+mod scheduler;
+
 use super::*;
 
 impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
@@ -22,4 +26,10 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 pub type Migrations = (
 	cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
 	evm::precompiles::erc20_mapping::SetCodeMetadataForErc20Precompile,
+	// Async backing migrations
+	pallet_dca::migrations::MultiplySchedulesPeriodBy2<Runtime>,
+	pallet_staking::migrations::SetSixSecBlocksSince<Runtime>,
+	scheduler::MigrateSchedulerTo6sBlocks<Runtime>,
+	conviction_voting::MigrateConvictionVotingTo6sBlocks<Runtime>,
+	democracy::MigrateDemocracyTo6sBlocks<Runtime>,
 );
