@@ -394,20 +394,20 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 
-			set_relaychain_block_number(22);
+			set_relaychain_block_number(32);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
 
-			set_relaychain_block_number(42);
+			set_relaychain_block_number(72);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
 
 			//After this retry we terminate
-			set_relaychain_block_number(82);
+			set_relaychain_block_number(152);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 4 * fee);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -1548,20 +1548,20 @@ mod omnipool {
 
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 
-			set_relaychain_block_number(22);
+			set_relaychain_block_number(32);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
 
-			set_relaychain_block_number(42);
+			set_relaychain_block_number(72);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
 
 			//At this point, the schedule will be terminated as retries max number of times
-			set_relaychain_block_number(82);
+			set_relaychain_block_number(152);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - 4 * fee);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -4074,7 +4074,7 @@ mod with_onchain_route {
 
 			//Just to verify the price difference between HDX and DOT
 			//Selling 3795361512418 HDX results 2694204333872 DOT
-			//So fee should be 0.7x normal HDX feee
+			//So fee should be 0.7x normal HDX fee
 			let _dot_amount_out = with_transaction::<_, _, _>(|| {
 				let fee_in_hdx = 3795361512418;
 				assert_ok!(Router::sell(
@@ -4101,7 +4101,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, 5268648634393559);
+			assert_balance!(ALICE.into(), HDX, 5268495216206711);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
