@@ -178,33 +178,3 @@ impl<AssetId> PoolPegInfo<AssetId> {
 		}
 	}
 }
-
-//TODO: move to appropriate place
-pub trait RawOracle<AssetId, Balance, BlockNumber> {
-	type Error;
-	fn get_raw_entry(source: OracleSource<AssetId>) -> Result<RawEntry<BlockNumber>, Self::Error>;
-}
-
-pub struct RawEntry<BlockNumber> {
-	pub peg: PegType,
-	pub updated_at: BlockNumber,
-}
-
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum OracleSource<AssetId> {
-	Value(PegType),
-	Oracle((Source, OraclePeriod, AssetId, AssetId)),
-	ChainlinkOracle(EvmAddress),
-}
-
-impl<AssetId> From<(PegSource<AssetId>, AssetId)> for OracleSource<AssetId> {
-	fn from(item: (PegSource<AssetId>, AssetId)) -> Self {
-		return match item.0 {
-			PegSource::Value(peg) => OracleSource::Value(peg),
-			PegSource::Oracle((source, period, oracle_asset)) => {
-				OracleSource::Oracle((source, period, oracle_asset, item.1))
-			}
-			PegSource::ChainlinkOracle(addr) => OracleSource::ChainlinkOracle(addr),
-		};
-	}
-}

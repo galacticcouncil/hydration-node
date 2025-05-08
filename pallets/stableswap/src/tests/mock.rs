@@ -27,12 +27,13 @@ use std::collections::HashMap;
 use std::num::NonZeroU16;
 
 use crate as pallet_stableswap;
+use crate::traits::Source;
 
 use crate::Config;
 
 use crate::types::BoundedPegSources;
+use crate::PegOracle;
 use crate::PegType;
-use crate::RawOracle;
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, BoundedVec};
@@ -199,7 +200,7 @@ impl Config for Test {
 	type Hooks = DummyHookAdapter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DummyRegistry;
-	type TargetPegOracle = PegOracle;
+	type TargetPegOracle = DummyPegOracle;
 }
 
 pub struct InitialLiquidity {
@@ -376,8 +377,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{AccountIdFor, Inspect};
 use sp_runtime::traits::Zero;
 
-use super::types::RawEntry;
-use super::OracleSource;
+use super::traits::Peg;
 
 pub struct DummyRegistry;
 
@@ -537,26 +537,26 @@ pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
 		.collect()
 }
 
-pub struct PegOracle;
+pub struct DummyPegOracle;
 
-impl RawOracle<AssetId, Balance, u64> for PegOracle {
+impl PegOracle<AssetId, Balance, u64> for DummyPegOracle {
 	type Error = ();
 
-	fn get_raw_entry(source: OracleSource<AssetId>) -> Result<RawEntry<u64>, Self::Error> {
+	fn get(source: Source<AssetId>) -> Result<Peg<u64>, Self::Error> {
 		match source {
-			OracleSource::Oracle((_, _, asset_a, asset_b)) => {
+			Source::Oracle((_, _, asset_a, asset_b)) => {
 				let (n, d, u) = PEG_ORACLE_VALUES
 					.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
 					.ok_or(())?;
 
-				return Ok(RawEntry {
-					peg: (n, d),
+				return Ok(Peg {
+					val: (n, d),
 					updated_at: u,
 				});
 			}
-			OracleSource::Value(peg) => {
-				return Ok(RawEntry {
-					peg,
+			Source::Value(peg) => {
+				return Ok(Peg {
+					val: peg,
 					updated_at: System::block_number(),
 				});
 			}

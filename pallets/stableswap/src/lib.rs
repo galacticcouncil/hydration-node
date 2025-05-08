@@ -72,13 +72,15 @@ use sp_std::prelude::*;
 use sp_std::vec;
 
 mod trade_execution;
+pub mod traits;
 pub mod types;
 pub mod weights;
 
+use crate::traits::{PegOracle, Source};
 use crate::types::{
-	Balance, BoundedPegs, OracleSource, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, RawOracle,
-	StableswapHooks, Tradability,
+	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
 };
+
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
@@ -178,7 +180,7 @@ pub mod pallet {
 		/// Oracle providing prices for asset pegs (if configured for pool)
 		/// Raw oracle is required because it needs the values that are not delayed.
 		/// It is how the mechanism is designed.
-		type TargetPegOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
+		type TargetPegOracle: PegOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -1848,10 +1850,10 @@ impl<T: Config> Pallet<T> {
 
 		let mut r = vec![];
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
-			let p = T::TargetPegOracle::get_raw_entry(OracleSource::from((source.clone(), *asset_id)))
+			let p = T::TargetPegOracle::get(Source::from((source.clone(), *asset_id)))
 				.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
 
-			r.push((p.peg, p.updated_at.saturated_into()));
+			r.push((p.val, p.updated_at.saturated_into()));
 		}
 		Ok(r)
 	}
