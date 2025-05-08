@@ -58,8 +58,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{Dispatchable, Hash};
-	use sp_runtime::{FixedPointNumber, FixedU128, Permill, Saturating};
-	use sp_std::{boxed::Box, cmp::min};
+	use sp_std::boxed::Box;
 
 	pub type AccountId = u64;
 
@@ -133,7 +132,10 @@ pub mod pallet {
 			let call_hash = T::Hashing::hash_of(&call);
 			let call_len = call.encoded_size() as u32;
 
-			let (result, actual_weight) = Self::do_dispatch(T::TreasuryAccount::get(), *call);
+			let (result, actual_weight) = Self::do_dispatch(
+				frame_system::Origin::<T>::Signed(T::TreasuryAccount::get()).into(),
+				*call,
+			);
 			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
 
 			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
@@ -158,7 +160,10 @@ pub mod pallet {
 			let call_hash = T::Hashing::hash_of(&call);
 			let call_len = call.encoded_size() as u32;
 
-			let (result, actual_weight) = Self::do_dispatch(AaveManagerAccount::<T>::get(), *call);
+			let (result, actual_weight) = Self::do_dispatch(
+				frame_system::Origin::<T>::Signed(AaveManagerAccount::<T>::get()).into(),
+				*call,
+			);
 			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
@@ -198,10 +203,8 @@ pub mod pallet {
 			call: Box<<T as Config>::RuntimeCall>,
 			extra_gas: u64,
 		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
-
 			ExtraGas::<T>::set(extra_gas);
-			let (result, actual_weight) = Self::do_dispatch(who.clone(), *call);
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
 			ExtraGas::<T>::kill();
 
 			if extra_gas == 0u64 {
@@ -240,10 +243,10 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Return the result and the actual weight of the dispatched call if there is some.
 	fn do_dispatch(
-		account: T::AccountId,
+		origin: T::RuntimeOrigin,
 		call: <T as Config>::RuntimeCall,
 	) -> (DispatchResultWithInfo<PostDispatchInfo>, Option<Weight>) {
-		let result = call.dispatch(frame_system::Origin::<T>::Signed(account).into());
+		let result = call.dispatch(origin);
 
 		let call_actual_weight = match result {
 			Ok(call_post_info) => call_post_info.actual_weight,
