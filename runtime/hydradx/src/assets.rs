@@ -1847,7 +1847,7 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 	) -> Result<Balance, DispatchError> {
 		let asset_pair = AssetPair::new(insuff_asset_id, asset_out);
 		if !XYK::exists(asset_pair) {
-			return Err(DispatchError::Other("XYK pool does not exist for fee payment asset"));
+			return Err(pallet_xyk::Error::<Runtime>::TokenPoolNotFound.into());
 		}
 
 		let asset_pair_account = XYK::get_pair_id(asset_pair);
@@ -1865,7 +1865,7 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 	) -> Result<Balance, DispatchError> {
 		let asset_pair = AssetPair::new(asset_in, asset_out);
 		if !XYK::exists(asset_pair) {
-			return Err(DispatchError::Other("XYK pool does not exist for fee payment asset"));
+			return Err(pallet_xyk::Error::<Runtime>::TokenPoolNotFound.into());
 		}
 
 		let asset_pair_account = XYK::get_pair_id(asset_pair);

@@ -1080,7 +1080,7 @@ mod omnipool {
 				));
 				assert_noop!(
 					DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule1.clone(), None),
-					DispatchError::Other("XYK pool does not exist for fee payment asset")
+					pallet_xyk::Error::<hydradx_runtime::Runtime>::TokenPoolNotFound
 				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
