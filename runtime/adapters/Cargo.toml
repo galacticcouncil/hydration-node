@@ -34,6 +34,12 @@ pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-broadcast = { workspace = true }
 
+# Evm
+num_enum = { workspace = true, default-features = false }
+module-evm-utility-macro = { workspace = true }
+evm = { workspace = true, features = ["with-codec"] }
+ethabi = { workspace = true }
+
 # Substrate dependencies
 frame-support = { workspace = true }
 frame-system = { workspace = true }

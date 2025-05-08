@@ -15,17 +15,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use hydradx_traits::RawOracle;
+use crate::{vec, Vec};
+use ethabi::{decode, ParamType};
+use evm::{ExitReason, ExitSucceed};
+use hydradx_traits::{
+	evm::{CallContext, EVM},
+	RawOracle,
+};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_stableswap::traits::{Peg, PegOracle as Oracle, Source};
 use primitives::{AssetId, Balance, BlockNumber};
-use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
+use sp_runtime::{traits::BlockNumberProvider, DispatchError, RuntimeDebug, SaturatedConversion};
 use sp_std::marker::PhantomData;
 
-pub struct PegOracle<Runtime>(PhantomData<Runtime>);
+const VIEW_GAS_LIMIT: u64 = 100_000;
 
-impl<Runtime> Oracle<AssetId, Balance, BlockNumber> for PegOracle<Runtime>
+#[module_evm_utility_macro::generate_function_selector]
+#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(u32)]
+pub enum AggregatorV3Interface {
+	Decimals = "decimals()",
+	LatestRound = "latestRoundData()",
+}
+
+pub type CallResult = (ExitReason, Vec<u8>);
+
+pub struct PegOracle<Runtime, Evm>(PhantomData<(Runtime, Evm)>);
+
+impl<Runtime, Evm> Oracle<AssetId, Balance, BlockNumber> for PegOracle<Runtime, Evm>
 where
 	Runtime: pallet_ema_oracle::Config + frame_system::Config,
+	Evm: EVM<CallResult>,
 {
 	type Error = DispatchError;
 
@@ -44,7 +64,54 @@ where
 				val: peg,
 				updated_at: frame_system::Pallet::<Runtime>::current_block_number().saturated_into(),
 			}),
-			_ => Err(DispatchError::Other("Unsupported peg oracle source")),
+			Source::ChainlinkOracle(addr) => {
+				//TODO: handle decimals from contracts. Is it necessary?
+
+				let ctx = CallContext::new_view(addr);
+				let data = Into::<u32>::into(AggregatorV3Interface::LatestRound)
+					.to_be_bytes()
+					.to_vec();
+				let (r, value) = Evm::view(ctx, data, VIEW_GAS_LIMIT);
+				if r != ExitReason::Succeed(ExitSucceed::Returned) {
+					log::error!(target: "stableswap-peg-oracle",
+						"Failed to get peg oracle value. Contract: {:?}, Reason: {:?}, Response: {:?}", addr, r, value);
+
+					return Err(DispatchError::Other("PetOracle not available"));
+				}
+
+				let param_types = vec![
+					ParamType::Uint(80),  //roundId
+					ParamType::Uint(256), //answer
+					ParamType::Uint(256), //createdAt
+					ParamType::Uint(256), //updatedAt
+					ParamType::Uint(80),  //answeredInRound
+				];
+
+				let decoded = decode(&param_types, value.as_ref()).map_err(|e| {
+					log::error!(target: "stableswap-peg-oracle",
+						"Failed to decode returned value. Contract: {:?}, Value: {:?}, Err: {:?}", addr, value, e);
+
+					DispatchError::Other("PetOracle not available")
+				})?;
+
+				let price_raw = decoded[1].clone().into_uint().ok_or_else(|| {
+					log::error!(target: "stableswap-peg-oracle",
+						"Failed to convert decoded price to uint:  raw_decoded: {:?}", decoded[1]);
+					DispatchError::Other("PetOracle not available")
+				})?;
+
+				let price_raw = decoded[3].clone().into_uint().ok_or_else(|| {
+					log::error!(target: "stableswap-peg-oracle",
+						"Failed to convert decoded updated_at to uint:  raw_decoded: {:?}", decoded[3]);
+					DispatchError::Other("PetOracle not available")
+				})?;
+
+				//TODO::
+				// * convert updatedAt timestamp to block number
+				// * create num & denom from `answer` and noramlize to 18 decimals
+
+				return Err(DispatchError::Other("TODO: Not Implemented"));
+			}
 		}
 	}
 }
