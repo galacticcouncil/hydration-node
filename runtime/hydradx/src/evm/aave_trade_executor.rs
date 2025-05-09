@@ -122,6 +122,7 @@ where
 		+ pallet_liquidation::Config
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
+		+ pallet_dispatcher::Config
 		+ frame_system::Config,
 	T::AssetNativeLocation: Into<MultiLocation>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
@@ -254,7 +255,7 @@ where
 
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin)?;
-		let on_behalf_of = T::EvmAccounts::evm_address(&who);
+		let on_behalf_of = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&who);
 		let referer_code = 0_u16;
 
 		let context = CallContext::new_call(<BorrowingContract<T>>::get(), on_behalf_of);
@@ -270,7 +271,7 @@ where
 
 	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin)?;
-		let to = T::EvmAccounts::evm_address(&who);
+		let to = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&who);
 
 		let context = CallContext::new_call(<BorrowingContract<T>>::get(), to);
 		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
@@ -357,6 +358,7 @@ where
 		+ pallet_liquidation::Config
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
+		+ pallet_dispatcher::Config
 		+ frame_system::Config,
 	T::AssetNativeLocation: Into<MultiLocation>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
