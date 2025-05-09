@@ -1234,14 +1234,14 @@ parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(15u32,10000u32), // 0.15%
 		max_fee: Permill::from_rational(5u32,100u32),    // 5%
-		decay: FixedU128::from_rational(1,10000),        // 0.01%
+		decay: FixedU128::from_rational(1,20000),        // 0.005%
 		amplification: FixedU128::from(2),               // 2
 	};
 
 	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(5u32,10000u32),  // 0.05%
 		max_fee: Permill::from_rational(25u32,10000u32), // 0.25%
-		decay: FixedU128::from_rational(5,100000),       // 0.005%
+		decay: FixedU128::from_rational(5,200000),       // 0.0025%
 		amplification: FixedU128::one(),                 // 1
 	};
 
@@ -1442,7 +1442,7 @@ impl pallet_bonds::Config for Runtime {
 parameter_types! {
 	pub const StakingPalletId: PalletId = PalletId(*b"staking#");
 	pub const MinStake: Balance = 1_000 * UNITS;
-	pub const PeriodLength: BlockNumber = DAYS;
+	pub const PeriodLength: BlockNumber = 7_200; // 1d based on 12s blocks, pallet accounts for migration to 6s blocks
 	pub const TimePointsW:Permill =  Permill::from_percent(100);
 	pub const ActionPointsW: Perbill = Perbill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 1;

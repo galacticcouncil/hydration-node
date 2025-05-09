@@ -27,6 +27,7 @@
 
 use crate as dispatcher;
 use crate::*;
+use frame_support::pallet_prelude::Weight;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -96,8 +97,8 @@ parameter_type_with_key! {
 	};
 }
 
-pub struct DummyGasWeightMapping;
-impl GasWeightMapping for DummyGasWeightMapping {
+pub struct MockGasWeightMapping;
+impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
 		Weight::zero()
 	}
@@ -132,7 +133,7 @@ impl dispatcher::Config for Test {
 	type Evm = EvmMock;
 	type EvmAccounts = MockEvmAccounts;
 	type GasLimit = DispatcherGasLimit;
-	type GasWeightMapping = DummyGasWeightMapping;
+	type GasWeightMapping = MockGasWeightMapping;
 }
 
 parameter_types! {
@@ -361,48 +362,4 @@ pub fn expect_events(e: Vec<RuntimeEvent>) {
 
 pub fn precision(asset_id: AssetId) -> u32 {
 	PRECISIONS.with(|v| *v.borrow().get(&asset_id).unwrap_or(&12))
-}
-
-// Mock EvmAccounts implementation
-pub struct MockEvmAccounts;
-
-fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
-	let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
-
-	if evm_addr == alice_evm {
-		ALICE
-	} else {
-		EVM_ADDRESS_MAP.with(|v| v.borrow().get(&evm_addr).cloned().expect("EVM address not found"))
-	}
-}
-
-impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
-	fn is_evm_account(_account_id: AccountId) -> bool {
-		unimplemented!()
-	}
-
-	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> EvmAddress {
-		let acc = account_id.as_ref();
-		EvmAddress::from_slice(&acc[..20])
-	}
-
-	fn truncated_account_id(_evm_address: EvmAddress) -> AccountId {
-		unimplemented!()
-	}
-
-	fn bound_account_id(_evm_address: EvmAddress) -> Option<AccountId> {
-		unimplemented!()
-	}
-
-	fn account_id(evm_address: EvmAddress) -> AccountId {
-		map_to_acc(evm_address)
-	}
-
-	fn can_deploy_contracts(_evm_address: EvmAddress) -> bool {
-		unimplemented!()
-	}
-
-	fn is_approved_contract(_address: EvmAddress) -> bool {
-		unimplemented!()
-	}
 }

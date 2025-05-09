@@ -57,6 +57,7 @@ pub type CallResult = (ExitReason, Vec<u8>);
 pub mod pallet {
 	use super::*;
 	use codec::FullCodec;
+	use frame_support::dispatch::DispatchErrorWithPostInfo;
 	use evm::ExitSucceed;
 	use frame_support::{
 		dispatch::{GetDispatchInfo, PostDispatchInfo},
@@ -92,14 +93,14 @@ pub mod pallet {
 		#[pallet::constant]
 		type GasLimit: Get<u64>;
 
-		/// Convert gas to weight
-		type GasWeightMapping: GasWeightMapping;
-
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
+
+		/// Gas to Weight conversion.
+		type GasWeightMapping: GasWeightMapping;
 
 		/// The weight information for this pallet.
 		type WeightInfo: WeightInfo;
@@ -112,6 +113,11 @@ pub mod pallet {
 	#[pallet::getter(fn aave_manager_account)]
 	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
 
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	#[pallet::getter(fn extra_gas)]
+	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
+	
 	#[pallet::error]
 	pub enum Error<T> {
 		TreasuryManagerCallFailed,
@@ -154,7 +160,10 @@ pub mod pallet {
 			let call_hash = T::Hashing::hash_of(&call);
 			let call_len = call.encoded_size() as u32;
 
-			let (result, actual_weight) = Self::do_dispatch(T::TreasuryAccount::get(), *call);
+			let (result, actual_weight) = Self::do_dispatch(
+				frame_system::Origin::<T>::Signed(T::TreasuryAccount::get()).into(),
+				*call,
+			);
 			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_treasury(call_len)));
 
 			Self::deposit_event(Event::<T>::TreasuryManagerCallDispatched { call_hash, result });
@@ -179,7 +188,10 @@ pub mod pallet {
 			let call_hash = T::Hashing::hash_of(&call);
 			let call_len = call.encoded_size() as u32;
 
-			let (result, actual_weight) = Self::do_dispatch(AaveManagerAccount::<T>::get(), *call);
+			let (result, actual_weight) = Self::do_dispatch(
+				frame_system::Origin::<T>::Signed(AaveManagerAccount::<T>::get()).into(),
+				*call,
+			);
 			actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_aave_manager(call_len)));
 
 			Self::deposit_event(Event::<T>::AaveManagerCallDispatched { call_hash, result });
@@ -201,6 +213,57 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Dispatch a call with extra gas.
+		///
+		/// This allows executing calls with additional weight (gas) limit.
+		/// The extra gas is not refunded, even if not used.
+		#[pallet::call_index(3)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().weight;
+			let call_len = call.encoded_size() as u32;
+			let gas_weight = T::GasWeightMapping::gas_to_weight(*extra_gas, true);
+			T::WeightInfo::dispatch_with_extra_gas(call_len)
+				.saturating_add(call_weight)
+				.saturating_add(gas_weight)
+		})]
+		pub fn dispatch_with_extra_gas(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+			extra_gas: u64,
+		) -> DispatchResultWithPostInfo {
+			ExtraGas::<T>::set(extra_gas);
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			ExtraGas::<T>::kill();
+
+			if extra_gas == 0u64 {
+				return result;
+			}
+
+			// We need to add the extra gas to the actual weight - because evm execution does not account for it
+			// If actual weight is None, we still account for extra gas
+			let actual_weight = if let Some(weight) = actual_weight {
+				weight
+			} else {
+				Weight::zero()
+			};
+			let extra_weight = T::GasWeightMapping::gas_to_weight(extra_gas, true);
+			let actual_weight = Some(actual_weight.saturating_add(extra_weight));
+
+			match result {
+				Ok(_) => Ok(PostDispatchInfo {
+					actual_weight,
+					pays_fee: Pays::Yes,
+				}),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: Pays::Yes,
+					},
+					error: err.error,
+				}),
+			}
+		}
+		
 		/// Execute a single EVM call.
 		/// This extrinsic will fail if the EVM call reverts.
 		///
@@ -252,10 +315,10 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Return the result and the actual weight of the dispatched call if there is some.
 	fn do_dispatch(
-		account: T::AccountId,
+		origin: T::RuntimeOrigin,
 		call: <T as Config>::RuntimeCall,
 	) -> (DispatchResultWithInfo<PostDispatchInfo>, Option<Weight>) {
-		let result = call.dispatch(frame_system::Origin::<T>::Signed(account).into());
+		let result = call.dispatch(origin);
 
 		let call_actual_weight = match result {
 			Ok(call_post_info) => call_post_info.actual_weight,
@@ -263,5 +326,20 @@ impl<T: Config> Pallet<T> {
 		};
 
 		(result, call_actual_weight)
+	}
+}
+
+// PUBLIC API
+impl<T: Config> Pallet<T> {
+	/// Decrease the gas for a specific account.
+	pub fn decrease_extra_gas(amount: u64) {
+		if amount == 0 {
+			return;
+		}
+		let current_value = ExtraGas::<T>::take();
+		let new_value = current_value.saturating_sub(amount);
+		if new_value > 0 {
+			ExtraGas::<T>::set(new_value);
+		}
 	}
 }
