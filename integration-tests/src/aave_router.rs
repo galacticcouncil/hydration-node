@@ -186,7 +186,7 @@ fn buy_adot() {
 			DOT,
 			ADOT,
 			ONE,
-			ONE + 2 // Small fee we apply for buys,
+			ONE + 2, // Small fee we apply for buys,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -731,6 +731,38 @@ fn transfer_almost_all_atoken_should_transfer_all_atoken() {
 			&AccountId::from(ALICE),
 			&AccountId::from(BOB),
 			alice_all_balance - ed
+		));
+		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
+
+		assert_eq!(bob_new_balance, alice_all_balance);
+	})
+}
+
+#[test]
+fn transfer_all_atoken_but_one_should_transfer_all_atoken() {
+	with_atoken(|| {
+		let ed = 1000;
+		AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ADOT,
+			None,
+			None,
+			Some(ed),
+			None,
+			None,
+			None,
+			None,
+			None,
+		)
+		.unwrap();
+
+		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
+		assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
+			adot_asset_id,
+			&AccountId::from(ALICE),
+			&AccountId::from(BOB),
+			alice_all_balance - 1
 		));
 		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
 

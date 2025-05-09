@@ -1,17 +1,13 @@
 use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::executor::{CallResult, Executor};
-use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
 use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
-use frame_system::pallet_prelude::OriginFor;
-use frame_system::Origin;
-use hydradx_traits::evm::{AaveLending, CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
-use hydradx_traits::{BoundErc20, Inspect};
+use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
@@ -274,35 +270,26 @@ where
 		amount: Self::Balance,
 	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
-		let call_context = CallContext {
-			contract,
-			sender,
-			origin: sender,
+
+		// let's construct standard transfer
+		let erc20_transfer = || -> DispatchResult {
+			<Self as ERC20>::transfer(
+				CallContext {
+					contract,
+					sender,
+					origin: sender,
+				},
+				EvmAccounts::<T>::evm_address(to),
+				amount,
+			)
 		};
 
-		if let Some(underlying_asset) = AaveTradeExecutor::<T>::get_underlying_asset_from(contract) {
-			let asset_id = HydraErc20Mapping::address_to_asset(contract)
-				.ok_or(DispatchError::Other("No substrate asset found for address"))?;
-			let ed = pallet_asset_registry::Pallet::<T>::existential_deposit(asset_id).unwrap_or_default();
-			let atoken_balance = Self::free_balance(contract, from);
-
-			let diff = atoken_balance.saturating_sub(amount);
-			if diff <= ed {
-				//We withdraw all AToken and supply underlying asset amount on behalf of the receiver
-				//We need to do this as Aave ScaledBalanceTokenBase.sol has rounding in transfer method so we can't always transfer total balance
-				AaveTradeExecutor::<T>::withdraw_all(from, underlying_asset)?;
-				let underlying_balance = Self::free_balance(underlying_asset, from);
-				AaveTradeExecutor::<T>::supply_on_behalf_of(from, to, underlying_asset, underlying_balance)?;
-			} else {
-				//When we don't transfer total balance of atokens
-				<Self as ERC20>::transfer(call_context, EvmAccounts::<T>::evm_address(to), amount)?;
-			}
+		// And handle the transfer according to the token type
+		if AaveTradeExecutor::<T>::is_atoken(contract) {
+			AaveTradeExecutor::<T>::transfer(contract, from, to, amount, erc20_transfer)
 		} else {
-			//Every other erc20 token that is not present in Aave
-			<Self as ERC20>::transfer(call_context, EvmAccounts::<T>::evm_address(to), amount)?;
+			erc20_transfer()
 		}
-
-		Ok(())
 	}
 
 	fn deposit(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
