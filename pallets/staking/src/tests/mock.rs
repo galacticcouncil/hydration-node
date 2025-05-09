@@ -341,6 +341,8 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 		r.execute_with(|| {
+			pallet_staking::SixSecBlocksSince::<Test>::put(1_000_000_000);
+
 			if self.initial_block_number.is_zero() {
 				set_block_number(1);
 			} else {
