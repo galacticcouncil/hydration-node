@@ -2,12 +2,15 @@ use crate::driver::HydrationTestDriver;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::BoundedVec;
+use hydradx_adapters::stableswap_peg_oracle::PegOracle;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use pallet_ema_oracle::BIFROST_SOURCE;
+use pallet_stableswap::traits::{Peg, PegOracle as PegOracleTrait, Source};
 use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
+use pretty_assertions::assert_eq;
 use sp_runtime::Permill;
 use std::sync::Arc;
 use test_utils::assert_eq_approx;
@@ -116,4 +119,27 @@ fn gigadot_pool_should_work() {
 			assert!(final_alice_vdot_balance < initial_alice_vdot_balance);
 			assert!(final_alice_adot_balance > initial_alice_adot_balance);
 		});
+}
+
+#[test]
+fn peg_oracle_adapter_should_work_when_getting_price_from_dia() {
+	TestNet::reset();
+	hydra_live_ext("evm-snapshot/router").execute_with(|| {
+		const NOW: Moment = (1744142439 + primitives::constants::time::SECS_PER_BLOCK) * 1000; // unix time in milliseconds
+		hydradx_runtime::Timestamp::set_timestamp(NOW);
+		hydradx_run_to_block(10);
+
+		let peg = PegOracle::<Runtime, evm::Executor<Runtime>>::get(Source::ChainlinkOracle(
+			hex!["17711BE5D63B2Fe8A2C379725DE720773158b954"].into(), //NOTE: dia USDC oracle address
+		))
+		.expect("failed to retrieve peg from contract");
+
+		println!("{:?}, {:?}", peg.val, peg.updated_at);
+
+		let expected_peg = Peg {
+			val: (99988686_u128, 100_000_000_u128),
+			updated_at: 9_u32,
+		};
+		assert_eq!(peg, expected_peg)
+	});
 }

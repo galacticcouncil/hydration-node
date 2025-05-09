@@ -28,7 +28,7 @@ use pallet_stableswap::traits::{Peg, PegOracle as Oracle, Source};
 use primitives::{constants::time::SECS_PER_BLOCK, AssetId, Balance, BlockNumber};
 use sp_core::U256;
 use sp_runtime::{
-	traits::{BlockNumberProvider, CheckedSub},
+	traits::{BlockNumberProvider, Saturating, Zero},
 	DispatchError, RuntimeDebug, SaturatedConversion,
 };
 use sp_std::marker::PhantomData;
@@ -96,49 +96,50 @@ where
 				let decoded = decode(&param_types, value.as_ref()).map_err(|e| {
 					log::error!(target: "stableswap-peg-oracle",
 						"Failed to decode returned value. Contract: {:?}, Value: {:?}, Err: {:?}", addr, value, e);
-
-					DispatchError::Other("PetOracle not available")
+					DispatchError::Other("PegOracle not available")
 				})?;
 
 				let price_num = decoded[1].clone().into_uint().ok_or_else(|| {
 					log::error!(target: "stableswap-peg-oracle",
 						"Failed to convert decoded price to uint:  raw_decoded: {:?}", decoded[1]);
-					DispatchError::Other("PetOracle not available")
+					DispatchError::Other("PegOracle not available")
 				})?;
 
 				let price_num: u128 = TryInto::try_into(price_num).map_err(|_| {
 					log::error!(target: "stableswap-peg-oracle",
 						"Failed to convert returned price to u128:  price_raw: {:?}", price_num);
-					DispatchError::Other("PetOracle not available")
+					DispatchError::Other("PegOracle not available")
 				})?;
 
 				let updated_at = decoded[3].clone().into_uint().ok_or_else(|| {
 					log::error!(target: "stableswap-peg-oracle",
 						"Failed to convert decoded updated_at to uint:  raw_decoded: {:?}", decoded[3]);
-					DispatchError::Other("PetOracle not available")
+					DispatchError::Other("PegOracle not available")
 				})?;
 
-				let now = pallet_timestamp::Pallet::<Runtime>::now().as_secs();
-				let diff_blocks: BlockNumber = TryInto::try_into(
-					U256::from(now)
-						.saturating_sub(updated_at)
-						.saturated_into::<u128>()
-						.saturating_div(SECS_PER_BLOCK.into()),
-				)
-				.map_err(|e| {
+				let now = U256::from(pallet_timestamp::Pallet::<Runtime>::now().as_secs());
+				if now <= updated_at {
 					log::error!(target: "stableswap-peg-oracle",
-						"Failed to convert diff_blocks to BlockNumber. Err: {:?}", e);
+						"PegOracle future value. now: {:?}, updated_at: {:?}", now, updated_at);
 
-					DispatchError::Other("PetOracle not available")
-				})?;
+					return Err(DispatchError::Other("PegOracle not available"));
+				}
+
+				let diff_blocks: BlockNumber = now
+					.saturating_sub(updated_at)
+					.saturated_into::<u128>()
+					.saturating_div(SECS_PER_BLOCK.into())
+					.saturated_into::<BlockNumber>();
 
 				let current_block = frame_system::Pallet::<Runtime>::current_block_number();
-				let updated_at = current_block.checked_sub(&(diff_blocks.into())).ok_or_else(|| {
-					log::error!(target: "stableswap-peg-oracle",
-						"Failed to calculate updated_at block. current_block: {:?}, diff_blocks: {:?}", current_block, diff_blocks);
+				let updated_at = current_block.saturating_sub(diff_blocks.into());
 
-					DispatchError::Other("PetOracle not available")
-				})?;
+				if updated_at.is_zero() {
+					log::error!(target: "stableswap-peg-oracle",
+						"Calculated upated as is 0th block current_block: {:?}, diff_blocks: {:?}", current_block, diff_blocks);
+
+					return Err(DispatchError::Other("PegOracle not available"));
+				}
 
 				Ok(Peg {
 					val: (price_num, DIA_DENOM),

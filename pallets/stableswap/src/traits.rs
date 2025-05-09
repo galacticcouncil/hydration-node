@@ -11,6 +11,7 @@ pub trait PegOracle<AssetId, Balance, BlockNumber> {
 	fn get(source: Source<AssetId>) -> Result<Peg<BlockNumber>, Self::Error>;
 }
 
+#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 pub struct Peg<BlockNumber> {
 	pub val: PegType,
 	pub updated_at: BlockNumber,
