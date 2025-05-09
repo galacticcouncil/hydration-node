@@ -17,7 +17,7 @@ macro_rules! assert_balance {
 	}};
 }
 
-struct ScheduleBuilder {
+pub struct ScheduleBuilder {
 	pub owner: Option<AccountId>,
 	pub period: Option<BlockNumber>,
 	pub order: Option<Order<AssetId>>,
@@ -28,7 +28,7 @@ struct ScheduleBuilder {
 }
 
 impl ScheduleBuilder {
-	fn new() -> ScheduleBuilder {
+	pub fn new() -> ScheduleBuilder {
 		ScheduleBuilder {
 			owner: Some(ALICE),
 			period: Some(ONE_HUNDRED_BLOCKS),
@@ -85,7 +85,7 @@ impl ScheduleBuilder {
 		self
 	}
 
-	fn build(self) -> Schedule<AccountId, AssetId, BlockNumber> {
+	pub fn build(self) -> Schedule<AccountId, AssetId, BlockNumber> {
 		Schedule {
 			owner: self.owner.unwrap(),
 			period: self.period.unwrap(),
