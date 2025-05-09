@@ -2108,6 +2108,78 @@ fn remove_vote_should_extend_lock_when_votes_are_already_processed() {
 }
 
 #[test]
+fn remove_final_position_vote_should_clear_votes_storage_of_that_position() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into()));
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			(10_000 * UNITS) as i128,
+		));
+		assert_ok!(Balances::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+		));
+
+		let r = begin_referendum();
+
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			1_000 * UNITS
+		));
+
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye(2 * UNITS)
+		));
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+
+		assert_eq!(stake_voting.votes.len(), 1);
+
+		assert_ok!(ConvictionVoting::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			Some(ROOT_TRACK),
+			r
+		));
+
+		// This call shouldn't return anything, but the storage uses ValueQuery so the default is returned,
+		// but we can check it's empty. Staking pallet tests show the storage is indeed cleared.
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+		assert!(stake_voting.votes.is_empty());
+
+		assert_ok!(ConvictionVoting::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye(2 * UNITS)
+		));
+
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+
+		assert!(!stake_voting.votes.is_empty());
+		let (ref_vote_idx, vote) = stake_voting.votes[0];
+		assert_eq!(ref_vote_idx, r);
+		assert_eq!(
+			vote,
+			pallet_staking::types::Vote::new(2 * UNITS, pallet_staking::types::Conviction::None)
+		);
+	});
+}
+
+#[test]
 fn increase_stake_should_fail_when_position_has_existing_processed_votes() {
 	TestNet::reset();
 	Hydra::execute_with(|| {

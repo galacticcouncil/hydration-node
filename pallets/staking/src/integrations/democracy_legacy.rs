@@ -59,6 +59,10 @@ where
 					PositionVotes::<T>::mutate(position_id, |voting| {
 						voting.votes.remove(vote_idx);
 					});
+					// Clear the entry from Votes if position has no more votes stored
+					if PositionVotes::<T>::get(position_id).votes.is_empty() {
+						PositionVotes::<T>::remove(position_id)
+					}
 				}
 			}
 			Ok(())
