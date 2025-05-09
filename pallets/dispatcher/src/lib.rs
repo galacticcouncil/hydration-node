@@ -97,6 +97,7 @@ pub mod pallet {
 	pub type AaveManagerAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery, T::DefaultAaveManagerAccount>;
 
 	#[pallet::storage]
+	#[pallet::whitelist_storage]
 	#[pallet::getter(fn extra_gas)]
 	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
 
