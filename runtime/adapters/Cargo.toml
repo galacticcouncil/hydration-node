@@ -11,6 +11,7 @@ repository = "https://github.com/galacticcouncil/warehouse/tree/master/adapters"
 codec = { workspace = true }
 log = { workspace = true }
 scale-info = { workspace = true }
+pallet-timestamp = { workspace = true }
 
 # HydraDX dependencies
 primitives = { workspace = true }
@@ -120,4 +121,5 @@ std = [
     "pallet-asset-registry/std",
     "pallet-omnipool-liquidity-mining/std",
     "pallet-bonds/std",
+    "pallet-timestamp/std",
 ]

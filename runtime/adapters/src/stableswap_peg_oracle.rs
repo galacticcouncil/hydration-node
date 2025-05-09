@@ -18,17 +18,23 @@
 use crate::{vec, Vec};
 use ethabi::{decode, ParamType};
 use evm::{ExitReason, ExitSucceed};
+use frame_support::traits::UnixTime;
 use hydradx_traits::{
 	evm::{CallContext, EVM},
 	RawOracle,
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_stableswap::traits::{Peg, PegOracle as Oracle, Source};
-use primitives::{AssetId, Balance, BlockNumber};
-use sp_runtime::{traits::BlockNumberProvider, DispatchError, RuntimeDebug, SaturatedConversion};
+use primitives::{constants::time::SECS_PER_BLOCK, AssetId, Balance, BlockNumber};
+use sp_core::U256;
+use sp_runtime::{
+	traits::{BlockNumberProvider, CheckedSub},
+	DispatchError, RuntimeDebug, SaturatedConversion,
+};
 use sp_std::marker::PhantomData;
 
 const VIEW_GAS_LIMIT: u64 = 100_000;
+const DIA_DENOM: u128 = 100_000_000; //NOTE: dia's oracle has 8 decimals
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -44,7 +50,7 @@ pub struct PegOracle<Runtime, Evm>(PhantomData<(Runtime, Evm)>);
 
 impl<Runtime, Evm> Oracle<AssetId, Balance, BlockNumber> for PegOracle<Runtime, Evm>
 where
-	Runtime: pallet_ema_oracle::Config + frame_system::Config,
+	Runtime: pallet_ema_oracle::Config + frame_system::Config + pallet_timestamp::Config,
 	Evm: EVM<CallResult>,
 {
 	type Error = DispatchError;
@@ -64,9 +70,9 @@ where
 				val: peg,
 				updated_at: frame_system::Pallet::<Runtime>::current_block_number().saturated_into(),
 			}),
+			//TODO: refacto nad rename to DIA or something so it's clear it's harcoded for dia
+			//contracts with 8 decimals
 			Source::ChainlinkOracle(addr) => {
-				//TODO: handle decimals from contracts. Is it necessary?
-
 				let ctx = CallContext::new_view(addr);
 				let data = Into::<u32>::into(AggregatorV3Interface::LatestRound)
 					.to_be_bytes()
@@ -94,23 +100,50 @@ where
 					DispatchError::Other("PetOracle not available")
 				})?;
 
-				let price_raw = decoded[1].clone().into_uint().ok_or_else(|| {
+				let price_num = decoded[1].clone().into_uint().ok_or_else(|| {
 					log::error!(target: "stableswap-peg-oracle",
 						"Failed to convert decoded price to uint:  raw_decoded: {:?}", decoded[1]);
 					DispatchError::Other("PetOracle not available")
 				})?;
 
-				let price_raw = decoded[3].clone().into_uint().ok_or_else(|| {
+				let price_num: u128 = TryInto::try_into(price_num).map_err(|_| {
+					log::error!(target: "stableswap-peg-oracle",
+						"Failed to convert returned price to u128:  price_raw: {:?}", price_num);
+					DispatchError::Other("PetOracle not available")
+				})?;
+
+				let updated_at = decoded[3].clone().into_uint().ok_or_else(|| {
 					log::error!(target: "stableswap-peg-oracle",
 						"Failed to convert decoded updated_at to uint:  raw_decoded: {:?}", decoded[3]);
 					DispatchError::Other("PetOracle not available")
 				})?;
 
-				//TODO::
-				// * convert updatedAt timestamp to block number
-				// * create num & denom from `answer` and noramlize to 18 decimals
+				let now = pallet_timestamp::Pallet::<Runtime>::now().as_secs();
+				let diff_blocks: BlockNumber = TryInto::try_into(
+					U256::from(now)
+						.saturating_sub(updated_at)
+						.saturated_into::<u128>()
+						.saturating_div(SECS_PER_BLOCK.into()),
+				)
+				.map_err(|e| {
+					log::error!(target: "stableswap-peg-oracle",
+						"Failed to convert diff_blocks to BlockNumber. Err: {:?}", e);
 
-				return Err(DispatchError::Other("TODO: Not Implemented"));
+					DispatchError::Other("PetOracle not available")
+				})?;
+
+				let current_block = frame_system::Pallet::<Runtime>::current_block_number();
+				let updated_at = current_block.checked_sub(&(diff_blocks.into())).ok_or_else(|| {
+					log::error!(target: "stableswap-peg-oracle",
+						"Failed to calculate updated_at block. current_block: {:?}, diff_blocks: {:?}", current_block, diff_blocks);
+
+					DispatchError::Other("PetOracle not available")
+				})?;
+
+				Ok(Peg {
+					val: (price_num, DIA_DENOM),
+					updated_at: updated_at.saturated_into(),
+				})
 			}
 		}
 	}

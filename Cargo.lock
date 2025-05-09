@@ -4644,6 +4644,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-stableswap",
  "pallet-staking 4.1.4",
+ "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
