@@ -32,22 +32,26 @@ use evm::{ExitReason, ExitSucceed};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::AccountIdConversion,
-	traits::fungibles::{Inspect, Mutate},
-	traits::tokens::{Fortitude, Precision, Preservation},
+	traits::{
+		fungibles::{Inspect, Mutate},
+		tokens::{Fortitude, Precision, Preservation},
+		DefensiveOption,
+	},
 	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::router::Route;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
-	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
+	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
-use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
 use sp_std::{vec, vec::Vec};
+
+pub mod types;
+pub use types::*;
 
 #[cfg(test)]
 mod tests;
@@ -61,28 +65,18 @@ pub use weights::WeightInfo;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub type Balance = u128;
-pub type AssetId = u32;
-pub type CallResult = (ExitReason, Vec<u8>);
-
-#[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
-#[repr(u32)]
-pub enum Function {
-	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
-}
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::traits::DefensiveOption;
-	use hydradx_traits::evm::Erc20Mapping;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config
+	where
+		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -129,9 +123,45 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type BorrowingContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultBorrowingContract>;
 
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
+		type Call = Call<T>;
+
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match source {
+				TransactionSource::External => {
+					// receiving unsigned transaction from network - disallow
+					return InvalidTransaction::Call.into();
+				}
+				TransactionSource::Local => {}   // produced by off-chain worker
+				TransactionSource::InBlock => {} // some other node included it in a block
+			};
+
+			let valid_tx = |provide| {
+				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
+					.priority(UNSIGNED_TXS_PRIORITY)
+					.and_provides([&provide])
+					.longevity(3)
+					.propagate(false)
+					.build()
+			};
+
+			match call {
+				Call::liquidate_unsigned { .. } => valid_tx(b"liquidate_unsigned".to_vec()),
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config> {
+	pub enum Event<T: Config>
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
 		/// Money market position has been liquidated
 		Liquidated {
 			liquidator: T::AccountId,
@@ -189,79 +219,7 @@ pub mod pallet {
 			route: Route<AssetId>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let pallet_acc = Self::account_id();
-
-			let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
-			let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
-
-			// mint debt asset
-			<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
-
-			// liquidation call
-			let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
-			let contract = BorrowingContract::<T>::get();
-
-			let context = CallContext::new_call(contract, pallet_address);
-			let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
-
-			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-				log::error!(target: "liquidation",
-					"Evm execution failed. Reason: {:?}", value);
-				return Err(Error::<T>::LiquidationCallFailed.into());
-			}
-
-			// swap collateral if necessary
-			if collateral_asset != debt_asset {
-				let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc)
-					.checked_sub(collateral_original_balance)
-					.defensive_ok_or(ArithmeticError::Underflow)?;
-				T::Router::sell(
-					RawOrigin::Signed(pallet_acc.clone()).into(),
-					collateral_asset,
-					debt_asset,
-					collateral_earned,
-					1,
-					route,
-				)?;
-			}
-
-			// burn debt and transfer profit
-			let debt_gained = <T as Config>::Currency::balance(debt_asset, &pallet_acc)
-				.checked_sub(debt_original_balance)
-				.ok_or(Error::<T>::NotProfitable)?;
-
-			let profit = debt_gained
-				.checked_sub(debt_to_cover)
-				.ok_or(Error::<T>::NotProfitable)?;
-
-			<T as Config>::Currency::burn_from(
-				debt_asset,
-				&pallet_acc,
-				debt_to_cover,
-				Preservation::Expendable,
-				Precision::Exact,
-				Fortitude::Force,
-			)?;
-
-			<T as Config>::Currency::transfer(
-				debt_asset,
-				&pallet_acc,
-				&T::ProfitReceiver::get(),
-				profit,
-				Preservation::Expendable,
-			)?;
-
-			Self::deposit_event(Event::Liquidated {
-				liquidator: who,
-				evm_address: user,
-				collateral_asset,
-				debt_asset,
-				debt_to_cover,
-				profit,
-			});
-
-			Ok(())
+			Self::liquidate_inner(Some(who), collateral_asset, debt_asset, user, debt_to_cover, route)
 		}
 
 		/// Set the borrowing market contract address.
@@ -274,12 +232,115 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Unsigned version of the `liquidate` extrinsic. Used by the liquidation worker.
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
+			.saturating_add(<T as Config>::RouterWeightInfo::sell_weight(route))
+			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
+		)]
+		pub fn liquidate_unsigned(
+			_origin: OriginFor<T>,
+			collateral_asset: AssetId,
+			debt_asset: AssetId,
+			user: EvmAddress,
+			debt_to_cover: Balance,
+			route: Route<AssetId>,
+		) -> DispatchResult {
+			Self::liquidate_inner(None, collateral_asset, debt_asset, user, debt_to_cover, route)
+		}
 	}
 }
 
-impl<T: Config> Pallet<T> {
+impl<T: Config> Pallet<T>
+where
+	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+{
 	pub fn account_id() -> T::AccountId {
 		PalletId(*b"lqdation").into_account_truncating()
+	}
+
+	pub fn liquidate_inner(
+		maybe_signed_by: Option<T::AccountId>,
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		user: EvmAddress,
+		debt_to_cover: Balance,
+		route: Route<AssetId>,
+	) -> DispatchResult {
+		let pallet_acc = Self::account_id();
+
+		let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
+		let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
+
+		// mint debt asset
+		<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
+
+		// liquidation call
+		let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
+		let contract = BorrowingContract::<T>::get();
+
+		let context = CallContext::new_call(contract, pallet_address);
+		let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
+
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "liquidation",
+					"Evm execution failed. Reason: {:?}", value);
+			return Err(Error::<T>::LiquidationCallFailed.into());
+		}
+
+		// swap collateral if necessary
+		if collateral_asset != debt_asset {
+			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc)
+				.checked_sub(collateral_original_balance)
+				.defensive_ok_or(ArithmeticError::Underflow)?;
+			T::Router::sell(
+				RawOrigin::Signed(pallet_acc.clone()).into(),
+				collateral_asset,
+				debt_asset,
+				collateral_earned,
+				1,
+				route,
+			)?;
+		}
+
+		// burn debt and transfer profit
+		let debt_gained = <T as Config>::Currency::balance(debt_asset, &pallet_acc)
+			.checked_sub(debt_original_balance)
+			.ok_or(Error::<T>::NotProfitable)?;
+
+		let profit = debt_gained
+			.checked_sub(debt_to_cover)
+			.ok_or(Error::<T>::NotProfitable)?;
+
+		<T as Config>::Currency::burn_from(
+			debt_asset,
+			&pallet_acc,
+			debt_to_cover,
+			Preservation::Expendable,
+			Precision::Exact,
+			Fortitude::Force,
+		)?;
+
+		<T as Config>::Currency::transfer(
+			debt_asset,
+			&pallet_acc,
+			&T::ProfitReceiver::get(),
+			profit,
+			Preservation::Expendable,
+		)?;
+
+		Self::deposit_event(Event::Liquidated {
+			liquidator: maybe_signed_by.unwrap_or(pallet_acc),
+			evm_address: user,
+			collateral_asset,
+			debt_asset,
+			debt_to_cover,
+			profit,
+		});
+
+		Ok(())
 	}
 
 	pub fn encode_liquidation_call_data(
@@ -291,7 +352,9 @@ impl<T: Config> Pallet<T> {
 	) -> Vec<u8> {
 		let collateral_address = T::Erc20Mapping::asset_address(collateral_asset);
 		let debt_asset_address = T::Erc20Mapping::asset_address(debt_asset);
-		let mut data = Into::<u32>::into(Function::LiquidationCall).to_be_bytes().to_vec();
+		let mut data = Into::<u32>::into(money_market::Function::LiquidationCall)
+			.to_be_bytes()
+			.to_vec();
 		data.extend_from_slice(H256::from(collateral_address).as_bytes());
 		data.extend_from_slice(H256::from(debt_asset_address).as_bytes());
 		data.extend_from_slice(H256::from(user).as_bytes());
