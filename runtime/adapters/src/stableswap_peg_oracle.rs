@@ -70,7 +70,7 @@ where
 				val: peg,
 				updated_at: frame_system::Pallet::<Runtime>::current_block_number().saturated_into(),
 			}),
-			//TODO: refacto nad rename to DIA or something so it's clear it's harcoded for dia
+			//TODO: refactor nad rename to DIA or something so it's clear it's harcoded for dia
 			//contracts with 8 decimals
 			Source::ChainlinkOracle(addr) => {
 				let ctx = CallContext::new_view(addr);
@@ -99,44 +99,37 @@ where
 					DispatchError::Other("PegOracle not available")
 				})?;
 
-				let price_num = decoded[1].clone().into_uint().ok_or_else(|| {
-					log::error!(target: "stableswap-peg-oracle",
-						"Failed to convert decoded price to uint:  raw_decoded: {:?}", decoded[1]);
-					DispatchError::Other("PegOracle not available")
-				})?;
+				let price_num = decoded[1].clone().into_uint().unwrap_or_default();
+				let updated_at = decoded[3].clone().into_uint().unwrap_or_default();
 
-				let price_num: u128 = TryInto::try_into(price_num).map_err(|_| {
+				let price_num: u128 = TryInto::try_into(price_num).unwrap_or_default();
+				if price_num.is_zero() {
 					log::error!(target: "stableswap-peg-oracle",
-						"Failed to convert returned price to u128:  price_raw: {:?}", price_num);
-					DispatchError::Other("PegOracle not available")
-				})?;
-
-				let updated_at = decoded[3].clone().into_uint().ok_or_else(|| {
-					log::error!(target: "stableswap-peg-oracle",
-						"Failed to convert decoded updated_at to uint:  raw_decoded: {:?}", decoded[3]);
-					DispatchError::Other("PegOracle not available")
-				})?;
-
-				let now = U256::from(pallet_timestamp::Pallet::<Runtime>::now().as_secs());
-				if now <= updated_at {
-					log::error!(target: "stableswap-peg-oracle",
-						"PegOracle future value. now: {:?}, updated_at: {:?}", now, updated_at);
+						"Oracle's price can't be zero. conract: {:?}, price: {:?}, updated_at: {:?}", addr, price_num, updated_at);
 
 					return Err(DispatchError::Other("PegOracle not available"));
 				}
 
+				let now = U256::from(pallet_timestamp::Pallet::<Runtime>::now().as_secs());
 				let diff_blocks: BlockNumber = now
 					.saturating_sub(updated_at)
 					.saturated_into::<u128>()
 					.saturating_div(SECS_PER_BLOCK.into())
 					.saturated_into::<BlockNumber>();
 
+				if diff_blocks.is_zero() {
+					log::error!(target: "stableswap-peg-oracle",
+						"Oracle can't be updated in the same block. constract: {:?}, diff_blocks: {:?}", addr, diff_blocks);
+
+					return Err(DispatchError::Other("PegOracle not available"));
+				}
+
 				let current_block = frame_system::Pallet::<Runtime>::current_block_number();
 				let updated_at = current_block.saturating_sub(diff_blocks.into());
 
 				if updated_at.is_zero() {
 					log::error!(target: "stableswap-peg-oracle",
-						"Calculated upated as is 0th block current_block: {:?}, diff_blocks: {:?}", current_block, diff_blocks);
+						"Calculated updated at is 0th block. current_block: {:?}, diff_blocks: {:?}", current_block, diff_blocks);
 
 					return Err(DispatchError::Other("PegOracle not available"));
 				}
