@@ -1168,8 +1168,7 @@ pub mod pallet {
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
-			let initial_pegs = Self::get_target_pegs(current_block, &assets, &peg_source)?;
+			let initial_pegs = Self::get_target_pegs(&assets, &peg_source)?;
 
 			let peg_info = PoolPegInfo {
 				source: peg_source,
@@ -1801,7 +1800,7 @@ impl<T: Config> Pallet<T> {
 		};
 		// Move pegs to target pegs if necessary
 		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
-		let target_pegs = Self::get_target_pegs(current_block, &pool.assets, &peg_info.source)?;
+		let target_pegs = Self::get_target_pegs(&pool.assets, &peg_info.source)?;
 
 		hydra_dx_math::stableswap::recalculate_pegs(
 			&peg_info.current,
@@ -1832,7 +1831,6 @@ impl<T: Config> Pallet<T> {
 
 	/// Retrieve new target pegs
 	fn get_target_pegs(
-		_block_no: u128, //TODO: remove & refactor
 		pool_assets: &[T::AssetId],
 		peg_sources: &[PegSource<T::AssetId>],
 	) -> Result<Vec<(PegType, u128)>, DispatchError> {

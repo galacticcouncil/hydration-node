@@ -156,7 +156,7 @@ pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
 pub enum PegSource<AssetId = ()> {
 	Value(PegType),
 	Oracle((Source, OraclePeriod, AssetId)),
-	ChainlinkOracle(EvmAddress),
+	MMOracle(EvmAddress),
 }
 
 pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;

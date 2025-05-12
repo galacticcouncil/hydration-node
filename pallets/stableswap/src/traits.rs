@@ -21,7 +21,7 @@ pub struct Peg<BlockNumber> {
 pub enum Source<AssetId> {
 	Value(PegType),
 	Oracle((EmaSource, OraclePeriod, AssetId, AssetId)),
-	ChainlinkOracle(EvmAddress),
+	MMOracle(EvmAddress),
 }
 
 impl<AssetId> From<(PegSource<AssetId>, AssetId)> for Source<AssetId> {
@@ -29,7 +29,7 @@ impl<AssetId> From<(PegSource<AssetId>, AssetId)> for Source<AssetId> {
 		return match item.0 {
 			PegSource::Value(peg) => Source::Value(peg),
 			PegSource::Oracle((source, period, oracle_asset)) => Source::Oracle((source, period, oracle_asset, item.1)),
-			PegSource::ChainlinkOracle(addr) => Source::ChainlinkOracle(addr),
+			PegSource::MMOracle(addr) => Source::MMOracle(addr),
 		};
 	}
 }

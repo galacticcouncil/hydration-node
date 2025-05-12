@@ -132,7 +132,7 @@ fn peg_oracle_adapter_should_work_when_getting_price_from_mm_oracle() {
 		hydradx_runtime::Timestamp::set_timestamp(now);
 		hydradx_run_to_block(current_block);
 
-		let peg = PegOracle::<Runtime, evm::Executor<Runtime>>::get(Source::ChainlinkOracle(
+		let peg = PegOracle::<Runtime, evm::Executor<Runtime>>::get(Source::MMOracle(
 			hex!["17711BE5D63B2Fe8A2C379725DE720773158b954"].into(), //NOTE: dia's USDC oracle
 		))
 		.expect("failed to retrieve peg from contract");
@@ -156,7 +156,7 @@ fn peg_oracle_adapter_should_not_work_when_mm_oracle_price_was_updated_in_curren
 		hydradx_run_to_block(current_block);
 
 		assert_noop!(
-			PegOracle::<Runtime, evm::Executor<Runtime>>::get(Source::ChainlinkOracle(
+			PegOracle::<Runtime, evm::Executor<Runtime>>::get(Source::MMOracle(
 				hex!["17711BE5D63B2Fe8A2C379725DE720773158b954"].into(), //NOTE: dia's USDC oracle
 			)),
 			DispatchError::Other("PegOracle not available")

@@ -34,13 +34,13 @@ use sp_runtime::{
 use sp_std::marker::PhantomData;
 
 const VIEW_GAS_LIMIT: u64 = 100_000;
-const DIA_DENOM: u128 = 100_000_000; //NOTE: dia's oracle has 8 decimals
+//NOTE: Money Market oracle is always 8 decimals
+const MM_ORACLE_DENOM: u128 = 100_000_000;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum AggregatorV3Interface {
-	Decimals = "decimals()",
 	LatestRound = "latestRoundData()",
 }
 
@@ -70,9 +70,9 @@ where
 				val: peg,
 				updated_at: frame_system::Pallet::<Runtime>::current_block_number().saturated_into(),
 			}),
-			//TODO: refactor nad rename to DIA or something so it's clear it's harcoded for dia
-			//contracts with 8 decimals
-			Source::ChainlinkOracle(addr) => {
+			//NOTE: Money Market oracles must have 8 decimals so this oracle is hardcoded with 8
+			//decimals.
+			Source::MMOracle(addr) => {
 				let ctx = CallContext::new_view(addr);
 				let data = Into::<u32>::into(AggregatorV3Interface::LatestRound)
 					.to_be_bytes()
@@ -105,7 +105,7 @@ where
 				let price_num: u128 = TryInto::try_into(price_num).unwrap_or_default();
 				if price_num.is_zero() {
 					log::error!(target: "stableswap-peg-oracle",
-						"Oracle's price can't be zero. conract: {:?}, price: {:?}, updated_at: {:?}", addr, price_num, updated_at);
+						"Oracle's price can't be zero. Conract: {:?}, Price: {:?}, UpdatedAt: {:?}", addr, price_num, updated_at);
 
 					return Err(DispatchError::Other("PegOracle not available"));
 				}
@@ -119,7 +119,7 @@ where
 
 				if diff_blocks.is_zero() {
 					log::error!(target: "stableswap-peg-oracle",
-						"Oracle can't be updated in the same block. constract: {:?}, diff_blocks: {:?}", addr, diff_blocks);
+						"Oracle can't be updated in the same block. Constract: {:?}, DiffBlocks: {:?}", addr, diff_blocks);
 
 					return Err(DispatchError::Other("PegOracle not available"));
 				}
@@ -129,13 +129,13 @@ where
 
 				if updated_at.is_zero() {
 					log::error!(target: "stableswap-peg-oracle",
-						"Calculated updated at is 0th block. current_block: {:?}, diff_blocks: {:?}", current_block, diff_blocks);
+						"Calculated updated at is 0th block. CurrentBlock: {:?}, DiffBlocks: {:?}", current_block, diff_blocks);
 
 					return Err(DispatchError::Other("PegOracle not available"));
 				}
 
 				Ok(Peg {
-					val: (price_num, DIA_DENOM),
+					val: (price_num, MM_ORACLE_DENOM),
 					updated_at: updated_at.saturated_into(),
 				})
 			}
