@@ -213,7 +213,7 @@ impl<T> MultiCurrency<AccountId> for Erc20Currency<T>
 where
 	T: Config
 		+ pallet_evm::Config
-         + pallet_dispatcher::Config
+		+ pallet_dispatcher::Config
 		+ pallet_asset_registry::Config<AssetId = u32>
 		+ pallet_liquidation::Config
 		+ pallet_evm_accounts::Config
