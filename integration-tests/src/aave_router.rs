@@ -186,7 +186,7 @@ fn buy_adot() {
 			DOT,
 			ADOT,
 			ONE,
-			ONE,
+			ONE + 2,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -195,7 +195,7 @@ fn buy_adot() {
 			.try_into()
 			.unwrap()
 		));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ONE + 2);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ONE);
 	})
 }
 
