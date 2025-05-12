@@ -374,7 +374,7 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PegSource, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect};
+use hydradx_traits::{AccountIdFor, Inspect, Source as EmaSource};
 use sp_runtime::traits::Zero;
 
 use super::traits::Peg;
@@ -433,7 +433,7 @@ impl BenchmarkHelper<AssetId> for DummyRegistry {
 	fn register_asset_peg(
 		asset_pair: (AssetId, AssetId),
 		peg: crate::types::PegType,
-		_source: Source,
+		_source: EmaSource,
 	) -> DispatchResult {
 		set_peg_oracle_value(asset_pair.0, asset_pair.1, peg, 0);
 		Ok(())
