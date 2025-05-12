@@ -726,10 +726,11 @@ fn transfer_almost_all_atoken_should_transfer_all_atoken() {
 
 		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
 		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
-		assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
-			adot_asset_id,
-			&AccountId::from(ALICE),
-			&AccountId::from(BOB),
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			ADOT,
 			alice_all_balance - ed
 		));
 		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
