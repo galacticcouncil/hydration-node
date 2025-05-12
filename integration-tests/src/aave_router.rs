@@ -186,7 +186,7 @@ fn buy_adot() {
 			DOT,
 			ADOT,
 			ONE,
-			ONE + 2, // Small fee we apply for buys,
+			ONE,
 			vec![Trade {
 				pool: Aave,
 				asset_in: DOT,
@@ -216,7 +216,7 @@ fn sell_adot() {
 			.try_into()
 			.unwrap()
 		));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE + 2);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
 	})
 }
 
@@ -239,7 +239,7 @@ fn buy_dot() {
 			.try_into()
 			.unwrap()
 		));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE - 2);
 
 		let atoken = HydraErc20Mapping::asset_address(ADOT);
 		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
@@ -317,7 +317,7 @@ fn sell_adot_should_work_when_less_spent_due_to_aave_rounding() {
 			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), balance - amount + 1);
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount);
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots + amount + 6);
 
 		let atoken = HydraErc20Mapping::asset_address(ADOT);
 		let filler = pallet_evm_accounts::Pallet::<Runtime>::truncated_account_id(atoken);
@@ -384,7 +384,7 @@ fn not_always_rounding_shall_be_in_your_favor() {
 			.unwrap()
 		));
 		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), dots - amount);
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance - 1);
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), amount + balance + 1);
 	})
 }
 
@@ -756,17 +756,28 @@ fn transfer_all_atoken_but_one_should_transfer_all_atoken() {
 		)
 		.unwrap();
 
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 1000000000000000);
+
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
 		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
-		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
-		assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
-			adot_asset_id,
-			&AccountId::from(ALICE),
-			&AccountId::from(BOB),
+
+		assert_eq!(alice_all_balance, 1000000000000000);
+		let alice_dot_balance_before = 1999999999999998;
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			ADOT,
 			alice_all_balance - 1
 		));
 		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
-
 		assert_eq!(bob_new_balance, alice_all_balance);
+
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 	})
 }
 

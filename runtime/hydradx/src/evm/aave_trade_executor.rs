@@ -2,8 +2,8 @@ use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::{Erc20Currency, EvmAccounts, Executor};
-use crate::Runtime;
 use crate::Vec;
+use crate::{Currencies, Runtime};
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
@@ -153,12 +153,20 @@ where
 		if diff <= ed {
 			//We withdraw all AToken and supply underlying asset amount on behalf of the receiver
 			//We need to do this as Aave ScaledBalanceTokenBase.sol has rounding in transfer method so we can't always transfer total balance
-			AaveTradeExecutor::<T>::do_withdraw_all(from, underlying_asset)?;
-			let underlying_balance = <Erc20Currency<T> as ERC20>::balance_of(
+			let underlying_balance_before = <Erc20Currency<T> as ERC20>::balance_of(
 				CallContext::new_view(underlying_asset),
 				EvmAccounts::<T>::evm_address(from),
 			);
-			Self::do_supply_on_behalf_of(from, to, underlying_asset, underlying_balance)
+
+			AaveTradeExecutor::<T>::do_withdraw_all(from, underlying_asset)?;
+
+			let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
+				CallContext::new_view(underlying_asset),
+				EvmAccounts::<T>::evm_address(from),
+			);
+
+			let amount_to_supply = underlying_balance_after.saturating_sub(underlying_balance_before);
+			Self::do_supply_on_behalf_of(from, to, underlying_asset, amount_to_supply)
 		} else {
 			//When we don't transfer total balance of atokens
 			erc20_transfer()
