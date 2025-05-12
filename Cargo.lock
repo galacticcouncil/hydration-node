@@ -4609,7 +4609,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.5.3"
+version = "1.6.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4665,7 +4665,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "311.0.0"
+version = "312.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -9058,7 +9058,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "5.1.5"
+version = "5.2.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -12135,7 +12135,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.38.6"
+version = "1.39.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
