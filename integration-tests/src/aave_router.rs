@@ -707,7 +707,7 @@ fn buy_in_stable_after_rebase() {
 }
 
 #[test]
-fn transfer_almost_all_atoken_should_transfer_all_atoken() {
+fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
 	with_atoken(|| {
 		let ed = 1000;
 		AssetRegistry::update(
@@ -724,8 +724,17 @@ fn transfer_almost_all_atoken_should_transfer_all_atoken() {
 		)
 		.unwrap();
 
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
 		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
 		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
+
+		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+
+		assert_eq!(alice_all_balance, 1000000000000000);
+		let alice_dot_balance_before = 1999999999999998;
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(ALICE.into()),
@@ -736,6 +745,9 @@ fn transfer_almost_all_atoken_should_transfer_all_atoken() {
 		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
 
 		assert_eq!(bob_new_balance, alice_all_balance);
+
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 	})
 }
 
