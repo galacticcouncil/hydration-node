@@ -175,8 +175,7 @@ pub mod pallet {
 	{
 		/// Money market position has been liquidated
 		Liquidated {
-			liquidator: T::AccountId,
-			evm_address: EvmAddress,
+			user: EvmAddress,
 			collateral_asset: AssetId,
 			debt_asset: AssetId,
 			debt_to_cover: Balance,
@@ -230,7 +229,7 @@ pub mod pallet {
 			route: Route<AssetId>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::liquidate_inner(Some(who), collateral_asset, debt_asset, user, debt_to_cover, route)
+			Self::liquidate_inner(collateral_asset, debt_asset, user, debt_to_cover, route)
 		}
 
 		/// Set the borrowing market contract address.
@@ -258,7 +257,7 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 		) -> DispatchResult {
-			Self::liquidate_inner(None, collateral_asset, debt_asset, user, debt_to_cover, route)
+			Self::liquidate_inner(collateral_asset, debt_asset, user, debt_to_cover, route)
 		}
 	}
 }
@@ -272,7 +271,6 @@ where
 	}
 
 	pub fn liquidate_inner(
-		maybe_signed_by: Option<T::AccountId>,
 		collateral_asset: AssetId,
 		debt_asset: AssetId,
 		user: EvmAddress,
@@ -343,8 +341,7 @@ where
 		)?;
 
 		Self::deposit_event(Event::Liquidated {
-			liquidator: maybe_signed_by.unwrap_or(pallet_acc),
-			evm_address: user,
+			user,
 			collateral_asset,
 			debt_asset,
 			debt_to_cover,
