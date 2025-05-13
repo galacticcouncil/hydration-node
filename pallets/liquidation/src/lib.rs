@@ -45,13 +45,11 @@ use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
 use sp_std::{vec, vec::Vec};
-
-pub mod types;
-pub use types::*;
 
 #[cfg(test)]
 mod tests;
@@ -64,6 +62,19 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+
+pub type Balance = u128;
+pub type AssetId = u32;
+pub type CallResult = (ExitReason, Vec<u8>);
+
+pub const UNSIGNED_TXS_PRIORITY: u64 = 1_000_000;
+
+#[module_evm_utility_macro::generate_function_selector]
+#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(u32)]
+pub enum Function {
+	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -352,9 +363,7 @@ where
 	) -> Vec<u8> {
 		let collateral_address = T::Erc20Mapping::asset_address(collateral_asset);
 		let debt_asset_address = T::Erc20Mapping::asset_address(debt_asset);
-		let mut data = Into::<u32>::into(money_market::Function::LiquidationCall)
-			.to_be_bytes()
-			.to_vec();
+		let mut data = Into::<u32>::into(Function::LiquidationCall).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(collateral_address).as_bytes());
 		data.extend_from_slice(H256::from(debt_asset_address).as_bytes());
 		data.extend_from_slice(H256::from(user).as_bytes());

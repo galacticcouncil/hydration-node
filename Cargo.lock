@@ -4579,6 +4579,7 @@ dependencies = [
  "hyper 0.14.31",
  "hyper-rustls 0.24.2",
  "jsonrpsee",
+ "liquidation-worker-support",
  "log",
  "num_cpus",
  "pallet-claims",
@@ -6168,6 +6169,29 @@ dependencies = [
  "blake2 0.8.1",
  "chacha",
  "keystream",
+]
+
+[[package]]
+name = "liquidation-worker-support"
+version = "1.0.0"
+dependencies = [
+ "ethabi",
+ "ethereum",
+ "ethereum-types 0.15.1",
+ "evm",
+ "fp-evm",
+ "fp-rpc",
+ "frame-support",
+ "hydradx-traits",
+ "module-evm-utility-macro",
+ "num_enum",
+ "parity-scale-codec",
+ "primitive-types 0.12.2",
+ "serde",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-std",
 ]
 
 [[package]]

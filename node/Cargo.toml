@@ -44,6 +44,7 @@ pallet-claims = { workspace = true }
 pallet-ethereum = { workspace = true }
 ethereum = { workspace = true }
 pallet-liquidation = { workspace = true }
+liquidation-worker-support = { workspace = true }
 ethabi = { workspace = true }
 
 # Substrate dependencies

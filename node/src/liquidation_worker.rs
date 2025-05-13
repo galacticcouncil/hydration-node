@@ -2,6 +2,7 @@ use codec::{Decode, Encode};
 use cumulus_primitives_core::BlockT;
 use ethabi::ethereum_types::U256;
 use fp_rpc::EthereumRuntimeRPCApi;
+use fp_self_contained::SelfContainedCall;
 use frame_support::BoundedVec;
 use frame_support::__private::sp_tracing::tracing;
 use futures::{future::ready, StreamExt};
@@ -10,8 +11,8 @@ use hydradx_runtime::{evm::precompiles::erc20_mapping::HydraErc20Mapping, Block,
 use hydradx_traits::evm::{Erc20Encoding, EvmAddress};
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
+use liquidation_worker_support::*;
 use pallet_ethereum::Transaction;
-use pallet_liquidation::money_market::*;
 use parking_lot::Mutex;
 use polkadot_primitives::EncodeAs;
 use primitives::AccountId;
@@ -361,20 +362,20 @@ where
 
 	/// Check if the provided transaction is valid DIA oracle update.
 	fn verify_oracle_update_transaction(
-		transaction: sp_runtime::generic::UncheckedExtrinsic<
+		extrinsic: sp_runtime::generic::UncheckedExtrinsic<
 			hydradx_runtime::Address,
 			RuntimeCall,
 			hydradx_runtime::Signature,
 			hydradx_runtime::SignedExtra,
 		>,
 	) -> Option<Transaction> {
-		if let RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) = transaction.function {
+		if let RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) = extrinsic.function.clone() {
 			if let Transaction::Legacy(legacy) = transaction.clone() {
 				// check if the transaction is DIA oracle update
 				if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
 					if call_address == ORACLE_UPDATE_CALL_ADDRESS {
 						// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-						if verify_signer(&transaction, ORACLE_UPDATE_CALLER) {
+						if extrinsic.function.check_self_contained() == Some(Ok(ORACLE_UPDATE_CALLER)) {
 							return Some(transaction);
 						};
 					};

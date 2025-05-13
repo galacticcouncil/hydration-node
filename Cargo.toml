@@ -46,6 +46,7 @@ members = [
     'precompiles/call-permit',
     'runtime-mock',
     'pallets/broadcast',
+    'liquidation-worker-support',
 ]
 
 resolver = "2"
@@ -148,6 +149,7 @@ pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false 
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
+liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
