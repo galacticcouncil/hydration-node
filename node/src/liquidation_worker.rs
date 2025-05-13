@@ -243,7 +243,7 @@ where
 							.ok_or(ArithmeticError::Overflow.into())) else { return };
 
 						// get address of the asset whose price is about to be updated
-						let Some(asset_reserve) = money_market_data.reserves().iter().find(|asset| *asset.symbol() == *base_asset)
+						let Some(asset_reserve) = money_market_data.reserves().iter().find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset.to_ascii_lowercase())
 							else { return };
 
 						let base_asset_address = asset_reserve.asset_address();

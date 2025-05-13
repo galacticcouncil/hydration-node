@@ -20,8 +20,8 @@ use hydradx_traits::{
 	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
 	router::{AssetPair, RouteProvider},
 };
-use orml_traits::currency::MultiCurrency;
 use liquidation_worker_support::*;
+use orml_traits::currency::MultiCurrency;
 use sp_core::{H256, U256};
 use sp_runtime::traits::CheckedConversion;
 

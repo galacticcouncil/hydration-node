@@ -46,11 +46,9 @@ pub fn with_aave(execution: impl FnOnce()) {
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
-		let pool_contract = liquidation_worker_support::MoneyMarketData::<Block, Runtime>::fetch_pool(
-			pap_contract,
-			RUNTIME_API_CALLER,
-		)
-		.unwrap();
+		let pool_contract =
+			liquidation_worker_support::MoneyMarketData::<Block, Runtime>::fetch_pool(pap_contract, RUNTIME_API_CALLER)
+				.unwrap();
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
