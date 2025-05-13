@@ -43,6 +43,7 @@ pallet-evm-accounts = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
+liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
 
 pallet-treasury = { workspace = true }

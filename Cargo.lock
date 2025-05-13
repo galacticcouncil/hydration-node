@@ -12255,6 +12255,7 @@ dependencies = [
  "hydradx-runtime",
  "hydradx-traits",
  "libsecp256k1",
+ "liquidation-worker-support",
  "module-evm-utility-macro",
  "num_enum",
  "orml-tokens",

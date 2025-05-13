@@ -21,7 +21,7 @@ use hydradx_traits::{
 	router::{AssetPair, RouteProvider},
 };
 use orml_traits::currency::MultiCurrency;
-use pallet_liquidation::types::money_market::*;
+use liquidation_worker_support::*;
 use sp_core::{H256, U256};
 use sp_runtime::traits::CheckedConversion;
 

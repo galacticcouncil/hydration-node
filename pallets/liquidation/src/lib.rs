@@ -228,7 +228,7 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let _who = ensure_signed(origin)?;
 			Self::liquidate_inner(collateral_asset, debt_asset, user, debt_to_cover, route)
 		}
 

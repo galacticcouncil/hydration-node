@@ -1,5 +1,4 @@
 use crate as pallet_liquidation;
-use crate::types::money_market::Function;
 use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
