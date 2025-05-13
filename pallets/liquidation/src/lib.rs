@@ -84,10 +84,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config
-	where
-		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
-	{
+	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -169,10 +166,7 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config>
-	where
-		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
-	{
+	pub enum Event<T: Config> {
 		/// Money market position has been liquidated
 		Liquidated {
 			user: EvmAddress,
@@ -316,10 +310,7 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T>
-where
-	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
-{
+impl<T: Config> Pallet<T> {
 	pub fn account_id() -> T::AccountId {
 		PalletId(*b"lqdation").into_account_truncating()
 	}
