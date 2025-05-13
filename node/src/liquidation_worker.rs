@@ -170,7 +170,7 @@ where
 	) {
 		// We can ignore the result, because it's not important for us.
 		// All we want is to have some upper bound for execution time of this task.
-		let _ = tokio::time::timeout(std::time::Duration::from_secs(8), async {
+		let _ = tokio::time::timeout(std::time::Duration::from_secs(4), async {
             // Fetch the data with borrowers info.
             // We don't need to set a deadline, because it's wrapped in a task with a deadline.
             let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone()).await else {
