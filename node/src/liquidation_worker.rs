@@ -268,7 +268,7 @@ where
 										continue
 									};
 
-								let liquidation_tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_unsigned {
+								let liquidation_tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate {
 									collateral_asset: collateral_asset_id,
 									debt_asset: debt_asset_id,
 									user: borrower.0,

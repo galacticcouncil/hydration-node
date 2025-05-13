@@ -59,7 +59,7 @@ use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
+		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Extrinsic, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
@@ -554,10 +554,13 @@ impl_runtime_apis! {
 		) -> TransactionValidity {
 			let mut tx_validity = Executive::validate_transaction(source, tx.clone(), block_hash);
 			let transaction = tx.clone().0;
-			if let RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_unsigned{ .. }) = transaction.function {
+			if let RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate { .. }) = transaction.function {
+				// bump the priority only if the transaction is unsigned
+				if let Some(false) = tx.is_signed() {
 				 if let Ok(ref mut v) = tx_validity {
 					// TODO: priority multiplier
 					v.priority = 3 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+				}
 				}
 			}
 			tx_validity
