@@ -7971,7 +7971,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7979,6 +7979,7 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
+ "pallet-evm",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
