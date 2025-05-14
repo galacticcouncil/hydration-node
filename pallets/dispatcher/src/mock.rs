@@ -27,6 +27,7 @@
 
 use crate as dispatcher;
 use crate::Config;
+use frame_support::pallet_prelude::Weight;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -93,6 +94,16 @@ parameter_type_with_key! {
 	};
 }
 
+pub struct MockGasWeightMapping;
+impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
+	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
+		Weight::zero()
+	}
+	fn weight_to_gas(_weight: Weight) -> u64 {
+		0
+	}
+}
+
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
@@ -101,6 +112,7 @@ impl dispatcher::Config for Test {
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
+	type GasWeightMapping = MockGasWeightMapping;
 }
 
 parameter_types! {
@@ -120,7 +132,7 @@ impl system::Config for Test {
 	type Block = Block;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
@@ -199,6 +211,7 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 use hydradx_traits::Create as CreateRegistry;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchError;
+
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T> {
 	type Error = DispatchError;
@@ -244,7 +257,7 @@ impl<T: Config> CreateRegistry<Balance> for DummyRegistry<T> {
 }
 
 pub struct ExtBuilder {
-	endowed_accounts: Vec<(u64, AssetId, Balance)>,
+	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<AssetId>,
 }
 
@@ -300,7 +313,7 @@ impl ExtBuilder {
 			balances: self
 				.endowed_accounts
 				.iter()
-				.flat_map(|(x, asset, amount)| vec![(*x, *asset, *amount * 10u128.pow(precision(*asset)))])
+				.flat_map(|(x, asset, amount)| vec![(x.clone(), *asset, *amount * 10u128.pow(precision(*asset)))])
 				.collect(),
 		}
 		.assimilate_storage(&mut t)
@@ -315,10 +328,6 @@ impl ExtBuilder {
 		r
 	}
 }
-
-// thread_local! {
-// 	pub static DUMMYTHREADLOCAL: RefCell<u128> = const { RefCell::new(100) };
-// }
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);

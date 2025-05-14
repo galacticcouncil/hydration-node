@@ -1,3 +1,4 @@
+use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::executor::{CallResult, Executor};
 use crate::evm::{EvmAccounts, EvmAddress};
@@ -10,6 +11,7 @@ use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
+use polkadot_xcm::v3::MultiLocation;
 use primitives::{AccountId, Balance};
 use scale_info::prelude::format;
 use sp_core::crypto::AccountId32;
@@ -41,7 +43,7 @@ pub struct Erc20Currency<T>(PhantomData<T>);
 
 impl<T> ERC20 for Erc20Currency<T>
 where
-	T: pallet_evm::Config,
+	T: pallet_evm::Config + pallet_dispatcher::Config,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
@@ -209,13 +211,23 @@ fn handle_result(result: CallResult) -> DispatchResult {
 
 impl<T> MultiCurrency<AccountId> for Erc20Currency<T>
 where
-	T: Config + pallet_evm::Config,
+	T: Config
+		+ pallet_evm::Config
+		+ pallet_dispatcher::Config
+		+ pallet_asset_registry::Config<AssetId = u32>
+		+ pallet_liquidation::Config
+		+ pallet_evm_accounts::Config
+		+ pallet_broadcast::Config
+		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
 	pallet_evm_accounts::Pallet<T>: InspectEvmAccounts<AccountId>,
 	AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
-	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
+	T::AssetNativeLocation: Into<MultiLocation>,
+	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
+	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
+	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 {
 	type CurrencyId = EvmAddress;
 	type Balance = Balance;
@@ -259,15 +271,26 @@ where
 		amount: Self::Balance,
 	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
-		<Self as ERC20>::transfer(
-			CallContext {
-				contract,
-				sender,
-				origin: sender,
-			},
-			EvmAccounts::<T>::evm_address(to),
-			amount,
-		)
+
+		// let's construct standard transfer
+		let erc20_transfer = || -> DispatchResult {
+			<Self as ERC20>::transfer(
+				CallContext {
+					contract,
+					sender,
+					origin: sender,
+				},
+				EvmAccounts::<T>::evm_address(to),
+				amount,
+			)
+		};
+
+		// And handle the transfer according to the token type
+		if AaveTradeExecutor::<T>::is_atoken(contract) {
+			AaveTradeExecutor::<T>::transfer(contract, from, to, amount, erc20_transfer)
+		} else {
+			erc20_transfer()
+		}
 	}
 
 	fn deposit(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
