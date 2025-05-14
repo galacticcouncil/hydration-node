@@ -1,11 +1,17 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use hydradx_traits::{evm::EvmAddress, OraclePeriod, Source as EmaSource};
+use hydradx_traits::{evm::EvmAddress, OraclePeriod, RawOracle, Source as EmaSource};
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
-
-use crate::types::{PegSource, PegType};
+use sp_runtime::DispatchError;
+use crate::types::{Balance, PegSource, PegType};
 
 //TODO: rename PegOracle
+
+pub trait PegProvider<AssetId, BlockNumber> {
+	type Output;
+	type RawOracle: RawOracle<AssetId, Balance, BlockNumber>;
+	fn get(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<Self::Output, DispatchError>;
+}
 pub trait PegOracle<AssetId, Balance, BlockNumber> {
 	type Error;
 	fn get(source: Source<AssetId>) -> Result<Peg<BlockNumber>, Self::Error>;

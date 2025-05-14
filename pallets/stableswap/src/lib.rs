@@ -76,7 +76,7 @@ pub mod traits;
 pub mod types;
 pub mod weights;
 
-use crate::traits::{PegOracle, Source};
+use crate::traits::{PegOracle, Source, PegProvider};
 use crate::types::{
 	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
 };
@@ -180,7 +180,8 @@ pub mod pallet {
 		/// Oracle providing prices for asset pegs (if configured for pool)
 		/// Raw oracle is required because it needs the values that are not delayed.
 		/// It is how the mechanism is designed.
-		type TargetPegOracle: PegOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
+		//type TargetPegOracle: PegOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
+		type TargetPegOracle: PegProvider<Self::AssetId, BlockNumberFor<Self>, Output = (PegType, u128)>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
