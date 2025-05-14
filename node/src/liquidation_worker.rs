@@ -39,14 +39,9 @@ const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 pub type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
 
 /// The configuration for the liquidation worker.
-/// By default, the worker is enabled and uses `MAX_LIQUIDATIONS`, `PAP_CONTRACT`,
-/// `RUNTIME_API_CALLER` and `TARGET_HF` values.
+/// By default, the worker is enabled and uses `PAP_CONTRACT`, `RUNTIME_API_CALLER` and `TARGET_HF` values.
 #[derive(Clone, Copy, Debug, clap::Parser)]
 pub struct LiquidationWorkerConfig {
-	/// Maximum number of accounts we try to liquidate.
-	#[clap(long, default_value = "5")]
-	pub max_liquidations: u8,
-
 	/// Disable liquidation worker.
 	#[clap(long, default_value = "false")]
 	pub disable_liquidation_worker: bool,
@@ -177,7 +172,7 @@ where
 				tracing::error!(target: LOG_TARGET, "fetch_borrowers_data failed");
 				return
 			};
-            let sorted_borrowers_data = Self::process_borrowers_data(borrowers_data, config.max_liquidations);
+            let sorted_borrowers_data = Self::process_borrowers_data(borrowers_data);
 
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
@@ -331,20 +326,16 @@ where
 	}
 
 	/// Returns borrowers sorted by HF.
-	/// Maximum size of the returned list is `MAX_LIQUIDATIONS`.
-	pub fn process_borrowers_data(
-		oracle_data: BorrowerData<AccountId>,
-		max_liquidations: u8,
-	) -> Vec<(H160, BorrowerDataDetails<AccountId>)> {
+	/// The list ir sorted in ascending order, starting with borrowers whose HF has not yet been
+	/// calculated (HF==0).
+	pub fn process_borrowers_data(oracle_data: BorrowerData<AccountId>) -> Vec<(H160, BorrowerDataDetails<AccountId>)> {
 		let mut borrowers = oracle_data.borrowers.clone();
-		// remove elements with HF == 0
-		borrowers.retain(|b| b.1.health_factor > 0.0);
 		borrowers.sort_by(|a, b| {
 			a.1.health_factor
 				.partial_cmp(&b.1.health_factor)
 				.unwrap_or(Ordering::Equal)
 		});
-		borrowers.truncate(borrowers.len().min(max_liquidations as usize));
+
 		borrowers
 	}
 
