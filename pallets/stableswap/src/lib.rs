@@ -76,7 +76,7 @@ pub mod traits;
 pub mod types;
 pub mod weights;
 
-use crate::traits::{PegOracle, Source};
+use crate::traits::PegOracle;
 use crate::types::{
 	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
 };
@@ -1848,10 +1848,10 @@ impl<T: Config> Pallet<T> {
 
 		let mut r = vec![];
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
-			let p = T::TargetPegOracle::get(Source::from((source.clone(), *asset_id)))
-				.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
+			let p =
+				T::TargetPegOracle::get(*asset_id, source.clone()).map_err(|_| Error::<T>::MissingTargetPegOracle)?;
 
-			r.push((p.val, p.updated_at.saturated_into()));
+			r.push(((p.price.0, p.price.1), p.updated_at.saturated_into()));
 		}
 		Ok(r)
 	}

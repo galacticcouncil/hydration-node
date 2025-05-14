@@ -21,10 +21,11 @@ use evm::{ExitReason, ExitSucceed};
 use frame_support::traits::UnixTime;
 use hydradx_traits::{
 	evm::{CallContext, EVM},
-	RawOracle,
+	RawEntry, RawOracle,
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pallet_stableswap::traits::{Peg, PegOracle as Oracle, Source};
+use pallet_stableswap::traits::PegOracle as Oracle;
+use pallet_stableswap::types::PegSource;
 use primitives::{constants::time::SECS_PER_BLOCK, AssetId, Balance, BlockNumber};
 use sp_core::U256;
 use sp_runtime::{
@@ -55,24 +56,29 @@ where
 {
 	type Error = DispatchError;
 
-	fn get(source: Source<AssetId>) -> Result<Peg<BlockNumber>, Self::Error> {
+	fn get(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<RawEntry<Balance, BlockNumber>, Self::Error> {
 		match source {
-			Source::Oracle((source, period, asset_a, asset_b)) => {
-				let entry = pallet_ema_oracle::Pallet::<Runtime>::get_raw_entry(source, asset_a, asset_b, period)
-					.map_err(|_| DispatchError::Other("PegOracle not available"))?;
+			PegSource::Oracle((source, period, oracle_asset)) => {
+				let entry =
+					pallet_ema_oracle::Pallet::<Runtime>::get_raw_entry(source, oracle_asset, peg_asset, period)
+						.map_err(|_| DispatchError::Other("PegOracle not available"))?;
 
-				Ok(Peg {
-					val: (entry.price.0, entry.price.1),
+				Ok(RawEntry {
+					price: (entry.price.0, entry.price.1),
+					volume: Default::default(),
+					liquidity: Default::default(),
 					updated_at: entry.updated_at.saturated_into(),
 				})
 			}
-			Source::Value(peg) => Ok(Peg {
-				val: peg,
+			PegSource::Value(peg) => Ok(RawEntry {
+				price: peg,
+				volume: Default::default(),
+				liquidity: Default::default(),
 				updated_at: frame_system::Pallet::<Runtime>::current_block_number().saturated_into(),
 			}),
 			//NOTE: Money Market oracles must have 8 decimals so this oracle is hardcoded with 8
 			//decimals.
-			Source::MMOracle(addr) => {
+			PegSource::MMOracle(addr) => {
 				let ctx = CallContext::new_view(addr);
 				let data = Into::<u32>::into(AggregatorV3Interface::LatestRound)
 					.to_be_bytes()
@@ -134,8 +140,10 @@ where
 					return Err(DispatchError::Other("PegOracle not available"));
 				}
 
-				Ok(Peg {
-					val: (price_num, MM_ORACLE_DENOM),
+				Ok(RawEntry {
+					price: (price_num, MM_ORACLE_DENOM),
+					volume: Default::default(),
+					liquidity: Default::default(),
 					updated_at: updated_at.saturated_into(),
 				})
 			}
