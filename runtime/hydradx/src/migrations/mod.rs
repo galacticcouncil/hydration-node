@@ -26,10 +26,4 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 pub type Migrations = (
 	cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
 	evm::precompiles::erc20_mapping::SetCodeMetadataForErc20Precompile,
-	// Async backing migrations
-	pallet_dca::migrations::MultiplySchedulesPeriodBy2<Runtime>,
-	pallet_staking::migrations::SetSixSecBlocksSince<Runtime>,
-	scheduler::MigrateSchedulerTo6sBlocks<Runtime>,
-	conviction_voting::MigrateConvictionVotingTo6sBlocks<Runtime>,
-	democracy::MigrateDemocracyTo6sBlocks<Runtime>,
 );
