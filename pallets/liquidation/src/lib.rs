@@ -149,7 +149,7 @@ pub mod pallet {
 			};
 
 			let valid_tx = |provide| {
-				ValidTransaction::with_tag_prefix("liquidate_call")
+				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
 					.priority(UNSIGNED_TXS_PRIORITY)
 					.and_provides([&provide])
 					.longevity(3)
@@ -158,7 +158,7 @@ pub mod pallet {
 			};
 
 			match call {
-				Call::liquidate { .. } => valid_tx(b"liquidate".to_vec()),
+				Call::liquidate { .. } => valid_tx(b"liquidate_unsigned".to_vec()),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -216,7 +216,7 @@ pub mod pallet {
 			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
 		)]
 		pub fn liquidate(
-			_: OriginFor<T>,
+			_origin: OriginFor<T>,
 			collateral_asset: AssetId,
 			debt_asset: AssetId,
 			user: EvmAddress,
