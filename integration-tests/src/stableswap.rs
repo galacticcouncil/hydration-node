@@ -5,9 +5,10 @@ use frame_support::{assert_noop, assert_ok};
 use hydradx_adapters::stableswap_peg_oracle::PegOracle;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
+use hydradx_traits::RawEntry;
 use orml_traits::MultiCurrency;
 use pallet_ema_oracle::BIFROST_SOURCE;
-use pallet_stableswap::traits::{Peg, PegOracle as PegOracleTrait, Source};
+use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
@@ -132,13 +133,18 @@ fn peg_oracle_adapter_should_work_when_getting_price_from_mm_oracle() {
 		hydradx_runtime::Timestamp::set_timestamp(now);
 		hydradx_run_to_block(current_block);
 
-		let peg = PegOracle::<Runtime, evm::Executor<Runtime>>::get(Source::MMOracle(
-			hex!["17711BE5D63B2Fe8A2C379725DE720773158b954"].into(), //NOTE: dia's USDC oracle
-		))
+		let peg = PegOracle::<Runtime, evm::Executor<Runtime>, EmaOracle>::get_raw_entry(
+			Default::default(), //NOTE: MMOracle doesn't use this param, only contract's address
+			PegSource::MMOracle(
+				hex!["17711BE5D63B2Fe8A2C379725DE720773158b954"].into(), //NOTE: dia's USDC oracle
+			),
+		)
 		.expect("failed to retrieve peg from contract");
 
-		let expected_peg = Peg {
-			val: (99988686_u128, 100_000_000_u128),
+		let expected_peg = RawEntry {
+			price: (99988686_u128, 100_000_000_u128),
+			volume: Default::default(),
+			liquidity: Default::default(),
 			updated_at: current_block - blocks_diff as u32,
 		};
 		assert_eq!(peg, expected_peg)
@@ -156,9 +162,12 @@ fn peg_oracle_adapter_should_not_work_when_mm_oracle_price_was_updated_in_curren
 		hydradx_run_to_block(current_block);
 
 		assert_noop!(
-			PegOracle::<Runtime, evm::Executor<Runtime>>::get(Source::MMOracle(
+			PegOracle::<Runtime, evm::Executor<Runtime>, EmaOracle>::get_raw_entry(
+				Default::default(), //NOTE: MMOracle doesn't use this param, only contract's address
+				PegSource::MMOracle(
 				hex!["17711BE5D63B2Fe8A2C379725DE720773158b954"].into(), //NOTE: dia's USDC oracle
-			)),
+			)
+			),
 			DispatchError::Other("PegOracle not available")
 		);
 	});

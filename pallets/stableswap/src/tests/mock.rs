@@ -27,13 +27,11 @@ use std::collections::HashMap;
 use std::num::NonZeroU16;
 
 use crate as pallet_stableswap;
-use crate::traits::Source;
 
 use crate::Config;
 
 use crate::types::BoundedPegSources;
-use crate::PegOracle;
-use crate::PegType;
+use crate::{PegRawOracle, PegSource, PegType};
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, BoundedVec};
@@ -371,13 +369,11 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{PegSource, PoolInfo, PoolState, StableswapHooks};
+use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, Source as EmaSource};
+use hydradx_traits::{AccountIdFor, Inspect, RawEntry, Source};
 use sp_runtime::traits::Zero;
-
-use super::traits::Peg;
 
 pub struct DummyRegistry;
 
@@ -433,7 +429,7 @@ impl BenchmarkHelper<AssetId> for DummyRegistry {
 	fn register_asset_peg(
 		asset_pair: (AssetId, AssetId),
 		peg: crate::types::PegType,
-		_source: EmaSource,
+		_source: Source,
 	) -> DispatchResult {
 		set_peg_oracle_value(asset_pair.0, asset_pair.1, peg, 0);
 		Ok(())
@@ -539,24 +535,28 @@ pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
 
 pub struct DummyPegOracle;
 
-impl PegOracle<AssetId, Balance, u64> for DummyPegOracle {
+impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 	type Error = ();
 
-	fn get(source: Source<AssetId>) -> Result<Peg<u64>, Self::Error> {
+	fn get_raw_entry(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<RawEntry<Balance, u64>, Self::Error> {
 		match source {
-			Source::Oracle((_, _, asset_a, asset_b)) => {
+			PegSource::Oracle((_, _, oracle_asset)) => {
 				let (n, d, u) = PEG_ORACLE_VALUES
-					.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
+					.with(|v| v.borrow().get(&(oracle_asset, peg_asset)).copied())
 					.ok_or(())?;
 
-				return Ok(Peg {
-					val: (n, d),
+				return Ok(RawEntry {
+					price: (n, d),
+					volume: Default::default(),
+					liquidity: Default::default(),
 					updated_at: u,
 				});
 			}
-			Source::Value(peg) => {
-				return Ok(Peg {
-					val: peg,
+			PegSource::Value(peg) => {
+				return Ok(RawEntry {
+					price: peg,
+					volume: Default::default(),
+					liquidity: Default::default(),
 					updated_at: System::block_number(),
 				});
 			}

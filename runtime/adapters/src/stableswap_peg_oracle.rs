@@ -21,10 +21,10 @@ use evm::{ExitReason, ExitSucceed};
 use frame_support::traits::UnixTime;
 use hydradx_traits::{
 	evm::{CallContext, EVM},
-	RawEntry, RawOracle,
+	RawEntry,
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pallet_stableswap::traits::PegOracle as Oracle;
+use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::PegSource;
 use primitives::{constants::time::SECS_PER_BLOCK, AssetId, Balance, BlockNumber};
 use sp_core::U256;
@@ -35,7 +35,7 @@ use sp_runtime::{
 use sp_std::marker::PhantomData;
 
 const VIEW_GAS_LIMIT: u64 = 100_000;
-//NOTE: Money Market oracle is always 8 decimals
+//NOTE: Money Market oracles are always 8 decimals
 const MM_ORACLE_DENOM: u128 = 100_000_000;
 
 #[module_evm_utility_macro::generate_function_selector]
@@ -47,21 +47,25 @@ pub enum AggregatorV3Interface {
 
 pub type CallResult = (ExitReason, Vec<u8>);
 
-pub struct PegOracle<Runtime, Evm>(PhantomData<(Runtime, Evm)>);
+pub struct PegOracle<Runtime, Evm, RawOracle>(PhantomData<(Runtime, Evm, RawOracle)>);
 
-impl<Runtime, Evm> Oracle<AssetId, Balance, BlockNumber> for PegOracle<Runtime, Evm>
+impl<Runtime, Evm, RawOracle> PegRawOracle<AssetId, Balance, BlockNumber> for PegOracle<Runtime, Evm, RawOracle>
 where
-	Runtime: pallet_ema_oracle::Config + frame_system::Config + pallet_timestamp::Config,
+	Runtime: frame_system::Config + pallet_timestamp::Config,
 	Evm: EVM<CallResult>,
+	RawOracle: hydradx_traits::RawOracle<AssetId, Balance, BlockNumber>,
 {
 	type Error = DispatchError;
 
-	fn get(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<RawEntry<Balance, BlockNumber>, Self::Error> {
+	fn get_raw_entry(
+		peg_asset: AssetId,
+		source: PegSource<AssetId>,
+	) -> Result<RawEntry<Balance, BlockNumber>, Self::Error> {
 		match source {
 			PegSource::Oracle((source, period, oracle_asset)) => {
-				let entry =
-					pallet_ema_oracle::Pallet::<Runtime>::get_raw_entry(source, oracle_asset, peg_asset, period)
-						.map_err(|_| DispatchError::Other("PegOracle not available"))?;
+				//WARN: `RawOracle` must be used, read `stableswap.TargetPegOracle` doc comment
+				let entry = RawOracle::get_raw_entry(source, oracle_asset, peg_asset, period)
+					.map_err(|_| DispatchError::Other("PegOracle not available"))?;
 
 				Ok(RawEntry {
 					price: (entry.price.0, entry.price.1),
@@ -70,12 +74,6 @@ where
 					updated_at: entry.updated_at.saturated_into(),
 				})
 			}
-			PegSource::Value(peg) => Ok(RawEntry {
-				price: peg,
-				volume: Default::default(),
-				liquidity: Default::default(),
-				updated_at: frame_system::Pallet::<Runtime>::current_block_number().saturated_into(),
-			}),
 			//NOTE: Money Market oracles must have 8 decimals so this oracle is hardcoded with 8
 			//decimals.
 			PegSource::MMOracle(addr) => {
@@ -147,6 +145,12 @@ where
 					updated_at: updated_at.saturated_into(),
 				})
 			}
+			PegSource::Value(peg) => Ok(RawEntry {
+				price: peg,
+				volume: Default::default(),
+				liquidity: Default::default(),
+				updated_at: frame_system::Pallet::<Runtime>::current_block_number().saturated_into(),
+			}),
 		}
 	}
 }
