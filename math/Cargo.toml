@@ -6,7 +6,7 @@ license = 'Apache-2.0'
 name = "hydra-dx-math"
 description = "A collection of utilities to make performing liquidity pool calculations more convenient."
 repository = 'https://github.com/galacticcouncil/hydradx-math'
-version = "10.0.2"
+version = "10.0.3"
 
 [dependencies]
 primitive-types = {  workspace = true }
