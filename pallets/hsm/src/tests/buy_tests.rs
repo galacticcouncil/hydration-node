@@ -60,7 +60,7 @@ fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {
 			DAI,
 			100,
 			Permill::from_percent(1),
-			FixedU128::from_rational(104, 100), // 100% coefficient as a ratio (1.0)
+			FixedU128::from_rational(999, 1000),
 			Permill::from_percent(1),
 		)
 		.build();
@@ -107,7 +107,7 @@ fn setup_test_with_dai_collateral_with_different_decimals(decimals: u8) -> sp_io
 			DAI,
 			100,
 			Permill::from_percent(1),
-			FixedU128::one(),
+			FixedU128::from_rational(999, 1000),
 			Permill::from_percent(1),
 			Perbill::from_percent(50),
 			None,
