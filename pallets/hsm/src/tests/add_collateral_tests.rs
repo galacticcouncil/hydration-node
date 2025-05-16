@@ -562,3 +562,55 @@ fn add_collateral_should_fail_when_max_is_reached() {
 			);
 		});
 }
+
+
+#[test]
+fn add_collateral_asset_fails_when_asset_is_hollar() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HOLLAR, ONE), (ALICE, DAI, ONE)])
+		.with_registered_assets(vec![(HDX, 12), (DAI, 18), (HOLLAR, 18), (100, 18)])
+		.with_pool(
+			100,
+			vec![HOLLAR, DAI],
+			2,
+			Permill::from_percent(1),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_initial_pool_liquidity(
+			100,
+			vec![
+				AssetAmount {
+					asset_id: HOLLAR,
+					amount: 1000 * ONE,
+				},
+				AssetAmount {
+					asset_id: DAI,
+					amount: 1000 * ONE,
+				},
+			],
+		)
+		.with_collateral(
+			DAI,
+			100,
+			Permill::from_percent(1),
+			FixedU128::one(),
+			Permill::from_percent(1),
+		)
+		.build()
+		.execute_with(|| {
+			// Try to add DAI as collateral again
+			assert_err!(
+				HSM::add_collateral_asset(
+					RuntimeOrigin::root(),
+					HOLLAR,
+					100,
+					Permill::from_percent(1),
+					FixedU128::one(),
+					Permill::from_percent(1),
+					Perbill::from_percent(10),
+					Some(1_000_000 * ONE),
+				),
+				Error::<Test>::AssetAlreadyApproved
+			);
+		});
+}
