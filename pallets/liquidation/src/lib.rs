@@ -32,16 +32,18 @@ use evm::{ExitReason, ExitSucceed};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::AccountIdConversion,
-	traits::fungibles::{Inspect, Mutate},
-	traits::tokens::{Fortitude, Precision, Preservation},
+	traits::{
+		fungibles::{Inspect, Mutate},
+		tokens::{Fortitude, Precision, Preservation},
+		DefensiveOption,
+	},
 	PalletId,
 };
-use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
+use frame_system::{pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::router::Route;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
-	router::{AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade},
+	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
@@ -65,6 +67,8 @@ pub type Balance = u128;
 pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
+pub const UNSIGNED_TXS_PRIORITY: u64 = 1_000_000;
+
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -75,8 +79,6 @@ pub enum Function {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::traits::DefensiveOption;
-	use hydradx_traits::evm::Erc20Mapping;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -148,7 +150,7 @@ pub mod pallet {
 
 			let valid_tx = |provide| {
 				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
-					.priority(1_000_000)
+					.priority(UNSIGNED_TXS_PRIORITY)
 					.and_provides([&provide])
 					.longevity(3)
 					.propagate(false)
@@ -193,6 +195,7 @@ pub mod pallet {
 		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
 		/// Liquidates an existing money market position.
+		/// Can be both signed and unsigned.
 		///
 		/// Performs a flash loan to get funds to pay for the debt.
 		/// Received collateral is swapped and the profit is transferred to `FeeReceiver`.

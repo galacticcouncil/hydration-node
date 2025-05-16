@@ -1,0 +1,44 @@
+[package]
+name = "liquidation-worker-support"
+version = "1.0.0"
+description = "Methods for the liquidation worker"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydration-node"
+
+[dependencies]
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+serde = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-arithmetic = { workspace = true }
+frame-support = { workspace = true }
+
+evm = { workspace = true, features = ["with-codec"] }
+fp-evm = { workspace = true }
+fp-rpc = { workspace = true }
+num_enum = { workspace = true, default-features = false }
+ethabi = { workspace = true }
+ethereum = { workspace = true }
+ethereum-types = "0.15.1"
+primitive-types = { workspace = true }
+module-evm-utility-macro = { workspace = true }
+
+# Hydration dependencies
+hydradx-traits = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "frame-support/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-std/std",
+    "sp-arithmetic/std",
+    "hydradx-traits/std",
+    "fp-evm/std",
+    "fp-rpc/std",
+]

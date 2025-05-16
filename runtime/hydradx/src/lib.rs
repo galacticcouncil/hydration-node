@@ -59,7 +59,7 @@ use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
+		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Extrinsic, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
@@ -402,7 +402,30 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		len: usize,
 	) -> Option<TransactionValidity> {
 		match self {
-			RuntimeCall::Ethereum(call) => call.validate_self_contained(info, dispatch_info, len),
+			RuntimeCall::Ethereum(call) => {
+				let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
+				if let pallet_ethereum::Call::transact { transaction } = call {
+					if let pallet_ethereum::Transaction::Legacy(legacy) = transaction {
+						// check if the transaction is DIA oracle update
+						if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
+							if call_address
+								== H160::from_slice(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice())
+							{
+								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
+								if call.check_self_contained()
+									== Some(Ok(H160::from_slice(
+										hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice(),
+									))) {
+									if let Some(Ok(ref mut validity_info)) = tx_validity {
+										validity_info.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+									};
+								};
+							}
+						};
+					};
+				}
+				tx_validity
+			}
 			_ => None,
 		}
 	}
@@ -529,7 +552,18 @@ impl_runtime_apis! {
 			tx: <Block as BlockT>::Extrinsic,
 			block_hash: <Block as BlockT>::Hash,
 		) -> TransactionValidity {
-			Executive::validate_transaction(source, tx, block_hash)
+			let mut tx_validity = Executive::validate_transaction(source, tx.clone(), block_hash);
+			let transaction = tx.clone().0;
+			if let RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate { .. }) = transaction.function {
+				// bump the priority only if the transaction is unsigned
+				if let Some(false) = tx.is_signed() {
+				 if let Ok(ref mut v) = tx_validity {
+					// TODO: priority multiplier
+					v.priority = 3 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+				}
+				}
+			}
+			tx_validity
 		}
 	}
 
