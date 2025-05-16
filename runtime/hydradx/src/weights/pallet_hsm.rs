@@ -222,4 +222,8 @@ impl<T: frame_system::Config> pallet_hsm::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+
+	fn set_flash_mint_facilitator() -> Weight {
+		Weight::zero()
+	}
 }

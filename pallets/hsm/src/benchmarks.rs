@@ -287,6 +287,16 @@ benchmarks! {
 		assert!(HollarAmountReceived::<T>::iter().count().is_zero());
 	}
 
+	set_flash_mint_facilitator{
+		let successful_origin = <T as crate::Config>::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+		let flash_minter = EvmAddress::from_slice(&hex!(
+			"0101010101010101010101010101010101010101"
+		));
+	}: _<T::RuntimeOrigin>(successful_origin, flash_minter)
+	verify {
+		assert_eq!(FlashMintFacilitator::<T>::get(), Some(flash_minter));
+	}
+
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
 }
 
