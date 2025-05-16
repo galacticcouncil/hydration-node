@@ -25,7 +25,7 @@ use crate::ERC20Function;
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
 use evm::{ExitError, ExitReason, ExitSucceed};
-use frame_support::pallet_prelude::{Hooks, Weight};
+use frame_support::pallet_prelude::{Get, Hooks, Weight};
 use frame_support::sp_runtime::{
 	traits::{IdentifyAccount, Verify},
 	MultiSignature,
@@ -68,10 +68,12 @@ pub const ALICE: AccountId = AccountId::new([1; 32]);
 pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const CHARLIE: AccountId = AccountId::new([3; 32]);
 pub const PROVIDER: AccountId = AccountId::new([4; 32]);
+pub const FLASH_MINTER_ACCOUNT: AccountId = AccountId::new([10; 32]);
 
 pub const ONE: Balance = 1_000_000_000_000_000_000;
 
 pub const GHO_ADDRESS: [u8; 20] = [1u8; 20];
+pub const FLASH_MINTER: [u8; 20] = [10u8; 20];
 
 #[macro_export]
 macro_rules! assert_balance {
@@ -189,6 +191,14 @@ parameter_types! {
 	pub PalletId: frame_support::PalletId = frame_support::PalletId(*b"py/hsmdx");
 	pub const GasLimit: u64 = 1_000_000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
+}
+
+pub struct FlashMinterFacilitator;
+
+impl Get<EvmAddress> for FlashMinterFacilitator {
+	fn get() -> EvmAddress {
+		EvmAddress::from_slice(&FLASH_MINTER)
+	}
 }
 
 pub struct DummyRegistry;
@@ -373,6 +383,7 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 	let provider_evm = EvmAddress::from_slice(&PROVIDER.as_slice()[0..20]);
 	let bob_evm = EvmAddress::from_slice(&BOB.as_slice()[0..20]);
 	let hsm_evm = EvmAddress::from_slice(&HSM::account_id().as_slice()[0..20]);
+	let flash_minter_evm = EvmAddress::from_slice(&FLASH_MINTER);
 
 	if evm_addr == alice_evm {
 		ALICE
@@ -382,6 +393,8 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 		BOB
 	} else if evm_addr == hsm_evm {
 		HSM::account_id()
+	} else if evm_addr == flash_minter_evm {
+		FLASH_MINTER_ACCOUNT
 	} else {
 		EVM_ADDRESS_MAP.with(|v| v.borrow().get(&evm_addr).cloned().expect("EVM address not found"))
 	}
@@ -478,6 +491,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
+	type FlashMintFacilitator = FlashMinterFacilitator;
 }
 
 pub struct Whitelist;

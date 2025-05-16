@@ -128,6 +128,9 @@ pub mod pallet {
 		/// GHO contract address - EVM address of GHO token contract
 		type GhoContractAddress: BoundErc20<AssetId = Self::AssetId>;
 
+		/// Address of flash mint facilitator that is used to process arbritrage opportunities
+		type FlashMintFacilitator: Get<EvmAddress>;
+
 		/// Currency - fungible tokens trait to access token transfers
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
 
@@ -785,7 +788,9 @@ pub mod pallet {
 			if hollar_amount_to_trade > 0 {
 				let hsm_account = Self::account_id();
 
-				Self::mint_hollar(&hsm_account, hollar_amount_to_trade)?;
+				// If flash minter not set, we use HSM facilitator.
+				let flash_minter = T::FlashMintFacilitator::get();
+				Self::mint_hollar(&hsm_account, hollar_amount_to_trade, flash_minter)?;
 
 				// Sell hollar to HSM for collateral
 				let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
@@ -823,7 +828,7 @@ pub mod pallet {
 					collateral_received,
 				)?;
 
-				Self::burn_hollar(hollar_amount_to_trade)?;
+				Self::burn_hollar(hollar_amount_to_trade, flash_minter)?;
 
 				Self::deposit_event(Event::<T>::ArbitrageExecuted {
 					asset_id: collateral_asset_id,
@@ -1024,7 +1029,8 @@ where
 		)?;
 
 		// 3. Burn Hollar by calling GHO contract
-		Self::burn_hollar(final_hollar_amount)?;
+		let hsm_facilitator = T::EvmAccounts::evm_address(&Self::account_id());
+		Self::burn_hollar(final_hollar_amount, hsm_facilitator)?;
 
 		// 5. Update Hollar amount received in this block
 		HollarAmountReceived::<T>::mutate(collateral_asset, |amount| {
@@ -1093,7 +1099,8 @@ where
 			Preservation::Expendable,
 		)?;
 
-		Self::mint_hollar(who, hollar_amount)?;
+		let hsm_facilitator = T::EvmAccounts::evm_address(&Self::account_id());
+		Self::mint_hollar(who, hollar_amount, hsm_facilitator)?;
 
 		Ok((hollar_amount, collateral_amount))
 	}
@@ -1120,12 +1127,11 @@ where
 	/// The HSM pallet acts as the facilitator for minting.
 	///
 	/// Returns Ok if successful, or an error if the EVM interaction fails.
-	fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
+	fn mint_hollar(who: &T::AccountId, amount: Balance, facilitator: EvmAddress) -> DispatchResult {
 		let contract = Self::get_hollar_contract_address()?;
-		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
 		// Create the context for the EVM call
-		let context = CallContext::new_call(contract, pallet_address);
+		let context = CallContext::new_call(contract, facilitator);
 
 		// Encode the mint function call with recipient and amount
 		let recipient_evm = T::EvmAccounts::evm_address(who);
@@ -1151,12 +1157,11 @@ where
 	/// The HSM pallet acts as the facilitator for burning.
 	///
 	/// Returns Ok if successful, or an error if the EVM interaction fails.
-	fn burn_hollar(amount: Balance) -> DispatchResult {
+	fn burn_hollar(amount: Balance, facilitator: EvmAddress) -> DispatchResult {
 		let contract = Self::get_hollar_contract_address()?;
-		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
 		// Create the context for the EVM call
-		let context = CallContext::new_call(contract, pallet_address);
+		let context = CallContext::new_call(contract, facilitator);
 
 		// Encode the burn function call with amount
 		let mut data = Into::<u32>::into(ERC20Function::Burn).to_be_bytes().to_vec();

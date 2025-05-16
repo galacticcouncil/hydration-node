@@ -28,8 +28,9 @@ fn test_mint_hollar_evm() {
 		.build();
 
 	ext.execute_with(|| {
+		let pallet_evm_addr = <Test as pallet::Config>::EvmAccounts::evm_address(&HSM::account_id());
 		let amount = 100 * ONE;
-		assert_ok!(HSM::mint_hollar(&ALICE, amount));
+		assert_ok!(HSM::mint_hollar(&ALICE, amount, pallet_evm_addr));
 
 		let alice_evm_addr = <Test as pallet::Config>::EvmAccounts::evm_address(&ALICE);
 		let alice_evm = MockEvmAccounts::account_id(alice_evm_addr);
@@ -53,17 +54,15 @@ fn test_mint_and_burn_flow() {
 		.build();
 
 	ext.execute_with(|| {
+		let pallet_evm_addr = <Test as pallet::Config>::EvmAccounts::evm_address(&HSM::account_id());
 		// First mint some Hollar
 		let mint_amount = 200 * ONE;
-		assert_ok!(HSM::mint_hollar(&ALICE, mint_amount));
+		assert_ok!(HSM::mint_hollar(&ALICE, mint_amount, pallet_evm_addr));
 
 		let alice_evm_addr = <Test as pallet::Config>::EvmAccounts::evm_address(&ALICE);
 		let alice_evm = MockEvmAccounts::account_id(alice_evm_addr);
 		assert_balance!(alice_evm, HOLLAR, mint_amount);
-
 		let burn_amount = 100 * ONE;
-
-		let pallet_evm_addr = <Test as pallet::Config>::EvmAccounts::evm_address(&HSM::account_id());
 		let pallet_evm = MockEvmAccounts::account_id(pallet_evm_addr);
 
 		//transfer to pallet account
@@ -76,7 +75,7 @@ fn test_mint_and_burn_flow() {
 		assert_balance!(pallet_evm, HOLLAR, burn_amount);
 
 		// Then burn half of it
-		assert_ok!(HSM::burn_hollar(burn_amount));
+		assert_ok!(HSM::burn_hollar(burn_amount, pallet_evm_addr));
 
 		// Verify the balance is as expected
 		assert_balance!(pallet_evm, HOLLAR, 0);
