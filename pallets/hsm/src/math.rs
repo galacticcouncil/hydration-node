@@ -10,7 +10,7 @@ use sp_runtime::{Rounding, Saturating};
 /// Calculate purchase price for Hollar with collateral asset
 /// p_i = (1 + fee_i) / peg_i
 pub fn calculate_purchase_price(peg: PegType, fee: Permill) -> Price {
-	let fee_ratio: Ratio = (fee.deconstruct() as u128, Permill::one().deconstruct() as u128).into();
+	let fee_ratio: Ratio = fee.into();
 	let one_ratio: Ratio = Ratio::one();
 	let peg_ratio: Ratio = peg.into();
 
@@ -44,11 +44,7 @@ pub fn calculate_buy_price_with_fee(execution_price: Price, buy_back_fee: Permil
 		return None;
 	}
 	let exec_price_ratio: Ratio = execution_price.into();
-	let fee_ratio: Ratio = (
-		Permill::one().saturating_sub(buy_back_fee).deconstruct() as u128,
-		Permill::one().deconstruct() as u128,
-	)
-		.into();
+	let fee_ratio: Ratio = Permill::one().saturating_sub(buy_back_fee).into();
 	let result = exec_price_ratio.saturating_div(&fee_ratio);
 	Some((result.n, result.d))
 }

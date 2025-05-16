@@ -6,7 +6,7 @@ use num_traits::{SaturatingAdd, SaturatingMul, SaturatingSub, Zero};
 use primitive_types::U128;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
-use sp_arithmetic::helpers_128bit;
+use sp_arithmetic::{helpers_128bit, Permill};
 use sp_std::ops::{Add, Mul, Sub};
 
 /// A rational number represented by a `n`umerator and `d`enominator.
@@ -93,6 +93,12 @@ impl From<u128> for Ratio {
 impl From<(u128, u128)> for Ratio {
 	fn from((n, d): (u128, u128)) -> Self {
 		Self::new(n, d)
+	}
+}
+
+impl From<Permill> for Ratio {
+	fn from(value: Permill) -> Self {
+		(value.deconstruct() as u128, Permill::one().deconstruct() as u128).into()
 	}
 }
 
