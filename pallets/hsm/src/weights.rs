@@ -15,7 +15,6 @@ pub trait WeightInfo {
 	fn buy() -> Weight;
 	fn execute_arbitrage() -> Weight;
 	fn on_finalize() -> Weight;
-	fn set_flash_mint_facilitator() -> Weight;
 }
 /// Default weights
 #[cfg(test)]
@@ -45,10 +44,6 @@ impl WeightInfo for () {
 	}
 
 	fn on_finalize() -> Weight {
-		Weight::zero()
-	}
-
-	fn set_flash_mint_facilitator() -> Weight {
 		Weight::zero()
 	}
 }

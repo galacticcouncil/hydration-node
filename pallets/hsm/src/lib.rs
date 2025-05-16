@@ -128,6 +128,9 @@ pub mod pallet {
 		/// GHO contract address - EVM address of GHO token contract
 		type GhoContractAddress: BoundErc20<AssetId = Self::AssetId>;
 
+		/// Address of flash mint facilitator that is used to process arbritrage opportunities
+		type FlashMintFacilitator: Get<EvmAddress>;
+
 		/// Currency - fungible tokens trait to access token transfers
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
 
@@ -172,10 +175,6 @@ pub mod pallet {
 	#[pallet::getter(fn hollar_amount_received)]
 	pub type HollarAmountReceived<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn flash_mint_facilitator)]
-	pub type FlashMintFacilitator<T: Config> = StorageValue<_, EvmAddress, OptionQuery>;
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config>
@@ -204,10 +203,7 @@ pub mod pallet {
 		/// Parameters:
 		/// - `asset_id`: The ID of the asset removed from collaterals
 		/// - `amount`: The amount of the asset that was returned (should be zero)
-		CollateralRemoved {
-			asset_id: T::AssetId,
-			amount: Balance,
-		},
+		CollateralRemoved { asset_id: T::AssetId, amount: Balance },
 		/// A collateral asset was updated
 		///
 		/// Parameters:
@@ -231,10 +227,6 @@ pub mod pallet {
 		ArbitrageExecuted {
 			asset_id: T::AssetId,
 			hollar_amount: Balance,
-		},
-
-		FlashMintFacilitatorSet {
-			address: EvmAddress,
 		},
 	}
 
@@ -797,8 +789,7 @@ pub mod pallet {
 				let hsm_account = Self::account_id();
 
 				// If flash minter not set, we use HSM facilitator.
-				let flash_minter =
-					Self::flash_mint_facilitator().unwrap_or(T::EvmAccounts::evm_address(&Self::account_id()));
+				let flash_minter = T::FlashMintFacilitator::get();
 				Self::mint_hollar(&hsm_account, hollar_amount_to_trade, flash_minter)?;
 
 				// Sell hollar to HSM for collateral
@@ -848,15 +839,6 @@ pub mod pallet {
 			} else {
 				Err(Error::<T>::NoArbitrageOpportunity.into())
 			}
-		}
-
-		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_collateral_asset())]
-		pub fn set_flash_mint_facilitator(origin: OriginFor<T>, address: EvmAddress) -> DispatchResult {
-			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
-			FlashMintFacilitator::<T>::put(address);
-			Self::deposit_event(Event::<T>::FlashMintFacilitatorSet { address });
-			Ok(())
 		}
 	}
 }

@@ -1654,12 +1654,23 @@ parameter_types! {
 	pub const HOLLAR: AssetId = 222;
 }
 
+pub struct GetFlashMintFacilitatorAddress;
+
+impl Get<EvmAddress> for GetFlashMintFacilitatorAddress {
+	fn get() -> EvmAddress {
+		//TODO: when dont this should be take from liquidation pallet as discussed (will be stored there)
+		//For now, we use HSM facilitator
+		EVMAccounts::evm_address(&HSM::account_id())
+	}
+}
+
 impl pallet_hsm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type HollarId = HOLLAR;
 	type PalletId = HsmPalletId;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type GhoContractAddress = AssetRegistry;
+	type FlashMintFacilitator = GetFlashMintFacilitatorAddress;
 	type Currency = FungibleCurrencies<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Evm = helpers::benchmark_helpers::DummyEvmForHsm;
@@ -1765,6 +1776,7 @@ use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
+use primitives::EvmAddress;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;
