@@ -563,7 +563,6 @@ fn add_collateral_should_fail_when_max_is_reached() {
 		});
 }
 
-
 #[test]
 fn add_collateral_asset_fails_when_asset_is_hollar() {
 	ExtBuilder::default()

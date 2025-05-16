@@ -432,11 +432,7 @@ pub mod pallet {
 				Error::<T>::AssetAlreadyApproved
 			);
 
-			ensure!(
-				asset_id != T::HollarId::get(),
-				Error::<T>::AssetAlreadyApproved
-			);
-
+			ensure!(asset_id != T::HollarId::get(), Error::<T>::AssetAlreadyApproved);
 
 			// Check if there's already an asset from the same pool
 			for (_, info) in Collaterals::<T>::iter() {
