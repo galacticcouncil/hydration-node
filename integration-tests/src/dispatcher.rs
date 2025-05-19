@@ -526,3 +526,30 @@ fn dispatch_evm_call_should_fail_with_evm_call_failed_error() {
 		assert_eq!(Dispatcher::last_evm_call_failed(), false);
 	});
 }
+
+#[test]
+fn dispatch_evm_call_should_fail_with_not_evm_call_error() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange: Create a non-EVM call
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: 1234,
+			amount: 100,
+		});
+		let boxed_call = Box::new(call.clone());
+
+		// Act & Assert: The dispatch should fail with NotEvmCall error
+		let result = Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), boxed_call);
+		assert_eq!(
+			result,
+			Err(DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: None,
+					pays_fee: Pays::Yes,
+				},
+				error: pallet_dispatcher::Error::<Runtime>::NotEvmCall.into(),
+			})
+		);
+	})
+}
