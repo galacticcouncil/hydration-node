@@ -38,14 +38,13 @@ use frame_system::EnsureRoot;
 use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
-use sp_core::{ByteArray, H256, U256};
+use sp_core::{H256, U256};
 use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 	BuildStorage, MultiSignature, Permill,
 };
 use std::{cell::RefCell, collections::HashMap};
 use evm::{ExitReason, ExitSucceed};
-use frame_support::pallet_prelude::Weight;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -118,8 +117,11 @@ impl EVM<CallResult> for EvmMock {
 	}
 }
 
-parameter_types! {
-	pub const DispatcherGasLimit: u64 = 1_000_000;
+pub struct EvmCallIdentifier;
+impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
+	fn is_evm_call(_call: &RuntimeCall) -> bool {
+		false
+	}
 }
 
 impl dispatcher::Config for Test {
@@ -131,8 +133,7 @@ impl dispatcher::Config for Test {
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
 	type Evm = EvmMock;
-	type EvmAccounts = MockEvmAccounts;
-	type GasLimit = DispatcherGasLimit;
+	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;
 }
 
@@ -228,7 +229,7 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 }
 
-use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
+use hydradx_traits::evm::EvmAddress;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
 use sp_runtime::traits::{IdentifyAccount, Verify};

@@ -39,10 +39,12 @@ mod benchmarking;
 pub mod weights;
 
 use evm::ExitReason;
-use frame_support::dispatch::{PostDispatchInfo, WithPostDispatchInfo};
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use frame_support::dispatch::PostDispatchInfo;
+#[cfg(test)]
+use hydradx_traits::evm::CallContext;
+use hydradx_traits::evm::{MaybeEvmCall, EVM};
 use pallet_evm::GasWeightMapping;
-use sp_core::{crypto::AccountId32, U256};
+use sp_core::crypto::AccountId32;
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
 use sp_std::vec::Vec;
 pub use weights::WeightInfo;
@@ -58,7 +60,6 @@ pub mod pallet {
 	use super::*;
 	use codec::FullCodec;
 	use frame_support::dispatch::DispatchErrorWithPostInfo;
-	use evm::ExitSucceed;
 	use frame_support::{
 		dispatch::{GetDispatchInfo, PostDispatchInfo},
 		pallet_prelude::*,
@@ -86,12 +87,8 @@ pub mod pallet {
 		/// EVM handler.
 		type Evm: EVM<CallResult>;
 
-		/// EVM account mapping
-		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
-
-		/// Gas limit for EVM calls
-		#[pallet::constant]
-		type GasLimit: Get<u64>;
+		/// The trait to check whether RuntimeCall is [pallet_evm::Call::call].
+		type EvmCallIdentifier: MaybeEvmCall<<Self as Config>::RuntimeCall>;
 
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -117,12 +114,16 @@ pub mod pallet {
 	#[pallet::whitelist_storage]
 	#[pallet::getter(fn extra_gas)]
 	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
-	
+
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	#[pallet::getter(fn last_evm_call_failed)]
+	pub type LastEvmCallFailed<T: Config> = StorageValue<_, bool, ValueQuery>;
+
 	#[pallet::error]
 	pub enum Error<T> {
-		TreasuryManagerCallFailed,
-		AaveManagerCallFailed,
 		EvmCallFailed,
+		NotEvmCall,
 	}
 
 	#[pallet::event]
@@ -263,48 +264,49 @@ pub mod pallet {
 				}),
 			}
 		}
-		
+
 		/// Execute a single EVM call.
-		/// This extrinsic will fail if the EVM call reverts.
-		///
-		/// This can be used with pallet_utility::batch_all to achieve the same
-		/// functionality as batch_all itself with automatic revert on EVM call failure.
+		/// This extrinsic will fail if the EVM call returns any other ExitReason than `ExitSucceed(Returned)`.
+		/// Look the [hydradx_runtime::evm::runner::WrapRunner] implementation for details.
 		///
 		/// Parameters:
 		/// - `origin`: Signed origin.
-		/// - `target`: The EVM address of the contract to call.
-		/// - `input`: The input data for the call.
+		/// - `call`: presumably `pallet_evm::Call::call` as boxed `RuntimeCall`.
 		///
-		/// Emits `EvmCallSuccess` event when successful.
+		/// Emits `EvmCallFailed` event when failed.
 		#[pallet::call_index(4)]
-		#[pallet::weight(T::GasWeightMapping::gas_to_weight(T::GasLimit::get(), false))]
+		#[pallet::weight(call.get_dispatch_info().weight)]
 		pub fn dispatch_evm_call(
 			origin: OriginFor<T>,
-			target: EvmAddress,
-			input: Vec<u8>,
+			call: Box<<T as Config>::RuntimeCall>,
 		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
+			ensure!(T::EvmCallIdentifier::is_evm_call(&call), Error::<T>::NotEvmCall);
 
-			let caller_evm_address = T::EvmAccounts::evm_address(&who);
-			let context = CallContext::new_call(target, caller_evm_address);
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
 
-			let (exit_reason, output) = T::Evm::call(context, input.clone(), U256::zero(), T::GasLimit::get());
+			match result {
+				Ok(_) if Self::last_evm_call_failed() => {
+					Self::set_last_evm_call_failed(false);
 
-			// If the call fails, return an error
-			match exit_reason {
-				ExitReason::Succeed(ExitSucceed::Returned) => Ok(Pays::No.into()),
-				_ => {
-					log::debug!(
-						target: "dispatcher",
-						"EVM call execution failed: {:?}, Output: {:?}",
-						exit_reason,
-						output
-					);
-
-					// TODO: can we get actual gas used?
-					let total_weight = T::GasWeightMapping::gas_to_weight(T::GasLimit::get(), false);
-					Err(Error::<T>::EvmCallFailed.with_weight(total_weight))
+					Err(DispatchErrorWithPostInfo {
+						post_info: PostDispatchInfo {
+							actual_weight,
+							pays_fee: Pays::Yes,
+						},
+						error: Error::<T>::EvmCallFailed.into(),
+					})
 				}
+				Ok(_) => Ok(PostDispatchInfo {
+					actual_weight,
+					pays_fee: Pays::Yes,
+				}),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: Pays::Yes,
+					},
+					error: err.error,
+				}),
 			}
 		}
 	}
@@ -340,6 +342,14 @@ impl<T: Config> Pallet<T> {
 		let new_value = current_value.saturating_sub(amount);
 		if new_value > 0 {
 			ExtraGas::<T>::set(new_value);
+		}
+	}
+
+	pub fn set_last_evm_call_failed(status: bool) {
+		if !status {
+			LastEvmCallFailed::<T>::kill();
+		} else {
+			LastEvmCallFailed::<T>::put(status);
 		}
 	}
 }

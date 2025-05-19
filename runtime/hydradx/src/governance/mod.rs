@@ -50,6 +50,7 @@ use primitives::constants::{currency::DOLLARS, time::DAYS};
 use sp_arithmetic::Perbill;
 use sp_core::ConstU32;
 use sp_runtime::traits::IdentityLookup;
+use hydradx_traits::evm::MaybeEvmCall;
 
 pub type TechCommitteeMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 2>;
 pub type TechCommitteeSuperMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>;
@@ -233,6 +234,17 @@ parameter_types! {
 	pub const AaveManagerAccount: AccountId = AccountId::new(hex!("aa7e0000000000000000000000000000000aa7e0000000000000000000000000"));
 }
 
+pub struct EvmCallChecker;
+impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
+	fn is_evm_call(call: &RuntimeCall) -> bool {
+		if let RuntimeCall::EVM(pallet_evm::Call::call { .. }) = call {
+			true
+		} else {
+			false
+		}
+	}
+}
+
 impl pallet_dispatcher::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -240,8 +252,7 @@ impl pallet_dispatcher::Config for Runtime {
 	type Evm = evm::Executor<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Evm = DummyEvm;
-	type EvmAccounts = EVMAccounts;
-	type GasLimit = LiquidationGasLimit; // FIXME: change to proper gaslimit;
+	type EvmCallIdentifier = EvmCallChecker;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
