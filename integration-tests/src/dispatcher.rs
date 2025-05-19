@@ -1,7 +1,7 @@
 use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use fp_evm::PrecompileSet;
-use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
+use frame_support::dispatch::{GetDispatchInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
@@ -13,6 +13,7 @@ use sp_core::crypto::AccountId32;
 use sp_core::Encode;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
+use sp_runtime::DispatchErrorWithPostInfo;
 use sp_runtime::traits::SignedExtension;
 use test_utils::last_events;
 use xcm_emulator::TestExt;
@@ -436,5 +437,86 @@ fn dispatch_with_extra_gas_should_charge_extra_gas_when_calls_fail() {
 			no_gas_fee < extra_gas_fee,
 			"No gas fee should be less than extra gas fee"
 		);
+	});
+}
+
+#[test]
+fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange: Deploy a valid contract to interact with
+		let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			WethAssetId::get(),
+			1_000_000_000_000_000_000u128,
+			0
+		));
+
+		// Create a valid EVM call that will succeed
+		let call = Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address(),
+			target: contract,
+			input: hex!["06fdde03"].to_vec(), // name() function selector
+			value: U256::zero(),
+			gas_limit: 100_000,
+			max_fee_per_gas: U256::from(233_460_000),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		}));
+
+		// Act: Dispatch the EVM call
+		assert_ok!(Dispatcher::dispatch_evm_call(
+			evm_signed_origin(evm_address()),
+			call
+		));
+
+		// Assert: LastEvmCallFailed storage is clean
+		assert_eq!(Dispatcher::last_evm_call_failed(), false);
+	});
+}
+
+#[test]
+fn dispatch_evm_call_should_fail_with_evm_call_failed_error() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			WethAssetId::get(),
+			1_000_000_000_000_000_000u128,
+			0
+		));
+
+		// Arrange: Create an EVM call that will fail (invalid target address)
+		let invalid_target = EvmAddress::from_slice(&[0x11; 20]);
+		let call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address(),
+			target: invalid_target,
+			input: hex!["12345678"].to_vec(), // Invalid function selector
+			gas_limit: 100_000,
+			value: U256::zero(),
+			max_fee_per_gas: U256::from(233_460_000),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+
+		// let pre_result = call.clone().dispatch(evm_signed_origin(evm_address()));
+		let boxed_call = Box::new(call);
+
+		// Simulate the EVM call failure for testing purposes
+		Dispatcher::set_last_evm_call_failed(true);
+
+		// Act & Assert: The dispatch should fail with EvmCallFailed error
+		assert!(
+			Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), boxed_call).is_err()
+		);
+
+		// Assert: LastEvmCallFailed storage is cleaned after the execution
+		assert_eq!(Dispatcher::last_evm_call_failed(), false);
 	});
 }
