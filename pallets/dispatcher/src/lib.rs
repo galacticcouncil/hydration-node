@@ -273,8 +273,6 @@ pub mod pallet {
 
 			match result {
 				Ok(_) if Self::last_evm_call_failed() => {
-					Self::set_last_evm_call_failed(false);
-
 					Err(DispatchErrorWithPostInfo {
 						post_info: PostDispatchInfo {
 							actual_weight,
@@ -282,7 +280,7 @@ pub mod pallet {
 						},
 						error: Error::<T>::EvmCallFailed.into(),
 					})
-				}
+				},
 				Ok(_) => Ok(PostDispatchInfo {
 					actual_weight,
 					pays_fee: Pays::Yes,

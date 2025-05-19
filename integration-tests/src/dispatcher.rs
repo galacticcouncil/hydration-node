@@ -1,7 +1,7 @@
 use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use fp_evm::PrecompileSet;
-use frame_support::dispatch::{GetDispatchInfo, Pays, PostDispatchInfo};
+use frame_support::dispatch::{extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
@@ -483,6 +483,8 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 fn dispatch_evm_call_should_fail_with_evm_call_failed_error() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		assert_eq!(Dispatcher::last_evm_call_failed(), false);
+
 		assert_ok!(hydradx_runtime::Tokens::set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			evm_account(),
@@ -504,16 +506,20 @@ fn dispatch_evm_call_should_fail_with_evm_call_failed_error() {
 			nonce: None,
 			access_list: vec![],
 		});
-
-		// let pre_result = call.clone().dispatch(evm_signed_origin(evm_address()));
+		let call_data = call.get_dispatch_info();
 		let boxed_call = Box::new(call);
 
-		// Simulate the EVM call failure for testing purposes
-		Dispatcher::set_last_evm_call_failed(true);
-
 		// Act & Assert: The dispatch should fail with EvmCallFailed error
-		assert!(
-			Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), boxed_call).is_err()
+		let result = Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), boxed_call);
+		assert_eq!(
+			result,
+			Err(DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: Some(extract_actual_weight(&result, &call_data)),
+					pays_fee: extract_actual_pays_fee(&result, &call_data),
+				},
+				error: pallet_dispatcher::Error::<Runtime>::EvmCallFailed.into(),
+			})
 		);
 
 		// Assert: LastEvmCallFailed storage is cleaned after the execution
