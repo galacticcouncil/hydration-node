@@ -50,7 +50,6 @@
       }
     ]
   },
-  "types": {},
   "hrmp_channels": [],
   "parachains": [
     {
@@ -66,7 +65,11 @@
             "--force-authoring",
             "--database=paritydb",
             "--pruning=archive",
-            "--log=info"
+            "-lruntime=trace",
+            "-lparachain=trace",
+            "-lcumulus-pallet-parachain-system=trace",
+            "-lruntime::storage_reclaim=trace",
+            "--execution=wasm"
           ],
           "ws_port": 9988,
           "rpc_port": 9999
@@ -78,7 +81,12 @@
             "--no-hardware-benchmarks",
             "--force-authoring",
             "--database=paritydb",
-            "--pruning=archive"
+            "--pruning=archive",
+            "-lruntime=trace",
+            "-lparachain=trace",
+            "-lcumulus-pallet-parachain-system=trace",
+            "-lruntime::storage_reclaim=trace",
+            "--execution=wasm"
           ],
           "ws_port": 9989
         }
