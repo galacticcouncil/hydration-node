@@ -13,7 +13,6 @@ readme = "README.md"
 # parity
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 scale-info = { workspace = true }
-log = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }
@@ -29,7 +28,6 @@ hydradx-traits = { workspace = true }
 
 # EVM dependencies
 pallet-evm = { workspace = true }
-evm = { workspace = true, features = ["with-codec"] }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }

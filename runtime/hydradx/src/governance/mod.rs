@@ -251,15 +251,11 @@ impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
 impl pallet_dispatcher::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Evm = evm::Executor<Runtime>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type Evm = DummyEvm;
 	type EvmCallIdentifier = EvmCallChecker;
-	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = AaveManagerAccount;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }

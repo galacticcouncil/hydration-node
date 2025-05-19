@@ -38,22 +38,15 @@ mod benchmarking;
 
 pub mod weights;
 
-use evm::ExitReason;
 use frame_support::dispatch::PostDispatchInfo;
-#[cfg(test)]
-use hydradx_traits::evm::CallContext;
-use hydradx_traits::evm::{MaybeEvmCall, EVM};
+use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::GasWeightMapping;
-use sp_core::crypto::AccountId32;
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
-use sp_std::vec::Vec;
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::pallet_prelude::Weight;
 pub use pallet::*;
-
-pub type CallResult = (ExitReason, Vec<u8>);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -83,9 +76,6 @@ pub mod pallet {
 			+ TypeInfo
 			+ From<frame_system::Call<Self>>
 			+ Parameter;
-
-		/// EVM handler.
-		type Evm: EVM<CallResult>;
 
 		/// The trait to check whether RuntimeCall is [pallet_evm::Call::call].
 		type EvmCallIdentifier: MaybeEvmCall<<Self as Config>::RuntimeCall>;
@@ -140,10 +130,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
-	{
+	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().weight;

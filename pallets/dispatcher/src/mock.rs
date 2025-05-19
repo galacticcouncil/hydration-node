@@ -26,7 +26,7 @@
 //                  $$$
 
 use crate as dispatcher;
-use crate::*;
+use crate::Config;
 use frame_support::pallet_prelude::Weight;
 use frame_support::{
 	parameter_types,
@@ -38,18 +38,16 @@ use frame_system::EnsureRoot;
 use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
-use sp_core::{H256, U256};
+use sp_core::H256;
 use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
-	BuildStorage, MultiSignature, Permill,
+	BuildStorage, Permill,
 };
 use std::{cell::RefCell, collections::HashMap};
-use evm::{ExitReason, ExitSucceed};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
-pub type Signature = MultiSignature;
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type AccountId = u64;
 pub type Amount = i128;
 pub type AssetId = u32;
 pub type Balance = u128;
@@ -62,8 +60,8 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-pub const ALICE: AccountId = AccountId::new([1; 32]);
-pub const BOB: AccountId = AccountId::new([2; 32]);
+pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
 
 pub const TREASURY_INITIAL_BALANCE: Balance = 1_000_000 * ONE;
 
@@ -106,17 +104,6 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 	}
 }
 
-pub struct EvmMock;
-impl EVM<CallResult> for EvmMock {
-	fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> CallResult {
-		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
-	}
-
-	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
-		unimplemented!()
-	}
-}
-
 pub struct EvmCallIdentifier;
 impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
 	fn is_evm_call(_call: &RuntimeCall) -> bool {
@@ -132,7 +119,6 @@ impl dispatcher::Config for Test {
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
-	type Evm = EvmMock;
 	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;
 }
@@ -229,10 +215,8 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 }
 
-use hydradx_traits::evm::EvmAddress;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
-use sp_runtime::traits::{IdentifyAccount, Verify};
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::DispatchError;
 
@@ -351,10 +335,6 @@ impl ExtBuilder {
 
 		r
 	}
-}
-
-thread_local! {
-	pub static EVM_ADDRESS_MAP: RefCell<HashMap<EvmAddress, AccountId>> = RefCell::new(HashMap::default());
 }
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
