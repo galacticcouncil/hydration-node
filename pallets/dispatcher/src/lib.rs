@@ -272,15 +272,13 @@ pub mod pallet {
 			let (result, actual_weight) = Self::do_dispatch(origin, *call);
 
 			match result {
-				Ok(_) if Self::last_evm_call_failed() => {
-					Err(DispatchErrorWithPostInfo {
-						post_info: PostDispatchInfo {
-							actual_weight,
-							pays_fee: Pays::Yes,
-						},
-						error: Error::<T>::EvmCallFailed.into(),
-					})
-				},
+				Ok(_) if Self::last_evm_call_failed() => Err(DispatchErrorWithPostInfo {
+					post_info: PostDispatchInfo {
+						actual_weight,
+						pays_fee: Pays::Yes,
+					},
+					error: Error::<T>::EvmCallFailed.into(),
+				}),
 				Ok(_) => Ok(PostDispatchInfo {
 					actual_weight,
 					pays_fee: Pays::Yes,

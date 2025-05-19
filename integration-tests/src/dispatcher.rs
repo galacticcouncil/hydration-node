@@ -1,7 +1,9 @@
 use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use fp_evm::PrecompileSet;
-use frame_support::dispatch::{extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo};
+use frame_support::dispatch::{
+	extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo,
+};
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
@@ -13,8 +15,8 @@ use sp_core::crypto::AccountId32;
 use sp_core::Encode;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
-use sp_runtime::DispatchErrorWithPostInfo;
 use sp_runtime::traits::SignedExtension;
+use sp_runtime::DispatchErrorWithPostInfo;
 use test_utils::last_events;
 use xcm_emulator::TestExt;
 
@@ -469,10 +471,7 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 		}));
 
 		// Act: Dispatch the EVM call
-		assert_ok!(Dispatcher::dispatch_evm_call(
-			evm_signed_origin(evm_address()),
-			call
-		));
+		assert_ok!(Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), call));
 
 		// Assert: LastEvmCallFailed storage is clean
 		assert_eq!(Dispatcher::last_evm_call_failed(), false);

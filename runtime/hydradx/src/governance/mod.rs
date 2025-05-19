@@ -46,12 +46,12 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+use hydradx_traits::evm::MaybeEvmCall;
 use pallet_collective::EnsureProportionAtLeast;
 use primitives::constants::{currency::DOLLARS, time::DAYS};
 use sp_arithmetic::Perbill;
 use sp_core::ConstU32;
 use sp_runtime::traits::IdentityLookup;
-use hydradx_traits::evm::MaybeEvmCall;
 
 pub type TechCommitteeMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 2>;
 pub type TechCommitteeSuperMajority = EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>;
