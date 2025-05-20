@@ -215,6 +215,7 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 }
 
+use hydradx_traits::evm::MaybeEvmCall;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
 #[cfg(feature = "runtime-benchmarks")]
