@@ -399,7 +399,6 @@ where
 										tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
 
 										// put the failed tx on hold for `WAIT_PERIOD` number of blocks
-										// TODO: wipe the entire list after some time, to prevent the list from growing indefinitely
 										waitlist.push((tx_hash, current_block_number));
 										continue
 									}
