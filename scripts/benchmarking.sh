@@ -7,10 +7,12 @@
 # The hydradx binary is required to be compiled with --features=runtime-benchmarks
 # in release mode.
 
-set -e
+set -e          # Exit immediately if a command exits with non-zero status
+set -o pipefail # Ensure pipeline commands also trigger failures
 
 BINARY="./target/release/hydradx"
 OUTPUT="runtime/hydradx/src/weights/"
+DEFAULT_WEIGHT_TEMPLATE="scripts/pallet-weight-template.hbs"
 STEPS=50
 REPEAT=20
 
@@ -60,6 +62,11 @@ function bench {
         REPEAT=1
     fi
 
+    local weight_template="$DEFAULT_WEIGHT_TEMPLATE"
+    if [[ -n "${5}" ]]; then
+        weight_template="${5}"
+    fi
+
     WASMTIME_BACKTRACE_DETAILS=1 ${BINARY} benchmark pallet \
         --wasm-execution=compiled \
         --pallet "${1}" \
@@ -67,8 +74,9 @@ function bench {
         --heap-pages 4096 \
         --steps "${STEPS}" \
         --repeat "${REPEAT}" \
-        --template=scripts/pallet-weight-template.hbs \
-        --output "${output_file}"
+        --template "${weight_template}" \
+        --output "${output_file}" \
+        --quiet
 }
 
 CHECK=0
@@ -99,13 +107,32 @@ done
 
 if [[ "${ALL}" -eq 1 ]]; then
     mkdir -p "$OUTPUT"
-    # FIXME: This is a temporary solution to filter out XCM pallets
-    XCM_FILTER=("pallet_xcm_benchmarks::fungible" "pallet_xcm_benchmarks::generic")
+    # FIXME: This is a temporary solution to handle XCM benchmarks correctly
+    BENCH_EXCLUDE=("pallet_xcm_benchmarks::fungible" "pallet_xcm_benchmarks::generic" "pallet_scheduler")
 
+    XCM_ADD=(
+      "pallet_xcm_benchmarks::fungible withdraw_asset,transfer_asset,transfer_reserve_asset,reserve_asset_deposited,initiate_reserve_withdraw,receive_teleported_asset,deposit_asset,deposit_reserve_asset pallet_xcm_benchmarks_fungible.rs"
+      "pallet_xcm_benchmarks::generic report_holding,buy_execution,query_response,transact,refund_surplus,set_error_handler,set_appendix,clear_error,descend_origin,clear_origin,report_error,claim_asset,trap,subscribe_version,unsubscribe_version,initiate_reserve_withdraw,burn_asset,expect_asset,expect_origin,expect_error,expect_transact_status,query_pallet,expect_pallet,report_transact_status,clear_transact_status,set_topic,clear_topic,set_fees_mode,unpaid_execution,exchange_asset pallet_xcm_benchmarks_generic.rs"
+    )
+    XCM_OUTPUT="${OUTPUT}xcm/"
+    mkdir -p "$XCM_OUTPUT"
+
+    # First, process the XCM_ADD array to run those specific benchmarks
+    for xcm_entry in "${XCM_ADD[@]}"; do
+      # Convert string to array
+      eval "entry=($xcm_entry)"
+      pallet="${entry[0]}"
+      extrinsics="${entry[1]}"
+      output_file="${entry[2]}"
+
+      bench "$pallet" "$extrinsics" "$CHECK" "${XCM_OUTPUT}${output_file}" "scripts/xcm-weight-template.hbs"
+    done
+
+    # Then process regular pallets (excluding `BENCH_EXCLUDE` ones)
+    options=()
     while read benchmark; do
-      # Skip benchmarks that match items in XCM_FILTER
       skip=0
-      for xcm_item in "${XCM_FILTER[@]}"; do
+      for xcm_item in "${BENCH_EXCLUDE[@]}"; do
         if [[ "$benchmark" == *"$xcm_item"* ]]; then
           skip=1
           break
