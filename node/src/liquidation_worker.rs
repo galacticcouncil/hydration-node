@@ -424,7 +424,7 @@ where
 		let res = http_client.get(url).await.ok()?;
 		if res.status() != StatusCode::OK {
 			tracing::debug!(target: LOG_TARGET, "failed to fetch borrowers data");
-			return None
+			return None;
 		}
 
 		let bytes = hyper::body::to_bytes(res.into_body()).await.ok()?;

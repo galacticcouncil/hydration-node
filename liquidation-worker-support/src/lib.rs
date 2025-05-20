@@ -1324,9 +1324,7 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 
 		// TODO: find better criteria for determining which liquidation option to choose as the best one
 		// choose liquidation option with the highest HF. All HFs should be less or close to the target HF.
-		liquidation_options.sort_by(|a, b| {
-			a.health_factor.cmp(&b.health_factor)
-		});
+		liquidation_options.sort_by(|a, b| a.health_factor.cmp(&b.health_factor));
 
 		Ok(liquidation_options.last().cloned())
 	}
