@@ -210,7 +210,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// List of position votes.
 	#[pallet::getter(fn get_position_votes)]
-	pub(super) type Votes<T: Config> =
+	pub type Votes<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
 
 	#[pallet::storage]

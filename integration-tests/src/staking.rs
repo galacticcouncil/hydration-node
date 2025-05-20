@@ -2156,10 +2156,7 @@ fn remove_final_position_vote_should_clear_votes_storage_of_that_position() {
 			r
 		));
 
-		// This call shouldn't return anything, but the storage uses ValueQuery so the default is returned,
-		// but we can check it's empty. Staking pallet tests show the storage is indeed cleared.
-		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
-		assert!(stake_voting.votes.is_empty());
+		assert_eq!(pallet_staking::Votes::<hydradx_runtime::Runtime>::contains_key(stake_position_id), false);
 
 		assert_ok!(ConvictionVoting::vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),

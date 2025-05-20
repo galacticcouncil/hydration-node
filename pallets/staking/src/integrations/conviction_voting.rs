@@ -122,7 +122,6 @@ where
 					Votes::<T>::mutate_exists(position_id, |voting| {
 						if let Some(v) = voting {
 							v.votes.remove(vote_idx);
-							// Clear the entry from Votes if positionid has no more votes stored
 							if v.votes.is_empty() {
 								*voting = None;
 							}
