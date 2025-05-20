@@ -197,6 +197,18 @@ where
 		// We can ignore the result, because it's not important for us.
 		// All we want is to have some upper bound for execution time of this task.
 		let _ = tokio::time::timeout(std::time::Duration::from_secs(4), async {
+			let current_block_number = *header.number();
+			// Clear the list every 1_000 blocks to prevent it from growing indefinitely.
+			if current_block_number % 1_000u32.into() == 0u32.into() {
+				let Ok(mut waitlist) = tx_waitlist.lock() else {
+					tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
+					// return if the mutex is poisoned
+					return
+				};
+
+				waitlist.clear();
+			}
+
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
             while let Some(notification) = notification_st.next().await {
@@ -357,7 +369,6 @@ where
 								let opaque_tx = sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
 
 								let tx_hash = sp_core::blake2_64(&encoded);
-								let current_block_number = *header_c.number();
 
 								let Ok(mut waitlist) = tx_waitlist_c.lock() else {
 									tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
@@ -398,7 +409,7 @@ where
 
 								// There is no guarantee that the TX will be executed and with the result we expect. The HF after the execution can be slightly different than what we can predict.
 								// Reset the HF to 0 so it will be recalculated again.
-								// TODO: reset HF to 0
+								borrower.1 = U256::zero();
 
 								// add user to the list of borrowers that are liquidated in this run.
 								liquidated_users.push(borrower.0);
