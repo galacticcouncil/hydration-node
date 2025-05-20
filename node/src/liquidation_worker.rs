@@ -32,9 +32,9 @@ use xcm_runtime_apis::dry_run::runtime_decl_for_dry_run_api::DryRunApiV1;
 pub const LOG_TARGET: &str = "liquidation-worker";
 // Address of the pool address provider contract.
 const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691")); // TODO: verify
-// Account that calls the runtime API. Needs to have enough WETH balance to pay for the runtime API call.
+																						 // Account that calls the runtime API. Needs to have enough WETH balance to pay for the runtime API call.
 const RUNTIME_API_CALLER: EvmAddress = H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6")); // TODO: verify
-// Account that signs the DIA oracle update transactions.
+																							   // Account that signs the DIA oracle update transactions.
 const ORACLE_UPDATE_CALLER: EvmAddress = H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3"));
 // Address of the DIA oracle contract.
 const ORACLE_UPDATE_CALL_ADDRESS: EvmAddress = H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5"));
@@ -128,7 +128,10 @@ where
 
 		// List of liquidations that failed and are postponed to not block other possible liquidations.
 		// Stored as a list of tuples: (tx_hash, block_number_when_tx_failed).
-		let tx_waitlist = Arc::new(std::sync::Mutex::from(Vec::<([u8; 8], <<B as BlockT>::Header as Header>::Number)>::new()));
+		let tx_waitlist = Arc::new(std::sync::Mutex::from(Vec::<(
+			[u8; 8],
+			<<B as BlockT>::Header as Header>::Number,
+		)>::new()));
 
 		// new block imported
 		client
@@ -227,7 +230,7 @@ where
 						tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
 						// return if the mutex is poisoned
 						return
-					}; 
+					};
 					let maybe_existing_borrower =  borrowers_data.iter().position(|b| b.0 == borrower);
 					if let Some(index) = maybe_existing_borrower {
 						// borrower is already in the list. Invalidate the HF by setting it to 0.
@@ -269,7 +272,7 @@ where
 					// our calculations "happen" in the next block
 					let Ok(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>()
 						.and_then(|timestamp| timestamp.checked_add(primitives::constants::time::SECS_PER_BLOCK)
-							.ok_or(ArithmeticError::Overflow.into())) 
+							.ok_or(ArithmeticError::Overflow.into()))
 					else {
 						tracing::debug!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
 						return
@@ -292,11 +295,11 @@ where
 
 						let base_asset_address = asset_reserve.asset_address();
 
-						let Ok(mut borrowers_data) = sorted_borrowers_data_c.lock() 
+						let Ok(mut borrowers_data) = sorted_borrowers_data_c.lock()
 						else {
 							tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
 							// return if the mutex is poisoned
-							return 
+							return
 						};
 						// Iterate over all borrowers. Borrowers are sorted by their HF, in ascending order.
 						for borrower in borrowers_data.iter_mut() {
@@ -367,7 +370,7 @@ where
 										continue
 									}
 								}
-								
+
 								// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
 								let dry_run_result = Runtime::dry_run_call(
 									hydradx_runtime::RuntimeOrigin::none().caller,
@@ -442,9 +445,14 @@ where
 				// I'm not aware of a better way to convert f32 to U256. Use this naive approach and
 				// take first 6 decimals. That should be enough for our purpose.
 				let integer_part = U256::from(b.1.health_factor.trunc() as u128).checked_mul(one);
-				let fractional_part = U256::from((b.1.health_factor.fract() * 1_000_000f32) as u128).checked_mul(fractional_multiplier);
+				let fractional_part =
+					U256::from((b.1.health_factor.fract() * 1_000_000f32) as u128).checked_mul(fractional_multiplier);
 				// return 0 if the computation failed, and recalculate the HF later.
-				let hf = integer_part.zip(fractional_part).map(|(i, f)| i.checked_add(f)).flatten().unwrap_or_default();
+				let hf = integer_part
+					.zip(fractional_part)
+					.map(|(i, f)| i.checked_add(f))
+					.flatten()
+					.unwrap_or_default();
 				(b.0, hf)
 			})
 			.collect::<Vec<_>>();
