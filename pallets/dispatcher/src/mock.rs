@@ -104,6 +104,13 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 	}
 }
 
+pub struct EvmCallIdentifier;
+impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
+	fn is_evm_call(_call: &RuntimeCall) -> bool {
+		false
+	}
+}
+
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
@@ -112,6 +119,7 @@ impl dispatcher::Config for Test {
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
+	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;
 }
 
@@ -207,6 +215,7 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 }
 
+use hydradx_traits::evm::MaybeEvmCall;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
 #[cfg(feature = "runtime-benchmarks")]
