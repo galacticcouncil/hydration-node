@@ -53,7 +53,7 @@ pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
-use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
@@ -378,6 +378,17 @@ cumulus_pallet_parachain_system::register_validate_block! {
 	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
 }
 
+// Addresses of the accounts that sign DIA oracle updates.
+const DIA_ORACLE_UPDATE_CALLER: &[EvmAddress] = &[
+	H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e")),
+	H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3")),
+];
+// Addresses of the DIA oracle contracts.
+const DIA_ORACLE_UPDATE_CALL_ADDRESS: &[EvmAddress] = &[
+	H160(hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
+	H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5")),
+];
+
 impl fp_self_contained::SelfContainedCall for RuntimeCall {
 	type SignedInfo = H160;
 
@@ -408,18 +419,15 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 					if let pallet_ethereum::Transaction::Legacy(legacy) = transaction {
 						// check if the transaction is DIA oracle update
 						if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
-							if call_address
-								== H160::from_slice(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice())
-							{
-								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-								if call.check_self_contained()
-									== Some(Ok(H160::from_slice(
-										hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice(),
-									))) {
-									if let Some(Ok(ref mut validity_info)) = tx_validity {
-										validity_info.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+							if DIA_ORACLE_UPDATE_CALL_ADDRESS.contains(&call_address) {
+								if let Some(Ok(signer)) = call.check_self_contained() {
+									// additional check to prevent running the worker for DIA oracle updates signed by invalid address
+									if DIA_ORACLE_UPDATE_CALLER.contains(&signer) {
+										if let Some(Ok(ref mut validity_info)) = tx_validity {
+											validity_info.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+										};
 									};
-								};
+								}
 							}
 						};
 					};
