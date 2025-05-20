@@ -471,6 +471,7 @@ where
 
 /// Configuration of the reserve.
 /// https://github.com/aave/aave-v3-core/blob/782f51917056a53a2c228701058a6c3fb233684a/contracts/protocol/libraries/types/DataTypes.sol#L5
+/// Not all data fields are used.
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 pub struct ReserveData {
 	configuration: U256, // https://github.com/aave-dao/aave-v3-origin/blob/3aad8ca184159732e4b3d8c82cd56a8707a106a2/src/core/contracts/protocol/libraries/types/DataTypes.sol#L79
@@ -478,30 +479,24 @@ pub struct ReserveData {
 	current_liquidity_rate: u128,
 	variable_borrow_index: u128,
 	current_variable_borrow_rate: u128,
-	// current_stable_borrow_rate: u128,
 	last_update_timestamp: u64,
-	// id: u16,
 	a_token_address: H160,
 	stable_debt_token_address: H160,
 	variable_debt_token_address: H160,
-	// interest_rate_strategy_address: H160,
-	// accrued_to_treasury: u128,
-	// unbacked: u128,
-	// isolation_mode_total_debt: u128,
 }
 
 impl ReserveData {
 	pub fn new(data: &[ethabi::Token]) -> Option<Self> {
 		Some(Self {
-			configuration: data[0].clone().into_uint()?,
-			liquidity_index: data[1].clone().into_uint()?.try_into().ok()?,
-			current_liquidity_rate: data[2].clone().into_uint()?.try_into().ok()?,
-			variable_borrow_index: data[3].clone().into_uint()?.try_into().ok()?,
-			current_variable_borrow_rate: data[4].clone().into_uint()?.try_into().ok()?,
-			last_update_timestamp: data[6].clone().into_uint()?.try_into().ok()?,
-			a_token_address: data[8].clone().into_address()?,
-			stable_debt_token_address: data[9].clone().into_address()?,
-			variable_debt_token_address: data[10].clone().into_address()?,
+			configuration: data.get(0)?.clone().into_uint()?,
+			liquidity_index: data.get(1)?.clone().into_uint()?.try_into().ok()?,
+			current_liquidity_rate: data.get(2)?.clone().into_uint()?.try_into().ok()?,
+			variable_borrow_index: data.get(3)?.clone().into_uint()?.try_into().ok()?,
+			current_variable_borrow_rate: data.get(4)?.clone().into_uint()?.try_into().ok()?,
+			last_update_timestamp: data.get(6)?.clone().into_uint()?.try_into().ok()?,
+			a_token_address: data.get(8)?.clone().into_address()?,
+			stable_debt_token_address: data.get(9)?.clone().into_address()?,
+			variable_debt_token_address: data.get(10)?.clone().into_address()?,
 		})
 	}
 }
@@ -1330,9 +1325,6 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 		// TODO: find better criteria for determining which liquidation option to choose as the best one
 		// choose liquidation option with the highest HF. All HFs should be less or close to the target HF.
 		liquidation_options.sort_by(|a, b| {
-			// a.health_factor
-			// 	.abs_diff(target_health_factor)
-			// 	.cmp(&b.health_factor.abs_diff(target_health_factor))
 			a.health_factor.cmp(&b.health_factor)
 		});
 
