@@ -103,18 +103,17 @@ where
 			data,
 			value,
 			gas_limit,
-			Some(U256::zero()), // max_fee_per_gas effectively zero
+			Some(U256::zero()), // max_fee_per_gas
 			None,               // max_priority_fee_per_gas
-			None,               // nonce (Runner will use current, but we reset later)
+			None,               // nonce
 			vec![],
 			false, // is_transactional
-			false, // validate (skip pre-validation for system calls)
+			false, // validate
 			None,  // weight_limit
 			None,  // proof_size_base_cost
 			evm_config,
 		);
 
-		// Reset nonce to its original value
 		frame_system::Account::<T>::mutate(source_account_id.clone(), |a| a.nonce = original_nonce.into());
 
 		match call_info_result {
@@ -129,11 +128,9 @@ where
 				(info.exit_reason, info.value)
 			}
 			Err(runner_error) => {
-				log::error!(target: "evm_executor", "SystemEvmRunner: EVM call failed: {:?}", runner_error.error);
+				log::error!(target: "evm_executor", "EVM call failed: {:?}", runner_error.error);
 				// Map RunnerError to a generic EVM execution failure
-				let exit_reason = ExitReason::Error(ExitError::Other(sp_std::borrow::Cow::Borrowed(
-					"SystemEvmRunner: Call failed",
-				)));
+				let exit_reason = ExitReason::Error(ExitError::Other(sp_std::borrow::Cow::Borrowed("EVM Call failed")));
 				(exit_reason, Vec::new())
 			}
 		}
