@@ -339,6 +339,7 @@ evm-runtime = { git = "https://github.com/moonbeam-foundation/evm", branch = "mo
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false }
 
 ethereum = { version = "0.15.0", default-features = false, features = ["with-codec"] }
+ethereum-types = { version = "0.15.1", default-features = false }
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }

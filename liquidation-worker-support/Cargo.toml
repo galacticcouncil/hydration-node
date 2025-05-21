@@ -21,24 +21,9 @@ fp-evm = { workspace = true }
 fp-rpc = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
-ethereum = { workspace = true }
-ethereum-types = "0.15.1"
+ethereum-types = { workspace = true }
 primitive-types = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 
 # Hydration dependencies
 hydradx-traits = { workspace = true }
-
-[features]
-default = ["std"]
-std = [
-    "codec/std",
-    "frame-support/std",
-    "sp-core/std",
-    "sp-io/std",
-    "sp-std/std",
-    "sp-arithmetic/std",
-    "hydradx-traits/std",
-    "fp-evm/std",
-    "fp-rpc/std",
-]

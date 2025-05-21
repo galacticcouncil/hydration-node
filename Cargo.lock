@@ -2934,23 +2934,10 @@ checksum = "c22d4b5885b6aa2fe5e8b9329fb8d232bf739e434e6b87347c63bdd00c120f60"
 dependencies = [
  "crunchy",
  "fixed-hash",
- "impl-codec 0.6.0",
- "impl-rlp 0.3.0",
- "impl-serde 0.4.0",
+ "impl-codec",
+ "impl-rlp",
+ "impl-serde",
  "scale-info",
- "tiny-keccak",
-]
-
-[[package]]
-name = "ethbloom"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c321610643004cf908ec0f5f2aa0d8f1f8e14b540562a2887a1111ff1ecbf7b"
-dependencies = [
- "crunchy",
- "fixed-hash",
- "impl-rlp 0.4.0",
- "impl-serde 0.5.0",
  "tiny-keccak",
 ]
 
@@ -2965,7 +2952,7 @@ dependencies = [
  "hash-db",
  "hash256-std-hasher",
  "parity-scale-codec",
- "rlp 0.5.2",
+ "rlp",
  "scale-info",
  "serde",
  "sha3",
@@ -2978,11 +2965,11 @@ version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02d215cbf040552efcbe99a38372fe80ab9d00268e20012b79fcd0f073edd8ee"
 dependencies = [
- "ethbloom 0.13.0",
+ "ethbloom",
  "fixed-hash",
- "impl-codec 0.6.0",
- "impl-rlp 0.3.0",
- "impl-serde 0.4.0",
+ "impl-codec",
+ "impl-rlp",
+ "impl-serde",
  "primitive-types 0.12.2",
  "scale-info",
  "uint 0.9.5",
@@ -2994,10 +2981,7 @@ version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ab15ed80916029f878e0267c3a9f92b67df55e79af370bf66199059ae2b4ee3"
 dependencies = [
- "ethbloom 0.14.1",
  "fixed-hash",
- "impl-rlp 0.4.0",
- "impl-serde 0.5.0",
  "primitive-types 0.13.1",
  "uint 0.10.0",
 ]
@@ -3054,7 +3038,7 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "primitive-types 0.12.2",
- "rlp 0.5.2",
+ "rlp",
  "scale-info",
  "serde",
  "sha3",
@@ -3269,7 +3253,7 @@ dependencies = [
  "parity-scale-codec",
  "prometheus",
  "rand",
- "rlp 0.5.2",
+ "rlp",
  "sc-client-api",
  "sc-consensus-aura",
  "sc-network",
@@ -3308,7 +3292,7 @@ dependencies = [
  "ethereum",
  "ethereum-types 0.14.1",
  "jsonrpsee",
- "rlp 0.5.2",
+ "rlp",
  "rustc-hex",
  "serde",
  "serde_json",
@@ -3506,7 +3490,7 @@ version = "1.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "hex",
- "impl-serde 0.4.0",
+ "impl-serde",
  "libsecp256k1",
  "log",
  "parity-scale-codec",
@@ -5054,30 +5038,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "impl-codec"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b67aa010c1e3da95bf151bd8b4c059b2ed7e75387cdb969b4f8f2723a43f9941"
-dependencies = [
- "parity-scale-codec",
-]
-
-[[package]]
 name = "impl-rlp"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f28220f89297a075ddc7245cd538076ee98b01f2a9c23a53a4f1105d5a322808"
 dependencies = [
- "rlp 0.5.2",
-]
-
-[[package]]
-name = "impl-rlp"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54ed8ad1f3877f7e775b8cbf30ed1bd3209a95401817f19a0eb4402d13f8cf90"
-dependencies = [
- "rlp 0.6.1",
+ "rlp",
 ]
 
 [[package]]
@@ -5085,15 +5051,6 @@ name = "impl-serde"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc88fc67028ae3db0c853baa36269d398d5f45b6982f95549ff5def78c935cd"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "impl-serde"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a143eada6a1ec4aefa5049037a26a6d597bfd64f8c026d07b77133e02b7dd0b"
 dependencies = [
  "serde",
 ]
@@ -6176,7 +6133,6 @@ name = "liquidation-worker-support"
 version = "1.0.0"
 dependencies = [
  "ethabi",
- "ethereum",
  "ethereum-types 0.15.1",
  "evm",
  "fp-evm",
@@ -11259,9 +11215,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b34d9fd68ae0b74a41b21c03c2f62847aa0ffea044eee893b4c140b37e244e2"
 dependencies = [
  "fixed-hash",
- "impl-codec 0.6.0",
- "impl-rlp 0.3.0",
- "impl-serde 0.4.0",
+ "impl-codec",
+ "impl-rlp",
+ "impl-serde",
  "scale-info",
  "uint 0.9.5",
 ]
@@ -11273,9 +11229,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d15600a7d856470b7d278b3fe0e311fe28c2526348549f8ef2ff7db3299c87f5"
 dependencies = [
  "fixed-hash",
- "impl-codec 0.7.0",
- "impl-rlp 0.4.0",
- "impl-serde 0.5.0",
  "uint 0.10.0",
 ]
 
@@ -12022,16 +11975,6 @@ checksum = "bb919243f34364b6bd2fc10ef797edbfa75f33c252e7998527479c6d6b47e1ec"
 dependencies = [
  "bytes",
  "rlp-derive",
- "rustc-hex",
-]
-
-[[package]]
-name = "rlp"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa24e92bb2a83198bb76d661a71df9f7076b8c420b8696e4d3d97d50d94479e3"
-dependencies = [
- "bytes",
  "rustc-hex",
 ]
 
@@ -14800,7 +14743,7 @@ dependencies = [
  "futures",
  "hash-db",
  "hash256-std-hasher",
- "impl-serde 0.4.0",
+ "impl-serde",
  "itertools 0.11.0",
  "k256",
  "libsecp256k1",
@@ -15184,7 +15127,7 @@ name = "sp-storage"
 version = "21.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch3#319855e4a5f8e72cf75138a5afa42c07e9943872"
 dependencies = [
- "impl-serde 0.4.0",
+ "impl-serde",
  "parity-scale-codec",
  "ref-cast",
  "serde",
@@ -15265,7 +15208,7 @@ name = "sp-version"
 version = "37.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch3#319855e4a5f8e72cf75138a5afa42c07e9943872"
 dependencies = [
- "impl-serde 0.4.0",
+ "impl-serde",
  "parity-scale-codec",
  "parity-wasm",
  "scale-info",
