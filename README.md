@@ -74,8 +74,8 @@ Grab `zombienet` utility used to start network from [releases](https://github.co
 Start local testnet with 4 relay chain validators and HydraDX as a parachain with 2 collators.
 
 ```
-cd ./rococo-local
-zombienet spawn config-zombienet.json
+cd launch-configs/zombienet/
+zombienet spawn local.json
 ```
 
 ## Interaction with the node

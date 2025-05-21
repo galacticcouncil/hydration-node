@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "309.0.0"
+version = "314.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -109,6 +109,7 @@ cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
+cumulus-primitives-aura = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
@@ -250,6 +251,7 @@ std = [
     "frame-metadata-hash-extension/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
+    "cumulus-primitives-aura/std",
     "cumulus-primitives-core/std",
     "cumulus-primitives-utility/std",
     "cumulus-pallet-xcm/std",
