@@ -31,10 +31,10 @@ use xcm_runtime_apis::dry_run::runtime_decl_for_dry_run_api::DryRunApiV1;
 
 pub const LOG_TARGET: &str = "liquidation-worker";
 // Address of the pool address provider contract.
-const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691")); // TODO: verify
-																						 // Account that calls the runtime API. Needs to have enough WETH balance to pay for the runtime API call.
-const RUNTIME_API_CALLER: EvmAddress = H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6")); // TODO: verify
-																							   // Account that signs the DIA oracle update transactions.
+const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691"));
+// Account that calls the runtime API. Needs to have enough WETH balance to pay for the runtime API call.
+const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e"));
+// Account that signs the DIA oracle update transactions.
 const ORACLE_UPDATE_CALLER: &[EvmAddress] = &[
 	H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e")),
 	H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3")),
@@ -44,7 +44,7 @@ const ORACLE_UPDATE_CALL_ADDRESS: &[EvmAddress] = &[
 	H160(hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
 	H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5")),
 ];
-const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3")); // TODO:
+const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38")); // Money market address
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 const WAIT_PERIOD: BlockNumber = 10;
 
@@ -504,17 +504,21 @@ where
 		>,
 	) -> Option<Transaction> {
 		if let RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) = extrinsic.function.clone() {
-			if let Transaction::Legacy(legacy) = transaction.clone() {
-				// check if the transaction is DIA oracle update
-				if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
-					if ORACLE_UPDATE_CALL_ADDRESS.contains(&call_address) {
-						// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-						if let Some(Ok(signer)) = extrinsic.function.check_self_contained() {
-							if ORACLE_UPDATE_CALLER.contains(&signer) {
-								return Some(transaction);
-							};
-						}
-					};
+			let action = match transaction.clone() {
+				Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
+				Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
+				Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+			};
+
+			// check if the transaction is DIA oracle update
+			if let pallet_ethereum::TransactionAction::Call(call_address) = action {
+				if ORACLE_UPDATE_CALL_ADDRESS.contains(&call_address) {
+					// additional check to prevent running the worker for DIA oracle updates signed by invalid address
+					if let Some(Ok(signer)) = extrinsic.function.check_self_contained() {
+						if ORACLE_UPDATE_CALLER.contains(&signer) {
+							return Some(transaction);
+						};
+					}
 				};
 			};
 		};
@@ -532,15 +536,17 @@ where
 		>,
 	) -> Option<H160> {
 		if let RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) = extrinsic.function.clone() {
-			if let Transaction::Legacy(legacy) = transaction.clone() {
-				// TODO: is legacy?
-				// check if the transaction is MM borrow
-				if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
-					if call_address == BORROW_CALL_ADDRESS {
-						// TODO: use correct MM address
-						if let Some(Ok(borrower)) = extrinsic.function.check_self_contained() {
-							return Some(borrower);
-						};
+			let action = match transaction {
+				Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
+				Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
+				Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+			};
+
+			// check if the transaction is MM borrow
+			if let pallet_ethereum::TransactionAction::Call(call_address) = action {
+				if call_address == BORROW_CALL_ADDRESS {
+					if let Some(Ok(borrower)) = extrinsic.function.check_self_contained() {
+						return Some(borrower);
 					};
 				};
 			};

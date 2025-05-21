@@ -76,7 +76,7 @@ pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
 pub use pallet_claims;
-use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
+use pallet_ethereum::{Transaction as EthereumTransaction, Transaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use pallet_genesis_history::Chain;
 pub use primitives::{
@@ -416,20 +416,24 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 			RuntimeCall::Ethereum(call) => {
 				let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
 				if let pallet_ethereum::Call::transact { transaction } = call {
-					if let pallet_ethereum::Transaction::Legacy(legacy) = transaction {
-						// check if the transaction is DIA oracle update
-						if let pallet_ethereum::TransactionAction::Call(call_address) = legacy.action {
-							if DIA_ORACLE_UPDATE_CALL_ADDRESS.contains(&call_address) {
-								if let Some(Ok(signer)) = call.check_self_contained() {
-									// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-									if DIA_ORACLE_UPDATE_CALLER.contains(&signer) {
-										if let Some(Ok(ref mut validity_info)) = tx_validity {
-											validity_info.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
-										};
+					let action = match transaction {
+						Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
+						Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
+						Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+					};
+
+					// check if the transaction is DIA oracle update
+					if let pallet_ethereum::TransactionAction::Call(call_address) = action {
+						if DIA_ORACLE_UPDATE_CALL_ADDRESS.contains(&call_address) {
+							if let Some(Ok(signer)) = call.check_self_contained() {
+								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
+								if DIA_ORACLE_UPDATE_CALLER.contains(&signer) {
+									if let Some(Ok(ref mut validity_info)) = tx_validity {
+										validity_info.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
 									};
-								}
+								};
 							}
-						};
+						}
 					};
 				}
 				tx_validity
