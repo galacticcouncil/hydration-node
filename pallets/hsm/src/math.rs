@@ -2,7 +2,6 @@ use crate::types::CoefficientRatio;
 use crate::types::{Balance, PegType, Price};
 use hydra_dx_math::ratio::Ratio;
 use num_traits::SaturatingAdd;
-use num_traits::SaturatingMul;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::{FixedPointNumber, FixedU128, Perbill, Permill};
 use sp_runtime::{Rounding, Saturating};
@@ -10,7 +9,7 @@ use sp_runtime::{Rounding, Saturating};
 /// Calculate purchase price for Hollar with collateral asset
 /// p_i = (1 + fee_i) / peg_i
 pub fn calculate_purchase_price(peg: PegType, fee: Permill) -> Price {
-	let fee_ratio: Ratio = (fee.deconstruct() as u128, Permill::one().deconstruct() as u128).into();
+	let fee_ratio: Ratio = fee.into();
 	let one_ratio: Ratio = Ratio::one();
 	let peg_ratio: Ratio = peg.into();
 
@@ -44,21 +43,17 @@ pub fn calculate_buy_price_with_fee(execution_price: Price, buy_back_fee: Permil
 		return None;
 	}
 	let exec_price_ratio: Ratio = execution_price.into();
-	let fee_ratio: Ratio = (
-		Permill::one().saturating_sub(buy_back_fee).deconstruct() as u128,
-		Permill::one().deconstruct() as u128,
-	)
-		.into();
+	let fee_ratio: Ratio = Permill::one().saturating_sub(buy_back_fee).into();
 	let result = exec_price_ratio.saturating_div(&fee_ratio);
 	Some((result.n, result.d))
 }
 
 /// Calculate max buy price
-/// p_m = coefficient * peg
+/// p_m = coefficient / peg
 pub fn calculate_max_buy_price(peg: PegType, coefficient: CoefficientRatio) -> Price {
 	let peg_ratio: Ratio = peg.into();
 	let c_ratio: Ratio = (coefficient.into_inner(), FixedU128::DIV).into();
-	let result = peg_ratio.saturating_mul(&c_ratio);
+	let result = c_ratio.saturating_div(&peg_ratio);
 	(result.n, result.d)
 }
 

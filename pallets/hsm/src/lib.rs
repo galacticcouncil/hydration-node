@@ -27,7 +27,7 @@
 
 pub use pallet::*;
 
-use crate::types::{Balance, CoefficientRatio, CollateralInfo, Price};
+use crate::types::{Balance, CoefficientRatio, CollateralInfo, PegType, Price};
 pub use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
@@ -61,7 +61,7 @@ use sp_runtime::{
 	offchain::storage_lock::{StorageLock, Time},
 	traits::{AccountIdConversion, Zero},
 	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
-	AccountId32, ArithmeticError, DispatchError, Perbill, Permill, Rounding, RuntimeDebug, Saturating,
+	AccountId32, ArithmeticError, DispatchError, Perbill, Permill, Rounding, RuntimeDebug,
 };
 
 mod math;
@@ -434,6 +434,8 @@ pub mod pallet {
 				!Collaterals::<T>::contains_key(asset_id),
 				Error::<T>::AssetAlreadyApproved
 			);
+
+			ensure!(asset_id != T::HollarId::get(), Error::<T>::AssetAlreadyApproved);
 
 			// Check if there's already an asset from the same pool
 			for (_, info) in Collaterals::<T>::iter() {
@@ -950,22 +952,7 @@ where
 			.asset_reserve_at(collateral_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
 
-		// If a pool does not have peg source set,
-		// we need to correctly set the peg, respecting asset decimals
-		let peg = if pool_state.has_peg_source_set::<T>(collateral_info.pool_id) {
-			pool_state.pegs[collateral_pos]
-		} else {
-			let hollar_decimals = pool_state
-				.asset_decimals_at(hollar_pos)
-				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-			let collateral_decimals = pool_state
-				.asset_decimals_at(collateral_pos)
-				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-			(
-				10u128.pow(hollar_decimals as u32),
-				10u128.pow(collateral_decimals as u32),
-			)
-		};
+		let peg = Self::get_asset_peg(collateral_asset, collateral_info.pool_id, &pool_state)?;
 
 		// 1. Calculate imbalance
 		let imbalance =
@@ -1057,29 +1044,7 @@ where
 	) -> Result<(Balance, Balance), DispatchError> {
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
 		let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
-		let collateral_pos = pool_state
-			.asset_idx(collateral_asset)
-			.ok_or(Error::<T>::AssetNotFound)?;
-		let hollar_pos = pool_state
-			.asset_idx(T::HollarId::get())
-			.ok_or(Error::<T>::AssetNotFound)?;
-
-		// If a pool does not have peg source set,
-		// we need to correctly set the peg, respecting asset decimals
-		let peg = if pool_state.has_peg_source_set::<T>(collateral_info.pool_id) {
-			pool_state.pegs[collateral_pos]
-		} else {
-			let hollar_decimals = pool_state
-				.asset_decimals_at(hollar_pos)
-				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-			let collateral_decimals = pool_state
-				.asset_decimals_at(collateral_pos)
-				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-			(
-				10u128.pow(hollar_decimals as u32),
-				10u128.pow(collateral_decimals as u32),
-			)
-		};
+		let peg = Self::get_asset_peg(collateral_asset, collateral_info.pool_id, &pool_state)?;
 		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
 		log::trace!(target: "hsm", "Peg: {:?}, Purchase price {:?}", peg, purchase_price);
@@ -1309,31 +1274,13 @@ where
 			.asset_reserve_at(hollar_pos)
 			.ok_or(Error::<T>::AssetNotFound)?;
 
-		// If a pool does not have peg source set,
-		// we need to correctly set the peg, respecting asset decimals
-		let peg = if pool_state.has_peg_source_set::<T>(collateral_info.pool_id) {
-			pool_state.pegs[collateral_pos]
-		} else {
-			let hollar_decimals = pool_state
-				.asset_decimals_at(hollar_pos)
-				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-			let collateral_decimals = pool_state
-				.asset_decimals_at(collateral_pos)
-				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
-			(
-				10u128.pow(hollar_decimals as u32),
-				10u128.pow(collateral_decimals as u32),
-			)
-		};
+		let peg = Self::get_asset_peg(collateral_asset_id, collateral_info.pool_id, &pool_state)?;
 
-		// 1. Calculate imbalance
 		let imbalance =
 			math::calculate_imbalance(hollar_reserve, peg, collateral_reserve).ok_or(ArithmeticError::Overflow)?;
-		ensure!(!imbalance.is_zero(), Error::<T>::NoArbitrageOpportunity);
-		let b_coefficient = collateral_info.buyback_rate;
-		let max_buy_amt = b_coefficient.mul_floor(imbalance);
-		// If max_buy_amt is 0, there's no arbitrage opportunity
-		if max_buy_amt == 0 {
+		let buyback_limit = math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
+
+		if buyback_limit == 0 {
 			return Ok(0);
 		}
 
@@ -1343,43 +1290,61 @@ where
 			pool_id,
 			collateral_asset_id,
 			hollar_id,
-			max_buy_amt,
+			buyback_limit,
 			Balance::MAX,
 			&pool_state,
 		)?;
-		// Execution price is p_i = sell_amt / max_buy_amt
-		let execution_price = (sell_amt, max_buy_amt);
-
-		// Apply fee factor: buy_price = p_i / (1 - f)
-		let fee = collateral_info.buy_back_fee;
-		let fee_complement = Permill::from_percent(100).saturating_sub(fee);
-
-		let exec_price_ratio: hydra_dx_math::ratio::Ratio = execution_price.into();
-		let fee_ratio: hydra_dx_math::ratio::Ratio = (fee_complement.deconstruct() as u128, 1_000_000u128).into();
-		let buy_price_ratio = exec_price_ratio.saturating_div(&fee_ratio);
-		let buy_price = (buy_price_ratio.n, buy_price_ratio.d);
-
+		let execution_price = (sell_amt, buyback_limit);
+		let buy_price = math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
+			.ok_or(ArithmeticError::Overflow)?;
 		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 
-		// Check if price exceeds max price - compare the ratios
 		ensure!(
 			math::ensure_max_price(buy_price, max_price),
 			Error::<T>::MaxBuyPriceExceeded
 		);
 
 		// Calculate the amount of Hollar to trade
-		// max_buy_amt = min(max_buy_amt, self.liquidity[tkn] / buy_price)
+		// max_buy_amt = min(buyback_limit, self.liquidity[tkn] / buy_price)
 		let asset_holding = <T as Config>::Currency::balance(collateral_asset_id, &Self::account_id());
 		let max_holding_liquidity_amt =
 			multiply_by_rational_with_rounding(asset_holding, buy_price.1, buy_price.0, Rounding::Down)
 				.ok_or(ArithmeticError::Overflow)?;
 
-		let max_buy_amt = sp_std::cmp::min(max_buy_amt, max_holding_liquidity_amt);
+		let max_buy_amt = sp_std::cmp::min(buyback_limit, max_holding_liquidity_amt);
 
 		// amount of hollar to trade = max(max_buy_amt - _HollarAmountReceived_, 0)
 		let hollar_amount_received = Self::hollar_amount_received(collateral_asset_id);
 		let hollar_amount_to_trade = max_buy_amt.saturating_sub(hollar_amount_received);
 
 		Ok(hollar_amount_to_trade)
+	}
+
+	fn get_asset_peg(
+		peg_asset: T::AssetId,
+		pool_id: T::AssetId,
+		pool_state: &PoolSnapshot<T::AssetId>,
+	) -> Result<PegType, DispatchError> {
+		let collateral_pos = pool_state.asset_idx(peg_asset).ok_or(Error::<T>::AssetNotFound)?;
+
+		// If a pool does not have peg source set,
+		// we need to correctly set the peg, respecting asset decimals
+		if pool_state.has_peg_source_set::<T>(pool_id) {
+			Ok(pool_state.pegs[collateral_pos])
+		} else {
+			let hollar_id = T::HollarId::get();
+			let hollar_pos = pool_state.asset_idx(hollar_id).ok_or(Error::<T>::AssetNotFound)?;
+
+			let hollar_decimals = pool_state
+				.asset_decimals_at(hollar_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			let collateral_decimals = pool_state
+				.asset_decimals_at(collateral_pos)
+				.ok_or(Error::<T>::DecimalRetrievalFailed)?;
+			Ok((
+				10u128.pow(hollar_decimals as u32),
+				10u128.pow(collateral_decimals as u32),
+			))
+		}
 	}
 }
