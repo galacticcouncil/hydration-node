@@ -9,12 +9,14 @@ use evm::{
 	executor::stack::{StackExecutor, StackState as StackStateT, StackSubstateMetadata},
 	Context as EvmContext, ExitError, ExitReason,
 };
-use fp_evm::CallInfo;
+use fp_evm::{CallInfo, Vicinity};
 use frame_support::storage::with_transaction;
+use frame_support::traits::Get;
 use frame_system;
 use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::evm::{CallContext, EVM};
 use pallet_currencies::fungibles::FungibleCurrencies;
+use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{
 	self, runner::Runner as EvmRunnerT, AccountProvider as EvmAccountProviderT, AddressMapping as EvmAddressMappingT,
 	Config as EvmConfigT, Pallet as EvmPallet,
@@ -45,6 +47,36 @@ type EVMRunner = WrapRunner<
 		FungibleCurrencies<Runtime>,                                     // Account balance inspector
 	>,
 >;
+
+impl<T> Executor<T>
+where
+	T: Config + frame_system::Config,
+	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::AddressMapping: AddressMapping<T::AccountId>,
+	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
+	NonceIdOf<T>: Into<T::Nonce>,
+{
+	pub fn execute<'config, F>(origin: H160, gas: u64, f: F) -> CallResult
+	where
+		F: for<'precompiles> FnOnce(
+			&mut StackExecutor<'config, 'precompiles, SubstrateStackState<'_, 'config, T>, T::PrecompilesType>,
+		) -> (ExitReason, Vec<u8>),
+	{
+		let gas_price = U256::one();
+		let vicinity = Vicinity { gas_price, origin };
+
+		let config = <T as Config>::config();
+		let precompiles = T::PrecompilesValue::get();
+		let metadata = StackSubstateMetadata::new(gas, config);
+		let state = SubstrateStackState::new(&vicinity, metadata, None, None);
+		let account = T::AddressMapping::into_account_id(origin);
+		let nonce = T::AccountProvider::account_nonce(&account.clone().into());
+		let mut executor = StackExecutor::new_with_precompiles(state, config, &precompiles);
+		let result = f(&mut executor);
+		frame_system::Account::<T>::mutate(account.clone(), |a| a.nonce = nonce.into());
+		result
+	}
+}
 
 impl<T> EVM<CallResult> for Executor<T>
 where
@@ -110,73 +142,28 @@ where
 	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> CallResult {
 		let extra_gas = pallet_dispatcher::Pallet::<T>::extra_gas();
 		let gas_limit = gas.saturating_add(extra_gas);
-
-		let source_h160 = context.sender;
-		let source_account_id = T::AddressMapping::into_account_id(source_h160);
-		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
-
-		let evm_config = <T as pallet_evm::Config>::config();
+		log::trace!(target: "evm::executor", "View call with extra gas {:?}", extra_gas);
 
 		let mut extra_gas_used = 0u64;
 
-		let outcome_from_transaction: Result<CallResult, DispatchError> = with_transaction(|| {
-			let call_info_result = EVMRunner::call(
-				source_h160,
-				context.contract,
-				data,
-				U256::zero(), // value for a view call
-				gas_limit,
-				Some(U256::zero()), // max_fee_per_gas
-				None,               // max_priority_fee_per_gas
-				None,               // nonce (should be handled by EVM runner or transaction)
-				vec![],             // access_list
-				false,              // is_transactional (false for view, transactionality is handled by with_transaction)
-				false,              // validate
-				None,               // weight_limit
-				None,               // proof_size_base_cost
-				evm_config,
-			);
-
-			let execution_result: CallResult = match call_info_result {
-				Ok(info) => {
-					log::trace!(target: "evm::executor", "Call executed - used gas {:?}", info.used_gas);
-					if extra_gas > 0 {
-						//TODO: this can panic, double check how to  convert to u64
-						extra_gas_used = info.used_gas.standard.as_u64().saturating_sub(gas); //TODO: maybe we need effective her
-						log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
-					}
-					(info.exit_reason, info.value)
+		let result = with_transaction(|| {
+			let result = Self::execute(context.origin, gas_limit, |executor| {
+				let result =
+					executor.transact_call(context.sender, context.contract, U256::zero(), data, gas_limit, vec![]);
+				if extra_gas > 0 {
+					extra_gas_used = executor.used_gas().saturating_sub(gas);
+					log::trace!(target: "evm::executor", "View used extra gas -{:?}", extra_gas_used);
 				}
-				Err(runner_error) => {
-					log::error!(target: "evm_executor", "SystemEvmRunner: EVM view failed: {:?}", runner_error.error);
-					let exit_reason = ExitReason::Error(ExitError::Other(sp_std::borrow::Cow::Borrowed(
-						"SystemEvmRunner: View failed during EVM execution",
-					)));
-					(exit_reason, Vec::new())
-				}
-			};
-			TransactionOutcome::Rollback(Ok(execution_result))
-		});
+				result
+			});
+			TransactionOutcome::Rollback(Ok::<CallResult, DispatchError>(result))
+		})
+		.unwrap_or((ExitReason::Fatal(Other("TransactionalError".into())), Vec::new()));
 
 		if extra_gas_used > 0 {
 			log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
 			pallet_dispatcher::Pallet::<T>::decrease_extra_gas(extra_gas_used);
 		}
-
-		frame_system::Account::<T>::mutate(source_account_id.clone(), |a| a.nonce = original_nonce.into());
-
-		outcome_from_transaction.unwrap_or_else(|dispatch_error| {
-			log::error!(
-				target: "evm_executor",
-				"SystemEvmRunner: EVM view failed due to transaction error: {:?}",
-				dispatch_error
-			);
-			(
-				ExitReason::Error(ExitError::Other(sp_std::borrow::Cow::Borrowed(
-					"SystemEvmRunner: View failed due to transactional error",
-				))),
-				Vec::new(),
-			)
-		})
+		result
 	}
 }
