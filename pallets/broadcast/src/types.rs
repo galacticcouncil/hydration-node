@@ -17,6 +17,7 @@ pub enum Filler {
 	LBP,
 	OTC(OtcOrderId),
 	AAVE, // ICE(solution_id/block id),      swapper: alice, filler: solver
+	HSM,
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]

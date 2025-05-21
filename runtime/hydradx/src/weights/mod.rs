@@ -21,6 +21,7 @@ pub mod pallet_dynamic_evm_fee;
 pub mod pallet_elections_phragmen;
 pub mod pallet_ema_oracle;
 pub mod pallet_evm_accounts;
+pub mod pallet_hsm;
 pub mod pallet_identity;
 pub mod pallet_lbp;
 pub mod pallet_liquidation;

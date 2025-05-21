@@ -11,7 +11,7 @@ pub trait StableswapAddLiquidity<AccountId, AssetId, Balance> {
 	) -> Result<Balance, DispatchError>;
 }
 
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo, Default)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
 pub struct AssetAmount<AssetId> {
 	pub asset_id: AssetId,
 	pub amount: u128,
