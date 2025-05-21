@@ -1,7 +1,8 @@
 use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
-use crate::evm::{Erc20Currency, EvmAccounts, Executor};
+use crate::evm::Executor;
+use crate::evm::{Erc20Currency, EvmAccounts};
 use crate::Vec;
 use crate::{Currencies, Runtime};
 use codec::{Decode, Encode, MaxEncodedLen};

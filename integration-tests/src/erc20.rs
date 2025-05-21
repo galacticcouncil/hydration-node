@@ -334,13 +334,9 @@ fn erc20_transfer_returning_false_should_be_handled_as_error() {
 	Hydra::execute_with(|| {
 		let token = deploy_contract("WeirdToken", deployer());
 
+		let asset = bind_erc20(token);
 		assert_noop!(
-			<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
-				token,
-				&AccountId::from(ALICE),
-				&AccountId::from(BOB),
-				100
-			),
+			Currencies::transfer(RuntimeOrigin::signed(ALICE.into()), BOB.into(), asset, 100),
 			Other("evm: erc20 transfer returned false")
 		);
 	});
