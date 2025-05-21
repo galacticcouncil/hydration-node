@@ -24,6 +24,7 @@ use orml_traits::MultiCurrency;
 use pallet_evm::ExitSucceed::Returned;
 use sp_core::bounded_vec::BoundedVec;
 
+use hex_literal::hex;
 use pallet_evm_accounts::EvmNonceProvider;
 use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
@@ -34,6 +35,8 @@ use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
 use std::fmt::Write;
+use std::io::Bytes;
+use xcm_emulator::pallet_message_queue::mock_helpers::assert_last_event;
 use xcm_emulator::TestExt;
 
 pub fn deployer() -> EvmAddress {
@@ -369,6 +372,31 @@ fn currencies_should_transfer_bound_erc20() {
 
 		assert_eq!(Currencies::free_balance(asset, &BOB.into()), 100);
 		assert_eq!(Erc20Currency::<Runtime>::free_balance(contract, &BOB.into()), 100);
+
+		//Assert transfer events
+		let mut data = [0u8; 32];
+		data[31] = 100;
+		expect_hydra_last_events(vec![
+			pallet_evm::Event::Log {
+				log: pallet_evm::Log {
+					address: contract,
+					topics: vec![
+						H256::from(hex!("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")),
+						H256::from(hex!("0000000000000000000000000404040404040404040404040404040404040404")),
+						H256::from(hex!("0000000000000000000000000505050505050505050505050505050505050505")),
+					],
+					data: data.to_vec(),
+				},
+			}
+			.into(),
+			pallet_currencies::Event::Transferred {
+				currency_id: asset,
+				from: ALICE.into(),
+				to: BOB.into(),
+				amount: 100,
+			}
+			.into(),
+		]);
 	});
 }
 
