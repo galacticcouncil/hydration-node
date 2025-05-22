@@ -107,7 +107,7 @@ where
 			None,               // max_priority_fee_per_gas
 			None,               // nonce
 			vec![],
-			true,  // is_transactional //TODO: CHECK if we need this or not
+			false, // is_transactional - we dont need to check for  EIP-3607, and it also makes the total_fee_per_gas to default (0)
 			false, // validate
 			None,  // weight_limit
 			None,  // proof_size_base_cost
