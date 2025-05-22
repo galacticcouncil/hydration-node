@@ -8,8 +8,8 @@ use frame_support::__private::sp_tracing::tracing;
 use futures::{future::ready, StreamExt};
 use hex_literal::hex;
 use hydradx_runtime::{
-	evm::{EvmAddress, precompiles::erc20_mapping::Erc20MappingApi}, 
-	Block, Runtime, RuntimeCall
+	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
+	Block, Runtime, RuntimeCall,
 };
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
