@@ -104,8 +104,8 @@ where
 			value,
 			gas_limit,
 			Some(U256::zero()), // max_fee_per_gas
-			None,                // max_priority_fee_per_gas
-			None,                // nonce
+			None,               // max_priority_fee_per_gas
+			None,               // nonce
 			vec![],
 			true,  // is_transactional
 			false, // validate
