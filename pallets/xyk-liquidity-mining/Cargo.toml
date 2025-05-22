@@ -23,10 +23,11 @@ orml-traits = { workspace = true }
 # Local dependencies
 primitives = { workspace = true }
 
-# Warehouse dependencies
 pallet-liquidity-mining = { workspace = true }
+pallet-ema-oracle = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-xyk = { workspace = true }
+hydra-dx-math = { workspace = true }
 
 # Substrate dependencies
 sp-std = { workspace = true }
@@ -60,6 +61,7 @@ std = [
   "pallet-liquidity-mining/std",
   "primitives/std",
   "hydradx-traits/std",
+  "pallet-ema-oracle/std",
   "log/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
