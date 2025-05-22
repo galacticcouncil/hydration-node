@@ -1027,6 +1027,15 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
+		fn asset_address(asset_id: AssetId) -> evm::EvmAddress {
+			HydraErc20Mapping::asset_address(asset_id)
+		}
+		fn address_to_asset(address: evm::EvmAddress) -> Option<AssetId> {
+			HydraErc20Mapping::address_to_asset(address)
+		}
+	}
+
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			if !matches!(xcm_version, 3 | 4) {

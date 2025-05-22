@@ -7,8 +7,10 @@ use frame_support::BoundedVec;
 use frame_support::__private::sp_tracing::tracing;
 use futures::{future::ready, StreamExt};
 use hex_literal::hex;
-use hydradx_runtime::{evm::precompiles::erc20_mapping::HydraErc20Mapping, Block, Runtime, RuntimeCall};
-use hydradx_traits::evm::{Erc20Encoding, EvmAddress};
+use hydradx_runtime::{
+	evm::{EvmAddress, precompiles::erc20_mapping::Erc20MappingApi}, 
+	Block, Runtime, RuntimeCall
+};
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use liquidation_worker_support::*;
@@ -94,7 +96,7 @@ impl<B, C, BE, P> LiquidationTask<B, C, BE, P>
 where
 	B: BlockT,
 	C: ProvideRuntimeApi<B>,
-	C::Api: EthereumRuntimeRPCApi<B>,
+	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B>,
 	C: BlockchainEvents<B> + 'static,
 	C: HeaderBackend<B> + StorageProvider<B, BE>,
 	BE: Backend<B> + 'static,
@@ -343,9 +345,9 @@ where
 							if let Ok(Some(liquidation_option)) = money_market_data
 								.get_best_liquidation_option(&user_data, config.target_hf.into(), (base_asset_address, price.into())) {
 
-								let (Some(collateral_asset_id), Some(debt_asset_id)) =
-									(HydraErc20Mapping::decode_evm_address(liquidation_option.collateral_asset),
-									 HydraErc20Mapping::decode_evm_address(liquidation_option.debt_asset))
+								let (Ok(Some(collateral_asset_id)), Ok(Some(debt_asset_id))) =
+									(runtime_api.address_to_asset(hash, liquidation_option.collateral_asset),
+									 runtime_api.address_to_asset(hash, liquidation_option.debt_asset))
 									else {
 										continue
 									};
