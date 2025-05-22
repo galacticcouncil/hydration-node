@@ -363,6 +363,17 @@ fn currencies_should_transfer_bound_erc20() {
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
 
+		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+		let truncated_address = EVMAccounts::truncated_account_id(evm_address);
+
+		let init_weth_balance = 10000000000000000u128;
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			truncated_address.clone(),
+			WETH.into(),
+			init_weth_balance as i128
+		));
+
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
@@ -372,6 +383,10 @@ fn currencies_should_transfer_bound_erc20() {
 
 		assert_eq!(Currencies::free_balance(asset, &BOB.into()), 100);
 		assert_eq!(Erc20Currency::<Runtime>::free_balance(contract, &BOB.into()), 100);
+
+		//Assert that no extra fee charged within EVM execution
+		let weth_balance_after = Currencies::free_balance(WETH, &truncated_address.into());
+		assert_eq!(init_weth_balance, weth_balance_after);
 
 		//Assert transfer events
 		let mut data = [0u8; 32];
