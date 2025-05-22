@@ -26,10 +26,10 @@
 use crate::evm::WethAssetId;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
+use frame_support::weights::Weight;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
 use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
-use frame_support::weights::Weight;
 use primitive_types::{H160, H256, U256};
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
