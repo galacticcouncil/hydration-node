@@ -13,6 +13,7 @@ use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use hydradx_runtime::evm::Erc20Currency;
 use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
@@ -703,4 +704,125 @@ fn buy_in_stable_after_rebase() {
 			.unwrap()
 		));
 	});
+}
+
+#[test]
+fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
+	with_atoken(|| {
+		let ed = 1000;
+		AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ADOT,
+			None,
+			None,
+			Some(ed),
+			None,
+			None,
+			None,
+			None,
+			None,
+		)
+		.unwrap();
+
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
+
+		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+
+		assert_eq!(alice_all_balance, 1000000000000000);
+		let alice_dot_balance_before = 1999999999999998;
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			ADOT,
+			alice_all_balance - ed
+		));
+		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
+
+		assert_eq!(bob_new_balance, alice_all_balance);
+
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+	})
+}
+
+#[test]
+fn transfer_all_atoken_but_one_should_transfer_all_atoken() {
+	with_atoken(|| {
+		let ed = 1000;
+		AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ADOT,
+			None,
+			None,
+			Some(ed),
+			None,
+			None,
+			None,
+			None,
+			None,
+		)
+		.unwrap();
+
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 1000000000000000);
+
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+
+		assert_eq!(alice_all_balance, 1000000000000000);
+		let alice_dot_balance_before = 1999999999999998;
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			ADOT,
+			alice_all_balance - 1
+		));
+		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
+		assert_eq!(bob_new_balance, alice_all_balance);
+
+		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
+		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+	})
+}
+
+#[test]
+fn transfer_atoken_when_left_more_than_ed_should_transfer_specified_amount() {
+	with_atoken(|| {
+		let ed = 1000;
+		AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ADOT,
+			None,
+			None,
+			Some(ed),
+			None,
+			None,
+			None,
+			None,
+			None,
+		)
+		.unwrap();
+
+		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
+		let amount = alice_all_balance - ed - 1;
+		assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
+			adot_asset_id,
+			&AccountId::from(ALICE),
+			&AccountId::from(BOB),
+			amount
+		));
+		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
+
+		assert_eq!(bob_new_balance, amount);
+	})
 }
