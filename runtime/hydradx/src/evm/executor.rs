@@ -107,7 +107,7 @@ where
 			None,               // max_priority_fee_per_gas
 			None,               // nonce
 			vec![],
-			true,  // is_transactional
+			true,  // is_transactional //TODO: CHECK if we need this or not
 			false, // validate
 			None,  // weight_limit
 			None,  // proof_size_base_cost
@@ -120,10 +120,18 @@ where
 			Ok(info) => {
 				log::trace!(target: "evm::executor", "Call executed - used gas {:?}", info.used_gas);
 				if extra_gas > 0 {
-					//TODO: this can panic, double check how to  convert to u64
-					let extra_gas_used = info.used_gas.standard.as_u64().saturating_sub(gas); //TODO: maybe we need effective her
-					log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
-					pallet_dispatcher::Pallet::<T>::decrease_extra_gas(extra_gas_used);
+					match u64::try_from(info.used_gas.effective) {
+						Ok(standard_gas_u64) => {
+							let extra_gas_used = standard_gas_u64.saturating_sub(gas);
+							log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);
+							pallet_dispatcher::Pallet::<T>::decrease_extra_gas(extra_gas_used);
+						}
+						Err(_) => {
+							log::error!(target: "evm::executor", "Gas value too large to fit into u64");
+							let exit_reason = ExitReason::Error(ExitError::OutOfGas);
+							return (exit_reason, Vec::new());
+						}
+					}
 				}
 				(info.exit_reason, info.value)
 			}
