@@ -44,6 +44,7 @@ pub enum Function {
 	Mint = "mint(address,uint256)",
 	ListFacilitator = "getFacilitatorsList()",
 	BalanceOf = "balanceOf(address)",
+	FlashLoan = "flashLoan(address,address,uint256,bytes)",
 }
 
 fn hollar_contract_address() -> EvmAddress {
@@ -796,5 +797,31 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 
 			let alice_collateral_balance = Tokens::free_balance(COLLATERAL, &AccountId::from(ALICE));
 			assert_eq!(alice_collateral_balance, initial_alice_collateral_balance + received);
+		});
+}
+
+use ethabi::ethereum_types::BigEndianHash;
+
+
+#[test]
+fn flash_loan_precompile_should_work() {
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.register_asset(COLLATERAL, b"myCOL", DECIMALS, None)
+		.register_asset(POOL_ID, b"pool", DECIMALS, None)
+		.new_block()
+		.endow_account(ALICE.into(), COLLATERAL, 1_000_000 * 10u128.pow(DECIMALS as u32))
+		.execute(|| {
+			let hsm_address = hydradx_runtime::HSM::account_id();
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+			dbg!(&hsm_evm_address);
+			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+			assert_ok!(HSM::run_flash_loan(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			));
+
 		});
 }

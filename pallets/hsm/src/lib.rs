@@ -63,6 +63,8 @@ use sp_runtime::{
 	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
 	AccountId32, ArithmeticError, DispatchError, Perbill, Permill, Rounding, RuntimeDebug,
 };
+use precompile_utils::evm::Bytes;
+use precompile_utils::evm::writer::EvmDataWriter;
 
 mod math;
 pub mod traits;
@@ -81,6 +83,8 @@ pub mod weights;
 pub enum ERC20Function {
 	Mint = "mint(address,uint256)",
 	Burn = "burn(uint256)",
+	FlashLoan = "flashLoan(address,address,uint256,bytes)",
+	CallbackSuccess= "CALLBACK_SUCCESS()",
 }
 
 /// Max number of approved assets.
@@ -171,6 +175,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn hollar_amount_received)]
 	pub type HollarAmountReceived<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
+
+	/// Address of the flash loan receiver.
+	#[pallet::storage]
+	#[pallet::getter(fn flash_loan_receiver)]
+	pub type FlashLoanReceiver<T: Config> = StorageValue<_, EvmAddress, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -836,6 +845,39 @@ pub mod pallet {
 			} else {
 				Err(Error::<T>::NoArbitrageOpportunity.into())
 			}
+		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage())]
+		pub fn run_flash_loan(origin: OriginFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+			let receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
+			let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
+
+			let context = CallContext::new_call(flash_minter, pallet_address);
+			let hollar_address = T::GhoContractAddress::contract_address(T::HollarId::get()).unwrap();
+			log::trace!(target:"hsm", "hollar address {:?}", hollar_address);
+
+			let loan_data: sp_std::vec::Vec<u8> =  vec![];
+			let data = EvmDataWriter::new_with_selector(ERC20Function::FlashLoan)
+				.write(receiver)
+				.write(hollar_address)
+				.write(1_000_000_000_000_000_000u128)
+				.write(Bytes::from(loan_data.as_slice()))
+				.build();
+
+			// Execute the EVM call
+			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), 5_000_000);
+
+			// Check if the call was successful
+			if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+				let s = precompile_utils::prelude::String::from_utf8_lossy(&value);
+				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, s);
+				return Err(Error::<T>::InvalidEVMInteraction.into());
+			}
+
+			Ok(())
 		}
 	}
 }

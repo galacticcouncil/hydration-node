@@ -43,6 +43,7 @@ use ethabi::Token;
 use hex_literal::hex;
 use primitive_types::{H160, U256};
 use sp_std::{borrow::ToOwned, vec::Vec};
+use precompile_utils::keccak256;
 
 pub mod chainlink_adapter;
 pub mod costs;
@@ -98,6 +99,7 @@ pub const BN_MUL: H160 = H160(hex!("0000000000000000000000000000000000000007"));
 pub const BN_PAIRING: H160 = H160(hex!("0000000000000000000000000000000000000008"));
 pub const BLAKE2F: H160 = H160(hex!("0000000000000000000000000000000000000009"));
 pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a"));
+pub const FLASH_LOAN_RECEIVER: H160 = H160(hex!("000000000000000000000000000000000000090a"));
 
 pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
 
@@ -114,6 +116,8 @@ where
 	ChainlinkOraclePrecompile<R>: Precompile,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
+		log::trace!(target: "precompiles", "execute precompile: enter");
+
 		let context = handle.context();
 		let address = handle.code_address();
 
@@ -124,6 +128,8 @@ where
 				output: "precompile cannot be called with DELEGATECALL or CALLCODE".into(),
 			}));
 		}
+
+		log::trace!(target: "precompiles", "execute precompile: {:?}", address);
 
 		if address == ECRECOVER {
 			Some(ECRecover::execute(handle))
@@ -147,6 +153,8 @@ where
 			Some(pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::execute(
 				handle,
 			))
+		} else if address == FLASH_LOAN_RECEIVER {
+			Some(pallet_evm_precompile_flash_loan::FlashLoanReceiverPrecompile::<R>::execute(handle))
 		} else if address == DISPATCH_ADDR {
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
 		} else if is_asset_address(address) {
@@ -154,6 +162,7 @@ where
 		} else if is_oracle_address(address) {
 			Some(ChainlinkOraclePrecompile::<R>::execute(handle))
 		} else {
+			log::error!(target: "precompiles", "execute precompile: invalid address: {:?}", address);
 			None
 		}
 	}

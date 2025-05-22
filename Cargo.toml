@@ -44,6 +44,7 @@ members = [
     'pallets/xyk-liquidity-mining',
     'pallets/liquidation',
     'precompiles/call-permit',
+    'precompiles/flash-loan',
     'runtime-mock',
     'pallets/broadcast',
     'pallets/hsm',
@@ -159,6 +160,7 @@ test-utils = { path = "utils/test-utils", default-features = false }
 integration-tests = { path = "integration-tests", default-features = false }
 
 pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }
+pallet-evm-precompile-flash-loan = { path = "precompiles/flash-loan", default-features = false }
 precompile-utils = { path = "precompiles/utils", default-features = false }
 
 # Frame
