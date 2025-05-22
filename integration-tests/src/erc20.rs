@@ -366,6 +366,8 @@ fn currencies_should_transfer_bound_erc20() {
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		let truncated_address = EVMAccounts::truncated_account_id(evm_address);
 
+		let original_nonce = frame_system::Pallet::<Runtime>::account_nonce(truncated_address.clone());
+
 		let init_weth_balance = 10000000000000000u128;
 		assert_ok!(Currencies::update_balance(
 			RuntimeOrigin::root(),
@@ -381,12 +383,17 @@ fn currencies_should_transfer_bound_erc20() {
 			100
 		));
 
+		//Assert that amount is transferred
 		assert_eq!(Currencies::free_balance(asset, &BOB.into()), 100);
 		assert_eq!(Erc20Currency::<Runtime>::free_balance(contract, &BOB.into()), 100);
 
 		//Assert that no extra fee charged within EVM execution
-		let weth_balance_after = Currencies::free_balance(WETH, &truncated_address.into());
+		let weth_balance_after = Currencies::free_balance(WETH, &truncated_address.clone().into());
 		assert_eq!(init_weth_balance, weth_balance_after);
+
+		//Assert that nonce has not been changed
+		let nonce_after = frame_system::Pallet::<Runtime>::account_nonce(truncated_address.clone());
+		assert_eq!(nonce_after, original_nonce);
 
 		//Assert transfer events
 		let mut data = [0u8; 32];
