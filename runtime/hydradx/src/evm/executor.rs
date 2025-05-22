@@ -20,7 +20,7 @@ use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{
 	self, runner::Runner as EvmRunnerT, AccountProvider as EvmAccountProviderT, AddressMapping as EvmAddressMappingT,
 	Config as EvmConfigT, Pallet as EvmPallet,
-}; // Import the pallet_evm crate
+};
 use pallet_evm::{AccountProvider, AddressMapping, Config};
 use pallet_evm::{Error, Runner, RunnerError};
 use pallet_genesis_history::migration::Weight;
