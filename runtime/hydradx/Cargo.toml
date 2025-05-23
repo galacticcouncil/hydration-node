@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "314.0.0"
+version = "315.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -112,6 +112,7 @@ cumulus-primitives-aura = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
+cumulus-primitives-storage-weight-reclaim = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
 staging-parachain-info = { workspace = true }
 parachains-common = { workspace = true }
@@ -252,6 +253,7 @@ std = [
     "cumulus-primitives-aura/std",
     "cumulus-primitives-core/std",
     "cumulus-primitives-utility/std",
+    "cumulus-primitives-storage-weight-reclaim/std",
     "cumulus-pallet-xcm/std",
     "cumulus-pallet-xcmp-queue/std",
     "staging-parachain-info/std",
