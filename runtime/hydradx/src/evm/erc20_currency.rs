@@ -1,6 +1,5 @@
 use crate::evm::aave_trade_executor::AaveTradeExecutor;
-use crate::evm::executor::{BalanceOf, NonceIdOf};
-use crate::evm::executor::{CallResult, Executor};
+use crate::evm::executor::{BalanceOf, CallResult, Executor, NonceIdOf};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
@@ -43,10 +42,11 @@ pub struct Erc20Currency<T>(PhantomData<T>);
 
 impl<T> ERC20 for Erc20Currency<T>
 where
-	T: pallet_evm::Config + pallet_dispatcher::Config,
-	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T: pallet_evm::Config + pallet_dispatcher::Config + frame_system::Config,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
+	<T as frame_system::Config>::AccountId: AsRef<[u8]>,
+	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	NonceIdOf<T>: Into<T::Nonce>,
 {
 	type Balance = Balance;
