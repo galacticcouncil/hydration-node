@@ -429,7 +429,8 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
 								if DIA_ORACLE_UPDATE_CALLER.contains(&signer) {
 									if let Some(Ok(ref mut validity_info)) = tx_validity {
-										validity_info.priority = 2 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
+										validity_info.priority =
+											pallet_liquidation::Pallet::<Runtime>::oracle_update_priority();
 									};
 								};
 							}
@@ -564,18 +565,7 @@ impl_runtime_apis! {
 			tx: <Block as BlockT>::Extrinsic,
 			block_hash: <Block as BlockT>::Hash,
 		) -> TransactionValidity {
-			let mut tx_validity = Executive::validate_transaction(source, tx.clone(), block_hash);
-			let transaction = tx.clone().0;
-			if let RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate { .. }) = transaction.function {
-				// bump the priority only if the transaction is unsigned
-				if let Some(false) = tx.is_signed() {
-				 if let Ok(ref mut v) = tx_validity {
-					// TODO: priority multiplier
-					v.priority = 3 * pallet_liquidation::UNSIGNED_TXS_PRIORITY;
-				}
-				}
-			}
-			tx_validity
+			Executive::validate_transaction(source, tx, block_hash)
 		}
 	}
 

@@ -67,7 +67,7 @@ pub type Balance = u128;
 pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
-pub const UNSIGNED_TXS_PRIORITY: u64 = 1_000_000;
+pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = 1_000_000;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -127,9 +127,63 @@ pub mod pallet {
 		EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice())
 	}
 
+	#[pallet::type_value]
+	pub fn DefaultSigners() -> BoundedVec<EvmAddress, ConstU32<10>> {
+		let vec = vec![
+			EvmAddress::from_slice(hex_literal::hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e").as_slice()),
+			EvmAddress::from_slice(hex_literal::hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice()),
+		];
+
+		BoundedVec::truncate_from(vec)
+	}
+
+	#[pallet::type_value]
+	pub fn DefaultCallAddresses() -> BoundedVec<EvmAddress, ConstU32<10>> {
+		let vec = vec![
+			EvmAddress::from_slice(hex_literal::hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e").as_slice()),
+			EvmAddress::from_slice(hex_literal::hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice()),
+		];
+
+		BoundedVec::truncate_from(vec)
+	}
+
 	/// Borrowing market contract address
 	#[pallet::storage]
 	pub type BorrowingContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultBorrowingContract>;
+
+	/// Whitelisted signers of DIA oracle updates.
+	#[pallet::storage]
+	#[pallet::getter(fn oracle_signers)]
+	pub type OracleSigners<T: Config> =
+		StorageValue<_, BoundedVec<EvmAddress, ConstU32<10>>, ValueQuery, DefaultSigners>;
+
+	/// Whitelisted call addresses of DIA oracle updates.
+	#[pallet::storage]
+	#[pallet::getter(fn oracle_call_addresses)]
+	pub type OracleCallAddresses<T: Config> =
+		StorageValue<_, BoundedVec<EvmAddress, ConstU32<10>>, ValueQuery, DefaultCallAddresses>;
+
+	#[pallet::type_value]
+	/// Default priority of unsigned liquidation transaction.
+	pub fn DefaultLiquidationPriority() -> u64 {
+		UNSIGNED_LIQUIDATION_PRIORITY
+	}
+
+	/// The priority of unsigned liquidation transaction.
+	#[pallet::storage]
+	#[pallet::getter(fn unsigned_liquidation_priority)]
+	pub type UnsignedLiquidationPriority<T: Config> = StorageValue<_, u64, ValueQuery, DefaultLiquidationPriority>;
+
+	#[pallet::type_value]
+	/// Default priority of DIA oracle update transaction.
+	pub fn DefaultOracleUpdatePriority() -> u64 {
+		2 * UNSIGNED_LIQUIDATION_PRIORITY
+	}
+
+	/// The priority of DIA oracle update transaction.
+	#[pallet::storage]
+	#[pallet::getter(fn oracle_update_priority)]
+	pub type OracleUpdatePriority<T: Config> = StorageValue<_, u64, ValueQuery, DefaultOracleUpdatePriority>;
 
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T>
@@ -150,9 +204,9 @@ pub mod pallet {
 
 			let valid_tx = |provide| {
 				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
-					.priority(UNSIGNED_TXS_PRIORITY)
+					.priority(Self::unsigned_liquidation_priority())
 					.and_provides([&provide])
-					.longevity(3)
+					.longevity(2)
 					.propagate(false)
 					.build()
 			};
