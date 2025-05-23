@@ -41,7 +41,6 @@
 mod tests;
 
 pub mod migration;
-pub mod traits;
 pub mod weights;
 
 pub use crate::weights::WeightInfo;
@@ -51,7 +50,7 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Trans
 use frame_support::{ensure, require_transactional, sp_runtime::traits::Zero, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::liquidity_mining::{
-	GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
+	AMMShares, GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
 };
 use hydradx_traits::oracle::{AggregatedOracle, OraclePeriod};
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
@@ -67,7 +66,6 @@ use sp_std::{
 	convert::{From, Into, TryInto},
 	vec,
 };
-use traits::AMMShares;
 
 type PeriodOf<T> = BlockNumberFor<T>;
 

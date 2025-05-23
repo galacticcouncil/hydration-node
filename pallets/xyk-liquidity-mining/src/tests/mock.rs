@@ -27,7 +27,7 @@ use frame_support::{
 };
 
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMTransfer, AMM};
+use hydradx_traits::{liquidity_mining::AMMShares, pools::DustRemovalAccountWhitelist, AMMTransfer, AMM};
 use orml_traits::parameter_type_with_key;
 use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
@@ -39,7 +39,6 @@ use sp_runtime::{
 };
 use sp_std::convert::TryFrom;
 use std::{cell::RefCell, collections::HashMap};
-use traits::AMMShares;
 
 pub type AccountId = u128;
 pub type BlockNumber = u64;
