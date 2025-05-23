@@ -1,30 +1,19 @@
-use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
-use crate::evm::runner::WrapRunner;
-use crate::evm::{EvmAccounts, WethAssetId};
-use crate::types::ShortOraclePrice;
-use crate::{DotAssetId, Runtime, XykPaymentAssetSupport};
-use core::marker::PhantomData;
 use evm::ExitFatal::Other;
 use evm::{
-	executor::stack::{StackExecutor, StackState as StackStateT, StackSubstateMetadata},
-	Context as EvmContext, ExitError, ExitReason,
+	executor::stack::{StackExecutor, StackSubstateMetadata},
+	ExitError, ExitReason,
 };
-use fp_evm::{CallInfo, Vicinity};
+use fp_evm::Vicinity;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Get;
 use frame_system;
-use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::evm::{CallContext, EVM};
-use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{
 	self, runner::Runner as EvmRunnerT, AccountProvider as EvmAccountProviderT, AddressMapping as EvmAddressMappingT,
-	Config as EvmConfigT, Pallet as EvmPallet,
 };
 use pallet_evm::{AccountProvider, AddressMapping, Config};
-use pallet_evm::{Error, Runner, RunnerError};
-use pallet_genesis_history::migration::Weight;
-use sp_core::{H160, H256, U256};
+use sp_core::{H160, U256};
 use sp_runtime::{DispatchError, TransactionOutcome};
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -36,17 +25,6 @@ pub type BalanceOf<T> =
 pub type NonceIdOf<T> = <<T as Config>::AccountProvider as AccountProvider>::Nonce;
 
 pub struct Executor<R>(sp_std::marker::PhantomData<R>);
-
-type EVMRunner = WrapRunner<
-	Runtime,
-	pallet_evm::runner::stack::Runner<Runtime>, // Evm runner that we wrap
-	hydradx_adapters::price::FeeAssetBalanceInCurrency<
-		Runtime,
-		ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
-		FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<Runtime>>, // Get account's fee payment asset
-		FungibleCurrencies<Runtime>,                                     // Account balance inspector
-	>,
->;
 
 impl<T> Executor<T>
 where
@@ -97,7 +75,7 @@ where
 
 		let evm_config = <T as pallet_evm::Config>::config();
 
-		let call_info_result = EVMRunner::call(
+		let call_info_result = T::Runner::call(
 			source_h160,
 			context.contract,
 			data,
@@ -136,7 +114,7 @@ where
 				(info.exit_reason, info.value)
 			}
 			Err(runner_error) => {
-				log::error!(target: "evm_executor", "EVM call failed: {:?}", runner_error.error);
+				log::error!(target: "evm_executor", "EVM call failed: {:?}", runner_error.error.into());
 				// Map RunnerError to a generic EVM execution failure
 				let exit_reason = ExitReason::Error(ExitError::Other(sp_std::borrow::Cow::Borrowed("EVM Call failed")));
 				(exit_reason, Vec::new())
