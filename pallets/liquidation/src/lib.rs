@@ -76,6 +76,19 @@ pub enum Function {
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
 }
 
+sp_api::decl_runtime_apis! {
+	/// The API to query allowed signers and call addresses of DIA oracle update transactions.
+	/// This api is used to expose these values to the liquidation worker.
+	pub trait LiquidationWorkerApi where
+	{
+		/// Get the list of allowed signers.
+		fn oracle_signers() -> Vec<EvmAddress>;
+
+		/// Get the list of allowed call addresses.
+		fn oracle_call_addresses() -> Vec<EvmAddress>;
+	}
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;

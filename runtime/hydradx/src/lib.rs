@@ -1026,6 +1026,15 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_liquidation::LiquidationWorkerApi<Block> for Runtime {
+		fn oracle_signers() -> Vec<EvmAddress> {
+			pallet_liquidation::Pallet::<Runtime>::oracle_signers().into_inner()
+		}
+		fn oracle_call_addresses() -> Vec<EvmAddress> {
+			pallet_liquidation::Pallet::<Runtime>::oracle_call_addresses().into_inner()
+		}
+	}
+
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			if !matches!(xcm_version, 3 | 4) {

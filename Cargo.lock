@@ -6151,7 +6151,6 @@ dependencies = [
  "serde",
  "sp-arithmetic",
  "sp-core",
- "sp-io",
  "sp-std",
 ]
 

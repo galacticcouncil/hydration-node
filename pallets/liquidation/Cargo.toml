@@ -19,6 +19,7 @@ sp-std = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 sp-arithmetic = { workspace = true }
+sp-api = { workspace = true }
 
 # FRAME
 frame-support = { workspace = true }
@@ -54,7 +55,6 @@ pallet-asset-registry = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }
-sp-api = { workspace = true }
 orml-traits = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
 test-utils = { workspace = true }

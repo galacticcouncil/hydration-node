@@ -11,6 +11,7 @@ use hydradx_runtime::{
 	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
 	Block, Runtime, RuntimeCall,
 };
+use pallet_liquidation::LiquidationWorkerApi;
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use liquidation_worker_support::*;
@@ -31,26 +32,19 @@ use std::{cmp::Ordering, marker::PhantomData, sync::Arc};
 use threadpool::ThreadPool;
 use xcm_runtime_apis::dry_run::runtime_decl_for_dry_run_api::DryRunApiV1;
 
-pub const LOG_TARGET: &str = "liquidation-worker";
+const LOG_TARGET: &str = "liquidation-worker";
 // Address of the pool address provider contract.
 const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691"));
 // Account that calls the runtime API. Needs to have enough WETH balance to pay for the runtime API call.
 const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e"));
-// Account that signs the DIA oracle update transactions.
-const ORACLE_UPDATE_CALLER: &[EvmAddress] = &[
-	H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e")),
-	H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3")),
-];
-// Address of the DIA oracle contract.
-const ORACLE_UPDATE_CALL_ADDRESS: &[EvmAddress] = &[
-	H160(hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
-	H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5")),
-];
-const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38")); // Money market address
+// Money market address
+const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
+// Target value of HF we try to liquidate to.
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
+// Failed liquidations are suspended for this number of blocks before we try to execute them again.
 const WAIT_PERIOD: BlockNumber = 10;
 
-pub type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
+type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
 
 /// The configuration for the liquidation worker.
 /// By default, the worker is enabled and uses `PAP_CONTRACT`, `RUNTIME_API_CALLER` and `TARGET_HF` values.
@@ -68,16 +62,6 @@ pub struct LiquidationWorkerConfig {
 	#[clap(long)]
 	pub runtime_api_caller: Option<EvmAddress>,
 
-	/* TODO: would be nice if we can also configure oracle_update_caller and oracle_update_call_address,
-	 * but these are hardcoded in the runtime in validate_self_contained.
-	 */
-	// /// EVM address of the account that signs DIA oracle update.
-	// #[clap(long)]
-	// pub oracle_update_caller: Option<EvmAddress>,
-	//
-	// /// EVM address of the DIA oracle update call address.
-	// #[clap(long)]
-	// pub oracle_update_call_address: Option<EvmAddress>,
 	/// Target health factor
 	#[clap(long, default_value_t = TARGET_HF)]
 	pub target_hf: u128,
@@ -96,7 +80,7 @@ impl<B, C, BE, P> LiquidationTask<B, C, BE, P>
 where
 	B: BlockT,
 	C: ProvideRuntimeApi<B>,
-	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B>,
+	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + LiquidationWorkerApi<B>,
 	C: BlockchainEvents<B> + 'static,
 	C: HeaderBackend<B> + StorageProvider<B, BE>,
 	BE: Backend<B> + 'static,
@@ -211,6 +195,16 @@ where
 				waitlist.clear();
 			}
 
+			// Get allowed signers and allowed oracle call addresses.
+			// These values can be changed in the runtime, so get them on every block.
+			let runtime_api = client.runtime_api();
+			let hash = header.hash();
+			// Accounts that sign the DIA oracle update transactions.
+			let maybe_allowed_signers = runtime_api.oracle_signers(hash);
+			// Addresses of the DIA oracle contract.
+			let maybe_allowed_oracle_call_addresses = runtime_api.oracle_call_addresses(hash);
+			let (Ok(allowed_signers), Ok(allowed_oracle_call_addresses)) = (maybe_allowed_signers, maybe_allowed_oracle_call_addresses) else { return };
+
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
             while let Some(notification) = notification_st.next().await {
@@ -266,7 +260,7 @@ where
 				}
 
 				// Mainly listen to DIA oracle update transactions and verify the signer.
-				let Some(transaction) = Self::verify_oracle_update_transaction(transaction.0)
+				let Some(transaction) = Self::verify_oracle_update_transaction(transaction.0, &allowed_signers, &allowed_oracle_call_addresses)
 					else {
 						tracing::debug!(target: LOG_TARGET, "verify_oracle_update_transaction failed");
 						continue
@@ -504,6 +498,8 @@ where
 			hydradx_runtime::Signature,
 			hydradx_runtime::SignedExtra,
 		>,
+		allowed_signers: &Vec<EvmAddress>,
+		allowed_oracle_call_addresses: &Vec<EvmAddress>,
 	) -> Option<Transaction> {
 		if let RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) = extrinsic.function.clone() {
 			let action = match transaction.clone() {
@@ -514,10 +510,10 @@ where
 
 			// check if the transaction is DIA oracle update
 			if let pallet_ethereum::TransactionAction::Call(call_address) = action {
-				if ORACLE_UPDATE_CALL_ADDRESS.contains(&call_address) {
+				if allowed_oracle_call_addresses.contains(&call_address) {
 					// additional check to prevent running the worker for DIA oracle updates signed by invalid address
 					if let Some(Ok(signer)) = extrinsic.function.check_self_contained() {
-						if ORACLE_UPDATE_CALLER.contains(&signer) {
+						if allowed_signers.contains(&signer) {
 							return Some(transaction);
 						};
 					}
