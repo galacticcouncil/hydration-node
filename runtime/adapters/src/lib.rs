@@ -63,6 +63,7 @@ use xcm_executor::{
 
 pub mod inspect;
 pub mod price;
+pub mod stableswap_peg_oracle;
 pub mod xcm_exchange;
 
 #[cfg(test)]
