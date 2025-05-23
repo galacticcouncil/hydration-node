@@ -43,6 +43,7 @@ use hydradx_traits::{
 use hydradx_traits::{AccountIdFor, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
+use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
@@ -232,25 +233,37 @@ impl hydradx_traits::registry::Inspect for DummyRegistry {
 
 pub struct PegOracle;
 
-impl RawOracle<AssetId, Balance, u64> for PegOracle {
+impl PegRawOracle<AssetId, Balance, u64> for PegOracle {
 	type Error = ();
 
-	fn get_raw_entry(
-		_source: Source,
-		asset_a: AssetId,
-		asset_b: AssetId,
-		_period: OraclePeriod,
-	) -> Result<RawEntry<Balance, u64>, Self::Error> {
-		let (n, d, u) = PEG_ORACLE_VALUES
-			.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
-			.ok_or(())?;
+	fn get_raw_entry(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<RawEntry<Balance, u64>, Self::Error> {
+		match source {
+			PegSource::Value(v) => {
+				let (n, d) = v;
+				let u = System::block_number();
+				return Ok(RawEntry {
+					price: (n, d),
+					volume: Volume::default(),
+					liquidity: Liquidity::default(),
+					updated_at: u,
+				});
+			}
+			PegSource::Oracle((_, _, asset_id)) => {
+				let (n, d, u) = PEG_ORACLE_VALUES
+					.with(|v| v.borrow().get(&(asset_id, peg_asset)).copied())
+					.ok_or(())?;
 
-		Ok(RawEntry {
-			price: (n, d),
-			volume: Volume::default(),
-			liquidity: Liquidity::default(),
-			updated_at: u,
-		})
+				Ok(RawEntry {
+					price: (n, d),
+					volume: Volume::default(),
+					liquidity: Liquidity::default(),
+					updated_at: u,
+				})
+			}
+			PegSource::MMOracle(_) => {
+				panic!("not supported");
+			}
+		}
 	}
 }
 
@@ -351,6 +364,9 @@ impl EVM<CallResult> for MockEvm {
 								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
 							}
 						}
+					}
+					ERC20Function::FlashLoan => {
+						panic!("FlashLoan not implemented");
 					}
 				}
 			}

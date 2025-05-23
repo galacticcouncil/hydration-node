@@ -41,9 +41,9 @@ use sp_runtime::traits::Dispatchable;
 use codec::alloc;
 use ethabi::Token;
 use hex_literal::hex;
+use precompile_utils::keccak256;
 use primitive_types::{H160, U256};
 use sp_std::{borrow::ToOwned, vec::Vec};
-use precompile_utils::keccak256;
 
 pub mod chainlink_adapter;
 pub mod costs;

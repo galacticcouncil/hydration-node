@@ -25,13 +25,13 @@ use frame_support::{
 	traits::{ConstU32, Get, StorageInstance, Time},
 	Blake2_128Concat,
 };
+use precompile_utils::evm::writer::EvmDataWriter;
 use precompile_utils::{evm::costs::call_cost, prelude::*};
 use sp_core::{H160, H256, U256};
 use sp_io::hashing::keccak_256;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec;
 use sp_std::vec::Vec;
-use precompile_utils::evm::writer::EvmDataWriter;
 
 #[cfg(test)]
 mod mock;
@@ -68,5 +68,4 @@ where
 		log::trace!(target: "flash", "fee: {:?}", fee);
 		Ok(SUCCESS.into())
 	}
-
 }

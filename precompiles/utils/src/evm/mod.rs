@@ -24,7 +24,6 @@ pub mod handle;
 pub mod logs;
 pub mod writer;
 
-
 pub type EvmResult<T = ()> = Result<T, PrecompileFailure>;
 
 /// The `address` type of Solidity.
@@ -34,25 +33,24 @@ pub type EvmResult<T = ()> = Result<T, PrecompileFailure>;
 pub struct Address(pub H160);
 
 impl From<H160> for Address {
-    fn from(a: H160) -> Address {
-        Address(a)
-    }
+	fn from(a: H160) -> Address {
+		Address(a)
+	}
 }
 
 impl From<Address> for H160 {
-    fn from(a: Address) -> H160 {
-        a.0
-    }
+	fn from(a: Address) -> H160 {
+		a.0
+	}
 }
 
 #[must_use]
 pub fn revert(output: impl AsRef<[u8]>) -> PrecompileFailure {
-    PrecompileFailure::Revert {
-        exit_status: ExitRevert::Reverted,
-        output: output.as_ref().to_owned(),
-    }
+	PrecompileFailure::Revert {
+		exit_status: ExitRevert::Reverted,
+		output: output.as_ref().to_owned(),
+	}
 }
-
 
 /// The `bytes`/`string` type of Solidity.
 /// It is different from `Vec<u8>` which will be serialized with padding for each `u8` element
@@ -61,32 +59,32 @@ pub fn revert(output: impl AsRef<[u8]>) -> PrecompileFailure {
 pub struct Bytes(pub Vec<u8>);
 
 impl Bytes {
-    /// Interpret as `bytes`.
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
+	/// Interpret as `bytes`.
+	pub fn as_bytes(&self) -> &[u8] {
+		&self.0
+	}
 
-    /// Interpret as `string`.
-    /// Can fail if the string is not valid UTF8.
-    pub fn as_str(&self) -> Result<&str, sp_std::str::Utf8Error> {
-        sp_std::str::from_utf8(&self.0)
-    }
+	/// Interpret as `string`.
+	/// Can fail if the string is not valid UTF8.
+	pub fn as_str(&self) -> Result<&str, sp_std::str::Utf8Error> {
+		sp_std::str::from_utf8(&self.0)
+	}
 }
 
 impl From<&[u8]> for Bytes {
-    fn from(a: &[u8]) -> Self {
-        Self(a.to_owned())
-    }
+	fn from(a: &[u8]) -> Self {
+		Self(a.to_owned())
+	}
 }
 
 impl From<&str> for Bytes {
-    fn from(a: &str) -> Self {
-        a.as_bytes().into()
-    }
+	fn from(a: &str) -> Self {
+		a.as_bytes().into()
+	}
 }
 
 impl From<Bytes> for Vec<u8> {
-    fn from(val: Bytes) -> Self {
-        val.0
-    }
+	fn from(val: Bytes) -> Self {
+		val.0
+	}
 }

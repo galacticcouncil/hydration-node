@@ -55,6 +55,8 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_stableswap::types::PoolSnapshot;
+use precompile_utils::evm::writer::EvmDataWriter;
+use precompile_utils::evm::Bytes;
 use sp_core::{offchain::Duration, Get, H256, U256};
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
@@ -63,8 +65,6 @@ use sp_runtime::{
 	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
 	AccountId32, ArithmeticError, DispatchError, Perbill, Permill, Rounding, RuntimeDebug,
 };
-use precompile_utils::evm::Bytes;
-use precompile_utils::evm::writer::EvmDataWriter;
 
 mod math;
 pub mod traits;
@@ -84,7 +84,6 @@ pub enum ERC20Function {
 	Mint = "mint(address,uint256)",
 	Burn = "burn(uint256)",
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
-	CallbackSuccess= "CALLBACK_SUCCESS()",
 }
 
 /// Max number of approved assets.
@@ -798,40 +797,11 @@ pub mod pallet {
 
 				Self::mint_hollar(&hsm_account, hollar_amount_to_trade)?;
 
-				// Sell hollar to HSM for collateral
-				let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
+				Self::execute_arbitrage_with_flash_loan(
 					&hsm_account,
-					collateral_asset_id,
-					|pool_id, state| {
-						//we need to know how much collateral needs to be paid for given hollar
-						//so we simulate by buying exact amount of hollar
-						let collateral_amount = Self::simulate_in_given_out(
-							pool_id,
-							collateral_asset_id,
-							T::HollarId::get(),
-							hollar_amount_to_trade,
-							Balance::MAX,
-							state,
-						)?;
-						Ok((hollar_amount_to_trade, collateral_amount))
-					},
-					|(hollar_amount, _), price| {
-						let collateral_amount =
-							math::calculate_collateral_amount(hollar_amount, price).ok_or(ArithmeticError::Overflow)?;
-						Ok((hollar_amount, collateral_amount))
-					},
-				)?;
-				debug_assert_eq!(hollar_amount, hollar_amount_to_trade);
-
-				// Buy hollar from the collateral stable pool
-				let origin: OriginFor<T> = Origin::<T>::Signed(hsm_account.clone()).into();
-				pallet_stableswap::Pallet::<T>::buy(
-					origin,
 					collateral_info.pool_id,
-					T::HollarId::get(),
 					collateral_asset_id,
 					hollar_amount_to_trade,
-					collateral_received,
 				)?;
 
 				Self::burn_hollar(hollar_amount_to_trade)?;
@@ -859,7 +829,7 @@ pub mod pallet {
 			let hollar_address = T::GhoContractAddress::contract_address(T::HollarId::get()).unwrap();
 			log::trace!(target:"hsm", "hollar address {:?}", hollar_address);
 
-			let loan_data: sp_std::vec::Vec<u8> =  vec![];
+			let loan_data: sp_std::vec::Vec<u8> = vec![];
 			let data = EvmDataWriter::new_with_selector(ERC20Function::FlashLoan)
 				.write(receiver)
 				.write(hollar_address)
@@ -1383,5 +1353,50 @@ where
 				10u128.pow(collateral_decimals as u32),
 			))
 		}
+	}
+
+	pub fn execute_arbitrage_with_flash_loan(
+		account: &T::AccountId,
+		stable_pool_id: T::AssetId,
+		collateral_asset_id: T::AssetId,
+		loan_amount: Balance,
+	) -> DispatchResult {
+		// Sell hollar to HSM for collateral
+		let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
+			account,
+			collateral_asset_id,
+			|pool_id, state| {
+				//we need to know how much collateral needs to be paid for given hollar
+				//so we simulate by buying exact amount of hollar
+				let collateral_amount = Self::simulate_in_given_out(
+					pool_id,
+					collateral_asset_id,
+					T::HollarId::get(),
+					loan_amount,
+					Balance::MAX,
+					state,
+				)?;
+				Ok((loan_amount, collateral_amount))
+			},
+			|(hollar_amount, _), price| {
+				let collateral_amount =
+					math::calculate_collateral_amount(hollar_amount, price).ok_or(ArithmeticError::Overflow)?;
+				Ok((hollar_amount, collateral_amount))
+			},
+		)?;
+		debug_assert_eq!(hollar_amount, loan_amount);
+
+		// Buy hollar from the collateral stable pool
+		let origin: OriginFor<T> = Origin::<T>::Signed(account.clone()).into();
+		pallet_stableswap::Pallet::<T>::buy(
+			origin,
+			stable_pool_id,
+			T::HollarId::get(),
+			collateral_asset_id,
+			loan_amount,
+			collateral_received,
+		)?;
+
+		Ok(())
 	}
 }

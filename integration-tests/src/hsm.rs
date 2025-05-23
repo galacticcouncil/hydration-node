@@ -802,7 +802,6 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 
 use ethabi::ethereum_types::BigEndianHash;
 
-
 #[test]
 fn flash_loan_precompile_should_work() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
@@ -813,15 +812,14 @@ fn flash_loan_precompile_should_work() {
 		.execute(|| {
 			let hsm_address = hydradx_runtime::HSM::account_id();
 			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
-		)));
+				hsm_address.clone().into()
+			)));
 			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 			dbg!(&hsm_evm_address);
 			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
 
-			assert_ok!(HSM::run_flash_loan(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			));
-
+			assert_ok!(HSM::run_flash_loan(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			),));
 		});
 }

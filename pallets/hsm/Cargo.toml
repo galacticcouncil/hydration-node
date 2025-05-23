@@ -75,5 +75,6 @@ std = [
     "orml-tokens/std",
     "orml-traits/std",
     "pallet-broadcast/std",
+    "precompile-utils/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
