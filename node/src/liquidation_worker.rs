@@ -11,11 +11,11 @@ use hydradx_runtime::{
 	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
 	Block, Runtime, RuntimeCall,
 };
-use pallet_liquidation::LiquidationWorkerApi;
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use liquidation_worker_support::*;
 use pallet_ethereum::Transaction;
+use pallet_liquidation::LiquidationWorkerApi;
 use parking_lot::Mutex;
 use polkadot_primitives::EncodeAs;
 use primitives::{AccountId, BlockNumber};
@@ -41,7 +41,7 @@ const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc
 const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
 // Target value of HF we try to liquidate to.
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
-// Failed liquidations are suspended for this number of blocks before we try to execute them again.
+													   // Failed liquidations are suspended for this number of blocks before we try to execute them again.
 const WAIT_PERIOD: BlockNumber = 10;
 
 type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
