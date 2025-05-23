@@ -67,13 +67,6 @@ pub struct LiquidationWorkerConfig {
 	pub target_hf: u128,
 }
 
-// TODO: maybe use struct with data:
-// pub struct LiquidationTask<B, C, BE, P> {
-//     client: Arc<C>,
-//     transaction_pool: Arc<P>,
-//     spawner: SpawnTaskHandle,
-//     _phantom: PhantomData<(B, BE)>,
-// }
 pub struct LiquidationTask<B, C, BE, P>(PhantomData<(B, C, BE, P)>);
 
 impl<B, C, BE, P> LiquidationTask<B, C, BE, P>
