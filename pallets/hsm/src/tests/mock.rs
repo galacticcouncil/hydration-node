@@ -385,15 +385,25 @@ impl EVM<CallResult> for MockEvm {
 							let pool_id: u32 = reader.read().unwrap();
 							let arb_account = ALICE.into();
 							crate::Pallet::<Test>::mint_hollar(&arb_account, amount.as_u128()).unwrap();
+							let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
 							crate::Pallet::<Test>::execute_arbitrage_with_flash_loan(
-								&arb_account,
+								alice_evm,
 								pool_id,
 								collateral_asset_id,
 								amount.as_u128(),
 							)
 							.unwrap();
+
+							Tokens::transfer(
+								RuntimeOrigin::signed(ALICE),
+								crate::Pallet::<Test>::account_id(),
+								<Test as crate::Config>::HollarId::get(),
+								amount.as_u128(),
+							)
+							.unwrap();
+
 							crate::Pallet::<Test>::burn_hollar(amount.as_u128()).unwrap();
-							return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+							return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
 						} else {
 							panic!("incorrect data len");
 						}

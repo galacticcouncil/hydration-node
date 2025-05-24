@@ -266,6 +266,12 @@ benchmarks! {
 			max_in_holding
 		)?;
 
+		let flash_minter: EvmAddress = hex!["1212121212121212121212121212121212121212"].into();
+		Pallet::<T>::set_flash_minter(
+			RawOrigin::Root.into(),
+			flash_minter,
+		)?;
+
 		// Create account with hollar
 		let arb: T::AccountId = account("arber", 0, 0);
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
@@ -285,6 +291,14 @@ benchmarks! {
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {
 		assert!(HollarAmountReceived::<T>::iter().count().is_zero());
+	}
+
+	set_flash_minter{
+		let flash_minter: EvmAddress = hex!["1212121212121212121212121212121212121212"].into();
+		let successful_origin = <T as crate::Config>::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+	}: _<T::RuntimeOrigin>(successful_origin, flash_minter)
+	verify {
+		assert_eq!(FlashMinter::<T>::get(), Some(flash_minter));
 	}
 
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);

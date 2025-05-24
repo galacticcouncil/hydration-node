@@ -830,6 +830,8 @@ use ethabi::ethereum_types::BigEndianHash;
 fn arbitrage_should_work() {
 	TestNet::reset();
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
 			hsm_address.clone().into()
@@ -907,6 +909,12 @@ fn arbitrage_should_work() {
 			Perbill::from_percent(70),
 			None
 		));
+
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+
 		// let's buy some hollar, so hsm holds some collateral
 		assert_ok!(HSM::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),

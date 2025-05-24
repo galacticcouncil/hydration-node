@@ -177,8 +177,8 @@ pub mod pallet {
 
 	/// Address of the flash loan receiver.
 	#[pallet::storage]
-	#[pallet::getter(fn flash_loan_receiver)]
-	pub type FlashLoanReceiver<T: Config> = StorageValue<_, EvmAddress, OptionQuery>;
+	#[pallet::getter(fn flash_minter)]
+	pub type FlashMinter<T: Config> = StorageValue<_, EvmAddress, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -233,6 +233,12 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			hollar_amount: Balance,
 		},
+
+		/// Flash minter address set
+		///
+		/// Parameters:
+		/// - `flash_minter`: The EVM address of the flash minter contract
+		FlashMinterSet { flash_minter: EvmAddress },
 	}
 
 	#[pallet::error]
@@ -316,6 +322,9 @@ pub mod pallet {
 
 		/// HSM contains maximum number of allowed collateral assets.
 		MaxNumberOfCollateralsReached,
+
+		/// Flash minter address not set
+		FlashMinterNotSet,
 	}
 
 	#[pallet::hooks]
@@ -788,12 +797,14 @@ pub mod pallet {
 		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
 			ensure_none(origin)?;
 
+			let flash_minter = FlashMinter::<T>::get().ok_or(Error::<T>::FlashMinterNotSet)?;
+
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 
 			let hollar_amount_to_trade = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
 
 			if hollar_amount_to_trade > 0 {
-				let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+				//let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
 				let receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
 				let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
@@ -835,6 +846,20 @@ pub mod pallet {
 			} else {
 				Err(Error::<T>::NoArbitrageOpportunity.into())
 			}
+		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_flash_minter())]
+		pub fn set_flash_minter(origin: OriginFor<T>, flash_minter_addr: EvmAddress) -> DispatchResult {
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
+
+			FlashMinter::<T>::put(flash_minter_addr);
+
+			Self::deposit_event(Event::<T>::FlashMinterSet {
+				flash_minter: flash_minter_addr,
+			});
+
+			Ok(())
 		}
 	}
 }
