@@ -112,15 +112,11 @@ where
 					});
 				}
 
-				//TODO: remove fee mint - this is a workaround for now because we need to add the caller to list of borrowers first, so fee is 0
-				let this_account_id = <Runtime as pallet_hsm::Config>::EvmAccounts::account_id(this);
-				let _ = pallet_hsm::Pallet::<Runtime>::mint_hollar(&this_account_id, fee.as_u128());
-
 				// Approve the transfer of the loan
 				let cc = CallContext::new_call(token.0, this);
 				let mut data = Into::<u32>::into(Function::Approve).to_be_bytes().to_vec();
 				data.extend_from_slice(H256::from(caller).as_bytes());
-				data.extend_from_slice(H256::from_uint(&(amount + fee)).as_bytes());
+				data.extend_from_slice(H256::from_uint(&amount).as_bytes());
 
 				let (exit_reason, v) = <Runtime as pallet_hsm::Config>::Evm::call(cc, data, U256::zero(), 100_000);
 				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {

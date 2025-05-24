@@ -46,6 +46,7 @@ pub enum Function {
 	BalanceOf = "balanceOf(address)",
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
 	AddFlashBorrower = "addFlashBorrower(address)",
+	IsFlashBorrower = "isFlashBorrower(address)",
 }
 
 fn hollar_contract_address() -> EvmAddress {
@@ -97,7 +98,7 @@ fn add_facilitator(facilitator: EvmAddress, label: &str, capacity: u128) {
 }
 
 fn add_flash_borrower(borrower: EvmAddress) {
-	let acl_manager = hex!["8c5E657CA8879ada34555130F3Be255ae47558B5"].into();
+	let acl_manager = hex!["c54dcFaEB75F56907E8B1De931dB4E37Bd0Afbb4"].into();
 	let context = CallContext::new_call(acl_manager, hollar_contract_manager());
 	let data = EvmDataWriter::new_with_selector(Function::AddFlashBorrower)
 		.write(borrower)
@@ -105,6 +106,17 @@ fn add_flash_borrower(borrower: EvmAddress) {
 
 	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
 	std::assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
+}
+
+fn check_flash_borrower(borrower: EvmAddress) -> bool {
+	let acl_manager = hex!["c54dcFaEB75F56907E8B1De931dB4E37Bd0Afbb4"].into();
+	let data = EvmDataWriter::new_with_selector(Function::IsFlashBorrower)
+		.write(borrower)
+		.build();
+	let context = CallContext::new_view(acl_manager);
+	let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
+	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
+	!value.is_empty() && value.iter().any(|&x| x != 0)
 }
 
 fn mint(facilitator: EvmAddress, to: EvmAddress, amount: u128) {
@@ -825,7 +837,9 @@ fn arbitrage_should_work() {
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
 
+		assert!(!check_flash_borrower(hsm_evm_address));
 		add_flash_borrower(hsm_evm_address);
+		assert!(check_flash_borrower(hsm_evm_address));
 
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
 			ALICE.into()
