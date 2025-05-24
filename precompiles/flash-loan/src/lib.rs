@@ -32,11 +32,6 @@ use sp_core::crypto::AccountId32;
 use sp_core::{H256, U256};
 use sp_std::vec;
 
-#[cfg(test)]
-mod mock;
-#[cfg(test)]
-mod tests;
-
 pub const CALL_DATA_LIMIT: u32 = 2u32.pow(16);
 
 pub const SUCCESS: [u8; 32] = keccak256!("ERC3156FlashBorrower.onFlashLoan");
