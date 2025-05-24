@@ -80,7 +80,6 @@ where
 
 		let mut reader = EvmDataReader::new(&data.as_bytes());
 		let data_ident: u8 = reader.read()?;
-		log::trace!(target: "flash", "data_ident: {:?}", data_ident);
 
 		match data_ident {
 			0 => {
@@ -99,8 +98,6 @@ where
 				let collateral_asset_id: u32 = reader.read()?;
 				let pool_id: u32 = reader.read()?;
 
-				log::trace!(target: "flash", "collateral_asset_id: {:?}", collateral_asset_id);
-				log::trace!(target: "flash", "pool_id: {:?}", pool_id);
 				let r = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
 					this,
 					pool_id.into(),
@@ -116,7 +113,7 @@ where
 				}
 
 				//TODO: remove fee mint - this is a workaround for now because we need to add the caller to list of borrowers first, so fee is 0
-				let r = pallet_hsm::Pallet::<Runtime>::mint_hollar_to_evm(&this, fee.as_u128());
+				let _ = pallet_hsm::Pallet::<Runtime>::mint_hollar_to_evm(&this, fee.as_u128());
 
 				// Approve the transfer of the loan
 				let cc = CallContext::new_call(token.0, this);
