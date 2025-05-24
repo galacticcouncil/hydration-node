@@ -38,10 +38,9 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use hydradx_adapters::{
-	stableswap_peg_oracle::PegOracle, AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT,
-	MultiCurrencyLockedBalance, OmnipoolHookAdapter, OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider,
-	PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider, StableswapHooksAdapter,
-	VestingInfo,
+	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
+	OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
+	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
 use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 pub use hydradx_traits::{
@@ -1405,7 +1404,7 @@ impl pallet_stableswap::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	type AmplificationRange = StableswapAmplificationRange;
-	type TargetPegOracle = PegOracle<Runtime, evm::Executor<Runtime>, EmaOracle>;
+	type TargetPegOracle = EmaOracle;
 	type WeightInfo = weights::pallet_stableswap::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = RegisterAsset<Runtime>;

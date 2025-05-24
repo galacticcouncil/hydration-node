@@ -31,7 +31,7 @@ use crate as pallet_stableswap;
 use crate::Config;
 
 use crate::types::BoundedPegSources;
-use crate::{PegRawOracle, PegSource, PegType};
+use crate::PegType;
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, BoundedVec};
@@ -198,7 +198,7 @@ impl Config for Test {
 	type Hooks = DummyHookAdapter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DummyRegistry;
-	type TargetPegOracle = DummyPegOracle;
+	type TargetPegOracle = PegOracle;
 }
 
 pub struct InitialLiquidity {
@@ -369,10 +369,10 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{PoolInfo, PoolState, StableswapHooks};
+use crate::types::{PegSource, PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, RawEntry, Source};
+use hydradx_traits::{AccountIdFor, Inspect, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
@@ -533,35 +533,27 @@ pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
 		.collect()
 }
 
-pub struct DummyPegOracle;
+pub struct PegOracle;
 
-impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
+impl RawOracle<AssetId, Balance, u64> for PegOracle {
 	type Error = ();
 
-	fn get_raw_entry(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<RawEntry<Balance, u64>, Self::Error> {
-		match source {
-			PegSource::Oracle((_, _, oracle_asset)) => {
-				let (n, d, u) = PEG_ORACLE_VALUES
-					.with(|v| v.borrow().get(&(oracle_asset, peg_asset)).copied())
-					.ok_or(())?;
+	fn get_raw_entry(
+		_source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		_period: OraclePeriod,
+	) -> Result<RawEntry<Balance, u64>, Self::Error> {
+		let (n, d, u) = PEG_ORACLE_VALUES
+			.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
+			.ok_or(())?;
 
-				return Ok(RawEntry {
-					price: (n, d),
-					volume: Default::default(),
-					liquidity: Default::default(),
-					updated_at: u,
-				});
-			}
-			PegSource::Value(peg) => {
-				return Ok(RawEntry {
-					price: peg,
-					volume: Default::default(),
-					liquidity: Default::default(),
-					updated_at: System::block_number(),
-				});
-			}
-			_ => panic!("unusupported oracle types: {:?}", source),
-		}
+		Ok(RawEntry {
+			price: (n, d),
+			volume: Volume::default(),
+			liquidity: Liquidity::default(),
+			updated_at: u,
+		})
 	}
 }
 

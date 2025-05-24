@@ -885,3 +885,48 @@ fn conviction_voting_hook_vote_cap_should_work() {
 			assert_eq!(staking_votes[0].1, Vote::new(0, Conviction::Locked6x));
 		});
 }
+
+#[test]
+fn remove_last_vote_should_clean_votes_storage() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE)])
+		.start_at_block(1_452_987)
+		.with_initialized_staking()
+		.with_stakes(vec![(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE)])
+		.with_votings(vec![(
+			0,
+			vec![
+				(
+					1_u32,
+					Vote {
+						amount: 10_000 * ONE,
+						conviction: Conviction::Locked4x,
+					},
+				),
+				(
+					2_u32,
+					Vote {
+						amount: 20_000 * ONE,
+						conviction: Conviction::Locked2x,
+					},
+				),
+			],
+		)])
+		.build()
+		.execute_with(|| {
+			let position_id = 0;
+
+			//Act
+			StakingConvictionVoting::<Test>::on_remove_vote(&ALICE, 1, Some(true));
+
+			//Assert
+			assert_eq!(Votes::<Test>::get(position_id).votes.len(), 1);
+			assert_eq!(Votes::<Test>::contains_key(position_id), true);
+
+			//Act
+			StakingConvictionVoting::<Test>::on_remove_vote(&ALICE, 2, Some(true));
+
+			//Assert
+			assert_eq!(Votes::<Test>::contains_key(position_id), false);
+		});
+}

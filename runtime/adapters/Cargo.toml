@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "1.6.0"
+version = "1.5.3"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -11,7 +11,6 @@ repository = "https://github.com/galacticcouncil/warehouse/tree/master/adapters"
 codec = { workspace = true }
 log = { workspace = true }
 scale-info = { workspace = true }
-pallet-timestamp = { workspace = true }
 
 # HydraDX dependencies
 primitives = { workspace = true }
@@ -34,12 +33,6 @@ pallet-lbp = { workspace = true }
 pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-broadcast = { workspace = true }
-
-# Evm
-num_enum = { workspace = true, default-features = false }
-module-evm-utility-macro = { workspace = true }
-evm = { workspace = true, features = ["with-codec"] }
-ethabi = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -121,5 +114,4 @@ std = [
     "pallet-asset-registry/std",
     "pallet-omnipool-liquidity-mining/std",
     "pallet-bonds/std",
-    "pallet-timestamp/std",
 ]

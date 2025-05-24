@@ -210,7 +210,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// List of position votes.
 	#[pallet::getter(fn get_position_votes)]
-	pub(super) type Votes<T: Config> =
+	pub type Votes<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
 
 	#[pallet::storage]
@@ -455,7 +455,7 @@ pub mod pallet {
 
 		/// Extrinsic to increase staked amount of existing staking position by specified `amount`.
 		///
-		/// `increase_stake` increases staked amount of position specified by `postion_id` by the
+		/// `increase_stake` increases staked amount of position specified by `position_id` by the
 		/// `amount` specified by the user.
 		/// Staking position must exist and `origin` has to be the owner of the position.
 		/// Users can stake tokens which are not vested or already staked.

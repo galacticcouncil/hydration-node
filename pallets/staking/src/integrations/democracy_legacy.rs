@@ -56,8 +56,13 @@ where
 							position.action_points = position.action_points.saturating_add(points);
 						}
 					}
-					PositionVotes::<T>::mutate(position_id, |voting| {
-						voting.votes.remove(vote_idx);
+					PositionVotes::<T>::mutate_exists(position_id, |voting| {
+						if let Some(v) = voting {
+							v.votes.remove(vote_idx);
+							if v.votes.is_empty() {
+								*voting = None;
+							}
+						}
 					});
 				}
 			}
