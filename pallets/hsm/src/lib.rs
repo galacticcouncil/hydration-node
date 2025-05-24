@@ -819,7 +819,7 @@ pub mod pallet {
 				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), 5_000_000);
 
 				// Check if the call was successful
-				if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 					log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
 					return Err(Error::<T>::InvalidEVMInteraction.into());
 				}
@@ -1082,7 +1082,7 @@ where
 	/// The HSM pallet acts as the facilitator for minting.
 	///
 	/// Returns Ok if successful, or an error if the EVM interaction fails.
-	fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
+	pub fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
 		let contract = Self::get_hollar_contract_address()?;
 		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
@@ -1093,6 +1093,32 @@ where
 		let recipient_evm = T::EvmAccounts::evm_address(who);
 		let mut data = Into::<u32>::into(ERC20Function::Mint).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(recipient_evm).as_bytes());
+		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
+
+		// Execute the EVM call
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+
+		// Check if the call was successful
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
+			return Err(Error::<T>::InvalidEVMInteraction.into());
+		}
+
+		Ok(())
+	}
+
+	pub fn mint_hollar_to_evm(who: &EvmAddress, amount: Balance) -> DispatchResult {
+		log::error!(target: "hsm", "Minting fee Hollar to EVM address {:?}", amount);
+		let contract = Self::get_hollar_contract_address()?;
+		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
+
+		// Create the context for the EVM call
+		let context = CallContext::new_call(contract, pallet_address);
+
+		// Encode the mint function call with recipient and amount
+		let recipient_evm = who;
+		let mut data = Into::<u32>::into(ERC20Function::Mint).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(*recipient_evm).as_bytes());
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 
 		// Execute the EVM call
@@ -1341,14 +1367,27 @@ where
 	}
 
 	pub fn execute_arbitrage_with_flash_loan(
-		account: &T::AccountId,
+		account: EvmAddress,
 		stable_pool_id: T::AssetId,
 		collateral_asset_id: T::AssetId,
 		loan_amount: Balance,
 	) -> DispatchResult {
+		let flash_loan_account = T::EvmAccounts::account_id(account);
+		let hsm_account = Self::account_id();
+
+		// We transfer the loan amount to hsm account
+		// Because hsm holds the collateral
+		<T as Config>::Currency::transfer(
+			T::HollarId::get(),
+			&flash_loan_account,
+			&hsm_account,
+			loan_amount,
+			Preservation::Expendable,
+		)?;
+
 		// Sell hollar to HSM for collateral
 		let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
-			account,
+			&hsm_account,
 			collateral_asset_id,
 			|pool_id, state| {
 				//we need to know how much collateral needs to be paid for given hollar
@@ -1372,7 +1411,7 @@ where
 		debug_assert_eq!(hollar_amount, loan_amount);
 
 		// Buy hollar from the collateral stable pool
-		let origin: OriginFor<T> = Origin::<T>::Signed(account.clone()).into();
+		let origin: OriginFor<T> = Origin::<T>::Signed(hsm_account.clone()).into();
 		pallet_stableswap::Pallet::<T>::buy(
 			origin,
 			stable_pool_id,
@@ -1380,6 +1419,15 @@ where
 			collateral_asset_id,
 			loan_amount,
 			collateral_received,
+		)?;
+
+		// We transfer the loan amount back to the flash loan account
+		<T as Config>::Currency::transfer(
+			T::HollarId::get(),
+			&hsm_account,
+			&flash_loan_account,
+			loan_amount,
+			Preservation::Expendable,
 		)?;
 
 		Ok(())

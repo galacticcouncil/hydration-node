@@ -19,6 +19,9 @@ precompile-utils = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 pallet-timestamp = { workspace = true }
+pallet-hsm = { workspace = true }
+pallet-stableswap= { workspace = true }
+hydradx-traits = { workspace = true }
 codec = { workspace = true, features = [ "max-encoded-len" ] }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
@@ -29,6 +32,8 @@ sp-std = { workspace = true }
 evm = { workspace = true, features = [ "with-codec" ] }
 fp-evm = { workspace = true }
 pallet-evm = { workspace = true, features = [ "forbid-evm-reentrancy" ] }
+module-evm-utility-macro = { workspace = true }
+ethabi = { workspace = true }
 
 [dev-dependencies]
 derive_more = { workspace = true }
@@ -55,4 +60,7 @@ std = [
 	"sp-core/std",
 	"sp-io/std",
 	"sp-std/std",
+	"pallet-hsm/std",
+	"pallet-stableswap/std",
+	"hydradx-traits/std",
 ]

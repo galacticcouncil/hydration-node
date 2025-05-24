@@ -879,6 +879,7 @@ fn arbitrage_should_work() {
 			Perbill::from_percent(70),
 			None
 		));
+		// let's buy some hollar, so hsm holds some collateral
 		assert_ok!(HSM::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			2,
@@ -887,10 +888,10 @@ fn arbitrage_should_work() {
 			u128::MAX,
 		));
 
-		let alice_hollar_balance = balance_of(alice_evm_address);
-		let alice_dai_balance = Tokens::free_balance(2, &AccountId::from(ALICE));
 		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
-
 		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2));
+		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+		let traded_amount = hsm_dai_balance - final_hsm_dai_balance;
+		assert_eq!(traded_amount, 999_642_225_291_583_959);
 	});
 }

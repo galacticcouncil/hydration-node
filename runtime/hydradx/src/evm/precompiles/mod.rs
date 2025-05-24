@@ -40,9 +40,10 @@ use sp_runtime::traits::Dispatchable;
 
 use codec::alloc;
 use ethabi::Token;
+use frame_support::pallet_prelude::IsType;
 use hex_literal::hex;
-use precompile_utils::keccak256;
 use primitive_types::{H160, U256};
+use sp_core::crypto::AccountId32;
 use sp_std::{borrow::ToOwned, vec::Vec};
 
 pub mod chainlink_adapter;
@@ -109,15 +110,19 @@ pub fn is_standard_precompile(address: H160) -> bool {
 
 impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
-	R: pallet_evm::Config + pallet_currencies::Config + pallet_evm_accounts::Config,
+	R: pallet_evm::Config
+		+ pallet_currencies::Config
+		+ pallet_evm_accounts::Config
+		+ pallet_stableswap::Config
+		+ pallet_hsm::Config,
 	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
 	MultiCurrencyPrecompile<R>: Precompile,
 	ChainlinkOraclePrecompile<R>: Precompile,
+	<R as frame_system::pallet::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	<R as pallet_stableswap::pallet::Config>::AssetId: From<u32>,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
-		log::trace!(target: "precompiles", "execute precompile: enter");
-
 		let context = handle.context();
 		let address = handle.code_address();
 
@@ -128,8 +133,6 @@ where
 				output: "precompile cannot be called with DELEGATECALL or CALLCODE".into(),
 			}));
 		}
-
-		log::trace!(target: "precompiles", "execute precompile: {:?}", address);
 
 		if address == ECRECOVER {
 			Some(ECRecover::execute(handle))
@@ -162,7 +165,6 @@ where
 		} else if is_oracle_address(address) {
 			Some(ChainlinkOraclePrecompile::<R>::execute(handle))
 		} else {
-			log::error!(target: "precompiles", "execute precompile: invalid address: {:?}", address);
 			None
 		}
 	}
