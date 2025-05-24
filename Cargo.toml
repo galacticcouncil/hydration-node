@@ -300,6 +300,7 @@ cumulus-primitives-timestamp = { git = "https://github.com/galacticcouncil/polka
 cumulus-primitives-utility = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }
 cumulus-relay-chain-inprocess-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }
 cumulus-relay-chain-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }
+cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }
 cumulus-relay-chain-minimal-node = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }
 cumulus-test-relay-sproof-builder = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }
 pallet-collator-selection = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3", default-features = false }
@@ -383,7 +384,6 @@ orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-modu
 orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2409" }
 
 [patch."https://github.com/moonbeam-foundation/polkadot-sdk"]
-cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
@@ -504,6 +504,7 @@ cumulus-primitives-timestamp = { git = "https://github.com/galacticcouncil/polka
 cumulus-primitives-utility = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-relay-chain-inprocess-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-relay-chain-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
+cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-relay-chain-minimal-node = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-test-relay-sproof-builder = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 pallet-collator-selection = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
@@ -661,6 +662,7 @@ cumulus-primitives-timestamp = { git = "https://github.com/galacticcouncil/polka
 cumulus-primitives-utility = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-relay-chain-inprocess-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-relay-chain-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
+cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-relay-chain-minimal-node = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-test-relay-sproof-builder = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 pallet-collator-selection = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
