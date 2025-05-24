@@ -801,14 +801,13 @@ pub mod pallet {
 
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 
-			let hollar_amount_to_trade = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
+			let flash_loan_amount = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
 
-			if hollar_amount_to_trade > 0 {
-				//let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
-				let receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
-				let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
+			if flash_loan_amount > 0 {
+				let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
+				let hsm_address = T::EvmAccounts::evm_address(&Self::account_id());
 
-				let context = CallContext::new_call(flash_minter, pallet_address);
+				let context = CallContext::new_call(flash_minter, hsm_address);
 				let hollar_address = T::GhoContractAddress::contract_address(T::HollarId::get())
 					.ok_or(Error::<T>::HollarContractAddressNotFound)?;
 
@@ -820,26 +819,22 @@ pub mod pallet {
 					.write(pool_id_u32)
 					.build();
 				let data = EvmDataWriter::new_with_selector(ERC20Function::FlashLoan)
-					.write(receiver)
+					.write(loan_receiver)
 					.write(hollar_address)
-					.write(hollar_amount_to_trade)
+					.write(flash_loan_amount)
 					.write(Bytes(arb_data))
 					.build();
 
-				// Execute the EVM call
-				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), 5_000_000);
+				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-				// Check if the call was successful
 				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 					log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
 					return Err(Error::<T>::InvalidEVMInteraction.into());
 				}
 
-				log::trace!(target: "hsm", "Flash loan Hollar EVM execution succeeded. Value: {:?}", value);
-
 				Self::deposit_event(Event::<T>::ArbitrageExecuted {
 					asset_id: collateral_asset_id,
-					hollar_amount: hollar_amount_to_trade,
+					hollar_amount: flash_loan_amount,
 				});
 
 				Ok(())
@@ -1109,7 +1104,7 @@ where
 	/// The HSM pallet acts as the facilitator for minting.
 	///
 	/// Returns Ok if successful, or an error if the EVM interaction fails.
-	pub fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
+	fn mint_hollar(who: &T::AccountId, amount: Balance) -> DispatchResult {
 		let contract = Self::get_hollar_contract_address()?;
 		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
@@ -1374,21 +1369,10 @@ where
 		loan_amount: Balance,
 	) -> DispatchResult {
 		let flash_loan_account = T::EvmAccounts::account_id(account);
-		let hsm_account = Self::account_id();
-
-		// We transfer the loan amount to hsm account
-		// Because hsm holds the collateral
-		<T as Config>::Currency::transfer(
-			T::HollarId::get(),
-			&flash_loan_account,
-			&hsm_account,
-			loan_amount,
-			Preservation::Expendable,
-		)?;
 
 		// Sell hollar to HSM for collateral
 		let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
-			&hsm_account,
+			&flash_loan_account,
 			collateral_asset_id,
 			|pool_id, state| {
 				//we need to know how much collateral needs to be paid for given hollar
@@ -1412,7 +1396,7 @@ where
 		debug_assert_eq!(hollar_amount, loan_amount);
 
 		// Buy hollar from the collateral stable pool
-		let origin: OriginFor<T> = Origin::<T>::Signed(hsm_account.clone()).into();
+		let origin: OriginFor<T> = Origin::<T>::Signed(flash_loan_account.clone()).into();
 		pallet_stableswap::Pallet::<T>::buy(
 			origin,
 			stable_pool_id,
@@ -1422,14 +1406,20 @@ where
 			collateral_received,
 		)?;
 
-		// We transfer the loan amount back to the flash loan account
-		<T as Config>::Currency::transfer(
-			T::HollarId::get(),
-			&hsm_account,
-			&flash_loan_account,
-			loan_amount,
-			Preservation::Expendable,
-		)?;
+		let remaining = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+		if remaining > 0 {
+			log::trace!(target: "hsm", "Collateral remaining : {:?}", remaining);
+			// In case there is some collateral left after the buy,
+			// we transfer it to the HSM account
+			let hsm_account = Self::account_id();
+			<T as Config>::Currency::transfer(
+				collateral_asset_id,
+				&flash_loan_account,
+				&hsm_account,
+				remaining,
+				Preservation::Expendable,
+			)?;
+		}
 
 		Ok(())
 	}
