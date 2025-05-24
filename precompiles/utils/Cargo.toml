@@ -23,6 +23,8 @@ similar-asserts = { workspace = true, optional = true }
 
 # Moonbeam
 precompile-utils-macro = { path = "macro" }
+primitive-types = { workspace = true }
+smallvec = { workspace = true }
 
 # Substrate
 frame-support = { workspace = true }
