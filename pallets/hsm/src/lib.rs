@@ -793,18 +793,36 @@ pub mod pallet {
 			let hollar_amount_to_trade = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
 
 			if hollar_amount_to_trade > 0 {
-				let hsm_account = Self::account_id();
+				let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+				let receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
+				let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 
-				Self::mint_hollar(&hsm_account, hollar_amount_to_trade)?;
+				let context = CallContext::new_call(flash_minter, pallet_address);
+				let hollar_address = T::GhoContractAddress::contract_address(T::HollarId::get())
+					.ok_or(Error::<T>::HollarContractAddressNotFound)?;
 
-				Self::execute_arbitrage_with_flash_loan(
-					&hsm_account,
-					collateral_info.pool_id,
-					collateral_asset_id,
-					hollar_amount_to_trade,
-				)?;
+				let c_asset_id: u32 = collateral_asset_id.into();
+				let pool_id_u32: u32 = collateral_info.pool_id.into();
+				let arb_data = EvmDataWriter::new()
+					.write(0u8)
+					.write(c_asset_id)
+					.write(pool_id_u32)
+					.build();
+				let data = EvmDataWriter::new_with_selector(ERC20Function::FlashLoan)
+					.write(receiver)
+					.write(hollar_address)
+					.write(hollar_amount_to_trade)
+					.write(Bytes(arb_data))
+					.build();
 
-				Self::burn_hollar(hollar_amount_to_trade)?;
+				// Execute the EVM call
+				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), 5_000_000);
+
+				// Check if the call was successful
+				if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+					log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
+					return Err(Error::<T>::InvalidEVMInteraction.into());
+				}
 
 				Self::deposit_event(Event::<T>::ArbitrageExecuted {
 					asset_id: collateral_asset_id,
@@ -815,39 +833,6 @@ pub mod pallet {
 			} else {
 				Err(Error::<T>::NoArbitrageOpportunity.into())
 			}
-		}
-
-		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage())]
-		pub fn run_flash_loan(origin: OriginFor<T>) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
-			let receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
-			let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
-
-			let context = CallContext::new_call(flash_minter, pallet_address);
-			let hollar_address = T::GhoContractAddress::contract_address(T::HollarId::get()).unwrap();
-			log::trace!(target:"hsm", "hollar address {:?}", hollar_address);
-
-			let loan_data: sp_std::vec::Vec<u8> = vec![];
-			let data = EvmDataWriter::new_with_selector(ERC20Function::FlashLoan)
-				.write(receiver)
-				.write(hollar_address)
-				.write(1_000_000_000_000_000_000u128)
-				.write(Bytes::from(loan_data.as_slice()))
-				.build();
-
-			// Execute the EVM call
-			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), 5_000_000);
-
-			// Check if the call was successful
-			if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-				let s = precompile_utils::prelude::String::from_utf8_lossy(&value);
-				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, s);
-				return Err(Error::<T>::InvalidEVMInteraction.into());
-			}
-
-			Ok(())
 		}
 	}
 }

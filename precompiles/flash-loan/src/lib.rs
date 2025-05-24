@@ -25,7 +25,7 @@ use frame_support::{
 	traits::{ConstU32, Get, StorageInstance, Time},
 	Blake2_128Concat,
 };
-use precompile_utils::evm::writer::EvmDataWriter;
+use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::{evm::costs::call_cost, prelude::*};
 use sp_core::{H160, H256, U256};
 use sp_io::hashing::keccak_256;
@@ -59,6 +59,8 @@ where
 		data: BoundedBytes<ConstU32<CALL_DATA_LIMIT>>,
 	) -> EvmResult<H256> {
 		log::trace!(target: "flash", "flash loan received");
+		// Initiator is the one who called the flash loan.
+		// This is the address that contains the flash loan amount.
 		let caller = handle.context().caller;
 		let this = handle.context().address;
 		log::trace!(target: "flash", "this: {:?}", this);
@@ -66,6 +68,16 @@ where
 		log::trace!(target: "flash", "initiator: {:?}", initiator);
 		log::trace!(target: "flash", "amt: {:?}", amount);
 		log::trace!(target: "flash", "fee: {:?}", fee);
+
+		let mut reader = EvmDataReader::new(&data.as_bytes());
+		let data_ident: u8 = reader.read().unwrap();
+		let collateral_asset_id: u32 = reader.read().unwrap();
+		let pool_id: u32 = reader.read().unwrap();
+
+		log::trace!(target: "flash", "data_ident: {:?}", data_ident);
+		log::trace!(target: "flash", "collateral_asset_id: {:?}", collateral_asset_id);
+		log::trace!(target: "flash", "pool_id: {:?}", pool_id);
+
 		Ok(SUCCESS.into())
 	}
 }

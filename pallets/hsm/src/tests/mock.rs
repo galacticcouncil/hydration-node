@@ -40,11 +40,12 @@ use hydradx_traits::{
 	stableswap::AssetAmount,
 	AssetKind, BoundErc20, Inspect,
 };
-use hydradx_traits::{AccountIdFor, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
+use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Source, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
+use precompile_utils::evm::writer::EvmDataReader;
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::{BoundedVec, Perbill};
@@ -366,7 +367,36 @@ impl EVM<CallResult> for MockEvm {
 						}
 					}
 					ERC20Function::FlashLoan => {
-						panic!("FlashLoan not implemented");
+						if data.len() >= 4 + 32 + 32 + 32 {
+							// Extract recipient address (padded to 32 bytes in ABI encoding)
+							let receiver: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
+							let _receiver_evm = EvmAddress::from_slice(&receiver[12..32]);
+
+							let hollar: [u8; 32] = data[4 + 32..4 + 32 + 32].try_into().unwrap_or([0; 32]);
+							let _hollar_evm = EvmAddress::from_slice(&hollar[12..32]);
+
+							let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap();
+							let amount = U256::from_big_endian(&amount_bytes);
+
+							let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
+							let mut reader = EvmDataReader::new(&arb_data);
+							let _data_ident: u8 = reader.read().unwrap();
+							let collateral_asset_id: u32 = reader.read().unwrap();
+							let pool_id: u32 = reader.read().unwrap();
+							let arb_account = ALICE.into();
+							crate::Pallet::<Test>::mint_hollar(&arb_account, amount.as_u128()).unwrap();
+							crate::Pallet::<Test>::execute_arbitrage_with_flash_loan(
+								&arb_account,
+								pool_id,
+								collateral_asset_id,
+								amount.as_u128(),
+							)
+							.unwrap();
+							crate::Pallet::<Test>::burn_hollar(amount.as_u128()).unwrap();
+							return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+						} else {
+							panic!("incorrect data len");
+						}
 					}
 				}
 			}
