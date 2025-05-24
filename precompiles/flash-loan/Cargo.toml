@@ -1,24 +1,19 @@
 [package]
 name = "pallet-evm-precompile-flash-loan"
-description = "A Precompile to dispatch a call with a ERC712 permit."
+description = "A Precompile to handle flash loan."
 edition = "2021"
-version = "0.1.4"
-authors = ["PureStake"]
-repository = "https://github.com/PureStake/moonbeam"
+version = "1.0.0"
+authors = ["GalacticCouncil"]
+repository = "https://github.com/galacticcouncil/hydration-node"
 
 [dependencies]
 log = { workspace = true }
 num_enum = { workspace = true }
-paste = { workspace = true }
-slices = { workspace = true }
-
-# Moonbeam
 precompile-utils = { workspace = true }
 
 # Substrate
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-pallet-timestamp = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-stableswap= { workspace = true }
 hydradx-traits = { workspace = true }
@@ -36,17 +31,6 @@ module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
 
 [dev-dependencies]
-derive_more = { workspace = true }
-hex-literal = { workspace = true }
-libsecp256k1 = { workspace = true }
-serde = { workspace = true }
-sha3 = { workspace = true }
-
-pallet-balances = { workspace = true, features = [ "insecure_zero_ed", "std" ] }
-pallet-timestamp = { workspace = true, features = [ "std" ] }
-precompile-utils = { workspace = true, features = [ "std", "testing" ] }
-scale-info = { workspace = true, features = [ "derive", "std" ] }
-sp-runtime = { workspace = true, features = [ "std" ] }
 
 [features]
 default = [ "std" ]
