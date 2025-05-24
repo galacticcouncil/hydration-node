@@ -27,7 +27,6 @@
 
 // Gov V1 (to be deprecated)
 pub mod old;
-pub(crate) use pallet_collective as pallet_collective_council;
 
 pub mod origins;
 pub mod tracks;
@@ -63,9 +62,7 @@ parameter_types! {
 }
 
 pub type TechnicalCollective = pallet_collective::Instance2;
-pub(crate) use pallet_collective as pallet_collective_technical_committee;
-
-impl pallet_collective_technical_committee::Config<TechnicalCollective> for Runtime {
+impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type Proposal = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;

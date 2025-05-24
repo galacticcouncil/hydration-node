@@ -4609,20 +4609,16 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.6.0"
+version = "1.5.3"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
- "ethabi",
- "evm",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
  "lazy_static",
  "log",
- "module-evm-utility-macro",
- "num_enum",
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
@@ -4644,7 +4640,6 @@ dependencies = [
  "pallet-route-executor",
  "pallet-stableswap",
  "pallet-staking 4.2.0",
- "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
  "pallet-xyk",
@@ -4665,7 +4660,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "314.0.0"
+version = "311.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8444,7 +8439,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.1.0"
+version = "1.0.7"
 dependencies = [
  "ethabi",
  "evm",
@@ -9058,7 +9053,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "5.2.0"
+version = "5.1.5"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -12135,7 +12130,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.39.0"
+version = "1.38.6"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",

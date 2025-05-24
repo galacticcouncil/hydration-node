@@ -129,45 +129,13 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type BorrowingContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultBorrowingContract>;
 
-	#[pallet::validate_unsigned]
-	impl<T: Config> ValidateUnsigned for Pallet<T>
-	where
-		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
-	{
-		type Call = Call<T>;
-
-		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			match source {
-				TransactionSource::External => {
-					// receiving unsigned transaction from network - disallow
-					return InvalidTransaction::Call.into();
-				}
-				TransactionSource::Local => {}   // produced by off-chain worker
-				TransactionSource::InBlock => {} // some other node included it in a block
-			};
-
-			let valid_tx = |provide| {
-				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
-					.priority(1_000_000)
-					.and_provides([&provide])
-					.longevity(3)
-					.propagate(false)
-					.build()
-			};
-
-			match call {
-				Call::liquidate { .. } => valid_tx(b"liquidate_unsigned".to_vec()),
-				_ => InvalidTransaction::Call.into(),
-			}
-		}
-	}
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Money market position has been liquidated
 		Liquidated {
-			user: EvmAddress,
+			liquidator: T::AccountId,
+			evm_address: EvmAddress,
 			collateral_asset: AssetId,
 			debt_asset: AssetId,
 			debt_to_cover: Balance,
@@ -213,13 +181,14 @@ pub mod pallet {
 			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
 		)]
 		pub fn liquidate(
-			_origin: OriginFor<T>,
+			origin: OriginFor<T>,
 			collateral_asset: AssetId,
 			debt_asset: AssetId,
 			user: EvmAddress,
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
 			let pallet_acc = Self::account_id();
 
 			let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
@@ -284,7 +253,8 @@ pub mod pallet {
 			)?;
 
 			Self::deposit_event(Event::Liquidated {
-				user,
+				liquidator: who,
+				evm_address: user,
 				collateral_asset,
 				debt_asset,
 				debt_to_cover,

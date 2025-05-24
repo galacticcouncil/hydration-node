@@ -84,7 +84,8 @@ fn liquidation_should_transfer_profit_to_treasury() {
 		);
 
 		expect_last_events(vec![Event::Liquidated {
-			user: bob_evm_address,
+			liquidator: ALICE,
+			evm_address: bob_evm_address,
 			debt_asset: DOT,
 			collateral_asset: HDX,
 			debt_to_cover,
@@ -246,7 +247,8 @@ fn initial_pallet_balance_should_not_change_after_execution() {
 		);
 
 		expect_last_events(vec![Event::Liquidated {
-			user: bob_evm_address,
+			liquidator: ALICE,
+			evm_address: bob_evm_address,
 			debt_asset: DOT,
 			collateral_asset: HDX,
 			debt_to_cover,

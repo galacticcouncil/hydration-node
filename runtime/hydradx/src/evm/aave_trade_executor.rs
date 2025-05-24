@@ -1,9 +1,9 @@
 use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
-use crate::evm::{Erc20Currency, EvmAccounts, Executor};
+use crate::evm::{Erc20Currency, Executor};
+use crate::Runtime;
 use crate::Vec;
-use crate::{Currencies, Runtime};
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
@@ -13,9 +13,9 @@ use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
+use hydradx_traits::evm::{CallContext, Erc20Encoding, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
-use hydradx_traits::{BoundErc20, Inspect};
+use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_broadcast::types::Asset;
 use pallet_evm::GasWeightMapping;
@@ -123,7 +123,7 @@ where
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
 		+ pallet_dispatcher::Config
-		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
+		+ frame_system::Config,
 	T::AssetNativeLocation: Into<MultiLocation>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
@@ -132,55 +132,6 @@ where
 	NonceIdOf<T>: Into<T::Nonce>,
 	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
 {
-	pub fn transfer(
-		contract: EvmAddress,
-		from: &AccountId,
-		to: &AccountId,
-		amount: Balance,
-		erc20_transfer: impl FnOnce() -> DispatchResult,
-	) -> DispatchResult {
-		let Some(atoken) = HydraErc20Mapping::address_to_asset(contract) else {
-			return Err(DispatchError::Other("Not an Aave token"));
-		};
-		let Some(underlying_asset) = Self::get_underlying_asset(atoken) else {
-			return Err(DispatchError::Other("Not an Aave token"));
-		};
-		let ed = pallet_asset_registry::Pallet::<T>::existential_deposit(atoken).unwrap_or_default();
-		let atoken_balance = <Erc20Currency<T> as ERC20>::balance_of(
-			CallContext::new_view(contract),
-			EvmAccounts::<T>::evm_address(from),
-		);
-		let diff = atoken_balance.saturating_sub(amount);
-		if diff <= ed {
-			//We withdraw all AToken and supply underlying asset amount on behalf of the receiver
-			//We need to do this as Aave ScaledBalanceTokenBase.sol has rounding in transfer method so we can't always transfer total balance
-			let underlying_balance_before = <Erc20Currency<T> as ERC20>::balance_of(
-				CallContext::new_view(underlying_asset),
-				EvmAccounts::<T>::evm_address(from),
-			);
-
-			AaveTradeExecutor::<T>::do_withdraw_all(from, underlying_asset)?;
-
-			let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
-				CallContext::new_view(underlying_asset),
-				EvmAccounts::<T>::evm_address(from),
-			);
-
-			let amount_to_supply = underlying_balance_after.saturating_sub(underlying_balance_before);
-			Self::do_supply_on_behalf_of(from, to, underlying_asset, amount_to_supply)
-		} else {
-			//When we don't transfer total balance of atokens
-			erc20_transfer()
-		}
-	}
-
-	pub fn is_atoken(address: EvmAddress) -> bool {
-		let Some(atoken) = HydraErc20Mapping::address_to_asset(address) else {
-			return false;
-		};
-		Self::get_underlying_asset(atoken).is_some()
-	}
-
 	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {
 		let context = CallContext::new_view(pool);
 		let data = EvmDataWriter::new_with_selector(Function::GetReservesList).build();
@@ -303,22 +254,11 @@ where
 	}
 
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
-		let who = ensure_signed(origin.clone())?;
-
-		Self::do_supply_on_behalf_of(&who, &who, asset, amount)
-	}
-
-	fn do_supply_on_behalf_of(
-		who: &T::AccountId,
-		on_behalf_of: &T::AccountId,
-		asset: EvmAddress,
-		amount: Balance,
-	) -> Result<(), DispatchError> {
-		let who = T::EvmAccounts::evm_address(&who);
-		let on_behalf_of = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&on_behalf_of);
+		let who = ensure_signed(origin)?;
+		let on_behalf_of = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&who);
 		let referer_code = 0_u16;
 
-		let context = CallContext::new_call(<BorrowingContract<T>>::get(), who);
+		let context = CallContext::new_call(<BorrowingContract<T>>::get(), on_behalf_of);
 		let data = EvmDataWriter::new_with_selector(Function::Supply)
 			.write(asset)
 			.write(amount)
@@ -328,6 +268,7 @@ where
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
+
 	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin)?;
 		let to = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&who);
@@ -337,19 +278,6 @@ where
 			.write(asset)
 			.write(amount)
 			.write(to)
-			.build();
-
-		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
-	}
-
-	fn do_withdraw_all(from: &T::AccountId, asset: EvmAddress) -> Result<(), DispatchError> {
-		let from = T::EvmAccounts::evm_address(from);
-
-		let context = CallContext::new_call(<BorrowingContract<T>>::get(), from);
-		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
-			.write(asset)
-			.write(U256::MAX)
-			.write(from)
 			.build();
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
@@ -430,8 +358,8 @@ where
 		+ pallet_liquidation::Config
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
-		+ frame_system::Config<AccountId = sp_runtime::AccountId32>
-		+ pallet_dispatcher::Config,
+		+ pallet_dispatcher::Config
+		+ frame_system::Config,
 	T::AssetNativeLocation: Into<MultiLocation>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,

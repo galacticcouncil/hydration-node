@@ -62,7 +62,7 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, require_transactional, transactional, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
+use hydradx_traits::{oracle::RawOracle, registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
 use num_traits::zero;
 pub use pallet::*;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
@@ -72,15 +72,12 @@ use sp_std::prelude::*;
 use sp_std::vec;
 
 mod trade_execution;
-pub mod traits;
 pub mod types;
 pub mod weights;
 
-use crate::traits::PegRawOracle;
 use crate::types::{
 	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
 };
-
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
@@ -180,7 +177,7 @@ pub mod pallet {
 		/// Oracle providing prices for asset pegs (if configured for pool)
 		/// Raw oracle is required because it needs the values that are not delayed.
 		/// It is how the mechanism is designed.
-		type TargetPegOracle: PegRawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
+		type TargetPegOracle: RawOracle<Self::AssetId, Balance, BlockNumberFor<Self>>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -1168,7 +1165,8 @@ pub mod pallet {
 
 			let amplification = NonZeroU16::new(amplification).ok_or(Error::<T>::InvalidAmplification)?;
 
-			let initial_pegs = Self::get_target_pegs(&assets, &peg_source)?;
+			let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
+			let initial_pegs = Self::get_target_pegs(current_block, &assets, &peg_source)?;
 
 			let peg_info = PoolPegInfo {
 				source: peg_source,
@@ -1800,7 +1798,7 @@ impl<T: Config> Pallet<T> {
 		};
 		// Move pegs to target pegs if necessary
 		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
-		let target_pegs = Self::get_target_pegs(&pool.assets, &peg_info.source)?;
+		let target_pegs = Self::get_target_pegs(current_block, &pool.assets, &peg_info.source)?;
 
 		hydra_dx_math::stableswap::recalculate_pegs(
 			&peg_info.current,
@@ -1831,6 +1829,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Retrieve new target pegs
 	fn get_target_pegs(
+		block_no: u128,
 		pool_assets: &[T::AssetId],
 		peg_sources: &[PegSource<T::AssetId>],
 	) -> Result<Vec<(PegType, u128)>, DispatchError> {
@@ -1848,10 +1847,15 @@ impl<T: Config> Pallet<T> {
 
 		let mut r = vec![];
 		for (asset_id, source) in pool_assets.iter().zip(peg_sources.iter()) {
-			let p = T::TargetPegOracle::get_raw_entry(*asset_id, source.clone())
-				.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
-
-			r.push(((p.price.0, p.price.1), p.updated_at.saturated_into()));
+			let p = match source {
+				PegSource::Value(peg) => (*peg, block_no),
+				PegSource::Oracle((source, period, oracle_asset)) => {
+					let entry = T::TargetPegOracle::get_raw_entry(*source, *oracle_asset, *asset_id, *period)
+						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
+					((entry.price.0, entry.price.1), entry.updated_at.saturated_into())
+				}
+			};
+			r.push(p);
 		}
 		Ok(r)
 	}
