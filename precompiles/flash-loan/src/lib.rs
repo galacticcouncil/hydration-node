@@ -78,6 +78,8 @@ where
 		log::trace!(target: "flash", "amt: {:?}", amount);
 		log::trace!(target: "flash", "fee: {:?}", fee);
 
+		//TODO: calculate total gas cost and compare to remaining gas
+
 		let mut reader = EvmDataReader::new(&data.as_bytes());
 		let data_ident: u8 = reader.read()?;
 
