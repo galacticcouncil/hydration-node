@@ -113,7 +113,8 @@ where
 				}
 
 				//TODO: remove fee mint - this is a workaround for now because we need to add the caller to list of borrowers first, so fee is 0
-				let _ = pallet_hsm::Pallet::<Runtime>::mint_hollar_to_evm(&this, fee.as_u128());
+				let this_account_id = <Runtime as pallet_hsm::Config>::EvmAccounts::account_id(this);
+				let _ = pallet_hsm::Pallet::<Runtime>::mint_hollar(&this_account_id, fee.as_u128());
 
 				// Approve the transfer of the loan
 				let cc = CallContext::new_call(token.0, this);

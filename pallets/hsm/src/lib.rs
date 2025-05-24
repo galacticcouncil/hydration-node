@@ -824,6 +824,8 @@ pub mod pallet {
 					return Err(Error::<T>::InvalidEVMInteraction.into());
 				}
 
+				log::trace!(target: "hsm", "Flash loan Hollar EVM execution succeeded. Value: {:?}", value);
+
 				Self::deposit_event(Event::<T>::ArbitrageExecuted {
 					asset_id: collateral_asset_id,
 					hollar_amount: hollar_amount_to_trade,
@@ -1093,32 +1095,6 @@ where
 		let recipient_evm = T::EvmAccounts::evm_address(who);
 		let mut data = Into::<u32>::into(ERC20Function::Mint).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(recipient_evm).as_bytes());
-		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
-
-		// Execute the EVM call
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-
-		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
-			return Err(Error::<T>::InvalidEVMInteraction.into());
-		}
-
-		Ok(())
-	}
-
-	pub fn mint_hollar_to_evm(who: &EvmAddress, amount: Balance) -> DispatchResult {
-		log::error!(target: "hsm", "Minting fee Hollar to EVM address {:?}", amount);
-		let contract = Self::get_hollar_contract_address()?;
-		let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
-
-		// Create the context for the EVM call
-		let context = CallContext::new_call(contract, pallet_address);
-
-		// Encode the mint function call with recipient and amount
-		let recipient_evm = who;
-		let mut data = Into::<u32>::into(ERC20Function::Mint).to_be_bytes().to_vec();
-		data.extend_from_slice(H256::from(*recipient_evm).as_bytes());
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 
 		// Execute the EVM call
