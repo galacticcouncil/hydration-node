@@ -5,9 +5,12 @@ pub mod benchmark_helpers {
 	use evm::{ExitReason, ExitSucceed};
 	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
 	use orml_traits::MultiCurrencyExtended;
+	use pallet_hsm::tests::mock::{Test, ALICE};
 	use pallet_hsm::ERC20Function;
+	use precompile_utils::evm::writer::EvmDataReader;
 	use primitive_types::U256;
 	use primitives::{AccountId, Balance, EvmAddress};
+	use sp_core::ByteArray;
 	use sp_runtime::DispatchResult;
 	use sp_std::prelude::*;
 
@@ -70,6 +73,42 @@ pub mod benchmark_helpers {
 
 									return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
 								}
+							}
+						}
+						ERC20Function::FlashLoan => {
+							if data.len() >= 4 + 32 + 32 + 32 {
+								// Extract recipient address (padded to 32 bytes in ABI encoding)
+								let receiver: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
+								let _receiver_evm = hydradx_traits::evm::EvmAddress::from_slice(&receiver[12..32]);
+
+								let hollar: [u8; 32] = data[4 + 32..4 + 32 + 32].try_into().unwrap_or([0; 32]);
+								let _hollar_evm = hydradx_traits::evm::EvmAddress::from_slice(&hollar[12..32]);
+
+								let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap();
+								let amount = U256::from_big_endian(&amount_bytes);
+
+								let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
+								let mut reader = EvmDataReader::new(&arb_data);
+								let _data_ident: u8 = reader.read().unwrap();
+								let collateral_asset_id: u32 = reader.read().unwrap();
+								let pool_id: u32 = reader.read().unwrap();
+								let arb_account = ALICE.into();
+
+								let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
+								let _ =
+									Tokens::update_balance(hollar_id, &arb_account, amount.as_u128() as i128).unwrap();
+
+								let alice_evm = EVMAccounts::evm_address(&arb_account);
+								pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
+									alice_evm,
+									pool_id,
+									collateral_asset_id,
+									amount.as_u128(),
+								)
+								.unwrap();
+								let _ = Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))
+									.unwrap();
+								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
 							}
 						}
 					}
