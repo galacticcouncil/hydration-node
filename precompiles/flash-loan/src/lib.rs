@@ -19,7 +19,6 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-
 #![allow(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -78,8 +77,6 @@ where
 		log::trace!(target: "flash", "initiator: {:?}", initiator);
 		log::trace!(target: "flash", "amt: {:?}", amount);
 		log::trace!(target: "flash", "fee: {:?}", fee);
-
-		//TODO: calculate total gas cost and compare to remaining gas
 
 		let mut reader = EvmDataReader::new(&data.as_bytes());
 		let data_ident: u8 = reader.read()?;

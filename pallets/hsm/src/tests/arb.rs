@@ -55,7 +55,7 @@ fn arbitrage_should_work() {
 			let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
 			let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
 			let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI,));
+			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI));
 
 			let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
 			let arb_amount = pool_balance_dai_after - pool_balance_dai_before;

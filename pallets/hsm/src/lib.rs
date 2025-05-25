@@ -793,7 +793,9 @@ pub mod pallet {
 		/// - `InvalidEVMInteraction` if there's an error interacting with the Hollar ERC20 contract
 		/// - Other errors from underlying calls
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage())]
+		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage()
+			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
+		)]
 		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
 			ensure_none(origin)?;
 
@@ -1370,6 +1372,8 @@ where
 	) -> DispatchResult {
 		let flash_loan_account = T::EvmAccounts::account_id(account);
 
+		let initial_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+
 		// Sell hollar to HSM for collateral
 		let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
 			&flash_loan_account,
@@ -1406,7 +1410,8 @@ where
 			collateral_received,
 		)?;
 
-		let remaining = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+		let final_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+		let remaining = final_acc_balance.saturating_sub(initial_acc_balance);
 		if remaining > 0 {
 			log::trace!(target: "hsm", "Collateral remaining : {:?}", remaining);
 			// In case there is some collateral left after the buy,
