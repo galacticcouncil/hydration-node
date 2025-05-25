@@ -161,6 +161,7 @@ where
 	}
 
 	#[allow(clippy::too_many_arguments)]
+	#[allow(clippy::type_complexity)]
 	async fn on_block_imported(
 		client: Arc<C>,
 		spawner: SpawnTaskHandle,
@@ -459,8 +460,7 @@ where
 				// return 0 if the computation failed, and recalculate the HF later.
 				let hf = integer_part
 					.zip(fractional_part)
-					.map(|(i, f)| i.checked_add(f))
-					.flatten()
+					.and_then(|(i, f)| i.checked_add(f))
 					.unwrap_or_default();
 				(b.0, hf)
 			})
@@ -491,8 +491,8 @@ where
 			hydradx_runtime::Signature,
 			hydradx_runtime::SignedExtra,
 		>,
-		allowed_signers: &Vec<EvmAddress>,
-		allowed_oracle_call_addresses: &Vec<EvmAddress>,
+		allowed_signers: &[EvmAddress],
+		allowed_oracle_call_addresses: &[EvmAddress],
 	) -> Option<Transaction> {
 		if let RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) = extrinsic.function.clone() {
 			let action = match transaction.clone() {

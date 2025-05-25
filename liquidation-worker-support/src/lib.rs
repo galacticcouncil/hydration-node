@@ -488,6 +488,7 @@ pub struct ReserveData {
 impl ReserveData {
 	pub fn new(data: &[ethabi::Token]) -> Option<Self> {
 		Some(Self {
+			#[allow(clippy::get_first)]
 			configuration: data.get(0)?.clone().into_uint()?,
 			liquidity_index: data.get(1)?.clone().into_uint()?.try_into().ok()?,
 			current_liquidity_rate: data.get(2)?.clone().into_uint()?.try_into().ok()?,
