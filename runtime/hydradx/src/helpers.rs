@@ -5,7 +5,6 @@ pub mod benchmark_helpers {
 	use evm::{ExitReason, ExitSucceed};
 	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
 	use orml_traits::MultiCurrencyExtended;
-	use pallet_hsm::tests::mock::{Test, ALICE};
 	use pallet_hsm::ERC20Function;
 	use precompile_utils::evm::writer::EvmDataReader;
 	use primitive_types::U256;
@@ -92,7 +91,7 @@ pub mod benchmark_helpers {
 								let _data_ident: u8 = reader.read().unwrap();
 								let collateral_asset_id: u32 = reader.read().unwrap();
 								let pool_id: u32 = reader.read().unwrap();
-								let arb_account = ALICE.into();
+								let arb_account = receiver.into();
 
 								let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
 								let _ =
