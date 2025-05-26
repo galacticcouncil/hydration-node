@@ -24,6 +24,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::{FixedU128, Perbill, Permill};
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -37,7 +38,7 @@ const ASSET_ID_OFFSET: u32 = 5_000;
 benchmarks! {
 	where_clause { where
 		T: Config,
-		T: pallet_stableswap::Config,
+		T: pallet_stableswap::Config + frame_system::Config,
 		T::AssetId: From<u32>,
 		<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	}
@@ -321,7 +322,7 @@ fn seed_pool<T>(
 	offset: u32,
 ) -> Result<(T::AssetId, Vec<T::AssetId>), DispatchError>
 where
-	T: Config + pallet_stableswap::Config,
+	T: Config + pallet_stableswap::Config + frame_system::Config,
 	T::AssetId: From<u32>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
@@ -381,6 +382,11 @@ where
 		0,
 	)
 	.expect("To provide initial liquidity");
+
+	let current_block = frame_system::Pallet::<T>::current_block_number();
+	crate::Pallet::<T>::on_finalize(current_block);
+	pallet_stableswap::Pallet::<T>::on_finalize(current_block);
+	frame_system::Pallet::<T>::set_block_number(current_block + 1u32.into());
 
 	Ok((pool_id, assets))
 }

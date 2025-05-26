@@ -41,8 +41,8 @@ use hydradx_traits::{
 	AssetKind, BoundErc20, Inspect,
 };
 use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Source, Volume};
+use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
-use orml_traits::{parameter_type_with_key, MultiCurrency};
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use precompile_utils::evm::writer::EvmDataReader;

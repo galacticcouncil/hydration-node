@@ -810,8 +810,7 @@ pub mod pallet {
 				let hsm_address = T::EvmAccounts::evm_address(&Self::account_id());
 
 				let context = CallContext::new_call(flash_minter, hsm_address);
-				let hollar_address = T::GhoContractAddress::contract_address(T::HollarId::get())
-					.ok_or(Error::<T>::HollarContractAddressNotFound)?;
+				let hollar_address = Self::get_hollar_contract_address()?;
 
 				let c_asset_id: u32 = collateral_asset_id.into();
 				let pool_id_u32: u32 = collateral_info.pool_id.into();
