@@ -4672,7 +4672,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "316.0.0"
+version = "317.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8473,7 +8473,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -8791,7 +8791,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.1.6"
+version = "2.1.7"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8814,7 +8814,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12177,7 +12177,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.40.0"
+version = "1.40.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
