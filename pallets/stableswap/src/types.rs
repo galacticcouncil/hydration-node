@@ -3,7 +3,7 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, Pallet, MAX_ASSETS_IN_POOL};
+use crate::{Config, Pallet, PoolPegs, MAX_ASSETS_IN_POOL};
 use sp_runtime::Permill;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
@@ -14,6 +14,7 @@ use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
+use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::{evm::EvmAddress, OraclePeriod, Source};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
@@ -176,5 +177,53 @@ impl<AssetId> PoolPegInfo<AssetId> {
 			max_peg_update: self.max_peg_update,
 			current: BoundedPegs::truncate_from(pegs.to_vec()),
 		}
+	}
+}
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct PoolSnapshot<AssetId> {
+	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
+	pub reserves: BoundedVec<AssetReserve, ConstU32<MAX_ASSETS_IN_POOL>>,
+	pub amplification: u128,
+	pub fee: Permill,
+	pub pegs: BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>,
+	pub share_issuance: Balance,
+}
+
+impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
+	pub fn asset_idx(&self, asset_id: AssetId) -> Option<usize> {
+		self.assets.iter().position(|&asset| asset == asset_id)
+	}
+
+	// Safe retrieval of asset decimals info - we like to be on the safe side.
+	pub fn asset_decimals_at(&self, idx: usize) -> Option<u8> {
+		self.reserves.get(idx).map(|reserve| reserve.decimals)
+	}
+
+	pub fn asset_reserve_at(&self, idx: usize) -> Option<Balance> {
+		self.reserves.get(idx).map(|reserve| reserve.amount)
+	}
+
+	pub fn has_peg_source_set<T: Config>(&self, pool_id: T::AssetId) -> bool {
+		PoolPegs::<T>::get(pool_id).is_some()
+	}
+
+	pub fn update_reserves(mut self, amount_in: AssetAmount<AssetId>, amount_out: AssetAmount<AssetId>) -> Self {
+		let Some(asset_in_idx) = self.asset_idx(amount_in.asset_id) else {
+			return self;
+		};
+
+		let Some(asset_out_idx) = self.asset_idx(amount_out.asset_id) else {
+			return self;
+		};
+		let Some(a) = self.reserves.get_mut(asset_in_idx) else {
+			return self;
+		};
+		*a = a.saturating_add(amount_in.amount);
+		let Some(b) = self.reserves.get_mut(asset_out_idx) else {
+			return self;
+		};
+		*b = b.saturating_sub(amount_out.amount);
+		self
 	}
 }

@@ -59,7 +59,7 @@
 extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::{ensure, require_transactional, transactional, PalletId};
+use frame_support::{ensure, require_transactional, transactional, BoundedVec, PalletId};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
@@ -78,7 +78,8 @@ pub mod weights;
 
 use crate::traits::PegRawOracle;
 use crate::types::{
-	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolState, StableswapHooks, Tradability,
+	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolSnapshot, PoolState, StableswapHooks,
+	Tradability,
 };
 
 use hydra_dx_math::stableswap::types::AssetReserve;
@@ -204,6 +205,12 @@ pub mod pallet {
 	#[pallet::getter(fn asset_tradability)]
 	pub type AssetTradability<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, T::AssetId, Tradability, ValueQuery>;
+
+	/// Temporary pool state storage. Used to save a state of pool in a single block.
+	#[pallet::storage]
+	#[pallet::getter(fn pool_snapshot)]
+	pub type PoolSnapshots<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, PoolSnapshot<T::AssetId>, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -628,6 +635,8 @@ pub mod pallet {
 			let amplification = Self::get_amplification(&pool);
 			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
 
+			Self::save_snapshot(pool_id);
+
 			//Calculate how much asset user will receive. Note that the fee is already subtracted from the amount.
 			let (amount, fee) = hydra_dx_math::stableswap::calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
 				&initial_reserves,
@@ -720,6 +729,8 @@ pub mod pallet {
 			let share_issuance = T::Currency::total_issuance(pool_id);
 			let amplification = Self::get_amplification(&pool);
 			let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
+
+			Self::save_snapshot(pool_id);
 
 			// Calculate how much shares user needs to provide to receive `amount` of asset.
 			let (shares, fees) = hydra_dx_math::stableswap::calculate_shares_for_amount::<D_ITERATIONS>(
@@ -827,6 +838,8 @@ pub mod pallet {
 			let (amount_out, fee_amount) = Self::calculate_out_amount(pool_id, asset_in, asset_out, amount_in, true)?;
 			ensure!(amount_out >= min_buy_amount, Error::<T>::BuyLimitNotReached);
 
+			Self::save_snapshot(pool_id);
+
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
 
@@ -919,6 +932,8 @@ pub mod pallet {
 				T::Currency::free_balance(asset_in, &who) >= amount_in,
 				Error::<T>::InsufficientBalance
 			);
+
+			Self::save_snapshot(pool_id);
 
 			T::Currency::transfer(asset_in, &who, &pool_account, amount_in)?;
 			T::Currency::transfer(asset_out, &pool_account, &who, amount_out)?;
@@ -1058,6 +1073,8 @@ pub mod pallet {
 				let r = min_amounts_out_map.insert(v.asset_id, v.amount);
 				ensure!(r.is_none(), Error::<T>::IncorrectAssets);
 			}
+
+			Self::save_snapshot(pool_id);
 
 			// Store the amount of each asset that is transferred. Used as info in the event.
 			let mut amounts = Vec::with_capacity(pool.assets.len());
@@ -1233,7 +1250,49 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			let _ = <PoolSnapshots<T>>::clear(u32::MAX, None);
+		}
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	//  Returns start of the pool at the beginning of the block
+	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
+		if let Some(snapshot) = Self::pool_snapshot(pool_id) {
+			Some(snapshot)
+		} else {
+			Self::create_snapshot(pool_id)
+		}
+	}
+
+	pub fn create_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
+		let pool = Pools::<T>::get(pool_id)?;
+		let pool_account = Self::pool_account(pool_id);
+		let amplification = Self::get_amplification(&pool);
+		let share_issuance = T::Currency::total_issuance(pool_id);
+		let reserves = pool.reserves_with_decimals::<T>(&pool_account)?;
+		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
+
+		Some(PoolSnapshot {
+			assets: pool.assets,
+			amplification,
+			fee: pool.fee,
+			reserves: BoundedVec::truncate_from(reserves),
+			pegs: BoundedVec::truncate_from(asset_pegs),
+			share_issuance,
+		})
+	}
+
+	fn save_snapshot(pool_id: T::AssetId) {
+		// Only save snapshot if there isn't one.
+		if Self::pool_snapshot(pool_id).is_none() {
+			if let Some(snapshot) = Self::create_snapshot(pool_id) {
+				PoolSnapshots::<T>::insert(pool_id, snapshot);
+			}
+		}
+	}
 }
 
 impl<T: Config> Pallet<T> {
@@ -1425,6 +1484,8 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let share_issuance = T::Currency::total_issuance(pool_id);
+		Self::save_snapshot(pool_id);
+
 		let pool_account = Self::pool_account(pool_id);
 		let mut initial_reserves = Vec::with_capacity(pool.assets.len());
 		let mut updated_reserves = Vec::with_capacity(pool.assets.len());
@@ -1470,6 +1531,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(added_assets.is_empty(), Error::<T>::AssetNotInPool);
 
 		let amplification = Self::get_amplification(&pool);
+		let share_issuance = T::Currency::total_issuance(pool_id);
 		let (trade_fee, asset_pegs) = Self::update_and_return_pegs_and_trade_fee(pool_id, &pool)?;
 		let (share_amount, fees) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
 			&initial_reserves,
@@ -1584,6 +1646,8 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InsufficientShareBalance
 		);
 
+		Self::save_snapshot(pool_id);
+
 		T::Currency::deposit(pool_id, who, shares)?;
 		T::Currency::transfer(asset_id, who, &pool_account, amount_in)?;
 
@@ -1616,7 +1680,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[inline]
-	fn pool_account(pool_id: T::AssetId) -> T::AccountId {
+	pub fn pool_account(pool_id: T::AssetId) -> T::AccountId {
 		T::ShareAccountId::from_assets(&pool_id, Some(POOL_IDENTIFIER))
 	}
 
@@ -1854,5 +1918,102 @@ impl<T: Config> Pallet<T> {
 			r.push(((p.price.0, p.price.1), p.updated_at.saturated_into()));
 		}
 		Ok(r)
+	}
+}
+
+// Simluation support
+impl<T: Config> Pallet<T> {
+	pub fn simulate_sell(
+		pool_id: T::AssetId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_in: Balance,
+		min_buy_amount: Balance,
+		use_snapshot: Option<PoolSnapshot<T::AssetId>>,
+	) -> Result<(Balance, PoolSnapshot<T::AssetId>), DispatchError> {
+		let snapshot = if let Some(snapshot) = use_snapshot {
+			snapshot
+		} else {
+			// if no state provided, get current pool state
+			Self::create_snapshot(pool_id).ok_or(Error::<T>::PoolNotFound)?
+		};
+
+		let index_in = snapshot.asset_idx(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
+		let index_out = snapshot.asset_idx(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
+		let initial_reserves = &snapshot.reserves;
+
+		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
+		ensure!(
+			!initial_reserves[index_out].is_zero(),
+			Error::<T>::InsufficientLiquidity
+		);
+
+		let amplification = snapshot.amplification;
+		let (trade_fee, asset_pegs) = (snapshot.fee, &snapshot.pegs);
+
+		let (amount_out, _) = hydra_dx_math::stableswap::calculate_out_given_in_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+			initial_reserves,
+			index_in,
+			index_out,
+			amount_in,
+			amplification,
+			trade_fee,
+			asset_pegs,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(amount_out >= min_buy_amount, Error::<T>::SlippageLimit);
+
+		let updated_pool_state = snapshot.update_reserves(
+			AssetAmount::new(asset_in, amount_in),
+			AssetAmount::new(asset_out, amount_out),
+		);
+		Ok((amount_out, updated_pool_state))
+	}
+
+	pub fn simulate_buy(
+		pool_id: T::AssetId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_out: Balance,
+		max_amount_in: Balance,
+		use_snapshot: Option<PoolSnapshot<T::AssetId>>,
+	) -> Result<(Balance, PoolSnapshot<T::AssetId>), DispatchError> {
+		let snapshot = if let Some(snapshot) = use_snapshot {
+			snapshot
+		} else {
+			// if no state provided, get current pool state
+			Self::create_snapshot(pool_id).ok_or(Error::<T>::PoolNotFound)?
+		};
+
+		let index_in = snapshot.asset_idx(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
+		let index_out = snapshot.asset_idx(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
+		let initial_reserves = &snapshot.reserves;
+		ensure!(
+			initial_reserves[index_out].amount > amount_out,
+			Error::<T>::InsufficientLiquidity
+		);
+		ensure!(!initial_reserves[index_in].is_zero(), Error::<T>::InsufficientLiquidity);
+
+		let amplification = snapshot.amplification;
+		let (trade_fee, asset_pegs) = (snapshot.fee, &snapshot.pegs);
+		let (amount_in, _) = hydra_dx_math::stableswap::calculate_in_given_out_with_fee::<D_ITERATIONS, Y_ITERATIONS>(
+			initial_reserves,
+			index_in,
+			index_out,
+			amount_out,
+			amplification,
+			trade_fee,
+			asset_pegs,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(amount_in <= max_amount_in, Error::<T>::SlippageLimit);
+
+		let updated_pool_state = snapshot.update_reserves(
+			AssetAmount::new(asset_in, amount_in),
+			AssetAmount::new(asset_out, amount_out),
+		);
+		Ok((amount_in, updated_pool_state))
 	}
 }

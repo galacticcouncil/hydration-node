@@ -35,6 +35,7 @@ pub mod weights;
 mod assets;
 pub mod evm;
 pub mod governance;
+mod helpers;
 mod system;
 pub mod types;
 pub mod xcm;
@@ -200,6 +201,7 @@ construct_runtime!(
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
+		HSM: pallet_hsm = 82,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -345,6 +347,7 @@ mod benches {
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
+		[pallet_hsm, HSM]
 	);
 }
 
