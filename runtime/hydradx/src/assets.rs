@@ -1291,6 +1291,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use hydradx_traits::evm::EvmAddress;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1625,6 +1626,18 @@ impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
 		)
 	}
 }
+
+pub struct FlashMinterSupport;
+
+impl Get<(EvmAddress, EvmAddress)> for FlashMinterSupport {
+	fn get() -> (EvmAddress, EvmAddress) {
+		(
+			hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into(),
+			crate::evm::precompiles::FLASH_LOAN_RECEIVER,
+		)
+	}
+}
+
 impl pallet_liquidation::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Runtime>;
@@ -1643,6 +1656,8 @@ impl pallet_liquidation::Config for Runtime {
 	type ProfitReceiver = TreasuryAccount;
 	type RouterWeightInfo = RouterWeightInfo;
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
+	type HollarId = HOLLAR;
+	type FlashMinter = FlashMinterSupport;
 }
 
 impl pallet_broadcast::Config for Runtime {

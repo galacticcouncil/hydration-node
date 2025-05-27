@@ -8529,6 +8529,7 @@ dependencies = [
  "pallet-route-executor",
  "parity-scale-codec",
  "parking_lot 0.12.3",
+ "precompile-utils",
  "pretty_assertions",
  "proptest",
  "scale-info",

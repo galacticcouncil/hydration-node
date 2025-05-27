@@ -1,6 +1,6 @@
 use crate::polkadot_test_net::hydra_live_ext;
 use crate::polkadot_test_net::hydradx_run_to_next_block;
-use crate::polkadot_test_net::{TestNet, ALICE};
+use crate::polkadot_test_net::{TestNet, ALICE, BOB};
 use fp_evm::ExitSucceed::Returned;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
 use frame_support::assert_ok;
@@ -11,7 +11,7 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, EVMAccounts, FixedU128, Tokens, HSM,
+	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Tokens, Treasury, HSM,
 };
 use hydradx_runtime::{RuntimeOrigin, Stableswap};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
@@ -825,6 +825,8 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 }
 
 use ethabi::ethereum_types::BigEndianHash;
+use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use hydradx_traits::router::AssetPair;
 
 #[test]
 fn arbitrage_should_work() {
@@ -929,5 +931,138 @@ fn arbitrage_should_work() {
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let traded_amount = hsm_dai_balance - final_hsm_dai_balance;
 		assert_eq!(traded_amount, 999_642_225_291_583_959);
+	});
+}
+
+const DOT: AssetId = 5;
+const DOT_UNIT: Balance = 10_000_000_000;
+const WETH: AssetId = 20;
+const WETH_UNIT: Balance = 1_000_000_000_000_000_000;
+const ALICE_INITIAL_WETH_BALANCE: Balance = 20 * WETH_UNIT;
+const ALICE_INITIAL_DOT_BALANCE: Balance = 10_000 * DOT_UNIT;
+
+use hydradx_traits::evm::Erc20Encoding;
+use hydradx_traits::router::RouteProvider;
+use sp_runtime::{traits::CheckedConversion, SaturatedConversion};
+
+#[test]
+fn hollar_liquidation_should_work() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+		// Arrange
+		// PoolAddressesProvider contract
+		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
+
+		// get Pool contract address
+		let pool_contract = crate::liquidation::get_pool(pap_contract);
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			pool_contract
+		));
+		let pallet_acc = Liquidation::account_id();
+		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+
+		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
+		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
+
+		let treasury_dot_initial_balance = Currencies::free_balance(DOT, &Treasury::account_id());
+
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(pallet_acc.clone()),));
+
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		let collateral_weth_amount: Balance = 2 * WETH_UNIT;
+		let collateral_dot_amount = 1_000 * DOT_UNIT;
+		crate::liquidation::supply(
+			pool_contract,
+			alice_evm_address,
+			weth_asset_address,
+			collateral_weth_amount,
+		);
+		crate::liquidation::supply(
+			pool_contract,
+			alice_evm_address,
+			dot_asset_address,
+			collateral_dot_amount,
+		);
+
+		std::assert_eq!(
+			Currencies::free_balance(DOT, &ALICE.into()),
+			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount
+		);
+		std::assert_eq!(
+			Currencies::free_balance(WETH, &ALICE.into()),
+			ALICE_INITIAL_WETH_BALANCE - collateral_weth_amount
+		);
+
+		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
+		let hollar_address = hollar_contract_address();
+		let hollar_borrow_amount: Balance = 5_000 * 1_000_000_000_000_000_000u128; // 5k hollar
+																			 //crate::liquidation::borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
+
+		std::assert_eq!(Currencies::free_balance(222, &ALICE.into()), 0,);
+
+		crate::liquidation::borrow(pool_contract, alice_evm_address, hollar_address, hollar_borrow_amount);
+
+		std::assert_eq!(Currencies::free_balance(222, &ALICE.into()), hollar_borrow_amount,);
+		std::assert_eq!(
+			Currencies::free_balance(DOT, &ALICE.into()),
+			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount
+		);
+
+		let (price, timestamp) = crate::liquidation::get_oracle_price("DOT/USD");
+		let price = price.as_u128() / 2;
+		let timestamp = timestamp.as_u128() + 6;
+		let mut data = price.to_be_bytes().to_vec();
+		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+		crate::liquidation::update_oracle_price("DOT/USD", U256::checked_from(&data[0..32]).unwrap());
+
+		let (price, timestamp) = crate::liquidation::get_oracle_price("WETH/USD");
+		let price = price.as_u128() / 2;
+		let timestamp = timestamp.as_u128() + 6;
+		let mut data = price.to_be_bytes().to_vec();
+		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+		crate::liquidation::update_oracle_price("WETH/USD", U256::checked_from(&data[0..32]).unwrap());
+
+		// ensure that the health_factor < 1
+		let user_data = crate::liquidation::get_user_account_data(pool_contract, alice_evm_address);
+		dbg!(user_data);
+		assert!(user_data.5 < U256::from(1_000_000_000_000_000_000u128));
+
+		let route = Router::get_route(AssetPair {
+			asset_in: WETH,
+			asset_out: 222,
+		});
+
+		// Act
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(BOB.into()),
+			WETH,
+			222,
+			alice_evm_address,
+			hollar_borrow_amount,
+			route
+		));
+
+		// Assert
+		std::assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
+		std::assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
+
+		assert!(Currencies::free_balance(DOT, &Treasury::account_id()) > treasury_dot_initial_balance);
+
+		std::assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+		std::assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);
 	});
 }
