@@ -80,7 +80,7 @@ where
 		log::trace!(target: "flash", "amt: {:?}", amount);
 		log::trace!(target: "flash", "fee: {:?}", fee);
 
-		// We only allow flash minter contract to call this precompile.
+		// ensure that the caller is one of the allowed callers
 		let allowed_callers = AllowedCallers::get();
 		if !allowed_callers.contains(&caller) {
 			log::error!(target: "flash", "Caller is not allowed: {:?}", caller);
