@@ -3,8 +3,7 @@ use cumulus_primitives_core::BlockT;
 use ethabi::ethereum_types::U256;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_self_contained::SelfContainedCall;
-use frame_support::BoundedVec;
-use frame_support::__private::sp_tracing::tracing;
+use frame_support::{BoundedVec, __private::sp_tracing::tracing};
 use futures::{future::ready, StreamExt};
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -33,15 +32,20 @@ use threadpool::ThreadPool;
 use xcm_runtime_apis::dry_run::runtime_decl_for_dry_run_api::DryRunApiV1;
 
 const LOG_TARGET: &str = "liquidation-worker";
+
 // Address of the pool address provider contract.
 const PAP_CONTRACT: EvmAddress = H160(hex!("f3ba4d1b50f78301bdd7eaea9b67822a15fca691"));
+
 // Account that calls the runtime API. Needs to have enough WETH balance to pay for the runtime API call.
 const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e"));
+
 // Money market address
 const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
+
 // Target value of HF we try to liquidate to.
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
-													   // Failed liquidations are suspended for this number of blocks before we try to execute them again.
+
+// Failed liquidations are suspended for this number of blocks before we try to execute them again.
 const WAIT_PERIOD: BlockNumber = 10;
 
 type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
@@ -177,6 +181,18 @@ where
 		// We can ignore the result, because it's not important for us.
 		// All we want is to have some upper bound for execution time of this task.
 		let _ = tokio::time::timeout(std::time::Duration::from_secs(4), async {
+			let runtime_api = client.runtime_api();
+			let hash = header.hash();
+			let has_api_v2 = runtime_api.has_api_with::<dyn OffchainWorkerApi<B>, _>(hash, |v| v == 2);
+
+			if let Ok(true) = has_api_v2 {} else {
+				tracing::error!(
+							target: LOG_TARGET,
+							"Unsupported Offchain Worker API version. Consider turning off offchain workers if they are not part of your runtime.",
+						);
+				return
+			};
+
 			let current_block_number = *header.number();
 			// Clear the list every 1_000 blocks to prevent it from growing indefinitely.
 			if current_block_number % 1_000u32.into() == 0u32.into() {
@@ -202,8 +218,6 @@ where
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
             while let Some(notification) = notification_st.next().await {
-				let now = std::time::Instant::now();
-
 				// If `current_block_hash != best_block_hash`, this task is most probably from previous block.
 				let Ok(m_best_block_hash) = best_block_hash.lock() else {
 					tracing::debug!(target: LOG_TARGET, "best_block_hash mutex is poisoned");
@@ -212,214 +226,313 @@ where
 				};
 				if current_block_hash != *m_best_block_hash {
 					// Break from the loop and end the task.
-					break
+					return
 				}
 
-                // Variables used in tasks are captured by the value, so we need to clone them.
-                let tx_pool = transaction_pool.clone();
-                let spawner_c = Arc::new(spawner.clone());
-                let header_c = Arc::new(header.clone());
-				let client_c = client.clone();
-				let sorted_borrowers_data_c = borrowers.clone();
-				let tx_waitlist_c = tx_waitlist.clone();
-
-                let Some(pool_tx) = transaction_pool.clone().ready_transaction(&notification) else { return };
-				let opaque_tx_encoded = pool_tx.data().encode();
-				let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
-
-				let Ok(transaction) = tx else { return };
-
-				let tx_pool_c = tx_pool.clone();
-
-				// Listen to `borrow` transactions and add new borrowers to the list. If the borrower is already in the list, invalidate the HF by setting it to 0.
-				let maybe_borrower = Self::is_borrow_transaction(transaction.0.clone());
-				if let Some(borrower) = maybe_borrower {
-					// lock is automatically dropped at the end of this `if let` block
-					let Ok(mut borrowers_data) = sorted_borrowers_data_c.lock() else {
-						tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
-						// return if the mutex is poisoned
-						return
-					};
-					let maybe_existing_borrower =  borrowers_data.iter().position(|b| b.0 == borrower);
-					if let Some(index) = maybe_existing_borrower {
-						// borrower is already in the list. Invalidate the HF by setting it to 0.
-						borrowers_data[index] = (borrower, U256::zero());
-					} else {
-						// add new borrower to the list. HF is set to 0, so we can place it at the beginning and the list will remain sorted.
-						borrowers_data.insert(0, (borrower, U256::zero()));
-					}
-
-					// skip the execution and wait for another TX
-					continue
+				match Self::on_new_transaction(
+					notification,
+					client.clone(),
+					spawner.clone(),
+					header.clone(),
+					current_block_hash,
+					borrowers.clone(),
+					tx_waitlist.clone(),
+					transaction_pool.clone(),
+					thread_pool.clone(),
+					allowed_signers.clone(),
+					allowed_oracle_call_addresses.clone(),
+					config,
+				) {
+					Ok(()) => continue,
+					Err(()) => return,
 				}
-
-				// Mainly listen to DIA oracle update transactions and verify the signer.
-				let Some(transaction) = Self::verify_oracle_update_transaction(transaction.0, &allowed_signers, &allowed_oracle_call_addresses)
-					else {
-						tracing::debug!(target: LOG_TARGET, "verify_oracle_update_transaction failed");
-						continue
-					};
-
-				Self::spawn_worker(thread_pool.clone(), move || {
-					let runtime_api = client_c.runtime_api();
-					let hash = header_c.hash();
-					let has_api_v2 = runtime_api.has_api_with::<dyn OffchainWorkerApi<B>, _>(hash, |v| v == 2);
-
-					if let Ok(true) = has_api_v2 {} else {
-						tracing::error!(
-							target: LOG_TARGET,
-							"Unsupported Offchain Worker API version. Consider turning off offchain workers if they are not part of your runtime.",
-						);
-						return
-					};
-
-					let Some(oracle_data) = parse_oracle_transaction(transaction) else {
-						tracing::debug!(target: LOG_TARGET, "parse_oracle_transaction failed");
-						return
-					};
-
-					// our calculations "happen" in the next block
-					let Ok(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>()
-						.and_then(|timestamp| timestamp.checked_add(primitives::constants::time::SECS_PER_BLOCK)
-							.ok_or(ArithmeticError::Overflow.into()))
-					else {
-						tracing::debug!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
-						return
-					};
-
-					// List of liquidated users in this block.
-					// We don't try to liquidate a user more than once in a block.
-					let mut liquidated_users: Vec<EvmAddress> = Vec::new();
-
-					// iterate over all price updates
-					// all oracle updates we are interested in are quoted in USD
-					for OracleUpdataData{ base_asset, quote_asset: _, price, timestamp: _ } in oracle_data.iter() {
-						// TODO: maybe we can use `price` to determine if HF will increase or decrease
-						let Ok(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(config.pap_contract.unwrap_or(PAP_CONTRACT), config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER))
-							else { continue };
-
-						// get address of the asset whose price is about to be updated
-						let Some(asset_reserve) = money_market_data.reserves().iter().find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset.to_ascii_lowercase())
-							else { continue };
-
-						let base_asset_address = asset_reserve.asset_address();
-
-						let Ok(mut borrowers_data) = sorted_borrowers_data_c.lock()
-						else {
-							tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
-							// return if the mutex is poisoned
-							return
-						};
-						// Iterate over all borrowers. Borrowers are sorted by their HF, in ascending order.
-						for borrower in borrowers_data.iter_mut() {
-							// skip if the user has been already liquidated in this block
-							if liquidated_users.contains(&borrower.0) { continue };
-
-							let Ok(user_data) = UserData::new(&money_market_data, borrower.0, current_evm_timestamp, config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER))
-								else { continue };
-
-							if let Ok(current_hf) = user_data.health_factor(&money_market_data) {
-								// update user's HF
-								borrower.1 = current_hf;
-
-								if current_hf > U256::one() {
-									continue
-								}
-							} else {
-								// we were unable to get user's HF. Skip the execution for this user.
-								continue
-							}
-
-							if let Ok(Some(liquidation_option)) = money_market_data
-								.get_best_liquidation_option(&user_data, config.target_hf.into(), (base_asset_address, price.into())) {
-
-								let (Ok(Some(collateral_asset_id)), Ok(Some(debt_asset_id))) =
-									(runtime_api.address_to_asset(hash, liquidation_option.collateral_asset),
-									 runtime_api.address_to_asset(hash, liquidation_option.debt_asset))
-									else {
-										continue
-									};
-
-								let Ok(debt_to_liquidate) = liquidation_option.debt_to_liquidate.try_into()
-									else {
-										continue
-									};
-
-								let liquidation_tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate {
-									collateral_asset: collateral_asset_id,
-									debt_asset: debt_asset_id,
-									user: borrower.0,
-									debt_to_cover: debt_to_liquidate,
-									route: BoundedVec::new(),
-								});
-
-								let encoded_tx: fp_self_contained::UncheckedExtrinsic<hydradx_runtime::Address, RuntimeCall, hydradx_runtime::Signature, hydradx_runtime::SignedExtra> =
-									fp_self_contained::UncheckedExtrinsic::new_unsigned(liquidation_tx.clone());
-								let encoded = encoded_tx.encode();
-								let opaque_tx = sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
-
-								let tx_hash = sp_core::blake2_64(&encoded);
-
-								let Ok(mut waitlist) = tx_waitlist_c.lock() else {
-									tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
-									// return if the mutex is poisoned
-									return
-								};
-								let maybe_index = waitlist.iter().position(|tx| tx.0 == tx_hash);
-
-								if let Some(index) = maybe_index {
-									let (_tx_hash, block_number) = waitlist[index];
-									// TX was put on hold for some number of blocks, because dry running it failed.
-									if current_block_number > block_number + WAIT_PERIOD.into() {
-										// remove the tx from the waitlist and try to execute it again
-										waitlist.remove(index);
-									} else {
-										// TX is still on hold, skip the execution
-										continue
-									}
-								}
-
-								// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
-								let dry_run_result = Runtime::dry_run_call(
-									hydradx_runtime::RuntimeOrigin::none().caller,
-									liquidation_tx);
-
-								if let Ok(call_result) = dry_run_result {
-									if call_result.execution_result.is_err() {
-										tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
-
-										// put the failed tx on hold for `WAIT_PERIOD` number of blocks
-										waitlist.push((tx_hash, current_block_number));
-										continue
-									}
-								}
-
-
-
-								// There is no guarantee that the TX will be executed and with the result we expect. The HF after the execution can be slightly different than what we can predict.
-								// Reset the HF to 0 so it will be recalculated again.
-								borrower.1 = U256::zero();
-
-								// add user to the list of borrowers that are liquidated in this run.
-								liquidated_users.push(borrower.0);
-
-								let tx_pool_cc = tx_pool_c.clone();
-								// `tx_pool::submit_one()` returns a Future type, so we need to spawn a new task
-								spawner_c.spawn(
-									"liquidation-worker-on-submit",
-									Some("liquidation-worker"),
-									async move {
-										tracing::debug!(target: LOG_TARGET, "Submitting liquidation extrinsic {opaque_tx:?}");
-										let _ = tx_pool_cc.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into()).await;
-										tracing::debug!(target: LOG_TARGET, "Liquidation execution time: {:?}", now.elapsed().as_millis());
-									}
-								);
-							}
-						}
-					}
-				});
 			}
 		}).await;
+	}
+
+	fn on_new_transaction(
+		notification: <P as TransactionPool>::Hash,
+		client: Arc<C>,
+		spawner: SpawnTaskHandle,
+		header: B::Header,
+		current_block_hash: B::Hash,
+		borrowers: Arc<std::sync::Mutex<Vec<(H160, U256)>>>,
+		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		transaction_pool: Arc<P>,
+		thread_pool: Arc<Mutex<ThreadPool>>,
+		allowed_signers: Vec<EvmAddress>,
+		allowed_oracle_call_addresses: Vec<EvmAddress>,
+		config: LiquidationWorkerConfig,
+	) -> Result<(), ()> {
+		// Variables used in tasks are captured by the value, so we need to clone them.
+		let sorted_borrowers_data_c = borrowers.clone();
+
+		let Some(pool_tx) = transaction_pool.clone().ready_transaction(&notification) else {
+			return Err(());
+		};
+		let opaque_tx_encoded = pool_tx.data().encode();
+		let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
+
+		let Ok(transaction) = tx else { return Err(()) };
+
+		// Listen to `borrow` transactions and add new borrowers to the list. If the borrower is already in the list, invalidate the HF by setting it to 0.
+		let maybe_borrower = Self::is_borrow_transaction(transaction.0.clone());
+		if let Some(borrower) = maybe_borrower {
+			// Add new borrower to the list if needed.
+			// If the borrower is already in the list, invalidate the HF by setting it to 0.
+			match Self::process_new_borrow(borrower, sorted_borrowers_data_c.clone()) {
+				// skip the execution and wait for another TX
+				Ok(()) => return Ok(()),
+				Err(()) => return Err(()),
+			};
+		}
+
+		// Mainly listen to DIA oracle update transactions and verify the signer.
+		let Some(transaction) =
+			Self::verify_oracle_update_transaction(transaction.0, &allowed_signers, &allowed_oracle_call_addresses)
+		else {
+			tracing::debug!(target: LOG_TARGET, "verify_oracle_update_transaction failed");
+			return Ok(());
+		};
+
+		Self::spawn_worker(thread_pool.clone(), move || {
+			Self::process_new_oracle_update(
+				transaction,
+				client.clone(),
+				spawner.clone(),
+				header.clone(),
+				current_block_hash,
+				borrowers.clone(),
+				tx_waitlist.clone(),
+				transaction_pool.clone(),
+				config,
+			)
+		});
+
+		Ok(())
+	}
+
+	fn process_new_oracle_update(
+		transaction: ethereum::TransactionV2,
+		client: Arc<C>,
+		spawner: SpawnTaskHandle,
+		header: B::Header,
+		current_block_hash: B::Hash,
+		borrowers: Arc<std::sync::Mutex<Vec<(H160, U256)>>>,
+		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		transaction_pool: Arc<P>,
+		config: LiquidationWorkerConfig,
+	) {
+		let Some(oracle_data) = parse_oracle_transaction(&transaction) else {
+			tracing::debug!(target: LOG_TARGET, "parse_oracle_transaction failed");
+			return;
+		};
+
+		// our calculations "happen" in the next block
+		let Ok(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>().and_then(|timestamp| {
+			timestamp
+				.checked_add(primitives::constants::time::SECS_PER_BLOCK)
+				.ok_or(ArithmeticError::Overflow.into())
+		}) else {
+			tracing::debug!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
+			return;
+		};
+
+		// List of liquidated users in this block.
+		// We don't try to liquidate a user more than once in a block.
+		let mut liquidated_users: Vec<EvmAddress> = Vec::new();
+
+		// iterate over all price updates
+		// all oracle updates we are interested in are quoted in USD
+		for OracleUpdataData {
+			base_asset,
+			quote_asset: _,
+			price,
+			timestamp: _,
+		} in oracle_data.iter()
+		{
+			// TODO: maybe we can use `price` to determine if HF will increase or decrease
+			let Ok(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(
+				config.pap_contract.unwrap_or(PAP_CONTRACT),
+				config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+			) else {
+				continue;
+			};
+
+			let Ok(mut borrowers_data) = borrowers.lock() else {
+				tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+				// return if the mutex is poisoned
+				return;
+			};
+			// Iterate over all borrowers. Borrowers are sorted by their HF, in ascending order.
+			for borrower in borrowers_data.iter_mut() {
+				match Self::try_liquidate(
+					borrower,
+					&mut liquidated_users,
+					&mut money_market_data,
+					current_evm_timestamp,
+					base_asset,
+					price,
+					client.clone(),
+					spawner.clone(),
+					header.clone(),
+					current_block_hash,
+					tx_waitlist.clone(),
+					transaction_pool.clone(),
+					config,
+				) {
+					Ok(()) => (),
+					Err(()) => return,
+				}
+			}
+		}
+	}
+
+	fn try_liquidate(
+		borrower: &mut (EvmAddress, U256),
+		liquidated_users: &mut Vec<EvmAddress>,
+		money_market_data: &mut MoneyMarketData<Block, Runtime>,
+		current_evm_timestamp: u64,
+		base_asset: &Vec<u8>,
+		price: &U256,
+		client: Arc<C>,
+		spawner: SpawnTaskHandle,
+		header: B::Header,
+		current_block_hash: B::Hash,
+		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		transaction_pool: Arc<P>,
+		config: LiquidationWorkerConfig,
+	) -> Result<(), ()> {
+		let now = std::time::Instant::now();
+		let current_block_number = *header.number();
+
+		let runtime_api = client.runtime_api();
+		let hash = header.hash();
+
+		// get address of the asset whose price is about to be updated
+		let Some(asset_reserve) = money_market_data
+			.reserves()
+			.iter()
+			.find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset.to_ascii_lowercase())
+		else {
+			return Ok(());
+		};
+
+		let base_asset_address = asset_reserve.asset_address();
+
+		// skip if the user has been already liquidated in this block
+		if liquidated_users.contains(&borrower.0) {
+			return Ok(());
+		};
+
+		let Ok(user_data) = UserData::new(
+			&money_market_data,
+			borrower.0,
+			current_evm_timestamp,
+			config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+		) else {
+			return Ok(());
+		};
+
+		if let Ok(current_hf) = user_data.health_factor(&money_market_data) {
+			// update user's HF
+			borrower.1 = current_hf;
+
+			if current_hf > U256::one() {
+				return Ok(());
+			}
+		} else {
+			// we were unable to get user's HF. Skip the execution for this user.
+			return Ok(());
+		}
+
+		if let Ok(Some(liquidation_option)) = money_market_data.get_best_liquidation_option(
+			&user_data,
+			config.target_hf.into(),
+			(base_asset_address, price.into()),
+		) {
+			let (Ok(Some(collateral_asset_id)), Ok(Some(debt_asset_id))) = (
+				runtime_api.address_to_asset(hash, liquidation_option.collateral_asset),
+				runtime_api.address_to_asset(hash, liquidation_option.debt_asset),
+			) else {
+				return Ok(());
+			};
+
+			let Ok(debt_to_liquidate) = liquidation_option.debt_to_liquidate.try_into() else {
+				return Ok(());
+			};
+
+			let liquidation_tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate {
+				collateral_asset: collateral_asset_id,
+				debt_asset: debt_asset_id,
+				user: borrower.0,
+				debt_to_cover: debt_to_liquidate,
+				route: BoundedVec::new(),
+			});
+
+			let encoded_tx: fp_self_contained::UncheckedExtrinsic<
+				hydradx_runtime::Address,
+				RuntimeCall,
+				hydradx_runtime::Signature,
+				hydradx_runtime::SignedExtra,
+			> = fp_self_contained::UncheckedExtrinsic::new_unsigned(liquidation_tx.clone());
+			let encoded = encoded_tx.encode();
+			let opaque_tx =
+				sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
+
+			let tx_hash = sp_core::blake2_64(&encoded);
+
+			let Ok(mut waitlist) = tx_waitlist.lock() else {
+				tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
+				// return if the mutex is poisoned
+				return Err(());
+			};
+			let maybe_index = waitlist.iter().position(|tx| tx.0 == tx_hash);
+
+			if let Some(index) = maybe_index {
+				let (_tx_hash, block_number) = waitlist[index];
+				// TX was put on hold for some number of blocks, because dry running it failed.
+				if current_block_number > block_number + WAIT_PERIOD.into() {
+					// remove the tx from the waitlist and try to execute it again
+					waitlist.remove(index);
+				} else {
+					// TX is still on hold, skip the execution
+					return Ok(());
+				}
+			}
+
+			// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
+			let dry_run_result = Runtime::dry_run_call(hydradx_runtime::RuntimeOrigin::none().caller, liquidation_tx);
+
+			if let Ok(call_result) = dry_run_result {
+				if call_result.execution_result.is_err() {
+					tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
+
+					// put the failed tx on hold for `WAIT_PERIOD` number of blocks
+					waitlist.push((tx_hash, current_block_number));
+					return Ok(());
+				}
+			}
+
+			// There is no guarantee that the TX will be executed and with the result we expect. The HF after the execution can be slightly different than what we can predict.
+			// Reset the HF to 0 so it will be recalculated again.
+			borrower.1 = U256::zero();
+
+			// add user to the list of borrowers that are liquidated in this run.
+			liquidated_users.push(borrower.0);
+
+			let tx_pool_cc = transaction_pool.clone();
+			// `tx_pool::submit_one()` returns a Future type, so we need to spawn a new task
+			spawner.spawn("liquidation-worker-on-submit", Some("liquidation-worker"), async move {
+				tracing::debug!(target: LOG_TARGET, "Submitting liquidation extrinsic {opaque_tx:?}");
+				let _ = tx_pool_cc
+					.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into())
+					.await;
+				tracing::debug!(target: LOG_TARGET, "Liquidation execution time: {:?}", now.elapsed().as_millis());
+			});
+		}
+
+		Ok(())
 	}
 
 	// TODO: return Result type
@@ -545,6 +658,29 @@ where
 
 		None
 	}
+
+	fn process_new_borrow(
+		borrower: EvmAddress,
+		borrowers_list_mutex: Arc<std::sync::Mutex<Vec<(H160, U256)>>>,
+	) -> Result<(), ()> {
+		// lock is automatically dropped at the end of this function
+		let Ok(mut borrowers_data) = borrowers_list_mutex.lock() else {
+			tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+			// return if the mutex is poisoned
+			return Err(());
+		};
+
+		let maybe_existing_borrower = borrowers_data.iter().position(|b| b.0 == borrower);
+		if let Some(index) = maybe_existing_borrower {
+			// borrower is already in the list. Invalidate the HF by setting it to 0.
+			borrowers_data[index] = (borrower, U256::zero());
+		} else {
+			// add new borrower to the list. HF is set to 0, so we can place it at the beginning and the list will remain sorted.
+			borrowers_data.insert(0, (borrower, U256::zero()));
+		}
+
+		Ok(())
+	}
 }
 
 /// The data from DIA oracle update transaction.
@@ -568,7 +704,7 @@ impl OracleUpdataData {
 
 /// Parse DIA oracle update transaction.
 /// Return a list of `OracleUpdateData`.
-pub fn parse_oracle_transaction(eth_tx: Transaction) -> Option<Vec<OracleUpdataData>> {
+pub fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData>> {
 	let legacy_transaction = match eth_tx {
 		Transaction::Legacy(legacy_transaction) => legacy_transaction,
 		_ => return None,
