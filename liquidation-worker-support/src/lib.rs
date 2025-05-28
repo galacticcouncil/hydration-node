@@ -110,6 +110,7 @@ pub enum Function {
 	GetUserConfiguration = "getUserConfiguration(address)",
 	ScaledBalanceOf = "scaledBalanceOf(address)",
 	BalanceOf = "balanceOf(address)",
+	SetValue = "setValue(string,uint128,uint128)",
 	SetMultipleValues = "setMultipleValues(string[],uint256[])",
 	GetValue = "getValue(string)",
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",

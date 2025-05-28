@@ -736,8 +736,8 @@ pub fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdata
 	let mut dia_oracle_data = Vec::new();
 
 	let fn_selector = &transaction_input[0..4];
-	// setValue
-	if fn_selector == hex!("7898e0c2") {
+
+	if fn_selector == Into::<u32>::into(Function::SetValue).to_be_bytes() {
 		let decoded = ethabi::decode(
 			&[
 				ethabi::ParamType::String,
@@ -753,9 +753,7 @@ pub fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdata
 			decoded[1].clone().into_uint()?,
 			decoded[2].clone().into_uint()?,
 		));
-	}
-	// setMultipleValues
-	else if fn_selector == hex!("8d241526") {
+	} else if fn_selector == Into::<u32>::into(Function::SetMultipleValues).to_be_bytes() {
 		let decoded = ethabi::decode(
 			&[
 				ethabi::ParamType::Array(Box::new(ethabi::ParamType::String)),

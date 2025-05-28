@@ -44,7 +44,7 @@ pub fn supply(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: 
 		.write(0u32)
 		.build();
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
+	let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
 	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 }
 
@@ -58,7 +58,7 @@ pub fn borrow(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: 
 		.write(user)
 		.build();
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 50_000_000);
+	let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 50_000_000);
 	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 }
 
@@ -76,7 +76,7 @@ pub fn get_user_account_data(mm_pool: EvmAddress, user: EvmAddress) -> Option<Us
 	let mut data = Into::<u32>::into(Function::GetUserAccountData).to_be_bytes().to_vec();
 	data.extend_from_slice(H256::from(user).as_bytes());
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
+	let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
 	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 
 	let total_collateral_base = U256::checked_from(&value[0..32])?;
@@ -115,7 +115,7 @@ pub fn update_oracle_price(oracle_data: Vec<(&str, U256)>) {
 
 	data.extend_from_slice(&encoded_values);
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
+	let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 5_000_000);
 	assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
 }
 
@@ -126,7 +126,7 @@ pub fn get_oracle_price(asset_pair: &str) -> (U256, U256) {
 	let encoded_value = encode(&[Token::String(asset_pair.to_string())]);
 	data.extend_from_slice(&encoded_value);
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
+	let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 5_000_000);
 	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 	let price = U256::checked_from(&value[0..32]).unwrap();
 	let timestamp = U256::checked_from(&value[32..64]).unwrap();
@@ -322,7 +322,7 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 				borrow_dot_amount,
 				route
 			),
-			pallet_liquidation::Error::<hydradx_runtime::Runtime>::LiquidationCallFailed
+			pallet_liquidation::Error::<Runtime>::LiquidationCallFailed
 		);
 
 		// Assert
