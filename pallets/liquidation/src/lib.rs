@@ -269,13 +269,10 @@ pub mod pallet {
 				panic!("haha");
 			} else {
 				let pallet_acc = Self::account_id();
-
-				log::error!(target: "liquidation", "minting debt asset: {:?} for amount: {:?}", debt_asset, debt_to_cover);
 				<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
-
 				let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
 
-				let profit = Self::liquidate_position(
+				Self::liquidate_position(
 					pallet_address,
 					collateral_asset,
 					debt_asset,
@@ -292,14 +289,6 @@ pub mod pallet {
 					Precision::Exact,
 					Fortitude::Force,
 				)?;
-
-				Self::deposit_event(Event::Liquidated {
-					user,
-					collateral_asset,
-					debt_asset,
-					debt_to_cover,
-					profit,
-				});
 			}
 
 			Ok(())
@@ -353,7 +342,7 @@ impl<T: Config> Pallet<T> {
 		debt_to_cover: Balance,
 		user: EvmAddress,
 		route: Route<AssetId>,
-	) -> Result<Balance, DispatchError> {
+	) -> DispatchResult {
 		let liquidator_account = T::EvmAccounts::account_id(liquidator);
 		let debt_original_balance =
 			<T as Config>::Currency::balance(debt_asset, &liquidator_account).saturating_sub(debt_to_cover);
@@ -364,8 +353,9 @@ impl<T: Config> Pallet<T> {
 
 		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			let s = precompile_utils::prelude::String::from_utf8_lossy(&value);
 			log::error!(target: "liquidation",
-						"Evm execution failed. Reason: {:?}", value);
+						"Evm execution failed. Reason: {:?}", s);
 			return Err(Error::<T>::LiquidationCallFailed.into());
 		}
 
@@ -374,6 +364,9 @@ impl<T: Config> Pallet<T> {
 			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &liquidator_account)
 				.checked_sub(collateral_original_balance)
 				.defensive_ok_or(ArithmeticError::Underflow)?;
+
+			log::trace!(target: "liquidation",
+				"Collateral earned: {:?} for asset: {:?}", collateral_earned, collateral_asset);
 
 			T::Router::sell(
 				RawOrigin::Signed(liquidator_account.clone()).into(),
@@ -402,6 +395,14 @@ impl<T: Config> Pallet<T> {
 			Preservation::Expendable,
 		)?;
 
-		Ok(profit)
+		Self::deposit_event(Event::Liquidated {
+			user,
+			collateral_asset,
+			debt_asset,
+			debt_to_cover,
+			profit,
+		});
+
+		Ok(())
 	}
 }

@@ -8306,6 +8306,7 @@ dependencies = [
  "num_enum",
  "pallet-evm",
  "pallet-hsm",
+ "pallet-liquidation",
  "pallet-stableswap",
  "parity-scale-codec",
  "precompile-utils",

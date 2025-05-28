@@ -126,6 +126,7 @@ where
 		+ pallet_currencies::Config
 		+ pallet_evm_accounts::Config
 		+ pallet_stableswap::Config
+		+ pallet_liquidation::Config
 		+ pallet_hsm::Config,
 	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,

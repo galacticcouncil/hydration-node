@@ -32,7 +32,7 @@ use frame_support::pallet_prelude::Get;
 use frame_support::traits::ConstU32;
 use frame_support::traits::IsType;
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
-use hydradx_traits::router::Trade;
+use hydradx_traits::router::{Route, Trade};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use precompile_utils::evm::writer::EvmDataReader;
 use precompile_utils::evm::Bytes;
@@ -57,7 +57,7 @@ pub struct FlashLoanReceiverPrecompile<Runtime, AllowedCallers>(PhantomData<(Run
 #[precompile_utils::precompile]
 impl<Runtime, AllowedCallers> FlashLoanReceiverPrecompile<Runtime, AllowedCallers>
 where
-	Runtime: pallet_evm::Config + pallet_stableswap::Config + pallet_hsm::Config,
+	Runtime: pallet_evm::Config + pallet_stableswap::Config + pallet_hsm::Config + pallet_liquidation::Config,
 	<Runtime as frame_system::pallet::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	<Runtime as pallet_stableswap::pallet::Config>::AssetId: From<u32>,
 	AllowedCallers: Get<sp_std::vec::Vec<EvmAddress>>,
@@ -167,12 +167,26 @@ where
 				for _ in 0..route_len {
 					let entry: Bytes = reader.read()?;
 					let entry = entry.as_bytes().to_vec();
-					let s = decode_from_bytes::<Trade<u32>>(entry.clone().into());
+					let s = decode_from_bytes::<Trade<u32>>(entry.clone().into()).map_err(|_| {
+						log::error!(target: "flash", "Failed to decode trade entry: {:?}", entry);
+						PrecompileFailure::Revert {
+							exit_status: ExitRevert::Reverted,
+							output: vec![],
+						}
+					})?;
 					route.push(s);
 				}
 
 				log::trace!(target: "flash", "action: {}, collateral_asset_id: {}, debt_asset_id: {}, user: {:?}, route_len: {}", action, collateral_asset_id, debt_asset_id, user, route_len);
 				log::trace!(target: "flash", "route: {:?}", route);
+				let profit = pallet_liquidation::Pallet::<Runtime>::liquidate_position(
+					this,
+					collateral_asset_id,
+					debt_asset_id,
+					amount.as_u128(),
+					user,
+					Route::truncate_from(route),
+				);
 
 				Err(PrecompileFailure::Revert {
 					exit_status: ExitRevert::Reverted,
