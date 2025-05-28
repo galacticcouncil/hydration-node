@@ -178,6 +178,8 @@ where
 		thread_pool: Arc<Mutex<ThreadPool>>,
 		config: LiquidationWorkerConfig,
 	) {
+		let now = std::time::Instant::now();
+		
 		// We can ignore the result, because it's not important for us.
 		// All we want is to have some upper bound for execution time of this task.
 		let _ = tokio::time::timeout(std::time::Duration::from_secs(4), async {
@@ -248,6 +250,8 @@ where
 				}
 			}
 		}).await;
+		
+		tracing::debug!(target: LOG_TARGET, "on_block_imported execution time: {:?}", now.elapsed().as_millis());
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -534,7 +538,7 @@ where
 				let _ = tx_pool_cc
 					.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into())
 					.await;
-				tracing::debug!(target: LOG_TARGET, "Liquidation execution time: {:?}", now.elapsed().as_millis());
+				tracing::debug!(target: LOG_TARGET, "try_liquidate execution time: {:?}", now.elapsed().as_millis());
 			});
 		}
 
