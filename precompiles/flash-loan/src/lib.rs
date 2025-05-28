@@ -22,6 +22,7 @@
 #![allow(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::{decode_from_bytes, Decode};
 use core::marker::PhantomData;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitSucceed;
@@ -31,8 +32,10 @@ use frame_support::pallet_prelude::Get;
 use frame_support::traits::ConstU32;
 use frame_support::traits::IsType;
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_traits::router::Trade;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use precompile_utils::evm::writer::EvmDataReader;
+use precompile_utils::evm::Bytes;
 use precompile_utils::prelude::*;
 use sp_core::crypto::AccountId32;
 use sp_core::{H256, U256};
@@ -142,6 +145,39 @@ where
 				}
 
 				Ok(SUCCESS.into())
+			}
+			1 => {
+				// Liquidation action
+
+				// Ensure the initiator is liquidation pallet
+
+				// Next bytes are:
+				// - collateral asset id
+				// - debt asset id
+				// - user address
+				// - route length
+				// - route entry ( Trade type )
+				let collateral_asset_id: u32 = reader.read()?;
+				let debt_asset_id: u32 = reader.read()?;
+				let user: EvmAddress = reader.read()?;
+				let route_len: u32 = reader.read()?;
+
+				let mut route = vec![];
+
+				for _ in 0..route_len {
+					let entry: Bytes = reader.read()?;
+					let entry = entry.as_bytes().to_vec();
+					let s = decode_from_bytes::<Trade<u32>>(entry.clone().into());
+					route.push(s);
+				}
+
+				log::trace!(target: "flash", "action: {}, collateral_asset_id: {}, debt_asset_id: {}, user: {:?}, route_len: {}", action, collateral_asset_id, debt_asset_id, user, route_len);
+				log::trace!(target: "flash", "route: {:?}", route);
+
+				Err(PrecompileFailure::Revert {
+					exit_status: ExitRevert::Reverted,
+					output: vec![],
+				})
 			}
 			_ => {
 				log::error!(target: "flash", "flash loan action {} not supported", action);

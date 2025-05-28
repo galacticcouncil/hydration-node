@@ -29,6 +29,7 @@
 
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
+use frame_support::traits::DefensiveOption;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::AccountIdConversion,
@@ -231,33 +232,31 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 		) -> DispatchResult {
-			let pallet_acc = Self::account_id();
-
-			let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
-			let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
-
 			log::trace!(target: "liquidation","liquidating debt asset: {:?} for amount: {:?}", debt_asset, debt_to_cover);
-			if debt_asset == T::HollarId::get() {
-				log::trace!(target: "liquidation","IT IS HOLLAR ASSET, USING FLASH MINT");
 
+			if debt_asset == T::HollarId::get() {
 				let (flash_minter, loan_receiver) = T::FlashMinter::get();
-				let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
+				let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 				let context = CallContext::new_call(flash_minter, pallet_address);
 				let hollar_address = T::Erc20Mapping::asset_address(T::HollarId::get());
-				log::trace!(target: "liquidation", "Hollar address: {:?}", hollar_address);
-				log::trace!(target: "liquidation", "minter: {:?}, receiver: {:?}", flash_minter, loan_receiver);
 
-				let arb_data = EvmDataWriter::new()
+				let mut liquidation_data = EvmDataWriter::new()
 					.write(1u8)
 					.write(collateral_asset)
 					.write(debt_asset)
 					.write(user)
-					.build();
+					.write(route.len() as u32);
+
+				for r in route.iter() {
+					liquidation_data = liquidation_data.write(Bytes(r.encode()))
+				}
+				let liquidation_data = liquidation_data.build();
+
 				let data = EvmDataWriter::new_with_selector(Function::FlashLoan)
 					.write(loan_receiver)
 					.write(hollar_address)
 					.write(debt_to_cover)
-					.write(Bytes(arb_data))
+					.write(Bytes(liquidation_data))
 					.build();
 
 				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
@@ -269,62 +268,29 @@ pub mod pallet {
 
 				panic!("haha");
 			} else {
-				// mint debt asset
+				let pallet_acc = Self::account_id();
+
+				log::error!(target: "liquidation", "minting debt asset: {:?} for amount: {:?}", debt_asset, debt_to_cover);
 				<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
 
-				// liquidation call
 				let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
-				let contract = BorrowingContract::<T>::get();
 
-				let context = CallContext::new_call(contract, pallet_address);
-				let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
+				let profit = Self::liquidate_position(
+					pallet_address,
+					collateral_asset,
+					debt_asset,
+					debt_to_cover,
+					user,
+					route.clone(),
+				)?;
 
-				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::error!(target: "liquidation",
-						"Evm execution failed. Reason: {:?}", value);
-					return Err(Error::<T>::LiquidationCallFailed.into());
-				}
-
-				// swap collateral if necessary
-				if collateral_asset != debt_asset {
-					let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc)
-						.checked_sub(collateral_original_balance)
-						.defensive_ok_or(ArithmeticError::Underflow)?;
-					T::Router::sell(
-						RawOrigin::Signed(pallet_acc.clone()).into(),
-						collateral_asset,
-						debt_asset,
-						collateral_earned,
-						1,
-						route,
-					)?;
-				}
-
-				// burn debt and transfer profit
-				let debt_gained = <T as Config>::Currency::balance(debt_asset, &pallet_acc)
-					.checked_sub(debt_original_balance)
-					.ok_or(Error::<T>::NotProfitable)?;
-
-				let profit = debt_gained
-					.checked_sub(debt_to_cover)
-					.ok_or(Error::<T>::NotProfitable)?;
-
-				<T as Config>::Currency::burn_from(
+				let r = <T as Config>::Currency::burn_from(
 					debt_asset,
 					&pallet_acc,
 					debt_to_cover,
 					Preservation::Expendable,
 					Precision::Exact,
 					Fortitude::Force,
-				)?;
-
-				<T as Config>::Currency::transfer(
-					debt_asset,
-					&pallet_acc,
-					&T::ProfitReceiver::get(),
-					profit,
-					Preservation::Expendable,
 				)?;
 
 				Self::deposit_event(Event::Liquidated {
@@ -378,5 +344,64 @@ impl<T: Config> Pallet<T> {
 		data.extend_from_slice(&buffer);
 
 		data
+	}
+
+	pub fn liquidate_position(
+		liquidator: EvmAddress,
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		debt_to_cover: Balance,
+		user: EvmAddress,
+		route: Route<AssetId>,
+	) -> Result<Balance, DispatchError> {
+		let liquidator_account = T::EvmAccounts::account_id(liquidator);
+		let debt_original_balance =
+			<T as Config>::Currency::balance(debt_asset, &liquidator_account).saturating_sub(debt_to_cover);
+		let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &liquidator_account);
+		let contract = BorrowingContract::<T>::get();
+		let context = CallContext::new_call(contract, liquidator);
+		let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
+
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "liquidation",
+						"Evm execution failed. Reason: {:?}", value);
+			return Err(Error::<T>::LiquidationCallFailed.into());
+		}
+
+		// swap collateral if necessary
+		if collateral_asset != debt_asset {
+			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &liquidator_account)
+				.checked_sub(collateral_original_balance)
+				.defensive_ok_or(ArithmeticError::Underflow)?;
+
+			T::Router::sell(
+				RawOrigin::Signed(liquidator_account.clone()).into(),
+				collateral_asset,
+				debt_asset,
+				collateral_earned,
+				1,
+				route,
+			)?;
+		}
+
+		// burn debt and transfer profit
+		let debt_gained = <T as Config>::Currency::balance(debt_asset, &liquidator_account)
+			.checked_sub(debt_original_balance)
+			.ok_or(Error::<T>::NotProfitable)?;
+
+		let profit = debt_gained
+			.checked_sub(debt_to_cover)
+			.ok_or(Error::<T>::NotProfitable)?;
+
+		<T as Config>::Currency::transfer(
+			debt_asset,
+			&liquidator_account,
+			&T::ProfitReceiver::get(),
+			profit,
+			Preservation::Expendable,
+		)?;
+
+		Ok(profit)
 	}
 }

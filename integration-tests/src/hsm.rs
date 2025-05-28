@@ -826,7 +826,7 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 
 use ethabi::ethereum_types::BigEndianHash;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_traits::router::AssetPair;
+use hydradx_traits::router::{AssetPair, PoolType};
 
 #[test]
 fn arbitrage_should_work() {
@@ -956,6 +956,12 @@ fn hollar_liquidation_should_work() {
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
 
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+
 		// Arrange
 		// PoolAddressesProvider contract
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
@@ -1045,6 +1051,19 @@ fn hollar_liquidation_should_work() {
 			asset_in: WETH,
 			asset_out: 222,
 		});
+
+		let route = BoundedVec::truncate_from(vec![
+			hydradx_traits::router::Trade {
+				pool: PoolType::Stableswap(123),
+				asset_in: WETH,
+				asset_out: 222,
+			},
+			hydradx_traits::router::Trade {
+				pool: PoolType::Omnipool,
+				asset_in: 1,
+				asset_out: 2,
+			},
+		]);
 
 		// Act
 		assert_ok!(Liquidation::liquidate(
