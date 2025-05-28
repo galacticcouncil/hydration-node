@@ -27,9 +27,10 @@ use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitSucceed;
 use fp_evm::{ExitReason, ExitRevert, PrecompileFailure, PrecompileHandle};
 use frame_support::__private::RuntimeDebug;
+use frame_support::pallet_prelude::Get;
 use frame_support::traits::ConstU32;
 use frame_support::traits::IsType;
-use hydradx_traits::evm::{CallContext, InspectEvmAccounts, EVM};
+use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use precompile_utils::evm::writer::EvmDataReader;
 use precompile_utils::prelude::*;
@@ -48,14 +49,15 @@ pub enum Function {
 	Approve = "approve(address,uint256)",
 }
 
-pub struct FlashLoanReceiverPrecompile<Runtime>(PhantomData<Runtime>);
+pub struct FlashLoanReceiverPrecompile<Runtime, AllowedCallers>(PhantomData<(Runtime, AllowedCallers)>);
 
 #[precompile_utils::precompile]
-impl<Runtime> FlashLoanReceiverPrecompile<Runtime>
+impl<Runtime, AllowedCallers> FlashLoanReceiverPrecompile<Runtime, AllowedCallers>
 where
 	Runtime: pallet_evm::Config + pallet_stableswap::Config + pallet_hsm::Config,
 	<Runtime as frame_system::pallet::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	<Runtime as pallet_stableswap::pallet::Config>::AssetId: From<u32>,
+	AllowedCallers: Get<sp_std::vec::Vec<EvmAddress>>,
 {
 	#[precompile::public("onFlashLoan(address,address,uint256,uint256,bytes)")]
 	fn on_flash_loan(
@@ -68,7 +70,7 @@ where
 	) -> EvmResult<H256> {
 		log::trace!(target: "flash", "flash loan received");
 		// Initiator is the one who called the flash loan
-		// Caller of this callback is the flash minter contract.
+		// Caller of this callback is usually the flash minter contract or one of the allowed callers.
 		// "this" is the address that contains the flash loan amount.
 		let caller = handle.context().caller;
 		let this = handle.context().address;
@@ -78,11 +80,23 @@ where
 		log::trace!(target: "flash", "amt: {:?}", amount);
 		log::trace!(target: "flash", "fee: {:?}", fee);
 
-		let mut reader = EvmDataReader::new(&data.as_bytes());
-		let data_ident: u8 = reader.read()?;
+		// ensure that the caller is one of the allowed callers
+		let allowed_callers = AllowedCallers::get();
+		if !allowed_callers.contains(&caller) {
+			log::error!(target: "flash", "Caller is not allowed: {:?}", caller);
+			return Err(PrecompileFailure::Revert {
+				exit_status: ExitRevert::Reverted,
+				output: vec![],
+			});
+		}
 
-		match data_ident {
+		// First byte of the data is the action identifier.
+		let mut reader = EvmDataReader::new(&data.as_bytes());
+		let action: u8 = reader.read()?;
+
+		match action {
 			0 => {
+				// HSM arbitrage action
 				// We only allow the HSM account to use the flash loan for arbitrage opportunities.
 				let hsm_account = pallet_hsm::Pallet::<Runtime>::account_id();
 				let allowed_initiator = <Runtime as pallet_hsm::Config>::EvmAccounts::evm_address(&hsm_account);
@@ -94,7 +108,7 @@ where
 					});
 				}
 				// Get the arb data
-				// The first byte is the data identifier, the next bytes are the collateral asset id and pool id.
+				// Next bytes are the collateral asset id and pool id.
 				let collateral_asset_id: u32 = reader.read()?;
 				let pool_id: u32 = reader.read()?;
 
@@ -123,14 +137,14 @@ where
 					log::error!(target: "flash", "approve failed: {:?}, value {:?}", r, v);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
-						output: vec![],
+						output: v,
 					});
 				}
 
 				Ok(SUCCESS.into())
 			}
 			_ => {
-				log::error!(target: "flash", "data_ident {} not supported", data_ident);
+				log::error!(target: "flash", "flash loan action {} not supported", action);
 				Err(PrecompileFailure::Revert {
 					exit_status: ExitRevert::Reverted,
 					output: vec![],

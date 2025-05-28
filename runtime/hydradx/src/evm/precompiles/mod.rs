@@ -40,7 +40,7 @@ use sp_runtime::traits::Dispatchable;
 
 use codec::alloc;
 use ethabi::Token;
-use frame_support::pallet_prelude::IsType;
+use frame_support::pallet_prelude::{Get, IsType};
 use hex_literal::hex;
 use primitive_types::{H160, U256};
 use sp_core::crypto::AccountId32;
@@ -108,6 +108,18 @@ pub fn is_standard_precompile(address: H160) -> bool {
 	!address.is_zero() && address <= ETH_PRECOMPILE_END
 }
 
+pub struct AllowedFlashLoanCallers;
+
+impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
+	fn get() -> sp_std::vec::Vec<H160> {
+		let Some(flash_minter) = pallet_hsm::Pallet::<crate::Runtime>::flash_minter() else {
+			log::warn!(target: "precompiles", "No flash minter configured, no flash loan precompile will be available");
+			return sp_std::vec![];
+		};
+		sp_std::vec![flash_minter]
+	}
+}
+
 impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
 	R: pallet_evm::Config
@@ -157,7 +169,10 @@ where
 				handle,
 			))
 		} else if address == FLASH_LOAN_RECEIVER {
-			Some(pallet_evm_precompile_flash_loan::FlashLoanReceiverPrecompile::<R>::execute(handle))
+			Some(pallet_evm_precompile_flash_loan::FlashLoanReceiverPrecompile::<
+				R,
+				AllowedFlashLoanCallers,
+			>::execute(handle))
 		} else if address == DISPATCH_ADDR {
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
 		} else if is_asset_address(address) {
