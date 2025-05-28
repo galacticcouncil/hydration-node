@@ -250,6 +250,8 @@ where
 		}).await;
 	}
 
+	#[allow(clippy::too_many_arguments)]
+	#[allow(clippy::type_complexity)]
 	fn on_new_transaction(
 		notification: <P as TransactionPool>::Hash,
 		client: Arc<C>,
@@ -312,6 +314,8 @@ where
 		Ok(())
 	}
 
+	#[allow(clippy::too_many_arguments)]
+	#[allow(clippy::type_complexity)]
 	fn process_new_oracle_update(
 		transaction: ethereum::TransactionV2,
 		client: Arc<C>,
@@ -388,12 +392,14 @@ where
 		}
 	}
 
+	#[allow(clippy::too_many_arguments)]
+	#[allow(clippy::type_complexity)]
 	fn try_liquidate(
 		borrower: &mut (EvmAddress, U256),
 		liquidated_users: &mut Vec<EvmAddress>,
 		money_market_data: &mut MoneyMarketData<Block, Runtime>,
 		current_evm_timestamp: u64,
-		base_asset: &Vec<u8>,
+		base_asset: &[u8],
 		price: &U256,
 		client: Arc<C>,
 		spawner: SpawnTaskHandle,
@@ -426,7 +432,7 @@ where
 		};
 
 		let Ok(user_data) = UserData::new(
-			&money_market_data,
+			money_market_data,
 			borrower.0,
 			current_evm_timestamp,
 			config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
@@ -434,7 +440,7 @@ where
 			return Ok(());
 		};
 
-		if let Ok(current_hf) = user_data.health_factor(&money_market_data) {
+		if let Ok(current_hf) = user_data.health_factor(money_market_data) {
 			// update user's HF
 			borrower.1 = current_hf;
 
@@ -864,7 +870,7 @@ mod tests {
 			U256::from(8461182308381u128),
 			U256::from(1744644693u128),
 		)];
-		assert_eq!(expected, parse_oracle_transaction(tx).unwrap());
+		assert_eq!(expected, parse_oracle_transaction(&tx).unwrap());
 
 		// set multiple values
 		let tx = dummy_dia_tx_multiple_values();
@@ -882,6 +888,6 @@ mod tests {
 				U256::from(1739373797u128),
 			),
 		];
-		assert_eq!(expected, parse_oracle_transaction(tx).unwrap());
+		assert_eq!(expected, parse_oracle_transaction(&tx).unwrap());
 	}
 }
