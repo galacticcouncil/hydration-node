@@ -203,15 +203,19 @@ where
 			};
 
 			let current_block_number = *header.number();
-			// Clear the list every 1_000 blocks to prevent it from growing indefinitely.
-			if current_block_number % 1_000u32.into() == 0u32.into() {
+
+			// `tx_waitlist` maintenance.
+			// Remove all transactions that are older than WAIT_PERIOD blocks and can be executed again.
+			{
 				let Ok(mut waitlist) = tx_waitlist.lock() else {
 					tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
 					// return if the mutex is poisoned
 					return
 				};
 
-				waitlist.clear();
+				waitlist.retain(|(_, block_num)| {
+					current_block_number < *block_num + WAIT_PERIOD.into()
+				});
 			}
 
 			// Get allowed signers and allowed oracle call addresses.
@@ -510,19 +514,12 @@ where
 				// return if the mutex is poisoned
 				return Err(());
 			};
-			let maybe_index = waitlist.iter().position(|tx| tx.0 == tx_hash);
 
-			if let Some(index) = maybe_index {
-				let (_tx_hash, block_number) = waitlist[index];
-				// TX was put on hold for some number of blocks, because dry running it failed.
-				if current_block_number > block_number + WAIT_PERIOD.into() {
-					// remove the tx from the waitlist and try to execute it again
-					waitlist.remove(index);
-				} else {
-					// TX is still on hold, skip the execution
-					return Ok(());
-				}
-			}
+			// skip the execution if the transaction is in the waitlist
+			if let Some(_) = waitlist.iter().find(|tx| tx.0 == tx_hash) {
+				// TX is still on hold, skip the execution
+				return Ok(());
+			};
 
 			// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
 			let dry_run_result = Runtime::dry_run_call(hydradx_runtime::RuntimeOrigin::none().caller, liquidation_tx);
