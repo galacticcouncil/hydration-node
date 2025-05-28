@@ -614,6 +614,7 @@ where
 	}
 
 	/// Check if the provided transaction is valid DIA oracle update.
+	/// All Ethereum transaction types are supported.
 	fn verify_oracle_update_transaction(
 		extrinsic: sp_runtime::generic::UncheckedExtrinsic<
 			hydradx_runtime::Address,
@@ -648,6 +649,7 @@ where
 	}
 
 	/// Check if the provided transaction is money market borrow.
+	/// All Ethereum transaction types are supported.
 	fn is_borrow_transaction(
 		extrinsic: sp_runtime::generic::UncheckedExtrinsic<
 			hydradx_runtime::Address,
@@ -722,16 +724,18 @@ impl OracleUpdataData {
 }
 
 /// Parse DIA oracle update transaction.
-/// Return a list of `OracleUpdateData`.
+/// All Ethereum transaction types are supported.
+/// Returns a list of `OracleUpdateData`.
 pub fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData>> {
-	let legacy_transaction = match eth_tx {
-		Transaction::Legacy(legacy_transaction) => legacy_transaction,
-		_ => return None,
+	let transaction_input = match eth_tx {
+		Transaction::Legacy(legacy_transaction) => &legacy_transaction.input,
+		Transaction::EIP2930(eip2930_transaction) => &eip2930_transaction.input,
+		Transaction::EIP1559(eip1559_transaction) => &eip1559_transaction.input,
 	};
 
 	let mut dia_oracle_data = Vec::new();
 
-	let fn_selector = &legacy_transaction.input[0..4];
+	let fn_selector = &transaction_input[0..4];
 	// setValue
 	if fn_selector == hex!("7898e0c2") {
 		let decoded = ethabi::decode(
@@ -740,7 +744,7 @@ pub fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdata
 				ethabi::ParamType::Uint(16),
 				ethabi::ParamType::Uint(16),
 			],
-			&legacy_transaction.input[4..], // first 4 bytes are function selector
+			&transaction_input[4..], // first 4 bytes are function selector
 		)
 		.ok()?;
 
@@ -757,7 +761,7 @@ pub fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdata
 				ethabi::ParamType::Array(Box::new(ethabi::ParamType::String)),
 				ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(32))),
 			],
-			&legacy_transaction.input[4..], // first 4 bytes are function selector
+			&transaction_input[4..], // first 4 bytes are function selector
 		)
 		.ok()?;
 
