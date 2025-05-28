@@ -84,6 +84,10 @@ where
 	P: TransactionPool<Block = B> + 'static,
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
 {
+	/// Starting point for the liquidation worker.
+	/// Executes `on_block_imported` on every block.
+	/// Initial list of borrowers is fetched and sorted by the HF.
+	/// `tx_waitlist` is initialized here because it's persistent between liquidation runs.
 	pub async fn run(
 		client: Arc<C>,
 		config: LiquidationWorkerConfig,
@@ -166,6 +170,9 @@ where
 
 	#[allow(clippy::too_many_arguments)]
 	#[allow(clippy::type_complexity)]
+	/// Main function of the liquidation worker, executed on each new block.
+	/// The execution time of this function is limited to 4 seconds.
+	/// Listens to new transactions and executes `on_new_transaction` on each new transaction.
 	async fn on_block_imported(
 		client: Arc<C>,
 		spawner: SpawnTaskHandle,
@@ -256,6 +263,8 @@ where
 
 	#[allow(clippy::too_many_arguments)]
 	#[allow(clippy::type_complexity)]
+	/// Executes when a new transaction is added to the transaction pool.
+	/// Listens to borrow and DIA oracle update transactions.
 	fn on_new_transaction(
 		notification: <P as TransactionPool>::Hash,
 		client: Arc<C>,
@@ -320,6 +329,8 @@ where
 
 	#[allow(clippy::too_many_arguments)]
 	#[allow(clippy::type_complexity)]
+	/// Executes when a new DIA oracle update transaction is added to the transaction pool.
+	/// Tries to find liquidation opportunities and execute them.
 	fn process_new_oracle_update(
 		transaction: ethereum::TransactionV2,
 		client: Arc<C>,
@@ -398,6 +409,8 @@ where
 
 	#[allow(clippy::too_many_arguments)]
 	#[allow(clippy::type_complexity)]
+	/// Main liquidation logic of the worker.
+	/// Submits unsigned liquidation transactions for validated liquidation opportunities.
 	fn try_liquidate(
 		borrower: &mut (EvmAddress, U256),
 		liquidated_users: &mut Vec<EvmAddress>,
@@ -594,14 +607,11 @@ where
 		borrowers
 	}
 
-	/// Spawns a new offchain worker.
+	/// Spawns a new thread for liquidation worker.
 	///
-	/// We spawn offchain workers for each block in a separate thread,
+	/// We spawn liquidation workers for each oracle update in a separate thread,
 	/// since they can run for a significant amount of time
 	/// in a blocking fashion and we don't want to block the runtime.
-	///
-	/// Note that we should avoid that if we switch to future-based runtime in the future,
-	/// alternatively:
 	fn spawn_worker(thread_pool: Arc<Mutex<ThreadPool>>, f: impl FnOnce() + Send + 'static) {
 		thread_pool.lock().execute(f);
 	}
@@ -669,6 +679,8 @@ where
 		None
 	}
 
+	/// Adds a new borrower to the borrowers list.
+	/// If the borrower is already in the list, invalidates the HF by setting it to 0 so the HF will be recalculated.
 	fn process_new_borrow(
 		borrower: EvmAddress,
 		borrowers_list_mutex: Arc<std::sync::Mutex<Vec<(H160, U256)>>>,
