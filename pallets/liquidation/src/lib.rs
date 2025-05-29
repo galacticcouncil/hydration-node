@@ -122,7 +122,7 @@ pub mod pallet {
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 
-		// SUpport for HOLLAR liquidations.
+		// Support for HOLLAR liquidations.
 		/// Asset ID of Hollar
 		#[pallet::constant]
 		type HollarId: Get<AssetId>;
@@ -240,7 +240,7 @@ pub mod pallet {
 				let hollar_address = T::Erc20Mapping::asset_address(T::HollarId::get());
 
 				let mut liquidation_data = EvmDataWriter::new()
-					.write(1u8)
+					.write(1u8) // Identifies action for the flash receiver
 					.write(collateral_asset)
 					.write(debt_asset)
 					.write(user)

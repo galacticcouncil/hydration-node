@@ -943,7 +943,7 @@ const ALICE_INITIAL_DOT_BALANCE: Balance = 10_000 * DOT_UNIT;
 
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::router::RouteProvider;
-use sp_runtime::{traits::CheckedConversion, SaturatedConversion};
+use sp_runtime::traits::CheckedConversion;
 
 #[test]
 fn hollar_liquidation_should_work() {
@@ -1030,7 +1030,6 @@ fn hollar_liquidation_should_work() {
 			ALICE_INITIAL_WETH_BALANCE - collateral_weth_amount
 		);
 
-		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
 		let hollar_address = hollar_contract_address();
 		let hollar_borrow_amount: Balance = 5_000 * 1_000_000_000_000_000_000u128;
 		std::assert_eq!(Currencies::free_balance(222, &ALICE.into()), 0);
@@ -1060,11 +1059,6 @@ fn hollar_liquidation_should_work() {
 		// ensure that the health_factor < 1
 		let user_data = crate::liquidation::get_user_account_data(pool_contract, alice_evm_address);
 		assert!(user_data.5 < U256::from(1_000_000_000_000_000_000u128));
-
-		let route = Router::get_route(AssetPair {
-			asset_in: WETH,
-			asset_out: 222,
-		});
 
 		let route = BoundedVec::truncate_from(vec![hydradx_traits::router::Trade {
 			pool: PoolType::Stableswap(stable_pool_id),
