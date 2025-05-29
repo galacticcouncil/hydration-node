@@ -128,7 +128,7 @@ pub mod pallet {
 		type HollarId: Get<AssetId>;
 
 		/// Flash minter contract address and flash loan receiver address.
-		type FlashMinter: Get<(EvmAddress, EvmAddress)>;
+		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
 	}
 
 	#[pallet::type_value]
@@ -196,6 +196,8 @@ pub mod pallet {
 		InvalidRoute,
 		/// Liquidation was not profitable enough to repay flash loan
 		NotProfitable,
+		/// Flash minter contract address not set. It is required for Hollar liquidations.
+		FlashMinterNotSet,
 	}
 
 	#[pallet::call]
@@ -234,7 +236,7 @@ pub mod pallet {
 			log::trace!(target: "liquidation","liquidating debt asset: {:?} for amount: {:?}", debt_asset, debt_to_cover);
 
 			if debt_asset == T::HollarId::get() {
-				let (flash_minter, loan_receiver) = T::FlashMinter::get();
+				let (flash_minter, loan_receiver) = T::FlashMinter::get().ok_or(Error::<T>::FlashMinterNotSet)?;
 				let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
 				let context = CallContext::new_call(flash_minter, pallet_address);
 				let hollar_address = T::Erc20Mapping::asset_address(T::HollarId::get());

@@ -11,7 +11,7 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Tokens, Treasury, HSM,
+	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Tokens, Treasury, HSM,
 };
 use hydradx_runtime::{RuntimeOrigin, Stableswap};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
@@ -31,7 +31,6 @@ use sp_runtime::BoundedVec;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use std::sync::Arc;
-use test_utils::assert_eq_approx;
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
@@ -824,9 +823,8 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 		});
 }
 
-use ethabi::ethereum_types::BigEndianHash;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_traits::router::{AssetPair, PoolType};
+use hydradx_traits::router::PoolType;
 
 #[test]
 fn arbitrage_should_work() {
@@ -942,7 +940,6 @@ const ALICE_INITIAL_WETH_BALANCE: Balance = 20 * WETH_UNIT;
 const ALICE_INITIAL_DOT_BALANCE: Balance = 10_000 * DOT_UNIT;
 
 use hydradx_traits::evm::Erc20Encoding;
-use hydradx_traits::router::RouteProvider;
 use sp_runtime::traits::CheckedConversion;
 
 #[test]
