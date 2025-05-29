@@ -1,6 +1,17 @@
 use frame_system::Config;
 use pretty_assertions::assert_eq;
 
+pub fn expect_event<TEvent: std::fmt::Debug + PartialEq, TRuntime: Config>(e: TEvent)
+where
+	Vec<TEvent>: FromIterator<<TRuntime as Config>::RuntimeEvent>,
+{
+	assert!(
+		last_events::<TEvent, TRuntime>(1000).contains(&e),
+		"Expected event {:?} not found in the system events",
+		e
+	);
+}
+
 pub fn expect_events<TEvent: std::fmt::Debug + PartialEq, TRuntime: Config>(e: Vec<TEvent>)
 where
 	Vec<TEvent>: FromIterator<<TRuntime as Config>::RuntimeEvent>,

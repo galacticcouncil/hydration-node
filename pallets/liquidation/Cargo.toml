@@ -81,6 +81,7 @@ std = [
     "pallet-evm-accounts/std",
     "pallet-asset-registry/std",
     "pallet-evm/std",
+    "precompile-utils/std",
 ]
 
 runtime-benchmarks = [
