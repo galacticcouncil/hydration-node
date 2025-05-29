@@ -979,7 +979,7 @@ fn hollar_liquidation_should_work() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
 		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
 
-		let treasury_dot_initial_balance = Currencies::free_balance(DOT, &Treasury::account_id());
+		let treasury_hollar_initial_balance = Currencies::free_balance(222, &Treasury::account_id());
 
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
@@ -987,7 +987,24 @@ fn hollar_liquidation_should_work() {
 
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
+		let liquidation_evm_address = EVMAccounts::evm_address(&pallet_acc);
+		assert!(!check_flash_borrower(liquidation_evm_address));
+		add_flash_borrower(liquidation_evm_address);
+		assert!(check_flash_borrower(liquidation_evm_address));
+
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+		// Create pool to swap collateral for hollar after liquidation
+		let stable_pool_id = 123456;
+		let weth_liquidity = 1990476190476190476 * 2;
+		let hollar_liquidity = 20_000 * 1_000_000_000_000_000_000u128;
+		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), weth_liquidity));
+		mint(minter(), alice_evm_address, hollar_liquidity);
+		let initial_stable_liquidity = vec![
+			AssetAmount::new(WETH, weth_liquidity),
+			AssetAmount::new(222, hollar_liquidity),
+		];
+		create_stablepool(stable_pool_id, vec![WETH, 222], initial_stable_liquidity);
 
 		let collateral_weth_amount: Balance = 2 * WETH_UNIT;
 		let collateral_dot_amount = 1_000 * DOT_UNIT;
@@ -1015,10 +1032,8 @@ fn hollar_liquidation_should_work() {
 
 		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
 		let hollar_address = hollar_contract_address();
-		let hollar_borrow_amount: Balance = 5_000 * 1_000_000_000_000_000_000u128; // 5k hollar
-																			 //crate::liquidation::borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
-
-		std::assert_eq!(Currencies::free_balance(222, &ALICE.into()), 0,);
+		let hollar_borrow_amount: Balance = 5_000 * 1_000_000_000_000_000_000u128;
+		std::assert_eq!(Currencies::free_balance(222, &ALICE.into()), 0);
 
 		crate::liquidation::borrow(pool_contract, alice_evm_address, hollar_address, hollar_borrow_amount);
 
@@ -1044,7 +1059,6 @@ fn hollar_liquidation_should_work() {
 
 		// ensure that the health_factor < 1
 		let user_data = crate::liquidation::get_user_account_data(pool_contract, alice_evm_address);
-		dbg!(user_data);
 		assert!(user_data.5 < U256::from(1_000_000_000_000_000_000u128));
 
 		let route = Router::get_route(AssetPair {
@@ -1052,18 +1066,11 @@ fn hollar_liquidation_should_work() {
 			asset_out: 222,
 		});
 
-		let route = BoundedVec::truncate_from(vec![
-			hydradx_traits::router::Trade {
-				pool: PoolType::Stableswap(123),
-				asset_in: WETH,
-				asset_out: 222,
-			},
-			hydradx_traits::router::Trade {
-				pool: PoolType::Omnipool,
-				asset_in: 1,
-				asset_out: 2,
-			},
-		]);
+		let route = BoundedVec::truncate_from(vec![hydradx_traits::router::Trade {
+			pool: PoolType::Stableswap(stable_pool_id),
+			asset_in: WETH,
+			asset_out: 222,
+		}]);
 
 		// Act
 		assert_ok!(Liquidation::liquidate(
@@ -1078,10 +1085,45 @@ fn hollar_liquidation_should_work() {
 		// Assert
 		std::assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
 		std::assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
+		std::assert_eq!(Currencies::free_balance(222, &pallet_acc), 0);
 
-		assert!(Currencies::free_balance(DOT, &Treasury::account_id()) > treasury_dot_initial_balance);
+		assert!(Currencies::free_balance(222, &Treasury::account_id()) > treasury_hollar_initial_balance);
 
 		std::assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 		std::assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);
+		std::assert_eq!(Currencies::free_balance(222, &BOB.into()), 0);
 	});
+}
+
+fn create_stablepool(pool_id: AssetId, assets: Vec<AssetId>, initial_liquidity: Vec<AssetAmount<AssetId>>) {
+	assert_ok!(hydradx_runtime::AssetRegistry::register(
+		RawOrigin::Root.into(),
+		Some(pool_id),
+		Some(b"mypool".to_vec().try_into().unwrap()),
+		AssetType::StableSwap,
+		Some(1u128),
+		None,
+		None,
+		None,
+		None,
+		true,
+	));
+
+	let amplification = 100u16;
+	let fee = Permill::from_percent(0);
+
+	assert_ok!(hydradx_runtime::Stableswap::create_pool(
+		hydradx_runtime::RuntimeOrigin::root(),
+		pool_id,
+		BoundedVec::truncate_from(assets),
+		amplification,
+		fee,
+	));
+
+	assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+		hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+		pool_id,
+		BoundedVec::truncate_from(initial_liquidity),
+		0
+	));
 }

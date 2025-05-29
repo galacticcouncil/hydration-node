@@ -37,7 +37,7 @@ use frame_support::{
 	traits::tokens::{Fortitude, Precision, Preservation},
 	PalletId,
 };
-use frame_system::{ensure_signed, pallet_prelude::OriginFor, RawOrigin};
+use frame_system::{pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::router::Route;
 use hydradx_traits::{
@@ -79,7 +79,6 @@ pub enum Function {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::traits::DefensiveOption;
 	use hydradx_traits::evm::Erc20Mapping;
 
 	#[pallet::pallet]
@@ -265,8 +264,6 @@ pub mod pallet {
 					log::error!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
 					return Err(Error::<T>::LiquidationCallFailed.into());
 				}
-
-				panic!("haha");
 			} else {
 				let pallet_acc = Self::account_id();
 				<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
@@ -281,7 +278,7 @@ pub mod pallet {
 					route.clone(),
 				)?;
 
-				let r = <T as Config>::Currency::burn_from(
+				let _ = <T as Config>::Currency::burn_from(
 					debt_asset,
 					&pallet_acc,
 					debt_to_cover,
@@ -386,6 +383,9 @@ impl<T: Config> Pallet<T> {
 		let profit = debt_gained
 			.checked_sub(debt_to_cover)
 			.ok_or(Error::<T>::NotProfitable)?;
+
+		log::trace!(target: "liquidation",
+				"Profit: {:?} for asset: {:?}", profit, debt_asset);
 
 		<T as Config>::Currency::transfer(
 			debt_asset,

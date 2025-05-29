@@ -3,9 +3,13 @@
 use crate::polkadot_test_net::*;
 use ethabi::ethereum_types::BigEndianHash;
 use fp_evm::{
+	ExitReason,
 	ExitReason::Succeed,
+	ExitRevert, ExitSucceed,
 	ExitSucceed::{Returned, Stopped},
+	PrecompileFailure,
 };
+use frame_support::__private::log;
 use frame_support::{assert_noop, assert_ok, sp_runtime::RuntimeDebug};
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -41,6 +45,7 @@ pub enum Function {
 	SetMultipleValues = "setMultipleValues(string[],uint256[])",
 	GetValue = "getValue(string)",
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
+	Approve = "approve(address,uint256)",
 }
 
 const DOT: AssetId = 5;
@@ -84,6 +89,17 @@ pub fn borrow(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: 
 
 	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 50_000_000);
 	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
+}
+
+pub fn approve(token: EvmAddress, from: EvmAddress, to: EvmAddress, amount: U256) {
+	// Approve the transfer of the loan
+	let context = CallContext::new_call(token, from);
+	let mut data = Into::<u32>::into(Function::Approve).to_be_bytes().to_vec();
+	data.extend_from_slice(H256::from(to).as_bytes());
+	data.extend_from_slice(H256::from_uint(&amount).as_bytes());
+
+	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 50_000_000);
+	assert_eq!(res, Succeed(Returned), "Approve failed: {:?}", hex::encode(value));
 }
 
 pub fn get_user_account_data(mm_pool: EvmAddress, user: EvmAddress) -> (U256, U256, U256, U256, U256, U256) {

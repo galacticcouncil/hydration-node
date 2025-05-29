@@ -22,7 +22,7 @@
 #![allow(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{decode_from_bytes, Decode};
+use codec::decode_from_bytes;
 use core::marker::PhantomData;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitSucceed;
@@ -150,6 +150,15 @@ where
 				// Liquidation action
 
 				// Ensure the initiator is liquidation pallet
+				let liquidation_account = pallet_liquidation::Pallet::<Runtime>::account_id();
+				let allowed_initiator = <Runtime as pallet_hsm::Config>::EvmAccounts::evm_address(&liquidation_account);
+				if initiator.0 != allowed_initiator {
+					log::error!(target: "flash", "Caller is not the HSM account: {:?}", caller);
+					return Err(PrecompileFailure::Revert {
+						exit_status: ExitRevert::Reverted,
+						output: vec![],
+					});
+				}
 
 				// Next bytes are:
 				// - collateral asset id
@@ -177,9 +186,16 @@ where
 					route.push(s);
 				}
 
+				Self::approve(
+					token.0,
+					this,
+					pallet_liquidation::BorrowingContract::<Runtime>::get(),
+					amount,
+				)?;
+
 				log::trace!(target: "flash", "action: {}, collateral_asset_id: {}, debt_asset_id: {}, user: {:?}, route_len: {}", action, collateral_asset_id, debt_asset_id, user, route_len);
 				log::trace!(target: "flash", "route: {:?}", route);
-				let profit = pallet_liquidation::Pallet::<Runtime>::liquidate_position(
+				let result = pallet_liquidation::Pallet::<Runtime>::liquidate_position(
 					this,
 					collateral_asset_id,
 					debt_asset_id,
@@ -188,10 +204,15 @@ where
 					Route::truncate_from(route),
 				);
 
-				Err(PrecompileFailure::Revert {
-					exit_status: ExitRevert::Reverted,
-					output: vec![],
-				})
+				if result.is_err() {
+					log::error!(target: "flash", "liquidate_position failed: {:?}", result);
+					return Err(PrecompileFailure::Revert {
+						exit_status: ExitRevert::Reverted,
+						output: vec![],
+					});
+				}
+				Self::approve(token.0, this, caller, amount)?;
+				Ok(SUCCESS.into())
 			}
 			_ => {
 				log::error!(target: "flash", "flash loan action {} not supported", action);
@@ -201,5 +222,23 @@ where
 				})
 			}
 		}
+	}
+
+	fn approve(token: EvmAddress, from: EvmAddress, to: EvmAddress, amount: U256) -> Result<(), PrecompileFailure> {
+		// Approve the transfer of the loan
+		let cc = CallContext::new_call(token, from);
+		let mut data = Into::<u32>::into(Function::Approve).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(to).as_bytes());
+		data.extend_from_slice(H256::from_uint(&amount).as_bytes());
+
+		let (exit_reason, v) = <Runtime as pallet_hsm::Config>::Evm::call(cc, data, U256::zero(), 100_000);
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "flash", "approve failed: {:?}, value {:?}", exit_reason, v);
+			return Err(PrecompileFailure::Revert {
+				exit_status: ExitRevert::Reverted,
+				output: v,
+			});
+		}
+		Ok(())
 	}
 }
