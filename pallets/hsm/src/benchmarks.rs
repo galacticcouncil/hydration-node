@@ -24,6 +24,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::{FixedU128, Perbill, Permill};
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -37,7 +38,7 @@ const ASSET_ID_OFFSET: u32 = 5_000;
 benchmarks! {
 	where_clause { where
 		T: Config,
-		T: pallet_stableswap::Config,
+		T: pallet_stableswap::Config + frame_system::Config,
 		T::AssetId: From<u32>,
 		<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	}
@@ -266,6 +267,12 @@ benchmarks! {
 			max_in_holding
 		)?;
 
+		let flash_minter: EvmAddress = hex!["1212121212121212121212121212121212121212"].into();
+		Pallet::<T>::set_flash_minter(
+			RawOrigin::Root.into(),
+			flash_minter,
+		)?;
+
 		// Create account with hollar
 		let arb: T::AccountId = account("arber", 0, 0);
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
@@ -285,6 +292,14 @@ benchmarks! {
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {
 		assert!(HollarAmountReceived::<T>::iter().count().is_zero());
+	}
+
+	set_flash_minter{
+		let flash_minter: EvmAddress = hex!["1212121212121212121212121212121212121212"].into();
+		let successful_origin = <T as crate::Config>::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+	}: _<T::RuntimeOrigin>(successful_origin, flash_minter)
+	verify {
+		assert_eq!(FlashMinter::<T>::get(), Some(flash_minter));
 	}
 
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
@@ -307,7 +322,7 @@ fn seed_pool<T>(
 	offset: u32,
 ) -> Result<(T::AssetId, Vec<T::AssetId>), DispatchError>
 where
-	T: Config + pallet_stableswap::Config,
+	T: Config + pallet_stableswap::Config + frame_system::Config,
 	T::AssetId: From<u32>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
@@ -367,6 +382,11 @@ where
 		0,
 	)
 	.expect("To provide initial liquidity");
+
+	let current_block = frame_system::Pallet::<T>::current_block_number();
+	crate::Pallet::<T>::on_finalize(current_block);
+	pallet_stableswap::Pallet::<T>::on_finalize(current_block);
+	frame_system::Pallet::<T>::set_block_number(current_block + 1u32.into());
 
 	Ok((pool_id, assets))
 }

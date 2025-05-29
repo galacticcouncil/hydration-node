@@ -168,6 +168,7 @@ pallet-evm-precompile-modexp = { workspace = true }
 pallet-evm-precompile-bn128 = { workspace = true }
 pallet-evm-precompile-blake2 = { workspace = true }
 pallet-evm-precompile-call-permit = { workspace = true }
+pallet-evm-precompile-flash-loan = { workspace = true }
 precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
@@ -345,6 +346,7 @@ std = [
     "pallet-evm-precompile-bn128/std",
     "pallet-evm-precompile-blake2/std",
     "pallet-evm-precompile-call-permit/std",
+    "pallet-evm-precompile-flash-loan/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
