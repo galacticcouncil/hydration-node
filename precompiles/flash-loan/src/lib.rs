@@ -107,16 +107,10 @@ where
 						output: vec![],
 					});
 				}
-				// Get the arb data
-				// Next bytes are the collateral asset id and pool id.
-				let collateral_asset_id: u32 = reader.read()?;
-				let pool_id: u32 = reader.read()?;
-
 				let r = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
 					this,
-					pool_id.into(),
-					collateral_asset_id.into(),
 					amount.as_u128(),
+					reader.read_till_end()?,
 				);
 				if r.is_err() {
 					log::error!(target: "flash", "execute_arbitrage_with_flash_loan failed: {:?}", r);
