@@ -55,7 +55,7 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_stableswap::types::PoolSnapshot;
-use precompile_utils::evm::writer::EvmDataWriter;
+use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
 use sp_core::{offchain::Duration, Get, H256, U256};
 use sp_runtime::{
@@ -319,12 +319,12 @@ pub mod pallet {
 		///
 		/// The EVM address for the GHO (Hollar) token contract was not found.
 		HollarContractAddressNotFound,
-
 		/// HSM contains maximum number of allowed collateral assets.
 		MaxNumberOfCollateralsReached,
-
 		/// Flash minter address not set
 		FlashMinterNotSet,
+		/// Provided arbitrage data is invalid
+		InvalidArbitrageData,
 	}
 
 	#[pallet::hooks]
@@ -1358,12 +1358,16 @@ where
 		}
 	}
 
-	pub fn execute_arbitrage_with_flash_loan(
-		account: EvmAddress,
-		stable_pool_id: T::AssetId,
-		collateral_asset_id: T::AssetId,
-		loan_amount: Balance,
-	) -> DispatchResult {
+	pub fn execute_arbitrage_with_flash_loan(account: EvmAddress, loan_amount: Balance, data: &[u8]) -> DispatchResult
+	where
+		<T as pallet_stableswap::Config>::AssetId: From<u32>,
+	{
+		let mut reader = EvmDataReader::new(data);
+		let collateral_asset_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
+		let stable_pool_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
+		let collateral_asset_id: T::AssetId = collateral_asset_id.into();
+		let stable_pool_id: T::AssetId = stable_pool_id.into();
+
 		let flash_loan_account = T::EvmAccounts::account_id(account);
 
 		let collateral_info = Collaterals::<T>::get(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;

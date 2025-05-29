@@ -102,16 +102,11 @@ where
 				// HSM arbitrage action
 				// We only allow the HSM account to use the flash loan for arbitrage opportunities.
 				Self::ensure_allowed_initiator(initiator.0, pallet_hsm::Pallet::<Runtime>::account_id())?;
-				// Get the arb data
-				// Next bytes are the collateral asset id and pool id.
-				let collateral_asset_id: u32 = reader.read()?;
-				let pool_id: u32 = reader.read()?;
 
 				if let Err(r) = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
 					this,
-					pool_id.into(),
-					collateral_asset_id.into(),
 					amount.as_u128(),
+					reader.read_till_end()?,
 				) {
 					log::error!(target: "flash", "execute_arbitrage_with_flash_loan failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
@@ -120,8 +115,8 @@ where
 					});
 				}
 
-				// Approve the transfer of the loan
-				Self::approve(token.0, this, caller, amount)?;
+				// Approve the loan repayment
+				Self::approve(token.0, this, caller, amount + fee)?;
 
 				Ok(SUCCESS.into())
 			}
@@ -178,7 +173,8 @@ where
 						output: vec![],
 					});
 				}
-				Self::approve(token.0, this, caller, amount)?;
+				// Approve the loan repayment
+				Self::approve(token.0, this, caller, amount + fee)?;
 				Ok(SUCCESS.into())
 			}
 			_ => {
@@ -192,7 +188,6 @@ where
 	}
 
 	fn approve(token: EvmAddress, from: EvmAddress, to: EvmAddress, amount: U256) -> Result<(), PrecompileFailure> {
-		// Approve the transfer of the loan
 		let cc = CallContext::new_call(token, from);
 		let mut data = Into::<u32>::into(Function::Approve).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(to).as_bytes());
