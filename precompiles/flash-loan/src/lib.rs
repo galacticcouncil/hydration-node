@@ -101,27 +101,18 @@ where
 			0 => {
 				// HSM arbitrage action
 				// We only allow the HSM account to use the flash loan for arbitrage opportunities.
-				let hsm_account = pallet_hsm::Pallet::<Runtime>::account_id();
-				let allowed_initiator = <Runtime as pallet_hsm::Config>::EvmAccounts::evm_address(&hsm_account);
-				if initiator.0 != allowed_initiator {
-					log::error!(target: "flash", "Caller is not the HSM account: {:?}", caller);
-					return Err(PrecompileFailure::Revert {
-						exit_status: ExitRevert::Reverted,
-						output: vec![],
-					});
-				}
+				Self::ensure_allowed_initiator(initiator.0, pallet_hsm::Pallet::<Runtime>::account_id())?;
 				// Get the arb data
 				// Next bytes are the collateral asset id and pool id.
 				let collateral_asset_id: u32 = reader.read()?;
 				let pool_id: u32 = reader.read()?;
 
-				let r = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
+				if let Err(r) = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
 					this,
 					pool_id.into(),
 					collateral_asset_id.into(),
 					amount.as_u128(),
-				);
-				if r.is_err() {
+				) {
 					log::error!(target: "flash", "execute_arbitrage_with_flash_loan failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
@@ -130,35 +121,13 @@ where
 				}
 
 				// Approve the transfer of the loan
-				let cc = CallContext::new_call(token.0, this);
-				let mut data = Into::<u32>::into(Function::Approve).to_be_bytes().to_vec();
-				data.extend_from_slice(H256::from(caller).as_bytes());
-				data.extend_from_slice(H256::from_uint(&amount).as_bytes());
-
-				let (exit_reason, v) = <Runtime as pallet_hsm::Config>::Evm::call(cc, data, U256::zero(), 100_000);
-				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::error!(target: "flash", "approve failed: {:?}, value {:?}", r, v);
-					return Err(PrecompileFailure::Revert {
-						exit_status: ExitRevert::Reverted,
-						output: v,
-					});
-				}
+				Self::approve(token.0, this, caller, amount)?;
 
 				Ok(SUCCESS.into())
 			}
 			1 => {
 				// Liquidation action
-
-				// Ensure the initiator is liquidation pallet
-				let liquidation_account = pallet_liquidation::Pallet::<Runtime>::account_id();
-				let allowed_initiator = <Runtime as pallet_hsm::Config>::EvmAccounts::evm_address(&liquidation_account);
-				if initiator.0 != allowed_initiator {
-					log::error!(target: "flash", "Caller is not the HSM account: {:?}", caller);
-					return Err(PrecompileFailure::Revert {
-						exit_status: ExitRevert::Reverted,
-						output: vec![],
-					});
-				}
+				Self::ensure_allowed_initiator(initiator.0, pallet_liquidation::Pallet::<Runtime>::account_id())?;
 
 				// Next bytes are:
 				// - collateral asset id
@@ -195,17 +164,15 @@ where
 
 				log::trace!(target: "flash", "action: {}, collateral_asset_id: {}, debt_asset_id: {}, user: {:?}, route_len: {}", action, collateral_asset_id, debt_asset_id, user, route_len);
 				log::trace!(target: "flash", "route: {:?}", route);
-				let result = pallet_liquidation::Pallet::<Runtime>::liquidate_position(
+				if let Err(r) = pallet_liquidation::Pallet::<Runtime>::liquidate_position(
 					this,
 					collateral_asset_id,
 					debt_asset_id,
 					amount.as_u128(),
 					user,
 					Route::truncate_from(route),
-				);
-
-				if result.is_err() {
-					log::error!(target: "flash", "liquidate_position failed: {:?}", result);
+				) {
+					log::error!(target: "flash", "liquidate_position failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
 						output: vec![],
@@ -237,6 +204,21 @@ where
 			return Err(PrecompileFailure::Revert {
 				exit_status: ExitRevert::Reverted,
 				output: v,
+			});
+		}
+		Ok(())
+	}
+
+	fn ensure_allowed_initiator(
+		initiator: EvmAddress,
+		expected: <Runtime as frame_system::Config>::AccountId,
+	) -> Result<(), PrecompileFailure> {
+		let allowed_initiator = <Runtime as pallet_hsm::Config>::EvmAccounts::evm_address(&expected);
+		if initiator != allowed_initiator {
+			log::error!(target: "flash", "Caller is not the expected initiator: {:?}", initiator);
+			return Err(PrecompileFailure::Revert {
+				exit_status: ExitRevert::Reverted,
+				output: vec![],
 			});
 		}
 		Ok(())
