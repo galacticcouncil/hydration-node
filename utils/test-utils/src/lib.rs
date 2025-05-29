@@ -1,10 +1,12 @@
 use frame_system::Config;
 use pretty_assertions::assert_eq;
 
+/// Check if an event of type `TEvent` is present anywhere in system events.
 pub fn expect_event<TEvent: std::fmt::Debug + PartialEq, TRuntime: Config>(e: TEvent)
 where
 	Vec<TEvent>: FromIterator<<TRuntime as Config>::RuntimeEvent>,
 {
+	// Dev note: 1000 is an arbitrary number, it should be large enough to cover the number of events
 	assert!(
 		last_events::<TEvent, TRuntime>(1000).contains(&e),
 		"Expected event {:?} not found in the system events",
@@ -12,6 +14,7 @@ where
 	);
 }
 
+/// Check if given list of event matches the last `n` events in the system.
 pub fn expect_events<TEvent: std::fmt::Debug + PartialEq, TRuntime: Config>(e: Vec<TEvent>)
 where
 	Vec<TEvent>: FromIterator<<TRuntime as Config>::RuntimeEvent>,
