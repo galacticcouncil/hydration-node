@@ -352,9 +352,8 @@ impl<T: Config> Pallet<T> {
 
 		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			let s = precompile_utils::prelude::String::from_utf8_lossy(&value);
 			log::error!(target: "liquidation",
-						"Evm execution failed. Reason: {:?}", s);
+						"Evm execution failed. Reason: {:?}", value);
 			return Err(Error::<T>::LiquidationCallFailed.into());
 		}
 
