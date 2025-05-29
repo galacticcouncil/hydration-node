@@ -800,48 +800,43 @@ pub mod pallet {
 			ensure_none(origin)?;
 
 			let flash_minter = FlashMinter::<T>::get().ok_or(Error::<T>::FlashMinterNotSet)?;
-
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
-
 			let flash_loan_amount = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
+			ensure!(flash_loan_amount > 0, Error::<T>::NoArbitrageOpportunity);
 
-			if flash_loan_amount > 0 {
-				let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
-				let hsm_address = T::EvmAccounts::evm_address(&Self::account_id());
+			let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
+			let hsm_address = T::EvmAccounts::evm_address(&Self::account_id());
 
-				let context = CallContext::new_call(flash_minter, hsm_address);
-				let hollar_address = Self::get_hollar_contract_address()?;
+			let context = CallContext::new_call(flash_minter, hsm_address);
+			let hollar_address = Self::get_hollar_contract_address()?;
 
-				let c_asset_id: u32 = collateral_asset_id.into();
-				let pool_id_u32: u32 = collateral_info.pool_id.into();
-				let arb_data = EvmDataWriter::new()
-					.write(0u8)
-					.write(c_asset_id)
-					.write(pool_id_u32)
-					.build();
-				let data = EvmDataWriter::new_with_selector(ERC20Function::FlashLoan)
-					.write(loan_receiver)
-					.write(hollar_address)
-					.write(flash_loan_amount)
-					.write(Bytes(arb_data))
-					.build();
+			let c_asset_id: u32 = collateral_asset_id.into();
+			let pool_id_u32: u32 = collateral_info.pool_id.into();
+			let arb_data = EvmDataWriter::new()
+				.write(0u8)
+				.write(c_asset_id)
+				.write(pool_id_u32)
+				.build();
+			let data = EvmDataWriter::new_with_selector(ERC20Function::FlashLoan)
+				.write(loan_receiver)
+				.write(hollar_address)
+				.write(flash_loan_amount)
+				.write(Bytes(arb_data))
+				.build();
 
-				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
-					return Err(Error::<T>::InvalidEVMInteraction.into());
-				}
-
-				Self::deposit_event(Event::<T>::ArbitrageExecuted {
-					asset_id: collateral_asset_id,
-					hollar_amount: flash_loan_amount,
-				});
-
-				Ok(())
-			} else {
-				Err(Error::<T>::NoArbitrageOpportunity.into())
+			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
+				return Err(Error::<T>::InvalidEVMInteraction.into());
 			}
+
+			Self::deposit_event(Event::<T>::ArbitrageExecuted {
+				asset_id: collateral_asset_id,
+				hollar_amount: flash_loan_amount,
+			});
+
+			Ok(())
 		}
 
 		#[pallet::call_index(6)]
@@ -1370,6 +1365,9 @@ where
 		loan_amount: Balance,
 	) -> DispatchResult {
 		let flash_loan_account = T::EvmAccounts::account_id(account);
+
+		let collateral_info = Collaterals::<T>::get(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
+		ensure!(collateral_info.pool_id == stable_pool_id, Error::<T>::InvalidPoolState);
 
 		let initial_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
 
