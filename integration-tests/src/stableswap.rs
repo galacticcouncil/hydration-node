@@ -1,14 +1,19 @@
 use crate::driver::HydrationTestDriver;
 use crate::polkadot_test_net::*;
-use frame_support::assert_ok;
 use frame_support::BoundedVec;
+use frame_support::{assert_noop, assert_ok};
+use hydradx_adapters::stableswap_peg_oracle::PegOracle;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
+use hydradx_traits::RawEntry;
 use orml_traits::MultiCurrency;
 use pallet_ema_oracle::BIFROST_SOURCE;
+use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::Permill;
+use pretty_assertions::assert_eq;
+use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
+use sp_runtime::{DispatchError, Permill};
 use std::sync::Arc;
 use test_utils::assert_eq_approx;
 
@@ -116,4 +121,54 @@ fn gigadot_pool_should_work() {
 			assert!(final_alice_vdot_balance < initial_alice_vdot_balance);
 			assert!(final_alice_adot_balance > initial_alice_adot_balance);
 		});
+}
+
+#[test]
+fn peg_oracle_adapter_should_work_when_getting_price_from_mm_oracle() {
+	TestNet::reset();
+	hydra_live_ext("evm-snapshot/router").execute_with(|| {
+		let current_block: BlockNumber = 50_u32;
+		let blocks_diff = 5;
+		let now: Moment = (1744142439 + SECS_PER_BLOCK * blocks_diff) * 1000; // unix time in milliseconds
+		hydradx_runtime::Timestamp::set_timestamp(now);
+		hydradx_run_to_block(current_block);
+
+		let peg = PegOracle::<Runtime, evm::Executor<Runtime>, EmaOracle>::get_raw_entry(
+			Default::default(), //NOTE: MMOracle doesn't use this param, only contract's address
+			PegSource::MMOracle(
+				hex!["17711BE5D63B2Fe8A2C379725DE720773158b954"].into(), //NOTE: dia's USDC oracle
+			),
+		)
+		.expect("failed to retrieve peg from contract");
+
+		let expected_peg = RawEntry {
+			price: (99988686_u128, 100_000_000_u128),
+			volume: Default::default(),
+			liquidity: Default::default(),
+			updated_at: current_block - blocks_diff as u32,
+		};
+		assert_eq!(peg, expected_peg)
+	});
+}
+
+#[test]
+fn peg_oracle_adapter_should_not_work_when_mm_oracle_price_was_updated_in_current_block() {
+	TestNet::reset();
+	hydra_live_ext("evm-snapshot/router").execute_with(|| {
+		let current_block: BlockNumber = 50_u32;
+		let blocks_diff = 0;
+		let now: Moment = (1744142439 + SECS_PER_BLOCK * blocks_diff) * 1000; // unix time in milliseconds
+		hydradx_runtime::Timestamp::set_timestamp(now);
+		hydradx_run_to_block(current_block);
+
+		assert_noop!(
+			PegOracle::<Runtime, evm::Executor<Runtime>, EmaOracle>::get_raw_entry(
+				Default::default(), //NOTE: MMOracle doesn't use this param, only contract's address
+				PegSource::MMOracle(
+				hex!["17711BE5D63B2Fe8A2C379725DE720773158b954"].into(), //NOTE: dia's USDC oracle
+			)
+			),
+			DispatchError::Other("PegOracle not available")
+		);
+	});
 }

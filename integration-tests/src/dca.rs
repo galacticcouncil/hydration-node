@@ -3,9 +3,11 @@
 use crate::count_dca_event;
 use crate::polkadot_test_net::*;
 use crate::{assert_balance, assert_reserved_balance};
+use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
+
 use hydradx_runtime::AssetPairAccountIdFor;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
@@ -41,7 +43,7 @@ mod omnipool {
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::Destination;
-	use sp_runtime::{FixedU128, TransactionOutcome};
+	use sp_runtime::{DispatchError, FixedU128, TransactionOutcome};
 
 	#[test]
 	fn create_schedule_should_work() {
@@ -1030,6 +1032,55 @@ mod omnipool {
 					&ALICE.into(),
 					insufficient_asset,
 					dca_budget - amount_to_sell - fee_in_insufficient - xyk_trade_fee_in_insufficient
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn create_schedule_should_fail_gracefully_when_no_xyk_pool_doesnt_exist() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
+
+				init_omnipool_with_oracle_for_block_10();
+				add_dot_as_payment_currency();
+
+				let name = b"INSUF1".to_vec();
+				let insufficient_asset = AssetRegistry::register_insufficient_asset(
+					None,
+					Some(name.try_into().unwrap()),
+					AssetKind::External,
+					Some(1_000),
+					None,
+					None,
+					None,
+					None,
+				)
+				.unwrap();
+
+				//Arrange
+				let block_id = 11;
+				set_relaychain_block_number(block_id);
+
+				let budget = 5000 * UNITS;
+				let schedule1 =
+					schedule_fake_with_buy_order(PoolType::XYK, insufficient_asset, DOT, 100 * UNITS, budget);
+
+				//Act
+				assert_ok!(Currencies::update_balance(
+					RawOrigin::Root.into(),
+					ALICE.into(),
+					insufficient_asset,
+					5000 * UNITS as i128,
+				));
+				assert_noop!(
+					DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule1.clone(), None),
+					pallet_xyk::Error::<hydradx_runtime::Runtime>::TokenPoolNotFound
 				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))

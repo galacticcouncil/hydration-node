@@ -78,7 +78,8 @@
             "--no-hardware-benchmarks",
             "--force-authoring",
             "--database=paritydb",
-            "--pruning=archive"
+            "--pruning=archive",
+            "--log=info"
           ],
           "ws_port": 9989
         }

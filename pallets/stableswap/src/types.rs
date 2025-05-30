@@ -14,7 +14,7 @@ use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
-use hydradx_traits::{OraclePeriod, Source};
+use hydradx_traits::{evm::EvmAddress, OraclePeriod, Source};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
@@ -156,6 +156,7 @@ pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
 pub enum PegSource<AssetId = ()> {
 	Value(PegType),
 	Oracle((Source, OraclePeriod, AssetId)),
+	MMOracle(EvmAddress),
 }
 
 pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;

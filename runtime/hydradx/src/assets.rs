@@ -38,9 +38,10 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
 use hydradx_adapters::{
-	AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT, MultiCurrencyLockedBalance, OmnipoolHookAdapter,
-	OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider, PriceAdjustmentAdapter, RelayChainBlockHashProvider,
-	RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
+	stableswap_peg_oracle::PegOracle, AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT,
+	MultiCurrencyLockedBalance, OmnipoolHookAdapter, OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider,
+	PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider, StableswapHooksAdapter,
+	VestingInfo,
 };
 use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 pub use hydradx_traits::{
@@ -1404,7 +1405,7 @@ impl pallet_stableswap::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MinTradingLimit = MinTradingLimit;
 	type AmplificationRange = StableswapAmplificationRange;
-	type TargetPegOracle = EmaOracle;
+	type TargetPegOracle = PegOracle<Runtime, evm::Executor<Runtime>, EmaOracle>;
 	type WeightInfo = weights::pallet_stableswap::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = RegisterAsset<Runtime>;
@@ -1845,7 +1846,12 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 		asset_out: AssetId,
 		asset_out_amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		let asset_pair_account = XYK::get_pair_id(AssetPair::new(insuff_asset_id, asset_out));
+		let asset_pair = AssetPair::new(insuff_asset_id, asset_out);
+		if !XYK::exists(asset_pair) {
+			return Err(pallet_xyk::Error::<Runtime>::TokenPoolNotFound.into());
+		}
+
+		let asset_pair_account = XYK::get_pair_id(asset_pair);
 		let out_reserve = Currencies::free_balance(asset_out, &asset_pair_account);
 		let in_reserve = Currencies::free_balance(insuff_asset_id, &asset_pair_account.clone());
 
@@ -1858,7 +1864,12 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 		asset_out: AssetId,
 		asset_in_amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		let asset_pair_account = XYK::get_pair_id(AssetPair::new(asset_in, asset_out));
+		let asset_pair = AssetPair::new(asset_in, asset_out);
+		if !XYK::exists(asset_pair) {
+			return Err(pallet_xyk::Error::<Runtime>::TokenPoolNotFound.into());
+		}
+
+		let asset_pair_account = XYK::get_pair_id(asset_pair);
 		let in_reserve = Currencies::free_balance(asset_in, &asset_pair_account.clone());
 		let out_reserve = Currencies::free_balance(asset_out, &asset_pair_account);
 
