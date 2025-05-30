@@ -1625,6 +1625,7 @@ impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
 		)
 	}
 }
+
 impl pallet_liquidation::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Runtime>;
@@ -1643,6 +1644,8 @@ impl pallet_liquidation::Config for Runtime {
 	type ProfitReceiver = TreasuryAccount;
 	type RouterWeightInfo = RouterWeightInfo;
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
+	type HollarId = HOLLAR;
+	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
 }
 
 impl pallet_broadcast::Config for Runtime {

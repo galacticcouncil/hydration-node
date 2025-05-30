@@ -16,6 +16,7 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-stableswap= { workspace = true }
+pallet-liquidation = { workspace = true }
 hydradx-traits = { workspace = true }
 codec = { workspace = true, features = [ "max-encoded-len" ] }
 sp-core = { workspace = true }
@@ -46,5 +47,6 @@ std = [
 	"sp-std/std",
 	"pallet-hsm/std",
 	"pallet-stableswap/std",
+	"pallet-liquidation/std",
 	"hydradx-traits/std",
 ]
