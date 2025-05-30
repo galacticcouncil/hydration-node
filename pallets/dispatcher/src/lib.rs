@@ -39,6 +39,7 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
+use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::GasWeightMapping;
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
 pub use weights::WeightInfo;
@@ -76,6 +77,9 @@ pub mod pallet {
 			+ From<frame_system::Call<Self>>
 			+ Parameter;
 
+		/// The trait to check whether RuntimeCall is [pallet_evm::Call::call].
+		type EvmCallIdentifier: MaybeEvmCall<<Self as Config>::RuntimeCall>;
+
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
@@ -100,6 +104,20 @@ pub mod pallet {
 	#[pallet::whitelist_storage]
 	#[pallet::getter(fn extra_gas)]
 	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	#[pallet::getter(fn last_evm_call_failed)]
+	pub type LastEvmCallFailed<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	#[pallet::error]
+	pub enum Error<T> {
+		/// The EVM call execution failed. This happens when the EVM returns an exit reason
+		/// other than `ExitSucceed(Returned)` or `ExitSucceed(Stopped)`.
+		EvmCallFailed,
+		/// The provided call is not an EVM call. This extrinsic only accepts `pallet_evm::Call::call`.
+		NotEvmCall,
+	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -236,6 +254,45 @@ pub mod pallet {
 				}),
 			}
 		}
+
+		/// Execute a single EVM call.
+		/// This extrinsic will fail if the EVM call returns any other ExitReason than `ExitSucceed(Returned)` or `ExitSucceed(Stopped)`.
+		/// Look the [hydradx_runtime::evm::runner::WrapRunner] implementation for details.
+		///
+		/// Parameters:
+		/// - `origin`: Signed origin.
+		/// - `call`: presumably `pallet_evm::Call::call` as boxed `RuntimeCall`.
+		///
+		/// Emits `EvmCallFailed` event when failed.
+		#[pallet::call_index(4)]
+		#[pallet::weight(call.get_dispatch_info().weight)]
+		pub fn dispatch_evm_call(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			ensure!(T::EvmCallIdentifier::is_evm_call(&call), Error::<T>::NotEvmCall);
+
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			let post_info = PostDispatchInfo {
+				actual_weight,
+				pays_fee: Pays::Yes,
+			};
+
+			if Self::last_evm_call_failed() {
+				return Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: Error::<T>::EvmCallFailed.into(),
+				});
+			}
+
+			match result {
+				Ok(_) => Ok(post_info),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: err.error,
+				}),
+			}
+		}
 	}
 }
 
@@ -269,6 +326,14 @@ impl<T: Config> Pallet<T> {
 		let new_value = current_value.saturating_sub(amount);
 		if new_value > 0 {
 			ExtraGas::<T>::set(new_value);
+		}
+	}
+
+	pub fn set_last_evm_call_failed(status: bool) {
+		if !status {
+			LastEvmCallFailed::<T>::kill();
+		} else {
+			LastEvmCallFailed::<T>::put(status);
 		}
 	}
 }
