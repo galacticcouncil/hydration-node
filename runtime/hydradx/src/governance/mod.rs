@@ -240,11 +240,7 @@ parameter_types! {
 pub struct EvmCallChecker;
 impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
 	fn is_evm_call(call: &RuntimeCall) -> bool {
-		if let RuntimeCall::EVM(pallet_evm::Call::call { .. }) = call {
-			true
-		} else {
-			false
-		}
+		matches!(call, RuntimeCall::EVM(pallet_evm::Call::call { .. }))
 	}
 }
 

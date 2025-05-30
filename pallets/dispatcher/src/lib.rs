@@ -112,7 +112,10 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The EVM call execution failed. This happens when the EVM returns an exit reason
+		/// other than `ExitSucceed(Returned)` or `ExitSucceed(Stopped)`.
 		EvmCallFailed,
+		/// The provided call is not an EVM call. This extrinsic only accepts `pallet_evm::Call::call`.
 		NotEvmCall,
 	}
 
@@ -253,7 +256,7 @@ pub mod pallet {
 		}
 
 		/// Execute a single EVM call.
-		/// This extrinsic will fail if the EVM call returns any other ExitReason than `ExitSucceed(Returned)`.
+		/// This extrinsic will fail if the EVM call returns any other ExitReason than `ExitSucceed(Returned)` or `ExitSucceed(Stopped)`.
 		/// Look the [hydradx_runtime::evm::runner::WrapRunner] implementation for details.
 		///
 		/// Parameters:
@@ -270,24 +273,22 @@ pub mod pallet {
 			ensure!(T::EvmCallIdentifier::is_evm_call(&call), Error::<T>::NotEvmCall);
 
 			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			let post_info = PostDispatchInfo {
+				actual_weight,
+				pays_fee: Pays::Yes,
+			};
+
+			if Self::last_evm_call_failed() {
+				return Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: Error::<T>::EvmCallFailed.into(),
+				});
+			}
 
 			match result {
-				Ok(_) if Self::last_evm_call_failed() => Err(DispatchErrorWithPostInfo {
-					post_info: PostDispatchInfo {
-						actual_weight,
-						pays_fee: Pays::Yes,
-					},
-					error: Error::<T>::EvmCallFailed.into(),
-				}),
-				Ok(_) => Ok(PostDispatchInfo {
-					actual_weight,
-					pays_fee: Pays::Yes,
-				}),
+				Ok(_) => Ok(post_info),
 				Err(err) => Err(DispatchErrorWithPostInfo {
-					post_info: PostDispatchInfo {
-						actual_weight,
-						pays_fee: Pays::Yes,
-					},
+					post_info,
 					error: err.error,
 				}),
 			}

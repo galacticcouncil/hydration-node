@@ -163,7 +163,10 @@ where
 		)?;
 
 		let CallInfo { exit_reason, .. } = &result;
-		let call_succeeded = matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned));
+		let call_succeeded = matches!(
+			exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned) | ExitReason::Succeed(ExitSucceed::Stopped)
+		);
 		pallet_dispatcher::Pallet::<T>::set_last_evm_call_failed(!call_succeeded);
 
 		Ok(result)
