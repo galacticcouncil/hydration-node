@@ -87,12 +87,7 @@ pub mod benchmark_helpers {
 								let amount = U256::from_big_endian(&amount_bytes);
 
 								let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
-								let mut reader = EvmDataReader::new(&arb_data);
-								let _data_ident: u8 = reader.read().unwrap();
-								let collateral_asset_id: u32 = reader.read().unwrap();
-								let pool_id: u32 = reader.read().unwrap();
 								let arb_account = receiver.into();
-
 								let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
 								let _ =
 									Tokens::update_balance(hollar_id, &arb_account, amount.as_u128() as i128).unwrap();
@@ -100,9 +95,8 @@ pub mod benchmark_helpers {
 								let alice_evm = EVMAccounts::evm_address(&arb_account);
 								pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
 									alice_evm,
-									pool_id,
-									collateral_asset_id,
 									amount.as_u128(),
+									&arb_data,
 								)
 								.unwrap();
 								let _ = Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))
