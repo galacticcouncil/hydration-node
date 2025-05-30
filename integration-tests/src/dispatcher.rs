@@ -448,6 +448,7 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 	Hydra::execute_with(|| {
 		// Arrange: Deploy a valid contract to interact with
 		let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+		let invalid_target = EvmAddress::from_slice(&[0x11; 20]);
 
 		assert_ok!(hydradx_runtime::Tokens::set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -457,21 +458,34 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 			0
 		));
 
-		// Create a valid EVM call that will succeed
-		let call = Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
-			source: evm_address(),
-			target: contract,
-			input: hex!["06fdde03"].to_vec(), // name() function selector
-			value: U256::zero(),
-			gas_limit: 100_000,
-			max_fee_per_gas: U256::from(233_460_000),
-			max_priority_fee_per_gas: None,
-			nonce: None,
-			access_list: vec![],
-		}));
+		// Helper function to create EVM calls with common parameters
+		let create_evm_call = |target| {
+			Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+				source: evm_address(),
+				target,
+				input: hex!["06fdde03"].to_vec(), // name() function selector
+				value: U256::zero(),
+				gas_limit: 100_000,
+				max_fee_per_gas: U256::from(233_460_000),
+				max_priority_fee_per_gas: None,
+				nonce: None,
+				access_list: vec![],
+			}))
+		};
 
-		// Act: Dispatch the EVM call
-		assert_ok!(Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), call));
+		// Create test cases with different targets
+		let call_succeed_returned = create_evm_call(contract);
+		let call_succeed_stopped = create_evm_call(invalid_target);
+
+		// Act: Dispatch the EVM calls
+		assert_ok!(Dispatcher::dispatch_evm_call(
+			evm_signed_origin(evm_address()),
+			call_succeed_returned
+		));
+		assert_ok!(Dispatcher::dispatch_evm_call(
+			evm_signed_origin(evm_address()),
+			call_succeed_stopped
+		));
 
 		// Assert: LastEvmCallFailed storage is clean
 		assert_eq!(Dispatcher::last_evm_call_failed(), false);
@@ -479,9 +493,11 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 }
 
 #[test]
-fn dispatch_evm_call_should_fail_with_evm_call_failed_error() {
+fn dispatch_evm_call_should_fail_with_invalid_function_selector() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		// Arrange
+		// Verify initial state
 		assert_eq!(Dispatcher::last_evm_call_failed(), false);
 
 		assert_ok!(hydradx_runtime::Tokens::set_balance(
@@ -492,11 +508,13 @@ fn dispatch_evm_call_should_fail_with_evm_call_failed_error() {
 			0
 		));
 
-		// Arrange: Create an EVM call that will fail (invalid target address)
-		let invalid_target = EvmAddress::from_slice(&[0x11; 20]);
+		// Deploy a contract to test with
+		let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+
+		// Create an EVM call with an invalid function selector
 		let call = RuntimeCall::EVM(pallet_evm::Call::call {
 			source: evm_address(),
-			target: invalid_target,
+			target: contract,
 			input: hex!["12345678"].to_vec(), // Invalid function selector
 			gas_limit: 100_000,
 			value: U256::zero(),
@@ -508,8 +526,11 @@ fn dispatch_evm_call_should_fail_with_evm_call_failed_error() {
 		let call_data = call.get_dispatch_info();
 		let boxed_call = Box::new(call);
 
-		// Act & Assert: The dispatch should fail with EvmCallFailed error
+		// Act
 		let result = Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), boxed_call);
+
+		// Assert
+		// The dispatch should fail with EvmCallFailed error
 		assert_eq!(
 			result,
 			Err(DispatchErrorWithPostInfo {
@@ -521,7 +542,7 @@ fn dispatch_evm_call_should_fail_with_evm_call_failed_error() {
 			})
 		);
 
-		// Assert: LastEvmCallFailed storage is cleaned after the execution
+		// Verify that LastEvmCallFailed storage is cleaned after execution
 		assert_eq!(Dispatcher::last_evm_call_failed(), false);
 	});
 }
