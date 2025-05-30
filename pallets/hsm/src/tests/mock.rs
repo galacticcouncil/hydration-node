@@ -782,6 +782,7 @@ mod for_benchmark_tests {
 	use crate::types::PegType;
 	use frame_support::dispatch::DispatchResult;
 	pub struct MockStableswapBenchmarkHelper;
+	use hydradx_traits::Source;
 
 	impl pallet_stableswap::BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
 		fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
