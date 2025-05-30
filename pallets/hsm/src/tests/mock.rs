@@ -40,12 +40,11 @@ use hydradx_traits::{
 	stableswap::AssetAmount,
 	AssetKind, BoundErc20, Inspect,
 };
-use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Source, Volume};
+use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
-use precompile_utils::evm::writer::EvmDataReader;
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::{BoundedVec, Perbill};
@@ -379,18 +378,13 @@ impl EVM<CallResult> for MockEvm {
 							let amount = U256::from_big_endian(&amount_bytes);
 
 							let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
-							let mut reader = EvmDataReader::new(&arb_data);
-							let _data_ident: u8 = reader.read().unwrap();
-							let collateral_asset_id: u32 = reader.read().unwrap();
-							let pool_id: u32 = reader.read().unwrap();
 							let arb_account = ALICE.into();
 							crate::Pallet::<Test>::mint_hollar(&arb_account, amount.as_u128()).unwrap();
 							let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
 							crate::Pallet::<Test>::execute_arbitrage_with_flash_loan(
 								alice_evm,
-								pool_id,
-								collateral_asset_id,
 								amount.as_u128(),
+								&arb_data,
 							)
 							.unwrap();
 
