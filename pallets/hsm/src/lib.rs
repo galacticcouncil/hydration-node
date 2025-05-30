@@ -1364,6 +1364,8 @@ where
 		<T as pallet_stableswap::Config>::AssetId: From<u32>,
 	{
 		let mut reader = EvmDataReader::new(data);
+		let action: u8 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
+		ensure!(action == 0, Error::<T>::InvalidArbitrageData);
 		let collateral_asset_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
 		let stable_pool_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
 		let collateral_asset_id: T::AssetId = collateral_asset_id.into();

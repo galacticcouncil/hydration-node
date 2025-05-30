@@ -27,6 +27,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
+use codec::decode_from_bytes;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::traits::DefensiveOption;
@@ -46,7 +47,7 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
-use precompile_utils::evm::writer::EvmDataWriter;
+use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
@@ -198,6 +199,8 @@ pub mod pallet {
 		NotProfitable,
 		/// Flash minter contract address not set. It is required for Hollar liquidations.
 		FlashMinterNotSet,
+		/// Invalid liquidation data provided
+		InvalidLiquidationData,
 	}
 
 	#[pallet::call]
@@ -241,17 +244,7 @@ pub mod pallet {
 				let context = CallContext::new_call(flash_minter, pallet_address);
 				let hollar_address = T::Erc20Mapping::asset_address(T::HollarId::get());
 
-				let mut liquidation_data = EvmDataWriter::new()
-					.write(1u8) // Identifies action for the flash receiver
-					.write(collateral_asset)
-					.write(debt_asset)
-					.write(user)
-					.write(route.len() as u32);
-
-				for r in route.iter() {
-					liquidation_data = liquidation_data.write(Bytes(r.encode()))
-				}
-				let liquidation_data = liquidation_data.build();
+				let liquidation_data = Self::encode_liquidation_data(collateral_asset, debt_asset, user, &route);
 
 				let data = EvmDataWriter::new_with_selector(Function::FlashLoan)
 					.write(loan_receiver)
@@ -271,7 +264,7 @@ pub mod pallet {
 				<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
 				let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
 
-				Self::liquidate_position(
+				Self::liquidate_position_internal(
 					pallet_address,
 					collateral_asset,
 					debt_asset,
@@ -334,7 +327,7 @@ impl<T: Config> Pallet<T> {
 		data
 	}
 
-	pub fn liquidate_position(
+	fn liquidate_position_internal(
 		liquidator: EvmAddress,
 		collateral_asset: AssetId,
 		debt_asset: AssetId,
@@ -405,5 +398,64 @@ impl<T: Config> Pallet<T> {
 		});
 
 		Ok(())
+	}
+
+	/// Liquidates an existing money market position.
+	pub fn liquidate_position(liquidator: EvmAddress, loan_amount: Balance, data: &[u8]) -> DispatchResult {
+		let (collateral_asset_id, debt_asset_id, user, route) = Self::decode_liquidation_data(data)?;
+		log::trace!(target: "liquidation", "collateral_asset_id: {}, debt_asset_id: {}, user: {:?}, route: {:?}", collateral_asset_id, debt_asset_id, user, route);
+		Self::liquidate_position_internal(liquidator, collateral_asset_id, debt_asset_id, loan_amount, user, route)
+	}
+
+	/// Encodes the liquidation data to be used in the EVM call to FlashLoan precompile.
+	fn encode_liquidation_data(
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		user: EvmAddress,
+		route: &Route<AssetId>,
+	) -> Vec<u8> {
+		let mut data = EvmDataWriter::new()
+			.write(1u8)
+			.write(collateral_asset)
+			.write(debt_asset)
+			.write(user)
+			.write(route.len() as u32);
+
+		for r in route.iter() {
+			data = data.write(Bytes(r.encode()));
+		}
+
+		data.build()
+	}
+
+	/// Decodes the liquidation data from the EVM call to FlashLoan precompile.
+	fn decode_liquidation_data(data: &[u8]) -> Result<(AssetId, AssetId, EvmAddress, Route<AssetId>), Error<T>> {
+		// Expected bytes are:
+		// - action (u8) - 1 for liquidation
+		// - collateral asset id
+		// - debt asset id
+		// - user address
+		// - route length
+		// - route entry ( Trade type )
+
+		let mut reader = EvmDataReader::new(data);
+		let action: u8 = reader.read().map_err(|_| Error::<T>::FlashMinterNotSet)?;
+		ensure!(action == 1, Error::<T>::InvalidLiquidationData);
+
+		let collateral_asset_id: AssetId = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+		let debt_asset_id: AssetId = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+		let user: EvmAddress = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+		let route_len: u32 = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+
+		let mut route = vec![];
+		for _ in 0..route_len {
+			let entry: Bytes = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+			let entry = entry.as_bytes().to_vec();
+			let s = decode_from_bytes::<Trade<AssetId>>(entry.clone().into())
+				.map_err(|_| Error::<T>::InvalidLiquidationData)?;
+			route.push(s);
+		}
+
+		Ok((collateral_asset_id, debt_asset_id, user, Route::truncate_from(route)))
 	}
 }
