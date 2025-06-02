@@ -4495,7 +4495,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "10.0.2"
+version = "10.0.3"
 dependencies = [
  "approx",
  "criterion",
@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "316.0.0"
+version = "317.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4818,7 +4818,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.15.2"
+version = "3.15.3"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7678,7 +7678,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-broadcast"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "frame-support",
  "frame-support-procedural",
@@ -8506,7 +8506,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.1.0"
+version = "1.3.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -11124,7 +11124,7 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
 name = "precompile-utils"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "affix",
  "derive_more",
@@ -12200,7 +12200,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.40.0"
+version = "1.41.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -15821,7 +15821,7 @@ dependencies = [
 
 [[package]]
 name = "test-utils"
-version = "1.1.2"
+version = "1.1.3"
 dependencies = [
  "frame-system",
  "pretty_assertions",
