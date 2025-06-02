@@ -55,6 +55,8 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_stableswap::types::PoolSnapshot;
+use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
+use precompile_utils::evm::Bytes;
 use sp_core::{offchain::Duration, Get, H256, U256};
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
@@ -81,6 +83,7 @@ pub mod weights;
 pub enum ERC20Function {
 	Mint = "mint(address,uint256)",
 	Burn = "burn(uint256)",
+	FlashLoan = "flashLoan(address,address,uint256,bytes)",
 }
 
 /// Max number of approved assets.
@@ -172,6 +175,11 @@ pub mod pallet {
 	#[pallet::getter(fn hollar_amount_received)]
 	pub type HollarAmountReceived<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance, ValueQuery>;
 
+	/// Address of the flash loan receiver.
+	#[pallet::storage]
+	#[pallet::getter(fn flash_minter)]
+	pub type FlashMinter<T: Config> = StorageValue<_, EvmAddress, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config>
@@ -225,6 +233,12 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			hollar_amount: Balance,
 		},
+
+		/// Flash minter address set
+		///
+		/// Parameters:
+		/// - `flash_minter`: The EVM address of the flash minter contract
+		FlashMinterSet { flash_minter: EvmAddress },
 	}
 
 	#[pallet::error]
@@ -305,9 +319,12 @@ pub mod pallet {
 		///
 		/// The EVM address for the GHO (Hollar) token contract was not found.
 		HollarContractAddressNotFound,
-
 		/// HSM contains maximum number of allowed collateral assets.
 		MaxNumberOfCollateralsReached,
+		/// Flash minter address not set
+		FlashMinterNotSet,
+		/// Provided arbitrage data is invalid
+		InvalidArbitrageData,
 	}
 
 	#[pallet::hooks]
@@ -776,66 +793,65 @@ pub mod pallet {
 		/// - `InvalidEVMInteraction` if there's an error interacting with the Hollar ERC20 contract
 		/// - Other errors from underlying calls
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage())]
+		#[pallet::weight(<T as Config>::WeightInfo::execute_arbitrage()
+			.saturating_add(<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true))
+		)]
 		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
 			ensure_none(origin)?;
 
+			let (flash_minter, loan_receiver) =
+				GetFlashMinterSupport::<T>::get().ok_or(Error::<T>::FlashMinterNotSet)?;
+
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
+			let flash_loan_amount = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
+			ensure!(flash_loan_amount > 0, Error::<T>::NoArbitrageOpportunity);
 
-			let hollar_amount_to_trade = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
+			let hsm_address = T::EvmAccounts::evm_address(&Self::account_id());
 
-			if hollar_amount_to_trade > 0 {
-				let hsm_account = Self::account_id();
+			let context = CallContext::new_call(flash_minter, hsm_address);
+			let hollar_address = Self::get_hollar_contract_address()?;
 
-				Self::mint_hollar(&hsm_account, hollar_amount_to_trade)?;
+			let c_asset_id: u32 = collateral_asset_id.into();
+			let pool_id_u32: u32 = collateral_info.pool_id.into();
+			let arb_data = EvmDataWriter::new()
+				.write(0u8)
+				.write(c_asset_id)
+				.write(pool_id_u32)
+				.build();
+			let data = EvmDataWriter::new_with_selector(ERC20Function::FlashLoan)
+				.write(loan_receiver)
+				.write(hollar_address)
+				.write(flash_loan_amount)
+				.write(Bytes(arb_data))
+				.build();
 
-				// Sell hollar to HSM for collateral
-				let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
-					&hsm_account,
-					collateral_asset_id,
-					|pool_id, state| {
-						//we need to know how much collateral needs to be paid for given hollar
-						//so we simulate by buying exact amount of hollar
-						let collateral_amount = Self::simulate_in_given_out(
-							pool_id,
-							collateral_asset_id,
-							T::HollarId::get(),
-							hollar_amount_to_trade,
-							Balance::MAX,
-							state,
-						)?;
-						Ok((hollar_amount_to_trade, collateral_amount))
-					},
-					|(hollar_amount, _), price| {
-						let collateral_amount =
-							math::calculate_collateral_amount(hollar_amount, price).ok_or(ArithmeticError::Overflow)?;
-						Ok((hollar_amount, collateral_amount))
-					},
-				)?;
-				debug_assert_eq!(hollar_amount, hollar_amount_to_trade);
+			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-				// Buy hollar from the collateral stable pool
-				let origin: OriginFor<T> = Origin::<T>::Signed(hsm_account.clone()).into();
-				pallet_stableswap::Pallet::<T>::buy(
-					origin,
-					collateral_info.pool_id,
-					T::HollarId::get(),
-					collateral_asset_id,
-					hollar_amount_to_trade,
-					collateral_received,
-				)?;
-
-				Self::burn_hollar(hollar_amount_to_trade)?;
-
-				Self::deposit_event(Event::<T>::ArbitrageExecuted {
-					asset_id: collateral_asset_id,
-					hollar_amount: hollar_amount_to_trade,
-				});
-
-				Ok(())
-			} else {
-				Err(Error::<T>::NoArbitrageOpportunity.into())
+			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
+				return Err(Error::<T>::InvalidEVMInteraction.into());
 			}
+
+			Self::deposit_event(Event::<T>::ArbitrageExecuted {
+				asset_id: collateral_asset_id,
+				hollar_amount: flash_loan_amount,
+			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_flash_minter())]
+		pub fn set_flash_minter(origin: OriginFor<T>, flash_minter_addr: EvmAddress) -> DispatchResult {
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
+
+			FlashMinter::<T>::put(flash_minter_addr);
+
+			Self::deposit_event(Event::<T>::FlashMinterSet {
+				flash_minter: flash_minter_addr,
+			});
+
+			Ok(())
 		}
 	}
 }
@@ -1341,5 +1357,97 @@ where
 				10u128.pow(collateral_decimals as u32),
 			))
 		}
+	}
+
+	pub fn execute_arbitrage_with_flash_loan(account: EvmAddress, loan_amount: Balance, data: &[u8]) -> DispatchResult
+	where
+		<T as pallet_stableswap::Config>::AssetId: From<u32>,
+	{
+		let mut reader = EvmDataReader::new(data);
+		let action: u8 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
+		ensure!(action == 0, Error::<T>::InvalidArbitrageData);
+		let collateral_asset_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
+		let stable_pool_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
+		let collateral_asset_id: T::AssetId = collateral_asset_id.into();
+		let stable_pool_id: T::AssetId = stable_pool_id.into();
+
+		let flash_loan_account = T::EvmAccounts::account_id(account);
+
+		let collateral_info = Collaterals::<T>::get(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
+		ensure!(collateral_info.pool_id == stable_pool_id, Error::<T>::InvalidPoolState);
+
+		let initial_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+
+		let hollar_balance = <T as Config>::Currency::balance(T::HollarId::get(), &flash_loan_account);
+		log::trace!(target: "hsm", "Hollar balance in flash loan account: {:?}", hollar_balance);
+
+		// Sell hollar to HSM for collateral
+		let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
+			&flash_loan_account,
+			collateral_asset_id,
+			|pool_id, state| {
+				//we need to know how much collateral needs to be paid for given hollar
+				//so we simulate by buying exact amount of hollar
+				let collateral_amount = Self::simulate_in_given_out(
+					pool_id,
+					collateral_asset_id,
+					T::HollarId::get(),
+					loan_amount,
+					Balance::MAX,
+					state,
+				)?;
+				Ok((loan_amount, collateral_amount))
+			},
+			|(hollar_amount, _), price| {
+				let collateral_amount =
+					math::calculate_collateral_amount(hollar_amount, price).ok_or(ArithmeticError::Overflow)?;
+				Ok((hollar_amount, collateral_amount))
+			},
+		)?;
+		debug_assert_eq!(hollar_amount, loan_amount);
+
+		// Buy hollar from the collateral stable pool
+		let origin: OriginFor<T> = Origin::<T>::Signed(flash_loan_account.clone()).into();
+		pallet_stableswap::Pallet::<T>::buy(
+			origin,
+			stable_pool_id,
+			T::HollarId::get(),
+			collateral_asset_id,
+			loan_amount,
+			collateral_received,
+		)?;
+
+		let final_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+		let remaining = final_acc_balance.saturating_sub(initial_acc_balance);
+		if remaining > 0 {
+			log::trace!(target: "hsm", "Collateral remaining : {:?}", remaining);
+			// In case there is some collateral left after the buy,
+			// we transfer it to the HSM account
+			let hsm_account = Self::account_id();
+			<T as Config>::Currency::transfer(
+				collateral_asset_id,
+				&flash_loan_account,
+				&hsm_account,
+				remaining,
+				Preservation::Expendable,
+			)?;
+		}
+
+		Ok(())
+	}
+}
+
+pub struct GetFlashMinterSupport<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> Get<Option<(EvmAddress, EvmAddress)>> for GetFlashMinterSupport<T>
+where
+	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+{
+	fn get() -> Option<(EvmAddress, EvmAddress)> {
+		let Some(fm) = FlashMinter::<T>::get() else {
+			return None;
+		};
+		let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
+		Some((fm, loan_receiver))
 	}
 }

@@ -8,6 +8,7 @@ pub mod benchmark_helpers {
 	use pallet_hsm::ERC20Function;
 	use primitive_types::U256;
 	use primitives::{AccountId, Balance, EvmAddress};
+	use sp_core::crypto::AccountId32;
 	use sp_runtime::DispatchResult;
 	use sp_std::prelude::*;
 
@@ -70,6 +71,38 @@ pub mod benchmark_helpers {
 
 									return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
 								}
+							}
+						}
+						ERC20Function::FlashLoan => {
+							if data.len() >= 4 + 32 + 32 + 32 {
+								// Extract recipient address (padded to 32 bytes in ABI encoding)
+								let receiver: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
+								let _receiver_evm = hydradx_traits::evm::EvmAddress::from_slice(&receiver[12..32]);
+
+								let hollar: [u8; 32] = data[4 + 32..4 + 32 + 32].try_into().unwrap_or([0; 32]);
+								let _hollar_evm = hydradx_traits::evm::EvmAddress::from_slice(&hollar[12..32]);
+
+								let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap();
+								let amount = U256::from_big_endian(&amount_bytes);
+
+								let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
+								let arb_account: AccountId32 = receiver.into();
+								let arb_evm = EVMAccounts::evm_address(&arb_account);
+								let arb_account = EVMAccounts::account_id(arb_evm);
+								let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
+								let _ =
+									Tokens::update_balance(hollar_id, &arb_account, amount.as_u128() as i128).unwrap();
+
+								let alice_evm = EVMAccounts::evm_address(&arb_account);
+								pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
+									alice_evm,
+									amount.as_u128(),
+									&arb_data,
+								)
+								.unwrap();
+								let _ = Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))
+									.unwrap();
+								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
 							}
 						}
 					}

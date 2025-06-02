@@ -11,6 +11,7 @@ pub trait WeightInfo {
 	fn add_collateral_asset() -> Weight;
 	fn remove_collateral_asset() -> Weight;
 	fn update_collateral_asset() -> Weight;
+	fn set_flash_minter() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
 	fn execute_arbitrage() -> Weight;
@@ -28,6 +29,10 @@ impl WeightInfo for () {
 	}
 
 	fn update_collateral_asset() -> Weight {
+		Weight::zero()
+	}
+
+	fn set_flash_minter() -> Weight {
 		Weight::zero()
 	}
 

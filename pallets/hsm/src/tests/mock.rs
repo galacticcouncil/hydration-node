@@ -40,9 +40,10 @@ use hydradx_traits::{
 	stableswap::AssetAmount,
 	AssetKind, BoundErc20, Inspect,
 };
-use hydradx_traits::{AccountIdFor, Liquidity, OraclePeriod, RawEntry, RawOracle, Source, Volume};
+use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
+use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
@@ -232,25 +233,37 @@ impl hydradx_traits::registry::Inspect for DummyRegistry {
 
 pub struct PegOracle;
 
-impl RawOracle<AssetId, Balance, u64> for PegOracle {
+impl PegRawOracle<AssetId, Balance, u64> for PegOracle {
 	type Error = ();
 
-	fn get_raw_entry(
-		_source: Source,
-		asset_a: AssetId,
-		asset_b: AssetId,
-		_period: OraclePeriod,
-	) -> Result<RawEntry<Balance, u64>, Self::Error> {
-		let (n, d, u) = PEG_ORACLE_VALUES
-			.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
-			.ok_or(())?;
+	fn get_raw_entry(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<RawEntry<Balance, u64>, Self::Error> {
+		match source {
+			PegSource::Value(v) => {
+				let (n, d) = v;
+				let u = System::block_number();
+				return Ok(RawEntry {
+					price: (n, d),
+					volume: Volume::default(),
+					liquidity: Liquidity::default(),
+					updated_at: u,
+				});
+			}
+			PegSource::Oracle((_, _, asset_id)) => {
+				let (n, d, u) = PEG_ORACLE_VALUES
+					.with(|v| v.borrow().get(&(asset_id, peg_asset)).copied())
+					.ok_or(())?;
 
-		Ok(RawEntry {
-			price: (n, d),
-			volume: Volume::default(),
-			liquidity: Liquidity::default(),
-			updated_at: u,
-		})
+				Ok(RawEntry {
+					price: (n, d),
+					volume: Volume::default(),
+					liquidity: Liquidity::default(),
+					updated_at: u,
+				})
+			}
+			PegSource::MMOracle(_) => {
+				panic!("not supported");
+			}
+		}
 	}
 }
 
@@ -350,6 +363,43 @@ impl EVM<CallResult> for MockEvm {
 
 								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
 							}
+						}
+					}
+					ERC20Function::FlashLoan => {
+						if data.len() >= 4 + 32 + 32 + 32 {
+							// Extract recipient address (padded to 32 bytes in ABI encoding)
+							let receiver: [u8; 32] = data[4..4 + 32].try_into().unwrap_or([0; 32]);
+							let _receiver_evm = EvmAddress::from_slice(&receiver[12..32]);
+
+							let hollar: [u8; 32] = data[4 + 32..4 + 32 + 32].try_into().unwrap_or([0; 32]);
+							let _hollar_evm = EvmAddress::from_slice(&hollar[12..32]);
+
+							let amount_bytes: [u8; 32] = data[4 + 32 + 32..4 + 32 + 32 + 32].try_into().unwrap();
+							let amount = U256::from_big_endian(&amount_bytes);
+
+							let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
+							let arb_account = ALICE.into();
+							crate::Pallet::<Test>::mint_hollar(&arb_account, amount.as_u128()).unwrap();
+							let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
+							crate::Pallet::<Test>::execute_arbitrage_with_flash_loan(
+								alice_evm,
+								amount.as_u128(),
+								&arb_data,
+							)
+							.unwrap();
+
+							Tokens::transfer(
+								RuntimeOrigin::signed(ALICE),
+								crate::Pallet::<Test>::account_id(),
+								<Test as crate::Config>::HollarId::get(),
+								amount.as_u128(),
+							)
+							.unwrap();
+
+							crate::Pallet::<Test>::burn_hollar(amount.as_u128()).unwrap();
+							return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+						} else {
+							panic!("incorrect data len");
 						}
 					}
 				}
@@ -732,6 +782,7 @@ mod for_benchmark_tests {
 	use crate::types::PegType;
 	use frame_support::dispatch::DispatchResult;
 	pub struct MockStableswapBenchmarkHelper;
+	use hydradx_traits::Source;
 
 	impl pallet_stableswap::BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
 		fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {

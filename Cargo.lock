@@ -4738,6 +4738,7 @@ dependencies = [
  "pallet-evm-precompile-bn128",
  "pallet-evm-precompile-call-permit",
  "pallet-evm-precompile-dispatch",
+ "pallet-evm-precompile-flash-loan",
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
@@ -8291,6 +8292,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompile-flash-loan"
+version = "1.0.0"
+dependencies = [
+ "ethabi",
+ "evm",
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "pallet-evm",
+ "pallet-hsm",
+ "pallet-liquidation",
+ "pallet-stableswap",
+ "parity-scale-codec",
+ "precompile-utils",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompile-modexp"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
@@ -8389,6 +8415,7 @@ dependencies = [
  "pallet-evm",
  "pallet-stableswap",
  "parity-scale-codec",
+ "precompile-utils",
  "pretty_assertions",
  "primitive-types",
  "scale-info",
@@ -8503,6 +8530,7 @@ dependencies = [
  "pallet-route-executor",
  "parity-scale-codec",
  "parking_lot 0.12.3",
+ "precompile-utils",
  "pretty_assertions",
  "proptest",
  "scale-info",
@@ -11113,10 +11141,12 @@ dependencies = [
  "parity-scale-codec",
  "paste",
  "precompile-utils-macro",
+ "primitive-types",
  "scale-info",
  "serde",
  "sha3",
  "similar-asserts",
+ "smallvec",
  "sp-core",
  "sp-io",
  "sp-runtime",

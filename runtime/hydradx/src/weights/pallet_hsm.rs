@@ -96,6 +96,13 @@ impl<T: frame_system::Config> pallet_hsm::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+
+	fn set_flash_minter() -> Weight {
+		Weight::from_parts(20_412_000, 3534)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+
 	/// Storage: `HSM::Collaterals` (r:1 w:0)
 	/// Proof: `HSM::Collaterals` (`max_values`: None, `max_size`: Some(69), added: 2544, mode: `MaxEncodedLen`)
 	/// Storage: `Stableswap::PoolSnapshots` (r:1 w:0)

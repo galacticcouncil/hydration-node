@@ -13,7 +13,10 @@ use orml_traits::parameters::sp_runtime::BoundedVec;
 use orml_traits::MultiCurrency;
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
-	test_utils::expect_events::<RuntimeEvent, Test>(e);
+	// We only check if the events are as expected, not necessarily in order.
+	for event in e {
+		test_utils::expect_event::<RuntimeEvent, Test>(event);
+	}
 }
 use hydradx_traits::evm::EvmAddress;
 

@@ -24,6 +24,7 @@ use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::{FixedU128, Perbill, Permill};
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -37,7 +38,7 @@ const ASSET_ID_OFFSET: u32 = 5_000;
 benchmarks! {
 	where_clause { where
 		T: Config,
-		T: pallet_stableswap::Config,
+		T: pallet_stableswap::Config + frame_system::Config,
 		T::AssetId: From<u32>,
 		<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	}
@@ -266,11 +267,15 @@ benchmarks! {
 			max_in_holding
 		)?;
 
-		// Create account with hollar
-		let arb: T::AccountId = account("arber", 0, 0);
-		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
+		let flash_minter: EvmAddress = hex!["1212121212121212121212121212121212121212"].into();
+		Pallet::<T>::set_flash_minter(
+			RawOrigin::Root.into(),
+			flash_minter,
+		)?;
 
+		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
 		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
+
 	}: _(RawOrigin::None, collateral)
 	verify {
 		let acc_balance = <T as Config>::Currency::balance(collateral, &Pallet::<T>::account_id());
@@ -285,6 +290,14 @@ benchmarks! {
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {
 		assert!(HollarAmountReceived::<T>::iter().count().is_zero());
+	}
+
+	set_flash_minter{
+		let flash_minter: EvmAddress = hex!["1212121212121212121212121212121212121212"].into();
+		let successful_origin = <T as crate::Config>::AuthorityOrigin::try_successful_origin().expect("Failed to get successful origin");
+	}: _<T::RuntimeOrigin>(successful_origin, flash_minter)
+	verify {
+		assert_eq!(FlashMinter::<T>::get(), Some(flash_minter));
 	}
 
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
@@ -307,7 +320,7 @@ fn seed_pool<T>(
 	offset: u32,
 ) -> Result<(T::AssetId, Vec<T::AssetId>), DispatchError>
 where
-	T: Config + pallet_stableswap::Config,
+	T: Config + pallet_stableswap::Config + frame_system::Config,
 	T::AssetId: From<u32>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
@@ -319,14 +332,14 @@ where
 	let mut pegs = vec![PegSource::Value((1, 1))];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
 		let asset_id: T::AssetId = (idx + offset).into();
-		let _ = seed_asset::<T>(asset_id, DECIMALS);
+		let _ = seed_asset::<T>(asset_id, DECIMALS)?;
 		assets.push(asset_id);
 		<T as pallet_stableswap::Config>::BenchmarkHelper::register_asset_peg(
 			(hollar_id, asset_id),
 			(1u128, 2u128),
-			*b"benchmar",
+			*b"bifrosto",
 		)?;
-		let source = PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock, hollar_id));
+		let source = PegSource::Oracle((*b"bifrosto", OraclePeriod::LastBlock, hollar_id));
 		pegs.push(source);
 		initial_liquidity.push(INITIAL_LIQUIDITY * ONE - 50 * ONE);
 	}
@@ -348,11 +361,7 @@ where
 	)?;
 
 	let provider: T::AccountId = account("provider", 1, 1);
-	let r = <T as Config>::BenchmarkHelper::bind_address(provider.clone());
-	if r.is_err() {
-		log::warn!(target: "hsm", "Benchmarks - address already bounded.")
-	}
-
+	let _ = <T as Config>::BenchmarkHelper::bind_address(provider.clone());
 	let mut liquidity_amounts = vec![];
 
 	for (asset_id, liquidity) in assets.iter().zip(initial_liquidity) {
@@ -367,6 +376,11 @@ where
 		0,
 	)
 	.expect("To provide initial liquidity");
+
+	let current_block = frame_system::Pallet::<T>::current_block_number();
+	crate::Pallet::<T>::on_finalize(current_block);
+	pallet_stableswap::Pallet::<T>::on_finalize(current_block);
+	frame_system::Pallet::<T>::set_block_number(current_block + 1u32.into());
 
 	Ok((pool_id, assets))
 }

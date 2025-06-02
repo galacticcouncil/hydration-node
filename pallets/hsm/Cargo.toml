@@ -43,6 +43,7 @@ pallet-evm = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
+precompile-utils = { workspace = true }
 
 [dev-dependencies]
 orml-tokens = {workspace = true}
@@ -74,5 +75,6 @@ std = [
     "orml-tokens/std",
     "orml-traits/std",
     "pallet-broadcast/std",
+    "precompile-utils/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

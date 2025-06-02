@@ -1295,6 +1295,7 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
 use pallet_referrals::traits::Convert;
@@ -1324,7 +1325,7 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 				Some(asset_name.clone()),
 				AssetKind::Token,
 				1,
-				Some(asset_name),
+				None,
 				Some(decimals),
 				None,
 				None,
@@ -1336,9 +1337,16 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 
 	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
 		with_transaction(|| {
+			let assets = ordered_pair(asset_pair.0, asset_pair.1);
+			let peg = if assets == asset_pair {
+				peg
+			} else {
+				// if the assets are not in order, we need to reverse the peg
+				(peg.1, peg.0)
+			};
 			if let Err(e) = pallet_ema_oracle::Pallet::<T>::add_entry(
 				source,
-				asset_pair,
+				assets,
 				OracleEntry {
 					price: EmaPrice::new(peg.0, peg.1),
 					volume: Default::default(),
@@ -1625,6 +1633,7 @@ impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
 		)
 	}
 }
+
 impl pallet_liquidation::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = FungibleCurrencies<Runtime>;
@@ -1643,6 +1652,8 @@ impl pallet_liquidation::Config for Runtime {
 	type ProfitReceiver = TreasuryAccount;
 	type RouterWeightInfo = RouterWeightInfo;
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
+	type HollarId = HOLLAR;
+	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
 }
 
 impl pallet_broadcast::Config for Runtime {
