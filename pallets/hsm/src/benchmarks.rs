@@ -273,11 +273,9 @@ benchmarks! {
 			flash_minter,
 		)?;
 
-		// Create account with hollar
-		let arb: T::AccountId = account("arber", 0, 0);
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
-
 		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
+
 	}: _(RawOrigin::None, collateral)
 	verify {
 		let acc_balance = <T as Config>::Currency::balance(collateral, &Pallet::<T>::account_id());
@@ -334,14 +332,14 @@ where
 	let mut pegs = vec![PegSource::Value((1, 1))];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
 		let asset_id: T::AssetId = (idx + offset).into();
-		let _ = seed_asset::<T>(asset_id, DECIMALS);
+		let _ = seed_asset::<T>(asset_id, DECIMALS)?;
 		assets.push(asset_id);
 		<T as pallet_stableswap::Config>::BenchmarkHelper::register_asset_peg(
 			(hollar_id, asset_id),
 			(1u128, 2u128),
-			*b"benchmar",
+			*b"bifrosto",
 		)?;
-		let source = PegSource::Oracle((*b"benchmar", OraclePeriod::LastBlock, hollar_id));
+		let source = PegSource::Oracle((*b"bifrosto", OraclePeriod::LastBlock, hollar_id));
 		pegs.push(source);
 		initial_liquidity.push(INITIAL_LIQUIDITY * ONE - 50 * ONE);
 	}
@@ -363,11 +361,7 @@ where
 	)?;
 
 	let provider: T::AccountId = account("provider", 1, 1);
-	let r = <T as Config>::BenchmarkHelper::bind_address(provider.clone());
-	if r.is_err() {
-		log::warn!(target: "hsm", "Benchmarks - address already bounded.")
-	}
-
+	let _ = <T as Config>::BenchmarkHelper::bind_address(provider.clone());
 	let mut liquidity_amounts = vec![];
 
 	for (asset_id, liquidity) in assets.iter().zip(initial_liquidity) {

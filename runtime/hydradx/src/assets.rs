@@ -1305,6 +1305,7 @@ use pallet_stableswap::types::PegType;
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
+use pallet_ema_oracle::ordered_pair;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
@@ -1324,7 +1325,7 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 				Some(asset_name.clone()),
 				AssetKind::Token,
 				1,
-				Some(asset_name),
+				None,
 				Some(decimals),
 				None,
 				None,
@@ -1336,9 +1337,16 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 
 	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
 		with_transaction(|| {
+			let assets = ordered_pair(asset_pair.0, asset_pair.1);
+			let peg = if assets == asset_pair{
+				peg
+			}else{
+				// if the assets are not in order, we need to reverse the peg
+				(peg.1, peg.0)
+			};
 			if let Err(e) = pallet_ema_oracle::Pallet::<T>::add_entry(
 				source,
-				asset_pair,
+				assets,
 				OracleEntry {
 					price: EmaPrice::new(peg.0, peg.1),
 					volume: Default::default(),
