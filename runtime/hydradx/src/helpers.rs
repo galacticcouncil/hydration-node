@@ -6,10 +6,9 @@ pub mod benchmark_helpers {
 	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
 	use orml_traits::MultiCurrencyExtended;
 	use pallet_hsm::ERC20Function;
-	use precompile_utils::evm::writer::EvmDataReader;
 	use primitive_types::U256;
+	use sp_core::crypto::AccountId32;
 	use primitives::{AccountId, Balance, EvmAddress};
-	use sp_core::ByteArray;
 	use sp_runtime::DispatchResult;
 	use sp_std::prelude::*;
 
@@ -87,12 +86,9 @@ pub mod benchmark_helpers {
 								let amount = U256::from_big_endian(&amount_bytes);
 
 								let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
-								let mut reader = EvmDataReader::new(&arb_data);
-								let _data_ident: u8 = reader.read().unwrap();
-								let collateral_asset_id: u32 = reader.read().unwrap();
-								let pool_id: u32 = reader.read().unwrap();
-								let arb_account = receiver.into();
-
+								let arb_account: AccountId32 = receiver.into();
+								let arb_evm = EVMAccounts::evm_address(&arb_account);
+								let arb_account = EVMAccounts::account_id(arb_evm);
 								let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
 								let _ =
 									Tokens::update_balance(hollar_id, &arb_account, amount.as_u128() as i128).unwrap();
@@ -100,9 +96,8 @@ pub mod benchmark_helpers {
 								let alice_evm = EVMAccounts::evm_address(&arb_account);
 								pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
 									alice_evm,
-									pool_id,
-									collateral_asset_id,
 									amount.as_u128(),
+									&arb_data,
 								)
 								.unwrap();
 								let _ = Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))

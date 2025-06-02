@@ -54,7 +54,7 @@ pub struct FlashLoanReceiverPrecompile<Runtime, AllowedCallers>(PhantomData<(Run
 #[precompile_utils::precompile]
 impl<Runtime, AllowedCallers> FlashLoanReceiverPrecompile<Runtime, AllowedCallers>
 where
-	Runtime: pallet_evm::Config + pallet_stableswap::Config + pallet_hsm::Config,
+	Runtime: pallet_evm::Config + pallet_stableswap::Config + pallet_hsm::Config + pallet_liquidation::Config,
 	<Runtime as frame_system::pallet::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	<Runtime as pallet_stableswap::pallet::Config>::AssetId: From<u32>,
 	AllowedCallers: Get<sp_std::vec::Vec<EvmAddress>>,
@@ -98,21 +98,13 @@ where
 			0 => {
 				// HSM arbitrage action
 				// We only allow the HSM account to use the flash loan for arbitrage opportunities.
-				let hsm_account = pallet_hsm::Pallet::<Runtime>::account_id();
-				let allowed_initiator = <Runtime as pallet_hsm::Config>::EvmAccounts::evm_address(&hsm_account);
-				if initiator.0 != allowed_initiator {
-					log::error!(target: "flash", "Caller is not the HSM account: {:?}", caller);
-					return Err(PrecompileFailure::Revert {
-						exit_status: ExitRevert::Reverted,
-						output: vec![],
-					});
-				}
-				let r = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
+				Self::ensure_allowed_initiator(initiator.0, pallet_hsm::Pallet::<Runtime>::account_id())?;
+
+				if let Err(r) = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
 					this,
 					amount.as_u128(),
-					reader.read_till_end()?,
-				);
-				if r.is_err() {
+					data.as_bytes(),
+				) {
 					log::error!(target: "flash", "execute_arbitrage_with_flash_loan failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
@@ -120,21 +112,34 @@ where
 					});
 				}
 
-				// Approve the transfer of the loan
-				let cc = CallContext::new_call(token.0, this);
-				let mut data = Into::<u32>::into(Function::Approve).to_be_bytes().to_vec();
-				data.extend_from_slice(H256::from(caller).as_bytes());
-				data.extend_from_slice(H256::from_uint(&amount).as_bytes());
+				// Approve the loan repayment
+				Self::approve(token.0, this, caller, amount + fee)?;
 
-				let (exit_reason, v) = <Runtime as pallet_hsm::Config>::Evm::call(cc, data, U256::zero(), 100_000);
-				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::error!(target: "flash", "approve failed: {:?}, value {:?}", r, v);
+				Ok(SUCCESS.into())
+			}
+			1 => {
+				// Liquidation action
+				Self::ensure_allowed_initiator(initiator.0, pallet_liquidation::Pallet::<Runtime>::account_id())?;
+
+				// Approve the token transfer to the liquidation contract
+				Self::approve(
+					token.0,
+					this,
+					pallet_liquidation::BorrowingContract::<Runtime>::get(),
+					amount,
+				)?;
+
+				if let Err(r) =
+					pallet_liquidation::Pallet::<Runtime>::liquidate_position(this, amount.as_u128(), data.as_bytes())
+				{
+					log::error!(target: "flash", "liquidate_position failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
-						output: v,
+						output: vec![],
 					});
 				}
-
+				// Approve the loan repayment
+				Self::approve(token.0, this, caller, amount + fee)?;
 				Ok(SUCCESS.into())
 			}
 			_ => {
@@ -145,5 +150,37 @@ where
 				})
 			}
 		}
+	}
+
+	fn approve(token: EvmAddress, from: EvmAddress, to: EvmAddress, amount: U256) -> Result<(), PrecompileFailure> {
+		let cc = CallContext::new_call(token, from);
+		let mut data = Into::<u32>::into(Function::Approve).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(to).as_bytes());
+		data.extend_from_slice(H256::from_uint(&amount).as_bytes());
+
+		let (exit_reason, v) = <Runtime as pallet_hsm::Config>::Evm::call(cc, data, U256::zero(), 100_000);
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "flash", "approve failed: {:?}, value {:?}", exit_reason, v);
+			return Err(PrecompileFailure::Revert {
+				exit_status: ExitRevert::Reverted,
+				output: v,
+			});
+		}
+		Ok(())
+	}
+
+	fn ensure_allowed_initiator(
+		initiator: EvmAddress,
+		expected: <Runtime as frame_system::Config>::AccountId,
+	) -> Result<(), PrecompileFailure> {
+		let allowed_initiator = <Runtime as pallet_hsm::Config>::EvmAccounts::evm_address(&expected);
+		if initiator != allowed_initiator {
+			log::error!(target: "flash", "Caller is not the expected initiator: {:?}", initiator);
+			return Err(PrecompileFailure::Revert {
+				exit_status: ExitRevert::Reverted,
+				output: vec![],
+			});
+		}
+		Ok(())
 	}
 }

@@ -799,12 +799,13 @@ pub mod pallet {
 		pub fn execute_arbitrage(origin: OriginFor<T>, collateral_asset_id: T::AssetId) -> DispatchResult {
 			ensure_none(origin)?;
 
-			let flash_minter = FlashMinter::<T>::get().ok_or(Error::<T>::FlashMinterNotSet)?;
+			let (flash_minter, loan_receiver) =
+				GetFlashMinterSupport::<T>::get().ok_or(Error::<T>::FlashMinterNotSet)?;
+
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 			let flash_loan_amount = Self::calculate_arbitrage_opportunity(collateral_asset_id, &collateral_info)?;
 			ensure!(flash_loan_amount > 0, Error::<T>::NoArbitrageOpportunity);
 
-			let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
 			let hsm_address = T::EvmAccounts::evm_address(&Self::account_id());
 
 			let context = CallContext::new_call(flash_minter, hsm_address);
@@ -1363,6 +1364,8 @@ where
 		<T as pallet_stableswap::Config>::AssetId: From<u32>,
 	{
 		let mut reader = EvmDataReader::new(data);
+		let action: u8 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
+		ensure!(action == 0, Error::<T>::InvalidArbitrageData);
 		let collateral_asset_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
 		let stable_pool_id: u32 = reader.read().map_err(|_| Error::<T>::InvalidArbitrageData)?;
 		let collateral_asset_id: T::AssetId = collateral_asset_id.into();
@@ -1374,6 +1377,10 @@ where
 		ensure!(collateral_info.pool_id == stable_pool_id, Error::<T>::InvalidPoolState);
 
 		let initial_acc_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
+
+		let hollar_balance = <T as Config>::Currency::balance(T::HollarId::get(), &flash_loan_account);
+		log::trace!(target: "hsm", "Hollar balance in flash loan account: {:?}", hollar_balance);
+
 
 		// Sell hollar to HSM for collateral
 		let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
@@ -1428,5 +1435,20 @@ where
 		}
 
 		Ok(())
+	}
+}
+
+pub struct GetFlashMinterSupport<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> Get<Option<(EvmAddress, EvmAddress)>> for GetFlashMinterSupport<T>
+where
+	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+{
+	fn get() -> Option<(EvmAddress, EvmAddress)> {
+		let Some(fm) = FlashMinter::<T>::get() else {
+			return None;
+		};
+		let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
+		Some((fm, loan_receiver))
 	}
 }
