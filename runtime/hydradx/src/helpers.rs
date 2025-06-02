@@ -7,8 +7,8 @@ pub mod benchmark_helpers {
 	use orml_traits::MultiCurrencyExtended;
 	use pallet_hsm::ERC20Function;
 	use primitive_types::U256;
-	use sp_core::crypto::AccountId32;
 	use primitives::{AccountId, Balance, EvmAddress};
+	use sp_core::crypto::AccountId32;
 	use sp_runtime::DispatchResult;
 	use sp_std::prelude::*;
 

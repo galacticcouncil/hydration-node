@@ -1381,7 +1381,6 @@ where
 		let hollar_balance = <T as Config>::Currency::balance(T::HollarId::get(), &flash_loan_account);
 		log::trace!(target: "hsm", "Hollar balance in flash loan account: {:?}", hollar_balance);
 
-
 		// Sell hollar to HSM for collateral
 		let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
 			&flash_loan_account,

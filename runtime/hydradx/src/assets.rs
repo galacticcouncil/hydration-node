@@ -1295,6 +1295,7 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
 use pallet_referrals::traits::Convert;
@@ -1305,7 +1306,6 @@ use pallet_stableswap::types::PegType;
 use pallet_stableswap::BenchmarkHelper;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
-use pallet_ema_oracle::ordered_pair;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct RegisterAsset<T>(PhantomData<T>);
@@ -1338,9 +1338,9 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
 		with_transaction(|| {
 			let assets = ordered_pair(asset_pair.0, asset_pair.1);
-			let peg = if assets == asset_pair{
+			let peg = if assets == asset_pair {
 				peg
-			}else{
+			} else {
 				// if the assets are not in order, we need to reverse the peg
 				(peg.1, peg.0)
 			};
