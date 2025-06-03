@@ -27,7 +27,7 @@
 
 pub use pallet::*;
 
-use crate::types::{Balance, CoefficientRatio, CollateralInfo, PegType, Price};
+use crate::types::{Balance, CollateralInfo};
 pub use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
@@ -48,6 +48,7 @@ use frame_system::{
 	Origin,
 };
 use hex_literal::hex;
+use hydra_dx_math::hsm::{CoefficientRatio, PegType, Price};
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
@@ -66,7 +67,6 @@ use sp_runtime::{
 	AccountId32, ArithmeticError, DispatchError, Perbill, Permill, Rounding, RuntimeDebug,
 };
 
-mod math;
 pub mod traits;
 pub mod types;
 
@@ -646,8 +646,8 @@ pub mod pallet {
 						Ok((amount_in, collateral_amount))
 					},
 					|(hollar_amount, _), price| {
-						let collateral_amount =
-							math::calculate_collateral_amount(hollar_amount, price).ok_or(ArithmeticError::Overflow)?;
+						let collateral_amount = hydra_dx_math::hsm::calculate_collateral_amount(hollar_amount, price)
+							.ok_or(ArithmeticError::Overflow)?;
 						Ok((hollar_amount, collateral_amount))
 					},
 				)?;
@@ -657,8 +657,8 @@ pub mod pallet {
 			} else {
 				// HOLLAR OUT given COLLATERAL IN
 				let (hollar_amount, collateral_amount) = Self::do_trade_hollar_out(&who, asset_in, |purchase_price| {
-					let hollar_amount =
-						math::calculate_hollar_amount(amount_in, purchase_price).ok_or(ArithmeticError::Overflow)?;
+					let hollar_amount = hydra_dx_math::hsm::calculate_hollar_amount(amount_in, purchase_price)
+						.ok_or(ArithmeticError::Overflow)?;
 					Ok((hollar_amount, amount_in))
 				})?;
 				debug_assert_eq!(amount_in, collateral_amount);
@@ -724,7 +724,7 @@ pub mod pallet {
 			let amount_in = if asset_out == hollar_id {
 				// COLLATERAL IN given HOLLAR OUT
 				let (hollar_out, collateral_in) = Self::do_trade_hollar_out(&who, asset_in, |purchase_price| {
-					let collateral_amount = math::calculate_collateral_amount(amount_out, purchase_price)
+					let collateral_amount = hydra_dx_math::hsm::calculate_collateral_amount(amount_out, purchase_price)
 						.ok_or(ArithmeticError::Overflow)?;
 					Ok((amount_out, collateral_amount))
 				})?;
@@ -744,7 +744,8 @@ pub mod pallet {
 					},
 					|(_, collateral_amount), price| {
 						let hollar_amount_to_pay =
-							math::calculate_hollar_amount(collateral_amount, price).ok_or(ArithmeticError::Overflow)?;
+							hydra_dx_math::hsm::calculate_hollar_amount(collateral_amount, price)
+								.ok_or(ArithmeticError::Overflow)?;
 						Ok((hollar_amount_to_pay, collateral_amount))
 					},
 				)?;
@@ -966,11 +967,11 @@ where
 		let peg = Self::get_asset_peg(collateral_asset, collateral_info.pool_id, &pool_state)?;
 
 		// 1. Calculate imbalance
-		let imbalance =
-			math::calculate_imbalance(hollar_reserve, peg, collateral_reserve).ok_or(ArithmeticError::Overflow)?;
+		let imbalance = hydra_dx_math::hsm::calculate_imbalance(hollar_reserve, peg, collateral_reserve)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		// 2. Calculate how much Hollar can HSM buy back in a single block
-		let buyback_limit = math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
+		let buyback_limit = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
 		// 3. Simulate swap in pool
 		let (sim_hollar_amount, sim_collateral_amount) = simulate_swap(collateral_info.pool_id, &pool_state)?;
@@ -979,7 +980,7 @@ where
 		let execution_price = (sim_collateral_amount, sim_hollar_amount);
 
 		// 4. Calculate final buy price with fee
-		let buy_price = math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
+		let buy_price = hydra_dx_math::hsm::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
 			.ok_or(ArithmeticError::Overflow)?;
 
 		// %. Calculate final swap amounts
@@ -994,9 +995,9 @@ where
 		);
 
 		// 6. Calculate max price
-		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 		ensure!(
-			math::ensure_max_price(buy_price, max_price),
+			Self::ensure_max_price(buy_price, max_price),
 			Error::<T>::MaxBuyPriceExceeded
 		);
 
@@ -1055,7 +1056,7 @@ where
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
 		let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
 		let peg = Self::get_asset_peg(collateral_asset, collateral_info.pool_id, &pool_state)?;
-		let purchase_price = math::calculate_purchase_price(peg, collateral_info.purchase_fee);
+		let purchase_price = hydra_dx_math::hsm::calculate_purchase_price(peg, collateral_info.purchase_fee);
 
 		log::trace!(target: "hsm", "Peg: {:?}, Purchase price {:?}", peg, purchase_price);
 
@@ -1287,9 +1288,9 @@ where
 
 		let peg = Self::get_asset_peg(collateral_asset_id, collateral_info.pool_id, &pool_state)?;
 
-		let imbalance =
-			math::calculate_imbalance(hollar_reserve, peg, collateral_reserve).ok_or(ArithmeticError::Overflow)?;
-		let buyback_limit = math::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
+		let imbalance = hydra_dx_math::hsm::calculate_imbalance(hollar_reserve, peg, collateral_reserve)
+			.ok_or(ArithmeticError::Overflow)?;
+		let buyback_limit = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
 		if buyback_limit == 0 {
 			return Ok(0);
@@ -1306,12 +1307,12 @@ where
 			&pool_state,
 		)?;
 		let execution_price = (sell_amt, buyback_limit);
-		let buy_price = math::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
+		let buy_price = hydra_dx_math::hsm::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
 			.ok_or(ArithmeticError::Overflow)?;
-		let max_price = math::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
 
 		ensure!(
-			math::ensure_max_price(buy_price, max_price),
+			Self::ensure_max_price(buy_price, max_price),
 			Error::<T>::MaxBuyPriceExceeded
 		);
 
@@ -1399,8 +1400,8 @@ where
 				Ok((loan_amount, collateral_amount))
 			},
 			|(hollar_amount, _), price| {
-				let collateral_amount =
-					math::calculate_collateral_amount(hollar_amount, price).ok_or(ArithmeticError::Overflow)?;
+				let collateral_amount = hydra_dx_math::hsm::calculate_collateral_amount(hollar_amount, price)
+					.ok_or(ArithmeticError::Overflow)?;
 				Ok((hollar_amount, collateral_amount))
 			},
 		)?;
@@ -1434,6 +1435,14 @@ where
 		}
 
 		Ok(())
+	}
+
+	fn ensure_max_price(buy_price: Price, max_price: Price) -> bool {
+		let buy_price_check =
+			primitive_types::U128::from(buy_price.0).full_mul(primitive_types::U128::from(max_price.1));
+		let max_price_check =
+			primitive_types::U128::from(buy_price.1).full_mul(primitive_types::U128::from(max_price.0));
+		buy_price_check <= max_price_check
 	}
 }
 
