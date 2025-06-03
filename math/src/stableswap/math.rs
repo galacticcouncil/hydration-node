@@ -716,7 +716,7 @@ fn abs_diff(d0: U256, d1: U256) -> U256 {
 	}
 }
 
-pub(crate) enum Rounding {
+pub enum Rounding {
 	Down,
 	Up,
 }
@@ -735,7 +735,7 @@ pub(crate) fn normalize_reserves(reserves: &[AssetReserve]) -> Vec<Balance> {
 		.collect()
 }
 
-pub(crate) fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8, rounding: Rounding) -> Balance {
+pub fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8, rounding: Rounding) -> Balance {
 	if target_decimals == decimals {
 		return amount;
 	}

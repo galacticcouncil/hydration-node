@@ -14,12 +14,14 @@ use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
 use primitives::{AccountId, AssetId};
 use sp_runtime::{FixedU128, Permill};
+use sp_std::cell::RefCell;
 use xcm_emulator::TestExt;
 
 type BoundedName = BoundedVec<u8, <hydradx_runtime::Runtime as pallet_asset_registry::Config>::StringLimit>;
 pub(crate) struct HydrationTestDriver {
 	omnipool_assets: Vec<AssetId>,
 	stablepools: Vec<(AssetId, Vec<(AssetId, u8)>)>,
+	ext: Option<RefCell<frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block>>>,
 }
 
 impl HydrationTestDriver {
@@ -42,20 +44,40 @@ impl HydrationTestDriver {
 		HydrationTestDriver {
 			omnipool_assets: vec![],
 			stablepools: vec![],
+			ext: None,
 		}
 	}
 
+	pub(crate) fn with_snapshot(path: &str) -> Self {
+		let ext = hydra_live_ext(path);
+		let mut driver = Self::default();
+		driver.ext = Some(RefCell::new(ext));
+		driver
+	}
+
 	pub(crate) fn execute(&self, f: impl FnOnce()) -> &Self {
-		Hydra::ext_wrapper(|| {
-			f();
-		});
+		if let Some(ref ext) = self.ext {
+			ext.borrow_mut().execute_with(|| {
+				f();
+			});
+		} else {
+			Hydra::ext_wrapper(|| {
+				f();
+			});
+		}
 		self
 	}
 
 	pub(crate) fn execute_with_driver(&self, f: impl FnOnce(&Self)) -> &Self {
-		Hydra::ext_wrapper(|| {
-			f(self);
-		});
+		if let Some(ref ext) = self.ext {
+			ext.borrow_mut().execute_with(|| {
+				f(&self);
+			});
+		} else {
+			Hydra::ext_wrapper(|| {
+				f(&self);
+			});
+		}
 		self
 	}
 

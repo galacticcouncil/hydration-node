@@ -48,7 +48,7 @@ jobs:
       - name: Build runtime with srtool
         id: srtool_build
         run: |
-          srtool -e docker build -p "${{ env.CHAIN }}-runtime" -r "runtime/${{ env.CHAIN }}" --app --json \
+          srtool -e docker build -p "${{ env.CHAIN }}-runtime" -r "runtime/${{ env.CHAIN }}" --build-opts="--features=metadata-hash" --app --json \
             | tee srtool-build.log
 
           JSON=$(cat srtool-build.log | tail -n 1)

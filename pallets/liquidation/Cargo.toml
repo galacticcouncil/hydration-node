@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidation"
-version = "1.0.7"
+version = "1.3.0"
 description = "A pallet for money market liquidations"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -34,7 +34,7 @@ hex-literal = { workspace = true }
 hydradx-traits = { workspace = true }
 
 pallet-broadcast = { workspace = true }
-
+precompile-utils = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
@@ -81,6 +81,7 @@ std = [
     "pallet-evm-accounts/std",
     "pallet-asset-registry/std",
     "pallet-evm/std",
+    "precompile-utils/std",
 ]
 
 runtime-benchmarks = [

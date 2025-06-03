@@ -35,6 +35,7 @@ pub mod weights;
 mod assets;
 pub mod evm;
 pub mod governance;
+mod helpers;
 mod system;
 pub mod types;
 pub mod xcm;
@@ -119,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 313,
+	spec_version: 318,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -200,6 +201,7 @@ construct_runtime!(
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
+		HSM: pallet_hsm = 82,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -274,6 +276,7 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	pallet_claims::ValidateClaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
@@ -344,6 +347,7 @@ mod benches {
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
+		[pallet_hsm, HSM]
 	);
 }
 
