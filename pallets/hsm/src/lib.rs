@@ -75,6 +75,7 @@ pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarks;
+pub mod trade_execution;
 pub mod weights;
 
 #[module_evm_utility_macro::generate_function_selector]
