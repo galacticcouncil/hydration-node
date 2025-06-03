@@ -1,8 +1,8 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use ethabi::{encode, Token};
 use ethabi::ethereum_types::H160;
+use ethabi::{encode, Token};
 use fp_evm::{
 	ExitReason::Succeed,
 	ExitSucceed::{Returned, Stopped},
