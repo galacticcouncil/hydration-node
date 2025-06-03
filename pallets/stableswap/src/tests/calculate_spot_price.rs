@@ -32,11 +32,11 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_6_decimals() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(1),
+				fee: Permill::from_parts(200),
 			},
 			InitialLiquidity {
 				account: ALICE,
-				assets: vec![AssetAmount::new(asset_a, 40 * ONE), AssetAmount::new(asset_b, 40 * ONE)],
+				assets: vec![AssetAmount::new(asset_a, 40 * ONE), AssetAmount::new(asset_b, 41 * ONE)],
 			},
 		)
 		.build()
@@ -48,7 +48,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_6_decimals() {
 
 			let sell_amount = 10 * ONE;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 80000000000020000000000000;
+			let initial_issuance = 80999938873618218464277405;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -60,7 +60,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_6_decimals() {
 				0,
 			));
 
-			let expected = 9;
+			let expected = 10;
 
 			assert_balance!(BOB, pool_id, bob_share_balance - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -101,13 +101,13 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(1),
+				fee: Permill::from_parts(200),
 			},
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
 					AssetAmount::new(asset_a, 4000 * ONE),
-					AssetAmount::new(asset_b, 4000 * ONE),
+					AssetAmount::new(asset_b, 4100 * ONE),
 				],
 			},
 		)
@@ -120,7 +120,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 
 			let sell_amount = ONE;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 8000000100000000000000;
+			let initial_issuance =  8099993987359821846427;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -132,7 +132,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 				0,
 			));
 
-			let expected = 994999;
+			let expected = 1000022;
 
 			assert_balance!(BOB, pool_id, bob_share_balance - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -152,7 +152,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 100);
 			// The difference of the amount out calculated with spot price should be less than 1%
-			assert_eq!(relative_difference, FixedU128::from_float(0.001021106553875934));
+			assert_eq!(relative_difference, FixedU128::from_float(0.000098997822047915));
 			assert!(relative_difference < tolerated_difference);
 		});
 }
@@ -177,13 +177,13 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(1),
+				fee: Permill::from_parts(200),
 			},
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
 					AssetAmount::new(asset_a, 100000000 * ONE),
-					AssetAmount::new(asset_b, 100000000 * ONE),
+					AssetAmount::new(asset_b, 110000000 * ONE),
 				],
 			},
 		)
@@ -196,7 +196,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 
 			let sell_amount = 1000;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 200100000000000000000;
+			let initial_issuance = 210097637343078345703;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -208,7 +208,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 				0,
 			));
 
-			let expected = 991;
+			let expected = 996;
 
 			let pool_account = pool_account(pool_id);
 
@@ -216,7 +216,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 			assert_balance!(BOB, asset_b, expected);
 			let total_issuance = Tokens::total_issuance(pool_id);
 			assert_eq!(total_issuance, initial_issuance - sell_amount);
-			assert_balance!(pool_account, asset_b, 100000000 * ONE - expected);
+			assert_balance!(pool_account, asset_b, 110000000 * ONE - expected);
 
 			let spot_price =
 				Stableswap::calculate_spot_price_with_fee(PoolType::Stableswap(pool_id), pool_id, asset_b).unwrap();
@@ -233,7 +233,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 			// The difference of the amount out calculated with spot price should be less than 1%
 			assert_eq_approx!(
 				relative_difference,
-				FixedU128::from_float(0.004036326942482341),
+				FixedU128::from_float(0.005020080321285141),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
@@ -264,14 +264,14 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(3),
+				fee: Permill::from_parts(200),
 			},
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
 					AssetAmount::new(asset_a, 150 * ONE),
-					AssetAmount::new(asset_b, 150 * ONE),
-					AssetAmount::new(asset_c, 150 * ONE),
+					AssetAmount::new(asset_b, 155 * ONE),
+					AssetAmount::new(asset_c, 160 * ONE),
 				],
 			},
 		)
@@ -281,7 +281,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 
 			let sell_amount = 1_000;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance = 450000000000000000000;
+			let initial_issuance = 464998401424513938794;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -293,7 +293,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 				0,
 			));
 
-			let expected = 986999999;
+			let expected = 1000326929;
 
 			assert_balance!(BOB, asset_a, 200 * ONE - sell_amount);
 			assert_balance!(BOB, pool_id, expected);
@@ -314,7 +314,6 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 
 			// The difference of the amount out calculated with spot price should be less than 0.1%
 			let tolerated_difference = FixedU128::from_rational(1, 1000);
-			assert_eq!(relative_difference, FixedU128::from_float(0.000000000000000000));
 
 			assert!(relative_difference < tolerated_difference);
 		});
@@ -340,7 +339,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(3),
+				fee: Permill::from_parts(200),//0.2%
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -368,7 +367,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 				0,
 			));
 
-			let expected = 984938537439245;
+			let expected = 1002832951117544;
 
 			assert_balance!(BOB, asset_a, 200000000 * ONE - sell_amount);
 			assert_balance!(BOB, pool_id, expected);
@@ -388,7 +387,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			// The difference of the amount out calculated with spot price should be less than 1%
 			let tolerated_difference = FixedU128::from_rational(1, 1000);
-			assert_eq!(relative_difference, FixedU128::from_float(0.000952889346461269));
+			assert_eq!(relative_difference, FixedU128::from_float(0.000166576978019961));
 			assert!(relative_difference < tolerated_difference);
 		});
 }
@@ -409,13 +408,13 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(1),
+				fee: Permill::from_parts(200),
 			},
 			InitialLiquidity {
 				account: ALICE,
 				assets: vec![
 					AssetAmount::new(asset_a, 100 * ONE),
-					AssetAmount::new(asset_b, 100 * ONE),
+					AssetAmount::new(asset_b, 110 * ONE),
 				],
 			},
 		)
@@ -434,7 +433,7 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 				0,
 			));
 
-			let expected = 989999901;
+			let expected = 1_000_747_331;
 
 			assert_balance!(BOB, asset_a, 200 * ONE - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -444,13 +443,13 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference = expected - calculated_amount_out;
+			let difference =  calculated_amount_out - expected;
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 1000);
 			// The difference of the amount out calculated with spot price should be less than 0.1%
 			assert_eq_approx!(
 				relative_difference,
-				FixedU128::from_float(0.000000097979807778),
+				FixedU128::from_float(0.000400025048880195),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
@@ -483,7 +482,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_percent(2),
+				fee: Permill::from_parts(200), //0.2%
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -509,7 +508,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 				0,
 			));
 
-			let expected = 968488820;
+			let expected = 988056247;
 
 			assert_balance!(BOB, asset_c, 200 * ONE - sell_amount);
 			assert_balance!(BOB, asset_b, expected);
@@ -528,7 +527,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 			let tolerated_difference = FixedU128::from_rational(1, 1000);
 			assert_eq_approx!(
 				relative_difference,
-				FixedU128::from_float(0.000000038203848342),
+				FixedU128::from_float(0.000400081474309023),
 				FixedU128::from((2, (ONE / 10_000))),
 				"the relative difference is not as expected"
 			);
@@ -567,13 +566,13 @@ mod invariants {
 					final_amplification: NonZeroU16::new(100).unwrap(),
 					initial_block: 0,
 					final_block: 0,
-					fee: Permill::from_percent(1),
+					fee: Permill::from_parts(200), //0.2%
 				},
 				InitialLiquidity {
 					account: ALICE,
 					assets: vec![
 						AssetAmount::new(asset_a, 40000000 * ONE),
-						AssetAmount::new(asset_b, 40000000 * ONE),
+						AssetAmount::new(asset_b, 41000000 * ONE),
 					],
 				},
 			)

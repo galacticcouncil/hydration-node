@@ -315,15 +315,13 @@ where
 					pool_id.into(),
 					assets_with_reserves,
 					amp,
-					asset_a.into(),
 					asset_b.into(),
+					asset_a.into(),
 					share_issuance,
 					min_trade_limit,
 					Some(trade_fee),
 					&asset_pegs,
 				)
-				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?
-				.reciprocal()
 				.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 				Ok(spot_price)
