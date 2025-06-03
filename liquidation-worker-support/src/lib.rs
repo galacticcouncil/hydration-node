@@ -1269,7 +1269,7 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 		let old_price = reserve.price();
 		self.update_reserve_price(new_price.0, new_price.1);
 
-		// TODO: continue if the price of callateral decreased/debt increased (the cases when HF decreases)
+		// TODO: continue if the price of collateral decreased/debt increased (the cases when HF decreases)
 
 		// calculate amount of debt that needs to be liquidated to get the HF closer
 		// to `target_health_factor`. Calculated for all combinations of collateral and debt assets
