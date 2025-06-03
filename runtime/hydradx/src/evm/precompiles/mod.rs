@@ -40,8 +40,10 @@ use sp_runtime::traits::Dispatchable;
 
 use codec::alloc;
 use ethabi::Token;
+use frame_support::pallet_prelude::{Get, IsType};
 use hex_literal::hex;
 use primitive_types::{H160, U256};
+use sp_core::crypto::AccountId32;
 use sp_std::{borrow::ToOwned, vec::Vec};
 
 pub mod chainlink_adapter;
@@ -98,6 +100,7 @@ pub const BN_MUL: H160 = H160(hex!("0000000000000000000000000000000000000007"));
 pub const BN_PAIRING: H160 = H160(hex!("0000000000000000000000000000000000000008"));
 pub const BLAKE2F: H160 = H160(hex!("0000000000000000000000000000000000000009"));
 pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a"));
+pub const FLASH_LOAN_RECEIVER: H160 = H160(hex!("000000000000000000000000000000000000090a"));
 
 pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
 
@@ -105,13 +108,32 @@ pub fn is_standard_precompile(address: H160) -> bool {
 	!address.is_zero() && address <= ETH_PRECOMPILE_END
 }
 
+pub struct AllowedFlashLoanCallers;
+
+impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
+	fn get() -> sp_std::vec::Vec<H160> {
+		let Some(flash_minter) = pallet_hsm::Pallet::<crate::Runtime>::flash_minter() else {
+			log::warn!(target: "precompiles", "No flash minter configured, no flash loan precompile will be available");
+			return sp_std::vec![];
+		};
+		sp_std::vec![flash_minter]
+	}
+}
+
 impl<R> PrecompileSet for HydraDXPrecompiles<R>
 where
-	R: pallet_evm::Config + pallet_currencies::Config + pallet_evm_accounts::Config,
+	R: pallet_evm::Config
+		+ pallet_currencies::Config
+		+ pallet_evm_accounts::Config
+		+ pallet_stableswap::Config
+		+ pallet_liquidation::Config
+		+ pallet_hsm::Config,
 	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
 	MultiCurrencyPrecompile<R>: Precompile,
 	ChainlinkOraclePrecompile<R>: Precompile,
+	<R as frame_system::pallet::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	<R as pallet_stableswap::pallet::Config>::AssetId: From<u32>,
 {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		let context = handle.context();
@@ -147,6 +169,11 @@ where
 			Some(pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::execute(
 				handle,
 			))
+		} else if address == FLASH_LOAN_RECEIVER {
+			Some(pallet_evm_precompile_flash_loan::FlashLoanReceiverPrecompile::<
+				R,
+				AllowedFlashLoanCallers,
+			>::execute(handle))
 		} else if address == DISPATCH_ADDR {
 			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
 		} else if is_asset_address(address) {

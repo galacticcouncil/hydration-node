@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "316.0.0"
+version = "317.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -59,6 +59,7 @@ pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-hsm = {workspace = true}
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -168,6 +169,7 @@ pallet-evm-precompile-modexp = { workspace = true }
 pallet-evm-precompile-bn128 = { workspace = true }
 pallet-evm-precompile-blake2 = { workspace = true }
 pallet-evm-precompile-call-permit = { workspace = true }
+pallet-evm-precompile-flash-loan = { workspace = true }
 precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
@@ -224,6 +226,7 @@ runtime-benchmarks = [
     "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
     "pallet-xyk/runtime-benchmarks",
+    "pallet-hsm/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
@@ -315,6 +318,7 @@ std = [
     "pallet-lbp/std",
     "pallet-xyk/std",
     "pallet-duster/std",
+    "pallet-hsm/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
     "sp-arithmetic/std",
@@ -344,6 +348,7 @@ std = [
     "pallet-evm-precompile-bn128/std",
     "pallet-evm-precompile-blake2/std",
     "pallet-evm-precompile-call-permit/std",
+    "pallet-evm-precompile-flash-loan/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
@@ -424,6 +429,7 @@ try-runtime = [
     "pallet-evm/try-runtime",
     "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
+    "pallet-hsm/try-runtime",
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
