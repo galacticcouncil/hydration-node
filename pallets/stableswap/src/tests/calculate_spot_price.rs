@@ -120,7 +120,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 
 			let sell_amount = ONE;
 			let total_issuance = Tokens::total_issuance(pool_id);
-			let initial_issuance =  8099993987359821846427;
+			let initial_issuance = 8099993987359821846427;
 			assert_eq!(total_issuance, initial_issuance);
 
 			assert_ok!(Stableswap::execute_sell(
@@ -339,7 +339,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 				final_amplification: NonZeroU16::new(100).unwrap(),
 				initial_block: 0,
 				final_block: 0,
-				fee: Permill::from_parts(200),//0.2%
+				fee: Permill::from_parts(200), //0.2%
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -443,7 +443,7 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 
 			//Check if spot price calculation is correct
 			let calculated_amount_out = spot_price.reciprocal().unwrap().checked_mul_int(sell_amount).unwrap();
-			let difference =  calculated_amount_out - expected;
+			let difference = calculated_amount_out - expected;
 			let relative_difference = FixedU128::from_rational(difference, expected);
 			let tolerated_difference = FixedU128::from_rational(1, 1000);
 			// The difference of the amount out calculated with spot price should be less than 0.1%
