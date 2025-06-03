@@ -27,6 +27,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
+use codec::decode_from_bytes;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::{
@@ -47,6 +48,7 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
+use precompile_utils::evm::{Bytes, writer::{EvmDataReader, EvmDataWriter}};
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
 use sp_std::{vec, vec::Vec};
@@ -74,6 +76,7 @@ pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = 1_000_000;
 #[repr(u32)]
 pub enum Function {
 	LiquidationCall = "liquidationCall(address,address,address,uint256,bool)",
+	FlashLoan = "flashLoan(address,address,uint256,bytes)",
 }
 
 sp_api::decl_runtime_apis! {
@@ -133,6 +136,14 @@ pub mod pallet {
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
+
+		// Support for HOLLAR liquidations.
+		/// Asset ID of Hollar
+		#[pallet::constant]
+		type HollarId: Get<AssetId>;
+
+		/// Flash minter contract address and flash loan receiver address.
+		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
 	}
 
 	#[pallet::type_value]
@@ -254,6 +265,10 @@ pub mod pallet {
 		InvalidRoute,
 		/// Liquidation was not profitable enough to repay flash loan
 		NotProfitable,
+		/// Flash minter contract address not set. It is required for Hollar liquidations.
+		FlashMinterNotSet,
+		/// Invalid liquidation data provided
+		InvalidLiquidationData,
 	}
 
 	#[pallet::call]
@@ -290,76 +305,52 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 		) -> DispatchResult {
-			let pallet_acc = Self::account_id();
+			log::trace!(target: "liquidation","liquidating debt asset: {:?} for amount: {:?}", debt_asset, debt_to_cover);
 
-			let debt_original_balance = <T as Config>::Currency::balance(debt_asset, &pallet_acc);
-			let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &pallet_acc);
+			if debt_asset == T::HollarId::get() {
+				let (flash_minter, loan_receiver) = T::FlashMinter::get().ok_or(Error::<T>::FlashMinterNotSet)?;
+				let pallet_address = T::EvmAccounts::evm_address(&Self::account_id());
+				let context = CallContext::new_call(flash_minter, pallet_address);
+				let hollar_address = T::Erc20Mapping::asset_address(T::HollarId::get());
 
-			// mint debt asset
-			<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
+				let liquidation_data = Self::encode_liquidation_data(collateral_asset, debt_asset, user, &route);
 
-			// liquidation call
-			let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
-			let contract = BorrowingContract::<T>::get();
+				let data = EvmDataWriter::new_with_selector(Function::FlashLoan)
+					.write(loan_receiver)
+					.write(hollar_address)
+					.write(debt_to_cover)
+					.write(Bytes(liquidation_data))
+					.build();
 
-			let context = CallContext::new_call(contract, pallet_address);
-			let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
+				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-				log::error!(target: "liquidation",
-					"Evm execution failed. Reason: {:?}", value);
-				return Err(Error::<T>::LiquidationCallFailed.into());
-			}
+				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+					log::error!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
+					return Err(Error::<T>::LiquidationCallFailed.into());
+				}
+			} else {
+				let pallet_acc = Self::account_id();
+				<T as Config>::Currency::mint_into(debt_asset, &pallet_acc, debt_to_cover)?;
+				let pallet_address = T::EvmAccounts::evm_address(&pallet_acc);
 
-			// swap collateral if necessary
-			if collateral_asset != debt_asset {
-				let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &pallet_acc)
-					.checked_sub(collateral_original_balance)
-					.defensive_ok_or(ArithmeticError::Underflow)?;
-				T::Router::sell(
-					RawOrigin::Signed(pallet_acc.clone()).into(),
+				Self::liquidate_position_internal(
+					pallet_address,
 					collateral_asset,
 					debt_asset,
-					collateral_earned,
-					1,
-					route,
+					debt_to_cover,
+					user,
+					route.clone(),
+				)?;
+
+				let _ = <T as Config>::Currency::burn_from(
+					debt_asset,
+					&pallet_acc,
+					debt_to_cover,
+					Preservation::Expendable,
+					Precision::Exact,
+					Fortitude::Force,
 				)?;
 			}
-
-			// burn debt and transfer profit
-			let debt_gained = <T as Config>::Currency::balance(debt_asset, &pallet_acc)
-				.checked_sub(debt_original_balance)
-				.ok_or(Error::<T>::NotProfitable)?;
-
-			let profit = debt_gained
-				.checked_sub(debt_to_cover)
-				.ok_or(Error::<T>::NotProfitable)?;
-
-			<T as Config>::Currency::burn_from(
-				debt_asset,
-				&pallet_acc,
-				debt_to_cover,
-				Preservation::Expendable,
-				Precision::Exact,
-				Fortitude::Force,
-			)?;
-
-			<T as Config>::Currency::transfer(
-				debt_asset,
-				&pallet_acc,
-				&T::ProfitReceiver::get(),
-				profit,
-				Preservation::Expendable,
-			)?;
-
-			Self::deposit_event(Event::Liquidated {
-				user,
-				collateral_asset,
-				debt_asset,
-				debt_to_cover,
-				profit,
-			});
 
 			Ok(())
 		}
@@ -403,5 +394,137 @@ impl<T: Config> Pallet<T> {
 		data.extend_from_slice(&buffer);
 
 		data
+	}
+
+	fn liquidate_position_internal(
+		liquidator: EvmAddress,
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		debt_to_cover: Balance,
+		user: EvmAddress,
+		route: Route<AssetId>,
+	) -> DispatchResult {
+		let liquidator_account = T::EvmAccounts::account_id(liquidator);
+		let debt_original_balance =
+			<T as Config>::Currency::balance(debt_asset, &liquidator_account).saturating_sub(debt_to_cover);
+		let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &liquidator_account);
+		let contract = BorrowingContract::<T>::get();
+		let context = CallContext::new_call(contract, liquidator);
+		let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
+
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "liquidation",
+						"Evm execution failed. Reason: {:?}", value);
+			return Err(Error::<T>::LiquidationCallFailed.into());
+		}
+
+		// swap collateral if necessary
+		if collateral_asset != debt_asset {
+			let collateral_earned = <T as Config>::Currency::balance(collateral_asset, &liquidator_account)
+				.checked_sub(collateral_original_balance)
+				.defensive_ok_or(ArithmeticError::Underflow)?;
+
+			log::trace!(target: "liquidation",
+				"Collateral earned: {:?} for asset: {:?}", collateral_earned, collateral_asset);
+
+			T::Router::sell(
+				RawOrigin::Signed(liquidator_account.clone()).into(),
+				collateral_asset,
+				debt_asset,
+				collateral_earned,
+				1,
+				route,
+			)?;
+		}
+
+		// burn debt and transfer profit
+		let debt_gained = <T as Config>::Currency::balance(debt_asset, &liquidator_account)
+			.checked_sub(debt_original_balance)
+			.ok_or(Error::<T>::NotProfitable)?;
+
+		let profit = debt_gained
+			.checked_sub(debt_to_cover)
+			.ok_or(Error::<T>::NotProfitable)?;
+
+		log::trace!(target: "liquidation",
+				"Profit: {:?} for asset: {:?}", profit, debt_asset);
+
+		<T as Config>::Currency::transfer(
+			debt_asset,
+			&liquidator_account,
+			&T::ProfitReceiver::get(),
+			profit,
+			Preservation::Expendable,
+		)?;
+
+		Self::deposit_event(Event::Liquidated {
+			user,
+			collateral_asset,
+			debt_asset,
+			debt_to_cover,
+			profit,
+		});
+
+		Ok(())
+	}
+
+	/// Liquidates an existing money market position.
+	pub fn liquidate_position(liquidator: EvmAddress, loan_amount: Balance, data: &[u8]) -> DispatchResult {
+		let (collateral_asset_id, debt_asset_id, user, route) = Self::decode_liquidation_data(data)?;
+		log::trace!(target: "liquidation", "collateral_asset_id: {}, debt_asset_id: {}, user: {:?}, route: {:?}", collateral_asset_id, debt_asset_id, user, route);
+		Self::liquidate_position_internal(liquidator, collateral_asset_id, debt_asset_id, loan_amount, user, route)
+	}
+
+	/// Encodes the liquidation data to be used in the EVM call to FlashLoan precompile.
+	fn encode_liquidation_data(
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		user: EvmAddress,
+		route: &Route<AssetId>,
+	) -> Vec<u8> {
+		let mut data = EvmDataWriter::new()
+			.write(1u8)
+			.write(collateral_asset)
+			.write(debt_asset)
+			.write(user)
+			.write(route.len() as u32);
+
+		for r in route.iter() {
+			data = data.write(Bytes(r.encode()));
+		}
+
+		data.build()
+	}
+
+	/// Decodes the liquidation data from the EVM call to FlashLoan precompile.
+	fn decode_liquidation_data(data: &[u8]) -> Result<(AssetId, AssetId, EvmAddress, Route<AssetId>), Error<T>> {
+		// Expected bytes are:
+		// - action (u8) - 1 for liquidation
+		// - collateral asset id
+		// - debt asset id
+		// - user address
+		// - route length
+		// - route entry ( Trade type )
+
+		let mut reader = EvmDataReader::new(data);
+		let action: u8 = reader.read().map_err(|_| Error::<T>::FlashMinterNotSet)?;
+		ensure!(action == 1, Error::<T>::InvalidLiquidationData);
+
+		let collateral_asset_id: AssetId = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+		let debt_asset_id: AssetId = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+		let user: EvmAddress = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+		let route_len: u32 = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+
+		let mut route = vec![];
+		for _ in 0..route_len {
+			let entry: Bytes = reader.read().map_err(|_| Error::<T>::InvalidLiquidationData)?;
+			let entry = entry.as_bytes().to_vec();
+			let s = decode_from_bytes::<Trade<AssetId>>(entry.clone().into())
+				.map_err(|_| Error::<T>::InvalidLiquidationData)?;
+			route.push(s);
+		}
+
+		Ok((collateral_asset_id, debt_asset_id, user, Route::truncate_from(route)))
 	}
 }

@@ -44,9 +44,11 @@ members = [
     'pallets/xyk-liquidity-mining',
     'pallets/liquidation',
     'precompiles/call-permit',
+    'precompiles/flash-loan',
     'runtime-mock',
     'pallets/broadcast',
     'liquidation-worker-support',
+    'pallets/hsm',
 ]
 
 resolver = "2"
@@ -150,6 +152,7 @@ pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
+pallet-hsm = { path = "pallets/hsm", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
@@ -159,6 +162,7 @@ test-utils = { path = "utils/test-utils", default-features = false }
 integration-tests = { path = "integration-tests", default-features = false }
 
 pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }
+pallet-evm-precompile-flash-loan = { path = "precompiles/flash-loan", default-features = false }
 precompile-utils = { path = "precompiles/utils", default-features = false }
 
 # Frame

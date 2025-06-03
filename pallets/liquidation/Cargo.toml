@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidation"
-version = "1.2.0"
+version = "1.4.0"
 description = "A pallet for money market liquidations"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -41,7 +41,7 @@ primitive-types = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 pallet-broadcast = { workspace = true }
-
+precompile-utils = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
@@ -90,6 +90,7 @@ std = [
     "fp-self-contained/std",
     "fp-evm/std",
     "fp-rpc/std",
+    "precompile-utils/std",
 ]
 
 runtime-benchmarks = [

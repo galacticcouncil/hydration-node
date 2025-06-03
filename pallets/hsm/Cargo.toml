@@ -1,0 +1,80 @@
+[package]
+name = "pallet-hsm"
+version = "1.0.0"
+edition = "2021"
+description = "Hollar stability module"
+authors = ["GalacticCouncil"]
+homepage = "https://github.com/galacticcouncil/hydration-node"
+repository = "https://github.com/galacticcouncil/hydration-node"
+license = "Apache 2.0"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true }
+scale-info = { workspace = true }
+serde = { workspace = true, optional = true, features = ["derive"] }
+hex-literal = { workspace = true }
+log = {workspace=true}
+num-traits = {  workspace = true }
+primitive-types = {workspace = true}
+
+# parity
+sp-std = { workspace = true }
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
+
+# Hydra dependencies
+pallet-stableswap = { workspace = true }
+hydradx-traits = { workspace = true }
+hydra-dx-math = {workspace = true}
+pallet-broadcast = { workspace = true }
+
+# EVM dependencies
+evm = { workspace = true, features = ["with-codec"] }
+pallet-evm = { workspace = true }
+module-evm-utility-macro = { workspace = true }
+num_enum = { workspace = true, default-features = false }
+ethabi = { workspace = true }
+precompile-utils = { workspace = true }
+
+[dev-dependencies]
+orml-tokens = {workspace = true}
+orml-traits = {workspace = true}
+pretty_assertions = {workspace = true}
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "pallet-stableswap/runtime-benchmarks",
+]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "serde/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-io/std",
+    "pallet-stableswap/std",
+    "hydradx-traits/std",
+    "pallet-evm/std",
+    "orml-tokens/std",
+    "orml-traits/std",
+    "pallet-broadcast/std",
+    "precompile-utils/std",
+]
+try-runtime = ["frame-support/try-runtime"]

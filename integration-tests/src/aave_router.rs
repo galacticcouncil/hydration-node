@@ -40,7 +40,7 @@ use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
 
 pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
-const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6")); // TODO
+const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
 
 pub fn with_aave(execution: impl FnOnce()) {
 	TestNet::reset();
