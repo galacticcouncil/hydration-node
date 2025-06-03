@@ -965,9 +965,11 @@ fn hollar_liquidation_should_work() {
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
 
 		// get Pool contract address
-		let pool_contract =
-			liquidation_worker_support::MoneyMarketData::<hydradx_runtime::Block, hydradx_runtime::Runtime>::fetch_pool(pap_contract, RUNTIME_API_CALLER)
-				.unwrap();
+		let pool_contract = liquidation_worker_support::MoneyMarketData::<
+			hydradx_runtime::Block,
+			hydradx_runtime::Runtime,
+		>::fetch_pool(pap_contract, RUNTIME_API_CALLER)
+		.unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
