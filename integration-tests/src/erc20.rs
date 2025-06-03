@@ -24,6 +24,7 @@ use orml_traits::MultiCurrency;
 use pallet_evm::ExitSucceed::Returned;
 use sp_core::bounded_vec::BoundedVec;
 
+use hex_literal::hex;
 use pallet_evm_accounts::EvmNonceProvider;
 use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
@@ -34,6 +35,8 @@ use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
 use std::fmt::Write;
+use std::io::Bytes;
+use xcm_emulator::pallet_message_queue::mock_helpers::assert_last_event;
 use xcm_emulator::TestExt;
 
 pub fn deployer() -> EvmAddress {
@@ -334,13 +337,9 @@ fn erc20_transfer_returning_false_should_be_handled_as_error() {
 	Hydra::execute_with(|| {
 		let token = deploy_contract("WeirdToken", deployer());
 
+		let asset = bind_erc20(token);
 		assert_noop!(
-			<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
-				token,
-				&AccountId::from(ALICE),
-				&AccountId::from(BOB),
-				100
-			),
+			Currencies::transfer(RuntimeOrigin::signed(ALICE.into()), BOB.into(), asset, 100),
 			Other("evm: erc20 transfer returned false")
 		);
 	});
@@ -364,6 +363,19 @@ fn currencies_should_transfer_bound_erc20() {
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
 
+		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+		let truncated_address = EVMAccounts::truncated_account_id(evm_address);
+
+		let original_nonce = frame_system::Pallet::<Runtime>::account_nonce(truncated_address.clone());
+
+		let init_weth_balance = 10000000000000000u128;
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			truncated_address.clone(),
+			WETH.into(),
+			init_weth_balance as i128
+		));
+
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(ALICE.into()),
 			BOB.into(),
@@ -371,8 +383,42 @@ fn currencies_should_transfer_bound_erc20() {
 			100
 		));
 
+		//Assert that amount is transferred
 		assert_eq!(Currencies::free_balance(asset, &BOB.into()), 100);
 		assert_eq!(Erc20Currency::<Runtime>::free_balance(contract, &BOB.into()), 100);
+
+		//Assert that no extra fee charged within EVM execution
+		let weth_balance_after = Currencies::free_balance(WETH, &truncated_address.clone().into());
+		assert_eq!(init_weth_balance, weth_balance_after);
+
+		//Assert that nonce has not been changed
+		let nonce_after = frame_system::Pallet::<Runtime>::account_nonce(truncated_address.clone());
+		assert_eq!(nonce_after, original_nonce);
+
+		//Assert transfer events
+		let mut data = [0u8; 32];
+		data[31] = 100;
+		expect_hydra_last_events(vec![
+			pallet_evm::Event::Log {
+				log: pallet_evm::Log {
+					address: contract,
+					topics: vec![
+						H256::from(hex!("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")),
+						H256::from(hex!("0000000000000000000000000404040404040404040404040404040404040404")),
+						H256::from(hex!("0000000000000000000000000505050505050505050505050505050505050505")),
+					],
+					data: data.to_vec(),
+				},
+			}
+			.into(),
+			pallet_currencies::Event::Transferred {
+				currency_id: asset,
+				from: ALICE.into(),
+				to: BOB.into(),
+				amount: 100,
+			}
+			.into(),
+		]);
 	});
 }
 
