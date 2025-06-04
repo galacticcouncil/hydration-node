@@ -10,6 +10,10 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
 	fn liquidate() -> Weight;
 	fn set_borrowing_contract() -> Weight;
+	fn set_oracle_signers() -> Weight;
+	fn set_oracle_call_addresses() -> Weight;
+	fn set_unsigned_liquidation_priority() -> Weight;
+	fn set_oracle_update_priority() -> Weight;
 }
 /// Weights for `pallet_liquidation` using the HydraDX node and recommended hardware.
 impl WeightInfo for () {
@@ -37,6 +41,38 @@ impl WeightInfo for () {
 	/// Storage: `Liquidation::BorrowingContract` (r:0 w:1)
 	/// Proof: `Liquidation::BorrowingContract` (`max_values`: Some(1), `max_size`: Some(20), added: 515, mode: `MaxEncodedLen`)
 	fn set_borrowing_contract() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_117_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_oracle_signers() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_117_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_oracle_call_addresses() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_117_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_unsigned_liquidation_priority() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_117_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_oracle_update_priority() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`

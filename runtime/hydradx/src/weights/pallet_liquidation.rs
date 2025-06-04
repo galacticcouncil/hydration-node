@@ -88,4 +88,36 @@ impl<T: frame_system::Config> pallet_liquidation::WeightInfo for HydraWeight<T> 
 		Weight::from_parts(4_407_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn set_oracle_signers() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_117_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_oracle_call_addresses() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_117_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_unsigned_liquidation_priority() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_117_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_oracle_update_priority() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_117_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
 }

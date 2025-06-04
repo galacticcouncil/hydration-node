@@ -73,6 +73,7 @@ pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
 pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = 1_000_000;
+pub const MAX_ADDRESSES: u32 = 5;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -155,7 +156,7 @@ pub mod pallet {
 	}
 
 	#[pallet::type_value]
-	pub fn DefaultSigners() -> BoundedVec<EvmAddress, ConstU32<10>> {
+	pub fn DefaultSigners() -> BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>> {
 		let vec = vec![
 			EvmAddress::from_slice(hex_literal::hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e").as_slice()),
 			EvmAddress::from_slice(hex_literal::hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice()),
@@ -165,7 +166,7 @@ pub mod pallet {
 	}
 
 	#[pallet::type_value]
-	pub fn DefaultCallAddresses() -> BoundedVec<EvmAddress, ConstU32<10>> {
+	pub fn DefaultCallAddresses() -> BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>> {
 		let vec = vec![
 			EvmAddress::from_slice(hex_literal::hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e").as_slice()),
 			EvmAddress::from_slice(hex_literal::hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice()),
@@ -182,13 +183,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn oracle_signers)]
 	pub type OracleSigners<T: Config> =
-		StorageValue<_, BoundedVec<EvmAddress, ConstU32<10>>, ValueQuery, DefaultSigners>;
+		StorageValue<_, BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>, ValueQuery, DefaultSigners>;
 
 	/// Whitelisted call addresses of DIA oracle updates.
 	#[pallet::storage]
 	#[pallet::getter(fn oracle_call_addresses)]
 	pub type OracleCallAddresses<T: Config> =
-		StorageValue<_, BoundedVec<EvmAddress, ConstU32<10>>, ValueQuery, DefaultCallAddresses>;
+		StorageValue<_, BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>, ValueQuery, DefaultCallAddresses>;
 
 	#[pallet::type_value]
 	/// Default priority of unsigned liquidation transaction.
@@ -365,6 +366,53 @@ pub mod pallet {
 			frame_system::ensure_root(origin)?;
 
 			BorrowingContract::<T>::put(contract);
+
+			Ok(())
+		}
+
+		/// Set whitelisted signers of DIA oracle updates.
+		/// Used in the liquidation worker.
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_signers())]
+		pub fn set_oracle_signers(origin: OriginFor<T>, signers: BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>) -> DispatchResult {
+			frame_system::ensure_root(origin)?;
+
+			OracleSigners::<T>::put(signers);
+
+			Ok(())
+		}
+		
+		/// Set whitelisted call addresses of DIA oracle updates.
+		/// Used in the liquidation worker.
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_call_addresses())]
+		pub fn set_oracle_call_addresses(origin: OriginFor<T>, call_addresses: BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>) -> DispatchResult {
+			frame_system::ensure_root(origin)?;
+
+			OracleCallAddresses::<T>::put(call_addresses);
+
+			Ok(())
+		}
+
+		/// Set the priority of unsigned liquidation transaction.
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_unsigned_liquidation_priority())]
+		pub fn set_unsigned_liquidation_priority(origin: OriginFor<T>, priority: u64) -> DispatchResult {
+			frame_system::ensure_root(origin)?;
+
+			UnsignedLiquidationPriority::<T>::put(priority);
+
+			Ok(())
+		}
+
+		/// Set the priority of DIA oracle update transaction.
+		/// Used in the liquidation worker.
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_update_priority())]
+		pub fn set_oracle_update_priority(origin: OriginFor<T>, priority: u64) -> DispatchResult {
+			frame_system::ensure_root(origin)?;
+
+			OracleUpdatePriority::<T>::put(priority);
 
 			Ok(())
 		}
