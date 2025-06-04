@@ -370,7 +370,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set whitelisted signers of DIA oracle updates.
+		/// Set expected signers of DIA oracle updates.
 		/// Used in the liquidation worker.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_signers())]
@@ -382,7 +382,7 @@ pub mod pallet {
 			Ok(())
 		}
 		
-		/// Set whitelisted call addresses of DIA oracle updates.
+		/// Set expected call addresses of DIA oracle updates.
 		/// Used in the liquidation worker.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_call_addresses())]
