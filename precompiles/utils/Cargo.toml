@@ -39,7 +39,7 @@ sp-weights = { workspace = true }
 # Frontier
 evm = { workspace = true, features = [ "with-codec" ] }
 fp-evm = { workspace = true }
-pallet-evm = { workspace = true, features = [ "forbid-evm-reentrancy" ] }
+pallet-evm = { workspace = true }
 
 # Polkadot / XCM
 xcm = { workspace = true, optional = true }
