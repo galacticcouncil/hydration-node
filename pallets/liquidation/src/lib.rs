@@ -374,19 +374,25 @@ pub mod pallet {
 		/// Used in the liquidation worker.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_signers())]
-		pub fn set_oracle_signers(origin: OriginFor<T>, signers: BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>) -> DispatchResult {
+		pub fn set_oracle_signers(
+			origin: OriginFor<T>,
+			signers: BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>,
+		) -> DispatchResult {
 			frame_system::ensure_root(origin)?;
 
 			OracleSigners::<T>::put(signers);
 
 			Ok(())
 		}
-		
+
 		/// Set expected call addresses of DIA oracle updates.
 		/// Used in the liquidation worker.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_call_addresses())]
-		pub fn set_oracle_call_addresses(origin: OriginFor<T>, call_addresses: BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>) -> DispatchResult {
+		pub fn set_oracle_call_addresses(
+			origin: OriginFor<T>,
+			call_addresses: BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>,
+		) -> DispatchResult {
 			frame_system::ensure_root(origin)?;
 
 			OracleCallAddresses::<T>::put(call_addresses);
