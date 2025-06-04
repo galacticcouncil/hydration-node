@@ -74,10 +74,10 @@ benchmarks! {
 	}: _(RawOrigin::Root, BoundedVec::<EvmAddress, ConstU32<MAX_ADDRESSES>>::try_from(signers).unwrap())
 	
 	set_unsigned_liquidation_priority {
-	}: _(RawOrigin::Root, BoundedVec::<EvmAddress, 100_000u64)
+	}: _(RawOrigin::Root, 100_000u64)
 	
 	set_oracle_update_priority {
-	}: _(RawOrigin::Root, BoundedVec::<EvmAddress, 100_000u64)
+	}: _(RawOrigin::Root, 100_000u64)
 
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
 }
