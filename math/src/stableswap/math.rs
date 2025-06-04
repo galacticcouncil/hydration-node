@@ -902,6 +902,7 @@ pub fn calculate_spot_price(
 				fee,
 				pegs,
 			)
+			.map(|p| p.reciprocal())?
 		}
 		(SHARE_ASSET, STABLE_ASSET) => {
 			let asset_out_idx = asset_reserves.iter().position(|r| r.0 == asset_out)?;
@@ -915,7 +916,7 @@ pub fn calculate_spot_price(
 				pegs,
 			)?;
 
-			FixedU128::checked_from_rational(shares, min_trade_amount)
+			FixedU128::checked_from_rational(min_trade_amount, shares)
 		}
 		(STABLE_ASSET, SHARE_ASSET) => {
 			let added_asset = (asset_in, min_trade_amount);
@@ -937,7 +938,7 @@ pub fn calculate_spot_price(
 				pegs,
 			)?;
 
-			FixedU128::checked_from_rational(min_trade_amount, shares_for_min_trade)
+			FixedU128::checked_from_rational(shares_for_min_trade, min_trade_amount)
 		}
 		_ => None,
 	}
