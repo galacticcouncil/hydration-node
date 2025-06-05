@@ -4495,7 +4495,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "10.0.3"
+version = "10.1.0"
 dependencies = [
  "approx",
  "criterion",
@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "317.0.0"
+version = "318.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4818,7 +4818,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.15.3"
+version = "3.15.4"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8396,7 +8396,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -12200,7 +12200,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.41.0"
+version = "1.42.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
