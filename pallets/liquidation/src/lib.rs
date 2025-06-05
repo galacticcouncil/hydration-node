@@ -148,6 +148,10 @@ pub mod pallet {
 
 		/// Flash minter contract address and flash loan receiver address.
 		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
+
+		/// The origin which can update transaction priorities, allowed signers and call addresses
+		/// for the liquidation worker.
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 	}
 
 	#[pallet::type_value]
@@ -363,7 +367,7 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_borrowing_contract())]
 		pub fn set_borrowing_contract(origin: OriginFor<T>, contract: EvmAddress) -> DispatchResult {
-			frame_system::ensure_root(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			BorrowingContract::<T>::put(contract);
 
@@ -378,7 +382,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			signers: BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>,
 		) -> DispatchResult {
-			frame_system::ensure_root(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			OracleSigners::<T>::put(signers);
 
@@ -393,7 +397,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			call_addresses: BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>,
 		) -> DispatchResult {
-			frame_system::ensure_root(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			OracleCallAddresses::<T>::put(call_addresses);
 
@@ -404,7 +408,7 @@ pub mod pallet {
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_unsigned_liquidation_priority())]
 		pub fn set_unsigned_liquidation_priority(origin: OriginFor<T>, priority: u64) -> DispatchResult {
-			frame_system::ensure_root(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			UnsignedLiquidationPriority::<T>::put(priority);
 
