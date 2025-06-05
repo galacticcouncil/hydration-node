@@ -982,6 +982,14 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::HSM => {
+					let mut hsm_weight =
+						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell().saturating_mul(c as u64);
+					hsm_weight.saturating_accrue(
+						weights::pallet_hsm::HydraWeight::<Runtime>::sell().saturating_mul(e as u64),
+					);
+					hsm_weight
+				}
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1009,6 +1017,13 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::HSM => {
+					let mut hsm_weight =
+						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
+					hsm_weight
+						.saturating_accrue(weights::pallet_hsm::HydraWeight::<Runtime>::buy().saturating_mul(e as u64));
+					hsm_weight
+				}
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1034,6 +1049,13 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Weight::zero(),
+				PoolType::HSM => {
+					let mut hsm_weight =
+						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
+					hsm_weight
+						.saturating_accrue(weights::pallet_hsm::HydraWeight::<Runtime>::buy().saturating_mul(e as u64));
+					hsm_weight
+				}
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1059,6 +1081,14 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::HSM => {
+					let mut hsm_weight =
+						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell().saturating_mul(c as u64);
+					hsm_weight.saturating_accrue(
+						weights::pallet_hsm::HydraWeight::<Runtime>::sell().saturating_mul(e as u64),
+					);
+					hsm_weight
+				}
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1084,6 +1114,13 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::HSM => {
+					let mut hsm_weight =
+						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
+					hsm_weight
+						.saturating_accrue(weights::pallet_hsm::HydraWeight::<Runtime>::buy().saturating_mul(e as u64));
+					hsm_weight
+				}
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1117,6 +1154,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1131,6 +1169,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1164,6 +1203,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 				PoolType::Aave => Weight::zero(),
+				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 			};
 			weight.saturating_accrue(amm_weight);
 		}
@@ -1298,6 +1338,7 @@ use hydradx_traits::registry::Create;
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
+use pallet_hsm::WeightInfo;
 use pallet_referrals::traits::Convert;
 use pallet_referrals::{FeeDistribution, Level};
 #[cfg(feature = "runtime-benchmarks")]

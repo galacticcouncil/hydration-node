@@ -255,4 +255,19 @@ impl<T: frame_system::Config> pallet_hsm::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(13_543_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+
+	fn calculate_sell() -> Weight {
+		Weight::from_parts(13_543_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+
+	fn calculate_buy() -> Weight {
+		Weight::from_parts(13_543_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+
+	fn calculate_spot_price_with_fee() -> Weight {
+		Weight::from_parts(13_543_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }
