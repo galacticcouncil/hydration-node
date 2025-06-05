@@ -181,6 +181,7 @@ pub mod pallet {
 
 	/// Borrowing market contract address
 	#[pallet::storage]
+	#[pallet::getter(fn borrowing_contract)]
 	pub type BorrowingContract<T: Config> = StorageValue<_, EvmAddress, ValueQuery, DefaultBorrowingContract>;
 
 	/// Whitelisted signers of DIA oracle updates.
@@ -469,7 +470,7 @@ impl<T: Config> Pallet<T> {
 		let debt_original_balance =
 			<T as Config>::Currency::balance(debt_asset, &liquidator_account).saturating_sub(debt_to_cover);
 		let collateral_original_balance = <T as Config>::Currency::balance(collateral_asset, &liquidator_account);
-		let contract = BorrowingContract::<T>::get();
+		let contract = Self::borrowing_contract();
 		let context = CallContext::new_call(contract, liquidator);
 		let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
 

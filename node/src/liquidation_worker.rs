@@ -516,7 +516,7 @@ where
 			};
 
 			// skip the execution if the transaction is in the waitlist
-			if let Some(_) = waitlist.iter().find(|tx| tx.0 == tx_hash) {
+			if waitlist.iter().find(|tx| tx.0 == tx_hash).is_some() {
 				// TX is still on hold, skip the execution
 				return Ok(());
 			};

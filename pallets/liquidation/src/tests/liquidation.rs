@@ -3,7 +3,7 @@
 #![allow(clippy::bool_assert_comparison)]
 
 pub use crate::tests::mock::*;
-use crate::{Error, Event};
+use crate::{Error, Event, MAX_ADDRESSES, UNSIGNED_LIQUIDATION_PRIORITY};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
@@ -11,6 +11,7 @@ use hydradx_traits::{
 };
 use orml_traits::parameters::sp_runtime::BoundedVec;
 use orml_traits::MultiCurrency;
+use sp_core::ConstU32;
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 	// We only check if the events are as expected, not necessarily in order.
@@ -256,5 +257,96 @@ fn initial_pallet_balance_should_not_change_after_execution() {
 			profit: 2_976_143_141_153_081,
 		}
 		.into()]);
+	});
+}
+
+#[test]
+fn set_borrowing_contract_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(
+			Liquidation::borrowing_contract(),
+			EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice())
+		);
+
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[1; 20])
+		));
+
+		assert_eq!(Liquidation::borrowing_contract(), EvmAddress::from_slice(&[1; 20]));
+	});
+}
+
+#[test]
+fn set_oracle_signers_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(
+			Liquidation::oracle_signers(),
+			BoundedVec::<EvmAddress, ConstU32<MAX_ADDRESSES>>::truncate_from(vec![
+				EvmAddress::from_slice(hex_literal::hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e").as_slice()),
+				EvmAddress::from_slice(hex_literal::hex!("ff0c624016c873d359dde711b42a2f475a5a07d3").as_slice())
+			])
+		);
+
+		assert_ok!(Liquidation::set_oracle_signers(
+			RuntimeOrigin::root(),
+			BoundedVec::truncate_from(vec![EvmAddress::from_slice(&[1; 20])])
+		));
+
+		assert_eq!(
+			Liquidation::oracle_signers(),
+			BoundedVec::<EvmAddress, ConstU32<MAX_ADDRESSES>>::truncate_from(vec![EvmAddress::from_slice(&[1; 20])])
+		);
+	});
+}
+
+#[test]
+fn set_oracle_call_addresses_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(
+			Liquidation::oracle_call_addresses(),
+			BoundedVec::<EvmAddress, ConstU32<MAX_ADDRESSES>>::truncate_from(vec![
+				EvmAddress::from_slice(hex_literal::hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e").as_slice()),
+				EvmAddress::from_slice(hex_literal::hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5").as_slice())
+			])
+		);
+
+		assert_ok!(Liquidation::set_oracle_call_addresses(
+			RuntimeOrigin::root(),
+			BoundedVec::truncate_from(vec![EvmAddress::from_slice(&[1; 20])])
+		));
+
+		assert_eq!(
+			Liquidation::oracle_call_addresses(),
+			BoundedVec::<EvmAddress, ConstU32<MAX_ADDRESSES>>::truncate_from(vec![EvmAddress::from_slice(&[1; 20])])
+		);
+	});
+}
+
+#[test]
+fn set_unsigned_liquidation_priority_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(
+			Liquidation::unsigned_liquidation_priority(),
+			UNSIGNED_LIQUIDATION_PRIORITY
+		);
+
+		assert_ok!(Liquidation::set_unsigned_liquidation_priority(
+			RuntimeOrigin::root(),
+			7_000
+		));
+
+		assert_eq!(Liquidation::unsigned_liquidation_priority(), 7_000);
+	});
+}
+
+#[test]
+fn set_oracle_update_priority_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(Liquidation::oracle_update_priority(), 2 * UNSIGNED_LIQUIDATION_PRIORITY);
+
+		assert_ok!(Liquidation::set_oracle_update_priority(RuntimeOrigin::root(), 7_000));
+
+		assert_eq!(Liquidation::oracle_update_priority(), 7_000);
 	});
 }
