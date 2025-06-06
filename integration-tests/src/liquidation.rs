@@ -425,7 +425,7 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 			alice_evm_address,
 		)
 		.unwrap();
-		let target_health_factor = U256::from(1_010_000_000_000_000_000u128);
+		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("DOT").unwrap();
@@ -544,7 +544,7 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 		)
 		.unwrap();
 
-		let target_health_factor = U256::from(1_010_000_000_000_000_000u128);
+		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
@@ -650,7 +650,7 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 			alice_evm_address,
 		)
 		.unwrap();
-		let target_health_factor = U256::from(1_010_000_000_000_000_000u128);
+		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 		let LiquidationAmounts {
 			debt_amount,
 			collateral_amount: _,
@@ -783,7 +783,7 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 		)
 		.unwrap();
 
-		let target_health_factor = U256::from(1_010_000_000_000_000_000u128);
+		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
 		let debt_asset = money_market_data.get_asset_address("WETH").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
@@ -885,7 +885,7 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 		)
 		.unwrap();
 
-		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
+		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
@@ -1008,7 +1008,7 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		)
 		.unwrap();
 
-		let target_health_factor = U256::from(1_000_000_000_000_000_000u128);
+		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
 		let collateral_asset = money_market_data.get_asset_address("WETH").unwrap();
