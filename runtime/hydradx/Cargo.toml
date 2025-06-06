@@ -248,7 +248,8 @@ runtime-benchmarks = [
     "pallet-whitelist/runtime-benchmarks",
     "pallet-dispatcher/runtime-benchmarks",
     "cumulus-primitives-utility/runtime-benchmarks",
-    "pallet-xcm-benchmarks/runtime-benchmarks"
+    "pallet-xcm-benchmarks/runtime-benchmarks",
+    "ismp-parachain/runtime-benchmarks",
 ]
 std = [
     "codec/std",
