@@ -116,6 +116,11 @@ fp-rpc = { workspace = true }
 fp-storage = { workspace = true }
 fp-consensus = { workspace = true }
 
+# Hyperbridge
+pallet-ismp-runtime-api = { workspace = true }
+pallet-ismp-rpc = { workspace = true }
+ismp-parachain-inherent = { workspace = true }
+
 [features]
 default = [
     "frame-benchmarking-cli",

@@ -375,6 +375,20 @@ cumulus-client-pov-recovery = { git = "https://github.com/galacticcouncil/polkad
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 
+# Hyperbridge
+anyhow = { version = "1.0", default-features = false }
+
+pallet-hyperbridge = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
+pallet-ismp = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
+pallet-ismp-runtime-api = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
+
+ismp = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
+ismp-parachain = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
+ismp-parachain-runtime-api = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
+
+pallet-ismp-rpc = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409" }
+ismp-parachain-inherent = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409" }
+
 [patch."https://github.com/moonbeam-foundation/open-runtime-module-library"]
 # ORML dependencies
 orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2409" }
@@ -546,6 +560,7 @@ cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacti
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 
 [patch."https://github.com/paritytech/polkadot-sdk"]
+polkadot-sdk = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 frame-executive = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
@@ -702,3 +717,7 @@ westend-runtime = { git = "https://github.com/galacticcouncil/polkadot-sdk", bra
 cumulus-client-pov-recovery = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch3" }
+
+[patch."https://github.com/bifrost-io/open-runtime-module-library"]
+orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2409" }
+orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2409" }

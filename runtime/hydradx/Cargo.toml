@@ -176,6 +176,15 @@ ethabi = { workspace = true }
 hex = { workspace = true }
 serde_json = { workspace = true, default-features = false }
 
+# Hyperbridge
+pallet-ismp = { workspace = true, features = ["unsigned"] }
+pallet-ismp-runtime-api = { workspace = true }
+ismp-parachain-runtime-api = { workspace = true }
+pallet-hyperbridge = { workspace = true }
+ismp-parachain = { workspace = true }
+ismp = { workspace = true }
+anyhow = { workspace = true }
+
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 
@@ -363,6 +372,14 @@ std = [
     "pallet-whitelist/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
+    # Hyperbridge
+    "anyhow/std",
+    "pallet-hyperbridge/std",
+    "pallet-ismp/std",
+    "pallet-ismp-runtime-api/std",
+    "ismp/std",
+    "ismp-parachain/std",
+    "ismp-parachain-runtime-api/std",
 ]
 try-runtime = [
     "frame-try-runtime",
