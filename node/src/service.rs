@@ -483,8 +483,19 @@ fn start_consensus(
 		client.clone(),
 	);
 
+	let (client_clone, relay_chain_interface_clone) = (client.clone(), relay_chain_interface.clone());
 	let params = AuraParams {
-		create_inherent_data_providers: move |_, ()| async move { Ok(()) },
+		create_inherent_data_providers: move |parent, ()| {
+			let client = client_clone.clone();
+			let relay_chain_interface = relay_chain_interface_clone.clone();
+			async move {
+				let inherent =
+					ismp_parachain_inherent::ConsensusInherentProvider::create(parent, client, relay_chain_interface)
+						.await?;
+
+				Ok(inherent)
+			}
+		},
 		block_import,
 		para_client: client.clone(),
 		para_backend: backend.clone(),
