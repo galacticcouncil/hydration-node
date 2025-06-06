@@ -1,10 +1,14 @@
-use crate::types::CoefficientRatio;
-use crate::types::{Balance, PegType, Price};
-use hydra_dx_math::ratio::Ratio;
+use crate::ratio::Ratio;
+use crate::types::Balance;
 use num_traits::SaturatingAdd;
-use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::{FixedPointNumber, FixedU128, Perbill, Permill};
-use sp_runtime::{Rounding, Saturating};
+use primitive_types::U128;
+use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
+use sp_arithmetic::traits::Saturating;
+use sp_arithmetic::{FixedPointNumber, FixedU128, Perbill, Permill, Rounding};
+
+pub type PegType = (Balance, Balance);
+pub type Price = (Balance, Balance);
+pub type CoefficientRatio = FixedU128;
 
 /// Calculate purchase price for Hollar with collateral asset
 /// p_i = (1 + fee_i) / peg_i
@@ -69,7 +73,6 @@ pub fn calculate_hollar_amount(collateral_amount: Balance, purchase_price: Price
 	multiply_by_rational_with_rounding(collateral_amount, purchase_price.1, purchase_price.0, Rounding::Down)
 }
 
-use primitive_types::U128;
 pub fn ensure_max_price(buy_price: Price, max_price: Price) -> bool {
 	let buy_price_check = U128::from(buy_price.0).full_mul(U128::from(max_price.1));
 	let max_price_check = U128::from(buy_price.1).full_mul(U128::from(max_price.0));

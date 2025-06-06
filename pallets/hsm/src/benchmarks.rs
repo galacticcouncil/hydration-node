@@ -20,6 +20,8 @@ use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::EnsureOrigin;
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
+use hydra_dx_math::stableswap::types::AssetReserve;
+use hydradx_traits::router::{PoolType, TradeExecution};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
@@ -41,6 +43,8 @@ benchmarks! {
 		T: pallet_stableswap::Config + frame_system::Config,
 		T::AssetId: From<u32>,
 		<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+		u32: sp_std::convert::From<T::AssetId>,
+		sp_std::vec::Vec<(u32, AssetReserve)>: FromIterator<(T::AssetId, AssetReserve)>,
 	}
 
 	add_collateral_asset {
@@ -299,6 +303,139 @@ benchmarks! {
 	verify {
 		assert_eq!(FlashMinter::<T>::get(), Some(flash_minter));
 	}
+
+	calculate_sell{
+		// Set up a scenario for selling collateral to get Hollar (worst case)
+		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
+		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
+		let purchase_fee = Permill::from_percent(1);
+		let max_buy_price_coefficient = FixedU128::from_rational(4, 1);
+		let buy_back_fee = Permill::from_percent(1);
+		let b = Perbill::from_percent(50);
+		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
+
+		let collateral = assets[1];
+
+		// Add collateral asset
+		Pallet::<T>::add_collateral_asset(
+			RawOrigin::Root.into(),
+			collateral,
+			pool_id,
+			purchase_fee,
+			max_buy_price_coefficient,
+			buy_back_fee,
+			b,
+			max_in_holding
+		)?;
+
+		// Worst case is selling hollar back into hsm
+		let caller: T::AccountId = account("seller", 0, 0);
+		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
+		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
+
+		// Setup HSM account with enough balance
+		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10_000 * ONE);
+		let cb = <T as Config>::Currency::balance(collateral, &caller);
+		assert!(cb.is_zero());
+
+		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
+		let amount_to_sell = 1_000_000_000_000_000_000u128;
+
+	}: {
+		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_out_given_in(PoolType::HSM, hollar, collateral, amount_to_sell ).is_ok());
+	}
+	verify {
+	}
+
+	calculate_buy{
+		// Set up a scenario for selling collateral to get Hollar (worst case)
+		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
+		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
+		let purchase_fee = Permill::from_percent(1);
+		let max_buy_price_coefficient = FixedU128::from_rational(4, 1);
+		let buy_back_fee = Permill::from_percent(1);
+		let b = Perbill::from_percent(50);
+		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
+
+		let collateral = assets[1];
+
+		// Add collateral asset
+		Pallet::<T>::add_collateral_asset(
+			RawOrigin::Root.into(),
+			collateral,
+			pool_id,
+			purchase_fee,
+			max_buy_price_coefficient,
+			buy_back_fee,
+			b,
+			max_in_holding
+		)?;
+
+		// Worst case is selling hollar back into hsm
+		let caller: T::AccountId = account("seller", 0, 0);
+		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
+		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
+
+		// Setup HSM account with enough balance
+		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10_000 * ONE);
+		let cb = <T as Config>::Currency::balance(collateral, &caller);
+		assert!(cb.is_zero());
+
+		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
+		let amount_to_buy= 1_000_000_000_000_000_000u128;
+
+	}: {
+		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_in_given_out(PoolType::HSM, hollar, collateral, amount_to_buy).is_ok());
+	}
+	verify {
+	}
+
+	calculate_spot_price_with_fee{
+		// Set up a scenario for selling collateral to get Hollar (worst case)
+		let hollar = T::HollarId::get();
+		seed_asset::<T>(hollar, DECIMALS)?;
+		let (pool_id, assets) = seed_pool::<T>(222_222u32.into(), hollar, ASSET_ID_OFFSET)?;
+		let purchase_fee = Permill::from_percent(1);
+		let max_buy_price_coefficient = FixedU128::from_rational(4, 1);
+		let buy_back_fee = Permill::from_percent(1);
+		let b = Perbill::from_percent(50);
+		let max_in_holding: Option<Balance> = Some(10_000 * ONE);
+
+		let collateral = assets[1];
+
+		// Add collateral asset
+		Pallet::<T>::add_collateral_asset(
+			RawOrigin::Root.into(),
+			collateral,
+			pool_id,
+			purchase_fee,
+			max_buy_price_coefficient,
+			buy_back_fee,
+			b,
+			max_in_holding
+		)?;
+
+		// Worst case is selling hollar back into hsm
+		let caller: T::AccountId = account("seller", 0, 0);
+		<T as Config>::BenchmarkHelper::bind_address(caller.clone()).unwrap();
+		<T as Config>::Currency::set_balance(hollar, &caller, 1_000 * ONE);
+
+		// Setup HSM account with enough balance
+		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10_000 * ONE);
+		let cb = <T as Config>::Currency::balance(collateral, &caller);
+		assert!(cb.is_zero());
+
+		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
+		let amount_to_buy= 1_000_000_000_000_000_000u128;
+
+	}: {
+		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_spot_price_with_fee(PoolType::HSM, hollar, collateral).is_ok());
+	}
+	verify {
+	}
+
 
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
 }

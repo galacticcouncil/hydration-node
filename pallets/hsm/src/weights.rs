@@ -16,6 +16,9 @@ pub trait WeightInfo {
 	fn buy() -> Weight;
 	fn execute_arbitrage() -> Weight;
 	fn on_finalize() -> Weight;
+	fn calculate_sell() -> Weight;
+	fn calculate_buy() -> Weight;
+	fn calculate_spot_price_with_fee() -> Weight;
 }
 /// Default weights
 #[cfg(test)]
@@ -49,6 +52,18 @@ impl WeightInfo for () {
 	}
 
 	fn on_finalize() -> Weight {
+		Weight::zero()
+	}
+
+	fn calculate_sell() -> Weight {
+		Weight::zero()
+	}
+
+	fn calculate_buy() -> Weight {
+		Weight::zero()
+	}
+
+	fn calculate_spot_price_with_fee() -> Weight {
 		Weight::zero()
 	}
 }
