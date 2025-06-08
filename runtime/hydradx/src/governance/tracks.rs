@@ -46,6 +46,14 @@ const SUP_RECIP: Curve = Curve::make_reciprocal(5, 7, percent(1), percent(0), pe
 const SUP_FAST_RECIP: Curve = Curve::make_reciprocal(3, 7, percent(1), percent(0), percent(50));
 const SUP_WHITELISTED_CALLER: Curve = Curve::make_reciprocal(1, 28, percent(3), percent(2), percent(50));
 
+const ROOT_ENACTMENT_PERIOD: BlockNumber = { 
+	if is_testnet() {
+		MINUTES
+	} else {
+		10 * MINUTES
+	}
+};
+
 const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10] = [
 	(
 		0,
@@ -56,7 +64,7 @@ const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10
 			prepare_period: HOURS,
 			decision_period: 7 * DAYS,
 			confirm_period: 12 * HOURS,
-			min_enactment_period: 10 * MINUTES,
+			min_enactment_period: ROOT_ENACTMENT_PERIOD,
 			min_approval: APP_RECIP,
 			min_support: SUP_LINEAR,
 		},

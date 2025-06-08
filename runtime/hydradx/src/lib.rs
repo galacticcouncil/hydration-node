@@ -202,7 +202,7 @@ construct_runtime!(
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
-		Config: pallet_config = 83,
+		Configuration: pallet_configuration = 83,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -452,6 +452,10 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 		let encoded = extrinsic.encode();
 		sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid")
 	}
+}
+
+pub fn is_testnet() -> bool {
+	Configuration::is_testnet()
 }
 
 use crate::evm::aave_trade_executor::AaveTradeExecutor;

@@ -4719,6 +4719,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
+ "pallet-configuration",
  "pallet-conviction-voting",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
@@ -7837,6 +7838,21 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-configuration"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
 ]
 
 [[package]]

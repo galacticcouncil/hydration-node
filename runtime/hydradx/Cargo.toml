@@ -38,6 +38,7 @@ pallet-dynamic-evm-fee = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
+pallet-configuration = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
 pallet-broadcast = { workspace = true }
@@ -314,6 +315,7 @@ std = [
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
     "pallet-bonds/std",
+    "pallet-configuration/std",
     "pallet-stableswap/std",
     "pallet-lbp/std",
     "pallet-xyk/std",
