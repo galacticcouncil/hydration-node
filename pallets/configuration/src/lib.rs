@@ -34,34 +34,33 @@ mod tests;
 
 pub use pallet::*;
 
-use frame_support::{pallet_prelude::*, traits::Get};
-use frame_system::pallet_prelude::*;
+use frame_support::pallet_prelude::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use super::*;
+	use super::*;
 
-    #[pallet::config]
-    pub trait Config: frame_system::Config {}
+	#[pallet::config]
+	pub trait Config: frame_system::Config {}
 
-    #[pallet::pallet]
-    pub struct Pallet<T>(_);
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
 
-    /// Indicates whether the current chain is a testnet (set at genesis).
-    #[pallet::storage]
-    #[pallet::getter(fn is_testnet)]
-    pub type IsTestnet<T> = StorageValue<_, bool, ValueQuery>;
-    //
-    // #[pallet::genesis_config]
-    // #[derive(Default, Clone, Encode, Decode, TypeInfo)]
-    // pub struct GenesisConfig {
-    //     pub is_testnet: bool,
-    // }
-    //
-    // #[pallet::genesis_build]
-    // impl<T: Config> GenesisBuild<T> for GenesisConfig {
-    //     fn build(&self) {
-    //         IsTestnet::<T>::put(self.is_testnet);
-    //     }
-    // }
+	/// Indicates whether the current chain is a testnet (set at genesis).
+	#[pallet::storage]
+	#[pallet::getter(fn is_testnet)]
+	pub type IsTestnet<T> = StorageValue<_, bool, ValueQuery>;
+	//
+	// #[pallet::genesis_config]
+	// #[derive(Default, Clone, Encode, Decode, TypeInfo)]
+	// pub struct GenesisConfig {
+	//     pub is_testnet: bool,
+	// }
+	//
+	// #[pallet::genesis_build]
+	// impl<T: Config> GenesisBuild<T> for GenesisConfig {
+	//     fn build(&self) {
+	//         IsTestnet::<T>::put(self.is_testnet);
+	//     }
+	// }
 }

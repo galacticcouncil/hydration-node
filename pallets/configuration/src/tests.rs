@@ -25,15 +25,21 @@
 //  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
 //                  $$$
 
-use crate as config;
 use crate::mock::*;
+use crate::{IsTestnet, Pallet as Configuration};
 
 #[test]
 fn is_testnet_false_by_default() {
-    ExtBuilder::default().build().execute_with(|| {
-       assert_eq!(
-           Configuration::is_testnet(),
-           false
-       );
-    });
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(Configuration::<Test>::is_testnet(), false);
+	});
+}
+
+#[test]
+fn is_testnet_true_when_set() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Configuration::<Test>::IsTestnet::put(true);
+		IsTestnet::<Test>::put(true);
+		assert_eq!(Configuration::<Test>::is_testnet(), true);
+	});
 }

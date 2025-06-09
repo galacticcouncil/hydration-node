@@ -28,11 +28,11 @@
 //! Track configurations for governance.
 
 use super::*;
+use once_cell::sync::OnceCell;
 use primitives::constants::{
 	currency::UNITS,
 	time::{HOURS, MINUTES},
 };
-use once_cell::sync::OnceCell;
 
 const fn percent(x: i32) -> sp_arithmetic::FixedI64 {
 	sp_arithmetic::FixedI64::from_rational(x as u128, 100)
