@@ -25,20 +25,26 @@
 //  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
 //                  $$$
 
-use crate::mock::*;
-use crate::{IsTestnet, Pallet as Configuration};
+use crate::polkadot_test_net::*;
+use frame_support::assert_ok;
+use hydradx_runtime::*;
+use primitives::constants::time::{HOURS, MINUTES};
+use sp_core::Get;
+use xcm_emulator::TestExt;
 
 #[test]
-fn is_testnet_false_by_default() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_eq!(Configuration::<Test>::is_testnet(), false);
-	});
-}
+fn is_testnet_sets_correct_referenda_params_when_default() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let tracks = <hydradx_runtime::Runtime as pallet_referenda::Config>::Tracks::get();
 
-#[test]
-fn is_testnet_true_when_set() {
-	ExtBuilder::default().build().execute_with(|| {
-		IsTestnet::<Test>::put(true);
-		assert_eq!(Configuration::<Test>::is_testnet(), true);
+		let root_track = tracks
+			.iter()
+			.find(|(id, _info)| *id == 0)
+			.expect("Root track should exist");
+
+		assert_eq!(root_track.1.prepare_period, HOURS);
+		assert_eq!(root_track.1.confirm_period, 12 * HOURS);
+		assert_eq!(root_track.1.min_enactment_period, 10 * MINUTES);
 	});
 }

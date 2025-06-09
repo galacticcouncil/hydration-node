@@ -57,7 +57,9 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 	type Id = u16;
 	type RuntimeOrigin = <RuntimeOrigin as frame_support::traits::OriginTrait>::PalletsOrigin;
 	fn tracks() -> &'static [TrackTuple] {
-		let root_enactment_period = if is_testnet() { MINUTES } else { 10 * MINUTES };
+		let root_prepare_period = if is_testnet() { 1 } else { HOURS };
+		let root_confirm_period = if is_testnet() { 1 } else { 12 * HOURS };
+		let root_enactment_period = if is_testnet() { 1 } else { 10 * MINUTES };
 
 		TRACKS.get_or_init(|| {
 			vec![
@@ -67,9 +69,9 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 						name: "root",
 						max_deciding: 3,
 						decision_deposit: 1_000_000 * UNITS,
-						prepare_period: HOURS,
+						prepare_period: root_prepare_period,
 						decision_period: 7 * DAYS,
-						confirm_period: 12 * HOURS,
+						confirm_period: root_confirm_period,
 						min_enactment_period: root_enactment_period,
 						min_approval: APP_RECIP,
 						min_support: SUP_LINEAR,

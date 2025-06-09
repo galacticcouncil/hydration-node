@@ -6,6 +6,7 @@ mod asset_registry;
 mod bonds;
 mod call_filter;
 mod circuit_breaker;
+mod configuration;
 mod contracts;
 mod cross_chain_transfer;
 mod dca;
