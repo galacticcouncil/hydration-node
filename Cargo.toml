@@ -48,7 +48,9 @@ members = [
     'runtime-mock',
     'pallets/broadcast',
     'pallets/hsm',
+    'runtime/fuzzer'
 ]
+exclude = [ 'runtime/fuzzer']
 
 resolver = "2"
 
@@ -314,26 +316,26 @@ xcm-runtime-apis = { git = "https://github.com/galacticcouncil/polkadot-sdk", br
 parachains-common = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4", default-features = false }
 
 # Frontier
-fc-consensus = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-fc-db = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-fc-mapping-sync = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-fc-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-fc-rpc-core = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
+fc-consensus = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+fc-db = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+fc-mapping-sync = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+fc-rpc = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+fc-rpc-core = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
 
-fp-consensus = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-fp-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-fp-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-fp-self-contained = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-fp-storage = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
+fp-consensus = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+fp-evm = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+fp-rpc = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+fp-self-contained = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+fp-storage = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
 
-pallet-ethereum = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-pallet-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-pallet-evm-chain-id = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-pallet-evm-precompile-dispatch = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-pallet-evm-precompile-simple = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-pallet-evm-precompile-modexp = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-pallet-evm-precompile-bn128 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
-pallet-evm-precompile-blake2 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
+pallet-ethereum = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+pallet-evm = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+pallet-evm-chain-id = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+pallet-evm-precompile-dispatch = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+pallet-evm-precompile-simple = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+pallet-evm-precompile-modexp = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+pallet-evm-precompile-bn128 = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
+pallet-evm-precompile-blake2 = { git = "https://github.com/moonbeam-foundation/frontier", rev = "18cb0faadc716432df6c9c283bf66ecbfe690acb", default-features = false }
 evm = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2409", default-features = false }
 evm-gasometer = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2409", default-features = false }
 evm-runtime = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2409", default-features = false }
