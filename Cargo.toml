@@ -48,9 +48,9 @@ members = [
     'runtime-mock',
     'pallets/broadcast',
     'pallets/hsm',
-    'runtime/fuzzer'
+    'runtime-fuzzer'
 ]
-exclude = [ 'runtime/fuzzer']
+exclude = [ 'runtime-fuzzer']
 
 resolver = "2"
 
