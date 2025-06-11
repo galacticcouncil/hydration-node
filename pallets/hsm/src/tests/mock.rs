@@ -19,7 +19,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate as pallet_hsm;
-use crate::types::{CallResult, CoefficientRatio};
+use crate::types::CallResult;
 use crate::Config;
 use crate::ERC20Function;
 use core::ops::RangeInclusive;
@@ -34,6 +34,7 @@ use frame_support::traits::Contains;
 use frame_support::traits::{ConstU128, ConstU32, ConstU64, Everything};
 use frame_support::{construct_runtime, parameter_types};
 use frame_system::EnsureRoot;
+use hydra_dx_math::hsm::CoefficientRatio;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
@@ -779,8 +780,9 @@ pub fn move_block() {
 #[cfg(feature = "runtime-benchmarks")]
 mod for_benchmark_tests {
 	use super::*;
-	use crate::types::PegType;
 	use frame_support::dispatch::DispatchResult;
+	use hydra_dx_math::hsm::PegType;
+
 	pub struct MockStableswapBenchmarkHelper;
 	use hydradx_traits::Source;
 
