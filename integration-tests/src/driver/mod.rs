@@ -90,12 +90,11 @@ impl HydrationTestDriver {
 
 	pub fn endow_account(&self, account: AccountId, asset_id: AssetId, amount: Balance) -> &Self {
 		self.execute(|| {
-			assert_ok!(Tokens::set_balance(
-				RawOrigin::Root.into(),
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
 				account,
 				asset_id,
-				amount,
-				0
+				amount as i128,
 			));
 		});
 		self
@@ -195,6 +194,29 @@ impl HydrationTestDriver {
 		});
 
 		self.add_omnipool_assets(vec![HDX, DOT, WETH])
+	}
+
+	pub fn add_asset_to_omnipool(&self, asset_id: AssetId, initial_liquidity: Balance, price: FixedU128) -> &Self {
+		self.execute(|| {
+			let acc = hydradx_runtime::Omnipool::protocol_account();
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				acc.clone(),
+				asset_id,
+				initial_liquidity,
+				0
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				asset_id,
+				price,
+				Permill::from_percent(100),
+				AccountId::from(ALICE),
+			));
+		});
+
+		self
 	}
 
 	pub(crate) fn setup_stableswap(self) -> Self {
