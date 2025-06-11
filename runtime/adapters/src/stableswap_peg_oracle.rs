@@ -121,13 +121,6 @@ where
 					.saturating_div(SECS_PER_BLOCK.into())
 					.saturated_into::<BlockNumber>();
 
-				if diff_blocks.is_zero() {
-					log::error!(target: "stableswap-peg-oracle",
-						"Oracle can't be updated in the same block. Constract: {:?}, DiffBlocks: {:?}", addr, diff_blocks);
-
-					return Err(DispatchError::Other("PegOracle not available"));
-				}
-
 				let current_block = frame_system::Pallet::<Runtime>::current_block_number();
 				let updated_at = current_block.saturating_sub(diff_blocks.into());
 
