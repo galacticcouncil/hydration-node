@@ -9,6 +9,8 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
 hex-literal = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { workspace = true }
@@ -149,6 +151,7 @@ libsecp256k1 = { workspace = true }
 [features]
 default = ["std"]
 std = [
+    "codec/std",
     "frame-executive/std",
     "frame-support/std",
     "frame-system/std",
