@@ -26,11 +26,11 @@
 //                  $$$
 
 use crate::polkadot_test_net::*;
+use codec::Encode;
 use hydradx_runtime::*;
 use primitives::constants::time::{HOURS, MINUTES};
-use sp_core::{ Get, storage::StorageKey };
+use sp_core::{storage::StorageKey, Get};
 use xcm_emulator::TestExt;
-use codec::Encode;
 
 #[test]
 fn is_testnet_sets_correct_referenda_params_when_default() {
@@ -55,9 +55,7 @@ fn is_testnet_sets_correct_referenda_params_when_testnet() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Prepare
-		let key = StorageKey(
-			frame_support::storage::storage_prefix(b"Configuration", b"IsTestnet").to_vec()
-		);
+		let key = StorageKey(frame_support::storage::storage_prefix(b"Configuration", b"IsTestnet").to_vec());
 		let value = true.encode();
 		sp_io::storage::set(&key.0, &value);
 

@@ -213,7 +213,6 @@ const MAINNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumb
 	),
 ];
 
-
 const TESTNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10] = [
 	(
 		0,
@@ -362,7 +361,11 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 	type Id = u16;
 	type RuntimeOrigin = <RuntimeOrigin as frame_support::traits::OriginTrait>::PalletsOrigin;
 	fn tracks() -> &'static [(Self::Id, pallet_referenda::TrackInfo<Balance, BlockNumber>)] {
-		if is_testnet() { &TESTNET_TRACKS_DATA[..] } else { &MAINNET_TRACKS_DATA[..] }
+		if is_testnet() {
+			&TESTNET_TRACKS_DATA[..]
+		} else {
+			&MAINNET_TRACKS_DATA[..]
+		}
 	}
 	fn track_for(id: &Self::RuntimeOrigin) -> Result<Self::Id, ()> {
 		if let Ok(system_origin) = frame_system::RawOrigin::try_from(id.clone()) {
