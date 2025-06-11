@@ -185,6 +185,7 @@ runtime-mock = { workspace = true }
 cumulus-test-relay-sproof-builder = { workspace = true }
 
 [features]
-default = ["std", "try-runtime"]
+default = ["std"]
+fuzzing = ["std", "try-runtime"]
 std = ["hydradx-runtime/std", "codec/std", "sp-runtime/std", "frame-support/std", "sp-consensus-aura/std"]
 try-runtime = ["hydradx-runtime/try-runtime", "frame-support/try-runtime"]
