@@ -1,9 +1,10 @@
 use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
-use crate::evm::{Erc20Currency, EvmAccounts, Executor};
-use crate::Runtime;
+use crate::evm::Executor;
+use crate::evm::{Erc20Currency, EvmAccounts};
 use crate::Vec;
+use crate::{Currencies, Runtime};
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
@@ -15,8 +16,9 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
-use hydradx_traits::BoundErc20;
+use hydradx_traits::{BoundErc20, Inspect};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pallet_broadcast::types::Asset;
 use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
@@ -35,7 +37,9 @@ use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
 
-pub struct AaveTradeExecutor<T>(PhantomData<T>);
+pub struct AaveTradeExecutor<T>(PhantomData<T>)
+where
+	T: pallet_broadcast::Config;
 
 pub type Aave = AaveTradeExecutor<Runtime>;
 
@@ -118,14 +122,66 @@ where
 		+ pallet_asset_registry::Config<AssetId = AssetId>
 		+ pallet_liquidation::Config
 		+ pallet_evm_accounts::Config
-		+ frame_system::Config,
+		+ pallet_broadcast::Config
+		+ pallet_dispatcher::Config
+		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
 	T::AssetNativeLocation: Into<MultiLocation>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
 	NonceIdOf<T>: Into<T::Nonce>,
+	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
 {
+	pub fn transfer(
+		contract: EvmAddress,
+		from: &AccountId,
+		to: &AccountId,
+		amount: Balance,
+		erc20_transfer: impl FnOnce() -> DispatchResult,
+	) -> DispatchResult {
+		let Some(atoken) = HydraErc20Mapping::address_to_asset(contract) else {
+			return Err(DispatchError::Other("Not an Aave token"));
+		};
+		let Some(underlying_asset) = Self::get_underlying_asset(atoken) else {
+			return Err(DispatchError::Other("Not an Aave token"));
+		};
+		let ed = pallet_asset_registry::Pallet::<T>::existential_deposit(atoken).unwrap_or_default();
+		let atoken_balance = <Erc20Currency<T> as ERC20>::balance_of(
+			CallContext::new_view(contract),
+			EvmAccounts::<T>::evm_address(from),
+		);
+		let diff = atoken_balance.saturating_sub(amount);
+		if diff <= ed {
+			//We withdraw all AToken and supply underlying asset amount on behalf of the receiver
+			//We need to do this as Aave ScaledBalanceTokenBase.sol has rounding in transfer method so we can't always transfer total balance
+			let underlying_balance_before = <Erc20Currency<T> as ERC20>::balance_of(
+				CallContext::new_view(underlying_asset),
+				EvmAccounts::<T>::evm_address(from),
+			);
+
+			AaveTradeExecutor::<T>::do_withdraw_all(from, underlying_asset)?;
+
+			let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
+				CallContext::new_view(underlying_asset),
+				EvmAccounts::<T>::evm_address(from),
+			);
+
+			let amount_to_supply = underlying_balance_after.saturating_sub(underlying_balance_before);
+			Self::do_supply_on_behalf_of(from, to, underlying_asset, amount_to_supply)
+		} else {
+			//When we don't transfer total balance of atokens
+			erc20_transfer()
+		}
+	}
+
+	pub fn is_atoken(address: EvmAddress) -> bool {
+		let Some(atoken) = HydraErc20Mapping::address_to_asset(address) else {
+			return false;
+		};
+		Self::get_underlying_asset(atoken).is_some()
+	}
+
 	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {
 		let context = CallContext::new_view(pool);
 		let data = EvmDataWriter::new_with_selector(Function::GetReservesList).build();
@@ -248,11 +304,22 @@ where
 	}
 
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
-		let who = ensure_signed(origin)?;
-		let on_behalf_of = T::EvmAccounts::evm_address(&who);
+		let who = ensure_signed(origin.clone())?;
+
+		Self::do_supply_on_behalf_of(&who, &who, asset, amount)
+	}
+
+	fn do_supply_on_behalf_of(
+		who: &T::AccountId,
+		on_behalf_of: &T::AccountId,
+		asset: EvmAddress,
+		amount: Balance,
+	) -> Result<(), DispatchError> {
+		let who = T::EvmAccounts::evm_address(&who);
+		let on_behalf_of = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&on_behalf_of);
 		let referer_code = 0_u16;
 
-		let context = CallContext::new_call(<BorrowingContract<T>>::get(), on_behalf_of);
+		let context = CallContext::new_call(<BorrowingContract<T>>::get(), who);
 		let data = EvmDataWriter::new_with_selector(Function::Supply)
 			.write(asset)
 			.write(amount)
@@ -262,10 +329,9 @@ where
 
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
-
 	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin)?;
-		let to = T::EvmAccounts::evm_address(&who);
+		let to = <T as pallet_liquidation::Config>::EvmAccounts::evm_address(&who);
 
 		let context = CallContext::new_call(<BorrowingContract<T>>::get(), to);
 		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
@@ -277,9 +343,67 @@ where
 		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
 	}
 
+	fn do_withdraw_all(from: &T::AccountId, asset: EvmAddress) -> Result<(), DispatchError> {
+		let from = T::EvmAccounts::evm_address(from);
+
+		let context = CallContext::new_call(<BorrowingContract<T>>::get(), from);
+		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
+			.write(asset)
+			.write(U256::MAX)
+			.write(from)
+			.build();
+
+		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+	}
+
 	pub fn trade_weight() -> Weight {
 		<T as pallet_evm::Config>::GasWeightMapping::gas_to_weight(TRADE_GAS_LIMIT + VIEW_GAS_LIMIT, true)
 			.saturating_add(<T as pallet_evm_accounts::Config>::WeightInfo::bind_evm_address())
+	}
+
+	fn do_sell(
+		who: OriginFor<T>,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> Result<AssetId, ExecutorError<DispatchError>> {
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		let amount_out = Self::calculate_in_given_out(pool_type, asset_in, asset_out, amount_in)?;
+		ensure!(
+			amount_out >= min_limit,
+			ExecutorError::Error("Slippage exceeded".into())
+		);
+
+		let _ = pallet_evm_accounts::Pallet::<T>::bind_evm_address(who.clone());
+
+		if let Some(underlying) = Self::get_underlying_asset(asset_out) {
+			// Supplying asset_in to get aToken (asset_out)
+			let asset_address = HydraErc20Mapping::asset_address(asset_in);
+			ensure!(
+				asset_address == underlying,
+				ExecutorError::Error("Asset mismatch: supplied asset must match aToken's underlying".into())
+			);
+			Self::supply(who, asset_address, amount_in).map_err(ExecutorError::Error)?;
+
+			Ok(asset_out)
+		} else if let Some(underlying) = Self::get_underlying_asset(asset_in) {
+			// Withdrawing aToken (asset_in) to get underlying asset
+			let asset_address = HydraErc20Mapping::asset_address(asset_out);
+			ensure!(
+				asset_address == underlying,
+				ExecutorError::Error("Asset mismatch: output asset must match aToken's underlying".into())
+			);
+			Self::withdraw(who, underlying, amount_in).map_err(ExecutorError::Error)?;
+
+			Ok(asset_in)
+		} else {
+			return Err(ExecutorError::Error("Invalid asset pair".into()));
+		}
 	}
 }
 
@@ -297,13 +421,18 @@ fn handle_result(result: CallResult) -> DispatchResult {
 	}
 }
 
+/// Buffer value to account for rounding in Aave contract operations.
+const AAVE_ROUNDING_BUFFER: Balance = 2;
+
 impl<T> TradeExecution<OriginFor<T>, AccountId, AssetId, Balance> for AaveTradeExecutor<T>
 where
 	T: pallet_evm::Config
 		+ pallet_asset_registry::Config<AssetId = AssetId>
 		+ pallet_liquidation::Config
 		+ pallet_evm_accounts::Config
-		+ frame_system::Config,
+		+ pallet_broadcast::Config
+		+ frame_system::Config<AccountId = sp_runtime::AccountId32>
+		+ pallet_dispatcher::Config,
 	T::AssetNativeLocation: Into<MultiLocation>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
@@ -313,7 +442,7 @@ where
 {
 	type Error = DispatchError;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -323,18 +452,26 @@ where
 			return Err(ExecutorError::NotSupported);
 		}
 
-		// For both supply and withdraw, amount out is always 1:1
+		// For both supply and withdraw, amount out is almost 1:1
 		// to save weight we just assume the operation will be available
-		Ok(amount_in)
+		// We add a buffer to account for rounding in aave contract
+		Ok(amount_in.saturating_sub(AAVE_ROUNDING_BUFFER))
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
 		amount_out: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Self::calculate_sell(pool_type, asset_in, asset_out, amount_out)
+		if pool_type != PoolType::Aave {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		// For both supply and withdraw, amount out is almost 1:1
+		// to save weight we just assume the operation will be available
+		// We add a buffer to account for rounding in aave contract
+		Ok(amount_out.saturating_add(AAVE_ROUNDING_BUFFER))
 	}
 
 	fn execute_sell(
@@ -345,33 +482,21 @@ where
 		amount_in: Balance,
 		min_limit: Balance,
 	) -> Result<(), ExecutorError<Self::Error>> {
-		if pool_type != PoolType::Aave {
-			return Err(ExecutorError::NotSupported);
-		}
+		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_in, min_limit)?;
 
-		ensure!(amount_in >= min_limit, ExecutorError::Error("Slippage exceeded".into()));
+		let who = ensure_signed(who.clone()).map_err(|_| ExecutorError::Error("Invalid origin".into()))?;
+		let atoken = HydraErc20Mapping::asset_address(trade_result);
+		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(atoken);
 
-		let _ = EvmAccounts::<T>::bind_evm_address(who.clone());
-
-		if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_out) {
-			// Supplying asset_in to get aToken (asset_out)
-			let asset_address = HydraErc20Mapping::asset_address(asset_in);
-			ensure!(
-				asset_address == underlying,
-				ExecutorError::Error("Asset mismatch: supplied asset must match aToken's underlying".into())
-			);
-			AaveTradeExecutor::<T>::supply(who, asset_address, amount_in).map_err(ExecutorError::Error)?;
-		} else if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_in) {
-			// Withdrawing aToken (asset_in) to get underlying asset
-			let asset_address = HydraErc20Mapping::asset_address(asset_out);
-			ensure!(
-				asset_address == underlying,
-				ExecutorError::Error("Asset mismatch: output asset must match aToken's underlying".into())
-			);
-			AaveTradeExecutor::<T>::withdraw(who, underlying, amount_in).map_err(ExecutorError::Error)?;
-		} else {
-			return Err(ExecutorError::Error("Invalid asset pair".into()));
-		}
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			filler,
+			pallet_broadcast::types::Filler::AAVE,
+			pallet_broadcast::types::TradeOperation::ExactIn,
+			vec![Asset::new(asset_in, amount_in)],
+			vec![Asset::new(asset_out, amount_in)],
+			vec![],
+		);
 
 		Ok(())
 	}
@@ -384,7 +509,26 @@ where
 		amount_out: Balance,
 		max_limit: Balance,
 	) -> Result<(), ExecutorError<Self::Error>> {
-		Self::execute_sell(who, pool_type, asset_in, asset_out, amount_out, max_limit)
+		let amount_in = Self::calculate_in_given_out(pool_type, asset_in, asset_out, amount_out)?;
+		ensure!(amount_in >= max_limit, ExecutorError::Error("Slippage exceeded".into()));
+
+		let trade_result = Self::do_sell(who.clone(), pool_type, asset_in, asset_out, amount_out, max_limit)?;
+
+		let who = ensure_signed(who.clone()).map_err(|_| ExecutorError::Error("Invalid origin".into()))?;
+		let atoken = HydraErc20Mapping::asset_address(trade_result);
+		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(atoken);
+
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			who.clone(),
+			filler,
+			pallet_broadcast::types::Filler::AAVE,
+			pallet_broadcast::types::TradeOperation::ExactOut,
+			vec![Asset::new(asset_in, amount_out)],
+			vec![Asset::new(asset_out, amount_out)],
+			vec![],
+		);
+
+		Ok(())
 	}
 
 	fn get_liquidity_depth(

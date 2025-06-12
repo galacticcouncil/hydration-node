@@ -716,7 +716,7 @@ fn abs_diff(d0: U256, d1: U256) -> U256 {
 	}
 }
 
-pub(crate) enum Rounding {
+pub enum Rounding {
 	Down,
 	Up,
 }
@@ -735,7 +735,7 @@ pub(crate) fn normalize_reserves(reserves: &[AssetReserve]) -> Vec<Balance> {
 		.collect()
 }
 
-pub(crate) fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8, rounding: Rounding) -> Balance {
+pub fn normalize_value(amount: Balance, decimals: u8, target_decimals: u8, rounding: Rounding) -> Balance {
 	if target_decimals == decimals {
 		return amount;
 	}
@@ -1196,7 +1196,7 @@ mod tests {
 	const MIN_BALANCE: u128 = 0;
 
 	fn asset_reserve() -> impl Strategy<Value = Balance> {
-		(MIN_BALANCE..=MAX_BALANCE).prop_map(|value| Balance::from(value))
+		(MIN_BALANCE..=MAX_BALANCE).prop_map(Balance::from)
 	}
 
 	proptest! {

@@ -19,10 +19,7 @@ use hex_literal::hex;
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::{
-	router::{PoolType, RefundEdCalculator},
-	OraclePeriod, PriceOracle,
-};
+use hydradx_traits::{router::PoolType, OraclePeriod, PriceOracle};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -68,6 +65,7 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 1_000_000;
+	pub const HollarId: u32 = 222;
 }
 
 parameter_type_with_key! {
@@ -210,19 +208,13 @@ impl Config for Test {
 	type ProfitReceiver = TreasuryAccount;
 	type RouterWeightInfo = ();
 	type WeightInfo = ();
+	type HollarId = HollarId;
+	type FlashMinter = ();
 }
 
 parameter_types! {
 	pub DefaultRoutePoolType: PoolType<AssetId> = PoolType::Omnipool;
 	pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
-}
-
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
 }
 
 pub struct PriceProviderMock {}
@@ -245,9 +237,7 @@ impl pallet_route_executor::Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = AssetRegistry;
 	type AMM = Omnipool;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;

@@ -2045,6 +2045,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Calls `on_trade_fee` hook and ensures that no more than the fee amount is transferred.
+	#[allow(clippy::type_complexity)]
 	fn process_trade_fee(
 		trader: &T::AccountId,
 		asset: T::AssetId,

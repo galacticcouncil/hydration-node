@@ -18,7 +18,6 @@ mod pallet_xcm_benchmarks_generic;
 
 use crate::{BaseXcmWeight, MaxAssetsIntoHolding, RouterWeightInfo, Runtime};
 use frame_support::weights::Weight;
-use pallet_xcm_benchmarks_fungible::WeightInfo as XcmFungibleWeight;
 use pallet_xcm_benchmarks_generic::WeightInfo as XcmGeneric;
 use polkadot_xcm::latest::InteriorLocation;
 use polkadot_xcm::v4::{QueryId, Response, WeightLimit, WildFungibility, Xcm, XcmWeightInfo};
@@ -33,10 +32,12 @@ use cumulus_primitives_core::{
 use hydradx_traits::router::{AmmTradeWeights, PoolType, Trade};
 use polkadot_xcm::prelude::{MaybeErrorCode, NetworkId, XcmError};
 
+#[allow(dead_code)]
 trait WeighAssets {
 	fn weigh_assets(&self, weight: Weight) -> Weight;
 }
 
+#[allow(dead_code)]
 const MAX_ASSETS: u64 = 100;
 
 impl WeighAssets for AssetFilter {
@@ -65,6 +66,7 @@ impl WeighAssets for Assets {
 }
 
 pub struct HydraXcmWeight<Call>(core::marker::PhantomData<Call>);
+#[allow(clippy::suspicious_doc_comments)]
 ///!NOTE - We use BaseXcmWeight to not break anything, except for instructions where we really need to increase weights
 impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	fn withdraw_asset(_assets: &Assets) -> Weight {
@@ -127,7 +129,7 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		BaseXcmWeight::get()
 	}
 	fn exchange_asset(_give: &AssetFilter, _receive: &Assets, is_sell: &bool) -> Weight {
-		//Route can be up max to 5 trades, and stableswap is the most expensive trade, then omnipool
+		//Route can be up max to 9 trades, and stableswap is the most expensive trade, then omnipool
 		let worst_case_trades = vec![
 			Trade {
 				pool: PoolType::Stableswap(100),
@@ -153,6 +155,26 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 				pool: PoolType::Stableswap(102),
 				asset_in: 4,
 				asset_out: 5,
+			},
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: 5,
+				asset_out: 6,
+			},
+			Trade {
+				pool: PoolType::Stableswap(103),
+				asset_in: 6,
+				asset_out: 7,
+			},
+			Trade {
+				pool: PoolType::Omnipool,
+				asset_in: 7,
+				asset_out: 8,
+			},
+			Trade {
+				pool: PoolType::Stableswap(105),
+				asset_in: 8,
+				asset_out: 9,
 			},
 		];
 
@@ -203,10 +225,10 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 	fn unsubscribe_version() -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn burn_asset(assets: &Assets) -> Weight {
+	fn burn_asset(_assets: &Assets) -> Weight {
 		BaseXcmWeight::get()
 	}
-	fn expect_asset(assets: &Assets) -> Weight {
+	fn expect_asset(_assets: &Assets) -> Weight {
 		BaseXcmWeight::get()
 	}
 	fn expect_origin(_origin: &Option<Location>) -> Weight {

@@ -322,3 +322,19 @@ fn referenda_can_not_be_filtered() {
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 	});
 }
+
+#[test]
+fn burn_nft_should_be_filtered_out() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// the values here don't need to make sense, all we need is a valid Call
+		let call = hydradx_runtime::RuntimeCall::Uniques(pallet_uniques::Call::burn {
+			collection: 2222,
+			item: 1,
+			check_owner: None,
+		});
+
+		assert!(!hydradx_runtime::CallFilter::contains(&call));
+	});
+}

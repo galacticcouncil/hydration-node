@@ -1,11 +1,17 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
+use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
+use frame_support::BoundedVec;
 use scale_info::TypeInfo;
 use sp_arithmetic::FixedU128;
 use sp_std::vec;
 use sp_std::vec::Vec;
+
+pub const MAX_NUMBER_OF_TRADES: u32 = 9;
+
+pub type Route<AssetId> = BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>;
 
 pub trait RouteSpotPriceProvider<AssetId> {
 	fn spot_price_with_fee(route: &[Trade<AssetId>]) -> Option<FixedU128>;
@@ -51,12 +57,12 @@ impl<AssetId> AssetPair<AssetId> {
 }
 
 pub trait RouteProvider<AssetId> {
-	fn get_route(asset_pair: AssetPair<AssetId>) -> Vec<Trade<AssetId>> {
-		vec![Trade {
+	fn get_route(asset_pair: AssetPair<AssetId>) -> Route<AssetId> {
+		BoundedVec::truncate_from(vec![Trade {
 			pool: PoolType::Omnipool,
 			asset_in: asset_pair.asset_in,
 			asset_out: asset_pair.asset_out,
-		}]
+		}])
 	}
 }
 
@@ -67,6 +73,7 @@ pub enum PoolType<AssetId> {
 	Stableswap(AssetId),
 	Omnipool,
 	Aave,
+	HSM,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -89,8 +96,9 @@ pub struct AmountInAndOut<Balance> {
 	pub amount_out: Balance,
 }
 
-pub fn inverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>> {
-	trades
+pub fn inverse_route<AssetId>(trades: Route<AssetId>) -> Route<AssetId> {
+	let inversed_route = trades
+		.into_inner()
 		.into_iter()
 		.map(|trade| Trade {
 			pool: trade.pool,
@@ -100,7 +108,9 @@ pub fn inverse_route<AssetId>(trades: Vec<Trade<AssetId>>) -> Vec<Trade<AssetId>
 		.collect::<Vec<Trade<AssetId>>>()
 		.into_iter()
 		.rev()
-		.collect()
+		.collect();
+
+	BoundedVec::truncate_from(inversed_route)
 }
 
 pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
@@ -110,7 +120,7 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_amount_out: Balance,
-		route: Vec<Trade>,
+		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	) -> DispatchResult;
 
 	fn sell_all(
@@ -118,7 +128,7 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 		asset_in: AssetId,
 		asset_out: AssetId,
 		min_amount_out: Balance,
-		route: Vec<Trade>,
+		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	) -> DispatchResult;
 
 	fn buy(
@@ -127,19 +137,23 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_amount_in: Balance,
-		route: Vec<Trade>,
+		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	) -> DispatchResult;
 
 	fn calculate_sell_trade_amounts(route: &[Trade], amount_in: Balance) -> Result<Vec<AmountInAndOut>, DispatchError>;
 
 	fn calculate_buy_trade_amounts(route: &[Trade], amount_out: Balance) -> Result<Vec<AmountInAndOut>, DispatchError>;
 
-	fn set_route(origin: Origin, asset_pair: AssetPair<AssetId>, route: Vec<Trade>) -> DispatchResultWithPostInfo;
+	fn set_route(
+		origin: Origin,
+		asset_pair: AssetPair<AssetId>,
+		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
+	) -> DispatchResultWithPostInfo;
 
 	fn force_insert_route(
 		origin: Origin,
 		asset_pair: AssetPair<AssetId>,
-		route: Vec<Trade>,
+		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	) -> DispatchResultWithPostInfo;
 }
 
@@ -147,14 +161,14 @@ pub trait RouterT<Origin, AssetId, Balance, Trade, AmountInAndOut> {
 pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 	type Error;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>>;
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
@@ -193,14 +207,14 @@ pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 }
 
 #[allow(clippy::redundant_clone)] //Needed as it complains about redundant clone, but clone is needed as Origin is moved and it is not copy type.
-#[impl_trait_for_tuples::impl_for_tuples(1, 5)]
+#[impl_trait_for_tuples::impl_for_tuples(1, 6)]
 impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 	TradeExecution<Origin, AccountId, AssetId, Balance> for Tuple
 {
 	for_tuples!( where #(Tuple: TradeExecution<Origin,AccountId, AssetId, Balance, Error=E>)*);
 	type Error = E;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
@@ -208,7 +222,7 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		for_tuples!(
 			#(
-				let value = match Tuple::calculate_sell(pool_type, asset_in,asset_out,amount_in) {
+				let value = match Tuple::calculate_out_given_in(pool_type, asset_in,asset_out,amount_in) {
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),
@@ -218,7 +232,7 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 		Err(value)
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
@@ -226,7 +240,7 @@ impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		for_tuples!(
 			#(
-				let value = match Tuple::calculate_buy(pool_type, asset_in,asset_out,amount_out) {
+				let value = match Tuple::calculate_in_given_out(pool_type, asset_in,asset_out,amount_out) {
 					Ok(result) => return Ok(result),
 					Err(v) if v == ExecutorError::NotSupported => v,
 					Err(v) => return Err(v),
@@ -352,8 +366,4 @@ impl<Trade> AmmTradeWeights<Trade> for () {
 	fn calculate_spot_price_with_fee_weight(_route: &[Trade]) -> Weight {
 		Weight::zero()
 	}
-}
-
-pub trait RefundEdCalculator<Balance> {
-	fn calculate() -> Balance;
 }

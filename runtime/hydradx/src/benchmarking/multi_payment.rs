@@ -30,10 +30,10 @@ use frame_system::RawOrigin;
 use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::RouteProvider;
+use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
-use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use pallet_transaction_payment::OnChargeTransaction;
 use primitives::{BlockNumber, Price};
 use sp_core::Get;
@@ -104,18 +104,30 @@ runtime_benchmarks! {
 		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_7 = register_asset(b"AS7".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_8 = register_asset(b"AS8".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_10 = register_asset(b"ASA".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		create_xyk_pool::<Runtime>(asset_1, 1000 * UNITS, asset_2, 1000 * UNITS);
 		create_xyk_pool::<Runtime>(asset_2, 1000 * UNITS, asset_3, 1000 * UNITS);
 		create_xyk_pool::<Runtime>(asset_3, 1000 * UNITS, asset_4, 1000 * UNITS);
 		create_xyk_pool::<Runtime>(asset_4, 1000 * UNITS, asset_5, 1000 * UNITS);
 		create_xyk_pool::<Runtime>(asset_5, 1000 * UNITS, asset_6, 1000 * UNITS);
+		create_xyk_pool::<Runtime>(asset_6, 1000 * UNITS, asset_7, 1000 * UNITS);
+		create_xyk_pool::<Runtime>(asset_7, 1000 * UNITS, asset_8, 1000 * UNITS);
+		create_xyk_pool::<Runtime>(asset_8, 1000 * UNITS, asset_9, 1000 * UNITS);
+		create_xyk_pool::<Runtime>(asset_9, 1000 * UNITS, asset_10, 1000 * UNITS);
 
 		xyk_sell::<Runtime>(asset_1,asset_2, 10 * UNITS);
 		xyk_sell::<Runtime>(asset_2,asset_3, 10 * UNITS);
 		xyk_sell::<Runtime>(asset_3,asset_4, 10 * UNITS);
 		xyk_sell::<Runtime>(asset_4,asset_5, 10 * UNITS);
 		xyk_sell::<Runtime>(asset_5,asset_6, 10 * UNITS);
+		xyk_sell::<Runtime>(asset_6,asset_7, 10 * UNITS);
+		xyk_sell::<Runtime>(asset_7,asset_8, 10 * UNITS);
+		xyk_sell::<Runtime>(asset_8,asset_9, 10 * UNITS);
+		xyk_sell::<Runtime>(asset_9,asset_10, 10 * UNITS);
 
 		set_period(10);
 
@@ -144,17 +156,37 @@ runtime_benchmarks! {
 				pool: PoolType::XYK,
 				asset_in: asset_5,
 				asset_out: asset_6,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_6,
+				asset_out: asset_7,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_7,
+				asset_out: asset_8,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_8,
+				asset_out: asset_9,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_9,
+				asset_out: asset_10,
 			}
 		];
 
 		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
 
-		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, asset_6), route)?;
+		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, asset_10), route.try_into().unwrap())?;
 
 		let mut _price = None;//Named with underscore because clippy thinks that the price in the Act part is unused.
 
 	}: {
-		let on_chain_route = <Runtime as pallet_transaction_multi_payment::Config>::RouteProvider::get_route(AssetPair::new(asset_1, asset_6));
+		let on_chain_route = <Runtime as pallet_transaction_multi_payment::Config>::RouteProvider::get_route(AssetPair::new(asset_1, asset_10));
 
 		_price = <Runtime as pallet_transaction_multi_payment::Config>::OraclePriceProvider::price(&on_chain_route, OraclePeriod::Short)
 			.map(|ratio| FixedU128::from_rational(ratio.n, ratio.d));

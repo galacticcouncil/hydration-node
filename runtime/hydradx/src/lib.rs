@@ -29,44 +29,27 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
-mod migration;
+mod migrations;
 pub mod weights;
 
 mod assets;
 pub mod evm;
 pub mod governance;
+mod helpers;
 mod system;
 pub mod types;
 pub mod xcm;
 
-use cumulus_primitives_core::GeneralIndex;
-use cumulus_primitives_core::Here;
-use cumulus_primitives_core::Junctions::X1;
-use cumulus_primitives_core::NetworkId;
-use cumulus_primitives_core::NonFungible;
-use cumulus_primitives_core::Response;
-use frame_support::assert_ok;
-use frame_support::parameter_types;
-use frame_support::storage::with_transaction;
-use frame_support::traits::TrackedStorageKey;
-use frame_system::RawOrigin;
-use hydradx_traits::Mutate;
-use pallet_referrals::FeeDistribution;
-use pallet_referrals::Level;
-use pallet_stableswap::types::Tradability;
-use polkadot_xcm::opaque::lts::InteriorLocation;
-use polkadot_xcm::opaque::v3::MultiLocation;
-use sp_runtime::DispatchError;
-use sp_runtime::FixedU128;
-use sp_runtime::TransactionOutcome;
-use sp_std::sync::Arc;
-
 pub use assets::*;
-use cumulus_primitives_core::Junction;
+pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
+pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
+pub use frame_system::RawOrigin;
 pub use governance::origins::pallet_custom_origins;
 pub use governance::*;
-use pallet_asset_registry::AssetType;
-use pallet_currencies_rpc_runtime_api::AccountData;
+pub use pallet_asset_registry::AssetType;
+pub use pallet_currencies_rpc_runtime_api::AccountData;
+pub use pallet_referrals::{FeeDistribution, Level};
+pub use polkadot_xcm::opaque::lts::InteriorLocation;
 pub use system::*;
 pub use xcm::*;
 
@@ -74,14 +57,14 @@ use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
-use sp_runtime::{
+pub use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
-	Permill,
+	DispatchError, Permill, TransactionOutcome,
 };
 
 use sp_std::{convert::From, prelude::*};
@@ -98,7 +81,8 @@ use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use pallet_genesis_history::Chain;
 pub use primitives::{
-	AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index, ItemId, Price, Signature,
+	constants::time::SLOT_DURATION, AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index,
+	ItemId, Price, Signature,
 };
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -136,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 299,
+	spec_version: 319,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -158,6 +142,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 		VestingPalletId::get().into_account_truncating(),
 		ReferralsPalletId::get().into_account_truncating(),
 		BondsPalletId::get().into_account_truncating(),
+		pallet_route_executor::Pallet::<Runtime>::router_account(),
 	]
 }
 
@@ -216,6 +201,7 @@ construct_runtime!(
 		XYK: pallet_xyk = 74,
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
+		HSM: pallet_hsm = 82,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -290,6 +276,7 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	pallet_claims::ValidateClaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
@@ -303,7 +290,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	migration::Migrations,
+	migrations::Migrations,
 >;
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
@@ -360,6 +347,7 @@ mod benches {
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
+		[pallet_hsm, HSM]
 	);
 }
 
@@ -392,7 +380,6 @@ impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
 cumulus_pallet_parachain_system::register_validate_block! {
 	Runtime = Runtime,
 	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
-	CheckInherents = CheckInherents,
 }
 
 impl fp_self_contained::SelfContainedCall for RuntimeCall {
@@ -480,9 +467,10 @@ use frame_support::{
 use hydradx_traits::evm::Erc20Mapping;
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use polkadot_xcm::latest::Location;
+pub use polkadot_xcm::latest::Junction;
 use polkadot_xcm::{IntoVersion, VersionedAssetId, VersionedAssets, VersionedLocation, VersionedXcm};
 use primitives::constants::chain::CORE_ASSET_ID;
+pub use sp_arithmetic::FixedU128;
 use sp_core::OpaqueMetadata;
 use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
@@ -569,7 +557,7 @@ impl_runtime_apis! {
 
 	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
 		fn slot_duration() -> sp_consensus_aura::SlotDuration {
-			sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
+			sp_consensus_aura::SlotDuration::from_millis(SLOT_DURATION)
 		}
 
 		fn authorities() -> Vec<AuraId> {
@@ -1056,6 +1044,15 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
+		fn can_build_upon(
+				included_hash: <Block as BlockT>::Hash,
+				slot: cumulus_primitives_aura::Slot,
+		) -> bool {
+				ConsensusHook::can_build_upon(included_hash, slot)
+		}
+	}
+
 	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
 		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
 			PolkadotXcm::dry_run_call::<Runtime, xcm::XcmRouter, OriginCaller, RuntimeCall>(origin, call)
@@ -1277,7 +1274,7 @@ impl_runtime_apis! {
 
 			use primitives::constants::currency::UNITS;
 
-			parameter_types! {
+			frame_support::parameter_types! {
 				/// The asset ID for the asset that we use to pay for message delivery fees.
 			pub FeeAssetId: cumulus_primitives_core::AssetId = AssetId(xcm::PolkadotLocation::get());
 			/// The base fee for the message delivery fees.
@@ -1309,14 +1306,14 @@ impl_runtime_apis! {
 					(0..holding_fungibles)
 						.map(|i| {
 							Asset {
-								id: AssetId(GeneralIndex(i as u128).into()),
+								id: AssetId(cumulus_primitives_core::GeneralIndex(i as u128).into()),
 								fun: Fungible(fungibles_amount * (i + 1) as u128), // non-zero amount
 							}
 						})
 						.chain(core::iter::once(Asset { id: AssetId(Here.into()), fun: Fungible(u128::MAX) }))
 						.chain(core::iter::once(Asset { id: AssetId(PolkadotLocation::get()), fun: Fungible(1_000_000 * UNITS) }))
 						.chain((0..holding_non_fungibles).map(|i| Asset {
-							id: AssetId(GeneralIndex(i as u128).into()),
+							id: AssetId(cumulus_primitives_core::GeneralIndex(i as u128).into()),
 							fun: NonFungible(pallet_xcm_benchmarks::asset_instance_from(i)),
 						}))
 						.collect::<Vec<_>>()
@@ -1324,7 +1321,7 @@ impl_runtime_apis! {
 				}
 			}
 
-			parameter_types! {
+			frame_support::parameter_types! {
 				pub const TrustedTeleporter: Option<(Location, Asset)> = Some((
 					PolkadotLocation::get(),
 					Asset { fun: Fungible(UNITS), id: AssetId(PolkadotLocation::get()) },
@@ -1411,6 +1408,7 @@ impl_runtime_apis! {
 			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
 			type XcmGeneric = pallet_xcm_benchmarks::generic::Pallet::<Runtime>;
 
+			#[allow(unused_variables)] // TODO: this variable is not used
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
 				hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
@@ -1468,6 +1466,7 @@ impl_runtime_apis! {
 
 #[cfg(feature = "runtime-benchmarks")] //Used only for benchmarking pallet_xcm_benchmarks::generic exchane_asset instruction
 fn init_omnipool(amount_to_sell: Balance) -> Balance {
+	use hydradx_traits::Mutate;
 	let caller: AccountId = frame_benchmarking::account("caller", 0, 1);
 	let hdx = 0;
 	let dai = 2;
@@ -1476,9 +1475,10 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	//let loc : MultiLocation = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]))).into();
 	//			polkadot_xcm::opaque::lts::Junctions::X1(Arc::new([polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]))
 
-	use polkadot_xcm::v3::Junction::{AccountKey20, GeneralIndex};
-	use polkadot_xcm::v3::Junctions::{Here, X1, X2};
-	use polkadot_xcm::v3::{Junction, MultiLocation};
+	use frame_support::assert_ok;
+	use polkadot_xcm::v3::Junction::GeneralIndex;
+	use polkadot_xcm::v3::Junctions::X1;
+	use polkadot_xcm::v3::MultiLocation;
 	assert_ok!(AssetRegistry::set_location(
 		dai,
 		AssetLocation(MultiLocation::new(0, X1(GeneralIndex(dai.into()))))
@@ -1577,7 +1577,7 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 			dai,
 			amount_to_sell,
 			0,
-			vec![],
+			vec![].try_into().unwrap(),
 		));
 		let received = Currencies::free_balance(dai, &caller2);
 		TransactionOutcome::Rollback(Ok(received))

@@ -30,7 +30,6 @@ use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::constants::currency::UNITS;
 use primitives::{AssetId, Balance};
-use scraper::BOB;
 use sp_core::{H256, U256};
 use sp_runtime::traits::Convert;
 use sp_runtime::traits::SignedExtension;
@@ -927,7 +926,7 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			let insufficient_amount = 10 * UNITS;
 			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount)).unwrap();
 			assert_eq!(
-				(4293123327072534587, Ratio::new(4293123327072534587, 10000000000000)),
+				(4292926597696669208, Ratio::new(4292926597696669208, 10000000000000)),
 				amount_in_weth
 			);
 
@@ -966,6 +965,85 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			let relative_difference = FixedU128::from_rational(difference, insufficient_amount);
 			let tolerated_difference = FixedU128::from_rational(2, 100); //2% due to fees, etc
 			assert!(relative_difference < tolerated_difference);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	})
+}
+
+#[test]
+fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() {
+	TestNet::reset();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			init_omnipool_with_oracle_for_block_10();
+			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+				hydradx_runtime::MinimumMultiplier::get(),
+			);
+			assert_ok!(hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
+
+			let name = b"INSUF1".to_vec();
+
+			let insufficient_asset = AssetRegistry::register_insufficient_asset(
+				None,
+				Some(name.try_into().unwrap()),
+				AssetKind::External,
+				Some(1_000),
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				0,
+				100_000_000_000_000_000_000i128,
+			));
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				insufficient_asset,
+				100_000_000_000_000_000_000i128,
+			));
+
+			let initial_user_weth_balance = user_acc.balance(WETH);
+
+			// just reset the weth balance to 0 - to make sure we dont have enough WETH
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				user_acc.address(),
+				WETH,
+				-(initial_user_weth_balance as i128),
+			));
+			let initial_user_weth_balance = user_acc.balance(WETH);
+			assert_eq!(initial_user_weth_balance, 0);
+
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DOT,
+				FixedU128::from_rational(1, 100000),
+			));
+
+			//Populate oracle
+			assert_ok!(Currencies::update_balance(
+				RawOrigin::Root.into(),
+				BOB.into(),
+				insufficient_asset,
+				2 * UNITS as i128,
+			));
+
+			//Convert insufficient to sufficient (WETH) should fail as no corresponding XYK pool
+			type Convert = ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
+
+			let insufficient_amount = 10 * UNITS;
+			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount));
+			assert!(amount_in_weth.is_none());
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
@@ -1059,7 +1137,7 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 			let weth_amount = 10 * UNITS;
 			let amount_in_insufficient_asset = Convert::convert((WETH, insufficient_asset, weth_amount)).unwrap();
 			assert_eq!(
-				(23293066, Ratio::new(23293066, 10000000000000)),
+				(23294133, Ratio::new(23294133, 10000000000000)),
 				amount_in_insufficient_asset
 			);
 
@@ -1677,7 +1755,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 4491170241294);
+		assert_eq!(tx_fee, 4491170299119);
 	})
 }
 
@@ -1884,7 +1962,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 4491170241294);
+		assert_eq!(tx_fee, 4491170299119);
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
