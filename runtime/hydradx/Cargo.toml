@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "317.0.0"
+version = "318.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -59,7 +59,7 @@ pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
-pallet-hsm = {workspace = true}
+pallet-hsm = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
