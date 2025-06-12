@@ -38,7 +38,10 @@ use hex_literal::hex;
 use pallet_evm_precompile_call_permit::CallPermitPrecompile;
 use pallet_evm_precompile_dispatch::Dispatch;
 use pallet_evm_precompile_flash_loan::FlashLoanReceiverPrecompile;
-use precompile_utils::precompile_set::{CallableByContract, PrecompileAt, PrecompileSetBuilder, SubcallWithMaxNesting};
+use precompile_utils::precompile_set::{
+	AcceptDelegateCall, CallableByContract, CallableByPrecompile, PrecompileAt, PrecompileSetBuilder,
+	SubcallWithMaxNesting,
+};
 use primitive_types::{H160, U256};
 use sp_core::crypto::AccountId32;
 use sp_std::{borrow::ToOwned, vec::Vec};
@@ -116,33 +119,38 @@ impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
 	}
 }
 
+type EthereumPrecompilesChecks = (AcceptDelegateCall, CallableByContract, CallableByPrecompile);
+
 /// The main precompile set for the HydraDX runtime.
 pub type HydraDXPrecompiles<R> = PrecompileSetBuilder<
 	R,
 	(
 		// Standard Ethereum precompiles
-		PrecompileAt<ECRecoverAddress, ECRecover, ()>,
-		PrecompileAt<SHA256Address, Sha256, ()>,
-		PrecompileAt<RipemdAddress, Ripemd160, ()>,
-		PrecompileAt<IdentityAddress, Identity, ()>,
-		PrecompileAt<ModexpAddress, Modexp, ()>,
-		PrecompileAt<BnAddAddress, Bn128Add, ()>,
-		PrecompileAt<BnMulAddress, Bn128Mul, ()>,
-		PrecompileAt<BnPairingAddress, Bn128Pairing, ()>,
-		PrecompileAt<Blake2FAddress, Blake2F, ()>,
+		PrecompileAt<ECRecoverAddress, ECRecover, EthereumPrecompilesChecks>,
+		PrecompileAt<SHA256Address, Sha256, EthereumPrecompilesChecks>,
+		PrecompileAt<RipemdAddress, Ripemd160, EthereumPrecompilesChecks>,
+		PrecompileAt<IdentityAddress, Identity, EthereumPrecompilesChecks>,
+		PrecompileAt<ModexpAddress, Modexp, EthereumPrecompilesChecks>,
+		PrecompileAt<BnAddAddress, Bn128Add, EthereumPrecompilesChecks>,
+		PrecompileAt<BnMulAddress, Bn128Mul, EthereumPrecompilesChecks>,
+		PrecompileAt<BnPairingAddress, Bn128Pairing, EthereumPrecompilesChecks>,
+		PrecompileAt<Blake2FAddress, Blake2F, EthereumPrecompilesChecks>,
 		// HydraDX specific precompiles
-		PrecompileAt<CallPermitAddress, CallPermitPrecompile<R>, ()>,
+		PrecompileAt<CallPermitAddress, CallPermitPrecompile<R>, CallableByContract>,
 		PrecompileAt<
 			FlashLoanReceiverAddress,
 			FlashLoanReceiverPrecompile<R, AllowedFlashLoanCallers>,
-			(CallableByContract,),
+			CallableByContract,
 		>,
-		// We set the nesting limit to 0, forbidding any recursion so we protect against reentrancy
+		//For security reasons, we dont allow dispatch to be called by contract
+		//And we also set recursion limit to 0, forbidding any recursion so we protect against reentrancy
 		PrecompileAt<DispatchAddress, Dispatch<R>, (SubcallWithMaxNesting<0>,)>,
 		DynamicPrecompileWrapper<MultiCurrencyPrecompile<R>>,
-		DynamicPrecompileWrapper<ChainlinkOraclePrecompile<R>>,
+		DynamicPrecompileWrapper<ChainlinkOraclePrecompile<R>>, //TODO: disable dynamics to be not callable by contract
 	),
 >;
+
+pub type DispatchPrecompile<R> = PrecompileAt<DispatchAddress, Dispatch<R>, (SubcallWithMaxNesting<0>,)>;
 
 pub fn is_precompile(address: H160) -> bool {
 	address == DispatchAddress::get() || is_asset_address(address) || is_standard_precompile(address)
