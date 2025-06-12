@@ -1,0 +1,20 @@
+[[pools]]
+pool_id = 100
+assets = [
+    { asset_id = 10, decimals = 6, symbol = "USDT" },
+    { asset_id = 18, decimals = 18, symbol = "DAI" },
+    { asset_id = 21, decimals = 6, symbol = "USDC" },
+    { asset_id = 23, decimals = 6, symbol = "USDT" },
+]
+initial_amplification = "320"
+final_amplification = "320"
+initial_block = "3640110"
+final_block = "3640110"
+fee = 0.04
+reserves = [
+    { asset_id = 10, reserve = "289222535361" },
+    { asset_id = 18, reserve = "497436904598629549953671" },
+    { asset_id = 21, reserve = "477324637151" },
+    { asset_id = 23, reserve = "339902690345" },
+]
+account = "5CrF36Ep1qfkBe6T5f1oMK7wvvUCcyCJPpGaGTohsJXStNKA"

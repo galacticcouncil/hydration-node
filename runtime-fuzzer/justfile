@@ -1,0 +1,26 @@
+
+# Prepare env for fuzzing
+prepare:
+    cargo install --force ziggy cargo-afl honggfuzz grcov
+    cargo afl config --build --force
+    cargo afl system-confi
+
+# Build target
+build:
+    cargo ziggy build
+
+# Build target with just one build jobs - useful when issue with compiling and broken pipes
+build_one_job:
+    CARGO_BUILD_JOBS=1 cargo ziggy build
+
+# Run the fuzzer
+fuzz:
+    cargo ziggy fuzz
+
+# Anyalyze crash directory
+crashes DIR:
+    ./run_crashes.sh {{DIR}}
+
+# Rust one crash report
+crash FILE:
+    cargo ziggy run -i {{FILE}}

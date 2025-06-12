@@ -82,12 +82,12 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.6"
+version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91429305e9f0a25f6205c5b8e0d2db09e0708a7a6df0f42212bb56c32c8ac97a"
+checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
- "getrandom",
+ "getrandom 0.3.3",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -211,6 +211,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
+]
+
+[[package]]
+name = "arbitrary"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dde20b3d026af13f561bdd0f15edf01fc734f0dafcedbaf42bba506a9517f223"
+dependencies = [
+ "derive_arbitrary",
 ]
 
 [[package]]
@@ -1363,7 +1372,7 @@ checksum = "71367d3385c716342014ad17e3d19f7788ae514885a1f4c24f500260fb365e1a"
 dependencies = [
  "libc",
  "once_cell",
- "wasi",
+ "wasi 0.11.0+wasi-snapshot-preview1",
  "wasm-bindgen",
 ]
 
@@ -1453,7 +1462,7 @@ version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
 dependencies = [
- "getrandom",
+ "getrandom 0.2.11",
  "once_cell",
  "tiny-keccak",
 ]
@@ -2559,6 +2568,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_arbitrary"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30542c1ad912e0e3d22a1935c290e12e8a29d704a420177a31faad4a601a0800"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
+]
+
+[[package]]
 name = "derive_more"
 version = "0.99.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3151,7 +3171,7 @@ dependencies = [
 [[package]]
 name = "fc-api"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "async-trait",
  "fp-storage",
@@ -3163,7 +3183,7 @@ dependencies = [
 [[package]]
 name = "fc-consensus"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "async-trait",
  "fp-consensus",
@@ -3179,7 +3199,7 @@ dependencies = [
 [[package]]
 name = "fc-db"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "async-trait",
  "fc-api",
@@ -3200,7 +3220,7 @@ dependencies = [
 [[package]]
 name = "fc-mapping-sync"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "fc-db",
  "fc-storage",
@@ -3221,7 +3241,7 @@ dependencies = [
 [[package]]
 name = "fc-rpc"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "ethereum",
  "ethereum-types",
@@ -3276,7 +3296,7 @@ dependencies = [
 [[package]]
 name = "fc-rpc-core"
 version = "1.1.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "ethereum",
  "ethereum-types",
@@ -3291,7 +3311,7 @@ dependencies = [
 [[package]]
 name = "fc-storage"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "ethereum",
  "ethereum-types",
@@ -3476,7 +3496,7 @@ dependencies = [
 [[package]]
 name = "fp-account"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "hex",
  "impl-serde",
@@ -3495,7 +3515,7 @@ dependencies = [
 [[package]]
 name = "fp-consensus"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "ethereum",
  "parity-scale-codec",
@@ -3506,7 +3526,7 @@ dependencies = [
 [[package]]
 name = "fp-ethereum"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "ethereum",
  "ethereum-types",
@@ -3518,7 +3538,7 @@ dependencies = [
 [[package]]
 name = "fp-evm"
 version = "3.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "environmental",
  "evm",
@@ -3534,7 +3554,7 @@ dependencies = [
 [[package]]
 name = "fp-rpc"
 version = "3.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "ethereum",
  "ethereum-types",
@@ -3550,7 +3570,7 @@ dependencies = [
 [[package]]
 name = "fp-self-contained"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -3562,7 +3582,7 @@ dependencies = [
 [[package]]
 name = "fp-storage"
 version = "2.0.0"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "parity-scale-codec",
  "serde",
@@ -4106,7 +4126,19 @@ checksum = "fe9006bed769170c11f845cf00c7c1e9092aeb3f268e007c3e760ac68008070f"
 dependencies = [
  "cfg-if",
  "libc",
- "wasi",
+ "wasi 0.11.0+wasi-snapshot-preview1",
+]
+
+[[package]]
+name = "getrandom"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "r-efi",
+ "wasi 0.14.2+wasi-0.2.4",
 ]
 
 [[package]]
@@ -4828,6 +4860,165 @@ dependencies = [
  "serde",
  "sp-arithmetic",
  "sp-std",
+]
+
+[[package]]
+name = "hydration-runtime-fuzzer"
+version = "0.3.0"
+dependencies = [
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-aura",
+ "cumulus-primitives-core",
+ "cumulus-primitives-parachain-inherent",
+ "cumulus-primitives-storage-weight-reclaim",
+ "cumulus-primitives-timestamp",
+ "cumulus-primitives-utility",
+ "cumulus-test-relay-sproof-builder",
+ "ethabi",
+ "evm",
+ "fp-evm",
+ "fp-rpc",
+ "fp-self-contained",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-metadata-hash-extension",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex",
+ "hex-literal",
+ "hydra-dx-math",
+ "hydradx-adapters",
+ "hydradx-runtime",
+ "hydradx-traits",
+ "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "orml-benchmarking",
+ "orml-tokens",
+ "orml-traits",
+ "orml-unknown-tokens",
+ "orml-vesting",
+ "orml-xcm",
+ "orml-xcm-support",
+ "orml-xtokens",
+ "pallet-asset-registry",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-bags-list",
+ "pallet-balances",
+ "pallet-bonds",
+ "pallet-broadcast",
+ "pallet-circuit-breaker",
+ "pallet-claims",
+ "pallet-collator-rewards",
+ "pallet-collator-selection",
+ "pallet-collective",
+ "pallet-conviction-voting",
+ "pallet-currencies",
+ "pallet-currencies-rpc-runtime-api",
+ "pallet-dca",
+ "pallet-democracy 4.3.4",
+ "pallet-dispatcher",
+ "pallet-duster",
+ "pallet-dynamic-evm-fee",
+ "pallet-dynamic-fees",
+ "pallet-elections-phragmen",
+ "pallet-ema-oracle",
+ "pallet-ethereum",
+ "pallet-evm",
+ "pallet-evm-accounts",
+ "pallet-evm-accounts-rpc-runtime-api",
+ "pallet-evm-chain-id",
+ "pallet-evm-precompile-blake2",
+ "pallet-evm-precompile-bn128",
+ "pallet-evm-precompile-call-permit",
+ "pallet-evm-precompile-dispatch",
+ "pallet-evm-precompile-flash-loan",
+ "pallet-evm-precompile-modexp",
+ "pallet-evm-precompile-simple",
+ "pallet-genesis-history",
+ "pallet-hsm",
+ "pallet-identity",
+ "pallet-lbp",
+ "pallet-liquidation",
+ "pallet-liquidity-mining",
+ "pallet-message-queue",
+ "pallet-multisig",
+ "pallet-omnipool",
+ "pallet-omnipool-liquidity-mining",
+ "pallet-otc",
+ "pallet-otc-settlements",
+ "pallet-preimage",
+ "pallet-proxy",
+ "pallet-referenda",
+ "pallet-referrals",
+ "pallet-relaychain-info",
+ "pallet-route-executor",
+ "pallet-scheduler",
+ "pallet-session",
+ "pallet-stableswap",
+ "pallet-staking 4.1.4",
+ "pallet-state-trie-migration",
+ "pallet-timestamp",
+ "pallet-tips",
+ "pallet-transaction-multi-payment",
+ "pallet-transaction-pause",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-uniques",
+ "pallet-utility",
+ "pallet-whitelist",
+ "pallet-xcm",
+ "pallet-xcm-benchmarks",
+ "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
+ "parachains-common",
+ "parity-scale-codec",
+ "polkadot-parachain-primitives",
+ "polkadot-runtime-common",
+ "precompile-utils",
+ "primitive-types",
+ "primitives",
+ "quinn-proto 0.9.6",
+ "runtime-mock",
+ "scale-info",
+ "scraper",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-externalities",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-trie",
+ "sp-version",
+ "staging-parachain-info",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "static_init",
+ "stats_alloc",
+ "toml 0.5.11",
+ "xcm-runtime-apis",
+ "ziggy",
 ]
 
 [[package]]
@@ -5558,7 +5749,7 @@ dependencies = [
  "either",
  "futures",
  "futures-timer",
- "getrandom",
+ "getrandom 0.2.11",
  "instant",
  "libp2p-allow-block-list",
  "libp2p-connection-limits",
@@ -6474,7 +6665,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2886843bf800fba2e3377cff24abf6379b4c4d5c6681eaf9ea5b0d15090450bd"
 dependencies = [
  "libc",
- "wasi",
+ "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.52.0",
 ]
 
@@ -8150,7 +8341,7 @@ dependencies = [
 [[package]]
 name = "pallet-ethereum"
 version = "4.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "environmental",
  "ethereum",
@@ -8174,7 +8365,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm"
 version = "6.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "cumulus-primitives-storage-weight-reclaim",
  "environmental",
@@ -8225,7 +8416,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-chain-id"
 version = "1.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8236,7 +8427,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-blake2"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "fp-evm",
 ]
@@ -8244,7 +8435,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-bn128"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "fp-evm",
  "sp-core",
@@ -8283,7 +8474,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-dispatch"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8320,7 +8511,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-modexp"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "fp-evm",
  "num",
@@ -8329,7 +8520,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-simple"
 version = "2.0.0-dev"
-source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2409#18cb0faadc716432df6c9c283bf66ecbfe690acb"
+source = "git+https://github.com/moonbeam-foundation/frontier?rev=18cb0faadc716432df6c9c283bf66ecbfe690acb#18cb0faadc716432df6c9c283bf66ecbfe690acb"
 dependencies = [
  "fp-evm",
  "ripemd",
@@ -11548,7 +11739,7 @@ dependencies = [
  "libc",
  "once_cell",
  "raw-cpuid",
- "wasi",
+ "wasi 0.11.0+wasi-snapshot-preview1",
  "web-sys",
  "winapi",
 ]
@@ -11623,6 +11814,7 @@ version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94b0b33c13a79f669c85defaf4c275dc86a0c0372807d0ca3d78e0bb87274863"
 dependencies = [
+ "arbitrary",
  "bytes",
  "rand",
  "ring 0.16.20",
@@ -11688,6 +11880,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "r-efi"
+version = "5.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74765f6d916ee2faa39bc8e68e4f3ed8949b48cccdac59983d287a7cb71ce9c5"
+
+[[package]]
 name = "radium"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11720,7 +11918,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
- "getrandom",
+ "getrandom 0.2.11",
 ]
 
 [[package]]
@@ -11831,7 +12029,7 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a18479200779601e498ada4e8c1e1f50e3ee19deb0259c25825a98b5603b2cb4"
 dependencies = [
- "getrandom",
+ "getrandom 0.2.11",
  "libredox",
  "thiserror",
 ]
@@ -11979,7 +12177,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "688c63d65483050968b2a8937f7995f443e27041a0f7700aa59b0822aedebb74"
 dependencies = [
  "cc",
- "getrandom",
+ "getrandom 0.2.11",
  "libc",
  "spin 0.9.8",
  "untrusted 0.9.0",
@@ -15452,6 +15650,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "stats_alloc"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c0e04424e733e69714ca1bbb9204c1a57f09f5493439520f9f68c132ad25eec"
+
+[[package]]
 name = "str0m"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -16674,6 +16878,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
+name = "wasi"
+version = "0.14.2+wasi-0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9683f9a5a998d873c0d21fcbe3c083009670149a8fab228644b8bd36b2c48cb3"
+dependencies = [
+ "wit-bindgen-rt",
+]
+
+[[package]]
 name = "wasm-bindgen"
 version = "0.2.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -17527,6 +17740,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wit-bindgen-rt"
+version = "0.39.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f42320e61fe2cfd34354ecb597f86f413484a798ba44a8ca1165c58d42da6c1"
+dependencies = [
+ "bitflags 2.6.0",
+]
+
+[[package]]
 name = "wyz"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -17688,18 +17910,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.7.32"
+version = "0.8.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74d4d3961e53fa4c9a25a8637fc2bfaf2595b3d3ae34875568a5cf64787716be"
+checksum = "a1702d9583232ddb9174e01bb7c15a2ab8fb1bc6f227aa1233858c351a3ba0cb"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.7.32"
+version = "0.8.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ce1b18ccd8e73a9321186f97e46f9f04b778851177567b1975109d26a08d2a6"
+checksum = "28a6e20d751156648aa063f3800b706ee209a32c0b4d9f24be3d980b01be55ef"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -17725,6 +17947,12 @@ dependencies = [
  "quote",
  "syn 2.0.90",
 ]
+
+[[package]]
+name = "ziggy"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8190fe9a65c1313f83938e3949a20ffb2acc2f2995f5e29c55fb919ff6c0262"
 
 [[package]]
 name = "zstd"
