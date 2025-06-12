@@ -13,6 +13,7 @@ use pallet_transaction_multi_payment::EVMPermit;
 use primitive_types::{H160, H256, U256};
 use primitives::AccountId;
 use sp_core::crypto::AccountId32;
+use sp_core::Get;
 use sp_io::hashing::keccak_256;
 use sp_runtime::traits::{One, UniqueSaturatedInto};
 use sp_runtime::DispatchResult;
@@ -47,7 +48,7 @@ where
 		let account_nonce = NoncesStorage::get(source);
 
 		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::generate_permit(
-			precompiles::CALLPERMIT,
+			precompiles::CallPermitAddress::get(),
 			source,
 			target,
 			value,

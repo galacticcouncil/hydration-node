@@ -20,10 +20,12 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::erc20_currency::Function;
+use crate::evm::precompiles::erc20_mapping::is_asset_address;
 use crate::evm::precompiles::revert;
 use crate::{
 	evm::{
 		precompiles::{
+			dynamic::DynamicPrecompile,
 			erc20_mapping::HydraErc20Mapping,
 			handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt},
 			substrate::RuntimeHelper,
@@ -34,6 +36,7 @@ use crate::{
 	Currencies,
 };
 use codec::EncodeLike;
+use evm::executor::stack::IsPrecompileResult;
 use frame_support::traits::{IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
@@ -43,6 +46,7 @@ use primitive_types::H160;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Dispatchable;
 use sp_std::marker::PhantomData;
+use sp_std::vec;
 
 pub struct MultiCurrencyPrecompile<Runtime>(PhantomData<Runtime>);
 
@@ -93,6 +97,22 @@ where
 			exit_status: ExitRevert::Reverted,
 			output: "invalid currency id".into(),
 		})
+	}
+}
+
+impl<Runtime> DynamicPrecompile for MultiCurrencyPrecompile<Runtime> {
+	fn is_precompile(address: H160, _gas: u64) -> IsPrecompileResult {
+		if is_asset_address(address) {
+			IsPrecompileResult::Answer {
+				is_precompile: true,
+				extra_cost: 0,
+			}
+		} else {
+			IsPrecompileResult::Answer {
+				is_precompile: false,
+				extra_cost: 0,
+			}
+		}
 	}
 }
 

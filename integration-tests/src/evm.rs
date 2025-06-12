@@ -8,9 +8,7 @@ use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
-use sp_core::bounded_vec::BoundedVec;
-
-use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+use hydradx_runtime::evm::precompiles::DispatchAddress;
 use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::evm::Function;
@@ -29,6 +27,8 @@ use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
+use sp_core::bounded_vec::BoundedVec;
+use sp_core::Get;
 use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
@@ -41,6 +41,7 @@ mod account_conversion {
 	use super::*;
 	use fp_evm::ExitSucceed;
 	use frame_support::{assert_noop, assert_ok};
+	use hydradx_runtime::evm::precompiles::DispatchAddress;
 	use pretty_assertions::assert_eq;
 
 	#[test]
@@ -119,7 +120,7 @@ mod account_conversion {
 			assert_ok!(EVM::call(
 				evm_signed_origin(evm_address),
 				evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				data,
 				U256::from(0),
 				1000000,
@@ -274,9 +275,9 @@ mod account_conversion {
 
 			//Act & Assert
 			assert_ok!(hydradx_runtime::Runtime::call(
-				evm_address(), // from
-				DISPATCH_ADDR, // to
-				data,          // data
+				evm_address(),          // from
+				DispatchAddress::get(), // to
+				data,                   // data
 				U256::from(1000u64),
 				U256::from(100000u64),
 				None,
@@ -302,11 +303,11 @@ mod account_conversion {
 
 			//Act & Assert
 			let res = hydradx_runtime::Runtime::call(
-				evm_address(), // from
-				DISPATCH_ADDR, // to
-				data,          // data
+				evm_address(),          // from
+				DispatchAddress::get(), // to
+				data,                   // data
 				U256::from(0u64),
-				U256::from(53000u64),
+				U256::from(53500u64),
 				None,
 				None,
 				None,
@@ -342,9 +343,9 @@ mod account_conversion {
 			//Act & Assert
 			assert_noop!(
 				hydradx_runtime::Runtime::call(
-					evm_address,   // from
-					DISPATCH_ADDR, // to
-					data,          // data
+					evm_address,            // from
+					DispatchAddress::get(), // to
+					data,                   // data
 					U256::from(1000u64),
 					U256::from(100000u64),
 					None,
@@ -376,9 +377,9 @@ mod account_conversion {
 
 			//Act & Assert
 			assert_ok!(hydradx_runtime::Runtime::call(
-				evm_address,   // from
-				DISPATCH_ADDR, // to
-				data,          // data
+				evm_address,            // from
+				DispatchAddress::get(), // to
+				data,                   // data
 				U256::from(1000u64),
 				U256::from(100000u64),
 				None,
@@ -442,7 +443,8 @@ mod standard_precompiles {
 			let expected_output = hex!("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b").to_vec();
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::ECRECOVER, input).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::ECRecoverAddress::get(), input).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -460,7 +462,8 @@ mod standard_precompiles {
 			let expected_output = hex!("61e6380e10376b3479838d623b2b1faeaa2afafcfaff2840a6df2f41161488da").to_vec();
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::SHA256, input).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::SHA256Address::get(), input).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -479,7 +482,8 @@ mod standard_precompiles {
 			expected_output[12..32].copy_from_slice(&hex!("8883ba5c203439408542b87526c113426ce94742"));
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::RIPEMD, input).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::RipemdAddress::get(), input).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -496,7 +500,8 @@ mod standard_precompiles {
 			let input = "HydraDX".as_bytes().to_vec();
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::IDENTITY, input.clone()).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::IdentityAddress::get(), input.clone()).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -524,7 +529,8 @@ mod standard_precompiles {
 			let expected_output = vec![5];
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::MODEXP, input).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::ModexpAddress::get(), input).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -542,7 +548,8 @@ mod standard_precompiles {
 			let expected_output = hex!("0a6678fd675aa4d8f0d03a1feb921a27f38ebdcb860cc083653519655acd6d79172fd5b3b2bfdd44e43bcec3eace9347608f9f0a16f1e184cb3f52e6f259cbeb").to_vec();
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::BN_ADD, input).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::BnAddAddress::get(), input).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -560,7 +567,8 @@ mod standard_precompiles {
 			let expected_output = hex!("0bf982b98a2757878c051bfe7eee228b12bc69274b918f08d9fcb21e9184ddc10b17c77cbf3c19d5d27e18cbd4a8c336afb488d0e92c18d56e64dd4ea5c437e6").to_vec();
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::BN_MUL, input).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::BnMulAddress::get(), input).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -578,7 +586,8 @@ mod standard_precompiles {
 			let expected_output = hex!("0000000000000000000000000000000000000000000000000000000000000000").to_vec();
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::BN_PAIRING, input).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::BnPairingAddress::get(), input).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -596,7 +605,8 @@ mod standard_precompiles {
 			let expected_output = hex!("ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923").to_vec();
 
 			//Act
-			let execution_result = evm_runner_call(hydradx_runtime::evm::precompiles::BLAKE2F, input).unwrap();
+			let execution_result =
+				evm_runner_call(hydradx_runtime::evm::precompiles::Blake2FAddress::get(), input).unwrap();
 
 			//Assert
 			assert_eq!(execution_result.exit_reason, ExitReason::Succeed(ExitSucceed::Returned),);
@@ -605,7 +615,7 @@ mod standard_precompiles {
 	}
 }
 
-mod currency_precompile {
+pub mod currency_precompile {
 	use super::*;
 	use fp_evm::ExitRevert::Reverted;
 	use fp_evm::PrecompileFailure;
@@ -2137,7 +2147,7 @@ fn dispatch_should_work_with_transfer() {
 		assert_ok!(EVM::call(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			data,
 			U256::from(0),
 			1000000,
@@ -2231,7 +2241,7 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		assert_ok!(EVM::call(
 			evm_signed_origin(currency_precompile::alice_evm_addr()),
 			currency_precompile::alice_evm_addr(),
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			data,
 			U256::from(0),
 			1000000,
@@ -2242,7 +2252,10 @@ fn dispatch_should_work_with_buying_insufficient_asset() {
 		));
 
 		//EVM call passes even when the substrate tx fails, so we need to check if the tx is executed
-		expect_hydra_last_events(vec![pallet_evm::Event::Executed { address: DISPATCH_ADDR }.into()]);
+		expect_hydra_last_events(vec![pallet_evm::Event::Executed {
+			address: DispatchAddress::get(),
+		}
+		.into()]);
 		let new_balance = Tokens::free_balance(altcoin, &currency_precompile::alice_substrate_evm_addr());
 		assert_eq!(new_balance, UNITS);
 	});
@@ -2262,7 +2275,7 @@ fn dispatch_transfer_should_not_work_with_insufficient_fees() {
 		let call = EVM::call(
 			evm_signed_origin(evm_address()),
 			evm_address(),
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			data,
 			U256::from(0),
 			1000000,
@@ -2316,7 +2329,7 @@ fn dispatch_should_respect_call_filter() {
 		assert_ok!(EVM::call(
 			evm_signed_origin(currency_precompile::alice_evm_addr()),
 			currency_precompile::alice_evm_addr(),
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			transfer_call.encode(),
 			U256::from(0),
 			gas_limit,
@@ -2396,7 +2409,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		assert_ok!(EVM::call(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			omni_sell.encode(),
 			U256::from(0),
 			gas_limit,
@@ -2478,7 +2491,7 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 		assert_ok!(EVM::call(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			evm_address,
-			hydradx_runtime::evm::precompiles::IDENTITY,
+			hydradx_runtime::evm::precompiles::IdentityAddress::get(),
 			vec![],
 			U256::zero(),
 			1000000,
@@ -2533,7 +2546,7 @@ fn evm_account_always_pays_with_weth_for_evm_call() {
 		assert_ok!(EVM::call(
 			hydradx_runtime::RuntimeOrigin::signed(padded_evm_address.into()),
 			evm_address,
-			hydradx_runtime::evm::precompiles::IDENTITY,
+			hydradx_runtime::evm::precompiles::IdentityAddress::get(),
 			vec![],
 			U256::zero(),
 			1000000,
@@ -2667,11 +2680,11 @@ impl MockHandle {
 		Self {
 			input: data,
 			context: Context {
-				address: DISPATCH_ADDR,
+				address: DispatchAddress::get(),
 				caller: sender,
 				apparent_value: U256::zero(),
 			},
-			code_address: DISPATCH_ADDR,
+			code_address: DispatchAddress::get(),
 			is_static: true,
 		}
 	}
@@ -2725,7 +2738,7 @@ impl PrecompileHandle for MockHandle {
 	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
 
 	fn remaining_gas(&self) -> u64 {
-		unimplemented!()
+		1000000u64
 	}
 
 	fn log(&mut self, _: H160, _: Vec<H256>, _: Vec<u8>) -> Result<(), ExitError> {
