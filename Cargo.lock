@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "320.0.0"
+version = "321.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4719,6 +4719,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
+ "pallet-configuration",
  "pallet-conviction-voting",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
@@ -7837,6 +7838,21 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-configuration"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -12200,7 +12216,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.42.1"
+version = "1.43.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12281,6 +12297,7 @@ dependencies = [
  "pallet-xcm",
  "pallet-xyk",
  "pallet-xyk-liquidity-mining",
+ "parity-scale-codec",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
  "polkadot-runtime-parachains",
@@ -12291,6 +12308,7 @@ dependencies = [
  "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
+ "scale-info",
  "scraper",
  "serde_json",
  "sp-api",

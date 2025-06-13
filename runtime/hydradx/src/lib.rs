@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 320,
+	spec_version: 321,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -202,6 +202,7 @@ construct_runtime!(
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
+		Configuration: pallet_configuration = 83,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -451,6 +452,10 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 		let encoded = extrinsic.encode();
 		sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid")
 	}
+}
+
+pub fn is_testnet() -> bool {
+	Configuration::is_testnet()
 }
 
 use crate::evm::aave_trade_executor::AaveTradeExecutor;

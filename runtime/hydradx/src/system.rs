@@ -552,6 +552,7 @@ impl pallet_multisig::Config for Runtime {
 }
 
 impl pallet_genesis_history::Config for Runtime {}
+impl pallet_configuration::Config for Runtime {}
 
 /// Parameterized slow adjusting fee updated based on
 /// https://w3f-research.readthedocs.io/en/latest/polkadot/overview/2-token-economics.html?highlight=token%20economics#-2.-slow-adjusting-mechanism
