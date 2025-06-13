@@ -181,6 +181,7 @@ pallet-ismp = { workspace = true, features = ["unsigned"] }
 pallet-ismp-runtime-api = { workspace = true }
 ismp-parachain-runtime-api = { workspace = true }
 pallet-hyperbridge = { workspace = true }
+pallet-token-gateway = { workspace = true }
 ismp-parachain = { workspace = true }
 ismp = { workspace = true }
 anyhow = { workspace = true }
@@ -376,6 +377,7 @@ std = [
     # Hyperbridge
     "anyhow/std",
     "pallet-hyperbridge/std",
+    "pallet-token-gateway/std",
     "pallet-ismp/std",
     "pallet-ismp-runtime-api/std",
     "ismp/std",

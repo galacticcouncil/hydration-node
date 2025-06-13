@@ -379,6 +379,8 @@ cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/
 anyhow = { version = "1.0", default-features = false }
 
 pallet-hyperbridge = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
+pallet-token-gateway = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
+
 pallet-ismp = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
 pallet-ismp-runtime-api = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
 
