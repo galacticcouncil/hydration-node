@@ -36,30 +36,6 @@ const fn percent(x: i32) -> sp_arithmetic::FixedI64 {
 	sp_arithmetic::FixedI64::from_rational(x as u128, 100)
 }
 
-const fn generate_track_data(
-	name: &'static str,
-	max_deciding: u32,
-	decision_deposit: Balance,
-	prepare_period: u32,
-	decision_period: u32,
-	confirm_period: u32,
-	min_enactment_period: u32,
-	min_approval: pallet_referenda::Curve,
-	min_support: pallet_referenda::Curve,
-) -> pallet_referenda::TrackInfo<Balance, BlockNumber> {
-	pallet_referenda::TrackInfo {
-		name,
-		max_deciding,
-		decision_deposit,
-		prepare_period,
-		decision_period,
-		confirm_period,
-		min_enactment_period,
-		min_approval,
-		min_support,
-	}
-}
-
 use pallet_referenda::Curve;
 const APP_LINEAR: Curve = Curve::make_linear(7, 7, percent(50), percent(100));
 const APP_LINEAR_FLAT: Curve = Curve::make_linear(4, 7, percent(50), percent(100));
@@ -70,7 +46,7 @@ const SUP_RECIP: Curve = Curve::make_reciprocal(5, 7, percent(1), percent(0), pe
 const SUP_FAST_RECIP: Curve = Curve::make_reciprocal(3, 7, percent(1), percent(0), percent(50));
 const SUP_WHITELISTED_CALLER: Curve = Curve::make_reciprocal(1, 28, percent(3), percent(2), percent(50));
 
-const MAINNET_TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10] = [
+const TRACKS_DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 10] = [
 	(
 		0,
 		pallet_referenda::TrackInfo {
@@ -364,7 +340,7 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 		if is_testnet() {
 			&TESTNET_TRACKS_DATA[..]
 		} else {
-			&MAINNET_TRACKS_DATA[..]
+			&TRACKS_DATA[..]
 		}
 	}
 	fn track_for(id: &Self::RuntimeOrigin) -> Result<Self::Id, ()> {
