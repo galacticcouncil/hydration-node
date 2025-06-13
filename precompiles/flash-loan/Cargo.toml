@@ -1,0 +1,52 @@
+[package]
+name = "pallet-evm-precompile-flash-loan"
+description = "A Precompile to handle flash loan."
+edition = "2021"
+version = "1.0.0"
+authors = ["GalacticCouncil"]
+repository = "https://github.com/galacticcouncil/hydration-node"
+
+[dependencies]
+log = { workspace = true }
+num_enum = { workspace = true }
+precompile-utils = { workspace = true }
+
+# Substrate
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+pallet-hsm = { workspace = true }
+pallet-stableswap= { workspace = true }
+pallet-liquidation = { workspace = true }
+hydradx-traits = { workspace = true }
+codec = { workspace = true, features = [ "max-encoded-len" ] }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+
+# Frontier
+evm = { workspace = true, features = [ "with-codec" ] }
+fp-evm = { workspace = true }
+pallet-evm = { workspace = true }
+module-evm-utility-macro = { workspace = true }
+ethabi = { workspace = true }
+
+[dev-dependencies]
+
+[features]
+default = [ "std" ]
+std = [
+	"fp-evm/std",
+	"frame-support/std",
+	"frame-system/std",
+	"pallet-evm/std",
+	"codec/std",
+	"precompile-utils/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-std/std",
+	"pallet-hsm/std",
+	"pallet-stableswap/std",
+	"pallet-liquidation/std",
+	"hydradx-traits/std",
+]

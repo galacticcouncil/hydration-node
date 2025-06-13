@@ -26,12 +26,10 @@
 use crate::evm::WethAssetId;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
+use frame_support::weights::Weight;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
-use pallet_evm::{
-	AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, ExitReason, ExitSucceed, FeeCalculator, RunnerError,
-};
-use pallet_genesis_history::migration::Weight;
+use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, ExitReason, ExitSucceed, FeeCalculator, RunnerError};
 use primitive_types::{H160, H256, U256};
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::UniqueSaturatedInto;
@@ -41,7 +39,7 @@ pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
 
 impl<T, R, B> Runner<T> for WrapRunner<T, R, B>
 where
-	T: Config + pallet_dispatcher::Config,
+	T: Config,
 	R: Runner<T>,
 	<R as pallet_evm::Runner<T>>::Error: core::convert::From<TransactionValidationError>,
 	B: AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
@@ -145,7 +143,7 @@ where
 			)?;
 		}
 		// Validated, flag set to false
-		let result = R::call(
+		R::call(
 			source,
 			target,
 			input,
@@ -160,16 +158,7 @@ where
 			weight_limit,
 			proof_size_base_cost,
 			config,
-		)?;
-
-		let CallInfo { exit_reason, .. } = &result;
-		let call_succeeded = matches!(
-			exit_reason,
-			ExitReason::Succeed(ExitSucceed::Returned) | ExitReason::Succeed(ExitSucceed::Stopped)
-		);
-		pallet_dispatcher::Pallet::<T>::set_last_evm_call_failed(!call_succeeded);
-
-		Ok(result)
+		)
 	}
 
 	fn create(

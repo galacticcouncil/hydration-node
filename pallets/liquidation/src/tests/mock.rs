@@ -65,6 +65,7 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 1_000_000;
+	pub const HollarId: u32 = 222;
 }
 
 parameter_type_with_key! {
@@ -207,6 +208,8 @@ impl Config for Test {
 	type ProfitReceiver = TreasuryAccount;
 	type RouterWeightInfo = ();
 	type WeightInfo = ();
+	type HollarId = HollarId;
+	type FlashMinter = ();
 }
 
 parameter_types! {
