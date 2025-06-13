@@ -36,6 +36,7 @@ mod assets;
 pub mod evm;
 pub mod governance;
 mod helpers;
+mod hyperbridge;
 mod system;
 pub mod types;
 pub mod xcm;
