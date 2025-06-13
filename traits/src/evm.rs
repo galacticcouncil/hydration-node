@@ -68,6 +68,10 @@ pub trait EVM<EvmResult> {
 	fn view(context: CallContext, data: Vec<u8>, gas: u64) -> EvmResult;
 }
 
+pub trait MaybeEvmCall<RuntimeCall> {
+	fn is_evm_call(call: &RuntimeCall) -> bool;
+}
+
 /// ERC20 interface adapter
 pub trait ERC20 {
 	type Balance;
