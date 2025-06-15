@@ -2788,3 +2788,87 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 		amount_b,
 	));
 }
+
+mod precompiles_validation {
+	use super::*;
+	use hydradx_runtime::evm::precompiles::*;
+	use hydradx_runtime::evm::Executor;
+	use hydradx_runtime::Runtime;
+	use hydradx_traits::evm::CallContext;
+	use hydradx_traits::evm::EVM;
+	use num_enum::IntoPrimitive;
+	use num_enum::TryFromPrimitive;
+	use pallet_evm::ExitReason::Succeed;
+	use sp_runtime::RuntimeDebug;
+
+	#[module_evm_utility_macro::generate_function_selector]
+	#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+	#[repr(u32)]
+	pub enum Function {
+		DelegateCallAddress = "delegateCallAddress(address,bytes)",
+	}
+
+	use sp_core::H160;
+
+	// Since in case of delegatecall/callcode failure, Success(Returned) returns,
+	// we need to check the returned data and error in it
+	macro_rules! assert_delegate_and_callcode_accepted {
+		($contract:expr, $precompile_address:expr) => {{
+			let delegate_output_data = delegate_call($contract, $precompile_address);
+			let unexpected_revert = "Cannot be called with DELEGATECALL or CALLCODE";
+			assert!(
+				!contains_subsequence(&delegate_output_data, unexpected_revert.as_bytes()),
+				"Unexpected revert message '{}' WAS found in output for precompile address: {:?}",
+				unexpected_revert,
+				$precompile_address
+			);
+		}};
+	}
+
+	fn contains_subsequence(haystack: &[u8], needle: &[u8]) -> bool {
+		haystack.windows(needle.len()).any(|window| window == needle)
+	}
+
+	fn delegate_call(contract: hydradx_traits::evm::EvmAddress, precompile_address: H160) -> Vec<u8> {
+		let mut data = Into::<u32>::into(Function::DelegateCallAddress).to_be_bytes().to_vec();
+		// address
+		data.extend_from_slice(&[0u8; 12]);
+		data.extend_from_slice(precompile_address.as_bytes());
+		// offset of bytes data
+		data.extend_from_slice(&[0u8; 28]);
+		data.extend_from_slice(&64u128.to_be_bytes()[4..]);
+		// length of bytes data
+		data.extend_from_slice(&[0u8; 32]);
+
+		let context = CallContext {
+			contract: contract,
+			sender: crate::contracts::deployer(),
+			origin: crate::contracts::deployer(),
+		};
+		let (res, data) = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
+
+		data
+	}
+
+	#[test]
+	fn check_precompile_delegate_call_acceptance() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			// Arrange
+			let contract = crate::utils::contracts::deploy_contract("DelegateCall", crate::contracts::deployer());
+
+			//Allowed
+			assert_delegate_and_callcode_accepted!(contract, ECRecoverAddress::get());
+			assert_delegate_and_callcode_accepted!(contract, SHA256Address::get());
+			assert_delegate_and_callcode_accepted!(contract, RipemdAddress::get());
+			assert_delegate_and_callcode_accepted!(contract, IdentityAddress::get());
+			assert_delegate_and_callcode_accepted!(contract, ModexpAddress::get());
+			assert_delegate_and_callcode_accepted!(contract, BnAddAddress::get());
+			assert_delegate_and_callcode_accepted!(contract, BnMulAddress::get());
+			assert_delegate_and_callcode_accepted!(contract, BnPairingAddress::get());
+			assert_delegate_and_callcode_accepted!(contract, Blake2FAddress::get());
+		});
+	}
+
+
+}
