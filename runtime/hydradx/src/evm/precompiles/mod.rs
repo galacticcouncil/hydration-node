@@ -136,11 +136,11 @@ pub type HydraDXPrecompiles<R> = PrecompileSetBuilder<
 		PrecompileAt<BnPairingAddress, Bn128Pairing, EthereumPrecompilesChecks>,
 		PrecompileAt<Blake2FAddress, Blake2F, EthereumPrecompilesChecks>,
 		// HydraDX specific precompiles
-		PrecompileAt<CallPermitAddress, CallPermitPrecompile<R>, CallableByContract>,
+		PrecompileAt<CallPermitAddress, CallPermitPrecompile<R>, (CallableByContract, CallableByPrecompile)>,
 		PrecompileAt<
 			FlashLoanReceiverAddress,
 			FlashLoanReceiverPrecompile<R, AllowedFlashLoanCallers>,
-			CallableByContract,
+			(CallableByContract, CallableByPrecompile),
 		>,
 		//For security reasons, we dont allow dispatch to be called by contract
 		//And we also set recursion limit to 0, forbidding any recursion so we protect against reentrancy
