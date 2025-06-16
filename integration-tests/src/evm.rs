@@ -2905,7 +2905,7 @@ mod precompiles_validation {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			// Arrange
-			let contract = crate::utils::contracts::deploy_contract("DelegateCall", crate::contracts::deployer());
+			let contract = crate::utils::contracts::deploy_contract("PrecompileCall", crate::contracts::deployer());
 
 			//Allowed
 			assert_delegate_and_callcode_accepted!(contract, ECRecoverAddress::get());
@@ -2925,7 +2925,7 @@ mod precompiles_validation {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			// Arrange
-			let contract = crate::utils::contracts::deploy_contract("DelegateCall", crate::contracts::deployer());
+			let contract = crate::utils::contracts::deploy_contract("PrecompileCall", crate::contracts::deployer());
 
 			assert_callable_by_smart_contracts!(contract, ECRecoverAddress::get());
 			assert_callable_by_smart_contracts!(contract, SHA256Address::get());
