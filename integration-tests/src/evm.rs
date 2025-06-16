@@ -2791,11 +2791,13 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 
 mod precompiles_validation {
 	use super::*;
+	use frame_support::assert_ok;
+	use hex_literal::hex;
 	use hydradx_runtime::evm::precompiles::*;
 	use hydradx_runtime::evm::Executor;
-	use hydradx_runtime::Runtime;
+	use hydradx_runtime::{EVMAccounts, Runtime, Tokens};
 	use hydradx_traits::evm::CallContext;
-	use hydradx_traits::evm::EVM;
+	use hydradx_traits::evm::EVM as EvmTrait;
 	use num_enum::IntoPrimitive;
 	use num_enum::TryFromPrimitive;
 	use pallet_evm::ExitReason::Succeed;
@@ -2806,6 +2808,7 @@ mod precompiles_validation {
 	#[repr(u32)]
 	pub enum Function {
 		DelegateCallAddress = "delegateCallAddress(address,bytes)",
+		CallAddress = "callAddress(address,bytes)",
 	}
 
 	use sp_core::H160;
@@ -2819,6 +2822,32 @@ mod precompiles_validation {
 			assert!(
 				!contains_subsequence(&delegate_output_data, unexpected_revert.as_bytes()),
 				"Unexpected revert message '{}' WAS found in output for precompile address: {:?}",
+				unexpected_revert,
+				$precompile_address
+			);
+		}};
+	}
+
+	macro_rules! assert_callable_by_smart_contracts {
+		($contract:expr, $precompile_address:expr) => {{
+			let delegate_output_data = normal_call($contract, $precompile_address);
+			let unexpected_revert = "Function not callable by smart contracts";
+			assert!(
+				!contains_subsequence(&delegate_output_data, unexpected_revert.as_bytes()),
+				"Unexpected revert message '{}' WAS found in output for precompile address: {:?}",
+				unexpected_revert,
+				$precompile_address
+			);
+		}};
+	}
+
+	macro_rules! assert_not_callable_by_smart_contracts {
+		($contract:expr, $precompile_address:expr) => {{
+			let delegate_output_data = normal_call($contract, $precompile_address);
+			let unexpected_revert = "Function not callable by smart contracts";
+			assert!(
+				contains_subsequence(&delegate_output_data, unexpected_revert.as_bytes()),
+				"Expected revert message '{}' WAS NOT found in output for precompile address: {:?}",
 				unexpected_revert,
 				$precompile_address
 			);
@@ -2850,8 +2879,29 @@ mod precompiles_validation {
 		data
 	}
 
+	fn normal_call(contract: hydradx_traits::evm::EvmAddress, precompile_address: H160) -> Vec<u8> {
+		let mut data = Into::<u32>::into(Function::CallAddress).to_be_bytes().to_vec();
+		// address
+		data.extend_from_slice(&[0u8; 12]);
+		data.extend_from_slice(precompile_address.as_bytes());
+		// offset of bytes data
+		data.extend_from_slice(&[0u8; 28]);
+		data.extend_from_slice(&64u128.to_be_bytes()[4..]);
+		// length of bytes data
+		data.extend_from_slice(&[0u8; 32]);
+
+		let context = CallContext {
+			contract: contract,
+			sender: crate::contracts::deployer(),
+			origin: crate::contracts::deployer(),
+		};
+		let (res, data) = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
+
+		data
+	}
+
 	#[test]
-	fn check_precompile_delegate_call_acceptance() {
+	fn check_standard_precompiles_accept_delegates() {
 		TestNet::reset();
 		Hydra::execute_with(|| {
 			// Arrange
@@ -2870,5 +2920,24 @@ mod precompiles_validation {
 		});
 	}
 
+	#[test]
+	fn check_standard_precompiles_callable_by_contract() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			// Arrange
+			let contract = crate::utils::contracts::deploy_contract("DelegateCall", crate::contracts::deployer());
 
+			assert_callable_by_smart_contracts!(contract, ECRecoverAddress::get());
+			assert_callable_by_smart_contracts!(contract, SHA256Address::get());
+			assert_callable_by_smart_contracts!(contract, RipemdAddress::get());
+			assert_callable_by_smart_contracts!(contract, IdentityAddress::get());
+			assert_callable_by_smart_contracts!(contract, ModexpAddress::get());
+			assert_callable_by_smart_contracts!(contract, BnAddAddress::get());
+			assert_callable_by_smart_contracts!(contract, BnMulAddress::get());
+			assert_callable_by_smart_contracts!(contract, BnPairingAddress::get());
+			assert_callable_by_smart_contracts!(contract, Blake2FAddress::get());
+			assert_callable_by_smart_contracts!(contract, CallPermitAddress::get());
+			assert_callable_by_smart_contracts!(contract, FlashLoanReceiverAddress::get());
+		});
+	}
 }
