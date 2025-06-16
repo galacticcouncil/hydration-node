@@ -34,7 +34,7 @@ hex-literal = { workspace = true }
 hydradx-traits = { workspace = true }
 
 pallet-broadcast = { workspace = true }
-precompile-utils = { workspace = true }
+hydration-precompile-utils = { workspace = true }
 
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
@@ -81,7 +81,7 @@ std = [
     "pallet-evm-accounts/std",
     "pallet-asset-registry/std",
     "pallet-evm/std",
-    "precompile-utils/std",
+    "hydration-precompile-utils/std",
 ]
 
 runtime-benchmarks = [

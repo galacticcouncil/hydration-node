@@ -19,9 +19,6 @@ use evm::ExitRevert;
 use sp_core::H160;
 use sp_std::{borrow::ToOwned, vec::Vec};
 
-pub mod costs;
-pub mod handle;
-pub mod logs;
 pub mod writer;
 
 pub type EvmResult<T = ()> = Result<T, PrecompileFailure>;

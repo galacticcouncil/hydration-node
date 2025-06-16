@@ -47,8 +47,8 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_evm::GasWeightMapping;
-use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
-use precompile_utils::evm::Bytes;
+use hydration_precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
+use hydration_precompile_utils::evm::Bytes;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
 use sp_std::{vec, vec::Vec};

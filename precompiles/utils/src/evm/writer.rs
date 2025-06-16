@@ -19,8 +19,10 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::{costs, revert, Address, Bytes, EvmResult};
+use crate::evm::{Address, Bytes, EvmResult};
 use pallet_evm::{Context, Log, PrecompileHandle};
+use precompile_utils::prelude::revert;
+use precompile_utils::evm::costs;
 use primitive_types::{H160, H256, U256};
 use smallvec::alloc;
 use sp_std::borrow::ToOwned;

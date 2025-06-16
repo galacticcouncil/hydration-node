@@ -10,6 +10,7 @@ repository = "https://github.com/galacticcouncil/hydration-node"
 log = { workspace = true }
 num_enum = { workspace = true }
 precompile-utils = { workspace = true }
+hydration-precompile-utils = { workspace = true }
 
 # Substrate
 frame-support = { workspace = true }
@@ -42,6 +43,7 @@ std = [
 	"pallet-evm/std",
 	"codec/std",
 	"precompile-utils/std",
+	"hydration-precompile-utils/std",
 	"sp-core/std",
 	"sp-io/std",
 	"sp-std/std",

@@ -45,6 +45,7 @@ members = [
     'pallets/liquidation',
     'precompiles/call-permit',
     'precompiles/flash-loan',
+    'precompiles/utils',
     'runtime-mock',
     'pallets/broadcast',
     'pallets/hsm',
@@ -161,7 +162,7 @@ integration-tests = { path = "integration-tests", default-features = false }
 
 pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }
 pallet-evm-precompile-flash-loan = { path = "precompiles/flash-loan", default-features = false }
-precompile-utils = { path = "precompiles/utils", default-features = false }
+hydration-precompile-utils = { path = "precompiles/utils", default-features = false }
 
 # Frame
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch4", default-features = false }
@@ -325,6 +326,7 @@ fp-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "mo
 fp-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
 fp-self-contained = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
 fp-storage = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
+precompile-utils = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
 
 pallet-ethereum = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }
 pallet-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2409", default-features = false }

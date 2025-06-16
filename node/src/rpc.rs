@@ -235,6 +235,7 @@ where
 			filter_pool,
 			500_usize, // max stored filters
 			max_past_logs,
+			u32::MAX, // max block range - TODO: set reasonable value ?! what it is ?
 			block_data_cache,
 		)
 		.into_rpc(),

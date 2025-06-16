@@ -2744,12 +2744,20 @@ impl PrecompileHandle for MockHandle {
 		&self.context
 	}
 
+	fn origin(&self) -> H160 {
+		self.context.caller
+	}
+
 	fn is_static(&self) -> bool {
 		self.is_static
 	}
 
 	fn gas_limit(&self) -> Option<u64> {
 		None
+	}
+
+	fn is_contract_being_constructed(&self, _address: H160) -> bool {
+		false
 	}
 }
 

@@ -56,8 +56,8 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_stableswap::types::PoolSnapshot;
-use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
-use precompile_utils::evm::Bytes;
+use hydration_precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
+use hydration_precompile_utils::evm::Bytes;
 use sp_core::{offchain::Duration, Get, H256, U256};
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
