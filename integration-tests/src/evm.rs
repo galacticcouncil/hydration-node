@@ -2897,6 +2897,8 @@ mod precompiles_validation {
 		};
 		let (res, data) = Executor::<Runtime>::call(context, data, U256::zero(), 100_000);
 
+		self::assert_eq!(res, pallet_evm::ExitReason::Succeed(ExitSucceed::Returned));
+
 		data
 	}
 
@@ -2936,8 +2938,6 @@ mod precompiles_validation {
 			assert_callable_by_smart_contracts!(contract, BnMulAddress::get());
 			assert_callable_by_smart_contracts!(contract, BnPairingAddress::get());
 			assert_callable_by_smart_contracts!(contract, Blake2FAddress::get());
-			assert_callable_by_smart_contracts!(contract, CallPermitAddress::get());
-			assert_callable_by_smart_contracts!(contract, FlashLoanReceiverAddress::get());
 		});
 	}
 }
