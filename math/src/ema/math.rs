@@ -11,20 +11,22 @@ use primitive_types::{U128, U256, U512};
 pub type EmaPrice = Ratio;
 pub type EmaVolume = (Balance, Balance, Balance, Balance);
 pub type EmaLiquidity = (Balance, Balance);
+pub type EmaSharesIssuance = Balance;
 
 /// Calculate the new oracle values by integrating `incoming` values with the `previous` oracle.
 /// Uses a weighted average based on the `smoothing` factor.
 pub fn calculate_new_by_integrating_incoming(
-	previous: (EmaPrice, EmaVolume, EmaLiquidity),
-	incoming: (EmaPrice, EmaVolume, EmaLiquidity),
+	previous: (EmaPrice, EmaVolume, EmaLiquidity, EmaSharesIssuance),
+	incoming: (EmaPrice, EmaVolume, EmaLiquidity, EmaSharesIssuance),
 	smoothing: Fraction,
-) -> (EmaPrice, EmaVolume, EmaLiquidity) {
-	let (prev_price, prev_volume, prev_liquidity) = previous;
-	let (incoming_price, incoming_volume, incoming_liquidity) = incoming;
+) -> (EmaPrice, EmaVolume, EmaLiquidity, EmaSharesIssuance) {
+	let (prev_price, prev_volume, prev_liquidity, shares) = previous;
+	let (incoming_price, incoming_volume, incoming_liquidity, incoming_shares) = incoming;
 	let new_price = price_weighted_average(prev_price, incoming_price, smoothing);
 	let new_volume = volume_weighted_average(prev_volume, incoming_volume, smoothing);
 	let new_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
-	(new_price, new_volume, new_liquidity)
+	let new_shares_issuance = balance_weighted_average(shares, incoming_shares, smoothing);
+	(new_price, new_volume, new_liquidity, new_shares_issuance)
 }
 
 /// Calculate the current oracle values from the `outdated` and `update_with` values using the `smoothing` factor with the old values being `iterations` out of date.
@@ -32,17 +34,18 @@ pub fn calculate_new_by_integrating_incoming(
 /// Note: The volume is always updated with zero values so it is not a parameter.
 pub fn update_outdated_to_current(
 	iterations: u32,
-	outdated: (EmaPrice, EmaVolume, EmaLiquidity),
-	update_with: (EmaPrice, EmaLiquidity),
+	outdated: (EmaPrice, EmaVolume, EmaLiquidity, EmaSharesIssuance),
+	update_with: (EmaPrice, EmaLiquidity, EmaSharesIssuance),
 	smoothing: Fraction,
-) -> (EmaPrice, EmaVolume, EmaLiquidity) {
-	let (prev_price, prev_volume, prev_liquidity) = outdated;
-	let (incoming_price, incoming_liquidity) = update_with;
+) -> (EmaPrice, EmaVolume, EmaLiquidity, EmaSharesIssuance) {
+	let (prev_price, prev_volume, prev_liquidity, prev_shares) = outdated;
+	let (incoming_price, incoming_liquidity, incoming_shares) = update_with;
 	let smoothing = exp_smoothing(smoothing, iterations);
 	let new_price = price_weighted_average(prev_price, incoming_price, smoothing);
 	let new_volume = volume_weighted_average(prev_volume, (0, 0, 0, 0), smoothing);
 	let new_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
-	(new_price, new_volume, new_liquidity)
+	let new_shares = balance_weighted_average(prev_shares, incoming_shares, smoothing);
+	(new_price, new_volume, new_liquidity, new_shares)
 }
 
 /// Calculate the iterated exponential moving average for the given prices.
