@@ -16,12 +16,17 @@
 
 use crate::evm::precompiles::{is_precompile, is_standard_precompile};
 use pallet_evm::{ExitRevert, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use precompile_utils::precompile_set::{PrecompileCheckSummary, PrecompileChecks, PrecompileSetFragment};
+use precompile_utils::precompile_set::{
+	PrecompileCheckSummary, PrecompileChecks, PrecompileKind, PrecompileSetFragment,
+};
 use primitive_types::H160;
 use sp_std::marker::PhantomData;
+use sp_std::vec::Vec;
 
 /// A trait for dynamic precompiles that can be identified by an address.
 pub trait DynamicPrecompile {
+	fn address_prefix() -> Vec<u8>;
+
 	fn is_precompile(address: H160, gas: u64) -> IsPrecompileResult;
 }
 
@@ -68,7 +73,13 @@ where
 	}
 
 	fn summarize_checks(&self) -> sp_std::vec::Vec<PrecompileCheckSummary> {
-		// TODO: consider adding checks
-		sp_std::vec![]
+		sp_std::vec![PrecompileCheckSummary {
+			name: None,
+			precompile_kind: PrecompileKind::Prefixed(P::address_prefix()),
+			recursion_limit: None,
+			accept_delegate_call: false,
+			callable_by_smart_contract: "Callable by smart contract".into(),
+			callable_by_precompile: "Callable by precompile".into(),
+		}]
 	}
 }

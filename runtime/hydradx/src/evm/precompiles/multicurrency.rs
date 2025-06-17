@@ -20,7 +20,7 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::erc20_currency::Function;
-use crate::evm::precompiles::erc20_mapping::is_asset_address;
+use crate::evm::precompiles::erc20_mapping::{asset_address_prefix, is_asset_address};
 use crate::evm::precompiles::revert;
 use crate::{
 	evm::{
@@ -47,6 +47,7 @@ use primitives::{AssetId, Balance};
 use sp_runtime::traits::Dispatchable;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 pub struct MultiCurrencyPrecompile<Runtime>(PhantomData<Runtime>);
 
@@ -101,6 +102,10 @@ where
 }
 
 impl<Runtime> DynamicPrecompile for MultiCurrencyPrecompile<Runtime> {
+	fn address_prefix() -> Vec<u8> {
+		asset_address_prefix()
+	}
+
 	fn is_precompile(address: H160, _gas: u64) -> IsPrecompileResult {
 		if is_asset_address(address) {
 			IsPrecompileResult::Answer {

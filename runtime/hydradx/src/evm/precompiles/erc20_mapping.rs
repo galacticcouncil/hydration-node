@@ -29,6 +29,7 @@ use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
 use primitive_types::{H160, H256};
 use primitives::AssetId;
+use sp_std::vec::Vec;
 
 pub struct HydraErc20Mapping;
 
@@ -81,10 +82,12 @@ impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	}
 }
 
-pub fn is_asset_address(address: H160) -> bool {
-	let asset_address_prefix = &(H160::from(hex!("0000000000000000000000000000000100000000"))[0..16]);
+pub fn asset_address_prefix() -> Vec<u8> {
+	H160::from(hex!("0000000000000000000000000000000100000000"))[0..16].to_vec()
+}
 
-	&address.to_fixed_bytes()[0..16] == asset_address_prefix
+pub fn is_asset_address(address: H160) -> bool {
+	&address.to_fixed_bytes()[0..16] == &asset_address_prefix()
 }
 
 fn set_code_metadata_for_erc20(asset_id: AssetId, code: &[u8]) {

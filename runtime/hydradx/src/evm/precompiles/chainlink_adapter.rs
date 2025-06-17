@@ -29,6 +29,7 @@ use precompile_utils::precompile_set::{PrecompileCheckSummary, PrecompileKind, P
 use primitive_types::{H160, U128, U256};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
+use sp_std::vec::Vec;
 use sp_std::{cmp::Ordering, marker::PhantomData};
 
 const EMPTY_SOURCE: Source = [0u8; 8];
@@ -217,10 +218,12 @@ where
 	}
 }
 
-pub fn is_oracle_address(address: H160) -> bool {
-	let oracle_address_prefix = &(H160::from(hex!("0000010000000000000000000000000000000000"))[0..3]);
+pub fn oracle_address_prefix() -> Vec<u8> {
+	H160::from(hex!("0000010000000000000000000000000000000000"))[0..3].to_vec()
+}
 
-	&address.to_fixed_bytes()[0..3] == oracle_address_prefix
+pub fn is_oracle_address(address: H160) -> bool {
+	&address.to_fixed_bytes()[0..3] == &oracle_address_prefix()
 }
 
 /// Converts pallet_ema_oracle::Price to U256. The price is stored as one integer: integer part + fractional part.
@@ -366,6 +369,10 @@ fn decode_oracle_address_should_work() {
 }
 
 impl<Runtime> DynamicPrecompile for ChainlinkOraclePrecompile<Runtime> {
+	fn address_prefix() -> Vec<u8> {
+		oracle_address_prefix()
+	}
+
 	fn is_precompile(address: H160, _gas: u64) -> IsPrecompileResult {
 		if is_oracle_address(address) {
 			IsPrecompileResult::Answer {
