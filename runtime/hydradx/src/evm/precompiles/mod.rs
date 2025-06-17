@@ -119,34 +119,36 @@ impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
 	}
 }
 
-type EthereumPrecompilesChecks = (AcceptDelegateCall, CallableByContract, CallableByPrecompile);
+type StandardPrecompilesChecks = (AcceptDelegateCall, CallableByContract, CallableByPrecompile);
+type CustomPrecompilesCheck = (CallableByContract, CallableByPrecompile);
 
 /// The main precompile set for the HydraDX runtime.
 pub type HydraDXPrecompiles<R> = PrecompileSetBuilder<
 	R,
 	(
 		// Standard Ethereum precompiles
-		PrecompileAt<ECRecoverAddress, ECRecover, EthereumPrecompilesChecks>,
-		PrecompileAt<SHA256Address, Sha256, EthereumPrecompilesChecks>,
-		PrecompileAt<RipemdAddress, Ripemd160, EthereumPrecompilesChecks>,
-		PrecompileAt<IdentityAddress, Identity, EthereumPrecompilesChecks>,
-		PrecompileAt<ModexpAddress, Modexp, EthereumPrecompilesChecks>,
-		PrecompileAt<BnAddAddress, Bn128Add, EthereumPrecompilesChecks>,
-		PrecompileAt<BnMulAddress, Bn128Mul, EthereumPrecompilesChecks>,
-		PrecompileAt<BnPairingAddress, Bn128Pairing, EthereumPrecompilesChecks>,
-		PrecompileAt<Blake2FAddress, Blake2F, EthereumPrecompilesChecks>,
+		PrecompileAt<ECRecoverAddress, ECRecover, StandardPrecompilesChecks>,
+		PrecompileAt<SHA256Address, Sha256, StandardPrecompilesChecks>,
+		PrecompileAt<RipemdAddress, Ripemd160, StandardPrecompilesChecks>,
+		PrecompileAt<IdentityAddress, Identity, StandardPrecompilesChecks>,
+		PrecompileAt<ModexpAddress, Modexp, StandardPrecompilesChecks>,
+		PrecompileAt<BnAddAddress, Bn128Add, StandardPrecompilesChecks>,
+		PrecompileAt<BnMulAddress, Bn128Mul, StandardPrecompilesChecks>,
+		PrecompileAt<BnPairingAddress, Bn128Pairing, StandardPrecompilesChecks>,
+		PrecompileAt<Blake2FAddress, Blake2F, StandardPrecompilesChecks>,
 		// HydraDX specific precompiles
-		PrecompileAt<CallPermitAddress, CallPermitPrecompile<R>, (CallableByContract, CallableByPrecompile)>,
+		PrecompileAt<CallPermitAddress, CallPermitPrecompile<R>, CustomPrecompilesCheck>,
 		PrecompileAt<
 			FlashLoanReceiverAddress,
 			FlashLoanReceiverPrecompile<R, AllowedFlashLoanCallers>,
-			(CallableByContract, CallableByPrecompile),
+			CustomPrecompilesCheck,
 		>,
 		//For security reasons, we dont allow dispatch to be called by contract
-		//And we also set recursion limit to 0, forbidding any recursion so we protect against reentrancy
+		//as Dispatch is mainly just for users to be able to interact with any substrate stuff
+		//We also set recursion limit to 0, forbidding any recursion so we protect against reentrancy
 		PrecompileAt<DispatchAddress, Dispatch<R>, (SubcallWithMaxNesting<0>,)>,
 		DynamicPrecompileWrapper<MultiCurrencyPrecompile<R>>,
-		DynamicPrecompileWrapper<ChainlinkOraclePrecompile<R>>, //TODO: disable dynamics to be not callable by contract
+		DynamicPrecompileWrapper<ChainlinkOraclePrecompile<R>>,
 	),
 >;
 
