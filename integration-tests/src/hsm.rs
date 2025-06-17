@@ -34,6 +34,7 @@ use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
+const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -1569,7 +1570,11 @@ fn hollar_liquidation_should_work() {
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
 
 		// get Pool contract address
-		let pool_contract = crate::liquidation::get_pool(pap_contract);
+		let pool_contract = liquidation_worker_support::MoneyMarketData::<
+			hydradx_runtime::Block,
+			hydradx_runtime::Runtime,
+		>::fetch_pool(pap_contract, RUNTIME_API_CALLER)
+		.unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -1649,18 +1654,18 @@ fn hollar_liquidation_should_work() {
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		crate::liquidation::update_oracle_price("DOT/USD", U256::checked_from(&data[0..32]).unwrap());
+		crate::liquidation::update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
 
 		let (price, timestamp) = crate::liquidation::get_oracle_price("WETH/USD");
 		let price = price.as_u128() / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		crate::liquidation::update_oracle_price("WETH/USD", U256::checked_from(&data[0..32]).unwrap());
+		crate::liquidation::update_oracle_price(vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())]);
 
 		// ensure that the health_factor < 1
-		let user_data = crate::liquidation::get_user_account_data(pool_contract, alice_evm_address);
-		assert!(user_data.5 < U256::from(1_000_000_000_000_000_000u128));
+		let user_data = crate::liquidation::get_user_account_data(pool_contract, alice_evm_address).unwrap();
+		assert!(user_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
 
 		let route = BoundedVec::truncate_from(vec![hydradx_traits::router::Trade {
 			pool: PoolType::Stableswap(stable_pool_id),

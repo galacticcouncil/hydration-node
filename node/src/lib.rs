@@ -16,5 +16,6 @@
 // limitations under the License.
 
 pub mod chain_spec;
+pub mod liquidation_worker;
 pub mod rpc;
 pub mod service;
