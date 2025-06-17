@@ -28,4 +28,5 @@ std = [
     "codec/std",
     "frame-support/std",
     "sp-std/std",
+    "primitives/std",
 ]

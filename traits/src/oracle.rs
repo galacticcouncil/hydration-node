@@ -91,17 +91,27 @@ pub struct AggregatedEntry<Balance, BlockNumber, Price> {
 	pub volume: Volume<Balance>,
 	pub liquidity: Liquidity<Balance>,
 	pub oracle_age: BlockNumber,
+	pub shares_issuance: Balance,
 }
 
-impl<Balance, BlockNumber, Price> From<(Price, Volume<Balance>, Liquidity<Balance>, BlockNumber)>
+impl<Balance, BlockNumber, Price> From<(Price, Volume<Balance>, Liquidity<Balance>, BlockNumber, Balance)>
 	for AggregatedEntry<Balance, BlockNumber, Price>
 {
-	fn from((price, volume, liquidity, oracle_age): (Price, Volume<Balance>, Liquidity<Balance>, BlockNumber)) -> Self {
+	fn from(
+		(price, volume, liquidity, oracle_age, shares_issuance): (
+			Price,
+			Volume<Balance>,
+			Liquidity<Balance>,
+			BlockNumber,
+			Balance,
+		),
+	) -> Self {
 		Self {
 			price,
 			volume,
 			liquidity,
 			oracle_age,
+			shares_issuance,
 		}
 	}
 }
@@ -341,6 +351,7 @@ pub struct RawEntry<Balance, BlockNumber> {
 	pub price: (Balance, Balance),
 	pub volume: Volume<Balance>,
 	pub liquidity: Liquidity<Balance>,
+	pub shares_issuance: Balance,
 	pub updated_at: BlockNumber,
 }
 

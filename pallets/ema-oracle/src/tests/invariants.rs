@@ -51,15 +51,25 @@ fn any_liquidity() -> impl Strategy<Value = Liquidity<Balance>> {
 	(any::<Balance>(), any::<Balance>()).prop_map(|l| l.into())
 }
 
+fn any_shares_issuance() -> impl Strategy<Value = Balance> {
+	any::<Balance>()
+}
+
 fn oracle_entry_with_updated_at(updated_at: BlockNumber) -> impl Strategy<Value = OracleEntry<BlockNumber>> {
-	(any_price(), any_volume(), any_liquidity(), Just(updated_at)).prop_map(|(price, volume, liquidity, updated_at)| {
-		OracleEntry {
+	(
+		any_price(),
+		any_volume(),
+		any_liquidity(),
+		any_shares_issuance(),
+		Just(updated_at),
+	)
+		.prop_map(|(price, volume, liquidity, shares_issuance, updated_at)| OracleEntry {
 			price,
 			volume,
 			liquidity,
+			shares_issuance,
 			updated_at,
-		}
-	})
+		})
 }
 
 fn oracle_entry_within_updated_at_range(
@@ -69,12 +79,14 @@ fn oracle_entry_within_updated_at_range(
 		any_price(),
 		any_volume(),
 		any_liquidity(),
+		any_shares_issuance(),
 		updated_at_min..updated_at_max,
 	)
-		.prop_map(|(price, volume, liquidity, updated_at)| OracleEntry {
+		.prop_map(|(price, volume, liquidity, shares_issuance, updated_at)| OracleEntry {
 			price,
 			volume,
 			liquidity,
+			shares_issuance,
 			updated_at,
 		})
 }
@@ -98,15 +110,18 @@ proptest! {
 		(asset_a, asset_b) in valid_asset_ids(),
 		(amount_a, amount_b) in (non_zero_amount(), non_zero_amount()),
 		(liquidity_a, liquidity_b) in (non_zero_amount(), non_zero_amount()),
+		shares_issuance in non_zero_amount(),
 		(second_amount_a, second_amount_b) in (non_zero_amount(), non_zero_amount()),
 		(second_liquidity_a, second_liquidity_b) in (non_zero_amount(), non_zero_amount()),
+		second_shares_issuance in non_zero_amount(),
+
 	) {
 		new_test_ext().execute_with(|| {
 			let updated_at = 5;
 			System::set_block_number(updated_at);
-			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_a, liquidity_b, Price::new(liquidity_a, liquidity_b)));
+			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_a, liquidity_b, Price::new(liquidity_a, liquidity_b), shares_issuance));
 			let volume_before = get_accumulator_entry(SOURCE, (asset_a, asset_b)).unwrap().volume;
-			assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(SOURCE, asset_a, asset_b, second_amount_a, second_amount_b, second_liquidity_a, second_liquidity_b, Price::new(second_liquidity_a, second_liquidity_b)));
+			assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(SOURCE, asset_a, asset_b, second_amount_a, second_amount_b, second_liquidity_a, second_liquidity_b, Price::new(second_liquidity_a, second_liquidity_b), second_shares_issuance));
 			let volume_after = get_accumulator_entry(SOURCE, (asset_a, asset_b)).unwrap().volume;
 			assert_eq!(volume_before, volume_after);
 		});
@@ -148,10 +163,11 @@ proptest! {
 	fn get_entry_equals_iterated_ema(
 		(amount_hdx, amount_dot) in (non_zero_amount(), non_zero_amount()),
 		(liquidity_hdx, liquidity_dot) in (non_zero_amount(), non_zero_amount()),
+		shares_issuance in non_zero_amount(),
 	) {
 		new_test_ext().execute_with(|| -> Result<(), TestCaseError> {
 			System::set_block_number(1);
-			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, HDX, DOT, amount_hdx, amount_dot, liquidity_hdx, liquidity_dot, Price::new(liquidity_hdx, liquidity_dot)));
+			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, HDX, DOT, amount_hdx, amount_dot, liquidity_hdx, liquidity_dot, Price::new(liquidity_hdx, liquidity_dot), shares_issuance));
 			EmaOracle::on_finalize(1);
 			let oracle_age: u32 = 98;
 			System::set_block_number(u64::from(oracle_age) + 2);
@@ -163,6 +179,7 @@ proptest! {
 				volume: iterated_volume_ema(oracle_age, volume, smoothing).into(),
 				liquidity: (iterated_balance_ema(oracle_age, liquidity_hdx, liquidity_hdx, smoothing),
 				iterated_balance_ema(oracle_age, liquidity_dot, liquidity_dot, smoothing)).into(),
+				shares_issuance,
 				oracle_age: 98,
 			};
 			prop_assert_eq!(EmaOracle::get_entry(HDX, DOT, LastBlock, SOURCE), Ok(expected));
@@ -173,6 +190,7 @@ proptest! {
 				volume: iterated_volume_ema(oracle_age, volume, smoothing).into(),
 				liquidity: (iterated_balance_ema(oracle_age, liquidity_hdx, liquidity_hdx, smoothing),
 				iterated_balance_ema(oracle_age, liquidity_dot, liquidity_dot, smoothing)).into(),
+				shares_issuance,
 				oracle_age: 98,
 			};
 			prop_assert_eq!(EmaOracle::get_entry(HDX, DOT, TenMinutes, SOURCE), Ok(expected_ten_min));

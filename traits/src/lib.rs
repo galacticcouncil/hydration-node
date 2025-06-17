@@ -189,6 +189,7 @@ pub trait OnTradeHandler<AssetId, Balance, Price> {
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 		price: Price,
+		shares_issuance: Balance,
 	) -> Result<Weight, (Weight, DispatchError)>;
 	/// Known overhead for a trade in `on_initialize/on_finalize`.
 	/// Needs to be specified here if we don't want to make AMM pools tightly coupled with the price oracle pallet, otherwise we can't access the weight.
@@ -206,6 +207,7 @@ impl<AssetId, Balance, Price> OnTradeHandler<AssetId, Balance, Price> for () {
 		_liquidity_a: Balance,
 		_liquidity_b: Balance,
 		_price: Price,
+		_shares_issuance: Balance,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		Ok(Weight::zero())
 	}
@@ -241,6 +243,7 @@ pub trait OnLiquidityChangedHandler<AssetId, Balance, Price> {
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 		price: Price,
+		shares_issuance: Balance,
 	) -> Result<Weight, (Weight, DispatchError)>;
 	/// Known overhead for a liquidity change in `on_initialize/on_finalize`.
 	/// Needs to be specified here if we don't want to make AMM pools tightly coupled with the price oracle pallet, otherwise we can't access the weight.
@@ -258,6 +261,7 @@ impl<AssetId, Balance, Price> OnLiquidityChangedHandler<AssetId, Balance, Price>
 		_liq_a: Balance,
 		_liq_b: Balance,
 		_price: Price,
+		_shares_issuance: Balance,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		Ok(Weight::zero())
 	}
