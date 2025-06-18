@@ -5,7 +5,7 @@ use frame_support::assert_ok;
 use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::weights::WeightToFee as WeightToFeeTrait;
-use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+use hydradx_runtime::evm::precompiles::DispatchAddress;
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;
 use hydradx_runtime::{Runtime, Tokens};
@@ -15,6 +15,7 @@ use primitives::constants::chain::Weight;
 use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 use sp_core::Encode;
+use sp_core::Get;
 use sp_core::U256;
 use sp_runtime::{FixedU128, Permill};
 use test_utils::assert_eq_approx;
@@ -226,7 +227,7 @@ pub fn get_evm_fee_in_cent(nonce: u128) -> f64 {
 	assert_ok!(EVM::call(
 		evm_signed_origin(evm_address()),
 		evm_address(),
-		DISPATCH_ADDR,
+		DispatchAddress::get(),
 		omni_sell.encode(),
 		U256::from(0),
 		gas_limit,

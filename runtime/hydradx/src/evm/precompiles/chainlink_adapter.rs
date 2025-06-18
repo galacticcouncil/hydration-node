@@ -1,6 +1,8 @@
+use crate::evm::precompiles::multicurrency::MultiCurrencyPrecompile;
 use crate::{
 	assets::LRNA,
 	evm::precompiles::{
+		dynamic::DynamicPrecompile,
 		handle::{FunctionModifier, PrecompileHandleExt},
 		substrate::RuntimeHelper,
 		succeed, Output,
@@ -9,6 +11,7 @@ use crate::{
 	EmaOracle, Router,
 };
 use codec::{Decode, Encode, EncodeLike};
+use evm::executor::stack::IsPrecompileResult;
 use frame_support::traits::{IsType, OriginTrait};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
@@ -22,9 +25,11 @@ use hydradx_traits::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_ema_oracle::Price;
 use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
+use precompile_utils::precompile_set::{PrecompileCheckSummary, PrecompileKind, PrecompileSetFragment};
 use primitive_types::{H160, U128, U256};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
 use sp_runtime::{traits::Dispatchable, RuntimeDebug};
+use sp_std::vec::Vec;
 use sp_std::{cmp::Ordering, marker::PhantomData};
 
 const EMPTY_SOURCE: Source = [0u8; 8];
@@ -213,10 +218,12 @@ where
 	}
 }
 
-pub fn is_oracle_address(address: H160) -> bool {
-	let oracle_address_prefix = &(H160::from(hex!("0000010000000000000000000000000000000000"))[0..3]);
+pub fn oracle_address_prefix() -> Vec<u8> {
+	H160::from(hex!("0000010000000000000000000000000000000000"))[0..3].to_vec()
+}
 
-	&address.to_fixed_bytes()[0..3] == oracle_address_prefix
+pub fn is_oracle_address(address: H160) -> bool {
+	&address.to_fixed_bytes()[0..3] == &oracle_address_prefix()
 }
 
 /// Converts pallet_ema_oracle::Price to U256. The price is stored as one integer: integer part + fractional part.
@@ -359,4 +366,24 @@ fn decode_oracle_address_should_work() {
 		decode_oracle_address(H160::from(hex!("000001026f6d6e69706f6f6c0000000400000005"))),
 		Some((4, 5, OraclePeriod::TenMinutes, OMNIPOOL_SOURCE))
 	);
+}
+
+impl<Runtime> DynamicPrecompile for ChainlinkOraclePrecompile<Runtime> {
+	fn address_prefix() -> Vec<u8> {
+		oracle_address_prefix()
+	}
+
+	fn is_precompile(address: H160, _gas: u64) -> IsPrecompileResult {
+		if is_oracle_address(address) {
+			IsPrecompileResult::Answer {
+				is_precompile: true,
+				extra_cost: 0,
+			}
+		} else {
+			IsPrecompileResult::Answer {
+				is_precompile: false,
+				extra_cost: 0,
+			}
+		}
+	}
 }
