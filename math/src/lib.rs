@@ -19,6 +19,7 @@ pub mod dynamic_fees;
 pub mod ema;
 pub mod fee;
 pub mod fraction;
+pub mod hsm;
 pub mod lbp;
 pub mod liquidity_mining;
 pub mod omnipool;
