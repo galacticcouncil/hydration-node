@@ -140,6 +140,14 @@ impl NativePriceOracle<AssetId, EmaPrice> for NativePriceOracleMock {
 	}
 }
 
+pub struct ReferenceNativePriceOracleMock;
+
+impl NativePriceOracle<AssetId, EmaPrice> for ReferenceNativePriceOracleMock {
+	fn price(_: AssetId) -> Option<EmaPrice> {
+		Some(DEFAULT_ETH_HDX_ORACLE_PRICE)
+	}
+}
+
 pub struct DefaultBaseDFeePerGas;
 
 impl Get<u128> for DefaultBaseDFeePerGas {
@@ -169,6 +177,7 @@ impl Config for Test {
 	type DefaultBaseFeePerGas = DefaultBaseDFeePerGas;
 	type FeeMultiplier = MultiplierProviderMock;
 	type NativePriceOracle = NativePriceOracleMock;
+	type ReferenceNativePriceOracle = ReferenceNativePriceOracleMock;
 	type WethAssetId = HdxAssetId;
 	type WeightInfo = ();
 }

@@ -28,7 +28,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport};
+use crate::{DotAssetId, FeePriceOracle, FeePriceOracleForTenMinutes, Runtime, XykPaymentAssetSupport};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
@@ -221,6 +221,7 @@ impl pallet_dynamic_evm_fee::Config for Runtime {
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type FeeMultiplier = TransactionPaymentMultiplier;
 	type NativePriceOracle = FeePriceOracle;
+	type ReferenceNativePriceOracle = FeePriceOracleForTenMinutes;
 	type WethAssetId = WethAssetId;
 	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
 }

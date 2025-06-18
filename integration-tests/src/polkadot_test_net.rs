@@ -96,6 +96,8 @@ pub const INSUFFICIENT_ASSET: AssetId = 500;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
+pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
+
 pub type Rococo = RococoRelayChain<TestNet>;
 pub type Hydra = HydraParachain<TestNet>;
 pub type Acala = AcalaParachain<TestNet>;
@@ -622,7 +624,7 @@ pub mod hydra {
 					(DAI, Price::from(1)),
 					(ACA, Price::from(1)),
 					(BTC, Price::from_inner(134_000_000)),
-					(WETH, pallet_dynamic_evm_fee::ETH_HDX_REFERENCE_PRICE),
+					(WETH, ETH_HDX_REFERENCE_PRICE),
 				],
 				account_currencies: vec![],
 			},
