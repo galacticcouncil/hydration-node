@@ -88,7 +88,6 @@ macro_rules! def_address_getter {
 	};
 }
 
-// Precompile address getters.
 def_address_getter!(ECRecoverAddress, H160(hex!("0000000000000000000000000000000000000001")));
 def_address_getter!(SHA256Address, H160(hex!("0000000000000000000000000000000000000002")));
 def_address_getter!(RipemdAddress, H160(hex!("0000000000000000000000000000000000000003")));
@@ -106,6 +105,9 @@ def_address_getter!(
 	FlashLoanReceiverAddress,
 	H160(hex!("000000000000000000000000000000000000090a"))
 );
+// Same as Moonbean and Centrifuge, should benefit interoperability
+// See also
+// https://docs.moonbeam.network/builders/pallets-precompiles/precompiles/overview/#precompiled-contract-addresses
 def_address_getter!(DispatchAddress, addr(1025));
 
 pub struct AllowedFlashLoanCallers;
@@ -164,6 +166,10 @@ pub fn is_standard_precompile(address: H160) -> bool {
 	!address.is_zero() && address <= eth_precompile_end
 }
 
+// This is a reimplementation of the upstream u64->H160 conversion
+// function, made `const` to make our precompile address `const`s a
+// bit cleaner. It can be removed when upstream has a const conversion
+// function.
 pub const fn addr(a: u64) -> H160 {
 	let b = a.to_be_bytes();
 	H160([
