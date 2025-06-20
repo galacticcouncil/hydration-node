@@ -50,6 +50,10 @@ pub struct Cli {
 
 	#[clap(flatten)]
 	pub ethereum_config: crate::service::evm::EthereumConfig,
+
+    #[arg(long)]
+	/// Disable overwrite of TX priorities by the client.
+    pub no_tx_priority_overwrite: bool,
 }
 
 #[derive(Debug)]

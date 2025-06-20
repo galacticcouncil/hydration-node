@@ -61,7 +61,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, rpc};
+use crate::{chain_spec, rpc, cli};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -127,6 +127,7 @@ impl TransactionDetailProvider for TxDetailProvider {
 /// be able to perform chain operations.
 pub fn new_partial(
 	config: &Configuration,
+	no_tx_priority_overwrite: bool,
 ) -> Result<
 	PartialComponents<
 		ParachainClient,
@@ -171,6 +172,12 @@ pub fn new_partial(
 		.with_runtime_cache_size(config.executor.runtime_cache_size)
 		.build();
 
+	let tx_priority_json = if no_tx_priority_overwrite {
+		None
+	} else {
+		Some(include_str!("./tx_priority.json"))
+	};
+	
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
 			config,
@@ -179,7 +186,7 @@ pub fn new_partial(
 			true,
 			Some(TransactionPriorityModule::<Block>::new(
 				// Updating the file is not enough. The client needs to be rebuilt.
-				Some(include_str!("./tx_priority.json")),
+				tx_priority_json,
 				Box::new(TxDetailProvider),
 			)),
 		)?;
@@ -257,10 +264,11 @@ async fn start_node_impl(
 	ethereum_config: evm::EthereumConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
+	no_tx_priority_overwrite: bool,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	let parachain_config = prepare_node_config(parachain_config);
 
-	let params = new_partial(&parachain_config)?;
+	let params = new_partial(&parachain_config, no_tx_priority_overwrite)?;
 	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
 		params.other;
 
@@ -567,18 +575,19 @@ fn start_consensus(
 
 /// Start a parachain node.
 pub async fn start_node(
+	cli: cli::Cli,
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
-	ethereum_config: evm::EthereumConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	start_node_impl(
 		parachain_config,
 		polkadot_config,
-		ethereum_config,
+		cli.ethereum_config,
 		collator_options,
 		para_id,
+		cli.no_tx_priority_overwrite,
 	)
 	.await
 }
