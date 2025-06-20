@@ -35,6 +35,7 @@ primitives = { workspace = true }
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
 frame-benchmarking-cli = { workspace = true, optional = true }
+frame-support = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
 sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
@@ -115,6 +116,8 @@ fc-rpc-core = { workspace = true }
 fp-rpc = { workspace = true }
 fp-storage = { workspace = true }
 fp-consensus = { workspace = true }
+fp-self-contained = { workspace = true }
+pallet-ethereum = { workspace = true }
 
 [features]
 default = [
