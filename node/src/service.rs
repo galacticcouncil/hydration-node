@@ -61,7 +61,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, rpc, cli};
+use crate::{chain_spec, cli, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -110,13 +110,11 @@ impl TransactionDetailProvider for TxDetailProvider {
 					None
 				}
 			}
-			_ => {
-				Some(TransactionDetail {
-					module: call_metadata.pallet_name,
-					extrinsic: call_metadata.function_name,
-					transaction_data: None,
-				})
-			}
+			_ => Some(TransactionDetail {
+				module: call_metadata.pallet_name,
+				extrinsic: call_metadata.function_name,
+				transaction_data: None,
+			}),
 		}
 	}
 }
@@ -177,7 +175,7 @@ pub fn new_partial(
 	} else {
 		Some(include_str!("./tx_priority.json"))
 	};
-	
+
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
 			config,
