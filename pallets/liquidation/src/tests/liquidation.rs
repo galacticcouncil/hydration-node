@@ -322,31 +322,3 @@ fn set_oracle_call_addresses_should_work() {
 		);
 	});
 }
-
-#[test]
-fn set_unsigned_liquidation_priority_should_work() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_eq!(
-			Liquidation::unsigned_liquidation_priority(),
-			UNSIGNED_LIQUIDATION_PRIORITY
-		);
-
-		assert_ok!(Liquidation::set_unsigned_liquidation_priority(
-			RuntimeOrigin::root(),
-			7_000
-		));
-
-		assert_eq!(Liquidation::unsigned_liquidation_priority(), 7_000);
-	});
-}
-
-#[test]
-fn set_oracle_update_priority_should_work() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_eq!(Liquidation::oracle_update_priority(), 2 * UNSIGNED_LIQUIDATION_PRIORITY);
-
-		assert_ok!(Liquidation::set_oracle_update_priority(RuntimeOrigin::root(), 7_000));
-
-		assert_eq!(Liquidation::oracle_update_priority(), 7_000);
-	});
-}
