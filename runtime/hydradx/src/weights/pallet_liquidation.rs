@@ -94,16 +94,4 @@ impl<T: frame_system::Config> pallet_liquidation::WeightInfo for HydraWeight<T> 
 		Weight::from_parts(5_725_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `Liquidation::UnsignedLiquidationPriority` (r:0 w:1)
-	/// Proof: `Liquidation::UnsignedLiquidationPriority` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	fn set_unsigned_liquidation_priority() -> Weight {
-		Weight::from_parts(4_451_000, 0)
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	/// Storage: `Liquidation::OracleUpdatePriority` (r:0 w:1)
-	/// Proof: `Liquidation::OracleUpdatePriority` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	fn set_oracle_update_priority() -> Weight {
-		Weight::from_parts(4_430_000, 0)
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
 }

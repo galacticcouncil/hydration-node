@@ -196,28 +196,6 @@ pub mod pallet {
 	pub type OracleCallAddresses<T: Config> =
 		StorageValue<_, BoundedVec<EvmAddress, ConstU32<MAX_ADDRESSES>>, ValueQuery, DefaultCallAddresses>;
 
-	#[pallet::type_value]
-	/// Default priority of unsigned liquidation transaction.
-	pub fn DefaultLiquidationPriority() -> u64 {
-		UNSIGNED_LIQUIDATION_PRIORITY
-	}
-
-	/// The priority of unsigned liquidation transaction.
-	#[pallet::storage]
-	#[pallet::getter(fn unsigned_liquidation_priority)]
-	pub type UnsignedLiquidationPriority<T: Config> = StorageValue<_, u64, ValueQuery, DefaultLiquidationPriority>;
-
-	#[pallet::type_value]
-	/// Default priority of DIA oracle update transaction.
-	pub fn DefaultOracleUpdatePriority() -> u64 {
-		2 * UNSIGNED_LIQUIDATION_PRIORITY
-	}
-
-	/// The priority of DIA oracle update transaction.
-	#[pallet::storage]
-	#[pallet::getter(fn oracle_update_priority)]
-	pub type OracleUpdatePriority<T: Config> = StorageValue<_, u64, ValueQuery, DefaultOracleUpdatePriority>;
-
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T>
 	where
@@ -237,7 +215,7 @@ pub mod pallet {
 
 			let valid_tx = |provide| {
 				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
-					.priority(Self::unsigned_liquidation_priority())
+					.priority(UNSIGNED_LIQUIDATION_PRIORITY)
 					.and_provides([&provide])
 					.longevity(2)
 					.propagate(false)
@@ -401,29 +379,6 @@ pub mod pallet {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			OracleCallAddresses::<T>::put(call_addresses);
-
-			Ok(())
-		}
-
-		/// Set the priority of unsigned liquidation transaction.
-		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_unsigned_liquidation_priority())]
-		pub fn set_unsigned_liquidation_priority(origin: OriginFor<T>, priority: u64) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
-
-			UnsignedLiquidationPriority::<T>::put(priority);
-
-			Ok(())
-		}
-
-		/// Set the priority of DIA oracle update transaction.
-		/// Used in the liquidation worker.
-		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_oracle_update_priority())]
-		pub fn set_oracle_update_priority(origin: OriginFor<T>, priority: u64) -> DispatchResult {
-			frame_system::ensure_root(origin)?;
-
-			OracleUpdatePriority::<T>::put(priority);
 
 			Ok(())
 		}

@@ -60,7 +60,7 @@ use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Extrinsic, PostDispatchInfoOf,
+		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
@@ -77,7 +77,7 @@ pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
 pub use pallet_claims;
-use pallet_ethereum::{Transaction as EthereumTransaction, Transaction, TransactionStatus};
+use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use pallet_genesis_history::Chain;
 pub use primitives::{
@@ -382,17 +382,6 @@ cumulus_pallet_parachain_system::register_validate_block! {
 	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
 }
 
-// Addresses of the accounts that sign DIA oracle updates.
-const DIA_ORACLE_UPDATE_CALLER: &[EvmAddress] = &[
-	H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e")),
-	H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3")),
-];
-// Addresses of the DIA oracle contracts.
-const DIA_ORACLE_UPDATE_CALL_ADDRESS: &[EvmAddress] = &[
-	H160(hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
-	H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5")),
-];
-
 impl fp_self_contained::SelfContainedCall for RuntimeCall {
 	type SignedInfo = H160;
 
@@ -417,32 +406,7 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		len: usize,
 	) -> Option<TransactionValidity> {
 		match self {
-			RuntimeCall::Ethereum(call) => {
-				let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
-				if let pallet_ethereum::Call::transact { transaction } = call {
-					let action = match transaction {
-						Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
-						Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
-						Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
-					};
-
-					// check if the transaction is DIA oracle update
-					if let pallet_ethereum::TransactionAction::Call(call_address) = action {
-						if DIA_ORACLE_UPDATE_CALL_ADDRESS.contains(&call_address) {
-							if let Some(Ok(signer)) = call.check_self_contained() {
-								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-								if DIA_ORACLE_UPDATE_CALLER.contains(&signer) {
-									if let Some(Ok(ref mut validity_info)) = tx_validity {
-										validity_info.priority =
-											pallet_liquidation::Pallet::<Runtime>::oracle_update_priority();
-									};
-								};
-							}
-						}
-					};
-				}
-				tx_validity
-			}
+			RuntimeCall::Ethereum(call) => call.validate_self_contained(info, dispatch_info, len),
 			_ => None,
 		}
 	}
