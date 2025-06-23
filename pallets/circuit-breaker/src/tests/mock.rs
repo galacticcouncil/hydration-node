@@ -718,6 +718,7 @@ impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
 	type Issuance = AssetIssuance;
 	type OnLimitReached = LimitReachedHandler;
 	type OnLockdownDeposit = OnLockdownDepositHandler;
+	type OnDepositRelease = ();
 }
 
 pub struct LimitDepositPeriod;
