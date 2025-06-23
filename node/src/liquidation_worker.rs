@@ -516,7 +516,7 @@ where
 			};
 
 			// skip the execution if the transaction is in the waitlist
-			if waitlist.iter().find(|tx| tx.0 == tx_hash).is_some() {
+			if waitlist.iter().any(|tx| tx.0 == tx_hash) {
 				// TX is still on hold, skip the execution
 				return Ok(());
 			};

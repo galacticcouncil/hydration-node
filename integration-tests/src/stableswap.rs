@@ -1,7 +1,7 @@
 use crate::driver::HydrationTestDriver;
 use crate::polkadot_test_net::*;
 use frame_support::BoundedVec;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::assert_ok;
 use hydradx_adapters::stableswap_peg_oracle::PegOracle;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
@@ -13,7 +13,7 @@ use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
 use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
-use sp_runtime::{DispatchError, Permill};
+use sp_runtime::Permill;
 use std::sync::Arc;
 use test_utils::assert_eq_approx;
 

@@ -35,8 +35,6 @@ use sp_core::Encode;
 use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
 use std::fmt::Write;
-use std::io::Bytes;
-use xcm_emulator::pallet_message_queue::mock_helpers::assert_last_event;
 use xcm_emulator::TestExt;
 
 pub fn deployer() -> EvmAddress {
@@ -372,7 +370,7 @@ fn currencies_should_transfer_bound_erc20() {
 		assert_ok!(Currencies::update_balance(
 			RuntimeOrigin::root(),
 			truncated_address.clone(),
-			WETH.into(),
+			WETH,
 			init_weth_balance as i128
 		));
 
@@ -388,7 +386,7 @@ fn currencies_should_transfer_bound_erc20() {
 		assert_eq!(Erc20Currency::<Runtime>::free_balance(contract, &BOB.into()), 100);
 
 		//Assert that no extra fee charged within EVM execution
-		let weth_balance_after = Currencies::free_balance(WETH, &truncated_address.clone().into());
+		let weth_balance_after = Currencies::free_balance(WETH, &truncated_address.clone());
 		assert_eq!(init_weth_balance, weth_balance_after);
 
 		//Assert that nonce has not been changed

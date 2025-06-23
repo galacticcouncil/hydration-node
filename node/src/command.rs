@@ -209,7 +209,7 @@ pub fn run() -> sc_cli::Result<()> {
 				BenchmarkCmd::Storage(_) => Err("Storage benchmarking can be enabled with `--features runtime-benchmarks`.".into()),
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-					let partials = new_partial(&config)?;
+					let partials = new_partial(&config, cli.no_tx_priority_overwrite)?;
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
 

@@ -34,8 +34,6 @@ use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_std::sync::Arc;
-use xcm_builder::{DescribeAllTerminal, DescribeFamily, HashedDescription};
-use xcm_emulator::ConvertLocation;
 
 use xcm_emulator::TestExt;
 
