@@ -47,6 +47,7 @@ members = [
     'precompiles/flash-loan',
     'runtime-mock',
     'pallets/broadcast',
+    'liquidation-worker-support',
     'pallets/hsm',
 ]
 
@@ -56,7 +57,7 @@ resolver = "2"
 codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = ["derive"] }
 scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
 serde = { version = "1.0.209", default-features = false }
-primitive-types = { version = "0.12.1", default-features = false }
+primitive-types = { version = "0.12.2", default-features = false }
 
 affix = "0.1.2"
 approx = "0.5.1"
@@ -150,6 +151,7 @@ pallet-evm-accounts = { path = "pallets/evm-accounts", default-features = false 
 pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime-api", default-features = false }
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
+liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
 pallet-hsm = { path = "pallets/hsm", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
@@ -342,6 +344,7 @@ evm-runtime = { git = "https://github.com/moonbeam-foundation/evm", branch = "mo
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false }
 
 ethereum = { version = "0.15.0", default-features = false, features = ["with-codec"] }
+ethereum-types = { version = "0.15.1", default-features = false }
 
 # Polkadot dependencies
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "tx_priority_module", default-features = false }

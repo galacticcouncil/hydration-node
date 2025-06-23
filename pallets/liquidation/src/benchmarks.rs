@@ -59,6 +59,26 @@ benchmarks! {
 		let address = EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice());
 	}: _(RawOrigin::Root, address)
 
+	set_oracle_signers {
+		let mut signers = Vec::new();
+		for i in 0..MAX_ADDRESSES {
+			signers.push( EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice()));
+		}
+	}: _(RawOrigin::Root, BoundedVec::<EvmAddress, ConstU32<MAX_ADDRESSES>>::try_from(signers).unwrap())
+
+	set_oracle_call_addresses {
+		let mut signers = Vec::new();
+		for i in 0..MAX_ADDRESSES {
+			signers.push( EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice()));
+		}
+	}: _(RawOrigin::Root, BoundedVec::<EvmAddress, ConstU32<MAX_ADDRESSES>>::try_from(signers).unwrap())
+
+	set_unsigned_liquidation_priority {
+	}: _(RawOrigin::Root, 100_000u64)
+
+	set_oracle_update_priority {
+	}: _(RawOrigin::Root, 100_000u64)
+
 	impl_benchmark_test_suite!(Pallet, tests::mock::ExtBuilder::default().build(), tests::mock::Test);
 }
 
@@ -68,6 +88,7 @@ where
 	T: pallet_asset_registry::Config,
 	AssetId: From<<T as pallet_asset_registry::Config>::AssetId>,
 	<T as pallet_asset_registry::Config>::AssetId: From<AssetId>,
+	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	use frame_support::{sp_runtime::TransactionOutcome, storage::with_transaction};
 

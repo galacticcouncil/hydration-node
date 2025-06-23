@@ -54,6 +54,10 @@ pub struct Cli {
 	#[arg(long)]
 	/// Disable overwrite of TX priorities by the client.
 	pub no_tx_priority_overwrite: bool,
+
+	/// Liquidation worker configuration
+	#[clap(flatten)]
+	pub liquidation_worker_config: crate::liquidation_worker::LiquidationWorkerConfig,
 }
 
 #[derive(Debug)]

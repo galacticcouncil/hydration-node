@@ -757,6 +757,7 @@ pub fn hydradx_run_to_next_block() {
 
 	let b = hydradx_runtime::System::block_number();
 	hydradx_runtime::System::on_finalize(b);
+	hydradx_runtime::Ethereum::on_finalize(b);
 	hydradx_runtime::TransactionPayment::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 	hydradx_runtime::CircuitBreaker::on_finalize(b);
@@ -769,6 +770,7 @@ pub fn hydradx_run_to_next_block() {
 
 	hydradx_runtime::System::set_block_number(b + 1);
 	hydradx_runtime::System::on_initialize(b + 1);
+	hydradx_runtime::Ethereum::on_initialize(b + 1);
 	hydradx_runtime::AuraExt::on_initialize(b + 1);
 	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 	hydradx_runtime::CircuitBreaker::on_initialize(b + 1);

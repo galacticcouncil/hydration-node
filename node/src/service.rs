@@ -61,7 +61,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, cli, rpc};
+use crate::{chain_spec, cli, liquidation_worker, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -260,6 +260,7 @@ async fn start_node_impl(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
 	ethereum_config: evm::EthereumConfig,
+	liquidation_worker_config: liquidation_worker::LiquidationWorkerConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	no_tx_priority_overwrite: bool,
@@ -328,6 +329,19 @@ async fn start_node_impl(
 			})
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),
+		);
+	}
+
+	if !liquidation_worker_config.disable_liquidation_worker {
+		task_manager.spawn_handle().spawn(
+			"liquidation-worker",
+			None,
+			liquidation_worker::LiquidationTask::run(
+				client.clone(),
+				liquidation_worker_config,
+				transaction_pool.clone(),
+				task_manager.spawn_handle(),
+			),
 		);
 	}
 
@@ -583,6 +597,7 @@ pub async fn start_node(
 		parachain_config,
 		polkadot_config,
 		cli.ethereum_config,
+		cli.liquidation_worker_config,
 		collator_options,
 		para_id,
 		cli.no_tx_priority_overwrite,

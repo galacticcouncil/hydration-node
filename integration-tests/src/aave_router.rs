@@ -3,7 +3,6 @@
 use crate::dca::create_schedule;
 use crate::dca::schedule_fake_with_sell_order;
 use crate::liquidation::supply;
-use crate::liquidation::PATH_TO_SNAPSHOT;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
@@ -14,7 +13,7 @@ use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::evm::Erc20Currency;
-use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
+use hydradx_runtime::{AssetId, Block, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::Erc20Mapping;
@@ -39,12 +38,18 @@ use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
+
+pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
+const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
+
 pub fn with_aave(execution: impl FnOnce()) {
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
-		let pool_contract = crate::liquidation::get_pool(pap_contract);
+		let pool_contract =
+			liquidation_worker_support::MoneyMarketData::<Block, Runtime>::fetch_pool(pap_contract, RUNTIME_API_CALLER)
+				.unwrap();
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),

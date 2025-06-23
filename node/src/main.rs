@@ -25,6 +25,7 @@ mod service;
 
 mod cli;
 mod command;
+mod liquidation_worker;
 mod rpc;
 
 fn main() -> sc_cli::Result<()> {
