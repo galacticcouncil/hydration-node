@@ -7748,6 +7748,7 @@ dependencies = [
  "pallet-omnipool",
  "parity-scale-codec",
  "pretty_assertions",
+ "primitives",
  "scale-info",
  "serde",
  "sp-core",

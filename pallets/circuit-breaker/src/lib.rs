@@ -24,18 +24,23 @@ use frame_support::weights::Weight;
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::ensure_signed_or_root;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+use orml_traits::currency::OnDeposit;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
+use std::marker::PhantomData;
 
 pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
 
+mod fuses;
 #[cfg(test)]
 mod tests;
+pub mod traits;
+mod types;
 
 /// Max trade volume limit multiplier of liquidity that can be traded in a block
 pub const MAX_LIMIT_VALUE: u32 = 10_000;
@@ -131,6 +136,8 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::Contains;
+	use sp_runtime::traits::BlockNumberProvider;
+	use traits::AssetDepositLimiter;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -223,6 +230,8 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		type DepositLimiter: AssetDepositLimiter<Self::AccountId, Self::AssetId, Self::Balance>;
 	}
 
 	#[pallet::pallet]
@@ -265,6 +274,16 @@ pub mod pallet {
 	#[pallet::getter(fn allowed_add_liquidity_limit_per_asset)]
 	pub type AllowedAddLiquidityAmountPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn last_asset_issuance)]
+	pub type LastAssetIssuance<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AssetId,
+		crate::types::AssetLockdownState<BlockNumberFor<T>, T::Balance>,
+		OptionQuery,
+	>;
 
 	/// Default maximum remove liquidity limit per block
 	#[pallet::type_value]
@@ -421,6 +440,34 @@ pub mod pallet {
 				liquidity_limit,
 			});
 
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
+		pub fn update_asset_lockdown(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			T::UpdateLimitsOrigin::ensure_origin(origin)?;
+			//TODO: implement
+			// using this extrinsic, TC or any allowed authority should be able to update the lockdown state of an asset
+			// meaning it can put an asseto n lockdown, extend curretn lockdown period, lift it
+			// so there is a need to add a parameter to this function to indicate the action to be taken
+			Ok(())
+		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
+		pub fn save_deposit(
+			origin: OriginFor<T>,
+			who: T::AccountId,
+			asset_id: T::AssetId,
+			amount: T::Balance,
+		) -> DispatchResult {
+			// Anyone can do this for any account
+			// but the tx is paid anyway, and returned to the sender if all good.
+			// Error is also when trying to unlock an account whih does not have anything locked.
+			// because the function to unreserve would return ok, but wwe need to handle that as well.
+			// to prevent unnecessary spam of this
+			//TODO: implement
 			Ok(())
 		}
 	}
