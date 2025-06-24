@@ -85,14 +85,14 @@ fn genesis_config_works() {
 				(HDX, DOT),
 				(1_000_000, 1).into(),
 				Liquidity::new(2_000_000, 2_000_000_000),
-				1_000_000,
+				Some(1_000_000_u128),
 			),
 			(
 				SOURCE,
 				(HDX, ACA),
 				(3_000_000, 1).into(),
 				Liquidity::new(4_000_000, 4_000_000_000),
-				3_000_000,
+				Some(3_000_000_u128),
 			),
 		])
 		.build()
@@ -104,7 +104,7 @@ fn genesis_config_works() {
 						price: Price::new(1_000_000, 1),
 						volume: Volume::default(),
 						liquidity: Liquidity::new(2_000_000, 2_000_000_000),
-						shares_issuance: 1_000_000,
+						shares_issuance: Some(1_000_000_u128),
 						updated_at: 0,
 					})
 				);
@@ -115,7 +115,7 @@ fn genesis_config_works() {
 						price: Price::new(3_000_000, 1),
 						volume: Volume::default(),
 						liquidity: Liquidity::new(4_000_000, 4_000_000_000),
-						shares_issuance: 3_000_000,
+						shares_issuance: Some(3_000_000_u128),
 						updated_at: 0,
 					})
 				);
@@ -148,13 +148,13 @@ fn on_trade_handler_should_work() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
-			2_000,
+			Some(2_000_u128),
 		));
 		let expected = OracleEntry {
 			price: Price::new(2_000, 1_000),
 			volume: Volume::from_a_in_b_out(1_000, 500),
 			liquidity: Liquidity::new(2_000, 1_000),
-			shares_issuance: 2_000,
+			shares_issuance: Some(2_000_u128),
 			updated_at: 5,
 		};
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(expected));
@@ -170,7 +170,7 @@ fn on_liquidity_changed_handler_should_work() {
 			price: Price::new(2_000, 1_000),
 			volume: Volume::default(),
 			liquidity: Liquidity::new(2_000, 1_000),
-			shares_issuance: 2_000,
+			shares_issuance: Some(2_000_u128),
 			updated_at,
 		};
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), None);
@@ -183,7 +183,7 @@ fn on_liquidity_changed_handler_should_work() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
-			2_000,
+			Some(2_000_u128),
 		));
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(no_volume_entry));
 	});
@@ -202,7 +202,7 @@ fn price_should_be_determined_from_liquidity() {
 			2_000_000,
 			1_000_000,
 			Price::new(2_000_000, 1_000_000),
-			1_000_000,
+			Some(1_000_000_u128),
 		));
 		let expected = Price::new(2_000_000, 1_000_000);
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)).unwrap().price, expected);
@@ -217,7 +217,7 @@ fn price_should_be_determined_from_liquidity() {
 			5_000_000,
 			500,
 			Price::new(5_000_000, 500),
-			5_000_000,
+			Some(5_000_000_u128),
 		));
 		let expected = Price::new(5_000_000, 500);
 		assert_eq!(get_accumulator_entry(SOURCE, (DOT, ACA)).unwrap().price, expected);
@@ -241,13 +241,13 @@ fn on_liquidity_changed_should_allow_zero_values() {
 			liquidity_a,
 			liquidity_b,
 			Price::new(liquidity_a, liquidity_b),
-			2_000,
+			Some(2_000_u128),
 		));
 		let only_liquidity_entry = OracleEntry {
 			price: Price::new(liquidity_a, liquidity_b),
 			volume: Volume::default(),
 			liquidity: (liquidity_a, liquidity_b).into(),
-			shares_issuance: 2_000,
+			shares_issuance: Some(2_000_u128),
 			updated_at,
 		};
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(only_liquidity_entry));
@@ -264,13 +264,13 @@ fn on_liquidity_changed_should_allow_zero_values() {
 			liquidity_a,
 			liquidity_b,
 			Price::new(liquidity_a, liquidity_b),
-			2_000,
+			Some(2_000_u128),
 		));
 		let only_liquidity_entry = OracleEntry {
 			price: Price::new(liquidity_a, liquidity_b),
 			volume: Volume::default(),
 			liquidity: (liquidity_a, liquidity_b).into(),
-			shares_issuance: 2_000,
+			shares_issuance: Some(2_000_u128),
 			updated_at,
 		};
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(only_liquidity_entry));
@@ -287,13 +287,13 @@ fn on_liquidity_changed_should_allow_zero_values() {
 			Balance::zero(),
 			Balance::zero(),
 			Price::zero(),
-			1_000,
+			Some(1_000_u128),
 		));
 		let only_price_entry = OracleEntry {
 			price: Price::zero(),
 			volume: Volume::default(),
 			liquidity: (Balance::zero(), Balance::zero()).into(),
-			shares_issuance: 1_000,
+			shares_issuance: Some(1_000_u128),
 			updated_at,
 		};
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(only_price_entry));
@@ -313,7 +313,7 @@ fn on_liquidity_changed_should_exclude_insufficient_assets() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
-			2_000,
+			Some(2_000_u128),
 		)
 		.unwrap());
 	});
@@ -329,7 +329,7 @@ fn on_liquidity_changed_should_exclude_insufficient_assets() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
-			2_000,
+			Some(2_000_u128),
 		)
 		.unwrap());
 	});
@@ -345,7 +345,7 @@ fn on_liquidity_changed_should_exclude_insufficient_assets() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
-			2_000,
+			Some(2_000_u128),
 		)
 		.unwrap());
 	});
@@ -364,7 +364,7 @@ fn on_trade_should_exclude_zero_values() {
 				Balance::zero(),
 				1_000,
 				Price::zero(),
-				2_000
+				Some(2_000_u128)
 			)
 			.map_err(|(_w, e)| e),
 			Error::<Test>::OnTradeValueZero
@@ -380,7 +380,7 @@ fn on_trade_should_exclude_zero_values() {
 				2_000,
 				Balance::zero(),
 				Price::zero(),
-				1_000
+				Some(1_000_u128),
 			)
 			.map_err(|(_w, e)| e),
 			Error::<Test>::OnTradeValueZero
@@ -401,7 +401,7 @@ fn on_trade_should_exclude_insufficient_assets() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
-			2_000,
+			Some(2_000_u128),
 		)
 		.unwrap());
 
@@ -415,7 +415,7 @@ fn on_trade_should_exclude_insufficient_assets() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
-			2_000,
+			Some(2_000_u128),
 		)
 		.unwrap());
 
@@ -429,7 +429,7 @@ fn on_trade_should_exclude_insufficient_assets() {
 			2_000,
 			1_0000,
 			Price::new(2_000, 1_000),
-			1_000,
+			Some(1_000_u128),
 		)
 		.unwrap());
 	});
@@ -450,7 +450,7 @@ fn on_entry_should_error_on_accumulator_overflow() {
 				2_000,
 				2_000,
 				Price::new(2_000, 2_000),
-				1_000,
+				Some(1_000_u128),
 			));
 		}
 		// on_trade should fail once the accumulator is full
@@ -464,7 +464,7 @@ fn on_entry_should_error_on_accumulator_overflow() {
 				2_000,
 				2_000,
 				Price::new(2_000, 2_000),
-				1_000,
+				Some(1_000_u128),
 			)
 			.map_err(|(_w, e)| e),
 			Error::<Test>::TooManyUniqueEntries
@@ -502,7 +502,7 @@ fn oracle_volume_should_factor_in_asset_order() {
 			2_000,
 			1,
 			Price::new(2_000, 1),
-			2_000_000,
+			Some(2_000_000_u128),
 		));
 		// we reverse the order of the arguments
 		assert_ok!(OnActivityHandler::<Test>::on_trade(
@@ -514,7 +514,7 @@ fn oracle_volume_should_factor_in_asset_order() {
 			1,
 			2_000,
 			Price::new(1, 2_000),
-			1_000,
+			Some(1_000_u128),
 		));
 
 		let price_entry = get_accumulator_entry(SOURCE, (HDX, DOT)).unwrap();
@@ -522,14 +522,14 @@ fn oracle_volume_should_factor_in_asset_order() {
 			price: Price::new(2_000, 1),
 			volume: Volume::from_a_in_b_out(2_000_000, 1_000),
 			liquidity: (2_000, 1).into(),
-			shares_issuance: 2_000_000,
+			shares_issuance: Some(2_000_000_u128),
 			updated_at: 1,
 		};
 		let second_entry = OracleEntry {
 			price: Price::new(2_000, 1),
 			volume: Volume::from_a_out_b_in(2_000_000, 1_000),
 			liquidity: (2_000, 1).into(),
-			shares_issuance: 1_000,
+			shares_issuance: Some(1_000_u128),
 			updated_at: 1,
 		};
 
@@ -625,7 +625,7 @@ fn calculate_new_by_integrating_incoming_only_updates_updated_at_on_stable_value
 		price: Price::new(4, 1),
 		volume: Volume::from_a_in_b_out(1, 4),
 		liquidity: Liquidity::new(4, 1),
-		shares_issuance: 10,
+		shares_issuance: Some(10_u128),
 		updated_at: 5_u32,
 	};
 	let next_value = OracleEntry {
@@ -642,7 +642,7 @@ fn calculate_new_by_integrating_incoming_with_works() {
 		price: Price::new(50, 1),
 		volume: Volume::from_a_in_b_out(1, 50),
 		liquidity: Liquidity::new(50, 1),
-		shares_issuance: 10,
+		shares_issuance: Some(10_u128),
 		updated_at: 5_u32,
 	};
 
@@ -650,7 +650,7 @@ fn calculate_new_by_integrating_incoming_with_works() {
 		price: Price::new(151, 1),
 		volume: Volume::from_a_in_b_out(1, 151),
 		liquidity: Liquidity::new(151, 1),
-		shares_issuance: 10,
+		shares_issuance: Some(10_u128),
 		updated_at: 6,
 	};
 	let next_oracle = start_oracle
@@ -663,7 +663,7 @@ fn calculate_new_by_integrating_incoming_with_works() {
 		price: Price::new(52, 1),
 		volume: Volume::from_a_in_b_out(1, 52),
 		liquidity: Liquidity::new(52, 1),
-		shares_issuance: 10,
+		shares_issuance: Some(10_u128),
 		updated_at: 6,
 	};
 	let tolerance = Price::new(1, 1e10 as u128);
@@ -679,7 +679,7 @@ fn calculate_new_by_integrating_incoming_last_block_period_returns_new_value() {
 		price: Price::new(4, 1),
 		volume: Volume::from_a_in_b_out(1_u128, 4_u128),
 		liquidity: Liquidity::new(4_u128, 1_u128),
-		shares_issuance: 10,
+		shares_issuance: Some(10_u128),
 		updated_at: 5_u32,
 	};
 
@@ -687,7 +687,7 @@ fn calculate_new_by_integrating_incoming_last_block_period_returns_new_value() {
 		price: Price::new(8, 1),
 		volume: Volume::from_a_in_b_out(1_u128, 8_u128),
 		liquidity: Liquidity::new(8_u128, 1_u128),
-		shares_issuance: 10,
+		shares_issuance: Some(10_u128),
 		updated_at: 6,
 	};
 	let next_oracle = start_oracle.calculate_new_by_integrating_incoming(LastBlock, &next_value);
@@ -702,14 +702,14 @@ fn calculate_current_from_outdated_should_incorporate_longer_time_deltas() {
 		price: Price::new(4_000, 1),
 		volume: Volume::from_a_in_b_out(1, 4_000),
 		liquidity: Liquidity::new(4_000, 1),
-		shares_issuance: 10,
+		shares_issuance: Some(10_u128),
 		updated_at: 5_u32,
 	};
 	let next_value = OracleEntry {
 		price: Price::new(8_000, 1),
 		volume: Volume::from_a_in_b_out(1, 8_000),
 		liquidity: Liquidity::new(8_000, 1),
-		shares_issuance: 10,
+		shares_issuance: Some(10_u128),
 		updated_at: 1_000,
 	};
 	let next_oracle = start_oracle
@@ -731,7 +731,7 @@ fn get_price_works() {
 			(HDX, DOT),
 			(1_000_000, 1).into(),
 			Liquidity::new(2_000_000, 2),
-			1_000_000,
+			Some(1_000_000_u128),
 		)])
 		.build()
 		.execute_with(|| {
@@ -752,7 +752,7 @@ fn trying_to_get_price_for_same_asset_should_error() {
 			(HDX, DOT),
 			(1_000_000, 1).into(),
 			Liquidity::new(2_000_000, 2),
-			1_000_000,
+			Some(1_000_000_u128),
 		)])
 		.build()
 		.execute_with(|| {
@@ -777,7 +777,7 @@ fn get_entry_works() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
-			1_000,
+			Some(1_000_u128),
 		));
 		EmaOracle::on_finalize(1);
 		System::set_block_number(100);
@@ -785,7 +785,7 @@ fn get_entry_works() {
 			price: Price::new(2_000, 1_000),
 			volume: Volume::default(), // volume for new blocks is zero by default
 			liquidity: Liquidity::new(2_000, 1_000),
-			shares_issuance: 1_000,
+			shares_issuance: Some(1_000_u128),
 			oracle_age: 98,
 		};
 		assert_eq!(EmaOracle::get_entry(HDX, DOT, LastBlock, SOURCE), Ok(expected));
@@ -794,7 +794,7 @@ fn get_entry_works() {
 			price: Price::new(2_000, 1_000),
 			volume: Volume::from_a_in_b_out(141, 70), // volume oracle gets updated towards zero
 			liquidity: Liquidity::new(2_000, 1_000),
-			shares_issuance: 1_000,
+			shares_issuance: Some(1_000_u128),
 			oracle_age: 98,
 		};
 		assert_eq!(EmaOracle::get_entry(HDX, DOT, TenMinutes, SOURCE), Ok(expected_ten_min));
@@ -803,7 +803,7 @@ fn get_entry_works() {
 			price: Price::new(2_000, 1_000),
 			volume: Volume::from_a_in_b_out(986, 493),
 			liquidity: Liquidity::new(2_000, 1_000),
-			shares_issuance: 1_000,
+			shares_issuance: Some(1_000_u128),
 			oracle_age: 98,
 		};
 		assert_eq!(EmaOracle::get_entry(HDX, DOT, Day, SOURCE), Ok(expected_day));
@@ -812,7 +812,7 @@ fn get_entry_works() {
 			price: Price::new(2_000, 1_000),
 			volume: Volume::from_a_in_b_out(998, 499),
 			liquidity: Liquidity::new(2_000, 1_000),
-			shares_issuance: 1_000,
+			shares_issuance: Some(1_000_u128),
 			oracle_age: 98,
 		};
 		assert_eq!(EmaOracle::get_entry(HDX, DOT, Week, SOURCE), Ok(expected_week));
@@ -827,7 +827,7 @@ fn get_price_returns_updated_price() {
 			(HDX, DOT),
 			(1_000_000, 1).into(),
 			Liquidity::new(2_000_000, 2),
-			1_000_000,
+			Some(1_000_000_u128),
 		)])
 		.build()
 		.execute_with(|| {
@@ -835,7 +835,7 @@ fn get_price_returns_updated_price() {
 				price: Price::new(500_000, 1),
 				volume: Volume::default(),
 				liquidity: Liquidity::new(2_000_000, 2),
-				shares_issuance: 2_000_000,
+				shares_issuance: Some(2_000_000_u128),
 				updated_at: 1,
 			};
 			System::set_block_number(1);

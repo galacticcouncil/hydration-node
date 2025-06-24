@@ -43,7 +43,7 @@ pub struct OracleEntry<BlockNumber> {
 	pub price: Price,
 	pub volume: Volume<Balance>,
 	pub liquidity: Liquidity<Balance>,
-	pub shares_issuance: Balance,
+	pub shares_issuance: Option<Balance>,
 	pub updated_at: BlockNumber,
 }
 
@@ -53,7 +53,7 @@ impl<BlockNumber> OracleEntry<BlockNumber> {
 		price: Price,
 		volume: Volume<Balance>,
 		liquidity: Liquidity<Balance>,
-		shares_issuance: Balance,
+		shares_issuance: Option<Balance>,
 		updated_at: BlockNumber,
 	) -> Self {
 		Self {
@@ -83,7 +83,14 @@ where
 	}
 
 	/// Return the raw data of the entry as a tuple of tuples, excluding the block number.
-	pub fn raw_data(&self) -> (Price, (Balance, Balance, Balance, Balance), (Balance, Balance), Balance) {
+	pub fn raw_data(
+		&self,
+	) -> (
+		Price,
+		(Balance, Balance, Balance, Balance),
+		(Balance, Balance),
+		Option<Balance>,
+	) {
 		(
 			self.price,
 			self.volume.clone().into(),
@@ -235,7 +242,7 @@ pub fn into_smoothing(period: OraclePeriod) -> Fraction {
 	}
 }
 
-impl<BlockNumber> From<(Price, Volume<Balance>, Liquidity<Balance>, Balance, BlockNumber)>
+impl<BlockNumber> From<(Price, Volume<Balance>, Liquidity<Balance>, Option<Balance>, BlockNumber)>
 	for OracleEntry<BlockNumber>
 {
 	fn from(
@@ -243,7 +250,7 @@ impl<BlockNumber> From<(Price, Volume<Balance>, Liquidity<Balance>, Balance, Blo
 			Price,
 			Volume<Balance>,
 			Liquidity<Balance>,
-			Balance,
+			Option<Balance>,
 			BlockNumber,
 		),
 	) -> Self {

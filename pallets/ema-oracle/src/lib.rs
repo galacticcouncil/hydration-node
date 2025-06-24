@@ -214,7 +214,7 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub initial_data: Vec<(Source, (AssetId, AssetId), Price, Liquidity<Balance>, Balance)>,
+		pub initial_data: Vec<(Source, (AssetId, AssetId), Price, Liquidity<Balance>, Option<Balance>)>,
 		#[serde(skip)]
 		pub _marker: PhantomData<T>,
 	}
@@ -330,7 +330,7 @@ pub mod pallet {
 					EmaPrice::new(price.0, price.1),
 					Volume::default(),
 					Liquidity::default(),
-					Balance::default(),
+					None,
 					T::BlockNumberProvider::current_block_number(),
 				);
 				if ordered_pair == (asset_a, asset_b) {
@@ -567,8 +567,7 @@ impl<T: Config> OnTradeHandler<AssetId, Balance, Price> for OnActivityHandler<T>
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 		price: Price,
-		shares_issuance: Balance, //NOTE: maybe tmp, is this really necessary??? trade doesn't
-		                          //change shares issuance
+		shares_issuance: Option<Balance>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		// We assume that zero liquidity values are not valid and can be ignored.
 		if liquidity_a.is_zero() || liquidity_b.is_zero() {
@@ -612,7 +611,7 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance, Price> for OnActivit
 		liquidity_a: Balance,
 		liquidity_b: Balance,
 		price: Price,
-		shares_issuance: Balance,
+		shares_issuance: Option<Balance>,
 	) -> Result<Weight, (Weight, DispatchError)> {
 		if liquidity_a.is_zero() || liquidity_b.is_zero() {
 			log::trace!(
