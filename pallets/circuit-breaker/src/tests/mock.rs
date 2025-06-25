@@ -78,6 +78,7 @@ thread_local! {
 	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((2_000, 10_000))) }; // 20%
 	pub static ASSET_DEPOSIT_LIMIT: RefCell<HashMap<AssetId, Balance>> = RefCell::new(HashMap::default());
 	pub static ASSET_DEPOSIT_PERIOD: RefCell<u128> = RefCell::new(u128::zero());
+	pub static RESERVED_FUNDS: RefCell<HashMap<AccountId, Balance>> = RefCell::new(HashMap::default());
 }
 
 frame_support::construct_runtime!(
@@ -754,6 +755,11 @@ impl Happened<AssetId> for LimitReachedHandler {
 pub struct OnLockdownDepositHandler;
 impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
 	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		RESERVED_FUNDS.with(|v| {
+			let mut map = v.borrow_mut();
+			map.entry(t.1).and_modify(|e| *e += t.2).or_insert(t.2);
+		});
+
 		Tokens::withdraw(t.0, &t.1, t.2)?;
 		Ok(())
 	}

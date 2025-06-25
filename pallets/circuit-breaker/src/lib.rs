@@ -203,6 +203,7 @@ pub mod pallet {
 			+ From<u128>;
 
 		/// Origin able to change the trade volume limit of an asset.
+		//TODO: rename to authorityOrigin or TC
 		type UpdateLimitsOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// List of accounts that bypass checks for adding/removing liquidity. Root is always whitelisted
@@ -275,6 +276,7 @@ pub mod pallet {
 	pub type AllowedAddLiquidityAmountPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
 
+	//TODO: rename to LastAssetLockdownState
 	#[pallet::storage]
 	#[pallet::getter(fn last_asset_issuance)]
 	pub type LastAssetIssuance<T: Config> = StorageMap<
@@ -451,6 +453,22 @@ pub mod pallet {
 			// using this extrinsic, TC or any allowed authority should be able to update the lockdown state of an asset
 			// meaning it can put an asseto n lockdown, extend curretn lockdown period, lift it
 			// so there is a need to add a parameter to this function to indicate the action to be taken
+			//TODO: TC can set the state for whatever we want
+			// TODO: ACTION - lift lockdown, cancel, edtend or add, without inssuance
+			// we get the reserve
+
+			//- lift lockdown  - DONT
+			//set state unclock
+			//current block number
+			//and issuance
+
+			//- cancel - DONT
+			// put it on onlocked
+			//
+
+			//todo: maybet 2 exntrisc
+			//- lockdown - param: untillWhen - it can be called even when lockdoean
+			//- remove - no additonal param - check if lockdown, if not error, if yes, set unlcokded and tkae hte current issuarans
 			Ok(())
 		}
 
@@ -467,7 +485,15 @@ pub mod pallet {
 			// Error is also when trying to unlock an account whih does not have anything locked.
 			// because the function to unreserve would return ok, but wwe need to handle that as well.
 			// to prevent unnecessary spam of this
+			//TODO: add check if the lockdown is expired
+			//TODO ADD CHECK if the specific amount is unreserved. Note that reserved returns 0 for
+			//TODO: add check if the amount is bigger that is currently unlocked
+			//TODO: it will be free
+			//TODO; we will call depost release
 			//TODO: implement
+			//1. CHECK IF LOCKDOWN EXPIRED - STATE CAN BE still on lockdown, but untill is already passed, so we can update state
+			//onrelease should return error if the amount is not reserved
+			//TODO: use named reserve
 			Ok(())
 		}
 	}
