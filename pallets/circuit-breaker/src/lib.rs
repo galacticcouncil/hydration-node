@@ -454,6 +454,16 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Lockdown an asset for minting
+		///
+		/// Can be called only by an authority origin
+		///
+		/// Parameters:
+		/// - `origin`: The dispatch origin for this call. Must be `AuthorityOrigin`
+		/// - `asset_id`: The identifier of an asset
+		/// - `until`: The block number until which the asset is locked
+		///
+		/// /// Emits `AssetLockdowned` event when successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
 		pub fn lockdown_asset(origin: OriginFor<T>, asset_id: T::AssetId, until: BlockNumberFor<T>) -> DispatchResult {
