@@ -204,7 +204,7 @@ pub mod pallet {
 
 		/// Origin able to change the trade volume limit of an asset.
 		//TODO: rename to authorityOrigin or TC
-		type UpdateLimitsOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// List of accounts that bypass checks for adding/removing liquidity. Root is always whitelisted
 		type WhitelistedAccounts: Contains<Self::AccountId>;
@@ -360,7 +360,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			trade_volume_limit: (u32, u32),
 		) -> DispatchResult {
-			T::UpdateLimitsOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(asset_id != T::OmnipoolHubAsset::get(), Error::<T>::NotAllowed);
 
@@ -392,7 +392,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			liquidity_limit: Option<(u32, u32)>,
 		) -> DispatchResult {
-			T::UpdateLimitsOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(asset_id != T::OmnipoolHubAsset::get(), Error::<T>::NotAllowed);
 
@@ -426,7 +426,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			liquidity_limit: Option<(u32, u32)>,
 		) -> DispatchResult {
-			T::UpdateLimitsOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(asset_id != T::OmnipoolHubAsset::get(), Error::<T>::NotAllowed);
 
@@ -447,7 +447,7 @@ pub mod pallet {
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
 		pub fn update_asset_lockdown(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
-			T::UpdateLimitsOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 			//TODO: implement
 			// using this extrinsic, TC or any allowed authority should be able to update the lockdown state of an asset
 			// meaning it can put an asseto n lockdown, extend curretn lockdown period, lift it
