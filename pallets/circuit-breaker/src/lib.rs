@@ -203,7 +203,6 @@ pub mod pallet {
 			+ From<u128>;
 
 		/// Origin able to change the trade volume limit of an asset.
-		//TODO: rename to authorityOrigin or TC
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// List of accounts that bypass checks for adding/removing liquidity. Root is always whitelisted
