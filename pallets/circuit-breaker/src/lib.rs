@@ -276,10 +276,9 @@ pub mod pallet {
 	pub type AllowedAddLiquidityAmountPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
 
-	//TODO: rename to LastAssetLockdownState
 	#[pallet::storage]
 	#[pallet::getter(fn last_asset_issuance)]
-	pub type LastAssetIssuance<T: Config> = StorageMap<
+	pub type LastAssetLockdownState<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		T::AssetId,

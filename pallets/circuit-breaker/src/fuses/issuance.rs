@@ -1,6 +1,6 @@
 use crate::traits::AssetDepositLimiter;
 use crate::types::AssetLockdownState;
-use crate::{Config, LastAssetIssuance, Pallet};
+use crate::{Config, LastAssetLockdownState, Pallet};
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::currency::OnDeposit;
@@ -38,7 +38,7 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 				&currency_id,
 			);
 		let current_block = <frame_system::Pallet<T>>::block_number();
-		let Some(asset_state) = LastAssetIssuance::<T>::get(currency_id) else {
+		let Some(asset_state) = LastAssetLockdownState::<T>::get(currency_id) else {
 			// Only when nothing is yet set for the asset
 			// in this case - we need to store issuance with the first deposit - so it counts towards the limit on next deposits
 			let limit =
@@ -50,12 +50,12 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 			if amount > limit {
 				let current_block: u128 = <frame_system::Pallet<T>>::block_number().saturated_into();
 				let lockdown_until: BlockNumberFor<T> = current_block.saturating_add(period).saturated_into();
-				LastAssetIssuance::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
+				LastAssetLockdownState::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
 				<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLimitReached::happened(&(currency_id));
 				let to_lock = amount.saturating_sub(limit);
 				<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLockdownDeposit::handle(&(currency_id, who.clone(), to_lock))?;
 			} else {
-				LastAssetIssuance::<T>::insert(
+				LastAssetLockdownState::<T>::insert(
 					currency_id,
 					AssetLockdownState::Unlocked((
 						<frame_system::Pallet<T>>::block_number(),
@@ -80,12 +80,12 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 					if amount > limit {
 						let current_block: u128 = <frame_system::Pallet<T>>::block_number().saturated_into();
 						let lockdown_until: BlockNumberFor<T> = current_block.saturating_add(period).saturated_into();
-						LastAssetIssuance::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
+						LastAssetLockdownState::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
 						<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLimitReached::happened(&(currency_id));
 						let to_lock = amount.saturating_sub(limit);
 						<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLockdownDeposit::handle(&(currency_id, who.clone(), to_lock))?;
 					} else {
-						LastAssetIssuance::<T>::insert(
+						LastAssetLockdownState::<T>::insert(
 							currency_id,
 							AssetLockdownState::Unlocked((
 								<frame_system::Pallet<T>>::block_number(),
@@ -105,7 +105,7 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 					if amount > limit {
 						// This single deposit exceeds the limit, lock it down.
 						let lockdown_until: BlockNumberFor<T> = current_block.saturating_add(period).saturated_into();
-						LastAssetIssuance::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
+						LastAssetLockdownState::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
 
 						<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLimitReached::happened(&(currency_id));
 						let to_lock = amount.saturating_sub(limit);
@@ -117,7 +117,7 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 							T::AssetId,
 							T::Balance,
 						>>::Issuance::get(&currency_id);
-						LastAssetIssuance::<T>::insert(
+						LastAssetLockdownState::<T>::insert(
 							currency_id,
 							AssetLockdownState::Unlocked((
 								<frame_system::Pallet<T>>::block_number(),
@@ -132,7 +132,7 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 					if issuance_increase_in_period > limit {
 						// we reached the limit
 						let lockdown_until: BlockNumberFor<T> = current_block.saturating_add(period).saturated_into();
-						LastAssetIssuance::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
+						LastAssetLockdownState::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
 
 						<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLimitReached::happened(&(currency_id));
 						// We should lock only difference here, not all new deposit

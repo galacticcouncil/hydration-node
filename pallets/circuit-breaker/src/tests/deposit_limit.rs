@@ -1,6 +1,6 @@
 use crate::tests::mock::{ExtBuilder, System, Test, Tokens, ALICE};
 use crate::types::AssetLockdownState;
-use crate::LastAssetIssuance;
+use crate::LastAssetLockdownState;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 use sp_runtime::DispatchError;
@@ -36,7 +36,7 @@ fn deposit_limit_should_work_when_first_deposit_exceed_limit() {
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 101));
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(12));
 			assert_balance!(ALICE, ASSET_ID, 100);
 		});
@@ -59,7 +59,7 @@ fn deposit_limit_should_lock_deposits_when_asset_on_lockdown() {
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 10));
 			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100); //No balance change, as the asset is locked down
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(12));
 		});
 }
@@ -74,17 +74,17 @@ fn deposit_limit_should_lock_when_lock_expires_but_amount_reaches_limit_again() 
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 101));
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(12));
 			assert_balance!(ALICE, ASSET_ID, 100);
 
 			System::set_block_number(13);
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(12));
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 101));
 			assert_balance!(ALICE, ASSET_ID, 200);
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(23));
 		});
 }
@@ -100,7 +100,7 @@ fn deposit_limit_should_lock_when_asset_already_in_unlocked() {
 			System::set_block_number(2);
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 100));
 			assert_balance!(ALICE, ASSET_ID, 100);
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Unlocked((2, 0))); // Baseline is 0
 
 			// Act: Move time forward so the period expires, then deposit an amount that exceeds the limit
@@ -109,7 +109,7 @@ fn deposit_limit_should_lock_when_asset_already_in_unlocked() {
 
 			// Assert: The asset should be locked, and the excess amount is not deposited
 			assert_balance!(ALICE, ASSET_ID, 200); // 100 (original) + 100 (allowed from this deposit)
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(23)); // 13 (current block) + 10 (period)
 		});
 }
@@ -125,7 +125,7 @@ fn deposit_limit_should_block_multiple_small_deposits_within_the_same_period() {
 			System::set_block_number(2);
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
 			assert_balance!(ALICE, ASSET_ID, 60);
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Unlocked((2, 0)));
 
 			// Act: Move time forward, but stay within the period.
@@ -135,7 +135,7 @@ fn deposit_limit_should_block_multiple_small_deposits_within_the_same_period() {
 
 			// Assert: The asset should be locked, and only the amount up to the limit is deposited.
 			assert_balance!(ALICE, ASSET_ID, 100); // 60 (original) + 40 (allowed from this deposit)
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(15)); // 5 (current block) + 10 (period)
 		});
 }
@@ -160,7 +160,7 @@ fn deposit_limit_should_trigger_when_limit_is_exactly_met_then_exceeded() {
 
 			// Assert: The asset should be locked, and the excess amount (1) is not deposited.
 			assert_balance!(ALICE, ASSET_ID, 100);
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(14)); // 4 (current block) + 10 (period)
 		});
 }
@@ -187,7 +187,7 @@ fn deposit_limit_should_not_give_free_pass_after_lockdown_expires() {
 			System::set_block_number(14);
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 90));
 			assert_balance!(ALICE, ASSET_ID, 200);
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(24)); // Expected: 14 + 10
 		});
 }
@@ -202,13 +202,13 @@ fn deposit_should_be_fully_locked_when_asset_is_already_on_lockdown() {
 			System::set_block_number(2);
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 101));
 			assert_balance!(ALICE, ASSET_ID, 100);
-			let state = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(12));
 
 			System::set_block_number(5);
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
 			assert_balance!(ALICE, ASSET_ID, 100);
-			let state_after = LastAssetIssuance::<Test>::get(ASSET_ID).unwrap();
+			let state_after = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(
 				state_after,
 				AssetLockdownState::Locked(12),
