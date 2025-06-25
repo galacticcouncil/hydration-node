@@ -324,7 +324,12 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			liquidity_limit: Option<(u32, u32)>,
 		},
-		/// Asset lockdown was removed.
+		/// Asset lockdown was manually set
+		AssetLockdowned {
+			asset_id: T::AssetId,
+			until: BlockNumberFor<T>,
+		},
+		/// Asset lockdown was removed
 		AssetLockdownRemoved { asset_id: T::AssetId },
 	}
 
@@ -451,28 +456,13 @@ pub mod pallet {
 
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
-		pub fn lockdown_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+		pub fn lockdown_asset(origin: OriginFor<T>, asset_id: T::AssetId, until: BlockNumberFor<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
-			//TODO: implement
-			// using this extrinsic, TC or any allowed authority should be able to update the lockdown state of an asset
-			// meaning it can put an asseto n lockdown, extend curretn lockdown period, lift it
-			// so there is a need to add a parameter to this function to indicate the action to be taken
-			//TODO: TC can set the state for whatever we want
-			// TODO: ACTION - lift lockdown, cancel, edtend or add, without inssuance
-			// we get the reserve
 
-			//- lift lockdown  - DONT
-			//set state unclock
-			//current block number
-			//and issuance
+			LastAssetLockdownState::<T>::insert(asset_id, crate::types::AssetLockdownState::Locked(until));
 
-			//- cancel - DONT
-			// put it on onlocked
-			//
+			Self::deposit_event(Event::AssetLockdowned { asset_id, until });
 
-			//todo: maybet 2 exntrisc
-			//- lockdown - param: untillWhen - it can be called even when lockdoean
-			//- remove - no additonal param - check if lockdown, if not error, if yes, set unlcokded and tkae hte current issuarans
 			Ok(())
 		}
 
