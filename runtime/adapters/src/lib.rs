@@ -682,7 +682,7 @@ where
 			OracleSource::get(),
 		);
 
-		if let Some((price, _)) = r.ok() {
+		if let Ok((price, _)) = r {
 			return FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into());
 		}
 
@@ -697,7 +697,7 @@ where
 			return FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into());
 		}
 
-		return FixedU128::checked_from_rational(price.d, price.n).ok_or_else(|| ArithmeticError::Overflow.into());
+		FixedU128::checked_from_rational(price.d, price.n).ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 }
 
