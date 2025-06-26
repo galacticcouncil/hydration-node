@@ -6,8 +6,12 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::currency::OnDeposit;
 use orml_traits::{GetByKey, Handler, Happened};
 use sp_runtime::{SaturatedConversion, Saturating};
-use std::marker::PhantomData;
+use sp_std::marker::PhantomData;
 //TODO: EVENTS: when goes lockdw, when goes unclocke
+
+//TODO: burned tokens deduct from limit to prevent DOS
+
+//TODO: consider the solution for HDX too as that it is not involved in orml tokens
 
 //TODO: CREATE ISSUE I guess if the supply increased (or decreased ) and the token is type external it was bridged in or out.
 //TODO: in the trehad Jakub mentios that we need to handle burn too
@@ -37,14 +41,20 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 			<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::Issuance::get(
 				&currency_id,
 			);
+
+		let Some(limit) =
+			<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::DepositLimit::get(
+				&currency_id,
+			)
+		else {
+			// TODO: LOG
+			return Ok(());
+		};
+
 		let current_block = <frame_system::Pallet<T>>::block_number();
 		let Some(asset_state) = LastAssetLockdownState::<T>::get(currency_id) else {
 			// Only when nothing is yet set for the asset
-			// in this case - we need to store issuance with the first deposit - so it counts towards the limit on next deposits
-			let limit =
-				<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::DepositLimit::get(
-					&currency_id,
-				);
+			// in this case - we need to store issuance with the first deposit - so it counts towards the limit on next deposit
 
 			//If first deposit exceeds the limit, we lock it down, otherwise we store the issuance
 			if amount > limit {
@@ -71,12 +81,12 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 			AssetLockdownState::Locked(until) => {
 				if until > current_block {
 					// lockdown still active
+					//TODO: what we were intended to do here, only this?
 					<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLockdownDeposit::handle(&(currency_id, who.clone(), amount))?;
 				} else {
 					// lockdown expired
 					//TODO: but we dont have the previous issuance
 					//TODO: try to break this  - Clarify: check only the amount against the limit ??!
-					let limit = <T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::DepositLimit::get(&currency_id);
 					if amount > limit {
 						let current_block: u128 = <frame_system::Pallet<T>>::block_number().saturated_into();
 						let lockdown_until: BlockNumberFor<T> = current_block.saturating_add(period).saturated_into();
@@ -101,7 +111,6 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 				if last_block.saturating_add(period) <= current_block {
 					// The period is over, so we can reset the limit.
 					// But first, we must check if this new deposit on its own exceeds the limit.
-					let limit = <T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::DepositLimit::get(&currency_id);
 					if amount > limit {
 						// This single deposit exceeds the limit, lock it down.
 						let lockdown_until: BlockNumberFor<T> = current_block.saturating_add(period).saturated_into();
@@ -127,7 +136,6 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 					}
 				} else {
 					// If the period is not over, we check the limit
-					let limit = <T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::DepositLimit::get(&currency_id);
 					let issuance_increase_in_period = asset_issuance.saturating_sub(last_issuance); //TODO: check every he usage of saturaring
 					if issuance_increase_in_period > limit {
 						// we reached the limit

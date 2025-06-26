@@ -3,10 +3,10 @@ use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::{GetByKey, Handler, Happened};
 use sp_runtime::traits::Bounded;
-use std::marker::PhantomData;
+use sp_std::marker::PhantomData;
 
 pub trait AssetDepositLimiter<AccountId, AssetId, Balance> {
-	type DepositLimit: GetByKey<AssetId, Balance>;
+	type DepositLimit: GetByKey<AssetId, Option<Balance>>;
 	type Period: Get<u128>;
 	type Issuance: GetByKey<AssetId, Balance>;
 	type OnLimitReached: Happened<AssetId>;
@@ -27,9 +27,9 @@ impl<T: Config> AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance> for No
 
 pub struct NoIssuanceIncreaseLimit<T>(PhantomData<T>);
 
-impl<T: Config> GetByKey<T::AssetId, T::Balance> for NoIssuanceIncreaseLimit<T> {
-	fn get(_: &T::AssetId) -> T::Balance {
-		T::Balance::max_value()
+impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for NoIssuanceIncreaseLimit<T> {
+	fn get(_: &T::AssetId) -> Option<T::Balance> {
+		Some(T::Balance::max_value())
 	}
 }
 

@@ -56,7 +56,7 @@ use hydradx_traits::{AssetKind, BoundErc20};
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
 	currency::TransferAll,
-	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
+	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, GetByKey,
 	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
 };
@@ -933,6 +933,12 @@ where
 		status: BalanceStatus,
 	) -> result::Result<Self::Balance, DispatchError> {
 		Currency::repatriate_reserved_named(id, slashed, beneficiary, value, status)
+	}
+}
+
+impl<T: Config> GetByKey<CurrencyIdOf<T>, BalanceOf<T>> for Pallet<T> {
+	fn get(currency_id: &CurrencyIdOf<T>) -> BalanceOf<T> {
+		Pallet::<T>::total_issuance(*currency_id)
 	}
 }
 

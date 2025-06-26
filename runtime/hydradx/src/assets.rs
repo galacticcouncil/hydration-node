@@ -54,7 +54,7 @@ pub use hydradx_traits::{
 };
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
-	GetByKey, Happened,
+	GetByKey, Handler, Happened, NamedMultiReservableCurrency,
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_dynamic_fees::types::FeeParams;
@@ -123,11 +123,38 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
 	type OnSlash = ();
 	type PreDeposit = SufficiencyCheck;
-	type PostDeposit = ();
+	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;
 	type PreTransfer = SufficiencyCheck;
 	type PostTransfer = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
+}
+
+parameter_types! {
+	pub Period : BlockNumber = 100;
+
+	pub DepositCircuitBreakerNamedReserveId: [u8; 8] = *b"depositc";
+
+}
+
+pub struct DepositCircuitBreaker;
+
+pub struct OnLockdownDepositHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		Currencies::reserve_named(&DepositCircuitBreakerNamedReserveId::get(), t.0, &t.1, t.2)?;
+
+		Ok(())
+	}
+}
+
+impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositCircuitBreaker {
+	type Period = Period;
+	type Issuance = Currencies;
+	type DepositLimit = XcmRateLimitsInRegistry<Runtime>;
+	type OnLimitReached = (); //TODO: ask Martin to set it
+	type OnLockdownDeposit = OnLockdownDepositHandler;
+	type OnDepositRelease = (); //TODO: set it
 }
 
 pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffED";
@@ -562,6 +589,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = LRNA;
 	type WeightInfo = weights::pallet_circuit_breaker::HydraWeight<Runtime>;
+
+	type DepositLimiter = DepositCircuitBreaker;
 }
 
 parameter_types! {
@@ -1334,6 +1363,8 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use pallet_asset_registry::XcmRateLimitsInRegistry;
+use pallet_circuit_breaker::traits::AssetDepositLimiter;
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;

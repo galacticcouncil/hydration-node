@@ -17,17 +17,17 @@ use sp_runtime::{DispatchError, Permill};
 use std::sync::Arc;
 use test_utils::assert_eq_approx;
 
-const DOT: AssetId = 2221;
-const VDOT: AssetId = 2222;
-const ADOT: AssetId = 2223;
-const GIGADOT: AssetId = 69;
+pub const DOT: AssetId = 2221;
+pub const VDOT: AssetId = 2222;
+pub const ADOT: AssetId = 2223;
+pub const GIGADOT: AssetId = 69;
 
-const DOT_DECIMALS: u8 = 10;
-const VDOT_DECIMALS: u8 = 10;
-const ADOT_DECIMALS: u8 = 10;
-const GIGADOT_DECIMALS: u8 = 18;
+pub const DOT_DECIMALS: u8 = 10;
+pub const VDOT_DECIMALS: u8 = 10;
+pub const ADOT_DECIMALS: u8 = 10;
+pub const GIGADOT_DECIMALS: u8 = 18;
 
-const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 57767685517430457);
+pub const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 57767685517430457);
 
 #[test]
 fn gigadot_pool_should_work() {

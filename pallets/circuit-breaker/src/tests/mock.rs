@@ -732,10 +732,11 @@ impl Get<u128> for LimitDepositPeriod {
 
 pub struct AssetLimit;
 
-impl GetByKey<AssetId, Balance> for AssetLimit {
-	fn get(k: &AssetId) -> Balance {
+impl GetByKey<AssetId, Option<Balance>> for AssetLimit {
+	fn get(k: &AssetId) -> Option<Balance> {
 		let asset = ASSET_DEPOSIT_LIMIT.with(|v| v.borrow().get(k).copied());
-		asset.unwrap_or(Balance::max_value())
+
+		Some(asset.unwrap_or(Balance::max_value()))
 	}
 }
 

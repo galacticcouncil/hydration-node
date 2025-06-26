@@ -178,12 +178,11 @@ fn deposit_limit_should_not_give_free_pass_after_lockdown_expires() {
 			assert_balance!(ALICE, ASSET_ID, 100);
 			System::set_block_number(13); // Lockdown from block 2 is now expired (2 + 10 < 13)
 
-			// Act: Make a deposit. With the bug, this deposit gets a "free pass"
-			// and incorrectly sets the baseline *after* its amount is included.
+			// Act
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 90));
 			assert_balance!(ALICE, ASSET_ID, 190);
 
-			// Act again: This second deposit should trip the breaker, but won't due to the bug.
+			// Act - This second deposit should trip the breaker
 			System::set_block_number(14);
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 90));
 			assert_balance!(ALICE, ASSET_ID, 200);

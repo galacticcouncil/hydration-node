@@ -32,13 +32,13 @@ use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMu
 use sp_runtime::SaturatedConversion;
 use sp_runtime::Saturating;
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
-use std::marker::PhantomData;
+use sp_std::marker::PhantomData;
 pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
 
-mod fuses;
+pub mod fuses;
 #[cfg(test)]
 mod tests;
 pub mod traits;
