@@ -652,7 +652,7 @@ parameter_types! {
 	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
-type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+pub(crate) type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
 impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -708,7 +708,7 @@ parameter_types! {
 	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
 }
 
-type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
+pub(crate) type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
 impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;

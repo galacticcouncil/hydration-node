@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "320.0.0"
+version = "321.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8789,7 +8789,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.6.6"
+version = "2.7.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9521,7 +9521,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk-liquidity-mining"
-version = "1.4.2"
+version = "1.5.0"
 dependencies = [
  "frame-support",
  "frame-system",
