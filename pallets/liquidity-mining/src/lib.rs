@@ -249,9 +249,6 @@ pub mod pallet {
 		/// Liquidity mining is in `active` or `terminated` state and action cannot be completed.
 		LiquidityMiningIsNotStopped,
 
-		/// LP shares amount is not valid.
-		InvalidDepositAmount,
-
 		/// Account is not allowed to perform action.
 		Forbidden,
 
@@ -470,7 +467,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	/// - `reward_currency`: payoff currency of rewards.
 	/// - `owner`: liq. mining farm owner.
 	/// - `yield_per_period`: percentage return on `reward_currency` of all pools.
-	/// - `min_deposit`: minimum amount of LP shares to be deposited into liquidity mining by each user.
+	/// - `min_deposit`: minimum value of LP shares to be deposited into liquidity mining by each user.
 	/// - `price_adjustment`: price adjustment between `incentivized_asset` and `reward_currency`.
 	/// This value should be `1` if `incentivized_asset` and `reward_currency` are the same.
 	#[allow(clippy::too_many_arguments)]
@@ -577,7 +574,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	/// - `global_farm_id`: global farm id.
 	/// - `planned_yielding_periods`: planned number of periods to distribute `total_rewards`.
 	/// - `yield_per_period`: percentage return on `reward_currency` of all pools.
-	/// - `min_deposit`: minimum amount of LP shares to be deposited into liquidity mining by each user.
+	/// - `min_deposit`: minimum value of LP shares to be deposited into liquidity mining by each user.
 	fn update_global_farm(
 		global_farm_id: GlobalFarmId,
 		planned_yielding_periods: PeriodOf<T>,
@@ -1441,11 +1438,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 					let global_farm = maybe_global_farm
 						.as_mut()
 						.defensive_ok_or::<Error<T, I>>(InconsistentStateError::GlobalFarmNotFound.into())?;
-
-					ensure!(
-						deposit.shares.ge(&global_farm.min_deposit),
-						Error::<T, I>::InvalidDepositAmount,
-					);
 
 					//NOTE: If yield-farm is active also global-farm MUST be active.
 					ensure!(

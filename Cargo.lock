@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "320.0.0"
+version = "321.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4818,7 +4818,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.15.4"
+version = "3.15.5"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8545,7 +8545,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.4.6"
+version = "4.4.7"
 dependencies = [
  "fixed",
  "frame-support",
