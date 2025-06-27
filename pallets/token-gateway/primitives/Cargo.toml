@@ -18,6 +18,11 @@ keywords = [
 readme = "README.md"
 
 [dependencies]
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
 primitive-types = { workspace = true }
 
 ismp = { workspace = true }
@@ -32,14 +37,14 @@ alloy-primitives = { workspace = true }
 alloy-sol-macro = { workspace = true }
 alloy-sol-types = { workspace = true }
 
-[dependencies.polkadot-sdk]
-workspace = true
-features = ["frame-support", "frame-system", "sp-runtime", "sp-core", "sp-io"]
-
 [features]
 default = ["std"]
 std = [
-    "polkadot-sdk/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-io/std",
     "primitive-types/std",
     "ismp/std",
     "pallet-ismp/std",
@@ -48,4 +53,4 @@ std = [
     "anyhow/std",
     "alloy-primitives/std",
 ]
-try-runtime = ["polkadot-sdk/try-runtime"]
+try-runtime = ["frame-support/try-runtime"]

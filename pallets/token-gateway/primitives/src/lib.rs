@@ -18,7 +18,6 @@
 
 use alloy_primitives::hex;
 use ismp::host::StateMachine;
-use polkadot_sdk::*;
 use sp_core::{ConstU32, H160, H256};
 use sp_runtime::BoundedVec;
 

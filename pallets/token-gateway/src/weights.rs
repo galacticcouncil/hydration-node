@@ -1,5 +1,4 @@
 use frame_support::weights::Weight;
-use polkadot_sdk::*;
 
 // ============================== INTERFACE ============================================ //
 /// Weight functions needed for `pallet_token_gateway.

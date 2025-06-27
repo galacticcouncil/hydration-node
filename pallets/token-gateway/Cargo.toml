@@ -18,6 +18,12 @@ keywords = [
 readme = "README.md"
 
 [dependencies]
+frame-benchmarking = { workspace = true, optional = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
 primitive-types = { workspace = true }
 log = { workspace = true }
 codec = { workspace = true }
@@ -29,17 +35,21 @@ alloy-sol-types = { workspace = true }
 
 ismp = { workspace = true }
 pallet-ismp = { workspace = true }
-token-gateway-primitives = { workspace = true }
+token-gateway-primitives = { path = "./primitives", default-features = false }
 pallet-hyperbridge = { workspace = true }
 
-[dependencies.polkadot-sdk]
-workspace = true
-features = ["frame-support", "frame-system", "sp-runtime", "sp-core", "sp-io"]
+hydradx-traits = { workspace = true }
+orml-traits = { workspace = true }
+primitives = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
-    "polkadot-sdk/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-io/std",
     "primitive-types/std",
     "ismp/std",
     "pallet-ismp/std",
@@ -49,9 +59,13 @@ std = [
     "alloy-primitives/std",
     "pallet-hyperbridge/std",
     "token-gateway-primitives/std",
+    "hydradx-traits/std",
+    "orml-traits/std",
+    "primitives/std",
 ]
 runtime-benchmarks = [
-    "polkadot-sdk/frame-benchmarking",
-    "polkadot-sdk/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
 ]
-try-runtime = ["polkadot-sdk/try-runtime"]
+try-runtime = ["frame-support/try-runtime"]

@@ -8,7 +8,6 @@ use frame_support::{
 };
 use frame_system::RawOrigin;
 use ismp::host::StateMachine;
-use polkadot_sdk::*;
 use scale_info::prelude::collections::BTreeMap;
 use sp_runtime::AccountId32;
 use token_gateway_primitives::{GatewayAssetRegistration, GatewayAssetUpdate};
