@@ -11,7 +11,7 @@ use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
 use hydra_dx_math::types::Ratio;
 use hydradx_adapters::price::ConvertBalance;
-use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
+use hydradx_runtime::evm::precompiles::{CallPermitAddress, DispatchAddress};
 use hydradx_runtime::types::ShortOraclePrice;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::DOT_ASSET_LOCATION;
@@ -30,6 +30,7 @@ use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::constants::currency::UNITS;
 use primitives::{AssetId, Balance};
+use sp_core::Get;
 use sp_core::{H256, U256};
 use sp_runtime::traits::Convert;
 use sp_runtime::traits::SignedExtension;
@@ -96,9 +97,9 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let deadline = U256::from(1000000000000u128);
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit * 10,
@@ -113,7 +114,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit * 10,
@@ -213,9 +214,9 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 		let deadline = U256::from(1000000000000u128);
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit * 10,
@@ -230,7 +231,7 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit * 10,
@@ -308,9 +309,9 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -325,7 +326,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit,
@@ -411,9 +412,9 @@ fn evm_permit_should_validate_unsigned_correctly() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -426,7 +427,7 @@ fn evm_permit_should_validate_unsigned_correctly() {
 
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: omni_sell.encode(),
 			gas_limit,
@@ -510,9 +511,9 @@ fn evm_permit_should_validate_unsigned_correctly_and_return_error_if_inner_call_
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -525,7 +526,7 @@ fn evm_permit_should_validate_unsigned_correctly_and_return_error_if_inner_call_
 
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: omni_sell.encode(),
 			gas_limit,
@@ -596,9 +597,9 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				set_currency_call.encode(),
 				gas_limit,
@@ -612,7 +613,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		// Validate unsigned first
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: set_currency_call.encode(),
 			gas_limit,
@@ -638,7 +639,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			set_currency_call.encode(),
 			gas_limit,
@@ -759,9 +760,9 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 
 			let permit =
 				pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-					CALLPERMIT,
+					CallPermitAddress::get(),
 					user_evm_address,
-					DISPATCH_ADDR,
+					DispatchAddress::get(),
 					U256::from(0),
 					set_currency_call.encode(),
 					gas_limit,
@@ -775,7 +776,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 			// Validate unsigned first
 			let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 				from: user_evm_address,
-				to: DISPATCH_ADDR,
+				to: DispatchAddress::get(),
 				value: U256::from(0),
 				data: set_currency_call.encode(),
 				gas_limit,
@@ -801,7 +802,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 			assert_ok!(MultiTransactionPayment::dispatch_permit(
 				hydradx_runtime::RuntimeOrigin::none(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				set_currency_call.encode(),
 				gas_limit,
@@ -1234,9 +1235,9 @@ fn evm_permit_dispatch_flow_should_work() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -1251,7 +1252,7 @@ fn evm_permit_dispatch_flow_should_work() {
 
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: omni_sell.encode(),
 			gas_limit,
@@ -1277,7 +1278,7 @@ fn evm_permit_dispatch_flow_should_work() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit,
@@ -1365,9 +1366,9 @@ fn evm_permit_should_fail_when_replayed() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -1382,7 +1383,7 @@ fn evm_permit_should_fail_when_replayed() {
 
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: omni_sell.encode(),
 			gas_limit,
@@ -1408,7 +1409,7 @@ fn evm_permit_should_fail_when_replayed() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit,
@@ -1502,9 +1503,9 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -1519,7 +1520,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 
 		let call = pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: omni_sell.encode(),
 			gas_limit,
@@ -1545,7 +1546,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit,
@@ -1623,9 +1624,9 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -1639,7 +1640,7 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit,
@@ -1714,9 +1715,9 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -1730,7 +1731,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit,
@@ -1810,9 +1811,9 @@ fn dispatch_permit_should_pause_tx_when_permit_is_invalid() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -1826,7 +1827,7 @@ fn dispatch_permit_should_pause_tx_when_permit_is_invalid() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(1),
 			omni_sell.encode(),
 			gas_limit,
@@ -1855,7 +1856,7 @@ fn dispatch_permit_should_pause_tx_when_permit_is_invalid() {
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: omni_sell.encode(),
 			gas_limit,
@@ -1921,9 +1922,9 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -1937,7 +1938,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit,
@@ -1966,7 +1967,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: omni_sell.encode(),
 			gas_limit,
@@ -2032,9 +2033,9 @@ fn dispatch_permit_should_pause_tx_when_no_tx_fee_is_paid() {
 
 		let permit =
 			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
-				CALLPERMIT,
+				CallPermitAddress::get(),
 				user_evm_address,
-				DISPATCH_ADDR,
+				DispatchAddress::get(),
 				U256::from(0),
 				omni_sell.encode(),
 				gas_limit,
@@ -2048,7 +2049,7 @@ fn dispatch_permit_should_pause_tx_when_no_tx_fee_is_paid() {
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
-			DISPATCH_ADDR,
+			DispatchAddress::get(),
 			U256::from(0),
 			omni_sell.encode(),
 			gas_limit,
@@ -2077,7 +2078,7 @@ fn dispatch_permit_should_pause_tx_when_no_tx_fee_is_paid() {
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
-			to: DISPATCH_ADDR,
+			to: DispatchAddress::get(),
 			value: U256::from(0),
 			data: omni_sell.encode(),
 			gas_limit,
