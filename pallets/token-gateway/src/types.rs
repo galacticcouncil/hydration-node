@@ -23,9 +23,6 @@ use sp_core::H160;
 
 use crate::Config;
 
-pub type AssetId<T> =
-	<<T as Config>::Assets as fungibles::Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
-
 /// Asset teleportation parameters
 #[derive(Debug, Clone, Encode, Decode, scale_info::TypeInfo, PartialEq, Eq)]
 pub struct TeleportParams<AssetId, Balance> {
@@ -112,6 +109,7 @@ pub struct SubstrateCalldata {
 }
 
 /// Type that encapsulates both types of token gateway request bodies
+#[derive(Debug)]
 pub struct RequestBody {
 	pub amount: alloy_primitives::U256,
 	pub asset_id: alloy_primitives::FixedBytes<32>,

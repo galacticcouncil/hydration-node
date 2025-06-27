@@ -154,7 +154,10 @@ mod benches {
 			precisions.insert(StateMachine::Evm(i as u32), 18);
 		}
 
-		let update = PrecisionUpdate { asset_id: T::NativeAssetId::get(), precisions };
+		let update = PrecisionUpdate {
+			asset_id: T::NativeAssetId::get(),
+			precisions,
+		};
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(account), update);

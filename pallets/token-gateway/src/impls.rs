@@ -35,14 +35,8 @@ impl<T: Config> Pallet<T> {
 }
 
 /// Converts an ERC20 U256 to a u128
-pub fn convert_to_balance(
-	value: U256,
-	erc_decimals: u8,
-	final_decimals: u8,
-) -> Result<u128, anyhow::Error> {
-	let dec_str = (value /
-		U256::from(10u128.pow(erc_decimals.saturating_sub(final_decimals) as u32)))
-	.to_string();
+pub fn convert_to_balance(value: U256, erc_decimals: u8, final_decimals: u8) -> Result<u128, anyhow::Error> {
+	let dec_str = (value / U256::from(10u128.pow(erc_decimals.saturating_sub(final_decimals) as u32))).to_string();
 	dec_str.parse().map_err(|e| anyhow::anyhow!("{e:?}"))
 }
 

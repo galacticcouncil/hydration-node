@@ -44,19 +44,25 @@ use ismp::{
 };
 
 use sp_core::{Get, H160, U256};
-use sp_runtime::{traits::Dispatchable, MultiSignature};
+use sp_runtime::{traits::Dispatchable, MultiSignature, SaturatedConversion};
 use token_gateway_primitives::{PALLET_TOKEN_GATEWAY_ID, TOKEN_GOVERNOR_ID};
-use types::{AssetId, Body, BodyWithCall, EvmToSubstrate, RequestBody, SubstrateCalldata};
+use types::{Body, BodyWithCall, EvmToSubstrate, RequestBody, SubstrateCalldata};
 
 use alloc::{string::ToString, vec, vec::Vec};
 use frame_system::RawOrigin;
+use hydradx_traits::Inspect;
 use ismp::module::IsmpModule;
+use orml_traits::MultiCurrency;
 use primitive_types::H256;
+use primitives::AssetId;
+use sp_runtime::traits::UniqueSaturatedFrom;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
 const ETHEREUM_MESSAGE_PREFIX: &'static str = "\x19Ethereum Signed Message:\n";
+
+type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -88,18 +94,18 @@ pub mod pallet {
 
 	/// The pallet's configuration trait.
 	#[pallet::config]
-	pub trait Config:
-		polkadot_sdk::frame_system::Config + pallet_ismp::Config + pallet_hyperbridge::Config
-	{
+	pub trait Config: frame_system::Config + pallet_ismp::Config + pallet_hyperbridge::Config {
 		/// The overarching runtime event type.
-		type RuntimeEvent: From<Event<Self>>
-			+ IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The [`IsmpDispatcher`] for dispatching cross-chain requests
 		type Dispatcher: IsmpDispatcher<Account = Self::AccountId, Balance = Self::Balance>;
 
 		/// A currency implementation for interacting with the native asset
-		type NativeCurrency: Currency<Self::AccountId>;
+		type MultiCurrency: MultiCurrency<Self::AccountId, CurrencyId = AssetId>;
+
+		/// Asset Registry mechanism - used to get assets' metadata from asset registry.
+		type AssetRegistry: Inspect<AssetId = AssetId>;
 
 		/// A funded account that would be set as asset admin and also make payments for asset
 		/// creation
@@ -107,17 +113,6 @@ pub mod pallet {
 
 		/// Account that is authorized to create and update assets.
 		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
-
-		/// Fungible asset implementation
-		type Assets: fungibles::Mutate<Self::AccountId>
-			+ fungibles::metadata::Inspect<Self::AccountId>;
-
-		/// The native asset ID
-		type NativeAssetId: Get<AssetId<Self>>;
-
-		/// The decimals of the native currency
-		#[pallet::constant]
-		type Decimals: Get<u8>;
 
 		/// A trait that converts an evm address to a substrate account
 		/// Used for authenticating incoming cross-chain runtime calls.
@@ -130,35 +125,25 @@ pub mod pallet {
 	/// Assets supported by this instance of token gateway
 	/// A map of the local asset id to the token gateway asset id
 	#[pallet::storage]
-	pub type SupportedAssets<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetId<T>, H256, OptionQuery>;
+	pub type SupportedAssets<T: Config> = StorageMap<_, Blake2_128Concat, AssetId, H256, OptionQuery>;
 
 	/// Assets that originate from this chain
 	#[pallet::storage]
-	pub type NativeAssets<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetId<T>, bool, ValueQuery>;
+	pub type NativeAssets<T: Config> = StorageMap<_, Blake2_128Concat, AssetId, bool, ValueQuery>;
 
 	/// Assets supported by this instance of token gateway
 	/// A map of the token gateway asset id to the local asset id
 	#[pallet::storage]
-	pub type LocalAssets<T: Config> = StorageMap<_, Identity, H256, AssetId<T>, OptionQuery>;
+	pub type LocalAssets<T: Config> = StorageMap<_, Identity, H256, AssetId, OptionQuery>;
 
 	/// The decimals used by the EVM counterpart of this asset
 	#[pallet::storage]
-	pub type Precisions<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		AssetId<T>,
-		Blake2_128Concat,
-		StateMachine,
-		u8,
-		OptionQuery,
-	>;
+	pub type Precisions<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, AssetId, Blake2_128Concat, StateMachine, u8, OptionQuery>;
 
 	/// The token gateway adresses on different chains
 	#[pallet::storage]
-	pub type TokenGatewayAddresses<T: Config> =
-		StorageMap<_, Blake2_128Concat, StateMachine, Vec<u8>, OptionQuery>;
+	pub type TokenGatewayAddresses<T: Config> = StorageMap<_, Blake2_128Concat, StateMachine, Vec<u8>, OptionQuery>;
 
 	/// Pallet events that functions in this pallet can emit.
 	#[pallet::event]
@@ -171,7 +156,7 @@ pub mod pallet {
 			/// beneficiary account on destination
 			to: H256,
 			/// Amount transferred
-			amount: <T::NativeCurrency as Currency<T::AccountId>>::Balance,
+			amount: BalanceOf<T>,
 			/// Destination chain
 			dest: StateMachine,
 			/// Request commitment
@@ -183,7 +168,7 @@ pub mod pallet {
 			/// beneficiary account on relaychain
 			beneficiary: T::AccountId,
 			/// Amount transferred
-			amount: <<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance,
+			amount: BalanceOf<T>,
 			/// Destination chain
 			source: StateMachine,
 		},
@@ -193,7 +178,7 @@ pub mod pallet {
 			/// beneficiary account on relaychain
 			beneficiary: T::AccountId,
 			/// Amount transferred
-			amount: <<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance,
+			amount: BalanceOf<T>,
 			/// Destination chain
 			source: StateMachine,
 		},
@@ -232,79 +217,32 @@ pub mod pallet {
 	impl<T: Config> Pallet<T>
 	where
 		<T as frame_system::Config>::AccountId: From<[u8; 32]>,
-		u128: From<<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance>,
-		<T as pallet_ismp::Config>::Balance:
-			From<<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance>,
-		<<T as Config>::Assets as fungibles::Inspect<T::AccountId>>::Balance:
-			From<<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance>,
-		<<T as Config>::Assets as fungibles::Inspect<T::AccountId>>::Balance: From<u128>,
+		u128: From<BalanceOf<T>>,
+		<T as pallet_ismp::Config>::Balance: From<BalanceOf<T>>,
 		[u8; 32]: From<<T as frame_system::Config>::AccountId>,
 	{
 		/// Teleports a registered asset
 		/// locks the asset and dispatches a request to token gateway on the destination
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::teleport())]
-		pub fn teleport(
-			origin: OriginFor<T>,
-			params: TeleportParams<
-				AssetId<T>,
-				<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance,
-			>,
-		) -> DispatchResult {
+		pub fn teleport(origin: OriginFor<T>, params: TeleportParams<AssetId, BalanceOf<T>>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let dispatcher = <T as Config>::Dispatcher::default();
-			let asset_id = SupportedAssets::<T>::get(params.asset_id.clone())
-				.ok_or_else(|| Error::<T>::UnregisteredAsset)?;
-			let decimals = if params.asset_id == T::NativeAssetId::get() {
-				// Custody funds in pallet
-				let is_native = NativeAssets::<T>::get(T::NativeAssetId::get());
-				if is_native {
-					<T as Config>::NativeCurrency::transfer(
-						&who,
-						&Self::pallet_account(),
-						params.amount,
-						ExistenceRequirement::AllowDeath,
-					)?;
-				} else {
-					// Reduce total supply
-					let imbalance = <T as Config>::NativeCurrency::burn(params.amount);
-					// Burn amount from account
-					<T as Config>::NativeCurrency::settle(
-						&who,
-						imbalance,
-						WithdrawReasons::TRANSFER,
-						ExistenceRequirement::AllowDeath,
-					)
-					.map_err(|_| Error::<T>::AssetTeleportError)?;
-				}
+			let asset_id =
+				SupportedAssets::<T>::get(params.asset_id.clone()).ok_or_else(|| Error::<T>::UnregisteredAsset)?;
 
-				T::Decimals::get()
+			let decimals = T::AssetRegistry::decimals(params.asset_id).unwrap_or(12);
+
+			let is_native = NativeAssets::<T>::get(params.asset_id);
+			if is_native {
+				T::MultiCurrency::transfer(params.asset_id, &who, &Self::pallet_account(), params.amount)?;
 			} else {
-				let is_native = NativeAssets::<T>::get(params.asset_id.clone());
-				if is_native {
-					<T as Config>::Assets::transfer(
-						params.asset_id.clone(),
-						&who,
-						&Self::pallet_account(),
-						params.amount.into(),
-						Preservation::Expendable,
-					)?;
-				} else {
-					// Assets that do not originate from this chain are burned
-					<T as Config>::Assets::burn_from(
-						params.asset_id.clone(),
-						&who,
-						params.amount.into(),
-						Preservation::Expendable,
-						Precision::Exact,
-						Fortitude::Polite,
-					)?;
-				}
-
-				<T::Assets as fungibles::metadata::Inspect<T::AccountId>>::decimals(
-					params.asset_id.clone(),
-				)
-			};
+				// TODO: Reduce total supply
+				// let imbalance = T::MultiCurrency::burn(params.amount);
+				// Burn amount from account
+				T::MultiCurrency::withdraw(params.asset_id, &who, params.amount)
+					.map_err(|_| Error::<T>::AssetTeleportError)?;
+			}
 
 			let to = params.recepient.0;
 			let from: [u8; 32] = who.clone().into();
@@ -315,10 +253,9 @@ pub mod pallet {
 				Some(data) => {
 					let body = BodyWithCall {
 						amount: {
-							let amount: u128 = params.amount.into();
+							let amount: u128 = params.amount.saturated_into();
 							let mut bytes = [0u8; 32];
-							convert_to_erc20(amount, erc_decimals, decimals)
-								.to_big_endian(&mut bytes);
+							convert_to_erc20(amount, erc_decimals, decimals).to_big_endian(&mut bytes);
 							alloy_primitives::U256::from_be_bytes(bytes)
 						},
 						asset_id: asset_id.0.into(),
@@ -332,15 +269,14 @@ pub mod pallet {
 					let mut encoded = vec![0];
 					encoded.extend_from_slice(&BodyWithCall::abi_encode(&body));
 					encoded
-				},
+				}
 
 				None => {
 					let body = Body {
 						amount: {
 							let amount: u128 = params.amount.into();
 							let mut bytes = [0u8; 32];
-							convert_to_erc20(amount, erc_decimals, decimals)
-								.to_big_endian(&mut bytes);
+							convert_to_erc20(amount, erc_decimals, decimals).to_big_endian(&mut bytes);
 							alloy_primitives::U256::from_be_bytes(bytes)
 						},
 						asset_id: asset_id.0.into(),
@@ -353,7 +289,7 @@ pub mod pallet {
 					let mut encoded = vec![0];
 					encoded.extend_from_slice(&Body::abi_encode(&body));
 					encoded
-				},
+				}
 			};
 
 			let dispatch_post = DispatchPost {
@@ -364,7 +300,10 @@ pub mod pallet {
 				body,
 			};
 
-			let metadata = FeeMetadata { payer: who.clone(), fee: params.relayer_fee.into() };
+			let metadata = FeeMetadata {
+				payer: who.clone(),
+				fee: params.relayer_fee.into(),
+			};
 			let commitment = dispatcher
 				.dispatch_request(DispatchRequest::Post(dispatch_post), metadata)
 				.map_err(|_| Error::<T>::AssetTeleportError)?;
@@ -400,15 +339,13 @@ pub mod pallet {
 		/// `native` should be true if this asset originates from this chain
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::create_erc6160_asset(asset.precision.len() as u32))]
-		pub fn create_erc6160_asset(
-			origin: OriginFor<T>,
-			asset: AssetRegistration<AssetId<T>>,
-		) -> DispatchResult {
+		pub fn create_erc6160_asset(origin: OriginFor<T>, asset: AssetRegistration<AssetId>) -> DispatchResult {
 			T::CreateOrigin::ensure_origin(origin)?;
 			let who = T::AssetAdmin::get();
 			// charge hyperbridge fees
-			let VersionedHostParams::V1(SubstrateHostParams { asset_registration_fee, .. }) =
-				pallet_hyperbridge::Pallet::<T>::host_params();
+			let VersionedHostParams::V1(SubstrateHostParams {
+				asset_registration_fee, ..
+			}) = pallet_hyperbridge::Pallet::<T>::host_params();
 
 			if asset_registration_fee != Zero::zero() {
 				T::Currency::transfer(
@@ -439,7 +376,10 @@ pub mod pallet {
 				body: { RemoteERC6160AssetRegistration::CreateAsset(asset.reg).encode() },
 			};
 
-			let metadata = FeeMetadata { payer: who, fee: Default::default() };
+			let metadata = FeeMetadata {
+				payer: who,
+				fee: Default::default(),
+			};
 
 			let commitment = dispatcher
 				.dispatch_request(DispatchRequest::Post(dispatch_post), metadata)
@@ -455,16 +395,14 @@ pub mod pallet {
 		/// to create the asset.
 		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::update_erc6160_asset())]
-		pub fn update_erc6160_asset(
-			origin: OriginFor<T>,
-			asset: GatewayAssetUpdate,
-		) -> DispatchResult {
+		pub fn update_erc6160_asset(origin: OriginFor<T>, asset: GatewayAssetUpdate) -> DispatchResult {
 			T::CreateOrigin::ensure_origin(origin)?;
 			let who = T::AssetAdmin::get();
 
 			// charge hyperbridge fees
-			let VersionedHostParams::V1(SubstrateHostParams { asset_registration_fee, .. }) =
-				pallet_hyperbridge::Pallet::<T>::host_params();
+			let VersionedHostParams::V1(SubstrateHostParams {
+				asset_registration_fee, ..
+			}) = pallet_hyperbridge::Pallet::<T>::host_params();
 
 			if asset_registration_fee != Zero::zero() {
 				T::Currency::transfer(
@@ -484,7 +422,10 @@ pub mod pallet {
 				body: { RemoteERC6160AssetRegistration::UpdateAsset(asset).encode() },
 			};
 
-			let metadata = FeeMetadata { payer: who, fee: Default::default() };
+			let metadata = FeeMetadata {
+				payer: who,
+				fee: Default::default(),
+			};
 
 			let commitment = dispatcher
 				.dispatch_request(DispatchRequest::Post(dispatch_post), metadata)
@@ -497,10 +438,7 @@ pub mod pallet {
 		/// Update the precision for an existing asset
 		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::update_asset_precision(update.precisions.len() as u32))]
-		pub fn update_asset_precision(
-			origin: OriginFor<T>,
-			update: PrecisionUpdate<AssetId<T>>,
-		) -> DispatchResult {
+		pub fn update_asset_precision(origin: OriginFor<T>, update: PrecisionUpdate<AssetId>) -> DispatchResult {
 			T::CreateOrigin::ensure_origin(origin)?;
 			for (chain, precision) in update.precisions {
 				Precisions::<T>::insert(update.asset_id.clone(), chain, precision);
@@ -522,12 +460,18 @@ pub mod pallet {
 impl<T: Config> IsmpModule for Pallet<T>
 where
 	<T as frame_system::Config>::AccountId: From<[u8; 32]>,
-	<<T as Config>::NativeCurrency as Currency<T::AccountId>>::Balance: From<u128>,
-	<<T as Config>::Assets as fungibles::Inspect<T::AccountId>>::Balance: From<u128>,
+	BalanceOf<T>: From<u128>,
 {
 	fn on_accept(
 		&self,
-		PostRequest { body, from, source, dest, nonce, .. }: PostRequest,
+		PostRequest {
+			body,
+			from,
+			source,
+			dest,
+			nonce,
+			..
+		}: PostRequest,
 	) -> Result<(), anyhow::Error> {
 		let expected = TokenGatewayAddresses::<T>::get(source)
 			.ok_or_else(|| anyhow!("Not configured to receive assets from {source:?}"))?;
@@ -547,23 +491,28 @@ where
 			Err(anyhow!("Token Gateway: Failed to decode request body"))?
 		};
 
-		let local_asset_id =
-			LocalAssets::<T>::get(H256::from(body.asset_id.0)).ok_or_else(|| {
-				ismp::error::Error::ModuleDispatchError {
-					msg: "Token Gateway: Unknown asset".to_string(),
-					meta: Meta { source, dest, nonce },
-				}
-			})?;
+		log::debug!(
+			target: "token_gateway::on_accept",
+			"Token Gateway Received: from: {:?}, source: {:?}, dest: {:?}, nonce: {:?}, request body: {:?}",
+			from,
+			source,
+			dest,
+			nonce,
+			body
+		);
 
-		let decimals = if local_asset_id == T::NativeAssetId::get() {
-			T::Decimals::get()
-		} else {
-			<T::Assets as fungibles::metadata::Inspect<T::AccountId>>::decimals(
-				local_asset_id.clone(),
-			)
-		};
+		let local_asset_id = LocalAssets::<T>::get(H256::from(body.asset_id.0)).ok_or_else(|| {
+			ismp::error::Error::ModuleDispatchError {
+				msg: "Token Gateway: Unknown asset".to_string(),
+				meta: Meta { source, dest, nonce },
+			}
+		})?;
+
+		let decimals = T::AssetRegistry::decimals(local_asset_id).unwrap_or(12);
+
 		let erc_decimals = Precisions::<T>::get(local_asset_id.clone(), source)
 			.ok_or_else(|| anyhow!("Asset decimals not configured"))?;
+
 		let amount = convert_to_balance(
 			U256::from_big_endian(&body.amount.to_be_bytes::<32>()),
 			erc_decimals,
@@ -574,47 +523,30 @@ where
 			meta: Meta { source, dest, nonce },
 		})?;
 		let beneficiary: T::AccountId = body.to.0.into();
-		if local_asset_id == T::NativeAssetId::get() {
-			let is_native = NativeAssets::<T>::get(T::NativeAssetId::get());
-			if is_native {
-				<T as Config>::NativeCurrency::transfer(
-					&Pallet::<T>::pallet_account(),
-					&beneficiary,
-					amount.into(),
-					ExistenceRequirement::AllowDeath,
-				)
-				.map_err(|_| ismp::error::Error::ModuleDispatchError {
-					msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-					meta: Meta { source, dest, nonce },
-				})?;
-			} else {
-				// Increase total supply
-				let imbalance = <T as Config>::NativeCurrency::issue(amount.into());
-				// Mint into the beneficiary account
-				<T as Config>::NativeCurrency::resolve_creating(&beneficiary, imbalance);
-			}
+		let is_native = NativeAssets::<T>::get(local_asset_id);
+		let amount = BalanceOf::<T>::unique_saturated_from(amount);
+
+		if is_native {
+			T::MultiCurrency::transfer(
+				local_asset_id,
+				&Pallet::<T>::pallet_account(),
+				&beneficiary,
+				amount.into(),
+			)
+			.map_err(|_| ismp::error::Error::ModuleDispatchError {
+				msg: "Token Gateway: Failed to complete asset transfer".to_string(),
+				meta: Meta { source, dest, nonce },
+			})?;
 		} else {
-			// Assets that do not originate from this chain are minted
-			let is_native = NativeAssets::<T>::get(local_asset_id.clone());
-			if is_native {
-				<T as Config>::Assets::transfer(
-					local_asset_id,
-					&Pallet::<T>::pallet_account(),
-					&beneficiary,
-					amount.into(),
-					Preservation::Expendable,
-				)
-				.map_err(|_| ismp::error::Error::ModuleDispatchError {
+			// TODO: Increase total supply
+			// let imbalance = T::MultiCurrency::issue(amount.into());
+			// Mint into the beneficiary account
+			T::MultiCurrency::deposit(local_asset_id, &beneficiary, amount).map_err(|_| {
+				ismp::error::Error::ModuleDispatchError {
 					msg: "Token Gateway: Failed to complete asset transfer".to_string(),
 					meta: Meta { source, dest, nonce },
-				})?;
-			} else {
-				<T as Config>::Assets::mint_into(local_asset_id, &beneficiary, amount.into())
-					.map_err(|_| ismp::error::Error::ModuleDispatchError {
-						msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-						meta: Meta { source, dest, nonce },
-					})?;
-			}
+				}
+			})?;
 		}
 
 		if let Some(call_data) = body.data {
@@ -632,27 +564,33 @@ where
 					MultiSignature::Ed25519(sig) => {
 						let payload = (nonce, substrate_data.runtime_call.clone()).encode();
 						let message = sp_io::hashing::keccak_256(&payload);
-						let pub_key = body.to.0.as_slice().try_into().map_err(|_| {
-							anyhow!("Failed to decode beneficiary as Ed25519 public key")
-						})?;
+						let pub_key = body
+							.to
+							.0
+							.as_slice()
+							.try_into()
+							.map_err(|_| anyhow!("Failed to decode beneficiary as Ed25519 public key"))?;
 						if !sp_io::crypto::ed25519_verify(&sig, message.as_ref(), &pub_key) {
 							Err(anyhow!(
-							"Failed to verify ed25519 signature before dispatching token gateway call"
-						))?
+								"Failed to verify ed25519 signature before dispatching token gateway call"
+							))?
 						}
-					},
+					}
 					MultiSignature::Sr25519(sig) => {
 						let payload = (nonce, substrate_data.runtime_call.clone()).encode();
 						let message = sp_io::hashing::keccak_256(&payload);
-						let pub_key = body.to.0.as_slice().try_into().map_err(|_| {
-							anyhow!("Failed to decode beneficiary as Sr25519 public key")
-						})?;
+						let pub_key = body
+							.to
+							.0
+							.as_slice()
+							.try_into()
+							.map_err(|_| anyhow!("Failed to decode beneficiary as Sr25519 public key"))?;
 						if !sp_io::crypto::sr25519_verify(&sig, message.as_ref(), &pub_key) {
 							Err(anyhow!(
-							"Failed to verify sr25519 signature before dispatching token gateway call"
-						))?
+								"Failed to verify sr25519 signature before dispatching token gateway call"
+							))?
 						}
-					},
+					}
 					MultiSignature::Ecdsa(sig) => {
 						let payload = (nonce, substrate_data.runtime_call.clone()).encode();
 						let preimage = vec![
@@ -664,22 +602,20 @@ where
 						.concat();
 						let message = sp_io::hashing::keccak_256(&preimage);
 						let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig.0, &message)
-							.map_err(|_| {
-								anyhow!("Failed to recover ecdsa public key from signature")
-							})?;
-						let eth_address =
-							H160::from_slice(&sp_io::hashing::keccak_256(&pub_key[..])[12..]);
+							.map_err(|_| anyhow!("Failed to recover ecdsa public key from signature"))?;
+						let eth_address = H160::from_slice(&sp_io::hashing::keccak_256(&pub_key[..])[12..]);
 						let substrate_account = T::EvmToSubstrate::convert(eth_address);
 						if substrate_account != beneficiary {
 							Err(anyhow!(
 								"Failed to verify signature before dispatching token gateway call"
 							))?
 						}
-					},
+					}
 				};
 
 				beneficiary.clone().into()
 			} else {
+				// FIXME: use hydradx evm address conversion
 				if source.is_evm() {
 					// sender is evm account
 					T::EvmToSubstrate::convert(H160::from_slice(&body.from[12..]))
@@ -713,7 +649,13 @@ where
 
 	fn on_timeout(&self, request: Timeout) -> Result<(), anyhow::Error> {
 		match request {
-			Timeout::Request(Request::Post(PostRequest { body, source, dest, nonce, .. })) => {
+			Timeout::Request(Request::Post(PostRequest {
+				body,
+				source,
+				dest,
+				nonce,
+				..
+			})) => {
 				let body: RequestBody = if let Ok(body) = Body::abi_decode(&mut &body[1..], true) {
 					body.into()
 				} else if let Ok(body) = BodyWithCall::abi_decode(&mut &body[1..], true) {
@@ -722,18 +664,13 @@ where
 					Err(anyhow!("Token Gateway: Failed to decode request body"))?
 				};
 				let beneficiary = body.from.0.into();
-				let local_asset_id = LocalAssets::<T>::get(H256::from(body.asset_id.0))
-					.ok_or_else(|| ismp::error::Error::ModuleDispatchError {
+				let local_asset_id = LocalAssets::<T>::get(H256::from(body.asset_id.0)).ok_or_else(|| {
+					ismp::error::Error::ModuleDispatchError {
 						msg: "Token Gateway: Unknown asset".to_string(),
 						meta: Meta { source, dest, nonce },
-					})?;
-				let decimals = if local_asset_id == T::NativeAssetId::get() {
-					T::Decimals::get()
-				} else {
-					<T::Assets as fungibles::metadata::Inspect<T::AccountId>>::decimals(
-						local_asset_id.clone(),
-					)
-				};
+					}
+				})?;
+				let decimals = T::AssetRegistry::decimals(local_asset_id).unwrap_or(12);
 				let erc_decimals = Precisions::<T>::get(local_asset_id.clone(), dest)
 					.ok_or_else(|| anyhow!("Asset decimals not configured"))?;
 				let amount = convert_to_balance(
@@ -746,49 +683,29 @@ where
 					meta: Meta { source, dest, nonce },
 				})?;
 
-				if local_asset_id == T::NativeAssetId::get() {
-					let is_native = NativeAssets::<T>::get(T::NativeAssetId::get());
-					if is_native {
-						<T as Config>::NativeCurrency::transfer(
-							&Pallet::<T>::pallet_account(),
-							&beneficiary,
-							amount.into(),
-							ExistenceRequirement::AllowDeath,
-						)
-						.map_err(|_| ismp::error::Error::ModuleDispatchError {
-							msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-							meta: Meta { source, dest, nonce },
-						})?;
-					} else {
-						let imbalance = <T as Config>::NativeCurrency::issue(amount.into());
-						<T as Config>::NativeCurrency::resolve_creating(&beneficiary, imbalance);
-					}
+				let amount = BalanceOf::<T>::unique_saturated_from(amount);
+
+				let is_native = NativeAssets::<T>::get(local_asset_id);
+				if is_native {
+					T::MultiCurrency::transfer(
+						local_asset_id,
+						&Pallet::<T>::pallet_account(),
+						&beneficiary,
+						amount.into(),
+					)
+					.map_err(|_| ismp::error::Error::ModuleDispatchError {
+						msg: "Token Gateway: Failed to complete asset transfer".to_string(),
+						meta: Meta { source, dest, nonce },
+					})?;
 				} else {
-					// Assets that do not originate from this chain are minted
-					let is_native = NativeAssets::<T>::get(local_asset_id.clone());
-					if is_native {
-						<T as Config>::Assets::transfer(
-							local_asset_id,
-							&Pallet::<T>::pallet_account(),
-							&beneficiary,
-							amount.into(),
-							Preservation::Expendable,
-						)
-						.map_err(|_| ismp::error::Error::ModuleDispatchError {
+					// TODO: Increase total supply
+					// let imbalance = T::MultiCurrency::issue(amount.into());
+					T::MultiCurrency::deposit(local_asset_id, &beneficiary, amount).map_err(|_| {
+						ismp::error::Error::ModuleDispatchError {
 							msg: "Token Gateway: Failed to complete asset transfer".to_string(),
 							meta: Meta { source, dest, nonce },
-						})?;
-					} else {
-						<T as Config>::Assets::mint_into(
-							local_asset_id,
-							&beneficiary,
-							amount.into(),
-						)
-						.map_err(|_| ismp::error::Error::ModuleDispatchError {
-							msg: "Token Gateway: Failed to complete asset transfer".to_string(),
-							meta: Meta { source, dest, nonce },
-						})?;
-					}
+						}
+					})?;
 				}
 
 				Pallet::<T>::deposit_event(Event::<T>::AssetRefunded {
@@ -796,10 +713,14 @@ where
 					amount: amount.into(),
 					source: dest,
 				});
-			},
+			}
 			Timeout::Request(Request::Get(get)) => Err(ismp::error::Error::ModuleDispatchError {
 				msg: "Tried to timeout unsupported request type".to_string(),
-				meta: Meta { source: get.source, dest: get.dest, nonce: get.nonce },
+				meta: Meta {
+					source: get.source,
+					dest: get.dest,
+					nonce: get.nonce,
+				},
 			})?,
 
 			Timeout::Response(response) => Err(ismp::error::Error::ModuleDispatchError {

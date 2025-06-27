@@ -1,7 +1,7 @@
 use crate::origins::GeneralAdmin;
 use crate::{
-	AssetRegistry, Balances, Ismp, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent, TechCommitteeSuperMajority,
-	Timestamp, TreasuryAccount, HOLLAR,
+	Balances, Ismp, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent, TechCommitteeSuperMajority, Timestamp,
+	TokenGateway, TreasuryAccount, HOLLAR,
 };
 use frame_support::parameter_types;
 use frame_support::traits::fungible::ItemOf;
@@ -9,10 +9,10 @@ use frame_support::traits::EitherOf;
 use frame_system::EnsureRoot;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{BasicCurrencyAdapter, NativeCurrencyOf};
 use pallet_genesis_history::migration::Weight;
 use primitives::{AccountId, Amount, Balance, BlockNumber};
-use sp_core::ConstU8;
+use sp_std::{boxed::Box, vec::Vec};
 
 impl pallet_hyperbridge::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -56,6 +56,7 @@ pub struct IsmpRouterStruct;
 impl IsmpRouter for IsmpRouterStruct {
 	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
 		match id.as_slice() {
+			id if TokenGateway::is_token_gateway(&id) => Ok(Box::new(TokenGateway::default())),
 			pallet_hyperbridge::PALLET_HYPERBRIDGE_ID => Ok(Box::new(pallet_hyperbridge::Pallet::<Runtime>::default())),
 			_ => Err(ismp::Error::ModuleNotFound(id))?,
 		}
@@ -87,12 +88,10 @@ impl ismp_parachain::weights::WeightInfo for IsmpWeights {
 impl pallet_token_gateway::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Dispatcher = Ismp;
-	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type MultiCurrency = crate::Currencies;
+	type AssetRegistry = crate::AssetRegistry;
 	type AssetAdmin = TreasuryAccount;
 	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
-	type Assets = FungibleCurrencies<Runtime>;
-	type NativeAssetId = NativeAssetId;
-	type Decimals = ConstU8<12>;
 	type EvmToSubstrate = ();
 	type WeightInfo = ();
 }
