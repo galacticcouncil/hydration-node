@@ -1036,8 +1036,6 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
 
-		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
-
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),
 			WETH, // collateral
