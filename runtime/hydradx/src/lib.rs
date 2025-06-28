@@ -54,7 +54,7 @@ pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
-use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
@@ -982,6 +982,24 @@ impl_runtime_apis! {
 		}
 		fn account_id(evm_address: H160) -> AccountId {
 			EVMAccounts::account_id(evm_address)
+		}
+	}
+
+	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
+		fn asset_address(asset_id: AssetId) -> evm::EvmAddress {
+			HydraErc20Mapping::asset_address(asset_id)
+		}
+		fn address_to_asset(address: evm::EvmAddress) -> Option<AssetId> {
+			HydraErc20Mapping::address_to_asset(address)
+		}
+	}
+
+	impl pallet_liquidation::LiquidationWorkerApi<Block> for Runtime {
+		fn oracle_signers() -> Vec<EvmAddress> {
+			pallet_liquidation::Pallet::<Runtime>::oracle_signers().into_inner()
+		}
+		fn oracle_call_addresses() -> Vec<EvmAddress> {
+			pallet_liquidation::Pallet::<Runtime>::oracle_call_addresses().into_inner()
 		}
 	}
 
