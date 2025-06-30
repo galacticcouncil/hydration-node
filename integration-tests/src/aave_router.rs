@@ -63,18 +63,21 @@ pub fn with_aave(execution: impl FnOnce()) {
 #[test]
 fn transfer_all() {
 	with_stablepool(|pool| {
-
 		// Get some ADOT to run the POC because we have 0 right now
 		assert_ok!(Router::buy(
-                hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-                DOT, ADOT, 10000, 10000 + 2,
-                vec![Trade {
-                    pool: Aave,
-                    asset_in: DOT,
-                    asset_out: ADOT,
-                }]
-                .try_into() .unwrap()
-        ));
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			10000,
+			10000 + 2,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
 
 		let shares_before: u128 = Currencies::free_balance(pool, &ALICE.into());
 		let balance_before: u128 = Currencies::free_balance(DOT, &ALICE.into());
@@ -83,45 +86,50 @@ fn transfer_all() {
 
 		// Deposit these 10000 ADOT and get back any amount of shares you want for free
 		assert_ok!(Stableswap::add_liquidity_shares(
-            hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-            pool,
-            100000 * BAG,
-            // aTOKEN
-            ADOT,
-            //max_asset_amount
-            u128::MAX - 1u128,
-        ));
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool,
+			100000 * BAG,
+			// aTOKEN
+			ADOT,
+			//max_asset_amount
+			u128::MAX - 1u128,
+		));
 
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 0);
 
 		// Profit: 10000000000000000000 shares minted
-		assert_eq!(Currencies::free_balance(pool, &ALICE.into()) - shares_before, 100000000000000000000);
+		assert_eq!(
+			Currencies::free_balance(pool, &ALICE.into()) - shares_before,
+			100000000000000000000
+		);
 
 		assert_ok!(Stableswap::remove_liquidity(
-            hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-            pool,
-            // shares to withdraw
-            100000000000000000000,
-            // min amounts out
-            BoundedVec::truncate_from(vec![
-                AssetAmount {
-                    asset_id: DOT,
-                    amount: 0,
-                },
-                AssetAmount {
-                    asset_id: ADOT,
-                    amount: 0,
-                },
-            ]),
-        ));
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool,
+			// shares to withdraw
+			100000000000000000000,
+			// min amounts out
+			BoundedVec::truncate_from(vec![
+				AssetAmount {
+					asset_id: DOT,
+					amount: 0,
+				},
+				AssetAmount {
+					asset_id: ADOT,
+					amount: 0,
+				},
+			]),
+		));
 
 		// Removed 499750124942 ADOT for free
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 499750124942);
 		// Removed 499750124937 DOT for free
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()) - balance_before, 499750124937);
+		assert_eq!(
+			Currencies::free_balance(DOT, &ALICE.into()) - balance_before,
+			499750124937
+		);
 	});
 }
-
 
 fn with_atoken(execution: impl FnOnce()) {
 	with_aave(|| {
