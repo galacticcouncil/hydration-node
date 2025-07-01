@@ -232,6 +232,48 @@ fn deposit_limit_should_trigger_when_limit_is_exactly_met_then_exceeded() {
 }
 
 #[test]
+fn deposit_limit_should_give_free_pass_when_lockdown_expires_but_new_amount_not_exceeding_limit() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			// Arrange: Trigger a lockdown and then let it expire.
+			System::set_block_number(2);
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 101));
+			assert_balance!(ALICE, ASSET_ID, 100);
+			System::set_block_number(12); // Lockdown from block 2 is now expired (2 + 10 < 13)
+
+			// Act
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 100));
+			assert_balance!(ALICE, ASSET_ID, 200);
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, AssetLockdownState::Unlocked((12, 100)));
+		});
+}
+
+#[test]
+fn unlock_is_updated_when_asset_is_unlocked_and_expired() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			// Arrange: Trigger a lockdown and then let it expire.
+			System::set_block_number(2);
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 1));
+			assert_balance!(ALICE, ASSET_ID, 1);
+
+			System::set_block_number(13);
+
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 100));
+			assert_balance!(ALICE, ASSET_ID, 101);
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, AssetLockdownState::Unlocked((13, 1)));
+		});
+}
+
+#[test]
 fn deposit_limit_should_not_give_free_pass_after_lockdown_expires() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
