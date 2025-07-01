@@ -1822,7 +1822,7 @@ impl<T: Config> Pallet<T> {
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
 			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves are not changed"
+			"Reserves have not changed"
 		);
 		let amplification = Self::get_amplification(&pool);
 		let initial_d =
@@ -1845,7 +1845,7 @@ impl<T: Config> Pallet<T> {
 		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
 		assert!(
 			final_r >= initial_r,
-			"Add liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
+			"Remove liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
 			initial_r,
 			final_r
 		);
