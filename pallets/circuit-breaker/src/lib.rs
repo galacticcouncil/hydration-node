@@ -21,11 +21,12 @@
 use codec::{Decode, Encode};
 use frame_support::traits::{Contains, EnsureOrigin};
 use frame_support::weights::Weight;
-use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
+use frame_support::{dispatch::Pays, ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::ensure_signed_or_root;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use orml_traits::currency::OnDeposit;
 use orml_traits::GetByKey;
+use orml_traits::Handler;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
@@ -138,6 +139,7 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::Contains;
+	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::traits::BlockNumberProvider;
 	use traits::AssetDepositLimiter;
 
@@ -348,8 +350,12 @@ pub mod pallet {
 		MaxLiquidityLimitPerBlockReached,
 		/// Asset is not allowed to have a limit
 		NotAllowed,
+		/// Asset in lockdown
+		AssetInLockdown,
 		/// Asset is not in a lockdown
 		AssetNotInLockdown,
+		/// Invalid amount to save deposit
+		InvalidAmount,
 	}
 
 	#[pallet::call]
@@ -523,29 +529,31 @@ pub mod pallet {
 			}
 		}
 
+		//TODO: add doc and unit tests
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
+		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())] //TODO: add benchmark
 		pub fn save_deposit(
 			origin: OriginFor<T>,
 			who: T::AccountId,
 			asset_id: T::AssetId,
 			amount: T::Balance,
-		) -> DispatchResult {
-			// Anyone can do this for any account
-			// but the tx is paid anyway, and returned to the sender if all good.
-			// Error is also when trying to unlock an account whih does not have anything locked.
-			// because the function to unreserve would return ok, but wwe need to handle that as well.
-			// to prevent unnecessary spam of this
-			//TODO: add check if the lockdown is expired
-			//TODO ADD CHECK if the specific amount is unreserved. Note that reserved returns 0 for
-			//TODO: add check if the amount is bigger that is currently unlocked
-			//TODO: it will be free
-			//TODO; we will call depost release
-			//TODO: implement
-			//1. CHECK IF LOCKDOWN EXPIRED - STATE CAN BE still on lockdown, but untill is already passed, so we can update state
-			//onrelease should return error if the amount is not reserved
-			//TODO: use named reserve
-			Ok(())
+		) -> DispatchResultWithPostInfo {
+			ensure_signed_or_root(origin)?;
+
+			ensure!(amount > T::Balance::zero(), Error::<T>::InvalidAmount);
+			let current_block = <frame_system::Pallet<T>>::block_number();
+			let last_state = LastAssetLockdownState::<T>::get(asset_id);
+
+			if let Some(crate::types::AssetLockdownState::Locked(until)) = last_state {
+				if until >= current_block {
+					return Err(Error::<T>::AssetInLockdown.into());
+				}
+			}
+
+			<T::DepositLimiter as crate::traits::AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>
+				>::OnDepositRelease::handle(&(asset_id, who.clone(), amount))?;
+
+			Ok(Pays::No.into())
 		}
 	}
 }

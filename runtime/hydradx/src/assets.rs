@@ -23,7 +23,7 @@ use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
-	parameter_types,
+	ensure, parameter_types,
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{
 		app_crypto::sp_core::crypto::UncheckedFrom, traits::Zero, ArithmeticError, DispatchError, DispatchResult,
@@ -148,13 +148,37 @@ impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
 	}
 }
 
+pub struct OnDepositReleaseHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnDepositReleaseHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		let named_reserve_id = DepositCircuitBreakerNamedReserveId::get();
+
+		// The exact amount should be reserved because otherwise it can be DDoS attacked with small amounts
+		// as CircuitBreaker::save_deposit is a free extrinsic.
+		let reserved_balance = Currencies::reserved_balance_named(&named_reserve_id, t.0, &t.1);
+		ensure!(
+			reserved_balance == t.2,
+			pallet_circuit_breaker::Error::<Runtime>::InvalidAmount
+		);
+
+		let remaining_reserved = Currencies::unreserve_named(&named_reserve_id, t.0, &t.1, t.2);
+
+		ensure!(
+			remaining_reserved.is_zero(),
+			pallet_circuit_breaker::Error::<Runtime>::InvalidAmount
+		);
+
+		Ok(())
+	}
+}
+
 impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositCircuitBreaker {
 	type Period = Period;
 	type Issuance = Currencies;
 	type DepositLimit = XcmRateLimitsInRegistry<Runtime>;
-	type OnLimitReached = (); //TODO: ask Martin to set it
+	type OnLimitReached = ();
 	type OnLockdownDeposit = OnLockdownDepositHandler;
-	type OnDepositRelease = (); //TODO: set it
+	type OnDepositRelease = OnDepositReleaseHandler;
 }
 
 pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffED";

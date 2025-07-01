@@ -19,6 +19,8 @@ use sp_std::marker::PhantomData;
 //TODO:
 //Limit thresholds should be calibrated based on bug bounty values, making it always more profitable for a hacker to report the issue than to exploit it.
 
+//TODO: add prop tests, also for save deposit, so only the claimed and specified amount is returned
+
 //TODO: integration tests
 // when other parachain is hacked, we should be able to lock down the asset issuance
 // sending VDOT to us and exchange it

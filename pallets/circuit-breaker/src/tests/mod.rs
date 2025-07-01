@@ -7,4 +7,5 @@ pub(crate) mod mock;
 mod omnipool;
 mod remove_asset_lockdown;
 mod remove_liquidity_limit;
+mod save_deposit;
 mod trade_volume;

@@ -42,6 +42,7 @@ pub type AssetId = u32;
 pub type Balance = u128;
 
 pub const ALICE: u64 = 1;
+pub const BOB: u64 = 2;
 pub const WHITELISTED_ACCCOUNT: u64 = 2;
 
 pub const LP1: u64 = 1;
@@ -135,6 +136,7 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
+
 }
 
 impl pallet_circuit_breaker::Config for Test {
@@ -719,7 +721,7 @@ impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
 	type Issuance = AssetIssuance;
 	type OnLimitReached = LimitReachedHandler;
 	type OnLockdownDeposit = OnLockdownDepositHandler;
-	type OnDepositRelease = ();
+	type OnDepositRelease = OnReleaseDepositHandler;
 }
 
 pub struct LimitDepositPeriod;
@@ -762,6 +764,19 @@ impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
 		});
 
 		Tokens::withdraw(t.0, &t.1, t.2)?;
+		Ok(())
+	}
+}
+
+pub struct OnReleaseDepositHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnReleaseDepositHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		RESERVED_FUNDS.with(|v| {
+			let mut map = v.borrow_mut();
+			map.entry(t.1).and_modify(|e| *e -= t.2).or_insert(t.2);
+		});
+
+		Tokens::deposit(t.0, &t.1, t.2)?;
 		Ok(())
 	}
 }

@@ -234,3 +234,37 @@ fn lockdown_should_be_ignored_when_no_limit_set_for_asset() {
 		assert_eq!(balance, 401);
 	});
 }
+
+//TODO: fix once we have clarity
+#[ignore]
+#[test]
+fn rate_limit_should_not_be_bypassed_by_burning_tokens() {
+	ExtBuilder::default()
+		.with_deposit_period(100)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			// Arrange: Mint 90 tokens, which is under the limit. This sets the baseline.
+			System::set_block_number(2);
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 90));
+			assert_balance!(ALICE, ASSET_ID, 90);
+
+			// Act 1: The attacker burns the newly created tokens to reset the *total supply*.
+			// This tricks the circuit breaker which only measures net supply change.
+			System::set_block_number(3);
+			assert_ok!(Tokens::withdraw(ASSET_ID, &ALICE, 90));
+			assert_balance!(ALICE, ASSET_ID, 0);
+
+			// Act 2: The attacker mints another 90 tokens. The gross issuance in this period
+			// is now 180, which should be blocked. But the net increase is only 90.
+			System::set_block_number(4);
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 90));
+
+			// Assert: The circuit breaker should have tripped. The first 90 tokens were minted.
+			// The remaining limit was 10. So only 10 of this second deposit should have succeeded.
+			// The current buggy logic will allow the full 90, resulting in a balance of 90.
+			assert_balance!(ALICE, ASSET_ID, 10);
+			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, AssetLockdownState::Locked(14));
+		});
+}
