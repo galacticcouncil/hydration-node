@@ -11,6 +11,8 @@ use sp_std::marker::PhantomData;
 
 //TODO: consider the solution for HDX too as that it is not involved in orml tokens
 
+//TODO: check every he usage of saturaring
+
 //TODO: CREATE ISSUE I guess if the supply increased (or decreased ) and the token is type external it was bridged in or out.
 
 //TODO:
@@ -24,6 +26,8 @@ use sp_std::marker::PhantomData;
 // example: byfrist xcm transfer to our asset crossing, so we should mint it, but we should not alllow
 // Other test: replicate the problem we had last week, where you could mint any amount of sharetoken in stablepool
 // --- we set limit for sharetoken in asset registry, when add liquidty, but when this cross this, it should reserve
+
+//TODO: SET GLOBAL LIMIT TO 1 DAY
 
 pub struct IssuanceIncreaseFuse<T: Config>(PhantomData<T>);
 
@@ -146,15 +150,16 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 					}
 				} else {
 					// If the period is not over, we check the limit
-					let issuance_increase_in_period = asset_issuance.saturating_sub(last_issuance); //TODO: check every he usage of saturaring
+					let issuance_increase_in_period = asset_issuance.saturating_sub(last_issuance);
 					if issuance_increase_in_period > limit {
 						// we reached the limit
 						let lockdown_until: BlockNumberFor<T> = current_block.saturating_add(period).saturated_into();
 						LastAssetLockdownState::<T>::insert(currency_id, AssetLockdownState::Locked(lockdown_until));
 
 						<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLimitReached::happened(&(currency_id));
-						// We should lock only difference here, not all new deposit
-						// that's : Ok for last + issuance + limit, the rest is lockeddown.
+						// We should lock only the excess after lock, not all new deposit
+						// Formula: to_lock = current_issuance - (baseline + limit)
+						// This gives partial execution rather than all-or-nothing blocking
 						let to_lock = asset_issuance.saturating_sub(last_issuance.saturating_add(limit));
 						<T::DepositLimiter as AssetDepositLimiter<T::AccountId,T::AssetId, T::Balance>>::OnLockdownDeposit::handle(&(currency_id, who.clone(), to_lock))?;
 						Pallet::<T>::deposit_event(Event::AssetLockdowned {
