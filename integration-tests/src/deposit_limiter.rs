@@ -698,12 +698,6 @@ fn hydra_should_block_asset_from_other_hain_when_over_limit() {
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
 		));
-
-		// Assert
-		/*pretty_assertions::assert_eq!(
-			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
-		);*/
 	});
 
 	Hydra::execute_with(|| {
