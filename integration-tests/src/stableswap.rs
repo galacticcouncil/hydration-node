@@ -114,7 +114,7 @@ fn gigadot_pool_should_work() {
 			assert_eq_approx!(
 				adot_received,
 				expected_adot_received,
-				100_000_000_000_000_000,
+				100_000_000,
 				"Expected adot received is not equal to actual adot received"
 			);
 
