@@ -87,6 +87,18 @@ impl<B: BlockT> Snapshot<B> {
 
 		Decode::decode(&mut &*bytes).map_err(|_| "Decode failed")
 	}
+	fn load_from_bytes(bytes: Vec<u8>) -> Result<Snapshot<B>, &'static str> {
+		// The first item in the SCALE encoded struct bytes is the snapshot version. We decode and
+		// check that first, before proceeding to decode the rest of the snapshot.
+		let snapshot_version =
+			SnapshotVersion::decode(&mut &*bytes).map_err(|_| "Failed to decode snapshot version")?;
+
+		if snapshot_version != SNAPSHOT_VERSION {
+			return Err("Unsupported snapshot version detected. Please create a new snapshot.");
+		}
+
+		Decode::decode(&mut &*bytes).map_err(|_| "Decode failed")
+	}
 }
 
 pub fn save_externalities<B: BlockT<Hash = H256>>(ext: TestExternalities, path: PathBuf) -> Result<(), &'static str> {
@@ -109,6 +121,20 @@ pub fn load_snapshot<B: BlockT<Hash = H256>>(path: PathBuf) -> Result<TestExtern
 		raw_storage,
 		storage_root,
 	} = Snapshot::<B>::load(&path)?;
+
+	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage, storage_root, state_version);
+
+	Ok(ext_from_snapshot)
+}
+
+pub fn load_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Result<TestExternalities, &'static str> {
+	let Snapshot {
+		snapshot_version: _,
+		block_hash: _,
+		state_version,
+		raw_storage,
+		storage_root,
+	} = Snapshot::<B>::load_from_bytes(bytes)?;
 
 	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage, storage_root, state_version);
 
