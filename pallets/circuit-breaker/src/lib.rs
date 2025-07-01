@@ -326,7 +326,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			liquidity_limit: Option<(u32, u32)>,
 		},
-		/// Asset lockdown was manually set
+		/// Asset went to lockdown
 		AssetLockdowned {
 			asset_id: T::AssetId,
 			until: BlockNumberFor<T>,

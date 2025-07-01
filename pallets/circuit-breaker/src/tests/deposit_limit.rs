@@ -1,11 +1,11 @@
-use crate::tests::mock::{ExtBuilder, System, Test, Tokens, ALICE};
+use crate::tests::mock::{expect_events, ExtBuilder, System, Test, Tokens, ALICE};
 use crate::types::AssetLockdownState;
+use crate::Event as CircuitBreakerEvent;
 use crate::LastAssetLockdownState;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 use sp_runtime::DispatchError;
 use test_utils::assert_balance;
-
 pub const ASSET_ID: u32 = 10000;
 #[test]
 fn deposit_limit_should_work() {
@@ -23,6 +23,19 @@ fn deposit_limit_should_work() {
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
 			let balance = Tokens::free_balance(10000, &ALICE);
 			assert_eq!(balance, 100);
+			expect_events(vec![
+				CircuitBreakerEvent::AssetLockdowned {
+					asset_id: ASSET_ID,
+					until: 12,
+				}
+				.into(),
+				orml_tokens::Event::<Test>::Deposited {
+					currency_id: ASSET_ID,
+					who: ALICE,
+					amount: 60,
+				}
+				.into(),
+			]);
 		});
 }
 
@@ -39,6 +52,20 @@ fn deposit_limit_should_work_when_first_deposit_exceed_limit() {
 			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(12));
 			assert_balance!(ALICE, ASSET_ID, 100);
+
+			expect_events(vec![
+				CircuitBreakerEvent::AssetLockdowned {
+					asset_id: ASSET_ID,
+					until: 12,
+				}
+				.into(),
+				orml_tokens::Event::<Test>::Deposited {
+					currency_id: ASSET_ID,
+					who: ALICE,
+					amount: 101,
+				}
+				.into(),
+			]);
 		});
 }
 
@@ -61,6 +88,19 @@ fn deposit_limit_should_lock_deposits_when_asset_on_lockdown() {
 			assert_eq!(balance, 100); //No balance change, as the asset is locked down
 			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(12));
+			expect_events(vec![
+				CircuitBreakerEvent::AssetLockdowned {
+					asset_id: ASSET_ID,
+					until: 12,
+				}
+				.into(),
+				orml_tokens::Event::<Test>::Deposited {
+					currency_id: ASSET_ID,
+					who: ALICE,
+					amount: 10,
+				}
+				.into(),
+			]);
 		});
 }
 
@@ -86,6 +126,19 @@ fn deposit_limit_should_lock_when_lock_expires_but_amount_reaches_limit_again() 
 			assert_balance!(ALICE, ASSET_ID, 200);
 			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(23));
+			expect_events(vec![
+				CircuitBreakerEvent::AssetLockdowned {
+					asset_id: ASSET_ID,
+					until: 23,
+				}
+				.into(),
+				orml_tokens::Event::<Test>::Deposited {
+					currency_id: ASSET_ID,
+					who: ALICE,
+					amount: 101,
+				}
+				.into(),
+			]);
 		});
 }
 
@@ -111,6 +164,19 @@ fn deposit_limit_should_lock_when_asset_already_in_unlocked() {
 			assert_balance!(ALICE, ASSET_ID, 200); // 100 (original) + 100 (allowed from this deposit)
 			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
 			assert_eq!(state, AssetLockdownState::Locked(23)); // 13 (current block) + 10 (period)
+			expect_events(vec![
+				CircuitBreakerEvent::AssetLockdowned {
+					asset_id: ASSET_ID,
+					until: 23,
+				}
+				.into(),
+				orml_tokens::Event::<Test>::Deposited {
+					currency_id: ASSET_ID,
+					who: ALICE,
+					amount: 101,
+				}
+				.into(),
+			]);
 		});
 }
 
@@ -233,6 +299,35 @@ fn lockdown_should_be_ignored_when_no_limit_set_for_asset() {
 		let balance = Tokens::free_balance(10000, &ALICE);
 		assert_eq!(balance, 401);
 	});
+}
+
+#[test]
+fn unlock_event_should_be_emitted_when_asset_unlocked() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			System::set_block_number(2);
+
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 101));
+			let balance = Tokens::free_balance(10000, &ALICE);
+			assert_eq!(balance, 100);
+
+			System::set_block_number(13);
+
+			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 1));
+
+			expect_events(vec![
+				CircuitBreakerEvent::AssetLockdownRemoved { asset_id: ASSET_ID }.into(),
+				orml_tokens::Event::<Test>::Deposited {
+					currency_id: ASSET_ID,
+					who: ALICE,
+					amount: 1,
+				}
+				.into(),
+			]);
+		});
 }
 
 //TODO: fix once we have clarity
