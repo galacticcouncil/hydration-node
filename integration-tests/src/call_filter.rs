@@ -7,6 +7,7 @@ use frame_support::{
 	traits::{Contains, StorePreimage},
 };
 use hydradx_runtime::{origins, Preimage};
+use hydradx_traits::router::{AssetPair, PoolType, Route, Trade};
 use polkadot_xcm::v3::prelude::*;
 use polkadot_xcm::VersionedXcm;
 use primitives::constants::currency::UNITS;
@@ -333,6 +334,27 @@ fn burn_nft_should_be_filtered_out() {
 			collection: 2222,
 			item: 1,
 			check_owner: None,
+		});
+
+		assert!(!hydradx_runtime::CallFilter::contains(&call));
+	});
+}
+
+#[test]
+fn router_set_route_should_be_filtered_out() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// the values here don't need to make sense, all we need is a valid Call
+		let call = hydradx_runtime::RuntimeCall::Router(pallet_route_executor::Call::set_route {
+			asset_pair: AssetPair::new(LRNA, DOT),
+			new_route: vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in: LRNA,
+				asset_out: DOT,
+			}]
+			.try_into()
+			.unwrap(),
 		});
 
 		assert!(!hydradx_runtime::CallFilter::contains(&call));

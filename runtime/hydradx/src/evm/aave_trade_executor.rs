@@ -176,10 +176,7 @@ where
 	}
 
 	pub fn is_atoken(address: EvmAddress) -> bool {
-		let Some(atoken) = HydraErc20Mapping::address_to_asset(address) else {
-			return false;
-		};
-		Self::get_underlying_asset(atoken).is_some()
+		false
 	}
 
 	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {
