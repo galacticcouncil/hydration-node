@@ -43,7 +43,7 @@ pub mod fuses;
 #[cfg(test)]
 mod tests;
 pub mod traits;
-mod types;
+pub mod types;
 
 /// Max trade volume limit multiplier of liquidity that can be traded in a block
 pub const MAX_LIMIT_VALUE: u32 = 10_000;
@@ -238,6 +238,9 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 
 		type DepositLimiter: AssetDepositLimiter<Self::AccountId, Self::AssetId, Self::Balance>;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		type BenchmarkHelper: types::BenchmarkHelper<Self::AccountId, Self::AssetId, Self::Balance>;
 	}
 
 	#[pallet::pallet]
@@ -468,7 +471,7 @@ pub mod pallet {
 		///
 		/// /// Emits `AssetLockdowned` event when successful.
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
+		#[pallet::weight(<T as Config>::WeightInfo::lockdown_asset())]
 		pub fn lockdown_asset(origin: OriginFor<T>, asset_id: T::AssetId, until: BlockNumberFor<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 			Self::do_lockdown_asset(asset_id, until)
@@ -485,7 +488,7 @@ pub mod pallet {
 		///
 		///Emits `AssetLockdownRemoved` event when successful.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
+		#[pallet::weight(<T as Config>::WeightInfo::force_lift_lockdown())]
 		pub fn force_lift_lockdown(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -502,7 +505,7 @@ pub mod pallet {
 
 		//TODO: add doc and unit tests
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())] //TODO: add benchmark
+		#[pallet::weight(<T as Config>::WeightInfo::save_deposit())]
 		pub fn save_deposit(
 			origin: OriginFor<T>,
 			who: T::AccountId,

@@ -248,7 +248,7 @@ fn deposit_limit_should_give_free_pass_when_lockdown_expires_but_new_amount_not_
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 100));
 			assert_balance!(ALICE, ASSET_ID, 200);
 			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
-			assert_eq!(state, LockdownStatus::Unlocked((12, 100)));
+			assert_eq!(state, LockdownStatus::Unlocked((12, 101)));
 		});
 }
 

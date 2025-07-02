@@ -21,6 +21,9 @@ pub trait WeightInfo {
 	fn ensure_pool_state_change_limit() -> Weight;
 	fn ensure_add_liquidity_limit() -> Weight;
 	fn ensure_remove_liquidity_limit() -> Weight;
+	fn lockdown_asset() -> Weight;
+	fn force_lift_lockdown() -> Weight;
+	fn save_deposit() -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -133,6 +136,49 @@ impl WeightInfo for () {
 		//  Estimated: `6076`
 		// Minimum execution time: 19_731_000 picoseconds.
 		Weight::from_parts(19_901_000, 6076)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+
+	/// Storage: `CircuitBreaker::AssetLockdownState` (r:0 w:1)
+	/// Proof: `CircuitBreaker::AssetLockdownState` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
+	fn lockdown_asset() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 5_000_000 picoseconds.
+		Weight::from_parts(5_000_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `CircuitBreaker::AssetLockdownState` (r:1 w:1)
+	/// Proof: `CircuitBreaker::AssetLockdownState` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:1 w:0)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	fn force_lift_lockdown() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `956`
+		//  Estimated: `3590`
+		// Minimum execution time: 25_000_000 picoseconds.
+		Weight::from_parts(26_000_000, 3590)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `CircuitBreaker::AssetLockdownState` (r:1 w:0)
+	/// Proof: `CircuitBreaker::AssetLockdownState` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Reserves` (r:1 w:1)
+	/// Proof: `Tokens::Reserves` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
+	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Accounts` (r:1 w:1)
+	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
+	fn save_deposit() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1135`
+		//  Estimated: `4726`
+		// Minimum execution time: 31_000_000 picoseconds.
+		Weight::from_parts(32_000_000, 4726)
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}

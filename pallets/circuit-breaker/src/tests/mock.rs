@@ -22,9 +22,9 @@ pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency};
+use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::H256;
-use sp_runtime::traits::{ConstU128, ConstU32, Zero};
+use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, Zero};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -35,6 +35,8 @@ use sp_runtime::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use frame_support::PalletId;
+
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
@@ -64,6 +66,9 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 pub const FIVE_PERCENT: (u32, u32) = (500, 10_000);
 pub const TEN_PERCENT: (u32, u32) = (1_000, 10_000);
 
+pub const DEFAULT_ASSET_DEPOSIT_PERIOD: BlockNumberFor<Test> = 10;
+
+
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
@@ -79,7 +84,6 @@ thread_local! {
 	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((2_000, 10_000))) }; // 20%
 	pub static ASSET_DEPOSIT_LIMIT: RefCell<HashMap<AssetId, Balance>> = RefCell::new(HashMap::default());
 	pub static ASSET_DEPOSIT_PERIOD: RefCell<u128> = RefCell::new(u128::zero());
-	pub static RESERVED_FUNDS: RefCell<HashMap<AccountId, Balance>> = RefCell::new(HashMap::default());
 }
 
 frame_support::construct_runtime!(
@@ -91,8 +95,31 @@ frame_support::construct_runtime!(
 		Tokens: orml_tokens,
 		CircuitBreaker: pallet_circuit_breaker,
 		Broadcast: pallet_broadcast,
+		Currencies: pallet_currencies
 	}
 );
+
+parameter_types! {
+	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
+		pub NativeCurrencyId: AssetId = HDX;
+		pub NamedReserveId: [u8;8] = *b"test_res";
+		pub const MaxReserves: u32 = 50;
+}
+pub type Amount = i128;
+
+use orml_traits::NamedBasicReservableCurrency;
+impl pallet_currencies::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
+}
+
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -151,8 +178,35 @@ impl pallet_circuit_breaker::Config for Test {
 	type OmnipoolHubAsset = OmnipoolHubAsset;
 	type WeightInfo = ();
 	type DepositLimiter = DepositLimiter;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = BenchmarkHelperMock;
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+pub struct BenchmarkHelperMock;
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AccountId, AssetId, Balance> for BenchmarkHelperMock {
+	fn deposit(who: AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
+		Tokens::deposit(asset_id, &who, amount)
+	}
+
+	fn register_asset(asset_id: AssetId, limit: Balance) -> DispatchResult {
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().insert(asset_id, asset_id);
+		});
+
+		ASSET_DEPOSIT_PERIOD.with(|v| {
+			*v.borrow_mut() = DEFAULT_ASSET_DEPOSIT_PERIOD.into();
+		});
+
+		ASSET_DEPOSIT_LIMIT.with(|v| {
+			v.borrow_mut().insert(asset_id, limit);
+		});
+
+		Ok(())
+	}
+}
 pub struct CircuitBreakerWhitelist;
 
 impl Contains<AccountId> for CircuitBreakerWhitelist {
@@ -192,8 +246,8 @@ impl orml_tokens::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier =  [u8; 8];
 	type CurrencyHooks = Hooks;
 }
 
@@ -394,7 +448,11 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 use crate::traits::{AssetDepositLimiter, NoDepositLimit, NoIssuance, NoIssuanceIncreaseLimit};
 use crate::Config;
 use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
+
+#[cfg(feature = "runtime-benchmarks")]
+use crate::types::BenchmarkHelper;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
@@ -758,12 +816,7 @@ impl Happened<AssetId> for LimitReachedHandler {
 pub struct OnLockdownDepositHandler;
 impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
 	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
-		RESERVED_FUNDS.with(|v| {
-			let mut map = v.borrow_mut();
-			map.entry(t.1).and_modify(|e| *e += t.2).or_insert(t.2);
-		});
-
-		Tokens::withdraw(t.0, &t.1, t.2)?;
+		Currencies::reserve_named(&NamedReserveId::get(), t.0, &t.1, t.2)?;
 		Ok(())
 	}
 }
@@ -771,12 +824,9 @@ impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
 pub struct OnReleaseDepositHandler;
 impl Handler<(AssetId, AccountId, Balance)> for OnReleaseDepositHandler {
 	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
-		RESERVED_FUNDS.with(|v| {
-			let mut map = v.borrow_mut();
-			map.entry(t.1).and_modify(|e| *e -= t.2).or_insert(t.2);
-		});
+		//TODO:  we can check this feature in unit test better
+		Currencies::unreserve_named(&NamedReserveId::get(), t.0, &t.1, t.2);
 
-		Tokens::deposit(t.0, &t.1, t.2)?;
 		Ok(())
 	}
 }

@@ -33,6 +33,7 @@ orml-traits = { workspace = true }
 
 [dev-dependencies]
 pallet-omnipool = { workspace = true }
+pallet-currencies = { workspace = true }
 pallet-broadcast = { workspace = true }
 pallet-balances = { workspace = true }
 orml-tokens = { workspace = true }

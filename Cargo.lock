@@ -7745,6 +7745,7 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "pallet-broadcast",
+ "pallet-currencies",
  "pallet-omnipool",
  "parity-scale-codec",
  "pretty_assertions",

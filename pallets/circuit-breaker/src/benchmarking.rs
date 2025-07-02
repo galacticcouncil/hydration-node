@@ -23,6 +23,8 @@ use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::Hooks;
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
+use crate::types::BenchmarkHelper;
+
 
 fn whitelist_storage_maps<T: Config>() {
 	// Whitelist storage map from further DB operations.
@@ -187,6 +189,76 @@ benchmarks! {
 
 		assert!(before_in != after_in);
 		assert!(before_out != after_out);
+	}
+
+
+	lockdown_asset {
+		let account: T::AccountId = account("seller", 0, 0);
+
+		let asset = T::AssetId::from(1);
+
+		let state = AssetLockdownState::<T>::get(asset);
+		assert_eq!(state, None);
+	}: {
+		crate::Pallet::<T>::lockdown_asset(RawOrigin::Root.into(), asset.into(), 100u32.into())?
+	}
+	verify {
+		let state = AssetLockdownState::<T>::get(asset);
+
+		assert_eq!(state, Some(LockdownStatus::Locked(100u32.into())));
+	}
+
+	force_lift_lockdown {
+		frame_system::Pallet::<T>::set_block_number(1u32.into());
+
+		let account: T::AccountId = account("seller", 0, 0);
+
+		let asset = T::AssetId::from(95);
+		T::BenchmarkHelper::register_asset(asset, 100_000_000_000_000u128.into())?;
+
+		T::BenchmarkHelper::deposit(account,asset, 101_000_000_000_000u128.into())?;
+
+		let period: u32 = <T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::Period::get().try_into().unwrap();
+				let delay = period + 1u32;
+
+		let state = AssetLockdownState::<T>::get(asset).unwrap();
+		assert_eq!(state, LockdownStatus::Locked(delay.into()));
+	}: {
+		let bn = frame_system::Pallet::<T>::block_number();
+
+		crate::Pallet::<T>::force_lift_lockdown(RawOrigin::Root.into(), asset.into())?
+	}
+	verify {
+		let state = AssetLockdownState::<T>::get(asset);
+		assert_eq!(state, Some(LockdownStatus::Unlocked((1u32.into(), 101_000_000_000_000u128.into()))));
+	}
+
+	save_deposit {
+		frame_system::Pallet::<T>::set_block_number(1u32.into());
+
+		let account: T::AccountId = account("seller", 0, 0);
+
+		let asset = T::AssetId::from(95);
+		T::BenchmarkHelper::register_asset(asset, 100_000_000_000_000u128.into())?;
+
+		T::BenchmarkHelper::deposit(account.clone(),asset, 101_000_000_000_000u128.into())?;
+		let period: u32 = <T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::Period::get().try_into().unwrap();
+		let delay = period + 1u32;
+		let state = AssetLockdownState::<T>::get(asset);
+		assert_eq!(state, Some(LockdownStatus::Locked(delay.into())));
+
+		let lockdown_over = delay + 1u32;
+		frame_system::Pallet::<T>::set_block_number(lockdown_over.into());
+		T::BenchmarkHelper::deposit(account.clone(),asset, 1_000_000_000_000u128.into())?;//we need this to remove lockdown
+
+		let state = AssetLockdownState::<T>::get(asset);
+		assert_eq!(state, Some(LockdownStatus::Unlocked((lockdown_over.into(), 101_000_000_000_000u128.into()))));
+
+	}: {
+		crate::Pallet::<T>::save_deposit(RawOrigin::Root.into(), account, asset.into(), 1_000_000_000_000u128.into())?
+	}
+	verify {
+		//No verify as if successfull, the extrinsic completed
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
