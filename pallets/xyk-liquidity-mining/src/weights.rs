@@ -26,6 +26,7 @@ pub trait WeightInfo {
 	fn join_farms(c: u32) -> Weight;	
 	fn add_liquidity_and_join_farms(c: u32) -> Weight;
 	fn exit_farms(c: u32) -> Weight;
+	fn price_adjustment_get() -> Weight;
 }
 
 /// Weights for `pallet_xyk_liquidity_mining` using the HydraDX node and recommended hardware.
@@ -580,5 +581,19 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 			.saturating_add(RocksDbWeight::get().writes((3_u64).saturating_mul(c.into())))
 			.saturating_add(Weight::from_parts(0, 2792).saturating_mul(c.into()))
+	}
+	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
+	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Oracles` (r:19 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(177), added: 2652, mode: `MaxEncodedLen`)
+	/// Storage: `Router::Routes` (r:1 w:0)
+	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(142), added: 2617, mode: `MaxEncodedLen`)
+	fn price_adjustment_get() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `5397`
+		//  Estimated: `51378`
+		// Minimum execution time: 188_184_000 picoseconds.
+		Weight::from_parts(188_184_000, 51378)
+			.saturating_add(RocksDbWeight::get().reads(21_u64))
 	}
 }
