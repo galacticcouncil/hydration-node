@@ -48,7 +48,7 @@ pub type SnapshotVersion = Compact<u16>;
 pub const SNAPSHOT_VERSION: SnapshotVersion = Compact(3);
 
 /// The snapshot that we store on disk.
-#[derive(Decode, Encode)]
+#[derive(Decode, Encode, Clone)]
 pub struct Snapshot<B: BlockT> {
 	snapshot_version: SnapshotVersion,
 	state_version: StateVersion,
@@ -140,6 +140,24 @@ pub fn load_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Resul
 
 	Ok(ext_from_snapshot)
 }
+
+pub fn get_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Result<Snapshot<B>, &'static str> {
+	let s  = Snapshot::<B>::load_from_bytes(bytes)?;
+	Ok(s)
+}
+
+pub fn create_externalities_from_snapshot<B: BlockT<Hash = H256>>(snapshot: &Snapshot<B>) -> Result<TestExternalities, &'static str> {
+	let Snapshot {
+		snapshot_version: _,
+		block_hash: _,
+		state_version,
+		raw_storage,
+		storage_root,
+	} = snapshot;
+	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage.to_vec(), *storage_root, *state_version);
+	Ok(ext_from_snapshot)
+}
+
 
 pub fn extend_externalities<B: BlockT>(
 	mut ext: TestExternalities,
