@@ -612,7 +612,7 @@ impl<T: Config> Pallet<T> {
 			liquidity_a,
 			liquidity_b,
 			Ratio::new(liquidity_a, liquidity_b),
-			liquidity_amount,
+			Some(liquidity_amount),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -707,7 +707,7 @@ impl<T: Config> Pallet<T> {
 			liquidity_a,
 			liquidity_b,
 			Ratio::new(liquidity_a, liquidity_b),
-			liquidity_left,
+			Some(liquidity_left),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -960,7 +960,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			liquidity_in,
 			liquidity_out,
 			Ratio::new(liquidity_in, liquidity_out),
-			Self::total_liquidity(&pair_account),
+			Some(Self::total_liquidity(&pair_account)),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -1141,7 +1141,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			liquidity_in,
 			liquidity_out,
 			Ratio::new(liquidity_in, liquidity_out),
-			Self::total_liquidity(&pair_account),
+			Some(Self::total_liquidity(&pair_account)),
 		)
 		.map_err(|(_w, e)| e)?;
 
