@@ -1,6 +1,6 @@
 use crate::tests::mock::{CircuitBreaker, ExtBuilder, RuntimeOrigin, System, Test, Tokens, ALICE};
-use crate::types::AssetLockdownState;
-use crate::{Error, Event, LastAssetLockdownState};
+use crate::types::LockdownStatus;
+use crate::{AssetLockdownState, Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 
@@ -17,10 +17,10 @@ fn lockdown_asset_should_fork_for_new_asset() {
 			assert_ok!(CircuitBreaker::lockdown_asset(RuntimeOrigin::root(), ASSET_ID, 120));
 
 			// Assert
-			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
-			assert_eq!(state, AssetLockdownState::Locked(120));
+			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, LockdownStatus::Locked(120));
 			System::assert_last_event(
-				Event::AssetLockdowned {
+				Event::AssetLockdown {
 					asset_id: ASSET_ID,
 					until: 120,
 				}
@@ -39,17 +39,17 @@ fn lockdown_asset_should_fork_for_unlocked_asset() {
 			// Arrange
 			System::set_block_number(2);
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
-			assert_eq!(state, AssetLockdownState::Unlocked((2, 0)));
+			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, LockdownStatus::Unlocked((2, 0)));
 
 			// Act
 			assert_ok!(CircuitBreaker::lockdown_asset(RuntimeOrigin::root(), ASSET_ID, 120));
 
 			// Assert
-			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
-			assert_eq!(state, AssetLockdownState::Locked(120));
+			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, LockdownStatus::Locked(120));
 			System::assert_last_event(
-				Event::AssetLockdowned {
+				Event::AssetLockdown {
 					asset_id: ASSET_ID,
 					until: 120,
 				}
@@ -68,17 +68,17 @@ fn lockdown_asset_should_fork_for_locked_asset() {
 			// Arrange
 			System::set_block_number(2);
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 101));
-			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
-			assert_eq!(state, AssetLockdownState::Locked(12));
+			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, LockdownStatus::Locked(12));
 
 			// Act
 			assert_ok!(CircuitBreaker::lockdown_asset(RuntimeOrigin::root(), ASSET_ID, 35));
 
 			// Assert
-			let state = LastAssetLockdownState::<Test>::get(ASSET_ID).unwrap();
-			assert_eq!(state, AssetLockdownState::Locked(35));
+			let state = AssetLockdownState::<Test>::get(ASSET_ID).unwrap();
+			assert_eq!(state, LockdownStatus::Locked(35));
 			System::assert_last_event(
-				Event::AssetLockdowned {
+				Event::AssetLockdown {
 					asset_id: ASSET_ID,
 					until: 35,
 				}

@@ -25,8 +25,8 @@ use frame_support::{dispatch::Pays, ensure, pallet_prelude::DispatchResult, trai
 use frame_system::ensure_signed_or_root;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use orml_traits::currency::OnDeposit;
-use orml_traits::GetByKey;
 use orml_traits::Handler;
+use orml_traits::{GetByKey, Happened};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
@@ -130,6 +130,8 @@ where
 }
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
+use crate::traits::AssetDepositLimiter;
+use crate::types::LockdownStatus;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -280,14 +282,9 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn last_asset_issuance)]
-	pub type LastAssetLockdownState<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AssetId,
-		crate::types::AssetLockdownState<BlockNumberFor<T>, T::Balance>,
-		OptionQuery,
-	>;
+	#[pallet::getter(fn asset_lockdown_state)]
+	pub type AssetLockdownState<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, LockdownStatus<BlockNumberFor<T>, T::Balance>, OptionQuery>;
 
 	/// Default maximum remove liquidity limit per block
 	#[pallet::type_value]
@@ -327,7 +324,7 @@ pub mod pallet {
 			liquidity_limit: Option<(u32, u32)>,
 		},
 		/// Asset went to lockdown
-		AssetLockdowned {
+		AssetLockdown {
 			asset_id: T::AssetId,
 			until: BlockNumberFor<T>,
 		},
@@ -474,15 +471,10 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
 		pub fn lockdown_asset(origin: OriginFor<T>, asset_id: T::AssetId, until: BlockNumberFor<T>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
-
-			LastAssetLockdownState::<T>::insert(asset_id, crate::types::AssetLockdownState::Locked(until));
-
-			Self::deposit_event(Event::AssetLockdowned { asset_id, until });
-
-			Ok(())
+			Self::do_lockdown_asset(asset_id, until)
 		}
 
-		/// Remove asset lockdown.
+		/// Remove asset lockdown regardless of the state.
 		///
 		/// Can be called only by an authority origin
 		///
@@ -494,39 +486,18 @@ pub mod pallet {
 		///Emits `AssetLockdownRemoved` event when successful.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
-		pub fn remove_asset_lockdown(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+		pub fn force_lift_lockdown(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
-			let last_state = LastAssetLockdownState::<T>::get(asset_id);
+			let Some(last_state) = AssetLockdownState::<T>::get(asset_id) else {
+				return Err(Error::<T>::AssetNotInLockdown.into());
+			};
+			ensure!(
+				matches!(last_state, crate::types::LockdownStatus::Locked(_)),
+				Error::<T>::AssetNotInLockdown
+			);
 
-			match last_state {
-				Some(crate::types::AssetLockdownState::Locked(_)) => {
-					let period = <T::DepositLimiter as crate::traits::AssetDepositLimiter<
-						T::AccountId,
-						T::AssetId,
-						T::Balance,
-					>>::Period::get();
-					let current_block = <frame_system::Pallet<T>>::block_number();
-
-					let future_start_block = current_block.saturating_add(period.saturated_into());
-
-					let asset_issuance = <T::DepositLimiter as crate::traits::AssetDepositLimiter<
-						T::AccountId,
-						T::AssetId,
-						T::Balance,
-					>>::Issuance::get(&asset_id);
-
-					LastAssetLockdownState::<T>::insert(
-						asset_id,
-						crate::types::AssetLockdownState::Unlocked((future_start_block, asset_issuance)),
-					);
-
-					Self::deposit_event(Event::AssetLockdownRemoved { asset_id });
-
-					Ok(())
-				}
-				_ => Err(Error::<T>::AssetNotInLockdown.into()),
-			}
+			Self::do_lift_lockdown(asset_id, T::Balance::default())
 		}
 
 		//TODO: add doc and unit tests
@@ -542,16 +513,17 @@ pub mod pallet {
 
 			ensure!(amount > T::Balance::zero(), Error::<T>::InvalidAmount);
 			let current_block = <frame_system::Pallet<T>>::block_number();
-			let last_state = LastAssetLockdownState::<T>::get(asset_id);
+			let last_state = AssetLockdownState::<T>::get(asset_id);
 
-			if let Some(crate::types::AssetLockdownState::Locked(until)) = last_state {
+			if let Some(LockdownStatus::Locked(until)) = last_state {
 				if until >= current_block {
 					return Err(Error::<T>::AssetInLockdown.into());
 				}
 			}
 
-			<T::DepositLimiter as crate::traits::AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>
-				>::OnDepositRelease::handle(&(asset_id, who.clone(), amount))?;
+			<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::OnDepositRelease::handle(
+				&(asset_id, who.clone(), amount),
+			)?;
 
 			Ok(Pays::No.into())
 		}
@@ -766,5 +738,43 @@ impl<T: Config> Pallet<T> {
 				Ok(true)
 			}
 		}
+	}
+
+	pub(crate) fn do_reset_deposit_limits(asset_id: T::AssetId, extra_amount: T::Balance) -> DispatchResult {
+		let asset_issuance =
+			<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::Issuance::get(&asset_id);
+
+		AssetLockdownState::<T>::insert(
+			asset_id,
+			LockdownStatus::Unlocked((
+				<frame_system::Pallet<T>>::block_number(),
+				asset_issuance.saturating_sub(extra_amount),
+			)),
+		);
+
+		Ok(())
+	}
+
+	pub(crate) fn do_lockdown_asset(asset_id: T::AssetId, until: BlockNumberFor<T>) -> DispatchResult {
+		AssetLockdownState::<T>::insert(asset_id, LockdownStatus::Locked(until));
+		<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::OnLimitReached::happened(
+			&(asset_id),
+		);
+		Pallet::<T>::deposit_event(Event::AssetLockdown { asset_id, until });
+		Ok(())
+	}
+
+	pub(crate) fn do_lift_lockdown(asset_id: T::AssetId, extra_amount: T::Balance) -> DispatchResult {
+		Self::do_reset_deposit_limits(asset_id, extra_amount)?;
+		Pallet::<T>::deposit_event(Event::AssetLockdownRemoved { asset_id });
+		Ok(())
+	}
+
+	pub(crate) fn do_lock_deposit(who: &T::AccountId, asset_id: T::AssetId, amount: T::Balance) -> DispatchResult {
+		<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::OnLockdownDeposit::handle(&(
+			asset_id,
+			who.clone(),
+			amount,
+		))
 	}
 }

@@ -1,7 +1,7 @@
 use crate::tests::mock::CircuitBreaker;
 use crate::tests::mock::{ExtBuilder, System, Test, Tokens, ALICE, BOB};
-use crate::types::AssetLockdownState;
-use crate::{Error, LastAssetLockdownState};
+use crate::types::LockdownStatus;
+use crate::{AssetLockdownState, Error};
 use frame_support::dispatch::RawOrigin;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
