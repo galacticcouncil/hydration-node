@@ -27,6 +27,7 @@ frame-support = { workspace = true }
 sp-io = { workspace = true }
 sp-rpc = { workspace = true }
 sp-core = { workspace = true }
+sp-trie= { workspace = true }
 sp-state-machine = { workspace = true }
 substrate-rpc-client = { workspace = true }
 fp-rpc = { workspace = true }

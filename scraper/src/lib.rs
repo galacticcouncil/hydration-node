@@ -16,6 +16,7 @@ use std::{
 	path::{Path, PathBuf},
 	str::FromStr,
 };
+use frame_support::__private::log;
 use substrate_rpc_client::ws_client;
 use substrate_rpc_client::StateApi;
 
@@ -137,13 +138,52 @@ pub fn load_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Resul
 	} = Snapshot::<B>::load_from_bytes(bytes)?;
 
 	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage, storage_root, state_version);
-
 	Ok(ext_from_snapshot)
 }
 
 pub fn get_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Result<Snapshot<B>, &'static str> {
 	let s  = Snapshot::<B>::load_from_bytes(bytes)?;
 	Ok(s)
+}
+
+pub fn construct_backend_from_snapshot<B: BlockT<Hash = H256>>(snapshot: Snapshot<B>) -> Result<(sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>, StateVersion, H256), &'static str> {
+	let Snapshot {
+		snapshot_version: _,
+		block_hash: _,
+		state_version,
+		raw_storage,
+		storage_root,
+	} = snapshot;
+	let mut backend = PrefixedMemoryDB::default();
+
+	for (key, (v, ref_count)) in raw_storage {
+		let mut hash = H256::default();
+		let hash_len = hash.as_ref().len();
+
+		if key.len() < hash_len {
+			log::warn!("Invalid key in `from_raw_snapshot`: {key:?}");
+			continue
+		}
+
+		hash.as_mut().copy_from_slice(&key[(key.len() - hash_len)..]);
+
+		// Each time .emplace is called the internal MemoryDb ref count increments.
+		// Repeatedly call emplace to initialise the ref count to the correct value.
+		for _ in 0..ref_count {
+			backend.emplace(hash, (&key[..(key.len() - hash_len)], None), v.clone());
+		}
+	}
+	Ok((backend, state_version, storage_root))
+}
+
+pub fn create_externalities_with_backend<B: BlockT<Hash = H256>>(backend: sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>,
+	storage_root: H256,
+	state_version: StateVersion ) -> TestExternalities {
+	TestExternalities{
+		backend: TrieBackendBuilder::new(backend, storage_root).build(),
+		state_version,
+		..Default::default()
+	}
 }
 
 pub fn create_externalities_from_snapshot<B: BlockT<Hash = H256>>(snapshot: &Snapshot<B>) -> Result<TestExternalities, &'static str> {
@@ -157,7 +197,6 @@ pub fn create_externalities_from_snapshot<B: BlockT<Hash = H256>>(snapshot: &Sna
 	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage.to_vec(), *storage_root, *state_version);
 	Ok(ext_from_snapshot)
 }
-
 
 pub fn extend_externalities<B: BlockT>(
 	mut ext: TestExternalities,
@@ -219,6 +258,8 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 }
 use futures::stream::{self};
 use indicatif::{ProgressBar, ProgressStyle};
+use sp_state_machine::{TrieBackend, TrieBackendBuilder};
+use sp_trie::{HashDBT, PrefixedMemoryDB};
 
 const PAGE_SIZE: u32 = 1000; //Limiting as bigger values lead to error when calling PROD RPCs
 const CONCURRENCY: usize = 1000;
