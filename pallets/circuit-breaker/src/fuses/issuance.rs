@@ -54,27 +54,24 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 				&currency_id,
 			);
 
-		let Some(asset_state) = AssetLockdownState::<T>::get(currency_id) else {
-			// This happens only once - to set the initial state
-			// Still check if this new deposit does not exceed the limit
-			// Set the issuance without this amount because we want the amount to count towards the limit per period.
-			if amount > limit {
-				let to_lock = amount.saturating_sub(limit);
-				Pallet::<T>::do_lock_deposit(&who, currency_id, to_lock)?;
-				Pallet::<T>::do_lockdown_asset(currency_id, lockdown_until)?;
-			} else {
-				Pallet::<T>::do_reset_deposit_limits(currency_id, amount)?;
+		match AssetLockdownState::<T>::get(currency_id) {
+			None => {
+				// This happens only once - to set the initial state
+				// Still check if this new deposit does not exceed the limit
+				// Set the issuance without this amount because we want the amount to count towards the limit per period.
+				if amount > limit {
+					let to_lock = amount.saturating_sub(limit);
+					Pallet::<T>::do_lock_deposit(&who, currency_id, to_lock)?;
+					Pallet::<T>::do_lockdown_asset(currency_id, lockdown_until)?;
+				} else {
+					Pallet::<T>::do_reset_deposit_limits(currency_id, amount)?;
+				}
 			}
-
-			return Ok(());
-		};
-
-		match asset_state {
-			LockdownStatus::Locked(until) if until > current_block => {
+			Some(LockdownStatus::Locked(until)) if until > current_block => {
 				// Asset in lockdown
 				Pallet::<T>::do_lock_deposit(&who, currency_id, amount)?;
 			}
-			LockdownStatus::Locked(_) => {
+			Some(LockdownStatus::Locked(_)) => {
 				// Lockdown expired
 				// Check if this new deposit does not exceed the limit and lock it down again if it does.
 				if amount > limit {
@@ -85,7 +82,7 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 					Pallet::<T>::do_lift_lockdown(currency_id, amount)?;
 				}
 			}
-			LockdownStatus::Unlocked((last_reset_at, _))
+			Some(LockdownStatus::Unlocked((last_reset_at, _)))
 				if last_reset_at.saturating_add(period.saturated_into()) <= current_block =>
 			{
 				// The period is over, so we can reset the limit.
@@ -98,7 +95,7 @@ impl<T: Config> OnDeposit<T::AccountId, T::AssetId, T::Balance> for IssuanceIncr
 					Pallet::<T>::do_reset_deposit_limits(currency_id, amount)?;
 				}
 			}
-			LockdownStatus::Unlocked((_, last_issuance)) => {
+			Some(LockdownStatus::Unlocked((_, last_issuance))) => {
 				// If the period is not over, we check the limit by comparing issuance increase.
 				let issuance_increase_in_period = asset_issuance.saturating_sub(last_issuance);
 				if issuance_increase_in_period > limit {
