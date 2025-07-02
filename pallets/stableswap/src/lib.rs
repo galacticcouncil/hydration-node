@@ -71,7 +71,7 @@ use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
 
-#[cfg(test)]
+#[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::FixedU128;
 
 mod trade_execution;
