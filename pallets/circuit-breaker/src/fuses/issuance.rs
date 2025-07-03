@@ -7,15 +7,8 @@ use orml_traits::currency::OnDeposit;
 use orml_traits::{GetByKey, Handler, Happened};
 use sp_runtime::{SaturatedConversion, Saturating};
 use sp_std::marker::PhantomData;
-//TODO: burned tokens deduct from limit to prevent DOS
-
-//TODO: consider the solution for HDX too as that it is not involved in orml tokens
 
 //TODO: check every he usage of saturaring
-
-//TODO: CREATE ISSUE I guess if the supply increased (or decreased ) and the token is type external it was bridged in or out.
-
-//TODO:
 
 //TODO: add prop tests, also for save deposit, so only the claimed and specified amount is returned
 

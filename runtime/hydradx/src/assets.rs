@@ -131,7 +131,7 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 }
 
 parameter_types! {
-	pub Period : BlockNumber = 100;
+	pub Period : BlockNumber = DAYS;
 
 	pub DepositCircuitBreakerNamedReserveId: [u8; 8] = *b"depositc";
 

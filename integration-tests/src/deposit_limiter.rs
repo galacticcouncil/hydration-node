@@ -10,6 +10,7 @@ use hydradx_runtime::Stableswap;
 use hydradx_runtime::{
 	AssetRegistry, Balances, CircuitBreaker, Currencies, Omnipool, OmnipoolCollectionId, Tokens, Uniques,
 };
+use primitives::constants::time::DAYS;
 
 use pallet_stableswap::types::BoundedPegSources;
 
@@ -91,7 +92,7 @@ fn circuit_breaker_allows_deposit_when_period_is_over() {
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
 		//Act
-		set_relaychain_block_number(103);
+		set_relaychain_block_number(DAYS + 3);
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit));
 
 		//Assert
@@ -117,7 +118,7 @@ fn circuit_breaker_triggers_when_period_is_over_but_first_deposit_reaches_limit(
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(103);
+		set_relaychain_block_number(DAYS + 3);
 
 		//Act
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + 5 * UNITS));
@@ -338,7 +339,7 @@ fn save_deposit_should_fail_when_in_the_last_block_of_lockdown() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(104);
+		set_relaychain_block_number(DAYS + 4);
 
 		//Act
 		assert_noop!(
@@ -362,7 +363,7 @@ fn save_deposit_should_release_asset_when_lockdown_expires() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		//Act
 		assert_ok!(
@@ -392,7 +393,7 @@ fn save_deposit_should_not_work_when_lockedown_triggered_2nd_time() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, 2 * UNITS);
@@ -422,7 +423,7 @@ fn save_deposit_should_work_when_asset_unclocked() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), UNITS)); //It doesnt trigger circuit breaker, just puts state to unlocked
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
@@ -458,17 +459,17 @@ fn save_deposit_should_work_when_accumulated_through_multiple_periods() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + 2 * UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, 3 * UNITS);
 
-		set_relaychain_block_number(206);
+		set_relaychain_block_number(2 * DAYS + 6);
 
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + 3 * UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, 6 * UNITS);
 
-		set_relaychain_block_number(307);
+		set_relaychain_block_number(3 * DAYS + 7);
 
 		//Act
 		assert_ok!(CircuitBreaker::save_deposit(
@@ -501,7 +502,7 @@ fn save_deposit_should_fail_when_amount_is_more_than_reserved() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		//Act and assert
 		assert_noop!(
@@ -525,7 +526,7 @@ fn save_deposit_should_fail_when_amount_is_less_than_reserved() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		//Act and assert
 		assert_noop!(
@@ -546,7 +547,7 @@ fn save_deposit_should_fail_when_amount_is_zero() {
 		let deposit_limit = 100_000_000_000_000_000;
 		update_deposit_limit(DAI, deposit_limit).unwrap();
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		//Act and assert
 		assert_noop!(
@@ -567,7 +568,7 @@ fn save_deposit_should_fail_when_nothing_is_reserved() {
 		let deposit_limit = 100_000_000_000_000_000;
 		update_deposit_limit(DAI, deposit_limit).unwrap();
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		//Act and assert
 		assert_noop!(
@@ -588,7 +589,7 @@ fn save_deposit_should_fail_when_no_reserved_asset_for_user() {
 		let deposit_limit = 100_000_000_000_000_000;
 		update_deposit_limit(DAI, deposit_limit).unwrap();
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		//Act and assert
 		assert_noop!(
@@ -612,7 +613,7 @@ fn save_deposit_should_work_when_other_user_claims_it() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
-		set_relaychain_block_number(105);
+		set_relaychain_block_number(DAYS + 5);
 
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
