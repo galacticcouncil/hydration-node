@@ -57,7 +57,7 @@ format:
 .PHONY: try-runtime
 try-runtime:
 	$(cargo) build --release --features try-runtime
-	try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks all live --uri wss://archive.rpc.hydration.cloud
+	try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --blocktime 6000 --checks all live --uri wss://archive.rpc.hydration.cloud
 
 .PHONY: build-docs
 build-docs:

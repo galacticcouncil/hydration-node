@@ -23,4 +23,4 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 	type ChannelList = ParachainSystem;
 }
 
-pub type Migrations = ();
+pub type Migrations = (pallet_ema_oracle::migrations::v1::MigrateV0ToV1<Runtime>,);

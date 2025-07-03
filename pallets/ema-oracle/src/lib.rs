@@ -89,6 +89,7 @@ mod tests;
 mod types;
 pub use types::*;
 
+pub mod migrations;
 #[allow(clippy::all)]
 pub mod weights;
 pub use weights::WeightInfo;
@@ -121,6 +122,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 
 	#[pallet::pallet]
+	#[pallet::storage_version(migrations::STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
