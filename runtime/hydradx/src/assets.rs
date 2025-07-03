@@ -23,7 +23,7 @@ use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
-	parameter_types,
+	ensure, parameter_types,
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{
 		app_crypto::sp_core::crypto::UncheckedFrom, traits::Zero, ArithmeticError, DispatchError, DispatchResult,
@@ -54,7 +54,7 @@ pub use hydradx_traits::{
 };
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
-	GetByKey, Happened,
+	GetByKey, Handler, Happened, NamedMultiReservableCurrency,
 };
 use pallet_currencies::BasicCurrencyAdapter;
 use pallet_dynamic_fees::types::FeeParams;
@@ -123,11 +123,62 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
 	type OnSlash = ();
 	type PreDeposit = SufficiencyCheck;
-	type PostDeposit = ();
+	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;
 	type PreTransfer = SufficiencyCheck;
 	type PostTransfer = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
+}
+
+parameter_types! {
+	pub Period : BlockNumber = DAYS;
+
+	pub DepositCircuitBreakerNamedReserveId: [u8; 8] = *b"depositc";
+
+}
+
+pub struct DepositCircuitBreaker;
+
+pub struct OnLockdownDepositHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		Currencies::reserve_named(&DepositCircuitBreakerNamedReserveId::get(), t.0, &t.1, t.2)?;
+
+		Ok(())
+	}
+}
+
+pub struct OnDepositReleaseHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnDepositReleaseHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		let named_reserve_id = DepositCircuitBreakerNamedReserveId::get();
+
+		// The exact amount should be reserved because otherwise it can be DDoS attacked with small amounts
+		// as CircuitBreaker::save_deposit is a free extrinsic.
+		let reserved_balance = Currencies::reserved_balance_named(&named_reserve_id, t.0, &t.1);
+		ensure!(
+			reserved_balance == t.2,
+			pallet_circuit_breaker::Error::<Runtime>::InvalidAmount
+		);
+
+		let remaining_reserved = Currencies::unreserve_named(&named_reserve_id, t.0, &t.1, t.2);
+
+		ensure!(
+			remaining_reserved.is_zero(),
+			pallet_circuit_breaker::Error::<Runtime>::InvalidAmount
+		);
+
+		Ok(())
+	}
+}
+
+impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositCircuitBreaker {
+	type Period = Period;
+	type Issuance = Currencies;
+	type DepositLimit = XcmRateLimitsInRegistry<Runtime>;
+	type OnLimitReached = ();
+	type OnLockdownDeposit = OnLockdownDepositHandler;
+	type OnDepositRelease = OnDepositReleaseHandler;
 }
 
 pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffED";
@@ -555,14 +606,16 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type UpdateLimitsOrigin =
-		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = LRNA;
 	type WeightInfo = weights::pallet_circuit_breaker::HydraWeight<Runtime>;
+	type DepositLimiter = DepositCircuitBreaker;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = CircuitBreakerBenchmarkHelper<Runtime>;
 }
 
 parameter_types! {
@@ -1345,6 +1398,8 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use pallet_asset_registry::XcmRateLimitsInRegistry;
+use pallet_circuit_breaker::traits::AssetDepositLimiter;
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
@@ -1446,6 +1501,41 @@ impl<T: pallet_ema_oracle::Config> pallet_ema_oracle::BenchmarkHelper<AssetId> f
 		};
 
 		let _ = result?;
+		Ok(())
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct CircuitBreakerBenchmarkHelper<T>(PhantomData<T>);
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: pallet_circuit_breaker::Config> pallet_circuit_breaker::types::BenchmarkHelper<AccountId, AssetId, Balance>
+for CircuitBreakerBenchmarkHelper<T>
+{
+	fn deposit(who: AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
+		Tokens::deposit(asset_id, &who, amount)
+	}
+
+	fn register_asset(asset_id: AssetId, deposit_limit: Balance) -> DispatchResult {
+		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id
+			.to_le_bytes()
+			.to_vec()
+			.try_into()
+			.map_err(|_| "BoundedConversionFailed")?;
+
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				Some(asset_id),
+				Some(asset_name.clone()),
+				AssetKind::Token,
+				1,
+				None,
+				None,
+				None,
+				Some(deposit_limit),
+			))
+		})?;
+
 		Ok(())
 	}
 }
