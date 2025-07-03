@@ -652,7 +652,7 @@ parameter_types! {
 	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
-type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+pub(crate) type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
 impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -667,7 +667,12 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance, OmnipoolLmOracle>;
+	type PriceAdjustment = PriceAdjustmentAdapter<
+		Runtime,
+		OmnipoolLiquidityMiningInstance,
+		OmnipoolLmOracle,
+		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+	>;
 }
 
 parameter_types! {
@@ -703,7 +708,7 @@ parameter_types! {
 	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
 }
 
-type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
+pub(crate) type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
 impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -718,7 +723,12 @@ impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime 
 	type MaxYieldFarmsPerGlobalFarm = XYKLmMaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, XYKLiquidityMiningInstance, XYKLmOracle>;
+	type PriceAdjustment = PriceAdjustmentAdapter<
+		Runtime,
+		XYKLiquidityMiningInstance,
+		XYKLmOracle,
+		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+	>;
 }
 
 parameter_types! {
