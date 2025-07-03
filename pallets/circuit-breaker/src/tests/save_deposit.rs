@@ -1,4 +1,4 @@
-use crate::tests::mock::CircuitBreaker;
+use crate::tests::mock::{expect_events, CircuitBreaker};
 use crate::tests::mock::{ExtBuilder, System, Test, Tokens, ALICE, BOB};
 use crate::types::LockdownStatus;
 use crate::{AssetLockdownState, Error};
@@ -39,6 +39,9 @@ fn save_deposit_should_release_amount() {
 			//Assert
 			let balance = Tokens::free_balance(10000, &ALICE);
 			assert_eq!(balance, 110);
+			expect_events(vec![
+				crate::pallet::Event::DepositSaved { who: ALICE, asset_id: crate::tests::deposit_limit::ASSET_ID, amount: 10 }.into(),
+			]);
 		});
 }
 
