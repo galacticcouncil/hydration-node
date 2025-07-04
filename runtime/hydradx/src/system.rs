@@ -120,6 +120,7 @@ impl Contains<RuntimeCall> for CallFilter {
 			//NOTE: this prevents creation of thombstone positions if nft was burned outside
 			//of pallet that created it.
 			RuntimeCall::Uniques(pallet_uniques::Call::burn { .. }) => false,
+			RuntimeCall::Router(pallet_route_executor::Call::set_route { .. }) => false,
 			_ => true,
 		}
 	}
