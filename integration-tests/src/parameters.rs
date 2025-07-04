@@ -55,7 +55,7 @@ fn is_testnet_sets_correct_referenda_params_when_testnet() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Prepare
-		let key = StorageKey(frame_support::storage::storage_prefix(b"Configuration", b"IsTestnet").to_vec());
+		let key = StorageKey(frame_support::storage::storage_prefix(b"Parameters", b"IsTestnet").to_vec());
 		let value = true.encode();
 		sp_io::storage::set(&key.0, &value);
 

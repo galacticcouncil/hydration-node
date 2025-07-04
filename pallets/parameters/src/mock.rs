@@ -25,7 +25,7 @@
 //  $$$$$   $$$$$     $$      $$$$$$$$ $ $$$      $$$$$$$$   $$$  $$$$   $$$$$$$  $$$$   $$$$
 //                  $$$
 
-use crate as config;
+use crate as parameters;
 use frame_support::{parameter_types, traits::Everything, PalletId};
 use frame_system as system;
 use sp_core::H256;
@@ -59,7 +59,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	 {
 		 System: frame_system,
-		 Configuration: config,
+		 Parameters: parameters,
 	 }
 );
 
@@ -77,7 +77,7 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 }
 
-impl config::Config for Test {}
+impl parameters::Config for Test {}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;

@@ -104,7 +104,7 @@ async function updateChainSpec(inputFile, outputFile) {
 
     // Set Configuration.IsTestnet to 1
     const IS_TESTNET_KEY =
-        xxhashAsHex('Configuration', 128).replace('0x', '') +
+        xxhashAsHex('Parameters', 128).replace('0x', '') +
         xxhashAsHex('IsTestnet', 128).replace('0x', '');
     REPLACEMENTS[`0x${IS_TESTNET_KEY}`] = '0x01';
 

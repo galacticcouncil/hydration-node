@@ -38,7 +38,6 @@ pallet-dynamic-evm-fee = { workspace = true }
 pallet-stableswap = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-lbp = { workspace = true }
-pallet-configuration = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-referrals = { workspace = true }
 pallet-broadcast = { workspace = true }
@@ -61,6 +60,7 @@ pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-hsm = {workspace = true}
+pallet-parameters = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -315,12 +315,12 @@ std = [
     "pallet-dynamic-fees/std",
     "pallet-staking/std",
     "pallet-bonds/std",
-    "pallet-configuration/std",
     "pallet-stableswap/std",
     "pallet-lbp/std",
     "pallet-xyk/std",
     "pallet-duster/std",
     "pallet-hsm/std",
+    "pallet-parameters/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
     "sp-arithmetic/std",

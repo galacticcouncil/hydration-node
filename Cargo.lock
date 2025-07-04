@@ -4719,7 +4719,6 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-configuration",
  "pallet-conviction-voting",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
@@ -4755,6 +4754,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-otc-settlements",
+ "pallet-parameters 1.0.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-referenda",
@@ -7841,20 +7841,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-configuration"
-version = "1.0.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-conviction-voting"
 version = "38.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch4#b254c083cd133c390edb5a22a0886f213e05c899"
@@ -8904,6 +8890,20 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-parameters"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -12081,7 +12081,7 @@ dependencies = [
  "pallet-multisig",
  "pallet-nis",
  "pallet-offences",
- "pallet-parameters",
+ "pallet-parameters 0.9.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-ranked-collective",
@@ -17146,7 +17146,7 @@ dependencies = [
  "pallet-nomination-pools-runtime-api",
  "pallet-offences",
  "pallet-offences-benchmarking",
- "pallet-parameters",
+ "pallet-parameters 0.9.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-recovery",

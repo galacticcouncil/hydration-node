@@ -1,12 +1,12 @@
 [package]
-name = "pallet-configuration"
+name = "pallet-parameters"
 version = "1.0.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
 homepage = 'https://github.com/galacticcouncil/hydration-node'
 repository = 'https://github.com/galacticcouncil/hydration-node'
-description = "Pallet for storing Runtime configurations"
+description = "Pallet for storing Runtime parameters"
 readme = "README.md"
 
 [dependencies]
