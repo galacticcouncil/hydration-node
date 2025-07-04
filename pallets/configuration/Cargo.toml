@@ -25,7 +25,6 @@ frame-system = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
-test-utils = { workspace = true }
 
 [features]
 default = ['std']

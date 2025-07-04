@@ -454,10 +454,6 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 	}
 }
 
-pub fn is_testnet() -> bool {
-	Configuration::is_testnet()
-}
-
 use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::aave_trade_executor::PoolData;
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;

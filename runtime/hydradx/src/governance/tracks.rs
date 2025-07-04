@@ -337,7 +337,7 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 	type Id = u16;
 	type RuntimeOrigin = <RuntimeOrigin as frame_support::traits::OriginTrait>::PalletsOrigin;
 	fn tracks() -> &'static [(Self::Id, pallet_referenda::TrackInfo<Balance, BlockNumber>)] {
-		if is_testnet() {
+		if Configuration::is_testnet() {
 			&TESTNET_TRACKS_DATA[..]
 		} else {
 			&TRACKS_DATA[..]

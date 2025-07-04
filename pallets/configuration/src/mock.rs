@@ -3,7 +3,7 @@
 //                $$$$$$$      Licensed under the Apache License, Version 2.0 (the "License")
 //             $$$$$$$$$$$$$        you may only use this file in compliance with the License
 //          $$$$$$$$$$$$$$$$$$$
-//                      $$$$$$$$$       Copyright (C) 2021-2024  Intergalactic, Limited (GIB)
+//                      $$$$$$$$$       Copyright (C) 2021-2025  Intergalactic, Limited (GIB)
 //         $$$$$$$$$$$   $$$$$$$$$$                       SPDX-License-Identifier: Apache-2.0
 //      $$$$$$$$$$$$$$$$$$$$$$$$$$
 //   $$$$$$$$$$$$$$$$$$$$$$$        $                      Built with <3 for decentralisation
@@ -135,8 +135,4 @@ impl ExtBuilder {
 		});
 		r
 	}
-}
-
-pub fn expect_events(e: Vec<RuntimeEvent>) {
-	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
