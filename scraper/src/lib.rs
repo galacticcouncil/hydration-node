@@ -2,6 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use codec::{Compact, Decode, Encode};
+use frame_support::__private::log;
 use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion, Storage};
 use futures::StreamExt;
 use hydradx::chain_spec::hydradx::parachain_config;
@@ -16,7 +17,6 @@ use std::{
 	path::{Path, PathBuf},
 	str::FromStr,
 };
-use frame_support::__private::log;
 use substrate_rpc_client::ws_client;
 use substrate_rpc_client::StateApi;
 
@@ -142,11 +142,13 @@ pub fn load_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Resul
 }
 
 pub fn get_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Result<Snapshot<B>, &'static str> {
-	let s  = Snapshot::<B>::load_from_bytes(bytes)?;
+	let s = Snapshot::<B>::load_from_bytes(bytes)?;
 	Ok(s)
 }
 
-pub fn construct_backend_from_snapshot<B: BlockT<Hash = H256>>(snapshot: Snapshot<B>) -> Result<(sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>, StateVersion, H256), &'static str> {
+pub fn construct_backend_from_snapshot<B: BlockT<Hash = H256>>(
+	snapshot: Snapshot<B>,
+) -> Result<(sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>, StateVersion, H256), &'static str> {
 	let Snapshot {
 		snapshot_version: _,
 		block_hash: _,
@@ -162,7 +164,7 @@ pub fn construct_backend_from_snapshot<B: BlockT<Hash = H256>>(snapshot: Snapsho
 
 		if key.len() < hash_len {
 			log::warn!("Invalid key in `from_raw_snapshot`: {key:?}");
-			continue
+			continue;
 		}
 
 		hash.as_mut().copy_from_slice(&key[(key.len() - hash_len)..]);
@@ -176,17 +178,21 @@ pub fn construct_backend_from_snapshot<B: BlockT<Hash = H256>>(snapshot: Snapsho
 	Ok((backend, state_version, storage_root))
 }
 
-pub fn create_externalities_with_backend<B: BlockT<Hash = H256>>(backend: sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>,
+pub fn create_externalities_with_backend<B: BlockT<Hash = H256>>(
+	backend: sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>,
 	storage_root: H256,
-	state_version: StateVersion ) -> TestExternalities {
-	TestExternalities{
+	state_version: StateVersion,
+) -> TestExternalities {
+	TestExternalities {
 		backend: TrieBackendBuilder::new(backend, storage_root).build(),
 		state_version,
 		..Default::default()
 	}
 }
 
-pub fn create_externalities_from_snapshot<B: BlockT<Hash = H256>>(snapshot: &Snapshot<B>) -> Result<TestExternalities, &'static str> {
+pub fn create_externalities_from_snapshot<B: BlockT<Hash = H256>>(
+	snapshot: &Snapshot<B>,
+) -> Result<TestExternalities, &'static str> {
 	let Snapshot {
 		snapshot_version: _,
 		block_hash: _,

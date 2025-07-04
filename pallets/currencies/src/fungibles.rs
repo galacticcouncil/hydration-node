@@ -7,6 +7,8 @@ use frame_support::traits::tokens::{
 use hydradx_traits::BoundErc20;
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::Get;
+#[cfg(any(feature = "try-runtime", test))]
+use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 use sp_std::marker::PhantomData;
 
@@ -276,7 +278,15 @@ where
 		amount: Self::Balance,
 		preservation: Preservation,
 	) -> Result<Self::Balance, DispatchError> {
-		if asset == T::GetNativeCurrencyId::get() {
+		#[cfg(any(feature = "try-runtime", test))]
+		let (initial_source_balance, initial_dest_balance) = {
+			(
+				<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, source),
+				<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, dest),
+			)
+		};
+
+		let result = if asset == T::GetNativeCurrencyId::get() {
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::transfer(source, dest, amount.into(), preservation)
 				.into()
 		} else {
@@ -291,6 +301,27 @@ where
 				)
 				.into(),
 			}
+		};
+
+		#[cfg(any(feature = "try-runtime", test))]
+		if result.is_ok() {
+			let (final_source_balance, final_dest_balance) = {
+				(
+					<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, source),
+					<Self as fungibles::Inspect<T::AccountId>>::total_balance(asset, dest),
+				)
+			};
+			debug_assert!(
+				final_source_balance == initial_source_balance - amount || final_source_balance.is_zero(),
+				"Transfer - source sent incorrect amount"
+			);
+			debug_assert_eq!(
+				initial_dest_balance + amount,
+				final_dest_balance,
+				"Transfer - dest received incorrect amount"
+			);
 		}
+
+		result
 	}
 }
