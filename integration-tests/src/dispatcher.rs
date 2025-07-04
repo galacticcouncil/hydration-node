@@ -9,6 +9,7 @@ use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
+use pallet_evm::{ExitReason, ExitSucceed};
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::EvmAddress;
 use sp_core::crypto::AccountId32;
@@ -446,6 +447,9 @@ fn dispatch_with_extra_gas_should_charge_extra_gas_when_calls_fail() {
 fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		// Verify that LastEvmCallExitReason storage is cleaned before execution
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
+
 		// Arrange: Deploy a valid contract to interact with
 		let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
 		let invalid_target = EvmAddress::from_slice(&[0x11; 20]);
@@ -482,13 +486,25 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 			evm_signed_origin(evm_address()),
 			call_succeed_returned
 		));
+
+		// Verify that LastEvmCallExitReason storage has expected Returned value
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), Some(ExitReason::Succeed(ExitSucceed::Returned)));
+
 		assert_ok!(Dispatcher::dispatch_evm_call(
 			evm_signed_origin(evm_address()),
 			call_succeed_stopped
 		));
 
-		// Assert: LastEvmCallFailed storage is clean
-		assert_eq!(Dispatcher::last_evm_call_failed(), false);
+		// Verify that LastEvmCallExitReason storage has expected Stopped value
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), Some(ExitReason::Succeed(ExitSucceed::Stopped)));
+
+		// Produce the next block and ensure the key is gone at the next block
+		hydradx_run_to_next_block();
+		assert_eq!(
+			Dispatcher::last_evm_call_exit_reason(),
+			None,
+			"Storage key should stay empty in subsequent blocks"
+		);
 	});
 }
 
@@ -496,10 +512,10 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 fn dispatch_evm_call_should_fail_with_invalid_function_selector() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		// Arrange
-		// Verify initial state
-		assert_eq!(Dispatcher::last_evm_call_failed(), false);
+		// Verify that LastEvmCallExitReason storage is cleaned before execution
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
 
+		// Arrange
 		assert_ok!(hydradx_runtime::Tokens::set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			evm_account(),
@@ -542,8 +558,8 @@ fn dispatch_evm_call_should_fail_with_invalid_function_selector() {
 			})
 		);
 
-		// Verify that LastEvmCallFailed storage is cleaned after execution
-		assert_eq!(Dispatcher::last_evm_call_failed(), false);
+		// Verify that LastEvmCallExitReason storage is cleaned after faulty execution
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
 	});
 }
 
