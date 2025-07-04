@@ -40,7 +40,7 @@ pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
 use hydradx_traits::evm::MaybeEvmCall;
-use pallet_evm::GasWeightMapping;
+use pallet_evm::{ExitReason, GasWeightMapping};
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
 pub use weights::WeightInfo;
 
@@ -58,6 +58,7 @@ pub mod pallet {
 		pallet_prelude::*,
 	};
 	use frame_system::pallet_prelude::*;
+	use pallet_evm::{ExitReason, ExitSucceed};
 	use sp_runtime::traits::{Dispatchable, Hash};
 	use sp_std::boxed::Box;
 
@@ -107,8 +108,9 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::whitelist_storage]
-	#[pallet::getter(fn last_evm_call_failed)]
-	pub type LastEvmCallFailed<T: Config> = StorageValue<_, bool, ValueQuery>;
+	#[pallet::unbounded]
+	#[pallet::getter(fn last_evm_call_exit_reason)]
+	pub type LastEvmCallExitReason<T: Config> = StorageValue<_, ExitReason, OptionQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -130,6 +132,14 @@ pub mod pallet {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		/// Reset the last EVM call exit reason on block finalization.
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			LastEvmCallExitReason::<T>::kill();
+		}
 	}
 
 	#[pallet::call]
@@ -278,11 +288,16 @@ pub mod pallet {
 				pays_fee: Pays::Yes,
 			};
 
-			if Self::last_evm_call_failed() {
-				return Err(DispatchErrorWithPostInfo {
-					post_info,
-					error: Error::<T>::EvmCallFailed.into(),
-				});
+			if let Some(exit_reason) = LastEvmCallExitReason::<T>::get() {
+				match exit_reason {
+					ExitReason::Succeed(ExitSucceed::Returned) | ExitReason::Succeed(ExitSucceed::Stopped) => {},
+					_ => {
+						return Err(DispatchErrorWithPostInfo {
+							post_info,
+							error: Error::<T>::EvmCallFailed.into(),
+						});
+					},
+				}
 			}
 
 			match result {
@@ -329,11 +344,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn set_last_evm_call_failed(status: bool) {
-		if !status {
-			LastEvmCallFailed::<T>::kill();
-		} else {
-			LastEvmCallFailed::<T>::put(status);
-		}
+	pub fn set_last_evm_call_exit_reason(reason: &ExitReason) {
+		LastEvmCallExitReason::<T>::put(reason);
 	}
 }

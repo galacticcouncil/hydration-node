@@ -28,9 +28,7 @@ use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
-use pallet_evm::{
-	AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, ExitReason, ExitSucceed, FeeCalculator, RunnerError,
-};
+use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
 use primitives::{AssetId, Balance};
@@ -162,12 +160,8 @@ where
 			config,
 		)?;
 
-		let CallInfo { exit_reason, .. } = &result;
-		let call_succeeded = matches!(
-			exit_reason,
-			ExitReason::Succeed(ExitSucceed::Returned) | ExitReason::Succeed(ExitSucceed::Stopped)
-		);
-		pallet_dispatcher::Pallet::<T>::set_last_evm_call_failed(!call_succeeded);
+		// Store the exit reason for the last EVM call
+		pallet_dispatcher::Pallet::<T>::set_last_evm_call_exit_reason(&result.exit_reason);
 
 		Ok(result)
 	}
