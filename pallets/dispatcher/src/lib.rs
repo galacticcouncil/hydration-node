@@ -290,13 +290,13 @@ pub mod pallet {
 
 			if let Some(exit_reason) = LastEvmCallExitReason::<T>::get() {
 				match exit_reason {
-					ExitReason::Succeed(ExitSucceed::Returned) | ExitReason::Succeed(ExitSucceed::Stopped) => {},
+					ExitReason::Succeed(ExitSucceed::Returned) | ExitReason::Succeed(ExitSucceed::Stopped) => {}
 					_ => {
 						return Err(DispatchErrorWithPostInfo {
 							post_info,
 							error: Error::<T>::EvmCallFailed.into(),
 						});
-					},
+					}
 				}
 			}
 

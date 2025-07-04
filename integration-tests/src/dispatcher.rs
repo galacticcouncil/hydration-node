@@ -488,7 +488,10 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 		));
 
 		// Verify that LastEvmCallExitReason storage has expected Returned value
-		assert_eq!(Dispatcher::last_evm_call_exit_reason(), Some(ExitReason::Succeed(ExitSucceed::Returned)));
+		assert_eq!(
+			Dispatcher::last_evm_call_exit_reason(),
+			Some(ExitReason::Succeed(ExitSucceed::Returned))
+		);
 
 		assert_ok!(Dispatcher::dispatch_evm_call(
 			evm_signed_origin(evm_address()),
@@ -496,7 +499,10 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 		));
 
 		// Verify that LastEvmCallExitReason storage has expected Stopped value
-		assert_eq!(Dispatcher::last_evm_call_exit_reason(), Some(ExitReason::Succeed(ExitSucceed::Stopped)));
+		assert_eq!(
+			Dispatcher::last_evm_call_exit_reason(),
+			Some(ExitReason::Succeed(ExitSucceed::Stopped))
+		);
 
 		// Produce the next block and ensure the key is gone at the next block
 		hydradx_run_to_next_block();
