@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "324.0.0"
+version = "325.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4754,6 +4754,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-otc-settlements",
+ "pallet-parameters 1.0.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-referenda",
@@ -8892,6 +8893,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-parameters"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-preimage"
 version = "38.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch5#00d2d388d20f0673e811f31191fed6dd6a52763b"
@@ -12066,7 +12081,7 @@ dependencies = [
  "pallet-multisig",
  "pallet-nis",
  "pallet-offences",
- "pallet-parameters",
+ "pallet-parameters 0.9.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-ranked-collective",
@@ -12200,7 +12215,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.43.0"
+version = "1.44.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12281,6 +12296,7 @@ dependencies = [
  "pallet-xcm",
  "pallet-xyk",
  "pallet-xyk-liquidity-mining",
+ "parity-scale-codec",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
  "polkadot-runtime-parachains",
@@ -12291,6 +12307,7 @@ dependencies = [
  "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
+ "scale-info",
  "scraper",
  "serde_json",
  "sp-api",
@@ -17129,7 +17146,7 @@ dependencies = [
  "pallet-nomination-pools-runtime-api",
  "pallet-offences",
  "pallet-offences-benchmarking",
- "pallet-parameters",
+ "pallet-parameters 0.9.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-recovery",

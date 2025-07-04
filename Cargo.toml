@@ -151,6 +151,7 @@ pallet-evm-accounts-rpc-runtime-api = { path = "pallets/evm-accounts/rpc/runtime
 pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 pallet-hsm = { path = "pallets/hsm", default-features = false }
+pallet-parameters = { path = "pallets/parameters", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

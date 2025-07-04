@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "324.0.0"
+version = "325.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -60,6 +60,7 @@ pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-hsm = {workspace = true}
+pallet-parameters = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -319,6 +320,7 @@ std = [
     "pallet-xyk/std",
     "pallet-duster/std",
     "pallet-hsm/std",
+    "pallet-parameters/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
     "sp-arithmetic/std",
