@@ -58,7 +58,7 @@
 //!
 //! ## Terminating a Schedule
 //!
-//! Both users and TerminateOrigin can terminate a DCA schedule. However, users can only terminate schedules that they own.
+//! Both users and TerminateOrigin can terminate a DCA schedule. However, users can only terminate schedules that they own themselves
 //!
 //! Once a schedule is terminated, it is completely and permanently removed from the blockchain.
 
@@ -94,18 +94,19 @@ use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
-pub use pallet::*;
 use pallet_broadcast::types::ExecutionType;
 pub use weights::WeightInfo;
-
-// Re-export pallet items so that they can be accessed from the crate namespace.
-use crate::types::*;
 
 #[cfg(test)]
 mod tests;
 
+pub mod migrations;
 pub mod types;
 pub mod weights;
+
+// Re-export pallet items so that they can be accessed from the crate namespace.
+use crate::types::*;
+pub use pallet::*;
 
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
@@ -124,7 +125,10 @@ pub mod pallet {
 
 	use super::*;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
@@ -329,9 +333,7 @@ pub mod pallet {
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
-		/// Deprecated. Use pallet_amm::Event::Swapped instead.
 		/// The DCA trade is successfully executed
-		// TODO: remove once we migrated completely to pallet_amm::Event::Swapped
 		TradeExecuted {
 			id: ScheduleId,
 			who: T::AccountId,
@@ -728,7 +730,7 @@ impl<T: Config> Pallet<T> {
 
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
-				let route_for_slippage = inverse_route(route.to_vec());
+				let route_for_slippage = inverse_route(route.clone());
 				let (estimated_amount_out, slippage_amount) =
 					Self::calculate_last_block_slippage(&route_for_slippage, amount_to_sell, schedule.slippage)?;
 				let last_block_slippage_min_limit = estimated_amount_out
@@ -748,14 +750,7 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::RouteExecutor::sell(
-					origin,
-					*asset_in,
-					*asset_out,
-					amount_to_sell,
-					amount_out,
-					route.to_vec(),
-				)?;
+				T::RouteExecutor::sell(origin, *asset_in, *asset_out, amount_to_sell, amount_out, route.clone())?;
 
 				Ok(AmountInAndOut {
 					amount_in: amount_to_sell,
@@ -789,7 +784,7 @@ impl<T: Config> Pallet<T> {
 					);
 				};
 
-				T::RouteExecutor::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route.to_vec())?;
+				T::RouteExecutor::buy(origin, *asset_in, *asset_out, *amount_out, amount_in, route)?;
 
 				Ok(AmountInAndOut {
 					amount_in,

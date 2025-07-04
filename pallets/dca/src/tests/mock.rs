@@ -145,7 +145,7 @@ parameter_types! {
 pub struct BifrostAcc;
 impl SortedMembers<AccountId> for BifrostAcc {
 	fn sorted_members() -> Vec<AccountId> {
-		return vec![ALICE];
+		vec![ALICE]
 	}
 }
 impl pallet_ema_oracle::Config for Test {
@@ -357,6 +357,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
@@ -383,21 +384,11 @@ impl pallet_route_executor::Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type Currency = FungibleCurrencies<Test>;
 	type AMM = Pools;
-	type InspectRegistry = DummyRegistry<Test>;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type ForceInsertOrigin = EnsureRoot<Self::AccountId>;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type WeightInfo = ();
-}
-
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
 }
 
 pub struct PriceProviderMock {}
@@ -423,7 +414,7 @@ pub struct Xyk;
 impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
 	type Error = DispatchError;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -441,7 +432,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		Ok(amount_out)
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -555,7 +546,7 @@ pub const XYK_BUY_CALCULATION_RESULT: Balance = ONE / 3;
 impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 	type Error = DispatchError;
 
-	fn calculate_sell(
+	fn calculate_out_given_in(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -568,7 +559,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 		Ok(XYK_SELL_CALCULATION_RESULT)
 	}
 
-	fn calculate_buy(
+	fn calculate_in_given_out(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
@@ -625,6 +616,8 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 			return Err(ExecutorError::NotSupported);
 		}
 
+		let who = ensure_signed(_who).unwrap();
+
 		BUY_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
 			m.push(BuyExecution {
@@ -637,9 +630,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 		let amount_in = XYK_BUY_CALCULATION_RESULT;
 
-		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(ExecutorError::Error)?;
-		Currencies::transfer(RuntimeOrigin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
 			.map_err(ExecutorError::Error)?;
 
 		Ok(())
@@ -792,7 +785,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::fee::{GetDynamicFee, InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{ExecutorError, PoolType, RefundEdCalculator, RouteProvider, Trade, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;

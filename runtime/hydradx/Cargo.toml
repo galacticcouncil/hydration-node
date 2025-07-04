@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "290.0.0"
+version = "326.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -59,6 +59,8 @@ pallet-otc-settlements = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
+pallet-hsm = {workspace = true}
+pallet-parameters = { workspace = true }
 
 # pallets
 pallet-bags-list = { workspace = true }
@@ -108,9 +110,11 @@ cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
+cumulus-primitives-aura = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
+cumulus-primitives-storage-weight-reclaim = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
 staging-parachain-info = { workspace = true }
 parachains-common = { workspace = true }
@@ -118,6 +122,7 @@ parachains-common = { workspace = true }
 # Polkadot dependencies
 polkadot-parachain = { workspace = true }
 pallet-xcm = { workspace = true }
+pallet-xcm-benchmarks = { workspace = true, optional = true }
 polkadot-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
@@ -165,6 +170,7 @@ pallet-evm-precompile-modexp = { workspace = true }
 pallet-evm-precompile-bn128 = { workspace = true }
 pallet-evm-precompile-blake2 = { workspace = true }
 pallet-evm-precompile-call-permit = { workspace = true }
+pallet-evm-precompile-flash-loan = { workspace = true }
 precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
@@ -221,6 +227,7 @@ runtime-benchmarks = [
     "pallet-stableswap/runtime-benchmarks",
     "pallet-lbp/runtime-benchmarks",
     "pallet-xyk/runtime-benchmarks",
+    "pallet-hsm/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
@@ -232,6 +239,8 @@ runtime-benchmarks = [
     "pallet-referenda/runtime-benchmarks",
     "pallet-whitelist/runtime-benchmarks",
     "pallet-dispatcher/runtime-benchmarks",
+    "cumulus-primitives-utility/runtime-benchmarks",
+    "pallet-xcm-benchmarks/runtime-benchmarks"
 ]
 std = [
     "codec/std",
@@ -245,12 +254,15 @@ std = [
     "frame-metadata-hash-extension/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
+    "cumulus-primitives-aura/std",
     "cumulus-primitives-core/std",
     "cumulus-primitives-utility/std",
+    "cumulus-primitives-storage-weight-reclaim/std",
     "cumulus-pallet-xcm/std",
     "cumulus-pallet-xcmp-queue/std",
     "staging-parachain-info/std",
     "pallet-xcm/std",
+    "pallet-xcm-benchmarks?/std",
     "polkadot-xcm/std",
     "xcm-runtime-apis/std",
     "xcm-executor/std",
@@ -307,6 +319,8 @@ std = [
     "pallet-lbp/std",
     "pallet-xyk/std",
     "pallet-duster/std",
+    "pallet-hsm/std",
+    "pallet-parameters/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
     "sp-arithmetic/std",
@@ -336,6 +350,7 @@ std = [
     "pallet-evm-precompile-bn128/std",
     "pallet-evm-precompile-blake2/std",
     "pallet-evm-precompile-call-permit/std",
+    "pallet-evm-precompile-flash-loan/std",
     "pallet-xyk/std",
     "pallet-referrals/std",
     "pallet-evm-accounts/std",
@@ -416,6 +431,7 @@ try-runtime = [
     "pallet-evm/try-runtime",
     "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
+    "pallet-hsm/try-runtime",
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",

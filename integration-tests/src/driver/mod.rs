@@ -4,6 +4,8 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use frame_support::BoundedVec;
+use hydradx_runtime::bifrost_account;
+use hydradx_runtime::AssetLocation;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
@@ -12,11 +14,14 @@ use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
 use primitives::{AccountId, AssetId};
 use sp_runtime::{FixedU128, Permill};
+use sp_std::cell::RefCell;
 use xcm_emulator::TestExt;
 
+type BoundedName = BoundedVec<u8, <hydradx_runtime::Runtime as pallet_asset_registry::Config>::StringLimit>;
 pub(crate) struct HydrationTestDriver {
 	omnipool_assets: Vec<AssetId>,
 	stablepools: Vec<(AssetId, Vec<(AssetId, u8)>)>,
+	ext: Option<RefCell<frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block>>>,
 }
 
 impl HydrationTestDriver {
@@ -39,20 +44,40 @@ impl HydrationTestDriver {
 		HydrationTestDriver {
 			omnipool_assets: vec![],
 			stablepools: vec![],
+			ext: None,
 		}
 	}
 
+	pub(crate) fn with_snapshot(path: &str) -> Self {
+		let ext = hydra_live_ext(path);
+		let mut driver = Self::default();
+		driver.ext = Some(RefCell::new(ext));
+		driver
+	}
+
 	pub(crate) fn execute(&self, f: impl FnOnce()) -> &Self {
-		Hydra::ext_wrapper(|| {
-			f();
-		});
+		if let Some(ref ext) = self.ext {
+			ext.borrow_mut().execute_with(|| {
+				f();
+			});
+		} else {
+			Hydra::ext_wrapper(|| {
+				f();
+			});
+		}
 		self
 	}
 
 	pub(crate) fn execute_with_driver(&self, f: impl FnOnce(&Self)) -> &Self {
-		Hydra::ext_wrapper(|| {
-			f(self);
-		});
+		if let Some(ref ext) = self.ext {
+			ext.borrow_mut().execute_with(|| {
+				f(&self);
+			});
+		} else {
+			Hydra::ext_wrapper(|| {
+				f(&self);
+			});
+		}
 		self
 	}
 
@@ -61,6 +86,60 @@ impl HydrationTestDriver {
 			.setup_stableswap()
 			.add_stablepools_to_omnipool()
 			.populate_oracle()
+	}
+
+	pub fn endow_account(&self, account: AccountId, asset_id: AssetId, amount: Balance) -> &Self {
+		self.execute(|| {
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				account,
+				asset_id,
+				amount as i128,
+			));
+		});
+		self
+	}
+
+	pub fn register_asset(
+		self,
+		asset_id: AssetId,
+		name: &[u8],
+		decimals: u8,
+		location: Option<polkadot_xcm::v4::Location>,
+	) -> Self {
+		self.execute(|| {
+			let location = location.map(|location| AssetLocation::try_from(location).unwrap());
+			assert_ok!(AssetRegistry::register(
+				RawOrigin::Root.into(),
+				Some(asset_id),
+				Some(BoundedName::truncate_from(name.to_vec())),
+				AssetType::Token,
+				Some(1000u128),
+				Some(BoundedName::truncate_from(name.to_vec())),
+				Some(decimals),
+				location,
+				None,
+				true
+			));
+		});
+		self
+	}
+
+	pub fn update_bifrost_oracle(
+		&self,
+		asset_a: Box<polkadot_xcm::VersionedLocation>,
+		asset_b: Box<polkadot_xcm::VersionedLocation>,
+		price: (Balance, Balance),
+	) -> &Self {
+		self.execute(|| {
+			assert_ok!(EmaOracle::update_bifrost_oracle(
+				RuntimeOrigin::signed(bifrost_account()),
+				asset_a,
+				asset_b,
+				price,
+			));
+		});
+		self
 	}
 
 	pub(crate) fn setup_omnipool(self) -> Self {
@@ -117,6 +196,29 @@ impl HydrationTestDriver {
 		self.add_omnipool_assets(vec![HDX, DOT, WETH])
 	}
 
+	pub fn add_asset_to_omnipool(&self, asset_id: AssetId, initial_liquidity: Balance, price: FixedU128) -> &Self {
+		self.execute(|| {
+			let acc = hydradx_runtime::Omnipool::protocol_account();
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				acc.clone(),
+				asset_id,
+				initial_liquidity,
+				0
+			));
+
+			assert_ok!(hydradx_runtime::Omnipool::add_token(
+				hydradx_runtime::RuntimeOrigin::root(),
+				asset_id,
+				price,
+				Permill::from_percent(100),
+				AccountId::from(ALICE),
+			));
+		});
+
+		self
+	}
+
 	pub(crate) fn setup_stableswap(self) -> Self {
 		let mut stable_pool_id = 0;
 		let mut stable_assets = vec![];
@@ -130,7 +232,7 @@ impl HydrationTestDriver {
 
 			for idx in 0u32..MAX_ASSETS_IN_POOL {
 				let name: Vec<u8> = idx.to_ne_bytes().to_vec();
-				let decimals = possible_decimals[idx as usize % possible_decimals.len() as usize];
+				let decimals = possible_decimals[idx as usize % possible_decimals.len()];
 				let result = AssetRegistry::register(
 					RawOrigin::Root.into(),
 					Some(asset_offset + idx),
@@ -178,7 +280,7 @@ impl HydrationTestDriver {
 			assert_ok!(Stableswap::create_pool(
 				hydradx_runtime::RuntimeOrigin::root(),
 				pool_id,
-				asset_ids.iter().map(|(id, _)| *id).collect(),
+				BoundedVec::truncate_from(asset_ids.iter().map(|(id, _)| *id).collect()),
 				amplification,
 				fee,
 			));
@@ -202,7 +304,7 @@ impl HydrationTestDriver {
 				let pool_id_issuance = Tokens::total_issuance(pool_id);
 				assert_ok!(hydradx_runtime::Currencies::transfer(
 					hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
-					omnipool_acc.clone().into(),
+					omnipool_acc.clone(),
 					*pool_id,
 					pool_id_issuance,
 				));
@@ -250,7 +352,7 @@ impl HydrationTestDriver {
 					for two_assets in assets.windows(2) {
 						let asset_a = two_assets[0];
 						let asset_b = two_assets[1];
-						let amount = 1u128 * 10u128.pow(asset_a.1 as u32);
+						let amount = 10u128.pow(asset_a.1 as u32);
 						assert_ok!(Tokens::set_balance(
 							RawOrigin::Root.into(),
 							CHARLIE.into(),
@@ -275,7 +377,7 @@ impl HydrationTestDriver {
 		self
 	}
 
-	fn new_block(&self) -> &Self {
+	pub fn new_block(&self) -> &Self {
 		self.execute(|| {
 			hydradx_run_to_next_block();
 		});
@@ -305,7 +407,7 @@ fn test_hydration_setup() {
 			));
 
 			assert_eq!(driver.omnipool_assets, vec![HDX, DOT, WETH, 222_222]);
-			assert!(driver.stablepools.len() > 0);
+			assert!(!driver.stablepools.is_empty());
 
 			let stablepool_1 = driver.stablepools[0].clone();
 			let first_asset_id = stablepool_1.1[0].0;

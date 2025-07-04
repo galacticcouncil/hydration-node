@@ -63,8 +63,8 @@ use xcm_executor::{
 
 pub mod inspect;
 pub mod price;
+pub mod stableswap_peg_oracle;
 pub mod xcm_exchange;
-pub mod xcm_execute_filter;
 
 #[cfg(test)]
 mod tests;
@@ -341,7 +341,8 @@ where
 		+ pallet_circuit_breaker::Config
 		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
-		+ pallet_referrals::Config,
+		+ pallet_referrals::Config
+		+ pallet_broadcast::Config,
 	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
 	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 	<Runtime as pallet_referrals::Config>::AssetId: From<AssetId>,
@@ -478,6 +479,9 @@ where
 		asset: AssetId,
 		amount: Balance,
 	) -> Result<Vec<Option<(Balance, AccountId)>>, Self::Error> {
+		//Within router, we use router as trader account, so we should get the actual user account to correctly process trade fee and accrue rewards
+		let trader = pallet_broadcast::Pallet::<Runtime>::get_swapper().unwrap_or(trader);
+
 		if asset == Lrna::get() {
 			return Ok(vec![]);
 		}
@@ -611,6 +615,7 @@ where
 						Err(_) => return None,
 					}
 				}
+				PoolType::Aave => EmaPrice::from(1),
 				_ => return None,
 			};
 
@@ -635,17 +640,21 @@ where
 	}
 }
 
-pub struct PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource>(PhantomData<(Runtime, LMInstance, OracleSource)>);
+pub struct PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource, AggregatedPriceGetter>(
+	PhantomData<(Runtime, LMInstance, OracleSource, AggregatedPriceGetter)>,
+);
 
-impl<Runtime, LMInstance, OracleSource> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
-	for PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource>
+impl<Runtime, LMInstance, OracleSource, AggregatedPriceGetter> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
+	for PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource, AggregatedPriceGetter>
 where
 	Runtime: warehouse_liquidity_mining::Config<LMInstance>
 		+ pallet_ema_oracle::Config
 		+ pallet_asset_registry::Config
+		+ pallet_route_executor::Config<AssetId = AssetId>
 		+ pallet_bonds::Config,
 	OracleSource: Get<[u8; 8]>,
 	u32: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
+	AggregatedPriceGetter: PriceOracle<AssetId, Price = EmaPrice>,
 {
 	type Error = DispatchError;
 	type PriceAdjustment = FixedU128;
@@ -666,15 +675,29 @@ where
 			global_farm.reward_currency.into()
 		};
 
-		let (price, _) = pallet_ema_oracle::Pallet::<Runtime>::get_price(
+		let r = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			reward_currency_id,
 			global_farm.incentivized_asset.into(),
 			OraclePeriod::TenMinutes,
 			OracleSource::get(),
-		)
-		.map_err(|_| DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+		);
 
-		FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into())
+		if let Ok((price, _)) = r {
+			return FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into());
+		}
+
+		let assets = AssetPair::new(reward_currency_id, global_farm.incentivized_asset.into());
+		let route = pallet_route_executor::Routes::<Runtime>::get(assets.ordered_pair())
+			.ok_or(DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+
+		let price = AggregatedPriceGetter::price(&route, OraclePeriod::TenMinutes)
+			.ok_or(DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+
+		if assets == assets.ordered_pair() {
+			return FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into());
+		}
+
+		FixedU128::checked_from_rational(price.d, price.n).ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 }
 
@@ -1058,28 +1081,28 @@ where
 
 /// Price provider that returns a price of an asset that can be used to pay tx fee.
 /// If an asset cannot be used as fee payment asset, None is returned.
-pub struct AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>(
-	PhantomData<(A, AC, RP, Oracle, FallbackPrice, Period)>,
+pub struct AssetFeeOraclePriceProvider<NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period>(
+	PhantomData<(NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period)>,
 );
 
-impl<AssetId, A, RP, AC, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
-	for AssetFeeOraclePriceProvider<A, AC, RP, Oracle, FallbackPrice, Period>
+impl<AssetId, NativeAsset, Router, FeePaymentAsset, Oracle, FallbackPrice, Period> NativePriceOracle<AssetId, EmaPrice>
+	for AssetFeeOraclePriceProvider<NativeAsset, FeePaymentAsset, Router, Oracle, FallbackPrice, Period>
 where
-	RP: RouteProvider<AssetId>,
+	Router: RouteProvider<AssetId>,
 	Oracle: PriceOracle<AssetId, Price = EmaPrice>,
 	FallbackPrice: GetByKey<AssetId, Option<FixedU128>>,
 	Period: Get<OraclePeriod>,
-	A: Get<AssetId>,
+	NativeAsset: Get<AssetId>,
 	AssetId: Copy + PartialEq,
-	AC: Contains<AssetId>,
+	FeePaymentAsset: Contains<AssetId>,
 {
 	fn price(currency: AssetId) -> Option<EmaPrice> {
-		if currency == A::get() {
+		if currency == NativeAsset::get() {
 			return Some(EmaPrice::one());
 		}
 
-		if AC::contains(&currency) {
-			let route = RP::get_route(AssetPair::new(currency, A::get()));
+		if FeePaymentAsset::contains(&currency) {
+			let route = Router::get_route(AssetPair::new(currency, NativeAsset::get()));
 			if let Some(price) = Oracle::price(&route, Period::get()) {
 				Some(price)
 			} else {

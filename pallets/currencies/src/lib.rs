@@ -63,7 +63,7 @@ use orml_traits::{
 use orml_utilities::with_transaction_result;
 use sp_runtime::{
 	traits::{CheckedSub, MaybeSerializeDeserialize, StaticLookup, Zero},
-	DispatchError, DispatchResult,
+	DispatchError, DispatchResult, Saturating,
 };
 use sp_std::vec::Vec;
 use sp_std::{fmt::Debug, marker, result};
@@ -109,6 +109,9 @@ pub mod module {
 		type Erc20Currency: MultiCurrency<Self::AccountId, CurrencyId = EvmAddress, Balance = BalanceOf<Self>>;
 
 		type BoundErc20: BoundErc20<AssetId = CurrencyIdOf<Self>>;
+
+		#[pallet::constant]
+		type ReserveAccount: Get<Self::AccountId>;
 
 		#[pallet::constant]
 		type GetNativeCurrencyId: Get<CurrencyIdOf<Self>>;
@@ -545,10 +548,7 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::reserved_balance_named(id, who)
 		} else {
-			match T::BoundErc20::contract_address(currency_id) {
-				Some(_) => Default::default(),
-				None => T::MultiCurrency::reserved_balance_named(id, currency_id, who),
-			}
+			T::MultiCurrency::reserved_balance_named(id, currency_id, who)
 		}
 	}
 
@@ -561,10 +561,11 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::reserve_named(id, who, value)
 		} else {
-			match T::BoundErc20::contract_address(currency_id) {
-				Some(_) => fail!(Error::<T>::NotSupported),
-				None => T::MultiCurrency::reserve_named(id, currency_id, who, value),
+			if let Some(contract) = T::BoundErc20::contract_address(currency_id) {
+				T::Erc20Currency::transfer(contract, who, &T::ReserveAccount::get(), value)?;
+				T::MultiCurrency::deposit(currency_id, who, value)?;
 			}
+			T::MultiCurrency::reserve_named(id, currency_id, who, value)
 		}
 	}
 
@@ -578,7 +579,16 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 			T::NativeCurrency::unreserve_named(id, who, value)
 		} else {
 			match T::BoundErc20::contract_address(currency_id) {
-				Some(_) => value,
+				Some(contract) => with_transaction_result::<Self::Balance>(|| {
+					let remaining = T::MultiCurrency::unreserve_named(id, currency_id, who, value);
+					let unreserved = value.saturating_sub(remaining);
+					if unreserved > Zero::zero() {
+						T::MultiCurrency::withdraw(currency_id, who, unreserved)?;
+						T::Erc20Currency::transfer(contract, &T::ReserveAccount::get(), who, unreserved)?;
+					}
+					Ok(remaining)
+				})
+				.unwrap_or(value),
 				None => T::MultiCurrency::unreserve_named(id, currency_id, who, value),
 			}
 		}

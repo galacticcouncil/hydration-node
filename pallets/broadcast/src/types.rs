@@ -16,7 +16,8 @@ pub enum Filler {
 	XYK(AssetId),        // share token
 	LBP,
 	OTC(OtcOrderId),
-	// ICE(solution_id/block id),      swapper: alice, filler: solver
+	AAVE, // ICE(solution_id/block id),      swapper: alice, filler: solver
+	HSM,
 }
 
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]

@@ -74,7 +74,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
 	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler, Volume,
+	OnLiquidityChangedHandler, OnTradeHandler, RawEntry, RawOracle, Volume,
 };
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::FixedU128;
@@ -317,7 +317,7 @@ pub mod pallet {
 			asset_a: Box<polkadot_xcm::VersionedLocation>,
 			asset_b: Box<polkadot_xcm::VersionedLocation>,
 			price: (Balance, Balance),
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			T::BifrostOrigin::ensure_origin(origin)?;
 
 			let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
@@ -350,7 +350,7 @@ pub mod pallet {
 
 			Self::on_entry(BIFROST_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
 
-			Ok(())
+			Ok(Pays::No.into())
 		}
 	}
 }
@@ -749,5 +749,45 @@ pub struct OracleWhitelist<T>(PhantomData<T>);
 impl<T: Config> Contains<(Source, AssetId, AssetId)> for OracleWhitelist<T> {
 	fn contains(t: &(Source, AssetId, AssetId)) -> bool {
 		WhitelistedAssets::<T>::get().contains(&(t.0, (t.1, t.2)))
+	}
+}
+
+impl<T: Config> RawOracle<AssetId, Balance, BlockNumberFor<T>> for Pallet<T> {
+	type Error = OracleError;
+
+	fn get_raw_entry(
+		source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		period: OraclePeriod,
+	) -> Result<RawEntry<Balance, BlockNumberFor<T>>, Self::Error> {
+		if asset_a == asset_b {
+			return Err(OracleError::SameAsset);
+		}
+		let assets = ordered_pair(asset_a, asset_b);
+		let (entry, _) = Self::oracle((source, assets, period)).ok_or(OracleError::NotPresent)?;
+		let entry = if (asset_a, asset_b) == assets {
+			entry
+		} else {
+			entry.inverted()
+		};
+		Ok(RawEntry {
+			price: (entry.price.n, entry.price.d),
+			volume: entry.volume,
+			liquidity: entry.liquidity,
+			updated_at: entry.updated_at,
+		})
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: Config> Pallet<T> {
+	// Helper function for runtime-benchmarking to directly set oracle value.
+	pub fn add_entry(
+		src: Source,
+		assets: (AssetId, AssetId),
+		oracle_entry: OracleEntry<BlockNumberFor<T>>,
+	) -> Result<(), DispatchError> {
+		Self::on_entry(src, assets, oracle_entry).map_err(|_| Error::<T>::OracleNotFound.into())
 	}
 }

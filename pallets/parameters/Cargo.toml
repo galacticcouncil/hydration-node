@@ -1,0 +1,40 @@
+[package]
+name = "pallet-parameters"
+version = "1.0.0"
+authors = ['GalacticCouncil']
+edition = "2021"
+license = "Apache-2.0"
+homepage = 'https://github.com/galacticcouncil/hydration-node'
+repository = 'https://github.com/galacticcouncil/hydration-node'
+description = "Pallet for storing Runtime parameters"
+readme = "README.md"
+
+[dependencies]
+# parity
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
+
+# primitives
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+
+[features]
+default = ['std']
+std = [
+    'codec/std',
+    'scale-info/std',
+    'sp-runtime/std',
+    'sp-core/std',
+    'sp-io/std',
+    'sp-std/std',
+]
+
+try-runtime = ["frame-support/try-runtime"]

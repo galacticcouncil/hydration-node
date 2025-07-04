@@ -2,7 +2,7 @@
 name = "precompile-utils"
 description = "Utils to write EVM precompiles."
 edition = "2021"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["PureStake"]
 repository = "https://github.com/PureStake/moonbeam"
 
@@ -23,6 +23,8 @@ similar-asserts = { workspace = true, optional = true }
 
 # Moonbeam
 precompile-utils-macro = { path = "macro" }
+primitive-types = { workspace = true }
+smallvec = { workspace = true }
 
 # Substrate
 frame-support = { workspace = true }
@@ -37,7 +39,7 @@ sp-weights = { workspace = true }
 # Frontier
 evm = { workspace = true, features = [ "with-codec" ] }
 fp-evm = { workspace = true }
-pallet-evm = { workspace = true, features = [ "forbid-evm-reentrancy" ] }
+pallet-evm = { workspace = true }
 
 # Polkadot / XCM
 xcm = { workspace = true, optional = true }

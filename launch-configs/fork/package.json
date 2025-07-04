@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "state:download": "wget -O state.json ${STATE_SOURCE:-https://snapshots.play.hydration.cloud/state.json}",
-    "state:prepare": "node prepare-state-for-zombienet.js state.json forked-chainspec.json",
+    "state:get": "./get-state.sh",
+    "state:download": "wget -O data/state.json ${STATE_SOURCE:-https://snapshots.play.hydration.cloud/state.json}",
+    "state:scrape": "../../target/release/scraper save-chainspec --uri ${STATE_RPC:-wss://4.rpc.hydration.cloud} ${STATE_BLOCK:+--at=${STATE_BLOCK}} --path ./ && mkdir -p data && mv SNAPSHOT.json data/state.json",
+    "state:prepare": "node prepare-state-for-zombienet.js data/state.json data/forked-chainspec.json",
     "zombie:init": "zombienet -l text -fd data spawn config.json",
     "para:alice": "tail -F data/alice-1.log",
     "para:bob": "tail -F data/bob-1.log",
@@ -13,12 +15,17 @@
     "relay:charlie": "tail -F data/charlie.log",
     "relay:dave": "tail -F data/dave.log",
     "zombienet": "run-p -lr zombie:init para:* relay:*",
-    "start": "run-s -n state:download state:prepare zombienet"
+    "start": "run-s -n state:get state:prepare zombienet",
+    "start:raw": "run-s -n state:prepare zombienet",
+    "start:live": "run-s -n state:scrape state:prepare zombienet",
+    "docker:build": "docker build -t galacticcouncil/fork:latest .",
+    "docker:push": "docker push galacticcouncil/fork:latest",
+    "docker:release": "run-s -n docker:build docker:push"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@polkadot/types": "^15.0.2",
-    "npm-run-all":"^4.1.5"
+    "npm-run-all": "^4.1.5"
   }
 }

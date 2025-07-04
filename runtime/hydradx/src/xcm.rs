@@ -17,7 +17,7 @@ use frame_support::{
 };
 use frame_system::unique;
 use frame_system::EnsureRoot;
-use hydradx_adapters::{xcm_exchange::XcmAssetExchanger, xcm_execute_filter::AllowTransferAndSwap};
+use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
 use pallet_evm::AddressMapping;
@@ -31,10 +31,10 @@ use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, FixedWeightBounds, GlobalConsensusConvertsFor,
-	HashedDescription, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, GlobalConsensusConvertsFor, HashedDescription,
+	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
-	WithComputedOrigin, WithUniqueTopic,
+	WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -92,6 +92,9 @@ parameter_types! {
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
 
+	pub const PolkadotLocation: Location = Location::parent();
+
+
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 
 	pub Ancestry: Location = Parachain(ParachainInfo::parachain_id().into()).into();
@@ -123,6 +126,8 @@ parameter_types! {
 	pub const BaseXcmWeight: XcmWeight = XcmWeight::from_parts(100_000_000, 0);
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsForTransfer: usize = 2;
+
+	pub const MaxAssetsIntoHolding: u32 = 64;
 
 	pub TempAccountForXcmAssetExchange: AccountId = [42; 32].into();
 	pub const MaxXcmDepth: u16 = 5;
@@ -179,6 +184,9 @@ pub type Reserves = (
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
 
+pub type DynamicWeigher<RuntimeCall> =
+	WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
+
 pub struct XcmConfig;
 impl Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
@@ -192,7 +200,7 @@ impl Config for XcmConfig {
 	type UniversalLocation = UniversalLocation;
 
 	type Barrier = Barrier;
-	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
+	type Weigher = DynamicWeigher<RuntimeCall>;
 	// We calculate weight fees the same way as for regular extrinsics and use the prices and choice
 	// of accepted currencies of the transaction payment pallet. Fees go to the same fee receiver as
 	// configured in `MultiTransactionPayment`.
@@ -213,7 +221,7 @@ impl Config for XcmConfig {
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;
-	type MaxAssetsIntoHolding = ConstU32<64>;
+	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
 	type FeeManager = ();
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
@@ -258,11 +266,9 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> ExecuteXcm<<XcmConfi
 		let prepare_result = Inner::prepare(message.clone());
 
 		//In case of error we need to clean context as xcm execution won't happen
-		if prepare_result.is_err() {
-			if pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
-				log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
-				return Err(message);
-			}
+		if prepare_result.is_err() && pallet_broadcast::Pallet::<Runtime>::remove_from_context().is_err() {
+			log::error!(target: "xcm-executor", "Failed to remove from broadcast context.");
+			return Err(message);
 		}
 
 		prepare_result
@@ -335,7 +341,7 @@ impl orml_xtokens::Config for Runtime {
 	type AccountIdToLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
-	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
+	type Weigher = DynamicWeigher<RuntimeCall>;
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
 	type LocationsFilter = Everything;
@@ -362,11 +368,11 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = AllowTransferAndSwap<MaxXcmDepth, MaxNumberOfInstructions, RuntimeCall>;
+	type XcmExecuteFilter = Everything;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
-	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
+	type Weigher = DynamicWeigher<RuntimeCall>;
 	type UniversalLocation = UniversalLocation;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
@@ -382,7 +388,7 @@ impl pallet_xcm::Config for Runtime {
 }
 
 parameter_types! {
-	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(25) * BlockWeights::get().max_block;
+	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(20) * BlockWeights::get().max_block;
 	pub const MessageQueueMaxStale: u32 = 8;
 	pub const MessageQueueHeapSize: u32 = 128 * 1048;
 }

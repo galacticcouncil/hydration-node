@@ -29,10 +29,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::{
-	router::{PoolType, RefundEdCalculator},
-	OraclePeriod, PriceOracle,
-};
+use hydradx_traits::{router::PoolType, OraclePeriod, PriceOracle};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::ExternalPriceProvider;
@@ -123,14 +120,6 @@ parameter_types! {
 		pub const RouteValidationOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
-pub struct MockedEdCalculator;
-
-impl RefundEdCalculator<Balance> for MockedEdCalculator {
-	fn calculate() -> Balance {
-		1_000_000_000_000
-	}
-}
-
 pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId> for PriceProviderMock {
@@ -151,9 +140,7 @@ impl pallet_route_executor::Config for Test {
 	type Balance = Balance;
 	type NativeAssetId = HDXAssetId;
 	type Currency = FungibleCurrencies<Test>;
-	type InspectRegistry = AssetRegistry;
 	type AMM = Omnipool;
-	type EdToRefundCalculator = MockedEdCalculator;
 	type OraclePriceProvider = PriceProviderMock;
 	type OraclePeriod = RouteValidationOraclePeriod;
 	type DefaultRoutePoolType = DefaultRoutePoolType;
@@ -257,6 +244,7 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type Erc20Currency = MockErc20Currency<Test>;
 	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
 }

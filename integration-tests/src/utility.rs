@@ -18,6 +18,7 @@ use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use pallet_broadcast::types::Fee;
+use sp_core::bounded_vec::BoundedVec;
 #[test]
 fn batch_execution_type_should_be_included_in_batch() {
 	TestNet::reset();
@@ -56,7 +57,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 			asset_out: DOT,
 			amount_in: amount_to_sell,
 			min_amount_out: limit,
-			route: trades.clone(),
+			route: BoundedVec::truncate_from(trades.clone()),
 		});
 		assert_ok!(Utility::batch(
 			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
@@ -71,7 +72,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 		pretty_assertions::assert_eq!(
 			swapped_events,
 			vec![
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_broadcast::types::Filler::LBP,
@@ -89,7 +90,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -103,7 +104,7 @@ fn batch_execution_type_should_be_included_in_batch() {
 					)],
 					operation_stack: vec![ExecutionType::Batch(0), ExecutionType::Router(1)],
 				},
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
@@ -140,44 +141,9 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
-		crate::router::create_lbp_pool(DAI, LRNA);
 		crate::router::create_xyk_pool(HDX, DOT);
 
-		let amount_to_sell = UNITS / 100;
-		let limit = 0;
-		let trades = vec![
-			Trade {
-				pool: PoolType::LBP,
-				asset_in: DAI,
-				asset_out: LRNA,
-			},
-			Trade {
-				pool: PoolType::Omnipool,
-				asset_in: LRNA,
-				asset_out: HDX,
-			},
-			Trade {
-				pool: PoolType::XYK,
-				asset_in: HDX,
-				asset_out: DOT,
-			},
-		];
-
-		start_lbp_campaign();
-
-		let router_call = RuntimeCall::Router(pallet_route_executor::Call::sell {
-			asset_in: DAI,
-			asset_out: DOT,
-			amount_in: amount_to_sell,
-			min_amount_out: limit,
-			route: trades.clone(),
-		});
-		assert_ok!(Utility::batch(
-			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
-			vec![router_call.clone()]
-		));
-
-		//Act
+		let amount_to_sell = UNITS * 10;
 		let trades = vec![Trade {
 			pool: PoolType::XYK,
 			asset_in: HDX,
@@ -187,9 +153,16 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 			asset_in: HDX,
 			asset_out: DOT,
 			amount_in: amount_to_sell,
-			min_amount_out: limit,
-			route: trades.clone(),
+			min_amount_out: 0,
+			route: trades.clone().try_into().unwrap(),
 		});
+
+		assert_ok!(Utility::batch(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			vec![router_call.clone()]
+		));
+
+		//Act
 		assert_ok!(Utility::batch(
 			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 			vec![router_call.clone()]
@@ -198,7 +171,7 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 		//Assert
 		pretty_assertions::assert_eq!(
 			*get_last_swapped_events().last().unwrap(),
-			pallet_broadcast::Event::<Runtime>::Swapped {
+			pallet_broadcast::Event::<Runtime>::Swapped3 {
 				swapper: BOB.into(),
 				filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 					asset_in: HDX,
@@ -212,10 +185,10 @@ fn batch_execution_type_should_be_popped_when_multiple_batch_calls_happen() {
 				))),
 				operation: pallet_broadcast::types::TradeOperation::ExactIn,
 				inputs: vec![Asset::new(HDX, amount_to_sell)],
-				outputs: vec![Asset::new(DOT, 4548771287)],
+				outputs: vec![Asset::new(DOT, 3777648106062)],
 				fees: vec![Fee::new(
 					DOT,
-					13687374,
+					11367045453,
 					Destination::Account(XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,
 						asset_out: DOT,
@@ -267,7 +240,7 @@ fn nested_batch_should_represent_embeddedness() {
 				asset_out: DOT,
 				amount_in: amount_to_sell,
 				min_amount_out: limit,
-				route: trades.clone(),
+				route: BoundedVec::truncate_from(trades.clone()),
 			})],
 		});
 
@@ -284,7 +257,7 @@ fn nested_batch_should_represent_embeddedness() {
 		pretty_assertions::assert_eq!(
 			swapped_events,
 			vec![
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: LBP::get_pair_id(pallet_lbp::types::AssetPair::new(DAI, LRNA)),
 					filler_type: pallet_broadcast::types::Filler::LBP,
@@ -306,7 +279,7 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Router(2)
 					],
 				},
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
@@ -324,7 +297,7 @@ fn nested_batch_should_represent_embeddedness() {
 						ExecutionType::Router(2)
 					],
 				},
-				pallet_broadcast::Event::<Runtime>::Swapped {
+				pallet_broadcast::Event::<Runtime>::Swapped3 {
 					swapper: BOB.into(),
 					filler: XYK::get_pair_id(pallet_xyk::types::AssetPair {
 						asset_in: HDX,

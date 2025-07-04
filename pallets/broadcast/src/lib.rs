@@ -36,7 +36,7 @@ pub use pallet::*;
 
 pub const MAX_STACK_SIZE: u32 = 16;
 
-const LOG_TARGET: &str = "runtime::amm-support";
+const LOG_TARGET: &str = "runtime::broadcast";
 
 type ExecutionIdStack = BoundedVec<ExecutionType, ConstU32<MAX_STACK_SIZE>>;
 
@@ -68,6 +68,11 @@ pub mod pallet {
 	#[pallet::getter(fn execution_context)]
 	pub(super) type ExecutionContext<T: Config> = StorageValue<_, ExecutionIdStack, ValueQuery>;
 
+	///If filled, we overwrite the original swapper. Mainly used in router to not to use temporary trade account
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	pub(super) type Swapper<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
+
 	#[pallet::error]
 	pub enum Error<T> {
 		///The execution context call stack has reached its maximum size
@@ -80,7 +85,14 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Trade executed.
-		Swapped {
+		///
+		/// Swapped3 is a fixed and renamed version of original Swapped,
+		/// as Swapped contained wrong input/output amounts for XYK buy trade
+		///
+		/// Swapped3 is a fixed and renamed version of original Swapped3,
+		/// as Swapped contained wrong filler account on AAVE trades
+		///
+		Swapped3 {
 			swapper: T::AccountId,
 			filler: T::AccountId,
 			filler_type: Filler,
@@ -96,6 +108,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			ExecutionContext::<T>::kill(); //We don't need to account for this weight in on_initialize as we whitelist the storage
+			Swapper::<T>::kill();
 		}
 	}
 
@@ -113,9 +126,10 @@ impl<T: Config> Pallet<T> {
 		outputs: Vec<Asset>,
 		fees: Vec<Fee<T::AccountId>>,
 	) {
+		let trade_swapper = Swapper::<T>::get().unwrap_or(swapper);
 		let operation_stack = Self::get_context();
-		Self::deposit_event(Event::<T>::Swapped {
-			swapper,
+		Self::deposit_event(Event::<T>::Swapped3 {
+			swapper: trade_swapper,
 			filler,
 			filler_type,
 			operation,
@@ -151,13 +165,25 @@ impl<T: Config> Pallet<T> {
 	pub fn remove_from_context() -> DispatchResult {
 		ExecutionContext::<T>::try_mutate(|stack| -> DispatchResult {
 			stack.pop().ok_or_else(|| {
-				log::error!(target: "broadcast", "The execution context call stack is empty, unable to decrease level");
+				log::error!(target: LOG_TARGET, "The execution context call stack is empty, unable to decrease level");
 
 				Error::<T>::ExecutionCallStackUnderflow
 			})?;
 
 			Ok(())
 		})
+	}
+
+	pub fn remove_swapper() {
+		Swapper::<T>::kill();
+	}
+
+	pub fn set_swapper(account_id: T::AccountId) {
+		Swapper::<T>::put(account_id);
+	}
+
+	pub fn get_swapper() -> Option<T::AccountId> {
+		Swapper::<T>::get()
 	}
 
 	pub fn get_context() -> Vec<ExecutionType> {

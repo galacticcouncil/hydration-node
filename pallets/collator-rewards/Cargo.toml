@@ -1,6 +1,6 @@
 [package]
 name = "pallet-collator-rewards"
-version = "1.0.10"
+version = "1.1.0"
 description = "Pallet for collator rewards"
 authors = ["GalacticCouncil"]
 edition = "2021"

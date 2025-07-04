@@ -47,6 +47,9 @@ clippy:
 clippy-all:
 	$(cargo) clippy --release --locked --all-targets --all-features -- -A deprecated
 
+clippatorize:
+	$(cargo) clippy --release --locked --all-targets --all-features --fix -- -A deprecated
+
 .PHONY: format
 format:
 	$(cargo) fmt
@@ -80,3 +83,6 @@ all: clippy build-benchmarks test-benchmarks test build checksum
 
 chopstics: release
 	npx @acala-network/chopsticks xcm --parachain=launch-configs/chopsticks/hydradx.yml --parachain=launch-configs/chopsticks/assethub.yml
+
+srbuild:
+	srtool -e docker build -p "hydradx-runtime" --app --image docker.io/paritytech/srtool --build-opts="--features=metadata-hash" --root

@@ -47,7 +47,7 @@ fn add_oracle_should_add_entry_to_storage() {
 		System::set_block_number(3);
 
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE),
 			asset_a,
 			asset_b,
 			(100, 99)
@@ -67,6 +67,23 @@ fn add_oracle_should_add_entry_to_storage() {
 }
 
 #[test]
+fn successful_oracle_update_shouldnt_pay_fee() {
+	new_test_ext().execute_with(|| {
+		//Arrange
+		let hdx =
+			polkadot_xcm::v3::MultiLocation::new(0, polkadot_xcm::v3::Junctions::X1(GeneralIndex(0))).into_versioned();
+		let dot = polkadot_xcm::v3::MultiLocation::parent().into_versioned();
+
+		//Act
+		let res =
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), Box::new(hdx), Box::new(dot), (100, 99));
+
+		// Assert
+		assert_eq!(res, Ok(Pays::No.into()));
+	});
+}
+
+#[test]
 fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 	new_test_ext().execute_with(|| {
 		//Arrange
@@ -82,7 +99,7 @@ fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 		System::set_block_number(3);
 
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE),
 			asset_b,
 			asset_a,
 			(100, 99)
@@ -117,7 +134,7 @@ fn bitfrost_oracle_should_not_be_updated_by_nonpriviliged_account() {
 		System::set_block_number(3);
 
 		assert_noop!(
-			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(BOB.into()), asset_a, asset_b, (100, 99)),
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(BOB), asset_a, asset_b, (100, 99)),
 			BadOrigin
 		);
 	});
@@ -138,7 +155,7 @@ fn should_fail_when_new_price_is_bigger_than_allowed() {
 		System::set_block_number(3);
 
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE),
 			asset_a.clone(),
 			asset_b.clone(),
 			(100, 100)
@@ -149,7 +166,7 @@ fn should_fail_when_new_price_is_bigger_than_allowed() {
 		//Act
 		assert_noop!(
 			EmaOracle::update_bifrost_oracle(
-				RuntimeOrigin::signed(ALICE.into()),
+				RuntimeOrigin::signed(ALICE),
 				asset_a.clone(),
 				asset_b.clone(),
 				(111, 100)
@@ -158,7 +175,7 @@ fn should_fail_when_new_price_is_bigger_than_allowed() {
 		);
 
 		assert_noop!(
-			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE.into()), asset_a, asset_b, (89, 100)),
+			EmaOracle::update_bifrost_oracle(RuntimeOrigin::signed(ALICE), asset_a, asset_b, (89, 100)),
 			Error::<Test>::PriceOutsideAllowedRange
 		);
 	});
@@ -179,7 +196,7 @@ fn should_pass_when_new_price_is_still_within_range() {
 		System::set_block_number(3);
 
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE),
 			asset_a.clone(),
 			asset_b.clone(),
 			(100, 100)
@@ -189,14 +206,14 @@ fn should_pass_when_new_price_is_still_within_range() {
 
 		//Act
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE),
 			asset_a.clone(),
 			asset_b.clone(),
 			(110, 100)
 		),);
 
 		assert_ok!(EmaOracle::update_bifrost_oracle(
-			RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE),
 			asset_a,
 			asset_b,
 			(90, 100)

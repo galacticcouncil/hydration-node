@@ -3,6 +3,7 @@ use super::*;
 use crate::router::Trade;
 use codec::MaxEncodedLen;
 use frame_support::sp_runtime::traits::{AtLeast32BitUnsigned, One};
+use primitives::constants::time::{DAYS, HOURS, MINUTES};
 use scale_info::TypeInfo;
 
 /// Implementers of this trait provide the price of a given asset compared to the native currency.
@@ -58,10 +59,6 @@ pub enum OraclePeriod {
 	/// The oracle data was aggregated over the blocks of the last week.
 	Week,
 }
-const MILLISECS_PER_BLOCK: u64 = 12_000; //TODO: i wonder if we should include primitives and take it from there!
-const MINUTES: u64 = 60_000 / MILLISECS_PER_BLOCK;
-const HOURS: u64 = MINUTES * 60;
-const DAYS: u64 = HOURS * 24;
 
 impl OraclePeriod {
 	pub const fn all_periods() -> &'static [OraclePeriod] {
@@ -77,11 +74,11 @@ impl OraclePeriod {
 	pub const fn as_period(&self) -> u64 {
 		match self {
 			OraclePeriod::LastBlock => 1,
-			OraclePeriod::Short => 10,
-			OraclePeriod::TenMinutes => 10 * MINUTES,
-			OraclePeriod::Hour => HOURS,
-			OraclePeriod::Day => DAYS,
-			OraclePeriod::Week => 7 * DAYS,
+			OraclePeriod::Short => 20,
+			OraclePeriod::TenMinutes => 10 * MINUTES as u64,
+			OraclePeriod::Hour => HOURS as u64,
+			OraclePeriod::Day => DAYS as u64,
+			OraclePeriod::Week => 7 * DAYS as u64,
 		}
 	}
 }
@@ -337,4 +334,23 @@ where
 	fn get_price_weight() -> Weight {
 		Weight::zero()
 	}
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, Clone, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct RawEntry<Balance, BlockNumber> {
+	pub price: (Balance, Balance),
+	pub volume: Volume<Balance>,
+	pub liquidity: Liquidity<Balance>,
+	pub updated_at: BlockNumber,
+}
+
+/// An oracle returning raw entry of oracle data (without aggregation) for given asset pair, period and source.
+pub trait RawOracle<AssetId, Balance, BlockNumber> {
+	type Error;
+	fn get_raw_entry(
+		source: Source,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		period: OraclePeriod,
+	) -> Result<RawEntry<Balance, BlockNumber>, Self::Error>;
 }

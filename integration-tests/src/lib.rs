@@ -1,6 +1,7 @@
 #![cfg(test)]
 // DCA pallet uses dummy router for benchmarks and some tests fail when benchmarking feature is enabled
 #![cfg(not(feature = "runtime-benchmarks"))]
+mod aave_router;
 mod asset_registry;
 mod bonds;
 mod call_filter;
@@ -18,6 +19,7 @@ mod evm;
 mod evm_permit;
 mod exchange_asset;
 mod fee_calculation;
+mod hsm;
 mod insufficient_assets_ed;
 mod liquidation;
 mod multi_payment;
@@ -26,9 +28,11 @@ mod omnipool_init;
 mod omnipool_liquidity_mining;
 mod oracle;
 mod otc;
+mod parameters;
 mod polkadot_test_net;
 mod referrals;
 mod router;
+mod stableswap;
 mod staking;
 mod transact_call_filter;
 mod utility;

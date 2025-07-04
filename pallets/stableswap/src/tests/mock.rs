@@ -17,6 +17,7 @@
 
 //! Test environment for Assets pallet.
 #![allow(clippy::type_complexity)]
+#![allow(deprecated)]
 
 use core::ops::RangeInclusive;
 use sp_runtime::DispatchResult;
@@ -29,6 +30,8 @@ use crate as pallet_stableswap;
 
 use crate::Config;
 
+use crate::types::BoundedPegSources;
+use crate::{PegRawOracle, PegSource, PegType};
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, BoundedVec};
@@ -40,11 +43,11 @@ use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 pub use orml_traits::MultiCurrency;
 use sp_core::H256;
+use sp_runtime::Permill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
 };
-
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
@@ -73,6 +76,7 @@ thread_local! {
 	pub static DUSTER_WHITELIST: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 	pub static LAST_LIQUDITY_CHANGE_HOOK: RefCell<Option<(AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
 	pub static LAST_TRADE_HOOK: RefCell<Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
+	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
 }
 
 construct_runtime!(
@@ -194,6 +198,7 @@ impl Config for Test {
 	type Hooks = DummyHookAdapter;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = DummyRegistry;
+	type TargetPegOracle = DummyPegOracle;
 }
 
 pub struct InitialLiquidity {
@@ -204,7 +209,13 @@ pub struct InitialLiquidity {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 	registered_assets: Vec<(Vec<u8>, AssetId, u8)>,
-	created_pools: Vec<(AccountId, PoolInfo<AssetId, u64>, InitialLiquidity)>,
+	created_pools: Vec<(
+		AccountId,
+		PoolInfo<AssetId, u64>,
+		InitialLiquidity,
+		Option<Vec<PegSource<AssetId>>>,
+	)>,
+	oracle_pegs: Option<Vec<((AssetId, AssetId), PegType)>>,
 }
 
 impl Default for ExtBuilder {
@@ -225,6 +236,7 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![],
 			registered_assets: vec![],
 			created_pools: vec![],
+			oracle_pegs: None,
 		}
 	}
 }
@@ -253,7 +265,20 @@ impl ExtBuilder {
 		pool: PoolInfo<AssetId, u64>,
 		initial_liquidity: InitialLiquidity,
 	) -> Self {
-		self.created_pools.push((who, pool, initial_liquidity));
+		self.created_pools.push((who, pool, initial_liquidity, None));
+		self
+	}
+
+	pub fn with_pool_with_pegs(
+		mut self,
+		who: AccountId,
+		pool: PoolInfo<AssetId, u64>,
+		initial_liquidity: InitialLiquidity,
+		pegs: Vec<PegSource<AssetId>>,
+		pegs_values: Option<Vec<((AssetId, AssetId), PegType)>>,
+	) -> Self {
+		self.created_pools.push((who, pool, initial_liquidity, Some(pegs)));
+		self.oracle_pegs = pegs_values;
 		self
 	}
 
@@ -288,7 +313,7 @@ impl ExtBuilder {
 		r.execute_with(|| {
 			frame_system::Pallet::<Test>::set_block_number(1);
 
-			for (_who, pool, initial_liquid) in self.created_pools {
+			for (_who, pool, initial_liquid, pegs) in self.created_pools {
 				let pool_id = retrieve_current_asset_id();
 				REGISTERED_ASSETS.with(|v| {
 					v.borrow_mut().insert(pool_id, (pool_id, 12));
@@ -297,13 +322,33 @@ impl ExtBuilder {
 					v.borrow_mut().insert(b"main".to_vec(), pool_id);
 				});
 
-				assert_ok!(Stableswap::create_pool(
-					RuntimeOrigin::root(),
-					pool_id,
-					pool.assets.clone().into(),
-					pool.initial_amplification.get(),
-					pool.fee,
-				));
+				if let Some(pegs) = pegs {
+					assert!(pegs.len() == pool.assets.len());
+					if let Some(ref pegs_values) = self.oracle_pegs {
+						for ((asset_a, asset_b), peg) in pegs_values.iter() {
+							set_peg_oracle_value(*asset_a, *asset_b, *peg, 0);
+						}
+					}
+
+					assert_ok!(Stableswap::create_pool_with_pegs(
+						RuntimeOrigin::root(),
+						pool_id,
+						pool.assets.clone(),
+						pool.initial_amplification.get(),
+						pool.fee,
+						BoundedPegSources::truncate_from(pegs),
+						Permill::from_percent(100),
+					));
+				} else {
+					assert_ok!(Stableswap::create_pool(
+						RuntimeOrigin::root(),
+						pool_id,
+						pool.assets.clone(),
+						pool.initial_amplification.get(),
+						pool.fee,
+					));
+				}
+
 				POOL_IDS.with(|v| {
 					v.borrow_mut().push(pool_id);
 				});
@@ -327,7 +372,7 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect};
+use hydradx_traits::{AccountIdFor, Inspect, RawEntry, Source};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;
@@ -378,6 +423,15 @@ impl BenchmarkHelper<AssetId> for DummyRegistry {
 			v.borrow_mut().insert(asset_id, (asset_id, decimals));
 		});
 
+		Ok(())
+	}
+
+	fn register_asset_peg(
+		asset_pair: (AssetId, AssetId),
+		peg: crate::types::PegType,
+		_source: Source,
+	) -> DispatchResult {
+		set_peg_oracle_value(asset_pair.0, asset_pair.1, peg, 0);
 		Ok(())
 	}
 }
@@ -461,7 +515,7 @@ pub fn get_last_swapped_events() -> Vec<RuntimeEvent> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped { .. }) = e {
+		if let RuntimeEvent::Broadcast(pallet_broadcast::Event::Swapped3 { .. }) = e {
 			swapped_events.push(e);
 		}
 	}
@@ -477,4 +531,43 @@ pub fn last_hydra_events(n: usize) -> Vec<RuntimeEvent> {
 		.rev()
 		.map(|e| e.event)
 		.collect()
+}
+
+pub struct DummyPegOracle;
+
+impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
+	type Error = ();
+
+	fn get_raw_entry(peg_asset: AssetId, source: PegSource<AssetId>) -> Result<RawEntry<Balance, u64>, Self::Error> {
+		match source {
+			PegSource::Oracle((_, _, oracle_asset)) => {
+				let (n, d, u) = PEG_ORACLE_VALUES
+					.with(|v| v.borrow().get(&(oracle_asset, peg_asset)).copied())
+					.ok_or(())?;
+
+				return Ok(RawEntry {
+					price: (n, d),
+					volume: Default::default(),
+					liquidity: Default::default(),
+					updated_at: u,
+				});
+			}
+			PegSource::Value(peg) => {
+				return Ok(RawEntry {
+					price: peg,
+					volume: Default::default(),
+					liquidity: Default::default(),
+					updated_at: System::block_number(),
+				});
+			}
+			_ => panic!("unusupported oracle types: {:?}", source),
+		}
+	}
+}
+
+pub(crate) fn set_peg_oracle_value(asset_a: AssetId, asset_b: AssetId, price: (Balance, Balance), updated_at: u64) {
+	PEG_ORACLE_VALUES.with(|v| {
+		v.borrow_mut()
+			.insert((asset_a, asset_b), (price.0, price.1, updated_at));
+	});
 }

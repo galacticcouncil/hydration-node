@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2025  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,13 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod conviction_voting;
+mod democracy;
+mod scheduler;
+
 use super::*;
 use frame_support::parameter_types;
-
-impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
-	type ChannelList = ParachainSystem;
-}
-
 use frame_support::traits::{ConstU32, LockIdentifier};
 use frame_system::pallet_prelude::BlockNumberFor;
 
@@ -55,13 +54,11 @@ impl pallet_tips::migrations::unreserve_deposits::UnlockConfig<()> for UnlockCon
 }
 
 pub type Migrations = (
-	cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
-	evm::precompiles::erc20_mapping::SetCodeMetadataForErc20Precompile,
 	// Unlock/unreserve balances from Gov v1 pallets that hold them
 	// https://github.com/paritytech/polkadot/issues/6749
 	pallet_elections_phragmen::migrations::unlock_and_unreserve_all_funds::UnlockAndUnreserveAllFunds<UnlockConfig>,
 	pallet_tips::migrations::unreserve_deposits::UnreserveDeposits<UnlockConfig, ()>,
-	// Delete storage key/values from all Gov v1 pallets
+	// Delete storage key/values for pallets Council, PragmenElection and Tips
 	frame_support::migrations::RemovePallet<CouncilPalletName, <Runtime as frame_system::Config>::DbWeight>,
 	frame_support::migrations::RemovePallet<PhragmenElectionPalletName, <Runtime as frame_system::Config>::DbWeight>,
 	frame_support::migrations::RemovePallet<TipsPalletName, <Runtime as frame_system::Config>::DbWeight>,

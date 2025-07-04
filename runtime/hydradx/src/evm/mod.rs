@@ -28,7 +28,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, NativeAssetId, Runtime, XykPaymentAssetSupport, LRNA};
+use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
@@ -39,7 +39,6 @@ use frame_support::{
 use frame_system::EnsureRoot;
 use hex_literal::hex;
 use hydradx_adapters::price::ConvertBalance;
-use hydradx_adapters::{AssetFeeOraclePriceProvider, OraclePriceProvider};
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
@@ -47,6 +46,7 @@ use pallet_evm::{EnsureAddressTruncated, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
 use sp_core::{Get, U256};
+pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
 mod evm_fee;
@@ -120,6 +120,8 @@ impl Get<Multiplier> for TransactionPaymentMultiplier {
 		crate::TransactionPayment::next_fee_multiplier()
 	}
 }
+
+pub const USDT: AssetId = 10u32;
 
 parameter_types! {
 	/// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare
@@ -218,14 +220,7 @@ impl pallet_dynamic_evm_fee::Config for Runtime {
 	type MinBaseFeePerGas = MinBaseFeePerGas;
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type FeeMultiplier = TransactionPaymentMultiplier;
-	type NativePriceOracle = AssetFeeOraclePriceProvider<
-		NativeAssetId,
-		crate::MultiTransactionPayment,
-		crate::Router,
-		OraclePriceProvider<AssetId, crate::EmaOracle, LRNA>,
-		crate::MultiTransactionPayment,
-		OracleEvmPeriod,
-	>;
+	type NativePriceOracle = FeePriceOracle;
 	type WethAssetId = WethAssetId;
 	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
 }
