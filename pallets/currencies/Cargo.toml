@@ -11,6 +11,7 @@ edition = "2021"
 scale-info = { workspace = true }
 serde = { workspace = true, optional = true }
 codec = { workspace = true }
+log = { workspace = true }
 
 hydradx-traits = { workspace = true }
 
