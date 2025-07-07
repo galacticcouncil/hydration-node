@@ -38,6 +38,7 @@ use frame_system::EnsureRoot;
 use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
+use hydradx_traits::evm::MaybeEvmCall;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
@@ -215,7 +216,6 @@ impl<T: Config> Inspect for DummyRegistry<T> {
 	}
 }
 
-use hydradx_traits::evm::MaybeEvmCall;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::Create as CreateRegistry;
 #[cfg(feature = "runtime-benchmarks")]

@@ -52,7 +52,6 @@ std = [
     'orml-tokens/std',
     'orml-traits/std',
     "pallet-evm/std",
-    "hydradx-traits/std",
 ]
 
 runtime-benchmarks = [
