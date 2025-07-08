@@ -162,7 +162,7 @@ construct_runtime!(
 		Preimage: pallet_preimage = 15,
 		Identity: pallet_identity = 17,
 		Democracy: pallet_democracy exclude_parts { Config } = 19,
-		// NOTE 19, 21, 23 are retired (used by gov v1)
+		// NOTE 19, 21, 23 & 27 are retired (was used by gov v1)
 		TechnicalCommittee: pallet_collective::<Instance2> = 25,
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
