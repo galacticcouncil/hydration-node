@@ -26,6 +26,7 @@ pub trait WeightInfo {
 	fn join_farms(c: u32) -> Weight;	
 	fn add_liquidity_and_join_farms(c: u32) -> Weight;
 	fn add_liquidity_stableswap_omnipool_and_join_farms(c: u32) -> Weight;
+	fn price_adjustment_get() -> Weight;
 
 	fn exit_farms(c: u32) -> Weight;
 }
@@ -544,5 +545,13 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(35_u64))
 			.saturating_add(RocksDbWeight::get().writes((3_u64).saturating_mul(c.into())))
 			.saturating_add(Weight::from_parts(0, 2680).saturating_mul(c.into()))
+	}
+	fn price_adjustment_get() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `5397`
+		//  Estimated: `51378`
+		// Minimum execution time: 188_184_000 picoseconds.
+		Weight::from_parts(188_184_000, 51378)
+			.saturating_add(RocksDbWeight::get().reads(21_u64))
 	}
 }

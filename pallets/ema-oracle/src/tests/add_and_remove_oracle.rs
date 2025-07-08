@@ -146,7 +146,8 @@ fn on_trade_should_include_whitelisted_oracle_for_correct_source() {
 			500,
 			2_000,
 			1_000,
-			Price::new(2_000, 1_000)
+			Price::new(2_000, 1_000),
+			Some(2_000_u128),
 		));
 
 		assert!(get_accumulator_entry(SOURCE, (HDX, INSUFFICIENT_ASSET)).is_some());
@@ -174,6 +175,7 @@ fn on_liquidity_changed_should_include_whitelisted_oracle_for_correct_source() {
 			2_000,
 			1_000,
 			Price::new(2_000, 1_000),
+			Some(2_000_u128),
 		));
 
 		assert!(get_accumulator_entry(SOURCE, (HDX, INSUFFICIENT_ASSET)).is_some());
