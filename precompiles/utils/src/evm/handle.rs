@@ -25,6 +25,7 @@ use {
 	},
 	fp_evm::{Log, PrecompileHandle},
 };
+use sp_core::H160;
 
 pub trait PrecompileHandleExt: PrecompileHandle {
 	/// Record cost of one DB read manually.
@@ -195,6 +196,13 @@ mod tests {
 		}
 
 		fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
+		fn origin(&self) -> H160 {
+			unimplemented!()
+		}
+
+		fn is_contract_being_constructed(&self, address: H160) -> bool {
+			unimplemented!()
+		}
 	}
 
 	#[test]
