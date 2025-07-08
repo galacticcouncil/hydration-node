@@ -1,6 +1,7 @@
 const fs = require('fs');
 const {TypeRegistry} = require('@polkadot/types');
 const {hexToU8a, u8aToHex} = require('@polkadot/util');
+const { xxhashAsHex } = require('@polkadot/util-crypto');
 
 // Define network names
 const NEW_NAME = process.env.CHAIN_NAME || "Hydration Local Testnet";
@@ -100,6 +101,12 @@ async function updateChainSpec(inputFile, outputFile) {
         "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d": SYSTEM_ACCOUNT_VALUE, // System account
         ...deployer,
     };
+
+    // Set Configuration.IsTestnet to 1
+    const IS_TESTNET_KEY =
+        xxhashAsHex('Parameters', 128).replace('0x', '') +
+        xxhashAsHex('IsTestnet', 128).replace('0x', '');
+    REPLACEMENTS[`0x${IS_TESTNET_KEY}`] = '0x01';
 
     // Define keys to delete
     const KEYS_TO_DELETE = [
