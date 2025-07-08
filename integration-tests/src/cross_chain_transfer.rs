@@ -32,7 +32,7 @@ use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 // Determine the hash for assets expected to be have been trapped.
-fn determine_hash(origin: &MultiLocation, assets: Vec<Asset>) -> H256 {
+pub fn determine_hash(origin: &MultiLocation, assets: Vec<Asset>) -> H256 {
 	let versioned = VersionedAssets::from(Assets::from(assets));
 	BlakeTwo256::hash_of(&(origin, &versioned))
 }

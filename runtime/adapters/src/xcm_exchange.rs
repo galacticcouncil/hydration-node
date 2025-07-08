@@ -8,6 +8,7 @@ use sp_runtime::BoundedVec;
 use sp_std::marker::PhantomData;
 use xcm_executor::traits::AssetExchange;
 use xcm_executor::AssetsInHolding;
+use pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse;
 
 /// Implements `AssetExchange` to support the `ExchangeAsset` XCM instruction.
 ///
@@ -24,12 +25,13 @@ pub struct XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency>(
 impl<Runtime, TempAccount, CurrencyIdConvert, Currency> AssetExchange
 	for XcmAssetExchanger<Runtime, TempAccount, CurrencyIdConvert, Currency>
 where
-	Runtime: pallet_route_executor::Config,
+	Runtime: pallet_route_executor::Config + pallet_circuit_breaker::Config,
 	TempAccount: Get<Runtime::AccountId>,
-	CurrencyIdConvert: Convert<Asset, Option<Runtime::AssetId>>,
-	Currency: MultiCurrency<Runtime::AccountId, CurrencyId = Runtime::AssetId, Balance = Runtime::Balance>,
-	Runtime::Balance: From<u128> + Zero + Into<u128>,
-	Runtime::AssetId: Into<u32>,
+	CurrencyIdConvert: Convert<Asset, Option<<Runtime as pallet_route_executor::Config>::AssetId>>,
+	Currency: MultiCurrency<Runtime::AccountId, CurrencyId = <Runtime as pallet_route_executor::Config>::AssetId, Balance = <Runtime as pallet_route_executor::Config>::Balance>,
+	<Runtime as pallet_route_executor::Config>::Balance: From<u128> + Zero + Into<u128>,
+	<Runtime as pallet_route_executor::Config>::AssetId: Into<u32>,
+	<Runtime as pallet_route_executor::Config>::AssetId: Into<<Runtime as pallet_circuit_breaker::Config>::AssetId>,
 {
 	fn exchange_asset(
 		_origin: Option<&Location>,
@@ -77,6 +79,11 @@ where
 				return Err(give);
 			};
 
+			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), amount.into()) {
+				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {:?}. Asset will be trapped.", asset_in);
+				return Err(give);
+			}
+
 			with_transaction_result(|| {
 				Currency::deposit(asset_in, &account, amount.into())?; // mint the incoming tokens
 				pallet_route_executor::Pallet::<Runtime>::sell(
@@ -88,7 +95,7 @@ where
 					use_onchain_route,
 				)?;
 				debug_assert!(
-					Currency::free_balance(asset_in, &account) == Runtime::Balance::zero(),
+					Currency::free_balance(asset_in, &account) == <Runtime as pallet_route_executor::Config>::Balance::zero(),
 					"Sell should not leave any of the incoming asset."
 				);
 				let amount_received = Currency::free_balance(asset_out, &account);
@@ -109,6 +116,20 @@ where
 				return Err(give);
 			};
 
+			let route = pallet_route_executor::Pallet::<Runtime>::get_route(AssetPair::new(asset_in, asset_out));
+			let Ok(amount_in) = pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(
+				&route,
+				amount.into(),
+			) else {
+				log::warn!(target: "xcm::exchange-asset", "Failed to calculate expected amount in for route: {:?}", route);
+				return Err(give);
+			};
+
+			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), amount_in.into().into()) {
+				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {:?}. Asset will be trapped.", asset_in);
+				return Err(give);
+			}
+
 			with_transaction_result(|| {
 				Currency::deposit(asset_in, &account, max_sell_amount.into())?; // mint the incoming tokens
 				pallet_route_executor::Pallet::<Runtime>::buy(
@@ -121,7 +142,7 @@ where
 				)?;
 				let mut assets = sp_std::vec::Vec::with_capacity(2);
 				let left_over = Currency::free_balance(asset_in, &account);
-				if left_over > Runtime::Balance::zero() {
+				if left_over > <Runtime as pallet_route_executor::Config>::Balance::zero() {
 					Currency::withdraw(asset_in, &account, left_over)?; // burn left over tokens
 					let holding: Asset = (given.id.clone(), left_over.into()).into();
 					assets.push(holding);
