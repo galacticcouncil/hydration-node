@@ -452,7 +452,10 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 
 		// Arrange: Deploy a valid contract to interact with
 		let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
-		let invalid_target = EvmAddress::from_slice(&[0x11; 20]);
+		let stop_code_contract = crate::utils::contracts::deploy_contract_code(
+			hex!["608080604052346013576067908160188239f35b5f80fdfe6004361015600b575f80fd5b5f3560e01c6306fdde0314601d575f80fd5b34602d575f366003190112602d57005b5f80fdfea264697066735822122072cd2025c9922b7f29b4174f1e2d766386a8ecbaab35dc5921cda0fa301dcb3e64736f6c634300081e0033"].to_vec(),
+			crate::contracts::deployer(),
+		); // name() function selector returns "stopped"
 
 		assert_ok!(hydradx_runtime::Tokens::set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -479,7 +482,7 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 
 		// Create test cases with different targets
 		let call_succeed_returned = create_evm_call(contract);
-		let call_succeed_stopped = create_evm_call(invalid_target);
+		let call_succeed_stopped = create_evm_call(stop_code_contract);
 
 		// Act: Dispatch the EVM calls
 		assert_ok!(Dispatcher::dispatch_evm_call(
