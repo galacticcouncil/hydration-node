@@ -325,16 +325,12 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		{
 			let (final_source_balance, final_dest_balance) = {
 				(
-
 					Self::total_balance(currency_id, from),
 					Self::total_balance(currency_id, to),
 				)
 			};
 			let amount_sent = initial_source_balance - final_source_balance;
-			debug_assert_eq!(
-				amount_sent, amount,
-				"Transfer - source sent incorrect amount"
-			);
+			debug_assert_eq!(amount_sent, amount, "Transfer - source sent incorrect amount");
 			debug_assert_eq!(
 				initial_dest_balance + amount,
 				final_dest_balance,
