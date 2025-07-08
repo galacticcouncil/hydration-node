@@ -8,6 +8,10 @@ use orml_traits::GetByKey;
 use sp_runtime::{SaturatedConversion, Saturating};
 use sp_std::marker::PhantomData;
 
+//TODO: check every he usage of saturaring
+
+//TODO: add prop tests, also for save deposit, so only the claimed and specified amount is returned
+
 #[derive(Debug)]
 enum DepositAction<Balance> {
 	InitialDeposit,

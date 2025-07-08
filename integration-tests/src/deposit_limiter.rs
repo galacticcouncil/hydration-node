@@ -622,7 +622,7 @@ fn hydra_should_block_asset_from_other_hain_when_over_limit() {
 	});
 }
 
-//Doesn't work because we cant limit mints and deposits of erc20
+//TODO: Doesn't work because we cant limit mints and deposits of erc20
 #[test]
 fn circuit_should_is_not_triggered_for_erc20() {}
 
