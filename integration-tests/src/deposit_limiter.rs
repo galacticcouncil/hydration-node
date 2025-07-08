@@ -10,6 +10,7 @@ use hydradx_runtime::Stableswap;
 use hydradx_runtime::{
 	AssetRegistry, Balances, CircuitBreaker, Currencies, Omnipool, OmnipoolCollectionId, Tokens, Uniques,
 };
+use hydradx_runtime::Router;
 use primitives::constants::time::DAYS;
 
 use pallet_stableswap::types::BoundedPegSources;
@@ -548,6 +549,8 @@ use polkadot_xcm::opaque::v3::{
 	Junctions::{X1, X2},
 	MultiLocation, NetworkId,
 };
+use primitives::constants::currency::UNITS;
+
 #[test]
 fn hydra_should_block_asset_from_other_hain_when_over_limit() {
 	// Arrange
@@ -619,6 +622,43 @@ fn hydra_should_block_asset_from_other_hain_when_over_limit() {
 			deposit_limit
 		);
 		assert_reserved_balance!(&BOB.into(), ACA, amount_over_limit - fee);
+	});
+}
+
+#[test]
+fn route_execution_should_not_trigger_circuit_breaker() {
+	Hydra::execute_with(|| {
+		// Arrange
+		crate::circuit_breaker::init_omnipool();
+		let deposit_limit = 100 * UNITS;
+
+		assert_ok!(Currencies::deposit(HDX, &ALICE.into(), deposit_limit * 50));
+
+		update_deposit_limit(HDX, 100 * UNITS).unwrap();
+		update_deposit_limit(DAI, 100 * UNITS).unwrap();
+
+		let init_balance = Currencies::free_balance(HDX, &ALICE.into());
+
+		// Act
+		let sell_amount = 20 * deposit_limit;
+		assert_ok!(Router::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				DAI,
+				sell_amount,
+				u128::MIN,
+				vec![].try_into().unwrap()
+			));
+
+
+		// Assert
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
+		assert_reserved_balance!(&ALICE.into(), DAI, 0);
+		assert_reserved_balance!(&Router::router_account().into(), HDX, 0);
+		assert_reserved_balance!(&Router::router_account().into(), DAI, 0);
+		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
+		assert_eq!(init_balance - new_balance, sell_amount)
+
 	});
 }
 
