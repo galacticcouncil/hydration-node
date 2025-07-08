@@ -163,6 +163,7 @@ impl Handler<(AssetId, AccountId, Balance)> for OnDepositReleaseHandler {
 
 		let remaining_reserved = Currencies::unreserve_named(&named_reserve_id, t.0, &t.1, t.2);
 
+		//We should not have any remaining reserved balance after unreserving, otherwise open to DDos attack
 		ensure!(
 			remaining_reserved.is_zero(),
 			pallet_circuit_breaker::Error::<Runtime>::InvalidAmount
