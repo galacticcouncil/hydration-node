@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 323,
+	spec_version: 325,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -202,6 +202,7 @@ construct_runtime!(
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
+		Parameters: pallet_parameters = 83,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
