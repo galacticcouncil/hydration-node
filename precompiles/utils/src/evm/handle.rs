@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
+use sp_core::H160;
 use {
 	crate::{
 		solidity::{
@@ -25,7 +26,6 @@ use {
 	},
 	fp_evm::{Log, PrecompileHandle},
 };
-use sp_core::H160;
 
 pub trait PrecompileHandleExt: PrecompileHandle {
 	/// Record cost of one DB read manually.
