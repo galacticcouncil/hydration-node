@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "14.1.2"
+version = "14.2.1"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
