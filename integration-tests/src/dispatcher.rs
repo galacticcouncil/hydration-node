@@ -1,12 +1,15 @@
 use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
 use fp_evm::PrecompileSet;
-use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
+use frame_support::dispatch::{
+	extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo,
+};
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
+use pallet_evm::{ExitReason, ExitSucceed};
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::EvmAddress;
 use sp_core::crypto::AccountId32;
@@ -14,6 +17,7 @@ use sp_core::Encode;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
 use sp_runtime::traits::SignedExtension;
+use sp_runtime::DispatchErrorWithPostInfo;
 use test_utils::last_events;
 use xcm_emulator::TestExt;
 
@@ -437,4 +441,160 @@ fn dispatch_with_extra_gas_should_charge_extra_gas_when_calls_fail() {
 			"No gas fee should be less than extra gas fee"
 		);
 	});
+}
+
+#[test]
+fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Verify that LastEvmCallExitReason storage is cleaned before execution
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
+
+		// Arrange: Deploy a valid contract to interact with
+		let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+		let stop_code_contract = crate::utils::contracts::deploy_contract_code(
+			hex!["608080604052346013576067908160188239f35b5f80fdfe6004361015600b575f80fd5b5f3560e01c6306fdde0314601d575f80fd5b34602d575f366003190112602d57005b5f80fdfea264697066735822122072cd2025c9922b7f29b4174f1e2d766386a8ecbaab35dc5921cda0fa301dcb3e64736f6c634300081e0033"].to_vec(),
+			crate::contracts::deployer(),
+		); // name() function selector returns "stopped"
+
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			WethAssetId::get(),
+			1_000_000_000_000_000_000u128,
+			0
+		));
+
+		// Helper function to create EVM calls with common parameters
+		let create_evm_call = |target| {
+			Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+				source: evm_address(),
+				target,
+				input: hex!["06fdde03"].to_vec(), // name() function selector
+				value: U256::zero(),
+				gas_limit: 100_000,
+				max_fee_per_gas: U256::from(233_460_000),
+				max_priority_fee_per_gas: None,
+				nonce: None,
+				access_list: vec![],
+			}))
+		};
+
+		// Create test cases with different targets
+		let call_succeed_returned = create_evm_call(contract);
+		let call_succeed_stopped = create_evm_call(stop_code_contract);
+
+		// Act: Dispatch the EVM calls
+		assert_ok!(Dispatcher::dispatch_evm_call(
+			evm_signed_origin(evm_address()),
+			call_succeed_returned
+		));
+
+		// Verify that LastEvmCallExitReason storage has expected Returned value
+		assert_eq!(
+			Dispatcher::last_evm_call_exit_reason(),
+			Some(ExitReason::Succeed(ExitSucceed::Returned))
+		);
+
+		assert_ok!(Dispatcher::dispatch_evm_call(
+			evm_signed_origin(evm_address()),
+			call_succeed_stopped
+		));
+
+		// Verify that LastEvmCallExitReason storage has expected Stopped value
+		assert_eq!(
+			Dispatcher::last_evm_call_exit_reason(),
+			Some(ExitReason::Succeed(ExitSucceed::Stopped))
+		);
+
+		// Produce the next block and ensure the key is gone at the next block
+		hydradx_run_to_next_block();
+		assert_eq!(
+			Dispatcher::last_evm_call_exit_reason(),
+			None,
+			"Storage key should stay empty in subsequent blocks"
+		);
+	});
+}
+
+#[test]
+fn dispatch_evm_call_should_fail_with_invalid_function_selector() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Verify that LastEvmCallExitReason storage is cleaned before execution
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
+
+		// Arrange
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			WethAssetId::get(),
+			1_000_000_000_000_000_000u128,
+			0
+		));
+
+		// Deploy a contract to test with
+		let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+
+		// Create an EVM call with an invalid function selector
+		let call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address(),
+			target: contract,
+			input: hex!["12345678"].to_vec(), // Invalid function selector
+			gas_limit: 100_000,
+			value: U256::zero(),
+			max_fee_per_gas: U256::from(233_460_000),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+		let call_data = call.get_dispatch_info();
+		let boxed_call = Box::new(call);
+
+		// Act
+		let result = Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), boxed_call);
+
+		// Assert
+		// The dispatch should fail with EvmCallFailed error
+		assert_eq!(
+			result,
+			Err(DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: Some(extract_actual_weight(&result, &call_data)),
+					pays_fee: extract_actual_pays_fee(&result, &call_data),
+				},
+				error: pallet_dispatcher::Error::<Runtime>::EvmCallFailed.into(),
+			})
+		);
+
+		// Verify that LastEvmCallExitReason storage is cleaned after faulty execution
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
+	});
+}
+
+#[test]
+fn dispatch_evm_call_should_fail_with_not_evm_call_error() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange: Create a non-EVM call
+		let call = RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+			dest: BOB.into(),
+			currency_id: 1234,
+			amount: 100,
+		});
+		let boxed_call = Box::new(call.clone());
+
+		// Act & Assert: The dispatch should fail with NotEvmCall error
+		let result = Dispatcher::dispatch_evm_call(evm_signed_origin(evm_address()), boxed_call);
+		assert_eq!(
+			result,
+			Err(DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: None,
+					pays_fee: Pays::Yes,
+				},
+				error: pallet_dispatcher::Error::<Runtime>::NotEvmCall.into(),
+			})
+		);
+	})
 }
