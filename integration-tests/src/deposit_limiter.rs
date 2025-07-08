@@ -662,6 +662,30 @@ fn route_execution_should_not_trigger_circuit_breaker() {
 	});
 }
 
+
+//TODO: verify it
+#[test]
+fn circuit_should_not_be_triggered_for_omnipool() {
+	Hydra::execute_with(|| {
+		// Arrange
+		crate::circuit_breaker::init_omnipool();
+		let amount = 100_000_000_000_000_000;
+		assert_ok!(Currencies::deposit(HDX, &ALICE.into(), amount * 100));
+
+		update_deposit_limit(LRNA, 100 * UNITS).unwrap();
+		// Act
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			DAI,
+			amount,
+			u128::MIN,
+		));
+
+		assert_reserved_balance!(&Omnipool::protocol_account(), LRNA, 0);
+	});
+}
+
 //TODO: Doesn't work because we cant limit mints and deposits of erc20
 #[test]
 fn circuit_should_is_not_triggered_for_erc20() {}
