@@ -661,7 +661,6 @@ fn route_execution_should_not_trigger_circuit_breaker() {
 	});
 }
 
-
 #[test]
 fn add_liquidity_should_work_when_circuit_breaker_triggers_for_lrna() {
 	Hydra::execute_with(|| {
