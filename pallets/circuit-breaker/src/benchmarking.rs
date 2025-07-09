@@ -19,12 +19,11 @@
 
 use super::*;
 
+use crate::types::BenchmarkHelper;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::Hooks;
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
-use crate::types::BenchmarkHelper;
-
 
 fn whitelist_storage_maps<T: Config>() {
 	// Whitelist storage map from further DB operations.

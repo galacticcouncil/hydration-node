@@ -1,6 +1,7 @@
 use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
+use pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse;
 use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
@@ -8,7 +9,6 @@ use sp_runtime::BoundedVec;
 use sp_std::marker::PhantomData;
 use xcm_executor::traits::AssetExchange;
 use xcm_executor::AssetsInHolding;
-use pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse;
 
 /// Implements `AssetExchange` to support the `ExchangeAsset` XCM instruction.
 ///
@@ -28,7 +28,11 @@ where
 	Runtime: pallet_route_executor::Config + pallet_circuit_breaker::Config,
 	TempAccount: Get<Runtime::AccountId>,
 	CurrencyIdConvert: Convert<Asset, Option<<Runtime as pallet_route_executor::Config>::AssetId>>,
-	Currency: MultiCurrency<Runtime::AccountId, CurrencyId = <Runtime as pallet_route_executor::Config>::AssetId, Balance = <Runtime as pallet_route_executor::Config>::Balance>,
+	Currency: MultiCurrency<
+		Runtime::AccountId,
+		CurrencyId = <Runtime as pallet_route_executor::Config>::AssetId,
+		Balance = <Runtime as pallet_route_executor::Config>::Balance,
+	>,
 	<Runtime as pallet_route_executor::Config>::Balance: From<u128> + Zero + Into<u128>,
 	<Runtime as pallet_route_executor::Config>::AssetId: Into<u32>,
 	<Runtime as pallet_route_executor::Config>::AssetId: Into<<Runtime as pallet_circuit_breaker::Config>::AssetId>,
@@ -95,7 +99,8 @@ where
 					use_onchain_route,
 				)?;
 				debug_assert!(
-					Currency::free_balance(asset_in, &account) == <Runtime as pallet_route_executor::Config>::Balance::zero(),
+					Currency::free_balance(asset_in, &account)
+						== <Runtime as pallet_route_executor::Config>::Balance::zero(),
 					"Sell should not leave any of the incoming asset."
 				);
 				let amount_received = Currency::free_balance(asset_out, &account);
@@ -117,10 +122,9 @@ where
 			};
 
 			let route = pallet_route_executor::Pallet::<Runtime>::get_route(AssetPair::new(asset_in, asset_out));
-			let Ok(amount_in) = pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(
-				&route,
-				amount.into(),
-			) else {
+			let Ok(amount_in) =
+				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into())
+			else {
 				log::warn!(target: "xcm::exchange-asset", "Failed to calculate expected amount in for route: {:?}", route);
 				return Err(give);
 			};

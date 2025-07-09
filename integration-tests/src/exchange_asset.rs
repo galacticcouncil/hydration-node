@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use crate::{assert_operation_stack, assert_reserved_balance};
 use crate::polkadot_test_net::*;
+use crate::{assert_operation_stack, assert_reserved_balance};
 use frame_support::{
 	assert_ok,
 	dispatch::GetDispatchInfo,
@@ -18,10 +18,11 @@ use hydradx_traits::{AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
-use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use polkadot_xcm::v3::Junctions::X1;
+use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
+use primitives::Balance;
 use sp_runtime::{
 	traits::{Convert, Zero},
 	DispatchResult, FixedU128, Permill, TransactionOutcome,
@@ -29,7 +30,6 @@ use sp_runtime::{
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 use xcm_executor::traits::WeightBounds;
-use primitives::Balance;
 
 pub const SELL: bool = true;
 pub const BUY: bool = false;
@@ -267,11 +267,11 @@ fn swap_should_fail_when_no_asset_in_omnipool() {
 		assert!(fee > 0, "treasury should have received fees");
 
 		//No Aca received as exchange asset failed
+		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
-			0
+			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
+			BOB_INITIAL_NATIVE_BALANCE
 		);
-		assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), BOB_INITIAL_NATIVE_BALANCE);
 	});
 }
 
@@ -1186,23 +1186,22 @@ pub mod zeitgeist_use_cases {
 	}
 }
 
-
 mod circuit_breaker {
-	use std::sync::Arc;
 	use super::*;
-	use orml_traits::MultiReservableCurrency;
-	use hydradx_runtime::{Currencies, FixedU128, Omnipool};
 	use crate::assert_reserved_balance;
 	use cumulus_primitives_core::Fungibility;
 	use cumulus_primitives_core::Junction;
 	use frame_support::assert_ok;
 	use frame_support::storage::with_transaction;
+	use hydradx_runtime::{Currencies, FixedU128, Omnipool};
+	use orml_traits::MultiReservableCurrency;
 	use polkadot_xcm::latest::{Asset, Location};
 	use polkadot_xcm::v3::Junctions::X1;
 	use polkadot_xcm::v3::MultiLocation;
 	use polkadot_xcm::VersionedAssets;
-	use sp_runtime::{DispatchResult, TransactionOutcome};
 	use primitives::constants::chain::{Weight, CORE_ASSET_ID};
+	use sp_runtime::{DispatchResult, TransactionOutcome};
+	use std::sync::Arc;
 
 	#[test]
 	fn swap_should_fail_when_asset_reaches_limit_for_sell() {
@@ -1223,25 +1222,24 @@ mod circuit_breaker {
 				assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
 				assert_ok!(Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				ACA,
-				token_price,
-				Permill::from_percent(100),
-				AccountId::from(BOB),
-			));
+					hydradx_runtime::RuntimeOrigin::root(),
+					ACA,
+					token_price,
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
 				use hydradx_traits::pools::SpotPriceProvider;
 				price = Omnipool::spot_price(CORE_ASSET_ID, crate::exchange_asset::ACA);
 
 				//We need to set the balance of TempAccount because otherwise the mint normall mint to temp account would already trigger circuit breaker, leading to FundsAvailable in router execution
 				assert_ok!(Currencies::update_balance(
-				RawOrigin::Root.into(),
-				TempAccountForXcmAssetExchange::get(),
-				ACA,
-				1000 * UNITS as i128,
-			));
+					RawOrigin::Root.into(),
+					TempAccountForXcmAssetExchange::get(),
+					ACA,
+					1000 * UNITS as i128,
+				));
 
 				assert_ok!(update_deposit_limit(ACA, 400 * UNITS));
-
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -1270,7 +1268,12 @@ mod circuit_breaker {
 				60 * UNITS,
 			));
 
-			let xcm = crate::exchange_asset::craft_exchange_asset_xcm_with_amount::<hydradx_runtime::RuntimeCall>(give.clone(), want, 500 * UNITS, crate::exchange_asset::SELL);
+			let xcm = crate::exchange_asset::craft_exchange_asset_xcm_with_amount::<hydradx_runtime::RuntimeCall>(
+				give.clone(),
+				want,
+				500 * UNITS,
+				crate::exchange_asset::SELL,
+			);
 			//Act
 			let res = hydradx_runtime::PolkadotXcm::execute(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1281,22 +1284,18 @@ mod circuit_breaker {
 
 			let events = last_hydra_events(10);
 			assert!(matches!(
-			last_hydra_events(2).first(),
-			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
-				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
-			))
-		));
+				last_hydra_events(2).first(),
+				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+				))
+			));
 		});
 
 		Hydra::execute_with(|| {
 			let events = last_hydra_events(10);
 
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
-			assert_reserved_balance!(
-			TempAccountForXcmAssetExchange::get(),
-			ACA,
-			0u128
-		);
+			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
 
 			//Assert that assert is trapped
 			let trapped_asset = Asset::from((
@@ -1319,7 +1318,10 @@ mod circuit_breaker {
 				},
 			)]);
 
-			let fee = hydradx_runtime::Tokens::free_balance(crate::exchange_asset::ACA, &hydradx_runtime::Treasury::account_id());
+			let fee = hydradx_runtime::Tokens::free_balance(
+				crate::exchange_asset::ACA,
+				&hydradx_runtime::Treasury::account_id(),
+			);
 			assert!(fee > 0, "treasury should have received fees");
 
 			//No Aca received as exchange asset failed
@@ -1327,8 +1329,10 @@ mod circuit_breaker {
 				hydradx_runtime::Tokens::free_balance(crate::exchange_asset::ACA, &AccountId::from(BOB)),
 				0
 			);
-			pretty_assertions::assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), BOB_INITIAL_NATIVE_BALANCE);
-
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
+				BOB_INITIAL_NATIVE_BALANCE
+			);
 		});
 	}
 
@@ -1351,25 +1355,24 @@ mod circuit_breaker {
 				assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
 				assert_ok!(Omnipool::add_token(
-				hydradx_runtime::RuntimeOrigin::root(),
-				ACA,
-				token_price,
-				Permill::from_percent(100),
-				AccountId::from(BOB),
-			));
+					hydradx_runtime::RuntimeOrigin::root(),
+					ACA,
+					token_price,
+					Permill::from_percent(100),
+					AccountId::from(BOB),
+				));
 				use hydradx_traits::pools::SpotPriceProvider;
 				price = Omnipool::spot_price(CORE_ASSET_ID, crate::exchange_asset::ACA);
 
 				//We need to set the balance of TempAccount because otherwise the mint normall mint to temp account would already trigger circuit breaker, leading to FundsAvailable in router execution
 				assert_ok!(Currencies::update_balance(
-				RawOrigin::Root.into(),
-				TempAccountForXcmAssetExchange::get(),
-				ACA,
-				100000 * UNITS as i128,
-			));
+					RawOrigin::Root.into(),
+					TempAccountForXcmAssetExchange::get(),
+					ACA,
+					100000 * UNITS as i128,
+				));
 
 				assert_ok!(update_deposit_limit(ACA, 2000 * UNITS));
-
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -1406,7 +1409,12 @@ mod circuit_breaker {
 			));
 
 			let max_sell_amount = 4000 * UNITS;
-			let xcm = crate::exchange_asset::craft_exchange_asset_xcm_with_amount::<hydradx_runtime::RuntimeCall>(give.clone(), want, max_sell_amount, crate::exchange_asset::BUY);
+			let xcm = crate::exchange_asset::craft_exchange_asset_xcm_with_amount::<hydradx_runtime::RuntimeCall>(
+				give.clone(),
+				want,
+				max_sell_amount,
+				crate::exchange_asset::BUY,
+			);
 			//Act
 			let res = hydradx_runtime::PolkadotXcm::execute(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1417,22 +1425,18 @@ mod circuit_breaker {
 
 			let events = last_hydra_events(10);
 			assert!(matches!(
-			last_hydra_events(2).first(),
-			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
-				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
-			))
-		));
+				last_hydra_events(2).first(),
+				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+				))
+			));
 		});
 
 		Hydra::execute_with(|| {
 			let events = last_hydra_events(10);
 
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
-			assert_reserved_balance!(
-			TempAccountForXcmAssetExchange::get(),
-			ACA,
-			0u128
-		);
+			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
 
 			//Assert that assert is trapped
 			let trapped_asset = Asset::from((
@@ -1455,7 +1459,10 @@ mod circuit_breaker {
 				},
 			)]);
 
-			let fee = hydradx_runtime::Tokens::free_balance(crate::exchange_asset::ACA, &hydradx_runtime::Treasury::account_id());
+			let fee = hydradx_runtime::Tokens::free_balance(
+				crate::exchange_asset::ACA,
+				&hydradx_runtime::Treasury::account_id(),
+			);
 			assert!(fee > 0, "treasury should have received fees");
 
 			//No Aca received as exchange asset failed
@@ -1463,8 +1470,10 @@ mod circuit_breaker {
 				hydradx_runtime::Tokens::free_balance(crate::exchange_asset::ACA, &AccountId::from(BOB)),
 				0
 			);
-			pretty_assertions::assert_eq!(hydradx_runtime::Balances::free_balance(AccountId::from(BOB)), BOB_INITIAL_NATIVE_BALANCE);
-
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
+				BOB_INITIAL_NATIVE_BALANCE
+			);
 		});
 	}
 }
@@ -1484,7 +1493,7 @@ pub fn update_deposit_limit(asset_id: primitives::AssetId, limit: Balance) -> Re
 			None,
 		))
 	})
-		.map_err(|_| ())
+	.map_err(|_| ())
 }
 
 fn register_glmr() {
@@ -1780,7 +1789,12 @@ fn craft_exchange_asset_xcm<RC: Decode + GetDispatchInfo>(give: Asset, want: Ass
 	craft_exchange_asset_xcm_with_amount(give, want, 100 * UNITS, is_sell)
 }
 
-fn craft_exchange_asset_xcm_with_amount<RC: Decode + GetDispatchInfo>(give: Asset, want: Asset, native_from_source: Balance, is_sell: bool) -> VersionedXcm<RC> {
+fn craft_exchange_asset_xcm_with_amount<RC: Decode + GetDispatchInfo>(
+	give: Asset,
+	want: Asset,
+	native_from_source: Balance,
+	is_sell: bool,
+) -> VersionedXcm<RC> {
 	let dest = Location::new(
 		1,
 		cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID)])),
@@ -1799,7 +1813,7 @@ fn craft_exchange_asset_xcm_with_amount<RC: Decode + GetDispatchInfo>(give: Asse
 		)),
 		fun: Fungible(native_from_source),
 	}
-		.into();
+	.into();
 	let max_assets = assets.len() as u32 + 1;
 	let context = cumulus_primitives_core::Junctions::X2(Arc::new([
 		cumulus_primitives_core::Junction::GlobalConsensus(NetworkId::Polkadot),
@@ -1851,5 +1865,5 @@ pub fn update_ed(asset_id: primitives::AssetId, ed: Balance) -> Result<(), ()> {
 			None,
 		))
 	})
-		.map_err(|_| ())
+	.map_err(|_| ())
 }

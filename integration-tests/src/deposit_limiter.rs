@@ -5,12 +5,12 @@ use frame_support::pallet_prelude::Pays;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
+use hydradx_runtime::Router;
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::Stableswap;
 use hydradx_runtime::{
 	AssetRegistry, Balances, CircuitBreaker, Currencies, Omnipool, OmnipoolCollectionId, Tokens, Uniques,
 };
-use hydradx_runtime::Router;
 use primitives::constants::time::DAYS;
 
 use pallet_stableswap::types::BoundedPegSources;
@@ -543,13 +543,13 @@ fn save_deposit_should_work_when_other_user_claims_it() {
 use frame_support::pallet_prelude::Weight;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
+use pallet_broadcast::types::Filler::Omnipool as OtherOmnipool;
 use polkadot_xcm::opaque::lts::WeightLimit;
 use polkadot_xcm::opaque::v3::{
 	Junction,
 	Junctions::{X1, X2},
 	MultiLocation, NetworkId,
 };
-use pallet_broadcast::types::Filler::Omnipool as OtherOmnipool;
 use primitives::constants::currency::UNITS;
 
 #[test]
@@ -643,14 +643,13 @@ fn route_execution_should_not_trigger_circuit_breaker() {
 		// Act
 		let sell_amount = 20 * deposit_limit;
 		assert_ok!(Router::sell(
-				RuntimeOrigin::signed(ALICE.into()),
-				HDX,
-				DAI,
-				sell_amount,
-				u128::MIN,
-				vec![].try_into().unwrap()
-			));
-
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			DAI,
+			sell_amount,
+			u128::MIN,
+			vec![].try_into().unwrap()
+		));
 
 		// Assert
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -659,10 +658,8 @@ fn route_execution_should_not_trigger_circuit_breaker() {
 		assert_reserved_balance!(&Router::router_account().into(), DAI, 0);
 		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
 		assert_eq!(init_balance - new_balance, sell_amount)
-
 	});
 }
-
 
 //TODO: verify it
 #[test]
@@ -687,17 +684,16 @@ fn circuit_should_not_be_triggered_for_omnipool() {
 	});
 }
 
-
 #[test]
 fn add_liquidity_should_work_when_circuit_breaker_triggers_for_lrna() {
 	Hydra::execute_with(|| {
 		// Arrange
 		init_omnipool();
 		assert_ok!(Omnipool::set_asset_weight_cap(
-				RuntimeOrigin::root(),
-				HDX,
-				Permill::from_percent(33),
-			));
+			RuntimeOrigin::root(),
+			HDX,
+			Permill::from_percent(33),
+		));
 
 		assert_ok!(Currencies::deposit(LRNA, &ALICE.into(), 100 * UNITS));
 
@@ -709,8 +705,11 @@ fn add_liquidity_should_work_when_circuit_breaker_triggers_for_lrna() {
 		set_relaychain_block_number(10);
 
 		// Act and assert
-		assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(ALICE.into()), HDX,1000000000));
-
+		assert_ok!(Omnipool::add_liquidity(
+			RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			1000000000
+		));
 	});
 }
 

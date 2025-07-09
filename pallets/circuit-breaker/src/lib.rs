@@ -335,7 +335,11 @@ pub mod pallet {
 		AssetLockdownRemoved { asset_id: T::AssetId },
 
 		/// Reserved amount of deposit was saved
-		DepositSaved { who: T::AccountId, asset_id: T::AssetId, amount: T::Balance },
+		DepositSaved {
+			who: T::AccountId,
+			asset_id: T::AssetId,
+			amount: T::Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -545,7 +549,11 @@ pub mod pallet {
 				&(asset_id, who.clone(), amount),
 			)?;
 
-			Self::deposit_event(Event::DepositSaved {who: who, asset_id, amount});
+			Self::deposit_event(Event::DepositSaved {
+				who: who,
+				asset_id,
+				amount,
+			});
 
 			Ok(Pays::No.into())
 		}

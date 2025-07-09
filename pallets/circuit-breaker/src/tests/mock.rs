@@ -20,6 +20,7 @@ use frame_support::traits::{Contains, Get};
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
+use frame_support::PalletId;
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
@@ -35,7 +36,6 @@ use sp_runtime::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use frame_support::PalletId;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -67,7 +67,6 @@ pub const FIVE_PERCENT: (u32, u32) = (500, 10_000);
 pub const TEN_PERCENT: (u32, u32) = (1_000, 10_000);
 
 pub const DEFAULT_ASSET_DEPOSIT_PERIOD: BlockNumberFor<Test> = 10;
-
 
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
@@ -119,7 +118,6 @@ impl pallet_currencies::Config for Test {
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
 }
-
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -247,7 +245,7 @@ impl orml_tokens::Config for Test {
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier =  [u8; 8];
+	type ReserveIdentifier = [u8; 8];
 	type CurrencyHooks = Hooks;
 }
 

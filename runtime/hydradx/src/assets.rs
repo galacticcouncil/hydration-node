@@ -1511,7 +1511,7 @@ pub struct CircuitBreakerBenchmarkHelper<T>(PhantomData<T>);
 
 #[cfg(feature = "runtime-benchmarks")]
 impl<T: pallet_circuit_breaker::Config> pallet_circuit_breaker::types::BenchmarkHelper<AccountId, AssetId, Balance>
-for CircuitBreakerBenchmarkHelper<T>
+	for CircuitBreakerBenchmarkHelper<T>
 {
 	fn deposit(who: AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
 		Tokens::deposit(asset_id, &who, amount)
