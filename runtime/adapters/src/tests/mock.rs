@@ -38,7 +38,7 @@ use hydradx_traits::{
 	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
 	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
 };
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool;
@@ -46,7 +46,7 @@ use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use primitive_types::{U128, U256};
 use sp_core::H256;
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::{Bounded, Zero};
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError, DispatchResult, FixedU128,
@@ -54,6 +54,9 @@ use sp_runtime::{
 use sp_runtime::{BoundedVec, Permill};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::marker::PhantomData;
+use pallet_circuit_breaker::Config;
+use pallet_circuit_breaker::traits::AssetDepositLimiter;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -90,6 +93,9 @@ thread_local! {
 	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = const { RefCell::new((0u32,0u32, false)) };
+	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = const { RefCell::new((2_000, 10_000)) }; // 20%
+	pub static MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((4_000, 10_000))) }; // 40%
+	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((2_000, 10_000))) }; // 20%
 }
 
 construct_runtime!(
@@ -103,6 +109,7 @@ construct_runtime!(
 		Currencies: pallet_currencies,
 		XYK: pallet_xyk,
 		Broadcast: pallet_broadcast,
+		CircuitBreaker: pallet_circuit_breaker,
 	}
 );
 
@@ -277,6 +284,70 @@ impl pallet_xyk::Config for Test {
 
 impl pallet_broadcast::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+}
+
+pub struct CircuitBreakerWhitelist;
+
+
+pub const WHITELISTED_ACCCOUNT: u64 = 2;
+
+impl Contains<AccountId> for CircuitBreakerWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		WHITELISTED_ACCCOUNT == *a
+	}
+}
+
+
+parameter_types! {
+	pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub const OmnipoolHubAsset: AssetId = LRNA;
+
+}
+
+pub struct NoIssuanceIncreaseLimit<T>(PhantomData<T>);
+
+impl<T: Config> GetByKey<T::AssetId, Option<T::Balance>> for NoIssuanceIncreaseLimit<T> {
+	fn get(_: &T::AssetId) -> Option<T::Balance> {
+		Some(T::Balance::max_value())
+	}
+}
+
+pub struct NoIssuance<T>(PhantomData<T>);
+impl<T: Config> GetByKey<T::AssetId, T::Balance> for NoIssuance<T> {
+	fn get(_: &T::AssetId) -> T::Balance {
+		T::Balance::default()
+	}
+}
+
+
+pub struct DepositLimiter;
+
+impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
+	type DepositLimit = NoIssuanceIncreaseLimit<Test>;
+	type Period = ();
+	type Issuance = NoIssuance<Test>;
+	type OnLimitReached = ();
+	type OnLockdownDeposit = ();
+	type OnDepositRelease = ();
+}
+
+impl pallet_circuit_breaker::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = OmnipoolHubAsset;
+	type WeightInfo = ();
+	type DepositLimiter = DepositLimiter;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 pub struct Whitelist;
