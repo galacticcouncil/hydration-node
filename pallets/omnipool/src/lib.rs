@@ -2154,7 +2154,7 @@ impl<T: Config> Pallet<T> {
 
 		let hub_reserve_ratio = FixedU128::checked_from_rational(
 			new_asset_state.hub_reserve,
-			T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
+			T::Currency::total_balance(T::HubAssetId::get(), &Self::protocol_account())
 				.checked_add(*state_changes.asset.total_delta_hub_reserve())
 				.ok_or(ArithmeticError::Overflow)?,
 		)
