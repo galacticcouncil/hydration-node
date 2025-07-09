@@ -121,10 +121,8 @@ pub mod benchmark_helpers {
 		}
 	}
 
-	#[cfg(feature = "runtime-benchmarks")]
 	pub struct CircuitBreakerBenchmarkHelper<T>(PhantomData<T>);
 
-	#[cfg(feature = "runtime-benchmarks")]
 	impl<T: pallet_circuit_breaker::Config> pallet_circuit_breaker::types::BenchmarkHelper<AccountId, AssetId, Balance>
 		for CircuitBreakerBenchmarkHelper<T>
 	{

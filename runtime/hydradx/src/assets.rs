@@ -1884,6 +1884,8 @@ use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
+
+#[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 
 #[cfg(feature = "runtime-benchmarks")]
