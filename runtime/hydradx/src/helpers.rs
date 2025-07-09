@@ -13,8 +13,8 @@ pub mod benchmark_helpers {
 	use primitives::{AccountId, AssetId, Balance, EvmAddress};
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::{DispatchResult, TransactionOutcome};
-	use sp_std::prelude::*;
 	use sp_std::marker::PhantomData;
+	use sp_std::prelude::*;
 
 	pub struct HsmBenchmarkHelper;
 
