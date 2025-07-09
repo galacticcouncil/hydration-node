@@ -725,7 +725,7 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 		));
 
 		assert_ok!(Currencies::deposit(HDX, &ALICE.into(), 1000000 * UNITS));
-		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 3402823669209384634633746074317));//Mint infinite amount of DAI (because of a hack/exploit or so)
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 3402823669209384634633746074317)); //Mint infinite amount of DAI (because of a hack/exploit or so)
 		assert_ok!(Currencies::deposit(LRNA, &ALICE.into(), 100 * UNITS));
 
 		update_deposit_limit(LRNA, 1 * UNITS).unwrap();
@@ -749,7 +749,6 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 			));
 			positions.push(position_id);
 			set_relaychain_block_number(init_block + (i + 1u32));
-
 		}
 
 		for i in 0..=36usize {
@@ -764,11 +763,10 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 			set_relaychain_block_number(init_block + (i as u32) + 100);
 		}
 
-		assert_noop!(Omnipool::remove_liquidity(
-				RuntimeOrigin::signed(ALICE.into()),
-				positions[37],
-				amount
-			), orml_tokens::Error::<hydradx_runtime::Runtime>::BalanceTooLow);
+		assert_noop!(
+			Omnipool::remove_liquidity(RuntimeOrigin::signed(ALICE.into()), positions[37], amount),
+			orml_tokens::Error::<hydradx_runtime::Runtime>::BalanceTooLow
+		);
 	});
 }
 
