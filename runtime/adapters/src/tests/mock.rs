@@ -39,6 +39,8 @@ use hydradx_traits::{
 	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
 };
 use orml_traits::{parameter_type_with_key, GetByKey};
+use pallet_circuit_breaker::traits::AssetDepositLimiter;
+use pallet_circuit_breaker::Config;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool;
@@ -55,8 +57,6 @@ use sp_runtime::{BoundedVec, Permill};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use pallet_circuit_breaker::Config;
-use pallet_circuit_breaker::traits::AssetDepositLimiter;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -288,7 +288,6 @@ impl pallet_broadcast::Config for Test {
 
 pub struct CircuitBreakerWhitelist;
 
-
 pub const WHITELISTED_ACCCOUNT: u64 = 2;
 
 impl Contains<AccountId> for CircuitBreakerWhitelist {
@@ -296,7 +295,6 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 		WHITELISTED_ACCCOUNT == *a
 	}
 }
-
 
 parameter_types! {
 	pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
@@ -320,7 +318,6 @@ impl<T: Config> GetByKey<T::AssetId, T::Balance> for NoIssuance<T> {
 		T::Balance::default()
 	}
 }
-
 
 pub struct DepositLimiter;
 
