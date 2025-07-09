@@ -713,6 +713,65 @@ fn add_liquidity_should_work_when_circuit_breaker_triggers_for_lrna() {
 	});
 }
 
+#[test]
+fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
+	Hydra::execute_with(|| {
+		// Arrange
+		init_omnipool();
+		assert_ok!(Omnipool::set_asset_weight_cap(
+			RuntimeOrigin::root(),
+			HDX,
+			Permill::from_percent(33),
+		));
+
+		assert_ok!(Currencies::deposit(HDX, &ALICE.into(), 1000000 * UNITS));
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 3402823669209384634633746074317));//Mint infinite amount of DAI (because of a hack/exploit or so)
+		assert_ok!(Currencies::deposit(LRNA, &ALICE.into(), 100 * UNITS));
+
+		update_deposit_limit(LRNA, 1 * UNITS).unwrap();
+		assert_ok!(Currencies::deposit(LRNA, &Omnipool::protocol_account(), 100 * UNITS));
+
+		let hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+
+		let init_block = 10u32;
+		set_relaychain_block_number(init_block);
+
+		let mut positions = vec![];
+		let amount = 2000000000 * UNITS;
+
+		for i in 0..100u32 {
+			let position_id = hydradx_runtime::Omnipool::next_position_id();
+
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				DAI,
+				amount
+			));
+			positions.push(position_id);
+			set_relaychain_block_number(init_block + (i + 1u32));
+
+		}
+
+		for i in 0..=36usize {
+			let position_id = positions[i];
+
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				position_id,
+				amount
+			));
+
+			set_relaychain_block_number(init_block + (i as u32) + 100);
+		}
+
+		assert_noop!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				positions[37],
+				amount
+			), orml_tokens::Error::<hydradx_runtime::Runtime>::BalanceTooLow);
+	});
+}
+
 pub fn update_deposit_limit(asset_id: AssetId, limit: Balance) -> Result<(), ()> {
 	with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::update(
