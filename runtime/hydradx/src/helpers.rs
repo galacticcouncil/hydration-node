@@ -14,7 +14,7 @@ pub mod benchmark_helpers {
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::{DispatchResult, TransactionOutcome};
 	use sp_std::prelude::*;
-	use std::marker::PhantomData;
+	use sp_std::marker::PhantomData;
 
 	pub struct HsmBenchmarkHelper;
 
