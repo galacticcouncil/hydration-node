@@ -1506,41 +1506,6 @@ impl<T: pallet_ema_oracle::Config> pallet_ema_oracle::BenchmarkHelper<AssetId> f
 	}
 }
 
-#[cfg(feature = "runtime-benchmarks")]
-pub struct CircuitBreakerBenchmarkHelper<T>(PhantomData<T>);
-
-#[cfg(feature = "runtime-benchmarks")]
-impl<T: pallet_circuit_breaker::Config> pallet_circuit_breaker::types::BenchmarkHelper<AccountId, AssetId, Balance>
-	for CircuitBreakerBenchmarkHelper<T>
-{
-	fn deposit(who: AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
-		Tokens::deposit(asset_id, &who, amount)
-	}
-
-	fn register_asset(asset_id: AssetId, deposit_limit: Balance) -> DispatchResult {
-		let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id
-			.to_le_bytes()
-			.to_vec()
-			.try_into()
-			.map_err(|_| "BoundedConversionFailed")?;
-
-		with_transaction(|| {
-			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
-				Some(asset_id),
-				Some(asset_name.clone()),
-				AssetKind::Token,
-				1,
-				None,
-				None,
-				None,
-				Some(deposit_limit),
-			))
-		})?;
-
-		Ok(())
-	}
-}
-
 impl pallet_stableswap::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;

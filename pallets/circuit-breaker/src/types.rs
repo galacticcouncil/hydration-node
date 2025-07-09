@@ -17,3 +17,14 @@ pub trait BenchmarkHelper<AccountId, AssetId, Balance> {
 
 	fn register_asset(asset_id: AssetId, deposit_limit: Balance) -> DispatchResult;
 }
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<AccountId, AssetId, Balance> BenchmarkHelper<AccountId, AssetId, Balance> for () {
+	fn deposit(_who: AccountId, _asset_id: AssetId, _amount: Balance) -> DispatchResult {
+		Ok(())
+	}
+
+	fn register_asset(_asset_id: AssetId, _deposit_limit: Balance) -> DispatchResult {
+		Ok(())
+	}
+}
