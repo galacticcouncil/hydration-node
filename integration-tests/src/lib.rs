@@ -28,6 +28,7 @@ mod omnipool_init;
 mod omnipool_liquidity_mining;
 mod oracle;
 mod otc;
+mod parameters;
 mod polkadot_test_net;
 mod referrals;
 mod router;
