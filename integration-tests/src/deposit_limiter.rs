@@ -549,6 +549,7 @@ use polkadot_xcm::opaque::v3::{
 	Junctions::{X1, X2},
 	MultiLocation, NetworkId,
 };
+use pallet_broadcast::types::Filler::Omnipool as OtherOmnipool;
 use primitives::constants::currency::UNITS;
 
 #[test]
@@ -686,9 +687,32 @@ fn circuit_should_not_be_triggered_for_omnipool() {
 	});
 }
 
-//TODO: Doesn't work because we cant limit mints and deposits of erc20
+
 #[test]
-fn circuit_should_is_not_triggered_for_erc20() {}
+fn add_liquidity_should_work_when_circuit_breaker_triggers_for_lrna() {
+	Hydra::execute_with(|| {
+		// Arrange
+		init_omnipool();
+		assert_ok!(Omnipool::set_asset_weight_cap(
+				RuntimeOrigin::root(),
+				HDX,
+				Permill::from_percent(33),
+			));
+
+		assert_ok!(Currencies::deposit(LRNA, &ALICE.into(), 100 * UNITS));
+
+		update_deposit_limit(LRNA, 1 * UNITS).unwrap();
+		assert_ok!(Currencies::deposit(LRNA, &Omnipool::protocol_account(), 100 * UNITS));
+
+		let hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+
+		set_relaychain_block_number(10);
+
+		// Act and assert
+		assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(ALICE.into()), HDX,1000000000));
+
+	});
+}
 
 pub fn update_deposit_limit(asset_id: AssetId, limit: Balance) -> Result<(), ()> {
 	with_transaction(|| {
