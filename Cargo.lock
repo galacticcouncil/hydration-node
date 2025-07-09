@@ -4610,7 +4610,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7735,7 +7735,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.30"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7746,9 +7746,11 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "pallet-broadcast",
+ "pallet-currencies",
  "pallet-omnipool",
  "parity-scale-codec",
  "pretty_assertions",
+ "primitives",
  "scale-info",
  "serde",
  "sp-core",
@@ -7858,7 +7860,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "3.1.1"
+version = "3.2.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12215,7 +12217,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.45.1"
+version = "1.46.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
