@@ -1,12 +1,12 @@
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmark_helpers {
-	use std::marker::PhantomData;
 	use crate::{AssetRegistry, EVMAccounts, RegistryStrLimit, Runtime, RuntimeOrigin, Tokens};
 	use evm::ExitRevert::Reverted;
 	use evm::{ExitReason, ExitSucceed};
-	use frame_support::BoundedVec;
 	use frame_support::storage::with_transaction;
+	use frame_support::BoundedVec;
 	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
+	use hydradx_traits::{AssetKind, Create};
 	use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 	use pallet_hsm::ERC20Function;
 	use primitive_types::U256;
@@ -14,7 +14,7 @@ pub mod benchmark_helpers {
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::{DispatchResult, TransactionOutcome};
 	use sp_std::prelude::*;
-	use hydradx_traits::{AssetKind, Create};
+	use std::marker::PhantomData;
 
 	pub struct HsmBenchmarkHelper;
 
@@ -126,7 +126,7 @@ pub mod benchmark_helpers {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl<T: pallet_circuit_breaker::Config> pallet_circuit_breaker::types::BenchmarkHelper<AccountId, AssetId, Balance>
-	for CircuitBreakerBenchmarkHelper<T>
+		for CircuitBreakerBenchmarkHelper<T>
 	{
 		fn deposit(who: AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
 			Tokens::deposit(asset_id, &who, amount)
