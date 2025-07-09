@@ -21,13 +21,12 @@ use crate::{
 
 use sp_core::Get;
 
-use super::*;
+use crate::*;
 
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::{
 	assert_ok,
-	sp_runtime::{DispatchResult, FixedU128, Perquintill},
-	traits::{OnFinalize, OnInitialize},
+	sp_runtime::{traits::One, DispatchResult, FixedU128, Perquintill},
 };
 use frame_system::RawOrigin;
 use hydradx_traits::AMM;
@@ -35,7 +34,13 @@ use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_xyk::types::AssetPair;
 use sp_std::vec;
-use warehouse_liquidity_mining::{GlobalFarmId, LoyaltyCurve};
+use warehouse_liquidity_mining::{GlobalFarmData, GlobalFarmId, LoyaltyCurve};
+type Router<T> = pallet_route_executor::Pallet<T>;
+use crate::benchmarking::{register_asset, register_external_asset};
+use crate::XYKLiquidityMiningInstance;
+use hydradx_traits::liquidity_mining::PriceAdjustment;
+use hydradx_traits::router::AssetPair as RouteAssetPair;
+use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 
 pub const HDX: AssetId = 0;
 
@@ -690,6 +695,109 @@ runtime_benchmarks! {
 
 		run_to_block(400);
 	}: _(RawOrigin::Signed(lp1),lp1_deposit_id, pair, farms.try_into().unwrap())
+
+	price_adjustment_get {
+		let maker: AccountId = account("maker", 0, 0);
+		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_7 = register_asset(b"AS7".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_8 = register_asset(b"AS8".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_10 = register_asset(b"ASA".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, asset_1, asset_2, asset_3, asset_4, asset_5, asset_6, asset_7, asset_8, asset_9, asset_10]);
+
+		create_xyk_pool(xyk_caller.clone(), asset_1, asset_2);
+		create_xyk_pool(xyk_caller.clone(), asset_2, asset_3);
+		create_xyk_pool(xyk_caller.clone(), asset_3, asset_4);
+		create_xyk_pool(xyk_caller.clone(), asset_4, asset_5);
+		create_xyk_pool(xyk_caller.clone(), asset_5, asset_6);
+		create_xyk_pool(xyk_caller.clone(), asset_6, asset_7);
+		create_xyk_pool(xyk_caller.clone(), asset_7, asset_8);
+		create_xyk_pool(xyk_caller.clone(), asset_8, asset_9);
+		create_xyk_pool(xyk_caller.clone(), asset_9, asset_10);
+
+		run_to_block(10);
+
+		let route = vec![
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_1,
+				asset_out: asset_2,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_2,
+				asset_out: asset_3,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_3,
+				asset_out: asset_4,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_4,
+				asset_out: asset_5,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_5,
+				asset_out: asset_6,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_6,
+				asset_out: asset_7,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_7,
+				asset_out: asset_8,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_8,
+				asset_out: asset_9,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_9,
+				asset_out: asset_10,
+			}
+		];
+
+		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
+
+		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), RouteAssetPair::new(asset_1, asset_10), route.try_into().unwrap())?;
+
+		let g_farm = GlobalFarmData::new(
+			1,
+			1,
+			asset_1,
+			Perquintill::from_parts(570_776_255_707),
+			1_000_000,
+			1,
+			Treasury::account_id(),
+			asset_10,
+			1_000_000_000_000_000_000,
+			1_000,
+			FixedU128::from_inner(500_000_000_000_000_000_u128),
+		);
+
+		let price: Result<FixedU128, DispatchError>;
+	}: {
+		price = <Runtime as warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance>>::PriceAdjustment::get(&g_farm);
+	}
+
+	verify{
+		assert_eq!(price, Ok(FixedU128::from_inner(1_001_798_825_956_230_441_u128)));
+	}
+
 }
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {

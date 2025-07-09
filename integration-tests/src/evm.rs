@@ -306,7 +306,7 @@ mod account_conversion {
 				DISPATCH_ADDR, // to
 				data,          // data
 				U256::from(0u64),
-				U256::from(53000u64),
+				U256::from(60000u64),
 				None,
 				None,
 				None,
@@ -2744,12 +2744,20 @@ impl PrecompileHandle for MockHandle {
 		&self.context
 	}
 
+	fn origin(&self) -> H160 {
+		todo!()
+	}
+
 	fn is_static(&self) -> bool {
 		self.is_static
 	}
 
 	fn gas_limit(&self) -> Option<u64> {
 		None
+	}
+
+	fn is_contract_being_constructed(&self, address: H160) -> bool {
+		todo!()
 	}
 }
 

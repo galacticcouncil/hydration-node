@@ -240,6 +240,7 @@ where
 			filter_pool,
 			500_usize, // max stored filters
 			max_past_logs,
+			u32::MAX,
 			block_data_cache,
 		)
 		.into_rpc(),
