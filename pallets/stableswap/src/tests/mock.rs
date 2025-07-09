@@ -549,6 +549,7 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 					price: (n, d),
 					volume: Default::default(),
 					liquidity: Default::default(),
+					shares_issuance: Default::default(),
 					updated_at: u,
 				});
 			}
@@ -557,6 +558,7 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 					price: peg,
 					volume: Default::default(),
 					liquidity: Default::default(),
+					shares_issuance: Default::default(),
 					updated_at: System::block_number(),
 				});
 			}
