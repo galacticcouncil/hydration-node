@@ -380,6 +380,7 @@ impl AggregatedOracle<AssetId, Balance, BlockNumber, Price> for DummyOracle {
 			},
 			volume: Volume::default(),
 			oracle_age: BlockNumber::default(),
+			shares_issuance: Some(DummyAMM::total_shares(&amm_pool_id)),
 		})
 	}
 

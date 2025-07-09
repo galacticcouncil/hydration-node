@@ -1078,15 +1078,17 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(assets.contains(&asset), Error::<T>::AssetNotInAssetPair);
 
-		let total_xyk_shares = T::AMM::total_shares(&amm_pool_id);
-		let reserves =
+		let oracle_entry =
 			T::LiquidityOracle::get_entry(assets[0], assets[1], T::OraclePeriod::get(), T::OracleSource::get())
-				.map_err(|_| Error::<T>::FailedToValueShares)?
-				.liquidity;
-
-		let (liq_a, liq_b) =
-			hydra_dx_math::xyk::calculate_liquidity_out(reserves.a, reserves.b, lp_shares_amount, total_xyk_shares)
 				.map_err(|_| Error::<T>::FailedToValueShares)?;
+
+		let (liq_a, liq_b) = hydra_dx_math::xyk::calculate_liquidity_out(
+			oracle_entry.liquidity.a,
+			oracle_entry.liquidity.b,
+			lp_shares_amount,
+			oracle_entry.shares_issuance.ok_or(Error::<T>::FailedToValueShares)?,
+		)
+		.map_err(|_| Error::<T>::FailedToValueShares)?;
 
 		if assets[0] == asset {
 			return Ok(liq_a);
