@@ -237,6 +237,7 @@ pub mod pallet {
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 
+		///Deposit limiter for assets to prevent undesired issuance increase.
 		type DepositLimiter: AssetDepositLimiter<Self::AccountId, Self::AssetId, Self::Balance>;
 
 		#[cfg(feature = "runtime-benchmarks")]
