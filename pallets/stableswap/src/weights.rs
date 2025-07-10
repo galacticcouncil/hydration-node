@@ -27,9 +27,11 @@ pub trait WeightInfo {
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
 	fn calculate_spot_price_with_fee() -> Weight;
+	fn update_asset_peg_source() -> Weight;
 }
 
 /// Weights for pallet_stableswap using the hydraDX node and recommended hardware.
+#[cfg(test)]
 impl WeightInfo for () {
 	/// Storage: `Stableswap::Pools` (r:1 w:1)
 	/// Proof: `Stableswap::Pools` (`max_values`: None, `max_size`: Some(57), added: 2532, mode: `MaxEncodedLen`)
@@ -457,5 +459,9 @@ impl WeightInfo for () {
 		Weight::from_parts(53_616_000, 16590)
 			.saturating_add(RocksDbWeight::get().reads(7_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+
+	fn update_asset_peg_source() -> Weight {
+		Weight::zero()
 	}
 }

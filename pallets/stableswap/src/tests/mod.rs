@@ -16,6 +16,7 @@ mod peg_one;
 mod price;
 mod remove_liquidity;
 mod trades;
+mod update_peg_source;
 mod update_pool;
 
 type Balance = u128;
