@@ -1272,7 +1272,7 @@ pub mod pallet {
 		/// The current price is always preserved when updating the peg source.
 		///
 		/// Parameters:
-		/// - `origin`: Must be `T::UpdateTradabilityOrigin`.
+		/// - `origin`: Must be `T::AuthorityOrigin`.
 		/// - `pool_id`: The ID of the pool containing the asset.
 		/// - `asset_id`: The ID of the asset whose peg source is to be updated.
 		/// - `peg_source`: The new peg source for the asset.
@@ -1293,7 +1293,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			peg_source: PegSource<T::AssetId>,
 		) -> DispatchResult {
-			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 			let asset_index = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
@@ -1322,7 +1322,7 @@ pub mod pallet {
 		/// can change in a pool with pegs configured.
 		///
 		/// Parameters:
-		/// - `origin`: Must be `T::UpdateTradabilityOrigin`.
+		/// - `origin`: Must be `T::AuthorityOrigin`.
 		/// - `pool_id`: The ID of the pool to update.
 		/// - `max_peg_update`: The new maximum peg update percentage.
 		///
@@ -1340,7 +1340,7 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			max_peg_update: Permill,
 		) -> DispatchResult {
-			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let _pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 
