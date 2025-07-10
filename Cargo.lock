@@ -4495,7 +4495,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "10.1.0"
+version = "10.2.0"
 dependencies = [
  "approx",
  "criterion",
@@ -4610,7 +4610,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "326.0.0"
+version = "327.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4819,7 +4819,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "3.15.5"
+version = "4.0.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8125,7 +8125,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.7.1"
+version = "1.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8397,7 +8397,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "ethabi",
  "evm",
@@ -9136,7 +9136,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "5.3.1"
+version = "5.3.2"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -9509,7 +9509,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "6.9.0"
+version = "6.10.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12217,7 +12217,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.45.1"
+version = "1.45.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
