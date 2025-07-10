@@ -290,6 +290,11 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			peg_source: PegSource<T::AssetId>,
 		},
+		/// Pool max peg update has been updated.
+		PoolMaxPegUpdateUpdated {
+			pool_id: T::AssetId,
+			max_peg_update: Permill,
+		},
 	}
 
 	#[pallet::error]
@@ -1311,6 +1316,48 @@ pub mod pallet {
 					pool_id,
 					asset_id,
 					peg_source,
+				});
+
+				Ok(())
+			})
+		}
+
+		/// Update the maximum peg update percentage for a pool.
+		///
+		/// This function allows updating the maximum percentage by which peg values
+		/// can change in a pool with pegs configured.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::UpdateTradabilityOrigin`.
+		/// - `pool_id`: The ID of the pool to update.
+		/// - `max_peg_update`: The new maximum peg update percentage.
+		///
+		/// Emits `PoolMaxPegUpdateUpdated` event when successful.
+		///
+		/// # Errors
+		/// - `PoolNotFound`: If the specified pool does not exist.
+		/// - `NoPegSource`: If the pool does not have pegs configured.
+		///
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_pool_max_peg_update())]
+		#[transactional]
+		pub fn update_pool_max_peg_update(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			max_peg_update: Permill,
+		) -> DispatchResult {
+			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
+
+			let _pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+
+			PoolPegs::<T>::try_mutate(pool_id, |maybe_peg_info| -> DispatchResult {
+				let peg_info = maybe_peg_info.as_mut().ok_or(Error::<T>::NoPegSource)?;
+
+				peg_info.max_peg_update = max_peg_update;
+
+				Self::deposit_event(Event::PoolMaxPegUpdateUpdated {
+					pool_id,
+					max_peg_update,
 				});
 
 				Ok(())

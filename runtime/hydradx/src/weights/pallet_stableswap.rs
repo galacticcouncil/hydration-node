@@ -533,4 +533,16 @@ impl<T: frame_system::Config> pallet_stableswap::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(427_807_000, 16590)
 			.saturating_add(T::DbWeight::get().reads(18_u64))
 	}
+
+	fn update_asset_peg_source() -> Weight {
+		Weight::from_parts(21_807_000, 3522)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+
+	fn update_pool_max_peg_update() -> Weight {
+		Weight::from_parts(21_807_000, 3522)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

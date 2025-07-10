@@ -427,6 +427,19 @@ benchmarks! {
 		assert_eq!(peg_info.source[0], new_peg_source);
 	}
 
+	update_pool_max_peg_update{
+		let lp_provider: T::AccountId = account("provider", 0, 1);
+		let (pool_id, _pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
+		let successful_origin = T::UpdateTradabilityOrigin::try_successful_origin().unwrap();
+
+		let new_max_peg_update = Permill::from_percent(50);
+
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id, new_max_peg_update)
+	verify {
+		let peg_info = crate::PoolPegs::<T>::get(pool_id).unwrap();
+		assert_eq!(peg_info.max_peg_update, new_max_peg_update);
+	}
+
 	router_execution_sell{
 		let c in 1..2;
 		let e in 0..1;	// if e == 1, execute_sell is executed

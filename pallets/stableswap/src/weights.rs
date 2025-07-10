@@ -28,6 +28,7 @@ pub trait WeightInfo {
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
 	fn calculate_spot_price_with_fee() -> Weight;
 	fn update_asset_peg_source() -> Weight;
+	fn update_pool_max_peg_update() -> Weight;
 }
 
 /// Weights for pallet_stableswap using the hydraDX node and recommended hardware.
@@ -462,6 +463,10 @@ impl WeightInfo for () {
 	}
 
 	fn update_asset_peg_source() -> Weight {
+		Weight::zero()
+	}
+
+	fn update_pool_max_peg_update() -> Weight {
 		Weight::zero()
 	}
 }
