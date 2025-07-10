@@ -421,7 +421,7 @@ benchmarks! {
 		// Register the new peg source for benchmarking
 		T::BenchmarkHelper::register_asset_peg((asset_id, asset_id), (2u128, 3u128), *b"benchmar")?;
 
-	}: _<T::RuntimeOrigin>(successful_origin, pool_id, asset_id, new_peg_source.clone(), false)
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id, asset_id, new_peg_source.clone())
 	verify {
 		let peg_info = crate::PoolPegs::<T>::get(pool_id).unwrap();
 		assert_eq!(peg_info.source[0], new_peg_source);
