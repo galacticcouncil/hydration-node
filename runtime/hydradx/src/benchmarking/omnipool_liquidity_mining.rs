@@ -32,6 +32,13 @@ use primitives::AssetId;
 use sp_runtime::{traits::One, FixedU128, Permill};
 use sp_runtime::{DispatchError, DispatchResult, Perquintill, TransactionOutcome};
 use warehouse_liquidity_mining::LoyaltyCurve;
+type XykPallet<T> = pallet_xyk::Pallet<T>;
+type Router<T> = pallet_route_executor::Pallet<T>;
+use hydradx_traits::liquidity_mining::PriceAdjustment;
+use hydradx_traits::router::AssetPair;
+use pallet_route_executor::MAX_NUMBER_OF_TRADES;
+use warehouse_liquidity_mining::GlobalFarmData;
+
 const ONE: Balance = 1_000_000_000_000;
 const BTC_ONE: Balance = 100_000_000;
 const HDX: AssetId = 0;
@@ -912,10 +919,179 @@ runtime_benchmarks! {
 
 	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), Some(farms.try_into().unwrap()))
 
+
+	//NOTE: price adjustment reads route's price from oracle so pool type doesn't matter
+	price_adjustment_get {
+		let maker: AccountId = account("maker", 0, 0);
+		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_7 = register_asset(b"AS7".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_8 = register_asset(b"AS8".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_10 = register_asset(b"ASA".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		create_xyk_pool::<Runtime>(asset_1, 1000 * ONE, asset_2, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_2, 1000 * ONE, asset_3, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_3, 1000 * ONE, asset_4, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_4, 1000 * ONE, asset_5, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_5, 1000 * ONE, asset_6, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_6, 1000 * ONE, asset_7, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_7, 1000 * ONE, asset_8, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_8, 1000 * ONE, asset_9, 1000 * ONE);
+		create_xyk_pool::<Runtime>(asset_9, 1000 * ONE, asset_10, 1000 * ONE);
+
+		xyk_sell::<Runtime>(asset_1,asset_2, 10 * ONE);
+		xyk_sell::<Runtime>(asset_2,asset_3, 10 * ONE);
+		xyk_sell::<Runtime>(asset_3,asset_4, 10 * ONE);
+		xyk_sell::<Runtime>(asset_4,asset_5, 10 * ONE);
+		xyk_sell::<Runtime>(asset_5,asset_6, 10 * ONE);
+		xyk_sell::<Runtime>(asset_6,asset_7, 10 * ONE);
+		xyk_sell::<Runtime>(asset_7,asset_8, 10 * ONE);
+		xyk_sell::<Runtime>(asset_8,asset_9, 10 * ONE);
+		xyk_sell::<Runtime>(asset_9,asset_10, 10 * ONE);
+
+		set_period(10);
+
+		let route = vec![
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_1,
+				asset_out: asset_2,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_2,
+				asset_out: asset_3,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_3,
+				asset_out: asset_4,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_4,
+				asset_out: asset_5,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_5,
+				asset_out: asset_6,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_6,
+				asset_out: asset_7,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_7,
+				asset_out: asset_8,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_8,
+				asset_out: asset_9,
+			},
+			Trade {
+				pool: PoolType::XYK,
+				asset_in: asset_9,
+				asset_out: asset_10,
+			}
+		];
+
+		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
+
+		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), AssetPair::new(asset_1, asset_10), route.try_into().unwrap())?;
+
+		let g_farm = GlobalFarmData::new(
+			1,
+			1,
+			asset_1,
+			Perquintill::from_parts(570_776_255_707),
+			1_000_000,
+			1,
+			Treasury::account_id(),
+			asset_10,
+			1_000_000_000_000_000_000,
+			1_000,
+			FixedU128::from_inner(500_000_000_000_000_000_u128),
+		);
+
+		let price: Result<FixedU128, DispatchError>;
+	}: {
+		price = <Runtime as warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance>>::PriceAdjustment::get(&g_farm);
+	}
+
+	verify{
+		assert_eq!(price, Ok(FixedU128::from_inner(1_195_824_564_306_864_398_u128)));
+	}
+
 }
 
 fn get_max_entries() -> u32 {
 	<Runtime as pallet_omnipool_liquidity_mining::Config>::MaxFarmEntriesPerDeposit::get() as u32
+}
+
+fn create_xyk_pool<T: pallet_xyk::Config>(asset_a: AssetId, amount_a: Balance, asset_b: AssetId, amount_b: Balance)
+where
+	<T as frame_system::Config>::RuntimeOrigin: core::convert::From<frame_system::RawOrigin<sp_runtime::AccountId32>>,
+{
+	let maker: AccountId = account("xyk-maker", 0, 0);
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		0_u32,
+		InsufficientEDinHDX::get() as i128,
+	));
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		asset_a,
+		amount_a as i128,
+	));
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		asset_b,
+		amount_b as i128,
+	));
+
+	assert_ok!(XykPallet::<T>::create_pool(
+		RawOrigin::Signed(maker).into(),
+		asset_a,
+		amount_a,
+		asset_b,
+		amount_b,
+	));
+}
+
+fn xyk_sell<T: pallet_xyk::Config>(asset_a: AssetId, asset_b: AssetId, amount_a: Balance)
+where
+	<T as frame_system::Config>::RuntimeOrigin: core::convert::From<frame_system::RawOrigin<sp_runtime::AccountId32>>,
+{
+	let maker: AccountId = account("xyk-seller", 0, 0);
+
+	assert_ok!(Currencies::update_balance(
+		RawOrigin::Root.into(),
+		maker.clone(),
+		asset_a,
+		amount_a as i128,
+	));
+	assert_ok!(XykPallet::<T>::sell(
+		RawOrigin::Signed(maker).into(),
+		asset_a,
+		asset_b,
+		amount_a,
+		u128::MIN,
+		false
+	));
 }
 
 #[cfg(test)]

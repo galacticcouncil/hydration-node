@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
+use sp_core::H160;
 use {
 	crate::{
 		solidity::{
@@ -195,6 +196,13 @@ mod tests {
 		}
 
 		fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
+		fn origin(&self) -> H160 {
+			unimplemented!()
+		}
+
+		fn is_contract_being_constructed(&self, address: H160) -> bool {
+			unimplemented!()
+		}
 	}
 
 	#[test]
