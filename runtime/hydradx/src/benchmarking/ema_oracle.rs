@@ -101,18 +101,20 @@ runtime_benchmarks! {
 
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+		let shares_issuance = 1_000_000_000_000;
 
 		register_asset_with_id(b"AS1".to_vec(), HDX).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		register_asset_with_id(b"AS2".to_vec(), DOT).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 			SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-			EmaPrice::new(liquidity_asset_in, liquidity_asset_out)));
+			EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 		let entry = OracleEntry {
 			price: EmaPrice::from((liquidity_asset_in, liquidity_asset_out)),
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
 			updated_at: block_num,
+			shares_issuance: Some(shares_issuance),
 		};
 
 		assert_eq!(Accumulator::<Runtime>::get().into_inner(), [((SOURCE, pallet_ema_oracle::ordered_pair(HDX, DOT)), entry.clone())].into_iter().collect());
@@ -136,13 +138,14 @@ runtime_benchmarks! {
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+		let shares_issuance = 1_000_000_000_000;
 
 		register_asset_with_id(b"AS1".to_vec(), HDX).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		register_asset_with_id(b"AS2".to_vec(), DOT).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 			SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-			EmaPrice::new(liquidity_asset_in, liquidity_asset_out)));
+			EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 
 		frame_system::Pallet::<Runtime>::set_block_number(block_num);
@@ -150,12 +153,13 @@ runtime_benchmarks! {
 
 		assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 			SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-			EmaPrice::new(liquidity_asset_in, liquidity_asset_out)));
+			EmaPrice::new(liquidity_asset_in, liquidity_asset_out),  Some(shares_issuance)));
 		let entry = OracleEntry {
 			price: EmaPrice::new(liquidity_asset_in, liquidity_asset_out),
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
 			updated_at: block_num,
+			shares_issuance: Some(shares_issuance),
 		};
 
 		assert_eq!(Accumulator::<Runtime>::get().into_inner(), [((SOURCE, ordered_pair(HDX, DOT)), entry.clone())].into_iter().collect());
@@ -179,6 +183,7 @@ runtime_benchmarks! {
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+		let shares_issuance =1_000_000_000_000;
 		for i in 0 .. b {
 			let asset_a = (i + 1) * 1_000;
 			let asset_b = asset_a + 500;
@@ -187,7 +192,7 @@ runtime_benchmarks! {
 
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-				EmaPrice::new(liquidity_asset_in, liquidity_asset_out)));
+				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 		}
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 
@@ -198,7 +203,7 @@ runtime_benchmarks! {
 			let asset_b = asset_a + 500;
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-				EmaPrice::new(liquidity_asset_in, liquidity_asset_out)));
+				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 		}
 	}: { <pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(block_num); }
 	verify {
@@ -207,6 +212,7 @@ runtime_benchmarks! {
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
 			updated_at: block_num,
+			shares_issuance: Some(shares_issuance)
 		};
 
 		for i in 0 .. b {
@@ -231,6 +237,7 @@ runtime_benchmarks! {
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+		let shares_issuance = 1_000_000_000_000;
 		for i in 0 .. b {
 			let asset_a = (i + 1) * 1_000;
 			let asset_b = asset_a + 500;
@@ -240,7 +247,7 @@ runtime_benchmarks! {
 
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-				EmaPrice::new(liquidity_asset_in, liquidity_asset_out)));
+				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 		}
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 
@@ -251,13 +258,14 @@ runtime_benchmarks! {
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
 			updated_at: block_num,
+			shares_issuance: Some(shares_issuance),
 		};
 		for i in 0 .. b {
 			let asset_a = (i + 1) * 1_000;
 			let asset_b = asset_a + 500;
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-				EmaPrice::new(liquidity_asset_in, liquidity_asset_out)));
+				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 			entries.push(((SOURCE, ordered_pair(asset_a, asset_b)), entry.clone()));
 		}
 		let asset_a = (b + 1) * 1_000;
@@ -270,7 +278,7 @@ runtime_benchmarks! {
 		let _ = res.replace(
 			OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-				EmaPrice::new(liquidity_asset_in, liquidity_asset_out))
+				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance))
 				.map_err(|(_w, e)| e)
 		);
 	}
@@ -295,6 +303,7 @@ runtime_benchmarks! {
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
 		let (amount_a, amount_b) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_a, liquidity_asset_b) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+		let shares_issuance = 1_000_000_000_000;
 		for i in 0 .. b {
 			let asset_a = (i + 1) * 1_000;
 			let asset_b = asset_a + 500;
@@ -304,7 +313,7 @@ runtime_benchmarks! {
 
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_asset_a, liquidity_asset_b,
-				EmaPrice::new(liquidity_asset_a, liquidity_asset_b)));
+				EmaPrice::new(liquidity_asset_a, liquidity_asset_b), Some(shares_issuance)));
 		}
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 
@@ -315,13 +324,14 @@ runtime_benchmarks! {
 			volume: Volume::from_a_in_b_out(amount_a, amount_b),
 			liquidity: Liquidity::new(liquidity_asset_a, liquidity_asset_b),
 			updated_at: block_num,
+			shares_issuance: Some(shares_issuance),
 		};
 		for i in 0 .. b {
 			let asset_a = (i + 1) * 1_000;
 			let asset_b = asset_a + 500;
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_asset_a, liquidity_asset_b,
-				EmaPrice::new(liquidity_asset_a, liquidity_asset_b)));
+				EmaPrice::new(liquidity_asset_a, liquidity_asset_b), Some(shares_issuance)));
 			entries.push(((SOURCE, ordered_pair(asset_a, asset_b)), entry.clone()));
 		}
 		let asset_a = (b + 1) * 1_000;
@@ -334,7 +344,7 @@ runtime_benchmarks! {
 		let _ = res.replace(
 			OnActivityHandler::<Runtime>::on_liquidity_changed(
 				SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_asset_a, liquidity_asset_b,
-				EmaPrice::new(liquidity_asset_a, liquidity_asset_b))
+				EmaPrice::new(liquidity_asset_a, liquidity_asset_b), Some(shares_issuance))
 				.map_err(|(_w, e)| e)
 		);
 	}
@@ -345,6 +355,7 @@ runtime_benchmarks! {
 			volume: Volume::default(),
 			liquidity: Liquidity::new(liquidity_asset_a, liquidity_asset_b),
 			updated_at: block_num,
+			shares_issuance: Some(shares_issuance)
 		};
 		entries.push(((SOURCE, ordered_pair(asset_a, asset_b)), liquidity_entry));
 
@@ -365,13 +376,14 @@ runtime_benchmarks! {
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
 		let asset_a = 1_000;
 		let asset_b = asset_a + 500;
+		let shares_issuance = 1_000_000_000_000;
 
 		register_asset_with_id(b"AS1".to_vec(), asset_a).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		register_asset_with_id(b"AS2".to_vec(), asset_b).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 
 		assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 			SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-			EmaPrice::new(liquidity_asset_in, liquidity_asset_out)));
+			EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 
 		frame_system::Pallet::<Runtime>::set_block_number(block_num);
@@ -393,6 +405,7 @@ runtime_benchmarks! {
 			volume: Volume::default(),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
 			oracle_age,
+			shares_issuance: Some(shares_issuance),
 		}));
 	}
 

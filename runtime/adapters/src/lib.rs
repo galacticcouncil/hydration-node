@@ -360,6 +360,7 @@ where
 			asset.after.reserve,
 			asset.after.hub_reserve,
 			Price::new(asset.after.reserve, asset.after.hub_reserve),
+			Some(asset.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -401,6 +402,7 @@ where
 			asset_in.after.reserve,
 			asset_in.after.hub_reserve,
 			Price::new(asset_in.after.reserve, asset_in.after.hub_reserve),
+			Some(asset_in.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -413,6 +415,7 @@ where
 			asset_out.after.hub_reserve,
 			asset_out.after.reserve,
 			Price::new(asset_out.after.hub_reserve, asset_out.after.reserve),
+			Some(asset_out.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -441,6 +444,7 @@ where
 			asset.after.hub_reserve,
 			asset.after.reserve,
 			Price::new(asset.after.hub_reserve, asset.after.reserve),
+			Some(asset.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -1020,6 +1024,7 @@ where
 				state.after[idx],
 				state.issuance_after,
 				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
+				None, //NOTE: shares issunace is already trancked as liquidity in ema
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -1063,6 +1068,7 @@ where
 				state.after[idx],
 				state.issuance_after,
 				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
+				None, //NOTE: shares issunace is already trancked as liquidity in ema
 			)
 			.map_err(|(_, e)| e)?;
 		}
