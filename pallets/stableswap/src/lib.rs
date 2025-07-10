@@ -1304,8 +1304,6 @@ pub mod pallet {
 				ensure!(peg_info.current.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
 				peg_info.source[asset_index] = peg_source.clone();
 
-				// Price is always preserved when updating peg source
-
 				Self::deposit_event(Event::PoolPegSourceUpdated {
 					pool_id,
 					asset_id,
