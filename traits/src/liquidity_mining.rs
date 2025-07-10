@@ -185,8 +185,3 @@ pub trait PriceAdjustment<GlobalFarm> {
 pub trait Inspect<AccountId> {
 	fn pot_account() -> Option<AccountId>;
 }
-
-/// Implementers of this trait provide total amount of amm shares identified by `id`
-pub trait AMMShares<AccountId> {
-	fn total_shares(id: &AccountId) -> u128;
-}

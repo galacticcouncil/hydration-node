@@ -34,8 +34,8 @@ use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
-	liquidity_mining::AMMShares, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler, AMM,
+	AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler, OnTradeHandler,
+	AMM,
 };
 use pallet_broadcast::types::{Asset, Destination, Fee};
 
@@ -1200,12 +1200,6 @@ pub struct AllowAllPools();
 impl CanCreatePool<AssetId> for AllowAllPools {
 	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
 		true
-	}
-}
-
-impl<T: Config> AMMShares<T::AccountId> for Pallet<T> {
-	fn total_shares(id: &T::AccountId) -> u128 {
-		Self::total_liquidity(id)
 	}
 }
 

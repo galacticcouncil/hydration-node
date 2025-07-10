@@ -50,7 +50,7 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Trans
 use frame_support::{ensure, require_transactional, sp_runtime::traits::Zero, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::liquidity_mining::{
-	AMMShares, GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
+	GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
 };
 use hydradx_traits::oracle::{AggregatedOracle, OraclePeriod};
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
@@ -114,9 +114,7 @@ pub mod pallet {
 		type Currencies: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
 
 		/// AMM helper functions.
-		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
-			+ AMMAddLiquidity<Self::AccountId, AssetId, Balance>
-			+ AMMShares<Self::AccountId>;
+		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance> + AMMAddLiquidity<Self::AccountId, AssetId, Balance>;
 
 		/// The origin account that can create new liquidity mining program.
 		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;

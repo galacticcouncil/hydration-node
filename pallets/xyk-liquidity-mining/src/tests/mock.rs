@@ -27,7 +27,7 @@ use frame_support::{
 };
 
 use frame_system as system;
-use hydradx_traits::{liquidity_mining::AMMShares, pools::DustRemovalAccountWhitelist, AMMTransfer, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMTransfer, AMM};
 use orml_traits::parameter_type_with_key;
 use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
@@ -306,19 +306,17 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
 	}
 }
 
-impl AMMShares<AccountId> for DummyAMM {
-	fn total_shares(id: &AccountId) -> u128 {
-		let assets = DummyAMM::get_pool_assets(id).unwrap();
-		let p = Tokens::free_balance(assets[0], id);
+fn total_shares(id: &AccountId) -> u128 {
+	let assets = DummyAMM::get_pool_assets(id).unwrap();
+	let p = Tokens::free_balance(assets[0], id);
 
-		//NOTE: This is just for tests. For 1th deposit we can't get this value so shares valuation panic.
-		//This can't happen in real life because xyk pool must exist otherwise user wouldn't have shares.
-		if p.is_zero() {
-			return 1;
-		}
-
-		p
+	//NOTE: This is just for tests. On real chain some trade must happen before deposit can be
+	//added to LM.
+	if p.is_zero() {
+		return 1;
 	}
+
+	p
 }
 
 parameter_types! {
@@ -380,7 +378,7 @@ impl AggregatedOracle<AssetId, Balance, BlockNumber, Price> for DummyOracle {
 			},
 			volume: Volume::default(),
 			oracle_age: BlockNumber::default(),
-			shares_issuance: Some(DummyAMM::total_shares(&amm_pool_id)),
+			shares_issuance: Some(total_shares(&amm_pool_id)),
 		})
 	}
 
