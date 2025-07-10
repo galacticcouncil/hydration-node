@@ -1563,6 +1563,22 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 	));
 
+	with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::update(
+			RawOrigin::Root.into(),
+			hdx,
+			None,
+			None,
+			None,
+			Some(amount_to_sell * 10),
+			None,
+			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ());
+
 	with_transaction::<Balance, DispatchError, _>(|| {
 		let caller2: AccountId = frame_benchmarking::account("caller2", 0, 1);
 		Currencies::update_balance(RuntimeOrigin::root(), caller2.clone(), hdx, token_amount as i128).unwrap();
