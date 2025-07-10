@@ -155,7 +155,7 @@ fn update_pool_max_peg_update_should_fail_when_invalid_origin() {
 
 			let new_max_peg_update = Permill::from_percent(25);
 
-			// BOB doesn't have UpdateTradabilityOrigin permission
+			// BOB doesn't have AuthorityOrigin permission
 			assert_noop!(
 				Stableswap::update_pool_max_peg_update(RuntimeOrigin::signed(BOB), pool_id, new_max_peg_update,),
 				sp_runtime::DispatchError::BadOrigin

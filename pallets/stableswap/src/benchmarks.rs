@@ -412,7 +412,7 @@ benchmarks! {
 	update_asset_peg_source{
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
-		let successful_origin = T::UpdateTradabilityOrigin::try_successful_origin().unwrap();
+		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 
 		// Get first asset from pool
 		let asset_id = *pool.assets.first().unwrap();
@@ -430,7 +430,7 @@ benchmarks! {
 	update_pool_max_peg_update{
 		let lp_provider: T::AccountId = account("provider", 0, 1);
 		let (pool_id, _pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
-		let successful_origin = T::UpdateTradabilityOrigin::try_successful_origin().unwrap();
+		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
 
 		let new_max_peg_update = Permill::from_percent(50);
 

@@ -277,7 +277,7 @@ fn update_asset_peg_source_should_fail_when_invalid_origin() {
 
 			let new_peg_source = PegSource::Value((2, 3));
 
-			// BOB doesn't have UpdateTradabilityOrigin permission
+			// BOB doesn't have AuthorityOrigin permission
 			assert_noop!(
 				Stableswap::update_asset_peg_source(RuntimeOrigin::signed(BOB), pool_id, asset_a, new_peg_source,),
 				sp_runtime::DispatchError::BadOrigin
