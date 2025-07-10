@@ -68,8 +68,6 @@ use sp_core::U256;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
 
-pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
-
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::*;
@@ -100,6 +98,9 @@ pub mod pallet {
 
 		/// Native price oracle
 		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
+
+		/// Referene Native price oracle
+		type ReferenceNativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
 
 		/// WETH Asset Id
 		#[pallet::constant]
@@ -147,10 +148,20 @@ pub mod pallet {
 					return;
 				};
 
-				let Some(price_diff) =
-					FixedU128::checked_from_rational(eth_hdx_price.into_inner(), ETH_HDX_REFERENCE_PRICE.into_inner())
+				let Some(eth_hdx_reference_price) = T::ReferenceNativePriceOracle::price(T::WethAssetId::get()) else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX reference price from oracle");
+					return;
+				};
+				let Some(eth_hdx_reference_price) =
+					FixedU128::checked_from_rational(eth_hdx_reference_price.n, eth_hdx_reference_price.d)
 				else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_hdx_price, ETH_HDX_REFERENCE_PRICE);
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx reference price, n: {}, d: {}", eth_hdx_reference_price.n, eth_hdx_reference_price.d);
+					return;
+				};
+				let Some(price_diff) =
+					FixedU128::checked_from_rational(eth_hdx_price.into_inner(), eth_hdx_reference_price.into_inner())
+				else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_hdx_price, eth_hdx_reference_price);
 					return;
 				};
 

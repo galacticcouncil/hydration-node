@@ -838,6 +838,7 @@ parameter_types! {
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
 	pub ShortOraclePeriod: OraclePeriod = OraclePeriod::Short;
+	pub TenMinutesOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 pub type FeePriceOracle = AssetFeeOraclePriceProvider<
@@ -847,6 +848,15 @@ pub type FeePriceOracle = AssetFeeOraclePriceProvider<
 	OraclePriceProvider<AssetId, EmaOracle, LRNA>,
 	MultiTransactionPayment,
 	ShortOraclePeriod,
+>;
+
+pub type FeePriceOracleForTenMinutes = AssetFeeOraclePriceProvider<
+	NativeAssetId,
+	MultiTransactionPayment,
+	Router,
+	OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+	MultiTransactionPayment,
+	TenMinutesOraclePeriod,
 >;
 
 pub struct RetryOnErrorForDca;
