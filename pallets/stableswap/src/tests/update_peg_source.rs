@@ -6,7 +6,7 @@ use hydradx_traits::OraclePeriod;
 use sp_runtime::Permill;
 
 #[test]
-fn update_asset_peg_source_should_work_when_preserve_price_is_true() {
+fn update_asset_peg_source_should_work() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
@@ -41,14 +41,13 @@ fn update_asset_peg_source_should_work_when_preserve_price_is_true() {
 			let initial_peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
 			let initial_price = initial_peg_info.current[0];
 
-			// Update peg source for asset_a with preserve_price=true
+			// Update peg source for asset_a (price always preserved)
 			let new_peg_source = PegSource::Value((2, 3));
 			assert_ok!(Stableswap::update_asset_peg_source(
 				RuntimeOrigin::root(),
 				pool_id,
 				asset_a,
 				new_peg_source.clone(),
-				true, // preserve_price
 			));
 
 			// Check that peg source was updated
@@ -71,7 +70,7 @@ fn update_asset_peg_source_should_work_when_preserve_price_is_true() {
 }
 
 #[test]
-fn update_asset_peg_source_should_work_when_preserve_price_is_false() {
+fn update_asset_peg_source_should_preserve_price() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
@@ -102,22 +101,25 @@ fn update_asset_peg_source_should_work_when_preserve_price_is_false() {
 				Permill::from_percent(10),
 			));
 
-			// Update peg source for asset_a with preserve_price=false
+			// Get initial price to verify it's preserved
+			let initial_peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+			let initial_price = initial_peg_info.current[0];
+
+			// Update peg source for asset_a (price always preserved)
 			let new_peg_source = PegSource::Value((2, 3));
 			assert_ok!(Stableswap::update_asset_peg_source(
 				RuntimeOrigin::root(),
 				pool_id,
 				asset_a,
 				new_peg_source.clone(),
-				false, // don't preserve_price
 			));
 
 			// Check that peg source was updated
 			let updated_peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
 			assert_eq!(updated_peg_info.source[0], new_peg_source);
 
-			// Check that price was updated to new value
-			assert_eq!(updated_peg_info.current[0], (2, 3));
+			// Check that price was preserved (not updated)
+			assert_eq!(updated_peg_info.current[0], initial_price);
 
 			// Check event was emitted
 			System::assert_last_event(
@@ -149,7 +151,6 @@ fn update_asset_peg_source_should_fail_when_pool_not_found() {
 					pool_id, // Pool doesn't exist
 					asset_a,
 					new_peg_source,
-					true,
 				),
 				Error::<Test>::PoolNotFound
 			);
@@ -186,7 +187,7 @@ fn update_asset_peg_source_should_fail_when_pool_has_no_pegs() {
 			let new_peg_source = PegSource::Value((2, 3));
 
 			assert_noop!(
-				Stableswap::update_asset_peg_source(RuntimeOrigin::root(), pool_id, asset_a, new_peg_source, true,),
+				Stableswap::update_asset_peg_source(RuntimeOrigin::root(), pool_id, asset_a, new_peg_source,),
 				Error::<Test>::NoPegSource
 			);
 		});
@@ -235,7 +236,6 @@ fn update_asset_peg_source_should_fail_when_asset_not_in_pool() {
 					pool_id,
 					asset_c, // Not in pool
 					new_peg_source,
-					true,
 				),
 				Error::<Test>::AssetNotInPool
 			);
@@ -279,14 +279,14 @@ fn update_asset_peg_source_should_fail_when_invalid_origin() {
 
 			// BOB doesn't have UpdateTradabilityOrigin permission
 			assert_noop!(
-				Stableswap::update_asset_peg_source(RuntimeOrigin::signed(BOB), pool_id, asset_a, new_peg_source, true,),
+				Stableswap::update_asset_peg_source(RuntimeOrigin::signed(BOB), pool_id, asset_a, new_peg_source,),
 				sp_runtime::DispatchError::BadOrigin
 			);
 		});
 }
 
 #[test]
-fn update_asset_peg_source_should_fail_when_oracle_entry_missing() {
+fn update_asset_peg_source_should_work_with_oracle_source() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
 	let pool_id = 100;
@@ -317,19 +317,19 @@ fn update_asset_peg_source_should_fail_when_oracle_entry_missing() {
 				Permill::from_percent(10),
 			));
 
-			// Try to update with oracle source that doesn't exist
-			let invalid_oracle_source = PegSource::Oracle((*b"nonexist", OraclePeriod::LastBlock, asset_a));
+			// Update with oracle source (should work since price is always preserved)
+			let oracle_source = PegSource::Oracle((*b"nonexist", OraclePeriod::LastBlock, asset_a));
 
-			assert_noop!(
-				Stableswap::update_asset_peg_source(
-					RuntimeOrigin::root(),
-					pool_id,
-					asset_a,
-					invalid_oracle_source,
-					false, // This will try to fetch from oracle
-				),
-				Error::<Test>::MissingTargetPegOracle
-			);
+			assert_ok!(Stableswap::update_asset_peg_source(
+				RuntimeOrigin::root(),
+				pool_id,
+				asset_a,
+				oracle_source.clone(),
+			));
+
+			// Check that peg source was updated
+			let updated_peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
+			assert_eq!(updated_peg_info.source[0], oracle_source);
 		});
 }
 
@@ -370,14 +370,13 @@ fn update_asset_peg_source_should_update_second_asset_correctly() {
 			let initial_price_a = initial_peg_info.current[0];
 			let _initial_price_b = initial_peg_info.current[1];
 
-			// Update peg source for asset_b (index 1) with preserve_price=false
+			// Update peg source for asset_b (index 1) - price will be preserved
 			let new_peg_source = PegSource::Value((3, 4));
 			assert_ok!(Stableswap::update_asset_peg_source(
 				RuntimeOrigin::root(),
 				pool_id,
 				asset_b, // Second asset
 				new_peg_source.clone(),
-				false, // don't preserve_price
 			));
 
 			// Check that only asset_b's peg source was updated
@@ -385,9 +384,9 @@ fn update_asset_peg_source_should_update_second_asset_correctly() {
 			assert_eq!(updated_peg_info.source[0], PegSource::Value((1, 1))); // asset_a unchanged
 			assert_eq!(updated_peg_info.source[1], new_peg_source); // asset_b updated
 
-			// Check that only asset_b's price was updated
+			// Check that both prices were preserved (not updated)
 			assert_eq!(updated_peg_info.current[0], initial_price_a); // asset_a price unchanged
-			assert_eq!(updated_peg_info.current[1], (3, 4)); // asset_b price updated
+			assert_eq!(updated_peg_info.current[1], (2, 2)); // asset_b price preserved
 
 			// Check event was emitted
 			System::assert_last_event(
@@ -447,7 +446,6 @@ fn update_asset_peg_source_should_work_with_three_assets() {
 				pool_id,
 				asset_b,
 				new_peg_source.clone(),
-				false,
 			));
 
 			// Check that only asset_b's peg source was updated
@@ -456,9 +454,9 @@ fn update_asset_peg_source_should_work_with_three_assets() {
 			assert_eq!(updated_peg_info.source[1], new_peg_source);
 			assert_eq!(updated_peg_info.source[2], PegSource::Value((3, 3)));
 
-			// Check that only asset_b's price was updated
-			assert_eq!(updated_peg_info.current[0], (1, 1));
-			assert_eq!(updated_peg_info.current[1], (5, 6));
-			assert_eq!(updated_peg_info.current[2], (3, 3));
+			// Check that all prices were preserved (not updated)
+			assert_eq!(updated_peg_info.current[0], (1, 1)); // asset_a price preserved
+			assert_eq!(updated_peg_info.current[1], (2, 2)); // asset_b price preserved
+			assert_eq!(updated_peg_info.current[2], (3, 3)); // asset_c price preserved
 		});
 }

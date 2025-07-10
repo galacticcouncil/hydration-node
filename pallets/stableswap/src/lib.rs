@@ -1269,13 +1269,13 @@ pub mod pallet {
 		///
 		/// This function allows updating the peg source for an asset within a pool.
 		/// The pool must exist and have pegs configured. The asset must be part of the pool.
+		/// The current price is always preserved when updating the peg source.
 		///
 		/// Parameters:
 		/// - `origin`: Must be `T::UpdateTradabilityOrigin`.
 		/// - `pool_id`: The ID of the pool containing the asset.
 		/// - `asset_id`: The ID of the asset whose peg source is to be updated.
 		/// - `peg_source`: The new peg source for the asset.
-		/// - `preserve_price`: If true, keeps current price; if false, fetches new price from new source.
 		///
 		/// Emits `PoolPegSourceUpdated` event when successful.
 		///
@@ -1283,7 +1283,6 @@ pub mod pallet {
 		/// - `PoolNotFound`: If the specified pool does not exist.
 		/// - `NoPegSource`: If the pool does not have pegs configured.
 		/// - `AssetNotInPool`: If the specified asset is not part of the pool.
-		/// - `MissingTargetPegOracle`: If the new peg source cannot be accessed.
 		///
 		#[pallet::call_index(13)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_asset_peg_source())]
@@ -1293,7 +1292,6 @@ pub mod pallet {
 			pool_id: T::AssetId,
 			asset_id: T::AssetId,
 			peg_source: PegSource<T::AssetId>,
-			preserve_price: bool,
 		) -> DispatchResult {
 			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
 
@@ -1306,12 +1304,8 @@ pub mod pallet {
 				ensure!(peg_info.current.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
 				peg_info.source[asset_index] = peg_source.clone();
 
-				// If preserve_price is false, fetch new price from the new source
-				if !preserve_price {
-					let new_price = T::TargetPegOracle::get_raw_entry(asset_id, peg_source.clone())
-						.map_err(|_| Error::<T>::MissingTargetPegOracle)?;
-					peg_info.current[asset_index] = new_price.price;
-				}
+				// Price is always preserved when updating peg source
+
 				Self::deposit_event(Event::PoolPegSourceUpdated {
 					pool_id,
 					asset_id,
