@@ -734,6 +734,7 @@ impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime 
 parameter_types! {
 	pub const XYKLmPalletId: PalletId = PalletId(*b"XYK///LM");
 	pub const XYKLmCollectionId: CollectionId = 5389_u128;
+	pub const XYKLmOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 impl pallet_xyk_liquidity_mining::Config for Runtime {
@@ -748,6 +749,9 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type AMM = XYK;
 	type AssetRegistry = AssetRegistry;
 	type MaxFarmEntriesPerDeposit = XYKLmMaxEntriesPerDeposit;
+	type OracleSource = XYKLmOracle;
+	type OraclePeriod = XYKLmOraclePeriod;
+	type LiquidityOracle = EmaOracle;
 	type WeightInfo = weights::pallet_xyk_liquidity_mining::HydraWeight<Runtime>;
 }
 
