@@ -177,105 +177,6 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 }
 
 #[test]
-fn swap_should_fail_when_no_asset_in_omnipool() {
-	//Arrange
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		let _ = with_transaction(|| {
-			register_aca();
-
-			add_currency_price(ACA, FixedU128::from(1));
-
-			init_omnipool();
-			TransactionOutcome::Commit(DispatchResult::Ok(()))
-		});
-	});
-
-	Acala::execute_with(|| {
-		let give = Asset::from((
-			Location::new(
-				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new([
-					cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
-					cumulus_primitives_core::Junction::GeneralIndex(0),
-				])),
-			),
-			50 * UNITS,
-		));
-
-		let want = Asset::from((
-			Location::new(
-				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new([
-					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-					cumulus_primitives_core::Junction::GeneralIndex(0),
-				])),
-			),
-			300 * UNITS,
-		));
-
-		let xcm = craft_exchange_asset_xcm::<hydradx_runtime::RuntimeCall>(give.clone(), want, SELL);
-		//Act
-		let res = hydradx_runtime::PolkadotXcm::execute(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			Box::new(xcm),
-			Weight::from_parts(399_600_000_000, 0),
-		);
-		assert_ok!(res);
-
-		//Assert
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE - 100 * UNITS
-		);
-
-		let events = last_hydra_events(10);
-		assert!(matches!(
-			last_hydra_events(2).first(),
-			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
-				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
-			))
-		));
-	});
-
-	Hydra::execute_with(|| {
-		let events = last_hydra_events(10);
-
-		//Assert that assert is trapped
-		let trapped_asset = Asset::from((
-			Location::new(
-				1,
-				cumulus_primitives_core::Junctions::X2(Arc::new([
-					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-					cumulus_primitives_core::Junction::GeneralIndex(0),
-				])),
-			),
-			91991743262960u128,
-		));
-		let origin = MultiLocation::new(1, X1(Junction::Parachain(ACALA_PARA_ID)));
-		let hash = crate::cross_chain_transfer::determine_hash(&origin, vec![trapped_asset.clone()]);
-		expect_hydra_events(vec![hydradx_runtime::RuntimeEvent::PolkadotXcm(
-			pallet_xcm::Event::AssetsTrapped {
-				hash,
-				origin: origin.try_into().unwrap(),
-				assets: vec![trapped_asset].into(),
-			},
-		)]);
-
-		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
-		assert!(fee > 0, "treasury should have received fees");
-
-		//No Aca received as exchange asset failed
-		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE
-		);
-	});
-}
-
-#[test]
 fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 	//Arrange
 	TestNet::reset();
@@ -1292,31 +1193,12 @@ mod circuit_breaker {
 		});
 
 		Hydra::execute_with(|| {
-			let events = last_hydra_events(10);
+			let trapped_event = last_hydra_events(10)[3].clone(); //We need to explicitly assert it, so we can be flexible with amount assertion. If it changes, debug and see at which index is the PolkadotXcm TrappedAsset event
+
+			assert_trapped_acala_token(&trapped_event, 491991743262960u128);
 
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
 			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
-
-			//Assert that assert is trapped
-			let trapped_asset = Asset::from((
-				Location::new(
-					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
-						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
-				),
-				491991743262960u128,
-			));
-			let origin = MultiLocation::new(1, X1(polkadot_xcm::v3::Junction::Parachain(ACALA_PARA_ID)));
-			let hash = crate::cross_chain_transfer::determine_hash(&origin, vec![trapped_asset.clone()]);
-			expect_hydra_events(vec![hydradx_runtime::RuntimeEvent::PolkadotXcm(
-				pallet_xcm::Event::AssetsTrapped {
-					hash,
-					origin: origin.try_into().unwrap(),
-					assets: vec![trapped_asset].into(),
-				},
-			)]);
 
 			let fee = hydradx_runtime::Tokens::free_balance(
 				crate::exchange_asset::ACA,
@@ -1335,6 +1217,8 @@ mod circuit_breaker {
 			);
 		});
 	}
+
+	use polkadot_xcm::opaque::v3::MultiAssets;
 
 	#[test]
 	fn swap_should_fail_when_asset_reaches_limit_for_buy() {
@@ -1433,31 +1317,11 @@ mod circuit_breaker {
 		});
 
 		Hydra::execute_with(|| {
-			let events = last_hydra_events(10);
+			let trapped_event = last_hydra_events(10)[3].clone(); //We need to explicitly assert it, so we can be flexible with amount assertion. If it changes, debug and see at which index is the PolkadotXcm TrappedAsset event
+			assert_trapped_acala_token(&trapped_event, 3992334856464575u128);
 
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
 			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
-
-			//Assert that assert is trapped
-			let trapped_asset = Asset::from((
-				Location::new(
-					1,
-					cumulus_primitives_core::Junctions::X2(Arc::new([
-						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
-						cumulus_primitives_core::Junction::GeneralIndex(0),
-					])),
-				),
-				3992330515638916u128,
-			));
-			let origin = MultiLocation::new(1, X1(polkadot_xcm::v3::Junction::Parachain(ACALA_PARA_ID)));
-			let hash = crate::cross_chain_transfer::determine_hash(&origin, vec![trapped_asset.clone()]);
-			expect_hydra_events(vec![hydradx_runtime::RuntimeEvent::PolkadotXcm(
-				pallet_xcm::Event::AssetsTrapped {
-					hash,
-					origin: origin.try_into().unwrap(),
-					assets: vec![trapped_asset].into(),
-				},
-			)]);
 
 			let fee = hydradx_runtime::Tokens::free_balance(
 				crate::exchange_asset::ACA,
@@ -1475,6 +1339,127 @@ mod circuit_breaker {
 				BOB_INITIAL_NATIVE_BALANCE
 			);
 		});
+	}
+
+	#[test]
+	fn swap_should_fail_when_no_asset_in_omnipool() {
+		//Arrange
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				register_aca();
+
+				add_currency_price(ACA, FixedU128::from(1));
+
+				init_omnipool();
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+
+		Acala::execute_with(|| {
+			let give = Asset::from((
+				Location::new(
+					1,
+					cumulus_primitives_core::Junctions::X2(Arc::new([
+						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
+				),
+				50 * UNITS,
+			));
+
+			let want = Asset::from((
+				Location::new(
+					1,
+					cumulus_primitives_core::Junctions::X2(Arc::new([
+						cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+						cumulus_primitives_core::Junction::GeneralIndex(0),
+					])),
+				),
+				300 * UNITS,
+			));
+
+			let xcm = craft_exchange_asset_xcm::<hydradx_runtime::RuntimeCall>(give.clone(), want, SELL);
+			//Act
+			let res = hydradx_runtime::PolkadotXcm::execute(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				Box::new(xcm),
+				Weight::from_parts(399_600_000_000, 0),
+			);
+			assert_ok!(res);
+
+			//Assert
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
+				ALICE_INITIAL_NATIVE_BALANCE - 100 * UNITS
+			);
+
+			let events = last_hydra_events(10);
+			assert!(matches!(
+				last_hydra_events(2).first(),
+				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+					cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+				))
+			));
+		});
+
+		Hydra::execute_with(|| {
+			let trapped_event = &last_hydra_events(10)[3].clone();
+
+			assert_trapped_acala_token(&trapped_event, 91991743262960u128);
+
+			let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
+			assert!(fee > 0, "treasury should have received fees");
+
+			//No Aca received as exchange asset failed
+			pretty_assertions::assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
+			pretty_assertions::assert_eq!(
+				hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
+				BOB_INITIAL_NATIVE_BALANCE
+			);
+		});
+	}
+
+	use polkadot_xcm::opaque::v3::AssetId::Concrete;
+
+	fn assert_trapped_acala_token(trapped_event: &hydradx_runtime::RuntimeEvent, expected_amount: u128) {
+		if let hydradx_runtime::RuntimeEvent::PolkadotXcm(pallet_xcm::Event::AssetsTrapped {
+			hash: h,
+			origin: o,
+			assets,
+		}) = trapped_event
+		{
+			if let Ok(v3_assets) = <VersionedAssets as TryInto<MultiAssets>>::try_into(assets.clone()) {
+				let asset = &v3_assets.inner()[0].clone();
+				let aca = MultiLocation::new(
+					1,
+					polkadot_xcm::v3::Junctions::X2(
+						polkadot_xcm::v3::Junction::Parachain(ACALA_PARA_ID),
+						polkadot_xcm::v3::Junction::GeneralIndex(0),
+					),
+				);
+
+				if let Concrete(asset_id) = asset.id {
+					pretty_assertions::assert_eq!(asset_id, aca, "Trapped asset ID is not ACA");
+				} else {
+					panic!("Asset ID is not Concrete");
+				}
+
+				if let polkadot_xcm::v3::Fungibility::Fungible(trapped_amount) = asset.fun {
+					test_utils::assert_eq_approx!(
+						trapped_amount,
+						expected_amount,
+						100000000000,
+						"The trapped asset amount is different than expected"
+					);
+				}
+			} else {
+				panic!("No trapped asset");
+			}
+		} else {
+			panic!("Asset not trapped");
+		}
 	}
 }
 
