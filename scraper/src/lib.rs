@@ -2,6 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use codec::{Compact, Decode, Encode};
+use frame_support::__private::log;
 use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion, Storage};
 use futures::StreamExt;
 use hydradx::chain_spec::hydradx::parachain_config;
@@ -48,7 +49,7 @@ pub type SnapshotVersion = Compact<u16>;
 pub const SNAPSHOT_VERSION: SnapshotVersion = Compact(3);
 
 /// The snapshot that we store on disk.
-#[derive(Decode, Encode)]
+#[derive(Decode, Encode, Clone)]
 pub struct Snapshot<B: BlockT> {
 	snapshot_version: SnapshotVersion,
 	state_version: StateVersion,
@@ -87,6 +88,18 @@ impl<B: BlockT> Snapshot<B> {
 
 		Decode::decode(&mut &*bytes).map_err(|_| "Decode failed")
 	}
+	fn load_from_bytes(bytes: Vec<u8>) -> Result<Snapshot<B>, &'static str> {
+		// The first item in the SCALE encoded struct bytes is the snapshot version. We decode and
+		// check that first, before proceeding to decode the rest of the snapshot.
+		let snapshot_version =
+			SnapshotVersion::decode(&mut &*bytes).map_err(|_| "Failed to decode snapshot version")?;
+
+		if snapshot_version != SNAPSHOT_VERSION {
+			return Err("Unsupported snapshot version detected. Please create a new snapshot.");
+		}
+
+		Decode::decode(&mut &*bytes).map_err(|_| "Decode failed")
+	}
 }
 
 pub fn save_externalities<B: BlockT<Hash = H256>>(ext: TestExternalities, path: PathBuf) -> Result<(), &'static str> {
@@ -112,6 +125,82 @@ pub fn load_snapshot<B: BlockT<Hash = H256>>(path: PathBuf) -> Result<TestExtern
 
 	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage, storage_root, state_version);
 
+	Ok(ext_from_snapshot)
+}
+
+pub fn load_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Result<TestExternalities, &'static str> {
+	let Snapshot {
+		snapshot_version: _,
+		block_hash: _,
+		state_version,
+		raw_storage,
+		storage_root,
+	} = Snapshot::<B>::load_from_bytes(bytes)?;
+
+	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage, storage_root, state_version);
+	Ok(ext_from_snapshot)
+}
+
+pub fn get_snapshot_from_bytes<B: BlockT<Hash = H256>>(bytes: Vec<u8>) -> Result<Snapshot<B>, &'static str> {
+	let s = Snapshot::<B>::load_from_bytes(bytes)?;
+	Ok(s)
+}
+
+pub fn construct_backend_from_snapshot<B: BlockT<Hash = H256>>(
+	snapshot: Snapshot<B>,
+) -> Result<(sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>, StateVersion, H256), &'static str> {
+	let Snapshot {
+		snapshot_version: _,
+		block_hash: _,
+		state_version,
+		raw_storage,
+		storage_root,
+	} = snapshot;
+	let mut backend = PrefixedMemoryDB::default();
+
+	for (key, (v, ref_count)) in raw_storage {
+		let mut hash = H256::default();
+		let hash_len = hash.as_ref().len();
+
+		if key.len() < hash_len {
+			log::warn!("Invalid key in `from_raw_snapshot`: {key:?}");
+			continue;
+		}
+
+		hash.as_mut().copy_from_slice(&key[(key.len() - hash_len)..]);
+
+		// Each time .emplace is called the internal MemoryDb ref count increments.
+		// Repeatedly call emplace to initialise the ref count to the correct value.
+		for _ in 0..ref_count {
+			backend.emplace(hash, (&key[..(key.len() - hash_len)], None), v.clone());
+		}
+	}
+	Ok((backend, state_version, storage_root))
+}
+
+pub fn create_externalities_with_backend<B: BlockT<Hash = H256>>(
+	backend: sp_trie::PrefixedMemoryDB<sp_core::Blake2Hasher>,
+	storage_root: H256,
+	state_version: StateVersion,
+) -> TestExternalities {
+	TestExternalities {
+		backend: TrieBackendBuilder::new(backend, storage_root).build(),
+		state_version,
+		..Default::default()
+	}
+}
+
+pub fn create_externalities_from_snapshot<B: BlockT<Hash = H256>>(
+	snapshot: &Snapshot<B>,
+) -> Result<TestExternalities, &'static str> {
+	let Snapshot {
+		snapshot_version: _,
+		block_hash: _,
+		state_version,
+		raw_storage,
+		storage_root,
+	} = snapshot;
+	let ext_from_snapshot = TestExternalities::from_raw_snapshot(raw_storage.to_vec(), *storage_root, *state_version);
 	Ok(ext_from_snapshot)
 }
 
@@ -175,6 +264,8 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 }
 use futures::stream::{self};
 use indicatif::{ProgressBar, ProgressStyle};
+use sp_state_machine::{TrieBackend, TrieBackendBuilder};
+use sp_trie::{HashDBT, PrefixedMemoryDB};
 
 const PAGE_SIZE: u32 = 1000; //Limiting as bigger values lead to error when calling PROD RPCs
 const CONCURRENCY: usize = 1000;
