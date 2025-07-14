@@ -147,7 +147,7 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			let amount_out = 2232143907425;
+			let amount_out = 2230008413831;
 
 			assert_balance!(BOB.into(), DAI, 1_000_000_000 * UNITS - amount_to_sell);
 			assert_balance!(BOB.into(), LRNA, BOB_INITIAL_LRNA_BALANCE);
@@ -260,7 +260,7 @@ mod router_different_pools_tests {
 			));
 
 			//Assert
-			let amount_in = 4_366_521_391;
+			let amount_in = 4370898989;
 
 			assert_balance!(BOB.into(), DAI, 1_000_000_000 * UNITS - amount_in);
 			assert_balance!(BOB.into(), LRNA, 1_000 * UNITS);
@@ -706,7 +706,7 @@ mod router_different_pools_tests {
 					ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell
 				);
 
-				assert_balance!(ALICE.into(), pool_id, 4643642791732);
+				assert_balance!(ALICE.into(), pool_id, 4638992258357);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -768,7 +768,7 @@ mod router_different_pools_tests {
 				//Assert
 				assert_balance!(ALICE.into(), pool_id, 0);
 				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_to_sell);
-				assert_balance!(ALICE.into(), stable_asset_1, 2902296768642);
+				assert_balance!(ALICE.into(), stable_asset_1, 2899390145403);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
@@ -2175,7 +2175,7 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			let amount_out = 220907079646017699114;
+			let amount_out = 220685840707964601769;
 
 			assert_balance!(BOB.into(), LRNA, 1_000 * UNITS - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
@@ -2197,7 +2197,7 @@ mod omnipool_router_tests {
 
 		let amount_to_sell = 10 * UNITS;
 		let limit = 0;
-		let amount_out = 266461932256168358;
+		let amount_out = 266195070030573798;
 
 		Hydra::execute_with(|| {
 			//Arrange
@@ -2251,7 +2251,7 @@ mod omnipool_router_tests {
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(
 							DAI,
-							400293338391841,
+							667155563986401,
 							Destination::Account(Omnipool::protocol_account()),
 						)],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
@@ -2284,8 +2284,8 @@ mod omnipool_router_tests {
 					amount_in: amount_to_sell,
 					amount_out,
 					hub_amount_in: 12014871681,
-					hub_amount_out: 12026877638,
-					asset_fee_amount: 400293338391841,
+					hub_amount_out: 12038886566,
+					asset_fee_amount: 667155563986401,
 					protocol_fee_amount: 6_007_435,
 				}
 				.into(),
@@ -2313,7 +2313,7 @@ mod omnipool_router_tests {
 					outputs: vec![Asset::new(DAI, amount_out)],
 					fees: vec![Fee::new(
 						DAI,
-						400293338391841,
+						667155563986401,
 						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
@@ -2353,7 +2353,7 @@ mod omnipool_router_tests {
 			));
 
 			//Assert
-			let amount_in = 3752843738106;
+			let amount_in = 3756606010477;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -2438,7 +2438,7 @@ mod omnipool_router_tests {
 
 		let amount_to_buy = UNITS * 100000;
 		let limit = 100 * UNITS;
-		let amount_in = 3752843738106;
+		let amount_in = 3756606010477;
 
 		Hydra::execute_with(|| {
 			//Arrange
@@ -2474,10 +2474,10 @@ mod omnipool_router_tests {
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
 						inputs: vec![Asset::new(HDX, amount_in)],
-						outputs: vec![Asset::new(LRNA, 4509023679)],
+						outputs: vec![Asset::new(LRNA, 4513544013)],
 						fees: vec![
-							Fee::new(LRNA, 1127255, Destination::Burned),
-							Fee::new(LRNA, 1127256, Destination::Account(Treasury::account_id())),
+							Fee::new(LRNA, 1128386, Destination::Burned),
+							Fee::new(LRNA, 1128386, Destination::Account(Treasury::account_id())),
 						],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
 					},
@@ -2486,11 +2486,11 @@ mod omnipool_router_tests {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 4506769168)],
+						inputs: vec![Asset::new(LRNA, 4511287241)],
 						outputs: vec![Asset::new(DAI, amount_to_buy)],
 						fees: vec![Fee::new(
 							DAI,
-							150225338007011,
+							250626566416041,
 							Destination::Account(Omnipool::protocol_account()),
 						)],
 						operation_stack: vec![ExecutionType::Router(0), ExecutionType::Omnipool(1)],
@@ -2522,10 +2522,10 @@ mod omnipool_router_tests {
 					asset_out: DAI,
 					amount_in,
 					amount_out: amount_to_buy,
-					hub_amount_in: 4509023679,
-					hub_amount_out: 4513529335,
-					asset_fee_amount: 150225338007011,
-					protocol_fee_amount: 2254511,
+					hub_amount_in: 4513544013,
+					hub_amount_out: 4522565481,
+					asset_fee_amount: 250626566416041,
+					protocol_fee_amount: 2256772,
 				}
 				.into(),
 				pallet_broadcast::Event::Swapped3 {
@@ -2534,10 +2534,10 @@ mod omnipool_router_tests {
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
 					inputs: vec![Asset::new(HDX, amount_in)],
-					outputs: vec![Asset::new(LRNA, 4509023679)],
+					outputs: vec![Asset::new(LRNA, 4513544013)],
 					fees: vec![
-						Fee::new(LRNA, 1127255, Destination::Burned),
-						Fee::new(LRNA, 1127256, Destination::Account(Treasury::account_id())),
+						Fee::new(LRNA, 1128386, Destination::Burned),
+						Fee::new(LRNA, 1128386, Destination::Account(Treasury::account_id())),
 					],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
 				}
@@ -2547,11 +2547,11 @@ mod omnipool_router_tests {
 					filler: Omnipool::protocol_account(),
 					filler_type: pallet_broadcast::types::Filler::Omnipool,
 					operation: pallet_broadcast::types::TradeOperation::ExactOut,
-					inputs: vec![Asset::new(LRNA, 4506769168)],
+					inputs: vec![Asset::new(LRNA, 4511287241)],
 					outputs: vec![Asset::new(DAI, amount_to_buy)],
 					fees: vec![Fee::new(
 						DAI,
-						150225338007011,
+						250626566416041,
 						Destination::Account(Omnipool::protocol_account()),
 					)],
 					operation_stack: vec![ExecutionType::Omnipool(0)],
@@ -4917,7 +4917,7 @@ mod with_on_chain_and_default_route {
 			));
 
 			//Assert
-			let amount_out = 266461932256168358;
+			let amount_out = 266195070030573798;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_to_sell);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
@@ -4955,7 +4955,7 @@ mod with_on_chain_and_default_route {
 			));
 
 			//Assert
-			let amount_in = 3752843738106;
+			let amount_in = 3756606010477;
 
 			assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - amount_in);
 			assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_to_buy);
@@ -5080,7 +5080,7 @@ mod route_spot_price {
 				));
 
 				//Assert
-				let expected_amount_out = 46513;
+				let expected_amount_out = 46467;
 
 				assert_eq!(
 					hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
@@ -5196,7 +5196,7 @@ mod sell_all {
 		TestNet::reset();
 
 		let limit = 0;
-		let amount_out = 26604007508238527742;
+		let amount_out = 26577363534770086553;
 
 		Hydra::execute_with(|| {
 			let bob_hdx_balance = Currencies::free_balance(HDX, &BOB.into());
@@ -5238,7 +5238,7 @@ mod sell_all {
 		TestNet::reset();
 
 		let limit = 0;
-		let amount_out = 35263217460162492;
+		let amount_out = 35227901268414708;
 
 		Hydra::execute_with(|| {
 			let bob_nonnative_balance = Currencies::free_balance(DAI, &BOB.into());
