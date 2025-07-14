@@ -7,10 +7,9 @@ use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
-
-use hydradx_runtime::AssetPairAccountIdFor;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
+use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
 use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
 	Stableswap, Tokens, Treasury, DCA,
@@ -22,6 +21,7 @@ use hydradx_traits::router::Trade;
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
+use orml_traits::NamedMultiReservableCurrency;
 use pallet_broadcast::types::*;
 use pallet_dca::types::{Order, Schedule};
 use pallet_omnipool::types::Tradability;
@@ -4136,6 +4136,64 @@ fn terminate_should_work_for_freshly_created_dca() {
 		//Assert
 		let schedule = DCA::schedules(schedule_id);
 		assert!(schedule.is_none());
+	});
+}
+
+#[test]
+fn unclock_should_not_work_when_user_has_active_schedule() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let block_id = 11;
+		set_relaychain_block_number(block_id);
+
+		let budget = 1000 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
+
+		assert_ok!(DCA::schedule(
+			RuntimeOrigin::signed(ALICE.into()),
+			schedule1.clone(),
+			None
+		));
+
+		let schedule_id = 0;
+		let schedule = DCA::schedules(schedule_id);
+		assert!(schedule.is_some());
+
+		//Act
+		assert_noop!(
+			DCA::unlock_reserves(RuntimeOrigin::signed(ALICE.into()), HDX),
+			pallet_dca::Error::<hydradx_runtime::Runtime>::HasActiveSchedules
+		);
+	});
+}
+
+#[test]
+fn unclock_should_work_when_user_has_leftover() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let block_id = 11;
+		set_relaychain_block_number(block_id);
+
+		assert_ok!(Currencies::reserve_named(
+			&NamedReserveId::get(),
+			DOT,
+			&ALICE.into(),
+			21323213213
+		));
+
+		assert_reserved_balance!(ALICE.into(), DOT, 21323213213);
+
+		//Act
+		assert_ok!(DCA::unlock_reserves(RuntimeOrigin::signed(ALICE.into()), DOT),);
+
+		//Assert
+		assert_reserved_balance!(&ALICE.into(), DOT, 0);
 	});
 }
 
