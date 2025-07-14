@@ -9548,7 +9548,6 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-ema-oracle",
  "pallet-liquidity-mining",
  "pallet-xyk",
  "parity-scale-codec",

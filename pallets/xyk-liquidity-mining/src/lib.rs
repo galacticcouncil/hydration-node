@@ -58,6 +58,7 @@ use pallet_xyk::types::{AssetId, AssetPair, Balance};
 
 use frame_support::{pallet_prelude::*, sp_runtime::traits::AccountIdConversion};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{registry::Inspect as RegistryInspect, Source, AMM};
 use orml_traits::MultiCurrency;
 use primitives::{CollectionId, ItemId as DepositId};
@@ -153,7 +154,7 @@ pub mod pallet {
 		type OraclePeriod: Get<OraclePeriod>;
 
 		/// XYK assets' liquidity oracle.
-		type LiquidityOracle: AggregatedOracle<AssetId, Balance, BlockNumberFor<Self>, pallet_ema_oracle::Price>;
+		type LiquidityOracle: AggregatedOracle<AssetId, Balance, BlockNumberFor<Self>, EmaPrice>;
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;

@@ -351,11 +351,11 @@ impl liq_mining::Config for Test {
 	type LiquidityOracle = DummyOracle;
 }
 
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{AggregatedEntry, AggregatedOracle, Liquidity, Volume};
-use pallet_ema_oracle::Price;
 pub struct DummyOracle;
 
-impl AggregatedOracle<AssetId, Balance, BlockNumber, Price> for DummyOracle {
+impl AggregatedOracle<AssetId, Balance, BlockNumber, EmaPrice> for DummyOracle {
 	type Error = DispatchError;
 
 	fn get_entry(
@@ -363,7 +363,7 @@ impl AggregatedOracle<AssetId, Balance, BlockNumber, Price> for DummyOracle {
 		asset_b: AssetId,
 		_period: OraclePeriod,
 		_source: Source,
-	) -> Result<hydradx_traits::AggregatedEntry<Balance, BlockNumber, Price>, Self::Error> {
+	) -> Result<hydradx_traits::AggregatedEntry<Balance, BlockNumber, EmaPrice>, Self::Error> {
 		let asset_pair = AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
@@ -371,7 +371,7 @@ impl AggregatedOracle<AssetId, Balance, BlockNumber, Price> for DummyOracle {
 		let amm_pool_id = DummyAMM::get_pair_id(asset_pair);
 
 		Ok(AggregatedEntry {
-			price: Price::default(),
+			price: EmaPrice::default(),
 			liquidity: Liquidity {
 				a: Tokens::free_balance(asset_a, &amm_pool_id),
 				b: Tokens::free_balance(asset_b, &amm_pool_id),
