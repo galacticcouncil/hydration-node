@@ -1283,7 +1283,7 @@ impl pallet_otc_settlements::Config for Runtime {
 // Dynamic fees
 parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
-		min_fee: Permill::from_rational(25u32,10000u32), // 0.125%
+		min_fee: Permill::from_rational(25u32,10000u32), // 0.25%
 		max_fee: Permill::from_rational(5u32,100u32),    // 5%
 		decay: FixedU128::from_rational(1,20000),        // 0.005%
 		amplification: FixedU128::from(2),               // 2
