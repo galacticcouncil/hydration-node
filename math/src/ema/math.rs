@@ -25,8 +25,8 @@ pub fn calculate_new_by_integrating_incoming(
 	let new_price = price_weighted_average(prev_price, incoming_price, smoothing);
 	let new_volume = volume_weighted_average(prev_volume, incoming_volume, smoothing);
 	let new_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
-	let new_shares_issuance = incoming_shares
-		.and_then(|incoming_s| Some(balance_weighted_average(shares.unwrap_or(0), incoming_s, smoothing)));
+	let new_shares_issuance =
+		incoming_shares.map(|incoming_s| balance_weighted_average(shares.unwrap_or(0), incoming_s, smoothing));
 	(new_price, new_volume, new_liquidity, new_shares_issuance)
 }
 
@@ -45,13 +45,8 @@ pub fn update_outdated_to_current(
 	let new_price = price_weighted_average(prev_price, incoming_price, smoothing);
 	let new_volume = volume_weighted_average(prev_volume, (0, 0, 0, 0), smoothing);
 	let new_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
-	let new_shares = incoming_shares.and_then(|incoming_s| {
-		Some(balance_weighted_average(
-			prev_shares.unwrap_or(0),
-			incoming_s,
-			smoothing,
-		))
-	});
+	let new_shares =
+		incoming_shares.map(|incoming_s| balance_weighted_average(prev_shares.unwrap_or(0), incoming_s, smoothing));
 	(new_price, new_volume, new_liquidity, new_shares)
 }
 
