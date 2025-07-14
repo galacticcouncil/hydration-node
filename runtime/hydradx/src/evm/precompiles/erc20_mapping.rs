@@ -51,6 +51,18 @@ impl Erc20Mapping<AssetId> for HydraErc20Mapping {
 	}
 }
 
+sp_api::decl_runtime_apis! {
+	/// The API to query AssetId <-> EVM address conversions.
+	pub trait Erc20MappingApi where
+	{
+		/// Get the EVM address of the asset.
+		fn asset_address(asset_id: AssetId) -> EvmAddress;
+
+		/// Get the asset id corresponding to EVM address. If not found, returns `None`.
+		fn address_to_asset(address: hydradx_traits::evm::EvmAddress) -> Option<AssetId>;
+	}
+}
+
 /// The asset id (with type u32) is encoded in the last 4 bytes of EVM address
 impl Erc20Encoding<AssetId> for HydraErc20Mapping {
 	fn encode_evm_address(asset_id: AssetId) -> EvmAddress {
