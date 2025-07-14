@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 326,
+	spec_version: 327,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -978,6 +978,15 @@ impl_runtime_apis! {
 		}
 		fn account_id(evm_address: H160) -> AccountId {
 			EVMAccounts::account_id(evm_address)
+		}
+	}
+
+	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
+		fn asset_address(asset_id: AssetId) -> evm::EvmAddress {
+			HydraErc20Mapping::asset_address(asset_id)
+		}
+		fn address_to_asset(address: evm::EvmAddress) -> Option<AssetId> {
+			HydraErc20Mapping::address_to_asset(address)
 		}
 	}
 
