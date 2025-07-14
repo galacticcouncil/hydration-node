@@ -1403,6 +1403,7 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 					volume: Default::default(),
 					liquidity: Default::default(),
 					updated_at: BlockNumber::default().into(),
+					shares_issuance: Default::default(),
 				},
 			) {
 				return TransactionOutcome::Rollback(e.into());
