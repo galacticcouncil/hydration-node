@@ -4164,7 +4164,7 @@ fn unclock_should_not_work_when_user_has_active_schedule() {
 
 		//Act
 		assert_noop!(
-			DCA::unlock_reserves(RuntimeOrigin::signed(ALICE.into()), HDX),
+			DCA::unlock_reserves(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), HDX),
 			pallet_dca::Error::<hydradx_runtime::Runtime>::HasActiveSchedules
 		);
 	});
@@ -4190,7 +4190,11 @@ fn unclock_should_work_when_user_has_leftover() {
 		assert_reserved_balance!(ALICE.into(), DOT, 21323213213);
 
 		//Act
-		assert_ok!(DCA::unlock_reserves(RuntimeOrigin::signed(ALICE.into()), DOT),);
+		assert_ok!(DCA::unlock_reserves(
+			RuntimeOrigin::signed(ALICE.into()),
+			ALICE.into(),
+			DOT
+		),);
 
 		//Assert
 		assert_reserved_balance!(&ALICE.into(), DOT, 0);

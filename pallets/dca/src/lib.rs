@@ -117,6 +117,7 @@ pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 pub mod pallet {
 	use frame_support::traits::Contains;
 	use frame_support::weights::WeightToFee;
+	use frame_system::ensure_signed_or_root;
 	use frame_system::pallet_prelude::OriginFor;
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
@@ -662,8 +663,8 @@ pub mod pallet {
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::terminate())] //TODO: bench
 		#[transactional]
-		pub fn unlock_reserves(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+		pub fn unlock_reserves(origin: OriginFor<T>, who: T::AccountId, asset_id: T::AssetId) -> DispatchResult {
+			let _ = ensure_signed_or_root(origin)?;
 
 			ensure!(
 				!ScheduleOwnership::<T>::iter_prefix(who.clone()).next().is_some(),

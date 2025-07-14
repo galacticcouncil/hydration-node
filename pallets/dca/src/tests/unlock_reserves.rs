@@ -45,7 +45,7 @@ fn unlock_should_not_work_when_user_has_active_schedule() {
 
 			//Act
 			assert_noop!(
-				DCA::unlock_reserves(RuntimeOrigin::signed(ALICE), HDX),
+				DCA::unlock_reserves(RuntimeOrigin::signed(ALICE), ALICE, HDX),
 				Error::<Test>::HasActiveSchedules
 			);
 		});
@@ -72,7 +72,7 @@ fn unlock_should_unreserve_when_user_has_leftover() {
 			assert_balance!(ALICE, HDX, init_balance - leftover);
 
 			//Act
-			assert_ok!(DCA::unlock_reserves(RuntimeOrigin::signed(ALICE), HDX));
+			assert_ok!(DCA::unlock_reserves(RuntimeOrigin::signed(ALICE), ALICE, HDX));
 
 			//Assert
 			assert_balance!(ALICE, HDX, init_balance);
@@ -85,7 +85,7 @@ fn unlock_should_unreserve_when_user_has_leftover() {
 }
 
 #[test]
-fn unlock_should_not_work_when_called_by_root() {
+fn unlock_should_work_when_called_by_root() {
 	let init_balance = 10000 * ONE;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, init_balance)])
@@ -105,10 +105,38 @@ fn unlock_should_not_work_when_called_by_root() {
 			assert_balance!(ALICE, HDX, init_balance - leftover);
 
 			//Act
-			assert_noop!(DCA::unlock_reserves(RuntimeOrigin::root(), HDX), BadOrigin);
+			assert_ok!(DCA::unlock_reserves(RuntimeOrigin::root(), ALICE, HDX));
 
 			//Assert
+			assert_balance!(ALICE, HDX, init_balance);
+		});
+}
+
+#[test]
+fn unlock_should_work_when_called_by_other_user() {
+	let init_balance = 10000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, init_balance)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+
+			let leftover = 10 * ONE;
+			assert_ok!(Currencies::reserve_named(
+				&NamedReserveId::get(),
+				HDX,
+				&ALICE.into(),
+				10 * ONE
+			));
+
 			assert_balance!(ALICE, HDX, init_balance - leftover);
+
+			//Act
+			assert_ok!(DCA::unlock_reserves(RuntimeOrigin::signed(BOB), ALICE, HDX));
+
+			//Assert
+			assert_balance!(ALICE, HDX, init_balance);
 		});
 }
 
@@ -124,7 +152,7 @@ fn unlock_should_not_work_when_nothing_is_reserved() {
 
 			//Act
 			assert_noop!(
-				DCA::unlock_reserves(RuntimeOrigin::signed(ALICE), HDX),
+				DCA::unlock_reserves(RuntimeOrigin::signed(ALICE), ALICE, HDX),
 				Error::<Test>::NoReservesLocked
 			);
 		});
@@ -142,7 +170,7 @@ fn unlock_should_fail_when_asset_doesnt_exist() {
 
 			//Act
 			assert_noop!(
-				DCA::unlock_reserves(RuntimeOrigin::signed(ALICE), 9999),
+				DCA::unlock_reserves(RuntimeOrigin::signed(ALICE), ALICE, 9999),
 				Error::<Test>::NoReservesLocked
 			);
 		});
