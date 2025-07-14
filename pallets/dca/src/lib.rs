@@ -661,7 +661,7 @@ pub mod pallet {
 		/// Emits `ReserveUnlocked` event when successful.
 		///
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::terminate())] //TODO: bench
+		#[pallet::weight(<T as Config>::WeightInfo::unlock_reserves())]
 		#[transactional]
 		pub fn unlock_reserves(origin: OriginFor<T>, who: T::AccountId, asset_id: T::AssetId) -> DispatchResult {
 			let _ = ensure_signed_or_root(origin)?;
