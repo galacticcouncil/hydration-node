@@ -87,7 +87,7 @@ impl<T: crate::Config + pallet_xyk::Config> UncheckedOnRuntimeUpgrade for unvers
 			Oracles::<T>::insert(k, v);
 		}
 
-		log::info!(target: "runtime::ema-oracle", "ema-oracle oracle entries migration finished, migraded: {:?} entries", reads);
+		log::info!(target: "runtime::ema-oracle", "ema-oracle oracle entries migration finished, migrated: {:?} entries", reads);
 		//NOTE: each read item was also wrote into storage so reads == writes
 		T::DbWeight::get().reads_writes(reads, reads)
 	}
