@@ -1,6 +1,6 @@
 [package]
 name = "pallet-ema-oracle"
-version = "1.7.1"
+version = "1.8.0"
 description = "Exponential moving average oracle for AMM pools"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -18,6 +18,8 @@ codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
+primitives = { workspace = true }
+pallet-xyk = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -60,5 +62,7 @@ std = [
   "hydra-dx-math/std",
   "scale-info/std",
   "polkadot-xcm/std",
+  "primitives/std",
+  "pallet-xyk/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
