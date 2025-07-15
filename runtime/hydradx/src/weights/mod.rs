@@ -18,6 +18,7 @@ pub mod pallet_democracy;
 pub mod pallet_dispatcher;
 pub mod pallet_duster;
 pub mod pallet_dynamic_evm_fee;
+pub mod pallet_dynamic_fees;
 pub mod pallet_ema_oracle;
 pub mod pallet_evm_accounts;
 pub mod pallet_hsm;
