@@ -64,6 +64,7 @@ use frame_support::weights::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
+use orml_traits::GetByKey;
 use sp_core::U256;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
@@ -96,12 +97,8 @@ pub mod pallet {
 		/// Transaction fee multiplier provider
 		type FeeMultiplier: Get<FixedU128>;
 
-		/// Native price oracle
-		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
-
-		/// Referene Native price oracle
-		type ReferenceNativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
-
+		/// EVM asset prices for different periods to do comparison to scale evm fee
+		type EvmAssetPrices: GetByKey<Self::AssetId, Option<(EmaPrice, EmaPrice)>>;
 		/// WETH Asset Id
 		#[pallet::constant]
 		type WethAssetId: Get<Self::AssetId>;
@@ -139,7 +136,8 @@ pub mod pallet {
 						.saturating_mul(3),
 				);
 
-				let Some(eth_hdx_price) = T::NativePriceOracle::price(T::WethAssetId::get()) else {
+				let Some((eth_hdx_price, eth_hdx_reference_price)) = T::EvmAssetPrices::get(&T::WethAssetId::get())
+				else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
 					return;
 				};
@@ -148,10 +146,6 @@ pub mod pallet {
 					return;
 				};
 
-				let Some(eth_hdx_reference_price) = T::ReferenceNativePriceOracle::price(T::WethAssetId::get()) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX reference price from oracle");
-					return;
-				};
 				let Some(eth_hdx_reference_price) =
 					FixedU128::checked_from_rational(eth_hdx_reference_price.n, eth_hdx_reference_price.d)
 				else {

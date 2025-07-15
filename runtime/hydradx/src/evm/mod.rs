@@ -41,6 +41,7 @@ use hex_literal::hex;
 use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
+use orml_traits::GetByKey;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressTruncated, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
@@ -59,6 +60,8 @@ mod runner;
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;
 pub use executor::Executor;
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::NativePriceOracle;
 pub use primitives::AccountId as AccountIdType;
 
 // Current approximation of the gas per second consumption considering
@@ -220,8 +223,21 @@ impl pallet_dynamic_evm_fee::Config for Runtime {
 	type MinBaseFeePerGas = MinBaseFeePerGas;
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type FeeMultiplier = TransactionPaymentMultiplier;
-	type NativePriceOracle = FeePriceOracle;
-	type ReferenceNativePriceOracle = FeePriceOracleForTenMinutes;
 	type WethAssetId = WethAssetId;
 	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
+	type EvmAssetPrices = EvmAssetPricesGetter;
+}
+
+pub struct EvmAssetPricesGetter;
+
+impl GetByKey<AssetId, Option<(EmaPrice, EmaPrice)>> for EvmAssetPricesGetter {
+	fn get(k: &AssetId) -> Option<(EmaPrice, EmaPrice)> {
+		let short_price = FeePriceOracle::price(*k);
+		let reference_price = FeePriceOracleForTenMinutes::price(*k);
+
+		match (short_price, reference_price) {
+			(Some(sp), Some(rp)) => Some((sp, rp)),
+			_ => None,
+		}
+	}
 }

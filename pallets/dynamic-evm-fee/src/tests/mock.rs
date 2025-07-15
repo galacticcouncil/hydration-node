@@ -24,10 +24,11 @@ use frame_support::{
 	traits::{Everything, Get, Nothing},
 	weights::Weight,
 };
+
 use frame_system as system;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
@@ -132,22 +133,6 @@ impl Get<FixedU128> for MultiplierProviderMock {
 	}
 }
 
-pub struct NativePriceOracleMock;
-
-impl NativePriceOracle<AssetId, EmaPrice> for NativePriceOracleMock {
-	fn price(_: AssetId) -> Option<EmaPrice> {
-		Some(ETH_HDX_ORACLE_PRICE.with(|v| *v.borrow()))
-	}
-}
-
-pub struct ReferenceNativePriceOracleMock;
-
-impl NativePriceOracle<AssetId, EmaPrice> for ReferenceNativePriceOracleMock {
-	fn price(_: AssetId) -> Option<EmaPrice> {
-		Some(DEFAULT_ETH_HDX_ORACLE_PRICE)
-	}
-}
-
 pub struct DefaultBaseDFeePerGas;
 
 impl Get<u128> for DefaultBaseDFeePerGas {
@@ -176,10 +161,17 @@ impl Config for Test {
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type DefaultBaseFeePerGas = DefaultBaseDFeePerGas;
 	type FeeMultiplier = MultiplierProviderMock;
-	type NativePriceOracle = NativePriceOracleMock;
-	type ReferenceNativePriceOracle = ReferenceNativePriceOracleMock;
+	type EvmAssetPrices = EvmAssetPricesMock;
 	type WethAssetId = HdxAssetId;
 	type WeightInfo = ();
+}
+
+pub struct EvmAssetPricesMock;
+
+impl GetByKey<AssetId, Option<(EmaPrice, EmaPrice)>> for EvmAssetPricesMock {
+	fn get(_k: &AssetId) -> Option<(EmaPrice, EmaPrice)> {
+		Some((ETH_HDX_ORACLE_PRICE.with(|v| *v.borrow()), DEFAULT_ETH_HDX_ORACLE_PRICE))
+	}
 }
 
 impl pallet_balances::Config for Test {
