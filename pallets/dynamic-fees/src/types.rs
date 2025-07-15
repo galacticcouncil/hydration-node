@@ -7,6 +7,7 @@ use hydra_dx_math::dynamic_fees::types::FeeParams as MathFeeParams;
 
 use scale_info::TypeInfo;
 
+/// Parameters for dynamic fee calculation
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct FeeParams<Fee> {
@@ -16,14 +17,17 @@ pub struct FeeParams<Fee> {
 	pub amplification: FixedU128,
 }
 
+/// Fee entry stored in the pallet storage
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct FeeEntry<Fee, Block> {
 	pub asset_fee: Fee,
 	pub protocol_fee: Fee,
+	/// Block number when this entry was last updated
 	pub timestamp: Block,
 }
 
+/// Asset fee configuration
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetFeeConfig<Fee> {

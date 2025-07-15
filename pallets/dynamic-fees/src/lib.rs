@@ -153,6 +153,13 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Set fee configuration for an asset
+		///
+		/// This function allows setting either fixed or dynamic fee configuration for a specific asset.
+		///
+		/// # Arguments
+		/// * `origin` - Root origin required
+		/// * `asset_id` - The asset ID to configure
+		/// * `config` - Fee configuration (Fixed or Dynamic)
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::set_asset_fee())]
 		pub fn set_asset_fee(
@@ -162,7 +169,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			// Validate the fee configuration
 			Self::validate_fee_config(&config)?;
 
 			AssetFeeConfiguration::<T>::insert(&asset_id, &config);
@@ -172,6 +178,13 @@ pub mod pallet {
 		}
 
 		/// Remove fee configuration for an asset (will use default parameters)
+		///
+		/// This function removes any custom fee configuration for the specified asset.
+		/// After removal, the asset will use the default dynamic fee parameters configured in the runtime.
+		///
+		/// # Arguments
+		/// * `origin` - Root origin required
+		/// * `asset_id` - The asset ID to remove configuration for
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::remove_asset_fee())]
 		pub fn remove_asset_fee(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
@@ -213,6 +226,17 @@ impl<T: Config> Pallet<T>
 where
 	<T::Fee as PerThing>::Inner: FixedPointOperand,
 {
+	/// Validates fee configuration parameters
+	///
+	/// This function ensures that the provided fee configuration is valid:
+	/// - Fixed fees: No validation required
+	/// - Dynamic fees: Validates that min_fee <= max_fee and amplification > 0
+	///
+	/// # Arguments
+	/// * `config` - The fee configuration to validate
+	///
+	/// # Returns
+	/// DispatchResult indicating success or validation error
 	fn validate_fee_config(config: &AssetFeeConfig<T::Fee>) -> DispatchResult {
 		match config {
 			AssetFeeConfig::Fixed { .. } => {
@@ -238,6 +262,20 @@ where
 		}
 	}
 
+	/// Updates fee for an asset based on its configuration
+	///
+	/// This function determines the fee calculation method based on the asset's configuration:
+	/// - Fixed fees: Returns the configured static values
+	/// - Dynamic fees: Calculates fees using oracle data and custom parameters
+	/// - No configuration: Uses default dynamic parameters
+	///
+	/// # Arguments
+	/// * `asset_id` - The asset ID to update fees for
+	/// * `asset_liquidity` - Current asset liquidity
+	/// * `store` - Whether to store the calculated fees in storage
+	///
+	/// # Returns
+	/// A tuple of (asset_fee, protocol_fee)
 	fn update_fee(asset_id: T::AssetId, asset_liquidity: Balance, store: bool) -> (T::Fee, T::Fee) {
 		log::trace!(target: "dynamic-fees", "update_fee for asset_id: {:?}", asset_id);
 		let block_number = T::BlockNumberProvider::current_block_number();
@@ -385,6 +423,11 @@ where
 	}
 }
 
+/// Main interface for retrieving dynamic fees
+///
+/// This struct provides the implementation of `GetDynamicFee` trait that can be used
+/// throughout the runtime to retrieve updated fees for assets. The fees are calculated
+/// based on the asset's configuration (fixed or dynamic) and oracle data.
 pub struct UpdateAndRetrieveFees<T: Config>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> GetDynamicFee<(T::AssetId, Balance)> for UpdateAndRetrieveFees<T>
