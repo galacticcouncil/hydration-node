@@ -56,7 +56,7 @@ use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Handler, Happened, NamedMultiReservableCurrency,
 };
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{AssetTotalIssuance, BasicCurrencyAdapter};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_omnipool::{
@@ -175,7 +175,7 @@ impl Handler<(AssetId, AccountId, Balance)> for OnDepositReleaseHandler {
 
 impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositCircuitBreaker {
 	type Period = Period;
-	type Issuance = Currencies;
+	type Issuance = AssetTotalIssuance<Runtime>;
 	type DepositLimit = XcmRateLimitsInRegistry<Runtime>;
 	type OnLimitReached = ();
 	type OnLockdownDeposit = OnLockdownDepositHandler;

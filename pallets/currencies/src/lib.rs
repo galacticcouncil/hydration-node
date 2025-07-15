@@ -960,7 +960,9 @@ where
 	}
 }
 
-impl<T: Config> GetByKey<CurrencyIdOf<T>, BalanceOf<T>> for Pallet<T> {
+pub struct AssetTotalIssuance<T>(PhantomData<T>);
+
+impl<T: Config> GetByKey<CurrencyIdOf<T>, BalanceOf<T>> for AssetTotalIssuance<T> {
 	fn get(currency_id: &CurrencyIdOf<T>) -> BalanceOf<T> {
 		Pallet::<T>::total_issuance(*currency_id)
 	}
