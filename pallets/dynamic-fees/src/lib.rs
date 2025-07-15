@@ -56,6 +56,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
+use frame_support::pallet_prelude::DispatchResult;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::traits::{BlockNumberProvider, Saturating, Zero};
@@ -69,7 +70,7 @@ pub mod types;
 pub use pallet::*;
 
 use crate::traits::{Volume, VolumeProvider};
-use crate::types::{FeeEntry, FeeParams};
+use crate::types::{AssetFeeConfig, FeeEntry, FeeParams};
 use hydra_dx_math::dynamic_fees::types::OracleEntry;
 use hydra_dx_math::dynamic_fees::{recalculate_asset_fee, recalculate_protocol_fee};
 use hydradx_traits::fee::GetDynamicFee;
@@ -82,7 +83,8 @@ pub mod pallet {
 	use crate::traits::VolumeProvider;
 	use crate::types::FeeEntry;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::BlockNumberFor;
+	use frame_system::ensure_root;
+	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 
 	#[pallet::pallet]
@@ -94,6 +96,12 @@ pub mod pallet {
 	/// Stored as (Asset fee, Protocol fee, Block number)
 	pub type AssetFee<T: Config> =
 		StorageMap<_, Twox64Concat, T::AssetId, FeeEntry<T::Fee, BlockNumberFor<T>>, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn asset_fee_config)]
+	/// Stores per-asset fee configuration (Fixed or Dynamic)
+	pub type AssetFeeConfiguration<T: Config> =
+		StorageMap<_, Twox64Concat, T::AssetId, AssetFeeConfig<T::Fee>, OptionQuery>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -119,13 +127,53 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	pub enum Event<T: Config> {}
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		/// Asset fee configuration has been set
+		AssetFeeConfigSet { asset_id: T::AssetId },
+		/// Asset fee configuration has been removed
+		AssetFeeConfigRemoved { asset_id: T::AssetId },
+	}
 
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		/// Invalid fee parameters provided
+		InvalidFeeParameters,
+	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		/// Set fee configuration for an asset
+		#[pallet::call_index(0)]
+		#[pallet::weight(10_000)]
+		pub fn set_asset_fee_config(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			config: AssetFeeConfig<T::Fee>,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			// Validate the fee configuration
+			Self::validate_fee_config(&config)?;
+
+			AssetFeeConfiguration::<T>::insert(&asset_id, &config);
+
+			Self::deposit_event(Event::AssetFeeConfigSet { asset_id });
+			Ok(())
+		}
+
+		/// Remove fee configuration for an asset (will use default parameters)
+		#[pallet::call_index(1)]
+		#[pallet::weight(10_000)]
+		pub fn remove_asset_fee_config(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			ensure_root(origin)?;
+
+			AssetFeeConfiguration::<T>::remove(&asset_id);
+
+			Self::deposit_event(Event::AssetFeeConfigRemoved { asset_id });
+			Ok(())
+		}
+	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -156,19 +204,107 @@ impl<T: Config> Pallet<T>
 where
 	<T::Fee as PerThing>::Inner: FixedPointOperand,
 {
+	fn validate_fee_config(config: &AssetFeeConfig<T::Fee>) -> DispatchResult {
+		match config {
+			AssetFeeConfig::Fixed { .. } => {
+				// No validation needed for fixed fees
+				Ok(())
+			}
+			AssetFeeConfig::Dynamic {
+				asset_fee_params,
+				protocol_fee_params,
+			} => {
+				// Validate asset fee parameters
+				if asset_fee_params.min_fee > asset_fee_params.max_fee {
+					return Err(Error::<T>::InvalidFeeParameters.into());
+				}
+				if asset_fee_params.amplification.is_zero() {
+					return Err(Error::<T>::InvalidFeeParameters.into());
+				}
+
+				// Validate protocol fee parameters
+				if protocol_fee_params.min_fee > protocol_fee_params.max_fee {
+					return Err(Error::<T>::InvalidFeeParameters.into());
+				}
+				if protocol_fee_params.amplification.is_zero() {
+					return Err(Error::<T>::InvalidFeeParameters.into());
+				}
+
+				Ok(())
+			}
+		}
+	}
+
 	fn update_fee(asset_id: T::AssetId, asset_liquidity: Balance, store: bool) -> (T::Fee, T::Fee) {
 		log::trace!(target: "dynamic-fees", "update_fee for asset_id: {:?}", asset_id);
 		let block_number = T::BlockNumberProvider::current_block_number();
 
-		let asset_fee_params = T::AssetFeeParameters::get();
-		let protocol_fee_params = T::ProtocolFeeParameters::get();
+		// Check if there's a specific configuration for this asset
+		let asset_config = Self::asset_fee_config(asset_id);
 
-		let current_fee_entry = Self::current_fees(asset_id).unwrap_or(FeeEntry {
-			asset_fee: asset_fee_params.min_fee,
-			protocol_fee: protocol_fee_params.min_fee,
-			timestamp: BlockNumberFor::<T>::default(),
-		});
+		match asset_config {
+			Some(AssetFeeConfig::Fixed {
+				asset_fee,
+				protocol_fee,
+			}) => {
+				// Return fixed fees directly
+				log::trace!(target: "dynamic-fees", "using fixed fees: {:?} {:?}", asset_fee, protocol_fee);
+				return (asset_fee, protocol_fee);
+			}
+			Some(AssetFeeConfig::Dynamic {
+				asset_fee_params,
+				protocol_fee_params,
+			}) => {
+				// Use dynamic calculation with custom parameters
+				let current_fee_entry = Self::current_fees(asset_id).unwrap_or(FeeEntry {
+					asset_fee: asset_fee_params.min_fee,
+					protocol_fee: protocol_fee_params.min_fee,
+					timestamp: BlockNumberFor::<T>::default(),
+				});
 
+				return Self::calculate_dynamic_fee(
+					asset_id,
+					asset_liquidity,
+					block_number,
+					current_fee_entry,
+					asset_fee_params,
+					protocol_fee_params,
+					store,
+				);
+			}
+			None => {
+				// Use default parameters from config
+				let asset_fee_params = T::AssetFeeParameters::get();
+				let protocol_fee_params = T::ProtocolFeeParameters::get();
+
+				let current_fee_entry = Self::current_fees(asset_id).unwrap_or(FeeEntry {
+					asset_fee: asset_fee_params.min_fee,
+					protocol_fee: protocol_fee_params.min_fee,
+					timestamp: BlockNumberFor::<T>::default(),
+				});
+
+				return Self::calculate_dynamic_fee(
+					asset_id,
+					asset_liquidity,
+					block_number,
+					current_fee_entry,
+					asset_fee_params,
+					protocol_fee_params,
+					store,
+				);
+			}
+		}
+	}
+
+	fn calculate_dynamic_fee(
+		asset_id: T::AssetId,
+		asset_liquidity: Balance,
+		block_number: BlockNumberFor<T>,
+		current_fee_entry: FeeEntry<T::Fee, BlockNumberFor<T>>,
+		asset_fee_params: FeeParams<T::Fee>,
+		protocol_fee_params: FeeParams<T::Fee>,
+		store: bool,
+	) -> (T::Fee, T::Fee) {
 		// Update only if it has not yet been updated this block
 		if block_number == current_fee_entry.timestamp {
 			log::trace!(target: "dynamic-fees", "no need to update, same block. Current fees: {:?} {:?}", current_fee_entry.asset_fee, current_fee_entry.protocol_fee);

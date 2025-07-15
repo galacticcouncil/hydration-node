@@ -1,3 +1,4 @@
+mod asset_config;
 mod decay;
 mod fees;
 mod limits;
