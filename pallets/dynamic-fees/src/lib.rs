@@ -66,11 +66,16 @@ use sp_runtime::{FixedPointOperand, FixedU128, PerThing, SaturatedConversion};
 mod tests;
 pub mod traits;
 pub mod types;
+pub mod weights;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarks;
 
 pub use pallet::*;
 
 use crate::traits::{Volume, VolumeProvider};
 use crate::types::{AssetFeeConfig, FeeEntry, FeeParams};
+use crate::weights::WeightInfo;
 use hydra_dx_math::dynamic_fees::types::OracleEntry;
 use hydra_dx_math::dynamic_fees::{recalculate_asset_fee, recalculate_protocol_fee};
 use hydradx_traits::fee::GetDynamicFee;
@@ -124,6 +129,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type ProtocolFeeParameters: Get<FeeParams<Self::Fee>>;
+
+		/// Information on runtime weights.
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::event]
@@ -145,7 +153,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Set fee configuration for an asset
 		#[pallet::call_index(0)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(T::WeightInfo::set_asset_fee_config())]
 		pub fn set_asset_fee_config(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
@@ -164,7 +172,7 @@ pub mod pallet {
 
 		/// Remove fee configuration for an asset (will use default parameters)
 		#[pallet::call_index(1)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(T::WeightInfo::remove_asset_fee_config())]
 		pub fn remove_asset_fee_config(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			ensure_root(origin)?;
 
