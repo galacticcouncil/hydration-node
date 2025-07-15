@@ -344,6 +344,7 @@ mod benches {
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
 		[pallet_hsm, HSM]
+		[pallet_dynamic_fees, DynamicFees]
 	);
 }
 
