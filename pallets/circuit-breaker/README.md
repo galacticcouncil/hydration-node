@@ -16,16 +16,21 @@ executed by `UpdateLimitsOrigin`.
 
 ### Issuance and Deposit Lockdown
 
-The pallet also provides a mechanism to limit asset deposits based on total issuance. 
-This is achieved by implementing the `OnDeposit` hook, which is triggered whenever new assets are minted by orml tokens pallet.
+The pallet also provides a mechanism to limit asset deposits based on total issuance.
+This is achieved by implementing the `OnDeposit` hook, which is triggered whenever new assets are minted by orml tokens
+pallet.
 
 The core logic is as follows:
+
 - The pallet tracks the total issuance of an asset over a configurable period.
-- If the issuance increase within that period exceeds a specified limit, the asset is put into lockdown for a configured duration.
+- If the issuance increase within that period exceeds a specified limit, the asset is put into lockdown for a configured
+  duration.
 - When the limit is breached, the amount of the deposit that exceeded the limit is reserved on the depositor's account.
 - While an asset is in lockdown, further deposits are not permitted, and funds will be reserved further
-- Once the lockdown period has expired, anyone is able to reclaim reserved funds on behalf of the user, by calling the `save_deposit` extrinsic.
+- Once the lockdown period has expired, anyone is able to reclaim reserved funds on behalf of the user, by calling the
+  `release_deposit` extrinsic.
 
 Additionally, an authorized origin has the ability to manage lockdowns manually:
+
 - `lockdown_asset`: This extrinsic allows an authorized account to manually place an asset into lockdown.
 - `force_lift_lockdown`: This extrinsic allows an authorized account to remove an asset from lockdown.

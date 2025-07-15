@@ -204,7 +204,7 @@ impl<T: frame_system::Config> pallet_circuit_breaker::WeightInfo for HydraWeight
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:1 w:1)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn save_deposit() -> Weight {
+	fn release_deposit() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1135`
 		//  Estimated: `4726`

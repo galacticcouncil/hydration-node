@@ -527,8 +527,8 @@ pub mod pallet {
 		///
 		/// Emits `DepositSaved` event when successful.
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::save_deposit())]
-		pub fn save_deposit(
+		#[pallet::weight(<T as Config>::WeightInfo::release_deposit())]
+		pub fn release_deposit(
 			origin: OriginFor<T>,
 			who: T::AccountId,
 			asset_id: T::AssetId,

@@ -23,7 +23,7 @@ pub trait WeightInfo {
 	fn ensure_remove_liquidity_limit() -> Weight;
 	fn lockdown_asset() -> Weight;
 	fn force_lift_lockdown() -> Weight;
-	fn save_deposit() -> Weight;
+	fn release_deposit() -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -173,7 +173,7 @@ impl WeightInfo for () {
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:1 w:1)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	fn save_deposit() -> Weight {
+	fn release_deposit() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1135`
 		//  Estimated: `4726`

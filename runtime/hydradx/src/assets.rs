@@ -154,7 +154,7 @@ impl Handler<(AssetId, AccountId, Balance)> for OnDepositReleaseHandler {
 		let named_reserve_id = DepositCircuitBreakerNamedReserveId::get();
 
 		// The exact amount should be reserved because otherwise it can be DDoS attacked with small amounts
-		// as CircuitBreaker::save_deposit is a free extrinsic.
+		// as CircuitBreaker::release_deposit is a free extrinsic.
 		let reserved_balance = Currencies::reserved_balance_named(&named_reserve_id, t.0, &t.1);
 		ensure!(
 			reserved_balance == t.2,

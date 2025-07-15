@@ -9,7 +9,7 @@ use sp_runtime::DispatchError;
 use test_utils::assert_balance;
 pub const ASSET_ID: u32 = 10000;
 #[test]
-fn save_deposit_should_release_amount() {
+fn release_deposit_should_release_amount() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -29,7 +29,7 @@ fn save_deposit_should_release_amount() {
 			System::set_block_number(13);
 
 			//Act
-			assert_ok!(CircuitBreaker::save_deposit(
+			assert_ok!(CircuitBreaker::release_deposit(
 				RawOrigin::Signed(ALICE).into(),
 				ALICE,
 				ASSET_ID,
@@ -49,7 +49,7 @@ fn save_deposit_should_release_amount() {
 }
 
 #[test]
-fn save_deposit_should_be_callable_by_other_origin() {
+fn release_deposit_should_be_callable_by_other_origin() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -69,7 +69,7 @@ fn save_deposit_should_be_callable_by_other_origin() {
 			System::set_block_number(13);
 
 			//Act
-			assert_ok!(CircuitBreaker::save_deposit(
+			assert_ok!(CircuitBreaker::release_deposit(
 				RawOrigin::Signed(BOB).into(),
 				ALICE,
 				ASSET_ID,
@@ -83,7 +83,7 @@ fn save_deposit_should_be_callable_by_other_origin() {
 }
 
 #[test]
-fn save_deposit_should_be_callable_by_root() {
+fn release_deposit_should_be_callable_by_root() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -103,7 +103,7 @@ fn save_deposit_should_be_callable_by_root() {
 			System::set_block_number(13);
 
 			//Act
-			assert_ok!(CircuitBreaker::save_deposit(
+			assert_ok!(CircuitBreaker::release_deposit(
 				RawOrigin::Root.into(),
 				ALICE,
 				ASSET_ID,
@@ -117,7 +117,7 @@ fn save_deposit_should_be_callable_by_root() {
 }
 
 #[test]
-fn save_deposit_should_not_work_when_asset_in_lockdown() {
+fn release_deposit_should_not_work_when_asset_in_lockdown() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -136,7 +136,7 @@ fn save_deposit_should_not_work_when_asset_in_lockdown() {
 
 			//Act and assert
 			assert_noop!(
-				CircuitBreaker::save_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID, 10),
+				CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID, 10),
 				Error::<Test>::AssetInLockdown
 			);
 
@@ -147,7 +147,7 @@ fn save_deposit_should_not_work_when_asset_in_lockdown() {
 }
 
 #[test]
-fn save_deposit_should_work_when_asset_in_lockdown_but_expired() {
+fn release_deposit_should_work_when_asset_in_lockdown_but_expired() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -167,7 +167,7 @@ fn save_deposit_should_work_when_asset_in_lockdown_but_expired() {
 			System::set_block_number(13);
 
 			//Act and assert
-			assert_ok!(CircuitBreaker::save_deposit(
+			assert_ok!(CircuitBreaker::release_deposit(
 				RawOrigin::Root.into(),
 				ALICE,
 				ASSET_ID,
@@ -181,7 +181,7 @@ fn save_deposit_should_work_when_asset_in_lockdown_but_expired() {
 }
 
 #[test]
-fn save_deposit_should_work_when_asset_in_unlocked_state() {
+fn release_deposit_should_work_when_asset_in_unlocked_state() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -202,7 +202,7 @@ fn save_deposit_should_work_when_asset_in_unlocked_state() {
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 20)); //This sets the asset to unlocked state
 
 			//Act and assert
-			assert_ok!(CircuitBreaker::save_deposit(
+			assert_ok!(CircuitBreaker::release_deposit(
 				RawOrigin::Root.into(),
 				ALICE,
 				ASSET_ID,
@@ -215,7 +215,7 @@ fn save_deposit_should_work_when_asset_in_unlocked_state() {
 		});
 }
 
-fn save_deposit_should_fail_when_amount_is_zero() {
+fn release_deposit_should_fail_when_amount_is_zero() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -237,7 +237,7 @@ fn save_deposit_should_fail_when_amount_is_zero() {
 
 			//Act and assert
 			assert_noop!(
-				CircuitBreaker::save_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID, 0),
+				CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID, 0),
 				Error::<Test>::InvalidAmount
 			);
 		});

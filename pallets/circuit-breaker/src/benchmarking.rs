@@ -232,7 +232,7 @@ benchmarks! {
 		assert_eq!(state, Some(LockdownStatus::Unlocked((1u32.into(), 101_000_000_000_000u128.into()))));
 	}
 
-	save_deposit {
+	release_deposit {
 		frame_system::Pallet::<T>::set_block_number(1u32.into());
 
 		let account: T::AccountId = account("seller", 0, 0);
@@ -254,7 +254,7 @@ benchmarks! {
 		assert_eq!(state, Some(LockdownStatus::Unlocked((lockdown_over.into(), 101_000_000_000_000u128.into()))));
 
 	}: {
-		crate::Pallet::<T>::save_deposit(RawOrigin::Root.into(), account, asset.into(), 1_000_000_000_000u128.into())?
+		crate::Pallet::<T>::release_deposit(RawOrigin::Root.into(), account, asset.into(), 1_000_000_000_000u128.into())?
 	}
 	verify {
 		//No verify as if successfull, the extrinsic completed

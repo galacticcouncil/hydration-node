@@ -191,7 +191,7 @@ fn circuit_breaker_should_not_trigger_for_asset_without_limit_set() {
 }
 
 #[test]
-fn save_deposit_should_fail_when_in_lockdown() {
+fn release_deposit_should_fail_when_in_lockdown() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -205,14 +205,14 @@ fn save_deposit_should_fail_when_in_lockdown() {
 
 		//Act
 		assert_noop!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::AssetInLockdown,
 		);
 	});
 }
 
 #[test]
-fn save_deposit_should_payable_when_fails() {
+fn release_deposit_should_payable_when_fails() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -225,14 +225,14 @@ fn save_deposit_should_payable_when_fails() {
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
 		//Act
-		let err = CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS)
+		let err = CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS)
 			.expect_err("Expected the call to fail");
 		assert_eq!(err.post_info.pays_fee, frame_support::dispatch::Pays::Yes);
 	});
 }
 
 #[test]
-fn save_deposit_should_fail_when_in_the_last_block_of_lockdown() {
+fn release_deposit_should_fail_when_in_the_last_block_of_lockdown() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -249,14 +249,14 @@ fn save_deposit_should_fail_when_in_the_last_block_of_lockdown() {
 
 		//Act
 		assert_noop!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::AssetInLockdown
 		);
 	});
 }
 
 #[test]
-fn save_deposit_should_release_asset_when_lockdown_expires() {
+fn release_deposit_should_release_asset_when_lockdown_expires() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -273,7 +273,7 @@ fn save_deposit_should_release_asset_when_lockdown_expires() {
 
 		//Act
 		assert_ok!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
 			Pays::No.into()
 		);
 
@@ -286,7 +286,7 @@ fn save_deposit_should_release_asset_when_lockdown_expires() {
 }
 
 #[test]
-fn save_deposit_should_not_work_when_lockedown_triggered_2nd_time() {
+fn release_deposit_should_not_work_when_lockedown_triggered_2nd_time() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -306,7 +306,7 @@ fn save_deposit_should_not_work_when_lockedown_triggered_2nd_time() {
 
 		//Act and assert
 		assert_noop!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::AssetInLockdown
 		);
 
@@ -316,7 +316,7 @@ fn save_deposit_should_not_work_when_lockedown_triggered_2nd_time() {
 }
 
 #[test]
-fn save_deposit_should_work_when_asset_unclocked() {
+fn release_deposit_should_work_when_asset_unclocked() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -335,7 +335,7 @@ fn save_deposit_should_work_when_asset_unclocked() {
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
 		//Act
-		assert_ok!(CircuitBreaker::save_deposit(
+		assert_ok!(CircuitBreaker::release_deposit(
 			RuntimeOrigin::signed(ALICE.into()),
 			ALICE.into(),
 			DAI,
@@ -352,7 +352,7 @@ fn save_deposit_should_work_when_asset_unclocked() {
 }
 
 #[test]
-fn save_deposit_should_work_when_accumulated_through_multiple_periods() {
+fn release_deposit_should_work_when_accumulated_through_multiple_periods() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -378,7 +378,7 @@ fn save_deposit_should_work_when_accumulated_through_multiple_periods() {
 		set_relaychain_block_number(3 * DAYS + 7);
 
 		//Act
-		assert_ok!(CircuitBreaker::save_deposit(
+		assert_ok!(CircuitBreaker::release_deposit(
 			RuntimeOrigin::signed(ALICE.into()),
 			ALICE.into(),
 			DAI,
@@ -395,7 +395,7 @@ fn save_deposit_should_work_when_accumulated_through_multiple_periods() {
 }
 
 #[test]
-fn save_deposit_should_fail_when_amount_is_more_than_reserved() {
+fn release_deposit_should_fail_when_amount_is_more_than_reserved() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -412,14 +412,14 @@ fn save_deposit_should_fail_when_amount_is_more_than_reserved() {
 
 		//Act and assert
 		assert_noop!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS * 99),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS * 99),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::InvalidAmount
 		);
 	});
 }
 
 #[test]
-fn save_deposit_should_fail_when_amount_is_less_than_reserved() {
+fn release_deposit_should_fail_when_amount_is_less_than_reserved() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -436,14 +436,14 @@ fn save_deposit_should_fail_when_amount_is_less_than_reserved() {
 
 		//Act and assert
 		assert_noop!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS / 4),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS / 4),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::InvalidAmount
 		);
 	});
 }
 
 #[test]
-fn save_deposit_should_fail_when_amount_is_zero() {
+fn release_deposit_should_fail_when_amount_is_zero() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -457,14 +457,14 @@ fn save_deposit_should_fail_when_amount_is_zero() {
 
 		//Act and assert
 		assert_noop!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, 0),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, 0),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::InvalidAmount
 		);
 	});
 }
 
 #[test]
-fn save_deposit_should_fail_when_nothing_is_reserved() {
+fn release_deposit_should_fail_when_nothing_is_reserved() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -478,14 +478,14 @@ fn save_deposit_should_fail_when_nothing_is_reserved() {
 
 		//Act and assert
 		assert_noop!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, 17 * UNITS),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, 17 * UNITS),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::InvalidAmount
 		);
 	});
 }
 
 #[test]
-fn save_deposit_should_fail_when_no_reserved_asset_for_user() {
+fn release_deposit_should_fail_when_no_reserved_asset_for_user() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -499,14 +499,14 @@ fn save_deposit_should_fail_when_no_reserved_asset_for_user() {
 
 		//Act and assert
 		assert_noop!(
-			CircuitBreaker::save_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI, UNITS),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::InvalidAmount
 		);
 	});
 }
 
 #[test]
-fn save_deposit_should_work_when_other_user_claims_it() {
+fn release_deposit_should_work_when_other_user_claims_it() {
 	Hydra::execute_with(|| {
 		//Arrange
 		crate::circuit_breaker::init_omnipool();
@@ -524,7 +524,7 @@ fn save_deposit_should_work_when_other_user_claims_it() {
 		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
 
 		//Act
-		assert_ok!(CircuitBreaker::save_deposit(
+		assert_ok!(CircuitBreaker::release_deposit(
 			RuntimeOrigin::signed(BOB.into()),
 			ALICE.into(),
 			DAI,
