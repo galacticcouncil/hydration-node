@@ -18,11 +18,7 @@ fn set_fixed_fee_config_should_work() {
 		};
 
 		// Should work with root origin
-		assert_ok!(DynamicFees::set_asset_fee_config(
-			RuntimeOrigin::root(),
-			asset_id,
-			config
-		));
+		assert_ok!(DynamicFees::set_asset_fee(RuntimeOrigin::root(), asset_id, config));
 
 		// Verify storage
 		let stored_config = AssetFeeConfiguration::<Test>::get(asset_id);
@@ -58,11 +54,7 @@ fn set_dynamic_fee_config_should_work() {
 		};
 
 		// Should work with root origin
-		assert_ok!(DynamicFees::set_asset_fee_config(
-			RuntimeOrigin::root(),
-			asset_id,
-			config
-		));
+		assert_ok!(DynamicFees::set_asset_fee(RuntimeOrigin::root(), asset_id, config));
 
 		// Verify storage
 		let stored_config = AssetFeeConfiguration::<Test>::get(asset_id);
@@ -97,7 +89,7 @@ fn set_asset_fee_config_fails_with_invalid_parameters() {
 		};
 
 		assert_noop!(
-			DynamicFees::set_asset_fee_config(RuntimeOrigin::root(), asset_id, config),
+			DynamicFees::set_asset_fee(RuntimeOrigin::root(), asset_id, config),
 			Error::<Test>::InvalidFeeParameters
 		);
 
@@ -118,7 +110,7 @@ fn set_asset_fee_config_fails_with_invalid_parameters() {
 		};
 
 		assert_noop!(
-			DynamicFees::set_asset_fee_config(RuntimeOrigin::root(), asset_id, config),
+			DynamicFees::set_asset_fee(RuntimeOrigin::root(), asset_id, config),
 			Error::<Test>::InvalidFeeParameters
 		);
 	});
@@ -135,7 +127,7 @@ fn set_asset_fee_config_fails_with_non_root_origin() {
 
 		// Should fail with non-root origin
 		assert_noop!(
-			DynamicFees::set_asset_fee_config(RuntimeOrigin::signed(1), asset_id, config),
+			DynamicFees::set_asset_fee(RuntimeOrigin::signed(1), asset_id, config),
 			DispatchError::BadOrigin
 		);
 	});
@@ -151,17 +143,13 @@ fn remove_asset_fee_config_should_work() {
 		};
 
 		// First set a config
-		assert_ok!(DynamicFees::set_asset_fee_config(
-			RuntimeOrigin::root(),
-			asset_id,
-			config
-		));
+		assert_ok!(DynamicFees::set_asset_fee(RuntimeOrigin::root(), asset_id, config));
 
 		// Verify it's stored
 		assert!(AssetFeeConfiguration::<Test>::get(asset_id).is_some());
 
 		// Remove it
-		assert_ok!(DynamicFees::remove_asset_fee_config(RuntimeOrigin::root(), asset_id));
+		assert_ok!(DynamicFees::remove_asset_fee(RuntimeOrigin::root(), asset_id));
 
 		// Verify it's removed
 		assert!(AssetFeeConfiguration::<Test>::get(asset_id).is_none());
@@ -180,7 +168,7 @@ fn remove_asset_fee_config_fails_with_non_root_origin() {
 
 		// Should fail with non-root origin
 		assert_noop!(
-			DynamicFees::remove_asset_fee_config(RuntimeOrigin::signed(1), asset_id),
+			DynamicFees::remove_asset_fee(RuntimeOrigin::signed(1), asset_id),
 			DispatchError::BadOrigin
 		);
 	});
@@ -199,11 +187,7 @@ fn fixed_fee_config_returns_fixed_values() {
 		};
 
 		// Set fixed fee config
-		assert_ok!(DynamicFees::set_asset_fee_config(
-			RuntimeOrigin::root(),
-			asset_id,
-			config
-		));
+		assert_ok!(DynamicFees::set_asset_fee(RuntimeOrigin::root(), asset_id, config));
 
 		// Retrieve fees - should return the fixed values
 		let (retrieved_asset_fee, retrieved_protocol_fee) = retrieve_fee_entry(asset_id, 1000 * ONE);
@@ -248,11 +232,7 @@ fn dynamic_fee_config_uses_custom_parameters() {
 			};
 
 			// Set custom dynamic fee config
-			assert_ok!(DynamicFees::set_asset_fee_config(
-				RuntimeOrigin::root(),
-				asset_id,
-				config
-			));
+			assert_ok!(DynamicFees::set_asset_fee(RuntimeOrigin::root(), asset_id, config));
 
 			// Retrieve fees - should use custom parameters, not default ones
 			let (retrieved_asset_fee, retrieved_protocol_fee) = retrieve_fee_entry(asset_id, 1000 * ONE);
@@ -312,7 +292,7 @@ fn switching_from_dynamic_to_fixed_works() {
 			},
 		};
 
-		assert_ok!(DynamicFees::set_asset_fee_config(
+		assert_ok!(DynamicFees::set_asset_fee(
 			RuntimeOrigin::root(),
 			asset_id,
 			dynamic_config
@@ -326,7 +306,7 @@ fn switching_from_dynamic_to_fixed_works() {
 			protocol_fee: fixed_protocol_fee,
 		};
 
-		assert_ok!(DynamicFees::set_asset_fee_config(
+		assert_ok!(DynamicFees::set_asset_fee(
 			RuntimeOrigin::root(),
 			asset_id,
 			fixed_config

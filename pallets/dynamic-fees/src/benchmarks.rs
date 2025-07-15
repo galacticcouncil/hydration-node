@@ -19,7 +19,7 @@ use super::*;
 use crate::types::{AssetFeeConfig, FeeParams};
 use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
-use sp_runtime::{traits::Zero, FixedU128};
+use sp_runtime::FixedU128;
 
 benchmarks! {
 	where_clause {
@@ -28,7 +28,7 @@ benchmarks! {
 			T::AssetId: From<u32>,
 	}
 
-	set_asset_fee_config {
+	set_asset_fee {
 		let asset_id: T::AssetId = 1u32.into();
 		// Worst case: Dynamic fee configuration with full validation
 		let asset_fee_params = FeeParams {
@@ -52,7 +52,7 @@ benchmarks! {
 		assert!(AssetFeeConfiguration::<T>::contains_key(asset_id));
 	}
 
-	remove_asset_fee_config {
+	remove_asset_fee {
 		let asset_id: T::AssetId = 1u32.into();
 		let config = AssetFeeConfig::Fixed {
 			asset_fee: T::Fee::from_percent(5.into()),
@@ -60,7 +60,7 @@ benchmarks! {
 		};
 
 		// Setup: First set a configuration
-		let _ = Pallet::<T>::set_asset_fee_config(
+		let _ = Pallet::<T>::set_asset_fee(
 			RawOrigin::Root.into(),
 			asset_id,
 			config,

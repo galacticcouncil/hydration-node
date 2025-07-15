@@ -56,6 +56,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
+use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResult;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -67,6 +68,7 @@ mod tests;
 pub mod traits;
 pub mod types;
 pub mod weights;
+pub use weights::WeightInfo;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarks;
@@ -75,7 +77,6 @@ pub use pallet::*;
 
 use crate::traits::{Volume, VolumeProvider};
 use crate::types::{AssetFeeConfig, FeeEntry, FeeParams};
-use crate::weights::WeightInfo;
 use hydra_dx_math::dynamic_fees::types::OracleEntry;
 use hydra_dx_math::dynamic_fees::{recalculate_asset_fee, recalculate_protocol_fee};
 use hydradx_traits::fee::GetDynamicFee;
@@ -153,8 +154,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Set fee configuration for an asset
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::set_asset_fee_config())]
-		pub fn set_asset_fee_config(
+		#[pallet::weight(T::WeightInfo::set_asset_fee())]
+		pub fn set_asset_fee(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			config: AssetFeeConfig<T::Fee>,
@@ -172,8 +173,8 @@ pub mod pallet {
 
 		/// Remove fee configuration for an asset (will use default parameters)
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::remove_asset_fee_config())]
-		pub fn remove_asset_fee_config(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::remove_asset_fee())]
+		pub fn remove_asset_fee(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			ensure_root(origin)?;
 
 			AssetFeeConfiguration::<T>::remove(&asset_id);
@@ -222,21 +223,15 @@ where
 				asset_fee_params,
 				protocol_fee_params,
 			} => {
-				// Validate asset fee parameters
-				if asset_fee_params.min_fee > asset_fee_params.max_fee {
-					return Err(Error::<T>::InvalidFeeParameters.into());
-				}
-				if asset_fee_params.amplification.is_zero() {
-					return Err(Error::<T>::InvalidFeeParameters.into());
-				}
-
-				// Validate protocol fee parameters
-				if protocol_fee_params.min_fee > protocol_fee_params.max_fee {
-					return Err(Error::<T>::InvalidFeeParameters.into());
-				}
-				if protocol_fee_params.amplification.is_zero() {
-					return Err(Error::<T>::InvalidFeeParameters.into());
-				}
+				ensure!(
+					asset_fee_params.min_fee <= asset_fee_params.max_fee && !asset_fee_params.amplification.is_zero(),
+					Error::<T>::InvalidFeeParameters
+				);
+				ensure!(
+					protocol_fee_params.min_fee <= asset_fee_params.max_fee
+						&& !protocol_fee_params.amplification.is_zero(),
+					Error::<T>::InvalidFeeParameters
+				);
 
 				Ok(())
 			}
@@ -257,7 +252,7 @@ where
 			}) => {
 				// Return fixed fees directly
 				log::trace!(target: "dynamic-fees", "using fixed fees: {:?} {:?}", asset_fee, protocol_fee);
-				return (asset_fee, protocol_fee);
+				(asset_fee, protocol_fee)
 			}
 			Some(AssetFeeConfig::Dynamic {
 				asset_fee_params,
@@ -270,7 +265,7 @@ where
 					timestamp: BlockNumberFor::<T>::default(),
 				});
 
-				return Self::calculate_dynamic_fee(
+				Self::calculate_dynamic_fee(
 					asset_id,
 					asset_liquidity,
 					block_number,
@@ -278,7 +273,7 @@ where
 					asset_fee_params,
 					protocol_fee_params,
 					store,
-				);
+				)
 			}
 			None => {
 				// Use default parameters from config
@@ -291,7 +286,7 @@ where
 					timestamp: BlockNumberFor::<T>::default(),
 				});
 
-				return Self::calculate_dynamic_fee(
+				Self::calculate_dynamic_fee(
 					asset_id,
 					asset_liquidity,
 					block_number,
@@ -299,7 +294,7 @@ where
 					asset_fee_params,
 					protocol_fee_params,
 					store,
-				);
+				)
 			}
 		}
 	}
