@@ -43,6 +43,7 @@ pub struct OracleEntry<BlockNumber> {
 	pub price: Price,
 	pub volume: Volume<Balance>,
 	pub liquidity: Liquidity<Balance>,
+	pub shares_issuance: Option<Balance>,
 	pub updated_at: BlockNumber,
 }
 
@@ -52,12 +53,14 @@ impl<BlockNumber> OracleEntry<BlockNumber> {
 		price: Price,
 		volume: Volume<Balance>,
 		liquidity: Liquidity<Balance>,
+		shares_issuance: Option<Balance>,
 		updated_at: BlockNumber,
 	) -> Self {
 		Self {
 			price,
 			volume,
 			liquidity,
+			shares_issuance,
 			updated_at,
 		}
 	}
@@ -74,13 +77,26 @@ where
 			price: self.price,
 			volume: self.volume,
 			liquidity: self.liquidity,
+			shares_issuance: self.shares_issuance,
 			oracle_age: self.updated_at.saturating_sub(initialized),
 		}
 	}
 
 	/// Return the raw data of the entry as a tuple of tuples, excluding the block number.
-	pub fn raw_data(&self) -> (Price, (Balance, Balance, Balance, Balance), (Balance, Balance)) {
-		(self.price, self.volume.clone().into(), self.liquidity.into())
+	pub fn raw_data(
+		&self,
+	) -> (
+		Price,
+		(Balance, Balance, Balance, Balance),
+		(Balance, Balance),
+		Option<Balance>,
+	) {
+		(
+			self.price,
+			self.volume.clone().into(),
+			self.liquidity.into(),
+			self.shares_issuance,
+		)
 	}
 
 	/// Return an inverted version of the entry where the meaning of assets a and b are inverted.
@@ -93,6 +109,7 @@ where
 			price,
 			volume,
 			liquidity,
+			shares_issuance: self.shares_issuance,
 			updated_at: self.updated_at,
 		}
 	}
@@ -103,6 +120,7 @@ where
 		self.volume = incoming.volume.saturating_add(&self.volume);
 		self.price = incoming.price;
 		self.liquidity = incoming.liquidity;
+		self.shares_issuance = incoming.shares_issuance;
 		self.updated_at = incoming.updated_at;
 	}
 
@@ -120,6 +138,7 @@ where
 			price: self.price,
 			volume,
 			liquidity: self.liquidity,
+			shares_issuance: self.shares_issuance,
 			updated_at: self.updated_at,
 		}
 	}
@@ -141,13 +160,14 @@ where
 		}
 		// determine smoothing factor
 		let smoothing = into_smoothing(period);
-		let (price, volume, liquidity) =
+		let (price, volume, liquidity, shares) =
 			calculate_new_by_integrating_incoming(self.raw_data(), incoming.raw_data(), smoothing);
 
 		Some(Self {
 			price,
 			volume: volume.into(),
 			liquidity: liquidity.into(),
+			shares_issuance: shares.into(),
 			updated_at: incoming.updated_at,
 		})
 	}
@@ -181,10 +201,14 @@ where
 		}
 		// determine smoothing factor
 		let smoothing = into_smoothing(period);
-		let (price, volume, liquidity) = update_outdated_to_current(
+		let (price, volume, liquidity, shares) = update_outdated_to_current(
 			iterations.saturated_into(),
 			self.raw_data(),
-			(update_with.price, update_with.liquidity.into()),
+			(
+				update_with.price,
+				update_with.liquidity.into(),
+				update_with.shares_issuance.into(),
+			),
 			smoothing,
 		);
 
@@ -192,6 +216,7 @@ where
 			price,
 			volume: volume.into(),
 			liquidity: liquidity.into(),
+			shares_issuance: shares.into(),
 			updated_at: update_with.updated_at,
 		})
 	}
@@ -217,12 +242,23 @@ pub fn into_smoothing(period: OraclePeriod) -> Fraction {
 	}
 }
 
-impl<BlockNumber> From<(Price, Volume<Balance>, Liquidity<Balance>, BlockNumber)> for OracleEntry<BlockNumber> {
-	fn from((price, volume, liquidity, updated_at): (Price, Volume<Balance>, Liquidity<Balance>, BlockNumber)) -> Self {
+impl<BlockNumber> From<(Price, Volume<Balance>, Liquidity<Balance>, Option<Balance>, BlockNumber)>
+	for OracleEntry<BlockNumber>
+{
+	fn from(
+		(price, volume, liquidity, shares_issuance, updated_at): (
+			Price,
+			Volume<Balance>,
+			Liquidity<Balance>,
+			Option<Balance>,
+			BlockNumber,
+		),
+	) -> Self {
 		Self {
 			price,
 			volume,
 			liquidity,
+			shares_issuance,
 			updated_at,
 		}
 	}

@@ -63,6 +63,7 @@ pub const ORACLE_ENTRY_1: OracleEntry<BlockNumber> = OracleEntry {
 		b_in: 0,
 	},
 	liquidity: Liquidity::new(2_000, 1_000),
+	shares_issuance: Some(2_000_u128),
 	updated_at: 5,
 };
 pub const ORACLE_ENTRY_2: OracleEntry<BlockNumber> = OracleEntry {
@@ -74,6 +75,7 @@ pub const ORACLE_ENTRY_2: OracleEntry<BlockNumber> = OracleEntry {
 		b_in: 2_000,
 	},
 	liquidity: Liquidity::new(4_000, 4_000),
+	shares_issuance: Some(1_500_u128),
 	updated_at: 5,
 };
 
@@ -176,7 +178,7 @@ impl Convert<polkadot_xcm::VersionedLocation, Option<AssetId>> for CurrencyIdCon
 	}
 }
 
-pub type InitialDataEntry = (Source, (AssetId, AssetId), Price, Liquidity<Balance>);
+pub type InitialDataEntry = (Source, (AssetId, AssetId), Price, Liquidity<Balance>, Option<Balance>);
 
 #[derive(Default)]
 pub struct ExtBuilder {

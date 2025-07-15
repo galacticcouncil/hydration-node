@@ -34,8 +34,8 @@ use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
-	AMMPosition, AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler,
-	OnTradeHandler, AMM,
+	AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler, OnTradeHandler,
+	AMM,
 };
 use pallet_broadcast::types::{Asset, Destination, Fee};
 
@@ -612,6 +612,7 @@ impl<T: Config> Pallet<T> {
 			liquidity_a,
 			liquidity_b,
 			Ratio::new(liquidity_a, liquidity_b),
+			Some(liquidity_amount),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -706,6 +707,7 @@ impl<T: Config> Pallet<T> {
 			liquidity_a,
 			liquidity_b,
 			Ratio::new(liquidity_a, liquidity_b),
+			Some(liquidity_left),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -958,6 +960,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			liquidity_in,
 			liquidity_out,
 			Ratio::new(liquidity_in, liquidity_out),
+			Some(Self::total_liquidity(&pair_account)),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -1138,6 +1141,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			liquidity_in,
 			liquidity_out,
 			Ratio::new(liquidity_in, liquidity_out),
+			Some(Self::total_liquidity(&pair_account)),
 		)
 		.map_err(|(_w, e)| e)?;
 
@@ -1196,31 +1200,6 @@ pub struct AllowAllPools();
 impl CanCreatePool<AssetId> for AllowAllPools {
 	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
 		true
-	}
-}
-
-impl<T: Config> AMMPosition<AssetId, Balance> for Pallet<T> {
-	type Error = DispatchError;
-
-	fn get_liquidity_behind_shares(
-		asset_a: AssetId,
-		asset_b: AssetId,
-		shares_amount: Balance,
-	) -> Result<(Balance, Balance), Self::Error> {
-		let asset_pair = AssetPair {
-			asset_in: asset_a,
-			asset_out: asset_b,
-		};
-
-		let pair_account = Self::get_pair_id(asset_pair);
-
-		let total_shares = Self::total_liquidity(&pair_account);
-
-		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-
-		hydra_dx_math::xyk::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, shares_amount, total_shares)
-			.map_err(|_| Error::<T>::RemoveAssetAmountInvalid.into())
 	}
 }
 
