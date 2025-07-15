@@ -1063,11 +1063,11 @@ fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acqui
 			let alice_hollar_balance = balance_of(alice_evm_address);
 			assert_eq!(
 				alice_hollar_balance - initial_alice_hollar_balance,
-				U256::from(88623906325736u128)
+				U256::from(88535149283848u128)
 			);
 
 			let hsm_collateral_balance = Tokens::free_balance(COLLATERAL, &hsm_address);
-			assert_eq!(hsm_collateral_balance, 44311953162868);
+			assert_eq!(hsm_collateral_balance, 44267574641924);
 
 			let alice_collateral_balance = Tokens::free_balance(COLLATERAL, &AccountId::from(ALICE));
 			assert_eq!(alice_collateral_balance, 0u128);

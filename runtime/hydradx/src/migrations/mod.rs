@@ -54,6 +54,7 @@ impl pallet_tips::migrations::unreserve_deposits::UnlockConfig<()> for UnlockCon
 }
 
 pub type Migrations = (
+	pallet_ema_oracle::migrations::v1::MigrateV0ToV1<Runtime>,
 	// Unlock/unreserve balances from Gov v1 pallets that hold them
 	// https://github.com/paritytech/polkadot/issues/6749
 	pallet_elections_phragmen::migrations::unlock_and_unreserve_all_funds::UnlockAndUnreserveAllFunds<UnlockConfig>,

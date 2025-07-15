@@ -344,7 +344,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3570615837132);
+		assert_eq!(user_weth_balance, 3567039857685);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -926,7 +926,7 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			let insufficient_amount = 10 * UNITS;
 			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount)).unwrap();
 			assert_eq!(
-				(4292926597696669208, Ratio::new(4292926597696669208, 10000000000000)),
+				(4292926607826008319, Ratio::new(4292926607826008319, 10000000000000)),
 				amount_in_weth
 			);
 
@@ -1298,7 +1298,7 @@ fn evm_permit_dispatch_flow_should_work() {
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3570615837132);
+		assert_eq!(user_weth_balance, 3567039857685);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -1435,7 +1435,7 @@ fn evm_permit_should_fail_when_replayed() {
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3570615837132);
+		assert_eq!(user_weth_balance, 3567039857685);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -1755,7 +1755,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 4491170299119);
+		assert_eq!(tx_fee, 4491170276643);
 	})
 }
 
@@ -1962,7 +1962,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		let hdx_balance = user_acc.balance(HDX);
 		let tx_fee = initial_user_hdx_balance - hdx_balance;
 
-		assert_eq!(tx_fee, 4491170299119);
+		assert_eq!(tx_fee, 4491170276643);
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
