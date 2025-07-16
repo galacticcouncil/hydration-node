@@ -146,6 +146,7 @@ fn peg_oracle_adapter_should_work_when_getting_price_from_mm_oracle() {
 			volume: Default::default(),
 			liquidity: Default::default(),
 			updated_at: current_block - blocks_diff as u32,
+			shares_issuance: Default::default(),
 		};
 		assert_eq!(peg, expected_peg)
 	});
@@ -174,6 +175,7 @@ fn peg_oracle_adapter_should_not_work_when_mm_oracle_price_was_updated_in_curren
 			volume: Default::default(),
 			liquidity: Default::default(),
 			updated_at: current_block,
+			shares_issuance: Default::default(),
 		};
 		assert_eq!(peg, expected_peg)
 	});

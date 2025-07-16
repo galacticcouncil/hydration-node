@@ -1,6 +1,6 @@
 [package]
 name = "pallet-xyk-liquidity-mining"
-version = "1.5.0"
+version = "1.6.0"
 description = "Liquidity mining"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -23,10 +23,10 @@ orml-traits = { workspace = true }
 # Local dependencies
 primitives = { workspace = true }
 
-# Warehouse dependencies
 pallet-liquidity-mining = { workspace = true }
 hydradx-traits = { workspace = true }
 pallet-xyk = { workspace = true }
+hydra-dx-math = { workspace = true }
 
 # Substrate dependencies
 sp-std = { workspace = true }

@@ -52,12 +52,14 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::liquidity_mining::{
 	GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
 };
+use hydradx_traits::oracle::{AggregatedOracle, OraclePeriod};
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
 
 use frame_support::{pallet_prelude::*, sp_runtime::traits::AccountIdConversion};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::{registry::Inspect as RegistryInspect, AMMPosition, AMM};
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::{registry::Inspect as RegistryInspect, Source, AMM};
 use orml_traits::MultiCurrency;
 use primitives::{CollectionId, ItemId as DepositId};
 use sp_arithmetic::{FixedU128, Perquintill};
@@ -113,9 +115,7 @@ pub mod pallet {
 		type Currencies: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
 
 		/// AMM helper functions.
-		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
-			+ AMMPosition<AssetId, Balance, Error = DispatchError>
-			+ AMMAddLiquidity<Self::AccountId, AssetId, Balance>;
+		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance> + AMMAddLiquidity<Self::AccountId, AssetId, Balance>;
 
 		/// The origin account that can create new liquidity mining program.
 		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -144,6 +144,17 @@ pub mod pallet {
 				LoyaltyCurve = LoyaltyCurve,
 				Period = PeriodOf<Self>,
 			> + LiquidityMiningInspect<Self::AccountId>;
+
+		/// Oracle source identifier for this pallet.
+		#[pallet::constant]
+		type OracleSource: Get<Source>;
+
+		/// Oracle's liquidity aggregation period.
+		#[pallet::constant]
+		type OraclePeriod: Get<OraclePeriod>;
+
+		/// XYK assets' liquidity oracle.
+		type LiquidityOracle: AggregatedOracle<AssetId, Balance, BlockNumberFor<Self>, EmaPrice>;
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
@@ -197,6 +208,9 @@ pub mod pallet {
 
 		/// No global farm - yield farm pairs specified to join
 		NoFarmsSpecified,
+
+		/// Failed to calculate value of xyk shares
+		FailedToValueShares,
 	}
 
 	#[pallet::event]
@@ -1063,13 +1077,23 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(assets.contains(&asset), Error::<T>::AssetNotInAssetPair);
 
-		let (liquidity_a, liquidity_b) = T::AMM::get_liquidity_behind_shares(assets[0], assets[1], lp_shares_amount)?;
+		let oracle_entry =
+			T::LiquidityOracle::get_entry(assets[0], assets[1], T::OraclePeriod::get(), T::OracleSource::get())
+				.map_err(|_| Error::<T>::FailedToValueShares)?;
+
+		let (liq_a, liq_b) = hydra_dx_math::xyk::calculate_liquidity_out(
+			oracle_entry.liquidity.a,
+			oracle_entry.liquidity.b,
+			lp_shares_amount,
+			oracle_entry.shares_issuance.ok_or(Error::<T>::FailedToValueShares)?,
+		)
+		.map_err(|_| Error::<T>::FailedToValueShares)?;
 
 		if assets[0] == asset {
-			return Ok(liquidity_a);
+			return Ok(liq_a);
 		}
 
-		Ok(liquidity_b)
+		Ok(liq_b)
 	}
 
 	fn ensure_xyk(asset_pair: AssetPair) -> Result<T::AccountId, Error<T>> {
