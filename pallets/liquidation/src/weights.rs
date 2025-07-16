@@ -10,8 +10,6 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
 	fn liquidate() -> Weight;
 	fn set_borrowing_contract() -> Weight;
-	fn set_oracle_signers() -> Weight;
-	fn set_oracle_call_addresses() -> Weight;
 }
 /// Weights for `pallet_liquidation` using the HydraDX node and recommended hardware.
 impl WeightInfo for () {
@@ -38,18 +36,6 @@ impl WeightInfo for () {
 	/// Proof: `Liquidation::BorrowingContract` (`max_values`: Some(1), `max_size`: Some(20), added: 515, mode: `MaxEncodedLen`)
 	fn set_borrowing_contract() -> Weight {
 		Weight::from_parts(4_696_000, 0)
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	/// Storage: `Liquidation::OracleSigners` (r:0 w:1)
-	/// Proof: `Liquidation::OracleSigners` (`max_values`: Some(1), `max_size`: Some(101), added: 596, mode: `MaxEncodedLen`)
-	fn set_oracle_signers() -> Weight {
-		Weight::from_parts(5_688_000, 0)
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	/// Storage: `Liquidation::OracleCallAddresses` (r:0 w:1)
-	/// Proof: `Liquidation::OracleCallAddresses` (`max_values`: Some(1), `max_size`: Some(101), added: 596, mode: `MaxEncodedLen`)
-	fn set_oracle_call_addresses() -> Weight {
-		Weight::from_parts(5_725_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
