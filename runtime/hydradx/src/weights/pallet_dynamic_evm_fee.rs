@@ -21,11 +21,11 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 43.0.0
 //! DATE: 2025-07-16, STEPS: `50`, REPEAT: `20`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
-//! HOSTNAME: `MacBook-Pro-146.local`, CPU: `<UNKNOWN>`
+//! HOSTNAME: `bench-bot`, CPU: `Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `None`, DB CACHE: `1024`
 
 // Executed Command:
-// ./target/release/hydradx
+// ./bin/hydradx
 // benchmark
 // pallet
 // --wasm-execution=compiled
@@ -80,8 +80,8 @@ impl<T: frame_system::Config> pallet_dynamic_evm_fee::WeightInfo for HydraWeight
 		// Proof Size summary in bytes:
 		//  Measured:  `3174`
 		//  Estimated: `17004`
-		// Minimum execution time: 82_000_000 picoseconds.
-		Weight::from_parts(84_000_000, 17004)
+		// Minimum execution time: 124_938_000 picoseconds.
+		Weight::from_parts(125_913_000, 17004)
 			.saturating_add(T::DbWeight::get().reads(13_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -91,8 +91,8 @@ impl<T: frame_system::Config> pallet_dynamic_evm_fee::WeightInfo for HydraWeight
 		// Proof Size summary in bytes:
 		//  Measured:  `1012`
 		//  Estimated: `0`
-		// Minimum execution time: 12_000_000 picoseconds.
-		Weight::from_parts(13_000_000, 0)
+		// Minimum execution time: 19_505_000 picoseconds.
+		Weight::from_parts(20_119_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 }
