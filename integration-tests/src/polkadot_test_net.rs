@@ -91,6 +91,7 @@ pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 pub const ACA: AssetId = 6;
 pub const WETH: AssetId = 20;
+pub const WRAPPED_ETH: AssetId = 40;
 pub const FOREIGN_ASSET: AssetId = 21;
 pub const PEPE: AssetId = 420;
 pub const INSUFFICIENT_ASSET: AssetId = 500;
@@ -567,6 +568,15 @@ pub mod hydra {
 						true,
 					),
 					(
+						Some(WRAPPED_ETH),
+						Some(b"WETH2".to_vec().try_into().unwrap()),
+						1_000u128,
+						None,
+						None,
+						None,
+						true,
+					),
+					(
 						Some(PEPE),
 						Some(b"PEPE".to_vec().try_into().unwrap()),
 						1_000u128,
@@ -626,6 +636,7 @@ pub mod hydra {
 					(ACA, Price::from(1)),
 					(BTC, Price::from_inner(134_000_000)),
 					(WETH, ETH_HDX_REFERENCE_PRICE),
+					(WRAPPED_ETH, ETH_HDX_REFERENCE_PRICE), //Other wrapped eth on chain
 				],
 				account_currencies: vec![],
 			},

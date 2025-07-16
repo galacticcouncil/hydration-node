@@ -56,12 +56,13 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 use codec::HasCompact;
+use frame_support::dispatch::DispatchResult;
 use frame_support::pallet_prelude::{
 	Get, Hooks, MaxEncodedLen, MaybeSerializeDeserialize, Member, Parameter, StorageValue, StorageVersion, TypeInfo,
 	ValueQuery,
 };
 use frame_support::weights::Weight;
-use frame_system::pallet_prelude::BlockNumberFor;
+use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::GetByKey;
@@ -72,9 +73,13 @@ use sp_runtime::FixedU128;
 #[frame_support::pallet]
 pub mod pallet {
 	use crate::*;
+	use frame_support::pallet_prelude::{EnsureOrigin, IsType, OptionQuery};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
+		/// The overarching event type for the runtime.
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
 		/// Identifier for the class of asset.
 		type AssetId: Member
 			+ Parameter
@@ -97,9 +102,13 @@ pub mod pallet {
 		/// Transaction fee multiplier provider
 		type FeeMultiplier: Get<FixedU128>;
 
+		/// Origin for setting EVM asset most frequently used for EVM transaction fees.
+		type SetEvmPriceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// EVM asset prices for different periods to do comparison to scale evm fee
 		type EvmAssetPrices: GetByKey<Self::AssetId, Option<(EmaPrice, EmaPrice)>>;
-		/// WETH Asset Id
+
+		/// Default EVM asset ID used for EVM transaction fees, if EvmAsset is not explicitly set in storage
 		#[pallet::constant]
 		type WethAssetId: Get<Self::AssetId>;
 
@@ -124,6 +133,18 @@ pub mod pallet {
 	#[pallet::getter(fn base_evm_fee)]
 	pub type BaseFeePerGas<T> = StorageValue<_, U256, ValueQuery, DefaultBaseFeePerGas<T>>;
 
+	/// The EVM asset that is used for EVM transactions fee payment. If not set, the default evm asset is used
+	#[pallet::storage]
+	#[pallet::getter(fn evm_asset)]
+	pub type EvmAsset<T: Config> = StorageValue<_, T::AssetId, OptionQuery>;
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	pub enum Event<T: Config> {
+		/// EVM asset for EVM fee scaling has been set
+		EvmAssetSet { asset_id: T::AssetId },
+	}
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
@@ -136,8 +157,9 @@ pub mod pallet {
 						.saturating_mul(3),
 				);
 
-				let Some((eth_hdx_price, eth_hdx_reference_price)) = T::EvmAssetPrices::get(&T::WethAssetId::get())
-				else {
+				let evm_asset = EvmAsset::<T>::get().unwrap_or(T::WethAssetId::get());
+
+				let Some((eth_hdx_price, eth_hdx_reference_price)) = T::EvmAssetPrices::get(&evm_asset) else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
 					return;
 				};
@@ -177,7 +199,34 @@ pub mod pallet {
 			);
 		}
 	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		/// Sets the EVM asset to scale up or down the EVM transaction fee.
+		///
+		/// The EVM asset is usually the most frequently used EVM asset on our chain, likely with the most liquidity
+		///
+		/// This needs to be called by the `SetEvmPriceOrigin` origin.
+		///
+		/// # Arguments
+		/// * `origin`: The origin of the call, must be `SetEvmPriceOrigin`.
+		/// * `asset_id`: The asset ID to set as the EVM asset.
+		///
+		/// Emits an event `EvmAssetSet` when the asset is successfully set.
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::zero())] //TODO: add bench and weight
+		pub fn set_evm_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			T::SetEvmPriceOrigin::ensure_origin(origin)?;
+
+			<EvmAsset<T>>::set(Some(asset_id));
+
+			Self::deposit_event(Event::EvmAssetSet { asset_id });
+
+			Ok(())
+		}
+	}
 }
+
 impl<T: Config> pallet_evm::FeeCalculator for Pallet<T> {
 	fn min_gas_price() -> (U256, Weight) {
 		let base_fee_per_gas = Self::base_evm_fee();

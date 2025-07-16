@@ -22,13 +22,16 @@
 use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
 pub use crate::evm::gas_to_weight_mapping::FixedHydraGasWeightMapping;
 use crate::evm::runner::WrapRunner;
-use crate::origins::GeneralAdmin;
+use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::types::ShortOraclePrice;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, FeePriceOracle, FeePriceOracleForTenMinutes, Runtime, XykPaymentAssetSupport};
+use crate::{
+	DotAssetId, FeePriceOracle, FeePriceOracleForTenMinutes, Runtime, TechCommitteeSuperMajority,
+	XykPaymentAssetSupport,
+};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
@@ -218,6 +221,7 @@ parameter_types! {
 }
 
 impl pallet_dynamic_evm_fee::Config for Runtime {
+	type RuntimeEvent = crate::RuntimeEvent;
 	type AssetId = AssetId;
 	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
 	type MinBaseFeePerGas = MinBaseFeePerGas;
@@ -226,6 +230,7 @@ impl pallet_dynamic_evm_fee::Config for Runtime {
 	type WethAssetId = WethAssetId;
 	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
 	type EvmAssetPrices = EvmAssetPricesGetter;
+	type SetEvmPriceOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 }
 
 pub struct EvmAssetPricesGetter;

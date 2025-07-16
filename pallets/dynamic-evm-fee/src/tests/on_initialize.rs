@@ -1,5 +1,6 @@
 use crate::tests::mock::DynamicEvmFee;
 use crate::tests::mock::*;
+use frame_support::assert_ok;
 use frame_support::traits::OnInitialize;
 use hydra_dx_math::types::Ratio;
 use pallet_transaction_payment::Multiplier;
@@ -24,6 +25,20 @@ fn should_increase_evm_fee_with_max_multiplier() {
 
 		let new_base_fee = DynamicEvmFee::base_evm_fee();
 		assert_eq!(new_base_fee, U256::from(14415000000u128));
+	});
+}
+
+#[test]
+fn should_use_set_evm_asset_to_scale_fee() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(DynamicEvmFee::set_evm_asset(RuntimeOrigin::root(), NEW_ETH_ASSET_ID));
+
+		set_multiplier(Multiplier::from_rational(320, 1));
+
+		DynamicEvmFee::on_initialize(1);
+
+		let new_base_fee = DynamicEvmFee::base_evm_fee();
+		assert_eq!(new_base_fee, U256::from(12821452974u128));
 	});
 }
 
