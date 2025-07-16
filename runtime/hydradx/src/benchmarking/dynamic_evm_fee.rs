@@ -79,6 +79,14 @@ runtime_benchmarks! {
 	verify{
 		assert!(<BaseFeePerGas<Runtime>>::get() != base_fee_per_gas);
 	}
+
+
+	set_evm_asset {
+	}: { DynamicEvmFeePallet::<Runtime>::set_evm_asset(RawOrigin::Root.into(), 20u32.into())? ; }
+	verify {
+		let evm_asset = DynamicEvmFeePallet::<Runtime>::evm_asset();
+		assert_eq!(evm_asset, Some(20u32.into()));
+	}
 }
 use crate::Omnipool;
 use sp_runtime::Permill;

@@ -9,6 +9,7 @@ use core::marker::PhantomData;
 /// Weight functions needed for `pallet_dynamic_evm_fee`.
 pub trait WeightInfo {
     fn on_initialize() -> Weight;
+    fn set_evm_asset() -> Weight;
 }
 
 /// Weights for `pallet_dynamic_evm_fee` using the HydraDX node and recommended hardware.
@@ -34,6 +35,11 @@ impl WeightInfo for () {
 		// Minimum execution time: 81_753_000 picoseconds.
 		Weight::from_parts(82_717_000, 11598)
 			.saturating_add(RocksDbWeight::get().reads(10_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+
+	fn set_evm_asset() -> Weight {
+		Weight::from_parts(13_000_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
