@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::marker::PhantomData;
 use codec::{Decode, Encode};
 use evm::ExitReason;
 use frame_support::pallet_prelude::*;
@@ -29,12 +30,14 @@ pub type CallResult = (ExitReason, Vec<u8>);
 
 use ethabi::ethereum_types::U512;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
-use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApiV5;
-use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
+use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion, Header};
 use hydradx_traits::evm::EvmAddress;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H256, U256};
 use sp_std::{boxed::Box, ops::BitAnd};
+use crate::Function::LiquidationCall;
+use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
 
 #[derive(RuntimeDebug)]
 pub enum LiquidationError {
@@ -43,6 +46,7 @@ pub enum LiquidationError {
 	EthAbiError(ethabi::Error),
 	ReserveNotFound,
 	CurrentBlockNotAvailable,
+	ApiError(sp_api::ApiError),
 }
 
 impl From<ArithmeticError> for LiquidationError {
@@ -172,16 +176,14 @@ pub fn wad_div(a: U256, b: U256) -> Result<U256, LiquidationError> {
 	res.try_into().map_err(|_| ArithmeticError::Overflow.into())
 }
 
-/// Calls Runtime API.
-pub fn fetch_current_evm_block_timestamp<Block, Runtime>() -> Result<u64, LiquidationError>
+pub trait RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>
 where
 	Block: BlockT,
-	Runtime: EthereumRuntimeRPCApiV5<Block>,
 {
-	let timestamp: u64 = Runtime::current_block()
-		.map(|block| block.header.timestamp)
-		.ok_or(LiquidationError::CurrentBlockNotAvailable)?;
-	timestamp.checked_div(1_000).ok_or(ArithmeticError::Overflow.into())
+	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64>;
+	fn call(&self, hash: Block::Hash, caller: EvmAddress, mm_pool: EvmAddress, data: Vec<u8>, gas_limit: U256) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, frame_support::sp_runtime::DispatchError>, sp_api::ApiError>;
+	fn address_to_asset(&self, hash: Block::Hash, address: EvmAddress) -> Result<Option<AssetId>, sp_api::ApiError>;
+	fn dry_run_call(&self, hash: Block::Hash, origin: OriginCaller, call: RuntimeCall) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError>;
 }
 
 /// Executes a percentage multiplication.
@@ -240,17 +242,21 @@ pub struct UserData {
 }
 impl UserData {
 	/// Calls Runtime API.
-	pub fn new<Block, Runtime>(
-		money_market: &MoneyMarketData<Block, Runtime>,
+	pub fn new<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
+		api_provider: ApiProvider,
+		hash: Block::Hash,
+		money_market: &MoneyMarketData<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>,
 		address: H160,
 		current_evm_timestamp: u64,
 		caller: EvmAddress,
 	) -> Result<Self, LiquidationError>
 	where
 		Block: BlockT,
-		Runtime: EthereumRuntimeRPCApiV5<Block>,
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 	{
-		let configuration = UserConfiguration(Self::fetch_user_configuration::<Block, Runtime>(
+		let configuration = UserConfiguration(Self::fetch_user_configuration::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
+			&api_provider,
+			hash,
 			money_market.pool_contract,
 			address,
 			caller,
@@ -261,10 +267,10 @@ impl UserData {
 			// skip the computation if the reserve is not used as user's collateral or debt
 			let (collateral, debt) = if configuration.is_collateral(index) || configuration.is_debt(index) {
 				let c = reserve
-					.get_user_collateral_in_base_currency::<Block, Runtime>(address, current_evm_timestamp, caller)
+					.get_user_collateral_in_base_currency::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(&api_provider, hash, address, current_evm_timestamp, caller)
 					.unwrap_or_default();
 				let d = reserve
-					.get_user_debt_in_base_currency::<Block, Runtime>(address, current_evm_timestamp, caller)
+					.get_user_debt_in_base_currency::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(&api_provider, hash, address, current_evm_timestamp, caller)
 					.unwrap_or_default();
 				(c, d)
 			} else {
@@ -316,13 +322,13 @@ impl UserData {
 
 	// TODO: improve precision
 	/// Calculates user's health factor.
-	pub fn health_factor<Block, Runtime>(
+	pub fn health_factor<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 		&self,
-		money_market: &MoneyMarketData<Block, Runtime>,
+		money_market: &MoneyMarketData<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>,
 	) -> Result<U256, LiquidationError>
 	where
 		Block: BlockT,
-		Runtime: EthereumRuntimeRPCApiV5<Block>,
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 	{
 		let mut avg_liquidation_threshold = U256::zero();
 		let mut total_collateral = U256::zero();
@@ -367,31 +373,30 @@ impl UserData {
 	/// The first bit indicates if an asset is used as collateral by the user, the second whether an asset is borrowed by the user.
 	/// The corresponding assets are in the same position as `getReservesList()`.
 	/// Calls Runtime API.
-	pub fn fetch_user_configuration<Block, Runtime>(
+	pub fn fetch_user_configuration<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
+		api_provider: &ApiProvider,
+		hash: Block::Hash,
 		mm_pool: EvmAddress,
 		user: EvmAddress,
 		caller: EvmAddress,
 	) -> Result<U256, LiquidationError>
 	where
 		Block: BlockT,
-		Runtime: EthereumRuntimeRPCApiV5<Block>,
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 	{
 		let mut data = Into::<u32>::into(Function::GetUserConfiguration).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(user).as_bytes());
 
 		let gas_limit = U256::from(500_000);
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			&api_provider,
+			hash,
 			caller,
 			mm_pool,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+		.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(U256::checked_from(&call_info.value[0..32])
@@ -402,37 +407,34 @@ impl UserData {
 	}
 }
 
-trait BalanceOf<Block, Runtime>
+trait BalanceOf<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>
 where
 	Block: BlockT,
-	Runtime: EthereumRuntimeRPCApiV5<Block>,
+	ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 {
-	fn fetch_scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError>;
-	fn fetch_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError>;
+	fn fetch_scaled_balance_of(self, api_provider: &ApiProvider, hash: Block::Hash, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError>;
+	fn fetch_balance_of(self, api_provider: &ApiProvider, hash: Block::Hash, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError>;
 }
-impl<Block, Runtime> BalanceOf<Block, Runtime> for EvmAddress
+impl<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent> BalanceOf<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent> for EvmAddress
 where
 	Block: BlockT,
-	Runtime: EthereumRuntimeRPCApiV5<Block>,
+	ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 {
 	/// Calls Runtime API.
-	fn fetch_scaled_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError> {
+	fn fetch_scaled_balance_of(self, api_provider: &ApiProvider, hash: Block::Hash, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError> {
 		let mut data = Into::<u32>::into(Function::ScaledBalanceOf).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(user).as_bytes());
 
 		let gas_limit = U256::from(500_000);
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			&api_provider,
+			hash,
 			caller,
 			self,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+			.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(U256::checked_from(&call_info.value[0..32])
@@ -443,23 +445,20 @@ where
 	}
 
 	/// Calls Runtime API.
-	fn fetch_balance_of(self, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError> {
+	fn fetch_balance_of(self, api_provider: &ApiProvider, hash: Block::Hash, user: EvmAddress, caller: EvmAddress) -> Result<U256, LiquidationError> {
 		let mut data = Into::<u32>::into(Function::BalanceOf).to_be_bytes().to_vec();
 		data.extend_from_slice(H256::from(user).as_bytes());
 
 		let gas_limit = U256::from(500_000);
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			&api_provider,
+			hash,
 			caller,
 			self,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+			.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(U256::checked_from(&call_info.value[0..32])
@@ -592,19 +591,21 @@ impl Reserve {
 
 	/// Get user's collateral in base currency.
 	/// Calls Runtime API.
-	pub fn get_user_collateral_in_base_currency<Block, Runtime>(
+	pub fn get_user_collateral_in_base_currency<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 		&self,
+		api_provider: &ApiProvider,
+		hash: Block::Hash,
 		user: EvmAddress,
 		current_timestamp: u64,
 		caller: EvmAddress,
 	) -> Result<U256, LiquidationError>
 	where
 		Block: BlockT,
-		Runtime: EthereumRuntimeRPCApiV5<Block>,
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 	{
 		let (collateral_address, _) = self.get_collateral_and_debt_addresses();
 
-		let scaled_balance = BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(collateral_address, user, caller)?;
+		let scaled_balance = BalanceOf::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_scaled_balance_of(collateral_address, api_provider, hash, user, caller)?;
 
 		let normalized_income = self.get_normalized_income(current_timestamp)?;
 
@@ -679,19 +680,21 @@ impl Reserve {
 
 	/// Get user's debt in base currency.
 	/// Calls Runtime API.
-	pub fn get_user_debt_in_base_currency<Block, Runtime>(
+	pub fn get_user_debt_in_base_currency<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 		&self,
+		api_provider: &ApiProvider,
+		hash: Block::Hash,
 		user: EvmAddress,
 		current_timestamp: u64,
 		caller: EvmAddress,
 	) -> Result<U256, LiquidationError>
 	where
 		Block: BlockT,
-		Runtime: EthereumRuntimeRPCApiV5<Block>,
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 	{
 		let (_, (stable_debt_address, variable_debt_address)) = self.get_collateral_and_debt_addresses();
 
-		let mut total_debt = BalanceOf::<Block, Runtime>::fetch_scaled_balance_of(variable_debt_address, user, caller)?;
+		let mut total_debt = BalanceOf::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_scaled_balance_of(variable_debt_address, api_provider, hash, user, caller)?;
 
 		if !total_debt.is_zero() {
 			let normalized_debt = self.get_normalized_debt(current_timestamp)?;
@@ -699,8 +702,10 @@ impl Reserve {
 		}
 
 		total_debt = total_debt
-			.checked_add(BalanceOf::<Block, Runtime>::fetch_balance_of(
+			.checked_add(BalanceOf::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_balance_of(
 				stable_debt_address,
+				api_provider,
+				hash,
 				user,
 				caller,
 			)?)
@@ -724,29 +729,29 @@ pub struct LiquidationAmounts {
 /// Captures the state of the money market related to liquidations.
 /// The state is not automatically updated. Any change in the chain can invalidate the data stored in the struct.
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
-pub struct MoneyMarketData<Block, Runtime>
+pub struct MoneyMarketData<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>
 where
 	Block: BlockT,
-	Runtime: EthereumRuntimeRPCApiV5<Block>,
+	ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 {
 	pap_contract: EvmAddress, // PoolAddressesProvider
 	pool_contract: EvmAddress,
 	oracle_contract: EvmAddress,
 	reserves: Vec<Reserve>, // the order of reserves is given by fetch_reserves_list()
 	pub caller: EvmAddress,
-	_phantom: PhantomData<(Block, Runtime)>,
+	_phantom: PhantomData<(Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent)>,
 }
-impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Block, Runtime> {
+impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>, OriginCaller, RuntimeCall, RuntimeEvent> MoneyMarketData<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent> {
 	/// Calls Runtime API.
-	pub fn new(pap_contract: EvmAddress, caller: EvmAddress) -> Result<Self, LiquidationError> {
-		let pool_contract = Self::fetch_pool(pap_contract, caller)?;
-		let oracle_contract = Self::fetch_price_oracle(pap_contract, caller)?;
+	pub fn new(api_provider: ApiProvider, hash: Block::Hash, pap_contract: EvmAddress, caller: EvmAddress) -> Result<Self, LiquidationError> {
+		let pool_contract = Self::fetch_pool(&api_provider, hash, pap_contract, caller)?;
+		let oracle_contract = Self::fetch_price_oracle(&api_provider, hash, pap_contract, caller)?;
 
 		let mut reserves = Vec::new();
-		for asset_address in Self::fetch_reserves_list(pool_contract, caller)?.into_iter() {
-			let reserve_data = Self::fetch_reserve_data(pool_contract, asset_address, caller)?;
-			let symbol = Self::fetch_asset_symbol(&asset_address, caller)?;
-			let price = Self::fetch_asset_price(oracle_contract, asset_address, caller)?;
+		for asset_address in Self::fetch_reserves_list(&api_provider, hash, pool_contract, caller)?.into_iter() {
+			let reserve_data = Self::fetch_reserve_data(&api_provider, hash, pool_contract, asset_address, caller)?;
+			let symbol = Self::fetch_asset_symbol(&api_provider, hash, &asset_address, caller)?;
+			let price = Self::fetch_asset_price(&api_provider, hash, oracle_contract, asset_address, caller)?;
 			reserves.push(Reserve {
 				reserve_data,
 				asset_address,
@@ -776,21 +781,18 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 	}
 
 	/// Calls Runtime API.
-	pub fn fetch_pool(pap_contract: EvmAddress, caller: EvmAddress) -> Result<EvmAddress, LiquidationError> {
+	pub fn fetch_pool(api_provider: &ApiProvider, hash: Block::Hash, pap_contract: EvmAddress, caller: EvmAddress) -> Result<EvmAddress, LiquidationError> {
 		let data = Into::<u32>::into(Function::GetPool).to_be_bytes().to_vec();
 		let gas_limit = U256::from(100_000);
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			api_provider,
+			hash,
 			caller,
 			pap_contract,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+		.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
@@ -800,22 +802,19 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 	}
 
 	/// Calls Runtime API.
-	pub fn fetch_price_oracle(pap_contract: EvmAddress, caller: EvmAddress) -> Result<EvmAddress, LiquidationError> {
+	pub fn fetch_price_oracle(api_provider: &ApiProvider, hash: Block::Hash, pap_contract: EvmAddress, caller: EvmAddress) -> Result<EvmAddress, LiquidationError> {
 		let data = Into::<u32>::into(Function::GetPriceOracle).to_be_bytes().to_vec();
 		let gas_limit = U256::from(100_000);
 
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			api_provider,
+			hash,
 			caller,
 			pap_contract,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+			.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
@@ -826,22 +825,19 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 
 	/// Get the list of reserve assets.
 	/// Calls Runtime API.
-	fn fetch_reserves_list(mm_pool: EvmAddress, caller: EvmAddress) -> Result<Vec<EvmAddress>, LiquidationError> {
+	fn fetch_reserves_list(api_provider: &ApiProvider, hash: Block::Hash, mm_pool: EvmAddress, caller: EvmAddress) -> Result<Vec<EvmAddress>, LiquidationError> {
 		let data = Into::<u32>::into(Function::GetReservesList).to_be_bytes().to_vec();
 		let gas_limit = U256::from(500_000);
 
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			api_provider,
+			hash,
 			caller,
 			mm_pool,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+			.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			let decoded = ethabi::decode(
@@ -864,6 +860,8 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 
 	/// Calls Runtime API.
 	fn fetch_reserve_data(
+		api_provider: &ApiProvider,
+		hash: Block::Hash,
 		mm_pool: EvmAddress,
 		asset_address: EvmAddress,
 		caller: EvmAddress,
@@ -872,18 +870,15 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 		data.extend_from_slice(H256::from(asset_address).as_bytes());
 
 		let gas_limit = U256::from(500_000);
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			api_provider,
+			hash,
 			caller,
 			mm_pool,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+			.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			let decoded = ethabi::decode(
@@ -914,22 +909,19 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 	}
 
 	/// Calls Runtime API.
-	fn fetch_asset_symbol(asset_address: &EvmAddress, caller: EvmAddress) -> Result<Vec<u8>, LiquidationError> {
+	fn fetch_asset_symbol(api_provider: &ApiProvider, hash: Block::Hash, asset_address: &EvmAddress, caller: EvmAddress) -> Result<Vec<u8>, LiquidationError> {
 		let data = Into::<u32>::into(Function::Symbol).to_be_bytes().to_vec();
 		let gas_limit = U256::from(500_000);
 
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			api_provider,
+			hash,
 			caller,
 			*asset_address,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+			.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			let decoded = ethabi::decode(&[ethabi::ParamType::String], &call_info.value)?;
@@ -944,6 +936,8 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 	/// Get price of an asset.
 	/// Calls Runtime API.
 	pub fn fetch_asset_price(
+		api_provider: &ApiProvider,
+		hash: Block::Hash,
 		oracle_address: EvmAddress,
 		asset: EvmAddress,
 		caller: EvmAddress,
@@ -952,18 +946,15 @@ impl<Block: BlockT, Runtime: EthereumRuntimeRPCApiV5<Block>> MoneyMarketData<Blo
 		data.extend_from_slice(H256::from(asset).as_bytes());
 
 		let gas_limit = U256::from(500_000);
-		let call_info = Runtime::call(
+		let call_info = ApiProvider::call(
+			api_provider,
+			hash,
 			caller,
 			oracle_address,
 			data,
-			U256::zero(),
 			gas_limit,
-			None,
-			None,
-			None,
-			true,
-			None,
-		)?;
+		).map_err(|e| LiquidationError::ApiError(e))?
+			.map_err(|e| LiquidationError::DispatchError(e))?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(U256::checked_from(&call_info.value[0..32])

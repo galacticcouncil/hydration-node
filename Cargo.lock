@@ -4550,6 +4550,7 @@ dependencies = [
  "fc-rpc",
  "fc-rpc-core",
  "fp-consensus",
+ "fp-evm",
  "fp-rpc",
  "fp-self-contained",
  "frame-benchmarking",
@@ -6153,9 +6154,11 @@ dependencies = [
  "parity-scale-codec",
  "primitive-types 0.12.2",
  "serde",
+ "sp-api",
  "sp-arithmetic",
  "sp-core",
  "sp-std",
+ "xcm-runtime-apis",
 ]
 
 [[package]]

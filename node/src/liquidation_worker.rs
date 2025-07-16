@@ -8,13 +8,12 @@ use futures::{future::ready, StreamExt};
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
-	Block, Runtime, RuntimeCall,
+	Block, Runtime, RuntimeCall, RuntimeEvent, OriginCaller,
 };
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use liquidation_worker_support::*;
 use pallet_ethereum::Transaction;
-use pallet_liquidation::LiquidationWorkerApi;
 use parking_lot::Mutex;
 use polkadot_primitives::EncodeAs;
 use primitives::{AccountId, BlockNumber};
@@ -28,8 +27,9 @@ use sp_core::{RuntimeDebug, H160};
 use sp_offchain::OffchainWorkerApi;
 use sp_runtime::{traits::Header, transaction_validity::TransactionSource};
 use std::{cmp::Ordering, marker::PhantomData, sync::Arc};
+use std::ops::Deref;
 use threadpool::ThreadPool;
-use xcm_runtime_apis::dry_run::runtime_decl_for_dry_run_api::DryRunApiV1;
+use xcm_runtime_apis::dry_run::{DryRunApi, CallDryRunEffects, Error as XcmDryRunApiError};
 
 const LOG_TARGET: &str = "liquidation-worker";
 
@@ -42,6 +42,17 @@ const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc
 // Money market address
 const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
 
+// Account that signs the DIA oracle update transactions.
+const ORACLE_UPDATE_SIGNER: &[EvmAddress] = &[
+	H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e")),
+	H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3")),
+];
+// Address of the DIA oracle contract.
+const ORACLE_UPDATE_CALL_ADDRESS: &[EvmAddress] = &[
+	H160(hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
+	H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5")),
+];
+
 // Target value of HF we try to liquidate to.
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 
@@ -51,8 +62,8 @@ const WAIT_PERIOD: BlockNumber = 10;
 type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
 
 /// The configuration for the liquidation worker.
-/// By default, the worker is enabled and uses `PAP_CONTRACT`, `RUNTIME_API_CALLER` and `TARGET_HF` values.
-#[derive(Clone, Copy, Debug, clap::Parser)]
+/// By default, the worker is enabled and uses `PAP_CONTRACT`, `RUNTIME_API_CALLER`, `ORACLE_UPDATE_SIGNER`, `ORACLE_UPDATE_CALL_ADDRESS` and `TARGET_HF` values if not specified.
+#[derive(Clone, Debug, clap::Parser)]
 pub struct LiquidationWorkerConfig {
 	/// Disable liquidation worker.
 	#[clap(long, default_value = "false")]
@@ -66,9 +77,51 @@ pub struct LiquidationWorkerConfig {
 	#[clap(long)]
 	pub runtime_api_caller: Option<EvmAddress>,
 
+	/// EVM address of the account that signs DIA oracle update.
+	#[clap(long)]
+	pub oracle_update_signer: Option<Vec<EvmAddress>>,
+
+	/// EVM address of the DIA oracle update call address.
+	#[clap(long)]
+	pub oracle_update_call_address: Option<Vec<EvmAddress>>,
+
 	/// Target health factor
 	#[clap(long, default_value_t = TARGET_HF)]
 	pub target_hf: u128,
+}
+
+pub struct ApiProvider<C>(C);
+impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent> for ApiProvider<&C>
+where
+	Block: BlockT,
+	C: EthereumRuntimeRPCApi<Block> + Erc20MappingApi<Block> + DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>,
+{
+	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64> {
+		let block = self.0.current_block(hash).ok()??;
+		// milliseconds to seconds
+		block.header.timestamp.checked_div(1_000)
+	}
+	fn call(&self, hash: Block::Hash, caller: EvmAddress, mm_pool: EvmAddress, data: Vec<u8>, gas_limit: U256) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, sp_runtime::DispatchError>, sp_api::ApiError> {
+		self.0.call(
+			hash,
+			caller,
+			mm_pool,
+			data,
+			U256::zero(),
+			gas_limit,
+			None,
+			None,
+			None,
+			true,
+			None,
+		)
+	}
+	fn address_to_asset(&self, hash: Block::Hash, address: EvmAddress) -> Result<Option<AssetId>, sp_api::ApiError> {
+		self.0.address_to_asset(hash, address)
+	}
+	fn dry_run_call(&self, hash: Block::Hash, origin: OriginCaller, call: RuntimeCall) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError> {
+		self.0.dry_run_call(hash, origin, call)
+	}
 }
 
 pub struct LiquidationTask<B, C, BE, P>(PhantomData<(B, C, BE, P)>);
@@ -77,7 +130,7 @@ impl<B, C, BE, P> LiquidationTask<B, C, BE, P>
 where
 	B: BlockT,
 	C: ProvideRuntimeApi<B>,
-	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + LiquidationWorkerApi<B>,
+	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller>,
 	C: BlockchainEvents<B> + 'static,
 	C: HeaderBackend<B> + StorageProvider<B, BE>,
 	BE: Backend<B> + 'static,
@@ -152,7 +205,7 @@ where
 							tx_waitlist.clone(),
 							transaction_pool.clone(),
 							thread_pool.clone(),
-							config,
+							config.clone(),
 						)
 					});
 				} else {
@@ -223,10 +276,9 @@ where
 			let runtime_api = client.runtime_api();
 			let hash = header.hash();
 			// Accounts that sign the DIA oracle update transactions.
-			let maybe_allowed_signers = runtime_api.oracle_signers(hash);
+			let allowed_signers = config.clone().oracle_update_signer.unwrap_or(ORACLE_UPDATE_SIGNER.to_vec());
 			// Addresses of the DIA oracle contract.
-			let maybe_allowed_oracle_call_addresses = runtime_api.oracle_call_addresses(hash);
-			let (Ok(allowed_signers), Ok(allowed_oracle_call_addresses)) = (maybe_allowed_signers, maybe_allowed_oracle_call_addresses) else { return };
+			let allowed_oracle_call_addresses = config.clone().oracle_update_call_address.unwrap_or(ORACLE_UPDATE_CALL_ADDRESS.to_vec());
 
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
@@ -254,7 +306,7 @@ where
 					thread_pool.clone(),
 					allowed_signers.clone(),
 					allowed_oracle_call_addresses.clone(),
-					config,
+					config.clone(),
 				) {
 					Ok(()) => continue,
 					Err(()) => return,
@@ -351,12 +403,9 @@ where
 			return;
 		};
 
-		// our calculations "happen" in the next block
-		let Ok(current_evm_timestamp) = fetch_current_evm_block_timestamp::<Block, Runtime>().and_then(|timestamp| {
-			timestamp
-				.checked_add(primitives::constants::time::SECS_PER_BLOCK)
-				.ok_or(ArithmeticError::Overflow.into())
-		}) else {
+		let runtime_api = client.runtime_api();
+
+		let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash()) else {
 			tracing::debug!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
 			return;
 		};
@@ -375,7 +424,9 @@ where
 		} in oracle_data.iter()
 		{
 			// TODO: maybe we can use `price` to determine if HF will increase or decrease
-			let Ok(mut money_market_data) = MoneyMarketData::<Block, Runtime>::new(
+			let Ok(mut money_market_data) = MoneyMarketData::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+				ApiProvider::<&C::Api>(runtime_api.deref()),
+				header.hash(),
 				config.pap_contract.unwrap_or(PAP_CONTRACT),
 				config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
 			) else {
@@ -402,7 +453,7 @@ where
 					current_block_hash,
 					tx_waitlist.clone(),
 					transaction_pool.clone(),
-					config,
+					config.clone(),
 				) {
 					Ok(()) => (),
 					Err(()) => return,
@@ -418,7 +469,7 @@ where
 	fn try_liquidate(
 		borrower: &mut (EvmAddress, U256),
 		liquidated_users: &mut Vec<EvmAddress>,
-		money_market_data: &mut MoneyMarketData<Block, Runtime>,
+		money_market_data: &mut MoneyMarketData<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>,
 		current_evm_timestamp: u64,
 		base_asset: &[u8],
 		price: &U256,
@@ -453,6 +504,8 @@ where
 		};
 
 		let Ok(user_data) = UserData::new(
+			ApiProvider::<&C::Api>(client.clone().runtime_api().deref()),
+			header.hash(),
 			money_market_data,
 			borrower.0,
 			current_evm_timestamp,
@@ -465,7 +518,9 @@ where
 			// update user's HF
 			borrower.1 = current_hf;
 
-			if current_hf > U256::one() {
+			let one = U256::from(10u128.pow(18));
+			// TODO: current HF is not calculated from values after the price update ! ! !
+			if current_hf > one {
 				return Ok(());
 			}
 		} else {
@@ -479,8 +534,8 @@ where
 			(base_asset_address, price.into()),
 		) {
 			let (Ok(Some(collateral_asset_id)), Ok(Some(debt_asset_id))) = (
-				runtime_api.address_to_asset(hash, liquidation_option.collateral_asset),
-				runtime_api.address_to_asset(hash, liquidation_option.debt_asset),
+			ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.collateral_asset),
+			ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.debt_asset)
 			) else {
 				return Ok(());
 			};
@@ -522,9 +577,9 @@ where
 			};
 
 			// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
-			let dry_run_result = Runtime::dry_run_call(hydradx_runtime::RuntimeOrigin::none().caller, liquidation_tx);
+			let dry_run_result = ApiProvider::<&C::Api>(runtime_api.deref()).dry_run_call(hash, hydradx_runtime::RuntimeOrigin::none().caller, liquidation_tx);
 
-			if let Ok(call_result) = dry_run_result {
+			if let Ok(Ok(call_result)) = dry_run_result {
 				if call_result.execution_result.is_err() {
 					tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
 
