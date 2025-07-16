@@ -77,7 +77,25 @@ async function updateChainSpec(inputFile, outputFile) {
             totalYieldFarmsCount: 'u32',
             priceAdjustment: 'FixedU128',
             state: 'PalletLiquidityMiningFarmState'
-        }
+        },
+        PalletLiquidityMiningLoyaltyCurve: {
+            initialRewardPercentage: 'FixedU128',
+            scaleCoef: 'u32',
+        },
+        PalletLiquidityMiningYieldFarmData: {
+            id: 'u32',
+            updatedAt: 'u32',
+            totalShares: 'u128',
+            totalValuedShares: 'u128',
+            accumulatedRpvs: 'FixedU128',
+            accumulatedRpz: 'FixedU128',
+            loyaltyCurve: 'Option<PalletLiquidityMiningLoyaltyCurve>',
+            multiplier: 'FixedU128',
+            state: 'PalletLiquidityMiningFarmState',
+            entriesCount: 'u64',
+            leftToDistribute: 'u128',
+            totalStopped: 'u32',
+        },
     });
 
     const governance = process.env.KEEP_GOVERNANCE ? {} : {
@@ -173,7 +191,8 @@ async function updateChainSpec(inputFile, outputFile) {
             } catch (err) {
                 console.error(`❌ Error processing oracle key ${key}:`, err);
             }
-        } else if (key.startsWith("0xa1a851f6ddab88c23c6615f42a0062df8d84255c07d18453a739a171ac5cf629")) {
+        } else if (key.startsWith("0xa1a851f6ddab88c23c6615f42a0062df8d84255c07d18453a739a171ac5cf629") || key.startsWith("0xae438efb85a5af0e340133650eccd7638d84255c07d18453a739a171ac5cf629")) {
+            //NOTE: update omnipool's and xyk's LM global farms
             try {
                 const decoded = registry.createType('PalletLiquidityMiningGlobalFarmData', hexToU8a(value));
                 const json = decoded.toJSON();
@@ -182,6 +201,17 @@ async function updateChainSpec(inputFile, outputFile) {
                 chainSpec.genesis.raw.top[key] = u8aToHex(updated.toU8a());
             } catch (err) {
                 console.error(`Error processing globalFarm for key ${key}:`, err);
+            }
+        } else if (key.startsWith("0xa1a851f6ddab88c23c6615f42a0062df7e1045c712fe23a3e89096e70b7ea444") || key.startsWith("0xae438efb85a5af0e340133650eccd7637e1045c712fe23a3e89096e70b7ea444")) {
+            //NOTE: update omnipool's and xyk's LM yield farms
+            try {
+                const decoded = registry.createType('PalletLiquidityMiningYieldFarmData', hexToU8a(value));
+                const json = decoded.toJSON();
+                json.updatedAt = 0;
+                const updated = registry.createType('PalletLiquidityMiningYieldFarmData', json);
+                chainSpec.genesis.raw.top[key] = u8aToHex(updated.toU8a());
+            } catch (err) {
+                console.error(`Error processing yeildFarm for key ${key}:`, err);
             }
         }
     }
