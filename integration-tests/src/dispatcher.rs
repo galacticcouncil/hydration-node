@@ -1,4 +1,4 @@
-use crate::evm::MockHandle;
+use crate::evm::{create_dispatch_handle, gas_price, MockHandle};
 use crate::polkadot_test_net::*;
 use fp_evm::PrecompileSet;
 use frame_support::dispatch::{
@@ -11,6 +11,7 @@ use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
 use pallet_evm::{ExitReason, ExitSucceed};
 use pallet_transaction_payment::ChargeTransactionPayment;
+use precompile_utils::prelude::PrecompileOutput;
 use primitives::EvmAddress;
 use sp_core::crypto::AccountId32;
 use sp_core::Encode;
@@ -472,8 +473,8 @@ fn dispatch_evm_call_should_work_when_evm_call_succeeds() {
 				target,
 				input: hex!["06fdde03"].to_vec(), // name() function selector
 				value: U256::zero(),
-				gas_limit: 100_000,
-				max_fee_per_gas: U256::from(233_460_000),
+				gas_limit: 1_000_000,
+				max_fee_per_gas: gas_price(),
 				max_priority_fee_per_gas: None,
 				nonce: None,
 				access_list: vec![],
@@ -541,9 +542,9 @@ fn dispatch_evm_call_should_fail_with_invalid_function_selector() {
 			source: evm_address(),
 			target: contract,
 			input: hex!["12345678"].to_vec(), // Invalid function selector
-			gas_limit: 100_000,
+			gas_limit: 1_000_000,
 			value: U256::zero(),
-			max_fee_per_gas: U256::from(233_460_000),
+			max_fee_per_gas: gas_price(),
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: vec![],
@@ -597,4 +598,62 @@ fn dispatch_evm_call_should_fail_with_not_evm_call_error() {
 			})
 		);
 	})
+}
+
+#[test]
+fn dispatch_evm_call_via_precompile_should_work() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		let stop_code_contract = crate::utils::contracts::deploy_contract_code(
+			hex!["608080604052346013576067908160188239f35b5f80fdfe6004361015600b575f80fd5b5f3560e01c6306fdde0314601d575f80fd5b34602d575f366003190112602d57005b5f80fdfea264697066735822122072cd2025c9922b7f29b4174f1e2d766386a8ecbaab35dc5921cda0fa301dcb3e64736f6c634300081e0033"].to_vec(),
+			crate::contracts::deployer(),
+		); // name() function selector returns "stopped"
+
+		assert_ok!(hydradx_runtime::Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			WethAssetId::get(),
+			1_000_000_000_000_000_000u128,
+			0
+		));
+
+		let inner_runtime_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address(),
+			target: stop_code_contract,
+			input: hex!["06fdde03"].to_vec(), // name() function selector
+			value: U256::zero(),
+			gas_limit: 100_000,
+			max_fee_per_gas: U256::from(233_460_000),
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+
+		let outer_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_evm_call {
+			call: Box::new(inner_runtime_call),
+		});
+
+		// SCALE‑encode the entire outer call for precompile
+		let data = outer_call.encode();
+
+		// Build a mocked EVM precompile handle which basically simulates a MetaMask
+		// transaction calling the Frontier dispatch precompile (`DISPATCH_ADDR`)
+		// from the default test EVM account.
+		let mut handle = create_dispatch_handle(data);
+
+		// Execute all HydraDX precompiles (this includes the standard
+		// Frontier Dispatch precompile wired at `DISPATCH_ADDR`).
+		let precompiles = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
+		let result = precompiles.execute(&mut handle);
+
+		// The dispatch precompile should succeed and stop.
+		assert_eq!(
+			result.unwrap(),
+			Ok(PrecompileOutput {
+				exit_status: ExitSucceed::Stopped,
+				output: Default::default(),
+			})
+		);
+	});
 }
