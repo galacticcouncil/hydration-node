@@ -108,7 +108,7 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 pub struct EvmCallIdentifier;
 impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
 	fn is_evm_call(_call: &RuntimeCall) -> bool {
-		false
+		true
 	}
 }
 

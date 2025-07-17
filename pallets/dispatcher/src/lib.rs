@@ -275,7 +275,12 @@ pub mod pallet {
 		///
 		/// Emits `EvmCallFailed` event when failed.
 		#[pallet::call_index(4)]
-		#[pallet::weight(call.get_dispatch_info().weight)]
+		#[pallet::weight({
+			let evm_call_weight = call.get_dispatch_info().weight;
+			let evm_call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_evm_call(evm_call_len)
+				.saturating_add(evm_call_weight)
+		})]
 		pub fn dispatch_evm_call(
 			origin: OriginFor<T>,
 			call: Box<<T as Config>::RuntimeCall>,

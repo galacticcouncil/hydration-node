@@ -239,8 +239,14 @@ parameter_types! {
 
 pub struct EvmCallChecker;
 impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	fn is_evm_call(call: &RuntimeCall) -> bool {
 		matches!(call, RuntimeCall::EVM(pallet_evm::Call::call { .. }))
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn is_evm_call(call: &RuntimeCall) -> bool {
+		true
 	}
 }
 

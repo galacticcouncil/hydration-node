@@ -103,4 +103,14 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
 			// Standard Error: 1
 			.saturating_add(Weight::from_parts(424, 0).saturating_mul(n.into()))
 	}
+	/// The range of component `n` is `[1, 10000]`.
+	fn dispatch_evm_call(n: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 4_000_000 picoseconds.
+		Weight::from_parts(4_800_082, 0)
+			// Standard Error: 5
+			.saturating_add(Weight::from_parts(223, 0).saturating_mul(n.into()))
+	}
 }
