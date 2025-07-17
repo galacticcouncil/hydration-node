@@ -31,6 +31,7 @@ pub use crate::{
 use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
+	dispatch::RawOrigin,
 	parameter_types,
 	traits::{Defensive, EitherOf, FindAuthor},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
@@ -42,10 +43,11 @@ use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_evm::{EnsureAddressTruncated, FrameSystemAccountProvider};
+use pallet_evm::{AddressMapping, EnsureAddressOrigin, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
-use sp_core::{Get, U256};
+use sp_core::{crypto::AccountId32, Get, U256};
+
 pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
@@ -139,14 +141,35 @@ parameter_types! {
 	pub const SuicideQuickClearLimit: u32 = 0;
 }
 
+pub struct EnsureAddressMappedOrTruncated<M>(sp_std::marker::PhantomData<M>);
+
+impl<M, OuterOrigin> EnsureAddressOrigin<OuterOrigin> for EnsureAddressMappedOrTruncated<M>
+where
+	M: AddressMapping<AccountId32>,
+	OuterOrigin: Into<Result<RawOrigin<AccountId32>, OuterOrigin>> + From<RawOrigin<AccountId32>>,
+{
+	type Success = AccountId32;
+
+	fn try_address_origin(address: &sp_core::H160, origin: OuterOrigin) -> Result<AccountId32, OuterOrigin> {
+		origin.into().and_then(|o| match o {
+			RawOrigin::Signed(who)
+				if who == M::into_account_id(*address) || AsRef::<[u8; 32]>::as_ref(&who)[0..20] == address[0..20] =>
+			{
+				Ok(who)
+			}
+			r => Err(OuterOrigin::from(r)),
+		})
+	}
+}
+
 impl pallet_evm::Config for Runtime {
 	type AccountProvider = FrameSystemAccountProvider<Runtime>;
 	type FeeCalculator = crate::DynamicEvmFee;
 	type GasWeightMapping = FixedHydraGasWeightMapping<Self>;
 	type WeightPerGas = WeightPerGas;
 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
-	type CallOrigin = EnsureAddressTruncated;
-	type WithdrawOrigin = EnsureAddressTruncated;
+	type CallOrigin = EnsureAddressMappedOrTruncated<ExtendedAddressMapping>;
+	type WithdrawOrigin = EnsureAddressMappedOrTruncated<ExtendedAddressMapping>;
 	type AddressMapping = ExtendedAddressMapping;
 	type Currency = WethCurrency;
 	type RuntimeEvent = crate::RuntimeEvent;
