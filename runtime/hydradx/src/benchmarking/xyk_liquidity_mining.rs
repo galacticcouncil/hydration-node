@@ -134,6 +134,8 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -159,6 +161,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider, pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -183,6 +186,7 @@ runtime_benchmarks! {
 		};
 
 		let xyk_owner = funded_account("xyk", 0, &[HDX, pair.asset_in, pair.asset_out]);
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_owner, pair.asset_in, pair.asset_out);
 
 		let farm_owner = funded_account("caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
@@ -205,6 +209,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -231,6 +236,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -256,6 +262,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -284,6 +291,7 @@ runtime_benchmarks! {
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -322,6 +330,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -381,6 +390,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -437,6 +447,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -477,9 +488,11 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out, pair2.asset_out]);
 		let lp = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out, pair2.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller.clone(), pair.asset_in, pair.asset_out);
 		let xyk_id_1 = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 
+		whitelist_oracle(pair2);
 		create_xyk_pool(xyk_caller, pair2.asset_in, pair2.asset_out);
 		let xyk_id_2 = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 
@@ -526,6 +539,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -589,6 +603,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -653,6 +668,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -711,65 +727,57 @@ runtime_benchmarks! {
 
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, asset_1, asset_2, asset_3, asset_4, asset_5, asset_6, asset_7, asset_8, asset_9, asset_10]);
 
-		create_xyk_pool(xyk_caller.clone(), asset_1, asset_2);
-		create_xyk_pool(xyk_caller.clone(), asset_2, asset_3);
-		create_xyk_pool(xyk_caller.clone(), asset_3, asset_4);
-		create_xyk_pool(xyk_caller.clone(), asset_4, asset_5);
-		create_xyk_pool(xyk_caller.clone(), asset_5, asset_6);
-		create_xyk_pool(xyk_caller.clone(), asset_6, asset_7);
-		create_xyk_pool(xyk_caller.clone(), asset_7, asset_8);
-		create_xyk_pool(xyk_caller.clone(), asset_8, asset_9);
-		create_xyk_pool(xyk_caller.clone(), asset_9, asset_10);
-
-		run_to_block(10);
-
-		let route = vec![
-			Trade {
-				pool: PoolType::XYK,
+		let asset_pairs = vec![
+			AssetPair {
 				asset_in: asset_1,
 				asset_out: asset_2,
 			},
-			Trade {
-				pool: PoolType::XYK,
+			AssetPair {
 				asset_in: asset_2,
 				asset_out: asset_3,
 			},
-			Trade {
-				pool: PoolType::XYK,
+			AssetPair {
 				asset_in: asset_3,
 				asset_out: asset_4,
 			},
-			Trade {
-				pool: PoolType::XYK,
+			AssetPair {
 				asset_in: asset_4,
 				asset_out: asset_5,
 			},
-			Trade {
-				pool: PoolType::XYK,
+			AssetPair {
 				asset_in: asset_5,
 				asset_out: asset_6,
 			},
-			Trade {
-				pool: PoolType::XYK,
+			AssetPair {
 				asset_in: asset_6,
 				asset_out: asset_7,
 			},
-			Trade {
-				pool: PoolType::XYK,
+			AssetPair {
 				asset_in: asset_7,
 				asset_out: asset_8,
 			},
-			Trade {
-				pool: PoolType::XYK,
+			AssetPair {
 				asset_in: asset_8,
 				asset_out: asset_9,
 			},
-			Trade {
-				pool: PoolType::XYK,
+			AssetPair {
 				asset_in: asset_9,
 				asset_out: asset_10,
-			}
+			},
 		];
+
+
+		let mut route: Vec<Trade<AssetId>> = vec![];
+		for pair in asset_pairs {
+			whitelist_oracle(pair);
+			create_xyk_pool(xyk_caller.clone(), pair.asset_in, pair.asset_out);
+			route.push(Trade {
+				pool: PoolType::XYK,
+				asset_in: pair.asset_in,
+				asset_out: pair.asset_out,
+			});
+		}
+		run_to_block(10);
 
 		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
 
@@ -798,6 +806,14 @@ runtime_benchmarks! {
 		assert_eq!(price, Ok(FixedU128::from_inner(1_001_798_825_956_230_441_u128)));
 	}
 
+}
+
+fn whitelist_oracle(pair: AssetPair) {
+	assert_ok!(EmaOracle::add_oracle(
+		RawOrigin::Root.into(),
+		primitives::constants::chain::XYK_SOURCE,
+		(pair.asset_in, pair.asset_out)
+	));
 }
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
