@@ -426,6 +426,10 @@ impl BenchmarkHelper<AssetId> for DummyRegistry {
 		Ok(())
 	}
 
+	fn set_deposit_limit(asset_id: AssetId, limit: u128) -> DispatchResult {
+		Ok(()) //We set the deposit limit only for the prod benchmark
+	}
+
 	fn register_asset_peg(
 		asset_pair: (AssetId, AssetId),
 		peg: crate::types::PegType,

@@ -1446,6 +1446,25 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 		Ok(())
 	}
 
+	fn set_deposit_limit(asset_id: AssetId, limit: u128) -> DispatchResult {
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::update(
+				crate::RuntimeOrigin::root(),
+				asset_id,
+				None,
+				None,
+				None,
+				Some(limit),
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+
+		Ok(())
+	}
+
 	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
 		with_transaction(|| {
 			let assets = ordered_pair(asset_pair.0, asset_pair.1);
