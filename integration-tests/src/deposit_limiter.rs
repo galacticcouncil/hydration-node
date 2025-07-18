@@ -540,6 +540,39 @@ fn release_deposit_should_work_when_other_user_claims_it() {
 	});
 }
 
+#[test]
+fn release_deposit_should_fail_when_called_2nd_time() {
+	Hydra::execute_with(|| {
+		//Arrange
+		crate::circuit_breaker::init_omnipool();
+		set_relaychain_block_number(4);
+
+		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
+		let deposit_limit = 100_000_000_000_000_000;
+		update_deposit_limit(DAI, deposit_limit).unwrap();
+
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
+		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
+
+		set_relaychain_block_number(DAYS + 5);
+
+		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
+
+		//Act
+		assert_ok!(CircuitBreaker::release_deposit(
+			RuntimeOrigin::signed(BOB.into()),
+			ALICE.into(),
+			DAI,
+			UNITS
+		));
+
+		assert_noop!(
+			CircuitBreaker::release_deposit(RuntimeOrigin::signed(BOB.into()), ALICE.into(), DAI, UNITS),
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::InvalidAmount
+		);
+	});
+}
+
 use frame_support::pallet_prelude::Weight;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;

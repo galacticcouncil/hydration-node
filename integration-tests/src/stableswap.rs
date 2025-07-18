@@ -7,6 +7,7 @@ use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::RawEntry;
 use orml_traits::MultiCurrency;
+use orml_traits::MultiReservableCurrency;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::BoundedPegSources;
@@ -16,7 +17,6 @@ use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
 use sp_runtime::{DispatchError, Permill};
 use std::sync::Arc;
 use test_utils::assert_eq_approx;
-
 pub const DOT: AssetId = 2221;
 pub const VDOT: AssetId = 2222;
 pub const ADOT: AssetId = 2223;
@@ -179,4 +179,76 @@ fn peg_oracle_adapter_should_not_work_when_mm_oracle_price_was_updated_in_curren
 		};
 		assert_eq!(peg, expected_peg)
 	});
+}
+
+mod circuit_breaker {
+	use super::*;
+	use crate::assert_reserved_balance;
+
+	#[test]
+	fn ciruit_breaker_is_triggered_when_deposit_limit_reached_for_sharetoken() {
+		let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+			1,
+			polkadot_xcm::v4::Junctions::X2(Arc::new([
+				polkadot_xcm::v4::Junction::Parachain(1500),
+				polkadot_xcm::v4::Junction::GeneralIndex(0),
+			])),
+		);
+
+		let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+			1,
+			polkadot_xcm::v4::Junctions::X2(Arc::new([
+				polkadot_xcm::v4::Junction::Parachain(1500),
+				polkadot_xcm::v4::Junction::GeneralIndex(1),
+			])),
+		);
+
+		let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
+		let dot_boxed = Box::new(dot_location.clone().into_versioned());
+
+		HydrationTestDriver::default()
+			.register_asset(DOT, b"myDOT", DOT_DECIMALS, Some(dot_location))
+			.register_asset(VDOT, b"myvDOT", VDOT_DECIMALS, Some(vdot_location))
+			.register_asset(ADOT, b"myaDOT", ADOT_DECIMALS, None)
+			.register_asset(GIGADOT, b"myGIGADOT", GIGADOT_DECIMALS, None)
+			.update_bifrost_oracle(dot_boxed, vdot_boxed, DOT_VDOT_PRICE)
+			.new_block()
+			.endow_account(ALICE.into(), DOT, 1_000_000 * 10u128.pow(DOT_DECIMALS as u32))
+			.endow_account(ALICE.into(), VDOT, 1_000_000 * 10u128.pow(VDOT_DECIMALS as u32))
+			.endow_account(ALICE.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
+			.execute(|| {
+				let assets = vec![VDOT, ADOT];
+				let pegs = vec![
+					PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT)), // vDOT peg
+					PegSource::Value((1, 1)),                                          // aDOT peg
+				];
+				assert_ok!(Stableswap::create_pool_with_pegs(
+					RuntimeOrigin::root(),
+					GIGADOT,
+					BoundedVec::truncate_from(assets),
+					100,
+					Permill::from_percent(0),
+					BoundedPegSources::truncate_from(pegs),
+					Permill::from_percent(100),
+				));
+
+				let initial_liquidity = 1_000 * 10u128.pow(DOT_DECIMALS as u32);
+				let liquidity = vec![
+					AssetAmount::new(VDOT, initial_liquidity),
+					AssetAmount::new(ADOT, initial_liquidity),
+				];
+
+				//Act
+				crate::deposit_limiter::update_deposit_limit(GIGADOT, 2000000000000000000000);
+				assert_ok!(Stableswap::add_assets_liquidity(
+					RuntimeOrigin::signed(ALICE.into()),
+					GIGADOT,
+					BoundedVec::truncate_from(liquidity),
+					0,
+				));
+
+				//Assert
+				assert_reserved_balance!(&ALICE.into(), GIGADOT, 479138260494833187243);
+			});
+	}
 }
