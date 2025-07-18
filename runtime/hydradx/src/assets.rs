@@ -149,19 +149,17 @@ impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
 }
 
 pub struct OnDepositReleaseHandler;
-impl Handler<(AssetId, AccountId, Balance)> for OnDepositReleaseHandler {
-	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+impl Handler<(AssetId, AccountId)> for OnDepositReleaseHandler {
+	fn handle(t: &(AssetId, AccountId)) -> DispatchResult {
 		let named_reserve_id = DepositCircuitBreakerNamedReserveId::get();
 
-		// The exact amount should be reserved because otherwise it can be DDoS attacked with small amounts
-		// as CircuitBreaker::release_deposit is a free extrinsic.
 		let reserved_balance = Currencies::reserved_balance_named(&named_reserve_id, t.0, &t.1);
 		ensure!(
-			reserved_balance == t.2,
+			reserved_balance != Balance::zero(),
 			pallet_circuit_breaker::Error::<Runtime>::InvalidAmount
 		);
 
-		let remaining_reserved = Currencies::unreserve_named(&named_reserve_id, t.0, &t.1, t.2);
+		let remaining_reserved = Currencies::unreserve_named(&named_reserve_id, t.0, &t.1, reserved_balance);
 
 		//We should not have any remaining reserved balance after unreserving, otherwise open to DDos attack
 		ensure!(

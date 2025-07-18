@@ -11,7 +11,7 @@ pub trait AssetDepositLimiter<AccountId, AssetId, Balance> {
 	type Issuance: GetByKey<AssetId, Balance>;
 	type OnLimitReached: Happened<AssetId>;
 	type OnLockdownDeposit: Handler<(AssetId, AccountId, Balance)>;
-	type OnDepositRelease: Handler<(AssetId, AccountId, Balance)>;
+	type OnDepositRelease: Handler<(AssetId, AccountId)>;
 }
 
 pub struct NoDepositLimit<T>(PhantomData<T>);

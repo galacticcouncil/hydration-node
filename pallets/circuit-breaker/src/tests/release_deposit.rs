@@ -33,16 +33,14 @@ fn release_deposit_should_release_amount() {
 				RawOrigin::Signed(ALICE).into(),
 				ALICE,
 				ASSET_ID,
-				10
 			));
 
 			//Assert
 			let balance = Tokens::free_balance(10000, &ALICE);
 			assert_eq!(balance, 110);
-			expect_events(vec![crate::pallet::Event::DepositSaved {
+			expect_events(vec![crate::pallet::Event::DepositReleased {
 				who: ALICE,
 				asset_id: crate::tests::deposit_limit::ASSET_ID,
-				amount: 10,
 			}
 			.into()]);
 		});
@@ -73,7 +71,6 @@ fn release_deposit_should_be_callable_by_other_origin() {
 				RawOrigin::Signed(BOB).into(),
 				ALICE,
 				ASSET_ID,
-				10
 			));
 
 			//Assert
@@ -103,12 +100,7 @@ fn release_deposit_should_be_callable_by_root() {
 			System::set_block_number(13);
 
 			//Act
-			assert_ok!(CircuitBreaker::release_deposit(
-				RawOrigin::Root.into(),
-				ALICE,
-				ASSET_ID,
-				10
-			));
+			assert_ok!(CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID,));
 
 			//Assert
 			let balance = Tokens::free_balance(10000, &ALICE);
@@ -136,7 +128,7 @@ fn release_deposit_should_not_work_when_asset_in_lockdown() {
 
 			//Act and assert
 			assert_noop!(
-				CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID, 10),
+				CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID),
 				Error::<Test>::AssetInLockdown
 			);
 
@@ -167,12 +159,7 @@ fn release_deposit_should_work_when_asset_in_lockdown_but_expired() {
 			System::set_block_number(13);
 
 			//Act and assert
-			assert_ok!(CircuitBreaker::release_deposit(
-				RawOrigin::Root.into(),
-				ALICE,
-				ASSET_ID,
-				10
-			),);
+			assert_ok!(CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID,),);
 
 			//Assert
 			let balance = Tokens::free_balance(10000, &ALICE);
@@ -202,12 +189,7 @@ fn release_deposit_should_work_when_asset_in_unlocked_state() {
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 20)); //This sets the asset to unlocked state
 
 			//Act and assert
-			assert_ok!(CircuitBreaker::release_deposit(
-				RawOrigin::Root.into(),
-				ALICE,
-				ASSET_ID,
-				10
-			),);
+			assert_ok!(CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID,),);
 
 			//Assert
 			let balance = Tokens::free_balance(10000, &ALICE);
@@ -237,7 +219,7 @@ fn release_deposit_should_fail_when_amount_is_zero() {
 
 			//Act and assert
 			assert_noop!(
-				CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID, 0),
+				CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID),
 				Error::<Test>::InvalidAmount
 			);
 		});

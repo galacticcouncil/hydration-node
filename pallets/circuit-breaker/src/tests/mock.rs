@@ -820,10 +820,11 @@ impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
 }
 
 pub struct OnReleaseDepositHandler;
-impl Handler<(AssetId, AccountId, Balance)> for OnReleaseDepositHandler {
-	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
-		//TODO:  we can check this feature in unit test better
-		Currencies::unreserve_named(&NamedReserveId::get(), t.0, &t.1, t.2);
+impl Handler<(AssetId, AccountId)> for OnReleaseDepositHandler {
+	fn handle(t: &(AssetId, AccountId)) -> DispatchResult {
+		let reserved_balance = Currencies::reserved_balance_named(&NamedReserveId::get(), t.0, &t.1);
+
+		Currencies::unreserve_named(&NamedReserveId::get(), t.0, &t.1, reserved_balance);
 
 		Ok(())
 	}

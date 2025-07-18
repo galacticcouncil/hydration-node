@@ -335,12 +335,8 @@ pub mod pallet {
 		/// Asset lockdown was removed
 		AssetLockdownRemoved { asset_id: T::AssetId },
 
-		/// Reserved amount of deposit was saved
-		DepositSaved {
-			who: T::AccountId,
-			asset_id: T::AssetId,
-			amount: T::Balance,
-		},
+		/// All reserved amount of deposit was released
+		DepositReleased { who: T::AccountId, asset_id: T::AssetId },
 	}
 
 	#[pallet::error]
@@ -511,9 +507,9 @@ pub mod pallet {
 			Self::do_lift_lockdown(asset_id, T::Balance::default())
 		}
 
-		/// Save deposit of an asset.
+		/// Release deposit of an asset.
 		///
-		/// The amount must be equal to the total reserved amount of the asset in the account.
+		/// It releases all the pallet reserved balance of the asset for the given account
 		///
 		/// Can be called by any origin, but only if the asset is not in active lockdown.
 		///
@@ -523,20 +519,17 @@ pub mod pallet {
 		/// - `origin`: The dispatch origin for this call. Can be signed or root.
 		/// - `who`: The account that is saving the deposit.
 		/// - `asset_id`: The identifier of the asset.
-		/// - `amount`: The amount of the asset to save as a deposit
 		///
-		/// Emits `DepositSaved` event when successful.
+		/// Emits `DepositReleased` event when successful.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::release_deposit())]
 		pub fn release_deposit(
 			origin: OriginFor<T>,
 			who: T::AccountId,
 			asset_id: T::AssetId,
-			amount: T::Balance,
 		) -> DispatchResultWithPostInfo {
 			ensure_signed_or_root(origin)?;
 
-			ensure!(amount > T::Balance::zero(), Error::<T>::InvalidAmount);
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let last_state = AssetLockdownState::<T>::get(asset_id);
 
@@ -547,14 +540,10 @@ pub mod pallet {
 			}
 
 			<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::OnDepositRelease::handle(
-				&(asset_id, who.clone(), amount),
+				&(asset_id, who.clone()),
 			)?;
 
-			Self::deposit_event(Event::DepositSaved {
-				who: who,
-				asset_id,
-				amount,
-			});
+			Self::deposit_event(Event::DepositReleased { who, asset_id });
 
 			Ok(Pays::No.into())
 		}
