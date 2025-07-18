@@ -18,6 +18,7 @@ pub trait WeightInfo {
 	fn on_initialize_with_empty_block() -> Weight;
 	fn schedule() -> Weight;
 	fn terminate() -> Weight;
+	fn unlock_reserves() -> Weight;
 }
 
 /// Weights for pallet_dca using the hydraDX node and recommended hardware.
@@ -221,5 +222,21 @@ impl WeightInfo for () {
 		Weight::from_parts(88_015_000, 4714)
 			.saturating_add(RocksDbWeight::get().reads(5_u64))
 			.saturating_add(RocksDbWeight::get().writes(7_u64))
+	}
+
+	/// Storage: `DCA::ScheduleOwnership` (r:1 w:0)
+	/// Proof: `DCA::ScheduleOwnership` (`max_values`: None, `max_size`: Some(60), added: 2535, mode: `MaxEncodedLen`)
+	/// Storage: `Balances::Reserves` (r:1 w:1)
+	/// Proof: `Balances::Reserves` (`max_values`: None, `max_size`: Some(1249), added: 3724, mode: `MaxEncodedLen`)
+	/// Storage: `System::Account` (r:1 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	fn unlock_reserves() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1959`
+		//  Estimated: `4714`
+		// Minimum execution time: 36_000_000 picoseconds.
+		Weight::from_parts(40_000_000, 4714)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 }

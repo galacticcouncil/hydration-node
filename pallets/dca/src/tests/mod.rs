@@ -9,6 +9,7 @@ pub mod mock;
 pub mod on_initialize;
 pub mod schedule;
 pub mod terminate;
+pub mod unlock_reserves;
 
 #[macro_export]
 macro_rules! assert_balance {
