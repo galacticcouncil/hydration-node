@@ -1,7 +1,11 @@
 mod add_liquidity_limit;
+mod deposit_limit;
 mod ensure_add_liquidity_limit;
 mod ensure_remove_liquidity_limit;
+mod lockdown_asset;
 pub(crate) mod mock;
 mod omnipool;
+mod release_deposit;
+mod remove_asset_lockdown;
 mod remove_liquidity_limit;
 mod trade_volume;

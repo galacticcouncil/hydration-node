@@ -4,11 +4,12 @@ use super::*;
 
 use frame_benchmarking::{account, BenchmarkError};
 use frame_system::RawOrigin;
+use hydradx_traits::router::{PoolType, TradeExecution};
+use hydradx_traits::AMM;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use pallet_xyk::types::AssetPair;
 use sp_std::prelude::*;
-
-use hydradx_traits::router::{PoolType, TradeExecution};
 
 const SEED: u32 = 1;
 
@@ -90,6 +91,14 @@ runtime_benchmarks! {
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, INITIAL_BALANCE - amount)?;
 
 		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 2);
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let pair_account = <XYK as AMM<AccountId, AssetId, AssetPair, Balance>>::get_pair_id(asset_pair);
+
+		let share_token = XYK::share_token(&pair_account);
+		update_deposit_limit(share_token, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, max_limit)
 	verify {
 		assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
