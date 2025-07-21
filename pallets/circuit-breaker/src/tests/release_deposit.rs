@@ -196,31 +196,3 @@ fn release_deposit_should_work_when_asset_in_unlocked_state() {
 			assert_eq!(balance, 130);
 		});
 }
-
-fn release_deposit_should_fail_when_amount_is_zero() {
-	ExtBuilder::default()
-		.with_deposit_period(10)
-		.with_asset_limit(ASSET_ID, 100)
-		.build()
-		.execute_with(|| {
-			//Arrange
-			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let balance = Tokens::free_balance(10000, &ALICE);
-			assert_eq!(balance, 50);
-
-			System::set_block_number(2);
-
-			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
-			let balance = Tokens::free_balance(10000, &ALICE);
-			assert_eq!(balance, 100);
-
-			System::set_block_number(13);
-			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 20)); //This sets the asset to unlocked state
-
-			//Act and assert
-			assert_noop!(
-				CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID),
-				Error::<Test>::InvalidAmount
-			);
-		});
-}

@@ -107,7 +107,6 @@ parameter_types! {
 }
 pub type Amount = i128;
 
-use orml_traits::NamedBasicReservableCurrency;
 impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
@@ -608,14 +607,14 @@ impl ExtBuilder {
 		self.max_remove_liquidity_limit_per_block = value;
 		self
 	}
-	pub fn with_asset_limit(mut self, asset_id: AssetId, limit: Balance) -> Self {
+	pub fn with_asset_limit(self, asset_id: AssetId, limit: Balance) -> Self {
 		ASSET_DEPOSIT_LIMIT.with(|v| {
 			v.borrow_mut().insert(asset_id, limit);
 		});
 		self
 	}
 
-	pub fn with_deposit_period(mut self, period: u128) -> Self {
+	pub fn with_deposit_period(self, period: u128) -> Self {
 		ASSET_DEPOSIT_PERIOD.with(|v| {
 			*v.borrow_mut() = period;
 		});
@@ -794,7 +793,7 @@ impl GetByKey<AssetId, Option<Balance>> for AssetLimit {
 	fn get(k: &AssetId) -> Option<Balance> {
 		let asset = ASSET_DEPOSIT_LIMIT.with(|v| v.borrow().get(k).copied());
 
-		Some(asset.unwrap_or(Balance::max_value()))
+		Some(asset.unwrap_or(Balance::MAX))
 	}
 }
 
@@ -808,7 +807,7 @@ impl GetByKey<AssetId, Balance> for AssetIssuance {
 pub struct LimitReachedHandler;
 
 impl Happened<AssetId> for LimitReachedHandler {
-	fn happened(t: &AssetId) {}
+	fn happened(_t: &AssetId) {}
 }
 
 pub struct OnLockdownDepositHandler;
