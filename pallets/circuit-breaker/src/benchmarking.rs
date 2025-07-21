@@ -254,7 +254,7 @@ benchmarks! {
 		assert_eq!(state, Some(LockdownStatus::Unlocked((lockdown_over.into(), 101_000_000_000_000u128.into()))));
 
 	}: {
-		crate::Pallet::<T>::release_deposit(RawOrigin::Root.into(), account, asset.into(), 1_000_000_000_000u128.into())?
+		crate::Pallet::<T>::release_deposit(RawOrigin::Root.into(), account, asset.into())?
 	}
 	verify {
 		//No verify as if successfull, the extrinsic completed
