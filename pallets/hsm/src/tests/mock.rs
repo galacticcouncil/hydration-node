@@ -796,6 +796,10 @@ mod for_benchmark_tests {
 			Ok(())
 		}
 
+		fn set_deposit_limit(asset_id: AssetId, limit: u128) -> sp_runtime::DispatchResult {
+			Ok(())
+		}
+
 		fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, _source: Source) -> DispatchResult {
 			set_peg_oracle_value(asset_pair.0, asset_pair.1, peg, 0);
 			Ok(())
