@@ -106,6 +106,8 @@ pub mod pallet {
 		type SetEvmPriceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// EVM asset prices for different periods to do comparison to scale evm fee
+		///
+		/// A price represents how much of `d` you need to get 1 of `n`.
 		type EvmAssetPrices: GetByKey<Self::AssetId, Option<(EmaPrice, EmaPrice)>>;
 
 		/// Default EVM asset ID used for EVM transaction fees, if EvmAsset is not explicitly set in storage
@@ -159,25 +161,25 @@ pub mod pallet {
 
 				let evm_asset = EvmAsset::<T>::get().unwrap_or(T::WethAssetId::get());
 
-				let Some((eth_hdx_price, eth_hdx_reference_price)) = T::EvmAssetPrices::get(&evm_asset) else {
+				let Some((eth_per_hdx, eth_per_hdx_reference)) = T::EvmAssetPrices::get(&evm_asset) else {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
 					return;
 				};
-				let Some(eth_hdx_price) = FixedU128::checked_from_rational(eth_hdx_price.n, eth_hdx_price.d) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, n: {}, d: {}", eth_hdx_price.n, eth_hdx_price.d);
+				let Some(eth_per_hdx) = FixedU128::checked_from_rational(eth_per_hdx.n, eth_per_hdx.d) else {
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, n: {}, d: {}", eth_per_hdx.n, eth_per_hdx.d);
 					return;
 				};
 
-				let Some(eth_hdx_reference_price) =
-					FixedU128::checked_from_rational(eth_hdx_reference_price.n, eth_hdx_reference_price.d)
+				let Some(eth_per_hdx_reference) =
+					FixedU128::checked_from_rational(eth_per_hdx_reference.n, eth_per_hdx_reference.d)
 				else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx reference price, n: {}, d: {}", eth_hdx_reference_price.n, eth_hdx_reference_price.d);
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx reference price, n: {}, d: {}", eth_per_hdx_reference.n, eth_per_hdx_reference.d);
 					return;
 				};
 				let Some(price_diff) =
-					FixedU128::checked_from_rational(eth_hdx_price.into_inner(), eth_hdx_reference_price.into_inner())
+					FixedU128::checked_from_rational(eth_per_hdx.into_inner(), eth_per_hdx_reference.into_inner())
 				else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_hdx_price, eth_hdx_reference_price);
+					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_per_hdx, eth_per_hdx_reference);
 					return;
 				};
 
