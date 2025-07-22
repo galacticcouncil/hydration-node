@@ -471,8 +471,8 @@ impl WeightInfo for () {
 		//  Estimated: 3816
 		// Minimum execution time: 26_785_000 picoseconds.
 		Weight::from_parts(27_197_000, 3816)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	/// Storage: Stableswap::Pools (r:1 w:0)
 	/// Proof: Stableswap::Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
@@ -484,7 +484,7 @@ impl WeightInfo for () {
 		//  Estimated: 3816
 		// Minimum execution time: 26_289_000 picoseconds.
 		Weight::from_parts(26_675_000, 3816)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
