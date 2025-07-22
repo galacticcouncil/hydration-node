@@ -667,7 +667,7 @@ pub mod pallet {
 			let _ = ensure_signed_or_root(origin)?;
 
 			ensure!(
-				!ScheduleOwnership::<T>::iter_prefix(who.clone()).next().is_some(),
+				ScheduleOwnership::<T>::iter_prefix(who.clone()).next().is_none(),
 				Error::<T>::HasActiveSchedules
 			);
 
