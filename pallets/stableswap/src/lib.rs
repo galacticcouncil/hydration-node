@@ -1341,7 +1341,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
-			let _pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			ensure!(Pools::<T>::contains_key(pool_id), Error::<T>::PoolNotFound);
 
 			PoolPegs::<T>::try_mutate(pool_id, |maybe_peg_info| -> DispatchResult {
 				let peg_info = maybe_peg_info.as_mut().ok_or(Error::<T>::NoPegSource)?;
