@@ -32,7 +32,6 @@ pub trait WeightInfo {
 }
 
 /// Weights for pallet_stableswap using the hydraDX node and recommended hardware.
-#[cfg(test)]
 impl WeightInfo for () {
 	/// Storage: `Stableswap::Pools` (r:1 w:1)
 	/// Proof: `Stableswap::Pools` (`max_values`: None, `max_size`: Some(57), added: 2532, mode: `MaxEncodedLen`)
@@ -463,10 +462,14 @@ impl WeightInfo for () {
 	}
 
 	fn update_asset_peg_source() -> Weight {
-		Weight::zero()
+		Weight::from_parts(21_807_000, 3522)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 
 	fn update_pool_max_peg_update() -> Weight {
-		Weight::zero()
+		Weight::from_parts(21_807_000, 3522)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
