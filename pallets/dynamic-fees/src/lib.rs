@@ -280,7 +280,6 @@ where
 		log::trace!(target: "dynamic-fees", "update_fee for asset_id: {:?}", asset_id);
 		let block_number = T::BlockNumberProvider::current_block_number();
 
-		// Check if there's a specific configuration for this asset
 		let asset_config = Self::asset_fee_config(asset_id);
 
 		match asset_config {
@@ -288,7 +287,6 @@ where
 				asset_fee,
 				protocol_fee,
 			}) => {
-				// Return fixed fees directly
 				log::trace!(target: "dynamic-fees", "using fixed fees: {:?} {:?}", asset_fee, protocol_fee);
 				(asset_fee, protocol_fee)
 			}
@@ -346,7 +344,6 @@ where
 		protocol_fee_params: FeeParams<T::Fee>,
 		store: bool,
 	) -> (T::Fee, T::Fee) {
-		// Update only if it has not yet been updated this block
 		if block_number == current_fee_entry.timestamp {
 			log::trace!(target: "dynamic-fees", "no need to update, same block. Current fees: {:?} {:?}", current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
 			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);

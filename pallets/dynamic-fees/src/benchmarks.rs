@@ -59,14 +59,12 @@ benchmarks! {
 			protocol_fee: T::Fee::from_percent(2.into()),
 		};
 
-		// Setup: First set a configuration
 		let _ = Pallet::<T>::set_asset_fee(
 			RawOrigin::Root.into(),
 			asset_id,
 			config,
 		);
 
-		// Verify it was set
 		assert!(AssetFeeConfiguration::<T>::contains_key(asset_id));
 	}: _(RawOrigin::Root, asset_id)
 	verify {
