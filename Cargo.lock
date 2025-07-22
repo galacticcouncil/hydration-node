@@ -4819,7 +4819,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.0.0"
+version = "4.1.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7981,7 +7981,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12218,7 +12218,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.45.4"
+version = "1.45.5"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
