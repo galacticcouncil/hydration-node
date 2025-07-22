@@ -4140,7 +4140,7 @@ fn terminate_should_work_for_freshly_created_dca() {
 }
 
 #[test]
-fn unclock_should_not_work_when_user_has_active_schedule() {
+fn unlock_should_not_work_when_user_has_active_schedule() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
