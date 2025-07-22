@@ -58,8 +58,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 			hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
 			1_500_000_000 * UNITS,
 		)],
-		// council members
-		vec![],
 		// technical committee
 		vec![],
 		// vestings
@@ -72,12 +70,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		vec![],
 		// claims data
 		Default::default(),
-		// elections
-		vec![
-			(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
-			(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
-			(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
-		],
 		// parachain ID
 		PARA_ID.into(),
 		// duster

@@ -71,6 +71,9 @@ use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
 
+#[cfg(any(feature = "try-runtime", test))]
+use sp_runtime::FixedU128;
+
 mod trade_execution;
 pub mod traits;
 pub mod types;
@@ -695,7 +698,7 @@ pub mod pallet {
 			);
 
 			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 			Ok(())
 		}
@@ -793,7 +796,7 @@ pub mod pallet {
 			);
 
 			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 			Ok(())
 		}
@@ -1149,7 +1152,7 @@ pub mod pallet {
 			});
 
 			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 			Ok(())
 		}
@@ -1668,7 +1671,7 @@ impl<T: Config> Pallet<T> {
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 		Self::deposit_event(Event::LiquidityAdded {
 			pool_id,
@@ -1760,7 +1763,7 @@ impl<T: Config> Pallet<T> {
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
@@ -1870,14 +1873,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[cfg(any(feature = "try-runtime", test))]
-	fn ensure_add_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
+	fn ensure_add_liquidity_invariant(
+		pool_id: T::AssetId,
+		initial_reserves: &[AssetReserve],
+		initial_issuance: Balance,
+	) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
 		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).unwrap();
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
 			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves are not changed"
+			"Reserves have not changed"
 		);
 		let amplification = Self::get_amplification(&pool);
 		let initial_d =
@@ -1892,10 +1899,26 @@ impl<T: Config> Pallet<T> {
 			initial_d,
 			final_d
 		);
+		if initial_issuance.is_zero() {
+			return;
+		}
+		let current_share_issuance = T::Currency::total_issuance(pool_id);
+		let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
+		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
+		assert!(
+			final_r >= initial_r,
+			"Add liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
+			initial_r,
+			final_r
+		);
 	}
 
 	#[cfg(any(feature = "try-runtime", test))]
-	fn ensure_remove_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
+	fn ensure_remove_liquidity_invariant(
+		pool_id: T::AssetId,
+		initial_reserves: &[AssetReserve],
+		initial_issuance: Balance,
+	) {
 		let Some(pool) = Pools::<T>::get(pool_id) else {
 			return;
 		};
@@ -1904,7 +1927,7 @@ impl<T: Config> Pallet<T> {
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
 			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves are not changed"
+			"Reserves have not changed"
 		);
 		let amplification = Self::get_amplification(&pool);
 		let initial_d =
@@ -1918,6 +1941,18 @@ impl<T: Config> Pallet<T> {
 			"Remove liquidity Invariant broken: D+ is more than initial D; {:?} >= {:?}",
 			initial_d,
 			final_d
+		);
+		let current_share_issuance = T::Currency::total_issuance(pool_id);
+		if current_share_issuance.is_zero() {
+			return;
+		}
+		let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
+		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
+		assert!(
+			final_r >= initial_r,
+			"Remove liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
+			initial_r,
+			final_r
 		);
 	}
 	#[cfg(any(feature = "try-runtime", test))]

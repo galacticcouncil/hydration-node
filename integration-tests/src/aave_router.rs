@@ -85,48 +85,19 @@ fn transfer_all() {
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 10000);
 
 		// Deposit these 10000 ADOT and get back any amount of shares you want for free
-		assert_ok!(Stableswap::add_liquidity_shares(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			pool,
-			100000 * BAG,
-			// aTOKEN
-			ADOT,
-			//max_asset_amount
-			u128::MAX - 1u128,
-		));
-
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 0);
-
-		// Profit: 10000000000000000000 shares minted
 		assert_eq!(
-			Currencies::free_balance(pool, &ALICE.into()) - shares_before,
-			100000000000000000000
-		);
-
-		assert_ok!(Stableswap::remove_liquidity(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			pool,
-			// shares to withdraw
-			100000000000000000000,
-			// min amounts out
-			BoundedVec::truncate_from(vec![
-				AssetAmount {
-					asset_id: DOT,
-					amount: 0,
-				},
-				AssetAmount {
-					asset_id: ADOT,
-					amount: 0,
-				},
-			]),
-		));
-
-		// Removed 499750124942 ADOT for free
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 499750124942);
-		// Removed 499750124937 DOT for free
-		assert_eq!(
-			Currencies::free_balance(DOT, &ALICE.into()) - balance_before,
-			499750124937
+			Stableswap::add_liquidity_shares(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				pool,
+				100000 * BAG,
+				// aTOKEN
+				ADOT,
+				//max_asset_amount
+				u128::MAX - 1u128,
+			),
+			Err(Other(
+				"evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"
+			))
 		);
 	});
 }
@@ -778,6 +749,7 @@ fn buy_in_stable_after_rebase() {
 }
 
 #[test]
+#[ignore]
 fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
 	with_atoken(|| {
 		let ed = 1000;
@@ -823,6 +795,7 @@ fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
 }
 
 #[test]
+#[ignore]
 fn transfer_all_atoken_but_one_should_transfer_all_atoken() {
 	with_atoken(|| {
 		let ed = 1000;

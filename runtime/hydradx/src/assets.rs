@@ -734,6 +734,7 @@ impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime 
 parameter_types! {
 	pub const XYKLmPalletId: PalletId = PalletId(*b"XYK///LM");
 	pub const XYKLmCollectionId: CollectionId = 5389_u128;
+	pub const XYKLmOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 impl pallet_xyk_liquidity_mining::Config for Runtime {
@@ -748,6 +749,9 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type AMM = XYK;
 	type AssetRegistry = AssetRegistry;
 	type MaxFarmEntriesPerDeposit = XYKLmMaxEntriesPerDeposit;
+	type OracleSource = XYKLmOracle;
+	type OraclePeriod = XYKLmOraclePeriod;
+	type LiquidityOracle = EmaOracle;
 	type WeightInfo = weights::pallet_xyk_liquidity_mining::HydraWeight<Runtime>;
 }
 
@@ -1283,7 +1287,7 @@ impl pallet_otc_settlements::Config for Runtime {
 // Dynamic fees
 parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
-		min_fee: Permill::from_rational(15u32,10000u32), // 0.15%
+		min_fee: Permill::from_rational(25u32,10000u32), // 0.25%
 		max_fee: Permill::from_rational(5u32,100u32),    // 5%
 		decay: FixedU128::from_rational(1,20000),        // 0.005%
 		amplification: FixedU128::from(2),               // 2
@@ -1403,6 +1407,7 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 					volume: Default::default(),
 					liquidity: Default::default(),
 					updated_at: BlockNumber::default().into(),
+					shares_issuance: Default::default(),
 				},
 			) {
 				return TransactionOutcome::Rollback(e.into());
