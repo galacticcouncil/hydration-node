@@ -139,7 +139,10 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Asset fee configuration has been set
-		AssetFeeConfigSet { asset_id: T::AssetId },
+		AssetFeeConfigSet {
+			asset_id: T::AssetId,
+			params: AssetFeeConfig<T::Fee>,
+		},
 		/// Asset fee configuration has been removed
 		AssetFeeConfigRemoved { asset_id: T::AssetId },
 	}
@@ -173,7 +176,10 @@ pub mod pallet {
 
 			AssetFeeConfiguration::<T>::insert(&asset_id, &config);
 
-			Self::deposit_event(Event::AssetFeeConfigSet { asset_id });
+			Self::deposit_event(Event::AssetFeeConfigSet {
+				asset_id,
+				params: config,
+			});
 			Ok(())
 		}
 
