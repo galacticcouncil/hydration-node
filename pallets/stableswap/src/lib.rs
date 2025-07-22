@@ -1301,6 +1301,7 @@ pub mod pallet {
 			PoolPegs::<T>::try_mutate(pool_id, |maybe_peg_info| -> DispatchResult {
 				let peg_info = maybe_peg_info.as_mut().ok_or(Error::<T>::NoPegSource)?;
 
+				debug_assert_eq!(peg_info.source.len(), pool.assets.len(), "Peg source length mismatch");
 				ensure!(peg_info.source.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
 				peg_info.source[asset_index] = peg_source.clone();
 
