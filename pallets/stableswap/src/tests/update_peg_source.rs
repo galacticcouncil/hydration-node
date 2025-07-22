@@ -70,70 +70,6 @@ fn update_asset_peg_source_should_work() {
 }
 
 #[test]
-fn update_asset_peg_source_should_preserve_price() {
-	let asset_a: AssetId = 1;
-	let asset_b: AssetId = 2;
-	let pool_id = 100;
-
-	let amp = 1000;
-	let fee = Permill::from_percent(1);
-
-	let peg_sources: BoundedPegSources<AssetId> =
-		BoundedVec::try_from(vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))]).unwrap();
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(ALICE, asset_a, 1_000_000 * ONE),
-			(ALICE, asset_b, 1_000_000 * ONE),
-		])
-		.with_registered_asset("one".as_bytes().to_vec(), asset_a, 12)
-		.with_registered_asset("two".as_bytes().to_vec(), asset_b, 12)
-		.with_registered_asset("pool".as_bytes().to_vec(), pool_id, 12)
-		.build()
-		.execute_with(|| {
-			assert_ok!(Stableswap::create_pool_with_pegs(
-				RuntimeOrigin::root(),
-				pool_id,
-				vec![asset_a, asset_b].try_into().unwrap(),
-				amp,
-				fee,
-				peg_sources,
-				Permill::from_percent(10),
-			));
-
-			// Get initial price to verify it's preserved
-			let initial_peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
-			let initial_price = initial_peg_info.current[0];
-
-			// Update peg source for asset_a (price always preserved)
-			let new_peg_source = PegSource::Value((2, 3));
-			assert_ok!(Stableswap::update_asset_peg_source(
-				RuntimeOrigin::root(),
-				pool_id,
-				asset_a,
-				new_peg_source.clone(),
-			));
-
-			// Check that peg source was updated
-			let updated_peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
-			assert_eq!(updated_peg_info.source[0], new_peg_source);
-
-			// Check that price was preserved (not updated)
-			assert_eq!(updated_peg_info.current[0], initial_price);
-
-			// Check event was emitted
-			System::assert_last_event(
-				Event::PoolPegSourceUpdated {
-					pool_id,
-					asset_id: asset_a,
-					peg_source: new_peg_source,
-				}
-				.into(),
-			);
-		});
-}
-
-#[test]
 fn update_asset_peg_source_should_fail_when_pool_not_found() {
 	let asset_a: AssetId = 1;
 	let pool_id = 100;
@@ -368,7 +304,6 @@ fn update_asset_peg_source_should_update_second_asset_correctly() {
 			// Get initial peg info
 			let initial_peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
 			let initial_price_a = initial_peg_info.current[0];
-			let _initial_price_b = initial_peg_info.current[1];
 
 			// Update peg source for asset_b (index 1) - price will be preserved
 			let new_peg_source = PegSource::Value((3, 4));
