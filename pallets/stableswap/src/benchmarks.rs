@@ -416,6 +416,37 @@ benchmarks! {
 		assert_eq!(pool.final_block, 1000u32.into());
 	}
 
+	update_asset_peg_source{
+		let lp_provider: T::AccountId = account("provider", 0, 1);
+		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
+		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
+
+		// Get first asset from pool
+		let asset_id = *pool.assets.first().unwrap();
+		let new_peg_source = PegSource::Value((2, 3));
+
+		// Register the new peg source for benchmarking
+		T::BenchmarkHelper::register_asset_peg((asset_id, asset_id), (2u128, 3u128), *b"benchmar")?;
+
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id, asset_id, new_peg_source.clone())
+	verify {
+		let peg_info = crate::PoolPegs::<T>::get(pool_id).unwrap();
+		assert_eq!(peg_info.source[0], new_peg_source);
+	}
+
+	update_pool_max_peg_update{
+		let lp_provider: T::AccountId = account("provider", 0, 1);
+		let (pool_id, _pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
+		let successful_origin = T::AuthorityOrigin::try_successful_origin().unwrap();
+
+		let new_max_peg_update = Permill::from_percent(50);
+
+	}: _<T::RuntimeOrigin>(successful_origin, pool_id, new_max_peg_update)
+	verify {
+		let peg_info = crate::PoolPegs::<T>::get(pool_id).unwrap();
+		assert_eq!(peg_info.max_peg_update, new_max_peg_update);
+	}
+
 	router_execution_sell{
 		let c in 1..2;
 		let e in 0..1;	// if e == 1, execute_sell is executed
