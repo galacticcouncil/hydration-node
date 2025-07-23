@@ -61,6 +61,8 @@ use frame_support::pallet_prelude::{
 	Get, Hooks, MaxEncodedLen, MaybeSerializeDeserialize, Member, Parameter, StorageValue, StorageVersion, TypeInfo,
 	ValueQuery,
 };
+use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
+
 use frame_support::weights::Weight;
 use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 use hydra_dx_math::ema::EmaPrice;
@@ -69,6 +71,7 @@ use orml_traits::GetByKey;
 use sp_core::U256;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
+use sp_runtime::Rounding;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -165,28 +168,20 @@ pub mod pallet {
 					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get ETH-HDX price from oracle");
 					return;
 				};
-				let Some(eth_per_hdx) = FixedU128::checked_from_rational(eth_per_hdx.n, eth_per_hdx.d) else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, n: {}, d: {}", eth_per_hdx.n, eth_per_hdx.d);
-					return;
-				};
 
-				let Some(eth_per_hdx_reference) =
-					FixedU128::checked_from_rational(eth_per_hdx_reference.n, eth_per_hdx_reference.d)
-				else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx reference price, n: {}, d: {}", eth_per_hdx_reference.n, eth_per_hdx_reference.d);
-					return;
-				};
-				let Some(price_diff) =
-					FixedU128::checked_from_rational(eth_per_hdx.into_inner(), eth_per_hdx_reference.into_inner())
-				else {
-					log::warn!(target: "runtime::dynamic-evm-fee", "Could not get rational of eth-hdx price, current price: {}, reference price: {}", eth_per_hdx, eth_per_hdx_reference);
-					return;
-				};
+				let price_diff = eth_per_hdx.saturating_div(&eth_per_hdx_reference);
 
-				new_base_fee_per_gas = price_diff.saturating_mul_int(new_base_fee_per_gas);
+				let Some(calculated_new_base_fee_per_gas) = multiply_by_rational_with_rounding(
+					new_base_fee_per_gas,
+					price_diff.n,
+					price_diff.d,
+					Rounding::Down,
+				) else {
+					return;
+				};
 
 				new_base_fee_per_gas =
-					new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get());
+					calculated_new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get());
 
 				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
 			});
