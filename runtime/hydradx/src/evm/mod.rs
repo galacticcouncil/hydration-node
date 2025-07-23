@@ -22,13 +22,16 @@
 use crate::evm::evm_fee::FeeCurrencyOverrideOrDefault;
 pub use crate::evm::gas_to_weight_mapping::FixedHydraGasWeightMapping;
 use crate::evm::runner::WrapRunner;
-use crate::origins::GeneralAdmin;
+use crate::origins::{GeneralAdmin, OmnipoolAdmin};
 use crate::types::ShortOraclePrice;
 pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport};
+use crate::{
+	DotAssetId, FeePriceOracle, FeePriceOracleForTenMinutes, Runtime, TechCommitteeSuperMajority,
+	XykPaymentAssetSupport,
+};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	parameter_types,
@@ -41,6 +44,7 @@ use hex_literal::hex;
 use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::oracle::OraclePeriod;
 use orml_tokens::CurrencyAdapter;
+use orml_traits::GetByKey;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressTruncated, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
@@ -59,6 +63,8 @@ mod runner;
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;
 pub use executor::Executor;
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::NativePriceOracle;
 pub use primitives::AccountId as AccountIdType;
 
 // Current approximation of the gas per second consumption considering
@@ -70,8 +76,8 @@ pub const GAS_PER_SECOND: u64 = 40_000_000;
 // Approximate ratio of the amount of Weight per Gas.
 const WEIGHT_PER_GAS: u64 = WEIGHT_REF_TIME_PER_SECOND / GAS_PER_SECOND;
 
-// Fixed gas price of 0.016 gwei per gas
-pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 16_000_000;
+// Fixed gas price of 0.011 gwei per gas
+pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 11_000_000;
 
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block
@@ -215,12 +221,28 @@ parameter_types! {
 }
 
 impl pallet_dynamic_evm_fee::Config for Runtime {
+	type RuntimeEvent = crate::RuntimeEvent;
 	type AssetId = AssetId;
 	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
 	type MinBaseFeePerGas = MinBaseFeePerGas;
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type FeeMultiplier = TransactionPaymentMultiplier;
-	type NativePriceOracle = FeePriceOracle;
 	type WethAssetId = WethAssetId;
 	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
+	type EvmAssetPrices = EvmAssetPricesGetter;
+	type SetEvmPriceOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+}
+
+pub struct EvmAssetPricesGetter;
+
+impl GetByKey<AssetId, Option<(EmaPrice, EmaPrice)>> for EvmAssetPricesGetter {
+	fn get(k: &AssetId) -> Option<(EmaPrice, EmaPrice)> {
+		let short_price = FeePriceOracle::price(*k);
+		let reference_price = FeePriceOracleForTenMinutes::price(*k);
+
+		match (short_price, reference_price) {
+			(Some(sp), Some(rp)) => Some((sp, rp)),
+			_ => None,
+		}
+	}
 }
