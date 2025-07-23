@@ -169,12 +169,12 @@ pub mod pallet {
 					return;
 				};
 
-				let price_diff = eth_per_hdx.saturating_div(&eth_per_hdx_reference);
+				let relative_price_ratio = eth_per_hdx.saturating_div(&eth_per_hdx_reference);
 
 				let Some(calculated_new_base_fee_per_gas) = multiply_by_rational_with_rounding(
 					new_base_fee_per_gas,
-					price_diff.n,
-					price_diff.d,
+					relative_price_ratio.n,
+					relative_price_ratio.d,
 					Rounding::Down,
 				) else {
 					return;
