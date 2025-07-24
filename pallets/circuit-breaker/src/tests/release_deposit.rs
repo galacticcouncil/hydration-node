@@ -17,13 +17,13 @@ fn release_deposit_should_release_amount() {
 		.execute_with(|| {
 			//Arrange
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 50);
 
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 
 			System::set_block_number(13);
@@ -36,7 +36,7 @@ fn release_deposit_should_release_amount() {
 			));
 
 			//Assert
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 110);
 			expect_events(vec![crate::pallet::Event::DepositReleased {
 				who: ALICE,
@@ -55,13 +55,13 @@ fn release_deposit_should_be_callable_by_other_origin() {
 		.execute_with(|| {
 			//Arrange
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 50);
 
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 
 			System::set_block_number(13);
@@ -74,7 +74,7 @@ fn release_deposit_should_be_callable_by_other_origin() {
 			));
 
 			//Assert
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 110);
 		});
 }
@@ -88,13 +88,13 @@ fn release_deposit_should_be_callable_by_root() {
 		.execute_with(|| {
 			//Arrange
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 50);
 
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 
 			System::set_block_number(13);
@@ -103,7 +103,7 @@ fn release_deposit_should_be_callable_by_root() {
 			assert_ok!(CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID,));
 
 			//Assert
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 110);
 		});
 }
@@ -117,13 +117,13 @@ fn release_deposit_should_not_work_when_asset_in_lockdown() {
 		.execute_with(|| {
 			//Arrange
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 50);
 
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 
 			//Act and assert
@@ -133,7 +133,7 @@ fn release_deposit_should_not_work_when_asset_in_lockdown() {
 			);
 
 			//Assert
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 		});
 }
@@ -147,13 +147,13 @@ fn release_deposit_should_work_when_asset_in_lockdown_but_expired() {
 		.execute_with(|| {
 			//Arrange
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 50);
 
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 
 			System::set_block_number(13);
@@ -162,7 +162,7 @@ fn release_deposit_should_work_when_asset_in_lockdown_but_expired() {
 			assert_ok!(CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID,),);
 
 			//Assert
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 110);
 		});
 }
@@ -176,13 +176,13 @@ fn release_deposit_should_work_when_asset_in_unlocked_state() {
 		.execute_with(|| {
 			//Arrange
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 50);
 
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 
 			System::set_block_number(13);
@@ -192,7 +192,7 @@ fn release_deposit_should_work_when_asset_in_unlocked_state() {
 			assert_ok!(CircuitBreaker::release_deposit(RawOrigin::Root.into(), ALICE, ASSET_ID,),);
 
 			//Assert
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 130);
 		});
 }

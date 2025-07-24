@@ -15,13 +15,13 @@ fn deposit_limit_should_work() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 50));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 50);
 
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 60));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 			expect_events(vec![
 				CircuitBreakerEvent::AssetLockdown {
@@ -328,17 +328,17 @@ fn deposit_should_be_fully_locked_when_asset_is_already_on_lockdown() {
 fn lockdown_should_be_ignored_when_no_limit_set_for_asset() {
 	ExtBuilder::default().with_deposit_period(10).build().execute_with(|| {
 		assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 210));
-		let balance = Tokens::free_balance(10000, &ALICE);
+		let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 		assert_eq!(balance, 210);
 
 		System::set_block_number(2);
 
 		assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 100));
-		let balance = Tokens::free_balance(10000, &ALICE);
+		let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 		assert_eq!(balance, 310);
 
 		assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 91));
-		let balance = Tokens::free_balance(10000, &ALICE);
+		let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 		assert_eq!(balance, 401);
 	});
 }
@@ -353,7 +353,7 @@ fn unlock_event_should_be_emitted_when_asset_unlocked() {
 			System::set_block_number(2);
 
 			assert_ok!(Tokens::deposit(ASSET_ID, &ALICE, 101));
-			let balance = Tokens::free_balance(10000, &ALICE);
+			let balance = Tokens::free_balance(ASSET_ID, &ALICE);
 			assert_eq!(balance, 100);
 
 			System::set_block_number(13);
