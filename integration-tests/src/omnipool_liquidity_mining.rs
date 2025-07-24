@@ -1052,7 +1052,8 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_stableshare_goes
 					.try_into()
 					.unwrap(),
 					Some(farms.try_into().unwrap())
-				), pallet_omnipool::Error::<hydradx_runtime::Runtime>::InsufficientBalance
+				),
+				pallet_omnipool::Error::<hydradx_runtime::Runtime>::InsufficientBalance
 			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
