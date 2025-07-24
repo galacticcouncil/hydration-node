@@ -393,27 +393,6 @@ fn release_deposit_should_work_when_accumulated_through_multiple_periods() {
 }
 
 #[test]
-fn release_deposit_should_fail_when_nothing_is_reserved() {
-	Hydra::execute_with(|| {
-		//Arrange
-		crate::circuit_breaker::init_omnipool();
-		set_relaychain_block_number(4);
-
-		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
-		let deposit_limit = 100_000_000_000_000_000;
-		update_deposit_limit(DAI, deposit_limit).unwrap();
-
-		set_relaychain_block_number(DAYS + 5);
-
-		//Act and assert
-		assert_noop!(
-			CircuitBreaker::release_deposit(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::InvalidAmount
-		);
-	});
-}
-
-#[test]
 fn release_deposit_should_fail_when_no_reserved_asset_for_user() {
 	Hydra::execute_with(|| {
 		//Arrange
