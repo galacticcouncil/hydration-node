@@ -54,9 +54,9 @@ fn router_weights_should_be_non_zero() {
 
 mod router_different_pools_tests {
 	use super::*;
+	use crate::assert_reserved_balance;
 	use hydradx_traits::router::PoolType;
 	use pallet_broadcast::types::ExecutionType;
-	use crate::assert_reserved_balance;
 
 	#[test]
 	fn route_should_fail_when_route_is_not_consistent() {
@@ -649,8 +649,8 @@ mod router_different_pools_tests {
 		});
 	}
 
-	use orml_traits::MultiReservableCurrency;
 	use hydradx_runtime::Router;
+	use orml_traits::MultiReservableCurrency;
 
 	#[test]
 	fn sell_router_should_add_liquidity_to_stableswap_when_selling_for_shareasset_in_stableswap() {
@@ -763,14 +763,17 @@ mod router_different_pools_tests {
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit);
 
 				//Act and assert
-				assert_noop!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					HDX,
-					pool_id,
-					amount_to_sell,
-					4538992258357,
-					trades.try_into().unwrap()
-				), pallet_route_executor::Error::<Runtime>::TradingLimitReached);
+				assert_noop!(
+					Router::sell(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						HDX,
+						pool_id,
+						amount_to_sell,
+						4538992258357,
+						trades.try_into().unwrap()
+					),
+					pallet_route_executor::Error::<Runtime>::TradingLimitReached
+				);
 
 				assert_balance!(ALICE.into(), pool_id, 0);
 				assert_reserved_balance!(&Router::router_account(), pool_id, 0);
