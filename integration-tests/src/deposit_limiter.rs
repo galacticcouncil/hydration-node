@@ -351,6 +351,43 @@ fn release_deposit_should_work_when_asset_unclocked() {
 }
 
 #[test]
+fn release_deposit_should_work_when_called_by_authority() {
+	Hydra::execute_with(|| {
+		//Arrange
+		crate::circuit_breaker::init_omnipool();
+		set_relaychain_block_number(4);
+
+		assert_eq!(Currencies::free_balance(DAI, &ALICE.into()), ALICE_INITIAL_DAI_BALANCE);
+		let deposit_limit = 100_000_000_000_000_000;
+		update_deposit_limit(DAI, deposit_limit).unwrap();
+
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), deposit_limit + UNITS));
+		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
+
+		set_relaychain_block_number(DAYS + 5);
+
+		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), UNITS)); //It doesnt trigger circuit breaker, just puts state to unlocked
+		assert_reserved_balance!(&ALICE.into(), DAI, UNITS);
+
+		//Act
+		let authority_origin = hydradx_runtime::OriginCaller::Origins(Origin::OmnipoolAdmin);
+
+		assert_ok!(CircuitBreaker::release_deposit(
+			authority_origin.into(),
+			ALICE.into(),
+			DAI,
+		));
+
+		//Assert
+		assert_reserved_balance!(&ALICE.into(), DAI, 0);
+		assert_eq!(
+			Currencies::free_balance(DAI, &ALICE.into()),
+			deposit_limit + ALICE_INITIAL_DAI_BALANCE + 2 * UNITS
+		);
+	});
+}
+
+#[test]
 fn release_deposit_should_work_when_accumulated_through_multiple_periods() {
 	Hydra::execute_with(|| {
 		//Arrange
@@ -489,6 +526,7 @@ use polkadot_xcm::opaque::v3::{
 	Junctions::{X1, X2},
 	MultiLocation, NetworkId,
 };
+use hydradx_runtime::origins::Origin;
 use primitives::constants::currency::UNITS;
 
 #[test]

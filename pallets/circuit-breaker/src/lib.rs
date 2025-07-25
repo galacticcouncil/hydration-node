@@ -530,7 +530,10 @@ pub mod pallet {
 			who: T::AccountId,
 			asset_id: T::AssetId,
 		) -> DispatchResultWithPostInfo {
-			ensure_signed_or_root(origin)?;
+			match ensure_signed_or_root(origin.clone()) {
+				Ok(_) => {},
+				Err(_) => T::AuthorityOrigin::ensure_origin(origin).map(|_| ())?,
+			}
 
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let last_state = AssetLockdownState::<T>::get(asset_id);
