@@ -550,11 +550,9 @@ fn hydra_should_block_asset_from_other_hain_when_over_limit() {
 	});
 
 	Hydra::execute_with(|| {
-		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
-
 		//The fee to-be-sent to the treausury was blocked and reserved too as we reached limit
 		let fee = 77827795107;
-		assert_reserved_balance!(&hydradx_runtime::Treasury::account_id(), ACA, 77827795107);
+		assert_reserved_balance!(&hydradx_runtime::Treasury::account_id(), ACA, fee);
 
 		// Bob receives the amount equal to deposit limit, the rest is reserved
 		assert_eq!(

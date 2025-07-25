@@ -56,6 +56,7 @@ mod router_different_pools_tests {
 	use super::*;
 	use hydradx_traits::router::PoolType;
 	use pallet_broadcast::types::ExecutionType;
+	use crate::assert_reserved_balance;
 
 	#[test]
 	fn route_should_fail_when_route_is_not_consistent() {
@@ -648,6 +649,9 @@ mod router_different_pools_tests {
 		});
 	}
 
+	use orml_traits::MultiReservableCurrency;
+	use hydradx_runtime::Router;
+
 	#[test]
 	fn sell_router_should_add_liquidity_to_stableswap_when_selling_for_shareasset_in_stableswap() {
 		TestNet::reset();
@@ -707,6 +711,69 @@ mod router_different_pools_tests {
 				);
 
 				assert_balance!(ALICE.into(), pool_id, 4638992258357);
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+	}
+
+	#[test]
+	fn sell_router_with_adding_liquidity_fails_with_slippage_when_deposit_limiter_triggered() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let _ = with_transaction(|| {
+				//Arrange
+				let (pool_id, stable_asset_1, _) = init_stableswap().unwrap();
+
+				init_omnipool();
+
+				assert_ok!(Currencies::update_balance(
+					hydradx_runtime::RuntimeOrigin::root(),
+					Omnipool::protocol_account(),
+					stable_asset_1,
+					3000 * UNITS as i128,
+				));
+
+				assert_ok!(hydradx_runtime::Omnipool::add_token(
+					hydradx_runtime::RuntimeOrigin::root(),
+					stable_asset_1,
+					FixedU128::from_inner(25_650_000_000_000_000),
+					Permill::from_percent(1),
+					AccountId::from(BOB),
+				));
+
+				let trades = vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: stable_asset_1,
+					},
+					Trade {
+						pool: PoolType::Stableswap(pool_id),
+						asset_in: stable_asset_1,
+						asset_out: pool_id,
+					},
+				];
+
+				assert_balance!(ALICE.into(), pool_id, 0);
+
+				//Act
+				let amount_to_sell = 100 * UNITS;
+				let deposit_limit = 1 * UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit);
+
+				//Act and assert
+				assert_noop!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					pool_id,
+					amount_to_sell,
+					4538992258357,
+					trades.try_into().unwrap()
+				), pallet_route_executor::Error::<Runtime>::TradingLimitReached);
+
+				assert_balance!(ALICE.into(), pool_id, 0);
+				assert_reserved_balance!(&Router::router_account(), pool_id, 0);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
 		});
