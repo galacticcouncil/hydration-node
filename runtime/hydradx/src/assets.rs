@@ -1363,6 +1363,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type RawOracle = OmnipoolRawOracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+	type WeightInfo = weights::pallet_dynamic_fees::HydraWeight<Runtime>;
 }
 
 // Stableswap
