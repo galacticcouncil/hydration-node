@@ -517,6 +517,7 @@ fn release_deposit_should_fail_when_called_2nd_time() {
 }
 
 use frame_support::pallet_prelude::Weight;
+use hydradx_runtime::origins::Origin;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use pallet_broadcast::types::Filler::Omnipool as OtherOmnipool;
@@ -526,7 +527,6 @@ use polkadot_xcm::opaque::v3::{
 	Junctions::{X1, X2},
 	MultiLocation, NetworkId,
 };
-use hydradx_runtime::origins::Origin;
 use primitives::constants::currency::UNITS;
 
 #[test]
