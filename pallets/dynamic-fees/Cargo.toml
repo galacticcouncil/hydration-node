@@ -1,6 +1,6 @@
 [package]
 name =  "pallet-dynamic-fees"
-version = "2.0.2"
+version = "3.0.0"
 description = "A pallet to provide support for dynamic fees"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -35,6 +35,7 @@ runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
 ]
 std = [
   "serde/std",
@@ -47,5 +48,6 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "hydradx-traits/std",
+  "frame-benchmarking/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

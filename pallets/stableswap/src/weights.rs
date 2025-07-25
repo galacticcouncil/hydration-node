@@ -27,6 +27,8 @@ pub trait WeightInfo {
 	fn router_execution_sell(c: u32, e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
 	fn calculate_spot_price_with_fee() -> Weight;
+	fn update_asset_peg_source() -> Weight;
+	fn update_pool_max_peg_update() -> Weight;
 }
 
 /// Weights for pallet_stableswap using the hydraDX node and recommended hardware.
@@ -457,5 +459,32 @@ impl WeightInfo for () {
 		Weight::from_parts(53_616_000, 16590)
 			.saturating_add(RocksDbWeight::get().reads(7_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+
+	/// Storage: Stableswap::Pools (r:1 w:0)
+	/// Proof: Stableswap::Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	/// Storage: Stableswap::PoolPegs (r:1 w:1)
+	/// Proof: Stableswap::PoolPegs (max_values: None, max_size: Some(351), added: 2826, mode: MaxEncodedLen)
+	fn update_asset_peg_source() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  627
+		//  Estimated: 3816
+		// Minimum execution time: 26_785_000 picoseconds.
+		Weight::from_parts(27_197_000, 3816)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: Stableswap::Pools (r:1 w:0)
+	/// Proof: Stableswap::Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	/// Storage: Stableswap::PoolPegs (r:1 w:1)
+	/// Proof: Stableswap::PoolPegs (max_values: None, max_size: Some(351), added: 2826, mode: MaxEncodedLen)
+	fn update_pool_max_peg_update() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  620
+		//  Estimated: 3816
+		// Minimum execution time: 26_289_000 picoseconds.
+		Weight::from_parts(26_675_000, 3816)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

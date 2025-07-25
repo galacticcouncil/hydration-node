@@ -78,6 +78,8 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 	Origin,
 };
+use sp_runtime::traits::Zero;
+
 use orml_traits::{arithmetic::CheckedAdd, MultiCurrency, NamedMultiReservableCurrency};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -115,6 +117,7 @@ pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 pub mod pallet {
 	use frame_support::traits::Contains;
 	use frame_support::weights::WeightToFee;
+	use frame_system::ensure_signed_or_root;
 	use frame_system::pallet_prelude::OriginFor;
 	use orml_traits::NamedMultiReservableCurrency;
 	use sp_runtime::Percent;
@@ -359,6 +362,8 @@ pub mod pallet {
 			block: BlockNumberFor<T>,
 			error: DispatchError,
 		},
+		///DCA reserve for the given asset have been unlocked for a user
+		ReserveUnlocked { who: T::AccountId, asset_id: T::AssetId },
 	}
 
 	#[pallet::error]
@@ -399,6 +404,10 @@ pub mod pallet {
 		PeriodTooShort,
 		///Stability threshold cannot be higher than `MaxConfigurablePriceDifferenceBetweenBlock`
 		StabilityThresholdTooHigh,
+		///User still has active DCA schedules and cannot unlock reserves
+		HasActiveSchedules,
+		///No reserves are locked for the user for the given asset
+		NoReservesLocked,
 	}
 
 	/// Id sequencer for schedules
@@ -634,6 +643,47 @@ pub mod pallet {
 				who: schedule.owner,
 				error: Error::<T>::ManuallyTerminated.into(),
 			});
+
+			Ok(())
+		}
+
+		/// Unlocks DCA reserves of provided asset for the caller if they have no active schedules.
+		///
+		/// This is a utility function to help users recover their reserved funds in case
+		/// a DCA schedule was terminated but left some reserved amounts.
+		///
+		/// This can only be called when the user has no active DCA schedules.
+		///
+		/// Parameters:
+		/// - `origin`: The account to unlock reserves for (must be signed)
+		/// - `asset_id`: The asset ID for which reserves should be unlocked.
+		///
+		/// Emits `ReserveUnlocked` event when successful.
+		///
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::unlock_reserves())]
+		#[transactional]
+		pub fn unlock_reserves(origin: OriginFor<T>, who: T::AccountId, asset_id: T::AssetId) -> DispatchResult {
+			let _ = ensure_signed_or_root(origin)?;
+
+			ensure!(
+				ScheduleOwnership::<T>::iter_prefix(who.clone()).next().is_none(),
+				Error::<T>::HasActiveSchedules
+			);
+
+			let named_reserve_id = T::NamedReserveId::get();
+			let reserved_balance = T::Currencies::reserved_balance_named(&named_reserve_id, asset_id, &who);
+
+			ensure!(!reserved_balance.is_zero(), Error::<T>::NoReservesLocked);
+
+			let remaining_unreserved =
+				T::Currencies::unreserve_named(&named_reserve_id, asset_id, &who, reserved_balance);
+
+			// Sanity check to ensure that all reserved balance has been unreserved.
+			// It should never be triggered as we should unreserve the exact reserved balance
+			ensure!(remaining_unreserved.is_zero(), Error::<T>::InvalidState);
+
+			Self::deposit_event(Event::ReserveUnlocked { who, asset_id });
 
 			Ok(())
 		}

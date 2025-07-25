@@ -284,6 +284,17 @@ pub mod pallet {
 		},
 		/// A pool has been destroyed.
 		PoolDestroyed { pool_id: T::AssetId },
+		/// Pool peg source has been updated.
+		PoolPegSourceUpdated {
+			pool_id: T::AssetId,
+			asset_id: T::AssetId,
+			peg_source: PegSource<T::AssetId>,
+		},
+		/// Pool max peg update has been updated.
+		PoolMaxPegUpdateUpdated {
+			pool_id: T::AssetId,
+			max_peg_update: Permill,
+		},
 	}
 
 	#[pallet::error]
@@ -369,6 +380,9 @@ pub mod pallet {
 
 		/// Creating pool with pegs is not allowed for asset with different decimals.
 		IncorrectAssetDecimals,
+
+		/// Pool does not have pegs configured.
+		NoPegSource,
 	}
 
 	#[pallet::call]
@@ -1249,6 +1263,98 @@ pub mod pallet {
 			Self::do_add_liquidity(&who, pool_id, &assets, min_shares)?;
 
 			Ok(())
+		}
+
+		/// Update the peg source for a specific asset in a pool.
+		///
+		/// This function allows updating the peg source for an asset within a pool.
+		/// The pool must exist and have pegs configured. The asset must be part of the pool.
+		/// The current price is always preserved when updating the peg source.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`.
+		/// - `pool_id`: The ID of the pool containing the asset.
+		/// - `asset_id`: The ID of the asset whose peg source is to be updated.
+		/// - `peg_source`: The new peg source for the asset.
+		///
+		/// Emits `PoolPegSourceUpdated` event when successful.
+		///
+		/// # Errors
+		/// - `PoolNotFound`: If the specified pool does not exist.
+		/// - `NoPegSource`: If the pool does not have pegs configured.
+		/// - `AssetNotInPool`: If the specified asset is not part of the pool.
+		///
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_asset_peg_source())]
+		#[transactional]
+		pub fn update_asset_peg_source(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			asset_id: T::AssetId,
+			peg_source: PegSource<T::AssetId>,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let asset_index = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+
+			PoolPegs::<T>::try_mutate(pool_id, |maybe_peg_info| -> DispatchResult {
+				let peg_info = maybe_peg_info.as_mut().ok_or(Error::<T>::NoPegSource)?;
+
+				debug_assert_eq!(peg_info.source.len(), pool.assets.len(), "Peg source length mismatch");
+				ensure!(peg_info.source.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
+				peg_info.source[asset_index] = peg_source.clone();
+
+				Self::deposit_event(Event::PoolPegSourceUpdated {
+					pool_id,
+					asset_id,
+					peg_source,
+				});
+
+				Ok(())
+			})
+		}
+
+		/// Update the maximum peg update percentage for a pool.
+		///
+		/// This function allows updating the maximum percentage by which peg values
+		/// can change in a pool with pegs configured.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`.
+		/// - `pool_id`: The ID of the pool to update.
+		/// - `max_peg_update`: The new maximum peg update percentage.
+		///
+		/// Emits `PoolMaxPegUpdateUpdated` event when successful.
+		///
+		/// # Errors
+		/// - `PoolNotFound`: If the specified pool does not exist.
+		/// - `NoPegSource`: If the pool does not have pegs configured.
+		///
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_pool_max_peg_update())]
+		#[transactional]
+		pub fn update_pool_max_peg_update(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			max_peg_update: Permill,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			ensure!(Pools::<T>::contains_key(pool_id), Error::<T>::PoolNotFound);
+
+			PoolPegs::<T>::try_mutate(pool_id, |maybe_peg_info| -> DispatchResult {
+				let peg_info = maybe_peg_info.as_mut().ok_or(Error::<T>::NoPegSource)?;
+
+				peg_info.max_peg_update = max_peg_update;
+
+				Self::deposit_event(Event::PoolMaxPegUpdateUpdated {
+					pool_id,
+					max_peg_update,
+				});
+
+				Ok(())
+			})
 		}
 	}
 
