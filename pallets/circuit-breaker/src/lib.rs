@@ -354,7 +354,9 @@ pub mod pallet {
 		MaxLiquidityLimitPerBlockReached,
 		/// Asset is not allowed to have a limit
 		NotAllowed,
-		/// Asset in lockdown
+		/// Asset still in lockdown as it reached the allowed deposit limit for the period
+		/// Query the `asset_lockdown_state` storage to determine until which block the asset is locked,
+		/// so that the deposit can be released afterward.
 		AssetInLockdown,
 		/// Asset is not in a lockdown
 		AssetNotInLockdown,
