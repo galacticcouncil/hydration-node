@@ -531,7 +531,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 		) -> DispatchResultWithPostInfo {
 			match ensure_signed_or_root(origin.clone()) {
-				Ok(_) => {},
+				Ok(_) => {}
 				Err(_) => T::AuthorityOrigin::ensure_origin(origin).map(|_| ())?,
 			}
 
