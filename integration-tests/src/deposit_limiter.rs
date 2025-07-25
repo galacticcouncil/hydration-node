@@ -492,7 +492,7 @@ use polkadot_xcm::opaque::v3::{
 use primitives::constants::currency::UNITS;
 
 #[test]
-fn hydra_should_block_asset_from_other_hain_when_over_limit() {
+fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 	// Arrange
 	TestNet::reset();
 	let deposit_limit = 10000 * UNITS;

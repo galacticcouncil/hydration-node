@@ -7,7 +7,7 @@ use orml_traits::MultiCurrency;
 pub const ASSET_ID: u32 = 10000;
 
 #[test]
-fn lockdown_asset_should_fork_for_new_asset() {
+fn lockdown_asset_should_lock_for_new_asset() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -30,7 +30,7 @@ fn lockdown_asset_should_fork_for_new_asset() {
 }
 
 #[test]
-fn lockdown_asset_should_fork_for_unlocked_asset() {
+fn lockdown_asset_should_lock_for_unlocked_asset() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -59,7 +59,7 @@ fn lockdown_asset_should_fork_for_unlocked_asset() {
 }
 
 #[test]
-fn lockdown_asset_should_fork_for_locked_asset() {
+fn lockdown_asset_should_lock_for_locked_asset() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
