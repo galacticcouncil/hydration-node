@@ -9,6 +9,7 @@ mod circuit_breaker;
 mod contracts;
 mod cross_chain_transfer;
 mod dca;
+mod deposit_limiter;
 mod dispatcher;
 mod driver;
 mod dust;
@@ -53,6 +54,6 @@ macro_rules! assert_balance {
 #[macro_export]
 macro_rules! assert_reserved_balance {
 	( $who:expr, $asset:expr, $amount:expr) => {{
-		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
+		pretty_assertions::assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
 	}};
 }

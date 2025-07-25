@@ -1,6 +1,6 @@
 [package]
 name = "pallet-hsm"
-version = "1.1.1"
+version = "1.1.2"
 edition = "2021"
 description = "Hollar stability module"
 authors = ["GalacticCouncil"]
@@ -16,9 +16,9 @@ codec = { workspace = true }
 scale-info = { workspace = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 hex-literal = { workspace = true }
-log = {workspace=true}
-num-traits = {  workspace = true }
-primitive-types = {workspace = true}
+log = { workspace = true }
+num-traits = { workspace = true }
+primitive-types = { workspace = true }
 
 # parity
 sp-std = { workspace = true }
@@ -34,7 +34,7 @@ frame-benchmarking = { workspace = true, optional = true }
 # Hydra dependencies
 pallet-stableswap = { workspace = true }
 hydradx-traits = { workspace = true }
-hydra-dx-math = {workspace = true}
+hydra-dx-math = { workspace = true }
 pallet-broadcast = { workspace = true }
 
 # EVM dependencies
@@ -46,9 +46,9 @@ ethabi = { workspace = true }
 precompile-utils = { workspace = true }
 
 [dev-dependencies]
-orml-tokens = {workspace = true}
-orml-traits = {workspace = true}
-pretty_assertions = {workspace = true}
+orml-tokens = { workspace = true }
+orml-traits = { workspace = true }
+pretty_assertions = { workspace = true }
 
 [features]
 default = ["std"]

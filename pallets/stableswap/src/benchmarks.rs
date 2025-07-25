@@ -174,6 +174,8 @@ benchmarks! {
 			T::Currency::update_balance(*asset_id, &caller, 300_000_000_000_000i128)?;
 			added_liquidity.push(AssetAmount::new(*asset_id, 300_000_000_000_000u128));
 		}
+		T::BenchmarkHelper::set_deposit_limit(pool_id, 1_000_000u128)?;//To trigger deposit limiter circuit breaker, leading to worst case
+
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, added_liquidity.try_into().unwrap())
 	verify {
 		assert!(T::Currency::free_balance(pool_id, &caller) > 0u128);
@@ -189,6 +191,8 @@ benchmarks! {
 			T::Currency::update_balance(*asset_id, &caller, 300_000_000_000_000i128)?;
 			added_liquidity.push(AssetAmount::new(*asset_id, 300_000_000_000_000u128));
 		}
+		T::BenchmarkHelper::set_deposit_limit(pool_id, 1_000_000u128)?;//To trigger deposit limiter circuit breaker, leading to worst case
+
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, added_liquidity.try_into().unwrap(), Balance::zero())
 	verify {
 		assert!(T::Currency::free_balance(pool_id, &caller) > 0u128);
@@ -204,9 +208,12 @@ benchmarks! {
 		T::Currency::update_balance(used_asset_id, &caller, 1_000_000_000_000_000_000i128)?;
 
 		let desired_shares = 1198499641600967085948u128;
+		let over_limit = 100u128;
+		T::BenchmarkHelper::set_deposit_limit(pool_id, desired_shares - over_limit)?;//To trigger deposit limiter circuit breaker, leading to worst case
+
 	}: _(RawOrigin::Signed(caller.clone()), pool_id, desired_shares, used_asset_id, 1221886049851226)
 	verify {
-		assert_eq!(T::Currency::free_balance(pool_id, &caller), desired_shares);
+		assert_eq!(T::Currency::free_balance(pool_id, &caller), desired_shares - over_limit);
 		assert_eq!(T::Currency::free_balance(used_asset_id, &caller), 998780919799906332);
 	}
 
