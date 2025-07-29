@@ -98,9 +98,19 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 6_977_000 picoseconds.
-		Weight::from_parts(7_224_485, 0)
+		// Minimum execution time: 7_163_000 picoseconds.
+		Weight::from_parts(7_403_917, 0)
 			// Standard Error: 1
-			.saturating_add(Weight::from_parts(467, 0).saturating_mul(n.into()))
+			.saturating_add(Weight::from_parts(418, 0).saturating_mul(n.into()))
+	}
+	/// The range of component `n` is `[1, 10000]`.
+	fn dispatch_evm_call(n: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 6_981_000 picoseconds.
+		Weight::from_parts(7_241_486, 0)
+			// Standard Error: 1
+			.saturating_add(Weight::from_parts(422, 0).saturating_mul(n.into()))
 	}
 }
