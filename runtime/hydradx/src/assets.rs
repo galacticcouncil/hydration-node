@@ -1042,9 +1042,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
 					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(e)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(e),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
@@ -1141,9 +1139,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(e)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(e),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
@@ -1215,9 +1211,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
@@ -1230,9 +1224,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
