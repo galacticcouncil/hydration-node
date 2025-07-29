@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 333,
+	spec_version: 334,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1572,6 +1572,22 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		dai,
 		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 	));
+
+	with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::update(
+			RawOrigin::Root.into(),
+			hdx,
+			None,
+			None,
+			None,
+			Some(amount_to_sell * 10),
+			None,
+			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ());
 
 	with_transaction::<Balance, DispatchError, _>(|| {
 		let caller2: AccountId = frame_benchmarking::account("caller2", 0, 1);

@@ -32,6 +32,7 @@ use crate::Config;
 
 use crate::types::BoundedPegSources;
 use crate::{PegRawOracle, PegSource, PegType};
+use frame_support::__private::Get;
 use frame_support::traits::{Contains, Everything};
 use frame_support::weights::Weight;
 use frame_support::{assert_ok, BoundedVec};
@@ -40,8 +41,9 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
-use orml_traits::parameter_type_with_key;
+use orml_traits::currency::MutationHooks;
 pub use orml_traits::MultiCurrency;
+use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
 use sp_core::H256;
 use sp_runtime::Permill;
 use sp_runtime::{
@@ -77,6 +79,10 @@ thread_local! {
 	pub static LAST_LIQUDITY_CHANGE_HOOK: RefCell<Option<(AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
 	pub static LAST_TRADE_HOOK: RefCell<Option<(AssetId, AssetId, AssetId, PoolState<AssetId>)>> = const { RefCell::new(None) };
 	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
+		pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = const { RefCell::new((2_000, 10_000)) }; // 20%
+	pub static MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((4_000, 10_000))) }; // 40%
+	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((2_000, 10_000))) }; // 20%
+	pub static ASSET_DEPOSIT_LIMIT: RefCell<HashMap<AssetId, Balance>> = RefCell::new(HashMap::default());
 }
 
 construct_runtime!(
@@ -86,6 +92,7 @@ construct_runtime!(
 		Tokens: orml_tokens,
 		Stableswap: pallet_stableswap,
 		Broadcast: pallet_broadcast,
+		CircuitBreaker: pallet_circuit_breaker,
 	}
 );
 
@@ -134,10 +141,10 @@ impl orml_tokens::Config for Test {
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type CurrencyHooks = ();
+	type CurrencyHooks = Hooks;
 	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
 	type DustRemovalWhitelist = Everything;
 }
 
@@ -426,6 +433,13 @@ impl BenchmarkHelper<AssetId> for DummyRegistry {
 		Ok(())
 	}
 
+	fn set_deposit_limit(asset_id: AssetId, limit: u128) -> DispatchResult {
+		ASSET_DEPOSIT_LIMIT.with(|v| {
+			v.borrow_mut().insert(asset_id, limit);
+		});
+		Ok(()) //We set the deposit limit only for the prod benchmark
+	}
+
 	fn register_asset_peg(
 		asset_pair: (AssetId, AssetId),
 		peg: crate::types::PegType,
@@ -572,4 +586,126 @@ pub(crate) fn set_peg_oracle_value(asset_a: AssetId, asset_b: AssetId, price: (B
 		v.borrow_mut()
 			.insert((asset_a, asset_b), (price.0, price.1, updated_at));
 	});
+}
+
+pub(crate) fn set_deposit_limit(asset: AssetId, limit: Balance) {
+	ASSET_DEPOSIT_LIMIT.with(|v| {
+		v.borrow_mut().insert(asset, limit);
+	});
+}
+
+parameter_types! {
+		pub NamedReserveId: [u8;8] = *b"test_res";
+			pub const MaxReserves: u32 = 50;
+		pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub const OmnipoolHubAsset: AssetId = 111;
+}
+
+pub struct DepositLimiter;
+
+impl pallet_circuit_breaker::traits::AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
+	type DepositLimit = AssetLimit;
+	type Period = LimitDepositPeriod;
+	type Issuance = AssetIssuance;
+	type OnLimitReached = LimitReachedHandler;
+	type OnLockdownDeposit = OnLockdownDepositHandler;
+	type OnDepositRelease = OnReleaseDepositHandler;
+}
+
+pub struct LimitDepositPeriod;
+
+impl Get<u128> for LimitDepositPeriod {
+	fn get() -> u128 {
+		10000u128
+	}
+}
+
+pub struct AssetLimit;
+
+impl GetByKey<AssetId, Option<Balance>> for AssetLimit {
+	fn get(k: &AssetId) -> Option<Balance> {
+		let asset = ASSET_DEPOSIT_LIMIT.with(|v| v.borrow().get(k).copied());
+		asset
+		//Some(asset.unwrap_or(Balance::MAX))
+	}
+}
+
+pub struct AssetIssuance;
+impl GetByKey<AssetId, Balance> for AssetIssuance {
+	fn get(k: &AssetId) -> Balance {
+		Tokens::total_issuance(k)
+	}
+}
+
+pub struct LimitReachedHandler;
+
+impl Happened<AssetId> for LimitReachedHandler {
+	fn happened(_t: &AssetId) {}
+}
+
+pub struct OnLockdownDepositHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		//assert_eq!(t.0, 0);
+		//assert_eq!(t.2, 1);
+
+		let free = Tokens::free_balance(t.0, &t.1);
+
+		Tokens::reserve_named(&NamedReserveId::get(), t.0, &t.1, t.2)?;
+		let free = Tokens::free_balance(t.0, &t.1);
+		//assert_eq!(free, 323);
+		Ok(())
+	}
+}
+
+pub struct OnReleaseDepositHandler;
+impl Handler<(AssetId, AccountId)> for OnReleaseDepositHandler {
+	fn handle(t: &(AssetId, AccountId)) -> DispatchResult {
+		let reserved_balance = Tokens::reserved_balance_named(&NamedReserveId::get(), t.0, &t.1);
+
+		Tokens::unreserve_named(&NamedReserveId::get(), t.0, &t.1, reserved_balance);
+
+		Ok(())
+	}
+}
+
+pub struct Hooks;
+
+impl MutationHooks<AccountId, AssetId, Balance> for Hooks {
+	type OnDust = ();
+	type OnSlash = ();
+	type PreDeposit = ();
+	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Test>;
+	type PreTransfer = ();
+	type PostTransfer = ();
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+}
+
+pub const WHITELISTED_ACCCOUNT: u64 = 2;
+
+pub struct CircuitBreakerWhitelist;
+
+impl Contains<AccountId> for CircuitBreakerWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		WHITELISTED_ACCCOUNT == *a
+	}
+}
+
+impl pallet_circuit_breaker::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = OmnipoolHubAsset;
+	type WeightInfo = ();
+	type DepositLimiter = DepositLimiter;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
