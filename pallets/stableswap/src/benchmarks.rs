@@ -41,6 +41,18 @@ where
 	T::AssetId: From<u32>,
 	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 {
+	setup_pool_with_initial_liquidity_with_offset::<T>(0u32, acc)
+}
+
+//Offset is needed for parameterized benchmark tests as they share some state, so by offsetting we wont hae same asset ids for each run
+fn setup_pool_with_initial_liquidity_with_offset<T: Config>(
+	offset: u32,
+	acc: &T::AccountId,
+) -> (T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>)
+where
+	T::AssetId: From<u32>,
+	T::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+{
 	let initial_liquidity = 1_000_000_000_000_000u128;
 	let liquidity_added = 300_000_000_000_000u128;
 
@@ -48,7 +60,7 @@ where
 	let mut added_liquidity: Vec<AssetAmount<T::AssetId>> = vec![];
 	let mut asset_ids: Vec<T::AssetId> = Vec::new();
 	for idx in 0..MAX_ASSETS_IN_POOL {
-		let asset_id: T::AssetId = (idx + ASSET_ID_OFFSET).into();
+		let asset_id: T::AssetId = ((idx + ASSET_ID_OFFSET) * (1 + offset)).into();
 		T::BenchmarkHelper::register_asset(asset_id, 12).expect("Failed to register asset");
 		asset_ids.push(asset_id);
 		T::Currency::update_balance(asset_id, acc, 1_000_000_000_000_000_000_000i128)
@@ -72,7 +84,7 @@ where
 			.expect("Failed to register peg");
 	}
 
-	let pool_id: T::AssetId = (1000u32).into();
+	let pool_id: T::AssetId = (1000u32 * (1 + offset)).into();
 	T::BenchmarkHelper::register_asset(pool_id, 18).expect("Failed to register asset");
 	let amplification = 100u16;
 	let trade_fee = Permill::from_percent(1);
@@ -448,17 +460,16 @@ benchmarks! {
 	}
 
 	router_execution_sell{
-		let c in 1..2;
 		let e in 0..1;	// if e == 1, execute_sell is executed
 
 		let lp_provider: T::AccountId = account("provider", 0, 1);
-		let (pool_id, pool) = setup_pool_with_initial_liquidity::<T>(&lp_provider);
+		let (pool_id, pool) = setup_pool_with_initial_liquidity_with_offset::<T>(e, &lp_provider);
 
 		let asset_in: T::AssetId = *pool.assets.last().unwrap();
-		let asset_out: T::AssetId = *pool.assets.first().unwrap();
+		let asset_out: T::AssetId = pool_id;
 
 		let seller : T::AccountId = account("seller", 0, 1);
-		let amount_sell  = 100_000_000_000_000u128;
+		let amount_sell  = 100_000_000_000_000_000_000u128;
 		T::Currency::update_balance(asset_in, &seller, amount_sell as i128)?;
 		let buy_min_amount = 1_000u128;
 		// Worst case is when amplification is changing
@@ -469,6 +480,8 @@ benchmarks! {
 			1000u32.into(),
 		)?;
 		System::<T>::set_block_number(500u32.into());
+		T::BenchmarkHelper::set_deposit_limit(pool_id, 9999999u128)?; //To trigger deposit limiter circuit breaker, leading to worst case
+
 	}: {
 		assert!(<crate::Pallet::<T> as TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance>>::calculate_out_given_in(PoolType::Stableswap(pool_id), asset_in, asset_out, amount_sell).is_ok());
 		if e != 0 {
@@ -478,7 +491,7 @@ benchmarks! {
 	verify {
 		if e != 0 {
 			assert_eq!(T::Currency::free_balance(asset_in, &seller), 0u128);
-			assert_eq!(T::Currency::free_balance(asset_out, &seller), 49563515942526);
+			assert_eq!(T::Currency::free_balance(pool_id, &seller), 9999999u128);
 		}
 	}
 

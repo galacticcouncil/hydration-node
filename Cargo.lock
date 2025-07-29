@@ -9152,6 +9152,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-broadcast",
+ "pallet-circuit-breaker",
  "parity-scale-codec",
  "pretty_assertions",
  "proptest",
