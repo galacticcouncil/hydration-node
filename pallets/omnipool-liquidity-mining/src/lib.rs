@@ -461,7 +461,8 @@ pub mod pallet {
 		/// Emits `YieldFarmCreated` event when successful.
 		///
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_yield_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::create_yield_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn create_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -506,7 +507,8 @@ pub mod pallet {
 		/// Emits `YieldFarmUpdated` event when successful.
 		///
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_yield_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_yield_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn update_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -552,7 +554,8 @@ pub mod pallet {
 		/// Emits `YieldFarmStopped` event when successful.
 		///
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::stop_yield_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::stop_yield_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn stop_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -593,7 +596,8 @@ pub mod pallet {
 		/// Emits `YieldFarmResumed` event when successful.
 		///
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::resume_yield_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::resume_yield_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn resume_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -682,7 +686,8 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event when successful.
 		///
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares().saturating_add(T::PriceOracle::get_price_weight()))]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn deposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -712,7 +717,8 @@ pub mod pallet {
 		/// Emits `SharesRedeposited` event when successful.
 		///
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares().saturating_add(T::PriceOracle::get_price_weight()))]
+		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn redeposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -762,7 +768,8 @@ pub mod pallet {
 		/// Emits `RewardClaimed` event when successful.
 		///
 		#[pallet::call_index(10)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
+		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn claim_rewards(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -808,7 +815,8 @@ pub mod pallet {
 		/// destroyed.
 		///
 		#[pallet::call_index(11)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn withdraw_shares(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -883,7 +891,8 @@ pub mod pallet {
 		///
 		/// Emits `GlobalFarmUpdated` event when successful.
 		#[pallet::call_index(12)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_global_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_global_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn update_global_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -920,7 +929,8 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event for the first farm entry
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(13)]
-		#[pallet::weight(<T as Config>::WeightInfo::join_farms(farm_entries.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::join_farms(farm_entries.len() as u32)
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64).into()))]
 		pub fn join_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
@@ -967,7 +977,8 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event for the first farm entry
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(14)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32)
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64).into()))]
 		pub fn add_liquidity_and_join_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
@@ -1003,7 +1014,8 @@ pub mod pallet {
 		/// * `DepositDestroyed` if the deposit is fully withdrawn
 		///
 		#[pallet::call_index(15)]
-		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(yield_farm_ids.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(yield_farm_ids.len() as u32)
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(yield_farm_ids.len() as u64).into()))]
 		pub fn exit_farms(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -1033,11 +1045,14 @@ pub mod pallet {
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		///
 		#[pallet::call_index(16)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_stableswap_omnipool_and_join_farms(
-			match &farm_entries {
+		#[pallet::weight({
+			let entries = match &farm_entries {
 				Some(entries) => entries.len() as u32,
 				None => 0,
-		}))]
+			};
+			<T as Config>::WeightInfo::add_liquidity_stableswap_omnipool_and_join_farms(entries)
+				.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(entries as u64).into())
+		})]
 		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
 			origin: OriginFor<T>,
 			stable_pool_id: T::AssetId,

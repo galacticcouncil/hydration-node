@@ -16,15 +16,16 @@
 // limitations under the License.
 
 pub use crate as pallet_circuit_breaker;
-use frame_support::traits::Contains;
+use frame_support::traits::{Contains, Get};
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
+use frame_support::PalletId;
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
 use sp_core::H256;
-use sp_runtime::traits::{ConstU128, ConstU32};
+use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, Zero};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -35,6 +36,7 @@ use sp_runtime::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
@@ -42,6 +44,7 @@ pub type AssetId = u32;
 pub type Balance = u128;
 
 pub const ALICE: u64 = 1;
+pub const BOB: u64 = 2;
 pub const WHITELISTED_ACCCOUNT: u64 = 2;
 
 pub const LP1: u64 = 1;
@@ -63,6 +66,8 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 pub const FIVE_PERCENT: (u32, u32) = (500, 10_000);
 pub const TEN_PERCENT: (u32, u32) = (1_000, 10_000);
 
+pub const DEFAULT_ASSET_DEPOSIT_PERIOD: BlockNumberFor<Test> = 10;
+
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
@@ -76,6 +81,8 @@ thread_local! {
 	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = const { RefCell::new((2_000, 10_000)) }; // 20%
 	pub static MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((4_000, 10_000))) }; // 40%
 	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = const { RefCell::new(Some((2_000, 10_000))) }; // 20%
+	pub static ASSET_DEPOSIT_LIMIT: RefCell<HashMap<AssetId, Balance>> = RefCell::new(HashMap::default());
+	pub static ASSET_DEPOSIT_PERIOD: RefCell<u128> = RefCell::new(u128::zero());
 }
 
 frame_support::construct_runtime!(
@@ -87,8 +94,29 @@ frame_support::construct_runtime!(
 		Tokens: orml_tokens,
 		CircuitBreaker: pallet_circuit_breaker,
 		Broadcast: pallet_broadcast,
+		Currencies: pallet_currencies
 	}
 );
+
+parameter_types! {
+	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
+		pub NativeCurrencyId: AssetId = HDX;
+		pub NamedReserveId: [u8;8] = *b"test_res";
+		pub const MaxReserves: u32 = 50;
+}
+pub type Amount = i128;
+
+impl pallet_currencies::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type Erc20Currency = MockErc20Currency<Test>;
+	type BoundErc20 = MockBoundErc20<Test>;
+	type ReserveAccount = TreasuryAccount;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
+}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -132,21 +160,50 @@ parameter_types! {
 	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
+
 }
 
 impl pallet_circuit_breaker::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type UpdateLimitsOrigin = EnsureRoot<Self::AccountId>;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = OmnipoolHubAsset;
 	type WeightInfo = ();
+	type DepositLimiter = DepositLimiter;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = BenchmarkHelperMock;
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+pub struct BenchmarkHelperMock;
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<AccountId, AssetId, Balance> for BenchmarkHelperMock {
+	fn deposit(who: AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
+		Tokens::deposit(asset_id, &who, amount)
+	}
+
+	fn register_asset(asset_id: AssetId, limit: Balance) -> DispatchResult {
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().insert(asset_id, asset_id);
+		});
+
+		ASSET_DEPOSIT_PERIOD.with(|v| {
+			*v.borrow_mut() = DEFAULT_ASSET_DEPOSIT_PERIOD.into();
+		});
+
+		ASSET_DEPOSIT_LIMIT.with(|v| {
+			v.borrow_mut().insert(asset_id, limit);
+		});
+
+		Ok(())
+	}
+}
 pub struct CircuitBreakerWhitelist;
 
 impl Contains<AccountId> for CircuitBreakerWhitelist {
@@ -186,9 +243,9 @@ impl orml_tokens::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
-	type CurrencyHooks = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
+	type CurrencyHooks = Hooks;
 }
 
 parameter_types! {
@@ -334,8 +391,10 @@ where
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::Weight;
+use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee::GetDynamicFee;
+use orml_traits::currency::MutationHooks;
 
 pub struct DummyNFT;
 
@@ -383,9 +442,14 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 	}
 }
 
+use crate::traits::{AssetDepositLimiter, NoDepositLimit, NoIssuance, NoIssuanceIncreaseLimit};
 use crate::Config;
 use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
+use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
+
+#[cfg(feature = "runtime-benchmarks")]
+use crate::types::BenchmarkHelper;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
@@ -480,6 +544,12 @@ impl Default for ExtBuilder {
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = 1u128;
 		});
+		ASSET_DEPOSIT_LIMIT.with(|v| {
+			v.borrow_mut().clear();
+		});
+		ASSET_DEPOSIT_PERIOD.with(|v| {
+			*v.borrow_mut() = 0u128;
+		});
 
 		Self {
 			endowed_accounts: vec![
@@ -535,6 +605,19 @@ impl ExtBuilder {
 
 	pub fn with_max_remove_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
 		self.max_remove_liquidity_limit_per_block = value;
+		self
+	}
+	pub fn with_asset_limit(self, asset_id: AssetId, limit: Balance) -> Self {
+		ASSET_DEPOSIT_LIMIT.with(|v| {
+			v.borrow_mut().insert(asset_id, limit);
+		});
+		self
+	}
+
+	pub fn with_deposit_period(self, period: u128) -> Self {
+		ASSET_DEPOSIT_PERIOD.with(|v| {
+			*v.borrow_mut() = period;
+		});
 		self
 	}
 
@@ -683,4 +766,78 @@ impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
 	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
 		Self::get(key)
 	}
+}
+
+pub struct DepositLimiter;
+
+impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositLimiter {
+	type DepositLimit = AssetLimit;
+	type Period = LimitDepositPeriod;
+	type Issuance = AssetIssuance;
+	type OnLimitReached = LimitReachedHandler;
+	type OnLockdownDeposit = OnLockdownDepositHandler;
+	type OnDepositRelease = OnReleaseDepositHandler;
+}
+
+pub struct LimitDepositPeriod;
+
+impl Get<u128> for LimitDepositPeriod {
+	fn get() -> u128 {
+		ASSET_DEPOSIT_PERIOD.with(|v| *v.borrow())
+	}
+}
+
+pub struct AssetLimit;
+
+impl GetByKey<AssetId, Option<Balance>> for AssetLimit {
+	fn get(k: &AssetId) -> Option<Balance> {
+		let asset = ASSET_DEPOSIT_LIMIT.with(|v| v.borrow().get(k).copied());
+
+		Some(asset.unwrap_or(Balance::MAX))
+	}
+}
+
+pub struct AssetIssuance;
+impl GetByKey<AssetId, Balance> for AssetIssuance {
+	fn get(k: &AssetId) -> Balance {
+		Tokens::total_issuance(k)
+	}
+}
+
+pub struct LimitReachedHandler;
+
+impl Happened<AssetId> for LimitReachedHandler {
+	fn happened(_t: &AssetId) {}
+}
+
+pub struct OnLockdownDepositHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		Currencies::reserve_named(&NamedReserveId::get(), t.0, &t.1, t.2)?;
+		Ok(())
+	}
+}
+
+pub struct OnReleaseDepositHandler;
+impl Handler<(AssetId, AccountId)> for OnReleaseDepositHandler {
+	fn handle(t: &(AssetId, AccountId)) -> DispatchResult {
+		let reserved_balance = Currencies::reserved_balance_named(&NamedReserveId::get(), t.0, &t.1);
+
+		Currencies::unreserve_named(&NamedReserveId::get(), t.0, &t.1, reserved_balance);
+
+		Ok(())
+	}
+}
+
+pub struct Hooks;
+
+impl MutationHooks<AccountId, AssetId, Balance> for Hooks {
+	type OnDust = ();
+	type OnSlash = ();
+	type PreDeposit = ();
+	type PostDeposit = crate::fuses::issuance::IssuanceIncreaseFuse<Test>;
+	type PreTransfer = ();
+	type PostTransfer = ();
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
 }

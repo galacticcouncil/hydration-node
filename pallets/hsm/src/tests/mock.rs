@@ -246,6 +246,7 @@ impl PegRawOracle<AssetId, Balance, u64> for PegOracle {
 					price: (n, d),
 					volume: Volume::default(),
 					liquidity: Liquidity::default(),
+					shares_issuance: Default::default(),
 					updated_at: u,
 				});
 			}
@@ -258,6 +259,7 @@ impl PegRawOracle<AssetId, Balance, u64> for PegOracle {
 					price: (n, d),
 					volume: Volume::default(),
 					liquidity: Liquidity::default(),
+					shares_issuance: Default::default(),
 					updated_at: u,
 				})
 			}
@@ -791,6 +793,10 @@ mod for_benchmark_tests {
 			REGISTERED_ASSETS.with(|v| {
 				v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
 			});
+			Ok(())
+		}
+
+		fn set_deposit_limit(asset_id: AssetId, limit: u128) -> sp_runtime::DispatchResult {
 			Ok(())
 		}
 
