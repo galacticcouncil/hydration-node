@@ -7,24 +7,25 @@ use fp_evm::{
 	ExitReason::Succeed,
 	ExitSucceed::{Returned, Stopped},
 };
+use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok};
 use hex_literal::hex;
-use hydradx_runtime::{
-	evm::{
-		precompiles::{erc20_mapping::HydraErc20Mapping, handle::EvmDataWriter},
-		Executor,
-	},
-	AssetId, Balance, Block, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin, Treasury,
-};
+use hydradx_runtime::{evm::{
+	precompiles::{erc20_mapping::HydraErc20Mapping, handle::EvmDataWriter},
+	Executor,
+}, AssetId, Balance, Block, BlockT, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin, Treasury, OriginCaller, RuntimeCall, RuntimeEvent};
 use hydradx_traits::{
 	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
 	router::{AssetPair, RouteProvider},
 };
 use liquidation_worker_support::*;
 use orml_traits::currency::MultiCurrency;
+use sp_api::ApiError;
 use sp_core::{H256, U256};
 use sp_runtime::traits::CheckedConversion;
+use hydradx_runtime::evm::precompiles::erc20_mapping::runtime_decl_for_erc_20_mapping_api::Erc20MappingApi;
+use xcm_runtime_apis::dry_run::{CallDryRunEffects, runtime_decl_for_dry_run_api::DryRunApi, Error as XcmDryRunApiError};
 
 // ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
 pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/LIQUIDATION_SNAPSHOT";
@@ -99,6 +100,10 @@ pub fn get_user_account_data(mm_pool: EvmAddress, user: EvmAddress) -> Option<Us
 }
 
 pub fn update_oracle_price(oracle_data: Vec<(&str, U256)>) {
+	// mainnet
+	// let caller = EvmAddress::from_slice(&hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e"));
+	// let oracle_address = EvmAddress::from_slice(&hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e"));
+	// testnet
 	let caller = EvmAddress::from_slice(&hex!("6c345254C4da3B16559e60570fe35311b9597f07"));
 	let oracle_address = EvmAddress::from_slice(&hex!("C756bD338A97c1d2FAAB4F13B5444a08a1566917"));
 	let context = CallContext::new_call(oracle_address, caller);
@@ -121,34 +126,36 @@ pub fn update_oracle_price(oracle_data: Vec<(&str, U256)>) {
 	assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
 }
 
-pub fn get_oracle_price(asset_pair: &str) -> (U256, U256) {
-	let oracle_address = EvmAddress::from_slice(&hex!("C756bD338A97c1d2FAAB4F13B5444a08a1566917"));
-	let context = CallContext::new_view(oracle_address);
-	let mut data = Into::<u32>::into(Function::GetValue).to_be_bytes().to_vec();
-	let encoded_value = encode(&[Token::String(asset_pair.to_string())]);
-	data.extend_from_slice(&encoded_value);
+pub fn get_oracle_price(asset_pair: &str) -> Option<(U256, U256)> {
+	// contains addresses from mainnet and testnet to support different snapshots
+	let oracle_addresses = vec![
+		EvmAddress::from_slice(&hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
+		EvmAddress::from_slice(&hex!("C756bD338A97c1d2FAAB4F13B5444a08a1566917")),
+		EvmAddress::from_slice(&hex!("5d8320f3ced9575d8e25b6f437e610fc6a03bf52")),
+	];
 
-	let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 5_000_000);
-	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
-	let price = U256::checked_from(&value[0..32]).unwrap();
-	let timestamp = U256::checked_from(&value[32..64]).unwrap();
-
-	// try second oracle
-	if price.is_zero() {
-		let oracle_address = EvmAddress::from_slice(&hex!("5d8320f3ced9575d8e25b6f437e610fc6a03bf52"));
-		let context = CallContext::new_view(oracle_address);
+	for oracle_address in oracle_addresses.iter() {
+		let context = CallContext::new_view(*oracle_address);
 		let mut data = Into::<u32>::into(Function::GetValue).to_be_bytes().to_vec();
 		let encoded_value = encode(&[Token::String(asset_pair.to_string())]);
 		data.extend_from_slice(&encoded_value);
 
 		let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 5_000_000);
-		assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
-		let price = U256::checked_from(&value[0..32]).unwrap();
-		let timestamp = U256::checked_from(&value[32..64]).unwrap();
-		(price, timestamp)
-	} else {
-		(price, timestamp)
+		if res == Succeed(Returned) {
+			let price = U256::checked_from(&value[0..32]).unwrap();
+			let timestamp = U256::checked_from(&value[32..64]).unwrap();
+
+			if !price.is_zero() {
+				return Some((price, timestamp))
+			} else {
+				continue;
+			}
+		} else {
+			continue;
+		}
 	}
+
+	None
 }
 
 #[test]
@@ -173,7 +180,9 @@ fn liquidation_should_work() {
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		// get Pool contract address
-		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(PAP_CONTRACT, alice_evm_address).unwrap();
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -212,14 +221,14 @@ fn liquidation_should_work() {
 			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount + borrow_dot_amount
 		);
 
-		let (price, timestamp) = get_oracle_price("DOT/USD");
+		let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
 		let price = price.as_u128() * 5;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
 
-		let (price, timestamp) = get_oracle_price("WETH/USD");
+		let (price, timestamp) = get_oracle_price("WETH/USD").unwrap();
 		let price = price.as_u128() / 5;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
@@ -276,7 +285,9 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		// get Pool contract address
-		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(PAP_CONTRACT, alice_evm_address).unwrap();
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -377,7 +388,9 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		// get Pool contract address
-		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(PAP_CONTRACT, alice_evm_address).unwrap();
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -406,8 +419,12 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		hydradx_run_to_next_block();
 
 		// calculate HF before price update
-		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap();
+		let mut money_market_data = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
+			PAP_CONTRACT,
+			alice_evm_address).unwrap();
+		let current_evm_timestamp = ApiProvider::<Runtime>(Runtime).current_timestamp(hash).unwrap();
 
 		// HF > 1
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
@@ -415,16 +432,19 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 
 		// update MM and UserData structs based on future price
 		let dot_address = money_market_data.get_asset_address("DOT").unwrap();
-		let new_price = get_oracle_price("DOT/USD").0.as_u128() * 6 / 2;
+		let new_price = get_oracle_price("DOT/USD").unwrap().0.as_u128() * 6 / 2;
 		money_market_data.update_reserve_price(dot_address, new_price.into());
 
 		let mut user_data = UserData::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
 			&money_market_data,
 			alice_evm_address,
 			current_evm_timestamp,
 			alice_evm_address,
 		)
-		.unwrap();
+			.unwrap();
+
 		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
 		let debt_asset = money_market_data.get_asset_address("DOT").unwrap();
@@ -451,7 +471,7 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		);
 
 		// update the price
-		let (price, timestamp) = get_oracle_price("DOT/USD");
+		let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
 		let price = price.as_u128() * 6 / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
@@ -500,7 +520,9 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		// get Pool contract address
-		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(PAP_CONTRACT, alice_evm_address).unwrap();
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -528,21 +550,28 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 
 		hydradx_run_to_next_block();
 
-		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap()
+		let mut money_market_data = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
+			PAP_CONTRACT,
+			alice_evm_address).unwrap();
+
+		let current_evm_timestamp = ApiProvider::<Runtime>(Runtime).current_timestamp(hash).unwrap()
 			+ primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
 
 		let dot_address = money_market_data.get_asset_address("DOT").unwrap();
-		let new_price = get_oracle_price("DOT/USD").0.as_u128() * 5 / 2;
+		let new_price = get_oracle_price("DOT/USD").unwrap().0.as_u128() * 5 / 2;
 		money_market_data.update_reserve_price(dot_address, new_price.into());
 
 		let user_data = UserData::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
 			&money_market_data,
 			alice_evm_address,
 			current_evm_timestamp,
 			alice_evm_address,
 		)
-		.unwrap();
+			.unwrap();
 
 		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
@@ -557,7 +586,7 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 			.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
 			.unwrap();
 
-		let (price, timestamp) = get_oracle_price("DOT/USD");
+		let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
 		let price = price.as_u128() * 5 / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
@@ -606,7 +635,9 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		// get Pool contract address
-		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(PAP_CONTRACT, alice_evm_address).unwrap();
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -630,26 +661,39 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 		);
 
 		let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
-		borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
+		borrow(
+			pool_contract,
+			alice_evm_address,
+			dot_asset_address,
+			borrow_dot_amount
+		);
 
 		hydradx_run_to_next_block();
 
-		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap()
+		let mut money_market_data = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
+			PAP_CONTRACT,
+			alice_evm_address).unwrap();
+
+		let current_evm_timestamp = ApiProvider::<Runtime>(Runtime).current_timestamp(hash).unwrap()
 			+ primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
 
 		let weth_address = money_market_data.get_asset_address("WETH").unwrap();
-		let new_price = get_oracle_price("WETH/USD").0.as_u128() / 3;
+		let new_price = get_oracle_price("WETH/USD").unwrap().0.as_u128() / 3;
 		let dot_address = money_market_data.get_asset_address("DOT").unwrap();
 		money_market_data.update_reserve_price(weth_address, new_price.into());
 
 		let user_data = UserData::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
 			&money_market_data,
 			alice_evm_address,
 			current_evm_timestamp,
 			alice_evm_address,
 		)
-		.unwrap();
+			.unwrap();
+
 		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 		let LiquidationAmounts {
 			debt_amount,
@@ -661,7 +705,7 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 			.unwrap();
 
 		// update WETH price
-		let (price, timestamp) = get_oracle_price("WETH/USD");
+		let (price, timestamp) = get_oracle_price("WETH/USD").unwrap();
 		let price = price.as_u128() / 3;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
@@ -678,7 +722,9 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 			.find(|x| x.asset_address() == weth_address)
 			.unwrap();
 		let collateral_reserve = weth_reserve
-			.get_user_collateral_in_base_currency::<Block, Runtime>(
+			.get_user_collateral_in_base_currency::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>(
+				&ApiProvider::<Runtime>(Runtime),
+				hash,
 				user_data.address(),
 				current_evm_timestamp,
 				alice_evm_address,
@@ -695,18 +741,27 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 			BoundedVec::new(),
 		));
 
-		let money_market_data = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, alice_evm_address).unwrap();
+		let money_market_data = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
+			PAP_CONTRACT,
+			alice_evm_address).unwrap();
+
 		let user_data = UserData::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
 			&money_market_data,
 			alice_evm_address,
 			current_evm_timestamp,
 			alice_evm_address,
 		)
-		.unwrap();
+			.unwrap();
 
 		// Assert
 		let remaining_collateral_reserve = weth_reserve
-			.get_user_collateral_in_base_currency::<Block, Runtime>(
+			.get_user_collateral_in_base_currency::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>(
+				&ApiProvider::<Runtime>(Runtime),
+				hash,
 				user_data.address(),
 				current_evm_timestamp,
 				alice_evm_address,
@@ -739,7 +794,9 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		// get Pool contract address
-		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(PAP_CONTRACT, alice_evm_address).unwrap();
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -767,21 +824,28 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 
 		hydradx_run_to_next_block();
 
-		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap()
+		let mut money_market_data = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
+			PAP_CONTRACT,
+			alice_evm_address).unwrap();
+
+		let current_evm_timestamp = ApiProvider::<Runtime>(Runtime).current_timestamp(hash).unwrap()
 			+ primitives::constants::time::SECS_PER_BLOCK; // our calculations "happen" in the next block
 
 		let weth_address = money_market_data.get_asset_address("WETH").unwrap();
-		let new_price = get_oracle_price("WETH/USD").0.as_u128() * 5 / 2;
+		let new_price = get_oracle_price("WETH/USD").unwrap().0.as_u128() * 5 / 2;
 		money_market_data.update_reserve_price(weth_address, new_price.into());
 
 		let user_data = UserData::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
 			&money_market_data,
 			alice_evm_address,
 			current_evm_timestamp,
 			alice_evm_address,
 		)
-		.unwrap();
+			.unwrap();
 
 		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
@@ -796,7 +860,7 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 			.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
 			.unwrap();
 
-		let (price, timestamp) = get_oracle_price("WETH/USD");
+		let (price, timestamp) = get_oracle_price("WETH/USD").unwrap();
 		let price = price.as_u128() * 5 / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
@@ -845,7 +909,9 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 
 		// get Pool contract address
-		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(PAP_CONTRACT, alice_evm_address).unwrap();
+		let block_number = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(block_number);
+		let pool_contract = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -866,24 +932,31 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 
 		hydradx_run_to_next_block();
 
-		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap();
+		let mut money_market_data = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
+			PAP_CONTRACT,
+			alice_evm_address).unwrap();
+
+		let current_evm_timestamp = ApiProvider::<Runtime>(Runtime).current_timestamp(hash).unwrap();
 
 		// ensure that the health_factor > 1
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 		assert!(usr_data.health_factor > U256::from(1_000_000_000_000_000_000u128));
 
 		let dot_address = money_market_data.get_asset_address("DOT").unwrap();
-		let new_price = get_oracle_price("DOT/USD").0.as_u128() * 7 / 5;
+		let new_price = get_oracle_price("DOT/USD").unwrap().0.as_u128() * 7 / 5;
 		money_market_data.update_reserve_price(dot_address, new_price.into());
 
 		let user_data = UserData::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
 			&money_market_data,
 			alice_evm_address,
 			current_evm_timestamp,
 			alice_evm_address,
 		)
-		.unwrap();
+			.unwrap();
 
 		let target_health_factor = U256::from(1_001_000_000_000_000_000u128);
 
@@ -898,7 +971,7 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 			.calculate_debt_to_liquidate(&user_data, target_health_factor, collateral_asset, debt_asset)
 			.unwrap();
 
-		let (price, timestamp) = get_oracle_price("DOT/USD");
+		let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
 		let price = price.as_u128() * 7 / 5;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
@@ -925,6 +998,40 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 	});
 }
 
+#[derive(sp_core::RuntimeDebug)]
+pub struct ApiProvider<C>(pub C);
+impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent> for ApiProvider<C>
+where
+	Block: BlockT,
+	C: EthereumRuntimeRPCApi<Block> + Erc20MappingApi<Block> + DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>,
+{
+	fn current_timestamp(&self, _hash: Block::Hash) -> Option<u64> {
+		let block = C::current_block()?;
+		// milliseconds to seconds
+		block.header.timestamp.checked_div(1_000)
+	}
+	fn call(&self, _hash: Block::Hash, caller: EvmAddress, mm_pool: EvmAddress, data: Vec<u8>, gas_limit: U256) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, frame_support::sp_runtime::DispatchError>, sp_api::ApiError> {
+		Ok(C::call(
+			caller,
+			mm_pool,
+			data,
+			U256::zero(),
+			gas_limit,
+			None,
+			None,
+			None,
+			true,
+			None,
+		).map_err(|_| sp_runtime::DispatchError::Other("Calling EthereumRuntimeRPCApi::Call failed.")))
+	}
+	fn address_to_asset(&self, _hash: Block::Hash, _address: EvmAddress) -> Result<Option<liquidation_worker_support::AssetId>, ApiError> {
+		unimplemented!()
+	}
+	fn dry_run_call(&self, _hash: Block::Hash, _origin: OriginCaller, _call: RuntimeCall) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError> {
+		unimplemented!()
+	}
+}
+
 #[test]
 fn calculate_debt_to_liquidate_with_three_different_assets() {
 	TestNet::reset();
@@ -948,8 +1055,17 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 		let bob_evm_address = EVMAccounts::evm_address(&AccountId::from(BOB));
 
+		use std::hash::Hash;
+		let b = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(b);
+
 		// get Pool contract address
-		let pool_contract = MoneyMarketData::<Block, Runtime>::fetch_pool(PAP_CONTRACT, alice_evm_address).unwrap();
+		let pool_contract = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool(
+			&ApiProvider::<Runtime>(Runtime),
+			hash,
+			PAP_CONTRACT,
+			alice_evm_address
+		).unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -993,14 +1109,24 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 		assert!(usr_data.health_factor > U256::from(1_000_000_000_000_000_000u128));
 
-		let mut money_market_data = MoneyMarketData::<Block, Runtime>::new(PAP_CONTRACT, alice_evm_address).unwrap();
-		let current_evm_timestamp = fetch_current_evm_block_timestamp::<Block, Runtime>().unwrap();
+		let b = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(b);
+
+		let mut money_market_data = MoneyMarketData::<Block, ApiProvider<Runtime>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
+			PAP_CONTRACT,
+			alice_evm_address).unwrap();
+
+		let current_evm_timestamp = ApiProvider::<Runtime>(Runtime).current_timestamp(hash).unwrap();
 
 		let dot_address = money_market_data.get_asset_address("DOT").unwrap();
-		let new_price = get_oracle_price("DOT/USD").0.as_u128() * 12 / 7;
+		let new_price = get_oracle_price("DOT/USD").unwrap().0.as_u128() * 12 / 7;
 		money_market_data.update_reserve_price(dot_address, new_price.into());
 
 		let mut user_data = UserData::new(
+			ApiProvider::<Runtime>(Runtime),
+			hash,
 			&money_market_data,
 			alice_evm_address,
 			current_evm_timestamp,
@@ -1029,14 +1155,12 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		user_data.update_reserves(vec![(2, c_user_reserve)]);
 		user_data.update_reserves(vec![(4, d_user_reserve)]);
 
-		let (price, timestamp) = get_oracle_price("DOT/USD");
+		let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
 		let price = price.as_u128() * 12 / 7;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
-
-		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),

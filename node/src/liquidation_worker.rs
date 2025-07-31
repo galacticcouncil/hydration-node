@@ -41,6 +41,7 @@ const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc
 
 // Money market address
 const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
+const USER: EvmAddress = H160(hex!("b2c882ed0aaf258ab3a0B2bc31bca319856e4d58"));
 
 // Account that signs the DIA oracle update transactions.
 const ORACLE_UPDATE_SIGNER: &[EvmAddress] = &[
@@ -472,7 +473,7 @@ where
 		money_market_data: &mut MoneyMarketData<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>,
 		current_evm_timestamp: u64,
 		base_asset: &[u8],
-		price: &U256,
+		new_price: &U256,
 		client: Arc<C>,
 		spawner: SpawnTaskHandle,
 		header: B::Header,
@@ -496,6 +497,7 @@ where
 			return Ok(());
 		};
 
+		// "base" asset from "base/quote" asset pair updated by the oracle update
 		let base_asset_address = asset_reserve.asset_address();
 
 		// skip if the user has been already liquidated in this block
@@ -503,6 +505,8 @@ where
 			return Ok(());
 		};
 
+		// get `UserData` based on updated price
+		money_market_data.update_reserve_price(base_asset_address, *new_price);
 		let Ok(user_data) = UserData::new(
 			ApiProvider::<&C::Api>(client.clone().runtime_api().deref()),
 			header.hash(),
@@ -518,24 +522,26 @@ where
 			// update user's HF
 			borrower.1 = current_hf;
 
-			let one = U256::from(10u128.pow(18));
-			// TODO: current HF is not calculated from values after the price update ! ! !
-			if current_hf > one {
+			let hf_one = U256::from(10u128.pow(18));
+			if current_hf > hf_one {
 				return Ok(());
 			}
 		} else {
-			// we were unable to get user's HF. Skip the execution for this user.
+			// We were unable to get user's HF. Skip the execution for this user.
 			return Ok(());
 		}
 
 		if let Ok(Some(liquidation_option)) = money_market_data.get_best_liquidation_option(
 			&user_data,
 			config.target_hf.into(),
-			(base_asset_address, price.into()),
+			(base_asset_address, new_price.into()),
 		) {
+			// update user's HF
+			borrower.1 = liquidation_option.health_factor;
+
 			let (Ok(Some(collateral_asset_id)), Ok(Some(debt_asset_id))) = (
-			ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.collateral_asset),
-			ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.debt_asset)
+				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.collateral_asset),
+				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.debt_asset)
 			) else {
 				return Ok(());
 			};

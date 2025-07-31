@@ -6,14 +6,11 @@ use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
 use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{
-	evm::{
-		precompiles::{handle::EvmDataWriter, Bytes},
-		Executor,
-	},
-	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Tokens, Treasury, HSM,
-};
-use hydradx_runtime::{RuntimeOrigin, Stableswap};
+use hydradx_runtime::{evm::{
+	precompiles::{handle::EvmDataWriter, Bytes},
+	Executor,
+}, AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, HSM};
+use hydradx_runtime::{RuntimeOrigin, Stableswap, OriginCaller, RuntimeCall, RuntimeEvent};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
@@ -30,7 +27,7 @@ use sp_runtime::traits::One;
 use sp_runtime::BoundedVec;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
-use std::sync::Arc;
+use std::{sync::Arc, hash::Hash};
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
@@ -1569,11 +1566,22 @@ fn hollar_liquidation_should_work() {
 		// PoolAddressesProvider contract
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
 
+		let b = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(b);
+
 		// get Pool contract address
 		let pool_contract = liquidation_worker_support::MoneyMarketData::<
 			hydradx_runtime::Block,
-			hydradx_runtime::Runtime,
-		>::fetch_pool(pap_contract, RUNTIME_API_CALLER)
+			crate::liquidation::ApiProvider<Runtime>,
+			OriginCaller, 
+			RuntimeCall, 
+			RuntimeEvent
+		>::fetch_pool(
+			&crate::liquidation::ApiProvider::<Runtime>(Runtime),
+			hash,
+			pap_contract,
+			RUNTIME_API_CALLER
+		)
 		.unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
@@ -1649,14 +1657,14 @@ fn hollar_liquidation_should_work() {
 			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount
 		);
 
-		let (price, timestamp) = crate::liquidation::get_oracle_price("DOT/USD");
+		let (price, timestamp) = crate::liquidation::get_oracle_price("DOT/USD").unwrap();
 		let price = price.as_u128() / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
 		crate::liquidation::update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
 
-		let (price, timestamp) = crate::liquidation::get_oracle_price("WETH/USD");
+		let (price, timestamp) = crate::liquidation::get_oracle_price("WETH/USD").unwrap();
 		let price = price.as_u128() / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();

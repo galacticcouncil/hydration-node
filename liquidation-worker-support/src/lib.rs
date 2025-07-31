@@ -17,6 +17,7 @@
 
 use std::marker::PhantomData;
 use codec::{Decode, Encode};
+use ethabi::{encode, Token};
 use evm::ExitReason;
 use frame_support::pallet_prelude::*;
 use frame_support::Deserialize;
@@ -610,9 +611,11 @@ impl Reserve {
 		let normalized_income = self.get_normalized_income(current_timestamp)?;
 
 		ray_mul(scaled_balance, normalized_income)?
-			.checked_mul(self.price)
-			.and_then(|r| r.checked_div(U256::from(10u128.pow(self.decimals() as u32))))
-			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())
+			.full_mul(self.price)
+			.checked_div(U512::from(10u128.pow(self.decimals() as u32)))
+			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+			.try_into()
+			.map_err(|_| ArithmeticError::Overflow.into())
 	}
 
 	fn get_normalized_debt(&self, current_timestamp: u64) -> Result<U256, LiquidationError> {
@@ -651,28 +654,32 @@ impl Reserve {
 				.checked_div(seconds_per_year * seconds_per_year)
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
-			let base_power_three = ray_mul(base_power_two, rate)?;
+			let base_power_three = ray_mul(base_power_two, rate)?
+				.checked_div(seconds_per_year)
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 			let second_term = exp
-				.checked_mul(exp_minus_one)
-				.and_then(|r| r.checked_mul(base_power_two))
+				.full_mul(exp_minus_one)
+				.checked_mul(base_power_two.into())
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				/ 2;
 
 			let third_term = exp
-				.checked_mul(exp_minus_one)
-				.and_then(|r| r.checked_mul(exp_minus_two))
-				.and_then(|r| r.checked_mul(base_power_three))
+				.full_mul(exp_minus_one)
+				.checked_mul(exp_minus_two.into())
+				.and_then(|r| r.checked_mul(base_power_three.into()))
 				.ok_or(ArithmeticError::Overflow)?
 				/ 6;
 
 			let compound_interest = rate
-				.checked_mul(exp)
-				.and_then(|r| r.checked_div(seconds_per_year))
-				.and_then(|r| r.checked_add(ray))
+				.full_mul(exp)
+				.checked_div(seconds_per_year.into())
+				.and_then(|r| r.checked_add(ray.into()))
 				.and_then(|r| r.checked_add(second_term))
 				.and_then(|r| r.checked_add(third_term))
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+				.try_into()
+				.map_err(|_| ArithmeticError::Overflow)?;
 
 			ray_mul(compound_interest, variable_borrow_index)
 		}
@@ -712,9 +719,11 @@ impl Reserve {
 			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 		total_debt
-			.checked_mul(self.price)
-			.and_then(|r| r.checked_div(U256::from(10u128.pow(self.decimals() as u32))))
-			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())
+			.full_mul(self.price)
+			.checked_div(U512::from(10u128.pow(self.decimals() as u32)))
+			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+			.try_into()
+			.map_err(|_| ArithmeticError::Overflow.into())
 	}
 }
 
@@ -1007,9 +1016,7 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 		collateral_asset_address: EvmAddress,
 		debt_asset_address: EvmAddress,
 	) -> Result<LiquidationAmounts, LiquidationError> {
-		// all amounts are in base currency
 		let mut weighted_total_collateral = U256::zero();
-		let mut total_collateral_in_base = U256::zero();
 		let mut total_debt_in_base = U256::zero();
 		let mut collateral_liquidation_threshold = U256::zero();
 		let mut liquidation_bonus = U256::zero();
@@ -1019,10 +1026,10 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 		let mut collateral_decimals = 0u8;
 		let mut user_collateral_amount = U256::zero();
 		let mut user_debt_amount = U256::zero();
-		let unit_price = U256::from(10_000_000_000u128);
 		let percentage_factor = U256::from(10u128.pow(4));
 		let hf_one = U256::from(10).pow(18.into());
-		let oracle_price_decimals = 10;
+		let oracle_price_decimals = 8;
+		let unit_price = U256::from(10u128.pow(oracle_price_decimals as u32));
 
 		// Iterate through all reserves to calculate total collateral and debt in base currency, and weighted total collateral
 		for (index, reserve) in self.reserves().iter().enumerate() {
@@ -1039,10 +1046,6 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 						.checked_mul(U256::from(reserve.liquidation_threshold()))
 						.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?,
 				)
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
-
-			total_collateral_in_base = total_collateral_in_base
-				.checked_add(user_balances.collateral)
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 			total_debt_in_base = total_debt_in_base
@@ -1097,9 +1100,22 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			.map_err(|_| ArithmeticError::Overflow)?;
 
 		let d = percent_mul(debt_price, d)?;
+		
+		// in debt asset
 		let debt_to_liquidate = n
 			.checked_div(d)
 			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+
+		// adjust decimals from `oracle_price_decimals` to `debt_decimals`
+		let debt_to_liquidate = if debt_decimals > oracle_price_decimals {
+			debt_to_liquidate
+				.checked_mul(U256::from(10).pow((debt_decimals - oracle_price_decimals).into()))
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+		} else {
+			debt_to_liquidate
+				.checked_div(U256::from(10).pow((oracle_price_decimals - debt_decimals).into()))
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+		};
 
 		// Our calculation provides theoretical amount that needs to be liquidated to get the HF close to `target_health_factor`.
 		// But there is no guarantee that user has required amount of debt and collateral assets.
@@ -1122,6 +1138,7 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			.map_err(|_| ArithmeticError::Overflow)?;
 
 		// Calculate max debt that can be liquidated. Max amount is affected by the close factor and user's total debt amount.
+		// In debt asset.
 		let max_liquidatable_debt = percent_mul(user_debt_amount, close_factor)?;
 
 		let mut actual_debt_to_liquidate = if debt_to_liquidate > max_liquidatable_debt {
@@ -1130,85 +1147,86 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			debt_to_liquidate
 		};
 
-		let mut base_collateral_amount = actual_debt_to_liquidate
+		// in collateral asset without the bonus
+		let mut base_collateral_amount: U256 = actual_debt_to_liquidate
 			.full_mul(debt_price)
 			.checked_div(collateral_price.into())
 			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 			.try_into()
 			.map_err(|_| ArithmeticError::Overflow)?;
+		base_collateral_amount = if collateral_decimals > debt_decimals {
+			base_collateral_amount
+				.checked_mul(U256::from(10).pow((collateral_decimals - debt_decimals).into()))
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+		} else {
+			base_collateral_amount
+				.checked_div(U256::from(10).pow((debt_decimals - collateral_decimals).into()))
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+		};
 
+		// in collateral asset
 		let mut collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
 
 		let mut collateral_in_base_currency: U256 = collateral_amount
 			.full_mul(collateral_price)
-			.checked_div(unit_price.into())
+			.checked_div(U512::from(10).pow(collateral_decimals.into()))
 			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 			.try_into()
 			.map_err(|_| ArithmeticError::Overflow)?;
 
 		let mut debt_in_base_currency = actual_debt_to_liquidate
 			.full_mul(debt_price)
-			.checked_div(unit_price.into())
+			.checked_div(U512::from(10).pow(debt_decimals.into()))
 			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 			.try_into()
 			.map_err(|_| ArithmeticError::Overflow)?;
 
 		// Adjust the liquidation amounts if user doesn't have expected amount of the collateral asset.
 		if collateral_in_base_currency > user_collateral_amount {
-			// collateral in base currency, without bonus
+			// in debt asset
 			actual_debt_to_liquidate = user_collateral_amount
 				.full_mul(percentage_factor)
 				.checked_div(liquidation_bonus.into())
+				.and_then(|r| r.checked_mul(U512::from(10u128.pow(debt_decimals.into()))))
 				.and_then(|r| r.checked_div(debt_price.into()))
-				.and_then(|r| r.checked_mul(unit_price.into()))
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
 				.map_err(|_| ArithmeticError::Overflow)?;
 
+			// in collateral asset without the bonus
 			base_collateral_amount = actual_debt_to_liquidate
 				.full_mul(debt_price)
 				.checked_div(collateral_price.into())
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
 				.map_err(|_| ArithmeticError::Overflow)?;
+			base_collateral_amount = if collateral_decimals > debt_decimals {
+				base_collateral_amount
+					.checked_mul(U256::from(10).pow((collateral_decimals - debt_decimals).into()))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+			} else {
+				base_collateral_amount
+					.checked_div(U256::from(10).pow((debt_decimals - collateral_decimals).into()))
+					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
+			};
 
+			// in collateral asset
 			collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
 
 			debt_in_base_currency = actual_debt_to_liquidate
 				.full_mul(debt_price)
-				.checked_div(unit_price.into())
+				.checked_div(U512::from(10).pow(debt_decimals.into()))
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
 				.map_err(|_| ArithmeticError::Overflow)?;
 
 			collateral_in_base_currency = collateral_amount
 				.full_mul(collateral_price)
-				.checked_div(unit_price.into())
+				.checked_div(U512::from(10).pow(collateral_decimals.into()))
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
 				.map_err(|_| ArithmeticError::Overflow)?;
 		}
-
-		// adjust decimals
-		actual_debt_to_liquidate = if debt_decimals > oracle_price_decimals {
-			actual_debt_to_liquidate
-				.checked_mul(U256::from(10).pow((debt_decimals - oracle_price_decimals).into()))
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
-		} else {
-			actual_debt_to_liquidate
-				.checked_div(U256::from(10).pow((oracle_price_decimals - debt_decimals).into()))
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
-		};
-
-		collateral_amount = if collateral_decimals > 10 {
-			collateral_amount
-				.checked_mul(U256::from(10).pow((collateral_decimals - oracle_price_decimals).into()))
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
-		} else {
-			collateral_amount
-				.checked_div(U256::from(10).pow((oracle_price_decimals - collateral_decimals).into()))
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
-		};
 
 		Ok(LiquidationAmounts {
 			debt_amount: actual_debt_to_liquidate,
@@ -1220,7 +1238,7 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 
 	/// Calculate liquidation options based on user's reserve, price update and target health factor.
 	/// Liquidation options are calculated for all collateral/debt asset pairs.
-	/// `user_data` - User's data.
+	/// `user_data` - User's data, generated from `MoneyMarketData` struct with updated price.
 	/// `target_health_factor` - 18 decimal places.
 	/// `new_price` - Price update.
 	///
@@ -1302,7 +1320,7 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 	}
 
 	/// Evaluates all liquidation options and returns one that is closest to the `target_health_factor`.
-	/// `user_data` - User's data.
+	/// `user_data` - User's data, generated from `MoneyMarketData` struct with updated price.
 	/// `target_health_factor` - 18 decimal places.
 	/// `new_price` - Price update.
 	///

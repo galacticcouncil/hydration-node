@@ -986,10 +986,10 @@ impl_runtime_apis! {
 	}
 
 	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
-		fn asset_address(asset_id: AssetId) -> evm::EvmAddress {
+		fn asset_address(asset_id: AssetId) -> EvmAddress {
 			HydraErc20Mapping::asset_address(asset_id)
 		}
-		fn address_to_asset(address: evm::EvmAddress) -> Option<AssetId> {
+		fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
 			HydraErc20Mapping::address_to_asset(address)
 		}
 	}
@@ -1084,12 +1084,12 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, evm::EvmAddress> for Runtime {
-		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> evm::EvmAddress {
+	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, EvmAddress> for Runtime {
+		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
 			evm::precompiles::chainlink_adapter::encode_oracle_address(asset_id_a, asset_id_b, period, source)
 		}
 
-		fn decode_oracle_address(oracle_address: evm::EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
+		fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
 			evm::precompiles::chainlink_adapter::decode_oracle_address(oracle_address)
 		}
 	}
