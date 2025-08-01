@@ -73,8 +73,6 @@ pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
 pub const UNSIGNED_LIQUIDATION_PRIORITY: u64 = 1_000_000;
-pub const MAX_ADDRESSES: u32 = 5;
-
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]

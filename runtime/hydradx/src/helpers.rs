@@ -94,8 +94,7 @@ pub mod benchmark_helpers {
 								let arb_evm = EVMAccounts::evm_address(&arb_account);
 								let arb_account = EVMAccounts::account_id(arb_evm);
 								let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
-								let _ =
-									Tokens::update_balance(hollar_id, &arb_account, amount.as_u128() as i128).unwrap();
+								Tokens::update_balance(hollar_id, &arb_account, amount.as_u128() as i128).unwrap();
 
 								let alice_evm = EVMAccounts::evm_address(&arb_account);
 								pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
@@ -104,7 +103,7 @@ pub mod benchmark_helpers {
 									&arb_data,
 								)
 								.unwrap();
-								let _ = Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))
+								Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))
 									.unwrap();
 								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
 							}

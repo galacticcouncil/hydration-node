@@ -1,35 +1,20 @@
 use crate::assert_reserved_balance;
 use crate::polkadot_test_net::*;
-use crate::stableswap::GIGADOT;
 use frame_support::pallet_prelude::Pays;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_runtime::Router;
 use hydradx_runtime::RuntimeOrigin;
-use hydradx_runtime::Stableswap;
 use hydradx_runtime::{
-	AssetRegistry, Balances, CircuitBreaker, Currencies, Omnipool, OmnipoolCollectionId, Tokens, Uniques,
+	AssetRegistry, CircuitBreaker, Currencies, Omnipool,
 };
 use primitives::constants::time::DAYS;
-
-use pallet_stableswap::types::BoundedPegSources;
-
-use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::OraclePeriod;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
-use pallet_dca::pallet;
-use pallet_ema_oracle::BIFROST_SOURCE;
-use pallet_stableswap::types::PegSource;
-use primitives::constants::chain::CORE_ASSET_ID;
-use primitives::{AccountId, AssetId, Balance};
-use sp_runtime::traits::Zero;
-use sp_runtime::BoundedVec;
+use primitives::{AssetId, Balance};
 use sp_runtime::Permill;
-use sp_runtime::{FixedU128, TransactionOutcome};
-use std::sync::Arc;
-use test_utils::{assert_balance, assert_eq_approx};
+use sp_runtime::TransactionOutcome;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -520,12 +505,11 @@ use frame_support::pallet_prelude::Weight;
 use hydradx_runtime::origins::Origin;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
-use pallet_broadcast::types::Filler::Omnipool as OtherOmnipool;
 use polkadot_xcm::opaque::lts::WeightLimit;
 use polkadot_xcm::opaque::v3::{
 	Junction,
-	Junctions::{X1, X2},
-	MultiLocation, NetworkId,
+	Junctions::X2,
+	MultiLocation,
 };
 use primitives::constants::currency::UNITS;
 
@@ -537,7 +521,7 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 	let amount_over_limit = 100 * UNITS;
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+		assert_ok!(AssetRegistry::set_location(
 			ACA,
 			hydradx_runtime::AssetLocation(MultiLocation::new(
 				1,
@@ -548,7 +532,7 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 		update_deposit_limit(ACA, deposit_limit).unwrap();
 		assert_ok!(update_ed(ACA, 1_000));
 
-		assert_eq!(hydradx_runtime::Currencies::free_balance(ACA, &BOB.into()), 0);
+		assert_eq!(Currencies::free_balance(ACA, &BOB.into()), 0);
 	});
 
 	Acala::execute_with(|| {
@@ -570,7 +554,7 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 		));
 
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			0,
 			deposit_limit + amount_over_limit,
 			Box::new(
@@ -590,11 +574,11 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 	Hydra::execute_with(|| {
 		//The fee to-be-sent to the treausury was blocked and reserved too as we reached limit
 		let fee = 77827795107;
-		assert_reserved_balance!(&hydradx_runtime::Treasury::account_id(), ACA, fee);
+		assert_reserved_balance!(&Treasury::account_id(), ACA, fee);
 
 		// Bob receives the amount equal to deposit limit, the rest is reserved
 		assert_eq!(
-			hydradx_runtime::Currencies::free_balance(ACA, &BOB.into()),
+			Currencies::free_balance(ACA, &BOB.into()),
 			deposit_limit
 		);
 		assert_reserved_balance!(&BOB.into(), ACA, amount_over_limit - fee);
@@ -629,8 +613,8 @@ fn route_execution_should_not_trigger_circuit_breaker() {
 		// Assert
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 		assert_reserved_balance!(&ALICE.into(), DAI, 0);
-		assert_reserved_balance!(&Router::router_account().into(), HDX, 0);
-		assert_reserved_balance!(&Router::router_account().into(), DAI, 0);
+		assert_reserved_balance!(&Router::router_account(), HDX, 0);
+		assert_reserved_balance!(&Router::router_account(), DAI, 0);
 		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
 		assert_eq!(init_balance - new_balance, sell_amount)
 	});
@@ -649,10 +633,8 @@ fn add_liquidity_should_work_when_circuit_breaker_triggers_for_lrna() {
 
 		assert_ok!(Currencies::deposit(LRNA, &ALICE.into(), 100 * UNITS));
 
-		update_deposit_limit(LRNA, 1 * UNITS).unwrap();
+		update_deposit_limit(LRNA, UNITS).unwrap();
 		assert_ok!(Currencies::deposit(LRNA, &Omnipool::protocol_account(), 100 * UNITS));
-
-		let hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 
 		set_relaychain_block_number(10);
 
@@ -680,10 +662,8 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 		assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 3402823669209384634633746074317)); //Mint infinite amount of DAI (because of a hack/exploit or so)
 		assert_ok!(Currencies::deposit(LRNA, &ALICE.into(), 100 * UNITS));
 
-		update_deposit_limit(LRNA, 1 * UNITS).unwrap();
+		update_deposit_limit(LRNA, UNITS).unwrap();
 		assert_ok!(Currencies::deposit(LRNA, &Omnipool::protocol_account(), 100 * UNITS));
-
-		let hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 
 		let init_block = 10u32;
 		set_relaychain_block_number(init_block);
@@ -692,7 +672,7 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 		let amount = 2000000000 * UNITS;
 
 		for i in 0..100u32 {
-			let position_id = hydradx_runtime::Omnipool::next_position_id();
+			let position_id = Omnipool::next_position_id();
 
 			assert_ok!(Omnipool::add_liquidity(
 				RuntimeOrigin::signed(ALICE.into()),
@@ -761,7 +741,7 @@ pub fn update_ed(asset_id: AssetId, ed: Balance) -> Result<(), ()> {
 fn register_aca() -> Result<u32, ()> {
 	with_transaction(|| {
 		TransactionOutcome::Commit(
-			(AssetRegistry::register_sufficient_asset(
+			AssetRegistry::register_sufficient_asset(
 				Some(ACA),
 				Some(b"ACAL".to_vec().try_into().unwrap()),
 				AssetKind::Token,
@@ -770,7 +750,7 @@ fn register_aca() -> Result<u32, ()> {
 				None,
 				None,
 				None,
-			)),
+			),
 		)
 	})
 	.map_err(|_| ())

@@ -3,7 +3,7 @@
 #![allow(clippy::bool_assert_comparison)]
 
 pub use crate::tests::mock::*;
-use crate::{Error, Event, MAX_ADDRESSES, UNSIGNED_LIQUIDATION_PRIORITY};
+use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
@@ -11,7 +11,6 @@ use hydradx_traits::{
 };
 use orml_traits::parameters::sp_runtime::BoundedVec;
 use orml_traits::MultiCurrency;
-use sp_core::ConstU32;
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 	// We only check if the events are as expected, not necessarily in order.

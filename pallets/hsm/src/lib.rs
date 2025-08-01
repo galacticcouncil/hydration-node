@@ -1454,9 +1454,8 @@ where
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	fn get() -> Option<(EvmAddress, EvmAddress)> {
-		let Some(fm) = FlashMinter::<T>::get() else {
-			return None;
-		};
+		let fm = FlashMinter::<T>::get()?;
+		
 		let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
 		Some((fm, loan_receiver))
 	}

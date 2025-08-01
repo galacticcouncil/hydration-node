@@ -15,14 +15,10 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::{assert_balance, assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages};
-use crate::{Error, Event};
-use frame_support::traits::Hooks;
-use frame_support::{assert_noop, assert_ok};
-use orml_traits::MultiCurrency;
-use orml_traits::NamedMultiReservableCurrency;
+use crate::{assert_balance, Error, Event};
+use frame_support::{assert_noop, assert_ok, traits::Hooks};
+use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
 use pretty_assertions::assert_eq;
-use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
 fn unlock_should_not_work_when_user_has_active_schedule() {
@@ -33,11 +29,10 @@ fn unlock_should_not_work_when_user_has_active_schedule() {
 			//Arrange
 			set_block_number(500);
 			let schedule = ScheduleBuilder::new().build();
-			let leftover = 10 * ONE;
 			assert_ok!(Currencies::reserve_named(
 				&NamedReserveId::get(),
 				HDX,
-				&ALICE.into(),
+				&ALICE,
 				10 * ONE
 			));
 
@@ -65,7 +60,7 @@ fn unlock_should_unreserve_when_user_has_leftover() {
 			assert_ok!(Currencies::reserve_named(
 				&NamedReserveId::get(),
 				HDX,
-				&ALICE.into(),
+				&ALICE,
 				10 * ONE
 			));
 
@@ -98,7 +93,7 @@ fn unlock_should_work_when_called_by_root() {
 			assert_ok!(Currencies::reserve_named(
 				&NamedReserveId::get(),
 				HDX,
-				&ALICE.into(),
+				&ALICE,
 				10 * ONE
 			));
 
@@ -126,7 +121,7 @@ fn unlock_should_work_when_called_by_other_user() {
 			assert_ok!(Currencies::reserve_named(
 				&NamedReserveId::get(),
 				HDX,
-				&ALICE.into(),
+				&ALICE,
 				10 * ONE
 			));
 

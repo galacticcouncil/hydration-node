@@ -559,22 +559,22 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 					.with(|v| v.borrow().get(&(oracle_asset, peg_asset)).copied())
 					.ok_or(())?;
 
-				return Ok(RawEntry {
+				Ok(RawEntry {
 					price: (n, d),
 					volume: Default::default(),
 					liquidity: Default::default(),
 					shares_issuance: Default::default(),
 					updated_at: u,
-				});
+				})
 			}
 			PegSource::Value(peg) => {
-				return Ok(RawEntry {
+				Ok(RawEntry {
 					price: peg,
 					volume: Default::default(),
 					liquidity: Default::default(),
 					shares_issuance: Default::default(),
 					updated_at: System::block_number(),
-				});
+				})
 			}
 			_ => panic!("unusupported oracle types: {:?}", source),
 		}
@@ -585,12 +585,6 @@ pub(crate) fn set_peg_oracle_value(asset_a: AssetId, asset_b: AssetId, price: (B
 	PEG_ORACLE_VALUES.with(|v| {
 		v.borrow_mut()
 			.insert((asset_a, asset_b), (price.0, price.1, updated_at));
-	});
-}
-
-pub(crate) fn set_deposit_limit(asset: AssetId, limit: Balance) {
-	ASSET_DEPOSIT_LIMIT.with(|v| {
-		v.borrow_mut().insert(asset, limit);
 	});
 }
 
@@ -651,11 +645,7 @@ impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
 		//assert_eq!(t.0, 0);
 		//assert_eq!(t.2, 1);
 
-		let free = Tokens::free_balance(t.0, &t.1);
-
 		Tokens::reserve_named(&NamedReserveId::get(), t.0, &t.1, t.2)?;
-		let free = Tokens::free_balance(t.0, &t.1);
-		//assert_eq!(free, 323);
 		Ok(())
 	}
 }

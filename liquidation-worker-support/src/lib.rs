@@ -17,7 +17,6 @@
 
 use std::marker::PhantomData;
 use codec::{Decode, Encode};
-use ethabi::{encode, Token};
 use evm::ExitReason;
 use frame_support::pallet_prelude::*;
 use frame_support::Deserialize;
@@ -31,13 +30,11 @@ pub type CallResult = (ExitReason, Vec<u8>);
 
 use ethabi::ethereum_types::U512;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
-use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
-use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion, Header};
+use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
 use hydradx_traits::evm::EvmAddress;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H256, U256};
 use sp_std::{boxed::Box, ops::BitAnd};
-use crate::Function::LiquidationCall;
 use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
 
 #[derive(RuntimeDebug)]
@@ -390,14 +387,14 @@ impl UserData {
 
 		let gas_limit = U256::from(500_000);
 		let call_info = ApiProvider::call(
-			&api_provider,
+			api_provider,
 			hash,
 			caller,
 			mm_pool,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-		.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+		.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(U256::checked_from(&call_info.value[0..32])
@@ -428,14 +425,14 @@ where
 
 		let gas_limit = U256::from(500_000);
 		let call_info = ApiProvider::call(
-			&api_provider,
+			api_provider,
 			hash,
 			caller,
 			self,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-			.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(U256::checked_from(&call_info.value[0..32])
@@ -452,14 +449,14 @@ where
 
 		let gas_limit = U256::from(500_000);
 		let call_info = ApiProvider::call(
-			&api_provider,
+			api_provider,
 			hash,
 			caller,
 			self,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-			.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(U256::checked_from(&call_info.value[0..32])
@@ -800,8 +797,8 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			pap_contract,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-		.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+		.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
@@ -822,8 +819,8 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			pap_contract,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-			.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
@@ -845,8 +842,8 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			mm_pool,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-			.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			let decoded = ethabi::decode(
@@ -886,8 +883,8 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			mm_pool,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-			.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			let decoded = ethabi::decode(
@@ -929,8 +926,8 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			*asset_address,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-			.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			let decoded = ethabi::decode(&[ethabi::ParamType::String], &call_info.value)?;
@@ -962,8 +959,8 @@ impl<Block: BlockT, ApiProvider: RuntimeApiProvider<Block, OriginCaller, Runtime
 			oracle_address,
 			data,
 			gas_limit,
-		).map_err(|e| LiquidationError::ApiError(e))?
-			.map_err(|e| LiquidationError::DispatchError(e))?;
+		).map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
 			Ok(U256::checked_from(&call_info.value[0..32])

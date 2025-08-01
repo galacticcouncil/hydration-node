@@ -1396,6 +1396,7 @@ use hydradx_traits::price::PriceProvider;
 use hydradx_traits::registry::Create;
 use pallet_asset_registry::XcmRateLimitsInRegistry;
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
+#[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;

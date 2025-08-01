@@ -32,7 +32,6 @@ use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use primitives::Balance;
-use rococo_runtime::Balances;
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
@@ -93,8 +92,6 @@ fn transfer_all() {
 			.unwrap()
 		));
 
-		let shares_before: u128 = Currencies::free_balance(pool, &ALICE.into());
-		let balance_before: u128 = Currencies::free_balance(DOT, &ALICE.into());
 		// Starting with only 10000 weis of ADOT (it can be any amount as long as it is > ed)
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 10000);
 
@@ -782,9 +779,6 @@ fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
 		.unwrap();
 
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
-
-		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
-		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
 
 		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
 

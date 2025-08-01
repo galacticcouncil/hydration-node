@@ -8,7 +8,7 @@ use futures::{future::ready, StreamExt};
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
-	Block, Runtime, RuntimeCall, RuntimeEvent, OriginCaller,
+	RuntimeCall, RuntimeEvent, OriginCaller,
 };
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
@@ -21,7 +21,6 @@ use sc_client_api::{Backend, BlockchainEvents, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
 use sp_api::{ApiExt, ProvideRuntimeApi};
-use sp_arithmetic::ArithmeticError;
 use sp_blockchain::HeaderBackend;
 use sp_core::{RuntimeDebug, H160};
 use sp_offchain::OffchainWorkerApi;
@@ -41,7 +40,6 @@ const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc
 
 // Money market address
 const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
-const USER: EvmAddress = H160(hex!("b2c882ed0aaf258ab3a0B2bc31bca319856e4d58"));
 
 // Account that signs the DIA oracle update transactions.
 const ORACLE_UPDATE_SIGNER: &[EvmAddress] = &[
@@ -273,9 +271,9 @@ where
 			}
 
 			// Get allowed signers and allowed oracle call addresses.
+			// TODO: verify
 			// These values can be changed in the runtime, so get them on every block.
-			let runtime_api = client.runtime_api();
-			let hash = header.hash();
+
 			// Accounts that sign the DIA oracle update transactions.
 			let allowed_signers = config.clone().oracle_update_signer.unwrap_or(ORACLE_UPDATE_SIGNER.to_vec());
 			// Addresses of the DIA oracle contract.
@@ -577,7 +575,7 @@ where
 			};
 
 			// skip the execution if the transaction is in the waitlist
-			if waitlist.iter().find(|tx| tx.0 == tx_hash).is_some() {
+			if waitlist.iter().any(|tx| tx.0 == tx_hash) {
 				// TX is still on hold, skip the execution
 				return Ok(());
 			};

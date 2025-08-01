@@ -128,7 +128,7 @@ pub fn update_oracle_price(oracle_data: Vec<(&str, U256)>) {
 
 pub fn get_oracle_price(asset_pair: &str) -> Option<(U256, U256)> {
 	// contains addresses from mainnet and testnet to support different snapshots
-	let oracle_addresses = vec![
+	let oracle_addresses = [
 		EvmAddress::from_slice(&hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
 		EvmAddress::from_slice(&hex!("C756bD338A97c1d2FAAB4F13B5444a08a1566917")),
 		EvmAddress::from_slice(&hex!("5d8320f3ced9575d8e25b6f437e610fc6a03bf52")),
@@ -1055,7 +1055,6 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
 		let bob_evm_address = EVMAccounts::evm_address(&AccountId::from(BOB));
 
-		use std::hash::Hash;
 		let b = hydradx_runtime::System::block_number();
 		let hash = hydradx_runtime::System::block_hash(b);
 
