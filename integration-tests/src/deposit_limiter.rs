@@ -6,12 +6,10 @@ use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_runtime::Router;
 use hydradx_runtime::RuntimeOrigin;
-use hydradx_runtime::{
-	AssetRegistry, CircuitBreaker, Currencies, Omnipool,
-};
-use primitives::constants::time::DAYS;
+use hydradx_runtime::{AssetRegistry, CircuitBreaker, Currencies, Omnipool};
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
+use primitives::constants::time::DAYS;
 use primitives::{AssetId, Balance};
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
@@ -506,11 +504,7 @@ use hydradx_runtime::origins::Origin;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use polkadot_xcm::opaque::lts::WeightLimit;
-use polkadot_xcm::opaque::v3::{
-	Junction,
-	Junctions::X2,
-	MultiLocation,
-};
+use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
 use primitives::constants::currency::UNITS;
 
 #[test]
@@ -577,10 +571,7 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 		assert_reserved_balance!(&Treasury::account_id(), ACA, fee);
 
 		// Bob receives the amount equal to deposit limit, the rest is reserved
-		assert_eq!(
-			Currencies::free_balance(ACA, &BOB.into()),
-			deposit_limit
-		);
+		assert_eq!(Currencies::free_balance(ACA, &BOB.into()), deposit_limit);
 		assert_reserved_balance!(&BOB.into(), ACA, amount_over_limit - fee);
 	});
 }
@@ -740,18 +731,16 @@ pub fn update_ed(asset_id: AssetId, ed: Balance) -> Result<(), ()> {
 
 fn register_aca() -> Result<u32, ()> {
 	with_transaction(|| {
-		TransactionOutcome::Commit(
-			AssetRegistry::register_sufficient_asset(
-				Some(ACA),
-				Some(b"ACAL".to_vec().try_into().unwrap()),
-				AssetKind::Token,
-				2_000_000,
-				None,
-				None,
-				None,
-				None,
-			),
-		)
+		TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+			Some(ACA),
+			Some(b"ACAL".to_vec().try_into().unwrap()),
+			AssetKind::Token,
+			2_000_000,
+			None,
+			None,
+			None,
+			None,
+		))
 	})
 	.map_err(|_| ())
 }

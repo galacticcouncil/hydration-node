@@ -103,8 +103,7 @@ pub mod benchmark_helpers {
 									&arb_data,
 								)
 								.unwrap();
-								Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))
-									.unwrap();
+								Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128)).unwrap();
 								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
 							}
 						}

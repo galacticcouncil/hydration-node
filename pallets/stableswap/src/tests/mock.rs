@@ -567,15 +567,13 @@ impl PegRawOracle<AssetId, Balance, u64> for DummyPegOracle {
 					updated_at: u,
 				})
 			}
-			PegSource::Value(peg) => {
-				Ok(RawEntry {
-					price: peg,
-					volume: Default::default(),
-					liquidity: Default::default(),
-					shares_issuance: Default::default(),
-					updated_at: System::block_number(),
-				})
-			}
+			PegSource::Value(peg) => Ok(RawEntry {
+				price: peg,
+				volume: Default::default(),
+				liquidity: Default::default(),
+				shares_issuance: Default::default(),
+				updated_at: System::block_number(),
+			}),
 			_ => panic!("unusupported oracle types: {:?}", source),
 		}
 	}

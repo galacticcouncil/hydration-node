@@ -1573,7 +1573,7 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 	));
 
-	let _ =with_transaction(|| {
+	let _ = with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::update(
 			RawOrigin::Root.into(),
 			hdx,

@@ -1,6 +1,6 @@
 use crate::polkadot_test_net::*;
-use frame_support::dispatch::GetDispatchInfo;
 use frame_support::assert_ok;
+use frame_support::dispatch::GetDispatchInfo;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
@@ -103,11 +103,9 @@ fn dispatch_with_extra_gas_should_work() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			pallet_utility::Call::batch_all {
-				calls: vec![call.clone(), call.clone(), call.clone()],
-			},
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone(), call.clone(), call.clone()],
+		});
 		assert_ok!(Dispatcher::dispatch_with_extra_gas(
 			RuntimeOrigin::signed(ALICE.into()),
 			Box::new(batch.clone()),
@@ -134,11 +132,9 @@ fn dispatch_with_extra_gas_should_fail_when_extra_gas_is_not_enough() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			pallet_utility::Call::batch_all {
-				calls: vec![call.clone(), call.clone(), call.clone()],
-			},
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone(), call.clone(), call.clone()],
+		});
 		let result =
 			Dispatcher::dispatch_with_extra_gas(RuntimeOrigin::signed(ALICE.into()), Box::new(batch.clone()), 50_000);
 
@@ -166,11 +162,9 @@ fn dispatch_with_extra_gas_should_pay_for_extra_gas_used_when_it_is_not_used() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			pallet_utility::Call::batch_all {
-				calls: vec![call.clone()],
-			},
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone()],
+		});
 
 		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
 			call: Box::new(batch.clone()),
