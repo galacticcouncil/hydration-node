@@ -6,11 +6,14 @@ use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
 use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{evm::{
-	precompiles::{handle::EvmDataWriter, Bytes},
-	Executor,
-}, AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, HSM};
-use hydradx_runtime::{RuntimeOrigin, Stableswap, OriginCaller, RuntimeCall, RuntimeEvent};
+use hydradx_runtime::{
+	evm::{
+		precompiles::{handle::EvmDataWriter, Bytes},
+		Executor,
+	},
+	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, HSM,
+};
+use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
@@ -27,7 +30,7 @@ use sp_runtime::traits::One;
 use sp_runtime::BoundedVec;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
-use std::{sync::Arc};
+use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
@@ -1573,14 +1576,14 @@ fn hollar_liquidation_should_work() {
 		let pool_contract = liquidation_worker_support::MoneyMarketData::<
 			hydradx_runtime::Block,
 			crate::liquidation::ApiProvider<Runtime>,
-			OriginCaller, 
-			RuntimeCall, 
-			RuntimeEvent
+			OriginCaller,
+			RuntimeCall,
+			RuntimeEvent,
 		>::fetch_pool(
 			&crate::liquidation::ApiProvider::<Runtime>(Runtime),
 			hash,
 			pap_contract,
-			RUNTIME_API_CALLER
+			RUNTIME_API_CALLER,
 		)
 		.unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(

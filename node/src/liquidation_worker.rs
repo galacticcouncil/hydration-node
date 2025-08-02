@@ -8,7 +8,7 @@ use futures::{future::ready, StreamExt};
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
-	RuntimeCall, RuntimeEvent, OriginCaller,
+	OriginCaller, RuntimeCall, RuntimeEvent,
 };
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
@@ -25,10 +25,10 @@ use sp_blockchain::HeaderBackend;
 use sp_core::{RuntimeDebug, H160};
 use sp_offchain::OffchainWorkerApi;
 use sp_runtime::{traits::Header, transaction_validity::TransactionSource};
-use std::{cmp::Ordering, marker::PhantomData, sync::Arc};
 use std::ops::Deref;
+use std::{cmp::Ordering, marker::PhantomData, sync::Arc};
 use threadpool::ThreadPool;
-use xcm_runtime_apis::dry_run::{DryRunApi, CallDryRunEffects, Error as XcmDryRunApiError};
+use xcm_runtime_apis::dry_run::{CallDryRunEffects, DryRunApi, Error as XcmDryRunApiError};
 
 const LOG_TARGET: &str = "liquidation-worker";
 
@@ -93,14 +93,23 @@ pub struct ApiProvider<C>(C);
 impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent> for ApiProvider<&C>
 where
 	Block: BlockT,
-	C: EthereumRuntimeRPCApi<Block> + Erc20MappingApi<Block> + DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>,
+	C: EthereumRuntimeRPCApi<Block>
+		+ Erc20MappingApi<Block>
+		+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>,
 {
 	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64> {
 		let block = self.0.current_block(hash).ok()??;
 		// milliseconds to seconds
 		block.header.timestamp.checked_div(1_000)
 	}
-	fn call(&self, hash: Block::Hash, caller: EvmAddress, mm_pool: EvmAddress, data: Vec<u8>, gas_limit: U256) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, sp_runtime::DispatchError>, sp_api::ApiError> {
+	fn call(
+		&self,
+		hash: Block::Hash,
+		caller: EvmAddress,
+		mm_pool: EvmAddress,
+		data: Vec<u8>,
+		gas_limit: U256,
+	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, sp_runtime::DispatchError>, sp_api::ApiError> {
 		self.0.call(
 			hash,
 			caller,
@@ -118,7 +127,12 @@ where
 	fn address_to_asset(&self, hash: Block::Hash, address: EvmAddress) -> Result<Option<AssetId>, sp_api::ApiError> {
 		self.0.address_to_asset(hash, address)
 	}
-	fn dry_run_call(&self, hash: Block::Hash, origin: OriginCaller, call: RuntimeCall) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError> {
+	fn dry_run_call(
+		&self,
+		hash: Block::Hash,
+		origin: OriginCaller,
+		call: RuntimeCall,
+	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError> {
 		self.0.dry_run_call(hash, origin, call)
 	}
 }
@@ -404,7 +418,8 @@ where
 
 		let runtime_api = client.runtime_api();
 
-		let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash()) else {
+		let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
+		else {
 			tracing::debug!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
 			return;
 		};
@@ -423,12 +438,14 @@ where
 		} in oracle_data.iter()
 		{
 			// TODO: maybe we can use `price` to determine if HF will increase or decrease
-			let Ok(mut money_market_data) = MoneyMarketData::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
-				ApiProvider::<&C::Api>(runtime_api.deref()),
-				header.hash(),
-				config.pap_contract.unwrap_or(PAP_CONTRACT),
-				config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
-			) else {
+			let Ok(mut money_market_data) =
+				MoneyMarketData::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+					ApiProvider::<&C::Api>(runtime_api.deref()),
+					header.hash(),
+					config.pap_contract.unwrap_or(PAP_CONTRACT),
+					config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+				)
+			else {
 				continue;
 			};
 
@@ -539,7 +556,7 @@ where
 
 			let (Ok(Some(collateral_asset_id)), Ok(Some(debt_asset_id))) = (
 				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.collateral_asset),
-				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.debt_asset)
+				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.debt_asset),
 			) else {
 				return Ok(());
 			};
@@ -581,7 +598,11 @@ where
 			};
 
 			// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
-			let dry_run_result = ApiProvider::<&C::Api>(runtime_api.deref()).dry_run_call(hash, hydradx_runtime::RuntimeOrigin::none().caller, liquidation_tx);
+			let dry_run_result = ApiProvider::<&C::Api>(runtime_api.deref()).dry_run_call(
+				hash,
+				hydradx_runtime::RuntimeOrigin::none().caller,
+				liquidation_tx,
+			);
 
 			if let Ok(Ok(call_result)) = dry_run_result {
 				if call_result.execution_result.is_err() {

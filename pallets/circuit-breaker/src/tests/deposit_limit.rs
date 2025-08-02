@@ -2,7 +2,7 @@ use crate::tests::mock::{expect_events, ExtBuilder, System, Test, Tokens, ALICE}
 use crate::types::LockdownStatus;
 use crate::AssetLockdownState;
 use crate::Event as CircuitBreakerEvent;
-use frame_support::{assert_ok};
+use frame_support::assert_ok;
 use orml_traits::MultiCurrency;
 use test_utils::assert_balance;
 pub const ASSET_ID: u32 = 10000;

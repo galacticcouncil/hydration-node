@@ -1455,7 +1455,7 @@ where
 {
 	fn get() -> Option<(EvmAddress, EvmAddress)> {
 		let fm = FlashMinter::<T>::get()?;
-		
+
 		let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
 		Some((fm, loan_receiver))
 	}

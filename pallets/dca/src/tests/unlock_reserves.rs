@@ -29,12 +29,7 @@ fn unlock_should_not_work_when_user_has_active_schedule() {
 			//Arrange
 			set_block_number(500);
 			let schedule = ScheduleBuilder::new().build();
-			assert_ok!(Currencies::reserve_named(
-				&NamedReserveId::get(),
-				HDX,
-				&ALICE,
-				10 * ONE
-			));
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &ALICE, 10 * ONE));
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
 
@@ -57,12 +52,7 @@ fn unlock_should_unreserve_when_user_has_leftover() {
 			set_block_number(500);
 
 			let leftover = 10 * ONE;
-			assert_ok!(Currencies::reserve_named(
-				&NamedReserveId::get(),
-				HDX,
-				&ALICE,
-				10 * ONE
-			));
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &ALICE, 10 * ONE));
 
 			assert_balance!(ALICE, HDX, init_balance - leftover);
 
@@ -90,12 +80,7 @@ fn unlock_should_work_when_called_by_root() {
 			set_block_number(500);
 
 			let leftover = 10 * ONE;
-			assert_ok!(Currencies::reserve_named(
-				&NamedReserveId::get(),
-				HDX,
-				&ALICE,
-				10 * ONE
-			));
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &ALICE, 10 * ONE));
 
 			assert_balance!(ALICE, HDX, init_balance - leftover);
 
@@ -118,12 +103,7 @@ fn unlock_should_work_when_called_by_other_user() {
 			set_block_number(500);
 
 			let leftover = 10 * ONE;
-			assert_ok!(Currencies::reserve_named(
-				&NamedReserveId::get(),
-				HDX,
-				&ALICE,
-				10 * ONE
-			));
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &ALICE, 10 * ONE));
 
 			assert_balance!(ALICE, HDX, init_balance - leftover);
 

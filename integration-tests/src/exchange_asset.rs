@@ -1,7 +1,8 @@
 #![cfg(test)]
 
-use crate::polkadot_test_net::*;
 use crate::assert_operation_stack;
+use crate::polkadot_test_net::*;
+use frame_support::dispatch::RawOrigin;
 use frame_support::{
 	assert_ok,
 	dispatch::GetDispatchInfo,
@@ -10,7 +11,6 @@ use frame_support::{
 	traits::{fungible::Balanced, tokens::Precision},
 	weights::Weight,
 };
-use frame_support::dispatch::RawOrigin;
 use hydradx_runtime::{AssetRegistry, Currencies, Omnipool, Router, RuntimeOrigin, TempAccountForXcmAssetExchange};
 use hydradx_traits::{AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
@@ -1194,10 +1194,7 @@ mod circuit_breaker {
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
 			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
 
-			let fee = hydradx_runtime::Tokens::free_balance(
-				crate::exchange_asset::ACA,
-				&Treasury::account_id(),
-			);
+			let fee = hydradx_runtime::Tokens::free_balance(crate::exchange_asset::ACA, &Treasury::account_id());
 			assert!(fee > 0, "treasury should have received fees");
 
 			//No Aca received as exchange asset failed
