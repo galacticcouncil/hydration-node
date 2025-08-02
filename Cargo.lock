@@ -4528,7 +4528,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.3.0"
+version = "14.4.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -12265,7 +12265,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.48.0"
+version = "1.49.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
