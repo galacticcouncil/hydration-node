@@ -469,7 +469,7 @@ where
 	let mut pegs = vec![PegSource::Value((1, 1))];
 	for idx in 0..MAX_ASSETS_IN_POOL - 1 {
 		let asset_id: T::AssetId = (idx + offset).into();
-		let _ = seed_asset::<T>(asset_id, DECIMALS)?;
+		seed_asset::<T>(asset_id, DECIMALS)?;
 		assets.push(asset_id);
 		<T as pallet_stableswap::Config>::BenchmarkHelper::register_asset_peg(
 			(hollar_id, asset_id),

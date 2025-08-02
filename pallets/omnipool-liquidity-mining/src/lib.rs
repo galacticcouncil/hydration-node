@@ -930,7 +930,7 @@ pub mod pallet {
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(13)]
 		#[pallet::weight(<T as Config>::WeightInfo::join_farms(farm_entries.len() as u32)
-			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64).into()))]
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64)))]
 		pub fn join_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
@@ -978,7 +978,7 @@ pub mod pallet {
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(14)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32)
-			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64).into()))]
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64)))]
 		pub fn add_liquidity_and_join_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
@@ -1015,7 +1015,7 @@ pub mod pallet {
 		///
 		#[pallet::call_index(15)]
 		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(yield_farm_ids.len() as u32)
-			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(yield_farm_ids.len() as u64).into()))]
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(yield_farm_ids.len() as u64)))]
 		pub fn exit_farms(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -1051,7 +1051,7 @@ pub mod pallet {
 				None => 0,
 			};
 			<T as Config>::WeightInfo::add_liquidity_stableswap_omnipool_and_join_farms(entries)
-				.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(entries as u64).into())
+				.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(entries as u64))
 		})]
 		pub fn add_liquidity_stableswap_omnipool_and_join_farms(
 			origin: OriginFor<T>,

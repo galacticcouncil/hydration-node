@@ -199,7 +199,7 @@ benchmarks! {
 		let state = AssetLockdownState::<T>::get(asset);
 		assert_eq!(state, None);
 	}: {
-		crate::Pallet::<T>::lockdown_asset(RawOrigin::Root.into(), asset.into(), 100u32.into())?
+		crate::Pallet::<T>::lockdown_asset(RawOrigin::Root.into(), asset, 100u32.into())?
 	}
 	verify {
 		let state = AssetLockdownState::<T>::get(asset);
@@ -225,7 +225,7 @@ benchmarks! {
 	}: {
 		let bn = frame_system::Pallet::<T>::block_number();
 
-		crate::Pallet::<T>::force_lift_lockdown(RawOrigin::Root.into(), asset.into())?
+		crate::Pallet::<T>::force_lift_lockdown(RawOrigin::Root.into(), asset)?
 	}
 	verify {
 		let state = AssetLockdownState::<T>::get(asset);
@@ -254,7 +254,7 @@ benchmarks! {
 		assert_eq!(state, Some(LockdownStatus::Unlocked((lockdown_over.into(), 101_000_000_000_000u128.into()))));
 
 	}: {
-		crate::Pallet::<T>::release_deposit(RawOrigin::Root.into(), account, asset.into())?
+		crate::Pallet::<T>::release_deposit(RawOrigin::Root.into(), account, asset)?
 	}
 	verify {
 		//No verify as if successfull, the extrinsic completed

@@ -919,7 +919,7 @@ runtime_benchmarks! {
 		let farms = farms_entries[0..c as usize].to_vec();
 
 
-		CircuitBreaker::set_add_liquidity_limit(RawOrigin::Root.into(),pool_id, None);
+		CircuitBreaker::set_add_liquidity_limit(RawOrigin::Root.into(),pool_id, None).unwrap();
 		let _ = Tokens::deposit(pool_id, &lp_provider, 50000000000000000);//We mint some share token so it wont fail with insufficience balance in adding liqudity to omnipool
 		update_deposit_limit(pool_id, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case

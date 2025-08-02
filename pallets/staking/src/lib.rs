@@ -188,7 +188,7 @@ pub mod pallet {
 
 	#[pallet::type_value]
 	pub fn DefaultSixSecSince<T: Config>() -> BlockNumberFor<T> {
-		u32::max_value().into()
+		u32::MAX.into()
 	}
 
 	#[pallet::storage]

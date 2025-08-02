@@ -174,7 +174,7 @@ pub mod pallet {
 
 			Self::validate_fee_config(&config)?;
 
-			AssetFeeConfiguration::<T>::insert(&asset_id, &config);
+			AssetFeeConfiguration::<T>::insert(asset_id, config);
 
 			Self::deposit_event(Event::AssetFeeConfigSet {
 				asset_id,
@@ -196,7 +196,7 @@ pub mod pallet {
 		pub fn remove_asset_fee(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			ensure_root(origin)?;
 
-			AssetFeeConfiguration::<T>::remove(&asset_id);
+			AssetFeeConfiguration::<T>::remove(asset_id);
 
 			Self::deposit_event(Event::AssetFeeConfigRemoved { asset_id });
 			Ok(())

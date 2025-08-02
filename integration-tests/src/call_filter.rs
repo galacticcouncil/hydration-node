@@ -7,7 +7,7 @@ use frame_support::{
 	traits::{Contains, StorePreimage},
 };
 use hydradx_runtime::{origins, Preimage};
-use hydradx_traits::router::{AssetPair, PoolType, Route, Trade};
+use hydradx_traits::router::{AssetPair, PoolType, Trade};
 use polkadot_xcm::v3::prelude::*;
 use polkadot_xcm::VersionedXcm;
 use primitives::constants::currency::UNITS;

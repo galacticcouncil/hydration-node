@@ -50,6 +50,10 @@ pub struct Cli {
 
 	#[clap(flatten)]
 	pub ethereum_config: crate::service::evm::EthereumConfig,
+
+	/// Liquidation worker configuration
+	#[clap(flatten)]
+	pub liquidation_worker_config: crate::liquidation_worker::LiquidationWorkerConfig,
 }
 
 #[derive(Debug)]

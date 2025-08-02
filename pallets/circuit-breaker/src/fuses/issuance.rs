@@ -51,13 +51,10 @@ impl<T: Config> IssuanceIncreaseFuse<T> {
 			return None;
 		}
 
-		let Some(limit) =
+		let limit =
 			<T::DepositLimiter as AssetDepositLimiter<T::AccountId, T::AssetId, T::Balance>>::DepositLimit::get(
 				&currency_id,
-			)
-		else {
-			return None;
-		};
+			)?;
 
 		let current_block = <frame_system::Pallet<T>>::block_number();
 		let lockdown_until = current_block.saturating_add(period.saturated_into());

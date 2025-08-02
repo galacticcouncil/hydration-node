@@ -337,7 +337,7 @@ fn buy_collateral_with_insufficient_hollar_balance_fails() {
 
 		// Try to buy more than ALICE has HOLLAR for
 		assert_err!(
-			HSM::buy(RuntimeOrigin::signed(BOB), HOLLAR, DAI, 1 * ONE, 20 * ONE),
+			HSM::buy(RuntimeOrigin::signed(BOB), HOLLAR, DAI, ONE, 20 * ONE),
 			orml_tokens::Error::<Test>::BalanceTooLow
 		);
 	});
@@ -553,7 +553,7 @@ fn buy_one_hollar_works_when_purchase_nonzero_fee() {
 			assert_eq!(initial_hsm_dai, 0);
 
 			let expected_collateral_amount = 1010000000000000000;
-			let hollar_amount = 1 * ONE; // 1:1 peg with 1% fee
+			let hollar_amount = ONE; // 1:1 peg with 1% fee
 
 			// Execute the sell
 			assert_ok!(HSM::buy(
@@ -702,7 +702,7 @@ fn buy_collateral_works_when_buy_fee_is_zero() {
 
 			let expected_hollar_amount = 1004564035979960838;
 
-			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 1 * ONE, u128::MAX,));
+			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, ONE, u128::MAX,));
 
 			// Check that ALICE's balances are updated correctly
 			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + ONE,);
@@ -761,7 +761,7 @@ fn buy_collateral_works_when_buy_fee_is_nonzero() {
 
 			let expected_hollar_amount = 1003559471943980877; // should be less by the fee than amount with 0 fee
 
-			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, 1 * ONE, u128::MAX,));
+			assert_ok!(HSM::buy(RuntimeOrigin::signed(ALICE), HOLLAR, DAI, ONE, u128::MAX,));
 
 			// Check that ALICE's balances are updated correctly
 			assert_eq!(Tokens::free_balance(DAI, &ALICE), alice_dai + ONE,);

@@ -3,8 +3,7 @@ use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::Executor;
 use crate::evm::{Erc20Currency, EvmAccounts};
-use crate::Vec;
-use crate::{Currencies, Runtime};
+use crate::{Runtime, Vec};
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
@@ -175,7 +174,7 @@ where
 		}
 	}
 
-	pub fn is_atoken(address: EvmAddress) -> bool {
+	pub fn is_atoken(_address: EvmAddress) -> bool {
 		false
 	}
 

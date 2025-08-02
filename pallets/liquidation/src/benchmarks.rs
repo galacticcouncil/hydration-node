@@ -68,6 +68,7 @@ where
 	T: pallet_asset_registry::Config,
 	AssetId: From<<T as pallet_asset_registry::Config>::AssetId>,
 	<T as pallet_asset_registry::Config>::AssetId: From<AssetId>,
+	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	use frame_support::{sp_runtime::TransactionOutcome, storage::with_transaction};
 

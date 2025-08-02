@@ -1,6 +1,5 @@
 use crate::Config;
 use frame_support::traits::Get;
-use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::{GetByKey, Handler, Happened};
 use sp_runtime::traits::Bounded;
 use sp_std::marker::PhantomData;

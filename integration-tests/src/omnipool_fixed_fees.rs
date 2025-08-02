@@ -5,7 +5,6 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use hydradx_traits::fee::GetDynamicFee;
-use orml_traits::MultiCurrency;
 use pallet_dynamic_fees::types::AssetFeeConfig;
 use primitives::AssetId;
 use sp_runtime::Permill;
@@ -47,7 +46,7 @@ fn omnipool_fixed_fees_should_override_dynamic_fees() {
         assert_ok!(hydradx_runtime::DynamicFees::set_asset_fee(
             hydradx_runtime::RuntimeOrigin::root(),
             ASSET_ID_TO_TEST,
-            fixed_fee_config.clone()
+            fixed_fee_config
         ));
 
         let stored_config = hydradx_runtime::DynamicFees::asset_fee_config(ASSET_ID_TO_TEST);

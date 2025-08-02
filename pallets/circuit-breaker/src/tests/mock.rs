@@ -66,6 +66,9 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 pub const FIVE_PERCENT: (u32, u32) = (500, 10_000);
 pub const TEN_PERCENT: (u32, u32) = (1_000, 10_000);
 
+#[cfg(feature = "runtime-benchmarks")]
+use frame_system::pallet_prelude::BlockNumberFor;
+#[cfg(feature = "runtime-benchmarks")]
 pub const DEFAULT_ASSET_DEPOSIT_PERIOD: BlockNumberFor<Test> = 10;
 
 thread_local! {
@@ -391,7 +394,6 @@ where
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::Weight;
-use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee::GetDynamicFee;
 use orml_traits::currency::MutationHooks;
@@ -442,7 +444,7 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 	}
 }
 
-use crate::traits::{AssetDepositLimiter, NoDepositLimit, NoIssuance, NoIssuanceIncreaseLimit};
+use crate::traits::AssetDepositLimiter;
 use crate::Config;
 use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};

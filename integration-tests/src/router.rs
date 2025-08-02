@@ -759,8 +759,8 @@ mod router_different_pools_tests {
 
 				//Act
 				let amount_to_sell = 100 * UNITS;
-				let deposit_limit = 1 * UNITS;
-				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit);
+				let deposit_limit = UNITS;
+				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
 
 				//Act and assert
 				assert_noop!(
@@ -1641,7 +1641,7 @@ mod omnipool_router_tests {
 				),);
 
 				//ED for insufficient_asset_1 is refunded, but ED for insufficient_asset_2 is charged plus extra 10%
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 1 * ed - extra_ed_charge);
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed - extra_ed_charge);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4010,7 +4010,7 @@ mod set_route {
 						let asset_pair = Pair::new(HDX, DOT);
 
 						//Verify if the cheaper route is indeed cheaper in both ways
-						let amount_to_sell = 1 * UNITS;
+						let amount_to_sell = UNITS;
 
 						//Check for normal route
 						let dot_amount_out = with_transaction::<_, _, _>(|| {
@@ -4269,7 +4269,7 @@ mod set_route {
 					RawOrigin::Root.into(),
 					DAVE.into(),
 					BTC,
-					1 * UNITS,
+					UNITS,
 					0,
 				));
 
@@ -5059,7 +5059,7 @@ mod route_spot_price {
 
 			set_relaychain_block_number(LBP_SALE_START + 7);
 
-			let amount_to_sell = 1 * UNITS;
+			let amount_to_sell = UNITS;
 			let limit = 0;
 			let trades = vec![Trade {
 				pool: PoolType::LBP,
@@ -5137,7 +5137,7 @@ mod route_spot_price {
 						asset_out: stable_asset_1,
 					},
 				];
-				let amount_to_sell = 1 * UNITS;
+				let amount_to_sell = UNITS;
 
 				//Act
 				assert_ok!(Router::sell(
@@ -5208,7 +5208,7 @@ mod route_spot_price {
 					asset_in: pool_id,
 					asset_out: stable_asset_1,
 				}];
-				let amount_to_sell = 1 * UNITS;
+				let amount_to_sell = UNITS;
 
 				//Act
 				assert_ok!(Router::sell(
@@ -5581,7 +5581,7 @@ fn populate_oracle(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 		asset_in,
 		asset_out,
-		amount.unwrap_or(1 * UNITS),
+		amount.unwrap_or(UNITS),
 		0,
 		BoundedVec::truncate_from(route.clone())
 	));

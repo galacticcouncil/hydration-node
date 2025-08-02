@@ -21,27 +21,24 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
-use frame_support::traits::Instance;
 use frame_support::BoundedVec;
 use hydradx_adapters::{OraclePriceProvider, PriceAdjustmentAdapter};
 use hydradx_runtime::{
 	AssetRegistry, Balance, Bonds, Currencies, EmaOracle, Omnipool, OraclePeriod, Router, Runtime, RuntimeEvent,
-	RuntimeOrigin, Stableswap, Tokens, Treasury, TreasuryAccount,
+	RuntimeOrigin, Stableswap, Treasury, TreasuryAccount,
 };
 use hydradx_traits::liquidity_mining::PriceAdjustment;
-use hydradx_traits::router::{AssetPair, PoolType, Route, Trade};
+use hydradx_traits::router::{AssetPair, PoolType, Trade};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
 use pallet_ema_oracle::BIFROST_SOURCE;
-use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use pretty_assertions::assert_eq;
-use primitives::constants::chain::OMNIPOOL_SOURCE;
 use primitives::constants::time::unix_time::MONTH;
 use primitives::{constants::currency::UNITS, AssetId};
 use sp_runtime::DispatchResult;
@@ -1016,10 +1013,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_stableshare_goes
 				100 * UNITS,
 			));
 
-			let position_id = hydradx_runtime::Omnipool::next_position_id();
-
 			set_relaychain_block_number(400);
-			let deposit_id = 1;
 			let farms = vec![
 				(global_farm_1_id, yield_farm_1_id),
 				(global_farm_2_id, yield_farm_2_id),
@@ -1039,7 +1033,7 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_stableshare_goes
 				stable_asset_2,
 				100 * UNITS as i128,
 			));
-			crate::deposit_limiter::update_deposit_limit(stable_pool_id, 1 * UNITS).unwrap();
+			crate::deposit_limiter::update_deposit_limit(stable_pool_id, UNITS).unwrap();
 
 			assert_noop!(
 				hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(

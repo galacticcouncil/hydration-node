@@ -71,11 +71,11 @@ impl HydrationTestDriver {
 	pub(crate) fn execute_with_driver(&self, f: impl FnOnce(&Self)) -> &Self {
 		if let Some(ref ext) = self.ext {
 			ext.borrow_mut().execute_with(|| {
-				f(&self);
+				f(self);
 			});
 		} else {
 			Hydra::ext_wrapper(|| {
-				f(&self);
+				f(self);
 			});
 		}
 		self

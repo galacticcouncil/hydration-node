@@ -81,7 +81,6 @@ mod test {
 
 				// Storage version has been updated
 				let on_chain_version = StorageVersion::get::<DCA>();
-				let in_code_version = DCA::in_code_storage_version();
 				assert_eq!(on_chain_version, StorageVersion::new(2));
 			});
 	}
