@@ -63,9 +63,6 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 			hex!["2cb1a0ef4ce819893905e3a6a8e46b652c43aee6c154921220902cabfdcfdd07"].into(),
 			1_500_000_000,
 		)],
-		// council members
-		// GC - same as sudo
-		vec![hex!["2cb1a0ef4ce819893905e3a6a8e46b652c43aee6c154921220902cabfdcfdd07"].into()],
 		// technical committee
 		// GC - same as sudo
 		vec![hex!["2cb1a0ef4ce819893905e3a6a8e46b652c43aee6c154921220902cabfdcfdd07"].into()],
@@ -79,11 +76,6 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 		vec![],
 		// claims data
 		Default::default(),
-		// elections
-		vec![(
-			hex!["2cb1a0ef4ce819893905e3a6a8e46b652c43aee6c154921220902cabfdcfdd07"].into(),
-			1_200_000_000 * UNITS,
-		)],
 		// parachain ID
 		PARA_ID.into(),
 		// duster

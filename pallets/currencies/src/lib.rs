@@ -56,7 +56,7 @@ use hydradx_traits::{AssetKind, BoundErc20};
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
 	currency::TransferAll,
-	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency,
+	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, GetByKey,
 	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
 };
@@ -299,6 +299,14 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 		if amount.is_zero() || from == to {
 			return Ok(());
 		}
+		#[cfg(any(feature = "try-runtime", test))]
+		let (initial_source_balance, initial_dest_balance) = {
+			(
+				Self::total_balance(currency_id, from),
+				Self::total_balance(currency_id, to),
+			)
+		};
+
 		if currency_id == T::GetNativeCurrencyId::get() {
 			T::NativeCurrency::transfer(from, to, amount)?;
 		} else {
@@ -313,6 +321,22 @@ impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T> {
 			to: to.clone(),
 			amount,
 		});
+		#[cfg(any(feature = "try-runtime", test))]
+		{
+			let (final_source_balance, final_dest_balance) = {
+				(
+					Self::total_balance(currency_id, from),
+					Self::total_balance(currency_id, to),
+				)
+			};
+			let amount_sent = initial_source_balance - final_source_balance;
+			debug_assert_eq!(amount_sent, amount, "Transfer - source sent incorrect amount");
+			debug_assert_eq!(
+				initial_dest_balance + amount,
+				final_dest_balance,
+				"Transfer - dest received incorrect amount"
+			);
+		}
 		Ok(())
 	}
 
@@ -933,6 +957,14 @@ where
 		status: BalanceStatus,
 	) -> result::Result<Self::Balance, DispatchError> {
 		Currency::repatriate_reserved_named(id, slashed, beneficiary, value, status)
+	}
+}
+
+pub struct AssetTotalIssuance<T>(PhantomData<T>);
+
+impl<T: Config> GetByKey<CurrencyIdOf<T>, BalanceOf<T>> for AssetTotalIssuance<T> {
+	fn get(currency_id: &CurrencyIdOf<T>) -> BalanceOf<T> {
+		Pallet::<T>::total_issuance(*currency_id)
 	}
 }
 

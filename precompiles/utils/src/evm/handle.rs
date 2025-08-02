@@ -138,12 +138,13 @@ pub fn with_precompile_handle<R, F: FnOnce(&mut dyn PrecompileHandle) -> R>(f: F
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use sp_core::H160;
 
 	struct MockPrecompileHandle;
 	impl PrecompileHandle for MockPrecompileHandle {
 		fn call(
 			&mut self,
-			_: sp_core::H160,
+			_: H160,
 			_: Option<evm::Transfer>,
 			_: Vec<u8>,
 			_: Option<u64>,
@@ -161,11 +162,11 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn log(&mut self, _: sp_core::H160, _: Vec<sp_core::H256>, _: Vec<u8>) -> Result<(), evm::ExitError> {
+		fn log(&mut self, _: H160, _: Vec<sp_core::H256>, _: Vec<u8>) -> Result<(), evm::ExitError> {
 			unimplemented!()
 		}
 
-		fn code_address(&self) -> sp_core::H160 {
+		fn code_address(&self) -> H160 {
 			unimplemented!()
 		}
 
@@ -195,6 +196,13 @@ mod tests {
 		}
 
 		fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
+		fn origin(&self) -> H160 {
+			unimplemented!()
+		}
+
+		fn is_contract_being_constructed(&self, _address: H160) -> bool {
+			unimplemented!()
+		}
 	}
 
 	#[test]

@@ -110,6 +110,7 @@ fc-rpc-core = { workspace = true }
 fp-rpc = { workspace = true }
 fp-consensus = { workspace = true }
 fp-self-contained = { workspace = true }
+fp-evm = { workspace = true }
 
 [features]
 default = [

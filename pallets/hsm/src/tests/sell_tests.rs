@@ -371,7 +371,7 @@ fn sell_hollar_with_max_holding_exceeded_fails() {
 		assert_ok!(Tokens::update_balance(DAI, &HSM::account_id(), 9 * ONE as i128));
 
 		assert_err!(
-			HSM::sell(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 5 * ONE, 1 * ONE,),
+			HSM::sell(RuntimeOrigin::signed(ALICE), DAI, HOLLAR, 5 * ONE, ONE,),
 			Error::<Test>::MaxHoldingExceeded
 		);
 	});
@@ -593,7 +593,7 @@ fn sell_hollar_zero_fee_works() {
 			let hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
 
 			// ACT - sell hollar back
-			let hollar_to_sell = 1 * ONE;
+			let hollar_to_sell = ONE;
 			let expected_collateral = 995456489239760326;
 
 			assert_ok!(HSM::sell(
@@ -669,7 +669,7 @@ fn sell_hollar_nonzero_fee_works() {
 			let hsm_dai = Tokens::free_balance(DAI, &HSM::account_id());
 
 			// ACT - sell hollar back
-			let hollar_to_sell = 1 * ONE;
+			let hollar_to_sell = ONE;
 			let expected_collateral = 996452942181942269;
 
 			assert_ok!(HSM::sell(
@@ -799,7 +799,7 @@ fn sell_hollar_nonzero_fee_should_fail_when_max_price_exceeded() {
 				1, // Minimal slippage limit
 			));
 
-			let hollar_to_sell = 1 * ONE;
+			let hollar_to_sell = ONE;
 			assert_noop!(
 				HSM::sell(
 					RuntimeOrigin::signed(ALICE),

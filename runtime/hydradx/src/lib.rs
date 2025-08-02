@@ -60,7 +60,7 @@ use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Extrinsic, PostDispatchInfoOf,
+		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
 	},
 	transaction_validity::{TransactionValidity, TransactionValidityError},
@@ -77,7 +77,7 @@ pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
 pub use pallet_claims;
-use pallet_ethereum::{Transaction as EthereumTransaction, Transaction, TransactionStatus};
+use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use pallet_genesis_history::Chain;
 pub use primitives::{
@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 322,
+	spec_version: 335,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -162,10 +162,8 @@ construct_runtime!(
 		Preimage: pallet_preimage = 15,
 		Identity: pallet_identity = 17,
 		Democracy: pallet_democracy exclude_parts { Config } = 19,
-		Elections: pallet_elections_phragmen = 21,
-		Council: pallet_collective::<Instance1> = 23,
+		// NOTE 19, 21, 23 & 27 are retired (was used by gov v1)
 		TechnicalCommittee: pallet_collective::<Instance2> = 25,
-		Tips: pallet_tips = 27,
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
@@ -202,6 +200,7 @@ construct_runtime!(
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
+		Parameters: pallet_parameters = 83,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -325,13 +324,10 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
 		[pallet_democracy, Democracy]
-		[pallet_elections_phragmen, Elections]
 		[pallet_treasury, Treasury]
 		[pallet_scheduler, Scheduler]
 		[pallet_utility, Utility]
-		[pallet_tips, Tips]
 		[pallet_identity, Identity]
-		[pallet_collective_council, Council]
 		[pallet_collective_technical_committee, TechnicalCommittee]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_message_queue, MessageQueue]
@@ -348,6 +344,7 @@ mod benches {
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
 		[pallet_hsm, HSM]
+		[pallet_dynamic_fees, DynamicFees]
 	);
 }
 
@@ -382,17 +379,6 @@ cumulus_pallet_parachain_system::register_validate_block! {
 	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
 }
 
-// Addresses of the accounts that sign DIA oracle updates.
-const DIA_ORACLE_UPDATE_CALLER: &[EvmAddress] = &[
-	H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc06792E054e")),
-	H160(hex!("ff0c624016c873d359dde711b42a2f475a5a07d3")),
-];
-// Addresses of the DIA oracle contracts.
-const DIA_ORACLE_UPDATE_CALL_ADDRESS: &[EvmAddress] = &[
-	H160(hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
-	H160(hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5")),
-];
-
 impl fp_self_contained::SelfContainedCall for RuntimeCall {
 	type SignedInfo = H160;
 
@@ -417,32 +403,7 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 		len: usize,
 	) -> Option<TransactionValidity> {
 		match self {
-			RuntimeCall::Ethereum(call) => {
-				let mut tx_validity = call.validate_self_contained(info, dispatch_info, len);
-				if let pallet_ethereum::Call::transact { transaction } = call {
-					let action = match transaction {
-						Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
-						Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
-						Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
-					};
-
-					// check if the transaction is DIA oracle update
-					if let pallet_ethereum::TransactionAction::Call(call_address) = action {
-						if DIA_ORACLE_UPDATE_CALL_ADDRESS.contains(&call_address) {
-							if let Some(Ok(signer)) = call.check_self_contained() {
-								// additional check to prevent running the worker for DIA oracle updates signed by invalid address
-								if DIA_ORACLE_UPDATE_CALLER.contains(&signer) {
-									if let Some(Ok(ref mut validity_info)) = tx_validity {
-										validity_info.priority =
-											pallet_liquidation::Pallet::<Runtime>::oracle_update_priority();
-									};
-								};
-							}
-						}
-					};
-				}
-				tx_validity
-			}
+			RuntimeCall::Ethereum(call) => call.validate_self_contained(info, dispatch_info, len),
 			_ => None,
 		}
 	}
@@ -1022,20 +983,11 @@ impl_runtime_apis! {
 	}
 
 	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
-		fn asset_address(asset_id: AssetId) -> evm::EvmAddress {
+		fn asset_address(asset_id: AssetId) -> EvmAddress {
 			HydraErc20Mapping::asset_address(asset_id)
 		}
-		fn address_to_asset(address: evm::EvmAddress) -> Option<AssetId> {
+		fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
 			HydraErc20Mapping::address_to_asset(address)
-		}
-	}
-
-	impl pallet_liquidation::LiquidationWorkerApi<Block> for Runtime {
-		fn oracle_signers() -> Vec<EvmAddress> {
-			pallet_liquidation::Pallet::<Runtime>::oracle_signers().into_inner()
-		}
-		fn oracle_call_addresses() -> Vec<EvmAddress> {
-			pallet_liquidation::Pallet::<Runtime>::oracle_call_addresses().into_inner()
 		}
 	}
 
@@ -1129,12 +1081,12 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, evm::EvmAddress> for Runtime {
-		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> evm::EvmAddress {
+	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, EvmAddress> for Runtime {
+		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
 			evm::precompiles::chainlink_adapter::encode_oracle_address(asset_id_a, asset_id_b, period, source)
 		}
 
-		fn decode_oracle_address(oracle_address: evm::EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
+		fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
 			evm::precompiles::chainlink_adapter::decode_oracle_address(oracle_address)
 		}
 	}
@@ -1620,6 +1572,22 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		dai,
 		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 	));
+
+	let _ =with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::update(
+			RawOrigin::Root.into(),
+			hdx,
+			None,
+			None,
+			None,
+			Some(amount_to_sell * 10),
+			None,
+			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ());
 
 	with_transaction::<Balance, DispatchError, _>(|| {
 		let caller2: AccountId = frame_benchmarking::account("caller2", 0, 1);

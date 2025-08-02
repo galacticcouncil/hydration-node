@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.42.3"
+version = "1.48.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -10,6 +10,8 @@ repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
 xcm-runtime-apis = { workspace = true }
+codec = { workspace = true, features = ["derive", "max-encoded-len"] }
+scale-info = { workspace = true }
 hex-literal = { workspace = true }
 frame-remote-externalities = { workspace = true }
 tokio = { workspace = true }
@@ -47,10 +49,7 @@ liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
 
 pallet-treasury = { workspace = true }
-pallet-democracy = { workspace = true }
 pallet-scheduler = { workspace = true }
-pallet-elections-phragmen = { workspace = true }
-pallet-tips = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-conviction-voting = { workspace = true }
 pallet-dispatcher = { workspace = true }
@@ -154,6 +153,7 @@ libsecp256k1 = { workspace = true }
 [features]
 default = ["std"]
 std = [
+    "codec/std",
     "frame-executive/std",
     "frame-support/std",
     "frame-system/std",
@@ -178,7 +178,6 @@ std = [
     "pallet-asset-registry/std",
     "pallet-aura/std",
     "pallet-balances/std",
-    "pallet-elections-phragmen/std",
     "pallet-session/std",
     "pallet-timestamp/std",
     "pallet-transaction-payment/std",
@@ -206,9 +205,7 @@ std = [
     "sp-version/std",
     "pallet-treasury/std",
     "pallet-collective/std",
-    "pallet-democracy/std",
     "pallet-scheduler/std",
-    "pallet-tips/std",
     "pallet-collator-selection/std",
     "pallet-authorship/std",
     "hydradx-traits/std",

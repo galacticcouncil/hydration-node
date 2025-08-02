@@ -1,15 +1,19 @@
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmark_helpers {
-	use crate::{EVMAccounts, Runtime, RuntimeOrigin, Tokens};
+	use crate::{AssetRegistry, EVMAccounts, RegistryStrLimit, Runtime, RuntimeOrigin, Tokens};
 	use evm::ExitRevert::Reverted;
 	use evm::{ExitReason, ExitSucceed};
+	use frame_support::storage::with_transaction;
+	use frame_support::BoundedVec;
 	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
-	use orml_traits::MultiCurrencyExtended;
+	use hydradx_traits::{AssetKind, Create};
+	use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 	use pallet_hsm::ERC20Function;
 	use primitive_types::U256;
-	use primitives::{AccountId, Balance, EvmAddress};
+	use primitives::{AccountId, AssetId, Balance, EvmAddress};
 	use sp_core::crypto::AccountId32;
-	use sp_runtime::DispatchResult;
+	use sp_runtime::{DispatchResult, TransactionOutcome};
+	use sp_std::marker::PhantomData;
 	use sp_std::prelude::*;
 
 	pub struct HsmBenchmarkHelper;
@@ -90,8 +94,7 @@ pub mod benchmark_helpers {
 								let arb_evm = EVMAccounts::evm_address(&arb_account);
 								let arb_account = EVMAccounts::account_id(arb_evm);
 								let hollar_id = <Runtime as pallet_hsm::Config>::HollarId::get();
-								let _ =
-									Tokens::update_balance(hollar_id, &arb_account, amount.as_u128() as i128).unwrap();
+								Tokens::update_balance(hollar_id, &arb_account, amount.as_u128() as i128).unwrap();
 
 								let alice_evm = EVMAccounts::evm_address(&arb_account);
 								pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
@@ -100,7 +103,7 @@ pub mod benchmark_helpers {
 									&arb_data,
 								)
 								.unwrap();
-								let _ = Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))
+								Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128))
 									.unwrap();
 								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
 							}
@@ -114,6 +117,39 @@ pub mod benchmark_helpers {
 
 		fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_hsm::types::CallResult {
 			(ExitReason::Succeed(ExitSucceed::Stopped), vec![])
+		}
+	}
+
+	pub struct CircuitBreakerBenchmarkHelper<T>(PhantomData<T>);
+
+	impl<T: pallet_circuit_breaker::Config> pallet_circuit_breaker::types::BenchmarkHelper<AccountId, AssetId, Balance>
+		for CircuitBreakerBenchmarkHelper<T>
+	{
+		fn deposit(who: AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
+			Tokens::deposit(asset_id, &who, amount)
+		}
+
+		fn register_asset(asset_id: AssetId, deposit_limit: Balance) -> DispatchResult {
+			let asset_name: BoundedVec<u8, RegistryStrLimit> = asset_id
+				.to_le_bytes()
+				.to_vec()
+				.try_into()
+				.map_err(|_| "BoundedConversionFailed")?;
+
+			with_transaction(|| {
+				TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+					Some(asset_id),
+					Some(asset_name.clone()),
+					AssetKind::Token,
+					1,
+					None,
+					None,
+					None,
+					Some(deposit_limit),
+				))
+			})?;
+
+			Ok(())
 		}
 	}
 }

@@ -71,6 +71,9 @@ use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
 
+#[cfg(any(feature = "try-runtime", test))]
+use sp_runtime::FixedU128;
+
 mod trade_execution;
 pub mod traits;
 pub mod types;
@@ -281,6 +284,17 @@ pub mod pallet {
 		},
 		/// A pool has been destroyed.
 		PoolDestroyed { pool_id: T::AssetId },
+		/// Pool peg source has been updated.
+		PoolPegSourceUpdated {
+			pool_id: T::AssetId,
+			asset_id: T::AssetId,
+			peg_source: PegSource<T::AssetId>,
+		},
+		/// Pool max peg update has been updated.
+		PoolMaxPegUpdateUpdated {
+			pool_id: T::AssetId,
+			max_peg_update: Permill,
+		},
 	}
 
 	#[pallet::error]
@@ -366,6 +380,9 @@ pub mod pallet {
 
 		/// Creating pool with pegs is not allowed for asset with different decimals.
 		IncorrectAssetDecimals,
+
+		/// Pool does not have pegs configured.
+		NoPegSource,
 	}
 
 	#[pallet::call]
@@ -681,7 +698,7 @@ pub mod pallet {
 			);
 
 			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 			Ok(())
 		}
@@ -779,7 +796,7 @@ pub mod pallet {
 			);
 
 			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 			Ok(())
 		}
@@ -1135,7 +1152,7 @@ pub mod pallet {
 			});
 
 			#[cfg(any(feature = "try-runtime", test))]
-			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves);
+			Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 			Ok(())
 		}
@@ -1246,6 +1263,98 @@ pub mod pallet {
 			Self::do_add_liquidity(&who, pool_id, &assets, min_shares)?;
 
 			Ok(())
+		}
+
+		/// Update the peg source for a specific asset in a pool.
+		///
+		/// This function allows updating the peg source for an asset within a pool.
+		/// The pool must exist and have pegs configured. The asset must be part of the pool.
+		/// The current price is always preserved when updating the peg source.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`.
+		/// - `pool_id`: The ID of the pool containing the asset.
+		/// - `asset_id`: The ID of the asset whose peg source is to be updated.
+		/// - `peg_source`: The new peg source for the asset.
+		///
+		/// Emits `PoolPegSourceUpdated` event when successful.
+		///
+		/// # Errors
+		/// - `PoolNotFound`: If the specified pool does not exist.
+		/// - `NoPegSource`: If the pool does not have pegs configured.
+		/// - `AssetNotInPool`: If the specified asset is not part of the pool.
+		///
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_asset_peg_source())]
+		#[transactional]
+		pub fn update_asset_peg_source(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			asset_id: T::AssetId,
+			peg_source: PegSource<T::AssetId>,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
+			let asset_index = pool.find_asset(asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+
+			PoolPegs::<T>::try_mutate(pool_id, |maybe_peg_info| -> DispatchResult {
+				let peg_info = maybe_peg_info.as_mut().ok_or(Error::<T>::NoPegSource)?;
+
+				debug_assert_eq!(peg_info.source.len(), pool.assets.len(), "Peg source length mismatch");
+				ensure!(peg_info.source.len() == pool.assets.len(), Error::<T>::IncorrectAssets);
+				peg_info.source[asset_index] = peg_source.clone();
+
+				Self::deposit_event(Event::PoolPegSourceUpdated {
+					pool_id,
+					asset_id,
+					peg_source,
+				});
+
+				Ok(())
+			})
+		}
+
+		/// Update the maximum peg update percentage for a pool.
+		///
+		/// This function allows updating the maximum percentage by which peg values
+		/// can change in a pool with pegs configured.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`.
+		/// - `pool_id`: The ID of the pool to update.
+		/// - `max_peg_update`: The new maximum peg update percentage.
+		///
+		/// Emits `PoolMaxPegUpdateUpdated` event when successful.
+		///
+		/// # Errors
+		/// - `PoolNotFound`: If the specified pool does not exist.
+		/// - `NoPegSource`: If the pool does not have pegs configured.
+		///
+		#[pallet::call_index(14)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_pool_max_peg_update())]
+		#[transactional]
+		pub fn update_pool_max_peg_update(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			max_peg_update: Permill,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			ensure!(Pools::<T>::contains_key(pool_id), Error::<T>::PoolNotFound);
+
+			PoolPegs::<T>::try_mutate(pool_id, |maybe_peg_info| -> DispatchResult {
+				let peg_info = maybe_peg_info.as_mut().ok_or(Error::<T>::NoPegSource)?;
+
+				peg_info.max_peg_update = max_peg_update;
+
+				Self::deposit_event(Event::PoolMaxPegUpdateUpdated {
+					pool_id,
+					max_peg_update,
+				});
+
+				Ok(())
+			})
 		}
 	}
 
@@ -1563,7 +1672,7 @@ impl<T: Config> Pallet<T> {
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 		Self::deposit_event(Event::LiquidityAdded {
 			pool_id,
@@ -1655,7 +1764,7 @@ impl<T: Config> Pallet<T> {
 		Self::call_on_liquidity_change_hook(pool_id, &initial_reserves, share_issuance)?;
 
 		#[cfg(any(feature = "try-runtime", test))]
-		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves);
+		Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance);
 
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
 			who.clone(),
@@ -1765,14 +1874,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[cfg(any(feature = "try-runtime", test))]
-	fn ensure_add_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
+	fn ensure_add_liquidity_invariant(
+		pool_id: T::AssetId,
+		initial_reserves: &[AssetReserve],
+		initial_issuance: Balance,
+	) {
 		let pool = Pools::<T>::get(pool_id).unwrap();
 		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).unwrap();
 		let final_reserves = pool.reserves_with_decimals::<T>(&Self::pool_account(pool_id)).unwrap();
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
 			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves are not changed"
+			"Reserves have not changed"
 		);
 		let amplification = Self::get_amplification(&pool);
 		let initial_d =
@@ -1787,10 +1900,26 @@ impl<T: Config> Pallet<T> {
 			initial_d,
 			final_d
 		);
+		if initial_issuance.is_zero() {
+			return;
+		}
+		let current_share_issuance = T::Currency::total_issuance(pool_id);
+		let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
+		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
+		assert!(
+			final_r >= initial_r,
+			"Add liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
+			initial_r,
+			final_r
+		);
 	}
 
 	#[cfg(any(feature = "try-runtime", test))]
-	fn ensure_remove_liquidity_invariant(pool_id: T::AssetId, initial_reserves: &[AssetReserve]) {
+	fn ensure_remove_liquidity_invariant(
+		pool_id: T::AssetId,
+		initial_reserves: &[AssetReserve],
+		initial_issuance: Balance,
+	) {
 		let Some(pool) = Pools::<T>::get(pool_id) else {
 			return;
 		};
@@ -1799,7 +1928,7 @@ impl<T: Config> Pallet<T> {
 		debug_assert_ne!(
 			initial_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
 			final_reserves.iter().map(|v| v.amount).collect::<Vec<u128>>(),
-			"Reserves are not changed"
+			"Reserves have not changed"
 		);
 		let amplification = Self::get_amplification(&pool);
 		let initial_d =
@@ -1813,6 +1942,18 @@ impl<T: Config> Pallet<T> {
 			"Remove liquidity Invariant broken: D+ is more than initial D; {:?} >= {:?}",
 			initial_d,
 			final_d
+		);
+		let current_share_issuance = T::Currency::total_issuance(pool_id);
+		if current_share_issuance.is_zero() {
+			return;
+		}
+		let initial_r = FixedU128::from_rational(initial_d, initial_issuance);
+		let final_r = FixedU128::from_rational(final_d, current_share_issuance);
+		assert!(
+			final_r >= initial_r,
+			"Remove liquidity Invariant broken: R+ is less than initial R; {:?} <= {:?}",
+			initial_r,
+			final_r
 		);
 	}
 	#[cfg(any(feature = "try-runtime", test))]
