@@ -52,7 +52,7 @@ use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, Ta
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_blockchain::{
-	EvmTransactionDetail, TransactionDetail, TransactionDetailProvider, TransactionPriorityModule,
+	EvmTransactionDetail, TransactionDetail, TransactionDetailProvider, TransactionPriorityModifier,
 	TransactionTypeDetail,
 };
 use sp_keystore::KeystorePtr;
@@ -80,7 +80,7 @@ pub struct TxDetailProvider;
 impl TransactionDetailProvider for TxDetailProvider {
 	type Block = Block;
 
-	fn get_transaction_detail(&self, tx: <Self::Block as BlockT>::Extrinsic) -> Option<TransactionDetail> {
+	fn get_transaction_detail(&self, tx: &<Self::Block as BlockT>::Extrinsic) -> Option<TransactionDetail> {
 		let opaque_tx_encoded = tx.encode();
 		let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded).ok()?;
 		let call_metadata = tx.0.function.get_call_metadata();
@@ -125,7 +125,7 @@ impl TransactionDetailProvider for TxDetailProvider {
 /// be able to perform chain operations.
 pub fn new_partial(
 	config: &Configuration,
-	no_tx_priority_overwrite: bool,
+	no_tx_priority_override: bool,
 ) -> Result<
 	PartialComponents<
 		ParachainClient,
@@ -170,7 +170,7 @@ pub fn new_partial(
 		.with_runtime_cache_size(config.executor.runtime_cache_size)
 		.build();
 
-	let tx_priority_json = if no_tx_priority_overwrite {
+	let tx_priority_json = if no_tx_priority_override {
 		None
 	} else {
 		Some(include_str!("./tx_priority.json"))
@@ -182,7 +182,7 @@ pub fn new_partial(
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 			true,
-			Some(TransactionPriorityModule::<Block>::new(
+			Some(TransactionPriorityModifier::<Block>::new(
 				// Updating the file is not enough. The client needs to be rebuilt.
 				tx_priority_json,
 				Box::new(TxDetailProvider),
@@ -263,11 +263,11 @@ async fn start_node_impl(
 	liquidation_worker_config: liquidation_worker::LiquidationWorkerConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
-	no_tx_priority_overwrite: bool,
+	no_tx_priority_override: bool,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	let parachain_config = prepare_node_config(parachain_config);
 
-	let params = new_partial(&parachain_config, no_tx_priority_overwrite)?;
+	let params = new_partial(&parachain_config, no_tx_priority_override)?;
 	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
 		params.other;
 
@@ -600,7 +600,7 @@ pub async fn start_node(
 		cli.liquidation_worker_config,
 		collator_options,
 		para_id,
-		cli.no_tx_priority_overwrite,
+		cli.no_tx_priority_override,
 	)
 	.await
 }
