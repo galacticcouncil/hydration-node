@@ -1411,7 +1411,7 @@ where
 				0,
 				&state,
 			)
-				.ok()?;
+			.ok()?;
 
 			let reserves = after_state
 				.reserves
@@ -1443,9 +1443,8 @@ where
 			}
 			None
 		})()
-			.is_some()
+		.is_some()
 	}
-
 
 	/// Calculate if there's an arbitrage opportunity for a collateral asset
 	///
