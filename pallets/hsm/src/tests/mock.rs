@@ -86,7 +86,7 @@ macro_rules! assert_balance {
 
 thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (u32,u8)>> = RefCell::new(HashMap::default());
-	pub static EVM_CALLS: RefCell<Vec<(EvmAddress, Vec<u8>)>> = RefCell::new(Vec::new());
+	pub static EVM_CALLS: RefCell<Vec<(EvmAddress, Vec<u8>)>> = const { RefCell::new(Vec::new()) };
 	pub static EVM_CALL_RESULTS: RefCell<HashMap<Vec<u8>, Vec<u8>>> = RefCell::new(HashMap::default());
 	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
 	pub static EVM_ADDRESS_MAP: RefCell<HashMap<EvmAddress, AccountId>> = RefCell::new(HashMap::default());
@@ -244,13 +244,13 @@ impl PegRawOracle<AssetId, Balance, u64> for PegOracle {
 			PegSource::Value(v) => {
 				let (n, d) = v;
 				let u = System::block_number();
-				return Ok(RawEntry {
+				Ok(RawEntry {
 					price: (n, d),
 					volume: Volume::default(),
 					liquidity: Liquidity::default(),
 					shares_issuance: Default::default(),
 					updated_at: u,
-				});
+				})
 			}
 			PegSource::Oracle((_, _, asset_id)) => {
 				let (n, d, u) = PEG_ORACLE_VALUES
@@ -383,7 +383,7 @@ impl EVM<CallResult> for MockEvm {
 							let amount = U256::from_big_endian(&amount_bytes);
 
 							let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
-							let arb_account = ARB_ACCOUNT.into();
+							let arb_account = ARB_ACCOUNT;
 							crate::Pallet::<Test>::mint_hollar(&arb_account, amount.as_u128()).unwrap();
 							let alice_evm = EvmAddress::from_slice(&ARB_ACCOUNT.as_slice()[0..20]);
 							crate::Pallet::<Test>::execute_arbitrage_with_flash_loan(
@@ -688,7 +688,7 @@ impl ExtBuilder {
 			// Register assets
 			for (asset_id, decimals) in self.registered_assets {
 				REGISTERED_ASSETS.with(|v| {
-					v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
+					v.borrow_mut().insert(asset_id, (asset_id, decimals));
 				});
 			}
 

@@ -1409,7 +1409,7 @@ where
 				collateral_asset_id,
 				sell_amount,
 				0,
-				&state,
+				state,
 			)
 			.ok()?;
 
@@ -1417,7 +1417,7 @@ where
 				.reserves
 				.iter()
 				.zip(state.assets.iter())
-				.map(|(r, a)| (a.clone().into(), r.clone()))
+				.map(|(r, a)| ((*a).into(), *r))
 				.collect::<Vec<_>>();
 
 			let after_spot = hydra_dx_math::stableswap::calculate_spot_price(
@@ -1666,9 +1666,7 @@ where
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
 	fn get() -> Option<(EvmAddress, EvmAddress)> {
-		let Some(fm) = FlashMinter::<T>::get() else {
-			return None;
-		};
+		let fm = FlashMinter::<T>::get()?;
 		let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
 		Some((fm, loan_receiver))
 	}

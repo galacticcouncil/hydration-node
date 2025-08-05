@@ -275,11 +275,11 @@ proptest! {
 						.reserves
 						.iter()
 						.zip(state.assets.iter())
-						.map(|(r, a)| (a.clone().into(), r.clone()))
+						.map(|(r, a)| ((*a), *r))
 						.collect::<Vec<_>>();
 
 					let after_spot = hydra_dx_math::stableswap::calculate_spot_price(
-						pool_id.into(),
+						pool_id,
 						reserves,
 						amplification as u128,
 						HOLLAR,
