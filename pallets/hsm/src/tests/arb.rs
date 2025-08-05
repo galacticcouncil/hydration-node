@@ -1,4 +1,5 @@
 use crate::tests::mock::*;
+use crate::ARBITRAGE_DIRECTION_BUY;
 use frame_support::assert_ok;
 use hex_literal::hex;
 use hydra_dx_math::hsm::PegType;
@@ -108,7 +109,7 @@ fn arbitrage_should_work_when_less_hollar_in_the_pool_and_arb_amount_given() {
 			move_block();
 
 			let opportunity = HSM::find_arbitrage_opportunity(DAI).expect("No arbitrage opportunity");
-			assert_eq!(opportunity, (1, 499994562497366512583));
+			assert_eq!(opportunity, (ARBITRAGE_DIRECTION_BUY, 499994562497366512583));
 
 			let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
 			assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
@@ -167,7 +168,7 @@ fn arbitrage_should_work_when_less_hollar_in_the_pool() {
 			move_block();
 
 			let opportunity = HSM::find_arbitrage_opportunity(DAI);
-			assert_eq!(opportunity, Some((1, 499994562497366512583)));
+			assert_eq!(opportunity, Some((ARBITRAGE_DIRECTION_BUY, 499994562497366512583)));
 
 			let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
 			assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
@@ -250,7 +251,7 @@ proptest! {
 					return;
 				};
 
-				if direction == 1 && amount > 0 {
+				if direction == ARBITRAGE_DIRECTION_BUY && amount > 0 {
 					let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
 					assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
 

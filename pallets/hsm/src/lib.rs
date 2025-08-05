@@ -99,6 +99,12 @@ pub const MAX_COLLATERALS: u32 = 10;
 /// Unsigned transaction priority for arbitrage
 pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
 
+/// Arbitrage direction constants
+/// Direction for buy operations (less Hollar in pool, creates buy opportunities)
+pub const ARBITRAGE_DIRECTION_BUY: u8 = 1;
+/// Direction for sell operations (more Hollar in pool, creates sell opportunities)
+pub const ARBITRAGE_DIRECTION_SELL: u8 = 2;
+
 /// Offchain Worker lock
 pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
 /// Lock timeout in milliseconds
@@ -823,7 +829,7 @@ pub mod pallet {
 					Error::<T>::NoArbitrageOpportunity
 				);
 
-				(1, arb_amount)
+				(ARBITRAGE_DIRECTION_BUY, arb_amount)
 			} else {
 				Self::find_arbitrage_opportunity(collateral_asset_id).ok_or(Error::<T>::NoArbitrageOpportunity)?
 			};
@@ -1248,7 +1254,11 @@ where
 					continue;
 				};
 
-				let flash_amount = if arb_direction == 1 { Some(amount) } else { None };
+				let flash_amount = if arb_direction == ARBITRAGE_DIRECTION_BUY {
+					Some(amount)
+				} else {
+					None
+				};
 
 				let call = Call::execute_arbitrage {
 					collateral_asset_id: asset_id,
@@ -1282,15 +1292,15 @@ where
 	/// determines the optimal trade direction and size.
 	///
 	/// The function checks for two types of imbalances:
-	/// - Less Hollar in the pool: Creates buy opportunities (direction 1)
-	/// - More Hollar in the pool: Creates sell opportunities (direction 2)
+	/// - Less Hollar in the pool: Creates buy opportunities (direction ARBITRAGE_DIRECTION_BUY)
+	/// - More Hollar in the pool: Creates sell opportunities (direction ARBITRAGE_DIRECTION_SELL)
 	///
 	/// Parameters:
 	/// - `asset_id`: The collateral asset ID to check for arbitrage opportunities
 	///
 	/// Returns:
 	/// - `Some((direction, amount))` if an arbitrage opportunity exists
-	///   - `direction`: 1 for buy operations, 2 for sell operations
+	///   - `direction`: ARBITRAGE_DIRECTION_BUY for buy operations, ARBITRAGE_DIRECTION_SELL for sell operations
 	///   - `amount`: The optimal trade size in Hollar units
 	/// - `None` if no profitable arbitrage opportunity is found
 	fn find_arbitrage_opportunity(asset_id: T::AssetId) -> Option<(u8, Balance)> {
@@ -1320,11 +1330,11 @@ where
 		if imb_sign {
 			// Less HOLLAR in the pool
 			let op = Self::find_ideal_trade_size(asset_id, imbalance, peg, &collateral_info, &pool_state)?;
-			Some((1, op))
+			Some((ARBITRAGE_DIRECTION_BUY, op))
 		} else {
 			// More HOLLAR in the pool
 			let op = Self::calculate_ideal_trade_size(asset_id, imbalance, peg, &collateral_info, &pool_state).ok()?;
-			Some((2, op))
+			Some((ARBITRAGE_DIRECTION_SELL, op))
 		}
 	}
 
@@ -1554,7 +1564,7 @@ where
 		let hollar_balance = <T as Config>::Currency::balance(T::HollarId::get(), &flash_loan_account);
 		log::trace!(target: "hsm", "Hollar balance in flash loan account: {:?}", hollar_balance);
 
-		if direction == 2 {
+		if direction == ARBITRAGE_DIRECTION_SELL {
 			// Sell hollar to HSM for collateral
 			let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
 				&flash_loan_account,
@@ -1606,7 +1616,7 @@ where
 					Preservation::Expendable,
 				)?;
 			}
-		} else {
+		} else if direction == ARBITRAGE_DIRECTION_BUY {
 			let initial_balance = <T as Config>::Currency::balance(collateral_asset_id, &flash_loan_account);
 			debug_assert_eq!(initial_balance, 0);
 
@@ -1645,6 +1655,8 @@ where
 					Preservation::Expendable,
 				)?;
 			}
+		} else {
+			return Err(Error::<T>::InvalidArbitrageData.into());
 		}
 
 		Ok(())
