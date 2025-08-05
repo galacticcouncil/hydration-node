@@ -43,7 +43,7 @@ mod omnipool {
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::Destination;
-	use sp_runtime::{DispatchError, FixedU128, TransactionOutcome};
+	use sp_runtime::{FixedU128, TransactionOutcome};
 
 	#[test]
 	fn create_schedule_should_work() {

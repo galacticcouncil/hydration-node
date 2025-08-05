@@ -1,7 +1,7 @@
 use crate::driver::HydrationTestDriver;
 use crate::polkadot_test_net::*;
+use frame_support::assert_ok;
 use frame_support::BoundedVec;
-use frame_support::{assert_noop, assert_ok};
 use hydradx_adapters::stableswap_peg_oracle::PegOracle;
 use hydradx_runtime::*;
 use hydradx_traits::stableswap::AssetAmount;
@@ -14,9 +14,10 @@ use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
 use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
-use sp_runtime::{DispatchError, Permill};
+use sp_runtime::Permill;
 use std::sync::Arc;
 use test_utils::assert_eq_approx;
+
 pub const DOT: AssetId = 2221;
 pub const VDOT: AssetId = 2222;
 pub const ADOT: AssetId = 2223;
@@ -239,7 +240,7 @@ mod circuit_breaker {
 				];
 
 				//Act
-				crate::deposit_limiter::update_deposit_limit(GIGADOT, 2000000000000000000000);
+				crate::deposit_limiter::update_deposit_limit(GIGADOT, 2000000000000000000000).unwrap();
 				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(ALICE.into()),
 					GIGADOT,

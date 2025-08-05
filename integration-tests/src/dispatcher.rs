@@ -1,15 +1,11 @@
-use crate::evm::MockHandle;
 use crate::polkadot_test_net::*;
-use fp_evm::PrecompileSet;
-use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
-use frame_support::{assert_err, assert_noop, assert_ok};
-use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
+use frame_support::assert_ok;
+use frame_support::dispatch::GetDispatchInfo;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::EvmAddress;
-use sp_core::crypto::AccountId32;
 use sp_core::Encode;
 use sp_core::Get;
 use sp_core::{ByteArray, U256};
@@ -107,11 +103,9 @@ fn dispatch_with_extra_gas_should_work() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			(pallet_utility::Call::batch_all {
-				calls: vec![call.clone(), call.clone(), call.clone()],
-			}),
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone(), call.clone(), call.clone()],
+		});
 		assert_ok!(Dispatcher::dispatch_with_extra_gas(
 			RuntimeOrigin::signed(ALICE.into()),
 			Box::new(batch.clone()),
@@ -138,11 +132,9 @@ fn dispatch_with_extra_gas_should_fail_when_extra_gas_is_not_enough() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			(pallet_utility::Call::batch_all {
-				calls: vec![call.clone(), call.clone(), call.clone()],
-			}),
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone(), call.clone(), call.clone()],
+		});
 		let result =
 			Dispatcher::dispatch_with_extra_gas(RuntimeOrigin::signed(ALICE.into()), Box::new(batch.clone()), 50_000);
 
@@ -170,11 +162,9 @@ fn dispatch_with_extra_gas_should_pay_for_extra_gas_used_when_it_is_not_used() {
 			amount: 100,
 		});
 
-		let batch = RuntimeCall::Utility(
-			(pallet_utility::Call::batch_all {
-				calls: vec![call.clone()],
-			}),
-		);
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![call.clone()],
+		});
 
 		let dispatch_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
 			call: Box::new(batch.clone()),
@@ -189,7 +179,7 @@ fn dispatch_with_extra_gas_should_pay_for_extra_gas_used_when_it_is_not_used() {
 		assert_ok!(&pre);
 		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
 		assert_ok!(result);
-		assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
+		assert_ok!(ChargeTransactionPayment::<Runtime>::post_dispatch(
 			Some(pre.unwrap()),
 			&info,
 			&result.unwrap(),
@@ -390,9 +380,6 @@ fn dispatch_with_extra_gas_should_charge_extra_gas_when_calls_fail() {
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
 			.pre_dispatch(&AccountId::from(ALICE), &dispatch_call, &info, info_len);
 		assert_ok!(&pre);
-
-		let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
-		let fee_charge = initial_alice_hdx_balance - alice_hdx_balance;
 
 		let result = dispatch_call.dispatch(RuntimeOrigin::signed(ALICE.into()));
 		assert!(result.is_err());

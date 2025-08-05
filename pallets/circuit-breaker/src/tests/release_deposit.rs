@@ -1,13 +1,12 @@
 use crate::tests::mock::{expect_events, CircuitBreaker};
 use crate::tests::mock::{ExtBuilder, System, Test, Tokens, ALICE, BOB};
-use crate::types::LockdownStatus;
-use crate::{AssetLockdownState, Error};
+use crate::Error;
 use frame_support::dispatch::RawOrigin;
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
-use sp_runtime::DispatchError;
-use test_utils::assert_balance;
+
 pub const ASSET_ID: u32 = 10000;
+
 #[test]
 fn release_deposit_should_release_amount() {
 	ExtBuilder::default()

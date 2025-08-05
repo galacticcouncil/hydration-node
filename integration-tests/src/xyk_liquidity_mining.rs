@@ -1301,7 +1301,7 @@ fn populate_oracle_and_move_one_block(account: AccountId, asset_a: u32, asset_b:
 		asset_a,
 		asset_b,
 		1000,
-		u128::max_value(),
+		u128::MAX,
 		false
 	));
 

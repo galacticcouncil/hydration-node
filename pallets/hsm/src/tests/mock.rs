@@ -796,12 +796,12 @@ mod for_benchmark_tests {
 	impl pallet_stableswap::BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
 		fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
 			REGISTERED_ASSETS.with(|v| {
-				v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
+				v.borrow_mut().insert(asset_id, (asset_id, decimals));
 			});
 			Ok(())
 		}
 
-		fn set_deposit_limit(asset_id: AssetId, limit: u128) -> sp_runtime::DispatchResult {
+		fn set_deposit_limit(_asset_id: AssetId, _limit: u128) -> sp_runtime::DispatchResult {
 			Ok(())
 		}
 
