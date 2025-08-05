@@ -167,7 +167,7 @@ where
 			price,
 			volume: volume.into(),
 			liquidity: liquidity.into(),
-			shares_issuance: shares.into(),
+			shares_issuance: shares,
 			updated_at: incoming.updated_at,
 		})
 	}
@@ -207,7 +207,7 @@ where
 			(
 				update_with.price,
 				update_with.liquidity.into(),
-				update_with.shares_issuance.into(),
+				update_with.shares_issuance,
 			),
 			smoothing,
 		);
@@ -216,7 +216,7 @@ where
 			price,
 			volume: volume.into(),
 			liquidity: liquidity.into(),
-			shares_issuance: shares.into(),
+			shares_issuance: shares,
 			updated_at: update_with.updated_at,
 		})
 	}

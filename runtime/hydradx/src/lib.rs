@@ -54,7 +54,7 @@ pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
-use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 335,
+	spec_version: 336,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -983,10 +983,10 @@ impl_runtime_apis! {
 	}
 
 	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
-		fn asset_address(asset_id: AssetId) -> evm::EvmAddress {
+		fn asset_address(asset_id: AssetId) -> EvmAddress {
 			HydraErc20Mapping::asset_address(asset_id)
 		}
-		fn address_to_asset(address: evm::EvmAddress) -> Option<AssetId> {
+		fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
 			HydraErc20Mapping::address_to_asset(address)
 		}
 	}
@@ -1081,12 +1081,12 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, evm::EvmAddress> for Runtime {
-		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> evm::EvmAddress {
+	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, EvmAddress> for Runtime {
+		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
 			evm::precompiles::chainlink_adapter::encode_oracle_address(asset_id_a, asset_id_b, period, source)
 		}
 
-		fn decode_oracle_address(oracle_address: evm::EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
+		fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
 			evm::precompiles::chainlink_adapter::decode_oracle_address(oracle_address)
 		}
 	}
@@ -1573,7 +1573,7 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 	));
 
-	with_transaction(|| {
+	let _ = with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::update(
 			RawOrigin::Root.into(),
 			hdx,
