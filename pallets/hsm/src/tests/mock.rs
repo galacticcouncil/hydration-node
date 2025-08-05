@@ -71,6 +71,8 @@ pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const CHARLIE: AccountId = AccountId::new([3; 32]);
 pub const PROVIDER: AccountId = AccountId::new([4; 32]);
 
+pub const ARB_ACCOUNT: AccountId = AccountId::new([22; 32]);
+
 pub const ONE: Balance = 1_000_000_000_000_000_000;
 
 pub const GHO_ADDRESS: [u8; 20] = [1u8; 20];
@@ -381,9 +383,9 @@ impl EVM<CallResult> for MockEvm {
 							let amount = U256::from_big_endian(&amount_bytes);
 
 							let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
-							let arb_account = ALICE.into();
+							let arb_account = ARB_ACCOUNT.into();
 							crate::Pallet::<Test>::mint_hollar(&arb_account, amount.as_u128()).unwrap();
-							let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
+							let alice_evm = EvmAddress::from_slice(&ARB_ACCOUNT.as_slice()[0..20]);
 							crate::Pallet::<Test>::execute_arbitrage_with_flash_loan(
 								alice_evm,
 								amount.as_u128(),
@@ -392,7 +394,7 @@ impl EVM<CallResult> for MockEvm {
 							.unwrap();
 
 							Tokens::transfer(
-								RuntimeOrigin::signed(ALICE),
+								RuntimeOrigin::signed(ARB_ACCOUNT),
 								crate::Pallet::<Test>::account_id(),
 								<Test as crate::Config>::HollarId::get(),
 								amount.as_u128(),
@@ -426,6 +428,7 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 	let provider_evm = EvmAddress::from_slice(&PROVIDER.as_slice()[0..20]);
 	let bob_evm = EvmAddress::from_slice(&BOB.as_slice()[0..20]);
 	let hsm_evm = EvmAddress::from_slice(&HSM::account_id().as_slice()[0..20]);
+	let arb_acc_evm = EvmAddress::from_slice(&ARB_ACCOUNT.as_slice()[0..20]);
 
 	if evm_addr == alice_evm {
 		ALICE
@@ -435,6 +438,8 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 		BOB
 	} else if evm_addr == hsm_evm {
 		HSM::account_id()
+	} else if evm_addr == arb_acc_evm {
+		ARB_ACCOUNT
 	} else {
 		EVM_ADDRESS_MAP.with(|v| v.borrow().get(&evm_addr).cloned().expect("EVM address not found"))
 	}

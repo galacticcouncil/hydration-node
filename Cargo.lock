@@ -4666,7 +4666,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "335.0.0"
+version = "336.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8401,7 +8401,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.1.2"
+version = "1.2.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -8424,12 +8424,14 @@ dependencies = [
  "precompile-utils",
  "pretty_assertions",
  "primitive-types",
+ "proptest",
  "scale-info",
  "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -12221,7 +12223,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
