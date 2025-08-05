@@ -17,6 +17,7 @@ use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
 use sp_runtime::Permill;
 use std::sync::Arc;
 use test_utils::assert_eq_approx;
+
 pub const DOT: AssetId = 2221;
 pub const VDOT: AssetId = 2222;
 pub const ADOT: AssetId = 2223;

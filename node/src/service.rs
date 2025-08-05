@@ -19,6 +19,7 @@
 
 #![allow(clippy::all)]
 
+use codec::{Decode, Encode};
 use hydradx_runtime::{
 	opaque::{Block, Hash},
 	RuntimeApi,
@@ -41,6 +42,8 @@ use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 
 use fc_db::kv::Backend as FrontierBackend;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use fp_self_contained::SelfContainedCall;
+use frame_support::traits::GetCallMetadata;
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
@@ -48,12 +51,17 @@ use sc_network::NetworkBlock;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+use sp_blockchain::{
+	EvmTransactionDetail, TransactionDetail, TransactionDetailProvider, TransactionPriorityModifier,
+	TransactionTypeDetail,
+};
 use sp_keystore::KeystorePtr;
+use sp_runtime::traits::Block as BlockT;
 use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, liquidation_worker, rpc};
+use crate::{chain_spec, cli, liquidation_worker, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -68,12 +76,56 @@ type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
 
+pub struct TxDetailProvider;
+impl TransactionDetailProvider for TxDetailProvider {
+	type Block = Block;
+
+	fn get_transaction_detail(&self, tx: &<Self::Block as BlockT>::Extrinsic) -> Option<TransactionDetail> {
+		let opaque_tx_encoded = tx.encode();
+		let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded).ok()?;
+		let call_metadata = tx.0.function.get_call_metadata();
+
+		match tx.0.function {
+			hydradx_runtime::RuntimeCall::Ethereum(pallet_ethereum::Call::transact { ref transaction }) => {
+				if let Some(Ok(signer)) = tx.0.function.check_self_contained() {
+					let action = match transaction.clone() {
+						pallet_ethereum::Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
+						pallet_ethereum::Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
+						pallet_ethereum::Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+					};
+					let maybe_call_address = match action {
+						pallet_ethereum::TransactionAction::Call(call_address) => Some(call_address),
+						_ => None,
+					};
+
+					Some(TransactionDetail {
+						module: call_metadata.pallet_name,
+						extrinsic: call_metadata.function_name,
+						transaction_data: Some(TransactionTypeDetail::Evm(EvmTransactionDetail {
+							call_address: maybe_call_address,
+							signer: signer,
+						})),
+					})
+				} else {
+					None
+				}
+			}
+			_ => Some(TransactionDetail {
+				module: call_metadata.pallet_name,
+				extrinsic: call_metadata.function_name,
+				transaction_data: None,
+			}),
+		}
+	}
+}
+
 /// Starts a `ServiceBuilder` for a full service.
 ///
 /// Use this macro if you don't actually need the full service, but just the builder in order to
 /// be able to perform chain operations.
 pub fn new_partial(
 	config: &Configuration,
+	no_tx_priority_override: bool,
 ) -> Result<
 	PartialComponents<
 		ParachainClient,
@@ -118,12 +170,23 @@ pub fn new_partial(
 		.with_runtime_cache_size(config.executor.runtime_cache_size)
 		.build();
 
+	let tx_priority_json = if no_tx_priority_override {
+		None
+	} else {
+		Some(include_str!("./tx_priority.json"))
+	};
+
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
 			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 			true,
+			Some(TransactionPriorityModifier::<Block>::new(
+				// Updating the file is not enough. The client needs to be rebuilt.
+				tx_priority_json,
+				Box::new(TxDetailProvider),
+			)),
 		)?;
 
 	let client = Arc::new(client);
@@ -200,10 +263,11 @@ async fn start_node_impl(
 	liquidation_worker_config: liquidation_worker::LiquidationWorkerConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
+	no_tx_priority_override: bool,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	let parachain_config = prepare_node_config(parachain_config);
 
-	let params = new_partial(&parachain_config)?;
+	let params = new_partial(&parachain_config, no_tx_priority_override)?;
 	let (block_import, mut telemetry, telemetry_worker_handle, frontier_backend, filter_pool, fee_history_cache) =
 		params.other;
 
@@ -523,20 +587,20 @@ fn start_consensus(
 
 /// Start a parachain node.
 pub async fn start_node(
+	cli: cli::Cli,
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
-	ethereum_config: evm::EthereumConfig,
-	liquidation_worker_config: liquidation_worker::LiquidationWorkerConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
 	start_node_impl(
 		parachain_config,
 		polkadot_config,
-		ethereum_config,
-		liquidation_worker_config,
+		cli.ethereum_config,
+		cli.liquidation_worker_config,
 		collator_options,
 		para_id,
+		cli.no_tx_priority_override,
 	)
 	.await
 }

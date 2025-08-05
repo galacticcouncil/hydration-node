@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "14.3.0"
+version = "14.4.0"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -50,6 +50,7 @@ ethabi = { workspace = true }
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
 frame-benchmarking-cli = { workspace = true, optional = true }
+frame-support = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
 sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
@@ -99,8 +100,6 @@ cumulus-test-relay-sproof-builder = { workspace = true }
 polkadot-cli = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true }
-
-frame-support = { workspace = true }
 
 # Frontier
 fc-consensus = { workspace = true }
