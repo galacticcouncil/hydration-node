@@ -342,7 +342,6 @@ impl UserData {
 		}
 	}
 
-	// TODO: improve precision
 	/// Calculates user's health factor.
 	pub fn health_factor<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 		&self,

@@ -1084,13 +1084,13 @@ where
 		&self,
 		_hash: Block::Hash,
 		caller: EvmAddress,
-		mm_pool: EvmAddress,
+		contract_address: EvmAddress,
 		data: Vec<u8>,
 		gas_limit: U256,
 	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, frame_support::sp_runtime::DispatchError>, sp_api::ApiError> {
 		Ok(C::call(
 			caller,
-			mm_pool,
+			contract_address,
 			data,
 			U256::zero(),
 			gas_limit,

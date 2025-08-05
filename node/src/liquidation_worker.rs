@@ -106,14 +106,14 @@ where
 		&self,
 		hash: Block::Hash,
 		caller: EvmAddress,
-		mm_pool: EvmAddress,
+		contract_address: EvmAddress,
 		data: Vec<u8>,
 		gas_limit: U256,
 	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, sp_runtime::DispatchError>, sp_api::ApiError> {
 		self.0.call(
 			hash,
 			caller,
-			mm_pool,
+			contract_address,
 			data,
 			U256::zero(),
 			gas_limit,
@@ -253,7 +253,7 @@ where
 	) {
 		let now = std::time::Instant::now();
 
-		// We can ignore the result, because it's not important for us.
+		// We can ignore the result because it's not important for us.
 		// All we want is to have some upper bound for execution time of this task.
 		let _ = tokio::time::timeout(std::time::Duration::from_secs(4), async {
 			let runtime_api = client.runtime_api();
@@ -283,10 +283,6 @@ where
 					current_block_number < *block_num + WAIT_PERIOD.into()
 				});
 			}
-
-			// Get allowed signers and allowed oracle call addresses.
-			// TODO: verify
-			// These values can be changed in the runtime, so get them on every block.
 
 			// Accounts that sign the DIA oracle update transactions.
 			let allowed_signers = config.clone().oracle_update_signer.unwrap_or(ORACLE_UPDATE_SIGNER.to_vec());
@@ -656,7 +652,7 @@ where
 	}
 
 	/// Returns borrowers sorted by HF.
-	/// The list ir sorted in ascending order, starting with borrowers whose HF has not yet been
+	/// The list is sorted in ascending order, starting with borrowers whose HF has not yet been
 	/// calculated (HF==0).
 	pub fn process_borrowers_data(oracle_data: BorrowerData<AccountId>) -> Vec<(H160, U256)> {
 		let one = U256::from(10u128.pow(18));
