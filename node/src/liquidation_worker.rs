@@ -348,12 +348,16 @@ where
 		let sorted_borrowers_data_c = borrowers.clone();
 
 		let Some(pool_tx) = transaction_pool.clone().ready_transaction(&notification) else {
+			tracing::info!(target: LOG_TARGET, "ready_transaction failed");
 			return Err(());
 		};
 		let opaque_tx_encoded = pool_tx.data().encode();
 		let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
 
-		let Ok(transaction) = tx else { return Err(()) };
+		let Ok(transaction) = tx else {
+			tracing::info!(target: LOG_TARGET, "transaction decoding failed");
+			return Err(()) 
+		};
 
 		// Listen to `borrow` transactions and add new borrowers to the list. If the borrower is already in the list, invalidate the HF by setting it to 0.
 		let maybe_borrower = Self::is_borrow_transaction(transaction.0.clone());
@@ -371,7 +375,6 @@ where
 		let Some(transaction) =
 			Self::verify_oracle_update_transaction(transaction.0, &allowed_signers, &allowed_oracle_call_addresses)
 		else {
-			tracing::info!(target: LOG_TARGET, "verify_oracle_update_transaction failed");
 			return Ok(());
 		};
 
@@ -558,6 +561,7 @@ where
 				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.collateral_asset),
 				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.debt_asset),
 			) else {
+				tracing::info!(target: LOG_TARGET, "address_to_asset failed");
 				return Ok(());
 			};
 
