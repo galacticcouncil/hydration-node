@@ -356,7 +356,7 @@ where
 
 		let Ok(transaction) = tx else {
 			tracing::info!(target: LOG_TARGET, "transaction decoding failed");
-			return Err(()) 
+			return Err(());
 		};
 
 		// Listen to `borrow` transactions and add new borrowers to the list. If the borrower is already in the list, invalidate the HF by setting it to 0.
