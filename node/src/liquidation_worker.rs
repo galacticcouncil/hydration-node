@@ -377,7 +377,7 @@ where
 
 		Self::spawn_worker(thread_pool.clone(), move || {
 			let now = std::time::Instant::now();
-			
+
 			Self::process_new_oracle_update(
 				transaction,
 				client.clone(),
@@ -389,7 +389,7 @@ where
 				transaction_pool.clone(),
 				config,
 			);
-				
+
 			tracing::info!(target: LOG_TARGET, "process_new_oracle_update execution time: {:?}", now.elapsed().as_millis());
 		});
 
