@@ -4674,7 +4674,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "336.0.0"
+version = "337.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8542,7 +8542,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "ethabi",
  "ethereum",
