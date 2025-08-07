@@ -135,10 +135,40 @@ pub struct BorrowerDataDetails<AccountId> {
 
 #[derive(Clone, Encode, Decode, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct BorrowerData<AccountId> {
+pub struct BorrowersData<AccountId> {
 	pub last_global_update: u32,
 	pub last_update: u32,
 	pub borrowers: Vec<(H160, BorrowerDataDetails<AccountId>)>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Borrower {
+	pub user_address: EvmAddress,
+	pub health_factor: U256,
+	pub assets: Vec<EvmAddress>,
+}
+impl Borrower {
+	pub fn new(user_address: EvmAddress, health_factor: U256) -> Self {
+		Self {
+			user_address,
+			health_factor,
+			assets: vec![],
+		}
+	}
+
+	pub fn new_with_assets(user_address: EvmAddress, health_factor: U256, assets: &[EvmAddress]) -> Self {
+		Self {
+			user_address,
+			health_factor,
+			assets: assets.to_vec(),
+		}
+	}
+
+	pub fn add_asset(&mut self, asset: EvmAddress) {
+		if !self.assets.contains(&asset) {
+			self.assets.push(asset);
+		}
+	}
 }
 
 /// Multiplies two ray, rounding half up to the nearest ray.
@@ -1029,6 +1059,33 @@ impl<
 		if let Some(reserve) = maybe_reserve {
 			reserve.price = new_price;
 		}
+	}
+
+	/// Calls Runtime API.
+	/// Returns a list of all asset addresses used as user's collateral or debt.
+	pub fn get_user_asset_addresses(
+		&self,
+		api_provider: ApiProvider,
+		hash: Block::Hash,
+		user: EvmAddress,
+		caller: EvmAddress,
+	) -> Result<Vec<EvmAddress>, LiquidationError> {
+		let configuration = UserConfiguration(UserData::fetch_user_configuration::<
+			Block,
+			ApiProvider,
+			OriginCaller,
+			RuntimeCall,
+			RuntimeEvent,
+		>(&api_provider, hash, self.pool_contract, user, caller)?);
+
+		let mut user_assets = Vec::new();
+		for (index, reserve) in self.reserves.iter().enumerate() {
+			if configuration.is_collateral(index) || configuration.is_debt(index) {
+				user_assets.push(reserve.asset_address);
+			};
+		}
+		
+		Ok(user_assets)
 	}
 
 	/// The formula:
