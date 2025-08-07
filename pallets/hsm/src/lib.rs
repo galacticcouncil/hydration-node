@@ -216,8 +216,7 @@ pub mod pallet {
 		///
 		/// Parameters:
 		/// - `asset_id`: The ID of the asset removed from collaterals
-		/// - `amount`: The amount of the asset that was returned (should be zero)
-		CollateralRemoved { asset_id: T::AssetId, amount: Balance },
+		CollateralRemoved { asset_id: T::AssetId },
 		/// A collateral asset was updated
 		///
 		/// Parameters:
@@ -522,7 +521,7 @@ pub mod pallet {
 
 			Collaterals::<T>::remove(asset_id);
 
-			Self::deposit_event(Event::<T>::CollateralRemoved { asset_id, amount });
+			Self::deposit_event(Event::<T>::CollateralRemoved { asset_id });
 
 			Ok(())
 		}
