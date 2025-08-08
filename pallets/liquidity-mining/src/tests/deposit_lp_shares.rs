@@ -557,42 +557,6 @@ fn deposit_lp_shares_should_work() {
 }
 
 #[test]
-fn deposit_lp_shares_bellow_min_deposit_should_not_work() {
-	let _ = predefined_test_ext_with_deposits().execute_with(|| {
-		with_transaction(|| {
-			//NOTE: min. deposit is 10
-			let yield_farm_id = GC_BSX_TKN1_YIELD_FARM_ID;
-
-			assert_noop!(
-				LiquidityMining::deposit_lp_shares(GC_FARM, yield_farm_id, BSX_TKN1_AMM, 0, |_, _, _| { Ok(10_u128) }),
-				Error::<Test, Instance1>::InvalidDepositAmount
-			);
-
-			assert_noop!(
-				LiquidityMining::deposit_lp_shares(GC_FARM, yield_farm_id, BSX_TKN1_AMM, 1, |_, _, _| { Ok(10_u128) }),
-				Error::<Test, Instance1>::InvalidDepositAmount
-			);
-
-			assert_noop!(
-				LiquidityMining::deposit_lp_shares(GC_FARM, yield_farm_id, BSX_TKN1_AMM, 8, |_, _, _| { Ok(10_u128) }),
-				Error::<Test, Instance1>::InvalidDepositAmount
-			);
-
-			//margin value should works
-			assert_ok!(LiquidityMining::deposit_lp_shares(
-				GC_FARM,
-				yield_farm_id,
-				BSX_TKN1_AMM,
-				crate::MIN_DEPOSIT,
-				|_, _, _| { Ok(crate::MIN_DEPOSIT) }
-			));
-
-			TransactionOutcome::Commit(DispatchResult::Ok(()))
-		})
-	});
-}
-
-#[test]
 fn deposit_lp_shares_non_existing_yield_farm_should_not_work() {
 	predefined_test_ext_with_deposits().execute_with(|| {
 		let _ = with_transaction(|| {
@@ -644,6 +608,23 @@ fn deposit_lp_shares_should_not_work_when_valued_shares_are_bellow_min_deposit()
 				),
 				Error::<Test, Instance1>::IncorrectValuedShares
 			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		})
+	});
+}
+
+#[test]
+fn deposit_lp_shares_should_work_when_valued_shares_are_euqal_to_min_deposit() {
+	let _ = predefined_test_ext_with_deposits().execute_with(|| {
+		with_transaction(|| {
+			assert_ok!(LiquidityMining::deposit_lp_shares(
+				GC_FARM,
+				GC_BSX_TKN1_YIELD_FARM_ID,
+				BSX_TKN1_AMM,
+				crate::MIN_DEPOSIT,
+				|_, _, _| { Ok(crate::MIN_DEPOSIT) }
+			));
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		})

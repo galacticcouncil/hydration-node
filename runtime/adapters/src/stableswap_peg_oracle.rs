@@ -72,6 +72,7 @@ where
 					volume: Default::default(),
 					liquidity: Default::default(),
 					updated_at: entry.updated_at.saturated_into(),
+					shares_issuance: Default::default(),
 				})
 			}
 			//NOTE: Money Market oracles must have 8 decimals so this oracle is hardcoded with 8
@@ -124,18 +125,12 @@ where
 				let current_block = frame_system::Pallet::<Runtime>::current_block_number();
 				let updated_at = current_block.saturating_sub(diff_blocks.into());
 
-				if updated_at.is_zero() {
-					log::error!(target: "stableswap-peg-oracle",
-						"Calculated updated at is 0th block. CurrentBlock: {:?}, DiffBlocks: {:?}", current_block, diff_blocks);
-
-					return Err(DispatchError::Other("PegOracle not available"));
-				}
-
 				Ok(RawEntry {
 					price: (price_num, MM_ORACLE_DENOM),
 					volume: Default::default(),
 					liquidity: Default::default(),
 					updated_at: updated_at.saturated_into(),
+					shares_issuance: Default::default(),
 				})
 			}
 			PegSource::Value(peg) => Ok(RawEntry {
@@ -143,6 +138,7 @@ where
 				volume: Default::default(),
 				liquidity: Default::default(),
 				updated_at: frame_system::Pallet::<Runtime>::current_block_number().saturated_into(),
+				shares_issuance: Default::default(),
 			}),
 		}
 	}

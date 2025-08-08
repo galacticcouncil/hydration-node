@@ -667,7 +667,7 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 	});
 }
 
-fn init_omnipool() {
+pub fn init_omnipool() {
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
 		HDX,

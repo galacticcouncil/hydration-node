@@ -115,6 +115,7 @@ impl Config for Test {
 	type RawOracle = OracleProvider;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+	type WeightInfo = ();
 }
 
 pub struct ExtBuilder {

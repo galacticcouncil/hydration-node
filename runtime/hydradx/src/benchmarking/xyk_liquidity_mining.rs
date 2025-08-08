@@ -21,13 +21,12 @@ use crate::{
 
 use sp_core::Get;
 
-use super::*;
+use crate::*;
 
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::{
 	assert_ok,
-	sp_runtime::{DispatchResult, FixedU128, Perquintill},
-	traits::{OnFinalize, OnInitialize},
+	sp_runtime::{traits::One, DispatchResult, FixedU128, Perquintill},
 };
 use frame_system::RawOrigin;
 use hydradx_traits::AMM;
@@ -35,7 +34,13 @@ use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_xyk::types::AssetPair;
 use sp_std::vec;
-use warehouse_liquidity_mining::{GlobalFarmId, LoyaltyCurve};
+use warehouse_liquidity_mining::{GlobalFarmData, GlobalFarmId, LoyaltyCurve};
+type Router<T> = pallet_route_executor::Pallet<T>;
+use crate::benchmarking::{register_asset, register_external_asset, update_deposit_limit};
+use crate::XYKLiquidityMiningInstance;
+use hydradx_traits::liquidity_mining::PriceAdjustment;
+use hydradx_traits::router::AssetPair as RouteAssetPair;
+use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 
 pub const HDX: AssetId = 0;
 
@@ -129,6 +134,8 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -154,6 +161,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider, pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -178,6 +186,7 @@ runtime_benchmarks! {
 		};
 
 		let xyk_owner = funded_account("xyk", 0, &[HDX, pair.asset_in, pair.asset_out]);
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_owner, pair.asset_in, pair.asset_out);
 
 		let farm_owner = funded_account("caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
@@ -200,6 +209,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -226,6 +236,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -251,6 +262,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -279,6 +291,7 @@ runtime_benchmarks! {
 		let liq_provider = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let liq_provider2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(liq_provider.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -317,6 +330,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -376,6 +390,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -432,6 +447,7 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -472,9 +488,11 @@ runtime_benchmarks! {
 		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, pair.asset_in, pair.asset_out, pair2.asset_out]);
 		let lp = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out, pair2.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller.clone(), pair.asset_in, pair.asset_out);
 		let xyk_id_1 = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 
+		whitelist_oracle(pair2);
 		create_xyk_pool(xyk_caller, pair2.asset_in, pair2.asset_out);
 		let xyk_id_2 = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 
@@ -521,6 +539,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -584,6 +603,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -623,6 +643,11 @@ runtime_benchmarks! {
 		//Deposit into the yield-farm so it will be updated
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
 
+		let pair_account = <XYK as AMM<AccountId, AssetId, AssetPair, Balance>>::get_pair_id(pair);
+
+		let share_token = XYK::share_token(&pair_account);
+		update_deposit_limit(share_token, 1_000u128).expect("Failed to update deposit limit");
+
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
 
@@ -648,6 +673,7 @@ runtime_benchmarks! {
 		let lp1 = funded_account("liq_provider", 2, &[HDX, pair.asset_in, pair.asset_out]);
 		let lp2 = funded_account("lp2", 3, &[HDX, pair.asset_in, pair.asset_out]);
 
+		whitelist_oracle(pair);
 		create_xyk_pool(xyk_caller, pair.asset_in, pair.asset_out);
 		let xyk_id = XYK::pair_account_from_assets(pair.asset_in, pair.asset_out);
 		xyk_add_liquidity(lp1.clone(), pair, 1_000 * ONE, 100_000 * ONE)?;
@@ -690,6 +716,109 @@ runtime_benchmarks! {
 
 		run_to_block(400);
 	}: _(RawOrigin::Signed(lp1),lp1_deposit_id, pair, farms.try_into().unwrap())
+
+	price_adjustment_get {
+		let maker: AccountId = account("maker", 0, 0);
+		let asset_1 = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_2 = register_asset(b"AS2".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_3 = register_asset(b"AS3".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_4 = register_asset(b"AS4".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_5 = register_asset(b"AS5".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_6 = register_asset(b"AS6".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_7 = register_asset(b"AS7".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_8 = register_asset(b"AS8".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_9 = register_asset(b"AS9".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+		let asset_10 = register_asset(b"ASA".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
+
+		let xyk_caller = funded_account("xyk_caller", 1, &[HDX, asset_1, asset_2, asset_3, asset_4, asset_5, asset_6, asset_7, asset_8, asset_9, asset_10]);
+
+		let asset_pairs = vec![
+			AssetPair {
+				asset_in: asset_1,
+				asset_out: asset_2,
+			},
+			AssetPair {
+				asset_in: asset_2,
+				asset_out: asset_3,
+			},
+			AssetPair {
+				asset_in: asset_3,
+				asset_out: asset_4,
+			},
+			AssetPair {
+				asset_in: asset_4,
+				asset_out: asset_5,
+			},
+			AssetPair {
+				asset_in: asset_5,
+				asset_out: asset_6,
+			},
+			AssetPair {
+				asset_in: asset_6,
+				asset_out: asset_7,
+			},
+			AssetPair {
+				asset_in: asset_7,
+				asset_out: asset_8,
+			},
+			AssetPair {
+				asset_in: asset_8,
+				asset_out: asset_9,
+			},
+			AssetPair {
+				asset_in: asset_9,
+				asset_out: asset_10,
+			},
+		];
+
+
+		let mut route: Vec<Trade<AssetId>> = vec![];
+		for pair in asset_pairs {
+			whitelist_oracle(pair);
+			create_xyk_pool(xyk_caller.clone(), pair.asset_in, pair.asset_out);
+			route.push(Trade {
+				pool: PoolType::XYK,
+				asset_in: pair.asset_in,
+				asset_out: pair.asset_out,
+			});
+		}
+		run_to_block(10);
+
+		assert_eq!(route.len(),MAX_NUMBER_OF_TRADES as usize, "Route length should be as big as max number of trades allowed");
+
+		Router::<Runtime>::set_route(RawOrigin::Signed(maker).into(), RouteAssetPair::new(asset_1, asset_10), route.try_into().unwrap())?;
+
+		let g_farm = GlobalFarmData::new(
+			1,
+			1,
+			asset_1,
+			Perquintill::from_parts(570_776_255_707),
+			1_000_000,
+			1,
+			Treasury::account_id(),
+			asset_10,
+			1_000_000_000_000_000_000,
+			1_000,
+			FixedU128::from_inner(500_000_000_000_000_000_u128),
+		);
+
+		let price: Result<FixedU128, DispatchError>;
+	}: {
+		price = <Runtime as warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance>>::PriceAdjustment::get(&g_farm);
+	}
+
+	verify{
+		assert_eq!(price, Ok(FixedU128::from_inner(1_001_798_825_956_230_441_u128)));
+	}
+
+}
+
+fn whitelist_oracle(pair: AssetPair) {
+	assert_ok!(EmaOracle::add_oracle(
+		RawOrigin::Root.into(),
+		primitives::constants::chain::XYK_SOURCE,
+		(pair.asset_in, pair.asset_out)
+	));
 }
 
 fn funded_account(name: &'static str, index: u32, assets: &[AssetId]) -> AccountId {
