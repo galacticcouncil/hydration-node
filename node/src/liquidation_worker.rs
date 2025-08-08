@@ -439,7 +439,7 @@ where
 		{
 			// TODO: maybe we can use `price` to determine if HF will increase or decrease
 			let Ok(mut money_market_data) =
-				MoneyMarketData::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+				MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
 					ApiProvider::<&C::Api>(runtime_api.deref()),
 					header.hash(),
 					config.pap_contract.unwrap_or(PAP_CONTRACT),
@@ -485,7 +485,7 @@ where
 	fn try_liquidate(
 		borrower: &mut Borrower,
 		liquidated_users: &mut Vec<EvmAddress>,
-		money_market_data: &mut MoneyMarketData<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>,
+		money_market_data: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
 		current_evm_timestamp: u64,
 		base_asset_name: &[u8],
 		new_price: &U256,
@@ -533,7 +533,7 @@ where
 			return Ok(());
 		};
 
-		if let Ok(current_hf) = user_data.health_factor(money_market_data) {
+		if let Ok(current_hf) = user_data.health_factor::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>(money_market_data) {
 			// update user's HF
 			borrower.health_factor = current_hf;
 
@@ -546,7 +546,7 @@ where
 			return Ok(());
 		}
 
-		if let Ok(Some(liquidation_option)) = money_market_data.get_best_liquidation_option(
+		if let Ok(Some(liquidation_option)) = money_market_data.get_best_liquidation_option::<ApiProvider<&C::Api>>(
 			&user_data,
 			config.target_hf.into(),
 			(base_asset_address, new_price.into()),
@@ -671,7 +671,7 @@ where
 		let hash = client.info().best_hash;
 
 		let money_market_data =
-			MoneyMarketData::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
+			MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
 				ApiProvider::<&C::Api>(runtime_api.deref()),
 				client.info().best_hash,
 				config.pap_contract.unwrap_or(PAP_CONTRACT),
@@ -694,7 +694,7 @@ where
 					.and_then(|(i, f)| i.checked_add(f))
 					.unwrap_or_default();
 				
-				let user_assets = money_market_data.get_user_asset_addresses(
+				let user_assets = money_market_data.get_user_asset_addresses::<ApiProvider<&C::Api>>(
 					ApiProvider::<&C::Api>(runtime_api.deref()),
 					hash,
 					b.0,
