@@ -66,6 +66,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, Zero},
 	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
 	AccountId32, ArithmeticError, DispatchError, FixedU128, Perbill, Permill, Rounding, RuntimeDebug,
+	SaturatedConversion,
 };
 use sp_std::vec::Vec;
 
@@ -1247,12 +1248,18 @@ where
 				target: "hsm::offchain_worker",
 				"Processing arbitrage opportunities at block: {:?}", block_number
 			);
+			let collaterals: Vec<T::AssetId> = Collaterals::<T>::iter_keys().collect();
 
-			for (asset_id, _) in <Collaterals<T>>::iter() {
-				let Some((arb_direction, amount)) = Self::find_arbitrage_opportunity(asset_id) else {
-					continue;
-				};
+			// Select collateral asset based on block number
+			let bn: usize = block_number.saturated_into();
+			let idx = bn % collaterals.len();
+			// just to be safe
+			if idx >= collaterals.len() {
+				return Ok(());
+			}
+			let selected_collateral = collaterals[idx];
 
+			if let Some((arb_direction, amount)) = Self::find_arbitrage_opportunity(selected_collateral) {
 				let flash_amount = if arb_direction == ARBITRAGE_DIRECTION_BUY {
 					Some(amount)
 				} else {
@@ -1260,17 +1267,17 @@ where
 				};
 
 				let call = Call::execute_arbitrage {
-					collateral_asset_id: asset_id,
+					collateral_asset_id: selected_collateral,
 					flash_amount,
 				};
 
 				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()) {
 					log::error!(
 						target: "hsm::offchain_worker",
-						"Failed to submit transaction for asset {:?}: {:?}", asset_id, e
+						"Failed to submit transaction for asset {:?}: {:?}", selected_collateral, e
 					);
 				}
-			}
+			};
 
 			Ok(())
 		} else {
