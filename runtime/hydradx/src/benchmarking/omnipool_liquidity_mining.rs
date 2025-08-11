@@ -15,7 +15,7 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::benchmarking::{register_asset, register_asset_with_decimals};
+use crate::benchmarking::{register_asset, register_asset_with_decimals, update_deposit_limit};
 use crate::*;
 use frame_benchmarking::{account, BenchmarkError};
 use frame_support::storage::with_transaction;
@@ -754,6 +754,7 @@ runtime_benchmarks! {
 		set_period(200);
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
+		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 
 	}: _(RawOrigin::Signed(lp6), farms.try_into().unwrap(), BTC, 10 * BTC_ONE, Some(10 * BTC_ONE))
 
@@ -917,6 +918,11 @@ runtime_benchmarks! {
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
 
+
+		CircuitBreaker::set_add_liquidity_limit(RawOrigin::Root.into(),pool_id, None).unwrap();
+		let _ = Tokens::deposit(pool_id, &lp_provider, 50000000000000000);//We mint some share token so it wont fail with insufficience balance in adding liqudity to omnipool
+		update_deposit_limit(pool_id, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
+		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), Some(farms.try_into().unwrap()))
 
 

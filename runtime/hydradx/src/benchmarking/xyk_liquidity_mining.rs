@@ -36,7 +36,7 @@ use pallet_xyk::types::AssetPair;
 use sp_std::vec;
 use warehouse_liquidity_mining::{GlobalFarmData, GlobalFarmId, LoyaltyCurve};
 type Router<T> = pallet_route_executor::Pallet<T>;
-use crate::benchmarking::{register_asset, register_external_asset};
+use crate::benchmarking::{register_asset, register_external_asset, update_deposit_limit};
 use crate::XYKLiquidityMiningInstance;
 use hydradx_traits::liquidity_mining::PriceAdjustment;
 use hydradx_traits::router::AssetPair as RouteAssetPair;
@@ -642,6 +642,11 @@ runtime_benchmarks! {
 
 		//Deposit into the yield-farm so it will be updated
 		XYKLiquidityMining::deposit_shares(RawOrigin::Signed(lp2).into(), 9, 10, pair, 10 * ONE)?;
+
+		let pair_account = <XYK as AMM<AccountId, AssetId, AssetPair, Balance>>::get_pair_id(pair);
+
+		let share_token = XYK::share_token(&pair_account);
+		update_deposit_limit(share_token, 1_000u128).expect("Failed to update deposit limit");
 
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
 		let farms = farms_entries[0..c as usize].to_vec();
