@@ -53,11 +53,12 @@ use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
-	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle,
+	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle, Source,
 };
 use orml_traits::{GetByKey, Happened, MultiCurrency};
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_runtime::traits::TryConvert;
+use sp_runtime::DispatchError;
 use sp_std::{marker::PhantomData, prelude::*};
 
 pub type AssetIdOf<T> =
@@ -866,5 +867,15 @@ impl<T: Config> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<
 		call: &<T as frame_system::Config>::RuntimeCall,
 	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
 		Err(call)
+	}
+}
+
+#[cfg(debug_assertions)]
+impl<T: Config> Pallet<T> {
+	// Helper function for testing purposes
+	pub fn insert_price(asset_id: AssetIdOf<T>, price: Price) -> Result<(), DispatchError> {
+		AcceptedCurrencyPrice::<T>::insert(asset_id, price);
+
+		Ok(())
 	}
 }

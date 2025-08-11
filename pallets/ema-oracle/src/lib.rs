@@ -789,7 +789,8 @@ impl<T: Config> RawOracle<AssetId, Balance, BlockNumberFor<T>> for Pallet<T> {
 	}
 }
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(any(debug_assertions, feature = "runtime-benchmarks"))]
+// Helper functions for runtime-benchmarking and tests to directly set oracle value.
 impl<T: Config> Pallet<T> {
 	// Helper function for runtime-benchmarking to directly set oracle value.
 	pub fn add_entry(
@@ -798,5 +799,19 @@ impl<T: Config> Pallet<T> {
 		oracle_entry: OracleEntry<BlockNumberFor<T>>,
 	) -> Result<(), DispatchError> {
 		Self::on_entry(src, assets, oracle_entry).map_err(|_| Error::<T>::OracleNotFound.into())
+	}
+
+	pub fn insert_oracle(
+		src: Source,
+		assets: (AssetId, AssetId),
+		period: OraclePeriod,
+		oracle_entry: OracleEntry<BlockNumberFor<T>>,
+	) -> Result<(), DispatchError> {
+		Oracles::<T>::insert(
+			(src, assets, period),
+			(oracle_entry.clone(), T::BlockNumberProvider::current_block_number()),
+		);
+
+		Ok(())
 	}
 }

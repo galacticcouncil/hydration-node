@@ -98,7 +98,7 @@ pub const INSUFFICIENT_ASSET: AssetId = 500;
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 
-pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(8945857934143137845); //Current onchain ETH price on at block #4,534,103
+pub const ETH_HDX_REFERENCE_PRICE: FixedU128 = FixedU128::from_inner(3355320824773953806); //Current onchain ETH price on at block #8,467,999
 
 pub type Rococo = RococoRelayChain<TestNet>;
 pub type Hydra = HydraParachain<TestNet>;

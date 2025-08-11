@@ -28,7 +28,8 @@ use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
-use primitives::{AssetId, Balance};
+use primitives::constants::chain::OMNIPOOL_SOURCE;
+use primitives::{AssetId, Balance, BlockNumber};
 use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
@@ -2346,10 +2347,17 @@ fn dispatch_should_respect_call_filter() {
 	});
 }
 
+use frame_support::traits::OnInitialize;
+use hydra_dx_math::ema::EmaPrice;
+
 #[test]
 fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		//We need to set to min as this is the standard IDLE state of the chain
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
 		let fee_currency = WETH;
 		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
@@ -2412,6 +2420,9 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		let treasury_evm_fee = new_treasury_currency_balance - treasury_currency_balance;
 		assert_eq!(treasury_evm_fee, evm_fee);
 
+		//We set price same as on PROD in July 29th 2025 to have actual results
+		hydradx_runtime::MultiTransactionPayment::insert_price(WETH, FixedU128::from_inner(3205777324194744036));
+
 		//Pre dispatch the native omnipool call - so withdrawing only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
 		let len: usize = 146;
@@ -2432,8 +2443,8 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		assert!(fee_difference > 0);
 
 		let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
-		let tolerated_fee_difference = FixedU128::from_rational(31, 100);
-		// EVM fees should be not higher than 20%
+		let tolerated_fee_difference = FixedU128::from_rational(20, 100); // EVM fees should be not higher than 20%
+
 		assert!(
 			relative_fee_difference < tolerated_fee_difference,
 			"relative_fee_difference: {:?} is bigger than tolerated {:?}",
@@ -2552,18 +2563,22 @@ fn evm_account_always_pays_with_weth_for_evm_call() {
 	});
 }
 
+use hydradx_traits::AggregatedPriceOracle;
+use pallet_ema_oracle::OracleEntry;
+
+use hydradx_runtime::NativePriceOracle;
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
-	hydradx_run_to_next_block();
-	do_trade_to_populate_oracle(WETH, DOT, 1_000_000_000_000);
+
 	let to = 20;
 	let from = 11;
 	for _ in from..=to {
 		hydradx_run_to_next_block();
-		do_trade_to_populate_oracle(DOT, HDX, 1_000_000_000_000);
-		do_trade_to_populate_oracle(DAI, HDX, 1_000_000_000_000);
-		do_trade_to_populate_oracle(WETH, DOT, 1_000_000_000_000);
 	}
+
+	do_trade_to_populate_oracle(DOT, HDX, 100_000_000);
+	do_trade_to_populate_oracle(DAI, HDX, 100_000_000);
+	do_trade_to_populate_oracle(WETH, DOT, 100_000_000);
 }
 
 fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {

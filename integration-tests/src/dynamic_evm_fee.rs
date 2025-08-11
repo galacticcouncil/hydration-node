@@ -44,13 +44,13 @@ fn gas_price_scales_when_setting_other_eth_asset() {
 		init_omnipool_with_oracle_for_block_10();
 
 		let min_gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
-		assert_eq!(min_gas_price.0, U256::from(36881265));
+		assert_eq!(min_gas_price.0, U256::from(20117051));
 
 		DynamicEvmFee::set_evm_asset(hydradx_runtime::RuntimeOrigin::root(), WRAPPED_ETH);
 		hydradx_run_to_next_block();
 
 		let min_gas_price = hydradx_runtime::DynamicEvmFee::min_gas_price();
-		assert_eq!(min_gas_price.0, U256::from(36316607));
+		assert_eq!(min_gas_price.0, U256::from(19809059));
 	})
 }
 
