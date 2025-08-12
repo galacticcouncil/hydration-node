@@ -53,12 +53,11 @@ use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	router::{AssetPair, RouteProvider},
-	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle, Source,
+	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle,
 };
 use orml_traits::{GetByKey, Happened, MultiCurrency};
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_runtime::traits::TryConvert;
-use sp_runtime::DispatchError;
 use sp_std::{marker::PhantomData, prelude::*};
 
 pub type AssetIdOf<T> =
