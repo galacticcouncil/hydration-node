@@ -8158,7 +8158,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.8.1"
+version = "1.9.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9338,7 +9338,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.1.6"
+version = "10.2.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12265,7 +12265,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.49.0"
+version = "1.50.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
