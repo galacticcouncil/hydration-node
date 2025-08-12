@@ -1,6 +1,11 @@
+use crate::evm::{create_dispatch_handle, gas_price};
 use crate::polkadot_test_net::*;
+use fp_evm::PrecompileSet;
 use frame_support::assert_ok;
-use frame_support::dispatch::GetDispatchInfo;
+use frame_support::dispatch::{
+	extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo,
+};
+use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
