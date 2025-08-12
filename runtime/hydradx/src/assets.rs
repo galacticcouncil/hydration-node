@@ -1042,9 +1042,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
 					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(e),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
@@ -1141,9 +1139,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(e),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
@@ -1207,7 +1203,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 		//For the stored route we expect a worst case with max number of trades in the most expensive pool which is stableswap
 		//We have have two sell calculation for that, normal and inverse
-		weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(2, 0)
+		weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0)
 			.checked_mul(MAX_NUMBER_OF_TRADES.into());
 
 		//Calculate sell amounts for the new route
@@ -1215,9 +1211,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
@@ -1230,9 +1224,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
@@ -1404,6 +1396,7 @@ use hydradx_traits::price::PriceProvider;
 use hydradx_traits::registry::Create;
 use pallet_asset_registry::XcmRateLimitsInRegistry;
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
+#[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
@@ -1784,6 +1777,7 @@ impl pallet_liquidation::Config for Runtime {
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 	type HollarId = HOLLAR;
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 }
 
 impl pallet_broadcast::Config for Runtime {

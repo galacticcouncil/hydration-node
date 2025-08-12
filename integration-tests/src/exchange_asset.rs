@@ -1,7 +1,8 @@
 #![cfg(test)]
 
+use crate::assert_operation_stack;
 use crate::polkadot_test_net::*;
-use crate::{assert_operation_stack, assert_reserved_balance};
+use frame_support::dispatch::RawOrigin;
 use frame_support::{
 	assert_ok,
 	dispatch::GetDispatchInfo,
@@ -10,15 +11,11 @@ use frame_support::{
 	traits::{fungible::Balanced, tokens::Precision},
 	weights::Weight,
 };
-use orml_traits::MultiReservableCurrency;
-
-use frame_support::dispatch::RawOrigin;
 use hydradx_runtime::{AssetRegistry, Currencies, Omnipool, Router, RuntimeOrigin, TempAccountForXcmAssetExchange};
 use hydradx_traits::{AssetKind, Create};
 use orml_traits::currency::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
-use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::{v4::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
@@ -126,8 +123,6 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_sell() {
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			50 * UNITS - fee
 		);
-		// We receive about 39_101 HDX (HDX is super cheap in our test)
-		let received = 39_101 * UNITS;
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(AccountId::from(BOB)),
 			40101207131554396
@@ -1050,14 +1045,14 @@ pub mod zeitgeist_use_cases {
 			let xcm = VersionedXcm::from(message);
 
 			assert_ok!(hydradx_runtime::PolkadotXcm::execute(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				RuntimeOrigin::signed(ALICE.into()),
 				Box::new(xcm),
 				Weight::from_parts(899_600_000_000, 0),
 			));
 
 			//Assert
 			pretty_assertions::assert_eq!(
-				hydradx_runtime::Currencies::free_balance(GLMR, &AccountId::from(ALICE)),
+				Currencies::free_balance(GLMR, &AccountId::from(ALICE)),
 				alice_init_glmr_balance - give_amount
 			);
 
@@ -1093,14 +1088,11 @@ pub mod zeitgeist_use_cases {
 mod circuit_breaker {
 	use super::*;
 	use crate::assert_reserved_balance;
-	use cumulus_primitives_core::Fungibility;
-	use cumulus_primitives_core::Junction;
 	use frame_support::assert_ok;
 	use frame_support::storage::with_transaction;
 	use hydradx_runtime::{Currencies, FixedU128, Omnipool};
 	use orml_traits::MultiReservableCurrency;
 	use polkadot_xcm::latest::{Asset, Location};
-	use polkadot_xcm::v3::Junctions::X1;
 	use polkadot_xcm::v3::MultiLocation;
 	use polkadot_xcm::VersionedAssets;
 	use primitives::constants::chain::{Weight, CORE_ASSET_ID};
@@ -1180,13 +1172,12 @@ mod circuit_breaker {
 			);
 			//Act
 			let res = hydradx_runtime::PolkadotXcm::execute(
-				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				RuntimeOrigin::signed(ALICE.into()),
 				Box::new(xcm),
 				Weight::from_parts(399_600_000_000, 0),
 			);
 			assert_ok!(res);
 
-			let events = last_hydra_events(10);
 			assert!(matches!(
 				last_hydra_events(2).first(),
 				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
@@ -1198,15 +1189,12 @@ mod circuit_breaker {
 		Hydra::execute_with(|| {
 			let trapped_event = last_hydra_events(10)[3].clone(); //We need to explicitly assert it, so we can be flexible with amount assertion. If it changes, debug and see at which index is the PolkadotXcm TrappedAsset event
 
-			assert_trapped_acala_token(&trapped_event, 491989059161933u128);
+			assert_trapped_acala_token(&trapped_event, 490938556637049u128);
 
 			//Assert that nothing was reserved on TempAccountForXcmAssetExchange
 			assert_reserved_balance!(TempAccountForXcmAssetExchange::get(), ACA, 0u128);
 
-			let fee = hydradx_runtime::Tokens::free_balance(
-				crate::exchange_asset::ACA,
-				&hydradx_runtime::Treasury::account_id(),
-			);
+			let fee = hydradx_runtime::Tokens::free_balance(crate::exchange_asset::ACA, &Treasury::account_id());
 			assert!(fee > 0, "treasury should have received fees");
 
 			//No Aca received as exchange asset failed
@@ -1242,7 +1230,7 @@ mod circuit_breaker {
 				assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
 
 				assert_ok!(Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
+					RuntimeOrigin::root(),
 					ACA,
 					token_price,
 					Permill::from_percent(100),
@@ -1310,7 +1298,6 @@ mod circuit_breaker {
 			);
 			assert_ok!(res);
 
-			let events = last_hydra_events(10);
 			assert!(matches!(
 				last_hydra_events(2).first(),
 				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
@@ -1398,7 +1385,6 @@ mod circuit_breaker {
 				ALICE_INITIAL_NATIVE_BALANCE - 100 * UNITS
 			);
 
-			let events = last_hydra_events(10);
 			assert!(matches!(
 				last_hydra_events(2).first(),
 				Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
@@ -1410,7 +1396,7 @@ mod circuit_breaker {
 		Hydra::execute_with(|| {
 			let trapped_event = &last_hydra_events(10)[3].clone();
 
-			assert_trapped_acala_token(&trapped_event, 91989059161933u128);
+			assert_trapped_acala_token(trapped_event, 90938556637049u128);
 
 			let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 			assert!(fee > 0, "treasury should have received fees");
@@ -1428,8 +1414,8 @@ mod circuit_breaker {
 
 	fn assert_trapped_acala_token(trapped_event: &hydradx_runtime::RuntimeEvent, expected_amount: u128) {
 		if let hydradx_runtime::RuntimeEvent::PolkadotXcm(pallet_xcm::Event::AssetsTrapped {
-			hash: h,
-			origin: o,
+			hash: _,
+			origin: _,
 			assets,
 		}) = trapped_event
 		{
@@ -1836,22 +1822,4 @@ fn craft_exchange_asset_xcm_with_amount<RC: Decode + GetDispatchInfo>(
 		TransferReserveAsset { assets, dest, xcm },
 	]);
 	VersionedXcm::from(message)
-}
-
-pub fn update_ed(asset_id: primitives::AssetId, ed: Balance) -> Result<(), ()> {
-	with_transaction(|| {
-		TransactionOutcome::Commit(AssetRegistry::update(
-			RawOrigin::Root.into(),
-			asset_id,
-			None,
-			None,
-			Some(ed),
-			None,
-			None,
-			None,
-			None,
-			None,
-		))
-	})
-	.map_err(|_| ())
 }

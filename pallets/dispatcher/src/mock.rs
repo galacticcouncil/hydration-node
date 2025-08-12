@@ -322,7 +322,7 @@ impl ExtBuilder {
 			balances: self
 				.endowed_accounts
 				.iter()
-				.flat_map(|(x, asset, amount)| vec![(x.clone(), *asset, *amount * 10u128.pow(precision(*asset)))])
+				.flat_map(|(x, asset, amount)| vec![(*x, *asset, *amount * 10u128.pow(precision(*asset)))])
 				.collect(),
 		}
 		.assimilate_storage(&mut t)

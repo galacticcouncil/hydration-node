@@ -258,3 +258,20 @@ fn initial_pallet_balance_should_not_change_after_execution() {
 		.into()]);
 	});
 }
+
+#[test]
+fn set_borrowing_contract_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(
+			Liquidation::borrowing_contract(),
+			EvmAddress::from_slice(hex_literal::hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38").as_slice())
+		);
+
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[1; 20])
+		));
+
+		assert_eq!(Liquidation::borrowing_contract(), EvmAddress::from_slice(&[1; 20]));
+	});
+}

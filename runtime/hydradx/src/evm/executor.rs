@@ -92,7 +92,7 @@ where
 			evm_config,
 		);
 
-		frame_system::Account::<T>::mutate(source_account_id.clone(), |a| a.nonce = original_nonce.into());
+		frame_system::Account::<T>::mutate(source_account_id.clone(), |a| a.nonce = original_nonce);
 
 		match call_info_result {
 			Ok(info) => {

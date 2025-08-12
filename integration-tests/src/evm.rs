@@ -2756,7 +2756,7 @@ impl PrecompileHandle for MockHandle {
 		None
 	}
 
-	fn is_contract_being_constructed(&self, address: H160) -> bool {
+	fn is_contract_being_constructed(&self, _address: H160) -> bool {
 		todo!()
 	}
 }

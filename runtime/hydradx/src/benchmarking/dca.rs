@@ -535,7 +535,7 @@ runtime_benchmarks! {
 			&NamedReserveId::get(),
 			HDX,
 			&caller.clone(),
-			1 * ONE
+			ONE
 		)?;
 	}: _(RawOrigin::Signed(caller.clone()), caller.clone(), HDX)
 	verify {
