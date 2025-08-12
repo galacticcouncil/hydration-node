@@ -25,7 +25,7 @@ build-benchmarks:
 
 .PHONY: test
 test:
-	$(cargo) test --locked
+	$(cargo) test --locked --features runtime-benchmarks
 
 .PHONY: test-release
 test-release:
