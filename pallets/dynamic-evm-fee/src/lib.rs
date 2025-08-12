@@ -211,7 +211,7 @@ pub mod pallet {
 		///
 		/// Emits an event `EvmAssetSet` when the asset is successfully set.
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::zero())] //TODO: add bench and weight
+		#[pallet::weight(T::WeightInfo::set_evm_asset())]
 		pub fn set_evm_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
 			T::SetEvmPriceOrigin::ensure_origin(origin)?;
 
