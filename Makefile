@@ -29,7 +29,7 @@ test:
 
 .PHONY: test-release
 test-release:
-	$(cargo) test --release --locked --features runtime-benchmarks
+	$(cargo) test --release --locked
 
 .PHONY: test-benchmarks
 test-benchmarks:

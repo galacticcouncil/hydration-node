@@ -8,12 +8,11 @@ use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
 use frame_system::RawOrigin;
 use hex_literal::hex;
-use sp_core::bounded_vec::BoundedVec;
-
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
 use hydradx_runtime::evm::Function;
+use hydradx_runtime::OnTradeHandler;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	evm::precompiles::{
@@ -30,6 +29,7 @@ use pallet_evm::*;
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::OMNIPOOL_SOURCE;
 use primitives::{AssetId, Balance, BlockNumber};
+use sp_core::bounded_vec::BoundedVec;
 use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
@@ -2420,8 +2420,8 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		let treasury_evm_fee = new_treasury_currency_balance - treasury_currency_balance;
 		assert_eq!(treasury_evm_fee, evm_fee);
 
-		//We set price same as on PROD in July 29th 2025 to have actual results
-		hydradx_runtime::MultiTransactionPayment::insert_price(WETH, FixedU128::from_inner(3205777324194744036));
+		populate_oracle_with_hdx_eth_price();
+		hydradx_run_to_next_block();
 
 		//Pre dispatch the native omnipool call - so withdrawing only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
@@ -2564,21 +2564,25 @@ fn evm_account_always_pays_with_weth_for_evm_call() {
 }
 
 use hydradx_traits::AggregatedPriceOracle;
-use pallet_ema_oracle::OracleEntry;
+use pallet_ema_oracle::{OnActivityHandler, OracleEntry};
 
 use hydradx_runtime::NativePriceOracle;
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
+	populate_oracle_with_hdx_eth_price();
 
 	let to = 20;
 	let from = 11;
 	for _ in from..=to {
+		populate_oracle_with_hdx_eth_price();
+
 		hydradx_run_to_next_block();
 	}
 
 	do_trade_to_populate_oracle(DOT, HDX, 100_000_000);
 	do_trade_to_populate_oracle(DAI, HDX, 100_000_000);
 	do_trade_to_populate_oracle(WETH, DOT, 100_000_000);
+	populate_oracle_with_hdx_eth_price();
 }
 
 fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
@@ -2797,4 +2801,39 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 		asset_b,
 		amount_b,
 	));
+}
+
+use primitives::constants::chain::XYK_SOURCE;
+
+//Populate oracle with actual PROD values, retrieved on July 29th 2025
+pub fn populate_oracle_with_hdx_eth_price() {
+	OnActivityHandler::<hydradx_runtime::Runtime>::on_trade(
+		OMNIPOOL_SOURCE,
+		HDX,
+		1,
+		1_000_000_000,
+		1_000_000_000,
+		1_000_000_000,
+		1_000_000_000,
+		EmaPrice::new(
+			305092199272816555710728429577452728387,
+			170744664376562254116012449848045398,
+		),
+		None,
+	);
+
+	OnActivityHandler::<hydradx_runtime::Runtime>::on_trade(
+		OMNIPOOL_SOURCE,
+		1,
+		WETH,
+		1_000_000_000,
+		1_000_000_000,
+		1_000_000_000,
+		1_000_000_000,
+		EmaPrice::new(
+			32887235229707779546274108418204633,
+			188383320750813156807957853456783307344,
+		),
+		None,
+	);
 }

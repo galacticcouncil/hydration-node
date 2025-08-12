@@ -869,13 +869,3 @@ impl<T: Config> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<
 		Err(call)
 	}
 }
-
-#[cfg(debug_assertions)]
-impl<T: Config> Pallet<T> {
-	// Helper function for testing purposes
-	pub fn insert_price(asset_id: AssetIdOf<T>, price: Price) -> Result<(), DispatchError> {
-		AcceptedCurrencyPrice::<T>::insert(asset_id, price);
-
-		Ok(())
-	}
-}

@@ -8,9 +8,9 @@ use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
 use frame_support::traits::Contains;
 use hydra_dx_math::dynamic_fees::types::OracleEntry as OracleEntryType;
+use pallet_ema_oracle::{OnActivityHandler, OracleEntry};
 use primitives::constants::chain::OMNIPOOL_SOURCE;
-
-use pallet_ema_oracle::OracleEntry;
+use primitives::constants::chain::XYK_SOURCE;
 
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
@@ -64,7 +64,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		);
 		let fee_currency = HDX;
 
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -118,11 +118,9 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
 		let message = Message::parse(&permit);
 		let (rs, v) = sign(&message, &secret_key);
-		//We set price and gas price same as on PROD in July 29th 2025 to have actual results
-		hydradx_runtime::MultiTransactionPayment::insert_price(WETH, FixedU128::from_inner(3205777324194744036));
 
-		//To have actual prod results we need to insert oracle values
-		insert_prod_oracle_values();
+		crate::evm::populate_oracle_with_hdx_eth_price();
+		hydradx_run_to_next_block();
 
 		//Execute omnipool via EVM
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
@@ -146,6 +144,9 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let treasury_evm_fee = new_treasury_currency_balance - treasury_currency_balance;
 		assert!(evm_fee > 0);
 		assert_eq!(treasury_evm_fee, evm_fee);
+
+		crate::evm::populate_oracle_with_hdx_eth_price();
+		hydradx_run_to_next_block();
 
 		// Pre dispatch the native omnipool call - so withdrawing only the fees for the execution
 		let info = omni_sell.get_dispatch_info();
@@ -211,7 +212,7 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 			(10 * UNITS) as i128,
 		));
 
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
 		let initial_user_hdx_balance = user_acc.balance(HDX);
 
@@ -274,7 +275,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -336,8 +337,6 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 		let message = Message::parse(&permit);
 		let (rs, v) = sign(&message, &secret_key);
 
-		insert_prod_oracle_values();
-
 		//Execute omnipool via EVM
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
@@ -361,7 +360,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3566081286930);
+		assert_eq!(user_weth_balance, 3396267892315);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -379,7 +378,7 @@ fn evm_permit_should_validate_unsigned_correctly() {
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -486,7 +485,7 @@ fn evm_permit_should_validate_unsigned_correctly_and_return_error_if_inner_call_
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -577,7 +576,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -651,8 +650,6 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 			})
 		);
 
-		insert_prod_oracle_values();
-
 		// And Dispatch
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
@@ -690,7 +687,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 
 	Hydra::execute_with(|| {
 		let _ = with_transaction(|| {
-			init_omnipool_with_oracle_for_block_10();
+			init_omnipool_with_oracle_with_prod_prices();
 			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 				hydradx_runtime::MinimumMultiplier::get(),
 			);
@@ -816,8 +813,6 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 				})
 			);
 
-			insert_prod_oracle_values();
-
 			// And Dispatch
 			assert_ok!(MultiTransactionPayment::dispatch_permit(
 				hydradx_runtime::RuntimeOrigin::none(),
@@ -867,6 +862,9 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 
 	Hydra::execute_with(|| {
 		let _ = with_transaction(|| {
+			//We just set up pool without mutating oracle prices arbitrary (so no prod oracle prices),
+			//so the oracle prices are aligned with the omnipool spot prices (buy/sell) based on reserves
+			//whih leads to correct conversion back and forth conversion
 			init_omnipool_with_oracle_for_block_10();
 			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 				hydradx_runtime::MinimumMultiplier::get(),
@@ -946,6 +944,14 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 
 			let insufficient_amount = 10 * UNITS;
 			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount)).unwrap();
+
+			//Convert it back
+			let amount_in_insufficient = Convert::convert((WETH, insufficient_asset, amount_in_weth.0)).unwrap();
+
+			let difference = amount_in_insufficient.0 - insufficient_amount;
+			let relative_difference = FixedU128::from_rational(difference, insufficient_amount);
+			let tolerated_difference = FixedU128::from_rational(1, 1000);
+			assert!(relative_difference < tolerated_difference);
 			assert_eq!(
 				(4292168709327495126, Ratio::new(4292168709327495126, 10000000000000)),
 				amount_in_weth
@@ -983,7 +989,6 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			let diff = new_user_insufficient_balance - initial_user_insufficient_balance;
 
 			let difference = insufficient_amount - diff;
-			let relative_difference = FixedU128::from_rational(difference, insufficient_amount);
 			let tolerated_difference = FixedU128::from_rational(2, 100); //2% due to fees, etc
 			assert!(relative_difference < tolerated_difference);
 
@@ -999,7 +1004,7 @@ fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() 
 
 	Hydra::execute_with(|| {
 		let _ = with_transaction(|| {
-			init_omnipool_with_oracle_for_block_10();
+			init_omnipool_with_oracle_with_prod_prices();
 			pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 				hydradx_runtime::MinimumMultiplier::get(),
 			);
@@ -1206,7 +1211,7 @@ fn evm_permit_dispatch_flow_should_work() {
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -1319,7 +1324,7 @@ fn evm_permit_dispatch_flow_should_work() {
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3566081286930);
+		assert_eq!(user_weth_balance, 3396267892315);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -1337,7 +1342,7 @@ fn evm_permit_should_fail_when_replayed() {
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -1456,7 +1461,7 @@ fn evm_permit_should_fail_when_replayed() {
 
 		// Verify omnipool sell
 		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3566081286930);
+		assert_eq!(user_weth_balance, 3396267892315);
 
 		let user_dot_balance = user_acc.balance(DOT);
 		assert!(user_dot_balance < initial_user_dot_balance);
@@ -1473,7 +1478,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
 		assert_eq!(evm_account_nonce, U256::zero());
@@ -1600,7 +1605,7 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
 		assert_eq!(evm_account_nonce, U256::zero());
@@ -1692,7 +1697,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
 		assert_eq!(evm_account_nonce, U256::zero());
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
@@ -1748,8 +1753,6 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		let message = Message::parse(&permit);
 		let (rs, v) = sign(&message, &secret_key);
 
-		insert_prod_oracle_values();
-
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
 			user_evm_address,
@@ -1790,7 +1793,7 @@ fn dispatch_permit_should_pause_tx_when_permit_is_invalid() {
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
 		assert_eq!(evm_account_nonce, U256::zero());
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
@@ -1901,7 +1904,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
 		assert_eq!(evm_account_nonce, U256::zero());
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
@@ -1956,8 +1959,6 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
 		let message = Message::parse(&permit);
 		let (rs, v) = sign(&message, &secret_key);
-
-		insert_prod_oracle_values();
 
 		assert_ok!(MultiTransactionPayment::dispatch_permit(
 			hydradx_runtime::RuntimeOrigin::none(),
@@ -2014,7 +2015,7 @@ fn dispatch_permit_should_pause_tx_when_no_tx_fee_is_paid() {
 	let user_acc = MockAccount::new(alith_truncated_account());
 
 	Hydra::execute_with(|| {
-		init_omnipool_with_oracle_for_block_10();
+		init_omnipool_with_oracle_with_prod_prices();
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
 		assert_eq!(evm_account_nonce, U256::zero());
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
@@ -2117,6 +2118,18 @@ fn dispatch_permit_should_pause_tx_when_no_tx_fee_is_paid() {
 	})
 }
 
+pub fn init_omnipool_with_oracle_with_prod_prices() {
+	init_omnipol();
+	crate::evm::populate_oracle_with_hdx_eth_price();
+	hydradx_run_to_next_block();
+	let to = 40;
+	let from = 11;
+	for _ in from..=to {
+		crate::evm::populate_oracle_with_hdx_eth_price();
+		hydradx_run_to_next_block();
+	}
+}
+
 pub fn init_omnipool_with_oracle_for_block_10() {
 	init_omnipol();
 	hydradx_run_to_next_block();
@@ -2216,39 +2229,4 @@ pub fn init_omnipol() {
 		hydradx_runtime::Treasury::account_id(),
 		TREASURY_ACCOUNT_INIT_BALANCE,
 	));
-}
-
-//These values are taken from the prod oracle at 29th August 2025
-fn insert_prod_oracle_values() {
-	hydradx_runtime::EmaOracle::insert_oracle(
-		OMNIPOOL_SOURCE,
-		(HDX, LRNA),
-		OraclePeriod::Short,
-		OracleEntry {
-			price: EmaPrice::new(
-				305092199272816555710728429577452728387,
-				170744664376562254116012449848045398,
-			),
-			volume: (25132444, 11514, 57490879393775, 26316491930).into(),
-			liquidity: (134804077788076088512, 61614296794246795).into(),
-			updated_at: hydradx_runtime::System::block_number(),
-			shares_issuance: Default::default(),
-		},
-	);
-
-	hydradx_runtime::EmaOracle::insert_oracle(
-		OMNIPOOL_SOURCE,
-		(LRNA, WETH),
-		OraclePeriod::Short,
-		OracleEntry {
-			price: EmaPrice::new(
-				32887235229707779546274108418204633,
-				188383320750813156807957853456783307344,
-			),
-			volume: (779125171578, 4303738852154326, 584456813, 3232653118794).into(),
-			liquidity: (28080201386405664, 155373943116301100255).into(),
-			updated_at: hydradx_runtime::System::block_number(),
-			shares_issuance: Default::default(),
-		},
-	);
 }
