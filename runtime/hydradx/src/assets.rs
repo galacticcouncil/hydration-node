@@ -1785,7 +1785,7 @@ impl pallet_broadcast::Config for Runtime {
 }
 
 parameter_types! {
-	pub const HsmGasLimit: u64 = 4_000_000;
+	pub const HsmGasLimit: u64 = 400_000;
 	pub const HsmPalletId: PalletId = PalletId(*b"py/hsmod");
 	pub const HOLLAR: AssetId = 222;
 }
