@@ -222,7 +222,7 @@ where
 						)
 					});
 				} else {
-					tracing::debug!(
+					tracing::info!(
 						target: LOG_TARGET,
 						"Skipping liquidation worker for non-canon block: {:?}",
 						n.header,
@@ -323,7 +323,7 @@ where
 			}
 		}).await;
 
-		tracing::debug!(target: LOG_TARGET, "on_block_imported execution time: {:?}", now.elapsed().as_millis());
+		tracing::info!(target: LOG_TARGET, "on_block_imported execution time: {:?}", now.elapsed().as_millis());
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -348,12 +348,16 @@ where
 		let sorted_borrowers_data_c = borrowers.clone();
 
 		let Some(pool_tx) = transaction_pool.clone().ready_transaction(&notification) else {
+			tracing::info!(target: LOG_TARGET, "ready_transaction failed");
 			return Err(());
 		};
 		let opaque_tx_encoded = pool_tx.data().encode();
 		let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
 
-		let Ok(transaction) = tx else { return Err(()) };
+		let Ok(transaction) = tx else {
+			tracing::info!(target: LOG_TARGET, "transaction decoding failed");
+			return Err(());
+		};
 
 		// Listen to `borrow` transactions and add new borrowers to the list. If the borrower is already in the list, invalidate the HF by setting it to 0.
 		let maybe_borrower = Self::is_borrow_transaction(transaction.0.clone());
@@ -371,11 +375,12 @@ where
 		let Some(transaction) =
 			Self::verify_oracle_update_transaction(transaction.0, &allowed_signers, &allowed_oracle_call_addresses)
 		else {
-			tracing::debug!(target: LOG_TARGET, "verify_oracle_update_transaction failed");
 			return Ok(());
 		};
 
 		Self::spawn_worker(thread_pool.clone(), move || {
+			let now = std::time::Instant::now();
+
 			Self::process_new_oracle_update(
 				transaction,
 				client.clone(),
@@ -386,7 +391,9 @@ where
 				tx_waitlist.clone(),
 				transaction_pool.clone(),
 				config,
-			)
+			);
+
+			tracing::info!(target: LOG_TARGET, "process_new_oracle_update execution time: {:?}", now.elapsed().as_millis());
 		});
 
 		Ok(())
@@ -408,7 +415,7 @@ where
 		config: LiquidationWorkerConfig,
 	) {
 		let Some(oracle_data) = parse_oracle_transaction(&transaction) else {
-			tracing::debug!(target: LOG_TARGET, "parse_oracle_transaction failed");
+			tracing::info!(target: LOG_TARGET, "parse_oracle_transaction failed");
 			return;
 		};
 
@@ -416,7 +423,7 @@ where
 
 		let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
 		else {
-			tracing::debug!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
+			tracing::info!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
 			return;
 		};
 
@@ -554,6 +561,7 @@ where
 				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.collateral_asset),
 				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.debt_asset),
 			) else {
+				tracing::info!(target: LOG_TARGET, "address_to_asset failed");
 				return Ok(());
 			};
 
@@ -620,11 +628,11 @@ where
 			let tx_pool_cc = transaction_pool.clone();
 			// `tx_pool::submit_one()` returns a Future type, so we need to spawn a new task
 			spawner.spawn("liquidation-worker-on-submit", Some("liquidation-worker"), async move {
-				tracing::debug!(target: LOG_TARGET, "Submitting liquidation extrinsic {opaque_tx:?}");
+				tracing::info!(target: LOG_TARGET, "Submitting liquidation extrinsic {opaque_tx:?}");
 				let _ = tx_pool_cc
 					.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into())
 					.await;
-				tracing::debug!(target: LOG_TARGET, "try_liquidate execution time: {:?}", now.elapsed().as_millis());
+				tracing::info!(target: LOG_TARGET, "try_liquidate and submit_tx execution time: {:?}", now.elapsed().as_millis());
 			});
 		}
 
@@ -639,7 +647,7 @@ where
 			.ok()?;
 		let res = http_client.get(url).await.ok()?;
 		if res.status() != StatusCode::OK {
-			tracing::debug!(target: LOG_TARGET, "failed to fetch borrowers data");
+			tracing::info!(target: LOG_TARGET, "failed to fetch borrowers data");
 			return None;
 		}
 

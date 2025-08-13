@@ -34,6 +34,22 @@ pub fn calculate_imbalance(hollar_reserve: Balance, peg: PegType, collateral_res
 	Some(hollar_reserve.saturating_sub(pegged_collateral).saturating_div(2))
 }
 
+pub fn calculate_pool_imbalance(
+	hollar_reserve: Balance,
+	peg: PegType,
+	collateral_reserve: Balance,
+) -> Option<(Balance, bool)> {
+	let pegged_collateral = multiply_by_rational_with_rounding(collateral_reserve, peg.0, peg.1, Rounding::Down)?;
+	if hollar_reserve <= pegged_collateral {
+		Some((pegged_collateral.saturating_sub(hollar_reserve).saturating_div(2), true))
+	} else {
+		Some((
+			hollar_reserve.saturating_sub(pegged_collateral).saturating_div(2),
+			false,
+		))
+	}
+}
+
 /// Calculate how much Hollar HSM can buy back in a single block
 /// B_i = b_i * I_i
 pub fn calculate_buyback_limit(imbalance: Balance, b: Perbill) -> Balance {

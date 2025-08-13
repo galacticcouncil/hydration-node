@@ -265,7 +265,7 @@ pub mod pallet {
 				let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 				if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::error!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
+					log::debug!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
 					return Err(Error::<T>::LiquidationCallFailed.into());
 				}
 			} else {
@@ -354,7 +354,7 @@ impl<T: Config> Pallet<T> {
 
 		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: "liquidation",
+			log::debug!(target: "liquidation",
 						"Evm execution failed. Reason: {:?}", value);
 			return Err(Error::<T>::LiquidationCallFailed.into());
 		}
