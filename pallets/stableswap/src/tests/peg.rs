@@ -9,7 +9,7 @@ use crate::tests::{get_share_price, spot_price, to_bounded_asset_vec};
 use frame_support::{assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
 use num_traits::One;
-use sp_runtime::{FixedPointNumber, FixedU128, Permill};
+use sp_runtime::{FixedPointNumber, FixedU128, Perbill, Permill};
 use test_utils::assert_eq_approx;
 
 #[test]
@@ -26,7 +26,7 @@ fn sell_with_peg_should_work_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -103,7 +103,7 @@ fn buy_with_peg_should_work_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -183,7 +183,7 @@ fn sell_with_peg_with_fee_should_work_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -261,7 +261,7 @@ fn buy_with_peg_with_fee_should_work_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -338,7 +338,7 @@ fn sell_with_drifting_peg_should_work() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -421,7 +421,7 @@ fn sell_with_drifting_peg_should_not_exceed_max_peg_update() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(1);
+	let max_peg_update = Perbill::from_percent(1);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -488,7 +488,7 @@ fn sell_with_drifting_peg_should_not_exceed_max_peg_update() {
 			assert_balance!(BOB, asset_a, 0);
 			assert_balance!(BOB, asset_b, 197936260103269);
 			let pegs = Stableswap::pool_peg_info(pool_id).unwrap();
-			assert_eq!(pegs.current.to_vec(), vec![(1, 1), (1980000, 4000000), (1, 3)]);
+			assert_eq!(pegs.current.to_vec(), vec![(1, 1), (1980000000, 4000000000), (1, 3)]);
 		});
 }
 
@@ -506,7 +506,7 @@ fn share_pries_should_be_correct_with_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -581,7 +581,7 @@ fn spot_prices_should_be_correct_with_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -669,7 +669,7 @@ fn add_liquidity_should_work_correctly_with_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -749,7 +749,7 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -831,7 +831,7 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -924,7 +924,7 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -1019,7 +1019,7 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);
@@ -1119,7 +1119,7 @@ fn asset_oracle_peg_should_work() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	let peg2_fixed = FixedU128::from_rational(peg2.0, peg2.1);
 	let peg3_fixed = FixedU128::from_rational(peg3.0, peg3.1);

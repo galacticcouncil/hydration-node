@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{Config, Pallet, PoolPegs, MAX_ASSETS_IN_POOL};
-use sp_runtime::Permill;
+use sp_runtime::{Perbill, Permill};
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
@@ -166,7 +166,7 @@ pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MA
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct PoolPegInfo<AssetId = ()> {
 	pub source: BoundedPegSources<AssetId>,
-	pub max_peg_update: Permill,
+	pub max_peg_update: Perbill,
 	pub current: BoundedPegs,
 }
 
