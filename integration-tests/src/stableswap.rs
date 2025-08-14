@@ -14,7 +14,7 @@ use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
 use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
-use sp_runtime::Permill;
+use sp_runtime::{Perbill, Permill};
 use std::sync::Arc;
 use test_utils::assert_eq_approx;
 
@@ -74,7 +74,7 @@ fn gigadot_pool_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let initial_liquidity = 1_000 * 10u128.pow(DOT_DECIMALS as u32);
@@ -230,7 +230,7 @@ mod circuit_breaker {
 					100,
 					Permill::from_percent(0),
 					BoundedPegSources::truncate_from(pegs),
-					Permill::from_percent(100),
+					Perbill::from_percent(100),
 				));
 
 				let initial_liquidity = 1_000 * 10u128.pow(DOT_DECIMALS as u32);

@@ -41,7 +41,7 @@ use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use pretty_assertions::assert_eq;
 use primitives::constants::time::unix_time::MONTH;
 use primitives::{constants::currency::UNITS, AssetId};
-use sp_runtime::DispatchResult;
+use sp_runtime::{DispatchResult, Perbill};
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{
 	traits::{One, Zero},
@@ -2249,7 +2249,7 @@ fn price_adjustment_adapter_should_use_routed_oracle() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let initial_liquidity = 1_000 * 10u128.pow(DOT_DECIMALS as u32);

@@ -701,7 +701,7 @@ impl ExtBuilder {
 					amplification,
 					fee,
 					BoundedPegSources::try_from(pegs).unwrap(),
-					Permill::from_percent(100),
+					Perbill::from_percent(100),
 				)
 				.unwrap();
 			}
