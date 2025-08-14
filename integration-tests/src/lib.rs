@@ -9,6 +9,7 @@ mod circuit_breaker;
 mod contracts;
 mod cross_chain_transfer;
 mod dca;
+mod deposit_limiter;
 mod dispatcher;
 mod driver;
 mod dust;
@@ -24,6 +25,7 @@ mod insufficient_assets_ed;
 mod liquidation;
 mod multi_payment;
 mod non_native_fee;
+mod omnipool_fixed_fees;
 mod omnipool_init;
 mod omnipool_liquidity_mining;
 mod oracle;
@@ -52,6 +54,6 @@ macro_rules! assert_balance {
 #[macro_export]
 macro_rules! assert_reserved_balance {
 	( $who:expr, $asset:expr, $amount:expr) => {{
-		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
+		pretty_assertions::assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
 	}};
 }

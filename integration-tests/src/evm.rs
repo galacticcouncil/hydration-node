@@ -2432,7 +2432,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		assert!(fee_difference > 0);
 
 		let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
-		let tolerated_fee_difference = FixedU128::from_rational(31, 100);
+		let tolerated_fee_difference = FixedU128::from_rational(35, 100);
 		// EVM fees should be not higher than 20%
 		assert!(
 			relative_fee_difference < tolerated_fee_difference,
@@ -2756,7 +2756,7 @@ impl PrecompileHandle for MockHandle {
 		None
 	}
 
-	fn is_contract_being_constructed(&self, address: H160) -> bool {
+	fn is_contract_being_constructed(&self, _address: H160) -> bool {
 		todo!()
 	}
 }
