@@ -46,6 +46,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+use hydradx_traits::evm::MaybeEvmCall;
 use pallet_collective::EnsureProportionAtLeast;
 use primitives::constants::{currency::DOLLARS, time::DAYS};
 use sp_arithmetic::Perbill;
@@ -236,13 +237,27 @@ parameter_types! {
 	pub const AaveManagerAccount: AccountId = AccountId::new(hex!("aa7e0000000000000000000000000000000aa7e0000000000000000000000000"));
 }
 
+pub struct EvmCallChecker;
+impl MaybeEvmCall<RuntimeCall> for EvmCallChecker {
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	fn is_evm_call(call: &RuntimeCall) -> bool {
+		matches!(call, RuntimeCall::EVM(pallet_evm::Call::call { .. }))
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn is_evm_call(call: &RuntimeCall) -> bool {
+		true
+	}
+}
+
 impl pallet_dispatcher::Config for Runtime {
-	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
-	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type EvmCallIdentifier = EvmCallChecker;
 	type TreasuryManagerOrigin = EitherOf<EnsureRoot<AccountId>, Treasurer>;
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = AaveManagerAccount;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }
