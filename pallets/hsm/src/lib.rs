@@ -1372,7 +1372,8 @@ where
 		info: &CollateralInfo<T::AssetId>,
 		state: &PoolSnapshot<T::AssetId>,
 	) -> Option<Balance> {
-		let mut sell_amount_max = imbalance;
+		//let mut sell_amount_max = imbalance;
+		let mut sell_amount_max = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, info.buyback_rate);
 		let mut sell_amount_min = 0u128;
 		let mut sell_amount = sell_amount_max / 2;
 		for _ in 0..50 {
