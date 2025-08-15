@@ -1,6 +1,6 @@
 [package]
 name = "pallet-stableswap"
-version = "5.4.3"
+version = "5.5.0"
 description = "AMM for correlated assets"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -59,6 +59,7 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "hydra-dx-math/runtime-benchmarks",
+    "pallet-circuit-breaker/runtime-benchmarks",
 ]
 std = [
     "serde/std",

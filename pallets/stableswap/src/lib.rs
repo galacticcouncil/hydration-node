@@ -122,7 +122,7 @@ pub mod pallet {
 	use pallet_broadcast::types::Fee;
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 	use sp_runtime::ArithmeticError;
-	use sp_runtime::Permill;
+	use sp_runtime::Perbill;
 	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
@@ -293,7 +293,7 @@ pub mod pallet {
 		/// Pool max peg update has been updated.
 		PoolMaxPegUpdateUpdated {
 			pool_id: T::AssetId,
-			max_peg_update: Permill,
+			max_peg_update: Perbill,
 		},
 	}
 
@@ -1196,7 +1196,7 @@ pub mod pallet {
 			amplification: u16,
 			fee: Permill,
 			peg_source: BoundedPegSources<T::AssetId>,
-			max_peg_update: Permill,
+			max_peg_update: Perbill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -1337,7 +1337,7 @@ pub mod pallet {
 		pub fn update_pool_max_peg_update(
 			origin: OriginFor<T>,
 			pool_id: T::AssetId,
-			max_peg_update: Permill,
+			max_peg_update: Perbill,
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 

@@ -45,7 +45,7 @@ use orml_traits::currency::MutationHooks;
 pub use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
 use sp_core::H256;
-use sp_runtime::Permill;
+use sp_runtime::Perbill;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, DispatchError,
@@ -344,7 +344,7 @@ impl ExtBuilder {
 						pool.initial_amplification.get(),
 						pool.fee,
 						BoundedPegSources::truncate_from(pegs),
-						Permill::from_percent(100),
+						Perbill::from_percent(100),
 					));
 				} else {
 					assert_ok!(Stableswap::create_pool(
