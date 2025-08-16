@@ -89,7 +89,6 @@ pub mod pallet {
 	use crate::traits::VolumeProvider;
 	use crate::types::FeeEntry;
 	use frame_support::pallet_prelude::*;
-	use frame_system::ensure_root;
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 	use sp_runtime::traits::{BlockNumberProvider, Zero};
 
@@ -124,6 +123,9 @@ pub mod pallet {
 
 		/// Volume provider implementation
 		type RawOracle: VolumeProvider<Self::AssetId, Balance>;
+
+		/// Origin that can manage asset fee configuration
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		#[pallet::constant]
 		type AssetFeeParameters: Get<FeeParams<Self::Fee>>;
@@ -160,7 +162,7 @@ pub mod pallet {
 		/// This function allows setting either fixed or dynamic fee configuration for a specific asset.
 		///
 		/// # Arguments
-		/// * `origin` - Root origin required
+		/// * `origin` - Authority origin required
 		/// * `asset_id` - The asset ID to configure
 		/// * `config` - Fee configuration (Fixed or Dynamic)
 		#[pallet::call_index(0)]
@@ -170,7 +172,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			config: AssetFeeConfig<T::Fee>,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
 
 			Self::validate_fee_config(&config)?;
 
@@ -189,12 +191,12 @@ pub mod pallet {
 		/// After removal, the asset will use the default dynamic fee parameters configured in the runtime.
 		///
 		/// # Arguments
-		/// * `origin` - Root origin required
+		/// * `origin` - Authority origin required
 		/// * `asset_id` - The asset ID to remove configuration for
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::remove_asset_fee())]
 		pub fn remove_asset_fee(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
-			ensure_root(origin)?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin)?;
 
 			AssetFeeConfiguration::<T>::remove(asset_id);
 
