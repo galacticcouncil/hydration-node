@@ -1249,6 +1249,9 @@ where
 				"Processing arbitrage opportunities at block: {:?}", block_number
 			);
 			let collaterals: Vec<T::AssetId> = Collaterals::<T>::iter_keys().collect();
+			if collaterals.is_empty() {
+				return Ok(());
+			}
 
 			// Select collateral asset based on block number
 			let bn: usize = block_number.saturated_into();
