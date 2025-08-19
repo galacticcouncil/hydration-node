@@ -154,6 +154,7 @@ pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
 pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
+pallet-goat = { path = "pallets/goat", default-features = false}
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

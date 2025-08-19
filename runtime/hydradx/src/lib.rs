@@ -201,6 +201,7 @@ construct_runtime!(
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
+		Goat: pallet_goat = 84,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

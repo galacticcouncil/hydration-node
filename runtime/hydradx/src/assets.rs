@@ -1810,6 +1810,30 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
+parameter_types! {
+    pub const GoatPalletId: PalletId = PalletId(*b"py/GOAT ");
+    pub const GoatMaxRewards: u32 = 8;
+    pub const GoatMaxApps: u32 = 128;
+    pub const GoatMaxPayouts: u32 = 64;
+    pub const GoatMaxSchedules: u32 = 64;
+    pub const GoatMaxMetadata: u32 = 8192;
+}
+
+impl pallet_goat::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = AssetId;
+	type Currency = Currencies; // or the MultiCurrency adapter Hydration exposes
+	type PalletId = GoatPalletId;
+	type MaxRewardsPerBounty = GoatMaxRewards;
+	type MaxApplicationsPerBounty = GoatMaxApps;
+	type MaxPayoutsPerBounty = GoatMaxPayouts;
+	type MaxSchedulesPerBounty = GoatMaxSchedules;
+	type MaxMetadataLen = GoatMaxMetadata;
+	type WeightInfo = ();
+}
+
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where

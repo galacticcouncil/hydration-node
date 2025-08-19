@@ -1,0 +1,55 @@
+[package]
+name = "pallet-goat"
+version = "1.0.0"
+description = "GOAT Bounty Framework - Generalized Ownership Assignment Transfer"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/galacticcouncil/hydration-node"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+# --- FRAME / Substrate core ---
+codec = { workspace = true }
+scale-info = { workspace = true }
+
+sp-std = { workspace = true }
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
+
+frame-benchmarking = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+# --- ORML / Hydration currency abstractions ---
+orml-traits = { workspace = true }
+
+# --- Optional: testing / benchmarking ---
+sp-io = { workspace = true }
+sp-storage = { workspace = true }
+
+[dev-dependencies]
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+orml-traits = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"scale-info/std",
+	"sp-std/std",
+	"sp-runtime/std",
+	"sp-core/std",
+	"frame-support/std",
+	"frame-system/std",
+	"orml-traits/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

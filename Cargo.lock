@@ -4751,6 +4751,7 @@ dependencies = [
  "pallet-evm-precompile-modexp",
  "pallet-evm-precompile-simple",
  "pallet-genesis-history",
+ "pallet-goat",
  "pallet-hsm",
  "pallet-identity",
  "pallet-lbp",
@@ -8406,6 +8407,23 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-goat"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-storage",
 ]
 
 [[package]]
