@@ -1249,6 +1249,9 @@ where
 				"Processing arbitrage opportunities at block: {:?}", block_number
 			);
 			let collaterals: Vec<T::AssetId> = Collaterals::<T>::iter_keys().collect();
+			if collaterals.is_empty() {
+				return Ok(());
+			}
 
 			// Select collateral asset based on block number
 			let bn: usize = block_number.saturated_into();
@@ -1372,7 +1375,7 @@ where
 		info: &CollateralInfo<T::AssetId>,
 		state: &PoolSnapshot<T::AssetId>,
 	) -> Option<Balance> {
-		let mut sell_amount_max = imbalance;
+		let mut sell_amount_max = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, info.buyback_rate);
 		let mut sell_amount_min = 0u128;
 		let mut sell_amount = sell_amount_max / 2;
 		for _ in 0..50 {
