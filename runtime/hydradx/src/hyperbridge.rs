@@ -11,7 +11,7 @@ use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_currencies::{BasicCurrencyAdapter, NativeCurrencyOf};
 use pallet_genesis_history::migration::Weight;
-use primitives::{AccountId, Amount, Balance, BlockNumber};
+use primitives::{AccountId, Amount, AssetId, Balance, BlockNumber};
 use sp_std::{boxed::Box, vec::Vec};
 
 impl pallet_hyperbridge::Config for Runtime {
@@ -28,6 +28,8 @@ parameter_types! {
 
 	// The host state machine of this pallet, your state machine id goes here
 	pub const HostStateMachine: StateMachine = StateMachine::Polkadot(2034);
+
+	pub const USDC: AssetId = 22;
 }
 
 impl pallet_ismp::Config for Runtime {
@@ -37,7 +39,7 @@ impl pallet_ismp::Config for Runtime {
 	type TimestampProvider = Timestamp;
 	type Balance = Balance;
 	// The token used to collect fees, only stablecoins are supported
-	type Currency = ItemOf<FungibleCurrencies<Runtime>, HOLLAR, AccountId>;
+	type Currency = ItemOf<FungibleCurrencies<Runtime>, USDC, AccountId>;
 	// The state machine identifier of the chain -- parachain id
 	type HostStateMachine = HostStateMachine;
 	// Co-processor
