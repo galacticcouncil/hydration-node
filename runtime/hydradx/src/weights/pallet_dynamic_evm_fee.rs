@@ -84,5 +84,5 @@ impl<T: frame_system::Config> pallet_dynamic_evm_fee::WeightInfo for HydraWeight
 		Weight::from_parts(98_150_000, 11666)
 			.saturating_add(T::DbWeight::get().reads(11_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
-
 	}
+}
