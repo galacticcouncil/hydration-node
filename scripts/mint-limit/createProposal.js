@@ -1,4 +1,7 @@
-const {ApiPromise, WsProvider} = require('@polkadot/api');
+
+import { ApiPromise, WsProvider } from '@polkadot/api';
+
+import { createSdkContext } from '@galacticcouncil/sdk';
 
 /* ========= CONFIG ========= */
 
@@ -13,27 +16,49 @@ const RPC = 'wss://hydration.ibp.network'
     .replace(/^http:\/\//, 'ws://')
     .replace(/^https:\/\//, 'wss://');
 
+const provider = new WsProvider(
+    RPC.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://')
+);
+const api = await ApiPromise.create({provider, noInitWarn: true});
+const sdk = await createSdkContext(api);
+
+
 // Time range (days) for Grafana query
-const RANGE_DAYS = Number(process.env.RANGE_DAYS || 730);
+const RANGE_DAYS = 90;
 
 // Technical Committee threshold (how many approvals needed to start motion)
-const TC_THRESHOLD = Number(process.env.TC_THRESHOLD || 1);
+const TC_THRESHOLD = 1;
 
-// ✅ assetId list (assetId === currencyId)
-const ASSETS = [
-    4, //Wrapped ETH (Acala Wormhole)
-    21, //"USDC (Moonbeam Wormhole)"
-    20, //"Wrapped ETH (Moonbeam Wormhole)",
-    //6, //"ApeCoin (Acala Wormhole)"
-    19, //"Wrapped BTC (Moonbeam Wormhole)"
-    2, //"DAI (Acala Wormhole)"
-    1000745, // "sUSDS (Moonbeam Wormhole)"
-    1000753, //"SUI (Moonbeam Wormhole)"
-    18, //DAI (Moonbeam Wormhole)
-    //7, //"USD Coin (Acala Wormhole)"
-    3, //"Wrapped BTC (Acala Wormhole)"
-    23, //"Tether (Moonbeam Wormhole)"
-    1000752 // "Solana (Moonbeam Wormhole)"
+const ASSETS =  [
+    8, // "Phala"
+    9, // "Astar"
+    12, // "Zeitgeist"
+    14, // "Bifrost Native Coin"
+    15, // "Bifrost Voucher DOT"
+    16, // "Glimmer"
+    17, // "Interlay"
+    19, // "Wrapped BTC (Moonbeam Wormhole)"
+    20, // "Wrapped ETH (Moonbeam Wormhole)"
+    27, // "Crust"
+    30, // "Mythos"
+    31, // "Darwinia Network RING"
+    33, // "Voucher ASTR"
+    35, // "OriginTrail"
+    100, // 4-Pool
+    101, // 2-Pool
+    102, // 2-Pool-Stbl
+    103, // 3-Pool
+    690, //2-Pool-GDOT
+    4200, // 2-Pool-GETH
+    1000624, // "AAVE"
+    1000752, // "Solana (Moonbeam Wormhole)"
+    1000765, // "Threshold BTC"
+    1000771, // "Kusama"
+    1000794, // "Chainlink"
+    1000795, // "SKY"
+    1000796, // "Lido"
+    1000085, // "WUD"
+    252525, // "Energy Web X",
 ];
 
 /* ========= HELPERS ========= */
@@ -170,11 +195,6 @@ function buildUpdateCall(api, assetId, twoXMaxBig) {
 }
 
 async function buildBatchCall({rpc, assetIds, rangeDays}) {
-    const provider = new WsProvider(
-        (rpc || RPC).replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://')
-    );
-    const api = await ApiPromise.create({provider, noInitWarn: true});
-
     const now = new Date();
     const from = new Date(now.getTime() - (rangeDays ?? RANGE_DAYS) * 24 * 3600 * 1000);
     const fromIso = from.toISOString();
@@ -183,7 +203,15 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
     const calls = [];
     for (const assetId of assetIds) {
         const twoX = await fetchTwoXMax(assetId, fromIso, toIso);
-        console.log(`assetId=${assetId} -> 2×max=${twoX.toString()}`);
+        const price = await sdk.api.router.getBestSpotPrice(assetId.toString(), '10');
+        const meta = await api.query.assetRegistry.assets(assetId);
+        const assetDecimals = meta.unwrap().decimals
+
+        const tmaxUsd = Math.round(
+            (Number(twoX) / 10 ** assetDecimals) * (parseFloat(price.amount) / 10 ** price.decimals)
+        );
+
+        console.log(`assetId=${assetId} -> 2×max=${twoX.toString()} | price=$${tmaxUsd}`);
         calls.push(buildUpdateCall(api, assetId, twoX));
     }
 
@@ -218,7 +246,8 @@ function buildTechnicalCommitteePropose(api, call, threshold) {
         // If you want to create a preimage to attach to the motion:
         // const preimage = api.tx.preimage.notePreimage(batch.method.toHex());
         // console.log('\n--- preimage hex ---\n', preimage.method.toHex());
-
+        sdk.destroy();
+        api.disconnect();
         await api.disconnect();
     } catch (e) {
         console.error('\nERROR:', e.message || e);
