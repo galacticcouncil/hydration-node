@@ -74,13 +74,15 @@ impl<T: frame_system::Config> pallet_dynamic_evm_fee::WeightInfo for HydraWeight
 	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(142), added: 2617, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Oracles` (r:4 w:0)
 	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(194), added: 2669, mode: `MaxEncodedLen`)
+	/// Storage: `Parameters::IsTestnet` (r:1 w:0)
+	/// Proof: `Parameters::IsTestnet` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
 	fn on_initialize() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `2902`
+		//  Measured:  `2978`
 		//  Estimated: `11666`
-		// Minimum execution time: 90_103_000 picoseconds.
-		Weight::from_parts(90_438_000, 11666)
-			.saturating_add(T::DbWeight::get().reads(10_u64))
+		// Minimum execution time: 98_150_000 picoseconds.
+		Weight::from_parts(98_150_000, 11666)
+			.saturating_add(T::DbWeight::get().reads(11_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
+
 	}
-}
