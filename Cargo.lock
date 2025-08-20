@@ -4506,7 +4506,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "10.2.0"
+version = "10.3.0"
 dependencies = [
  "approx",
  "criterion",
@@ -4528,7 +4528,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.4.0"
+version = "14.4.1"
 dependencies = [
  "async-trait",
  "clap",
@@ -4674,7 +4674,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "337.0.0"
+version = "339.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4827,7 +4827,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.0.0"
+version = "4.1.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8014,7 +8014,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8058,7 +8058,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-evm-fee"
-version = "1.1.0"
+version = "1.0.7"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8085,7 +8085,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-fees"
-version = "3.0.1"
+version = "4.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8432,7 +8432,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.1.3"
+version = "1.2.1"
 dependencies = [
  "ethabi",
  "evm",
@@ -8455,12 +8455,14 @@ dependencies = [
  "precompile-utils",
  "pretty_assertions",
  "primitive-types 0.12.2",
+ "proptest",
  "scale-info",
  "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -8542,7 +8544,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -12265,7 +12267,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.50.0"
+version = "1.52.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
