@@ -88,7 +88,7 @@ impl ismp_parachain::weights::WeightInfo for IsmpWeights {
 impl pallet_token_gateway::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Dispatcher = Ismp;
-	type MultiCurrency = crate::Currencies;
+	type MultiCurrency = crate::Tokens;
 	type AssetRegistry = crate::AssetRegistry;
 	type AssetAdmin = TreasuryAccount;
 	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
