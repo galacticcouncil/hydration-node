@@ -232,6 +232,14 @@ impl pallet_evm_accounts::Config for Runtime {
 	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<Runtime>;
 }
 
+pub struct TestnetFlag;
+
+impl Get<bool> for TestnetFlag {
+	fn get() -> bool {
+		crate::Parameters::is_testnet()
+	}
+}
+
 parameter_types! {
 	pub const DefaultBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS;
 	pub const MinBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS.saturating_div(10);
@@ -246,5 +254,6 @@ impl pallet_dynamic_evm_fee::Config for Runtime {
 	type FeeMultiplier = TransactionPaymentMultiplier;
 	type NativePriceOracle = FeePriceOracle;
 	type WethAssetId = WethAssetId;
+	type TestnetFlag = TestnetFlag;
 	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
 }

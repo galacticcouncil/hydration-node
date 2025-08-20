@@ -21,7 +21,7 @@ use hydra_dx_math::types::Ratio;
 use crate as dynamic_evm_fee;
 use frame_support::{
 	parameter_types,
-	traits::{Everything, Get, Nothing},
+	traits::{ConstBool, Everything, Get, Nothing},
 	weights::Weight,
 };
 use frame_system as system;
@@ -170,6 +170,7 @@ impl Config for Test {
 	type FeeMultiplier = MultiplierProviderMock;
 	type NativePriceOracle = NativePriceOracleMock;
 	type WethAssetId = HdxAssetId;
+	type TestnetFlag = ConstBool<false>;
 	type WeightInfo = ();
 }
 
