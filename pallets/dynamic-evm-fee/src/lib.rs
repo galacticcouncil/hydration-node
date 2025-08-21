@@ -105,7 +105,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type WethAssetId: Get<Self::AssetId>;
 
-		/// Base fee multiplier
+		/// Base fee multiplier to scale fee for test environments
 		type BaseFeePerGasMultiplier: Get<FixedU128>;
 
 		/// Weight information for extrinsics in this pallet.
