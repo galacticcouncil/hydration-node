@@ -88,6 +88,7 @@ pub enum ERC20Function {
 	Mint = "mint(address,uint256)",
 	Burn = "burn(uint256)",
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
+	MaxFlashLoan = "maxFlashLoan(address)",
 }
 
 /// Max number of approved assets.
@@ -763,6 +764,7 @@ pub mod pallet {
 				hollar_in
 			};
 
+
 			ensure!(amount_in <= slippage_limit, Error::<T>::SlippageLimitExceeded);
 
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -821,9 +823,7 @@ pub mod pallet {
 			let (arb_direction, flash_loan_amount) = if let Some(arb_amount) = flash_amount {
 				ensure!(arb_amount > 0, Error::<T>::NoArbitrageOpportunity);
 				// if provided, we know what to do, but need to verify the size is ok
-				let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
-				let pool_id = collateral_info.pool_id;
-				let pool_state = Self::get_stablepool_state(pool_id)?;
+				let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
 				ensure!(
 					Self::check_trade_size(collateral_asset_id, &collateral_info, &pool_state, arb_amount),
 					Error::<T>::NoArbitrageOpportunity
@@ -1374,7 +1374,8 @@ where
 		info: &CollateralInfo<T::AssetId>,
 		state: &PoolSnapshot<T::AssetId>,
 	) -> Option<Balance> {
-		let mut sell_amount_max = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, info.buyback_rate);
+		let max_flash_loan = Self::get_max_flash_loan_amount();
+		let mut sell_amount_max = imbalance.min(max_flash_loan);
 		let mut sell_amount_min = 0u128;
 		let mut sell_amount = sell_amount_max / 2;
 		for _ in 0..50 {
@@ -1698,6 +1699,26 @@ where
 		let max_price_check =
 			primitive_types::U128::from(buy_price.1).full_mul(primitive_types::U128::from(max_price.0));
 		buy_price_check <= max_price_check
+	}
+
+	fn get_max_flash_loan_amount() -> Balance {
+		let Some(minter) = FlashMinter::<T>::get() else{
+			return 0;
+		};
+		let Some(hollar_address) = Self::get_hollar_contract_address().ok() else {
+			return 0;
+		};
+		let context = CallContext::new_view(minter);
+		let data = EvmDataWriter::new_with_selector(ERC20Function::MaxFlashLoan)
+			.write(hollar_address)
+			.build();
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			return 0;
+		}else{
+			U256::from_big_endian(&value[..]).as_u128()
+		}
 	}
 }
 
