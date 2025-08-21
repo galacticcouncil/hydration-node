@@ -23,9 +23,11 @@ RUN for binary in polkadot polkadot-execute-worker polkadot-prepare-worker; do \
     && /zombienet/polkadot-sdk/target/release/$binary --version; \
     done
 
+ARG HYDRATION_BIN_URL=https://github.com/galacticcouncil/hydration-node/releases/latest/download
+
 RUN mkdir -p /zombienet/hydration-node/target/release
-RUN wget -q https://github.com/galacticcouncil/hydration-node/releases/latest/download/hydradx -O /zombienet/hydration-node/target/release/hydradx && \
-    wget -q https://github.com/galacticcouncil/hydration-node/releases/latest/download/scraper -O /zombienet/hydration-node/target/release/scraper && \
+RUN wget -q $HYDRATION_BIN_URL/hydradx -O /zombienet/hydration-node/target/release/hydradx && \
+    wget -q $HYDRATION_BIN_URL/scraper -O /zombienet/hydration-node/target/release/scraper && \
     chmod +x /zombienet/hydration-node/target/release/*
 RUN /zombienet/hydration-node/target/release/hydradx --version
 
