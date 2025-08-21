@@ -86,7 +86,7 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		/// Minimum base fee per gas value. Used to bound  the base fee per gas in min direction.
+		/// Minimum base fee per gas value. Used to bound the base fee per gas in min direction.
 		type MinBaseFeePerGas: Get<u128>;
 
 		/// Maximum base fee per gas value. Used to bound the base fee per gas in max direction.
@@ -105,8 +105,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type WethAssetId: Get<Self::AssetId>;
 
-		/// Testnet flag
-		type TestnetFlag: Get<bool>;
+		/// Base fee multiplier
+		type BaseFeePerGasMultiplier: Get<FixedU128>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -159,17 +159,10 @@ pub mod pallet {
 
 				new_base_fee_per_gas = price_diff.saturating_mul_int(new_base_fee_per_gas);
 
-				new_base_fee_per_gas =
-					new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get());
+				new_base_fee_per_gas = T::BaseFeePerGasMultiplier::get().saturating_mul_int(new_base_fee_per_gas);
 
-				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
-
-				// Reduce the base fee for testnet
-				if T::TestnetFlag::get() {
-					*old_base_fee_per_gas = old_base_fee_per_gas
-						.checked_div(U256::from(10))
-						.unwrap_or(*old_base_fee_per_gas)
-				}
+				*old_base_fee_per_gas =
+					U256::from(new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get()));
 			});
 
 			T::WeightInfo::on_initialize()

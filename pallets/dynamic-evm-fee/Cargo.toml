@@ -42,6 +42,7 @@ sp-io = { workspace = true, optional = true }
 pallet-currencies = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
+pallet-parameters = { workspace = true, features = ["std"] }
 test-utils = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 frame-benchmarking = { workspace = true }
@@ -58,6 +59,7 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "pallet-transaction-payment/std",
+    "pallet-parameters/std",
     "orml-traits/std",
     "hydradx-traits/std",
     "primitives/std",

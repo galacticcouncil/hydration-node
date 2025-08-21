@@ -26,6 +26,7 @@
 //                  $$$
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(test)]
 pub mod mock;
@@ -49,4 +50,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn is_testnet)]
 	pub type IsTestnet<T> = StorageValue<_, bool, ValueQuery>;
+
+	impl<T: Config> Pallet<T> {
+		/// Set the flag. Only used for tests.
+		#[cfg(feature = "std")]
+		pub fn set_testnet_flag(is_testnet: bool) {
+			IsTestnet::<T>::put(is_testnet);
+		}
+	}
 }

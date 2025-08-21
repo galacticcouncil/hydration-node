@@ -4762,7 +4762,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-otc-settlements",
- "pallet-parameters 1.0.1",
+ "pallet-parameters 1.0.2",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-referenda",
@@ -8071,6 +8071,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-evm",
+ "pallet-parameters 1.0.2",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "primitives",
@@ -8934,7 +8935,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parameters"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
