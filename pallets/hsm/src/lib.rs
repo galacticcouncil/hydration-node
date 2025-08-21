@@ -819,13 +819,13 @@ pub mod pallet {
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 
 			let (arb_direction, flash_loan_amount) = if let Some(arb_amount) = flash_amount {
+				ensure!(arb_amount > 0, Error::<T>::NoArbitrageOpportunity);
 				// if provided, we know what to do, but need to verify the size is ok
 				let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 				let pool_id = collateral_info.pool_id;
 				let pool_state = Self::get_stablepool_state(pool_id)?;
-				let peg = Self::get_asset_peg(collateral_asset_id, pool_id, &pool_state)?;
 				ensure!(
-					Self::check_trade_size(collateral_asset_id, peg, &collateral_info, &pool_state, arb_amount),
+					Self::check_trade_size(collateral_asset_id, &collateral_info, &pool_state, arb_amount),
 					Error::<T>::NoArbitrageOpportunity
 				);
 
@@ -1332,17 +1332,17 @@ where
 		let collateral_reserve = pool_state.asset_reserve_at(collateral_pos)?;
 		let hollar_reserve = pool_state.asset_reserve_at(hollar_pos)?;
 
-		let peg = Self::get_asset_peg(asset_id, pool_id, &pool_state).ok()?;
+		let normalized_peg = Self::get_asset_peg(asset_id, pool_id, &pool_state).ok()?;
 		let (imbalance, imb_sign) =
-			hydra_dx_math::hsm::calculate_pool_imbalance(hollar_reserve, peg, collateral_reserve)?;
+			hydra_dx_math::hsm::calculate_pool_imbalance(hollar_reserve, normalized_peg, collateral_reserve)?;
 
 		if imb_sign {
 			// Less HOLLAR in the pool
-			let op = Self::find_ideal_trade_size(asset_id, imbalance, peg, &collateral_info, &pool_state)?;
+			let op = Self::find_ideal_trade_size(asset_id, imbalance, &collateral_info, &pool_state)?;
 			Some((ARBITRAGE_DIRECTION_BUY, op))
 		} else {
 			// More HOLLAR in the pool
-			let op = Self::calculate_ideal_trade_size(asset_id, imbalance, peg, &collateral_info, &pool_state).ok()?;
+			let op = Self::calculate_ideal_trade_size(asset_id, imbalance, &collateral_info, &pool_state).ok()?;
 			Some((ARBITRAGE_DIRECTION_SELL, op))
 		}
 	}
@@ -1371,7 +1371,6 @@ where
 	fn find_ideal_trade_size(
 		collateral_asset_id: T::AssetId,
 		imbalance: Balance,
-		peg: PegType,
 		info: &CollateralInfo<T::AssetId>,
 		state: &PoolSnapshot<T::AssetId>,
 	) -> Option<Balance> {
@@ -1379,14 +1378,18 @@ where
 		let mut sell_amount_min = 0u128;
 		let mut sell_amount = sell_amount_max / 2;
 		for _ in 0..50 {
-			if Self::check_trade_size(collateral_asset_id, peg, info, state, sell_amount) {
+			if Self::check_trade_size(collateral_asset_id, info, state, sell_amount) {
 				sell_amount_min = sell_amount;
 			} else {
 				sell_amount_max = sell_amount;
 			}
 			sell_amount = ((sell_amount_max.saturating_sub(sell_amount_min)) / 2).saturating_add(sell_amount_min);
 		}
-		Some(sell_amount_min)
+		if sell_amount_min > 0 {
+			Some(sell_amount_min)
+		} else {
+			None
+		}
 	}
 
 	/// Checks if a specific trade size is profitable for arbitrage
@@ -1413,13 +1416,19 @@ where
 	/// - `false` if the trade size would not be profitable or simulation fails
 	fn check_trade_size(
 		collateral_asset_id: T::AssetId,
-		peg: PegType,
 		info: &CollateralInfo<T::AssetId>,
 		state: &PoolSnapshot<T::AssetId>,
 		sell_amount: Balance,
 	) -> bool {
 		(|| -> Option<()> {
-			let sell_price = hydra_dx_math::hsm::calculate_purchase_price(peg, info.purchase_fee);
+			let collateral_pos = state.asset_idx(collateral_asset_id)?;
+			if collateral_pos >= state.pegs.len() {
+				// Better safe than sorry
+				debug_assert!(false, "Invalid collateral position");
+				return None;
+			}
+			let sell_price =
+				hydra_dx_math::hsm::calculate_purchase_price(state.pegs[collateral_pos], info.purchase_fee);
 			let sell_price = FixedU128::from_rational(sell_price.0, sell_price.1);
 
 			let (_, after_state) = Self::simulate_out_given_in(
@@ -1475,16 +1484,13 @@ where
 	fn calculate_ideal_trade_size(
 		collateral_asset_id: T::AssetId,
 		imbalance: Balance,
-		peg: PegType,
 		collateral_info: &CollateralInfo<T::AssetId>,
 		pool_state: &PoolSnapshot<T::AssetId>,
 	) -> Result<Balance, DispatchError> {
 		let hollar_id = T::HollarId::get();
 		let buyback_limit = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
 
-		if buyback_limit == 0 {
-			return Ok(0);
-		}
+		ensure!(buyback_limit > 0, Error::<T>::MaxBuyBackExceeded);
 
 		// Simulate swap to determine execution price
 		// How much collateral asset we need to sell to buy max_buy_amt of Hollar
@@ -1499,7 +1505,18 @@ where
 		let execution_price = (sell_amt, buyback_limit);
 		let buy_price = hydra_dx_math::hsm::calculate_buy_price_with_fee(execution_price, collateral_info.buy_back_fee)
 			.ok_or(ArithmeticError::Overflow)?;
-		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(peg, collateral_info.max_buy_price_coefficient);
+
+		let collateral_pos = pool_state
+			.asset_idx(collateral_asset_id)
+			.ok_or(ArithmeticError::Overflow)?;
+		if collateral_pos >= pool_state.pegs.len() {
+			return Err(Error::<T>::InvalidPoolState.into());
+		}
+
+		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(
+			pool_state.pegs[collateral_pos],
+			collateral_info.max_buy_price_coefficient,
+		);
 
 		ensure!(
 			Self::ensure_max_price(buy_price, max_price),
@@ -1519,7 +1536,11 @@ where
 		let hollar_amount_received = Self::hollar_amount_received(collateral_asset_id);
 		let hollar_amount_to_trade = max_buy_amt.saturating_sub(hollar_amount_received);
 
-		Ok(hollar_amount_to_trade)
+		if hollar_amount_to_trade > 0 {
+			Ok(hollar_amount_to_trade)
+		} else {
+			Err(Error::<T>::MaxBuyBackExceeded.into())
+		}
 	}
 
 	fn get_asset_peg(
