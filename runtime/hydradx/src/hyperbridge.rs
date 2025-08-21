@@ -23,13 +23,17 @@ impl pallet_hyperbridge::Config for Runtime {
 parameter_types! {
 	// The hyperbridge parachain on Polkadot
 	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Polkadot(3367));
+
 	// The hyperbridge parachain on Paseo
 	// pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Kusama(4009));
 
-	// The host state machine of this pallet, your state machine id goes here
+	// The host state machine of this pallet on Polkadot
 	pub const HostStateMachine: StateMachine = StateMachine::Polkadot(2034);
 
-	pub const USDC: AssetId = 22;
+	// The host state machine of this pallet on Paseo
+	// pub const HostStateMachine: StateMachine = StateMachine::Kusama(2034);
+
+	pub const USDC: AssetId = 22; // USDC asset id on Hydration
 }
 
 impl pallet_ismp::Config for Runtime {
