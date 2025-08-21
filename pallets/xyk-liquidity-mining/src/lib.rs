@@ -52,12 +52,14 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::liquidity_mining::{
 	GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
 };
+use hydradx_traits::oracle::{AggregatedOracle, OraclePeriod};
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
 
 use frame_support::{pallet_prelude::*, sp_runtime::traits::AccountIdConversion};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::{registry::Inspect as RegistryInspect, AMMPosition, AMM};
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::{registry::Inspect as RegistryInspect, Source, AMM};
 use orml_traits::MultiCurrency;
 use primitives::{CollectionId, ItemId as DepositId};
 use sp_arithmetic::{FixedU128, Perquintill};
@@ -113,9 +115,7 @@ pub mod pallet {
 		type Currencies: MultiCurrency<Self::AccountId, CurrencyId = AssetId, Balance = Balance>;
 
 		/// AMM helper functions.
-		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance>
-			+ AMMPosition<AssetId, Balance, Error = DispatchError>
-			+ AMMAddLiquidity<Self::AccountId, AssetId, Balance>;
+		type AMM: AMM<Self::AccountId, AssetId, AssetPair, Balance> + AMMAddLiquidity<Self::AccountId, AssetId, Balance>;
 
 		/// The origin account that can create new liquidity mining program.
 		type CreateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -144,6 +144,17 @@ pub mod pallet {
 				LoyaltyCurve = LoyaltyCurve,
 				Period = PeriodOf<Self>,
 			> + LiquidityMiningInspect<Self::AccountId>;
+
+		/// Oracle source identifier for this pallet.
+		#[pallet::constant]
+		type OracleSource: Get<Source>;
+
+		/// Oracle's liquidity aggregation period.
+		#[pallet::constant]
+		type OraclePeriod: Get<OraclePeriod>;
+
+		/// XYK assets' liquidity oracle.
+		type LiquidityOracle: AggregatedOracle<AssetId, Balance, BlockNumberFor<Self>, EmaPrice>;
 
 		/// Account whitelist manager to exclude pool accounts from dusting mechanism.
 		type NonDustableWhitelistHandler: DustRemovalAccountWhitelist<Self::AccountId, Error = DispatchError>;
@@ -197,6 +208,9 @@ pub mod pallet {
 
 		/// No global farm - yield farm pairs specified to join
 		NoFarmsSpecified,
+
+		/// Failed to calculate value of xyk shares
+		FailedToValueShares,
 	}
 
 	#[pallet::event]
@@ -413,7 +427,8 @@ pub mod pallet {
 		///
 		/// Emits `GlobalFarmUpdated` event when successful.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_global_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_global_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn update_global_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -478,7 +493,8 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmCreated` event when successful.
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::create_yield_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::create_yield_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn create_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -521,7 +537,8 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmUpdated` event when successful.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_yield_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_yield_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn update_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -565,7 +582,8 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmStopped` event when successful.
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::stop_yield_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::stop_yield_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn stop_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -605,7 +623,8 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmResumed` event when successful.
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::resume_yield_farm())]
+		#[pallet::weight(<T as Config>::WeightInfo::resume_yield_farm()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn resume_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -694,7 +713,8 @@ pub mod pallet {
 		///
 		/// Emits `SharesDeposited` event when successful.
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn deposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -731,7 +751,8 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event for the first farm entry
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(12)]
-		#[pallet::weight(<T as Config>::WeightInfo::join_farms(farm_entries.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::join_farms(farm_entries.len() as u32)
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64)))]
 		pub fn join_farms(
 			origin: OriginFor<T>,
 			farm_entries: BoundedVec<(GlobalFarmId, YieldFarmId), T::MaxFarmEntriesPerDeposit>,
@@ -789,7 +810,8 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event for the first farm entry
 		/// Emits `SharesRedeposited` event for each farm entry after the first one
 		#[pallet::call_index(13)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_and_join_farms(farm_entries.len() as u32)
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64)))]
 		pub fn add_liquidity_and_join_farms(
 			origin: OriginFor<T>,
 			asset_a: AssetId,
@@ -829,7 +851,8 @@ pub mod pallet {
 		///
 		/// Emits `SharesRedeposited` event when successful.
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn redeposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -875,7 +898,8 @@ pub mod pallet {
 		///
 		/// Emits `RewardClaimed` event when successful.
 		#[pallet::call_index(10)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
+		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn claim_rewards(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -923,7 +947,8 @@ pub mod pallet {
 		/// * `RewardClaimed` if claim happen
 		/// * `SharesWithdrawn` event when successful
 		#[pallet::call_index(11)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares()
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get()))]
 		pub fn withdraw_shares(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -996,7 +1021,8 @@ pub mod pallet {
 		/// * `DepositDestroyed` if the deposit is fully withdrawn
 		///
 		#[pallet::call_index(14)]
-		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::exit_farms(farm_entries.len() as u32)
+			.saturating_add(<T as Config>::WeightInfo::price_adjustment_get().saturating_mul(farm_entries.len() as u64)))]
 		pub fn exit_farms(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -1051,13 +1077,23 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(assets.contains(&asset), Error::<T>::AssetNotInAssetPair);
 
-		let (liquidity_a, liquidity_b) = T::AMM::get_liquidity_behind_shares(assets[0], assets[1], lp_shares_amount)?;
+		let oracle_entry =
+			T::LiquidityOracle::get_entry(assets[0], assets[1], T::OraclePeriod::get(), T::OracleSource::get())
+				.map_err(|_| Error::<T>::FailedToValueShares)?;
+
+		let (liq_a, liq_b) = hydra_dx_math::xyk::calculate_liquidity_out(
+			oracle_entry.liquidity.a,
+			oracle_entry.liquidity.b,
+			lp_shares_amount,
+			oracle_entry.shares_issuance.ok_or(Error::<T>::FailedToValueShares)?,
+		)
+		.map_err(|_| Error::<T>::FailedToValueShares)?;
 
 		if assets[0] == asset {
-			return Ok(liquidity_a);
+			return Ok(liq_a);
 		}
 
-		Ok(liquidity_b)
+		Ok(liq_b)
 	}
 
 	fn ensure_xyk(asset_pair: AssetPair) -> Result<T::AccountId, Error<T>> {

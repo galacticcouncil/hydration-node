@@ -39,7 +39,8 @@ mod benchmarking;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
-use pallet_evm::GasWeightMapping;
+use hydradx_traits::evm::MaybeEvmCall;
+use pallet_evm::{ExitReason, GasWeightMapping};
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
 pub use weights::WeightInfo;
 
@@ -57,6 +58,7 @@ pub mod pallet {
 		pallet_prelude::*,
 	};
 	use frame_system::pallet_prelude::*;
+	use pallet_evm::{ExitReason, ExitSucceed};
 	use sp_runtime::traits::{Dispatchable, Hash};
 	use sp_std::boxed::Box;
 
@@ -75,6 +77,9 @@ pub mod pallet {
 			+ TypeInfo
 			+ From<frame_system::Call<Self>>
 			+ Parameter;
+
+		/// The trait to check whether RuntimeCall is [pallet_evm::Call::call].
+		type EvmCallIdentifier: MaybeEvmCall<<Self as Config>::RuntimeCall>;
 
 		type TreasuryManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		type AaveManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -101,6 +106,21 @@ pub mod pallet {
 	#[pallet::getter(fn extra_gas)]
 	pub type ExtraGas<T: Config> = StorageValue<_, u64, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::whitelist_storage]
+	#[pallet::unbounded]
+	#[pallet::getter(fn last_evm_call_exit_reason)]
+	pub type LastEvmCallExitReason<T: Config> = StorageValue<_, ExitReason, OptionQuery>;
+
+	#[pallet::error]
+	pub enum Error<T> {
+		/// The EVM call execution failed. This happens when the EVM returns an exit reason
+		/// other than `ExitSucceed(Returned)` or `ExitSucceed(Stopped)`.
+		EvmCallFailed,
+		/// The provided call is not an EVM call. This extrinsic only accepts `pallet_evm::Call::call`.
+		NotEvmCall,
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -112,6 +132,14 @@ pub mod pallet {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		/// Reset the last EVM call exit reason on block finalization.
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			LastEvmCallExitReason::<T>::kill();
+		}
 	}
 
 	#[pallet::call]
@@ -236,6 +264,55 @@ pub mod pallet {
 				}),
 			}
 		}
+
+		/// Execute a single EVM call.
+		/// This extrinsic will fail if the EVM call returns any other ExitReason than `ExitSucceed(Returned)` or `ExitSucceed(Stopped)`.
+		/// Look the [hydradx_runtime::evm::runner::WrapRunner] implementation for details.
+		///
+		/// Parameters:
+		/// - `origin`: Signed origin.
+		/// - `call`: presumably `pallet_evm::Call::call` as boxed `RuntimeCall`.
+		///
+		/// Emits `EvmCallFailed` event when failed.
+		#[pallet::call_index(4)]
+		#[pallet::weight({
+			let evm_call_weight = call.get_dispatch_info().weight;
+			let evm_call_len = call.encoded_size() as u32;
+			T::WeightInfo::dispatch_evm_call(evm_call_len)
+				.saturating_add(evm_call_weight)
+		})]
+		pub fn dispatch_evm_call(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			ensure!(T::EvmCallIdentifier::is_evm_call(&call), Error::<T>::NotEvmCall);
+
+			let (result, actual_weight) = Self::do_dispatch(origin, *call);
+			let post_info = PostDispatchInfo {
+				actual_weight,
+				pays_fee: Pays::Yes,
+			};
+
+			if let Some(exit_reason) = LastEvmCallExitReason::<T>::get() {
+				match exit_reason {
+					ExitReason::Succeed(ExitSucceed::Returned) | ExitReason::Succeed(ExitSucceed::Stopped) => {}
+					_ => {
+						return Err(DispatchErrorWithPostInfo {
+							post_info,
+							error: Error::<T>::EvmCallFailed.into(),
+						});
+					}
+				}
+			}
+
+			match result {
+				Ok(_) => Ok(post_info),
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: err.error,
+				}),
+			}
+		}
 	}
 }
 
@@ -270,5 +347,9 @@ impl<T: Config> Pallet<T> {
 		if new_value > 0 {
 			ExtraGas::<T>::set(new_value);
 		}
+	}
+
+	pub fn set_last_evm_call_exit_reason(reason: &ExitReason) {
+		LastEvmCallExitReason::<T>::put(reason);
 	}
 }

@@ -27,7 +27,7 @@ use frame_support::{
 };
 
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMPosition, AMMTransfer, AMM};
+use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMTransfer, AMM};
 use orml_traits::parameter_type_with_key;
 use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
 use pallet_xyk::types::{AssetId, AssetPair, Balance};
@@ -306,25 +306,17 @@ impl AMM<AccountId, AssetId, AssetPair, Balance> for DummyAMM {
 	}
 }
 
-impl AMMPosition<AssetId, Balance> for DummyAMM {
-	type Error = DispatchError;
+fn total_shares(id: &AccountId) -> u128 {
+	let assets = DummyAMM::get_pool_assets(id).unwrap();
+	let p = Tokens::free_balance(assets[0], id);
 
-	fn get_liquidity_behind_shares(
-		asset_a: AssetId,
-		asset_b: AssetId,
-		_shares_amount: Balance,
-	) -> Result<(Balance, Balance), Self::Error> {
-		let asset_pair = AssetPair {
-			asset_in: asset_a,
-			asset_out: asset_b,
-		};
-		let amm_pool_id = DummyAMM::get_pair_id(asset_pair);
-
-		Ok((
-			Tokens::free_balance(asset_a, &amm_pool_id),
-			Tokens::free_balance(asset_b, &amm_pool_id),
-		))
+	//NOTE: This is just for tests. On real chain some trade must happen before deposit can be
+	//added to LM.
+	if p.is_zero() {
+		return 1;
 	}
+
+	p
 }
 
 parameter_types! {
@@ -337,6 +329,8 @@ parameter_types! {
 	pub const MaxYieldFarmsPerGlobalFarm: u8 = 5;
 	pub const NftCollectionId: primitives::CollectionId = LM_NFT_COLLECTION;
 	pub const ReserveClassIdUpTo: u128 = 2;
+	pub const OracleSource: Source = *b"hydraxyk";
+	pub const PeriodOracle: OraclePeriod= OraclePeriod::TenMinutes;
 }
 
 impl liq_mining::Config for Test {
@@ -352,6 +346,45 @@ impl liq_mining::Config for Test {
 	type NonDustableWhitelistHandler = Whitelist;
 	type AssetRegistry = DummyRegistry<Test>;
 	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+	type OracleSource = OracleSource;
+	type OraclePeriod = PeriodOracle;
+	type LiquidityOracle = DummyOracle;
+}
+
+use hydra_dx_math::ema::EmaPrice;
+use hydradx_traits::{AggregatedEntry, AggregatedOracle, Liquidity, Volume};
+pub struct DummyOracle;
+
+impl AggregatedOracle<AssetId, Balance, BlockNumber, EmaPrice> for DummyOracle {
+	type Error = DispatchError;
+
+	fn get_entry(
+		asset_a: AssetId,
+		asset_b: AssetId,
+		_period: OraclePeriod,
+		_source: Source,
+	) -> Result<hydradx_traits::AggregatedEntry<Balance, BlockNumber, EmaPrice>, Self::Error> {
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let amm_pool_id = DummyAMM::get_pair_id(asset_pair);
+
+		Ok(AggregatedEntry {
+			price: EmaPrice::default(),
+			liquidity: Liquidity {
+				a: Tokens::free_balance(asset_a, &amm_pool_id),
+				b: Tokens::free_balance(asset_b, &amm_pool_id),
+			},
+			volume: Volume::default(),
+			oracle_age: BlockNumber::default(),
+			shares_issuance: Some(total_shares(&amm_pool_id)),
+		})
+	}
+
+	fn get_entry_weight() -> Weight {
+		Weight::zero()
+	}
 }
 
 pub const ADD_LIQUIDITY_XYK_SHARE_AMOUNT: Balance = 20 * ONE;

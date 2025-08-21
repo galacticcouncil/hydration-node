@@ -1,6 +1,6 @@
 use crate::polkadot_test_net::hydra_live_ext;
 use crate::polkadot_test_net::hydradx_run_to_next_block;
-use crate::polkadot_test_net::{TestNet, ALICE, BOB};
+use crate::polkadot_test_net::{TestNet, ALICE, BOB, HDX};
 use fp_evm::ExitSucceed::Returned;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
 use frame_support::assert_ok;
@@ -11,9 +11,9 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Tokens, Treasury, HSM,
+	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, HSM,
 };
-use hydradx_runtime::{RuntimeOrigin, Stableswap};
+use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
@@ -34,6 +34,7 @@ use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
+const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -135,7 +136,7 @@ fn add_hsm_facilitator_should_work() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -144,14 +145,13 @@ fn add_hsm_facilitator_should_work() {
 		assert!(facilitators.contains(&hsm_evm_address), "Facilitator not added");
 	});
 }
-
 #[test]
 fn buying_hollar_from_hsm_should_work() {
 	TestNet::reset();
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -160,9 +160,9 @@ fn buying_hollar_from_hsm_should_work() {
 			ALICE.into()
 		),));
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-		mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
 		let alice_hollar_balance = balance_of(alice_evm_address);
-		assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
 		let pool_id = 9876;
 		let asset_ids = vec![222, 2];
@@ -218,7 +218,95 @@ fn buying_hollar_from_hsm_should_work() {
 			u128::MAX,
 		));
 		let alice_hollar_balance = balance_of(alice_evm_address);
-		assert_eq!(alice_hollar_balance, U256::from(1001_000_000_000_000_000_000u128));
+		assert_eq!(alice_hollar_balance, U256::from(1_001_000_000_000_000_000_000u128));
+
+		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+		assert_eq!(hsm_dai_balance, 1000000000000000000);
+
+		let alice_dai_balance = Tokens::free_balance(2, &AccountId::from(ALICE));
+		assert_eq!(alice_dai_balance, 20_000_000_000_000_000_000 - hsm_dai_balance);
+	});
+}
+
+#[test]
+fn buying_hollar_from_hsm_via_router_should_work() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, 2];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_percent(1);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			20_000_000_000_000_000_000,
+			0,
+		));
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2,
+			pool_id,
+			Permill::zero(),
+			FixedU128::one(),
+			Permill::zero(),
+			Perbill::one(),
+			None
+		));
+
+		assert_ok!(Router::buy(
+			RuntimeOrigin::signed(ALICE.into()),
+			2,
+			222,
+			1_000_000_000_000_000_000,
+			u128::MAX,
+			Route::truncate_from(vec![Trade {
+				pool: PoolType::HSM,
+				asset_in: 2,
+				asset_out: 222,
+			}])
+		));
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1_001_000_000_000_000_000_000u128));
 
 		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		assert_eq!(hsm_dai_balance, 1000000000000000000);
@@ -234,7 +322,7 @@ fn selling_hollar_to_hsm_should_work() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -243,9 +331,9 @@ fn selling_hollar_to_hsm_should_work() {
 			ALICE.into()
 		),));
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-		mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
 		let alice_hollar_balance = balance_of(alice_evm_address);
-		assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
 		let pool_id = 9876;
 		let asset_ids = vec![222, 2];
@@ -283,7 +371,7 @@ fn selling_hollar_to_hsm_should_work() {
 		));
 		let initial_liquidity = vec![
 			AssetAmount::new(2, 900_000_000_000_000_000_000u128),
-			AssetAmount::new(222, 1000_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 1_000_000_000_000_000_000_000u128),
 		];
 
 		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
@@ -343,6 +431,124 @@ fn selling_hollar_to_hsm_should_work() {
 }
 
 #[test]
+fn selling_hollar_to_hsm_via_router_should_work() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, 2];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_percent(1);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			920_000_000_000_000_000_000,
+			0,
+		));
+		let initial_liquidity = vec![
+			AssetAmount::new(2, 900_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 1_000_000_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(110, 100),
+			Permill::zero(),
+			Perbill::from_percent(70),
+			None
+		));
+		assert_ok!(HSM::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			2,
+			222,
+			1_000_000_000_000_000_000,
+			u128::MAX,
+		));
+
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		let alice_dai_balance = Tokens::free_balance(2, &AccountId::from(ALICE));
+		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+
+		assert_ok!(Router::sell(
+			RuntimeOrigin::signed(ALICE.into()),
+			222,
+			2,
+			300_000_000_000_000_000,
+			0,
+			Route::truncate_from(vec![Trade {
+				pool: PoolType::HSM,
+				asset_in: 222,
+				asset_out: 2,
+			}])
+		));
+		let alice_final_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(
+			alice_final_hollar_balance,
+			alice_hollar_balance - U256::from(300_000_000_000_000_000u128)
+		);
+
+		let hsm_final_dai_balance = Tokens::free_balance(2, &hsm_address);
+		let paid_dai = hsm_dai_balance - hsm_final_dai_balance;
+
+		let alice_final_dai_balance = Tokens::free_balance(2, &AccountId::from(ALICE));
+		assert_eq!(alice_final_dai_balance, alice_dai_balance + paid_dai);
+
+		let hsm_hollar_balance = balance_of(hsm_evm_address);
+		assert_eq!(hsm_hollar_balance, U256::zero());
+	});
+}
+
+#[test]
 #[ignore]
 fn deploy_gho_token_should_work() {
 	TestNet::reset();
@@ -371,7 +577,7 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 		0,
 		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
 			network: None,
-			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8").into(),
+			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
 	);
 
@@ -387,7 +593,7 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 		.execute(|| {
 			let hsm_address = hydradx_runtime::HSM::account_id();
 			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-				hsm_address.clone().into()
+				hsm_address.clone()
 			)));
 			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -396,9 +602,9 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 				ALICE.into()
 			),));
 			let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-			mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+			mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
 			let alice_hollar_balance = balance_of(alice_evm_address);
-			assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
 			let assets = vec![HOLLAR, COLLATERAL];
 			let pegs = vec![
@@ -480,7 +686,7 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 		0,
 		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
 			network: None,
-			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8").into(),
+			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
 	);
 
@@ -496,7 +702,7 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 		.execute(|| {
 			let hsm_address = hydradx_runtime::HSM::account_id();
 			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-				hsm_address.clone().into()
+				hsm_address.clone()
 			)));
 			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -505,9 +711,9 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 				ALICE.into()
 			),));
 			let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-			mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+			mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
 			let alice_hollar_balance = balance_of(alice_evm_address);
-			assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
 			let assets = vec![HOLLAR, COLLATERAL];
 			let pegs = vec![
@@ -592,7 +798,7 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 }
 
 #[test]
-fn sell_hollar_to_get_yield_bearing_token_should_work() {
+fn sell_collateral_to_get_hollar_via_router_should_work() {
 	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
 		1,
 		polkadot_xcm::v4::Junctions::X2(Arc::new([
@@ -604,7 +810,7 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 		0,
 		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
 			network: None,
-			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8").into(),
+			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
 	);
 
@@ -620,7 +826,284 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 		.execute(|| {
 			let hsm_address = hydradx_runtime::HSM::account_id();
 			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-				hsm_address.clone().into()
+				hsm_address.clone()
+			)));
+			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			),));
+			let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+			mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
+
+			let assets = vec![HOLLAR, COLLATERAL];
+			let pegs = vec![
+				PegSource::Value((1, 1)),                                             // aDOT peg
+				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			];
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				POOL_ID,
+				BoundedVec::truncate_from(assets),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(pegs),
+				Permill::from_percent(100),
+			));
+
+			let liquidity = vec![
+				AssetAmount::new(HOLLAR, 1_000 * 10u128.pow(DECIMALS as u32)),
+				AssetAmount::new(COLLATERAL, 900 * 10u128.pow(DECIMALS as u32)),
+			];
+
+			// Add initial liquidity
+			assert_ok!(Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				POOL_ID,
+				BoundedVec::truncate_from(liquidity),
+				0,
+			));
+
+			hydradx_run_to_next_block();
+
+			let initial_alice_hollar_balance = balance_of(alice_evm_address);
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				POOL_ID,
+				COLLATERAL,
+				HOLLAR,
+				10_000_000_000_000_000,
+				0,
+			));
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			let received = alice_hollar_balance - initial_alice_hollar_balance;
+			assert_eq!(received, U256::from(19_866_697_319_636_617u128));
+
+			hydradx_run_to_next_block();
+
+			assert_ok!(HSM::add_collateral_asset(
+				hydradx_runtime::RuntimeOrigin::root(),
+				COLLATERAL,
+				POOL_ID,
+				Permill::zero(),
+				FixedU128::from_rational(110, 100),
+				Permill::zero(),
+				Perbill::from_percent(70),
+				None
+			));
+
+			let initial_alice_hollar_balance = balance_of(alice_evm_address);
+			let initial_alice_collateral_balance = Tokens::free_balance(COLLATERAL, &AccountId::from(ALICE));
+
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				COLLATERAL,
+				HOLLAR,
+				10_000_000_000_000_000_000,
+				0,
+				Route::truncate_from(vec![Trade {
+					pool: PoolType::HSM,
+					asset_in: COLLATERAL,
+					asset_out: HOLLAR,
+				}])
+			));
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			assert_eq!(
+				alice_hollar_balance - initial_alice_hollar_balance,
+				U256::from(20_000_000_000_000_000_000u128)
+			);
+
+			let hsm_collateral_balance = Tokens::free_balance(COLLATERAL, &hsm_address);
+			assert_eq!(hsm_collateral_balance, 10000000000000000000);
+
+			let alice_collateral_balance = Tokens::free_balance(COLLATERAL, &AccountId::from(ALICE));
+			assert_eq!(
+				alice_collateral_balance,
+				initial_alice_collateral_balance - hsm_collateral_balance
+			);
+		});
+}
+
+#[test]
+fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acquired_from_omnipool() {
+	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		1,
+		polkadot_xcm::v4::Junctions::X2(Arc::new([
+			polkadot_xcm::v4::Junction::Parachain(2000),
+			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		])),
+	);
+	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		0,
+		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+			network: None,
+			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
+		}])),
+	);
+
+	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
+	let collateral_boxed = Box::new(collateral_location.clone().into_versioned());
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.register_asset(COLLATERAL, b"myCOL", DECIMALS, Some(collateral_location))
+		.register_asset(POOL_ID, b"pool", DECIMALS, None)
+		.update_bifrost_oracle(hollar_boxed, collateral_boxed, HOLLAR_COLLATERAL_PRICE)
+		.add_asset_to_omnipool(COLLATERAL, 1_000_000_000_000_000_000_000, FixedU128::one())
+		.new_block()
+		.endow_account(ALICE.into(), COLLATERAL, 910 * 10u128.pow(DECIMALS as u32))
+		.endow_account(ALICE.into(), HDX, 1_000_000_000_000_000_000u128)
+		.execute(|| {
+			let hsm_address = hydradx_runtime::HSM::account_id();
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				hsm_address.clone()
+			)));
+			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			),));
+			let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+			mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
+
+			let assets = vec![HOLLAR, COLLATERAL];
+			let pegs = vec![
+				PegSource::Value((1, 1)),                                             // aDOT peg
+				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			];
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				POOL_ID,
+				BoundedVec::truncate_from(assets),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(pegs),
+				Permill::from_percent(100),
+			));
+
+			let liquidity = vec![
+				AssetAmount::new(HOLLAR, 1_000 * 10u128.pow(DECIMALS as u32)),
+				AssetAmount::new(COLLATERAL, 900 * 10u128.pow(DECIMALS as u32)),
+			];
+
+			// Add initial liquidity
+			assert_ok!(Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				POOL_ID,
+				BoundedVec::truncate_from(liquidity),
+				0,
+			));
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				hydradx_runtime::Omnipool::protocol_account(),
+				HDX,
+				1_000_000_000_000_000_i128,
+			));
+
+			hydradx_run_to_next_block();
+
+			let initial_alice_hollar_balance = balance_of(alice_evm_address);
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				POOL_ID,
+				COLLATERAL,
+				HOLLAR,
+				10_000_000_000_000_000_000,
+				0,
+			));
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			let received = alice_hollar_balance - initial_alice_hollar_balance;
+			assert_eq!(received, U256::from(19862174293799271720u128));
+
+			hydradx_run_to_next_block();
+
+			assert_ok!(HSM::add_collateral_asset(
+				hydradx_runtime::RuntimeOrigin::root(),
+				COLLATERAL,
+				POOL_ID,
+				Permill::zero(),
+				FixedU128::from_rational(110, 100),
+				Permill::zero(),
+				Perbill::from_percent(70),
+				None
+			));
+
+			let initial_alice_hollar_balance = balance_of(alice_evm_address);
+			let initial_alice_collateral_balance = Tokens::free_balance(COLLATERAL, &AccountId::from(ALICE));
+			assert_eq!(initial_alice_collateral_balance, 0u128);
+			let alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+			let hsm_collateral_balance = Tokens::free_balance(COLLATERAL, &hsm_address);
+			assert_eq!(hsm_collateral_balance, 0u128);
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				HDX,
+				HOLLAR,
+				100_000_000_000_000,
+				0,
+				Route::truncate_from(vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: COLLATERAL,
+					},
+					Trade {
+						pool: PoolType::HSM,
+						asset_in: COLLATERAL,
+						asset_out: HOLLAR,
+					}
+				])
+			));
+			let final_alice_hdx_balance = Currencies::free_balance(HDX, &AccountId::from(ALICE));
+			assert_eq!(final_alice_hdx_balance, alice_hdx_balance - 100_000_000_000_000);
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			assert_eq!(
+				alice_hollar_balance - initial_alice_hollar_balance,
+				U256::from(88535149283848u128)
+			);
+
+			let hsm_collateral_balance = Tokens::free_balance(COLLATERAL, &hsm_address);
+			assert_eq!(hsm_collateral_balance, 44267574641924);
+
+			let alice_collateral_balance = Tokens::free_balance(COLLATERAL, &AccountId::from(ALICE));
+			assert_eq!(alice_collateral_balance, 0u128);
+		});
+}
+
+#[test]
+fn sell_hollar_to_get_yield_bearing_token_should_work() {
+	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		1,
+		polkadot_xcm::v4::Junctions::X2(Arc::new([
+			polkadot_xcm::v4::Junction::Parachain(2000),
+			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		])),
+	);
+	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		0,
+		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+			network: None,
+			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
+		}])),
+	);
+
+	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
+	let collateral_boxed = Box::new(collateral_location.clone().into_versioned());
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.register_asset(COLLATERAL, b"myCOL", DECIMALS, Some(collateral_location))
+		.register_asset(POOL_ID, b"pool", DECIMALS, None)
+		.update_bifrost_oracle(hollar_boxed, collateral_boxed, HOLLAR_COLLATERAL_PRICE)
+		.new_block()
+		.endow_account(ALICE.into(), COLLATERAL, 1_000_000 * 10u128.pow(DECIMALS as u32))
+		.execute(|| {
+			let hsm_address = hydradx_runtime::HSM::account_id();
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				hsm_address.clone()
 			)));
 			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -629,9 +1112,9 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 				ALICE.into()
 			)));
 			let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-			mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+			mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
 			let alice_hollar_balance = balance_of(alice_evm_address);
-			assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
 			let assets = vec![HOLLAR, COLLATERAL];
 			let pegs = vec![
@@ -720,7 +1203,7 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 		0,
 		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
 			network: None,
-			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8").into(),
+			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
 		}])),
 	);
 
@@ -736,7 +1219,7 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 		.execute(|| {
 			let hsm_address = hydradx_runtime::HSM::account_id();
 			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-				hsm_address.clone().into()
+				hsm_address.clone()
 			)));
 			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -745,9 +1228,9 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 				ALICE.into()
 			)));
 			let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-			mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+			mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
 			let alice_hollar_balance = balance_of(alice_evm_address);
-			assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
 			let assets = vec![HOLLAR, COLLATERAL];
 			let pegs = vec![
@@ -823,8 +1306,130 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 		});
 }
 
+#[test]
+fn buy_collateral_with_hollar_via_router_should_work() {
+	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		1,
+		polkadot_xcm::v4::Junctions::X2(Arc::new([
+			polkadot_xcm::v4::Junction::Parachain(2000),
+			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		])),
+	);
+	let hollar_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		0,
+		polkadot_xcm::v4::Junctions::X1(Arc::new([polkadot_xcm::v4::Junction::AccountKey20 {
+			network: None,
+			key: hex!("c130c89f2b1066a77bd820aafebcf4519d0103d8"),
+		}])),
+	);
+
+	let hollar_boxed = Box::new(hollar_location.clone().into_versioned());
+	let collateral_boxed = Box::new(collateral_location.clone().into_versioned());
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.register_asset(COLLATERAL, b"myCOL", DECIMALS, Some(collateral_location))
+		.register_asset(POOL_ID, b"pool", DECIMALS, None)
+		.update_bifrost_oracle(hollar_boxed, collateral_boxed, HOLLAR_COLLATERAL_PRICE)
+		.new_block()
+		.endow_account(ALICE.into(), COLLATERAL, 1_000_000 * 10u128.pow(DECIMALS as u32))
+		.execute(|| {
+			let hsm_address = hydradx_runtime::HSM::account_id();
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				hsm_address.clone()
+			)));
+			let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+			add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)));
+			let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+			mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
+
+			let assets = vec![HOLLAR, COLLATERAL];
+			let pegs = vec![
+				PegSource::Value((1, 1)),                                             // aDOT peg
+				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, HOLLAR)), // vDOT peg
+			];
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				POOL_ID,
+				BoundedVec::truncate_from(assets),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(pegs),
+				Permill::from_percent(100),
+			));
+
+			let liquidity = vec![
+				AssetAmount::new(HOLLAR, 1_000 * 10u128.pow(DECIMALS as u32)),
+				AssetAmount::new(COLLATERAL, 450 * 10u128.pow(DECIMALS as u32)),
+			];
+
+			// Add initial liquidity
+			assert_ok!(Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				POOL_ID,
+				BoundedVec::truncate_from(liquidity),
+				0,
+			));
+
+			hydradx_run_to_next_block();
+
+			assert_ok!(HSM::add_collateral_asset(
+				hydradx_runtime::RuntimeOrigin::root(),
+				COLLATERAL,
+				POOL_ID,
+				Permill::zero(),
+				FixedU128::from_rational(210, 100),
+				Permill::zero(),
+				Perbill::from_percent(70),
+				None
+			));
+
+			assert_ok!(HSM::buy(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				COLLATERAL,
+				HOLLAR,
+				2_000_000_000_000_000_000,
+				u128::MAX,
+			));
+
+			let initial_hsm_collateral_balance = Tokens::free_balance(COLLATERAL, &hsm_address);
+			let initial_alice_hollar_balance = balance_of(alice_evm_address);
+			let initial_alice_collateral_balance = Tokens::free_balance(COLLATERAL, &AccountId::from(ALICE));
+
+			assert_ok!(Router::buy(
+				RuntimeOrigin::signed(ALICE.into()),
+				HOLLAR,
+				COLLATERAL,
+				500_000_000_000_000_000,
+				u128::MAX,
+				Route::truncate_from(vec![Trade {
+					pool: PoolType::HSM,
+					asset_in: HOLLAR,
+					asset_out: COLLATERAL,
+				}])
+			));
+			let alice_hollar_balance = balance_of(alice_evm_address);
+			assert_eq!(
+				initial_alice_hollar_balance - alice_hollar_balance,
+				U256::from(1_001_037_848_935_021_083u128)
+			);
+
+			let hsm_collateral_balance = Tokens::free_balance(COLLATERAL, &hsm_address);
+			let received = initial_hsm_collateral_balance - hsm_collateral_balance;
+			assert_eq!(received, 500_000_000_000_000_000);
+
+			let alice_collateral_balance = Tokens::free_balance(COLLATERAL, &AccountId::from(ALICE));
+			assert_eq!(alice_collateral_balance, initial_alice_collateral_balance + received);
+		});
+}
+
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_traits::router::PoolType;
+use hydradx_traits::router::{PoolType, Route, Trade};
 
 #[test]
 fn arbitrage_should_work() {
@@ -834,7 +1439,7 @@ fn arbitrage_should_work() {
 
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -847,9 +1452,9 @@ fn arbitrage_should_work() {
 			ALICE.into()
 		),));
 		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
-		mint(minter(), alice_evm_address, 1000_000_000_000_000_000_000);
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
 		let alice_hollar_balance = balance_of(alice_evm_address);
-		assert_eq!(alice_hollar_balance, U256::from(1000_000_000_000_000_000_000u128));
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
 
 		let pool_id = 9876;
 		let asset_ids = vec![222, 2];
@@ -887,7 +1492,7 @@ fn arbitrage_should_work() {
 		));
 		let initial_liquidity = vec![
 			AssetAmount::new(2, 900_000_000_000_000_000_000u128),
-			AssetAmount::new(222, 1000_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 1_000_000_000_000_000_000_000u128),
 		];
 
 		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
@@ -925,10 +1530,107 @@ fn arbitrage_should_work() {
 		));
 
 		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
-		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2));
+		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let traded_amount = hsm_dai_balance - final_hsm_dai_balance;
 		assert_eq!(traded_amount, 999_642_225_291_583_959);
+	});
+}
+
+#[test]
+fn arbitrage_should_work_when_hollar_amount_is_less_in_the_pool() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 100_000_000_000_000_000_000_000);
+
+		assert!(!check_flash_borrower(hsm_evm_address));
+		add_flash_borrower(hsm_evm_address);
+		assert!(check_flash_borrower(hsm_evm_address));
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, 2];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_float(0.002);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			1_000_020_000_000_000_000_000_000,
+			0,
+		));
+		let initial_liquidity = vec![
+			AssetAmount::new(2, 1_000_000_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 700_000_000_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(99, 100),
+			Permill::zero(),
+			Perbill::from_float(0.0001),
+			None
+		));
+
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+
+		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
+		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+		let received = final_hsm_dai_balance - hsm_dai_balance;
+		assert_eq!(received, 1_502_5767_379_253_934_311);
 	});
 }
 
@@ -948,7 +1650,7 @@ fn hollar_liquidation_should_work() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
 		let hsm_address = hydradx_runtime::HSM::account_id();
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hsm_address.clone().into()
+			hsm_address.clone()
 		)));
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
 		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
@@ -963,8 +1665,23 @@ fn hollar_liquidation_should_work() {
 		// PoolAddressesProvider contract
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
 
+		let b = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(b);
+
 		// get Pool contract address
-		let pool_contract = crate::liquidation::get_pool(pap_contract);
+		let pool_contract = liquidation_worker_support::MoneyMarketData::<
+			hydradx_runtime::Block,
+			crate::liquidation::ApiProvider<Runtime>,
+			OriginCaller,
+			RuntimeCall,
+			RuntimeEvent,
+		>::fetch_pool(
+			&crate::liquidation::ApiProvider::<Runtime>(Runtime),
+			hash,
+			pap_contract,
+			RUNTIME_API_CALLER,
+		)
+		.unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -1039,23 +1756,23 @@ fn hollar_liquidation_should_work() {
 			ALICE_INITIAL_DOT_BALANCE - collateral_dot_amount
 		);
 
-		let (price, timestamp) = crate::liquidation::get_oracle_price("DOT/USD");
+		let (price, timestamp) = crate::liquidation::get_oracle_price("DOT/USD").unwrap();
 		let price = price.as_u128() / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		crate::liquidation::update_oracle_price("DOT/USD", U256::checked_from(&data[0..32]).unwrap());
+		crate::liquidation::update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
 
-		let (price, timestamp) = crate::liquidation::get_oracle_price("WETH/USD");
+		let (price, timestamp) = crate::liquidation::get_oracle_price("WETH/USD").unwrap();
 		let price = price.as_u128() / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		crate::liquidation::update_oracle_price("WETH/USD", U256::checked_from(&data[0..32]).unwrap());
+		crate::liquidation::update_oracle_price(vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())]);
 
 		// ensure that the health_factor < 1
-		let user_data = crate::liquidation::get_user_account_data(pool_contract, alice_evm_address);
-		assert!(user_data.5 < U256::from(1_000_000_000_000_000_000u128));
+		let user_data = crate::liquidation::get_user_account_data(pool_contract, alice_evm_address).unwrap();
+		assert!(user_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
 
 		let route = BoundedVec::truncate_from(vec![hydradx_traits::router::Trade {
 			pool: PoolType::Stableswap(stable_pool_id),
@@ -1117,4 +1834,694 @@ fn create_stablepool(pool_id: AssetId, assets: Vec<AssetId>, initial_liquidity: 
 		BoundedVec::truncate_from(initial_liquidity),
 		0
 	));
+}
+
+#[test]
+fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000_000_000);
+
+		assert!(!check_flash_borrower(hsm_evm_address));
+		add_flash_borrower(hsm_evm_address);
+		assert!(check_flash_borrower(hsm_evm_address));
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![2, 222];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_float(0.002);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			5_000_020_000_000_000_000_000_000,
+			0,
+		));
+		let initial_liquidity = vec![
+			AssetAmount::new(2, 5_000_000_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 500_000_000_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(99, 100),
+			Permill::zero(),
+			Perbill::from_float(0.0002),
+			None
+		));
+
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+		let state = Stableswap::create_snapshot(pool_id).unwrap();
+		let r = state
+			.assets
+			.iter()
+			.zip(state.reserves.iter())
+			.map(|(a, b)| (a.clone(), b.clone()))
+			.collect();
+		let initial_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+			pool_id,
+			r,
+			state.amplification,
+			222,
+			2,
+			state.share_issuance,
+			1_000_000_000_000_000_000,
+			Some(state.fee),
+			&state.pegs,
+		);
+
+		let mut last_spot_price = initial_spot_price;
+
+		for block_idx in 0..50 {
+			assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
+			let state = Stableswap::create_snapshot(pool_id).unwrap();
+			let r = state
+				.assets
+				.iter()
+				.zip(state.reserves.iter())
+				.map(|(a, b)| (a.clone(), b.clone()))
+				.collect();
+			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+				pool_id,
+				r,
+				state.amplification,
+				222,
+				2,
+				state.share_issuance,
+				1_000_000_000_000_000_000,
+				Some(state.fee),
+				&state.pegs,
+			);
+			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
+			assert!(spot_price > last_spot_price);
+			last_spot_price = spot_price;
+			hydradx_run_to_next_block();
+		}
+
+		let state = Stableswap::create_snapshot(pool_id).unwrap();
+		let r = state
+			.assets
+			.iter()
+			.zip(state.reserves.iter())
+			.map(|(a, b)| (a.clone(), b.clone()))
+			.collect();
+		let final_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+			pool_id,
+			r,
+			state.amplification,
+			222,
+			2,
+			state.share_issuance,
+			1_000_000_000_000_000_000,
+			Some(state.fee),
+			&state.pegs,
+		);
+		assert!(initial_spot_price < final_spot_price);
+	});
+}
+
+#[test]
+fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_decimals() {
+	let collateral_asset_id = 1003;
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000_000_000);
+
+		assert!(!check_flash_borrower(hsm_evm_address));
+		add_flash_borrower(hsm_evm_address);
+		assert!(check_flash_borrower(hsm_evm_address));
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, collateral_asset_id];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(collateral_asset_id),
+			Some(b"col".to_vec().try_into().unwrap()),
+			AssetType::Token,
+			Some(1u128),
+			None,
+			Some(12u8),
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 1000u16;
+		let fee = Permill::from_float(0.002);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			collateral_asset_id,
+			5_000_020_000_000_000_000,
+			0,
+		));
+		let initial_liquidity = vec![
+			AssetAmount::new(collateral_asset_id, 5_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 500_000_000_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			collateral_asset_id,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(99, 100),
+			Permill::zero(),
+			Perbill::from_float(0.0002),
+			None
+		));
+
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+		let state = Stableswap::create_snapshot(pool_id).unwrap();
+		let r = state
+			.assets
+			.iter()
+			.zip(state.reserves.iter())
+			.map(|(a, b)| (a.clone(), b.clone()))
+			.collect();
+		let initial_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+			pool_id,
+			r,
+			state.amplification,
+			222,
+			collateral_asset_id,
+			state.share_issuance,
+			1_000_000_000_000_000_000,
+			Some(state.fee),
+			&state.pegs,
+		);
+
+		let mut last_spot_price = initial_spot_price;
+
+		for block_idx in 0..50 {
+			assert_ok!(HSM::execute_arbitrage(
+				hydradx_runtime::RuntimeOrigin::none(),
+				collateral_asset_id,
+				None
+			));
+			let state = Stableswap::create_snapshot(pool_id).unwrap();
+			let r = state
+				.assets
+				.iter()
+				.zip(state.reserves.iter())
+				.map(|(a, b)| (a.clone(), b.clone()))
+				.collect();
+			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+				pool_id,
+				r,
+				state.amplification,
+				222,
+				collateral_asset_id,
+				state.share_issuance,
+				1_000_000_000_000_000_000,
+				Some(state.fee),
+				&state.pegs,
+			);
+			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
+			assert!(spot_price > last_spot_price);
+			last_spot_price = spot_price;
+			hydradx_run_to_next_block();
+		}
+
+		let state = Stableswap::create_snapshot(pool_id).unwrap();
+		let r = state
+			.assets
+			.iter()
+			.zip(state.reserves.iter())
+			.map(|(a, b)| (a.clone(), b.clone()))
+			.collect();
+		let final_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+			pool_id,
+			r,
+			state.amplification,
+			222,
+			collateral_asset_id,
+			state.share_issuance,
+			1_000_000_000_000_000_000,
+			Some(state.fee),
+			&state.pegs,
+		);
+		assert!(initial_spot_price < final_spot_price);
+	});
+}
+
+#[test]
+fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000_000_000);
+
+		assert!(!check_flash_borrower(hsm_evm_address));
+		add_flash_borrower(hsm_evm_address);
+		assert!(check_flash_borrower(hsm_evm_address));
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 5_000_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(5_000_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![2, 222];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_float(0.002);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			5_000_020_000_000_000_000_000_000,
+			0,
+		));
+
+		let initial_liquidity = vec![
+			AssetAmount::new(222, 5_000_000_000_000_000_000_000_000u128),
+			AssetAmount::new(2, 500_000_000_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(99, 100),
+			Permill::zero(),
+			Perbill::from_float(0.0002),
+			None
+		));
+
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+
+		// To make sure HSM has some collateral
+		assert_ok!(HSM::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			2,
+			222,
+			500_000_000_000_000_000_000_000,
+			u128::MAX,
+		));
+
+		hydradx_run_to_next_block();
+
+		let state = Stableswap::create_snapshot(pool_id).unwrap();
+		let r = state
+			.assets
+			.iter()
+			.zip(state.reserves.iter())
+			.map(|(a, b)| (a.clone(), b.clone()))
+			.collect();
+		let initial_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+			pool_id,
+			r,
+			state.amplification,
+			222,
+			2,
+			state.share_issuance,
+			1_000_000_000_000_000_000,
+			Some(state.fee),
+			&state.pegs,
+		);
+		dbg!(initial_spot_price);
+
+		let mut last_spot_price = initial_spot_price;
+
+		for block_idx in 0..50 {
+			assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
+			let state = Stableswap::create_snapshot(pool_id).unwrap();
+			let r = state
+				.assets
+				.iter()
+				.zip(state.reserves.iter())
+				.map(|(a, b)| (a.clone(), b.clone()))
+				.collect();
+			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+				pool_id,
+				r,
+				state.amplification,
+				222,
+				2,
+				state.share_issuance,
+				1_000_000_000_000_000_000,
+				Some(state.fee),
+				&state.pegs,
+			);
+			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
+			assert!(spot_price < last_spot_price);
+			last_spot_price = spot_price;
+			hydradx_run_to_next_block();
+		}
+
+		let state = Stableswap::create_snapshot(pool_id).unwrap();
+		let r = state
+			.assets
+			.iter()
+			.zip(state.reserves.iter())
+			.map(|(a, b)| (a.clone(), b.clone()))
+			.collect();
+		let final_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+			pool_id,
+			r,
+			state.amplification,
+			222,
+			2,
+			state.share_issuance,
+			1_000_000_000_000_000_000,
+			Some(state.fee),
+			&state.pegs,
+		);
+		assert!(initial_spot_price > final_spot_price);
+	});
+}
+
+#[test]
+fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_decimals() {
+	let collateral_asset_id = 1003;
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000_000_000);
+
+		assert!(!check_flash_borrower(hsm_evm_address));
+		add_flash_borrower(hsm_evm_address);
+		assert!(check_flash_borrower(hsm_evm_address));
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 5_000_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(5_000_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, collateral_asset_id];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(collateral_asset_id),
+			Some(b"col".to_vec().try_into().unwrap()),
+			AssetType::Token,
+			Some(1u128),
+			None,
+			Some(12u8),
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 1000u16;
+		let fee = Permill::from_float(0.002);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			collateral_asset_id,
+			5_000_020_000_000_000_000,
+			0,
+		));
+
+		let initial_liquidity = vec![
+			AssetAmount::new(222, 5_000_000_000_000_000_000_000_000u128),
+			AssetAmount::new(collateral_asset_id, 500_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			collateral_asset_id,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(99, 100),
+			Permill::zero(),
+			Perbill::from_float(0.0002),
+			None
+		));
+
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+
+		// To make sure HSM has some collateral
+		assert_ok!(HSM::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			collateral_asset_id,
+			222,
+			500_000_000_000_000_000_000_000,
+			u128::MAX,
+		));
+
+		hydradx_run_to_next_block();
+
+		let state = Stableswap::create_snapshot(pool_id).unwrap();
+		let r = state
+			.assets
+			.iter()
+			.zip(state.reserves.iter())
+			.map(|(a, b)| (a.clone(), b.clone()))
+			.collect();
+		let initial_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+			pool_id,
+			r,
+			state.amplification,
+			222,
+			collateral_asset_id,
+			state.share_issuance,
+			1_000_000_000_000_000_000,
+			Some(state.fee),
+			&state.pegs,
+		);
+		dbg!(initial_spot_price);
+
+		let mut last_spot_price = initial_spot_price;
+
+		for block_idx in 0..50 {
+			assert_ok!(HSM::execute_arbitrage(
+				hydradx_runtime::RuntimeOrigin::none(),
+				collateral_asset_id,
+				None
+			));
+			let state = Stableswap::create_snapshot(pool_id).unwrap();
+			let r = state
+				.assets
+				.iter()
+				.zip(state.reserves.iter())
+				.map(|(a, b)| (a.clone(), b.clone()))
+				.collect();
+			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+				pool_id,
+				r,
+				state.amplification,
+				222,
+				collateral_asset_id,
+				state.share_issuance,
+				1_000_000_000_000_000_000,
+				Some(state.fee),
+				&state.pegs,
+			);
+			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
+			assert!(spot_price < last_spot_price);
+			last_spot_price = spot_price;
+			hydradx_run_to_next_block();
+		}
+
+		let state = Stableswap::create_snapshot(pool_id).unwrap();
+		let r = state
+			.assets
+			.iter()
+			.zip(state.reserves.iter())
+			.map(|(a, b)| (a.clone(), b.clone()))
+			.collect();
+		let final_spot_price = hydra_dx_math::stableswap::calculate_spot_price(
+			pool_id,
+			r,
+			state.amplification,
+			222,
+			collateral_asset_id,
+			state.share_issuance,
+			1_000_000_000_000_000_000,
+			Some(state.fee),
+			&state.pegs,
+		);
+		assert!(initial_spot_price > final_spot_price);
+	});
 }

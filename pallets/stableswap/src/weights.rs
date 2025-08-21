@@ -24,9 +24,11 @@ pub trait WeightInfo {
 	fn set_asset_tradable_state() -> Weight;
 	fn update_pool_fee() -> Weight;
 	fn update_amplification() -> Weight;
-	fn router_execution_sell(c: u32, e: u32) -> Weight;
+	fn router_execution_sell(e: u32) -> Weight;
 	fn router_execution_buy(c: u32, e: u32) -> Weight;
 	fn calculate_spot_price_with_fee() -> Weight;
+	fn update_asset_peg_source() -> Weight;
+	fn update_pool_max_peg_update() -> Weight;
 }
 
 /// Weights for pallet_stableswap using the hydraDX node and recommended hardware.
@@ -347,43 +349,48 @@ impl WeightInfo for () {
 	}
 	/// Storage: `Stableswap::Pools` (r:1 w:0)
 	/// Proof: `Stableswap::Pools` (`max_values`: None, `max_size`: Some(57), added: 2532, mode: `MaxEncodedLen`)
+	/// Storage: `Stableswap::AssetTradability` (r:1 w:0)
+	/// Proof: `Stableswap::AssetTradability` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
 	/// Storage: `AssetRegistry::Assets` (r:6 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:7 w:4)
+	/// Storage: `Tokens::Accounts` (r:7 w:3)
 	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `Stableswap::AssetTradability` (r:2 w:0)
-	/// Proof: `Stableswap::AssetTradability` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
-	/// Storage: `Router::SkipEd` (r:1 w:0)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountBlacklist` (r:2 w:0)
-	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::TotalIssuance` (r:1 w:1)
+	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `Stableswap::PoolPegs` (r:1 w:1)
+	/// Proof: `Stableswap::PoolPegs` (`max_values`: None, `max_size`: Some(351), added: 2826, mode: `MaxEncodedLen`)
+	/// Storage: `EmaOracle::Oracles` (r:4 w:0)
+	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(194), added: 2669, mode: `MaxEncodedLen`)
+	/// Storage: `Stableswap::PoolSnapshots` (r:1 w:0)
+	/// Proof: `Stableswap::PoolSnapshots` (`max_values`: None, `max_size`: Some(324), added: 2799, mode: `MaxEncodedLen`)
 	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
 	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:2 w:1)
+	/// Storage: `System::Account` (r:1 w:1)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
+	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
+	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:1 w:0)
 	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::TotalIssuance` (r:1 w:0)
-	/// Proof: `Tokens::TotalIssuance` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	/// Storage: `CircuitBreaker::AssetLockdownState` (r:1 w:1)
+	/// Proof: `CircuitBreaker::AssetLockdownState` (`max_values`: None, `max_size`: Some(41), added: 2516, mode: `MaxEncodedLen`)
+	/// Storage: `Tokens::Reserves` (r:1 w:1)
+	/// Proof: `Tokens::Reserves` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
+	/// Storage: `Duster::AccountBlacklist` (r:1 w:0)
+	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// Storage: `EmaOracle::Accumulator` (r:1 w:1)
-	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(5921), added: 6416, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:0 w:1)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// The range of component `c` is `[1, 2]`.
+	/// Proof: `EmaOracle::Accumulator` (`max_values`: Some(1), `max_size`: Some(6601), added: 7096, mode: `MaxEncodedLen`)
 	/// The range of component `e` is `[0, 1]`.
-	fn router_execution_sell(c: u32, e: u32, ) -> Weight {
+	fn router_execution_sell(e: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1654 + e * (2047 ±0)`
-		//  Estimated: `13990 + e * (5166 ±0)`
-		// Minimum execution time: 397_703_000 picoseconds.
-		Weight::from_parts(397_718_369, 13990)
-			// Standard Error: 689_000
-			.saturating_add(Weight::from_parts(1_245_529, 0).saturating_mul(c.into()))
-			// Standard Error: 689_000
-			.saturating_add(Weight::from_parts(887_743_321, 0).saturating_mul(e.into()))
-			.saturating_add(RocksDbWeight::get().reads(11_u64))
-			.saturating_add(RocksDbWeight::get().reads((15_u64).saturating_mul(e.into())))
-			.saturating_add(RocksDbWeight::get().writes((7_u64).saturating_mul(e.into())))
+		//  Measured:  `3246 + e * (1727 ±0)`
+		//  Estimated: `16590 + e * (5166 ±0)`
+		// Minimum execution time: 1_043_203_000 picoseconds.
+		Weight::from_parts(1_056_392_261, 16590)
+			// Standard Error: 650_243
+			.saturating_add(Weight::from_parts(1_602_660_038, 0).saturating_mul(e.into()))
+			.saturating_add(RocksDbWeight::get().reads(19_u64))
+			.saturating_add(RocksDbWeight::get().reads((12_u64).saturating_mul(e.into())))
+			.saturating_add(RocksDbWeight::get().writes((9_u64).saturating_mul(e.into())))
 			.saturating_add(Weight::from_parts(0, 5166).saturating_mul(e.into()))
 	}
 	/// Storage: `Stableswap::Pools` (r:1 w:0)
@@ -457,5 +464,32 @@ impl WeightInfo for () {
 		Weight::from_parts(53_616_000, 16590)
 			.saturating_add(RocksDbWeight::get().reads(7_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+
+	/// Storage: Stableswap::Pools (r:1 w:0)
+	/// Proof: Stableswap::Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	/// Storage: Stableswap::PoolPegs (r:1 w:1)
+	/// Proof: Stableswap::PoolPegs (max_values: None, max_size: Some(351), added: 2826, mode: MaxEncodedLen)
+	fn update_asset_peg_source() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  627
+		//  Estimated: 3816
+		// Minimum execution time: 26_785_000 picoseconds.
+		Weight::from_parts(27_197_000, 3816)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: Stableswap::Pools (r:1 w:0)
+	/// Proof: Stableswap::Pools (max_values: None, max_size: Some(57), added: 2532, mode: MaxEncodedLen)
+	/// Storage: Stableswap::PoolPegs (r:1 w:1)
+	/// Proof: Stableswap::PoolPegs (max_values: None, max_size: Some(351), added: 2826, mode: MaxEncodedLen)
+	fn update_pool_max_peg_update() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  620
+		//  Estimated: 3816
+		// Minimum execution time: 26_289_000 picoseconds.
+		Weight::from_parts(26_675_000, 3816)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

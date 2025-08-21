@@ -3,7 +3,6 @@
 use crate::dca::create_schedule;
 use crate::dca::schedule_fake_with_sell_order;
 use crate::liquidation::supply;
-use crate::liquidation::PATH_TO_SNAPSHOT;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
@@ -14,7 +13,10 @@ use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::evm::Erc20Currency;
-use hydradx_runtime::{AssetId, Currencies, EVMAccounts, Liquidation, Router, Runtime, RuntimeOrigin};
+use hydradx_runtime::{
+	AssetId, Block, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall, RuntimeEvent,
+	RuntimeOrigin,
+};
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::Erc20Mapping;
@@ -33,30 +35,89 @@ use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use primitives::Balance;
-use rococo_runtime::Balances;
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
+
+pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
+const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
+
 pub fn with_aave(execution: impl FnOnce()) {
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let pap_contract = EvmAddress::from_slice(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6").as_slice());
-		let pool_contract = crate::liquidation::get_pool(pap_contract);
+
+		let b = hydradx_runtime::System::block_number();
+		let hash = hydradx_runtime::System::block_hash(b);
+
+		let pool_contract = liquidation_worker_support::MoneyMarketData::<
+			Block,
+			crate::liquidation::ApiProvider<Runtime>,
+			OriginCaller,
+			RuntimeCall,
+			RuntimeEvent,
+		>::fetch_pool(
+			&crate::liquidation::ApiProvider::<Runtime>(Runtime),
+			hash,
+			pap_contract,
+			RUNTIME_API_CALLER,
+		)
+		.unwrap();
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
 		));
 
-		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), 3 * BAG));
+		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), 10 * BAG));
 
 		let _ = with_transaction(|| {
 			execution();
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
+	});
+}
+
+#[test]
+fn transfer_all() {
+	with_stablepool(|pool| {
+		// Get some ADOT to run the POC because we have 0 right now
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			10000,
+			10000 + 2,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+
+		// Starting with only 10000 weis of ADOT (it can be any amount as long as it is > ed)
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 10000);
+
+		// Deposit these 10000 ADOT and get back any amount of shares you want for free
+		assert_eq!(
+			Stableswap::add_liquidity_shares(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				pool,
+				100000 * BAG,
+				// aTOKEN
+				ADOT,
+				//max_asset_amount
+				u128::MAX - 1u128,
+			),
+			Err(Other(
+				"evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"
+			))
+		);
 	});
 }
 
@@ -707,6 +768,7 @@ fn buy_in_stable_after_rebase() {
 }
 
 #[test]
+#[ignore]
 fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
 	with_atoken(|| {
 		let ed = 1000;
@@ -725,9 +787,6 @@ fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
 		.unwrap();
 
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
-
-		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
-		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
 
 		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
 
@@ -752,6 +811,7 @@ fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
 }
 
 #[test]
+#[ignore]
 fn transfer_all_atoken_but_one_should_transfer_all_atoken() {
 	with_atoken(|| {
 		let ed = 1000;

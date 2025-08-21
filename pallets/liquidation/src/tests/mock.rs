@@ -210,6 +210,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	type HollarId = HollarId;
 	type FlashMinter = ();
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {

@@ -1,6 +1,6 @@
 [package]
 name = "pallet-dispatcher"
-version = "1.1.0"
+version = "1.2.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -14,9 +14,6 @@ readme = "README.md"
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 scale-info = { workspace = true }
 
-pallet-evm = { workspace = true }
-hydradx-traits = { workspace = true }
-
 # primitives
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
@@ -26,12 +23,17 @@ sp-core = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+
+# EVM dependencies
+pallet-evm = { workspace = true }
+
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
-hydradx-traits = { workspace = true }
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
 test-utils = { workspace = true }
@@ -50,7 +52,6 @@ std = [
     'orml-tokens/std',
     'orml-traits/std',
     "pallet-evm/std",
-    "hydradx-traits/std",
 ]
 
 runtime-benchmarks = [

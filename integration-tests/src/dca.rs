@@ -7,10 +7,9 @@ use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
-
-use hydradx_runtime::AssetPairAccountIdFor;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
+use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
 use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
 	Stableswap, Tokens, Treasury, DCA,
@@ -22,6 +21,7 @@ use hydradx_traits::router::Trade;
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
+use orml_traits::NamedMultiReservableCurrency;
 use pallet_broadcast::types::*;
 use pallet_dca::types::{Order, Schedule};
 use pallet_omnipool::types::Tradability;
@@ -43,7 +43,7 @@ mod omnipool {
 	use hydradx_traits::router::{PoolType, Trade};
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::Destination;
-	use sp_runtime::{DispatchError, FixedU128, TransactionOutcome};
+	use sp_runtime::{FixedU128, TransactionOutcome};
 
 	#[test]
 	fn create_schedule_should_work() {
@@ -232,11 +232,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140280462317696)],
-						outputs: vec![Asset::new(LRNA, 70140229415762)],
+						inputs: vec![Asset::new(HDX, 140421094366889)],
+						outputs: vec![Asset::new(LRNA, 70210545436637)],
 						fees: vec![
-							Fee::new(LRNA, 17535057353, Destination::Burned),
-							Fee::new(LRNA, 17535057354, Destination::Account(Treasury::account_id()))
+							Fee::new(LRNA, 17552636359, Destination::Burned),
+							Fee::new(LRNA, 17552636359, Destination::Account(Treasury::account_id()))
 						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 0),
@@ -249,11 +249,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 70105159301055)],
+						inputs: vec![Asset::new(LRNA, 70175440163919)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(
 							DAI,
-							150225338008,
+							250626566417,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -277,11 +277,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140280475647099)],
-						outputs: vec![Asset::new(LRNA, 70140232425987)],
+						inputs: vec![Asset::new(HDX, 140421107723192)],
+						outputs: vec![Asset::new(LRNA, 70210548452699)],
 						fees: vec![
-							Fee::new(LRNA, 17535058106, Destination::Burned),
-							Fee::new(LRNA, 17535058106, Destination::Account(Treasury::account_id()))
+							Fee::new(LRNA, 17552637113, Destination::Burned),
+							Fee::new(LRNA, 17552637113, Destination::Account(Treasury::account_id()))
 						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
@@ -294,11 +294,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 70105162309775)],
+						inputs: vec![Asset::new(LRNA, 70175443178473)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![Fee::new(
 							DAI,
-							150225338008,
+							250626566417,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -499,7 +499,7 @@ mod omnipool {
 			));
 
 			//Assert
-			assert_balance!(ALICE.into(), HDX, 859719537618218);
+			assert_balance!(ALICE.into(), HDX, 859578905568959);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
 
@@ -528,7 +528,7 @@ mod omnipool {
 			));
 
 			//Assert
-			assert_balance!(ALICE.into(), HDX, 859719537618218);
+			assert_balance!(ALICE.into(), HDX, 859578905568959);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
 	}
@@ -586,7 +586,7 @@ mod omnipool {
 			));
 
 			//Assert
-			assert_balance!(ALICE.into(), LRNA, 4929894840779065);
+			assert_balance!(ALICE.into(), LRNA, 4929824559916281);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
 
@@ -618,7 +618,7 @@ mod omnipool {
 			));
 
 			//Assert
-			assert_balance!(ALICE.into(), LRNA, 4929894840779065);
+			assert_balance!(ALICE.into(), LRNA, 4929824559916281);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		});
 	}
@@ -718,7 +718,7 @@ mod omnipool {
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 			assert!(fee > 0, "Treasury got rugged");
 
-			assert_balance!(ALICE.into(), DAI, 2071285765446401);
+			assert_balance!(ALICE.into(), DAI, 2071214372591672);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
 		});
@@ -776,10 +776,10 @@ mod omnipool {
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974999160577)],
-						outputs: vec![Asset::new(DAI, 71285765478967)],
+						outputs: vec![Asset::new(DAI, 71214372624206)],
 						fees: vec![Fee::new(
 							DAI,
-							107089282142,
+							178482136903,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -821,10 +821,10 @@ mod omnipool {
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(LRNA, 49974997361814)],
-						outputs: vec![Asset::new(DAI, 71285760673769)],
+						outputs: vec![Asset::new(DAI, 71214367823821)],
 						fees: vec![Fee::new(
 							DAI,
-							107089274924,
+							178482124872,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -1491,7 +1491,7 @@ mod omnipool {
 			assert!(fee > 0, "Treasury got rugged");
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
-			assert_balance!(ALICE.into(), DAI, 2071285765446401);
+			assert_balance!(ALICE.into(), DAI, 2071214372591672);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_in - fee);
 		});
 	}
@@ -1599,7 +1599,7 @@ mod omnipool {
 			let treasury_balance = Currencies::free_balance(LRNA, &Treasury::account_id());
 			assert!(treasury_balance > 0);
 
-			assert_balance!(ALICE.into(), DAI, 2142642852904326);
+			assert_balance!(ALICE.into(), DAI, 2142499995765714);
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
 			let reserved_budget = Currencies::reserved_balance(LRNA, &ALICE.into());
 			assert!(reserved_budget < dca_budget);
@@ -1638,7 +1638,7 @@ mod omnipool {
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
 
-			assert_balance!(ALICE.into(), DAI, 2071285765446401);
+			assert_balance!(ALICE.into(), DAI, 2071214372591672);
 		});
 
 		//Direct Omnipool
@@ -1664,7 +1664,7 @@ mod omnipool {
 
 			//Assert
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - amount_to_sell);
-			assert_balance!(ALICE.into(), DAI, 2071285765446401);
+			assert_balance!(ALICE.into(), DAI, 2071214372591672);
 		});
 
 		//Router
@@ -1696,7 +1696,7 @@ mod omnipool {
 
 			//Assert
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - amount_to_sell);
-			assert_balance!(ALICE.into(), DAI, 2071285765446401);
+			assert_balance!(ALICE.into(), DAI, 2071214372591672);
 		});
 	}
 
@@ -1728,7 +1728,7 @@ mod omnipool {
 			let fee = Currencies::free_balance(LRNA, &Treasury::account_id());
 			assert_reserved_balance!(&ALICE.into(), LRNA, dca_budget - amount_to_sell - fee);
 
-			assert_balance!(ALICE.into(), DAI, 2142642852904326);
+			assert_balance!(ALICE.into(), DAI, 2142499995765714);
 		});
 
 		//Direct omnipool
@@ -1754,7 +1754,7 @@ mod omnipool {
 
 			//Assert
 			assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_to_sell);
-			assert_balance!(ALICE.into(), DAI, 2142642852904326);
+			assert_balance!(ALICE.into(), DAI, 2142499995765714);
 		});
 
 		//Router
@@ -1782,7 +1782,7 @@ mod omnipool {
 
 			//Assert
 			assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_to_sell);
-			assert_balance!(ALICE.into(), DAI, 2142642852904326);
+			assert_balance!(ALICE.into(), DAI, 2142499995765714);
 		});
 	}
 
@@ -2361,7 +2361,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 197416345953090;
+		let amount_to_receive = 197218633037918;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -2733,7 +2733,7 @@ mod stableswap {
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 				assert!(fee > 0, "The treasury did not receive the fee");
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_balance!(ALICE.into(), HDX, 1070797284164893);
+				assert_balance!(ALICE.into(), HDX, 1070726380525269);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2834,7 +2834,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070797284164893);
+				assert_balance!(ALICE.into(), HDX, 1070726380525269);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -2937,7 +2937,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070797284164893);
+				assert_balance!(ALICE.into(), HDX, 1070726380525269);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3477,7 +3477,7 @@ mod all_pools {
 
 				//Assert
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
-				assert_balance!(ALICE.into(), DAI, 2380585424345097);
+				assert_balance!(ALICE.into(), DAI, 2380211607465609);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3632,7 +3632,7 @@ mod with_onchain_route {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades_with_onchain_routes() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 187360410419945u128;
+		let amount_to_receive = 187172768546856u128;
 
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -3841,7 +3841,7 @@ mod with_onchain_route {
 			assert!(fee > 0, "The treasury did not receive the fee");
 
 			assert_balance!(ALICE.into(), DOT, alice_init_dot_balance - dca_budget);
-			assert_balance!(ALICE.into(), HDX, 1398403530658226);
+			assert_balance!(ALICE.into(), HDX, 1398004528624518);
 
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
@@ -4101,7 +4101,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, 5268495216206711);
+			assert_balance!(ALICE.into(), HDX, 5268226594908739);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -4136,6 +4136,68 @@ fn terminate_should_work_for_freshly_created_dca() {
 		//Assert
 		let schedule = DCA::schedules(schedule_id);
 		assert!(schedule.is_none());
+	});
+}
+
+#[test]
+fn unlock_should_not_work_when_user_has_active_schedule() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let block_id = 11;
+		set_relaychain_block_number(block_id);
+
+		let budget = 1000 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
+
+		assert_ok!(DCA::schedule(
+			RuntimeOrigin::signed(ALICE.into()),
+			schedule1.clone(),
+			None
+		));
+
+		let schedule_id = 0;
+		let schedule = DCA::schedules(schedule_id);
+		assert!(schedule.is_some());
+
+		//Act
+		assert_noop!(
+			DCA::unlock_reserves(RuntimeOrigin::signed(ALICE.into()), ALICE.into(), HDX),
+			pallet_dca::Error::<hydradx_runtime::Runtime>::HasActiveSchedules
+		);
+	});
+}
+
+#[test]
+fn unclock_should_work_when_user_has_leftover() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let block_id = 11;
+		set_relaychain_block_number(block_id);
+
+		assert_ok!(Currencies::reserve_named(
+			&NamedReserveId::get(),
+			DOT,
+			&ALICE.into(),
+			21323213213
+		));
+
+		assert_reserved_balance!(ALICE.into(), DOT, 21323213213);
+
+		//Act
+		assert_ok!(DCA::unlock_reserves(
+			RuntimeOrigin::signed(ALICE.into()),
+			ALICE.into(),
+			DOT
+		),);
+
+		//Assert
+		assert_reserved_balance!(&ALICE.into(), DOT, 0);
 	});
 }
 

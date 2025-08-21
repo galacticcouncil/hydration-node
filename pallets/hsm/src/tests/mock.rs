@@ -19,7 +19,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate as pallet_hsm;
-use crate::types::{CallResult, CoefficientRatio};
+use crate::types::CallResult;
 use crate::Config;
 use crate::ERC20Function;
 use core::ops::RangeInclusive;
@@ -34,6 +34,7 @@ use frame_support::traits::Contains;
 use frame_support::traits::{ConstU128, ConstU32, ConstU64, Everything};
 use frame_support::{construct_runtime, parameter_types};
 use frame_system::EnsureRoot;
+use hydra_dx_math::hsm::CoefficientRatio;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
@@ -70,6 +71,8 @@ pub const BOB: AccountId = AccountId::new([2; 32]);
 pub const CHARLIE: AccountId = AccountId::new([3; 32]);
 pub const PROVIDER: AccountId = AccountId::new([4; 32]);
 
+pub const ARB_ACCOUNT: AccountId = AccountId::new([22; 32]);
+
 pub const ONE: Balance = 1_000_000_000_000_000_000;
 
 pub const GHO_ADDRESS: [u8; 20] = [1u8; 20];
@@ -83,7 +86,7 @@ macro_rules! assert_balance {
 
 thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, (u32,u8)>> = RefCell::new(HashMap::default());
-	pub static EVM_CALLS: RefCell<Vec<(EvmAddress, Vec<u8>)>> = RefCell::new(Vec::new());
+	pub static EVM_CALLS: RefCell<Vec<(EvmAddress, Vec<u8>)>> = const { RefCell::new(Vec::new()) };
 	pub static EVM_CALL_RESULTS: RefCell<HashMap<Vec<u8>, Vec<u8>>> = RefCell::new(HashMap::default());
 	pub static PEG_ORACLE_VALUES: RefCell<HashMap<(AssetId,AssetId), (Balance,Balance,u64)>> = RefCell::new(HashMap::default());
 	pub static EVM_ADDRESS_MAP: RefCell<HashMap<EvmAddress, AccountId>> = RefCell::new(HashMap::default());
@@ -241,12 +244,13 @@ impl PegRawOracle<AssetId, Balance, u64> for PegOracle {
 			PegSource::Value(v) => {
 				let (n, d) = v;
 				let u = System::block_number();
-				return Ok(RawEntry {
+				Ok(RawEntry {
 					price: (n, d),
 					volume: Volume::default(),
 					liquidity: Liquidity::default(),
+					shares_issuance: Default::default(),
 					updated_at: u,
-				});
+				})
 			}
 			PegSource::Oracle((_, _, asset_id)) => {
 				let (n, d, u) = PEG_ORACLE_VALUES
@@ -257,6 +261,7 @@ impl PegRawOracle<AssetId, Balance, u64> for PegOracle {
 					price: (n, d),
 					volume: Volume::default(),
 					liquidity: Liquidity::default(),
+					shares_issuance: Default::default(),
 					updated_at: u,
 				})
 			}
@@ -378,9 +383,9 @@ impl EVM<CallResult> for MockEvm {
 							let amount = U256::from_big_endian(&amount_bytes);
 
 							let arb_data = data[4 + 32 + 32 + 32 + 32 + 32..].to_vec();
-							let arb_account = ALICE.into();
+							let arb_account = ARB_ACCOUNT;
 							crate::Pallet::<Test>::mint_hollar(&arb_account, amount.as_u128()).unwrap();
-							let alice_evm = EvmAddress::from_slice(&ALICE.as_slice()[0..20]);
+							let alice_evm = EvmAddress::from_slice(&ARB_ACCOUNT.as_slice()[0..20]);
 							crate::Pallet::<Test>::execute_arbitrage_with_flash_loan(
 								alice_evm,
 								amount.as_u128(),
@@ -389,7 +394,7 @@ impl EVM<CallResult> for MockEvm {
 							.unwrap();
 
 							Tokens::transfer(
-								RuntimeOrigin::signed(ALICE),
+								RuntimeOrigin::signed(ARB_ACCOUNT),
 								crate::Pallet::<Test>::account_id(),
 								<Test as crate::Config>::HollarId::get(),
 								amount.as_u128(),
@@ -423,6 +428,7 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 	let provider_evm = EvmAddress::from_slice(&PROVIDER.as_slice()[0..20]);
 	let bob_evm = EvmAddress::from_slice(&BOB.as_slice()[0..20]);
 	let hsm_evm = EvmAddress::from_slice(&HSM::account_id().as_slice()[0..20]);
+	let arb_acc_evm = EvmAddress::from_slice(&ARB_ACCOUNT.as_slice()[0..20]);
 
 	if evm_addr == alice_evm {
 		ALICE
@@ -432,6 +438,8 @@ fn map_to_acc(evm_addr: EvmAddress) -> AccountId {
 		BOB
 	} else if evm_addr == hsm_evm {
 		HSM::account_id()
+	} else if evm_addr == arb_acc_evm {
+		ARB_ACCOUNT
 	} else {
 		EVM_ADDRESS_MAP.with(|v| v.borrow().get(&evm_addr).cloned().expect("EVM address not found"))
 	}
@@ -680,7 +688,7 @@ impl ExtBuilder {
 			// Register assets
 			for (asset_id, decimals) in self.registered_assets {
 				REGISTERED_ASSETS.with(|v| {
-					v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
+					v.borrow_mut().insert(asset_id, (asset_id, decimals));
 				});
 			}
 
@@ -779,16 +787,21 @@ pub fn move_block() {
 #[cfg(feature = "runtime-benchmarks")]
 mod for_benchmark_tests {
 	use super::*;
-	use crate::types::PegType;
 	use frame_support::dispatch::DispatchResult;
+	use hydra_dx_math::hsm::PegType;
+
 	pub struct MockStableswapBenchmarkHelper;
 	use hydradx_traits::Source;
 
 	impl pallet_stableswap::BenchmarkHelper<AssetId> for MockStableswapBenchmarkHelper {
 		fn register_asset(asset_id: AssetId, decimals: u8) -> DispatchResult {
 			REGISTERED_ASSETS.with(|v| {
-				v.borrow_mut().insert(asset_id, (asset_id as u32, decimals));
+				v.borrow_mut().insert(asset_id, (asset_id, decimals));
 			});
+			Ok(())
+		}
+
+		fn set_deposit_limit(_asset_id: AssetId, _limit: u128) -> sp_runtime::DispatchResult {
 			Ok(())
 		}
 

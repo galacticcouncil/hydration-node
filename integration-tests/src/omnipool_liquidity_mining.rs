@@ -16,22 +16,27 @@
 // limitations under the License.
 
 #![cfg(test)]
+use crate::driver::HydrationTestDriver;
 use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
-use hydradx_runtime::Omnipool;
+use hydradx_adapters::{OraclePriceProvider, PriceAdjustmentAdapter};
 use hydradx_runtime::{
-	AssetRegistry, Balance, Bonds, Currencies, Runtime, RuntimeEvent, RuntimeOrigin, Stableswap, Treasury,
-	TreasuryAccount,
+	AssetRegistry, Balance, Bonds, Currencies, EmaOracle, Omnipool, OraclePeriod, Router, Runtime, RuntimeEvent,
+	RuntimeOrigin, Stableswap, Treasury, TreasuryAccount,
 };
 use hydradx_traits::liquidity_mining::PriceAdjustment;
+use hydradx_traits::router::{AssetPair, PoolType, Trade};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
+use pallet_ema_oracle::BIFROST_SOURCE;
+use pallet_stableswap::types::BoundedPegSources;
+use pallet_stableswap::types::PegSource;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use pretty_assertions::assert_eq;
 use primitives::constants::time::unix_time::MONTH;
@@ -42,6 +47,7 @@ use sp_runtime::{
 	traits::{One, Zero},
 	DispatchError, FixedPointNumber, FixedU128, Permill, Perquintill,
 };
+use std::sync::Arc;
 use warehouse_liquidity_mining::{
 	DefaultPriceAdjustment, DepositData, GlobalFarmData, GlobalFarmId, Instance1, LoyaltyCurve, YieldFarmData,
 	YieldFarmEntry,
@@ -946,6 +952,110 @@ fn add_liquidity_stableswap_omnipool_and_join_farms_should_work_for_multiple_far
 }
 
 #[test]
+fn add_liquidity_stableswap_omnipool_and_join_farms_should_fail_stableshare_goes_to_lockdown() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let _ = with_transaction(|| {
+			let global_farm_1_id = 1;
+			let global_farm_2_id = 2;
+			let global_farm_3_id = 3;
+			let yield_farm_1_id = 4;
+			let yield_farm_2_id = 5;
+			let yield_farm_3_id = 6;
+
+			//Arrange
+			let (stable_pool_id, stable_asset_1, stable_asset_2) = init_stableswap().unwrap();
+
+			init_omnipool();
+			seed_lm_pot();
+
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				Omnipool::protocol_account(),
+				stable_pool_id,
+				30_000_000 * UNITS as i128,
+			));
+
+			assert_ok!(Omnipool::add_token(
+				RuntimeOrigin::root(),
+				stable_pool_id,
+				FixedU128::from_rational(50, 100),
+				Permill::from_percent(100),
+				AccountId::from(BOB),
+			));
+
+			//NOTE: necessary to get oracle price.
+			hydradx_run_to_block(100);
+			set_relaychain_block_number(100);
+			create_global_farm(None, None);
+			create_global_farm(None, None);
+			create_global_farm(None, None);
+
+			set_relaychain_block_number(200);
+			create_yield_farm(global_farm_1_id, stable_pool_id);
+			create_yield_farm(global_farm_2_id, stable_pool_id);
+			create_yield_farm(global_farm_3_id, stable_pool_id);
+
+			set_relaychain_block_number(300);
+
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				ETH,
+				10_000 * UNITS as i128,
+			));
+
+			//Add some liquidiity to make sure that it does not interfere with the new liquidty add
+			assert_ok!(hydradx_runtime::Omnipool::add_liquidity(
+				RuntimeOrigin::signed(CHARLIE.into()),
+				ETH,
+				100 * UNITS,
+			));
+
+			set_relaychain_block_number(400);
+			let farms = vec![
+				(global_farm_1_id, yield_farm_1_id),
+				(global_farm_2_id, yield_farm_2_id),
+				(global_farm_3_id, yield_farm_3_id),
+			];
+
+			//Act
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_1,
+				100 * UNITS as i128,
+			));
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+				stable_asset_2,
+				100 * UNITS as i128,
+			));
+			crate::deposit_limiter::update_deposit_limit(stable_pool_id, UNITS).unwrap();
+
+			assert_noop!(
+				hydradx_runtime::OmnipoolLiquidityMining::add_liquidity_stableswap_omnipool_and_join_farms(
+					RuntimeOrigin::signed(CHARLIE.into()),
+					stable_pool_id,
+					vec![
+						AssetAmount::new(stable_asset_1, 10 * UNITS),
+						AssetAmount::new(stable_asset_2, 10 * UNITS)
+					]
+					.try_into()
+					.unwrap(),
+					Some(farms.try_into().unwrap())
+				),
+				pallet_omnipool::Error::<hydradx_runtime::Runtime>::InsufficientBalance
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+#[test]
 fn add_liquidity_stableswap_omnipool_and_join_farms_should_add_only_liquidty_when_no_farms_specified() {
 	TestNet::reset();
 
@@ -1837,7 +1947,7 @@ fn price_adjustment_from_oracle_should_be_saved_in_global_farm_when_oracle_is_av
 		//Assert
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689850039738u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689849957936u128));
 	});
 }
 
@@ -1945,7 +2055,7 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 		// NOTE: make sure oracle's price adjustment was used.
 		let global_farm = hydradx_runtime::OmnipoolWarehouseLM::global_farm(global_farm_1_id).unwrap();
 		let price_adjustment = DefaultPriceAdjustment::get(&global_farm).unwrap();
-		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689850039738u128));
+		assert_eq!(price_adjustment, FixedU128::from_inner(830_815305689849957936u128));
 	});
 }
 
@@ -2075,6 +2185,164 @@ fn claim_rewards_should_work_when_farm_is_updated() {
 		);
 		assert_eq!(charlie_new_hdx_balance_after_2nd_claim, 1000031130625358);
 	});
+}
+
+#[test]
+fn price_adjustment_adapter_should_use_routed_oracle() {
+	const DOT: AssetId = 2221;
+	const VDOT: AssetId = 2222;
+	const ADOT: AssetId = 2223;
+	const GIGADOT: AssetId = 69;
+
+	const DOT_DECIMALS: u8 = 10;
+	const VDOT_DECIMALS: u8 = 10;
+	const ADOT_DECIMALS: u8 = 10;
+	const GIGADOT_DECIMALS: u8 = 18;
+
+	const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 57767685517430457);
+
+	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		1,
+		polkadot_xcm::v4::Junctions::X2(Arc::new([
+			polkadot_xcm::v4::Junction::Parachain(1500),
+			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		])),
+	);
+
+	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+		1,
+		polkadot_xcm::v4::Junctions::X2(Arc::new([
+			polkadot_xcm::v4::Junction::Parachain(1500),
+			polkadot_xcm::v4::Junction::GeneralIndex(1),
+		])),
+	);
+
+	let vdot_boxed = Box::new(vdot_location.clone().into_versioned());
+	let dot_boxed = Box::new(dot_location.clone().into_versioned());
+
+	HydrationTestDriver::default()
+		.setup_omnipool()
+		.register_asset(DOT, b"myDOT", DOT_DECIMALS, Some(dot_location))
+		.register_asset(VDOT, b"myvDOT", VDOT_DECIMALS, Some(vdot_location))
+		.register_asset(ADOT, b"myaDOT", ADOT_DECIMALS, None)
+		.register_asset(GIGADOT, b"myGIGADOT", GIGADOT_DECIMALS, None)
+		.update_bifrost_oracle(dot_boxed, vdot_boxed, DOT_VDOT_PRICE)
+		.new_block()
+		.endow_account(ALICE.into(), DOT, 1_000_000 * 10u128.pow(DOT_DECIMALS as u32))
+		.endow_account(ALICE.into(), VDOT, 1_000_000 * 10u128.pow(VDOT_DECIMALS as u32))
+		.endow_account(ALICE.into(), ADOT, 1_000_000 * 10u128.pow(ADOT_DECIMALS as u32))
+		.add_asset_to_omnipool(
+			VDOT,
+			100_000_000_000_000,
+			FixedU128::from_rational(103158291366950047, 4566210555614178),
+		)
+		.execute(|| {
+			let assets = vec![VDOT, ADOT];
+			let pegs = vec![
+				PegSource::Oracle((BIFROST_SOURCE, OraclePeriod::LastBlock, DOT)), // vDOT peg
+				PegSource::Value((1, 1)),                                          // aDOT peg
+			];
+			assert_ok!(Stableswap::create_pool_with_pegs(
+				RuntimeOrigin::root(),
+				GIGADOT,
+				BoundedVec::truncate_from(assets),
+				100,
+				Permill::from_percent(0),
+				BoundedPegSources::truncate_from(pegs),
+				Permill::from_percent(100),
+			));
+
+			let initial_liquidity = 1_000 * 10u128.pow(DOT_DECIMALS as u32);
+			let liquidity = vec![
+				AssetAmount::new(VDOT, initial_liquidity),
+				AssetAmount::new(ADOT, initial_liquidity),
+			];
+
+			// Add initial liquidity
+			assert_ok!(Stableswap::add_assets_liquidity(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				BoundedVec::truncate_from(liquidity),
+				0,
+			));
+
+			// Sell 1 vdot for adot
+			assert_ok!(Stableswap::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				GIGADOT,
+				VDOT,
+				ADOT,
+				10u128.pow(VDOT_DECIMALS as u32),
+				0,
+			));
+
+			hydradx_run_to_next_block();
+
+			assert_ok!(Router::force_insert_route(
+				RuntimeOrigin::root(),
+				AssetPair::new(LRNA, GIGADOT),
+				BoundedVec::truncate_from(vec![
+					Trade {
+						pool: PoolType::Omnipool,
+						asset_in: LRNA,
+						asset_out: VDOT,
+					},
+					Trade {
+						pool: PoolType::Stableswap(GIGADOT),
+						asset_in: VDOT,
+						asset_out: GIGADOT,
+					}
+				])
+			));
+
+			let g_farm = GlobalFarmData::new(
+				1,
+				1,
+				GIGADOT,
+				Perquintill::from_float(0.005),
+				1_000_000,
+				1,
+				Treasury::account_id(),
+				LRNA,
+				1_000_000_000_000_000_000,
+				1_000,
+				FixedU128::from_float(0.5),
+			);
+
+			assert_eq!(
+				PriceAdjustmentAdapter::<
+					hydradx_runtime::Runtime,
+					Instance1,
+					hydradx_runtime::OmnipoolLmOracle,
+					OraclePriceProvider<AssetId, EmaOracle, hydradx_runtime::LRNA>,
+				>::get(&g_farm),
+				Ok(FixedU128::from_inner(6537142753372611798862655))
+			);
+
+			let g_farm_2 = GlobalFarmData::new(
+				1,
+				1,
+				LRNA,
+				Perquintill::from_float(0.005),
+				1_000_000,
+				1,
+				Treasury::account_id(),
+				GIGADOT,
+				1_000_000_000_000_000_000,
+				1_000,
+				FixedU128::from_float(0.5),
+			);
+
+			assert_eq!(
+				PriceAdjustmentAdapter::<
+					hydradx_runtime::Runtime,
+					Instance1,
+					hydradx_runtime::OmnipoolLmOracle,
+					OraclePriceProvider<AssetId, EmaOracle, hydradx_runtime::LRNA>,
+				>::get(&g_farm_2),
+				Ok(FixedU128::from_inner(152972030400))
+			);
+		});
 }
 
 pub fn expect_reward_claimed_events(e: Vec<RuntimeEvent>) {
