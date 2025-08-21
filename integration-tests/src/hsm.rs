@@ -27,9 +27,9 @@ use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{RuntimeDebug, H256, U256};
 use sp_runtime::traits::One;
-use sp_runtime::{BoundedVec, FixedPointNumber};
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
+use sp_runtime::{BoundedVec, FixedPointNumber};
 use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
@@ -1941,7 +1941,9 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 			1_000_000_000_000_000_000,
 			Some(state.fee),
 			&state.pegs,
-		).unwrap().reciprocal();
+		)
+		.unwrap()
+		.reciprocal();
 
 		let mut last_spot_price = initial_spot_price;
 
@@ -1964,7 +1966,9 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 				1_000_000_000_000_000_000,
 				Some(state.fee),
 				&state.pegs,
-			).unwrap().reciprocal();
+			)
+			.unwrap()
+			.reciprocal();
 			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
 			assert!(spot_price > last_spot_price);
 			last_spot_price = spot_price;
@@ -1988,7 +1992,9 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 			1_000_000_000_000_000_000,
 			Some(state.fee),
 			&state.pegs,
-		).unwrap().reciprocal();
+		)
+		.unwrap()
+		.reciprocal();
 		assert!(initial_spot_price < final_spot_price);
 	});
 }
@@ -2111,7 +2117,9 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 			1_000_000_000_000_000_000,
 			Some(state.fee),
 			&state.pegs,
-		).unwrap().reciprocal();
+		)
+		.unwrap()
+		.reciprocal();
 
 		let mut last_spot_price = initial_spot_price;
 
@@ -2138,7 +2146,9 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 				1_000_000_000_000_000_000,
 				Some(state.fee),
 				&state.pegs,
-			).unwrap().reciprocal();
+			)
+			.unwrap()
+			.reciprocal();
 			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
 			assert!(spot_price > last_spot_price);
 			last_spot_price = spot_price;
@@ -2162,7 +2172,9 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 			1_000_000_000_000_000_000,
 			Some(state.fee),
 			&state.pegs,
-		).unwrap().reciprocal();
+		)
+		.unwrap()
+		.reciprocal();
 		assert!(initial_spot_price < final_spot_price);
 	});
 }
@@ -2285,7 +2297,9 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 			1_000_000_000_000_000_000,
 			Some(state.fee),
 			&state.pegs,
-		).unwrap().reciprocal();
+		)
+		.unwrap()
+		.reciprocal();
 		dbg!(initial_spot_price);
 
 		let mut last_spot_price = initial_spot_price;
@@ -2309,7 +2323,9 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 				1_000_000_000_000_000_000,
 				Some(state.fee),
 				&state.pegs,
-			).unwrap().reciprocal();
+			)
+			.unwrap()
+			.reciprocal();
 			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
 			assert!(spot_price < last_spot_price);
 			last_spot_price = spot_price;
@@ -2333,7 +2349,9 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 			1_000_000_000_000_000_000,
 			Some(state.fee),
 			&state.pegs,
-		).unwrap().reciprocal();
+		)
+		.unwrap()
+		.reciprocal();
 		assert!(initial_spot_price > final_spot_price);
 	});
 }
@@ -2469,7 +2487,9 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			1_000_000_000_000_000_000,
 			Some(state.fee),
 			&state.pegs,
-		).unwrap().reciprocal();
+		)
+		.unwrap()
+		.reciprocal();
 		dbg!(initial_spot_price);
 
 		let mut last_spot_price = initial_spot_price;
@@ -2497,7 +2517,9 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 				1_000_000_000_000_000_000,
 				Some(state.fee),
 				&state.pegs,
-			).unwrap().reciprocal();
+			)
+			.unwrap()
+			.reciprocal();
 			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
 			assert!(spot_price < last_spot_price);
 			last_spot_price = spot_price;
@@ -2521,7 +2543,9 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			1_000_000_000_000_000_000,
 			Some(state.fee),
 			&state.pegs,
-		).unwrap().reciprocal();
+		)
+		.unwrap()
+		.reciprocal();
 		assert!(initial_spot_price > final_spot_price);
 	});
 }
