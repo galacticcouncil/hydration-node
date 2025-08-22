@@ -115,17 +115,34 @@ pub mod opaque {
 	}
 }
 
-	#[sp_version::runtime_version]
-	pub const VERSION: RuntimeVersion = RuntimeVersion {
-		spec_name: create_runtime_str!("hydradx"),
-		impl_name: create_runtime_str!("hydradx"),
-		authoring_version: 1,
-		spec_version: 341,
-		impl_version: 0,
-		apis: RUNTIME_API_VERSIONS,
-	    transaction_version: 1,
-		state_version: 1,
-	};
+#[cfg(not(feature = "testnet"))]
+#[sp_version::runtime_version]
+pub const VERSION: RuntimeVersion = RuntimeVersion {
+	spec_name: create_runtime_str!("hydradx"),
+	impl_name: create_runtime_str!("hydradx"),
+	authoring_version: 1,
+	spec_version: 341,
+	impl_version: 0,
+	apis: RUNTIME_API_VERSIONS,
+	transaction_version: 1_000_001,
+	state_version: 1,
+};
+
+
+//For testnet we need different tx version so the signed extrinsic or signed evm transaction from testnet cannot be replayed on mainnet
+#[cfg(feature = "testnet")]
+#[sp_version::runtime_version]
+pub const VERSION: RuntimeVersion = RuntimeVersion {
+	spec_name: create_runtime_str!("hydradx"),
+	impl_name: create_runtime_str!("hydradx"),
+	authoring_version: 1,
+	spec_version: 341,
+	impl_version: 0,
+	apis: RUNTIME_API_VERSIONS,
+	transaction_version: 1,
+	state_version: 1,
+};
+
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
