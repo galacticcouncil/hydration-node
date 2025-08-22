@@ -181,7 +181,7 @@ impl pallet_evm::Config for Runtime {
 	#[cfg(not(feature = "testnet"))]
 	type ChainId = crate::EVMChainId;
 	#[cfg(feature = "testnet")]
-	type ChainId = EvnChainIdOnTestnet;
+	type ChainId = EvmChainIdOnTestnet;
 	type BlockGasLimit = BlockGasLimit;
 	type Runner = WrapRunner<
 		Self,
@@ -211,9 +211,9 @@ impl pallet_evm::Config for Runtime {
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
 
-pub struct EvnChainIdOnTestnet;
+pub struct EvmChainIdOnTestnet;
 
-impl Get<u64> for EvnChainIdOnTestnet {
+impl Get<u64> for EvmChainIdOnTestnet {
 	fn get() -> u64 {
 		222_222_222
 	}
