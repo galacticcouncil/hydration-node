@@ -93,7 +93,7 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		/// Minimum base fee per gas value. Used to bound  the base fee per gas in min direction.
+		/// Minimum base fee per gas value. Used to bound the base fee per gas in min direction.
 		type MinBaseFeePerGas: Get<u128>;
 
 		/// Maximum base fee per gas value. Used to bound the base fee per gas in max direction.
@@ -116,6 +116,9 @@ pub mod pallet {
 		/// Default EVM asset ID used for EVM transaction fees, if EvmAsset is not explicitly set in storage
 		#[pallet::constant]
 		type WethAssetId: Get<Self::AssetId>;
+
+		/// Base fee multiplier to scale fee for test environments
+		type BaseFeePerGasMultiplier: Get<FixedU128>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -180,10 +183,10 @@ pub mod pallet {
 					return;
 				};
 
-				new_base_fee_per_gas =
-					calculated_new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get());
+                new_base_fee_per_gas = T::BaseFeePerGasMultiplier::get().saturating_mul_int(calculated_new_base_fee_per_gas);
 
-				*old_base_fee_per_gas = U256::from(new_base_fee_per_gas);
+                *old_base_fee_per_gas =
+                    U256::from(new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get()));
 			});
 
 			T::WeightInfo::on_initialize()

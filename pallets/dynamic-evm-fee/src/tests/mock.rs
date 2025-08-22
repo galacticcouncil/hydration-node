@@ -34,7 +34,7 @@ use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency}
 use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup, One},
 	BuildStorage, FixedPointNumber, FixedU128,
 };
 use sp_std::cell::RefCell;
@@ -77,6 +77,7 @@ frame_support::construct_runtime!(
 		 Currencies: pallet_currencies,
 		 Tokens: orml_tokens,
 		 DynamicEvmFee: dynamic_evm_fee,
+		 Parameters: pallet_parameters,
 	 }
 );
 
@@ -136,9 +137,17 @@ impl Get<FixedU128> for MultiplierProviderMock {
 	}
 }
 
-pub struct DefaultBaseDFeePerGas;
+pub struct NativePriceOracleMock;
 
-impl Get<u128> for DefaultBaseDFeePerGas {
+impl NativePriceOracle<AssetId, EmaPrice> for NativePriceOracleMock {
+	fn price(_: AssetId) -> Option<EmaPrice> {
+		Some(ETH_HDX_ORACLE_PRICE.with(|v| *v.borrow()))
+	}
+}
+
+pub struct DefaultBaseFeePerGas;
+
+impl Get<u128> for DefaultBaseFeePerGas {
 	fn get() -> u128 {
 		15_000_000
 	}
@@ -158,16 +167,28 @@ impl Get<u128> for MaxBaseFeePerGas {
 	}
 }
 
+pub struct BaseFeePerGasMultiplier;
+impl Get<FixedU128> for BaseFeePerGasMultiplier {
+	fn get() -> FixedU128 {
+		if Parameters::is_testnet() {
+			FixedU128::from_rational(1, 10)
+		} else {
+			FixedU128::one()
+		}
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MinBaseFeePerGas = MinBaseFeePerGas;
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
-	type DefaultBaseFeePerGas = DefaultBaseDFeePerGas;
+	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
 	type FeeMultiplier = MultiplierProviderMock;
 	type SetEvmPriceOrigin = EnsureRoot<Self::AccountId>;
 	type EvmAssetPrices = EvmAssetPricesMock;
 	type WethAssetId = HdxAssetId;
+	type BaseFeePerGasMultiplier = BaseFeePerGasMultiplier;
 	type WeightInfo = ();
 }
 
@@ -239,6 +260,8 @@ impl pallet_currencies::Config for Test {
 	type GetNativeCurrencyId = HdxAssetId;
 	type WeightInfo = ();
 }
+
+impl pallet_parameters::Config for Test {}
 
 pub struct ExtBuilder {
 	base_weight: Weight,
