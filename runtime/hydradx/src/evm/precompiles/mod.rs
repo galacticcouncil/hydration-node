@@ -44,6 +44,7 @@ use precompile_utils::precompile_set::{
 };
 use primitive_types::{H160, U256};
 use sp_core::crypto::AccountId32;
+use sp_runtime::traits::parameter_types;
 use sp_std::{borrow::ToOwned, vec::Vec};
 
 pub mod chainlink_adapter;
@@ -77,38 +78,23 @@ impl From<Address> for H160 {
 	}
 }
 
-macro_rules! def_address_getter {
-	($name:ident, $addr:expr) => {
-		pub struct $name;
-		impl Get<H160> for $name {
-			fn get() -> H160 {
-				$addr
-			}
-		}
-	};
+parameter_types! {
+	pub ECRecoverAddress: H160 = H160(hex!("0000000000000000000000000000000000000001"));
+	pub SHA256Address: H160 = H160(hex!("0000000000000000000000000000000000000002"));
+	pub RipemdAddress: H160 = H160(hex!("0000000000000000000000000000000000000003"));
+	pub IdentityAddress: H160 = H160(hex!("0000000000000000000000000000000000000004"));
+	pub ModexpAddress: H160 = H160(hex!("0000000000000000000000000000000000000005"));
+	pub BnAddAddress: H160 = H160(hex!("0000000000000000000000000000000000000006"));
+	pub BnMulAddress: H160 = H160(hex!("0000000000000000000000000000000000000007"));
+	pub BnPairingAddress: H160 = H160(hex!("0000000000000000000000000000000000000008"));
+	pub Blake2FAddress: H160 = H160(hex!("0000000000000000000000000000000000000009"));
+	pub CallPermitAddress: H160 = H160(hex!("000000000000000000000000000000000000080a"));
+	pub FlashLoanReceiverAddress: H160 = H160(hex!("000000000000000000000000000000000000090a"));
+	// Same as Moonbean and Centrifuge, should benefit interoperability
+	// See also
+	// https://docs.moonbeam.network/builders/pallets-precompiles/precompiles/overview/#precompiled-contract-addresses
+	pub DispatchAddress: H160 = addr(1025);
 }
-
-def_address_getter!(ECRecoverAddress, H160(hex!("0000000000000000000000000000000000000001")));
-def_address_getter!(SHA256Address, H160(hex!("0000000000000000000000000000000000000002")));
-def_address_getter!(RipemdAddress, H160(hex!("0000000000000000000000000000000000000003")));
-def_address_getter!(IdentityAddress, H160(hex!("0000000000000000000000000000000000000004")));
-def_address_getter!(ModexpAddress, H160(hex!("0000000000000000000000000000000000000005")));
-def_address_getter!(BnAddAddress, H160(hex!("0000000000000000000000000000000000000006")));
-def_address_getter!(BnMulAddress, H160(hex!("0000000000000000000000000000000000000007")));
-def_address_getter!(BnPairingAddress, H160(hex!("0000000000000000000000000000000000000008")));
-def_address_getter!(Blake2FAddress, H160(hex!("0000000000000000000000000000000000000009")));
-def_address_getter!(
-	CallPermitAddress,
-	H160(hex!("000000000000000000000000000000000000080a"))
-);
-def_address_getter!(
-	FlashLoanReceiverAddress,
-	H160(hex!("000000000000000000000000000000000000090a"))
-);
-// Same as Moonbean and Centrifuge, should benefit interoperability
-// See also
-// https://docs.moonbeam.network/builders/pallets-precompiles/precompiles/overview/#precompiled-contract-addresses
-def_address_getter!(DispatchAddress, addr(1025));
 
 pub struct AllowedFlashLoanCallers;
 impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
