@@ -19,6 +19,7 @@
 
 use crate::{assert_nft_owner, omnipool_init::hydra_run_to_block, polkadot_test_net::*};
 
+use frame_support::assert_noop;
 use frame_support::assert_ok;
 use hydradx_traits::{liquidity_mining::PriceAdjustment, AMM};
 use pallet_asset_registry::AssetType;
@@ -1253,6 +1254,104 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 		assert_eq!(
 			Currencies::free_balance(xyk_share_id, &XYKLiquidityMining::account_id()),
 			Balance::zero()
+		);
+	});
+}
+
+#[test]
+fn withdraw_shares_should_fail_when_provided_asset_pair_doesnt_match_deposit() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let yield_farm_1_id = 3;
+		let yield_farm_2_id = 4;
+		let global_farm_3_id = 5;
+		let yield_farm_3_id = 6;
+		let asset_pair = AssetPair {
+			asset_in: PEPE,
+			asset_out: ACA,
+		};
+
+		let asset_pair_2 = AssetPair {
+			asset_in: DOT,
+			asset_out: ACA,
+		};
+
+		//Arrange
+		let xyk_share_id = create_xyk_pool(
+			asset_pair.asset_in,
+			10_000_000 * UNITS,
+			asset_pair.asset_out,
+			100_000_000 * UNITS,
+		);
+		let xyk_share_id_2 = create_xyk_pool(
+			asset_pair_2.asset_in,
+			10_000_000 * UNITS,
+			asset_pair_2.asset_out,
+			100_000_000 * UNITS,
+		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
+		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
+
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair_2.asset_in, asset_pair_2.asset_out);
+		let shares_2_balance = Currencies::free_balance(xyk_share_id_2, &DAVE.into());
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(DAVE.into()),
+			ALICE.into(),
+			xyk_share_id_2,
+			shares_2_balance,
+		));
+
+		set_relaychain_block_number(100);
+		create_global_farm(None, PEPE, None);
+		create_global_farm(None, ACA, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, asset_pair, None);
+		create_yield_farm(global_farm_2_id, asset_pair, None);
+
+		create_global_farm(None, DOT, None);
+		create_yield_farm(global_farm_3_id, asset_pair_2, None);
+
+		set_relaychain_block_number(400);
+		let deposit_id = 1;
+		assert_ok!(XYKLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(DAVE.into()),
+			global_farm_1_id,
+			yield_farm_1_id,
+			asset_pair,
+			dave_shares_balance,
+		));
+
+		set_relaychain_block_number(500);
+		assert_ok!(XYKLiquidityMining::redeposit_shares(
+			RuntimeOrigin::signed(DAVE.into()),
+			global_farm_2_id,
+			yield_farm_2_id,
+			asset_pair,
+			deposit_id,
+		));
+
+		assert_ok!(XYKLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(ALICE.into()),
+			global_farm_3_id,
+			yield_farm_3_id,
+			asset_pair_2,
+			shares_2_balance,
+		));
+
+		set_relaychain_block_number(600);
+
+		assert_noop!(
+			XYKLiquidityMining::withdraw_shares(
+				RuntimeOrigin::signed(DAVE.into()),
+				deposit_id,
+				yield_farm_2_id,
+				asset_pair_2,
+			),
+			warehouse_liquidity_mining::Error::<hydradx_runtime::Runtime, Instance2>::AmmPoolIdMismatch
 		);
 	});
 }

@@ -33,6 +33,7 @@ pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	dispatch::RawOrigin,
 	parameter_types,
+	sp_runtime::traits::One,
 	traits::{Defensive, EitherOf, FindAuthor},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
@@ -46,6 +47,7 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressOrigin, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
+use sp_arithmetic::FixedU128;
 use sp_core::{crypto::AccountId32, Get, U256};
 
 pub mod aave_trade_executor;
@@ -232,6 +234,18 @@ impl pallet_evm_accounts::Config for Runtime {
 	type WeightInfo = crate::weights::pallet_evm_accounts::HydraWeight<Runtime>;
 }
 
+pub struct BaseFeePerGasMultiplier;
+
+impl Get<FixedU128> for BaseFeePerGasMultiplier {
+	fn get() -> FixedU128 {
+		if crate::Parameters::is_testnet() {
+			FixedU128::from_rational(1, 10)
+		} else {
+			FixedU128::one()
+		}
+	}
+}
+
 parameter_types! {
 	pub const DefaultBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS;
 	pub const MinBaseFeePerGas: u128 = DEFAULT_BASE_FEE_PER_GAS.saturating_div(10);
@@ -246,5 +260,6 @@ impl pallet_dynamic_evm_fee::Config for Runtime {
 	type FeeMultiplier = TransactionPaymentMultiplier;
 	type NativePriceOracle = FeePriceOracle;
 	type WethAssetId = WethAssetId;
+	type BaseFeePerGasMultiplier = BaseFeePerGasMultiplier;
 	type WeightInfo = crate::weights::pallet_dynamic_evm_fee::HydraWeight<Runtime>;
 }
