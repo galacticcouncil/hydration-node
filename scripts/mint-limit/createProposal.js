@@ -217,7 +217,7 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
         );
 
         const assetName = meta.unwrap().name.toHuman();
-        console.log(`assetId=${assetId} (${assetName}) -> 2×max=${twoX.toString()} | amount=$${tmaxUsd}`);
+        console.log(`${assetId} (${assetName}) -> mint limit = $${tmaxUsd.toLocaleString()} | 2×max = ${twoX.toString()}`);
         calls.push(buildUpdateCall(api, assetId, twoX));
     }
 
