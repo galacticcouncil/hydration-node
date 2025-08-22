@@ -5537,7 +5537,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "340.0.0"
+version = "341.0.0"
 dependencies = [
  "anyhow",
  "cumulus-pallet-aura-ext",
@@ -5632,7 +5632,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-otc-settlements",
- "pallet-parameters 1.0.1",
+ "pallet-parameters 1.0.2",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-referenda",
@@ -9333,7 +9333,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-evm-fee"
-version = "1.0.7"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9346,6 +9346,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-evm",
+ "pallet-parameters 1.0.2",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "primitives",
@@ -10428,7 +10429,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parameters"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
