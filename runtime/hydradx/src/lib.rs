@@ -490,7 +490,6 @@ use xcm_runtime_apis::{
 	dry_run::{CallDryRunEffects, Error as XcmDryRunApiError, XcmDryRunEffects},
 	fees::Error as XcmPaymentApiError,
 };
-use crate::evm::EvmChainIdGetter;
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
