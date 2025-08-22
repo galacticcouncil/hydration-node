@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /zombienet/hydration-node/launch-configs/fork
 
-RUN wget -q https://github.com/paritytech/zombienet/releases/latest/download/zombienet-linux-x64 -O /usr/local/bin/zombienet && \
+RUN wget -q https://github.com/paritytech/zombienet/releases/download/v1.3.128/zombienet-linux-x64 -O /usr/local/bin/zombienet && \
     chmod +x /usr/local/bin/zombienet
 RUN zombienet version
 
