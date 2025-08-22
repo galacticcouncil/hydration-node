@@ -313,6 +313,9 @@ pub mod pallet {
 		/// `incentivized_asset` is not registered in asset registry.
 		IncentivizedAssetNotRegistered,
 
+		/// Provided `amm_pool_id` doesn't match deposit's `amm_pool_id`.
+		AmmPoolIdMismatch,
+
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),
@@ -1298,6 +1301,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		deposit_id: DepositId,
 		yield_farm_id: YieldFarmId,
 		unclaimable_rewards: Balance,
+		amm_pool_id: T::AmmPoolId,
 	) -> Result<(GlobalFarmId, Balance, bool), DispatchError> {
 		<Deposit<T, I>>::try_mutate_exists(deposit_id, |maybe_deposit| {
 			//NOTE: At this point deposit existence and owner must be checked by pallet calling this
@@ -1307,7 +1311,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				.defensive_ok_or::<Error<T, I>>(InconsistentStateError::DepositNotFound.into())?;
 
 			let farm_entry = deposit.remove_yield_farm_entry(yield_farm_id)?;
-			let amm_pool_id = deposit.amm_pool_id.clone();
+			ensure!(amm_pool_id == deposit.amm_pool_id, Error::<T, I>::AmmPoolIdMismatch);
 
 			<GlobalFarm<T, I>>::try_mutate_exists(
 				farm_entry.global_farm_id,
@@ -1964,7 +1968,7 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 		yield_farm_id: YieldFarmId,
 		amm_pool_id: Self::AmmPoolId,
 	) -> Result<(Self::Balance, Option<(T::AssetId, Self::Balance, Self::Balance)>, bool), Self::Error> {
-		let claim_data = if Self::is_yield_farm_claimable(global_farm_id, yield_farm_id, amm_pool_id) {
+		let claim_data = if Self::is_yield_farm_claimable(global_farm_id, yield_farm_id, amm_pool_id.clone()) {
 			let fail_on_doubleclaim = false;
 			let (_, reward_currency, claimed, unclaimable) =
 				Self::claim_rewards(who, deposit_id, yield_farm_id, fail_on_doubleclaim)?;
@@ -1976,7 +1980,7 @@ impl<T: Config<I>, I: 'static> hydradx_traits::liquidity_mining::Mutate<T::Accou
 
 		let unclaimable = claim_data.map_or(Zero::zero(), |(_, _, unclaimable)| unclaimable);
 		let (_, withdrawn_amount, deposit_destroyed) =
-			Self::withdraw_lp_shares(deposit_id, yield_farm_id, unclaimable)?;
+			Self::withdraw_lp_shares(deposit_id, yield_farm_id, unclaimable, amm_pool_id)?;
 
 		Ok((withdrawn_amount, claim_data, deposit_destroyed))
 	}
