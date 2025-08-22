@@ -183,10 +183,11 @@ pub mod pallet {
 					return;
 				};
 
-                new_base_fee_per_gas = T::BaseFeePerGasMultiplier::get().saturating_mul_int(calculated_new_base_fee_per_gas);
+				new_base_fee_per_gas =
+					T::BaseFeePerGasMultiplier::get().saturating_mul_int(calculated_new_base_fee_per_gas);
 
-                *old_base_fee_per_gas =
-                    U256::from(new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get()));
+				*old_base_fee_per_gas =
+					U256::from(new_base_fee_per_gas.clamp(T::MinBaseFeePerGas::get(), T::MaxBaseFeePerGas::get()));
 			});
 
 			T::WeightInfo::on_initialize()
