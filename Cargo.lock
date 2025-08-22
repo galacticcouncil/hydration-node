@@ -4674,7 +4674,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "341.0.0"
+version = "342.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8433,7 +8433,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "ethabi",
  "evm",
@@ -12268,7 +12268,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.52.1"
+version = "1.52.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
