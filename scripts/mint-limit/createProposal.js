@@ -30,8 +30,10 @@ const RANGE_DAYS = 90;
 const TC_THRESHOLD = 1;
 
 const ASSETS =  [
+    5, // "DOT"
     8, // "Phala"
     9, // "Astar"
+    10, // "USDT"
     12, // "Zeitgeist"
     14, // "Bifrost Native Coin"
     15, // "Bifrost Voucher DOT"
@@ -39,17 +41,11 @@ const ASSETS =  [
     17, // "Interlay"
     19, // "Wrapped BTC (Moonbeam Wormhole)"
     20, // "Wrapped ETH (Moonbeam Wormhole)"
+    22, // "USDC"
     27, // "Crust"
-    30, // "Mythos"
     31, // "Darwinia Network RING"
     33, // "Voucher ASTR"
     35, // "OriginTrail"
-    100, // 4-Pool
-    101, // 2-Pool
-    102, // 2-Pool-Stbl
-    103, // 3-Pool
-    690, //2-Pool-GDOT
-    4200, // 2-Pool-GETH
     1000624, // "AAVE"
     1000752, // "Solana (Moonbeam Wormhole)"
     1000765, // "Threshold BTC"
@@ -57,8 +53,6 @@ const ASSETS =  [
     1000794, // "Chainlink"
     1000795, // "SKY"
     1000796, // "Lido"
-    1000085, // "WUD"
-    252525, // "Energy Web X",
 ];
 
 /* ========= HELPERS ========= */
@@ -207,11 +201,23 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
         const meta = await api.query.assetRegistry.assets(assetId);
         const assetDecimals = meta.unwrap().decimals
 
+        // Handle special case for asset 10 (USDT) where spot price might be undefined
+        let priceAmount, priceDecimals;
+        if (assetId === 10 && (!price || price.amount === undefined)) {
+            // Use 1 USD as fallback price for USDT
+            priceAmount = '1';
+            priceDecimals = 0;
+        } else {
+            priceAmount = price.amount;
+            priceDecimals = price.decimals;
+        }
+
         const tmaxUsd = Math.round(
-            (Number(twoX) / 10 ** assetDecimals) * (parseFloat(price.amount) / 10 ** price.decimals)
+            (Number(twoX) / 10 ** assetDecimals) * (parseFloat(priceAmount) / 10 ** priceDecimals)
         );
 
-        console.log(`assetId=${assetId} -> 2×max=${twoX.toString()} | price=$${tmaxUsd}`);
+        const assetName = meta.unwrap().name.toHuman();
+        console.log(`assetId=${assetId} (${assetName}) -> 2×max=${twoX.toString()} | amount=$${tmaxUsd}`);
         calls.push(buildUpdateCall(api, assetId, twoX));
     }
 
