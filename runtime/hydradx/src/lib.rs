@@ -115,6 +115,7 @@ pub mod opaque {
 	}
 }
 
+//PROD Version config
 #[cfg(not(feature = "testnet"))]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -124,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 342,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1_000_001,
+	transaction_version: 1,
 	state_version: 1,
 };
 
@@ -138,7 +139,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 342,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1,
+	transaction_version: 1_000_001,
 	state_version: 1,
 };
 
