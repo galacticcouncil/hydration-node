@@ -89,6 +89,7 @@ pub enum ERC20Function {
 	Burn = "burn(uint256)",
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
 	MaxFlashLoan = "maxFlashLoan(address)",
+	GetFacilitatorBucket = "getFacilitatorBucket(address)",
 }
 
 /// Max number of approved assets.
@@ -1374,7 +1375,8 @@ where
 		state: &PoolSnapshot<T::AssetId>,
 	) -> Option<Balance> {
 		let max_flash_loan = Self::get_max_flash_loan_amount();
-		let mut sell_amount_max = imbalance.min(max_flash_loan);
+		let free_capacity = Self::get_hsm_bucket_free_capacity();
+		let mut sell_amount_max = imbalance.min(max_flash_loan).min(free_capacity);
 		let mut sell_amount_min = 0u128;
 		let mut sell_amount = sell_amount_max / 2;
 		for _ in 0..50 {
@@ -1385,7 +1387,8 @@ where
 			}
 			sell_amount = ((sell_amount_max.saturating_sub(sell_amount_min)) / 2).saturating_add(sell_amount_min);
 		}
-		if sell_amount_min > 0 {
+		// Limit min arb size too.
+		if sell_amount_min > 100_000_000_000 {
 			Some(sell_amount_min)
 		} else {
 			None
@@ -1714,9 +1717,37 @@ where
 		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			return 0;
+			0
 		} else {
 			U256::from_big_endian(&value[..]).as_u128()
+		}
+	}
+
+	pub fn get_hsm_bucket_free_capacity() -> Balance {
+		let Some(hollar_address) = Self::get_hollar_contract_address().ok() else {
+			return 0;
+		};
+		let hsm_evm_addr = T::EvmAccounts::evm_address(&Self::account_id());
+		log::trace!(target: "hsm", "Addr: {:?}", hsm_evm_addr);
+		log::trace!(target: "hsm", "Hollar Addr: {:?}", hollar_address);
+		let context = CallContext::new_view(hollar_address);
+		let data = EvmDataWriter::new_with_selector(ERC20Function::GetFacilitatorBucket)
+			.write(hsm_evm_addr)
+			.build();
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "GetFacilitatorBucket exit reason: {:?}:{:?}", exit_reason, value);
+			0
+		} else {
+			if value.len() != 64 {
+				return 0;
+			}
+			log::trace!(target: "hsm", "Value: {:?}", &value);
+			let capacity = U256::from_big_endian(&value[0..32]).as_u128();
+			let level = U256::from_big_endian(&value[32..64]).as_u128();
+			log::trace!(target: "hsm", "Bucket capacity: {:?}", capacity);
+			log::trace!(target: "hsm", "Bucket level: {:?}", level);
+			capacity.saturating_sub(level)
 		}
 	}
 }
