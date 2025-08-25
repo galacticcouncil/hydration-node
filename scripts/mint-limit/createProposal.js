@@ -1,7 +1,6 @@
+import {ApiPromise, WsProvider} from '@polkadot/api';
 
-import { ApiPromise, WsProvider } from '@polkadot/api';
-
-import { createSdkContext } from '@galacticcouncil/sdk';
+import {createSdkContext} from '@galacticcouncil/sdk';
 
 /* ========= CONFIG ========= */
 
@@ -29,7 +28,7 @@ const RANGE_DAYS = 90;
 // Technical Committee threshold (how many approvals needed to start motion)
 const TC_THRESHOLD = 1;
 
-const ASSETS =  [
+const ASSETS = [
     5, // "DOT"
     8, // "Phala"
     9, // "Astar"
@@ -54,6 +53,13 @@ const ASSETS =  [
     1000795, // "SKY"
     1000796, // "Lido"
 ];
+
+// Overwrites for specific assets (asset_id -> mint_limit_value)
+// When an asset ID is present here, use this value instead of calculating
+const MINT_LIMIT_OVERWRITES = {
+    10: BigInt("5000000000000"),
+    22: BigInt("5000000000000"),
+};
 
 /* ========= HELPERS ========= */
 
@@ -196,7 +202,16 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
 
     const calls = [];
     for (const assetId of assetIds) {
-        const twoX = await fetchTwoXMax(assetId, fromIso, toIso);
+        let finalLimit;
+        let isOverwrite = false;
+
+        if (MINT_LIMIT_OVERWRITES[assetId]) {
+            finalLimit = MINT_LIMIT_OVERWRITES[assetId];
+            isOverwrite = true;
+        } else {
+            finalLimit = await fetchTwoXMax(assetId, fromIso, toIso);
+        }
+
         const price = await sdk.api.router.getBestSpotPrice(assetId.toString(), '10');
         const meta = await api.query.assetRegistry.assets(assetId);
         const assetDecimals = meta.unwrap().decimals
@@ -213,12 +228,12 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
         }
 
         const tmaxUsd = Math.round(
-            (Number(twoX) / 10 ** assetDecimals) * (parseFloat(priceAmount) / 10 ** priceDecimals)
+            (Number(finalLimit) / 10 ** assetDecimals) * (parseFloat(priceAmount) / 10 ** priceDecimals)
         );
 
         const assetName = meta.unwrap().name.toHuman();
-        console.log(`${assetId} (${assetName}) -> mint limit = $${tmaxUsd.toLocaleString()} | 2×max = ${twoX.toString()}`);
-        calls.push(buildUpdateCall(api, assetId, twoX));
+        console.log(`${assetId} (${assetName}) -> mint limit = $${tmaxUsd.toLocaleString()} ${isOverwrite ? ' (OVERWRITE)' : ''}`);
+        calls.push(buildUpdateCall(api, assetId, finalLimit));
     }
 
     const batch = api.tx.utility.batchAll(calls);
