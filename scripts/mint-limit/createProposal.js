@@ -28,8 +28,7 @@ const RANGE_DAYS = 90;
 // Technical Committee threshold (how many approvals needed to start motion)
 const TC_THRESHOLD = 1;
 
-const ASSETS = [
-    5, // "DOT"
+const ASSETS =  [
     8, // "Phala"
     9, // "Astar"
     10, // "USDT"
