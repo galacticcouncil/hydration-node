@@ -764,7 +764,6 @@ pub mod pallet {
 				hollar_in
 			};
 
-
 			ensure!(amount_in <= slippage_limit, Error::<T>::SlippageLimitExceeded);
 
 			pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -1312,7 +1311,7 @@ where
 	///   - `direction`: ARBITRAGE_DIRECTION_BUY for buy operations, ARBITRAGE_DIRECTION_SELL for sell operations
 	///   - `amount`: The optimal trade size in Hollar units
 	/// - `None` if no profitable arbitrage opportunity is found
-	fn find_arbitrage_opportunity(asset_id: T::AssetId) -> Option<(u8, Balance)> {
+	pub fn find_arbitrage_opportunity(asset_id: T::AssetId) -> Option<(u8, Balance)> {
 		let collateral_info = Self::collaterals(asset_id)?;
 		let pool_id = collateral_info.pool_id;
 
@@ -1515,7 +1514,7 @@ where
 		}
 
 		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(
-			pool_state.pegs[collateral_pos],
+			Self::get_asset_peg(collateral_asset_id, collateral_info.pool_id, &pool_state)?,
 			collateral_info.max_buy_price_coefficient,
 		);
 
@@ -1702,7 +1701,7 @@ where
 	}
 
 	fn get_max_flash_loan_amount() -> Balance {
-		let Some(minter) = FlashMinter::<T>::get() else{
+		let Some(minter) = FlashMinter::<T>::get() else {
 			return 0;
 		};
 		let Some(hollar_address) = Self::get_hollar_contract_address().ok() else {
@@ -1716,7 +1715,7 @@ where
 
 		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			return 0;
-		}else{
+		} else {
 			U256::from_big_endian(&value[..]).as_u128()
 		}
 	}
