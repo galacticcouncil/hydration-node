@@ -24,10 +24,12 @@ use frame_support::{
 	traits::{Everything, Get, Nothing},
 	weights::Weight,
 };
+
 use frame_system as system;
+use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
-use orml_traits::parameter_type_with_key;
+use orml_traits::{parameter_type_with_key, GetByKey};
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
@@ -48,6 +50,8 @@ pub const FEE_RECEIVER: AccountId = 300;
 
 pub const HDX: AssetId = 0;
 pub const WETH: AssetId = 1;
+
+pub const NEW_ETH_ASSET_ID: AssetId = 2;
 pub const SUPPORTED_CURRENCY: AssetId = 2000;
 pub const SUPPORTED_CURRENCY_WITH_PRICE: AssetId = 3000;
 pub const HIGH_ED_CURRENCY: AssetId = 6000;
@@ -175,15 +179,30 @@ impl Get<FixedU128> for BaseFeePerGasMultiplier {
 }
 
 impl Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MinBaseFeePerGas = MinBaseFeePerGas;
 	type MaxBaseFeePerGas = MaxBaseFeePerGas;
 	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
 	type FeeMultiplier = MultiplierProviderMock;
-	type NativePriceOracle = NativePriceOracleMock;
+	type SetEvmPriceOrigin = EnsureRoot<Self::AccountId>;
+	type EvmAssetPrices = EvmAssetPricesMock;
 	type WethAssetId = HdxAssetId;
 	type BaseFeePerGasMultiplier = BaseFeePerGasMultiplier;
 	type WeightInfo = ();
+}
+
+pub struct EvmAssetPricesMock;
+
+impl GetByKey<AssetId, Option<(EmaPrice, EmaPrice)>> for EvmAssetPricesMock {
+	fn get(k: &AssetId) -> Option<(EmaPrice, EmaPrice)> {
+		if k == &NEW_ETH_ASSET_ID {
+			let price = Ratio::new(8045857934143137845, FixedU128::DIV);
+			let reference_price = Ratio::new(9045857934143137845, FixedU128::DIV);
+			return Some((price, reference_price));
+		}
+		Some((ETH_HDX_ORACLE_PRICE.with(|v| *v.borrow()), DEFAULT_ETH_HDX_ORACLE_PRICE))
+	}
 }
 
 impl pallet_balances::Config for Test {
@@ -309,4 +328,8 @@ pub fn set_oracle_price(price: Ratio) {
 	ETH_HDX_ORACLE_PRICE.with(|v| {
 		*v.borrow_mut() = price;
 	});
+}
+
+pub fn expect_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
