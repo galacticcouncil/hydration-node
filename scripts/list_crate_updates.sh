@@ -40,7 +40,7 @@ for vars in "${RUNTIMES_MASTER[@]}"; do
     VARS=( $vars )
     RUNTIME_NAMES_MASTER+=("${VARS[0]}")
     CRATE_PATH=$( echo ${VARS[2]} | sed 's/^.\(.*\).$/\1/' )
-    RUNTIME_SPEC_VERSIONS_MASTER+=($(grep -rI "spec_version:" "$CRATE_PATH" | grep -o -E "[0-9]+"))
+    RUNTIME_SPEC_VERSIONS_MASTER+=($(grep -rI "spec_version:" "$CRATE_PATH" | grep -o -E "[0-9]+" | head -n1))
 #    IFS=$'\n'
 done
 
@@ -133,7 +133,7 @@ for vars in "${RUNTIMES[@]}"; do
     VARS=( $vars )
     RUNTIME_NAMES+=("${VARS[0]}")
     CRATE_PATH=$( echo ${VARS[2]} | sed 's/^.\(.*\).$/\1/' )
-    RUNTIME_SPEC_VERSION=$(grep -rI "spec_version:" "$CRATE_PATH" | grep -o -E "[0-9]+")
+    RUNTIME_SPEC_VERSION=$(grep -rI "spec_version:" "$CRATE_PATH" | grep -o -E "[0-9]+" | head -n1)
     RUNTIME_SPEC_VERSIONS+=($RUNTIME_SPEC_VERSION)
     VERSION=( ${VARS[1]//./ } )
     RUNTIME_CARGO_VERSIONS+=($( echo "${VERSION[0]}" | grep -o -E "[0-9]+"))
