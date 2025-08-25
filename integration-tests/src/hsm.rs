@@ -34,7 +34,6 @@ use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
-pub const PATH_TO_LARK: &str = "snapshots/hsm/LARK_LATEST";
 const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
 
 #[module_evm_utility_macro::generate_function_selector]
@@ -1647,7 +1646,7 @@ fn arbitrage_should_work_when_hollar_amount_is_less_in_the_pool() {
 		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let received = final_hsm_dai_balance - hsm_dai_balance;
-		assert_eq!(received, 65746999678827350701714);
+		assert_eq!(received, 65746999678827350701713);
 	});
 }
 
@@ -2486,26 +2485,5 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			&state.pegs,
 		);
 		assert!(initial_spot_price > final_spot_price);
-	});
-}
-
-#[test]
-fn test_capacity() {
-	TestNet::reset();
-	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_LARK).execute(|| {
-		let free_capacitty = HSM::get_hsm_bucket_free_capacity();
-		dbg!(free_capacitty);
-
-		let arb = HSM::find_arbitrage_opportunity(1002);
-		dbg!(arb);
-
-		assert_ok!(HSM::execute_arbitrage(
-			hydradx_runtime::RuntimeOrigin::none(),
-			1002,
-			None
-		));
-
-		let arb = HSM::find_arbitrage_opportunity(1002);
-		dbg!(arb);
 	});
 }

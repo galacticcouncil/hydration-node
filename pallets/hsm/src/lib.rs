@@ -108,6 +108,8 @@ pub const ARBITRAGE_DIRECTION_BUY: u8 = 1;
 /// Direction for sell operations (more Hollar in pool, creates sell opportunities)
 pub const ARBITRAGE_DIRECTION_SELL: u8 = 2;
 
+pub const MIN_ARBITRAGE_AMOUNT: u128 = 100_000_000_000;
+
 /// Offchain Worker lock
 pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
 /// Lock timeout in milliseconds
@@ -1388,7 +1390,7 @@ where
 			sell_amount = ((sell_amount_max.saturating_sub(sell_amount_min)) / 2).saturating_add(sell_amount_min);
 		}
 		// Limit min arb size too.
-		if sell_amount_min > 100_000_000_000 {
+		if sell_amount_min > MIN_ARBITRAGE_AMOUNT {
 			Some(sell_amount_min)
 		} else {
 			None
@@ -1539,7 +1541,7 @@ where
 		let hollar_amount_received = Self::hollar_amount_received(collateral_asset_id);
 		let hollar_amount_to_trade = max_buy_amt.saturating_sub(hollar_amount_received);
 
-		if hollar_amount_to_trade > 0 {
+		if hollar_amount_to_trade > MIN_ARBITRAGE_AMOUNT {
 			Ok(hollar_amount_to_trade)
 		} else {
 			Err(Error::<T>::MaxBuyBackExceeded.into())
