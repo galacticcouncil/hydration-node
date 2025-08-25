@@ -34,6 +34,7 @@ use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
+pub const PATH_TO_LARK: &str = "snapshots/hsm/LARK_LATEST";
 const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
 
 #[module_evm_utility_macro::generate_function_selector]
@@ -130,7 +131,7 @@ fn get_max_flash_loan(minter: EvmAddress) -> U256 {
 	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 	if value.is_empty() {
 		return U256::zero();
-	}else{
+	} else {
 		return U256::from_big_endian(&value[..]);
 	}
 }
@@ -2103,11 +2104,11 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 			&state.pegs,
 		);
 
-			assert_ok!(HSM::execute_arbitrage(
-				hydradx_runtime::RuntimeOrigin::none(),
-				collateral_asset_id,
-				None
-			));
+		assert_ok!(HSM::execute_arbitrage(
+			hydradx_runtime::RuntimeOrigin::none(),
+			collateral_asset_id,
+			None
+		));
 
 		let state = Stableswap::create_snapshot(pool_id).unwrap();
 		let r = state
@@ -2404,8 +2405,6 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			flash_minter,
 		));
 
-
-
 		// To make sure HSM has some collateral
 		assert_ok!(HSM::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -2487,5 +2486,26 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			&state.pegs,
 		);
 		assert!(initial_spot_price > final_spot_price);
+	});
+}
+
+#[test]
+fn test_capacity() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_LARK).execute(|| {
+		let free_capacitty = HSM::get_hsm_bucket_free_capacity();
+		dbg!(free_capacitty);
+
+		let arb = HSM::find_arbitrage_opportunity(1002);
+		dbg!(arb);
+
+		assert_ok!(HSM::execute_arbitrage(
+			hydradx_runtime::RuntimeOrigin::none(),
+			1002,
+			None
+		));
+
+		let arb = HSM::find_arbitrage_opportunity(1002);
+		dbg!(arb);
 	});
 }
