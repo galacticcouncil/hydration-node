@@ -1374,8 +1374,8 @@ impl<
 
 		// TODO: continue if the price of collateral decreased/debt increased (the cases when HF decreases)
 
-		// calculate amount of debt that needs to be liquidated to get the HF closer
-		// to `target_health_factor`. Calculated for all combinations of collateral and debt assets
+		// Calculate the amount of debt that needs to be liquidated to get the HF closer
+		// to `target_health_factor`. Calculated for all combinations of collateral and debt assets.
 		for &(index_c, collateral_asset) in collateral_assets.iter() {
 			for &(index_d, debt_asset) in debt_assets.iter() {
 				let Ok(LiquidationAmounts {

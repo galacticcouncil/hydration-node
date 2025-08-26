@@ -293,6 +293,21 @@ where
 			// Addresses of the DIA oracle contract.
 			let allowed_oracle_call_addresses = config.clone().oracle_update_call_address.unwrap_or(ORACLE_UPDATE_CALL_ADDRESS.to_vec());
 
+			// use one instance of `MoneyMarketData` per block to aggregate price updates.
+			let Ok(money_market_data) =
+				MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+					ApiProvider::<&C::Api>(runtime_api.deref()),
+					hash,
+					config.pap_contract.unwrap_or(PAP_CONTRACT),
+					config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+				)
+			else {
+				tracing::debug!(target: LOG_TARGET, "MoneyMarketData initialization failed");
+				return
+			};
+
+			let money_market_data_mutex = Arc::new(std::sync::Mutex::from(money_market_data.clone()));
+
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
             while let Some(notification) = notification_st.next().await {
@@ -313,6 +328,7 @@ where
 					spawner.clone(),
 					header.clone(),
 					current_block_hash,
+					money_market_data_mutex.clone(),
 					borrowers.clone(),
 					tx_waitlist.clone(),
 					transaction_pool.clone(),
@@ -340,6 +356,7 @@ where
 		spawner: SpawnTaskHandle,
 		header: B::Header,
 		current_block_hash: B::Hash,
+		money_market_data: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
 		borrowers: Arc<std::sync::Mutex<Vec<Borrower>>>,
 		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
 		transaction_pool: Arc<P>,
@@ -386,6 +403,7 @@ where
 				spawner.clone(),
 				header.clone(),
 				current_block_hash,
+				money_market_data,
 				borrowers.clone(),
 				tx_waitlist.clone(),
 				transaction_pool.clone(),
@@ -406,6 +424,7 @@ where
 		spawner: SpawnTaskHandle,
 		header: B::Header,
 		current_block_hash: B::Hash,
+		money_market_data: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
 		borrowers: Arc<std::sync::Mutex<Vec<Borrower>>>,
 		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
 		transaction_pool: Arc<P>,
@@ -438,16 +457,6 @@ where
 		} in oracle_data.iter()
 		{
 			// TODO: maybe we can use `price` to determine if HF will increase or decrease
-			let Ok(mut money_market_data) =
-				MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
-					ApiProvider::<&C::Api>(runtime_api.deref()),
-					header.hash(),
-					config.pap_contract.unwrap_or(PAP_CONTRACT),
-					config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
-				)
-			else {
-				continue;
-			};
 
 			let Ok(mut borrowers_data) = borrowers.lock() else {
 				tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
@@ -459,7 +468,7 @@ where
 				match Self::try_liquidate(
 					borrower,
 					&mut liquidated_users,
-					&mut money_market_data,
+					money_market_data.clone(),
 					current_evm_timestamp,
 					base_asset_name,
 					price,
@@ -485,7 +494,7 @@ where
 	fn try_liquidate(
 		borrower: &mut Borrower,
 		liquidated_users: &mut Vec<EvmAddress>,
-		money_market_data: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
+		money_market_data: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
 		current_evm_timestamp: u64,
 		base_asset_name: &[u8],
 		new_price: &U256,
@@ -502,6 +511,12 @@ where
 
 		let runtime_api = client.runtime_api();
 		let hash = header.hash();
+
+		let Ok(mut money_market_data) = money_market_data.lock() else {
+			tracing::debug!(target: LOG_TARGET, "money_market_data mutex is poisoned");
+			// return if the mutex is poisoned
+			return Err(());
+		};
 
 		// get address of the asset whose price is about to be updated
 		let Some(asset_reserve) = money_market_data
@@ -525,7 +540,7 @@ where
 		let Ok(user_data) = UserData::new(
 			ApiProvider::<&C::Api>(client.clone().runtime_api().deref()),
 			header.hash(),
-			money_market_data,
+			&money_market_data,
 			borrower.user_address,
 			current_evm_timestamp,
 			config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
@@ -533,7 +548,7 @@ where
 			return Ok(());
 		};
 
-		if let Ok(current_hf) = user_data.health_factor::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>(money_market_data) {
+		if let Ok(current_hf) = user_data.health_factor::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>(&money_market_data) {
 			// update user's HF
 			borrower.health_factor = current_hf;
 
@@ -551,6 +566,9 @@ where
 			config.target_hf.into(),
 			(base_asset_address, new_price.into()),
 		) {
+			// explicitly drop the mutex because we don't need it anymore
+			drop(money_market_data);
+
 			// update user's HF
 			borrower.health_factor = liquidation_option.health_factor;
 
