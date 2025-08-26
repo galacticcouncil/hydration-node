@@ -1519,7 +1519,7 @@ where
 		}
 
 		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(
-			Self::get_asset_peg(collateral_asset_id, collateral_info.pool_id, &pool_state)?,
+			Self::get_asset_peg(collateral_asset_id, collateral_info.pool_id, pool_state)?,
 			collateral_info.max_buy_price_coefficient,
 		);
 
@@ -1725,7 +1725,7 @@ where
 			if value.len() != 32 {
 				return 0;
 			}
-			U256::from_big_endian(&mut &value[..]).try_into().unwrap_or(0)
+			U256::from_big_endian(&value[..]).try_into().unwrap_or(0)
 		}
 	}
 
