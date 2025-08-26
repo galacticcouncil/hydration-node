@@ -629,8 +629,19 @@ where
 		if prices.is_empty() {
 			return None;
 		}
-
 		// To avoid overflows - process in chunks of 4 prices
+		// The reason being that we stick as close as to the previous implementation
+		// If in a rare scenario when the route has more than 16 prices, we simplify the calculation to a single product of them
+		if prices.len() > 16 {
+			// Future-proof - if we have more than 16 prices, we can't calculate the product of them in chunks of 4
+			let price = prices.iter().try_fold((1u128, 1u128), |acc, price| {
+				let n = U512::from(acc.0).checked_mul(U512::from(price.n))?;
+				let d = U512::from(acc.1).checked_mul(U512::from(price.d))?;
+				Some(round_u512_to_rational((n, d), Rounding::Nearest))
+			})?;
+			return Some(EmaPrice::new(price.0, price.1));
+		}
+
 		let (nominator, denominator) = prices
 			.chunks(4)
 			.map(|chunk| -> Option<(u128, u128)> {

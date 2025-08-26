@@ -124,4 +124,22 @@ fn price_provider_should_not_overflow_when_route_contains_more_than_4_trades() {
 			340282366920938463463374607431768211438
 		))
 	);
+	let route = generate_route(16);
+	let price = PriceProviderForRoute::price(&route, OraclePeriod::LastBlock);
+	assert_eq!(
+		price,
+		Some(EmaPrice::new(
+			340282366920938463463374607431768211424,
+			340282366920938463463374607431768211424
+		))
+	);
+	let route = generate_route(17);
+	let price = PriceProviderForRoute::price(&route, OraclePeriod::LastBlock);
+	assert_eq!(
+		price,
+		Some(EmaPrice::new(
+			340282366920938463463374607431768211422,
+			340282366920938463463374607431768211422
+		))
+	);
 }
