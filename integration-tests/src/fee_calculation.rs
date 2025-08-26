@@ -6,6 +6,7 @@ use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::weights::WeightToFee as WeightToFeeTrait;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
+use hydradx_runtime::EVMAccounts;
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;
 use hydradx_runtime::{Runtime, Tokens};
@@ -21,8 +22,8 @@ use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
 
 pub const SWAP_ENCODED_LEN: u32 = 146; //We use this as this is what the UI send as length when omnipool swap is executed
-const HDX_USD_SPOT_PRICE: f64 = 0.0266; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
-pub const ETH_USD_SPOT_PRICE: f64 = 2907.92; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
+const HDX_USD_SPOT_PRICE: f64 = 0.0115; //Current HDX price in USD on CoinGecko on 22th Feb, 2024
+pub const ETH_USD_SPOT_PRICE: f64 = 3609.92; //Current ETH price in USD on CoinGecko on 32th Jul, 2025
 
 #[ignore]
 #[test]
@@ -109,19 +110,25 @@ fn max_swap_fee() {
 	});
 }
 
-#[ignore]
 #[test]
-fn substrate_and_evm_fee_growth_simulator_with_genesis_chain() {
+fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		let prod_init_multiplier = FixedU128::from_u32(1);
-
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(prod_init_multiplier);
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			evm_account(),
 			HDX,
+			1000000 * UNITS as i128,
+		));
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			WETH,
 			1000000 * UNITS as i128,
 		));
 
@@ -159,16 +166,14 @@ fn substrate_and_evm_fee_growth_simulator_with_genesis_chain() {
 	});
 }
 
-#[ignore]
 #[test]
-fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
+fn substrate_and_evm_fee_growth_simulator_with_genesis_chain() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		//We simulate that the chain has no activity so the MinimumMultiplier kept diverged to absolute minimum
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
-			hydradx_runtime::MinimumMultiplier::get(),
-		);
+		let prod_init_multiplier = FixedU128::from_u32(1);
+
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(prod_init_multiplier);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			evm_account(),
@@ -176,6 +181,7 @@ fn substrate_and_evm_fee_growth_simulator_with_idle_chain() {
 			1000000 * UNITS as i128,
 		));
 
+		//update balance, update hdx price, then let's see what we get
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			evm_account(),

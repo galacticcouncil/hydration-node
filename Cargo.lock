@@ -4674,7 +4674,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "341.0.0"
+version = "342.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8058,7 +8058,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-evm-fee"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8159,7 +8159,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12268,7 +12268,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.52.1"
+version = "1.53.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
