@@ -629,40 +629,31 @@ where
 		if prices.is_empty() {
 			return None;
 		}
+
 		// To avoid overflows - process in chunks of 4 prices
-		// The reason being that we stick as close as to the previous implementation
-		// If in a rare scenario when the route has more than 16 prices, we simplify the calculation to a single product of them
-		if prices.len() > 16 {
-			// Future-proof - if we have more than 16 prices, we can't calculate the product of them in chunks of 4
-			let price = prices.iter().try_fold((1u128, 1u128), |acc, price| {
-				let n = U512::from(acc.0).checked_mul(U512::from(price.n))?;
-				let d = U512::from(acc.1).checked_mul(U512::from(price.d))?;
-				Some(round_u512_to_rational((n, d), Rounding::Nearest))
-			})?;
-			return Some(EmaPrice::new(price.0, price.1));
-		}
+		let calculate_price_product = {
+			fn inner(prices: &[EmaPrice]) -> Option<EmaPrice> {
+				if prices.len() <= 4 {
+					// Base case: process directly
+					let nom = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+					let den = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					Some(round_u512_to_rational((nom, den), Rounding::Nearest).into())
+				} else {
+					// Recursive case: chunk and recurse
+					let chunk_results: Vec<EmaPrice> =
+						prices.chunks(4).map(|chunk| inner(chunk)).collect::<Option<Vec<_>>>()?;
 
-		let (nominator, denominator) = prices
-			.chunks(4)
-			.map(|chunk| -> Option<(u128, u128)> {
-				let nom = chunk
-					.iter()
-					.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
-				let den = chunk
-					.iter()
-					.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
-				Some(round_u512_to_rational((nom, den), Rounding::Nearest))
-			})
-			.try_fold((U512::from(1u128), U512::from(1u128)), |acc, chunk_result| {
-				let (acc_nom, acc_den) = acc;
-				let (chunk_nom, chunk_den) = chunk_result?;
-				Some((
-					acc_nom.checked_mul(U512::from(chunk_nom))?,
-					acc_den.checked_mul(U512::from(chunk_den))?,
-				))
-			})?;
+					inner(&chunk_results)
+				}
+			}
+			inner
+		};
 
-		Some(round_u512_to_rational((nominator, denominator), Rounding::Nearest).into())
+		calculate_price_product(&prices)
 	}
 }
 
