@@ -9,7 +9,7 @@ use primitives::constants::chain::Weight;
 type AssetId = u32;
 
 parameter_types! {
-    pub const LRNAAssetId: AssetId = 1;
+	pub const LRNAAssetId: AssetId = 1;
 }
 
 struct MockOracle;
