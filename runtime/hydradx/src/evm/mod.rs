@@ -207,6 +207,7 @@ impl pallet_evm::Config for Runtime {
 	type Timestamp = crate::Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
+
 impl pallet_evm_chain_id::Config for Runtime {}
 
 impl pallet_ethereum::Config for Runtime {
