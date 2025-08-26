@@ -178,10 +178,7 @@ impl pallet_evm::Config for Runtime {
 	type RuntimeEvent = crate::RuntimeEvent;
 	type PrecompilesType = precompiles::HydraDXPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
-	#[cfg(not(feature = "testnet"))]
 	type ChainId = crate::EVMChainId;
-	#[cfg(feature = "testnet")]
-	type ChainId = EvmChainIdOnTestnet;
 	type BlockGasLimit = BlockGasLimit;
 	type Runner = WrapRunner<
 		Self,
@@ -210,15 +207,6 @@ impl pallet_evm::Config for Runtime {
 	type Timestamp = crate::Timestamp;
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
-
-pub struct EvmChainIdOnTestnet;
-
-impl Get<u64> for EvmChainIdOnTestnet {
-	fn get() -> u64 {
-		222_222_222
-	}
-}
-
 impl pallet_evm_chain_id::Config for Runtime {}
 
 impl pallet_ethereum::Config for Runtime {
