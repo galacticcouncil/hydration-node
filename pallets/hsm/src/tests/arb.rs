@@ -291,8 +291,6 @@ proptest! {
 						&state.pegs,
 					).expect("Pool not found");
 
-					let after_spot = FixedU128::one().div(after_spot);
-
 					assert_eq_approx!(sell_price,after_spot, FixedU128::from_float(0.01), "Price should converge");
 
 				}
