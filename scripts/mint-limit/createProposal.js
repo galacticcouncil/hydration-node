@@ -26,9 +26,10 @@ const sdk = await createSdkContext(api);
 const RANGE_DAYS = 90;
 
 // Technical Committee threshold (how many approvals needed to start motion)
-const TC_THRESHOLD = 1;
+const TC_THRESHOLD = 4;
 
 const ASSETS =  [
+    5, // Polkadot
     8, // "Phala"
     9, // "Astar"
     10, // "USDT"
@@ -56,8 +57,10 @@ const ASSETS =  [
 // Overwrites for specific assets (asset_id -> mint_limit_value)
 // When an asset ID is present here, use this value instead of calculating
 const MINT_LIMIT_OVERWRITES = {
-    10: BigInt("5000000000000"),
-    22: BigInt("5000000000000"),
+    5: BigInt("50000000000000000"),      // Polkadot
+    15: BigInt("9000000000000000"), //VDOT
+    10: BigInt("5000000000000"), //USDT
+    22: BigInt("5000000000000"), //UDSC
 };
 
 /* ========= HELPERS ========= */
@@ -230,9 +233,36 @@ async function buildBatchCall({rpc, assetIds, rangeDays}) {
             (Number(finalLimit) / 10 ** assetDecimals) * (parseFloat(priceAmount) / 10 ** priceDecimals)
         );
 
+        // Enforce minimum $50k USD equivalent
+        const MIN_USD_LIMIT = 50000;
+        let adjustedLimit = finalLimit;
+        let wasAdjusted = false;
+        
+        if (tmaxUsd < MIN_USD_LIMIT) {
+            // Safety check to prevent division by zero
+            if (parseFloat(priceAmount) <= 0) {
+                throw new Error(`Invalid price for asset ${assetId}: ${priceAmount}`);
+            }
+            
+            // Calculate the asset amount needed for $50k USD
+            const usdToAssetRate = (parseFloat(priceAmount) / 10 ** priceDecimals);
+            const minAssetAmount = MIN_USD_LIMIT / usdToAssetRate;
+            adjustedLimit = BigInt(Math.round(minAssetAmount * (10 ** assetDecimals)));
+            wasAdjusted = true;
+        }
+
+        const finalUsdAmount = Math.round(
+            (Number(adjustedLimit) / 10 ** assetDecimals) * (parseFloat(priceAmount) / 10 ** priceDecimals)
+        );
+
         const assetName = meta.unwrap().name.toHuman();
-        console.log(`${assetId} (${assetName}) -> mint limit = $${tmaxUsd.toLocaleString()} ${isOverwrite ? ' (OVERWRITE)' : ''}`);
-        calls.push(buildUpdateCall(api, assetId, finalLimit));
+        const statusFlags = [
+            isOverwrite ? 'OVERWRITE' : null,
+            wasAdjusted ? 'ADJUSTED TO MIN' : null
+        ].filter(Boolean).join(', ');
+        
+        console.log(`${assetId} (${assetName}) -> mint limit = $${finalUsdAmount.toLocaleString()} | amount = ${adjustedLimit} ${statusFlags ? ` (${statusFlags})` : ''}`);
+        calls.push(buildUpdateCall(api, assetId, adjustedLimit));
     }
 
     const batch = api.tx.utility.batchAll(calls);
