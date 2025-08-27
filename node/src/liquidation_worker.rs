@@ -424,7 +424,7 @@ where
 		spawner: SpawnTaskHandle,
 		header: B::Header,
 		current_block_hash: B::Hash,
-		money_market_data: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
+		money_market_data_m: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
 		borrowers: Arc<std::sync::Mutex<Vec<Borrower>>>,
 		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
 		transaction_pool: Arc<P>,
@@ -447,15 +447,34 @@ where
 		// We don't try to liquidate a user more than once in a block.
 		let mut liquidated_users: Vec<EvmAddress> = Vec::new();
 
-		// iterate over all price updates
-		// all oracle updates we are interested in are quoted in USD
-		for OracleUpdataData {
-			base_asset_name,
-			quote_asset: _,
-			price,
-			timestamp: _,
-		} in oracle_data.iter()
-		{
+		let Ok(mut money_market_data) = money_market_data_m.lock() else {
+			tracing::debug!(target: LOG_TARGET, "money_market_data mutex is poisoned");
+			// return if the mutex is poisoned
+			return;
+		};
+
+		// One DIA oracle update transaction can update the price of multiple assets.
+		// Create a list of (asset_address, price) pairs from the oracle update.
+		let oracle_data = oracle_data.iter().filter_map(|OracleUpdataData { base_asset_name, price, .. }| {
+			// get address of the asset whose price is about to be updated
+			let asset_reserve = money_market_data
+				.reserves()
+				.iter()
+				.find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset_name.to_ascii_lowercase());
+
+			// "base" asset from "base/quote" asset pair updated by the oracle update
+			asset_reserve.and_then(|reserve| Some(reserve.asset_address())).map(|asset_address| (asset_address, price))
+		}).collect::<Vec<_>>();
+
+		// Iterate over all price updates and aggregate all price updates first.
+		// All oracle updates we use are quoted in USD.
+		for (base_asset_address, &new_price) in oracle_data.iter() {
+			money_market_data.update_reserve_price(*base_asset_address, new_price);
+		}
+
+		drop(money_market_data);
+
+		for (base_asset_name, price) in oracle_data.iter() {
 			// TODO: maybe we can use `price` to determine if HF will increase or decrease
 
 			let Ok(mut borrowers_data) = borrowers.lock() else {
@@ -468,9 +487,9 @@ where
 				match Self::try_liquidate(
 					borrower,
 					&mut liquidated_users,
-					money_market_data.clone(),
+					money_market_data_m.clone(),
 					current_evm_timestamp,
-					base_asset_name,
+					base_asset_name.clone(),
 					price,
 					client.clone(),
 					spawner.clone(),
@@ -496,7 +515,7 @@ where
 		liquidated_users: &mut Vec<EvmAddress>,
 		money_market_data: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
 		current_evm_timestamp: u64,
-		base_asset_name: &[u8],
+		base_asset_address: EvmAddress,
 		new_price: &U256,
 		client: Arc<C>,
 		spawner: SpawnTaskHandle,
@@ -514,29 +533,16 @@ where
 
 		let Ok(mut money_market_data) = money_market_data.lock() else {
 			tracing::debug!(target: LOG_TARGET, "money_market_data mutex is poisoned");
-			// return if the mutex is poisoned
+			// Return if the mutex is poisoned.
 			return Err(());
 		};
 
-		// get address of the asset whose price is about to be updated
-		let Some(asset_reserve) = money_market_data
-			.reserves()
-			.iter()
-			.find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset_name.to_ascii_lowercase())
-		else {
-			return Ok(());
-		};
-
-		// "base" asset from "base/quote" asset pair updated by the oracle update
-		let base_asset_address = asset_reserve.asset_address();
-
-		// skip if the user has been already liquidated in this block
+		// Skip if the user has been already liquidated in this block.
 		if liquidated_users.contains(&borrower.user_address) {
 			return Ok(());
 		};
 
-		// get `UserData` based on updated price
-		money_market_data.update_reserve_price(base_asset_address, *new_price);
+		// Get `UserData` based on updated price.
 		let Ok(user_data) = UserData::new(
 			ApiProvider::<&C::Api>(client.clone().runtime_api().deref()),
 			header.hash(),
@@ -549,7 +555,7 @@ where
 		};
 
 		if let Ok(current_hf) = user_data.health_factor::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>(&money_market_data) {
-			// update user's HF
+			// Update user's HF.
 			borrower.health_factor = current_hf;
 
 			let hf_one = U256::from(10u128.pow(18));
