@@ -474,16 +474,17 @@ where
 
 		drop(money_market_data);
 
-		for (base_asset_name, price) in oracle_data.iter() {
-			// TODO: maybe we can use `price` to determine if HF will increase or decrease
+		// TODO: maybe we can use `price` to determine if HF will increase or decrease
 
-			let Ok(mut borrowers_data) = borrowers.lock() else {
-				tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
-				// return if the mutex is poisoned
-				return;
-			};
-			// Iterate over all borrowers. Borrowers are sorted by their HF, in ascending order.
-			for borrower in borrowers_data.iter_mut() {
+		let Ok(mut borrowers_data) = borrowers.lock() else {
+			tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+			// return if the mutex is poisoned
+			return;
+		};
+
+		// Iterate over all borrowers. Borrowers are sorted by their HF, in ascending order.
+		for borrower in borrowers_data.iter_mut() {
+			for (base_asset_name, price) in oracle_data.iter() {
 				match Self::try_liquidate(
 					borrower,
 					&mut liquidated_users,
@@ -502,8 +503,8 @@ where
 					Ok(()) => (),
 					Err(()) => return,
 				}
-			}
 		}
+	}
 	}
 
 	#[allow(clippy::too_many_arguments)]
