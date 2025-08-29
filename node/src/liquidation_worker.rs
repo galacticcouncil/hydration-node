@@ -307,6 +307,9 @@ where
 			};
 
 			let money_market_data_mutex = Arc::new(std::sync::Mutex::from(money_market_data.clone()));
+			// Stores `channel::Sender` from the latest `on_new_transaction` execution to keep the channel open.
+			// By closing the channel, we communicate to old threads to cancel execution.
+			let open_channel_mutex = Arc::new(std::sync::Mutex::from(None));
 
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
@@ -336,6 +339,7 @@ where
 					allowed_signers.clone(),
 					allowed_oracle_call_addresses.clone(),
 					config.clone(),
+					open_channel_mutex.clone(),
 				) {
 					Ok(()) => continue,
 					Err(()) => return,
@@ -364,7 +368,22 @@ where
 		allowed_signers: Vec<EvmAddress>,
 		allowed_oracle_call_addresses: Vec<EvmAddress>,
 		config: LiquidationWorkerConfig,
+		open_channel_mutex: Arc<std::sync::Mutex<Option<crossbeam_channel::Sender<()>>>>,
 	) -> Result<(), ()> {
+		// Create a new channel.
+		let (tx, rx) = crossbeam_channel::unbounded();
+
+		let Ok(mut open_channels) = open_channel_mutex.lock() else {
+			tracing::debug!(target: LOG_TARGET, "open_channel_mutex mutex is poisoned");
+			// return if the mutex is poisoned
+			return Err(())
+		};
+		// Disconnect the latest channel from the previous execution by dropping precious `Sender` and store new `Sender`.
+		let old_tx = open_channels.take();
+		drop(old_tx);
+		*open_channels = Some(tx);
+		drop(open_channels);
+
 		// Variables used in tasks are captured by the value, so we need to clone them.
 		let sorted_borrowers_data_c = borrowers.clone();
 
@@ -408,6 +427,7 @@ where
 				tx_waitlist.clone(),
 				transaction_pool.clone(),
 				config,
+				rx,
 			)
 		});
 
@@ -429,6 +449,7 @@ where
 		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
 		transaction_pool: Arc<P>,
 		config: LiquidationWorkerConfig,
+		rx: crossbeam_channel::Receiver<()>,
 	) {
 		let Some(oracle_data) = parse_oracle_transaction(&transaction) else {
 			tracing::debug!(target: LOG_TARGET, "parse_oracle_transaction failed");
@@ -485,6 +506,16 @@ where
 		// Iterate over all borrowers. Borrowers are sorted by their HF, in ascending order.
 		for borrower in borrowers_data.iter_mut() {
 			for (base_asset_name, price) in oracle_data.iter() {
+				// Cancel this thread if the channel was disconnected.
+				// The channel is disconnected when we receive a new oracle update transaction.
+				match rx.try_recv() {
+					Err(crossbeam_channel::TryRecvError::Disconnected) => {
+						tracing::debug!(target: LOG_TARGET, "Exiting thread for oracle update of {:?}", base_asset_name );
+						return
+					},
+					_ => (),
+				}
+
 				match Self::try_liquidate(
 					borrower,
 					&mut liquidated_users,
