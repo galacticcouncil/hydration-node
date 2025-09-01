@@ -1,7 +1,7 @@
 use crate::origins::GeneralAdmin;
 use crate::{
 	Balances, Ismp, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent, TechCommitteeSuperMajority, Timestamp,
-	TokenGateway, TreasuryAccount, HOLLAR,
+	TokenGateway, TreasuryAccount,
 };
 use frame_support::parameter_types;
 use frame_support::traits::fungible::ItemOf;
@@ -9,9 +9,9 @@ use frame_support::traits::EitherOf;
 use frame_system::EnsureRoot;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::{BasicCurrencyAdapter, NativeCurrencyOf};
 use pallet_genesis_history::migration::Weight;
-use primitives::{AccountId, Amount, AssetId, Balance, BlockNumber};
+use primitives::constants::currency::NATIVE_DECIMALS;
+use primitives::{AccountId, AssetId, Balance};
 use sp_std::{boxed::Box, vec::Vec};
 
 impl pallet_hyperbridge::Config for Runtime {
@@ -91,13 +91,19 @@ impl ismp_parachain::weights::WeightInfo for IsmpWeights {
 	}
 }
 
+parameter_types! {
+	pub const NativeTokenDecimals: u8 = NATIVE_DECIMALS;
+}
+
 impl pallet_token_gateway::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Dispatcher = Ismp;
-	type MultiCurrency = crate::Tokens;
-	type AssetRegistry = crate::AssetRegistry;
+	type NativeCurrency = Balances;
 	type AssetAdmin = TreasuryAccount;
 	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type Assets = FungibleCurrencies<Runtime>;
+	type NativeAssetId = NativeAssetId;
+	type Decimals = NativeTokenDecimals;
 	type EvmToSubstrate = ();
 	type WeightInfo = ();
 }

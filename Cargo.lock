@@ -9159,6 +9159,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
+ "pallet-asset-registry",
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",
@@ -11045,27 +11046,20 @@ dependencies = [
 [[package]]
 name = "pallet-token-gateway"
 version = "16.2.0"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-macro 0.7.7",
  "alloy-sol-types 0.7.7",
  "anyhow",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-traits",
  "ismp",
  "log",
- "orml-traits",
  "pallet-hyperbridge",
  "pallet-ismp",
  "parity-scale-codec",
+ "polkadot-sdk",
  "primitive-types 0.12.2",
- "primitives",
  "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
  "token-gateway-primitives",
 ]
 
@@ -18999,22 +18993,19 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "token-gateway-primitives"
 version = "16.0.0"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-macro 0.7.7",
  "alloy-sol-types 0.7.7",
  "anyhow",
- "frame-support",
- "frame-system",
  "ismp",
  "log",
  "pallet-ismp",
  "parity-scale-codec",
+ "polkadot-sdk",
  "primitive-types 0.12.2",
  "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]
