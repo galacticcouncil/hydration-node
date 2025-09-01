@@ -24,11 +24,11 @@ parameter_types! {
 	// The hyperbridge parachain on Polkadot
 	pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Polkadot(3367));
 
-	// The hyperbridge parachain on Paseo
-	// pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Kusama(4009));
-
 	// The host state machine of this pallet on Polkadot
 	pub const HostStateMachine: StateMachine = StateMachine::Polkadot(2034);
+
+	// The hyperbridge parachain on Paseo
+	// pub const Coprocessor: Option<StateMachine> = Some(StateMachine::Kusama(4009));
 
 	// The host state machine of this pallet on Paseo
 	// pub const HostStateMachine: StateMachine = StateMachine::Kusama(2034);
