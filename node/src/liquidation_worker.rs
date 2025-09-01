@@ -84,9 +84,13 @@ pub struct LiquidationWorkerConfig {
 	#[clap(long)]
 	pub oracle_update_call_address: Option<Vec<EvmAddress>>,
 
-	/// Target health factor
+	/// Target health factor.
 	#[clap(long, default_value_t = TARGET_HF)]
 	pub target_hf: u128,
+
+	/// URL to fetch initial borrowers data from.
+	#[clap(long)]
+	pub omniwatch_url: Option<String>,
 }
 
 pub struct ApiProvider<C>(C);
@@ -176,7 +180,7 @@ where
 		let http_client: HttpClient = Arc::new(Client::builder().build(https));
 
 		// Fetch and sort the data with borrowers info.
-		let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone()).await else {
+		let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone(), config.omniwatch_url.clone()).await else {
 			tracing::error!(target: LOG_TARGET, "fetch_borrowers_data failed");
 			return;
 		};
@@ -693,8 +697,8 @@ where
 
 	// TODO: return Result type
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
-	async fn fetch_borrowers_data(http_client: HttpClient) -> Option<BorrowersData<AccountId>> {
-		let url = ("https://omniwatch.play.hydration.cloud/api/borrowers/by-health")
+	async fn fetch_borrowers_data(http_client: HttpClient, maybe_url: Option<String>) -> Option<BorrowersData<AccountId>> {
+		let url = maybe_url.unwrap_or(String::from("https://omniwatch.play.hydration.cloud/api/borrowers/by-health"))
 			.parse()
 			.ok()?;
 		let res = http_client.get(url).await.ok()?;
