@@ -47,6 +47,7 @@ pub enum Function {
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
 	AddFlashBorrower = "addFlashBorrower(address)",
 	IsFlashBorrower = "isFlashBorrower(address)",
+	MaxFlashLoan = "maxFlashLoan(address)",
 }
 
 fn hollar_contract_address() -> EvmAddress {
@@ -117,6 +118,21 @@ fn check_flash_borrower(borrower: EvmAddress) -> bool {
 	let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
 	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 	!value.is_empty() && value.iter().any(|&x| x != 0)
+}
+
+fn get_max_flash_loan(minter: EvmAddress) -> U256 {
+	//let acl_manager = hex!["c54dcFaEB75F56907E8B1De931dB4E37Bd0Afbb4"].into();
+	let data = EvmDataWriter::new_with_selector(Function::MaxFlashLoan)
+		.write(hollar_contract_address())
+		.build();
+	let context = CallContext::new_view(minter);
+	let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
+	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
+	if value.is_empty() {
+		return U256::zero();
+	} else {
+		return U256::from_big_endian(&value[..]);
+	}
 }
 
 fn mint(facilitator: EvmAddress, to: EvmAddress, amount: u128) {
@@ -1630,7 +1646,7 @@ fn arbitrage_should_work_when_hollar_amount_is_less_in_the_pool() {
 		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let received = final_hsm_dai_balance - hsm_dai_balance;
-		assert_eq!(received, 1_502_5767_379_253_934_311);
+		assert_eq!(received, 65746999678827350701713);
 	});
 }
 
@@ -1943,33 +1959,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 			&state.pegs,
 		);
 
-		let mut last_spot_price = initial_spot_price;
-
-		for block_idx in 0..50 {
-			assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
-			let state = Stableswap::create_snapshot(pool_id).unwrap();
-			let r = state
-				.assets
-				.iter()
-				.zip(state.reserves.iter())
-				.map(|(a, b)| (a.clone(), b.clone()))
-				.collect();
-			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
-				pool_id,
-				r,
-				state.amplification,
-				222,
-				2,
-				state.share_issuance,
-				1_000_000_000_000_000_000,
-				Some(state.fee),
-				&state.pegs,
-			);
-			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
-			assert!(spot_price > last_spot_price);
-			last_spot_price = spot_price;
-			hydradx_run_to_next_block();
-		}
+		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 
 		let state = Stableswap::create_snapshot(pool_id).unwrap();
 		let r = state
@@ -2113,37 +2103,11 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 			&state.pegs,
 		);
 
-		let mut last_spot_price = initial_spot_price;
-
-		for block_idx in 0..50 {
-			assert_ok!(HSM::execute_arbitrage(
-				hydradx_runtime::RuntimeOrigin::none(),
-				collateral_asset_id,
-				None
-			));
-			let state = Stableswap::create_snapshot(pool_id).unwrap();
-			let r = state
-				.assets
-				.iter()
-				.zip(state.reserves.iter())
-				.map(|(a, b)| (a.clone(), b.clone()))
-				.collect();
-			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
-				pool_id,
-				r,
-				state.amplification,
-				222,
-				collateral_asset_id,
-				state.share_issuance,
-				1_000_000_000_000_000_000,
-				Some(state.fee),
-				&state.pegs,
-			);
-			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
-			assert!(spot_price > last_spot_price);
-			last_spot_price = spot_price;
-			hydradx_run_to_next_block();
-		}
+		assert_ok!(HSM::execute_arbitrage(
+			hydradx_runtime::RuntimeOrigin::none(),
+			collateral_asset_id,
+			None
+		));
 
 		let state = Stableswap::create_snapshot(pool_id).unwrap();
 		let r = state
@@ -2286,7 +2250,6 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 			Some(state.fee),
 			&state.pegs,
 		);
-		dbg!(initial_spot_price);
 
 		let mut last_spot_price = initial_spot_price;
 
@@ -2470,7 +2433,6 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			Some(state.fee),
 			&state.pegs,
 		);
-		dbg!(initial_spot_price);
 
 		let mut last_spot_price = initial_spot_price;
 

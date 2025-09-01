@@ -5481,7 +5481,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5537,7 +5537,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "341.0.0"
+version = "345.0.0"
 dependencies = [
  "anyhow",
  "cumulus-pallet-aura-ext",
@@ -9726,7 +9726,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-hsm"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "ethabi",
  "evm",
@@ -9959,7 +9959,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.4.7"
+version = "4.4.8"
 dependencies = [
  "fixed",
  "frame-support",
@@ -14639,7 +14639,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.52.1"
+version = "1.52.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",

@@ -630,17 +630,30 @@ where
 			return None;
 		}
 
-		let nominator = prices
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+		// To avoid overflows - process in chunks of 4 prices
+		let calculate_price_product = {
+			fn inner(prices: &[EmaPrice]) -> Option<EmaPrice> {
+				if prices.len() <= 4 {
+					// Base case: process directly
+					let nom = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+					let den = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					Some(round_u512_to_rational((nom, den), Rounding::Nearest).into())
+				} else {
+					// Recursive case: chunk and recurse
+					let chunk_results: Vec<EmaPrice> =
+						prices.chunks(4).map(|chunk| inner(chunk)).collect::<Option<Vec<_>>>()?;
 
-		let denominator = prices
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					inner(&chunk_results)
+				}
+			}
+			inner
+		};
 
-		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
-
-		Some(EmaPrice::new(rat_as_u128.0, rat_as_u128.1))
+		calculate_price_product(&prices)
 	}
 }
 
