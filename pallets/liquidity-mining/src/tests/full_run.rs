@@ -111,7 +111,8 @@ fn non_full_farm_running_longer_than_expected() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				ALICE_DEPOSIT,
 				YIELD_FARM_A,
-				unclaimable
+				unclaimable,
+				BSX_TKN1_AMM,
 			));
 
 			let (_, _, _, unclaimable) =
@@ -120,7 +121,8 @@ fn non_full_farm_running_longer_than_expected() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				BOB_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM,
 			));
 
 			let (_, _, _, unclaimable) =
@@ -129,7 +131,8 @@ fn non_full_farm_running_longer_than_expected() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				CHARLIE_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM,
 			));
 
 			let alice_claimed = Tokens::free_balance(BSX, &ALICE) - alice_bsx_balance_0;
@@ -367,7 +370,7 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 
 			//Withdraw and redeposit for ALICE
 			let (_, withdran_amount, _) =
-				LiquidityMining2::withdraw_lp_shares(ALICE_DEPOSIT, YIELD_FARM_A, unclaimeable).unwrap();
+				LiquidityMining2::withdraw_lp_shares(ALICE_DEPOSIT, YIELD_FARM_A, unclaimeable, BSX_TKN1_AMM).unwrap();
 			let alice_new_deposit_id = LiquidityMining2::deposit_lp_shares(
 				GLOBAL_FARM,
 				YIELD_FARM_A,
@@ -440,7 +443,8 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				alice_new_deposit_id,
 				YIELD_FARM_A,
-				unclaimable
+				unclaimable,
+				BSX_TKN1_AMM
 			));
 
 			let (_, _, claimed, unclaimable) =
@@ -450,7 +454,8 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				BOB_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let (_, _, claimed, unclaimable) =
@@ -460,7 +465,8 @@ fn non_full_farm_distribute_everything_and_update_global_farms_fields() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				CHARLIE_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			assert_eq!(LiquidityMining2::global_farm(GLOBAL_FARM).unwrap().updated_at, 60);
@@ -590,7 +596,8 @@ fn overcrowded_farm_running_longer_than_expected() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				ALICE_DEPOSIT,
 				YIELD_FARM_A,
-				unclaimable
+				unclaimable,
+				BSX_TKN1_AMM
 			));
 
 			let (_, _, _, unclaimable) =
@@ -599,7 +606,8 @@ fn overcrowded_farm_running_longer_than_expected() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				BOB_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let (_, _, _, unclaimable) =
@@ -608,7 +616,8 @@ fn overcrowded_farm_running_longer_than_expected() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				CHARLIE_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let alice_claimed = Tokens::free_balance(BSX, &ALICE) - alice_bsx_balance_0;
@@ -778,7 +787,8 @@ fn full_farm_running_planned_time() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				ALICE_DEPOSIT,
 				YIELD_FARM_A,
-				unclaimable
+				unclaimable,
+				BSX_TKN1_AMM
 			));
 
 			let (_, _, _, unclaimable) =
@@ -787,7 +797,8 @@ fn full_farm_running_planned_time() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				BOB_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let (_, _, _, unclaimable) =
@@ -796,7 +807,8 @@ fn full_farm_running_planned_time() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				CHARLIE_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let alice_claimed = Tokens::free_balance(BSX, &ALICE) - alice_bsx_balance_0;
@@ -935,7 +947,8 @@ fn yield_farm_should_claim_expected_amount() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				ALICE_DEPOSIT,
 				YIELD_FARM_A,
-				unclaimable
+				unclaimable,
+				BSX_TKN1_AMM
 			));
 
 			let (_, _, _, unclaimable) =
@@ -944,7 +957,8 @@ fn yield_farm_should_claim_expected_amount() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				BOB_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let (_, _, _, unclaimable) =
@@ -953,7 +967,8 @@ fn yield_farm_should_claim_expected_amount() {
 			assert_ok!(LiquidityMining2::withdraw_lp_shares(
 				CHARLIE_DEPOSIT,
 				YIELD_FARM_B,
-				unclaimable
+				unclaimable,
+				BSX_TKN2_AMM
 			));
 
 			let global_farm_account = LiquidityMining2::farm_account_id(GLOBAL_FARM).unwrap();

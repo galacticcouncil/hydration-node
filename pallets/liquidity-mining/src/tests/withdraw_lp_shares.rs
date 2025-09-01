@@ -53,6 +53,7 @@ fn withdraw_shares_should_work() {
 					PREDEFINED_DEPOSIT_IDS[0],
 					GC_BSX_TKN1_YIELD_FARM_ID,
 					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(GLOBAL_FARM_ID, withdrawn_amount, expected_deposit_destroyed,)
@@ -120,7 +121,8 @@ fn withdraw_shares_should_work() {
 				LiquidityMining::withdraw_lp_shares(
 					PREDEFINED_DEPOSIT_IDS[4],
 					GC_BSX_TKN2_YIELD_FARM_ID,
-					unclaimable_rewards
+					unclaimable_rewards,
+					BSX_TKN2_AMM,
 				)
 				.unwrap(),
 				(GLOBAL_FARM_ID, withdrawn_amount, expected_deposit_destroyed)
@@ -189,6 +191,7 @@ fn withdraw_shares_should_work() {
 					PREDEFINED_DEPOSIT_IDS[6],
 					GC_BSX_TKN1_YIELD_FARM_ID,
 					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(GLOBAL_FARM_ID, withdrawn_amount, expected_deposit_destroyed)
@@ -252,6 +255,7 @@ fn withdraw_shares_should_work() {
 					PREDEFINED_DEPOSIT_IDS[1],
 					GC_BSX_TKN1_YIELD_FARM_ID,
 					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(GLOBAL_FARM_ID, withdrawn_amount, expected_deposit_destroyed)
@@ -311,7 +315,8 @@ fn withdraw_shares_should_work() {
 			assert_ok!(LiquidityMining::withdraw_lp_shares(
 				PREDEFINED_DEPOSIT_IDS[2],
 				GC_BSX_TKN2_YIELD_FARM_ID,
-				unclaimable_rewards
+				unclaimable_rewards,
+				BSX_TKN2_AMM,
 			));
 
 			assert_eq!(
@@ -375,6 +380,7 @@ fn withdraw_shares_should_work() {
 					PREDEFINED_DEPOSIT_IDS[5],
 					GC_BSX_TKN2_YIELD_FARM_ID,
 					unclaimable_rewards,
+					BSX_TKN2_AMM,
 				)
 				.unwrap(),
 				(GLOBAL_FARM_ID, withdrawn_shares, expected_deposit_destroyed)
@@ -435,7 +441,8 @@ fn withdraw_shares_should_work() {
 				LiquidityMining::withdraw_lp_shares(
 					PREDEFINED_DEPOSIT_IDS[3],
 					GC_BSX_TKN2_YIELD_FARM_ID,
-					unclaimable_rewards
+					unclaimable_rewards,
+					BSX_TKN2_AMM,
 				)
 				.unwrap(),
 				(GLOBAL_FARM_ID, withdrawn_shares, expected_deposit_destroyed)
@@ -534,7 +541,7 @@ fn withdraw_shares_should_work() {
 
 			let expected_deposit_destroyed = true;
 			assert_eq!(
-				LiquidityMining::withdraw_lp_shares(DEPOSIT_ID, CHARLIE_ACA_KSM_YIELD_FARM_ID, 0).unwrap(),
+				LiquidityMining::withdraw_lp_shares(DEPOSIT_ID, CHARLIE_ACA_KSM_YIELD_FARM_ID, 0, ACA_KSM_AMM).unwrap(),
 				(CHARLIE_FARM, deposited_amount, expected_deposit_destroyed)
 			);
 
@@ -585,7 +592,8 @@ fn withdraw_with_multiple_entries_and_flush_should_work() {
 				LiquidityMining::withdraw_lp_shares(
 					PREDEFINED_DEPOSIT_IDS[0],
 					GC_BSX_TKN1_YIELD_FARM_ID,
-					unclaimable_rewards
+					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(GC_FARM, shares_amount, expected_deposit_destroyed)
@@ -611,7 +619,8 @@ fn withdraw_with_multiple_entries_and_flush_should_work() {
 				LiquidityMining::withdraw_lp_shares(
 					PREDEFINED_DEPOSIT_IDS[0],
 					DAVE_BSX_TKN1_YIELD_FARM_ID,
-					unclaimable_rewards
+					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(DAVE_FARM, shares_amount, expected_deposit_destroyed)
@@ -647,7 +656,8 @@ fn withdraw_with_multiple_entries_and_flush_should_work() {
 				LiquidityMining::withdraw_lp_shares(
 					PREDEFINED_DEPOSIT_IDS[0],
 					EVE_BSX_TKN1_YIELD_FARM_ID,
-					unclaimable_rewards
+					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(EVE_FARM, shares_amount, expected_deposit_destroyed)
@@ -772,13 +782,18 @@ fn withdraw_shares_from_destroyed_farm_should_work() {
 				),
 			];
 
-			for (_caller, deposit_idx, withdrawn_shares, _farm_entries_left, yield_farm_id, _lp_token, _amm_pool_id) in
+			for (_caller, deposit_idx, withdrawn_shares, _farm_entries_left, yield_farm_id, _lp_token, amm_pool_id) in
 				test_data
 			{
 				let expected_deposit_destroyed = true;
 				assert_eq!(
-					LiquidityMining::withdraw_lp_shares(PREDEFINED_DEPOSIT_IDS[deposit_idx], yield_farm_id, 0,)
-						.unwrap(),
+					LiquidityMining::withdraw_lp_shares(
+						PREDEFINED_DEPOSIT_IDS[deposit_idx],
+						yield_farm_id,
+						0,
+						amm_pool_id
+					)
+					.unwrap(),
 					(GC_FARM, withdrawn_shares, expected_deposit_destroyed)
 				);
 
@@ -817,7 +832,8 @@ fn withdraw_shares_from_canceled_yield_farm_should_work() {
 				LiquidityMining::withdraw_lp_shares(
 					PREDEFINED_DEPOSIT_IDS[0],
 					GC_BSX_TKN1_YIELD_FARM_ID,
-					unclaimable_rewards
+					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(GC_FARM, withdrawn_amount, expected_deposit_destroyed)
@@ -867,7 +883,8 @@ fn withdraw_shares_from_canceled_yield_farm_should_work() {
 				LiquidityMining::withdraw_lp_shares(
 					PREDEFINED_DEPOSIT_IDS[6],
 					GC_BSX_TKN1_YIELD_FARM_ID,
-					unclaimable_rewards
+					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(GC_FARM, shares_amount, expected_deposit_destroyed)
@@ -916,7 +933,8 @@ fn withdraw_shares_from_canceled_yield_farm_should_work() {
 				LiquidityMining::withdraw_lp_shares(
 					PREDEFINED_DEPOSIT_IDS[1],
 					GC_BSX_TKN1_YIELD_FARM_ID,
-					unclaimable_rewards
+					unclaimable_rewards,
+					BSX_TKN1_AMM,
 				)
 				.unwrap(),
 				(GC_FARM, shares_amount, expected_deposit_destroyed)
@@ -990,7 +1008,13 @@ fn withdraw_shares_from_removed_pool_should_work() {
 			//1-th withdraw
 			let expected_deposit_destroyed = true;
 			assert_eq!(
-				LiquidityMining::withdraw_lp_shares(PREDEFINED_DEPOSIT_IDS[0], GC_BSX_TKN1_YIELD_FARM_ID, 0).unwrap(),
+				LiquidityMining::withdraw_lp_shares(
+					PREDEFINED_DEPOSIT_IDS[0],
+					GC_BSX_TKN1_YIELD_FARM_ID,
+					0,
+					BSX_TKN1_AMM,
+				)
+				.unwrap(),
 				(GC_FARM, shares_amount, expected_deposit_destroyed)
 			);
 
@@ -1019,7 +1043,13 @@ fn withdraw_shares_from_removed_pool_should_work() {
 			let yield_farm = LiquidityMining::yield_farm((BSX_TKN1_AMM, GC_FARM, GC_BSX_TKN1_YIELD_FARM_ID)).unwrap();
 			let expected_deposit_destroyed = true;
 			assert_eq!(
-				LiquidityMining::withdraw_lp_shares(PREDEFINED_DEPOSIT_IDS[6], GC_BSX_TKN1_YIELD_FARM_ID, 0,).unwrap(),
+				LiquidityMining::withdraw_lp_shares(
+					PREDEFINED_DEPOSIT_IDS[6],
+					GC_BSX_TKN1_YIELD_FARM_ID,
+					0,
+					BSX_TKN1_AMM,
+				)
+				.unwrap(),
 				(GC_FARM, shares_amount, expected_deposit_destroyed)
 			);
 
@@ -1047,7 +1077,13 @@ fn withdraw_shares_from_removed_pool_should_work() {
 
 			let expected_deposit_destroyed = true;
 			assert_eq!(
-				LiquidityMining::withdraw_lp_shares(PREDEFINED_DEPOSIT_IDS[1], GC_BSX_TKN1_YIELD_FARM_ID, 0).unwrap(),
+				LiquidityMining::withdraw_lp_shares(
+					PREDEFINED_DEPOSIT_IDS[1],
+					GC_BSX_TKN1_YIELD_FARM_ID,
+					0,
+					BSX_TKN1_AMM
+				)
+				.unwrap(),
 				(GC_FARM, shares_amount, expected_deposit_destroyed)
 			);
 
@@ -1082,7 +1118,7 @@ fn withdraw_shares_yield_farm_entry_not_found_should_not_work() {
 			const DEPOSIT_ID: DepositId = 1;
 			const NOT_FOUND_ENTRY_ID: YieldFarmId = 999_999;
 			assert_noop!(
-				LiquidityMining::withdraw_lp_shares(DEPOSIT_ID, NOT_FOUND_ENTRY_ID, 0),
+				LiquidityMining::withdraw_lp_shares(DEPOSIT_ID, NOT_FOUND_ENTRY_ID, 0, BSX_TKN1_AMM),
 				Error::<Test, Instance1>::YieldFarmEntryNotFound
 			);
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -1096,7 +1132,12 @@ fn withdraw_shares_should_fail_when_deposit_not_found() {
 	predefined_test_ext_with_deposits().execute_with(|| {
 		let _ = with_transaction(|| {
 			assert_noop!(
-				LiquidityMining::withdraw_lp_shares(72_334_321_125_861_359_621, GC_BSX_TKN1_YIELD_FARM_ID, 0),
+				LiquidityMining::withdraw_lp_shares(
+					72_334_321_125_861_359_621,
+					GC_BSX_TKN1_YIELD_FARM_ID,
+					0,
+					BSX_TKN1_AMM
+				),
 				Error::<Test, Instance1>::InconsistentState(InconsistentStateError::DepositNotFound)
 			);
 
@@ -1372,6 +1413,36 @@ fn trait_withdraw_lp_shares_should_claim_zero_when_user_already_claimed_rewards(
 			);
 
 			assert_eq!(LiquidityMining::deposit(PREDEFINED_DEPOSIT_IDS[0]), None);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+#[test]
+fn withdraw_shares_should_fail_when_amm_pool_id_doesnt_match_deposits_amm_pool_id() {
+	predefined_test_ext_with_deposits().execute_with(|| {
+		let _ = with_transaction(|| {
+			const REWARD_CURRENCY: u32 = BSX;
+			let pot = LiquidityMining::pot_account_id().unwrap();
+			let pot_initial_balance = 1_000_000_000 * ONE;
+
+			// This balance is used to transfer unclaimable_rewards from yield farm to global farm.
+			// Claiming is not part of withdraw_shares() so some balance need to be set.
+			Tokens::set_balance(Origin::root(), pot, REWARD_CURRENCY, pot_initial_balance, 0).unwrap();
+
+			LiquidityMining::yield_farm((BSX_TKN1_AMM, GC_FARM, GC_BSX_TKN1_YIELD_FARM_ID)).unwrap();
+
+			let unclaimable_rewards = 100_000 * ONE;
+			assert_noop!(
+				LiquidityMining::withdraw_lp_shares(
+					PREDEFINED_DEPOSIT_IDS[0],
+					GC_BSX_TKN1_YIELD_FARM_ID,
+					unclaimable_rewards,
+					BSX_TKN2_AMM,
+				),
+				Error::<Test, Instance1>::AmmPoolIdMismatch
+			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});

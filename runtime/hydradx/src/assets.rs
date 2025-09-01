@@ -18,7 +18,7 @@
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
-use crate::origins::{GeneralAdmin, OmnipoolAdmin};
+use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
@@ -1356,6 +1356,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 	type WeightInfo = weights::pallet_dynamic_fees::HydraWeight<Runtime>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 }
 
 // Stableswap
@@ -1785,7 +1786,7 @@ impl pallet_broadcast::Config for Runtime {
 }
 
 parameter_types! {
-	pub const HsmGasLimit: u64 = 4_000_000;
+	pub const HsmGasLimit: u64 = 400_000;
 	pub const HsmPalletId: PalletId = PalletId(*b"py/hsmod");
 	pub const HOLLAR: AssetId = 222;
 }
@@ -1794,7 +1795,7 @@ impl pallet_hsm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type HollarId = HOLLAR;
 	type PalletId = HsmPalletId;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<EconomicParameters, GeneralAdmin>>;
 	type GhoContractAddress = AssetRegistry;
 	type Currency = FungibleCurrencies<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
