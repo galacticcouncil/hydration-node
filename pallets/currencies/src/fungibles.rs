@@ -11,6 +11,7 @@ use sp_runtime::traits::Get;
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 use sp_std::marker::PhantomData;
+use sp_std::vec::Vec;
 
 pub struct FungibleCurrencies<T>(PhantomData<T>);
 
@@ -124,6 +125,46 @@ where
 				None => <T::MultiCurrency as fungibles::Inspect<T::AccountId>>::asset_exists(asset.into()),
 			}
 		}
+	}
+}
+
+impl<T: Config + pallet_asset_registry::Config> fungibles::metadata::Inspect<T::AccountId> for FungibleCurrencies<T>
+where
+	T::MultiCurrency: fungibles::Inspect<T::AccountId>,
+	<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::AssetId: From<CurrencyIdOf<T>>,
+	<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::Balance: Into<BalanceOf<T>> + From<BalanceOf<T>>,
+	WithdrawConsequence<BalanceOf<T>>:
+		From<WithdrawConsequence<<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::Balance>>,
+	T::NativeCurrency: fungible::Inspect<T::AccountId>,
+	<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance: Into<BalanceOf<T>> + From<BalanceOf<T>>,
+	WithdrawConsequence<BalanceOf<T>>:
+		From<WithdrawConsequence<<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance>>,
+	CurrencyIdOf<T>: Into<<T as pallet_asset_registry::Config>::AssetId>,
+{
+	fn name(asset: Self::AssetId) -> Vec<u8> {
+		// Prefer registry for metadata; fall back to sensible defaults
+		if let Some(name) =
+			<pallet_asset_registry::Pallet<T> as hydradx_traits::registry::Inspect>::asset_name(asset.into())
+		{
+			name
+		} else {
+			Vec::new()
+		}
+	}
+
+	fn symbol(asset: Self::AssetId) -> Vec<u8> {
+		if let Some(sym) =
+			<pallet_asset_registry::Pallet<T> as hydradx_traits::registry::Inspect>::asset_symbol(asset.into())
+		{
+			sym
+		} else {
+			Vec::new()
+		}
+	}
+
+	fn decimals(asset: Self::AssetId) -> u8 {
+		<pallet_asset_registry::Pallet<T> as hydradx_traits::registry::Inspect>::decimals(asset.into())
+			.unwrap_or_default()
 	}
 }
 
