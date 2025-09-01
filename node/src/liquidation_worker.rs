@@ -209,7 +209,7 @@ where
 					spawner.spawn("liquidation-worker-on-block", Some("liquidation-worker"), {
 						{
 							let Ok(mut m_best_block) = best_block.lock() else {
-								tracing::debug!(target: LOG_TARGET, "best_block mutex is poisoned");
+								tracing::info!(target: LOG_TARGET, "best_block mutex is poisoned");
 								// return if the mutex is poisoned
 								return ready(());
 							};
@@ -282,7 +282,7 @@ where
 			// Remove all transactions that are older than WAIT_PERIOD blocks and can be executed again.
 			{
 				let Ok(mut waitlist) = tx_waitlist.lock() else {
-					tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
+					tracing::info!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
 					// return if the mutex is poisoned
 					return
 				};
@@ -306,7 +306,7 @@ where
 					config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
 				)
 			else {
-				tracing::debug!(target: LOG_TARGET, "MoneyMarketData initialization failed");
+				tracing::info!(target: LOG_TARGET, "MoneyMarketData initialization failed");
 				return
 			};
 
@@ -320,7 +320,7 @@ where
             while let Some(notification) = notification_st.next().await {
 				// If `current_block_hash != best_block_hash`, this task is most probably from previous block.
 				let Ok(m_best_block_hash) = best_block_hash.lock() else {
-					tracing::debug!(target: LOG_TARGET, "best_block_hash mutex is poisoned");
+					tracing::info!(target: LOG_TARGET, "best_block_hash mutex is poisoned");
 					// return if the mutex is poisoned
 					return
 				};
@@ -378,7 +378,7 @@ where
 		let (tx, rx) = crossbeam_channel::unbounded();
 
 		let Ok(mut open_channels) = open_channel_mutex.lock() else {
-			tracing::debug!(target: LOG_TARGET, "open_channel_mutex mutex is poisoned");
+			tracing::info!(target: LOG_TARGET, "open_channel_mutex mutex is poisoned");
 			// return if the mutex is poisoned
 			return Err(())
 		};
@@ -480,7 +480,7 @@ where
 		let mut liquidated_users: Vec<EvmAddress> = Vec::new();
 
 		let Ok(mut money_market_data) = money_market_data_m.lock() else {
-			tracing::debug!(target: LOG_TARGET, "money_market_data mutex is poisoned");
+			tracing::info!(target: LOG_TARGET, "money_market_data mutex is poisoned");
 			// return if the mutex is poisoned
 			return;
 		};
@@ -509,7 +509,7 @@ where
 		// TODO: maybe we can use `price` to determine if HF will increase or decrease
 
 		let Ok(mut borrowers_data) = borrowers.lock() else {
-			tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+			tracing::info!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
 			// return if the mutex is poisoned
 			return;
 		};
@@ -521,7 +521,7 @@ where
 				// The channel is disconnected when we receive a new oracle update transaction.
 				match rx.try_recv() {
 					Err(crossbeam_channel::TryRecvError::Disconnected) => {
-						tracing::debug!(target: LOG_TARGET, "Exiting thread for oracle update of {:?}", base_asset_name );
+						tracing::info!(target: LOG_TARGET, "Exiting thread for oracle update of {:?}", base_asset_name );
 						return
 					},
 					_ => (),
@@ -575,7 +575,7 @@ where
 		let hash = header.hash();
 
 		let Ok(mut money_market_data) = money_market_data.lock() else {
-			tracing::debug!(target: LOG_TARGET, "money_market_data mutex is poisoned");
+			tracing::info!(target: LOG_TARGET, "money_market_data mutex is poisoned");
 			// Return if the mutex is poisoned.
 			return Err(());
 		};
@@ -654,7 +654,7 @@ where
 			let tx_hash = sp_core::blake2_64(&encoded);
 
 			let Ok(mut waitlist) = tx_waitlist.lock() else {
-				tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
+				tracing::info!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
 				// return if the mutex is poisoned
 				return Err(());
 			};
@@ -674,7 +674,7 @@ where
 
 			if let Ok(Ok(call_result)) = dry_run_result {
 				if call_result.execution_result.is_err() {
-					tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
+					tracing::info!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
 
 					// put the failed tx on hold for `WAIT_PERIOD` number of blocks
 					waitlist.push((tx_hash, current_block_number));
@@ -881,7 +881,7 @@ where
 	) -> Result<(), ()> {
 		// lock is automatically dropped at the end of this function
 		let Ok(mut borrowers_data) = borrowers_list_mutex.lock() else {
-			tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+			tracing::info!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
 			// return if the mutex is poisoned
 			return Err(());
 		};
