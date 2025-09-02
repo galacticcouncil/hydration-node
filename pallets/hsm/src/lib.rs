@@ -88,6 +88,8 @@ pub enum ERC20Function {
 	Mint = "mint(address,uint256)",
 	Burn = "burn(uint256)",
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
+	MaxFlashLoan = "maxFlashLoan(address)",
+	GetFacilitatorBucket = "getFacilitatorBucket(address)",
 }
 
 /// Max number of approved assets.
@@ -105,6 +107,8 @@ pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
 pub const ARBITRAGE_DIRECTION_BUY: u8 = 1;
 /// Direction for sell operations (more Hollar in pool, creates sell opportunities)
 pub const ARBITRAGE_DIRECTION_SELL: u8 = 2;
+
+pub const MIN_ARBITRAGE_AMOUNT: u128 = 100_000_000_000;
 
 /// Offchain Worker lock
 pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
@@ -821,9 +825,7 @@ pub mod pallet {
 			let (arb_direction, flash_loan_amount) = if let Some(arb_amount) = flash_amount {
 				ensure!(arb_amount > 0, Error::<T>::NoArbitrageOpportunity);
 				// if provided, we know what to do, but need to verify the size is ok
-				let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
-				let pool_id = collateral_info.pool_id;
-				let pool_state = Self::get_stablepool_state(pool_id)?;
+				let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
 				ensure!(
 					Self::check_trade_size(collateral_asset_id, &collateral_info, &pool_state, arb_amount),
 					Error::<T>::NoArbitrageOpportunity
@@ -1312,7 +1314,7 @@ where
 	///   - `direction`: ARBITRAGE_DIRECTION_BUY for buy operations, ARBITRAGE_DIRECTION_SELL for sell operations
 	///   - `amount`: The optimal trade size in Hollar units
 	/// - `None` if no profitable arbitrage opportunity is found
-	fn find_arbitrage_opportunity(asset_id: T::AssetId) -> Option<(u8, Balance)> {
+	pub fn find_arbitrage_opportunity(asset_id: T::AssetId) -> Option<(u8, Balance)> {
 		let collateral_info = Self::collaterals(asset_id)?;
 		let pool_id = collateral_info.pool_id;
 
@@ -1374,7 +1376,9 @@ where
 		info: &CollateralInfo<T::AssetId>,
 		state: &PoolSnapshot<T::AssetId>,
 	) -> Option<Balance> {
-		let mut sell_amount_max = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, info.buyback_rate);
+		let max_flash_loan = Self::get_max_flash_loan_amount();
+		let free_capacity = Self::get_hsm_bucket_free_capacity();
+		let mut sell_amount_max = imbalance.min(max_flash_loan).min(free_capacity);
 		let mut sell_amount_min = 0u128;
 		let mut sell_amount = sell_amount_max / 2;
 		for _ in 0..50 {
@@ -1385,7 +1389,8 @@ where
 			}
 			sell_amount = ((sell_amount_max.saturating_sub(sell_amount_min)) / 2).saturating_add(sell_amount_min);
 		}
-		if sell_amount_min > 0 {
+		// Limit min arb size too.
+		if sell_amount_min > MIN_ARBITRAGE_AMOUNT {
 			Some(sell_amount_min)
 		} else {
 			None
@@ -1514,7 +1519,7 @@ where
 		}
 
 		let max_price = hydra_dx_math::hsm::calculate_max_buy_price(
-			pool_state.pegs[collateral_pos],
+			Self::get_asset_peg(collateral_asset_id, collateral_info.pool_id, pool_state)?,
 			collateral_info.max_buy_price_coefficient,
 		);
 
@@ -1536,7 +1541,7 @@ where
 		let hollar_amount_received = Self::hollar_amount_received(collateral_asset_id);
 		let hollar_amount_to_trade = max_buy_amt.saturating_sub(hollar_amount_received);
 
-		if hollar_amount_to_trade > 0 {
+		if hollar_amount_to_trade > MIN_ARBITRAGE_AMOUNT {
 			Ok(hollar_amount_to_trade)
 		} else {
 			Err(Error::<T>::MaxBuyBackExceeded.into())
@@ -1698,6 +1703,55 @@ where
 		let max_price_check =
 			primitive_types::U128::from(buy_price.1).full_mul(primitive_types::U128::from(max_price.0));
 		buy_price_check <= max_price_check
+	}
+
+	fn get_max_flash_loan_amount() -> Balance {
+		let Some(minter) = FlashMinter::<T>::get() else {
+			return 0;
+		};
+		let Some(hollar_address) = Self::get_hollar_contract_address().ok() else {
+			return 0;
+		};
+		let context = CallContext::new_view(minter);
+		let data = EvmDataWriter::new_with_selector(ERC20Function::MaxFlashLoan)
+			.write(hollar_address)
+			.build();
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "MaxFlashLoan exit reason: {:?}:{:?}", exit_reason, value);
+			0
+		} else {
+			if value.len() != 32 {
+				return 0;
+			}
+			U256::from_big_endian(&value[..]).try_into().unwrap_or(0)
+		}
+	}
+
+	pub fn get_hsm_bucket_free_capacity() -> Balance {
+		let Some(hollar_address) = Self::get_hollar_contract_address().ok() else {
+			return 0;
+		};
+		let hsm_evm_addr = T::EvmAccounts::evm_address(&Self::account_id());
+		let context = CallContext::new_view(hollar_address);
+		let data = EvmDataWriter::new_with_selector(ERC20Function::GetFacilitatorBucket)
+			.write(hsm_evm_addr)
+			.build();
+		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "GetFacilitatorBucket exit reason: {:?}:{:?}", exit_reason, value);
+			0
+		} else {
+			if value.len() != 64 {
+				return 0;
+			}
+			let capacity: u128 = U256::from_big_endian(&value[0..32]).try_into().unwrap_or(0);
+			let level: u128 = U256::from_big_endian(&value[32..64]).try_into().unwrap_or(0);
+			log::trace!(target: "hsm", "Bucket capacity: {:?}", capacity);
+			log::trace!(target: "hsm", "Bucket level: {:?}", level);
+			capacity.saturating_sub(level)
+		}
 	}
 }
 
