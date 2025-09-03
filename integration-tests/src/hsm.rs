@@ -11,7 +11,8 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, HSM,
+	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, TreasuryAccount,
+	HSM,
 };
 use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
@@ -118,21 +119,6 @@ fn check_flash_borrower(borrower: EvmAddress) -> bool {
 	let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
 	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 	!value.is_empty() && value.iter().any(|&x| x != 0)
-}
-
-fn get_max_flash_loan(minter: EvmAddress) -> U256 {
-	//let acl_manager = hex!["c54dcFaEB75F56907E8B1De931dB4E37Bd0Afbb4"].into();
-	let data = EvmDataWriter::new_with_selector(Function::MaxFlashLoan)
-		.write(hollar_contract_address())
-		.build();
-	let context = CallContext::new_view(minter);
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
-	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
-	if value.is_empty() {
-		return U256::zero();
-	} else {
-		return U256::from_big_endian(&value[..]);
-	}
 }
 
 fn mint(facilitator: EvmAddress, to: EvmAddress, amount: u128) {
@@ -1642,11 +1628,14 @@ fn arbitrage_should_work_when_hollar_amount_is_less_in_the_pool() {
 			flash_minter,
 		));
 
+		let treasury_balance_initial = Tokens::free_balance(2, &TreasuryAccount::get());
 		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let received = final_hsm_dai_balance - hsm_dai_balance;
-		assert_eq!(received, 65746999678827350701713);
+		let treasury_balance_final = Tokens::free_balance(2, &TreasuryAccount::get());
+		let profit = treasury_balance_final - treasury_balance_initial;
+		assert_eq!(received + profit, 65746999678827350701713);
 	});
 }
 
