@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 345,
+	spec_version: 346,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -142,6 +142,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 		VestingPalletId::get().into_account_truncating(),
 		ReferralsPalletId::get().into_account_truncating(),
 		BondsPalletId::get().into_account_truncating(),
+		HsmPalletId::get().into_account_truncating(),
 		pallet_route_executor::Pallet::<Runtime>::router_account(),
 	]
 }

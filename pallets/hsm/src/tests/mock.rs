@@ -72,6 +72,7 @@ pub const CHARLIE: AccountId = AccountId::new([3; 32]);
 pub const PROVIDER: AccountId = AccountId::new([4; 32]);
 
 pub const ARB_ACCOUNT: AccountId = AccountId::new([22; 32]);
+pub const PROFIT_RECEIVER: AccountId = AccountId::new([23; 32]);
 
 pub const ONE: Balance = 1_000_000_000_000_000_000;
 
@@ -193,6 +194,7 @@ parameter_types! {
 	pub PalletId: frame_support::PalletId = frame_support::PalletId(*b"py/hsmdx");
 	pub const GasLimit: u64 = 1_000_000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
+	pub HsmArbProfitReceiver: AccountId =  PROFIT_RECEIVER.into();
 }
 
 pub struct DummyRegistry;
@@ -554,6 +556,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
+	type ArbitrageProfitReceiver = HsmArbProfitReceiver;
 }
 
 pub struct Whitelist;
