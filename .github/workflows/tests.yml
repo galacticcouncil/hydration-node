@@ -66,19 +66,29 @@ jobs:
       actions: read
       contents: write
     steps:
+      - name: Check ignore benchmarks
+        id: check-ignore
+        run: |
+          if git log -1 --pretty=format:"%s" | grep -q "\[ignore benchmarks\]"; then
+            echo "ignore=true" >> $GITHUB_OUTPUT
+          else
+            echo "ignore=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Skip benchmarks
+        if: steps.check-ignore.outputs.ignore == 'true'
+        run: |
+          echo "Skipping benchmark-check job due to ignore tag"
+          exit 0
+
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Prepare benchmark execution
+        if: steps.check-ignore.outputs.ignore == 'false'
         id: prepare
         run: |
-          if git log -1 --pretty=format:"%s" | grep -q "\[ignore benchmarks\]"; then
-            echo "Skipping job due to 'ignore-benchmark' tag in commit message"
-            exit 78
-          fi
-          
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
                echo "benchmark_type=full" >> $GITHUB_OUTPUT
           else
