@@ -128,6 +128,13 @@ jobs:
             fi
           fi
 
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
+
       - name: Download benchmarks CLI
         uses: actions/download-artifact@v4
         with:
@@ -156,6 +163,9 @@ jobs:
           name: quick-benchmark-weights
           path: runtime/hydradx/src/weights/
           retention-days: 3
+
+      - name: Check with new weights
+        run: make check
 
       - name: Commit full benchmark results to a pull request
         if: steps.prepare.outputs.benchmark_type == 'full'
