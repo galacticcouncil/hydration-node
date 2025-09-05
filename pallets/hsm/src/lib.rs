@@ -145,6 +145,9 @@ pub mod pallet {
 		/// GHO contract address - EVM address of GHO token contract
 		type GhoContractAddress: BoundErc20<AssetId = Self::AssetId>;
 
+		/// Arbitrage profit receiver
+		type ArbitrageProfitReceiver: Get<Self::AccountId>;
+
 		/// Currency - fungible tokens trait to access token transfers
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
 
@@ -243,8 +246,10 @@ pub mod pallet {
 		/// - `asset_id`: The collateral asset used in the arbitrage
 		/// - `hollar_amount`: Amount of Hollar that was included in the arbitrage operation
 		ArbitrageExecuted {
+			arbitrage: u8,
 			asset_id: T::AssetId,
 			hollar_amount: Balance,
+			profit: Balance,
 		},
 
 		/// Flash minter address set
@@ -860,14 +865,25 @@ pub mod pallet {
 
 			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
+			let receiver_balance_initial = <T as crate::pallet::Config>::Currency::total_balance(
+				collateral_asset_id,
+				&T::ArbitrageProfitReceiver::get(),
+			);
 			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
 				return Err(Error::<T>::InvalidEVMInteraction.into());
 			}
+			let receiver_balance_final = <T as crate::pallet::Config>::Currency::total_balance(
+				collateral_asset_id,
+				&T::ArbitrageProfitReceiver::get(),
+			);
+			let profit = receiver_balance_final.saturating_sub(receiver_balance_initial);
 
 			Self::deposit_event(Event::<T>::ArbitrageExecuted {
+				arbitrage: arb_direction,
 				asset_id: collateral_asset_id,
 				hollar_amount: flash_loan_amount,
+				profit,
 			});
 
 			Ok(())
@@ -1642,11 +1658,10 @@ where
 				log::trace!(target: "hsm", "Collateral remaining : {:?}", remaining);
 				// In case there is some collateral left after the buy,
 				// we transfer it to the HSM account
-				let hsm_account = Self::account_id();
 				<T as Config>::Currency::transfer(
 					collateral_asset_id,
 					&flash_loan_account,
-					&hsm_account,
+					&T::ArbitrageProfitReceiver::get(),
 					remaining,
 					Preservation::Expendable,
 				)?;
@@ -1681,11 +1696,10 @@ where
 
 			if remaining > 0 {
 				log::trace!(target: "hsm", "Collateral remaining : {:?}", remaining);
-				let hsm_account = Self::account_id();
 				<T as Config>::Currency::transfer(
 					collateral_asset_id,
 					&flash_loan_account,
-					&hsm_account,
+					&T::ArbitrageProfitReceiver::get(),
 					remaining,
 					Preservation::Expendable,
 				)?;
@@ -1752,6 +1766,12 @@ where
 			log::trace!(target: "hsm", "Bucket level: {:?}", level);
 			capacity.saturating_sub(level)
 		}
+	}
+
+	pub fn is_flash_loan_account(account: &T::AccountId) -> bool {
+		GetFlashMinterSupport::<T>::get().map_or(false, |(_, loan_receiver)| {
+			T::EvmAccounts::account_id(loan_receiver) == *account
+		})
 	}
 }
 

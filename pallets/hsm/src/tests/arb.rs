@@ -123,8 +123,9 @@ fn arbitrage_should_work_when_less_hollar_in_the_pool_and_arb_amount_given() {
 			assert_eq!(arb_amount, 500_005_437_502_633_106_476);
 
 			let hsm_balance_dai_after = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_eq!(hsm_balance_dai_after - hsm_balance_dai_before, arb_amount);
-			assert_eq!(hsm_balance_dai_after, arb_amount);
+			let profit = Tokens::free_balance(DAI, &HsmArbProfitReceiver::get());
+			assert_eq!(profit, 10_875_005_266_593_893);
+			assert_eq!(hsm_balance_dai_after - hsm_balance_dai_before + profit, arb_amount);
 		});
 }
 
@@ -181,8 +182,9 @@ fn arbitrage_should_work_when_less_hollar_in_the_pool() {
 			assert_eq!(arb_amount, 500_005_437_502_633_106_476);
 
 			let hsm_balance_dai_after = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_eq!(hsm_balance_dai_after - hsm_balance_dai_before, arb_amount);
-			assert_eq!(hsm_balance_dai_after, arb_amount);
+			let profit = Tokens::free_balance(DAI, &HsmArbProfitReceiver::get());
+			assert_eq!(profit, 10_875_005_266_593_893);
+			assert_eq!(hsm_balance_dai_after - hsm_balance_dai_before + profit, arb_amount);
 		});
 }
 
