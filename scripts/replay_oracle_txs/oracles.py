@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-# tested with Python 3.12
-
+# Import required libraries
 import sys
 import argparse
 import time
+from time import sleep
+
 from substrateinterface import SubstrateInterface
 import rlp
 from eth_utils import to_bytes
@@ -107,6 +108,7 @@ def find_transactions_in_block(substrate_interface, block_number, account_addres
 def find_transactions_from_block_range(substrate_interface, target_interface, account_addresses, start_block, end_block=None):
     """Find all EVM transactions from account_addresses starting from start_block"""
     print("Running find_transactions_from_block_range()")
+    is_end_block_set = end_block is not None
     if end_block is None:
         end_block = substrate_interface.get_block_number(substrate_interface.get_chain_head())
 
@@ -118,10 +120,11 @@ def find_transactions_from_block_range(substrate_interface, target_interface, ac
         print(f"Starting from block {start_block} to {end_block}")
 
         for block_num in range(start_block, end_block + 1):
-            print(block_num, "/", end_block)
+            print_as_progress_bar(block_num, end_block)
             transaction_list = find_transactions_in_block(substrate_interface, block_num, account_addresses)
             for tx in transaction_list:
                 encoded_tx = reconstruct_raw_transaction(tx)
+                print()
                 tx_nonce = int(tx.get('nonce', ''), 16)
                 print(tx_nonce, tx)
                 if IS_SUBMITTED:
@@ -129,13 +132,25 @@ def find_transactions_from_block_range(substrate_interface, target_interface, ac
                     print(f"Transaction submitted with hash: {tx_hash}")
                     time.sleep(12)
 
+                    counter = 0
+                    if get_pending_transactions(target_interface):
+                        print("\nPending transactions found, waiting for them to be processed...")
+                    while get_pending_transactions(target_interface):
+                        counter += 1
+                        sleep(6)
+                    if counter:
+                        counter = counter / 12
+                        print(f"Stayed in pending state for {counter} minutes")
+
+        if is_end_block_set:
+            break
+
         end_block_old = end_block
         end_block = substrate_interface.get_block_number(substrate_interface.get_chain_head())
         if end_block_old == end_block:
             break
         else:
             start_block = end_block_old + 1
-
 
 def send_raw_transaction(substrate_interface, encoded_tx):
     """Submit a raw transaction to the network"""
@@ -195,18 +210,53 @@ def reconstruct_raw_transaction(tx_data):
 
     return '0x' + raw_transaction.hex()
 
+
 def find_latest_block_with_nonce(interface, nonce, address):
     block_number = binary_search_nonce_block(interface, nonce, address)
 
-    print(f"Latest block for account {address} with nonce {nonce} is {block_number}")
+    print(f"Latest block for account {address} with nonce {nonce} is {block_number}\n")
     return block_number
+
+
+def get_encoded_tx_from_block(substrate_interface, account_address, block_num):
+    """Find next EVM transaction from account_address in a block"""
+    transaction_list = find_transactions_in_block(substrate_interface, block_num, account_address)
+    for tx in transaction_list:
+        encoded_tx = reconstruct_raw_transaction(tx)
+        tx_nonce = int(tx.get('nonce', ''), 16)
+        print(tx_nonce, encoded_tx)
+        print(tx)
+
+
+def get_pending_transactions(substrate_interface):
+    """Get a list of pending transactions"""
+    def pending_tx_filter(tx):
+        function = tx.value.get("call", {}).get("call_function")
+        return function == "transact"
+
+    try:
+        result = substrate_interface.retrieve_pending_extrinsics()
+        filtered = list(filter(pending_tx_filter, result))
+
+        return filtered
+
+    except Exception as e:
+        print(f"Couldn't get the list of pending extrinsics.")
+
+
+def print_as_progress_bar(current, total):
+    sys.stdout.write(f"\r{current} / {total}")
+    sys.stdout.flush()
+
 
 def main():
     parser = argparse.ArgumentParser()
+
     parser.add_argument('addresses', metavar='N', type=str, nargs='*',
                         help='a list of addresses')
     parser.add_argument("--no-integrity-check", help="disable integrity check",
                         action="store_true")
+    parser.add_argument('--end-block', type=int)
     args = parser.parse_args()
 
     addresses = []
@@ -217,6 +267,7 @@ def main():
         addresses = args.addresses
 
     addresses = list(map(str.lower, addresses))
+    print("Addresses: ", addresses)
 
     # Connect to Hydration RPC endpoint
     source_substrate_interface = SubstrateInterface(url=SOURCE_URL)
@@ -225,22 +276,26 @@ def main():
 
     current_block = target_substrate_interface.get_block_number(target_substrate_interface.get_chain_head())
     nonces = [get_nonce_at_block(target_substrate_interface, current_block, acc) for acc in addresses]
-    print("---- result nonces: ", nonces)
+    print(f"---- result nonces: {nonces}\n")
 
     blocks = [find_latest_block_with_nonce(source_substrate_interface, nonce, acc) for acc, nonce in zip(addresses, nonces)]
     print("---- result blocks: ", blocks)
 
     # The block number from which we start to search for new transactions
     start_block = min(blocks) + 1
-    print("The block number from which we start to search for new transactions: ", start_block)
+    print("result block: ", start_block)
+
+    get_encoded_tx_from_block(source_substrate_interface, addresses[0], start_block)
 
     if not args.no_integrity_check:
         if not integrity_check(source_substrate_interface, start_block - 1, addresses, nonces):
             print("Integrity check failed. Exiting.")
             sys.exit()
 
+    end_block = args.end_block
+
     # resubmit all past transactions from the source node
-    find_transactions_from_block_range(source_substrate_interface, target_substrate_interface, addresses, start_block)
+    find_transactions_from_block_range(source_substrate_interface, target_substrate_interface, addresses, start_block, end_block)
 
     def subscription_handler(obj, update_nr, subscription_id):
         print("new block: ", obj['header']['number'])
@@ -265,4 +320,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
