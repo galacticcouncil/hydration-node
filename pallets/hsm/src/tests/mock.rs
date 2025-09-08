@@ -72,6 +72,7 @@ pub const CHARLIE: AccountId = AccountId::new([3; 32]);
 pub const PROVIDER: AccountId = AccountId::new([4; 32]);
 
 pub const ARB_ACCOUNT: AccountId = AccountId::new([22; 32]);
+pub const PROFIT_RECEIVER: AccountId = AccountId::new([23; 32]);
 
 pub const ONE: Balance = 1_000_000_000_000_000_000;
 
@@ -193,6 +194,7 @@ parameter_types! {
 	pub PalletId: frame_support::PalletId = frame_support::PalletId(*b"py/hsmdx");
 	pub const GasLimit: u64 = 1_000_000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
+	pub HsmArbProfitReceiver: AccountId =  PROFIT_RECEIVER.into();
 }
 
 pub struct DummyRegistry;
@@ -407,10 +409,28 @@ impl EVM<CallResult> for MockEvm {
 							panic!("incorrect data len");
 						}
 					}
+					ERC20Function::MaxFlashLoan => {
+						let max_flash_loan_amount = U256::from(100_000_000_000_000_000_000_000u128);
+						let mut buf1 = [0u8; 32];
+						max_flash_loan_amount.to_big_endian(&mut buf1);
+						let bytes = Vec::from(buf1);
+						return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+					}
+					ERC20Function::GetFacilitatorBucket => {
+						let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
+						let level = U256::from(0u128);
+						let mut buf1 = [0u8; 32];
+						let mut buf2 = [0u8; 32];
+						capacity.to_big_endian(&mut buf1);
+						level.to_big_endian(&mut buf2);
+						let mut bytes = vec![];
+						bytes.extend_from_slice(&buf1);
+						bytes.extend_from_slice(&buf2);
+						return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+					}
 				}
 			}
 		}
-
 		// Default failure for unrecognized calls
 		(ExitReason::Error(ExitError::DesignatedInvalid), vec![])
 	}
@@ -536,6 +556,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
+	type ArbitrageProfitReceiver = HsmArbProfitReceiver;
 }
 
 pub struct Whitelist;
