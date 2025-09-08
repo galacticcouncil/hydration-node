@@ -317,6 +317,85 @@ where
 			};
 			let money_market_m = Arc::new(std::sync::Mutex::from(money_market_data));
 
+			// Iterate over all borrowers and try to liquidate them.
+			let money_market_m_c = money_market_m.clone();
+			let borrowers_m_c = borrowers_m.clone();
+			let global_mutex_c = global_mutex.clone();
+			let tx_waitlist_m_c = tx_waitlist_m.clone();
+			let liquidated_users_m_c = liquidated_users_m.clone();
+			let client_c = client.clone();
+			let spawner_c = spawner.clone();
+			let header_c = header.clone();
+			let current_block_hash_c = current_block_hash.clone();
+			let transaction_pool_c = transaction_pool.clone();
+			let config_c = config.clone();
+			Self::spawn_worker(thread_pool.clone(), move || {
+				let now = std::time::Instant::now();
+
+				let runtime_api = client_c.runtime_api();
+				let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header_c.hash())
+				else {
+					tracing::info!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
+					return;
+				};
+
+				let Ok(global_lock) = global_mutex_c.lock() else {
+					tracing::info!(target: LOG_TARGET, "global_mutex mutex is poisoned");
+					// return if the mutex is poisoned
+					return;
+				};
+
+				let Ok(money_market) = money_market_m_c.lock() else {
+					tracing::info!(target: LOG_TARGET, "money_market_data mutex is poisoned");
+					// return if the mutex is poisoned
+					return;
+				};
+				let reserves = money_market.reserves().clone();
+				drop(money_market);
+
+				let Ok(borrowers_data) = borrowers_m_c.lock() else {
+					tracing::info!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+					// return if the mutex is poisoned
+					return;
+				};
+
+				let mut borrowers = borrowers_data.clone();
+				drop(borrowers_data);
+
+				drop(global_lock);
+
+				for borrower in borrowers.iter_mut() {
+					for reserve in reserves.iter() {
+						let asset_address = reserve.asset_address();
+						let price = reserve.price();
+
+						match Self::try_liquidate(
+							global_mutex_c.clone(),
+							borrower,
+							money_market_m_c.clone(),
+							borrowers_m_c.clone(),
+							tx_waitlist_m_c.clone(),
+							liquidated_users_m_c.clone(),
+							current_evm_timestamp,
+							asset_address.clone(),
+							&price,
+							client_c.clone(),
+							spawner_c.clone(),
+							header_c.clone(),
+							current_block_hash_c,
+							transaction_pool_c.clone(),
+							config_c.clone(),
+						) {
+							Ok(()) => (),
+							Err(()) => return,
+						}
+
+					}
+				}
+
+				tracing::info!(target: LOG_TARGET, "liquidation-worker: try_liquidate_everyone execution time: {:?}", now.elapsed().as_millis());
+			});
+
 			// Stores `channel::Sender` from the latest `on_new_transaction` execution to keep the channel open.
 			// By closing the channel, we communicate to old threads to cancel execution.
 			let open_channel_mutex = Arc::new(std::sync::Mutex::from(None));
@@ -360,7 +439,7 @@ where
 			}
 		}).await;
 
-		tracing::info!(target: LOG_TARGET, "on_block_imported execution time: {:?}", now.elapsed().as_millis());
+		tracing::info!(target: LOG_TARGET, "liquidation-worker: on_block_imported execution time: {:?}", now.elapsed().as_millis());
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -385,19 +464,6 @@ where
 		config: LiquidationWorkerConfig,
 		open_channel_mutex: Arc<std::sync::Mutex<Option<crossbeam_channel::Sender<()>>>>,
 	) -> Result<(), ()> {
-		// Create a new channel.
-		let (tx, rx) = crossbeam_channel::unbounded();
-
-		let Ok(mut open_channels) = open_channel_mutex.lock() else {
-			tracing::info!(target: LOG_TARGET, "open_channel_mutex mutex is poisoned");
-			// return if the mutex is poisoned
-			return Err(())
-		};
-		// Disconnect the latest channel from the previous execution by dropping precious `Sender` and store new `Sender`.
-		let old_tx = open_channels.take();
-		drop(old_tx);
-		*open_channels = Some(tx);
-		drop(open_channels);
 
 		// Variables used in tasks are captured by the value, so we need to clone them.
 		let sorted_borrowers_data_c = borrowers_m.clone();
@@ -433,6 +499,20 @@ where
 			return Ok(());
 		};
 
+		// Create a new channel.
+		let (tx, rx) = crossbeam_channel::unbounded();
+
+		let Ok(mut open_channels) = open_channel_mutex.lock() else {
+			tracing::info!(target: LOG_TARGET, "open_channel_mutex mutex is poisoned");
+			// return if the mutex is poisoned
+			return Err(())
+		};
+		// Disconnect the latest channel from the previous execution by dropping precious `Sender` and store new `Sender`.
+		let old_tx = open_channels.take();
+		drop(old_tx);
+		*open_channels = Some(tx);
+		drop(open_channels);
+
 		Self::spawn_worker(thread_pool.clone(), move || {
 			let now = std::time::Instant::now();
 
@@ -452,7 +532,7 @@ where
 				rx,
 			);
 
-			tracing::info!(target: LOG_TARGET, "process_new_oracle_update execution time: {:?}", now.elapsed().as_millis());
+			tracing::info!(target: LOG_TARGET, "liquidation-worker: process_new_oracle_update execution time: {:?}", now.elapsed().as_millis());
 		});
 
 		Ok(())
@@ -477,6 +557,8 @@ where
 		config: LiquidationWorkerConfig,
 		rx: crossbeam_channel::Receiver<()>,
 	) {
+		tracing::info!(target: LOG_TARGET, "liquidation-worker: processing new oracle update");
+
 		let Some(oracle_data) = parse_oracle_transaction(&transaction) else {
 			tracing::info!(target: LOG_TARGET, "parse_oracle_transaction failed");
 			return;
@@ -543,7 +625,7 @@ where
 				// The channel is disconnected when we receive a new oracle update transaction.
 				match rx.try_recv() {
 					Err(crossbeam_channel::TryRecvError::Disconnected) => {
-						tracing::info!(target: LOG_TARGET, "Exiting thread for oracle update of {:?}", base_asset_address );
+						tracing::info!(target: LOG_TARGET, "liquidation-worker: Exiting thread with oracle update of {:?}", base_asset_address );
 						return
 					},
 					_ => (),
@@ -722,7 +804,7 @@ where
 
 			if let Ok(Ok(call_result)) = dry_run_result {
 				if call_result.execution_result.is_err() {
-					tracing::info!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
+					tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed for user {:?} and assets {:?} {:?} with reason: {:?}", borrower.user_address, collateral_asset_id, debt_asset_id, call_result.execution_result);
 
 					// put the failed tx on hold for `WAIT_PERIOD` number of blocks
 					waitlist.push((tx_hash, current_block_number));
@@ -741,11 +823,11 @@ where
 			let tx_pool_cc = transaction_pool.clone();
 			// `tx_pool::submit_one()` returns a Future type, so we need to spawn a new task
 			spawner.spawn("liquidation-worker-on-submit", Some("liquidation-worker"), async move {
-				tracing::info!(target: LOG_TARGET, "Submitting liquidation extrinsic {opaque_tx:?}");
+				tracing::info!(target: LOG_TARGET, "liquidation-worker: Submitting liquidation extrinsic {opaque_tx:?}");
 				let _ = tx_pool_cc
 					.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into())
 					.await;
-				tracing::info!(target: LOG_TARGET, "try_liquidate and submit_tx execution time: {:?}", now.elapsed().as_millis());
+				tracing::info!(target: LOG_TARGET, "liquidation-worker: try_liquidate and submit_tx execution time: {:?}", now.elapsed().as_millis());
 			});
 		}
 
