@@ -3,7 +3,7 @@ use crate::types::{BoundedPegSources, PegSource};
 use crate::{Error, Event, PoolPegs};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use hydradx_traits::OraclePeriod;
-use sp_runtime::Permill;
+use sp_runtime::{Perbill, Permill};
 
 #[test]
 fn update_asset_peg_source_should_work() {
@@ -34,7 +34,7 @@ fn update_asset_peg_source_should_work() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			// Get initial peg info
@@ -161,7 +161,7 @@ fn update_asset_peg_source_should_fail_when_asset_not_in_pool() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			let new_peg_source = PegSource::Value((2, 3));
@@ -208,7 +208,7 @@ fn update_asset_peg_source_should_fail_when_invalid_origin() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			let new_peg_source = PegSource::Value((2, 3));
@@ -250,7 +250,7 @@ fn update_asset_peg_source_should_work_with_oracle_source() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			// Update with oracle source (should work since price is always preserved)
@@ -298,7 +298,7 @@ fn update_asset_peg_source_should_update_second_asset_correctly() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			// Get initial peg info
@@ -371,7 +371,7 @@ fn update_asset_peg_source_should_work_with_three_assets() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			// Update peg source for middle asset (asset_b)

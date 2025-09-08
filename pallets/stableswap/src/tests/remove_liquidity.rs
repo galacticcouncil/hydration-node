@@ -8,7 +8,7 @@ use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use hydradx_traits::stableswap::AssetAmount;
 use pallet_broadcast::types::{Asset, Destination, Fee};
-use sp_runtime::Permill;
+use sp_runtime::{Perbill, Permill};
 use std::num::NonZeroU16;
 
 #[test]
@@ -1533,7 +1533,7 @@ fn remove_all_liquidity_should_correctly_destroy_pool_when_pool_has_pegs() {
 	let peg2 = (1, 2);
 	let peg3 = (1, 3);
 
-	let max_peg_update = Permill::from_percent(100);
+	let max_peg_update = Perbill::from_percent(100);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
