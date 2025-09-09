@@ -620,7 +620,7 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -729,7 +729,7 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -853,7 +853,7 @@ fn sell_collateral_to_get_hollar_via_router_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -985,7 +985,7 @@ fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acqui
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -1130,7 +1130,7 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -1246,7 +1246,7 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -1362,7 +1362,7 @@ fn buy_collateral_with_hollar_via_router_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
