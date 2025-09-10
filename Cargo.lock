@@ -3141,10 +3141,9 @@ dependencies = [
 [[package]]
 name = "ethabi"
 version = "18.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7413c5f74cc903ea37386a8965a936cbeb334bd270862fdece542c1b2dcbc898"
+source = "git+https://github.com/AcalaNetwork/ethabi?branch=acala#6e6ef9b3712aec4ad53193281ca0d92dd217066c"
 dependencies = [
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "hex",
  "sha3",
 ]
@@ -3166,29 +3165,12 @@ dependencies = [
 
 [[package]]
 name = "ethereum"
-version = "0.15.0"
-source = "git+https://github.com/rust-ethereum/ethereum.git?rev=3be0d8fd4c2ad1ba216b69ef65b9382612efc8ba#3be0d8fd4c2ad1ba216b69ef65b9382612efc8ba"
-dependencies = [
- "bytes",
- "ethereum-types 0.15.1",
- "hash-db",
- "hash256-std-hasher",
- "parity-scale-codec",
- "rlp",
- "scale-info",
- "serde",
- "sha3",
- "trie-root",
-]
-
-[[package]]
-name = "ethereum"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ee371ebb7479ed3258617557ab0b3247e741075cb6b02b820d188f68da44441"
 dependencies = [
  "bytes",
- "ethereum-types 0.15.1",
+ "ethereum-types",
  "hash-db",
  "hash256-std-hasher",
  "k256",
@@ -3198,17 +3180,6 @@ dependencies = [
  "serde",
  "sha3",
  "trie-root",
-]
-
-[[package]]
-name = "ethereum-types"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02d215cbf040552efcbe99a38372fe80ab9d00268e20012b79fcd0f073edd8ee"
-dependencies = [
- "fixed-hash",
- "primitive-types 0.12.2",
- "uint 0.9.5",
 ]
 
 [[package]]
@@ -3283,7 +3254,7 @@ source = "git+https://github.com/moonbeam-foundation/evm?branch=moonbeam-polkado
 dependencies = [
  "auto_impl",
  "environmental",
- "ethereum 0.18.2",
+ "ethereum",
  "evm-core",
  "evm-gasometer",
  "evm-runtime",
@@ -3486,8 +3457,8 @@ name = "fc-rpc"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2412#97d9bc8dd551579611716cac7268ab1a54289fcf"
 dependencies = [
- "ethereum 0.18.2",
- "ethereum-types 0.15.1",
+ "ethereum",
+ "ethereum-types",
  "evm",
  "fc-api",
  "fc-mapping-sync",
@@ -3536,8 +3507,8 @@ name = "fc-rpc-core"
 version = "1.1.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2412#97d9bc8dd551579611716cac7268ab1a54289fcf"
 dependencies = [
- "ethereum 0.18.2",
- "ethereum-types 0.15.1",
+ "ethereum",
+ "ethereum-types",
  "jsonrpsee 0.24.7",
  "rlp",
  "rustc-hex",
@@ -3551,8 +3522,8 @@ name = "fc-storage"
 version = "1.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2412#97d9bc8dd551579611716cac7268ab1a54289fcf"
 dependencies = [
- "ethereum 0.18.2",
- "ethereum-types 0.15.1",
+ "ethereum",
+ "ethereum-types",
  "fp-rpc",
  "fp-storage",
  "parity-scale-codec",
@@ -3750,7 +3721,7 @@ name = "fp-consensus"
 version = "2.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2412#97d9bc8dd551579611716cac7268ab1a54289fcf"
 dependencies = [
- "ethereum 0.18.2",
+ "ethereum",
  "parity-scale-codec",
  "sp-core",
  "sp-runtime",
@@ -3761,8 +3732,8 @@ name = "fp-ethereum"
 version = "1.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2412#97d9bc8dd551579611716cac7268ab1a54289fcf"
 dependencies = [
- "ethereum 0.18.2",
- "ethereum-types 0.15.1",
+ "ethereum",
+ "ethereum-types",
  "fp-evm",
  "frame-support",
  "parity-scale-codec",
@@ -3789,8 +3760,8 @@ name = "fp-rpc"
 version = "3.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2412#97d9bc8dd551579611716cac7268ab1a54289fcf"
 dependencies = [
- "ethereum 0.18.2",
- "ethereum-types 0.15.1",
+ "ethereum",
+ "ethereum-types",
  "fp-evm",
  "parity-scale-codec",
  "scale-info",
@@ -4862,7 +4833,7 @@ dependencies = [
  "fixed",
  "num-traits",
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "proptest",
  "rand 0.8.5",
  "rand_xoshiro",
@@ -4892,7 +4863,7 @@ dependencies = [
  "cumulus-relay-chain-interface",
  "cumulus-test-relay-sproof-builder",
  "ethabi",
- "ethereum 0.15.0",
+ "ethereum",
  "fc-consensus",
  "fc-db",
  "fc-mapping-sync",
@@ -5009,7 +4980,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-parachain-primitives",
  "pretty_assertions",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "primitives",
  "scale-info",
  "sp-core",
@@ -5143,7 +5114,7 @@ dependencies = [
  "polkadot-runtime-common",
  "precompile-utils",
  "pretty_assertions",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "primitives",
  "scale-info",
  "serde",
@@ -6859,7 +6830,7 @@ name = "liquidation-worker-support"
 version = "1.0.0"
 dependencies = [
  "ethabi",
- "ethereum-types 0.15.1",
+ "ethereum-types",
  "evm",
  "fp-evm",
  "fp-rpc",
@@ -6868,7 +6839,7 @@ dependencies = [
  "module-evm-utility-macro",
  "num_enum",
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "serde",
  "sp-api",
  "sp-arithmetic",
@@ -7341,7 +7312,7 @@ dependencies = [
 name = "module-evm-utility"
 version = "2.21.2"
 dependencies = [
- "ethereum 0.15.0",
+ "ethereum",
  "evm",
  "evm-gasometer",
  "evm-runtime",
@@ -8136,7 +8107,7 @@ dependencies = [
  "orml-traits",
  "parity-scale-codec",
  "pretty_assertions",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "scale-info",
  "serde",
  "sp-api",
@@ -8344,7 +8315,7 @@ dependencies = [
  "pallet-timestamp",
  "parity-scale-codec",
  "pretty_assertions",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "primitives",
  "scale-info",
  "sp-core",
@@ -8609,7 +8580,7 @@ dependencies = [
  "pallet-xyk",
  "parity-scale-codec",
  "pretty_assertions",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "primitives",
  "rand 0.8.5",
  "scale-info",
@@ -8854,8 +8825,8 @@ version = "4.0.0-dev"
 source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-polkadot-stable2412#97d9bc8dd551579611716cac7268ab1a54289fcf"
 dependencies = [
  "environmental",
- "ethereum 0.18.2",
- "ethereum-types 0.15.1",
+ "ethereum",
+ "ethereum-types",
  "evm",
  "fp-consensus",
  "fp-ethereum",
@@ -8879,7 +8850,7 @@ source = "git+https://github.com/moonbeam-foundation/frontier?branch=moonbeam-po
 dependencies = [
  "cumulus-primitives-storage-weight-reclaim",
  "environmental",
- "ethereum 0.18.2",
+ "ethereum",
  "evm",
  "fp-account",
  "fp-evm",
@@ -9120,7 +9091,7 @@ dependencies = [
  "parity-scale-codec",
  "precompile-utils",
  "pretty_assertions",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "proptest",
  "scale-info",
  "serde",
@@ -9195,7 +9166,7 @@ dependencies = [
  "orml-traits",
  "pallet-broadcast",
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "proptest",
  "rug",
  "scale-info",
@@ -9213,8 +9184,8 @@ name = "pallet-liquidation"
 version = "1.4.1"
 dependencies = [
  "ethabi",
- "ethereum 0.15.0",
- "ethereum-types 0.15.1",
+ "ethereum",
+ "ethereum-types",
  "evm",
  "fp-evm",
  "fp-rpc",
@@ -9241,7 +9212,7 @@ dependencies = [
  "pallet-route-executor",
  "parity-scale-codec",
  "precompile-utils",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "scale-info",
  "serde",
  "sp-api",
@@ -9499,7 +9470,7 @@ dependencies = [
  "pallet-broadcast",
  "parity-scale-codec",
  "pretty_assertions",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "proptest",
  "scale-info",
  "sp-core",
@@ -9530,7 +9501,7 @@ dependencies = [
  "pallet-stableswap",
  "parity-scale-codec",
  "pretty_assertions",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "primitives",
  "scale-info",
  "sp-core",
@@ -10240,7 +10211,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-broadcast",
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "proptest",
  "scale-info",
  "serde",
@@ -11924,7 +11895,7 @@ dependencies = [
  "parity-scale-codec",
  "paste",
  "precompile-utils-macro",
- "primitive-types 0.12.2",
+ "primitive-types 0.13.1",
  "scale-info",
  "serde",
  "sha3",
@@ -12968,7 +12939,7 @@ dependencies = [
  "cumulus-primitives-parachain-inherent",
  "cumulus-test-relay-sproof-builder",
  "ethabi",
- "ethereum 0.15.0",
+ "ethereum",
  "fp-evm",
  "fp-rpc",
  "fp-self-contained",
