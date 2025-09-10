@@ -193,6 +193,7 @@ construct_runtime!(
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
 		AdderFelipe: pallet_adder_felipe = 84,
+		BuildEvmTx: pallet_build_evm_tx = 85,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -343,6 +344,7 @@ mod benches {
 		[pallet_dispatcher, Dispatcher]
 		[pallet_hsm, HSM]
 		[pallet_adder_felipe, AdderFelipe]
+		[pallet_build_evm_tx, BuildEvmTx]
 		[pallet_dynamic_fees, DynamicFees]
 		[ismp_parachain, IsmpParachain]
 		[pallet_token_gateway, TokenGateway]

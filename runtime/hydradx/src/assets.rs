@@ -1841,6 +1841,15 @@ impl pallet_adder_felipe::Config for Runtime {
 	type MaxValue = AdderMaxValue;
 }
 
+parameter_types! {
+	pub const MaxEvmDataLength: u32 = 10_000;
+}
+
+impl pallet_build_evm_tx::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxDataLength = MaxEvmDataLength;
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
