@@ -30,7 +30,11 @@ pub mod weights;
 
 pub use crate::weights::WeightInfo;
 
-use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	traits::{Contains, ExistenceRequirement, Get},
+};
 
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
@@ -49,7 +53,7 @@ pub mod pallet {
 	use super::*;
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
-	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+	use frame_support::{sp_runtime::traits::AtLeast32BitUnsigned, traits::ExistenceRequirement};
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 	use sp_std::vec::Vec;
 
@@ -276,7 +280,13 @@ impl<T: Config> Pallet<T> {
 		let reserve_account = Self::reward_account().ok_or(Error::<T>::ReserveAccountNotSet)?;
 		let reward = T::Reward::get();
 
-		T::MultiCurrency::transfer(T::NativeCurrencyId::get(), &reserve_account, _duster, reward)?;
+		T::MultiCurrency::transfer(
+			T::NativeCurrencyId::get(),
+			&reserve_account,
+			_duster,
+			reward,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		Ok(())
 	}
@@ -288,7 +298,7 @@ impl<T: Config> Pallet<T> {
 		currency_id: T::CurrencyId,
 		dust: T::Balance,
 	) -> DispatchResult {
-		T::MultiCurrency::transfer(currency_id, from, dest, dust)
+		T::MultiCurrency::transfer(currency_id, from, dest, dust, ExistenceRequirement::AllowDeath)
 	}
 }
 

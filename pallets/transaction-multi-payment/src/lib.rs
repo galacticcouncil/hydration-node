@@ -34,7 +34,7 @@ mod traits;
 
 pub use crate::traits::*;
 use frame_support::storage::with_transaction;
-use frame_support::traits::{Contains, IsSubType};
+use frame_support::traits::{Contains, ExistenceRequirement, IsSubType};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -701,7 +701,7 @@ where
 			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
 		};
 
-		match MC::withdraw(currency.into(), who, converted_fee) {
+		match MC::withdraw(currency.into(), who, converted_fee, ExistenceRequirement::AllowDeath) {
 			Ok(()) => {
 				if currency == T::NativeAssetId::get() {
 					Ok(Some(PaymentInfo::Native(fee)))

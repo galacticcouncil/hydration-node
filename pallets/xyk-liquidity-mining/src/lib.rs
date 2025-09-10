@@ -47,7 +47,7 @@ pub use crate::weights::WeightInfo;
 pub use pallet::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
-use frame_support::{ensure, require_transactional, sp_runtime::traits::Zero, PalletId};
+use frame_support::{ensure, require_transactional, sp_runtime::traits::Zero, traits::ExistenceRequirement, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::liquidity_mining::{
 	GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
@@ -384,7 +384,7 @@ pub mod pallet {
 					T::AssetRegistry::existential_deposit(reward_currency).ok_or(Error::<T>::AssetNotRegistered)?;
 
 				let pot = T::LiquidityMiningHandler::pot_account().ok_or(Error::<T>::FailToGetPotId)?;
-				T::Currencies::transfer(reward_currency, &owner, &pot, ed)?;
+				T::Currencies::transfer(reward_currency, &owner, &pot, ed, ExistenceRequirement::AllowDeath)?;
 			}
 
 			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm(
@@ -1058,13 +1058,25 @@ impl<T: Config> Pallet<T> {
 	fn lock_lp_tokens(lp_token: AssetId, who: &T::AccountId, amount: Balance) -> Result<(), DispatchError> {
 		let service_account_for_lp_shares = Self::account_id();
 
-		T::Currencies::transfer(lp_token, who, &service_account_for_lp_shares, amount)
+		T::Currencies::transfer(
+			lp_token,
+			who,
+			&service_account_for_lp_shares,
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)
 	}
 
 	fn unlock_lp_tokens(lp_token: AssetId, who: &T::AccountId, amount: Balance) -> Result<(), DispatchError> {
 		let service_account_for_lp_shares = Self::account_id();
 
-		T::Currencies::transfer(lp_token, &service_account_for_lp_shares, who, amount)
+		T::Currencies::transfer(
+			lp_token,
+			&service_account_for_lp_shares,
+			who,
+			amount,
+			ExistenceRequirement::AllowDeath,
+		)
 	}
 
 	/// This function retuns value of lp tokens in the `asset` currency.

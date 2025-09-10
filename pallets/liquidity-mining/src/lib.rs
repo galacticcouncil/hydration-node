@@ -108,7 +108,7 @@ use frame_support::{
 		traits::{AccountIdConversion, BlockNumberProvider, MaybeSerializeDeserialize, One, Zero},
 		RuntimeDebug,
 	},
-	traits::{Defensive, DefensiveOption},
+	traits::{Defensive, DefensiveOption, ExistenceRequirement},
 	PalletId,
 };
 
@@ -534,7 +534,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		let global_farm_account = Self::farm_account_id(global_farm.id)?;
 
 		T::NonDustableWhitelistHandler::add_account(&global_farm_account)?;
-		T::MultiCurrency::transfer(reward_currency, &global_farm.owner, &global_farm_account, total_rewards)?;
+		T::MultiCurrency::transfer(
+			reward_currency,
+			&global_farm.owner,
+			&global_farm_account,
+			total_rewards,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		Ok((farm_id, max_reward_per_period))
 	}
@@ -657,6 +663,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				&global_farm_account,
 				&who,
 				undistributed_rewards,
+				ExistenceRequirement::AllowDeath,
 			)?;
 
 			//Mark for removal from storage on last `YieldFarm` in the farm removed.
@@ -1038,6 +1045,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 						&pot,
 						&global_farm_account,
 						yield_farm.left_to_distribute,
+						ExistenceRequirement::AllowDeath,
 					)?;
 
 					yield_farm.left_to_distribute = Zero::zero();
@@ -1255,9 +1263,16 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 									&pot,
 									&T::TreasuryAccountId::get(),
 									rewards,
+									ExistenceRequirement::AllowDeath,
 								)?;
 							} else {
-								T::MultiCurrency::transfer(global_farm.reward_currency, &pot, &who, rewards)?;
+								T::MultiCurrency::transfer(
+									global_farm.reward_currency,
+									&pot,
+									&who,
+									rewards,
+									ExistenceRequirement::AllowDeath,
+								)?;
 							}
 						}
 
@@ -1382,6 +1397,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 									&pot,
 									&global_farm_account,
 									unclaimable_rewards,
+									ExistenceRequirement::AllowDeath,
 								)?;
 							}
 
@@ -1629,7 +1645,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 		if !reward.is_zero() {
 			let pot = Self::pot_account_id().ok_or(Error::<T, I>::ErrorGetAccountId)?;
-			T::MultiCurrency::transfer(global_farm.reward_currency, &global_farm_account, &pot, reward)?;
+			T::MultiCurrency::transfer(
+				global_farm.reward_currency,
+				&global_farm_account,
+				&pot,
+				reward,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			global_farm.accumulated_rpz =
 				math::calculate_accumulated_rps(global_farm.accumulated_rpz, global_farm.total_shares_z, reward)
