@@ -365,8 +365,9 @@ where
 				drop(global_lock);
 
 				for borrower in borrowers.iter_mut() {
-					for reserve in reserves.iter() {
-						let asset_address = reserve.asset_address();
+					// Iterate over all user assets
+					for asset_address in borrower.assets.iter() {
+						let Some(reserve) = reserves.iter().find(|&r| r.asset_address() == *asset_address) else { continue; };
 						let price = reserve.price();
 
 						match Self::try_liquidate(
