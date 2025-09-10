@@ -146,7 +146,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 
 			T::WeightInfo::dispatch_as_treasury(call_len)
@@ -174,7 +174,7 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 
 			T::WeightInfo::dispatch_as_aave_manager(call_len)
@@ -220,7 +220,7 @@ pub mod pallet {
 		/// The extra gas is not refunded, even if not used.
 		#[pallet::call_index(3)]
 		#[pallet::weight({
-			let call_weight = call.get_dispatch_info().weight;
+			let call_weight = call.get_dispatch_info().call_weight;
 			let call_len = call.encoded_size() as u32;
 			let gas_weight = T::GasWeightMapping::gas_to_weight(*extra_gas, true);
 			T::WeightInfo::dispatch_with_extra_gas(call_len)
@@ -276,7 +276,7 @@ pub mod pallet {
 		/// Emits `EvmCallFailed` event when failed.
 		#[pallet::call_index(4)]
 		#[pallet::weight({
-			let evm_call_weight = call.get_dispatch_info().weight;
+			let evm_call_weight = call.get_dispatch_info().call_weight;
 			let evm_call_len = call.encoded_size() as u32;
 			T::WeightInfo::dispatch_evm_call(evm_call_len)
 				.saturating_add(evm_call_weight)

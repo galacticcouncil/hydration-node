@@ -53,7 +53,7 @@ pub mod pallet {
 	use super::*;
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
-	use frame_support::{sp_runtime::traits::AtLeast32BitUnsigned, traits::ExistenceRequirement};
+	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 	use sp_std::vec::Vec;
 
