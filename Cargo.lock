@@ -2952,7 +2952,7 @@ dependencies = [
  "hash-db",
  "hash256-std-hasher",
  "parity-scale-codec",
- "rlp",
+ "rlp 0.5.2",
  "scale-info",
  "serde",
  "sha3",
@@ -3038,7 +3038,7 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "primitive-types 0.12.2",
- "rlp",
+ "rlp 0.5.2",
  "scale-info",
  "serde",
  "sha3",
@@ -3253,7 +3253,7 @@ dependencies = [
  "parity-scale-codec",
  "prometheus",
  "rand",
- "rlp",
+ "rlp 0.5.2",
  "sc-client-api",
  "sc-consensus-aura",
  "sc-network",
@@ -3292,7 +3292,7 @@ dependencies = [
  "ethereum",
  "ethereum-types 0.14.1",
  "jsonrpsee",
- "rlp",
+ "rlp 0.5.2",
  "rustc-hex",
  "serde",
  "serde_json",
@@ -4723,6 +4723,7 @@ dependencies = [
  "pallet-balances",
  "pallet-bonds",
  "pallet-broadcast",
+ "pallet-build-evm-tx",
  "pallet-circuit-breaker",
  "pallet-claims",
  "pallet-collator-rewards",
@@ -5055,7 +5056,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f28220f89297a075ddc7245cd538076ee98b01f2a9c23a53a4f1105d5a322808"
 dependencies = [
- "rlp",
+ "rlp 0.5.2",
 ]
 
 [[package]]
@@ -7093,7 +7094,7 @@ version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af1844ef2428cc3e1cb900be36181049ef3d3193c63e43026cfe202983b27a56"
 dependencies = [
- "proc-macro-crate 3.1.0",
+ "proc-macro-crate 1.3.1",
  "proc-macro2",
  "quote",
  "syn 2.0.90",
@@ -7760,6 +7761,23 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-build-evm-tx"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "parity-scale-codec",
+ "scale-info",
+ "signet-rs",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -12091,6 +12109,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rlp"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa24e92bb2a83198bb76d661a71df9f7076b8c420b8696e4d3d97d50d94479e3"
+dependencies = [
+ "bytes",
+ "rustc-hex",
+]
+
+[[package]]
 name = "rlp-derive"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14349,6 +14377,17 @@ checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 dependencies = [
  "digest 0.10.7",
  "rand_core",
+]
+
+[[package]]
+name = "signet-rs"
+version = "0.2.5"
+source = "git+https://github.com/sig-net/signet.rs?branch=pre-compiled#6945eb902ac6b78c7511611bbc2e71a7c380a880"
+dependencies = [
+ "hex",
+ "rlp 0.6.1",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
