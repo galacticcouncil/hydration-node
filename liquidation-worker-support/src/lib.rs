@@ -822,12 +822,8 @@ where
 	pub caller: EvmAddress,
 	_phantom: PhantomData<(Block, OriginCaller, RuntimeCall, RuntimeEvent)>,
 }
-impl<
-		Block: BlockT,
-		OriginCaller,
-		RuntimeCall,
-		RuntimeEvent,
-	> MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>
+impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
+	MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>
 {
 	/// Calls Runtime API.
 	pub fn new<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
@@ -1082,7 +1078,7 @@ impl<
 				user_assets.push(reserve.asset_address);
 			};
 		}
-		
+
 		Ok(user_assets)
 	}
 
@@ -1103,7 +1099,9 @@ impl<
 	/// `caller` - Account executing runtime RPC call, needs to have some WETH balance.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
-	pub fn calculate_debt_to_liquidate<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
+	pub fn calculate_debt_to_liquidate<
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	>(
 		&self,
 		user_data: &UserData,
 		target_health_factor: U256,
@@ -1215,7 +1213,8 @@ impl<
 		// But there is no guarantee that user has required amount of debt and collateral assets.
 		// Adjust these amounts based on how much can be actually liquidated.
 
-		let health_factor = user_data.health_factor::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(self)?;
+		let health_factor =
+			user_data.health_factor::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(self)?;
 		let close_factor = if health_factor > CLOSE_FACTOR_HF_THRESHOLD.into() {
 			DEFAULT_LIQUIDATION_CLOSE_FACTOR
 		} else {
@@ -1337,7 +1336,9 @@ impl<
 	/// `new_price` - Price update.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
-	pub fn calculate_liquidation_options<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
+	pub fn calculate_liquidation_options<
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	>(
 		&mut self,
 		user_data: &UserData,
 		target_health_factor: U256,
@@ -1383,7 +1384,12 @@ impl<
 					collateral_amount: _,
 					debt_in_base_currency,
 					collateral_in_base_currency,
-				}) = self.calculate_debt_to_liquidate::<ApiProvider>(user_data, target_health_factor, collateral_asset, debt_asset)
+				}) = self.calculate_debt_to_liquidate::<ApiProvider>(
+					user_data,
+					target_health_factor,
+					collateral_asset,
+					debt_asset,
+				)
 				else {
 					continue;
 				};
@@ -1399,7 +1405,8 @@ impl<
 				new_user_data.update_reserves(sp_std::vec!((index_d, user_reserve)));
 
 				// calculate HF based on updated price and reserves
-				let maybe_hf = new_user_data.health_factor::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(self);
+				let maybe_hf =
+					new_user_data.health_factor::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(self);
 
 				if let Ok(hf) = maybe_hf {
 					liquidation_options.push(LiquidationOption::new(hf, collateral_asset, debt_asset, debt_amount));
@@ -1419,13 +1426,16 @@ impl<
 	/// `new_price` - Price update.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`.
-	pub fn get_best_liquidation_option<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
+	pub fn get_best_liquidation_option<
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	>(
 		&mut self,
 		user_data: &UserData,
 		target_health_factor: U256,
 		new_price: (EvmAddress, U256),
 	) -> Result<Option<LiquidationOption>, LiquidationError> {
-		let mut liquidation_options = self.calculate_liquidation_options::<ApiProvider>(user_data, target_health_factor, new_price)?;
+		let mut liquidation_options =
+			self.calculate_liquidation_options::<ApiProvider>(user_data, target_health_factor, new_price)?;
 
 		// TODO: find better criteria for determining which liquidation option to choose as the best one
 		// choose liquidation option with the highest HF. All HFs should be less or close to the target HF.

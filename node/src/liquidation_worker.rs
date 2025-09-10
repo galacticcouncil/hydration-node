@@ -180,12 +180,14 @@ where
 		let http_client: HttpClient = Arc::new(Client::builder().build(https));
 
 		// Fetch and sort the data with borrowers info.
-		let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone(), config.omniwatch_url.clone()).await else {
+		let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone(), config.omniwatch_url.clone()).await
+		else {
 			tracing::error!(target: LOG_TARGET, "fetch_borrowers_data failed");
 			return;
 		};
-		
-		let Some(sorted_borrowers_data) = Self::process_borrowers_data(borrowers_data, client.clone(), config.clone()) else {
+
+		let Some(sorted_borrowers_data) = Self::process_borrowers_data(borrowers_data, client.clone(), config.clone())
+		else {
 			tracing::error!(target: LOG_TARGET, "process_borrowers_data failed");
 			return;
 		};
@@ -465,7 +467,6 @@ where
 		config: LiquidationWorkerConfig,
 		open_channel_mutex: Arc<std::sync::Mutex<Option<crossbeam_channel::Sender<()>>>>,
 	) -> Result<(), ()> {
-
 		// Variables used in tasks are captured by the value, so we need to clone them.
 		let sorted_borrowers_data_c = borrowers_m.clone();
 
@@ -506,7 +507,7 @@ where
 		let Ok(mut open_channels) = open_channel_mutex.lock() else {
 			tracing::info!(target: LOG_TARGET, "open_channel_mutex mutex is poisoned");
 			// return if the mutex is poisoned
-			return Err(())
+			return Err(());
 		};
 		// Disconnect the latest channel from the previous execution by dropping precious `Sender` and store new `Sender`.
 		let old_tx = open_channels.take();
@@ -587,16 +588,25 @@ where
 
 		// One DIA oracle update transaction can update the price of multiple assets.
 		// Create a list of (asset_address, price) pairs from the oracle update.
-		let oracle_data = oracle_data.iter().filter_map(|OracleUpdataData { base_asset_name, price, .. }| {
-			// get address of the asset whose price is about to be updated
-			let asset_reserve = money_market
-				.reserves()
-				.iter()
-				.find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset_name.to_ascii_lowercase());
+		let oracle_data = oracle_data
+			.iter()
+			.filter_map(
+				|OracleUpdataData {
+				     base_asset_name, price, ..
+				 }| {
+					// get address of the asset whose price is about to be updated
+					let asset_reserve = money_market
+						.reserves()
+						.iter()
+						.find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset_name.to_ascii_lowercase());
 
-			// "base" asset from "base/quote" asset pair updated by the oracle update
-			asset_reserve.and_then(|reserve| Some(reserve.asset_address())).map(|asset_address| (asset_address, price))
-		}).collect::<Vec<_>>();
+					// "base" asset from "base/quote" asset pair updated by the oracle update
+					asset_reserve
+						.and_then(|reserve| Some(reserve.asset_address()))
+						.map(|asset_address| (asset_address, price))
+				},
+			)
+			.collect::<Vec<_>>();
 
 		// Iterate over all price updates and aggregate all price updates first.
 		// All oracle updates we use are quoted in USD.
@@ -627,8 +637,8 @@ where
 				match rx.try_recv() {
 					Err(crossbeam_channel::TryRecvError::Disconnected) => {
 						tracing::info!(target: LOG_TARGET, "liquidation-worker: Exiting thread with oracle update of {:?}", base_asset_address );
-						return
-					},
+						return;
+					}
 					_ => (),
 				}
 
@@ -652,8 +662,8 @@ where
 					Ok(()) => (),
 					Err(()) => return,
 				}
+			}
 		}
-	}
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -697,8 +707,11 @@ where
 			return Err(());
 		};
 		// let a = borrowers.iter().find(|item| item.user_address == borrower.user_address);
-		let Some(ref mut borrower) = borrowers.iter_mut().find(|element| element.user_address == borrower.user_address) else {
-			return Ok(())
+		let Some(ref mut borrower) = borrowers
+			.iter_mut()
+			.find(|element| element.user_address == borrower.user_address)
+		else {
+			return Ok(());
 		};
 
 		// Skip if the user has been already liquidated in this block.
@@ -728,7 +741,9 @@ where
 			return Ok(());
 		};
 
-		if let Ok(current_hf) = user_data.health_factor::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>(&money_market) {
+		if let Ok(current_hf) =
+			user_data.health_factor::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>(&money_market)
+		{
 			// Update user's HF.
 			borrower.health_factor = current_hf;
 
@@ -837,8 +852,14 @@ where
 
 	// TODO: return Result type
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
-	async fn fetch_borrowers_data(http_client: HttpClient, maybe_url: Option<String>) -> Option<BorrowersData<AccountId>> {
-		let url = maybe_url.unwrap_or(String::from("https://omniwatch.play.hydration.cloud/api/borrowers/by-health"))
+	async fn fetch_borrowers_data(
+		http_client: HttpClient,
+		maybe_url: Option<String>,
+	) -> Option<BorrowersData<AccountId>> {
+		let url = maybe_url
+			.unwrap_or(String::from(
+				"https://omniwatch.play.hydration.cloud/api/borrowers/by-health",
+			))
 			.parse()
 			.ok()?;
 		let res = http_client.get(url).await.ok()?;
@@ -865,7 +886,7 @@ where
 	) -> Option<Vec<Borrower>> {
 		let one = U256::from(10u128.pow(18));
 		let fractional_multiplier = U256::from(10u128.pow(12));
-		
+
 		let runtime_api = client.runtime_api();
 		let api_caller = config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER);
 		let hash = client.info().best_hash;
@@ -876,8 +897,9 @@ where
 				client.info().best_hash,
 				config.pap_contract.unwrap_or(PAP_CONTRACT),
 				api_caller,
-			).ok()?;
-		
+			)
+			.ok()?;
+
 		let mut borrowers = oracle_data
 			.borrowers
 			.iter()
@@ -887,24 +909,26 @@ where
 				let integer_part = U256::from(b.1.health_factor.trunc() as u128).checked_mul(one);
 				let fractional_part =
 					U256::from((b.1.health_factor.fract() * 1_000_000f32) as u128).checked_mul(fractional_multiplier);
-				
+
 				// return 0 if the computation failed and recalculate the HF later.
 				let hf = integer_part
 					.zip(fractional_part)
 					.and_then(|(i, f)| i.checked_add(f))
 					.unwrap_or_default();
-				
-				let user_assets = money_market_data.get_user_asset_addresses::<ApiProvider<&C::Api>>(
-					ApiProvider::<&C::Api>(runtime_api.deref()),
-					hash,
-					b.0,
-					api_caller,
-				).unwrap_or_default();
-				
+
+				let user_assets = money_market_data
+					.get_user_asset_addresses::<ApiProvider<&C::Api>>(
+						ApiProvider::<&C::Api>(runtime_api.deref()),
+						hash,
+						b.0,
+						api_caller,
+					)
+					.unwrap_or_default();
+
 				Borrower::new_with_assets(b.0, hf, &user_assets)
 			})
 			.collect::<Vec<_>>();
-		
+
 		// sort by HF
 		borrowers.sort_by(|a, b| a.health_factor.partial_cmp(&b.health_factor).unwrap_or(Ordering::Equal));
 
@@ -989,7 +1013,7 @@ where
 								],
 								&input[4..], // first 4 bytes are function selector
 							)
-								.ok()?;
+							.ok()?;
 
 							// the address of the underlying asset to borrow
 							let borrowed_asset = decoded[0].clone().into_address()?;
@@ -1023,11 +1047,11 @@ where
 				// Borrower is already in the list. Invalidate the HF by setting it to 0 and add asset to the list.
 				b.health_factor = U256::zero();
 				b.add_asset(asset);
-			},
+			}
 			None => {
 				// add new borrower to the list. HF is set to 0, so we can place it at the beginning and the list will remain sorted.
 				borrowers_data.insert(0, Borrower::new_with_assets(borrower, U256::zero(), &[asset]));
-			},
+			}
 		}
 
 		Ok(())
