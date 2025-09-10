@@ -1813,6 +1813,15 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
+parameter_types! {
+	pub const AdderMaxValue: u128 = 1_000_000_000_000_000; // 1 million with 9 decimals
+}
+
+impl pallet_adder_felipe::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxValue = AdderMaxValue;
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
