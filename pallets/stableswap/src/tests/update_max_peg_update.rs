@@ -2,7 +2,7 @@ use crate::tests::mock::*;
 use crate::types::{BoundedPegSources, PegSource};
 use crate::{Error, Event, PoolPegs};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
-use sp_runtime::Permill;
+use sp_runtime::{Perbill, Permill};
 
 #[test]
 fn update_pool_max_peg_update_should_work() {
@@ -34,15 +34,15 @@ fn update_pool_max_peg_update_should_work() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			// Get initial peg info
 			let initial_peg_info = PoolPegs::<Test>::get(pool_id).unwrap();
-			assert_eq!(initial_peg_info.max_peg_update, Permill::from_percent(10));
+			assert_eq!(initial_peg_info.max_peg_update, Perbill::from_percent(10));
 
 			// Update max peg update
-			let new_max_peg_update = Permill::from_percent(25);
+			let new_max_peg_update = Perbill::from_percent(25);
 			assert_ok!(Stableswap::update_pool_max_peg_update(
 				RuntimeOrigin::root(),
 				pool_id,
@@ -69,7 +69,7 @@ fn update_pool_max_peg_update_should_fail_when_pool_not_found() {
 	let pool_id = 100;
 
 	ExtBuilder::default().build().execute_with(|| {
-		let new_max_peg_update = Permill::from_percent(25);
+		let new_max_peg_update = Perbill::from_percent(25);
 
 		assert_noop!(
 			Stableswap::update_pool_max_peg_update(
@@ -110,7 +110,7 @@ fn update_pool_max_peg_update_should_fail_when_pool_has_no_pegs() {
 				fee,
 			));
 
-			let new_max_peg_update = Permill::from_percent(25);
+			let new_max_peg_update = Perbill::from_percent(25);
 
 			assert_noop!(
 				Stableswap::update_pool_max_peg_update(RuntimeOrigin::root(), pool_id, new_max_peg_update,),
@@ -150,10 +150,10 @@ fn update_pool_max_peg_update_should_fail_when_invalid_origin() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
-			let new_max_peg_update = Permill::from_percent(25);
+			let new_max_peg_update = Perbill::from_percent(25);
 
 			// BOB doesn't have AuthorityOrigin permission
 			assert_noop!(
@@ -193,11 +193,11 @@ fn update_pool_max_peg_update_should_allow_zero_percent() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			// Update max peg update to 0%
-			let new_max_peg_update = Permill::zero();
+			let new_max_peg_update = Perbill::zero();
 			assert_ok!(Stableswap::update_pool_max_peg_update(
 				RuntimeOrigin::root(),
 				pool_id,
@@ -249,11 +249,11 @@ fn update_pool_max_peg_update_should_allow_hundred_percent() {
 				amp,
 				fee,
 				peg_sources,
-				Permill::from_percent(10),
+				Perbill::from_percent(10),
 			));
 
 			// Update max peg update to 100%
-			let new_max_peg_update = Permill::from_percent(100);
+			let new_max_peg_update = Perbill::from_percent(100);
 			assert_ok!(Stableswap::update_pool_max_peg_update(
 				RuntimeOrigin::root(),
 				pool_id,
