@@ -57,6 +57,7 @@ const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 
 // Failed liquidations are suspended for this number of blocks before we try to execute them again.
 const WAIT_PERIOD: BlockNumber = 10;
+const OMNIWATCH_URL: &str = "https://omniwatch.play.hydration.cloud/api/borrowers/by-health";
 
 type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
 
@@ -84,9 +85,13 @@ pub struct LiquidationWorkerConfig {
 	#[clap(long)]
 	pub oracle_update_call_address: Option<Vec<EvmAddress>>,
 
-	/// Target health factor
+	/// Target health factor.
 	#[clap(long, default_value_t = TARGET_HF)]
 	pub target_hf: u128,
+
+	/// URL to fetch initial borrowers data from.
+	#[clap(long, default_value = OMNIWATCH_URL)]
+	pub omniwatch_url: String,
 }
 
 pub struct ApiProvider<C>(C);
@@ -176,19 +181,25 @@ where
 		let http_client: HttpClient = Arc::new(Client::builder().build(https));
 
 		// Fetch and sort the data with borrowers info.
-		let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone()).await else {
+		let Some(borrowers_data) = Self::fetch_borrowers_data(http_client.clone(), config.omniwatch_url.clone()).await
+		else {
 			tracing::error!(target: LOG_TARGET, "fetch_borrowers_data failed");
 			return;
 		};
-		let sorted_borrowers_data = Self::process_borrowers_data(borrowers_data);
-		let borrowers = Arc::new(std::sync::Mutex::from(sorted_borrowers_data));
+
+		let Some(sorted_borrowers_data) = Self::process_borrowers_data(borrowers_data, client.clone(), config.clone())
+		else {
+			tracing::error!(target: LOG_TARGET, "process_borrowers_data failed");
+			return;
+		};
+		let borrowers_m = Arc::new(std::sync::Mutex::from(sorted_borrowers_data));
 
 		// We store the last best block. We use it to stop older tasks.
-		let best_block = Arc::new(std::sync::Mutex::from(B::Hash::default()));
+		let best_block_m = Arc::new(std::sync::Mutex::from(B::Hash::default()));
 
 		// List of liquidations that failed and are postponed to not block other possible liquidations.
 		// Stored as a list of tuples: (tx_hash, block_number_when_tx_failed).
-		let tx_waitlist = Arc::new(std::sync::Mutex::from(Vec::<(
+		let tx_waitlist_m = Arc::new(std::sync::Mutex::from(Vec::<(
 			[u8; 8],
 			<<B as BlockT>::Header as Header>::Number,
 		)>::new()));
@@ -200,12 +211,12 @@ where
 				if n.is_new_best {
 					spawner.spawn("liquidation-worker-on-block", Some("liquidation-worker"), {
 						{
-							let Ok(mut m_best_block) = best_block.lock() else {
-								tracing::debug!(target: LOG_TARGET, "best_block mutex is poisoned");
+							let Ok(mut best_block) = best_block_m.lock() else {
+								tracing::info!(target: LOG_TARGET, "best_block mutex is poisoned");
 								// return if the mutex is poisoned
 								return ready(());
 							};
-							*m_best_block = n.hash;
+							*best_block = n.hash;
 						}
 						let client_c = client.clone();
 						Self::on_block_imported(
@@ -213,9 +224,9 @@ where
 							spawner.clone(),
 							n.hash,
 							n.header,
-							best_block.clone(),
-							borrowers.clone(),
-							tx_waitlist.clone(),
+							best_block_m.clone(),
+							borrowers_m.clone(),
+							tx_waitlist_m.clone(),
 							transaction_pool.clone(),
 							thread_pool.clone(),
 							config.clone(),
@@ -244,9 +255,9 @@ where
 		spawner: SpawnTaskHandle,
 		current_block_hash: B::Hash,
 		header: B::Header,
-		best_block_hash: Arc<std::sync::Mutex<B::Hash>>,
-		borrowers: Arc<std::sync::Mutex<Vec<(H160, U256)>>>,
-		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		best_block_hash_m: Arc<std::sync::Mutex<B::Hash>>,
+		borrowers_m: Arc<std::sync::Mutex<Vec<Borrower>>>,
+		tx_waitlist_m: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
 		transaction_pool: Arc<P>,
 		thread_pool: Arc<Mutex<ThreadPool>>,
 		config: LiquidationWorkerConfig,
@@ -268,13 +279,19 @@ where
 				return
 			};
 
+			let global_mutex = Arc::new(std::sync::Mutex::from(()));
+
 			let current_block_number = *header.number();
+
+			// List of liquidated users in this block.
+			// We don't try to liquidate a user more than once in a block.
+			let liquidated_users_m = Arc::new(std::sync::Mutex::from(Vec::<EvmAddress>::new()));
 
 			// `tx_waitlist` maintenance.
 			// Remove all transactions that are older than WAIT_PERIOD blocks and can be executed again.
 			{
-				let Ok(mut waitlist) = tx_waitlist.lock() else {
-					tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
+				let Ok(mut waitlist) = tx_waitlist_m.lock() else {
+					tracing::info!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
 					// return if the mutex is poisoned
 					return
 				};
@@ -289,12 +306,110 @@ where
 			// Addresses of the DIA oracle contract.
 			let allowed_oracle_call_addresses = config.clone().oracle_update_call_address.unwrap_or(ORACLE_UPDATE_CALL_ADDRESS.to_vec());
 
+			// use one instance of `MoneyMarketData` per block to aggregate price updates.
+			let Ok(money_market_data) =
+				MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+					ApiProvider::<&C::Api>(runtime_api.deref()),
+					hash,
+					config.pap_contract.unwrap_or(PAP_CONTRACT),
+					config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+				)
+			else {
+				tracing::info!(target: LOG_TARGET, "MoneyMarketData initialization failed");
+				return
+			};
+			let money_market_m = Arc::new(std::sync::Mutex::from(money_market_data));
+
+			// Iterate over all borrowers and try to liquidate them.
+			let money_market_m_c = money_market_m.clone();
+			let borrowers_m_c = borrowers_m.clone();
+			let global_mutex_c = global_mutex.clone();
+			let tx_waitlist_m_c = tx_waitlist_m.clone();
+			let liquidated_users_m_c = liquidated_users_m.clone();
+			let client_c = client.clone();
+			let spawner_c = spawner.clone();
+			let header_c = header.clone();
+			let current_block_hash_c = current_block_hash.clone();
+			let transaction_pool_c = transaction_pool.clone();
+			let config_c = config.clone();
+			Self::spawn_worker(thread_pool.clone(), move || {
+				let now = std::time::Instant::now();
+
+				let runtime_api = client_c.runtime_api();
+				let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header_c.hash())
+				else {
+					tracing::info!(target: LOG_TARGET, "fetch_current_evm_block_timestamp failed");
+					return;
+				};
+
+				let Ok(global_lock) = global_mutex_c.lock() else {
+					tracing::info!(target: LOG_TARGET, "global_mutex mutex is poisoned");
+					// return if the mutex is poisoned
+					return;
+				};
+
+				let Ok(money_market) = money_market_m_c.lock() else {
+					tracing::info!(target: LOG_TARGET, "money_market_data mutex is poisoned");
+					// return if the mutex is poisoned
+					return;
+				};
+				let reserves = money_market.reserves().clone();
+				drop(money_market);
+
+				let Ok(borrowers_data) = borrowers_m_c.lock() else {
+					tracing::info!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+					// return if the mutex is poisoned
+					return;
+				};
+
+				let mut borrowers = borrowers_data.clone();
+				drop(borrowers_data);
+
+				drop(global_lock);
+
+				for borrower in borrowers.iter_mut() {
+					// Iterate over all user assets
+					for asset_address in borrower.assets.iter() {
+						let Some(reserve) = reserves.iter().find(|&r| r.asset_address() == *asset_address) else { continue; };
+						let price = reserve.price();
+
+						match Self::try_liquidate(
+							global_mutex_c.clone(),
+							borrower,
+							money_market_m_c.clone(),
+							borrowers_m_c.clone(),
+							tx_waitlist_m_c.clone(),
+							liquidated_users_m_c.clone(),
+							current_evm_timestamp,
+							asset_address.clone(),
+							&price,
+							client_c.clone(),
+							spawner_c.clone(),
+							header_c.clone(),
+							current_block_hash_c,
+							transaction_pool_c.clone(),
+							config_c.clone(),
+						) {
+							Ok(()) => (),
+							Err(()) => return,
+						}
+
+					}
+				}
+
+				tracing::info!(target: LOG_TARGET, "liquidation-worker: try_liquidate_everyone execution time: {:?}", now.elapsed().as_millis());
+			});
+
+			// Stores `channel::Sender` from the latest `on_new_transaction` execution to keep the channel open.
+			// By closing the channel, we communicate to old threads to cancel execution.
+			let open_channel_mutex = Arc::new(std::sync::Mutex::from(None));
+
             // New transaction in the transaction pool
             let mut notification_st = transaction_pool.clone().import_notification_stream();
             while let Some(notification) = notification_st.next().await {
-				// If `current_block_hash != best_block_hash`, this task is most probably from previous block.
-				let Ok(m_best_block_hash) = best_block_hash.lock() else {
-					tracing::debug!(target: LOG_TARGET, "best_block_hash mutex is poisoned");
+				// If `current_block_hash != best_block_hash`, this task is most probably from the previous block.
+				let Ok(m_best_block_hash) = best_block_hash_m.lock() else {
+					tracing::info!(target: LOG_TARGET, "best_block_hash mutex is poisoned");
 					// return if the mutex is poisoned
 					return
 				};
@@ -302,6 +417,7 @@ where
 					// Break from the loop and end the task.
 					return
 				}
+				drop(m_best_block_hash);
 
 				match Self::on_new_transaction(
 					notification,
@@ -309,13 +425,17 @@ where
 					spawner.clone(),
 					header.clone(),
 					current_block_hash,
-					borrowers.clone(),
-					tx_waitlist.clone(),
+					global_mutex.clone(),
+					money_market_m.clone(),
+					borrowers_m.clone(),
+					tx_waitlist_m.clone(),
+					liquidated_users_m.clone(),
 					transaction_pool.clone(),
 					thread_pool.clone(),
 					allowed_signers.clone(),
 					allowed_oracle_call_addresses.clone(),
 					config.clone(),
+					open_channel_mutex.clone(),
 				) {
 					Ok(()) => continue,
 					Err(()) => return,
@@ -323,7 +443,7 @@ where
 			}
 		}).await;
 
-		tracing::info!(target: LOG_TARGET, "on_block_imported execution time: {:?}", now.elapsed().as_millis());
+		tracing::info!(target: LOG_TARGET, "liquidation-worker: on_block_imported execution time: {:?}", now.elapsed().as_millis());
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -336,16 +456,20 @@ where
 		spawner: SpawnTaskHandle,
 		header: B::Header,
 		current_block_hash: B::Hash,
-		borrowers: Arc<std::sync::Mutex<Vec<(H160, U256)>>>,
-		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		global_mutex: Arc<std::sync::Mutex<()>>,
+		money_market_m: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
+		borrowers_m: Arc<std::sync::Mutex<Vec<Borrower>>>,
+		tx_waitlist_m: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		liquidated_users_m: Arc<std::sync::Mutex<Vec<EvmAddress>>>,
 		transaction_pool: Arc<P>,
 		thread_pool: Arc<Mutex<ThreadPool>>,
 		allowed_signers: Vec<EvmAddress>,
 		allowed_oracle_call_addresses: Vec<EvmAddress>,
 		config: LiquidationWorkerConfig,
+		open_channel_mutex: Arc<std::sync::Mutex<Option<crossbeam_channel::Sender<()>>>>,
 	) -> Result<(), ()> {
 		// Variables used in tasks are captured by the value, so we need to clone them.
-		let sorted_borrowers_data_c = borrowers.clone();
+		let sorted_borrowers_data_c = borrowers_m.clone();
 
 		let Some(pool_tx) = transaction_pool.clone().ready_transaction(&notification) else {
 			tracing::info!(target: LOG_TARGET, "ready_transaction failed");
@@ -360,11 +484,11 @@ where
 		};
 
 		// Listen to `borrow` transactions and add new borrowers to the list. If the borrower is already in the list, invalidate the HF by setting it to 0.
-		let maybe_borrower = Self::is_borrow_transaction(transaction.0.clone());
-		if let Some(borrower) = maybe_borrower {
+		let maybe_borrow = Self::is_borrow_transaction(transaction.0.clone());
+		if let Some((borrower, asset)) = maybe_borrow {
 			// Add new borrower to the list if needed.
 			// If the borrower is already in the list, invalidate the HF by setting it to 0.
-			match Self::process_new_borrow(borrower, sorted_borrowers_data_c.clone()) {
+			match Self::process_new_borrow(borrower, asset, sorted_borrowers_data_c.clone()) {
 				// skip the execution and wait for another TX
 				Ok(()) => return Ok(()),
 				Err(()) => return Err(()),
@@ -378,6 +502,20 @@ where
 			return Ok(());
 		};
 
+		// Create a new channel.
+		let (tx, rx) = crossbeam_channel::unbounded();
+
+		let Ok(mut open_channels) = open_channel_mutex.lock() else {
+			tracing::info!(target: LOG_TARGET, "open_channel_mutex mutex is poisoned");
+			// return if the mutex is poisoned
+			return Err(());
+		};
+		// Disconnect the latest channel from the previous execution by dropping precious `Sender` and store new `Sender`.
+		let old_tx = open_channels.take();
+		drop(old_tx);
+		*open_channels = Some(tx);
+		drop(open_channels);
+
 		Self::spawn_worker(thread_pool.clone(), move || {
 			let now = std::time::Instant::now();
 
@@ -387,13 +525,17 @@ where
 				spawner.clone(),
 				header.clone(),
 				current_block_hash,
-				borrowers.clone(),
-				tx_waitlist.clone(),
+				global_mutex.clone(),
+				money_market_m.clone(),
+				borrowers_m.clone(),
+				tx_waitlist_m.clone(),
+				liquidated_users_m.clone(),
 				transaction_pool.clone(),
 				config,
+				rx,
 			);
 
-			tracing::info!(target: LOG_TARGET, "process_new_oracle_update execution time: {:?}", now.elapsed().as_millis());
+			tracing::info!(target: LOG_TARGET, "liquidation-worker: process_new_oracle_update execution time: {:?}", now.elapsed().as_millis());
 		});
 
 		Ok(())
@@ -409,11 +551,17 @@ where
 		spawner: SpawnTaskHandle,
 		header: B::Header,
 		current_block_hash: B::Hash,
-		borrowers: Arc<std::sync::Mutex<Vec<(H160, U256)>>>,
-		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		global_mutex: Arc<std::sync::Mutex<()>>,
+		money_market_m: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
+		borrowers_m: Arc<std::sync::Mutex<Vec<Borrower>>>,
+		tx_waitlist_m: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		liquidated_users_m: Arc<std::sync::Mutex<Vec<EvmAddress>>>,
 		transaction_pool: Arc<P>,
 		config: LiquidationWorkerConfig,
+		rx: crossbeam_channel::Receiver<()>,
 	) {
+		tracing::info!(target: LOG_TARGET, "liquidation-worker: processing new oracle update");
+
 		let Some(oracle_data) = parse_oracle_transaction(&transaction) else {
 			tracing::info!(target: LOG_TARGET, "parse_oracle_transaction failed");
 			return;
@@ -427,50 +575,88 @@ where
 			return;
 		};
 
-		// List of liquidated users in this block.
-		// We don't try to liquidate a user more than once in a block.
-		let mut liquidated_users: Vec<EvmAddress> = Vec::new();
+		let Ok(global_lock) = global_mutex.lock() else {
+			tracing::info!(target: LOG_TARGET, "global_mutex mutex is poisoned");
+			// return if the mutex is poisoned
+			return;
+		};
 
-		// iterate over all price updates
-		// all oracle updates we are interested in are quoted in USD
-		for OracleUpdataData {
-			base_asset,
-			quote_asset: _,
-			price,
-			timestamp: _,
-		} in oracle_data.iter()
-		{
-			// TODO: maybe we can use `price` to determine if HF will increase or decrease
-			let Ok(mut money_market_data) =
-				MoneyMarketData::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>::new(
-					ApiProvider::<&C::Api>(runtime_api.deref()),
-					header.hash(),
-					config.pap_contract.unwrap_or(PAP_CONTRACT),
-					config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
-				)
-			else {
-				continue;
-			};
+		let Ok(mut money_market) = money_market_m.lock() else {
+			tracing::info!(target: LOG_TARGET, "money_market mutex is poisoned");
+			// return if the mutex is poisoned
+			return;
+		};
 
-			let Ok(mut borrowers_data) = borrowers.lock() else {
-				tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
-				// return if the mutex is poisoned
-				return;
-			};
-			// Iterate over all borrowers. Borrowers are sorted by their HF, in ascending order.
-			for borrower in borrowers_data.iter_mut() {
+		// One DIA oracle update transaction can update the price of multiple assets.
+		// Create a list of (asset_address, price) pairs from the oracle update.
+		let oracle_data = oracle_data
+			.iter()
+			.filter_map(
+				|OracleUpdataData {
+				     base_asset_name, price, ..
+				 }| {
+					// get address of the asset whose price is about to be updated
+					let asset_reserve = money_market
+						.reserves()
+						.iter()
+						.find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset_name.to_ascii_lowercase());
+
+					// "base" asset from "base/quote" asset pair updated by the oracle update
+					asset_reserve
+						.and_then(|reserve| Some(reserve.asset_address()))
+						.map(|asset_address| (asset_address, price))
+				},
+			)
+			.collect::<Vec<_>>();
+
+		// Iterate over all price updates and aggregate all price updates first.
+		// All oracle updates we use are quoted in USD.
+		for (base_asset_address, &new_price) in oracle_data.iter() {
+			money_market.update_reserve_price(*base_asset_address, new_price);
+		}
+
+		drop(money_market);
+
+		// TODO: maybe we can use `price` to determine if HF will increase or decrease
+
+		let Ok(borrowers_data) = borrowers_m.lock() else {
+			tracing::info!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+			// return if the mutex is poisoned
+			return;
+		};
+
+		// We want to iterate over all borrowers and release the lock, so we need to clone borrowers_data.
+		let borrowers_data_copy = borrowers_data.clone();
+		drop(borrowers_data);
+		drop(global_lock);
+
+		// Iterate over all borrowers. Borrowers are sorted by their HF, in ascending order.
+		for borrower in borrowers_data_copy.iter() {
+			for (base_asset_address, price) in oracle_data.iter() {
+				// Cancel this thread if the channel was disconnected.
+				// The channel is disconnected when we receive a new oracle update transaction.
+				match rx.try_recv() {
+					Err(crossbeam_channel::TryRecvError::Disconnected) => {
+						tracing::info!(target: LOG_TARGET, "liquidation-worker: Exiting thread with oracle update of {:?}", base_asset_address );
+						return;
+					}
+					_ => (),
+				}
+
 				match Self::try_liquidate(
+					global_mutex.clone(),
 					borrower,
-					&mut liquidated_users,
-					&mut money_market_data,
+					money_market_m.clone(),
+					borrowers_m.clone(),
+					tx_waitlist_m.clone(),
+					liquidated_users_m.clone(),
 					current_evm_timestamp,
-					base_asset,
+					base_asset_address.clone(),
 					price,
 					client.clone(),
 					spawner.clone(),
 					header.clone(),
 					current_block_hash,
-					tx_waitlist.clone(),
 					transaction_pool.clone(),
 					config.clone(),
 				) {
@@ -486,59 +672,81 @@ where
 	/// Main liquidation logic of the worker.
 	/// Submits unsigned liquidation transactions for validated liquidation opportunities.
 	fn try_liquidate(
-		borrower: &mut (EvmAddress, U256),
-		liquidated_users: &mut Vec<EvmAddress>,
-		money_market_data: &mut MoneyMarketData<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>,
+		global_mutex: Arc<std::sync::Mutex<()>>,
+		borrower: &Borrower,
+		money_market_m: Arc<std::sync::Mutex<MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>>>,
+		borrowers_m: Arc<std::sync::Mutex<Vec<Borrower>>>,
+		tx_waitlist_m: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
+		liquidated_users_m: Arc<std::sync::Mutex<Vec<EvmAddress>>>,
 		current_evm_timestamp: u64,
-		base_asset: &[u8],
+		base_asset_address: EvmAddress,
 		new_price: &U256,
 		client: Arc<C>,
 		spawner: SpawnTaskHandle,
 		header: B::Header,
 		current_block_hash: B::Hash,
-		tx_waitlist: Arc<std::sync::Mutex<Vec<([u8; 8], <<B as BlockT>::Header as Header>::Number)>>>,
 		transaction_pool: Arc<P>,
 		config: LiquidationWorkerConfig,
 	) -> Result<(), ()> {
 		let now = std::time::Instant::now();
-		let current_block_number = *header.number();
 
-		let runtime_api = client.runtime_api();
-		let hash = header.hash();
+		let Ok(_global_lock) = global_mutex.lock() else {
+			tracing::info!(target: LOG_TARGET, "try_liquidate mutex is poisoned");
+			// Return if the mutex is poisoned.
+			return Err(());
+		};
 
-		// get address of the asset whose price is about to be updated
-		let Some(asset_reserve) = money_market_data
-			.reserves()
-			.iter()
-			.find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset.to_ascii_lowercase())
+		let Ok(mut money_market) = money_market_m.lock() else {
+			tracing::info!(target: LOG_TARGET, "money_market mutex is poisoned");
+			// return if the mutex is poisoned
+			return Err(());
+		};
+
+		let Ok(mut borrowers) = borrowers_m.lock() else {
+			tracing::info!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+			// return if the mutex is poisoned
+			return Err(());
+		};
+		// let a = borrowers.iter().find(|item| item.user_address == borrower.user_address);
+		let Some(ref mut borrower) = borrowers
+			.iter_mut()
+			.find(|element| element.user_address == borrower.user_address)
 		else {
 			return Ok(());
 		};
 
-		// "base" asset from "base/quote" asset pair updated by the oracle update
-		let base_asset_address = asset_reserve.asset_address();
+		// Skip if the user has been already liquidated in this block.
+		let Ok(mut liquidated_users) = liquidated_users_m.lock() else {
+			tracing::info!(target: LOG_TARGET, "liquidated_users mutex is poisoned");
+			// Return if the mutex is poisoned.
+			return Err(());
+		};
 
-		// skip if the user has been already liquidated in this block
-		if liquidated_users.contains(&borrower.0) {
+		let current_block_number = *header.number();
+		let runtime_api = client.runtime_api();
+		let hash = header.hash();
+
+		if liquidated_users.contains(&borrower.user_address) {
 			return Ok(());
 		};
 
-		// get `UserData` based on updated price
-		money_market_data.update_reserve_price(base_asset_address, *new_price);
+		// Get `UserData` based on updated price.
 		let Ok(user_data) = UserData::new(
 			ApiProvider::<&C::Api>(client.clone().runtime_api().deref()),
 			header.hash(),
-			money_market_data,
-			borrower.0,
+			&money_market,
+			borrower.user_address,
 			current_evm_timestamp,
 			config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
 		) else {
 			return Ok(());
 		};
 
-		if let Ok(current_hf) = user_data.health_factor(money_market_data) {
-			// update user's HF
-			borrower.1 = current_hf;
+		if let Ok(current_hf) =
+			user_data.health_factor::<B, ApiProvider<&C::Api>, OriginCaller, RuntimeCall, RuntimeEvent>(&money_market)
+		{
+			// Update user's HF.
+			borrower.health_factor = current_hf;
 
 			let hf_one = U256::from(10u128.pow(18));
 			if current_hf > hf_one {
@@ -549,13 +757,16 @@ where
 			return Ok(());
 		}
 
-		if let Ok(Some(liquidation_option)) = money_market_data.get_best_liquidation_option(
+		if let Ok(Some(liquidation_option)) = money_market.get_best_liquidation_option::<ApiProvider<&C::Api>>(
 			&user_data,
 			config.target_hf.into(),
 			(base_asset_address, new_price.into()),
 		) {
+			// explicitly drop the mutex because we don't need it anymore
+			drop(money_market);
+
 			// update user's HF
-			borrower.1 = liquidation_option.health_factor;
+			borrower.health_factor = liquidation_option.health_factor;
 
 			let (Ok(Some(collateral_asset_id)), Ok(Some(debt_asset_id))) = (
 				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.collateral_asset),
@@ -572,7 +783,7 @@ where
 			let liquidation_tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate {
 				collateral_asset: collateral_asset_id,
 				debt_asset: debt_asset_id,
-				user: borrower.0,
+				user: borrower.user_address,
 				debt_to_cover: debt_to_liquidate,
 				route: BoundedVec::new(),
 			});
@@ -589,8 +800,8 @@ where
 
 			let tx_hash = sp_core::blake2_64(&encoded);
 
-			let Ok(mut waitlist) = tx_waitlist.lock() else {
-				tracing::debug!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
+			let Ok(mut waitlist) = tx_waitlist_m.lock() else {
+				tracing::info!(target: LOG_TARGET, "tx_waitlist mutex is poisoned");
 				// return if the mutex is poisoned
 				return Err(());
 			};
@@ -610,7 +821,7 @@ where
 
 			if let Ok(Ok(call_result)) = dry_run_result {
 				if call_result.execution_result.is_err() {
-					tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed: {:?}", call_result.execution_result);
+					tracing::debug!(target: LOG_TARGET, "Dry running liquidation failed for user {:?} and assets {:?} {:?} with reason: {:?}", borrower.user_address, collateral_asset_id, debt_asset_id, call_result.execution_result);
 
 					// put the failed tx on hold for `WAIT_PERIOD` number of blocks
 					waitlist.push((tx_hash, current_block_number));
@@ -618,21 +829,22 @@ where
 				}
 			}
 
+			// TODO: check. we set HF before
 			// There is no guarantee that the TX will be executed and with the result we expect. The HF after the execution can be slightly different than what we can predict.
 			// Reset the HF to 0 so it will be recalculated again.
-			borrower.1 = U256::zero();
+			borrower.health_factor = U256::zero();
 
 			// add user to the list of borrowers that are liquidated in this run.
-			liquidated_users.push(borrower.0);
+			liquidated_users.push(borrower.user_address);
 
 			let tx_pool_cc = transaction_pool.clone();
 			// `tx_pool::submit_one()` returns a Future type, so we need to spawn a new task
 			spawner.spawn("liquidation-worker-on-submit", Some("liquidation-worker"), async move {
-				tracing::info!(target: LOG_TARGET, "Submitting liquidation extrinsic {opaque_tx:?}");
+				tracing::info!(target: LOG_TARGET, "liquidation-worker: Submitting liquidation extrinsic {opaque_tx:?}");
 				let _ = tx_pool_cc
 					.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into())
 					.await;
-				tracing::info!(target: LOG_TARGET, "try_liquidate and submit_tx execution time: {:?}", now.elapsed().as_millis());
+				tracing::info!(target: LOG_TARGET, "liquidation-worker: try_liquidate and submit_tx execution time: {:?}", now.elapsed().as_millis());
 			});
 		}
 
@@ -641,10 +853,11 @@ where
 
 	// TODO: return Result type
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
-	async fn fetch_borrowers_data(http_client: HttpClient) -> Option<BorrowerData<AccountId>> {
-		let url = ("https://omniwatch.play.hydration.cloud/api/borrowers/by-health")
-			.parse()
-			.ok()?;
+	async fn fetch_borrowers_data(
+		http_client: HttpClient,
+		url: String,
+	) -> Option<BorrowersData<AccountId>> {
+		let url = url.parse().ok()?;
 		let res = http_client.get(url).await.ok()?;
 		if res.status() != StatusCode::OK {
 			tracing::info!(target: LOG_TARGET, "failed to fetch borrowers data");
@@ -655,16 +868,34 @@ where
 
 		let data = String::from_utf8(bytes.to_vec()).ok()?;
 		let data = data.as_str();
-		let data = serde_json::from_str::<BorrowerData<AccountId>>(data);
+		let data = serde_json::from_str::<BorrowersData<AccountId>>(data);
 		data.ok()
 	}
 
 	/// Returns borrowers sorted by HF.
 	/// The list is sorted in ascending order, starting with borrowers whose HF has not yet been
 	/// calculated (HF==0).
-	pub fn process_borrowers_data(oracle_data: BorrowerData<AccountId>) -> Vec<(H160, U256)> {
+	pub fn process_borrowers_data(
+		oracle_data: BorrowersData<AccountId>,
+		client: Arc<C>,
+		config: LiquidationWorkerConfig,
+	) -> Option<Vec<Borrower>> {
 		let one = U256::from(10u128.pow(18));
 		let fractional_multiplier = U256::from(10u128.pow(12));
+
+		let runtime_api = client.runtime_api();
+		let api_caller = config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER);
+		let hash = client.info().best_hash;
+
+		let money_market_data =
+			MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+				ApiProvider::<&C::Api>(runtime_api.deref()),
+				client.info().best_hash,
+				config.pap_contract.unwrap_or(PAP_CONTRACT),
+				api_caller,
+			)
+			.ok()?;
+
 		let mut borrowers = oracle_data
 			.borrowers
 			.iter()
@@ -674,18 +905,30 @@ where
 				let integer_part = U256::from(b.1.health_factor.trunc() as u128).checked_mul(one);
 				let fractional_part =
 					U256::from((b.1.health_factor.fract() * 1_000_000f32) as u128).checked_mul(fractional_multiplier);
-				// return 0 if the computation failed, and recalculate the HF later.
+
+				// return 0 if the computation failed and recalculate the HF later.
 				let hf = integer_part
 					.zip(fractional_part)
 					.and_then(|(i, f)| i.checked_add(f))
 					.unwrap_or_default();
-				(b.0, hf)
+
+				let user_assets = money_market_data
+					.get_user_asset_addresses::<ApiProvider<&C::Api>>(
+						ApiProvider::<&C::Api>(runtime_api.deref()),
+						hash,
+						b.0,
+						api_caller,
+					)
+					.unwrap_or_default();
+
+				Borrower::new_with_assets(b.0, hf, &user_assets)
 			})
 			.collect::<Vec<_>>();
-		// sort by HF
-		borrowers.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
 
-		borrowers
+		// sort by HF
+		borrowers.sort_by(|a, b| a.health_factor.partial_cmp(&b.health_factor).unwrap_or(Ordering::Equal));
+
+		Some(borrowers)
 	}
 
 	/// Spawns a new thread for liquidation worker.
@@ -741,19 +984,38 @@ where
 			hydradx_runtime::Signature,
 			hydradx_runtime::SignedExtra,
 		>,
-	) -> Option<H160> {
+	) -> Option<(H160, EvmAddress)> {
 		if let RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) = extrinsic.function.clone() {
-			let action = match transaction {
-				Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
-				Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
-				Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+			let (action, input) = match transaction {
+				Transaction::Legacy(legacy_transaction) => (legacy_transaction.action, legacy_transaction.input),
+				Transaction::EIP2930(eip2930_transaction) => (eip2930_transaction.action, eip2930_transaction.input),
+				Transaction::EIP1559(eip1559_transaction) => (eip1559_transaction.action, eip1559_transaction.input),
 			};
 
 			// check if the transaction is MM borrow
 			if let pallet_ethereum::TransactionAction::Call(call_address) = action {
 				if call_address == BORROW_CALL_ADDRESS {
 					if let Some(Ok(borrower)) = extrinsic.function.check_self_contained() {
-						return Some(borrower);
+						let fn_selector = &input[0..4];
+
+						if fn_selector == Into::<u32>::into(Function::Borrow).to_be_bytes() {
+							let decoded = ethabi::decode(
+								&[
+									ethabi::ParamType::Address,
+									ethabi::ParamType::Uint(32),
+									ethabi::ParamType::Uint(32),
+									ethabi::ParamType::Uint(2),
+									ethabi::ParamType::Address,
+								],
+								&input[4..], // first 4 bytes are function selector
+							)
+							.ok()?;
+
+							// the address of the underlying asset to borrow
+							let borrowed_asset = decoded[0].clone().into_address()?;
+
+							return Some((borrower, borrowed_asset));
+						};
 					};
 				};
 			};
@@ -766,22 +1028,26 @@ where
 	/// If the borrower is already in the list, invalidates the HF by setting it to 0 so the HF will be recalculated.
 	fn process_new_borrow(
 		borrower: EvmAddress,
-		borrowers_list_mutex: Arc<std::sync::Mutex<Vec<(H160, U256)>>>,
+		asset: EvmAddress,
+		borrowers_list_mutex: Arc<std::sync::Mutex<Vec<Borrower>>>,
 	) -> Result<(), ()> {
 		// lock is automatically dropped at the end of this function
 		let Ok(mut borrowers_data) = borrowers_list_mutex.lock() else {
-			tracing::debug!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
+			tracing::info!(target: LOG_TARGET, "borrowers_data mutex is poisoned");
 			// return if the mutex is poisoned
 			return Err(());
 		};
 
-		let maybe_existing_borrower = borrowers_data.iter().position(|b| b.0 == borrower);
-		if let Some(index) = maybe_existing_borrower {
-			// borrower is already in the list. Invalidate the HF by setting it to 0.
-			borrowers_data[index] = (borrower, U256::zero());
-		} else {
-			// add new borrower to the list. HF is set to 0, so we can place it at the beginning and the list will remain sorted.
-			borrowers_data.insert(0, (borrower, U256::zero()));
+		match borrowers_data.iter_mut().find(|b| b.user_address == borrower) {
+			Some(b) => {
+				// Borrower is already in the list. Invalidate the HF by setting it to 0 and add asset to the list.
+				b.health_factor = U256::zero();
+				b.add_asset(asset);
+			}
+			None => {
+				// add new borrower to the list. HF is set to 0, so we can place it at the beginning and the list will remain sorted.
+				borrowers_data.insert(0, Borrower::new_with_assets(borrower, U256::zero(), &[asset]));
+			}
 		}
 
 		Ok(())
@@ -791,15 +1057,15 @@ where
 /// The data from DIA oracle update transaction.
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 pub struct OracleUpdataData {
-	base_asset: Vec<u8>,
+	base_asset_name: Vec<u8>,
 	quote_asset: Vec<u8>,
 	price: U256,
 	timestamp: U256,
 }
 impl OracleUpdataData {
-	pub fn new(base_asset: Vec<u8>, quote_asset: Vec<u8>, price: U256, timestamp: U256) -> Self {
+	pub fn new(base_asset_name: Vec<u8>, quote_asset: Vec<u8>, price: U256, timestamp: U256) -> Self {
 		Self {
-			base_asset,
+			base_asset_name,
 			quote_asset,
 			price,
 			timestamp,
