@@ -21,33 +21,35 @@
 
 use core::marker::PhantomData;
 
-use crate::evm::precompiles::{
-	chainlink_adapter::{is_oracle_address, ChainlinkOraclePrecompile},
-	erc20_mapping::is_asset_address,
-	multicurrency::MultiCurrencyPrecompile,
-};
-use codec::Decode;
+use crate::evm::precompiles::{chainlink_adapter::ChainlinkOraclePrecompile, multicurrency::MultiCurrencyPrecompile};
 use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
-use pallet_evm::{
-	ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle,
-	PrecompileOutput, PrecompileResult, PrecompileSet,
-};
+use pallet_evm::{ExitError, ExitRevert, ExitSucceed, PrecompileFailure, PrecompileOutput};
 use pallet_evm_precompile_blake2::Blake2F;
 use pallet_evm_precompile_bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
 use pallet_evm_precompile_modexp::Modexp;
 use pallet_evm_precompile_simple::{ECRecover, Identity, Ripemd160, Sha256};
-use sp_runtime::traits::Dispatchable;
 
-use codec::alloc;
+use crate::evm::precompiles::dynamic::DynamicPrecompileWrapper;
+use crate::evm::precompiles::erc20_mapping::is_asset_address;
+use codec::{alloc, Decode};
 use ethabi::Token;
 use frame_support::pallet_prelude::{Get, IsType};
 use hex_literal::hex;
+use pallet_evm_precompile_call_permit::CallPermitPrecompile;
+use pallet_evm_precompile_dispatch::Dispatch;
+use pallet_evm_precompile_flash_loan::FlashLoanReceiverPrecompile;
+use precompile_utils::precompile_set::{
+	AcceptDelegateCall, CallableByContract, CallableByPrecompile, PrecompileAt, PrecompileSetBuilder,
+	SubcallWithMaxNesting,
+};
 use primitive_types::{H160, U256};
 use sp_core::crypto::AccountId32;
+use sp_runtime::traits::parameter_types;
 use sp_std::{borrow::ToOwned, vec::Vec};
 
 pub mod chainlink_adapter;
 pub mod costs;
+pub mod dynamic;
 pub mod erc20_mapping;
 pub mod handle;
 pub mod multicurrency;
@@ -76,40 +78,25 @@ impl From<Address> for H160 {
 	}
 }
 
-pub struct HydraDXPrecompiles<R>(PhantomData<R>);
-
-impl<R> HydraDXPrecompiles<R> {
-	#[allow(clippy::new_without_default)] // We'll never use Default and can't derive it.
-	pub fn new() -> Self {
-		Self(Default::default())
-	}
-}
-
-// Same as Moonbean and Centrifuge, should benefit interoperability
-// See also
-// https://docs.moonbeam.network/builders/pallets-precompiles/precompiles/overview/#precompiled-contract-addresses
-pub const DISPATCH_ADDR: H160 = addr(1025);
-
-pub const ECRECOVER: H160 = H160(hex!("0000000000000000000000000000000000000001"));
-pub const SHA256: H160 = H160(hex!("0000000000000000000000000000000000000002"));
-pub const RIPEMD: H160 = H160(hex!("0000000000000000000000000000000000000003"));
-pub const IDENTITY: H160 = H160(hex!("0000000000000000000000000000000000000004"));
-pub const MODEXP: H160 = H160(hex!("0000000000000000000000000000000000000005"));
-pub const BN_ADD: H160 = H160(hex!("0000000000000000000000000000000000000006"));
-pub const BN_MUL: H160 = H160(hex!("0000000000000000000000000000000000000007"));
-pub const BN_PAIRING: H160 = H160(hex!("0000000000000000000000000000000000000008"));
-pub const BLAKE2F: H160 = H160(hex!("0000000000000000000000000000000000000009"));
-pub const CALLPERMIT: H160 = H160(hex!("000000000000000000000000000000000000080a"));
-pub const FLASH_LOAN_RECEIVER: H160 = H160(hex!("000000000000000000000000000000000000090a"));
-
-pub const ETH_PRECOMPILE_END: H160 = BLAKE2F;
-
-pub fn is_standard_precompile(address: H160) -> bool {
-	!address.is_zero() && address <= ETH_PRECOMPILE_END
+parameter_types! {
+	pub ECRecoverAddress: H160 = H160(hex!("0000000000000000000000000000000000000001"));
+	pub SHA256Address: H160 = H160(hex!("0000000000000000000000000000000000000002"));
+	pub RipemdAddress: H160 = H160(hex!("0000000000000000000000000000000000000003"));
+	pub IdentityAddress: H160 = H160(hex!("0000000000000000000000000000000000000004"));
+	pub ModexpAddress: H160 = H160(hex!("0000000000000000000000000000000000000005"));
+	pub BnAddAddress: H160 = H160(hex!("0000000000000000000000000000000000000006"));
+	pub BnMulAddress: H160 = H160(hex!("0000000000000000000000000000000000000007"));
+	pub BnPairingAddress: H160 = H160(hex!("0000000000000000000000000000000000000008"));
+	pub Blake2FAddress: H160 = H160(hex!("0000000000000000000000000000000000000009"));
+	pub CallPermitAddress: H160 = H160(hex!("000000000000000000000000000000000000080a"));
+	pub FlashLoanReceiverAddress: H160 = H160(hex!("000000000000000000000000000000000000090a"));
+	// Same as Moonbean and Centrifuge, should benefit interoperability
+	// See also
+	// https://docs.moonbeam.network/builders/pallets-precompiles/precompiles/overview/#precompiled-contract-addresses
+	pub DispatchAddress: H160 = addr(1025);
 }
 
 pub struct AllowedFlashLoanCallers;
-
 impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
 	fn get() -> sp_std::vec::Vec<H160> {
 		let Some(flash_minter) = pallet_hsm::Pallet::<crate::Runtime>::flash_minter() else {
@@ -120,81 +107,49 @@ impl Get<sp_std::vec::Vec<H160>> for AllowedFlashLoanCallers {
 	}
 }
 
-impl<R> PrecompileSet for HydraDXPrecompiles<R>
-where
-	R: pallet_evm::Config
-		+ pallet_currencies::Config
-		+ pallet_evm_accounts::Config
-		+ pallet_stableswap::Config
-		+ pallet_liquidation::Config
-		+ pallet_hsm::Config,
-	R::RuntimeCall: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
-	<R::RuntimeCall as Dispatchable>::RuntimeOrigin: From<Option<pallet_evm::AccountIdOf<R>>>,
-	MultiCurrencyPrecompile<R>: Precompile,
-	ChainlinkOraclePrecompile<R>: Precompile,
-	<R as frame_system::pallet::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
-	<R as pallet_stableswap::pallet::Config>::AssetId: From<u32>,
-{
-	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
-		let context = handle.context();
-		let address = handle.code_address();
+type StandardPrecompilesChecks = (AcceptDelegateCall, CallableByContract, CallableByPrecompile);
+type CustomPrecompilesCheck = (CallableByContract, CallableByPrecompile);
 
-		// Disallow calling custom precompiles with DELEGATECALL or CALLCODE
-		if context.address != address && is_precompile(address) && !is_standard_precompile(address) {
-			return Some(Err(PrecompileFailure::Revert {
-				exit_status: ExitRevert::Reverted,
-				output: "precompile cannot be called with DELEGATECALL or CALLCODE".into(),
-			}));
-		}
+/// The main precompile set for the HydraDX runtime.
+pub type HydraDXPrecompiles<R> = PrecompileSetBuilder<
+	R,
+	(
+		// Standard Ethereum precompiles
+		PrecompileAt<ECRecoverAddress, ECRecover, StandardPrecompilesChecks>,
+		PrecompileAt<SHA256Address, Sha256, StandardPrecompilesChecks>,
+		PrecompileAt<RipemdAddress, Ripemd160, StandardPrecompilesChecks>,
+		PrecompileAt<IdentityAddress, Identity, StandardPrecompilesChecks>,
+		PrecompileAt<ModexpAddress, Modexp, StandardPrecompilesChecks>,
+		PrecompileAt<BnAddAddress, Bn128Add, StandardPrecompilesChecks>,
+		PrecompileAt<BnMulAddress, Bn128Mul, StandardPrecompilesChecks>,
+		PrecompileAt<BnPairingAddress, Bn128Pairing, StandardPrecompilesChecks>,
+		PrecompileAt<Blake2FAddress, Blake2F, StandardPrecompilesChecks>,
+		// HydraDX specific precompiles
+		PrecompileAt<CallPermitAddress, CallPermitPrecompile<R>, CustomPrecompilesCheck>,
+		PrecompileAt<
+			FlashLoanReceiverAddress,
+			FlashLoanReceiverPrecompile<R, AllowedFlashLoanCallers>,
+			CustomPrecompilesCheck,
+		>,
+		//For security reasons, we dont allow dispatch to be called by contract
+		//as Dispatch is mainly just for users to be able to interact with any substrate stuff
+		//We also set recursion limit to 0, forbidding any recursion so we protect against reentrancy
+		PrecompileAt<DispatchAddress, Dispatch<R>, (SubcallWithMaxNesting<0>,)>,
+		DynamicPrecompileWrapper<MultiCurrencyPrecompile<R>>,
+		DynamicPrecompileWrapper<ChainlinkOraclePrecompile<R>>,
+	),
+>;
 
-		if address == ECRECOVER {
-			Some(ECRecover::execute(handle))
-		} else if address == SHA256 {
-			Some(Sha256::execute(handle))
-		} else if address == RIPEMD {
-			Some(Ripemd160::execute(handle))
-		} else if address == IDENTITY {
-			Some(Identity::execute(handle))
-		} else if address == MODEXP {
-			Some(Modexp::execute(handle))
-		} else if address == BN_ADD {
-			Some(Bn128Add::execute(handle))
-		} else if address == BN_MUL {
-			Some(Bn128Mul::execute(handle))
-		} else if address == BN_PAIRING {
-			Some(Bn128Pairing::execute(handle))
-		} else if address == BLAKE2F {
-			Some(Blake2F::execute(handle))
-		} else if address == CALLPERMIT {
-			Some(pallet_evm_precompile_call_permit::CallPermitPrecompile::<R>::execute(
-				handle,
-			))
-		} else if address == FLASH_LOAN_RECEIVER {
-			Some(pallet_evm_precompile_flash_loan::FlashLoanReceiverPrecompile::<
-				R,
-				AllowedFlashLoanCallers,
-			>::execute(handle))
-		} else if address == DISPATCH_ADDR {
-			Some(pallet_evm_precompile_dispatch::Dispatch::<R>::execute(handle))
-		} else if is_asset_address(address) {
-			Some(MultiCurrencyPrecompile::<R>::execute(handle))
-		} else if is_oracle_address(address) {
-			Some(ChainlinkOraclePrecompile::<R>::execute(handle))
-		} else {
-			None
-		}
-	}
-
-	fn is_precompile(&self, address: H160, _remaining_gas: u64) -> IsPrecompileResult {
-		IsPrecompileResult::Answer {
-			is_precompile: is_precompile(address),
-			extra_cost: 0,
-		}
-	}
-}
+pub type DispatchPrecompile<R> = PrecompileAt<DispatchAddress, Dispatch<R>, (SubcallWithMaxNesting<0>,)>;
 
 pub fn is_precompile(address: H160) -> bool {
-	address == DISPATCH_ADDR || is_asset_address(address) || is_standard_precompile(address)
+	address == DispatchAddress::get() || is_asset_address(address) || is_standard_precompile(address)
+}
+
+pub fn is_standard_precompile(address: H160) -> bool {
+	let eth_precompile_end = Blake2FAddress::get();
+
+	!address.is_zero() && address <= eth_precompile_end
 }
 
 // This is a reimplementation of the upstream u64->H160 conversion
