@@ -7,7 +7,7 @@ use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, Saturat
 use primitive_types::U256;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::per_things::Rounding as PTRounding;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use sp_arithmetic::{FixedPointNumber, FixedU128, PerThing, Perbill, Permill};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
 use sp_std::vec;
@@ -1020,7 +1020,7 @@ pub fn recalculate_pegs(
 	current_pegs: &[(Balance, Balance)],
 	target_pegs: &[((Balance, Balance), u128)],
 	block: u128,
-	max_peg_update: Permill,
+	max_peg_update: Perbill,
 	pool_fee: Permill,
 ) -> Option<(Permill, Vec<(Balance, Balance)>)> {
 	let deltas = calculate_peg_deltas(block, current_pegs, target_pegs, max_peg_update);
@@ -1033,7 +1033,7 @@ fn calculate_peg_deltas(
 	block_no: u128,
 	current: &[(Balance, Balance)],
 	target: &[((Balance, Balance), u128)],
-	max_peg_update: Permill,
+	max_peg_update: Perbill,
 ) -> Vec<PegDelta> {
 	debug_assert_eq!(
 		current.len(),
@@ -1056,7 +1056,7 @@ fn calculate_peg_deltas(
 
 		//Ensure max peg target update
 		let b: Ratio = block_ct.into();
-		let max_move_ratio: Ratio = (max_peg_update.deconstruct() as u128, 1_000_000u128).into();
+		let max_move_ratio: Ratio = (max_peg_update.deconstruct() as u128, Perbill::ACCURACY as u128).into();
 		let max_peg_move = max_move_ratio.saturating_mul(&c).saturating_mul(&b);
 
 		if delta <= max_peg_move {

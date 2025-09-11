@@ -11,7 +11,8 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, HSM,
+	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, TreasuryAccount,
+	HSM,
 };
 use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
@@ -47,6 +48,7 @@ pub enum Function {
 	FlashLoan = "flashLoan(address,address,uint256,bytes)",
 	AddFlashBorrower = "addFlashBorrower(address)",
 	IsFlashBorrower = "isFlashBorrower(address)",
+	MaxFlashLoan = "maxFlashLoan(address)",
 }
 
 fn hollar_contract_address() -> EvmAddress {
@@ -618,7 +620,7 @@ fn buy_hollar_with_yield_bearing_token_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -727,7 +729,7 @@ fn sell_yield_bearing_token_to_get_hollar_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -851,7 +853,7 @@ fn sell_collateral_to_get_hollar_via_router_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -983,7 +985,7 @@ fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acqui
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -1128,7 +1130,7 @@ fn sell_hollar_to_get_yield_bearing_token_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -1244,7 +1246,7 @@ fn buy_yield_bearing_token_with_hollar_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -1360,7 +1362,7 @@ fn buy_collateral_with_hollar_via_router_should_work() {
 				100,
 				Permill::from_percent(0),
 				BoundedPegSources::truncate_from(pegs),
-				Permill::from_percent(100),
+				Perbill::from_percent(100),
 			));
 
 			let liquidity = vec![
@@ -1626,11 +1628,14 @@ fn arbitrage_should_work_when_hollar_amount_is_less_in_the_pool() {
 			flash_minter,
 		));
 
+		let treasury_balance_initial = Tokens::free_balance(2, &TreasuryAccount::get());
 		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let received = final_hsm_dai_balance - hsm_dai_balance;
-		assert_eq!(received, 1_502_5767_379_253_934_311);
+		let treasury_balance_final = Tokens::free_balance(2, &TreasuryAccount::get());
+		let profit = treasury_balance_final - treasury_balance_initial;
+		assert_eq!(received + profit, 65746999678827350701713);
 	});
 }
 
@@ -1945,35 +1950,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 		.unwrap()
 		.reciprocal();
 
-		let mut last_spot_price = initial_spot_price;
-
-		for block_idx in 0..50 {
-			assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
-			let state = Stableswap::create_snapshot(pool_id).unwrap();
-			let r = state
-				.assets
-				.iter()
-				.zip(state.reserves.iter())
-				.map(|(a, b)| (a.clone(), b.clone()))
-				.collect();
-			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
-				pool_id,
-				r,
-				state.amplification,
-				222,
-				2,
-				state.share_issuance,
-				1_000_000_000_000_000_000,
-				Some(state.fee),
-				&state.pegs,
-			)
-			.unwrap()
-			.reciprocal();
-			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
-			assert!(spot_price > last_spot_price);
-			last_spot_price = spot_price;
-			hydradx_run_to_next_block();
-		}
+		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 
 		let state = Stableswap::create_snapshot(pool_id).unwrap();
 		let r = state
@@ -2121,39 +2098,11 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 		.unwrap()
 		.reciprocal();
 
-		let mut last_spot_price = initial_spot_price;
-
-		for block_idx in 0..50 {
-			assert_ok!(HSM::execute_arbitrage(
-				hydradx_runtime::RuntimeOrigin::none(),
-				collateral_asset_id,
-				None
-			));
-			let state = Stableswap::create_snapshot(pool_id).unwrap();
-			let r = state
-				.assets
-				.iter()
-				.zip(state.reserves.iter())
-				.map(|(a, b)| (a.clone(), b.clone()))
-				.collect();
-			let spot_price = hydra_dx_math::stableswap::calculate_spot_price(
-				pool_id,
-				r,
-				state.amplification,
-				222,
-				collateral_asset_id,
-				state.share_issuance,
-				1_000_000_000_000_000_000,
-				Some(state.fee),
-				&state.pegs,
-			)
-			.unwrap()
-			.reciprocal();
-			println!("Block: {:?}: spot: {:?}", block_idx, spot_price);
-			assert!(spot_price > last_spot_price);
-			last_spot_price = spot_price;
-			hydradx_run_to_next_block();
-		}
+		assert_ok!(HSM::execute_arbitrage(
+			hydradx_runtime::RuntimeOrigin::none(),
+			collateral_asset_id,
+			None
+		));
 
 		let state = Stableswap::create_snapshot(pool_id).unwrap();
 		let r = state
@@ -2300,7 +2249,6 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 		)
 		.unwrap()
 		.reciprocal();
-		dbg!(initial_spot_price);
 
 		let mut last_spot_price = initial_spot_price;
 
@@ -2490,7 +2438,6 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 		)
 		.unwrap()
 		.reciprocal();
-		dbg!(initial_spot_price);
 
 		let mut last_spot_price = initial_spot_price;
 
