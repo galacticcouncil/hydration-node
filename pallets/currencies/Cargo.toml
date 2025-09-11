@@ -13,7 +13,6 @@ serde = { workspace = true, optional = true }
 codec = { workspace = true }
 
 hydradx-traits = { workspace = true }
-pallet-asset-registry = { workspace = true }
 
 sp-runtime = { workspace = true }
 sp-core = { workspace = true }

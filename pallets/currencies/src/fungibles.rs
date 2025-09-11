@@ -4,7 +4,7 @@ use frame_support::fail;
 use frame_support::traits::tokens::{
 	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
 };
-use hydradx_traits::BoundErc20;
+use hydradx_traits::{BoundErc20, Inspect};
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::Get;
 #[cfg(any(feature = "try-runtime", test))]
@@ -128,7 +128,7 @@ where
 	}
 }
 
-impl<T: Config + pallet_asset_registry::Config> fungibles::metadata::Inspect<T::AccountId> for FungibleCurrencies<T>
+impl<T: Config> fungibles::metadata::Inspect<T::AccountId> for FungibleCurrencies<T>
 where
 	T::MultiCurrency: fungibles::Inspect<T::AccountId>,
 	<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::AssetId: From<CurrencyIdOf<T>>,
@@ -139,13 +139,10 @@ where
 	<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance: Into<BalanceOf<T>> + From<BalanceOf<T>>,
 	WithdrawConsequence<BalanceOf<T>>:
 		From<WithdrawConsequence<<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance>>,
-	CurrencyIdOf<T>: Into<<T as pallet_asset_registry::Config>::AssetId>,
 {
 	fn name(asset: Self::AssetId) -> Vec<u8> {
 		// Prefer registry for metadata; fall back to sensible defaults
-		if let Some(name) =
-			<pallet_asset_registry::Pallet<T> as hydradx_traits::registry::Inspect>::asset_name(asset.into())
-		{
+		if let Some(name) = T::RegistryInspect::asset_name(asset) {
 			name
 		} else {
 			Vec::new()
@@ -153,9 +150,7 @@ where
 	}
 
 	fn symbol(asset: Self::AssetId) -> Vec<u8> {
-		if let Some(sym) =
-			<pallet_asset_registry::Pallet<T> as hydradx_traits::registry::Inspect>::asset_symbol(asset.into())
-		{
+		if let Some(sym) = T::RegistryInspect::asset_symbol(asset) {
 			sym
 		} else {
 			Vec::new()
@@ -163,8 +158,7 @@ where
 	}
 
 	fn decimals(asset: Self::AssetId) -> u8 {
-		<pallet_asset_registry::Pallet<T> as hydradx_traits::registry::Inspect>::decimals(asset.into())
-			.unwrap_or_default()
+		T::RegistryInspect::decimals(asset).unwrap_or_default()
 	}
 }
 
