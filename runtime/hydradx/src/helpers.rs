@@ -107,6 +107,25 @@ pub mod benchmark_helpers {
 								return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
 							}
 						}
+						ERC20Function::MaxFlashLoan => {
+							let max_flash_loan_amount = U256::from(100_000_000_000_000_000_000_000u128);
+							let mut buf1 = [0u8; 32];
+							max_flash_loan_amount.to_big_endian(&mut buf1);
+							let bytes = Vec::from(buf1);
+							return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+						}
+						ERC20Function::GetFacilitatorBucket => {
+							let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
+							let level = U256::from(0u128);
+							let mut buf1 = [0u8; 32];
+							let mut buf2 = [0u8; 32];
+							capacity.to_big_endian(&mut buf1);
+							level.to_big_endian(&mut buf2);
+							let mut bytes = vec![];
+							bytes.extend_from_slice(&buf1);
+							bytes.extend_from_slice(&buf2);
+							return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+						}
 					}
 				}
 			}

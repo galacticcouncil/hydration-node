@@ -35,6 +35,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
+use hydradx_traits::evm::MaybeEvmCall;
 use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
@@ -104,6 +105,13 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 	}
 }
 
+pub struct EvmCallIdentifier;
+impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
+	fn is_evm_call(_call: &RuntimeCall) -> bool {
+		true
+	}
+}
+
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
@@ -112,6 +120,7 @@ impl dispatcher::Config for Test {
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type WeightInfo = ();
+	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;
 }
 

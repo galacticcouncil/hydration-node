@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "337.0.0"
+version = "347.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
