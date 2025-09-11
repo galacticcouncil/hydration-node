@@ -57,6 +57,7 @@ const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 
 // Failed liquidations are suspended for this number of blocks before we try to execute them again.
 const WAIT_PERIOD: BlockNumber = 10;
+const OMNIWATCH_URL: &str = "https://omniwatch.play.hydration.cloud/api/borrowers/by-health";
 
 type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
 
@@ -89,8 +90,8 @@ pub struct LiquidationWorkerConfig {
 	pub target_hf: u128,
 
 	/// URL to fetch initial borrowers data from.
-	#[clap(long)]
-	pub omniwatch_url: Option<String>,
+	#[clap(long, default_value = OMNIWATCH_URL)]
+	pub omniwatch_url: String,
 }
 
 pub struct ApiProvider<C>(C);
@@ -854,14 +855,9 @@ where
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
 	async fn fetch_borrowers_data(
 		http_client: HttpClient,
-		maybe_url: Option<String>,
+		url: String,
 	) -> Option<BorrowersData<AccountId>> {
-		let url = maybe_url
-			.unwrap_or(String::from(
-				"https://omniwatch.play.hydration.cloud/api/borrowers/by-health",
-			))
-			.parse()
-			.ok()?;
+		let url = url.parse().ok()?;
 		let res = http_client.get(url).await.ok()?;
 		if res.status() != StatusCode::OK {
 			tracing::info!(target: LOG_TARGET, "failed to fetch borrowers data");
