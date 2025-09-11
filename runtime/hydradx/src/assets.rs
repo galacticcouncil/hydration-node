@@ -1316,6 +1316,7 @@ impl pallet_otc::Config for Runtime {
 
 impl pallet_otc_settlements::Config for Runtime {
 	type Currency = FungibleCurrencies<Runtime>;
+	type RuntimeCall = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Router = Router;
@@ -1328,6 +1329,7 @@ impl pallet_otc_settlements::Config for Runtime {
 	type MaxIterations = ConstU32<40>;
 	type WeightInfo = weights::pallet_otc_settlements::HydraWeight<Runtime>;
 	type RouterWeightInfo = RouterWeightInfo;
+	type SubmitTransaction = frame_system::offchain::SubmitTransaction<Self, RuntimeCall>;
 }
 
 // Dynamic fees
