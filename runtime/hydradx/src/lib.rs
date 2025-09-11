@@ -54,7 +54,7 @@ pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
-use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 321,
+	spec_version: 348,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -162,10 +162,8 @@ construct_runtime!(
 		Preimage: pallet_preimage = 15,
 		Identity: pallet_identity = 17,
 		Democracy: pallet_democracy exclude_parts { Config } = 19,
-		Elections: pallet_elections_phragmen = 21,
-		Council: pallet_collective::<Instance1> = 23,
+		// NOTE 19, 21, 23 & 27 are retired (was used by gov v1)
 		TechnicalCommittee: pallet_collective::<Instance2> = 25,
-		Tips: pallet_tips = 27,
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
 		Uniques: pallet_uniques = 32,
@@ -202,6 +200,7 @@ construct_runtime!(
 		Referrals: pallet_referrals = 75,
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
+		Parameters: pallet_parameters = 83,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -325,13 +324,10 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
 		[pallet_democracy, Democracy]
-		[pallet_elections_phragmen, Elections]
 		[pallet_treasury, Treasury]
 		[pallet_scheduler, Scheduler]
 		[pallet_utility, Utility]
-		[pallet_tips, Tips]
 		[pallet_identity, Identity]
-		[pallet_collective_council, Council]
 		[pallet_collective_technical_committee, TechnicalCommittee]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
 		[pallet_message_queue, MessageQueue]
@@ -348,6 +344,7 @@ mod benches {
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
 		[pallet_hsm, HSM]
+		[pallet_dynamic_fees, DynamicFees]
 	);
 }
 
@@ -985,6 +982,15 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl evm::precompiles::erc20_mapping::Erc20MappingApi<Block> for Runtime {
+		fn asset_address(asset_id: AssetId) -> EvmAddress {
+			HydraErc20Mapping::asset_address(asset_id)
+		}
+		fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
+			HydraErc20Mapping::address_to_asset(address)
+		}
+	}
+
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
 			if !matches!(xcm_version, 3 | 4) {
@@ -1075,12 +1081,12 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, evm::EvmAddress> for Runtime {
-		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> evm::EvmAddress {
+	impl evm::precompiles::chainlink_adapter::runtime_api::ChainlinkAdapterApi<Block, AccountId, EvmAddress> for Runtime {
+		fn encode_oracle_address(asset_id_a: AssetId, asset_id_b: AssetId, period: OraclePeriod, source: Source) -> EvmAddress {
 			evm::precompiles::chainlink_adapter::encode_oracle_address(asset_id_a, asset_id_b, period, source)
 		}
 
-		fn decode_oracle_address(oracle_address: evm::EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
+		fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, AssetId, OraclePeriod, Source)> {
 			evm::precompiles::chainlink_adapter::decode_oracle_address(oracle_address)
 		}
 	}
@@ -1566,6 +1572,22 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 		dai,
 		pallet_omnipool::types::Tradability::SELL | pallet_omnipool::types::Tradability::BUY
 	));
+
+	let _ = with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::update(
+			RawOrigin::Root.into(),
+			hdx,
+			None,
+			None,
+			None,
+			Some(amount_to_sell * 10),
+			None,
+			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ());
 
 	with_transaction::<Balance, DispatchError, _>(|| {
 		let caller2: AccountId = frame_benchmarking::account("caller2", 0, 1);

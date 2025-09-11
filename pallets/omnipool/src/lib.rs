@@ -2152,9 +2152,12 @@ impl<T: Config> Pallet<T> {
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
+		// Using total balance to include reserved LRNA in balance calculations.
+		// Speciically important uin case when LRNA is in lockdown by our deposit limit circuit breaker
+		// If we used free_balance, ratio will increase as more LRNA gets locked, causing add liquidity to fail.
 		let hub_reserve_ratio = FixedU128::checked_from_rational(
 			new_asset_state.hub_reserve,
-			T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
+			T::Currency::total_balance(T::HubAssetId::get(), &Self::protocol_account())
 				.checked_add(*state_changes.asset.total_delta_hub_reserve())
 				.ok_or(ArithmeticError::Overflow)?,
 		)

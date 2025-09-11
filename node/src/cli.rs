@@ -50,6 +50,14 @@ pub struct Cli {
 
 	#[clap(flatten)]
 	pub ethereum_config: crate::service::evm::EthereumConfig,
+
+	#[arg(long)]
+	/// Disable override of TX priorities by the client.
+	pub no_tx_priority_override: bool,
+
+	/// Liquidation worker configuration
+	#[clap(flatten)]
+	pub liquidation_worker_config: crate::liquidation_worker::LiquidationWorkerConfig,
 }
 
 #[derive(Debug)]

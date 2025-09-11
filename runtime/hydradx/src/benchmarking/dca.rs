@@ -525,6 +525,29 @@ runtime_benchmarks! {
 		assert!(<Schedules<Runtime>>::get::<ScheduleId>(schedule_id).is_none());
 	}
 
+	unlock_reserves {
+		let caller: AccountId = create_account_with_native_balance()?;
+		fund_treasury()?; //Fund treasury with some HDX to prevent BelowMinimum issue due to low fee
+
+		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &caller.clone(), 100_000_000_000_000_000i128)?;
+
+		<Currencies as NamedMultiReservableCurrency<AccountId>>::reserve_named(
+			&NamedReserveId::get(),
+			HDX,
+			&caller.clone(),
+			ONE
+		)?;
+	}: _(RawOrigin::Signed(caller.clone()), caller.clone(), HDX)
+	verify {
+		let reserved_balance = <Currencies as NamedMultiReservableCurrency<AccountId>>::reserved_balance_named(
+			&NamedReserveId::get(),
+			HDX,
+			&caller.clone(),
+		);
+
+		assert_eq!(reserved_balance, 0);
+	}
+
 }
 
 pub const INITIAL_BALANCE: Balance = 10_000_000 * ONE;

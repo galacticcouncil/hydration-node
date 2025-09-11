@@ -16,6 +16,17 @@ fn should_return_default_base_fee_when_min_multiplier() {
 }
 
 #[test]
+fn should_return_lower_base_fee_when_min_multiplier_on_testnet() {
+	ExtBuilder::default().build().execute_with(|| {
+		Parameters::set_testnet_flag(true);
+		DynamicEvmFee::on_initialize(1);
+
+		let new_base_fee = DynamicEvmFee::base_evm_fee();
+		assert_eq!(new_base_fee, U256::from(1504500));
+	});
+}
+
+#[test]
 fn should_increase_evm_fee_with_max_multiplier() {
 	ExtBuilder::default().build().execute_with(|| {
 		set_multiplier(Multiplier::from_rational(320, 1));

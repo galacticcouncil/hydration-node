@@ -18,12 +18,12 @@
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
-use crate::origins::{GeneralAdmin, OmnipoolAdmin};
+use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
-	parameter_types,
+	ensure, parameter_types,
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{
 		app_crypto::sp_core::crypto::UncheckedFrom, traits::Zero, ArithmeticError, DispatchError, DispatchResult,
@@ -54,9 +54,9 @@ pub use hydradx_traits::{
 };
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
-	GetByKey, Happened,
+	GetByKey, Handler, Happened, NamedMultiReservableCurrency,
 };
-use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::{AssetTotalIssuance, BasicCurrencyAdapter};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_omnipool::{
@@ -123,11 +123,61 @@ impl MutationHooks<AccountId, AssetId, Balance> for CurrencyHooks {
 	type OnDust = Duster;
 	type OnSlash = ();
 	type PreDeposit = SufficiencyCheck;
-	type PostDeposit = ();
+	type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;
 	type PreTransfer = SufficiencyCheck;
 	type PostTransfer = ();
 	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
 	type OnKilledTokenAccount = (RemoveTxAssetOnKilled<Runtime>, OnKilledTokenAccount);
+}
+
+parameter_types! {
+	pub Period : BlockNumber = DAYS;
+
+	pub DepositCircuitBreakerNamedReserveId: [u8; 8] = *b"depositc";
+
+}
+
+pub struct DepositCircuitBreaker;
+
+pub struct OnLockdownDepositHandler;
+impl Handler<(AssetId, AccountId, Balance)> for OnLockdownDepositHandler {
+	fn handle(t: &(AssetId, AccountId, Balance)) -> DispatchResult {
+		Currencies::reserve_named(&DepositCircuitBreakerNamedReserveId::get(), t.0, &t.1, t.2)?;
+
+		Ok(())
+	}
+}
+
+pub struct OnDepositReleaseHandler;
+impl Handler<(AssetId, AccountId)> for OnDepositReleaseHandler {
+	fn handle(t: &(AssetId, AccountId)) -> DispatchResult {
+		let named_reserve_id = DepositCircuitBreakerNamedReserveId::get();
+
+		let reserved_balance = Currencies::reserved_balance_named(&named_reserve_id, t.0, &t.1);
+		ensure!(
+			reserved_balance != Balance::zero(),
+			pallet_circuit_breaker::Error::<Runtime>::InvalidAmount
+		);
+
+		let remaining_reserved = Currencies::unreserve_named(&named_reserve_id, t.0, &t.1, reserved_balance);
+
+		//We should not have any remaining reserved balance after unreserving, otherwise open to DDos attack
+		ensure!(
+			remaining_reserved.is_zero(),
+			pallet_circuit_breaker::Error::<Runtime>::InvalidAmount
+		);
+
+		Ok(())
+	}
+}
+
+impl AssetDepositLimiter<AccountId, AssetId, Balance> for DepositCircuitBreaker {
+	type Period = Period;
+	type Issuance = AssetTotalIssuance<Runtime>;
+	type DepositLimit = XcmRateLimitsInRegistry<Runtime>;
+	type OnLimitReached = ();
+	type OnLockdownDeposit = OnLockdownDepositHandler;
+	type OnDepositRelease = OnDepositReleaseHandler;
 }
 
 pub const SUFFICIENCY_LOCK: LockIdentifier = *b"insuffED";
@@ -555,14 +605,16 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type UpdateLimitsOrigin =
-		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = LRNA;
 	type WeightInfo = weights::pallet_circuit_breaker::HydraWeight<Runtime>;
+	type DepositLimiter = DepositCircuitBreaker;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = CircuitBreakerBenchmarkHelper<Runtime>;
 }
 
 parameter_types! {
@@ -620,7 +672,9 @@ pub struct DustRemovalWhitelist;
 
 impl Contains<AccountId> for DustRemovalWhitelist {
 	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a) || pallet_duster::DusterWhitelist::<Runtime>::contains(a)
+		get_all_module_accounts().contains(a)
+			|| HSM::is_flash_loan_account(a)
+			|| pallet_duster::DusterWhitelist::<Runtime>::contains(a)
 	}
 }
 
@@ -652,7 +706,7 @@ parameter_types! {
 	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
-type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+pub(crate) type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
 impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -667,7 +721,12 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance, OmnipoolLmOracle>;
+	type PriceAdjustment = PriceAdjustmentAdapter<
+		Runtime,
+		OmnipoolLiquidityMiningInstance,
+		OmnipoolLmOracle,
+		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+	>;
 }
 
 parameter_types! {
@@ -703,7 +762,7 @@ parameter_types! {
 	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
 }
 
-type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
+pub(crate) type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
 impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -718,12 +777,18 @@ impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime 
 	type MaxYieldFarmsPerGlobalFarm = XYKLmMaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
-	type PriceAdjustment = PriceAdjustmentAdapter<Runtime, XYKLiquidityMiningInstance, XYKLmOracle>;
+	type PriceAdjustment = PriceAdjustmentAdapter<
+		Runtime,
+		XYKLiquidityMiningInstance,
+		XYKLmOracle,
+		OraclePriceProvider<AssetId, EmaOracle, LRNA>,
+	>;
 }
 
 parameter_types! {
 	pub const XYKLmPalletId: PalletId = PalletId(*b"XYK///LM");
 	pub const XYKLmCollectionId: CollectionId = 5389_u128;
+	pub const XYKLmOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 }
 
 impl pallet_xyk_liquidity_mining::Config for Runtime {
@@ -738,6 +803,9 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type AMM = XYK;
 	type AssetRegistry = AssetRegistry;
 	type MaxFarmEntriesPerDeposit = XYKLmMaxEntriesPerDeposit;
+	type OracleSource = XYKLmOracle;
+	type OraclePeriod = XYKLmOraclePeriod;
+	type LiquidityOracle = EmaOracle;
 	type WeightInfo = weights::pallet_xyk_liquidity_mining::HydraWeight<Runtime>;
 }
 
@@ -976,9 +1044,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_trade_weight())
 					.saturating_add(<Runtime as pallet_omnipool::Config>::OmnipoolHooks::on_liquidity_changed_weight()),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(e),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
@@ -1075,9 +1141,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(c, e),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(c, e),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(c, e)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(e),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
@@ -1141,7 +1205,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 		//For the stored route we expect a worst case with max number of trades in the most expensive pool which is stableswap
 		//We have have two sell calculation for that, normal and inverse
-		weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(2, 0)
+		weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0)
 			.checked_mul(MAX_NUMBER_OF_TRADES.into());
 
 		//Calculate sell amounts for the new route
@@ -1149,9 +1213,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
@@ -1164,9 +1226,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 			let amm_weight = match trade.pool {
 				PoolType::Omnipool => weights::pallet_omnipool::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::LBP => weights::pallet_lbp::HydraWeight::<Runtime>::router_execution_sell(1, 0),
-				PoolType::Stableswap(_) => {
-					weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(1, 0)
-				}
+				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
@@ -1273,7 +1333,7 @@ impl pallet_otc_settlements::Config for Runtime {
 // Dynamic fees
 parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
-		min_fee: Permill::from_rational(15u32,10000u32), // 0.15%
+		min_fee: Permill::from_rational(25u32,10000u32), // 0.25%
 		max_fee: Permill::from_rational(5u32,100u32),    // 5%
 		decay: FixedU128::from_rational(1,20000),        // 0.005%
 		amplification: FixedU128::from(2),               // 2
@@ -1297,6 +1357,8 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type RawOracle = OmnipoolRawOracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+	type WeightInfo = weights::pallet_dynamic_fees::HydraWeight<Runtime>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, OmnipoolAdmin>>;
 }
 
 // Stableswap
@@ -1335,6 +1397,9 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use pallet_asset_registry::XcmRateLimitsInRegistry;
+use pallet_circuit_breaker::traits::AssetDepositLimiter;
+#[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::OracleEntry;
@@ -1376,6 +1441,25 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 		Ok(())
 	}
 
+	fn set_deposit_limit(asset_id: AssetId, limit: u128) -> DispatchResult {
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::update(
+				crate::RuntimeOrigin::root(),
+				asset_id,
+				None,
+				None,
+				None,
+				Some(limit),
+				None,
+				None,
+				None,
+				None,
+			))
+		})?;
+
+		Ok(())
+	}
+
 	fn register_asset_peg(asset_pair: (AssetId, AssetId), peg: PegType, source: Source) -> DispatchResult {
 		with_transaction(|| {
 			let assets = ordered_pair(asset_pair.0, asset_pair.1);
@@ -1393,6 +1477,7 @@ impl<T: pallet_asset_registry::Config + pallet_ema_oracle::Config> BenchmarkHelp
 					volume: Default::default(),
 					liquidity: Default::default(),
 					updated_at: BlockNumber::default().into(),
+					shares_issuance: Default::default(),
 				},
 			) {
 				return TransactionOutcome::Rollback(e.into());
@@ -1695,6 +1780,7 @@ impl pallet_liquidation::Config for Runtime {
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 	type HollarId = HOLLAR;
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 }
 
 impl pallet_broadcast::Config for Runtime {
@@ -1702,7 +1788,7 @@ impl pallet_broadcast::Config for Runtime {
 }
 
 parameter_types! {
-	pub const HsmGasLimit: u64 = 4_000_000;
+	pub const HsmGasLimit: u64 = 400_000;
 	pub const HsmPalletId: PalletId = PalletId(*b"py/hsmod");
 	pub const HOLLAR: AssetId = 222;
 }
@@ -1711,8 +1797,9 @@ impl pallet_hsm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type HollarId = HOLLAR;
 	type PalletId = HsmPalletId;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<EconomicParameters, GeneralAdmin>>;
 	type GhoContractAddress = AssetRegistry;
+	type ArbitrageProfitReceiver = TreasuryAccount;
 	type Currency = FungibleCurrencies<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Evm = helpers::benchmark_helpers::DummyEvmForHsm;
@@ -1818,6 +1905,9 @@ use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
+
+#[cfg(feature = "runtime-benchmarks")]
+use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;

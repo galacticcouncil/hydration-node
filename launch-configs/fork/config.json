@@ -46,6 +46,9 @@
           "command": "../../target/release/hydradx",
           "args": [
             "--pruning=archive",
+            "--rpc-methods=unsafe",
+            "--rpc-max-connections=5000",
+            "--tx-ban-seconds=5",
             "--log=info"
           ],
           "rpc_port": 9999

@@ -102,7 +102,6 @@ pub const OFFCHAIN_WORKER_DATA: &[u8] = b"hydradx/otc-settlements/data/";
 pub const OFFCHAIN_WORKER_DATA_LAST_UPDATE: &[u8] = b"hydradx/otc-settlements/data-last-update/";
 pub const SORTED_ORDERS_LOCK: &[u8] = b"hydradx/otc-settlements/lock/";
 pub const LOCK_TIMEOUT_EXPIRATION: u64 = 5_000; // 5 seconds
-pub const FILL_SEARCH_ITERATIONS: u32 = 40;
 
 pub type AssetIdOf<T> = <T as pallet_otc::Config>::AssetId;
 type SortedOtcsStorageType = OrderId;

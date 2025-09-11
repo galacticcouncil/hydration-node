@@ -360,6 +360,7 @@ where
 			asset.after.reserve,
 			asset.after.hub_reserve,
 			Price::new(asset.after.reserve, asset.after.hub_reserve),
+			Some(asset.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -401,6 +402,7 @@ where
 			asset_in.after.reserve,
 			asset_in.after.hub_reserve,
 			Price::new(asset_in.after.reserve, asset_in.after.hub_reserve),
+			Some(asset_in.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -413,6 +415,7 @@ where
 			asset_out.after.hub_reserve,
 			asset_out.after.reserve,
 			Price::new(asset_out.after.hub_reserve, asset_out.after.reserve),
+			Some(asset_out.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -441,6 +444,7 @@ where
 			asset.after.hub_reserve,
 			asset.after.reserve,
 			Price::new(asset.after.hub_reserve, asset.after.reserve),
+			Some(asset.after.shares),
 		)
 		.map_err(|(_, e)| e)?;
 
@@ -626,31 +630,48 @@ where
 			return None;
 		}
 
-		let nominator = prices
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+		// To avoid overflows - process in chunks of 4 prices
+		let calculate_price_product = {
+			fn inner(prices: &[EmaPrice]) -> Option<EmaPrice> {
+				if prices.len() <= 4 {
+					// Base case: process directly
+					let nom = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.n)))?;
+					let den = prices
+						.iter()
+						.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					Some(round_u512_to_rational((nom, den), Rounding::Nearest).into())
+				} else {
+					// Recursive case: chunk and recurse
+					let chunk_results: Vec<EmaPrice> =
+						prices.chunks(4).map(|chunk| inner(chunk)).collect::<Option<Vec<_>>>()?;
 
-		let denominator = prices
-			.iter()
-			.try_fold(U512::from(1u128), |acc, price| acc.checked_mul(U512::from(price.d)))?;
+					inner(&chunk_results)
+				}
+			}
+			inner
+		};
 
-		let rat_as_u128 = round_u512_to_rational((nominator, denominator), Rounding::Nearest);
-
-		Some(EmaPrice::new(rat_as_u128.0, rat_as_u128.1))
+		calculate_price_product(&prices)
 	}
 }
 
-pub struct PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource>(PhantomData<(Runtime, LMInstance, OracleSource)>);
+pub struct PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource, AggregatedPriceGetter>(
+	PhantomData<(Runtime, LMInstance, OracleSource, AggregatedPriceGetter)>,
+);
 
-impl<Runtime, LMInstance, OracleSource> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
-	for PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource>
+impl<Runtime, LMInstance, OracleSource, AggregatedPriceGetter> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
+	for PriceAdjustmentAdapter<Runtime, LMInstance, OracleSource, AggregatedPriceGetter>
 where
 	Runtime: warehouse_liquidity_mining::Config<LMInstance>
 		+ pallet_ema_oracle::Config
 		+ pallet_asset_registry::Config
+		+ pallet_route_executor::Config<AssetId = AssetId>
 		+ pallet_bonds::Config,
 	OracleSource: Get<[u8; 8]>,
 	u32: EncodeLike<<Runtime as pallet_asset_registry::Config>::AssetId>,
+	AggregatedPriceGetter: PriceOracle<AssetId, Price = EmaPrice>,
 {
 	type Error = DispatchError;
 	type PriceAdjustment = FixedU128;
@@ -671,15 +692,29 @@ where
 			global_farm.reward_currency.into()
 		};
 
-		let (price, _) = pallet_ema_oracle::Pallet::<Runtime>::get_price(
+		let r = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			reward_currency_id,
 			global_farm.incentivized_asset.into(),
 			OraclePeriod::TenMinutes,
 			OracleSource::get(),
-		)
-		.map_err(|_| DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+		);
 
-		FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into())
+		if let Ok((price, _)) = r {
+			return FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into());
+		}
+
+		let assets = AssetPair::new(reward_currency_id, global_farm.incentivized_asset.into());
+		let route = pallet_route_executor::Routes::<Runtime>::get(assets.ordered_pair())
+			.ok_or(DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+
+		let price = AggregatedPriceGetter::price(&route, OraclePeriod::TenMinutes)
+			.ok_or(DispatchError::Other("PriceAdjustmentNotAvailable"))?;
+
+		if assets == assets.ordered_pair() {
+			return FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into());
+		}
+
+		FixedU128::checked_from_rational(price.d, price.n).ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 }
 
@@ -1002,6 +1037,7 @@ where
 				state.after[idx],
 				state.issuance_after,
 				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
+				None, //NOTE: shares issunace is already trancked as liquidity in ema
 			)
 			.map_err(|(_, e)| e)?;
 		}
@@ -1045,6 +1081,7 @@ where
 				state.after[idx],
 				state.issuance_after,
 				Price::new(state.share_prices[idx].0, state.share_prices[idx].1),
+				None, //NOTE: shares issunace is already trancked as liquidity in ema
 			)
 			.map_err(|(_, e)| e)?;
 		}

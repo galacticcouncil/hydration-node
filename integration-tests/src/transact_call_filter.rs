@@ -106,9 +106,9 @@ fn blocked_transact_calls_should_not_pass_filter() {
 
 	Acala::execute_with(|| {
 		// filtered by SafeCallFilter
-		let call = pallet_tips::Call::<hydradx_runtime::Runtime>::report_awesome {
-			reason: vec![0, 10],
-			who: BOB.into(),
+		let call = pallet_treasury::Call::<hydradx_runtime::Runtime>::spend_local {
+			amount: UNITS,
+			beneficiary: ALICE.into(),
 		};
 
 		let hdx_loc = Location::new(
@@ -136,7 +136,7 @@ fn blocked_transact_calls_should_not_pass_filter() {
 			Transact {
 				require_weight_at_most: call.get_dispatch_info().weight,
 				origin_kind: OriginKind::Native,
-				call: hydradx_runtime::RuntimeCall::Tips(call).encode().into(),
+				call: hydradx_runtime::RuntimeCall::Treasury(call).encode().into(),
 			},
 			ExpectTransactStatus(MaybeErrorCode::Success),
 			RefundSurplus,

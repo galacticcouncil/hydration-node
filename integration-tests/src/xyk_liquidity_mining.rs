@@ -19,6 +19,7 @@
 
 use crate::{assert_nft_owner, omnipool_init::hydra_run_to_block, polkadot_test_net::*};
 
+use frame_support::assert_noop;
 use frame_support::assert_ok;
 use hydradx_traits::{liquidity_mining::PriceAdjustment, AMM};
 use pallet_asset_registry::AssetType;
@@ -35,8 +36,8 @@ use sp_runtime::{
 use xcm_emulator::TestExt;
 
 use hydradx_runtime::{
-	AssetRegistry, Balance, Bonds, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin, XYKLiquidityMining,
-	XYKWarehouseLM, XYK,
+	AssetRegistry, Balance, Bonds, EmaOracle, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin, System,
+	XYKLiquidityMining, XYKWarehouseLM, XYK,
 };
 use pallet_xyk::types::AssetPair;
 use polkadot_xcm::v3::{
@@ -175,6 +176,7 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
 		hydradx_run_to_block(100);
@@ -245,6 +247,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
 		//NOTE: necessary to get oracle price.
@@ -296,7 +299,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_2_id,
 				yield_farm_2_id,
-				100_000_000 * UNITS,
+				100_000_000_000_000_000_058_u128,
 				FixedU128::zero(),
 				50,
 				0,
@@ -340,6 +343,7 @@ fn join_farms_should_work_with_multiple_farm_entries() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
 		//NOTE: necessary to get oracle price.
@@ -391,7 +395,7 @@ fn join_farms_should_work_with_multiple_farm_entries() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_2_id,
 				yield_farm_2_id,
-				100_000_000 * UNITS,
+				100_000_000_000_000_000_058_u128,
 				FixedU128::zero(),
 				40,
 				0,
@@ -447,6 +451,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
@@ -482,6 +487,8 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			100 * UNITS,
 			100000 * UNITS
 		));
+		hydradx_run_to_block(401);
+		set_relaychain_block_number(401);
 
 		let existing_shares = 1000 * UNITS;
 		assert_eq!(Currencies::free_balance(xyk_share_id, &BOB.into()), existing_shares);
@@ -526,7 +533,7 @@ fn add_liquidity_and_join_farms_should_work_with_multiple_farm_entries() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_2_id,
 				yield_farm_2_id,
-				shares_amount,
+				50_000_000_000_000_000_028_u128,
 				FixedU128::zero(),
 				40,
 				0,
@@ -578,6 +585,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
 		set_relaychain_block_number(100);
@@ -626,7 +634,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//NOTE: withdraw is claiming rewards automatically
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_004_254_545_454_545_u128
+			1_004_254_545_454_436_u128
 		);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
@@ -666,7 +674,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_021_616_083_916_083_u128
+			1_021_616_083_915_974_u128
 		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
@@ -709,6 +717,13 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+		//NOTE: insufficient assets are not tracked so oracle has to be added manually
+		assert_ok!(EmaOracle::add_oracle(
+			hydradx_runtime::RuntimeOrigin::root(),
+			primitives::constants::chain::XYK_SOURCE,
+			(asset_pair.asset_in, asset_pair.asset_out)
+		));
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
 		set_relaychain_block_number(100);
@@ -758,7 +773,7 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 		//NOTE: withdraw is claiming rewards automatically
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			995_300_000_000_000_u128
+			994_400_000_000_000_u128
 		);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
@@ -793,7 +808,7 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 		//This is lower than before because dave received insufficient asset and he had to paid ED.
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			994_200_000_000_000_u128
+			993_300_000_000_000_u128
 		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
@@ -836,6 +851,15 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+
+		//NOTE: insufficient assets are not tracked so oracle has to be added manually
+		assert_ok!(EmaOracle::add_oracle(
+			hydradx_runtime::RuntimeOrigin::root(),
+			primitives::constants::chain::XYK_SOURCE,
+			(asset_pair.asset_in, asset_pair.asset_out)
+		));
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
+
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
 		set_relaychain_block_number(100);
@@ -884,7 +908,7 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 		//NOTE: withdraw is claiming rewards automatically
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_001_854_545_454_545_u128
+			999_854_545_454_436_u128
 		);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
@@ -918,7 +942,7 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_019_216_083_916_083_u128
+			1_017_216_083_915_974_u128
 		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
@@ -1078,6 +1102,7 @@ fn liquidity_mining_should_work_when_farm_distribute_bonds() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 
 		create_xyk_pool(HDX, 10_000_000 * UNITS, PEPE, 100_000_000 * UNITS);
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
@@ -1167,6 +1192,7 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 			asset_pair.asset_out,
 			100_000_000 * UNITS,
 		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
 
 		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
 
@@ -1232,6 +1258,104 @@ fn exit_farm_should_work_on_multiple_different_farms() {
 	});
 }
 
+#[test]
+fn withdraw_shares_should_fail_when_provided_asset_pair_doesnt_match_deposit() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let yield_farm_1_id = 3;
+		let yield_farm_2_id = 4;
+		let global_farm_3_id = 5;
+		let yield_farm_3_id = 6;
+		let asset_pair = AssetPair {
+			asset_in: PEPE,
+			asset_out: ACA,
+		};
+
+		let asset_pair_2 = AssetPair {
+			asset_in: DOT,
+			asset_out: ACA,
+		};
+
+		//Arrange
+		let xyk_share_id = create_xyk_pool(
+			asset_pair.asset_in,
+			10_000_000 * UNITS,
+			asset_pair.asset_out,
+			100_000_000 * UNITS,
+		);
+		let xyk_share_id_2 = create_xyk_pool(
+			asset_pair_2.asset_in,
+			10_000_000 * UNITS,
+			asset_pair_2.asset_out,
+			100_000_000 * UNITS,
+		);
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair.asset_in, asset_pair.asset_out);
+		let dave_shares_balance = Currencies::free_balance(xyk_share_id, &DAVE.into());
+
+		populate_oracle_and_move_one_block(DAVE.into(), asset_pair_2.asset_in, asset_pair_2.asset_out);
+		let shares_2_balance = Currencies::free_balance(xyk_share_id_2, &DAVE.into());
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(DAVE.into()),
+			ALICE.into(),
+			xyk_share_id_2,
+			shares_2_balance,
+		));
+
+		set_relaychain_block_number(100);
+		create_global_farm(None, PEPE, None);
+		create_global_farm(None, ACA, None);
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, asset_pair, None);
+		create_yield_farm(global_farm_2_id, asset_pair, None);
+
+		create_global_farm(None, DOT, None);
+		create_yield_farm(global_farm_3_id, asset_pair_2, None);
+
+		set_relaychain_block_number(400);
+		let deposit_id = 1;
+		assert_ok!(XYKLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(DAVE.into()),
+			global_farm_1_id,
+			yield_farm_1_id,
+			asset_pair,
+			dave_shares_balance,
+		));
+
+		set_relaychain_block_number(500);
+		assert_ok!(XYKLiquidityMining::redeposit_shares(
+			RuntimeOrigin::signed(DAVE.into()),
+			global_farm_2_id,
+			yield_farm_2_id,
+			asset_pair,
+			deposit_id,
+		));
+
+		assert_ok!(XYKLiquidityMining::deposit_shares(
+			RuntimeOrigin::signed(ALICE.into()),
+			global_farm_3_id,
+			yield_farm_3_id,
+			asset_pair_2,
+			shares_2_balance,
+		));
+
+		set_relaychain_block_number(600);
+
+		assert_noop!(
+			XYKLiquidityMining::withdraw_shares(
+				RuntimeOrigin::signed(DAVE.into()),
+				deposit_id,
+				yield_farm_2_id,
+				asset_pair_2,
+			),
+			warehouse_liquidity_mining::Error::<hydradx_runtime::Runtime, Instance2>::AmmPoolIdMismatch
+		);
+	});
+}
+
 fn create_xyk_pool(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) -> AssetId {
 	let share_id = AssetRegistry::next_asset_id().unwrap();
 
@@ -1239,13 +1363,13 @@ fn create_xyk_pool(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) -
 		hydradx_runtime::RuntimeOrigin::root(),
 		DAVE.into(),
 		asset_a,
-		amount_a as i128,
+		(amount_a + UNITS) as i128,
 	));
 	assert_ok!(Currencies::update_balance(
 		hydradx_runtime::RuntimeOrigin::root(),
 		DAVE.into(),
 		asset_b,
-		amount_b as i128,
+		(amount_b + UNITS) as i128,
 	));
 
 	assert_ok!(XYK::create_pool(
@@ -1257,6 +1381,30 @@ fn create_xyk_pool(asset_a: u32, amount_a: u128, asset_b: u32, amount_b: u128) -
 	));
 
 	share_id
+}
+
+fn populate_oracle_and_move_one_block(account: AccountId, asset_a: u32, asset_b: u32) {
+	//sell&buy asset so oracle is populated
+	assert_ok!(XYK::sell(
+		RuntimeOrigin::signed(account),
+		asset_a,
+		asset_b,
+		1000,
+		0,
+		false
+	));
+
+	//NOTE: buy it back so shares has same value as before sell so we don't have to change tests
+	assert_ok!(XYK::buy(
+		RuntimeOrigin::signed(DAVE.into()),
+		asset_a,
+		asset_b,
+		1000,
+		u128::MAX,
+		false
+	));
+
+	hydradx_run_to_block(System::block_number() + 1);
 }
 
 fn create_global_farm(rewards_currency: Option<AssetId>, incentivized_asset: AssetId, owner: Option<AccountId>) {

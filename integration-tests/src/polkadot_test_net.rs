@@ -13,6 +13,7 @@ pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
+use frame_support::traits::OnRuntimeUpgrade;
 pub use frame_system::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeEvent, RuntimeOrigin};
@@ -757,18 +758,22 @@ pub fn hydradx_run_to_next_block() {
 
 	let b = hydradx_runtime::System::block_number();
 	hydradx_runtime::System::on_finalize(b);
+	hydradx_runtime::Ethereum::on_finalize(b);
 	hydradx_runtime::TransactionPayment::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 	hydradx_runtime::CircuitBreaker::on_finalize(b);
 	hydradx_runtime::DCA::on_finalize(b);
+	hydradx_runtime::Dispatcher::on_finalize(b);
 	hydradx_runtime::EmaOracle::on_finalize(b);
 	hydradx_runtime::EVM::on_finalize(b);
 	hydradx_runtime::Ethereum::on_finalize(b);
 	hydradx_runtime::EVMAccounts::on_finalize(b);
 	hydradx_runtime::Stableswap::on_finalize(b);
+	hydradx_runtime::HSM::on_finalize(b);
 
 	hydradx_runtime::System::set_block_number(b + 1);
 	hydradx_runtime::System::on_initialize(b + 1);
+	hydradx_runtime::Ethereum::on_initialize(b + 1);
 	hydradx_runtime::AuraExt::on_initialize(b + 1);
 	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 	hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
@@ -779,6 +784,7 @@ pub fn hydradx_run_to_next_block() {
 	hydradx_runtime::Ethereum::on_initialize(b + 1);
 	hydradx_runtime::EVMAccounts::on_initialize(b + 1);
 	hydradx_runtime::Stableswap::on_initialize(b + 1);
+	hydradx_runtime::HSM::on_initialize(b + 1);
 
 	hydradx_runtime::System::set_block_number(b + 1);
 }
@@ -843,7 +849,11 @@ pub fn hydra_live_ext(
 
 			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
 
-			builder.build().await.unwrap()
+			let mut p = builder.build().await.unwrap();
+			p.execute_with(|| {
+				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();
+			});
+			p
 		});
 	ext
 }

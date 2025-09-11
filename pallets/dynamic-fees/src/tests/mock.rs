@@ -28,6 +28,7 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
+use frame_system::EnsureRoot;
 use hydradx_traits::fee::GetDynamicFee;
 use sp_core::H256;
 use sp_runtime::{
@@ -115,6 +116,8 @@ impl Config for Test {
 	type RawOracle = OracleProvider;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
+	type WeightInfo = ();
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 }
 
 pub struct ExtBuilder {

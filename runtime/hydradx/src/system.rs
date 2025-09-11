@@ -70,7 +70,8 @@ impl Contains<RuntimeCall> for CallFilter {
 				| RuntimeCall::Whitelist(_)
 		) {
 			// always allow
-			// Note: this is done to avoid unnecessary check of paused storage.
+			// Note: this is done to avoid unnecessary check of paused storage, and to
+			// ensure that critical functions cannot be paused by TechnicalCommittee
 			return true;
 		}
 
@@ -120,6 +121,7 @@ impl Contains<RuntimeCall> for CallFilter {
 			//NOTE: this prevents creation of thombstone positions if nft was burned outside
 			//of pallet that created it.
 			RuntimeCall::Uniques(pallet_uniques::Call::burn { .. }) => false,
+			RuntimeCall::Router(pallet_route_executor::Call::set_route { .. }) => false,
 			_ => true,
 		}
 	}
@@ -357,11 +359,6 @@ impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 		match (left, right) {
 			// Root is greater than anything.
 			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
-			// Check which one has more yes votes.
-			(
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
-			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
 			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
 			_ => None,
 		}
@@ -469,11 +466,8 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Governance => matches!(
 				c,
 				RuntimeCall::Democracy(..)
-					| RuntimeCall::Council(..)
 					| RuntimeCall::TechnicalCommittee(..)
-					| RuntimeCall::Elections(..)
 					| RuntimeCall::Treasury(..)
-					| RuntimeCall::Tips(..)
 					| RuntimeCall::Utility(..)
 					| RuntimeCall::Preimage(..)
 					| RuntimeCall::Referenda(..)
@@ -552,6 +546,7 @@ impl pallet_multisig::Config for Runtime {
 }
 
 impl pallet_genesis_history::Config for Runtime {}
+impl pallet_parameters::Config for Runtime {}
 
 /// Parameterized slow adjusting fee updated based on
 /// https://w3f-research.readthedocs.io/en/latest/polkadot/overview/2-token-economics.html?highlight=token%20economics#-2.-slow-adjusting-mechanism

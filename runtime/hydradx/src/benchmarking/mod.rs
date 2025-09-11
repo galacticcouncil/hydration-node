@@ -180,6 +180,24 @@ fn setup_insufficient_asset_with_dot() -> Result<AssetId, BenchmarkError> {
 	Ok(insufficient_asset)
 }
 
+pub fn update_deposit_limit(asset_id: AssetId, limit: Balance) -> Result<(), ()> {
+	with_transaction(|| {
+		TransactionOutcome::Commit(AssetRegistry::update(
+			RawOrigin::Root.into(),
+			asset_id,
+			None,
+			None,
+			None,
+			Some(limit),
+			None,
+			None,
+			None,
+			None,
+		))
+	})
+	.map_err(|_| ())
+}
+
 // TODO: uncomment once AMM pool is available
 // pub fn create_pool(who: AccountId, asset_a: AssetId, asset_b: AssetId, amount: Balance, price: Price) {
 // 	assert_ok!(XYK::create_pool(

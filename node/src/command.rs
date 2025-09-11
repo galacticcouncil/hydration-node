@@ -139,28 +139,28 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial(&config)?;
+				let partials = new_partial(&config, cli.no_tx_priority_override)?;
 				Ok((cmd.run(partials.client, partials.import_queue), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial(&config)?;
+				let partials = new_partial(&config, cli.no_tx_priority_override)?;
 				Ok((cmd.run(partials.client, config.database), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial(&config)?;
+				let partials = new_partial(&config, cli.no_tx_priority_override)?;
 				Ok((cmd.run(partials.client, config.chain_spec), partials.task_manager))
 			})
 		}
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial(&config)?;
+				let partials = new_partial(&config, cli.no_tx_priority_override)?;
 				Ok((cmd.run(partials.client, partials.import_queue), partials.task_manager))
 			})
 		}
@@ -184,7 +184,7 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let partials = new_partial(&config)?;
+				let partials = new_partial(&config, cli.no_tx_priority_override)?;
 				Ok((cmd.run(partials.client, partials.backend, None), partials.task_manager))
 			})
 		}
@@ -202,14 +202,14 @@ pub fn run() -> sc_cli::Result<()> {
 					}
 				}
 				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
-					let partials = crate::service::new_partial(&config)?;
+					let partials = crate::service::new_partial(&config, cli.no_tx_priority_override)?;
 					cmd.run(partials.client)
 				}),
 				#[cfg(not(feature = "runtime-benchmarks"))]
 				BenchmarkCmd::Storage(_) => Err("Storage benchmarking can be enabled with `--features runtime-benchmarks`.".into()),
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-					let partials = new_partial(&config)?;
+					let partials = new_partial(&config, cli.no_tx_priority_override)?;
 					let db = partials.backend.expose_db();
 					let storage = partials.backend.expose_storage();
 
@@ -313,7 +313,7 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				crate::service::start_node(config, polkadot_config, cli.ethereum_config, collator_options, id)
+				crate::service::start_node(cli, config, polkadot_config, collator_options, id)
 					.await
 					.map(|r| r.0)
 					.map_err(Into::into)
