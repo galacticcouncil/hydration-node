@@ -18,7 +18,8 @@ REPEAT=20
 
 function help {
     echo "USAGE:"
-    echo "  ${0} [<pallet> <benchmark>] [--check] [--all] [--bin <path>]"
+    echo "  ${0} [<pallet>|<pallets, ...> <benchmark>] [--check] [--all] [--bin <path>]"
+    echo "  Note: If <pallet> is a comma-separated list, the <benchmark> parameter is ignored and '*' is used for each pallet."
     echo ""
     echo "EXAMPLES:"
     echo "  ${0}                       " "list all benchmarks and provide a selection to choose from"
@@ -149,6 +150,15 @@ if [[ "${ALL}" -eq 1 ]]; then
 
       touch "${_path}" # TODO: Remove this once benchmarking-cli doesn't fail on missing files
       bench "${option}" '*' "${CHECK}" "${_path}"
+    done
+elif [[ "${ARGS[0]}" == *","* ]]; then
+    IFS=',' read -ra _pallets <<< "${ARGS[0]}"
+    mkdir -p "$OUTPUT"
+    for _pallet in "${_pallets[@]}"; do
+        _pallet_trimmed="$(echo "${_pallet}" | xargs)"
+        _path="${OUTPUT}${_pallet_trimmed}.rs"
+        touch "${_path}" # TODO: Remove this once benchmarking-cli doesn't fail on missing files
+        bench "${_pallet_trimmed}" '*' "${CHECK}" "${_path}"
     done
 elif [[ ${#ARGS[@]} -ne 2 ]]; then
     choose_and_bench "${CHECK}"
