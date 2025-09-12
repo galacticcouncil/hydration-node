@@ -129,7 +129,7 @@ fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<V
 
 /// Parse and run command line arguments
 pub fn run() -> sc_cli::Result<()> {
-	let cli = Cli::from_args();
+	let mut cli = Cli::from_args();
 
 	match &cli.subcommand {
 		Some(Subcommand::BuildSpec(cmd)) => {
@@ -276,6 +276,11 @@ pub fn run() -> sc_cli::Result<()> {
 				if cfg!(feature = "runtime-benchmarks") && config.role.is_authority() {
 					return Err("It is not allowed to run a collator node with the benchmarking runtime.".into());
 				};
+
+				// Enable for all full nodes by default to store ISMP request/responses
+				if !config.role.is_authority() {
+					cli.run.base.base.offchain_worker_params.indexing_enabled = true;
+				}
 
 				let polkadot_cli = RelayChainCli::new(
 					&config,
