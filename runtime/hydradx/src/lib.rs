@@ -353,6 +353,7 @@ mod benches {
 		[pallet_hsm, HSM]
 		[pallet_dynamic_fees, DynamicFees]
 		[ismp_parachain, IsmpParachain]
+		[pallet_token_gateway, TokenGateway]
 	);
 }
 
