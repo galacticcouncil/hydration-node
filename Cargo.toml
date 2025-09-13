@@ -49,7 +49,6 @@ members = [
     'pallets/broadcast',
     'liquidation-worker-support',
     'pallets/hsm',
-    'pallets/build-evm-tx',
 ]
 
 resolver = "2"
