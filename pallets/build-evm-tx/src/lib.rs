@@ -1,5 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::pallet_prelude::*;
+use sp_std::vec::Vec;
+
+use alloy_consensus::{TxEip1559, TxType};
+use alloy_primitives::{Address, Bytes, TxKind, U256};
+use alloy_rlp::Encodable;
+
 pub use pallet::*;
 
 #[cfg(test)]
@@ -7,100 +14,91 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
-	use sp_std::vec::Vec;
-	use signet_rs::{TransactionBuilder, TxBuilder, EVM};
-	
+	use super::*;
+
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		
+		/// Maximum length of transaction data
 		#[pallet::constant]
 		type MaxDataLength: Get<u32>;
 	}
-	
-	
-	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {
-		TransactionBuilt {
-			who: T::AccountId,
-			rlp_data: Vec<u8>,
-		},
-	}
-	
+
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The provided address is not exactly 20 bytes
-		InvalidAddressLength,
-		/// Transaction data exceeds the maximum allowed length
+		/// Transaction data exceeds maximum allowed length
 		DataTooLong,
-		/// Max priority fee per gas is greater than max fee per gas
+		/// Invalid address format - must be exactly 20 bytes
+		InvalidAddress,
+		/// Priority fee cannot exceed max fee per gas (EIP-1559 requirement)
 		InvalidGasPrice,
 	}
-	
-	#[pallet::pallet]
-	pub struct Pallet<T>(_);
-	
-	#[pallet::call]
+
 	impl<T: Config> Pallet<T> {
-		/// Build an EVM transaction (regular or contract creation).
-		/// 
-		/// - `to_address`: Some(address) for regular transaction, None for contract creation
-		/// - `data`: Transaction data (call data for regular tx, init code for contract creation)
-		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::from_parts(10_000, 0))]
+		/// Build an EIP-1559 EVM transaction and return the RLP-encoded data
+		///
+		/// This function is called by other pallets to generate RLP-encoded
+		/// EVM transactions for cross-chain operations.
+		///
+		/// # Parameters
+		/// - `to_address`: Optional recipient address (None for contract creation)
+		/// - `value`: ETH value in wei
+		/// - `data`: Transaction data/calldata
+		/// - `nonce`: Transaction nonce
+		/// - `gas_limit`: Maximum gas units for transaction
+		/// - `max_fee_per_gas`: Maximum total fee per gas (base + priority)
+		/// - `max_priority_fee_per_gas`: Maximum priority fee (tip) per gas
+		/// - `chain_id`: Target EVM chain ID
+		///
+		/// # Returns
+		/// RLP-encoded transaction data with EIP-2718 type prefix (0x02 for EIP-1559)
 		pub fn build_evm_transaction(
-			origin: OriginFor<T>,
 			to_address: Option<Vec<u8>>,
 			value: u128,
 			data: Vec<u8>,
 			nonce: u64,
-			gas_limit: u128,
+			gas_limit: u64,
 			max_fee_per_gas: u128,
 			max_priority_fee_per_gas: u128,
 			chain_id: u64,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			
-			// Validate data length
+		) -> Result<Vec<u8>, DispatchError> {
+			// Validate data doesn't exceed maximum size
 			ensure!(data.len() <= T::MaxDataLength::get() as usize, Error::<T>::DataTooLong);
-			
-			// Validate to_address if provided
-			if let Some(ref addr) = to_address {
-				ensure!(addr.len() == 20, Error::<T>::InvalidAddressLength);
-			}
-			
-			// Validate gas prices relationship
+
+			// Validate EIP-1559 gas price relationship
 			ensure!(max_priority_fee_per_gas <= max_fee_per_gas, Error::<T>::InvalidGasPrice);
-			
-			let mut builder = TransactionBuilder::new::<EVM>()
-				.nonce(nonce)
-				.value(value)
-				.input(data)
-				.max_priority_fee_per_gas(max_priority_fee_per_gas)
-				.max_fee_per_gas(max_fee_per_gas)
-				.gas_limit(gas_limit)
-				.chain_id(chain_id);
-			
-			// Add 'to' address if provided (regular transaction)
-			// Omit for contract creation
-			if let Some(addr) = to_address {
-				let mut to_array = [0u8; 20];
-				to_array.copy_from_slice(&addr[0..20]);
-				builder = builder.to(to_array);
-			}
-			
-			let evm_tx = builder.build();
-			let rlp_encoded = evm_tx.build_for_signing();
-			
-			Self::deposit_event(Event::TransactionBuilt {
-				who,
-				rlp_data: rlp_encoded,
-			});
-			
-			Ok(())
+
+			// Parse destination address or mark as contract creation
+			let to = match to_address {
+				Some(addr) => {
+					let address = Address::try_from(addr.as_slice())
+						.map_err(|_| Error::<T>::InvalidAddress)?;
+					TxKind::Call(address)
+				}
+				None => TxKind::Create,
+			};
+
+			// Construct the EIP-1559 transaction
+			let tx = TxEip1559 {
+				chain_id,
+				nonce,
+				gas_limit,
+				max_fee_per_gas,
+				max_priority_fee_per_gas,
+				to,
+				value: U256::from(value),
+				input: Bytes::from(data),
+				access_list: Default::default(),
+			};
+
+			// Encode transaction to RLP format with EIP-2718 type prefix
+			let mut typed_tx = Vec::new();
+			typed_tx.push(TxType::Eip1559 as u8);
+			tx.encode(&mut typed_tx);
+
+			Ok(typed_tx)
 		}
 	}
 }

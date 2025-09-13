@@ -201,7 +201,7 @@ construct_runtime!(
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
-		BuildEvmTx: pallet_build_evm_tx = 85,
+		BuildEvmTx: pallet_build_evm_tx = 86,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
