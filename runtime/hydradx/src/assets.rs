@@ -1813,14 +1813,6 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
-parameter_types! {
-	pub const AdderMaxValue: u128 = 1_000_000_000_000_000; // 1 million with 9 decimals
-}
-
-impl pallet_adder_felipe::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MaxValue = AdderMaxValue;
-}
 
 parameter_types! {
 	pub const MaxEvmDataLength: u32 = 10_000;

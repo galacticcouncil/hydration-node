@@ -32,6 +32,12 @@ frame-benchmarking = { workspace = true, optional = true }
 [dev-dependencies]
 sp-io = { workspace = true }
 sp-core = { workspace = true }
+# For transaction validation tests
+alloy-consensus = "0.8"
+alloy-primitives = "0.8"
+alloy-rlp = "0.3"
+alloy-sol-types = "0.8"
+alloy-core = "0.8"
 
 [features]
 default = ["std"]

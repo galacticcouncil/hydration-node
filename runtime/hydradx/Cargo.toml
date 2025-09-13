@@ -60,7 +60,6 @@ pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-hsm = { workspace = true }
-pallet-adder-felipe = { workspace = true }
 pallet-build-evm-tx = { workspace = true }
 pallet-parameters = { workspace = true }
 
@@ -230,7 +229,6 @@ runtime-benchmarks = [
     "pallet-lbp/runtime-benchmarks",
     "pallet-xyk/runtime-benchmarks",
     "pallet-hsm/runtime-benchmarks",
-    "pallet-adder-felipe/runtime-benchmarks",
     "pallet-build-evm-tx/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
@@ -324,7 +322,6 @@ std = [
     "pallet-xyk/std",
     "pallet-duster/std",
     "pallet-hsm/std",
-    "pallet-adder-felipe/std",
     "pallet-build-evm-tx/std",
     "pallet-parameters/std",
     "warehouse-liquidity-mining/std",
@@ -438,7 +435,6 @@ try-runtime = [
     "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
     "pallet-hsm/try-runtime",
-    "pallet-adder-felipe/try-runtime",
     "pallet-build-evm-tx/try-runtime",
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
