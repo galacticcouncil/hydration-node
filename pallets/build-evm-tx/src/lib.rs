@@ -39,9 +39,6 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Build an EIP-1559 EVM transaction and return the RLP-encoded data
 		///
-		/// This function is called by other pallets to generate RLP-encoded
-		/// EVM transactions for cross-chain operations.
-		///
 		/// # Parameters
 		/// - `to_address`: Optional recipient address (None for contract creation)
 		/// - `value`: ETH value in wei
@@ -54,7 +51,7 @@ pub mod pallet {
 		///
 		/// # Returns
 		/// RLP-encoded transaction data with EIP-2718 type prefix (0x02 for EIP-1559)
-		pub fn build_evm_transaction(
+		pub fn build_evm_tx(
 			to_address: Option<Vec<u8>>,
 			value: u128,
 			data: Vec<u8>,
@@ -64,23 +61,18 @@ pub mod pallet {
 			max_priority_fee_per_gas: u128,
 			chain_id: u64,
 		) -> Result<Vec<u8>, DispatchError> {
-			// Validate data doesn't exceed maximum size
 			ensure!(data.len() <= T::MaxDataLength::get() as usize, Error::<T>::DataTooLong);
 
-			// Validate EIP-1559 gas price relationship
 			ensure!(max_priority_fee_per_gas <= max_fee_per_gas, Error::<T>::InvalidGasPrice);
 
-			// Parse destination address or mark as contract creation
 			let to = match to_address {
 				Some(addr) => {
-					let address = Address::try_from(addr.as_slice())
-						.map_err(|_| Error::<T>::InvalidAddress)?;
+					let address = Address::try_from(addr.as_slice()).map_err(|_| Error::<T>::InvalidAddress)?;
 					TxKind::Call(address)
 				}
 				None => TxKind::Create,
 			};
 
-			// Construct the EIP-1559 transaction
 			let tx = TxEip1559 {
 				chain_id,
 				nonce,

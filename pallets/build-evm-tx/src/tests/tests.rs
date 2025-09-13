@@ -3,19 +3,10 @@ use crate::Error;
 
 #[test]
 fn invalid_address_length_fails() {
-	new_test_ext().execute_with(|| {
+	ExtBuilder::default().build().execute_with(|| {
 		let invalid_address = vec![0x42; 19]; // Should be 20 bytes
 
-		let result = BuildEvmTx::build_evm_transaction(
-			Some(invalid_address),
-			0,
-			vec![],
-			0,
-			21000,
-			20000000000,
-			1000000000,
-			1,
-		);
+		let result = BuildEvmTx::build_evm_tx(Some(invalid_address), 0, vec![], 0, 21000, 20000000000, 1000000000, 1);
 
 		assert_eq!(result, Err(Error::<Test>::InvalidAddress.into()));
 	});
@@ -23,19 +14,10 @@ fn invalid_address_length_fails() {
 
 #[test]
 fn data_too_long_fails() {
-	new_test_ext().execute_with(|| {
+	ExtBuilder::default().build().execute_with(|| {
 		let large_data = vec![0xff; 100_001]; // Exceeds MaxDataLength
 
-		let result = BuildEvmTx::build_evm_transaction(
-			None,
-			0,
-			large_data,
-			0,
-			21000,
-			20000000000,
-			1000000000,
-			1,
-		);
+		let result = BuildEvmTx::build_evm_tx(None, 0, large_data, 0, 21000, 20000000000, 1000000000, 1);
 
 		assert_eq!(result, Err(Error::<Test>::DataTooLong.into()));
 	});
@@ -43,15 +25,15 @@ fn data_too_long_fails() {
 
 #[test]
 fn invalid_gas_price_relationship_fails() {
-	new_test_ext().execute_with(|| {
-		let result = BuildEvmTx::build_evm_transaction(
+	ExtBuilder::default().build().execute_with(|| {
+		let result = BuildEvmTx::build_evm_tx(
 			None,
 			0,
 			vec![],
 			0,
 			21000,
-			20000000000,  // max_fee_per_gas
-			30000000000,  // max_priority_fee_per_gas (higher than max_fee)
+			20000000000, // max_fee_per_gas
+			30000000000, // max_priority_fee_per_gas (higher than max_fee)
 			1,
 		);
 
