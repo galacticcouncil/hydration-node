@@ -59,11 +59,19 @@ impl pallet_build_evm_tx::Config for Test {
 	type MaxDataLength = MaxDataLength;
 }
 
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	let t = <frame_system::GenesisConfig<Test> as BuildStorage>::build_storage(
-		&frame_system::GenesisConfig::default(),
-	)
-	.unwrap();
-	sp_io::TestExternalities::new(t)
-}
+#[derive(Default)]
+pub struct ExtBuilder {}
 
+impl ExtBuilder {
+	pub fn build(self) -> sp_io::TestExternalities {
+		let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+
+		let mut r: sp_io::TestExternalities = t.into();
+
+		r.execute_with(|| {
+			System::set_block_number(1);
+		});
+
+		r
+	}
+}
