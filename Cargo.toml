@@ -49,7 +49,6 @@ members = [
     'pallets/broadcast',
     'liquidation-worker-support',
     'pallets/hsm',
-    'pallets/adder-felipe',
 ]
 
 resolver = "2"
@@ -158,7 +157,6 @@ pallet-liquidation = { path = "pallets/liquidation", default-features = false }
 pallet-broadcast = { path = "pallets/broadcast", default-features = false }
 liquidation-worker-support = { path = "liquidation-worker-support", default-features = false }
 pallet-hsm = { path = "pallets/hsm", default-features = false }
-pallet-adder-felipe = { path = "pallets/adder-felipe", default-features = false }
 pallet-build-evm-tx = { path = "pallets/build-evm-tx", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 

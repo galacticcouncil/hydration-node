@@ -192,7 +192,6 @@ construct_runtime!(
 		Liquidation: pallet_liquidation = 76,
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
-		AdderFelipe: pallet_adder_felipe = 84,
 		BuildEvmTx: pallet_build_evm_tx = 85,
 
 		// ORML related modules
@@ -343,7 +342,6 @@ mod benches {
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
 		[pallet_hsm, HSM]
-		[pallet_adder_felipe, AdderFelipe]
 		[pallet_build_evm_tx, BuildEvmTx]
 		[pallet_dynamic_fees, DynamicFees]
 		[ismp_parachain, IsmpParachain]
