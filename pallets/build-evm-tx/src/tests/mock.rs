@@ -56,6 +56,7 @@ parameter_types! {
 }
 
 impl pallet_build_evm_tx::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type MaxDataLength = MaxDataLength;
 }
 

@@ -21,9 +21,20 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
 		/// Maximum length of transaction data
 		#[pallet::constant]
 		type MaxDataLength: Get<u32>;
+	}
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		EvmTransactionBuilt {
+			who: T::AccountId,
+			rlp_transaction: Vec<u8>,
+		},
 	}
 
 	#[pallet::error]
@@ -40,6 +51,7 @@ pub mod pallet {
 		/// Build an EIP-1559 EVM transaction and return the RLP-encoded data
 		///
 		/// # Parameters
+		/// - `who`: Optional account ID to emit event for
 		/// - `to_address`: Optional recipient address (None for contract creation)
 		/// - `value`: ETH value in wei
 		/// - `data`: Transaction data/calldata
@@ -52,6 +64,7 @@ pub mod pallet {
 		/// # Returns
 		/// RLP-encoded transaction data with EIP-2718 type prefix (0x02 for EIP-1559)
 		pub fn build_evm_tx(
+			who: Option<T::AccountId>,
 			to_address: Option<Vec<u8>>,
 			value: u128,
 			data: Vec<u8>,
@@ -85,10 +98,16 @@ pub mod pallet {
 				access_list: Default::default(),
 			};
 
-			// Encode transaction to RLP format with EIP-2718 type prefix
 			let mut typed_tx = Vec::new();
 			typed_tx.push(TxType::Eip1559 as u8);
 			tx.encode(&mut typed_tx);
+
+			if let Some(account) = who {
+				Self::deposit_event(Event::EvmTransactionBuilt {
+					who: account,
+					rlp_transaction: typed_tx.clone(),
+				});
+			}
 
 			Ok(typed_tx)
 		}

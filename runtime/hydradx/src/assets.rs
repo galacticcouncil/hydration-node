@@ -1832,12 +1832,12 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
-
 parameter_types! {
 	pub const MaxEvmDataLength: u32 = 10_000;
 }
 
 impl pallet_build_evm_tx::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 	type MaxDataLength = MaxEvmDataLength;
 }
 

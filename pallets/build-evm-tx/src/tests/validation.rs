@@ -43,6 +43,7 @@ mod validation {
 
 			// Test the public function that other pallets call
 			let returned_rlp = BuildEvmTx::build_evm_tx(
+				None, // No who, so no event emitted
 				Some(to_address),
 				value,
 				data,
