@@ -28,6 +28,6 @@ The pallet requires configuring the maximum data length
 
 ```rust
 parameter_types! {
-    pub const MaxEvmDataLength: u32 = 10_000;
+    pub const MaxEvmDataLength: u32 = 100_000;
 }
 ```

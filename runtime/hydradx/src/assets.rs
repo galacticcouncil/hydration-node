@@ -1814,7 +1814,7 @@ impl pallet_hsm::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxEvmDataLength: u32 = 10_000;
+	pub const MaxEvmDataLength: u32 = 100_000;
 }
 
 impl pallet_build_evm_tx::Config for Runtime {
