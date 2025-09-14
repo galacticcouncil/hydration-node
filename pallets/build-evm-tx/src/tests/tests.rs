@@ -6,7 +6,17 @@ fn invalid_address_length_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		let invalid_address = vec![0x42; 19]; // Should be 20 bytes
 
-		let result = BuildEvmTx::build_evm_tx(None, Some(invalid_address), 0, vec![], 0, 21000, 20000000000, 1000000000, 1);
+		let result = BuildEvmTx::build_evm_tx(
+			None,
+			Some(invalid_address),
+			0,
+			vec![],
+			0,
+			21000,
+			20000000000,
+			1000000000,
+			1,
+		);
 
 		assert_eq!(result, Err(Error::<Test>::InvalidAddress.into()));
 	});
@@ -42,14 +52,12 @@ fn invalid_gas_price_relationship_fails() {
 	});
 }
 
-
 #[test]
 fn build_evm_tx_helper_emits_event_when_who_provided() {
 	ExtBuilder::default().build().execute_with(|| {
 		let to_address = vec![0xaa; 20];
 		let who = 42u64;
 
-		// Call helper directly with Some(who)
 		let rlp = BuildEvmTx::build_evm_tx(
 			Some(who),
 			Some(to_address),
@@ -59,10 +67,10 @@ fn build_evm_tx_helper_emits_event_when_who_provided() {
 			21000,
 			20_000_000_000,
 			1_000_000_000,
-			1
-		).unwrap();
+			1,
+		)
+		.unwrap();
 
-		// Verify event was emitted from the helper
 		System::assert_has_event(RuntimeEvent::BuildEvmTx(Event::EvmTransactionBuilt {
 			who,
 			rlp_transaction: rlp,
@@ -75,7 +83,6 @@ fn build_evm_tx_helper_no_event_when_who_none() {
 	ExtBuilder::default().build().execute_with(|| {
 		let to_address = vec![0xbb; 20];
 
-		// Call helper with None
 		BuildEvmTx::build_evm_tx(
 			None,
 			Some(to_address),
@@ -85,10 +92,10 @@ fn build_evm_tx_helper_no_event_when_who_none() {
 			21000,
 			20_000_000_000,
 			1_000_000_000,
-			1
-		).unwrap();
+			1,
+		)
+		.unwrap();
 
-		// Verify no events were emitted
 		assert_eq!(System::events().len(), 0);
 	});
 }

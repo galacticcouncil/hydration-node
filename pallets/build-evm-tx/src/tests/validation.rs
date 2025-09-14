@@ -5,7 +5,6 @@ mod validation {
 	#[test]
 	fn validate_against_precomputed_alloy_rlp() {
 		ExtBuilder::default().build().execute_with(|| {
-			// Fixed transaction parameters
 			let to_address = vec![
 				0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 				0x11, 0x11, 0x11,
@@ -41,7 +40,6 @@ mod validation {
 				0x56, 0x78, 0xc0,
 			];
 
-			// Test the public function that other pallets call
 			let returned_rlp = BuildEvmTx::build_evm_tx(
 				None, // No who, so no event emitted
 				Some(to_address),
@@ -55,7 +53,6 @@ mod validation {
 			)
 			.expect("Failed to build transaction");
 
-			// Verify the returned RLP matches expected
 			assert_eq!(
 				returned_rlp,
 				expected_rlp,
