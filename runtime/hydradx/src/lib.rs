@@ -193,6 +193,7 @@ construct_runtime!(
 		HSM: pallet_hsm = 82,
 		Parameters: pallet_parameters = 83,
 		BuildEvmTx: pallet_build_evm_tx = 86,
+		Signet: pallet_signet = 84,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -346,6 +347,7 @@ mod benches {
 		[pallet_dynamic_fees, DynamicFees]
 		[ismp_parachain, IsmpParachain]
 		[pallet_token_gateway, TokenGateway]
+		[pallet_signet, Signet]
 	);
 }
 

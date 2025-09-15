@@ -92,6 +92,7 @@ pallet-uniques = { workspace = true }
 pallet-whitelist = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
+pallet-signet = { path = "../../pallets/signet", default-features = false }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -258,6 +259,7 @@ runtime-benchmarks = [
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "ismp-parachain/runtime-benchmarks",
     "pallet-token-gateway/runtime-benchmarks",
+    "pallet-signet/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -393,6 +395,7 @@ std = [
     "ismp/std",
     "ismp-parachain/std",
     "ismp-parachain-runtime-api/std",
+    "pallet-signet/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -472,6 +475,7 @@ try-runtime = [
     "pallet-whitelist/try-runtime",
     "pallet-broadcast/try-runtime",
     "pallet-dispatcher/try-runtime",
+    "pallet-signet/try-runtime",
 ]
 
 metadata-hash = [
