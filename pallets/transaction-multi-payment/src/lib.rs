@@ -100,7 +100,7 @@ pub mod pallet {
 
 				AcceptedCurrencyPrice::<T>::insert(asset_id, price);
 
-				weight += T::WeightInfo::get_oracle_price().ref_time();
+				weight += <T as pallet::Config>::WeightInfo::get_oracle_price().ref_time();
 			}
 
 			Weight::from_parts(weight, 0)
