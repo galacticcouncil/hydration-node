@@ -50,6 +50,7 @@ members = [
     'liquidation-worker-support',
     'pallets/hsm',
     'pallets/build-evm-tx',
+    "pallets/signet",
 ]
 
 resolver = "2"

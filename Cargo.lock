@@ -4771,6 +4771,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-signet",
  "pallet-stableswap",
  "pallet-staking 4.1.5",
  "pallet-state-trie-migration",
@@ -9174,6 +9175,21 @@ dependencies = [
  "rand",
  "sp-runtime",
  "sp-session",
+]
+
+[[package]]
+name = "pallet-signet"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
