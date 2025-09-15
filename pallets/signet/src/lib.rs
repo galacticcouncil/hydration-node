@@ -12,7 +12,6 @@ mod benchmarks;
 pub mod weights;
 pub use weights::WeightInfo;
 
-// For testing
 #[cfg(test)]
 mod tests;
 
@@ -26,8 +25,6 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-        
-        /// Weight information for extrinsics
         type WeightInfo: WeightInfo;
     }
 
@@ -39,6 +36,12 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn admin)]
     pub type Admin<T: Config> = StorageValue<_, T::AccountId>;
+
+    // Storage for signature deposit amount
+    /// The amount required as deposit for signature requests
+    #[pallet::storage]
+    #[pallet::getter(fn signature_deposit)]
+    pub type SignatureDeposit<T: Config> = StorageValue<_, u128, ValueQuery>;
 
     // ========================================
     // Events
@@ -57,6 +60,14 @@ pub mod pallet {
         /// Pallet has been initialized with an admin
         Initialized {
             admin: T::AccountId,
+            signature_deposit: u128,  // 🆕 NEW: Added deposit to event
+        },
+        
+        // 🆕 NEW: Event for deposit updates
+        /// Signature deposit amount has been updated
+        DepositUpdated {
+            old_deposit: u128,
+            new_deposit: u128,
         },
     }
 
@@ -72,6 +83,9 @@ pub mod pallet {
         AlreadyInitialized,
         /// The pallet has not been initialized yet
         NotInitialized,
+        // Error for unauthorized access
+        /// Unauthorized - caller is not admin
+        Unauthorized,
     }
 
     // ========================================
@@ -81,12 +95,13 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         
-        /// Initialize the pallet with an admin account
+        /// Initialize the pallet with an admin account and initial deposit
         #[pallet::call_index(0)]
         #[pallet::weight(<T as Config>::WeightInfo::initialize())]
         pub fn initialize(
             origin: OriginFor<T>,
             admin: T::AccountId,
+            signature_deposit: u128,
         ) -> DispatchResult {
             // Only root (sudo) can initialize
             ensure_root(origin)?;
@@ -97,14 +112,50 @@ pub mod pallet {
             // Store the admin
             Admin::<T>::put(&admin);
             
+            SignatureDeposit::<T>::put(signature_deposit);
+            
+            // Emit event (updated to include deposit)
+            Self::deposit_event(Event::Initialized { 
+                admin,
+                signature_deposit,  // 🆕 NEW
+            });
+            
+            Ok(())
+        }
+        
+        // Function to update deposit (admin only)
+        /// Update the signature deposit amount (admin only)
+        #[pallet::call_index(1)]
+        #[pallet::weight(<T as Config>::WeightInfo::update_deposit())]
+        pub fn update_deposit(
+            origin: OriginFor<T>,
+            new_deposit: u128,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            
+            // Check that pallet is initialized and get admin
+            let admin = Admin::<T>::get().ok_or(Error::<T>::NotInitialized)?;
+            
+            // Check that caller is admin
+            ensure!(who == admin, Error::<T>::Unauthorized);
+            
+            // Get old deposit for event
+            let old_deposit = SignatureDeposit::<T>::get();
+            
+            // Update the deposit
+            SignatureDeposit::<T>::put(new_deposit);
+            
             // Emit event
-            Self::deposit_event(Event::Initialized { admin });
+            Self::deposit_event(Event::DepositUpdated {
+                old_deposit,
+                new_deposit,
+            });
             
             Ok(())
         }
         
         /// Emit a custom event with data
-        #[pallet::call_index(1)]
+        #[pallet::call_index(2)]
         #[pallet::weight(<T as Config>::WeightInfo::emit_custom_event())]
         pub fn emit_custom_event(
             origin: OriginFor<T>,
