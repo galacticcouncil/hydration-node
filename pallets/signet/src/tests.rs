@@ -397,3 +397,155 @@ fn test_pallet_account_id_is_deterministic() {
         assert_ne!(account1, 2u64);
     });
 }
+
+#[test]
+fn test_sign_request_works() {
+    new_test_ext().execute_with(|| {
+        let admin = 1u64;
+        let requester = 2u64;
+        let deposit = 1000u128;
+        
+        // Initialize first
+        assert_ok!(Signet::initialize(
+            RuntimeOrigin::root(),
+            admin,
+            deposit
+        ));
+        
+        // Check requester balance before
+        let balance_before = Balances::free_balance(&requester);
+        
+        // Create signature request
+        let payload = [42u8; 32];
+        let key_version = 1u32;
+        let path = b"path".to_vec();
+        let algo = b"ecdsa".to_vec();
+        let dest = b"callback_contract".to_vec();
+        let params = b"{}".to_vec();
+        
+        // Submit signature request
+        assert_ok!(Signet::sign(
+            RuntimeOrigin::signed(requester),
+            payload,
+            key_version,
+            path.clone(),
+            algo.clone(),
+            dest.clone(),
+            params.clone()
+        ));
+        
+        // Check that deposit was transferred to pallet
+        assert_eq!(Balances::free_balance(&requester), balance_before - deposit);
+        let pallet_account = Signet::account_id();
+        assert_eq!(Balances::free_balance(&pallet_account), deposit);
+        
+        // Check event was emitted
+        System::assert_last_event(
+            Event::SignatureRequested {
+                sender: requester,
+                payload,
+                key_version,
+                deposit,
+                path,
+                algo,
+                dest,
+                params,
+            }.into()
+        );
+    });
+}
+
+#[test]
+fn test_sign_request_insufficient_balance() {
+    new_test_ext().execute_with(|| {
+        let admin = 1u64;
+        let poor_user = 3u64; // Has only 100 tokens
+        let deposit = 1000u128; // Deposit is 1000
+        
+        // Initialize
+        assert_ok!(Signet::initialize(
+            RuntimeOrigin::root(),
+            admin,
+            deposit
+        ));
+        
+        // Try to request signature without enough balance
+        assert_noop!(
+            Signet::sign(
+                RuntimeOrigin::signed(poor_user),
+                [0u8; 32],
+                1,
+                b"path".to_vec(),
+                b"algo".to_vec(),
+                b"dest".to_vec(),
+                b"params".to_vec()
+            ),
+            sp_runtime::TokenError::FundsUnavailable
+        );
+    });
+}
+
+#[test]
+fn test_sign_request_before_initialization() {
+    new_test_ext().execute_with(|| {
+        // Try to request signature before initialization
+        assert_noop!(
+            Signet::sign(
+                RuntimeOrigin::signed(1),
+                [0u8; 32],
+                1,
+                b"path".to_vec(),
+                b"algo".to_vec(),
+                b"dest".to_vec(),
+                b"params".to_vec()
+            ),
+            Error::<Test>::NotInitialized
+        );
+    });
+}
+
+#[test]
+fn test_multiple_sign_requests() {
+    new_test_ext().execute_with(|| {
+        let admin = 1u64;
+        let requester1 = 1u64;
+        let requester2 = 2u64;
+        let deposit = 100u128;
+        
+        // Initialize with small deposit
+        assert_ok!(Signet::initialize(
+            RuntimeOrigin::root(),
+            admin,
+            deposit
+        ));
+        
+        let pallet_account = Signet::account_id();
+        
+        // First request
+        assert_ok!(Signet::sign(
+            RuntimeOrigin::signed(requester1),
+            [1u8; 32],
+            1,
+            b"path1".to_vec(),
+            b"algo".to_vec(),
+            b"dest".to_vec(),
+            b"params".to_vec()
+        ));
+        
+        assert_eq!(Balances::free_balance(&pallet_account), deposit);
+        
+        // Second request - funds accumulate
+        assert_ok!(Signet::sign(
+            RuntimeOrigin::signed(requester2),
+            [2u8; 32],
+            2,
+            b"path2".to_vec(),
+            b"algo".to_vec(),
+            b"dest".to_vec(),
+            b"params".to_vec()
+        ));
+        
+        // Pallet should have accumulated both deposits
+        assert_eq!(Balances::free_balance(&pallet_account), deposit * 2);
+    });
+}

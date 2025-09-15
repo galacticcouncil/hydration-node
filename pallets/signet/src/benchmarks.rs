@@ -27,7 +27,6 @@ benchmarks! {
         assert_eq!(SignatureDeposit::<T>::get(), new_deposit);
     }
 
-    // 🆕 NEW: Benchmark for withdraw_funds
     withdraw_funds {
         // Setup: Initialize and fund the pallet
         let admin: T::AccountId = whitelisted_caller();

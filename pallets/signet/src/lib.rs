@@ -2,15 +2,16 @@
 
 use frame_support::{
     pallet_prelude::*,
-    traits::{Currency, ExistenceRequirement}, 
-    PalletId, 
+    traits::{Currency, ExistenceRequirement},
+    PalletId,
 };
 use frame_system::pallet_prelude::*;
-use sp_runtime::traits::AccountIdConversion; 
+use sp_runtime::traits::AccountIdConversion;
 use sp_std::vec::Vec;
 
 pub use pallet::*;
 
+// Type alias for cleaner code
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -74,20 +75,32 @@ pub mod pallet {
         /// Pallet has been initialized with an admin
         Initialized {
             admin: T::AccountId,
-            signature_deposit: BalanceOf<T>, 
+            signature_deposit: BalanceOf<T>,
         },
         
         /// Signature deposit amount has been updated
         DepositUpdated {
-            old_deposit: BalanceOf<T>,  
+            old_deposit: BalanceOf<T>,
             new_deposit: BalanceOf<T>,
         },
-        
         
         /// Funds have been withdrawn from the pallet
         FundsWithdrawn {
             amount: BalanceOf<T>,
             recipient: T::AccountId,
+        },
+        
+        // Event for signature requests
+        /// A signature has been requested
+        SignatureRequested {
+            sender: T::AccountId,
+            payload: [u8; 32],
+            key_version: u32,
+            deposit: BalanceOf<T>,
+            path: Vec<u8>,
+            algo: Vec<u8>,
+            dest: Vec<u8>,
+            params: Vec<u8>,
         },
     }
 
@@ -105,7 +118,6 @@ pub mod pallet {
         NotInitialized,
         /// Unauthorized - caller is not admin
         Unauthorized,
-        
         /// Insufficient funds for withdrawal
         InsufficientFunds,
     }
@@ -125,19 +137,12 @@ pub mod pallet {
             admin: T::AccountId,
             signature_deposit: BalanceOf<T>,
         ) -> DispatchResult {
-            // Only root (sudo) can initialize
             ensure_root(origin)?;
-            
-            // Make sure we haven't initialized already
             ensure!(Admin::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
             
-            // Store the admin
             Admin::<T>::put(&admin);
-            
-            // Store the signature deposit
             SignatureDeposit::<T>::put(signature_deposit);
             
-            // Emit event
             Self::deposit_event(Event::Initialized { 
                 admin,
                 signature_deposit,
@@ -154,20 +159,12 @@ pub mod pallet {
             new_deposit: BalanceOf<T>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-            
-            // Check that pallet is initialized and get admin
             let admin = Admin::<T>::get().ok_or(Error::<T>::NotInitialized)?;
-            
-            // Check that caller is admin
             ensure!(who == admin, Error::<T>::Unauthorized);
             
-            // Get old deposit for event
             let old_deposit = SignatureDeposit::<T>::get();
-            
-            // Update the deposit
             SignatureDeposit::<T>::put(new_deposit);
             
-            // Emit event
             Self::deposit_event(Event::DepositUpdated {
                 old_deposit,
                 new_deposit,
@@ -185,27 +182,20 @@ pub mod pallet {
             amount: BalanceOf<T>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-            
-            // Check admin authorization
             let admin = Admin::<T>::get().ok_or(Error::<T>::NotInitialized)?;
             ensure!(who == admin, Error::<T>::Unauthorized);
             
-            // Get pallet account
             let pallet_account = Self::account_id();
-            
-            // Check sufficient balance
             let pallet_balance = T::Currency::free_balance(&pallet_account);
             ensure!(pallet_balance >= amount, Error::<T>::InsufficientFunds);
             
-            // Transfer funds from pallet to recipient
             T::Currency::transfer(
                 &pallet_account,
                 &recipient,
                 amount,
-                ExistenceRequirement::AllowDeath,  // Allow pallet account to be emptied
+                ExistenceRequirement::AllowDeath,
             )?;
             
-            // Emit event
             Self::deposit_event(Event::FundsWithdrawn {
                 amount,
                 recipient,
@@ -214,8 +204,53 @@ pub mod pallet {
             Ok(())
         }
         
-        /// Emit a custom event with data
+        // Sign function
+        /// Request a signature for a payload
         #[pallet::call_index(3)]
+        #[pallet::weight(<T as Config>::WeightInfo::sign())]
+        pub fn sign(
+            origin: OriginFor<T>,
+            payload: [u8; 32],
+            key_version: u32,
+            path: Vec<u8>,
+            algo: Vec<u8>,
+            dest: Vec<u8>,
+            params: Vec<u8>,
+        ) -> DispatchResult {
+            let requester = ensure_signed(origin)?;
+            
+            // Ensure initialized
+            ensure!(Admin::<T>::get().is_some(), Error::<T>::NotInitialized);
+            
+            // Get deposit amount
+            let deposit = SignatureDeposit::<T>::get();
+            
+            // Transfer deposit from requester to pallet account
+            let pallet_account = Self::account_id();
+            T::Currency::transfer(
+                &requester,
+                &pallet_account,
+                deposit,
+                ExistenceRequirement::KeepAlive,
+            )?;
+            
+            // Emit event
+            Self::deposit_event(Event::SignatureRequested {
+                sender: requester,
+                payload,
+                key_version,
+                deposit,
+                path,
+                algo,
+                dest,
+                params,
+            });
+            
+            Ok(())
+        }
+        
+        /// Emit a custom event with data
+        #[pallet::call_index(4)]
         #[pallet::weight(<T as Config>::WeightInfo::emit_custom_event())]
         pub fn emit_custom_event(
             origin: OriginFor<T>,
@@ -223,8 +258,6 @@ pub mod pallet {
             value: u128,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-            
-            // Check that pallet is initialized
             ensure!(Admin::<T>::get().is_some(), Error::<T>::NotInitialized);
             
             let bounded_message = BoundedVec::<u8, ConstU32<256>>::try_from(message)
@@ -240,6 +273,7 @@ pub mod pallet {
         }
     }
     
+    // Helper functions
     impl<T: Config> Pallet<T> {
         /// Get the pallet's account ID (where funds are stored)
         pub fn account_id() -> T::AccountId {
