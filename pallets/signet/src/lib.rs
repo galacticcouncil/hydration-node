@@ -1,10 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::pallet_prelude::*;
+use frame_support::{
+    pallet_prelude::*,
+    traits::{Currency, ExistenceRequirement}, 
+    PalletId, 
+};
 use frame_system::pallet_prelude::*;
+use sp_runtime::traits::AccountIdConversion; 
 use sp_std::vec::Vec;
 
 pub use pallet::*;
+
+type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
@@ -25,6 +32,14 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        
+        /// Currency for handling deposits and fees
+        type Currency: Currency<Self::AccountId>;
+        
+        /// The pallet's unique ID for deriving its account
+        #[pallet::constant]
+        type PalletId: Get<PalletId>;
+        
         type WeightInfo: WeightInfo;
     }
 
@@ -37,11 +52,10 @@ pub mod pallet {
     #[pallet::getter(fn admin)]
     pub type Admin<T: Config> = StorageValue<_, T::AccountId>;
 
-    // Storage for signature deposit amount
     /// The amount required as deposit for signature requests
     #[pallet::storage]
     #[pallet::getter(fn signature_deposit)]
-    pub type SignatureDeposit<T: Config> = StorageValue<_, u128, ValueQuery>;
+    pub type SignatureDeposit<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     // ========================================
     // Events
@@ -60,14 +74,20 @@ pub mod pallet {
         /// Pallet has been initialized with an admin
         Initialized {
             admin: T::AccountId,
-            signature_deposit: u128,  // 🆕 NEW: Added deposit to event
+            signature_deposit: BalanceOf<T>, 
         },
         
-        // 🆕 NEW: Event for deposit updates
         /// Signature deposit amount has been updated
         DepositUpdated {
-            old_deposit: u128,
-            new_deposit: u128,
+            old_deposit: BalanceOf<T>,  
+            new_deposit: BalanceOf<T>,
+        },
+        
+        
+        /// Funds have been withdrawn from the pallet
+        FundsWithdrawn {
+            amount: BalanceOf<T>,
+            recipient: T::AccountId,
         },
     }
 
@@ -83,9 +103,11 @@ pub mod pallet {
         AlreadyInitialized,
         /// The pallet has not been initialized yet
         NotInitialized,
-        // Error for unauthorized access
         /// Unauthorized - caller is not admin
         Unauthorized,
+        
+        /// Insufficient funds for withdrawal
+        InsufficientFunds,
     }
 
     // ========================================
@@ -101,7 +123,7 @@ pub mod pallet {
         pub fn initialize(
             origin: OriginFor<T>,
             admin: T::AccountId,
-            signature_deposit: u128,
+            signature_deposit: BalanceOf<T>,
         ) -> DispatchResult {
             // Only root (sudo) can initialize
             ensure_root(origin)?;
@@ -112,24 +134,24 @@ pub mod pallet {
             // Store the admin
             Admin::<T>::put(&admin);
             
+            // Store the signature deposit
             SignatureDeposit::<T>::put(signature_deposit);
             
-            // Emit event (updated to include deposit)
+            // Emit event
             Self::deposit_event(Event::Initialized { 
                 admin,
-                signature_deposit,  // 🆕 NEW
+                signature_deposit,
             });
             
             Ok(())
         }
         
-        // Function to update deposit (admin only)
         /// Update the signature deposit amount (admin only)
         #[pallet::call_index(1)]
         #[pallet::weight(<T as Config>::WeightInfo::update_deposit())]
         pub fn update_deposit(
             origin: OriginFor<T>,
-            new_deposit: u128,
+            new_deposit: BalanceOf<T>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             
@@ -154,8 +176,46 @@ pub mod pallet {
             Ok(())
         }
         
-        /// Emit a custom event with data
+        /// Withdraw funds from the pallet account (admin only)
         #[pallet::call_index(2)]
+        #[pallet::weight(<T as Config>::WeightInfo::withdraw_funds())]
+        pub fn withdraw_funds(
+            origin: OriginFor<T>,
+            recipient: T::AccountId,
+            amount: BalanceOf<T>,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            
+            // Check admin authorization
+            let admin = Admin::<T>::get().ok_or(Error::<T>::NotInitialized)?;
+            ensure!(who == admin, Error::<T>::Unauthorized);
+            
+            // Get pallet account
+            let pallet_account = Self::account_id();
+            
+            // Check sufficient balance
+            let pallet_balance = T::Currency::free_balance(&pallet_account);
+            ensure!(pallet_balance >= amount, Error::<T>::InsufficientFunds);
+            
+            // Transfer funds from pallet to recipient
+            T::Currency::transfer(
+                &pallet_account,
+                &recipient,
+                amount,
+                ExistenceRequirement::AllowDeath,  // Allow pallet account to be emptied
+            )?;
+            
+            // Emit event
+            Self::deposit_event(Event::FundsWithdrawn {
+                amount,
+                recipient,
+            });
+            
+            Ok(())
+        }
+        
+        /// Emit a custom event with data
+        #[pallet::call_index(3)]
         #[pallet::weight(<T as Config>::WeightInfo::emit_custom_event())]
         pub fn emit_custom_event(
             origin: OriginFor<T>,
@@ -177,6 +237,13 @@ pub mod pallet {
             });
             
             Ok(())
+        }
+    }
+    
+    impl<T: Config> Pallet<T> {
+        /// Get the pallet's account ID (where funds are stored)
+        pub fn account_id() -> T::AccountId {
+            T::PalletId::get().into_account_truncating()
         }
     }
 }

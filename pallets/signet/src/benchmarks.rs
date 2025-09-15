@@ -3,11 +3,12 @@
 use super::*;
 use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_system::RawOrigin;
+use frame_support::traits::Currency;
 
 benchmarks! {
     initialize {
         let admin: T::AccountId = whitelisted_caller();
-        let deposit = 1000u128;
+        let deposit = T::Currency::minimum_balance();
     }: _(RawOrigin::Root, admin.clone(), deposit)
     verify {
         assert_eq!(Admin::<T>::get(), Some(admin));
@@ -17,18 +18,38 @@ benchmarks! {
     update_deposit {
         // Setup: Initialize first
         let admin: T::AccountId = whitelisted_caller();
-        let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin.clone(), 1000u128);
+        let initial_deposit = T::Currency::minimum_balance();
+        let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin.clone(), initial_deposit);
         
-        let new_deposit = 2000u128;
+        let new_deposit = initial_deposit * 2u32.into();
     }: _(RawOrigin::Signed(admin), new_deposit)
     verify {
         assert_eq!(SignatureDeposit::<T>::get(), new_deposit);
     }
 
+    // 🆕 NEW: Benchmark for withdraw_funds
+    withdraw_funds {
+        // Setup: Initialize and fund the pallet
+        let admin: T::AccountId = whitelisted_caller();
+        let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin.clone(), T::Currency::minimum_balance());
+        
+        // Fund the pallet account
+        let pallet_account = Pallet::<T>::account_id();
+        let amount = T::Currency::minimum_balance() * 100u32.into();
+        let _ = T::Currency::deposit_creating(&pallet_account, amount);
+        
+        let recipient: T::AccountId = whitelisted_caller();
+        let withdraw_amount = T::Currency::minimum_balance() * 50u32.into();
+    }: _(RawOrigin::Signed(admin), recipient.clone(), withdraw_amount)
+    verify {
+        // Verify funds were transferred
+        assert!(T::Currency::free_balance(&recipient) >= withdraw_amount);
+    }
+
     emit_custom_event {
         // Setup: Initialize first
         let admin: T::AccountId = whitelisted_caller();
-        let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin, 1000u128);
+        let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin, T::Currency::minimum_balance());
         
         let caller: T::AccountId = whitelisted_caller();
         let message = vec![1u8; 100];
