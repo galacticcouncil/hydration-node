@@ -8,6 +8,20 @@ on:
     tags:
       - v*
   workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Benchmarking type'
+        type: choice
+        required: true
+        default: 'quick'
+        options:
+          - quick
+          - full
+      pallets_to_benchmark:
+        description: 'Comma-separated list of pallets to benchmark (optional)'
+        required: false
+        default: ''
+        type: string
   pull_request:
 
 env:
@@ -66,23 +80,33 @@ jobs:
       actions: read
       contents: write
     steps:
+      - name: Check ignore benchmarks
+        id: check-ignore
+        run: |
+          if git log -1 --pretty=format:"%s" | grep -q "\[ignore benchmarks\]"; then
+            echo "ignore=true" >> $GITHUB_OUTPUT
+          else
+            echo "ignore=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Skip benchmarks
+        if: steps.check-ignore.outputs.ignore == 'true'
+        run: |
+          echo "Skipping benchmark-check job due to ignore tag"
+          exit 0
+
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Prepare benchmark execution
+        if: steps.check-ignore.outputs.ignore == 'false'
         id: prepare
         run: |
-          if git log -1 --pretty=format:"%s" | grep -q "\[ignore benchmarks\]"; then
-            echo "Skipping job due to 'ignore-benchmark' tag in commit message"
-            exit 78
-          fi
-          
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-               echo "benchmark_type=full" >> $GITHUB_OUTPUT
+            echo "benchmark_type=${{ github.event.inputs.benchmark_type }}" >> $GITHUB_OUTPUT
           else
-               echo "benchmark_type=quick" >> $GITHUB_OUTPUT
+            echo "benchmark_type=quick" >> $GITHUB_OUTPUT
           fi
           
           pr_number=${{ github.event.number }}
@@ -104,6 +128,13 @@ jobs:
             fi
           fi
 
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
+
       - name: Download benchmarks CLI
         uses: actions/download-artifact@v4
         with:
@@ -113,11 +144,17 @@ jobs:
 
       - name: Run ${{ steps.prepare.outputs.benchmark_type }} benchmarks
         run: |
-          BENCHMARK_FLAGS="--all --bin ./bin/hydradx"
+          BENCHMARK_FLAGS="--bin ./bin/hydradx"
           if [[ "${{ steps.prepare.outputs.benchmark_type }}" == "quick" ]]; then
             BENCHMARK_FLAGS="$BENCHMARK_FLAGS --check"
           fi
-          ./scripts/benchmarking.sh $BENCHMARK_FLAGS 2>&1
+          if [ -z "${{ github.event.inputs.pallets_to_benchmark }}" ]; then
+            ./scripts/benchmarking.sh --all $BENCHMARK_FLAGS
+          else
+            for pallet in $(echo "${{ steps.prepare.outputs.pallets_to_benchmark }}" | tr ',' ' '); do
+              ./scripts/benchmarking.sh "$pallet" "*" $BENCHMARK_FLAGS
+            done
+          fi
 
       - name: Upload weights directory
         id: bencher-weights
@@ -126,6 +163,9 @@ jobs:
           name: quick-benchmark-weights
           path: runtime/hydradx/src/weights/
           retention-days: 3
+
+      - name: Check with new weights
+        run: make check
 
       - name: Commit full benchmark results to a pull request
         if: steps.prepare.outputs.benchmark_type == 'full'
