@@ -7,6 +7,7 @@ use sp_std::marker::PhantomData;
 /// Weight functions for this pallet
 pub trait WeightInfo {
     fn initialize() -> Weight;
+    fn update_deposit() -> Weight;  // 🆕 NEW
     fn emit_custom_event() -> Weight;
 }
 
@@ -14,6 +15,10 @@ pub trait WeightInfo {
 impl WeightInfo for () {
     fn initialize() -> Weight {
         Weight::from_parts(10_000_000, 0)
+    }
+    
+    fn update_deposit() -> Weight {
+        Weight::from_parts(8_000_000, 0)
     }
     
     fn emit_custom_event() -> Weight {
