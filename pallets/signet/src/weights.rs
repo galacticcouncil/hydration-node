@@ -3,12 +3,11 @@
 
 use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use sp_std::marker::PhantomData;
-
-/// Weight functions for this pallet
 pub trait WeightInfo {
     fn initialize() -> Weight;
     fn update_deposit() -> Weight;
-    fn withdraw_funds() -> Weight; 
+    fn withdraw_funds() -> Weight;
+    fn sign() -> Weight;
     fn emit_custom_event() -> Weight;
 }
 
@@ -24,6 +23,10 @@ impl WeightInfo for () {
     
     fn withdraw_funds() -> Weight {
         Weight::from_parts(35_000_000, 0)
+    }
+    
+    fn sign() -> Weight {
+        Weight::from_parts(45_000_000, 0)  // Higher weight for transfer + storage
     }
     
     fn emit_custom_event() -> Weight {
