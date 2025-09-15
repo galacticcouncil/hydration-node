@@ -1,20 +1,3 @@
-// This file is part of HydraDX-node.
-
-// Copyright (C) 2020-2024  Intergalactic, Limited (GIB).
-// SPDX-License-Identifier: Apache-2.0
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::pallet_prelude::*;
@@ -29,6 +12,10 @@ mod benchmarks;
 pub mod weights;
 pub use weights::WeightInfo;
 
+// For testing
+#[cfg(test)]
+mod tests;
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
@@ -38,42 +25,86 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        /// The overarching event type
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         
-        /// Weight information for extrinsics in this pallet
+        /// Weight information for extrinsics
         type WeightInfo: WeightInfo;
     }
 
+    // ========================================
+    // Storage
+    // ========================================
+    
+    /// The admin account that controls this pallet
+    #[pallet::storage]
+    #[pallet::getter(fn admin)]
+    pub type Admin<T: Config> = StorageValue<_, T::AccountId>;
+
+    // ========================================
+    // Events
+    // ========================================
+    
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Custom data was emitted
-        /// Fields: [who, message, value]
         DataEmitted {
             who: T::AccountId,
             message: BoundedVec<u8, ConstU32<256>>,
             value: u128,
         },
+        
+        /// Pallet has been initialized with an admin
+        Initialized {
+            admin: T::AccountId,
+        },
     }
 
+    // ========================================
+    // Errors
+    // ========================================
+    
     #[pallet::error]
     pub enum Error<T> {
         /// The provided message exceeds the maximum length of 256 bytes
         MessageTooLong,
+        /// The pallet has already been initialized
+        AlreadyInitialized,
+        /// The pallet has not been initialized yet
+        NotInitialized,
     }
 
+    // ========================================
+    // Extrinsics
+    // ========================================
+    
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Emit a custom event with provided data
-        ///
-        /// Parameters:
-        /// - `origin`: The transaction origin (must be signed)
-        /// - `message`: UTF-8 encoded message (max 256 bytes)
-        /// - `value`: Numeric value to include in the event
-        ///
-        /// Emits `DataEmitted` event when successful
+        
+        /// Initialize the pallet with an admin account
         #[pallet::call_index(0)]
+        #[pallet::weight(<T as Config>::WeightInfo::initialize())]
+        pub fn initialize(
+            origin: OriginFor<T>,
+            admin: T::AccountId,
+        ) -> DispatchResult {
+            // Only root (sudo) can initialize
+            ensure_root(origin)?;
+            
+            // Make sure we haven't initialized already
+            ensure!(Admin::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
+            
+            // Store the admin
+            Admin::<T>::put(&admin);
+            
+            // Emit event
+            Self::deposit_event(Event::Initialized { admin });
+            
+            Ok(())
+        }
+        
+        /// Emit a custom event with data
+        #[pallet::call_index(1)]
         #[pallet::weight(<T as Config>::WeightInfo::emit_custom_event())]
         pub fn emit_custom_event(
             origin: OriginFor<T>,
@@ -81,6 +112,9 @@ pub mod pallet {
             value: u128,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
+            
+            // Check that pallet is initialized
+            ensure!(Admin::<T>::get().is_some(), Error::<T>::NotInitialized);
             
             let bounded_message = BoundedVec::<u8, ConstU32<256>>::try_from(message)
                 .map_err(|_| Error::<T>::MessageTooLong)?;
