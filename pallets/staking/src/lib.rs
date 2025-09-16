@@ -25,7 +25,7 @@ use frame_support::{
 	pallet_prelude::DispatchResult,
 	pallet_prelude::*,
 	traits::nonfungibles::{Create, Inspect, InspectEnumerable, Mutate},
-	traits::{DefensiveOption, LockIdentifier},
+	traits::{DefensiveOption, ExistenceRequirement, LockIdentifier},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::staking as math;
@@ -513,7 +513,13 @@ pub mod pallet {
 
 					if !rewards.is_zero() {
 						let pot = Self::pot_account_id();
-						T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards)?;
+						T::Currency::transfer(
+							T::NativeAssetId::get(),
+							&pot,
+							&who,
+							rewards,
+							ExistenceRequirement::AllowDeath,
+						)?;
 
 						position.accumulated_locked_rewards = position
 							.accumulated_locked_rewards
@@ -625,7 +631,13 @@ pub mod pallet {
 
 					if !rewards_to_pay.is_zero() {
 						let pot = Self::pot_account_id();
-						T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
+						T::Currency::transfer(
+							T::NativeAssetId::get(),
+							&pot,
+							&who,
+							rewards_to_pay,
+							ExistenceRequirement::AllowDeath,
+						)?;
 					}
 
 					let rewards_to_unlock = position.accumulated_locked_rewards;
@@ -730,7 +742,13 @@ pub mod pallet {
 
 					if !rewards_to_pay.is_zero() {
 						let pot = Self::pot_account_id();
-						T::Currency::transfer(T::NativeAssetId::get(), &pot, &who, rewards_to_pay)?;
+						T::Currency::transfer(
+							T::NativeAssetId::get(),
+							&pot,
+							&who,
+							rewards_to_pay,
+							ExistenceRequirement::AllowDeath,
+						)?;
 					}
 
 					staking.total_stake = staking
@@ -983,7 +1001,13 @@ impl<T: Config> Pallet<T> {
 		amount: Balance,
 	) -> Result<Option<(Balance, T::AccountId)>, DispatchError> {
 		if asset == T::NativeAssetId::get() && Self::is_initialized() {
-			T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
+			T::Currency::transfer(
+				asset,
+				&source,
+				&Self::pot_account_id(),
+				amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 			Ok(Some((amount, Self::pot_account_id())))
 		} else {
 			Ok(None)

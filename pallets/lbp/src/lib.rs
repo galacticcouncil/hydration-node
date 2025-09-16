@@ -31,7 +31,7 @@ use frame_support::sp_runtime::{
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
-	traits::{EnsureOrigin, Get, LockIdentifier},
+	traits::{EnsureOrigin, ExistenceRequirement, Get, LockIdentifier},
 	transactional,
 };
 use frame_system::ensure_signed;
@@ -493,8 +493,20 @@ pub mod pallet {
 				data: pool_data,
 			});
 
-			T::MultiCurrency::transfer(asset_a, &pool_owner, &pool_id, asset_a_amount)?;
-			T::MultiCurrency::transfer(asset_b, &pool_owner, &pool_id, asset_b_amount)?;
+			T::MultiCurrency::transfer(
+				asset_a,
+				&pool_owner,
+				&pool_id,
+				asset_a_amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			T::MultiCurrency::transfer(
+				asset_b,
+				&pool_owner,
+				&pool_id,
+				asset_b_amount,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who: pool_id,
@@ -647,8 +659,8 @@ pub mod pallet {
 				);
 			}
 
-			T::MultiCurrency::transfer(asset_a, &who, &pool_id, amount_a)?;
-			T::MultiCurrency::transfer(asset_b, &who, &pool_id, amount_b)?;
+			T::MultiCurrency::transfer(asset_a, &who, &pool_id, amount_a, ExistenceRequirement::AllowDeath)?;
+			T::MultiCurrency::transfer(asset_b, &who, &pool_id, amount_b, ExistenceRequirement::AllowDeath)?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who: pool_id,
@@ -688,8 +700,8 @@ pub mod pallet {
 			let amount_a = T::MultiCurrency::free_balance(asset_a, &pool_id);
 			let amount_b = T::MultiCurrency::free_balance(asset_b, &pool_id);
 
-			T::MultiCurrency::transfer(asset_a, &pool_id, &who, amount_a)?;
-			T::MultiCurrency::transfer(asset_b, &pool_id, &who, amount_b)?;
+			T::MultiCurrency::transfer(asset_a, &pool_id, &who, amount_a, ExistenceRequirement::AllowDeath)?;
+			T::MultiCurrency::transfer(asset_b, &pool_id, &who, amount_b, ExistenceRequirement::AllowDeath)?;
 
 			if Self::collected_fees(&pool_data) > 0 {
 				T::MultiCurrency::remove_lock(COLLECTOR_LOCK_ID, asset_a, &pool_data.fee_collector)?;
@@ -893,12 +905,14 @@ impl<T: Config> Pallet<T> {
 			&transfer.origin,
 			&pool_account,
 			transfer.amount,
+			ExistenceRequirement::AllowDeath,
 		)?;
 		T::MultiCurrency::transfer(
 			transfer.assets.asset_out,
 			&pool_account,
 			&transfer.origin,
 			transfer.amount_b,
+			ExistenceRequirement::AllowDeath,
 		)?;
 
 		// Fee is deducted from the sent out amount of accumulated asset and transferred to the fee collector
@@ -909,7 +923,13 @@ impl<T: Config> Pallet<T> {
 			&pool_account
 		};
 
-		T::MultiCurrency::transfer(fee_asset, fee_payer, &pool.fee_collector, fee_amount)?;
+		T::MultiCurrency::transfer(
+			fee_asset,
+			fee_payer,
+			&pool.fee_collector,
+			fee_amount,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		// Resets lock for total of collected fees
 		let collected_fee_total = Self::collected_fees(&pool) + fee_amount;

@@ -30,7 +30,11 @@ pub mod weights;
 
 pub use crate::weights::WeightInfo;
 
-use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	traits::{Contains, ExistenceRequirement, Get},
+};
 
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
@@ -276,7 +280,13 @@ impl<T: Config> Pallet<T> {
 		let reserve_account = Self::reward_account().ok_or(Error::<T>::ReserveAccountNotSet)?;
 		let reward = T::Reward::get();
 
-		T::MultiCurrency::transfer(T::NativeCurrencyId::get(), &reserve_account, _duster, reward)?;
+		T::MultiCurrency::transfer(
+			T::NativeCurrencyId::get(),
+			&reserve_account,
+			_duster,
+			reward,
+			ExistenceRequirement::AllowDeath,
+		)?;
 
 		Ok(())
 	}
@@ -288,7 +298,7 @@ impl<T: Config> Pallet<T> {
 		currency_id: T::CurrencyId,
 		dust: T::Balance,
 	) -> DispatchResult {
-		T::MultiCurrency::transfer(currency_id, from, dest, dust)
+		T::MultiCurrency::transfer(currency_id, from, dest, dust, ExistenceRequirement::AllowDeath)
 	}
 }
 

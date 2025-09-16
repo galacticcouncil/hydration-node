@@ -318,10 +318,10 @@ pub fn calculate_withdraw_one_asset<const D: u8, const Y: u8>(
 	for (idx, reserve) in xp_hp.iter().enumerate() {
 		let dx_expected = if idx == asset_idx {
 			// dx_expected = xp[j] * d1 / d0 - new_y
-			reserve.checked_mul(d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
+			reserve.checked_mul(&d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
 		} else {
 			// dx_expected = xp[j] - xp[j] * d1 / d0
-			reserve.checked_sub(reserve.checked_mul(d1)?.checked_div(d_hp)?)?
+			reserve.checked_sub(&reserve.checked_mul(&d1)?.checked_div(d_hp)?)?
 		};
 
 		let expected = Balance::try_from(dx_expected).ok()?;
@@ -411,9 +411,9 @@ pub fn calculate_add_one_asset<const D: u8, const Y: u8>(
 
 	for (idx, reserve) in xp_hp.iter().enumerate() {
 		let dx_expected = if idx == asset_idx {
-			y_hp.checked_sub(reserve.checked_mul(d1)?.checked_div(d_hp)?)?
+			y_hp.checked_sub(reserve.checked_mul(&d1)?.checked_div(d_hp)?)?
 		} else {
-			reserve.checked_mul(d1)?.checked_div(d_hp)?.checked_sub(*reserve)?
+			reserve.checked_mul(&d1)?.checked_div(d_hp)?.checked_sub(*reserve)?
 		};
 
 		let expected = Balance::try_from(dx_expected).ok()?;
@@ -565,7 +565,7 @@ pub(crate) fn calculate_d_internal<const D: u8>(
 	for _ in 0..D {
 		let d_p = xp_hp
 			.iter()
-			.try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins)?))?;
+			.try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(&n_coins)?))?;
 		let d_prev = d;
 
 		d = ann_hp
@@ -627,7 +627,7 @@ fn calculate_y_internal<const D: u8>(
 	let mut c = d_hp;
 
 	for reserve in xp_hp.iter() {
-		c = c.checked_mul(d_hp)?.checked_div(reserve.checked_mul(n_coins_hp)?)?;
+		c = c.checked_mul(d_hp)?.checked_div(reserve.checked_mul(&n_coins_hp)?)?;
 	}
 
 	c = c.checked_mul(d_hp)?.checked_div(ann_hp.checked_mul(n_coins_hp)?)?;
@@ -992,7 +992,7 @@ pub fn calculate_spot_price_between_two_stable_assets(
 	let reserves_hp: Vec<U256> = n_reserves.iter().map(|v| U256::from(*v)).collect();
 	let c = reserves_hp
 		.iter()
-		.try_fold(d, |acc, val| acc.checked_mul(d)?.checked_div(val.checked_mul(n)?))?;
+		.try_fold(d, |acc, val| acc.checked_mul(d)?.checked_div(val.checked_mul(&n)?))?;
 
 	let num = x0.checked_mul(ann.checked_mul(xi)?.checked_add(c)?)?;
 	let denom = xi.checked_mul(ann.checked_mul(x0)?.checked_add(c)?)?;

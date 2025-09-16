@@ -48,7 +48,7 @@ use frame_support::{
 use hydradx_traits::router::Route;
 
 use frame_system::{
-	offchain::{SendTransactionTypes, SubmitTransaction},
+	offchain::{SendUnsignedTransaction, SigningTypes},
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
 use hydradx_traits::router::{
@@ -66,7 +66,7 @@ use sp_runtime::{
 		storage_lock::{StorageLock, Time},
 		Duration,
 	},
-	traits::AccountIdConversion,
+	traits::{AccountIdConversion, Dispatchable},
 	Perbill,
 };
 use sp_std::vec;
@@ -114,17 +114,25 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_otc::Config + SendTransactionTypes<Call<Self>> {
+	pub trait Config: frame_system::Config + pallet_otc::Config + SigningTypes + frame_system::offchain::CreateInherent<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// The overarching call type.
+		type RuntimeCall: Parameter
+		+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin>
+		+ From<Call<Self>>;
+
+		/// Offchain transaction submitter for unsigned extrinsics.
+		type SubmitTransaction: SendUnsignedTransaction<Self, Call<Self>>;
 
 		/// Named reservable multi currency.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetIdOf<Self>, Balance = Balance>;
 
 		/// Router implementation.
 		type Router: RouteProvider<AssetIdOf<Self>>
-			+ RouterT<Self::RuntimeOrigin, AssetIdOf<Self>, Balance, Trade<AssetIdOf<Self>>, AmountInAndOut<Balance>>
-			+ RouteSpotPriceProvider<AssetIdOf<Self>>;
+		+ RouterT<Self::RuntimeOrigin, AssetIdOf<Self>, Balance, Trade<AssetIdOf<Self>>, AmountInAndOut<Balance>>
+		+ RouteSpotPriceProvider<AssetIdOf<Self>>;
 
 		/// Account who receives the profit.
 		#[pallet::constant]
@@ -555,7 +563,8 @@ impl<T: Config> Pallet<T> {
 					amount: sell_amt,
 					route,
 				};
-				let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into());
+				let submitter = T::SubmitTransaction {};
+				let _ = submitter.submit_unsigned_transaction(call);
 			}
 		}
 	}
