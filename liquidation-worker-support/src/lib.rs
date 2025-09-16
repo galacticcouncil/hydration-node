@@ -135,10 +135,40 @@ pub struct BorrowerDataDetails<AccountId> {
 
 #[derive(Clone, Encode, Decode, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct BorrowerData<AccountId> {
+pub struct BorrowersData<AccountId> {
 	pub last_global_update: u32,
 	pub last_update: u32,
 	pub borrowers: Vec<(H160, BorrowerDataDetails<AccountId>)>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Borrower {
+	pub user_address: EvmAddress,
+	pub health_factor: U256,
+	pub assets: Vec<EvmAddress>,
+}
+impl Borrower {
+	pub fn new(user_address: EvmAddress, health_factor: U256) -> Self {
+		Self {
+			user_address,
+			health_factor,
+			assets: vec![],
+		}
+	}
+
+	pub fn new_with_assets(user_address: EvmAddress, health_factor: U256, assets: &[EvmAddress]) -> Self {
+		Self {
+			user_address,
+			health_factor,
+			assets: assets.to_vec(),
+		}
+	}
+
+	pub fn add_asset(&mut self, asset: EvmAddress) {
+		if !self.assets.contains(&asset) {
+			self.assets.push(asset);
+		}
+	}
 }
 
 /// Multiplies two ray, rounding half up to the nearest ray.
@@ -255,7 +285,7 @@ impl UserData {
 	pub fn new<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 		api_provider: ApiProvider,
 		hash: Block::Hash,
-		money_market: &MoneyMarketData<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>,
+		money_market: &MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 		address: H160,
 		current_evm_timestamp: u64,
 		caller: EvmAddress,
@@ -345,7 +375,7 @@ impl UserData {
 	/// Calculates user's health factor.
 	pub fn health_factor<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 		&self,
-		money_market: &MoneyMarketData<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>,
+		money_market: &MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 	) -> Result<U256, LiquidationError>
 	where
 		Block: BlockT,
@@ -781,28 +811,22 @@ pub struct LiquidationAmounts {
 /// Captures the state of the money market related to liquidations.
 /// The state is not automatically updated. Any change in the chain can invalidate the data stored in the struct.
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
-pub struct MoneyMarketData<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>
+pub struct MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>
 where
 	Block: BlockT,
-	ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
 {
 	pap_contract: EvmAddress, // PoolAddressesProvider
 	pool_contract: EvmAddress,
 	oracle_contract: EvmAddress,
 	reserves: Vec<Reserve>, // the order of reserves is given by fetch_reserves_list()
 	pub caller: EvmAddress,
-	_phantom: PhantomData<(Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent)>,
+	_phantom: PhantomData<(Block, OriginCaller, RuntimeCall, RuntimeEvent)>,
 }
-impl<
-		Block: BlockT,
-		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
-		OriginCaller,
-		RuntimeCall,
-		RuntimeEvent,
-	> MoneyMarketData<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>
+impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
+	MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>
 {
 	/// Calls Runtime API.
-	pub fn new(
+	pub fn new<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: ApiProvider,
 		hash: Block::Hash,
 		pap_contract: EvmAddress,
@@ -845,7 +869,7 @@ impl<
 	}
 
 	/// Calls Runtime API.
-	pub fn fetch_pool(
+	pub fn fetch_pool<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
 		hash: Block::Hash,
 		pap_contract: EvmAddress,
@@ -865,7 +889,7 @@ impl<
 	}
 
 	/// Calls Runtime API.
-	pub fn fetch_price_oracle(
+	pub fn fetch_price_oracle<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
 		hash: Block::Hash,
 		pap_contract: EvmAddress,
@@ -887,7 +911,7 @@ impl<
 
 	/// Get the list of reserve assets.
 	/// Calls Runtime API.
-	fn fetch_reserves_list(
+	fn fetch_reserves_list<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
 		hash: Block::Hash,
 		mm_pool: EvmAddress,
@@ -920,7 +944,7 @@ impl<
 	}
 
 	/// Calls Runtime API.
-	fn fetch_reserve_data(
+	fn fetch_reserve_data<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
 		hash: Block::Hash,
 		mm_pool: EvmAddress,
@@ -964,7 +988,7 @@ impl<
 	}
 
 	/// Calls Runtime API.
-	fn fetch_asset_symbol(
+	fn fetch_asset_symbol<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
 		hash: Block::Hash,
 		asset_address: &EvmAddress,
@@ -989,7 +1013,7 @@ impl<
 
 	/// Get price of an asset.
 	/// Calls Runtime API.
-	pub fn fetch_asset_price(
+	pub fn fetch_asset_price<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
 		hash: Block::Hash,
 		oracle_address: EvmAddress,
@@ -1031,6 +1055,33 @@ impl<
 		}
 	}
 
+	/// Calls Runtime API.
+	/// Returns a list of all asset addresses used as user's collateral or debt.
+	pub fn get_user_asset_addresses<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
+		&self,
+		api_provider: ApiProvider,
+		hash: Block::Hash,
+		user: EvmAddress,
+		caller: EvmAddress,
+	) -> Result<Vec<EvmAddress>, LiquidationError> {
+		let configuration = UserConfiguration(UserData::fetch_user_configuration::<
+			Block,
+			ApiProvider,
+			OriginCaller,
+			RuntimeCall,
+			RuntimeEvent,
+		>(&api_provider, hash, self.pool_contract, user, caller)?);
+
+		let mut user_assets = Vec::new();
+		for (index, reserve) in self.reserves.iter().enumerate() {
+			if configuration.is_collateral(index) || configuration.is_debt(index) {
+				user_assets.push(reserve.asset_address);
+			};
+		}
+
+		Ok(user_assets)
+	}
+
 	/// The formula:
 	/// `debt_to_liquidate = (THF * Td - Sum(Ci * Pci * LTi)) / (Pd * (THF - LB * LTc))`
 	/// where
@@ -1048,7 +1099,9 @@ impl<
 	/// `caller` - Account executing runtime RPC call, needs to have some WETH balance.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
-	pub fn calculate_debt_to_liquidate(
+	pub fn calculate_debt_to_liquidate<
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	>(
 		&self,
 		user_data: &UserData,
 		target_health_factor: U256,
@@ -1160,7 +1213,8 @@ impl<
 		// But there is no guarantee that user has required amount of debt and collateral assets.
 		// Adjust these amounts based on how much can be actually liquidated.
 
-		let health_factor = user_data.health_factor(self)?;
+		let health_factor =
+			user_data.health_factor::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(self)?;
 		let close_factor = if health_factor > CLOSE_FACTOR_HF_THRESHOLD.into() {
 			DEFAULT_LIQUIDATION_CLOSE_FACTOR
 		} else {
@@ -1282,7 +1336,9 @@ impl<
 	/// `new_price` - Price update.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
-	pub fn calculate_liquidation_options(
+	pub fn calculate_liquidation_options<
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	>(
 		&mut self,
 		user_data: &UserData,
 		target_health_factor: U256,
@@ -1319,8 +1375,8 @@ impl<
 
 		// TODO: continue if the price of collateral decreased/debt increased (the cases when HF decreases)
 
-		// calculate amount of debt that needs to be liquidated to get the HF closer
-		// to `target_health_factor`. Calculated for all combinations of collateral and debt assets
+		// Calculate the amount of debt that needs to be liquidated to get the HF closer
+		// to `target_health_factor`. Calculated for all combinations of collateral and debt assets.
 		for &(index_c, collateral_asset) in collateral_assets.iter() {
 			for &(index_d, debt_asset) in debt_assets.iter() {
 				let Ok(LiquidationAmounts {
@@ -1328,7 +1384,12 @@ impl<
 					collateral_amount: _,
 					debt_in_base_currency,
 					collateral_in_base_currency,
-				}) = self.calculate_debt_to_liquidate(user_data, target_health_factor, collateral_asset, debt_asset)
+				}) = self.calculate_debt_to_liquidate::<ApiProvider>(
+					user_data,
+					target_health_factor,
+					collateral_asset,
+					debt_asset,
+				)
 				else {
 					continue;
 				};
@@ -1344,7 +1405,8 @@ impl<
 				new_user_data.update_reserves(sp_std::vec!((index_d, user_reserve)));
 
 				// calculate HF based on updated price and reserves
-				let maybe_hf = new_user_data.health_factor(self);
+				let maybe_hf =
+					new_user_data.health_factor::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(self);
 
 				if let Ok(hf) = maybe_hf {
 					liquidation_options.push(LiquidationOption::new(hf, collateral_asset, debt_asset, debt_amount));
@@ -1364,13 +1426,16 @@ impl<
 	/// `new_price` - Price update.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`.
-	pub fn get_best_liquidation_option(
+	pub fn get_best_liquidation_option<
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	>(
 		&mut self,
 		user_data: &UserData,
 		target_health_factor: U256,
 		new_price: (EvmAddress, U256),
 	) -> Result<Option<LiquidationOption>, LiquidationError> {
-		let mut liquidation_options = self.calculate_liquidation_options(user_data, target_health_factor, new_price)?;
+		let mut liquidation_options =
+			self.calculate_liquidation_options::<ApiProvider>(user_data, target_health_factor, new_price)?;
 
 		// TODO: find better criteria for determining which liquidation option to choose as the best one
 		// choose liquidation option with the highest HF. All HFs should be less or close to the target HF.
