@@ -41,7 +41,7 @@ mod validation {
 			];
 
 			let returned_rlp = BuildEvmTx::build_evm_tx(
-				None, // No who, so no event emitted
+				RuntimeOrigin::signed(1u64),
 				Some(to_address),
 				value,
 				data,
