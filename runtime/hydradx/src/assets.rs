@@ -1818,7 +1818,6 @@ parameter_types! {
 }
 
 impl pallet_build_evm_tx::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type MaxDataLength = MaxEvmDataLength;
 }
 
