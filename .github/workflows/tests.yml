@@ -151,9 +151,7 @@ jobs:
           if [ -z "${{ github.event.inputs.pallets_to_benchmark }}" ]; then
             ./scripts/benchmarking.sh --all $BENCHMARK_FLAGS
           else
-            for pallet in $(echo "${{ steps.prepare.outputs.pallets_to_benchmark }}" | tr ',' ' '); do
-              ./scripts/benchmarking.sh "$pallet" "*" $BENCHMARK_FLAGS
-            done
+            ./scripts/benchmarking.sh "${{ github.event.inputs.pallets_to_benchmark }}" $BENCHMARK_FLAGS
           fi
 
       - name: Upload weights directory
