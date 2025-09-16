@@ -4,13 +4,14 @@ use frame_support::fail;
 use frame_support::traits::tokens::{
 	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
 };
-use hydradx_traits::BoundErc20;
+use hydradx_traits::{BoundErc20, Inspect};
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::Get;
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 use sp_std::marker::PhantomData;
+use sp_std::vec::Vec;
 
 pub struct FungibleCurrencies<T>(PhantomData<T>);
 
@@ -124,6 +125,40 @@ where
 				None => <T::MultiCurrency as fungibles::Inspect<T::AccountId>>::asset_exists(asset.into()),
 			}
 		}
+	}
+}
+
+impl<T: Config> fungibles::metadata::Inspect<T::AccountId> for FungibleCurrencies<T>
+where
+	T::MultiCurrency: fungibles::Inspect<T::AccountId>,
+	<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::AssetId: From<CurrencyIdOf<T>>,
+	<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::Balance: Into<BalanceOf<T>> + From<BalanceOf<T>>,
+	WithdrawConsequence<BalanceOf<T>>:
+		From<WithdrawConsequence<<T::MultiCurrency as fungibles::Inspect<T::AccountId>>::Balance>>,
+	T::NativeCurrency: fungible::Inspect<T::AccountId>,
+	<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance: Into<BalanceOf<T>> + From<BalanceOf<T>>,
+	WithdrawConsequence<BalanceOf<T>>:
+		From<WithdrawConsequence<<T::NativeCurrency as fungible::Inspect<T::AccountId>>::Balance>>,
+{
+	fn name(asset: Self::AssetId) -> Vec<u8> {
+		// Prefer registry for metadata; fall back to sensible defaults
+		if let Some(name) = T::RegistryInspect::asset_name(asset) {
+			name
+		} else {
+			Vec::new()
+		}
+	}
+
+	fn symbol(asset: Self::AssetId) -> Vec<u8> {
+		if let Some(sym) = T::RegistryInspect::asset_symbol(asset) {
+			sym
+		} else {
+			Vec::new()
+		}
+	}
+
+	fn decimals(asset: Self::AssetId) -> u8 {
+		T::RegistryInspect::decimals(asset).unwrap_or_default()
 	}
 }
 
