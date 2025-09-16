@@ -121,7 +121,7 @@ fn transfer_all() {
 	});
 }
 
-fn with_atoken(execution: impl FnOnce()) {
+pub fn with_atoken(execution: impl FnOnce()) {
 	with_aave(|| {
 		assert_ok!(Router::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -188,9 +188,9 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 const HDX: AssetId = 0;
 const DAI: AssetId = 1;
 const DOT: AssetId = 5;
-const ADOT: AssetId = 1_000_037;
+pub const ADOT: AssetId = 1_000_037;
 const ONE: u128 = 10_u128.pow(10);
-const BAG: u128 = 100000 * ONE;
+pub const BAG: u128 = 100000 * ONE;
 
 #[test]
 fn nice_borrowing_contract_is_used() {
@@ -767,122 +767,143 @@ fn buy_in_stable_after_rebase() {
 	});
 }
 
-#[test]
-#[ignore]
-fn transfer_almost_all_atoken_but_ed_should_transfer_all_atoken() {
-	with_atoken(|| {
-		let ed = 1000;
-		AssetRegistry::update(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ADOT,
-			None,
-			None,
-			Some(ed),
-			None,
-			None,
-			None,
-			None,
-			None,
-		)
-		.unwrap();
+mod transfer_atoken {
 
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+	use super::*;
+	#[test]
+	fn transfer_almost_all_atoken_but_ed_should_leave_ed() {
+		crate::aave_router::with_atoken(|| {
+			let ed = 1000;
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				crate::aave_router::ADOT,
+				None,
+				None,
+				Some(ed),
+				None,
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
 
-		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
 
-		assert_eq!(alice_all_balance, 1000000000000000);
-		let alice_dot_balance_before = 1999999999999998;
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
-		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
 
-		assert_ok!(Currencies::transfer(
-			RuntimeOrigin::signed(ALICE.into()),
-			BOB.into(),
-			ADOT,
-			alice_all_balance - ed
-		));
-		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
+			assert_eq!(alice_all_balance, 1000000000000000);
+			let alice_dot_balance_before = 8999999999999998;
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+			assert_eq!(Currencies::free_balance(crate::aave_router::DOT, &BOB.into()), 0);
 
-		assert_eq!(bob_new_balance, alice_all_balance);
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				alice_all_balance - ed
+			));
+			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
+			assert_eq!(bob_new_balance, alice_all_balance - ed);
 
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
-		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
-	})
-}
+			let alice_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			assert_eq!(alice_new_balance, ed);
 
-#[test]
-#[ignore]
-fn transfer_all_atoken_but_one_should_transfer_all_atoken() {
-	with_atoken(|| {
-		let ed = 1000;
-		AssetRegistry::update(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ADOT,
-			None,
-			None,
-			Some(ed),
-			None,
-			None,
-			None,
-			None,
-			None,
-		)
-		.unwrap();
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+			assert_eq!(Currencies::free_balance(crate::aave_router::DOT, &BOB.into()), 0);
+		})
+	}
 
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 1000000000000000);
+	#[test]
+	fn transfer_all_atoken_but_one_should_leave_one() {
+		crate::aave_router::with_atoken(|| {
+			let ed = 1000;
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				crate::aave_router::ADOT,
+				None,
+				None,
+				Some(ed),
+				None,
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
 
-		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()),
+				1000000000000000
+			);
 
-		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
+			assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
 
-		assert_eq!(alice_all_balance, 1000000000000000);
-		let alice_dot_balance_before = 1999999999999998;
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
-		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
+			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
 
-		assert_ok!(Currencies::transfer(
-			RuntimeOrigin::signed(ALICE.into()),
-			BOB.into(),
-			ADOT,
-			alice_all_balance - 1
-		));
-		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
-		assert_eq!(bob_new_balance, alice_all_balance);
+			assert_eq!(alice_all_balance, 1000000000000000);
+			let alice_dot_balance_before = 8999999999999998;
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+			assert_eq!(Currencies::free_balance(crate::aave_router::DOT, &BOB.into()), 0);
 
-		assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), alice_dot_balance_before);
-		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
-	})
-}
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				alice_all_balance - 1
+			));
+			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
+			assert_eq!(bob_new_balance, alice_all_balance - 1);
+			let alice_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			assert_eq!(1, alice_new_balance);
 
-#[test]
-fn transfer_atoken_when_left_more_than_ed_should_transfer_specified_amount() {
-	with_atoken(|| {
-		let ed = 1000;
-		AssetRegistry::update(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ADOT,
-			None,
-			None,
-			Some(ed),
-			None,
-			None,
-			None,
-			None,
-			None,
-		)
-		.unwrap();
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
+			assert_eq!(Currencies::free_balance(crate::aave_router::DOT, &BOB.into()), 0);
+		})
+	}
 
-		let alice_all_balance = Currencies::free_balance(ADOT, &ALICE.into());
-		let adot_asset_id = HydraErc20Mapping::asset_address(ADOT);
-		let amount = alice_all_balance - ed - 1;
-		assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
-			adot_asset_id,
-			&AccountId::from(ALICE),
-			&AccountId::from(BOB),
-			amount
-		));
-		let bob_new_balance = Currencies::free_balance(ADOT, &BOB.into());
+	#[test]
+	fn transfer_atoken_when_left_more_than_ed_should_transfer_specified_amount() {
+		crate::aave_router::with_atoken(|| {
+			let ed = 1000;
+			AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				crate::aave_router::ADOT,
+				None,
+				None,
+				Some(ed),
+				None,
+				None,
+				None,
+				None,
+				None,
+			)
+			.unwrap();
 
-		assert_eq!(bob_new_balance, amount);
-	})
+			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			let adot_asset_id = HydraErc20Mapping::asset_address(crate::aave_router::ADOT);
+			let amount = alice_all_balance - ed - 1;
+			assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
+				adot_asset_id,
+				&AccountId::from(ALICE),
+				&AccountId::from(BOB),
+				amount
+			));
+			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
+
+			assert_eq!(bob_new_balance, amount);
+		})
+	}
 }
