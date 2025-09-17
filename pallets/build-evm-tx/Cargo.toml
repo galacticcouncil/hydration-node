@@ -17,22 +17,21 @@ scale-info = { workspace = true }
 
 # Substrate dependencies
 sp-std = { workspace = true }
-sp-runtime = { workspace = true }
+sp-core = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-sp-io = { workspace = true }
 
-alloy-consensus = { version = "0.8", default-features = false }
-alloy-primitives = { version = "0.8", default-features = false }
-alloy-rlp = { version = "0.3", default-features = false }
-derive_more = { version = "1.0", default-features = false, features = ["display"] }
+ethereum = { workspace = true }
+rlp = { version = "0.5.2", default-features = false }
 
 # Optionals
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
+sp-runtime = { workspace = true }
 sp-core = { workspace = true }
+hex = { workspace = true }
 
 [features]
 default = ["std"]
@@ -46,12 +45,9 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "sp-std/std",
-    "sp-runtime/std",
-    "sp-io/std",
+    "sp-core/std",
     "scale-info/std",
-    "alloy-consensus/std",
-    "alloy-primitives/std",
-    "alloy-rlp/std",
-    "derive_more/std",
+    "ethereum/std",
+    "rlp/std",
 ]
 try-runtime = ["frame-support/try-runtime"]
