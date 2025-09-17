@@ -13,7 +13,8 @@ use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
+use hydra_dx_math::MathError;
+use hydradx_traits::evm::{ATokenDuster, CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::{BoundErc20, Inspect};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -27,10 +28,11 @@ use primitive_types::{H256, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_arithmetic::FixedU128;
+use sp_arithmetic::{ArithmeticError, FixedU128};
 use sp_core::crypto::AccountId32;
 use sp_runtime::format;
 use sp_runtime::traits::CheckedConversion;
+use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
@@ -179,6 +181,39 @@ where
 			return false;
 		};
 		Self::get_underlying_asset(atoken).is_some()
+	}
+
+	pub fn withdraw_all_to(contract_address: EvmAddress, from: &T::AccountId, to: &T::AccountId) -> DispatchResult {
+		let Some(atoken) = HydraErc20Mapping::address_to_asset(contract_address) else {
+			return Err(DispatchError::Other("Not an Aave token"));
+		};
+		let Some(underlying_asset) = Self::get_underlying_asset(atoken) else {
+			return Err(DispatchError::Other("Not an Aave token"));
+		};
+
+		let underlying_balance_before = <Erc20Currency<T> as ERC20>::balance_of(
+			CallContext::new_view(underlying_asset),
+			EvmAccounts::<T>::evm_address(&from),
+		);
+
+		AaveTradeExecutor::<T>::do_withdraw_all(&from, underlying_asset)?;
+
+		let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
+			CallContext::new_view(underlying_asset),
+			EvmAccounts::<T>::evm_address(&from),
+		);
+
+		let amount_to_supply = underlying_balance_after
+			.checked_sub(underlying_balance_before)
+			.ok_or(ArithmeticError::Underflow)?;
+
+		//Sanity check to be sure that the AAVE rounding error cannot be exploited with zero supply amount, so cannot be spammed by free extrinsics like dust_account
+		ensure!(
+			!amount_to_supply.is_zero(),
+			DispatchError::Other("No underlying asset withdrawn")
+		);
+
+		Self::do_supply_on_behalf_of(from, to, underlying_asset, amount_to_supply)
 	}
 
 	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {

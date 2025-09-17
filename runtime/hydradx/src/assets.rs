@@ -692,6 +692,7 @@ impl pallet_duster::Config for Runtime {
 	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
 	type BlacklistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type ATokenDuster = AtokenAccountDuster;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
@@ -1393,10 +1394,12 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use hydradx_traits::evm::ATokenDuster;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use hydradx_traits::BoundErc20;
 use pallet_asset_registry::XcmRateLimitsInRegistry;
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1410,6 +1413,7 @@ use pallet_referrals::{FeeDistribution, Level};
 use pallet_stableswap::types::PegType;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
+use sp_runtime::TokenError;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
 
@@ -2060,5 +2064,32 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 			false,
 			dest,
 		)
+	}
+}
+
+pub struct AtokenAccountDuster;
+
+impl ATokenDuster<AccountId, AssetId> for AtokenAccountDuster {
+	fn is_atoken(asset_id: AssetId) -> bool {
+		let Some(contract) = AssetRegistry::contract_address(asset_id) else {
+			return false;
+		};
+
+		AaveTradeExecutor::<Runtime>::is_atoken(contract)
+	}
+
+	fn dust_account(
+		account: &AccountId,
+		dust_dest_account: &AccountId,
+		currency_id: AssetId,
+	) -> frame_support::dispatch::DispatchResult {
+		let Some(contract) = AssetRegistry::contract_address(currency_id) else {
+			return Err(DispatchError::Token(TokenError::UnknownAsset));
+		};
+
+		//TODO: it might be enough to pass the currency id as that is the atoken id, so we dont need to do it inside
+		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, &account, &dust_dest_account)?;
+
+		Ok(())
 	}
 }

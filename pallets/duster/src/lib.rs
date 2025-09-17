@@ -29,8 +29,8 @@ pub mod migration;
 pub mod weights;
 
 pub use crate::weights::WeightInfo;
-
 use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
+use hydradx_traits::evm::ATokenDuster;
 
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
@@ -127,6 +127,9 @@ pub mod pallet {
 		/// The origin which can manage whiltelist.
 		type BlacklistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Duster for accounts with AToken dusts
+		type ATokenDuster: hydradx_traits::evm::ATokenDuster<Self::AccountId, Self::CurrencyId>;
+
 		/// Default account for `reward_account` and `dust_account` in genesis config.
 		#[pallet::constant]
 		type TreasuryAccountId: Get<Self::AccountId>;
@@ -197,14 +200,18 @@ pub mod pallet {
 		///
 		/// Caller is rewarded with chosen reward in native currency.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::dust_account())]
-		pub fn dust_account(origin: OriginFor<T>, account: T::AccountId, currency_id: T::CurrencyId) -> DispatchResult {
+		#[pallet::weight(<T as Config>::WeightInfo::dust_account())] //TODO: rebenchmark it
+		pub fn dust_account(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+			currency_id: T::CurrencyId,
+		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
 			ensure!(Self::blacklisted(&account).is_none(), Error::<T>::AccountBlacklisted);
 
 			let (dustable, dust) = Self::is_dustable(&account, currency_id);
-
+			//TODO: double thing if thi is enough to prevent spaam wrt aave
 			ensure!(dust != T::Balance::from(0u32), Error::<T>::ZeroBalance);
 
 			ensure!(dustable, Error::<T>::BalanceSufficient);
@@ -212,17 +219,25 @@ pub mod pallet {
 			// Error should never occur here
 			let dust_dest_account = Self::dust_dest_account().ok_or(Error::<T>::DustAccountNotSet)?;
 
-			Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;
+			if T::ATokenDuster::is_atoken(currency_id) {
+				//Temporarily adding the account to blacklist to prevent ED error when AToken is withdrawn from contract
+				Self::add_account(&account)?;
+				T::ATokenDuster::dust_account(&account, &dust_dest_account, currency_id)?;
+				Self::remove_account(&account)?;
+			} else {
+				Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;
+			}
+
+			//TODO: remove reward
+			// Ignore the result, it fails - no problem.
+			let _ = Self::reward_duster(&who, currency_id, dust);
 
 			Self::deposit_event(Event::Dusted {
 				who: account,
 				amount: dust,
 			});
 
-			// Ignore the result, it fails - no problem.
-			let _ = Self::reward_duster(&who, currency_id, dust);
-
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Add account to list of non-dustable account. Account whihc are excluded from udsting.
@@ -261,6 +276,12 @@ pub mod pallet {
 	}
 }
 impl<T: Config> Pallet<T> {
+	//Need for integration tests as we don't always have the dustaccount set from genesis, such as AAVE snapshots created without Duster storage
+	#[cfg(debug_assertions)]
+	pub fn set_duster(who: &T::AccountId) {
+		DustAccount::<T>::put(T::TreasuryAccountId::get());
+	}
+
 	/// Check is account's balance is below minimum deposit.
 	fn is_dustable(account: &T::AccountId, currency_id: T::CurrencyId) -> (bool, T::Balance) {
 		let ed = T::MinCurrencyDeposits::get(&currency_id);

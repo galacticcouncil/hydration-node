@@ -18,6 +18,7 @@ use sp_runtime::{
 
 use frame_support::weights::Weight;
 use frame_system::EnsureRoot;
+use hydradx_traits::evm::ATokenDuster;
 use sp_std::cell::RefCell;
 use sp_std::vec::Vec;
 
@@ -133,8 +134,25 @@ impl Config for Test {
 	type Reward = Reward;
 	type NativeCurrencyId = NativeCurrencyId;
 	type BlacklistUpdateOrigin = EnsureRoot<AccountId>;
+	type ATokenDuster = ATokenDusterMock;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
+}
+
+pub struct ATokenDusterMock;
+
+impl ATokenDuster<AccountId, AssetId> for ATokenDusterMock {
+	fn is_atoken(_asset_id: AssetId) -> bool {
+		false
+	}
+
+	fn dust_account(
+		_account: &AccountId,
+		_dust_dest_account: &AccountId,
+		_currency_id: AssetId,
+	) -> frame_support::dispatch::DispatchResult {
+		Ok(())
+	}
 }
 
 impl orml_tokens::Config for Test {

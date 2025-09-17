@@ -47,6 +47,7 @@ pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
 pallet-broadcast = { workspace = true }
+pallet-duster = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-scheduler = { workspace = true }

@@ -12317,6 +12317,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dca",
  "pallet-dispatcher",
+ "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",

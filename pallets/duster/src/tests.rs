@@ -4,8 +4,8 @@ use crate::mock::{
 	BOB, DUSTER, KILLED, TREASURY,
 };
 
+use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_noop, assert_ok};
-
 use sp_runtime::traits::BadOrigin;
 
 #[test]
@@ -315,5 +315,61 @@ fn remove_nondustable_account_works() {
 
 			// We can dust again
 			assert_ok!(Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 0),);
+		});
+}
+
+#[test]
+fn failing_dusting_is_payable_transaction() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 1_000_000)
+		.build()
+		.execute_with(|| {
+			let err =
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1).expect_err("Expected the call to fail");
+
+			assert_eq!(err.post_info.pays_fee, frame_support::dispatch::Pays::Yes);
+		});
+}
+
+#[test]
+fn passing_dusting_is_non_payable_transaction() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 5)
+		.build()
+		.execute_with(|| {
+			assert_ok!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				Pays::No.into()
+			);
+		});
+}
+
+#[test]
+fn cannot_spam_with_dust_account() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 5)
+		.build()
+		.execute_with(|| {
+			assert_ok!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				Pays::No.into()
+			);
+
+			let dispatch_info = DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: None,
+					pays_fee: Pays::Yes,
+				},
+				error: Error::<Test>::ZeroBalance.into(),
+			};
+
+			assert_noop!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				dispatch_info
+			);
+			assert_noop!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				dispatch_info
+			);
 		});
 }

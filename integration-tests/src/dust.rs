@@ -1,9 +1,16 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use frame_support::storage::with_transaction;
 use frame_support::{assert_ok, sp_runtime::traits::Zero};
-use hydradx_runtime::{Balances, Tokens, Treasury};
+use hex_literal::hex;
+use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, Tokens, Treasury};
+use hydradx_traits::evm::Erc20Mapping;
+use hydradx_traits::BoundErc20;
+use orml_traits::MultiReservableCurrency;
 use orml_traits::{currency::MultiCurrency, GetByKey};
+use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
 
 #[test]
@@ -119,4 +126,255 @@ fn balance_should_be_dusted_when_token_balance_is_below_ed() {
 			.into(),
 		]);
 	});
+}
+
+#[test]
+fn dust_account_should_work_when_token_balance_below_ed() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
+
+		set_ed(DAI, 0);
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			DAI,
+			1,
+			0,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(ALICE)), 1);
+
+		set_ed(DAI, 10);
+		assert_ok!(Duster::dust_account(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			ALICE.into(),
+			DAI,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(ALICE)), 0);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 1);
+	});
+}
+
+#[test]
+fn account_cannot_be_dusted_when_leftover_is_reserved() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
+
+		set_ed(DAI, 0);
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			DAI,
+			1,
+			0,
+		));
+
+		assert_ok!(hydradx_runtime::Currencies::reserve(DAI, &AccountId::from(ALICE), 1));
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(ALICE)), 0);
+		assert_eq!(hydradx_runtime::Tokens::total_balance(DAI, &AccountId::from(ALICE)), 1);
+		assert_eq!(
+			hydradx_runtime::Tokens::reserved_balance(DAI, &AccountId::from(ALICE)),
+			1
+		);
+
+		set_ed(DAI, 10);
+		assert_ok!(Duster::dust_account(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			ALICE.into(),
+			DAI,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(ALICE)), 0);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 1);
+	});
+}
+
+mod atoken_dust {
+	use super::*;
+	use crate::aave_router::ADOT;
+	use frame_support::{assert_noop, assert_ok};
+	use hydradx_runtime::EVMAccounts;
+	const START_BALANCE: u128 = 1_000_000_000_000_000;
+
+	use pallet_broadcast::types::Asset;
+	use primitives::constants::currency::UNITS;
+	use proptest::{
+		prelude::*,
+		test_runner::{Config, TestRunner},
+	};
+
+	#[test]
+	fn atoken_should_not_be_dusted_when_atoken_balance_is_below_ed_after_transfer() {
+		TestNet::reset();
+
+		crate::aave_router::with_atoken(|| {
+			Duster::set_duster(&Treasury::account_id());
+			set_ed(ADOT, 1000);
+
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 1000000000000000);
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				1000000000000000 - 1
+			),);
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 1);
+		});
+	}
+
+	#[test]
+	fn dust_account_should_work_when_atoken_balance_below_ed() {
+		TestNet::reset();
+
+		crate::aave_router::with_atoken(|| {
+			let ed = 10000;
+			Duster::set_duster(&Treasury::account_id());
+			set_ed(ADOT, ed);
+
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
+
+			//Make acocunt fall below ED
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				START_BALANCE - 1
+			),);
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)));
+
+			assert_eq!(
+				hydradx_runtime::Currencies::free_balance(ADOT, &Treasury::account_id()),
+				0
+			);
+
+			//We set some AToken underlying balance to be sure it wont change after dusting
+			let initial_underlying_balance = 3 * UNITS;
+			assert_ok!(Currencies::deposit(DOT, &ALICE.into(), initial_underlying_balance));
+			assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), initial_underlying_balance);
+
+			assert_ok!(Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				ALICE.into(),
+				ADOT,
+			));
+
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 0);
+			assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), 1);
+			assert_ok!(Currencies::deposit(DOT, &ALICE.into(), initial_underlying_balance));
+		});
+	}
+
+	#[test]
+	fn no_dusting_when_atoken_balance_above_ed() {
+		TestNet::reset();
+
+		crate::aave_router::with_atoken(|| {
+			let ed = 10000;
+			Duster::set_duster(&Treasury::account_id());
+			set_ed(ADOT, ed);
+
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
+
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				START_BALANCE - ed - 1
+			),);
+
+			assert_noop!(
+				Duster::dust_account(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), ALICE.into(), ADOT,),
+				pallet_duster::Error::<hydradx_runtime::Runtime>::BalanceSufficient
+			);
+			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), ed + 1);
+			assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), 0);
+		});
+	}
+
+	#[test]
+	fn dust_account_invariant() {
+		let successfull_cases = 500;
+
+		let ed_range = 1_u128..(START_BALANCE - 1);
+
+		crate::aave_router::with_atoken(|| {
+			// We run prop test this way to use the same state of the chain for all run without loading teh snapshot agian in every run
+			let mut runner = TestRunner::new(Config {
+				cases: successfull_cases,
+				source_file: Some("integration-tests/src/dust.rs"),
+				test_name: Some("dust_prop"),
+				..Config::default()
+			});
+
+			let _ = runner.run(&ed_range, |ed| {
+				let _ = with_transaction(|| {
+					assert_eq!(
+						Currencies::free_balance(ADOT, &ALICE.into()),
+						START_BALANCE,
+						"ALICE should start with START_BALANCE; if not, set it explicitly here."
+					);
+
+					Duster::set_duster(&Treasury::account_id());
+
+					// Parameterize chain ED for this run to be `ed + 1`
+					// meaning that leaving exactly `ed` in the account will be dust.
+					set_ed(ADOT, ed + 1);
+
+					// Sanity
+					assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
+
+					// Transfer all but `ed` to BOB, leaving `ed` on ALICE → dust after ED=ed+1
+					assert_ok!(Currencies::transfer(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						BOB.into(),
+						ADOT,
+						START_BALANCE - ed
+					));
+
+					// Dust it
+					assert_ok!(Duster::dust_account(
+						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+						ALICE.into(),
+						ADOT,
+					));
+
+					// Assert: ALICE should have been dusted to 0
+					assert_eq!(
+						Currencies::free_balance(ADOT, &ALICE.into()),
+						0,
+						"After dusting with ED={ed}+1, remaining `ed` should be reaped."
+					);
+					assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), ed);
+
+					TransactionOutcome::Rollback(DispatchResult::Ok(()))
+				});
+
+				Ok(())
+			});
+		});
+	}
+}
+
+fn set_ed(asset_id: AssetId, ed: u128) {
+	AssetRegistry::update(
+		hydradx_runtime::RuntimeOrigin::root(),
+		asset_id,
+		None,
+		None,
+		Some(ed),
+		None,
+		None,
+		None,
+		None,
+		None,
+	)
+	.unwrap();
 }
