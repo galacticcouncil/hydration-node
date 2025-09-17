@@ -187,7 +187,7 @@ pub mod pallet {
 		/// IF account balance is < min. existential deposit of given currency, and account is allowed to
 		/// be dusted, the remaining balance is transferred to selected account (usually treasury).
 		///
-		/// In case of AToken, the dusting is performed via ATokenDuster traait, which does a wihtdraw all on behalf of the dust receiver
+		/// In case of AToken, the dusting is performed via ATokenDuster dependency, which does a wihtdraw all then supply atoken on behalf of the dust receiver
 		///
 		/// The transaction fee is returned back in case of sccessful dusting.
 		///
@@ -199,7 +199,7 @@ pub mod pallet {
 			account: T::AccountId,
 			currency_id: T::CurrencyId,
 		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
+			ensure_signed(origin)?;
 
 			ensure!(Self::blacklisted(&account).is_none(), Error::<T>::AccountBlacklisted);
 
