@@ -122,7 +122,6 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			ema_oracle: Default::default(),
 			duster: DusterConfig {
 				account_blacklist: vec![],
-				reward_account: Some(get_duster_reward_account()),
 				dust_account: Some(get_duster_dest_account()),
 			},
 			omnipool_warehouse_lm: Default::default(),
