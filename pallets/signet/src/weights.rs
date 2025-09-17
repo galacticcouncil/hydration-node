@@ -15,7 +15,6 @@ pub trait WeightInfo {
     fn respond_error(e: u32) -> Weight;  // e = number of errors
     fn read_respond() -> Weight;
     fn get_signature_deposit() -> Weight;
-    fn emit_custom_event() -> Weight;
 }
 
 /// For tests - just returns simple weights
@@ -57,10 +56,6 @@ impl WeightInfo for () {
     }
     
     fn get_signature_deposit() -> Weight {
-        Weight::from_parts(5_000_000, 0)
-    }
-    
-    fn emit_custom_event() -> Weight {
         Weight::from_parts(5_000_000, 0)
     }
 }

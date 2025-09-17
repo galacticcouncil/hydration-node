@@ -168,43 +168,20 @@ fn test_cannot_initialize_twice() {
 
 #[test]
 fn test_cannot_use_before_initialization() {
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			Signet::emit_custom_event(RuntimeOrigin::signed(1), b"hello".to_vec(), 123),
-			Error::<Test>::NotInitialized
-		);
-	});
-}
-
-#[test]
-fn test_emit_event_after_initialization() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(Signet::initialize(
-			RuntimeOrigin::root(),
-			1,
-			1000,
-			b"test-chain".to_vec()
-		));
-
-		let sender = 2u64;
-		let message = b"Hello World".to_vec();
-		let value = 12345u128;
-
-		assert_ok!(Signet::emit_custom_event(
-			RuntimeOrigin::signed(sender),
-			message.clone(),
-			value
-		));
-
-		System::assert_last_event(
-			Event::DataEmitted {
-				who: sender,
-				message: BoundedVec::try_from(message).unwrap(),
-				value,
-			}
-			.into(),
-		);
-	});
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Signet::sign(
+                RuntimeOrigin::signed(1),
+                [0u8; 32],
+                1,
+                b"path".to_vec(),
+                b"algo".to_vec(),
+                b"dest".to_vec(),
+                b"params".to_vec()
+            ),
+            Error::<Test>::NotInitialized
+        );
+    });
 }
 
 #[test]

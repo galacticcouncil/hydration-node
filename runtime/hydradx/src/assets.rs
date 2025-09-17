@@ -1840,9 +1840,17 @@ impl pallet_build_evm_tx::Config for Runtime {
 	type MaxDataLength = MaxEvmDataLength;
 }
 
+parameter_types! {
+	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
+	pub const MaxChainIdLength: u32 = 128;
+}
+
 impl pallet_signet::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type PalletId = SignetPalletId;
+	type MaxChainIdLength = MaxChainIdLength;
+	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

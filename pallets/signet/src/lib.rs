@@ -107,12 +107,6 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Custom data was emitted
-        DataEmitted {
-            who: T::AccountId,
-            message: BoundedVec<u8, ConstU32<256>>,
-            value: u128,
-        },
         
         /// Pallet has been initialized with an admin
         Initialized {
@@ -192,8 +186,6 @@ pub mod pallet {
     
     #[pallet::error]
     pub enum Error<T> {
-        /// The provided message exceeds the maximum length of 256 bytes
-        MessageTooLong,
         /// The pallet has already been initialized
         AlreadyInitialized,
         /// The pallet has not been initialized yet
@@ -481,29 +473,6 @@ pub mod pallet {
         pub fn get_signature_deposit(_origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             // This is just for RPC queries - the getter handles actual retrieval
             Ok(().into())
-        }
-        
-        /// Emit a custom event with data
-        #[pallet::call_index(9)]
-        #[pallet::weight(<T as Config>::WeightInfo::emit_custom_event())]
-        pub fn emit_custom_event(
-            origin: OriginFor<T>,
-            message: Vec<u8>,
-            value: u128,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            ensure!(Admin::<T>::get().is_some(), Error::<T>::NotInitialized);
-            
-            let bounded_message = BoundedVec::<u8, ConstU32<256>>::try_from(message)
-                .map_err(|_| Error::<T>::MessageTooLong)?;
-            
-            Self::deposit_event(Event::DataEmitted {
-                who,
-                message: bounded_message,
-                value,
-            });
-            
-            Ok(())
         }
     }
     
