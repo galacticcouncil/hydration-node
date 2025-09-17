@@ -19,13 +19,14 @@
 
 use frame_support::pallet_prelude::*;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use sp_std::vec::Vec;
+use sp_std::{convert::TryInto, vec::Vec};
 
-use alloy_consensus::{TxEip1559, TxType};
-use alloy_primitives::{Address, Bytes, TxKind, U256};
-use alloy_rlp::Encodable;
+use ethereum::{EIP1559TransactionMessage, TransactionAction};
+use sp_core::{H160, U256};
 
 pub use pallet::*;
+
+const EIP1559_TX_TYPE: u8 = 0x02;
 
 #[cfg(test)]
 mod tests;
@@ -86,31 +87,31 @@ pub mod pallet {
 			ensure!(data.len() <= T::MaxDataLength::get() as usize, Error::<T>::DataTooLong);
 			ensure!(max_priority_fee_per_gas <= max_fee_per_gas, Error::<T>::InvalidGasPrice);
 
-			let to = match to_address {
+			let action = match to_address {
 				Some(addr) => {
-					let address = Address::try_from(addr.as_slice()).map_err(|_| Error::<T>::InvalidAddress)?;
-					TxKind::Call(address)
+					let address: [u8; 20] = addr.as_slice().try_into().map_err(|_| Error::<T>::InvalidAddress)?;
+					TransactionAction::Call(H160::from(address))
 				}
-				None => TxKind::Create,
+				None => TransactionAction::Create,
 			};
 
-			let tx = TxEip1559 {
+			let tx_message = EIP1559TransactionMessage {
 				chain_id,
-				nonce,
-				gas_limit,
-				max_fee_per_gas,
-				max_priority_fee_per_gas,
-				to,
+				nonce: U256::from(nonce),
+				max_priority_fee_per_gas: U256::from(max_priority_fee_per_gas),
+				max_fee_per_gas: U256::from(max_fee_per_gas),
+				gas_limit: U256::from(gas_limit),
+				action,
 				value: U256::from(value),
-				input: Bytes::from(data),
-				access_list: Default::default(),
+				input: data,
+				access_list: Vec::new(),
 			};
 
-			let mut typed_tx = Vec::new();
-			typed_tx.push(TxType::Eip1559 as u8);
-			tx.encode(&mut typed_tx);
+			let mut output = Vec::new();
+			output.push(EIP1559_TX_TYPE);
+			output.extend_from_slice(&rlp::encode(&tx_message));
 
-			Ok(typed_tx)
+			Ok(output)
 		}
 	}
 }

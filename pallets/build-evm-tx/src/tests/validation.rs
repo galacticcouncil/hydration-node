@@ -17,21 +17,20 @@ mod validation {
 			let max_priority_fee_per_gas = 1000000000u128; // 1 gwei
 			let chain_id = 1u64; // Ethereum mainnet
 
-			// Pre-computed RLP using Alloy directly with the above parameters
+			// Pre-computed RLP for EIP-1559 transaction with the above parameters
 			// This was generated using:
-			// let tx = TxEip1559 {
+			// let tx = EIP1559TransactionMessage {
 			//     chain_id: 1,
-			//     nonce: 5,
-			//     gas_limit: 21000,
-			//     max_fee_per_gas: 20000000000,
-			//     max_priority_fee_per_gas: 1000000000,
-			//     to: TxKind::Call(Address::from([0x11; 20])),
+			//     nonce: U256::from(5),
+			//     gas_limit: U256::from(21000),
+			//     max_fee_per_gas: U256::from(20000000000),
+			//     max_priority_fee_per_gas: U256::from(1000000000),
+			//     action: TransactionAction::Call(H160::from([0x11; 20])),
 			//     value: U256::from(1000000000000000000u128),
-			//     input: Bytes::from(vec![0x12, 0x34, 0x56, 0x78]),
-			//     access_list: Default::default(),
+			//     input: vec![0x12, 0x34, 0x56, 0x78],
+			//     access_list: vec![],
 			// };
-			// let mut rlp = Vec::new();
-			// tx.encode(&mut rlp);
+			// let encoded = rlp::encode(&tx);
 			// prepend with 0x02 for EIP-1559
 			let expected_rlp = vec![
 				0x02, 0xf4, 0x01, 0x05, 0x84, 0x3b, 0x9a, 0xca, 0x00, 0x85, 0x04, 0xa8, 0x17, 0xc8, 0x00, 0x82, 0x52,
@@ -57,8 +56,8 @@ mod validation {
 				returned_rlp,
 				expected_rlp,
 				"RLP mismatch!\nGot:      {:?}\nExpected: {:?}",
-				alloy_primitives::hex::encode(&returned_rlp),
-				alloy_primitives::hex::encode(&expected_rlp)
+				hex::encode(&returned_rlp),
+				hex::encode(&expected_rlp)
 			);
 		});
 	}
