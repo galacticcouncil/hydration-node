@@ -109,7 +109,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		PARA_ID.into(),
 		DusterConfig {
 			account_blacklist: vec![get_account_id_from_seed::<sr25519::Public>("Duster")],
-			reward_account: Some(get_account_id_from_seed::<sr25519::Public>("Duster")),
 			dust_account: Some(get_account_id_from_seed::<sr25519::Public>("Duster")),
 		},
 	);
