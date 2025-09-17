@@ -193,7 +193,7 @@ pub mod pallet {
 		///
 		/// Emits `Dusted` event when successful.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::dust_account())] //TODO: rebenchmark it
+		#[pallet::weight(<T as Config>::WeightInfo::dust_account())]
 		pub fn dust_account(
 			origin: OriginFor<T>,
 			account: T::AccountId,
