@@ -45,18 +45,5 @@ benchmarks! {
         assert!(T::Currency::free_balance(&recipient) >= withdraw_amount);
     }
 
-    emit_custom_event {
-        // Setup: Initialize first
-        let admin: T::AccountId = whitelisted_caller();
-        let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin, T::Currency::minimum_balance());
-        
-        let caller: T::AccountId = whitelisted_caller();
-        let message = vec![1u8; 100];
-        let value = 12345u128;
-    }: _(RawOrigin::Signed(caller.clone()), message, value)
-    verify {
-        // Event was emitted
-    }
-
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Test);
 }
