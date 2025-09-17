@@ -1813,6 +1813,14 @@ impl pallet_hsm::Config for Runtime {
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
 }
 
+parameter_types! {
+	pub const MaxEvmDataLength: u32 = 100_000;
+}
+
+impl pallet_build_evm_tx::Config for Runtime {
+	type MaxDataLength = MaxEvmDataLength;
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where
