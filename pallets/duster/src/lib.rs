@@ -221,6 +221,10 @@ pub mod pallet {
 				Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;
 			}
 
+			//Sanity check that account is fully dusted
+			let leftover = T::MultiCurrency::free_balance(currency_id, &account);
+			ensure!(leftover == T::Balance::from(0u32), Error::<T>::ZeroBalance);
+
 			Self::deposit_event(Event::Dusted {
 				who: account,
 				amount: dust,
