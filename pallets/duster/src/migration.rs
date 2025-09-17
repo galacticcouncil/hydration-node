@@ -59,14 +59,6 @@ pub mod v1 {
 
 		log::info!(
 			target: "runtime::duster",
-			"Updating RewardAccount"
-		);
-		reads += 1;
-		writes += 1;
-		crate::RewardAccount::<T>::put(reward_account);
-
-		log::info!(
-			target: "runtime::duster",
 			"Updating DustAccount"
 		);
 		reads += 1;

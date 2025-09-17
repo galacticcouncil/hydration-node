@@ -66,11 +66,6 @@ pub mod pallet {
 	pub type AccountBlacklist<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn reward_account)]
-	/// Account to take reward from.
-	pub type RewardAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn dust_dest_account)]
 	/// Account to send dust to.
 	pub type DustAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
@@ -116,10 +111,6 @@ pub mod pallet {
 		/// The minimum amount required to keep an account.
 		type MinCurrencyDeposits: GetByKey<Self::CurrencyId, Self::Balance>;
 
-		/// Reward amount
-		#[pallet::constant]
-		type Reward: Get<Self::Balance>;
-
 		/// Native Asset Id
 		#[pallet::constant]
 		type NativeCurrencyId: Get<Self::CurrencyId>;
@@ -130,7 +121,7 @@ pub mod pallet {
 		/// Duster for accounts with AToken dusts
 		type ATokenDuster: hydradx_traits::evm::ATokenDuster<Self::AccountId, Self::CurrencyId>;
 
-		/// Default account for `reward_account` and `dust_account` in genesis config.
+		/// Default account for `dust_account` in genesis config.
 		#[pallet::constant]
 		type TreasuryAccountId: Get<Self::AccountId>;
 
@@ -142,7 +133,6 @@ pub mod pallet {
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub account_blacklist: Vec<T::AccountId>,
-		pub reward_account: Option<T::AccountId>,
 		pub dust_account: Option<T::AccountId>,
 	}
 
@@ -153,7 +143,6 @@ pub mod pallet {
 				AccountBlacklist::<T>::insert(account_id, ());
 			});
 
-			RewardAccount::<T>::put(self.reward_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
 			DustAccount::<T>::put(self.dust_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
 		}
 	}
@@ -198,7 +187,11 @@ pub mod pallet {
 		/// IF account balance is < min. existential deposit of given currency, and account is allowed to
 		/// be dusted, the remaining balance is transferred to selected account (usually treasury).
 		///
-		/// Caller is rewarded with chosen reward in native currency.
+		/// In case of AToken, the dusting is performed via ATokenDuster traait, which does a wihtdraw all on behalf of the dust receiver
+		///
+		/// The transaction fee is returned back in case of sccessful dusting.
+		///
+		/// Emits `Dusted` event when successful.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::dust_account())] //TODO: rebenchmark it
 		pub fn dust_account(
@@ -227,10 +220,6 @@ pub mod pallet {
 			} else {
 				Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;
 			}
-
-			//TODO: remove reward
-			// Ignore the result, it fails - no problem.
-			let _ = Self::reward_duster(&who, currency_id, dust);
 
 			Self::deposit_event(Event::Dusted {
 				who: account,
@@ -289,17 +278,6 @@ impl<T: Config> Pallet<T> {
 		let total = T::MultiCurrency::total_balance(currency_id, account);
 
 		(total < ed, total)
-	}
-
-	/// Send reward to account which did the dusting.
-	fn reward_duster(_duster: &T::AccountId, _currency_id: T::CurrencyId, _dust: T::Balance) -> DispatchResult {
-		// Error should never occur here
-		let reserve_account = Self::reward_account().ok_or(Error::<T>::ReserveAccountNotSet)?;
-		let reward = T::Reward::get();
-
-		T::MultiCurrency::transfer(T::NativeCurrencyId::get(), &reserve_account, _duster, reward)?;
-
-		Ok(())
 	}
 
 	/// Transfer dust amount to selected DustAccount ( usually treasury)

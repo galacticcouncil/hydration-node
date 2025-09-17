@@ -678,10 +678,6 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 	}
 }
 
-parameter_types! {
-	pub const DustingReward: u128 = 0;
-}
-
 impl pallet_duster::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
@@ -689,7 +685,6 @@ impl pallet_duster::Config for Runtime {
 	type CurrencyId = AssetId;
 	type MultiCurrency = Currencies;
 	type MinCurrencyDeposits = AssetRegistry;
-	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
 	type BlacklistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type ATokenDuster = AtokenAccountDuster;

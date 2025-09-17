@@ -20,8 +20,6 @@ fn dust_account_works() {
 			for (who, _, _) in orml_tokens::Accounts::<Test>::iter() {
 				assert_ne!(who, *ALICE, "Alice account should have been removed!");
 			}
-
-			assert_eq!(Currencies::free_balance(0, &*DUSTER), 10_000);
 		});
 }
 
@@ -121,9 +119,9 @@ fn dust_account_native_works() {
 			*ALICE,
 			currency_id
 		));
-		assert_eq!(Currencies::free_balance(currency_id, &*TREASURY), 990_500);
+		assert_eq!(Currencies::free_balance(currency_id, &*TREASURY), 1_000_500);
 
-		assert_eq!(Currencies::free_balance(0, &*DUSTER), 110_000);
+		assert_eq!(Currencies::free_balance(0, &*DUSTER), 100_000);
 
 		assert_eq!(KILLED.with(|r| r.borrow().clone()), vec![*ALICE]);
 		for (a, _) in frame_system::Account::<Test>::iter() {
@@ -144,13 +142,6 @@ fn dust_account_native_works() {
 			Event::Dusted {
 				who: *ALICE,
 				amount: 500,
-			}
-			.into(),
-			//reward transfer
-			pallet_balances::Event::Transfer {
-				from: *TREASURY,
-				to: *DUSTER,
-				amount: 10_000,
 			}
 			.into(),
 		]);
@@ -229,13 +220,6 @@ fn native_existential_deposit() {
 			Event::Dusted {
 				who: *ALICE,
 				amount: 300,
-			}
-			.into(),
-			//reward transfer
-			pallet_balances::Event::Transfer {
-				from: *TREASURY,
-				to: *DUSTER,
-				amount: 10_000,
 			}
 			.into(),
 		]);

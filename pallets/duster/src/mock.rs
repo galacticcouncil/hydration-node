@@ -131,7 +131,6 @@ impl Config for Test {
 	type CurrencyId = AssetId;
 	type MultiCurrency = Currencies;
 	type MinCurrencyDeposits = MinDeposits;
-	type Reward = Reward;
 	type NativeCurrencyId = NativeCurrencyId;
 	type BlacklistUpdateOrigin = EnsureRoot<AccountId>;
 	type ATokenDuster = ATokenDusterMock;
@@ -236,7 +235,6 @@ impl ExtBuilder {
 
 		duster::GenesisConfig::<Test> {
 			account_blacklist: vec![*TREASURY],
-			reward_account: Some(*TREASURY),
 			dust_account: Some(*TREASURY),
 		}
 		.assimilate_storage(&mut t)
