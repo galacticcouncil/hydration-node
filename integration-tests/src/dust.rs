@@ -213,7 +213,6 @@ mod atoken_dust {
 		TestNet::reset();
 
 		crate::aave_router::with_atoken(|| {
-			set_duster();
 			set_ed(ADOT, 1000);
 
 			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 1000000000000000);
@@ -233,7 +232,6 @@ mod atoken_dust {
 
 		crate::aave_router::with_atoken(|| {
 			let ed = 10000;
-			set_duster();
 			set_ed(ADOT, ed);
 
 			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
@@ -278,7 +276,6 @@ mod atoken_dust {
 
 		crate::aave_router::with_atoken(|| {
 			let ed = 10000;
-			set_duster();
 			set_ed(ADOT, ed);
 
 			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
@@ -322,7 +319,6 @@ mod atoken_dust {
 						"ALICE should start with START_BALANCE; if not, set it explicitly here."
 					);
 
-					set_duster();
 					// Parameterize chain ED for this run to be `ed + 1`
 					// meaning that leaving exactly `ed` in the account will be dust.
 					set_ed(ADOT, ed + 1);
@@ -374,17 +370,6 @@ fn set_ed(asset_id: AssetId, ed: u128) {
 		None,
 		None,
 		None,
-	)
-	.unwrap();
-}
-
-fn set_duster() {
-	let duster_account_storage_key = hex!("4f0c2388b2b8b696b2636d59e94d5bdc5cfeec468e18bc2fb159406897674cf1");
-	let treasury_account = hex!("6d6f646c70792f74727372790000000000000000000000000000000000000000");
-
-	System::set_storage(
-		hydradx_runtime::RuntimeOrigin::root(),
-		vec![(duster_account_storage_key.to_vec(), treasury_account.to_vec())],
 	)
 	.unwrap();
 }

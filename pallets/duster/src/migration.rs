@@ -63,7 +63,6 @@ pub mod v1 {
 		);
 		reads += 1;
 		writes += 1;
-		crate::DustAccount::<T>::put(dust_account);
 
 		StorageVersion::new(1).put::<P>();
 

@@ -65,11 +65,6 @@ pub mod pallet {
 	/// Accounts excluded from dusting.
 	pub type AccountBlacklist<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn dust_dest_account)]
-	/// Account to send dust to.
-	pub type DustAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
-
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -142,8 +137,6 @@ pub mod pallet {
 			self.account_blacklist.iter().for_each(|account_id| {
 				AccountBlacklist::<T>::insert(account_id, ());
 			});
-
-			DustAccount::<T>::put(self.dust_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
 		}
 	}
 
@@ -160,9 +153,6 @@ pub mod pallet {
 
 		/// The balance is sufficient to keep account open.
 		BalanceSufficient,
-
-		/// Dust account is not set.
-		DustAccountNotSet,
 
 		/// Reserve account is not set.
 		ReserveAccountNotSet,
@@ -210,7 +200,7 @@ pub mod pallet {
 			ensure!(dustable, Error::<T>::BalanceSufficient);
 
 			// Error should never occur here
-			let dust_dest_account = Self::dust_dest_account().ok_or(Error::<T>::DustAccountNotSet)?;
+			let dust_dest_account = T::TreasuryAccountId::get();
 
 			if T::ATokenDuster::is_atoken(currency_id) {
 				//Temporarily adding the account to blacklist to prevent ED error when AToken is withdrawn from contract
@@ -269,12 +259,6 @@ pub mod pallet {
 	}
 }
 impl<T: Config> Pallet<T> {
-	//Need for integration tests as we don't always have the dustaccount set from genesis, such as AAVE snapshots created without Duster storage
-	#[cfg(debug_assertions)]
-	pub fn set_duster(who: &T::AccountId) {
-		DustAccount::<T>::put(T::TreasuryAccountId::get());
-	}
-
 	/// Check is account's balance is below minimum deposit.
 	fn is_dustable(account: &T::AccountId, currency_id: T::CurrencyId) -> (bool, T::Balance) {
 		let ed = T::MinCurrencyDeposits::get(&currency_id);
@@ -302,9 +286,7 @@ pub struct DusterWhitelist<T>(PhantomData<T>);
 
 impl<T: Config> OnDust<T::AccountId, T::CurrencyId, T::Balance> for Pallet<T> {
 	fn on_dust(who: &T::AccountId, currency_id: T::CurrencyId, amount: T::Balance) {
-		if let Some(dust_dest_account) = Self::dust_dest_account() {
-			let _ = Self::transfer_dust(who, &dust_dest_account, currency_id, amount);
-		}
+		let _ = Self::transfer_dust(who, &T::TreasuryAccountId::get(), currency_id, amount);
 	}
 }
 
