@@ -282,6 +282,14 @@ fn sell_adot() {
 }
 
 #[test]
+fn check_block() {
+	with_atoken(|| {
+		let block = hydradx_runtime::System::block_number();
+		assert_eq!(3, block);
+	})
+}
+
+#[test]
 fn buy_dot() {
 	with_atoken(|| {
 		hydradx_run_to_next_block();
