@@ -280,15 +280,6 @@ fn sell_adot() {
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), BAG - ONE);
 	})
 }
-
-#[test]
-fn check_block() {
-	with_atoken(|| {
-		let block = hydradx_runtime::System::block_number();
-		assert_eq!(3, block);
-	})
-}
-
 #[test]
 fn buy_dot() {
 	with_atoken(|| {

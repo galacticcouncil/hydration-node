@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use frame_support::assert_noop;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_ok, sp_runtime::traits::Zero};
 use hex_literal::hex;
@@ -183,14 +184,17 @@ fn account_cannot_be_dusted_when_leftover_is_reserved() {
 		);
 
 		set_ed(DAI, 10);
-		assert_ok!(Duster::dust_account(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			ALICE.into(),
-			DAI,
-		));
+		assert_noop!(
+			Duster::dust_account(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), ALICE.into(), DAI,),
+			orml_tokens::Error::<hydradx_runtime::Runtime>::BalanceTooLow
+		);
 
 		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(ALICE)), 0);
-		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 1);
+		assert_eq!(
+			hydradx_runtime::Tokens::reserved_balance(DAI, &AccountId::from(ALICE)),
+			1
+		);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
 	});
 }
 
