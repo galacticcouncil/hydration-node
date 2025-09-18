@@ -26,9 +26,7 @@ runtime_benchmarks! {
 
 	dust_account{
 		let caller: AccountId = account("caller", 0, SEED);
-		let dust_dest_account: AccountId = account("dest", 1, SEED);
 		let burner_acc: AccountId = account("burner", 2, SEED);
-		pallet_duster::DustAccount::<Runtime>::put(dust_dest_account);
 
 		let amount: Balance = 1_000 * BSX;
 		let to_dust_account: AccountId = whitelisted_caller();
@@ -46,14 +44,14 @@ runtime_benchmarks! {
 		let dust_amount = 9999;
 		assert_eq!(crate::Currencies::free_balance(asset_id, &to_dust_account), dust_amount);
 
-		let dest_account = Duster::dust_dest_account();
+		let dest_account = <Runtime as pallet_duster::Config>::TreasuryAccountId::get();
 
-		let current_balance = crate::Currencies::free_balance(asset_id, &dest_account.clone().unwrap());
+		let current_balance = crate::Currencies::free_balance(asset_id, &dest_account.clone());
 
 	}: { pallet_duster::Pallet::<Runtime>::dust_account(RawOrigin::Signed(caller.clone()).into(), to_dust_account.clone(),asset_id)? }
 	verify {
 		assert_eq!(crate::Currencies::free_balance(asset_id, &to_dust_account), 0u128);
-		assert_eq!(crate::Currencies::free_balance(asset_id, &dest_account.unwrap()), current_balance + dust_amount);
+		assert_eq!(crate::Currencies::free_balance(asset_id, &dest_account), current_balance + dust_amount);
 	}
 
 	add_nondustable_account{
