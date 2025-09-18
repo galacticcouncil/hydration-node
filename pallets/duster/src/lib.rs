@@ -194,7 +194,6 @@ pub mod pallet {
 			ensure!(Self::blacklisted(&account).is_none(), Error::<T>::AccountBlacklisted);
 
 			let (dustable, dust) = Self::is_dustable(&account, currency_id);
-			//TODO: double thing if thi is enough to prevent spaam wrt aave
 			ensure!(dust != T::Balance::from(0u32), Error::<T>::ZeroBalance);
 
 			ensure!(dustable, Error::<T>::BalanceSufficient);

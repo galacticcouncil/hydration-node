@@ -2082,7 +2082,6 @@ impl ATokenDuster<AccountId, AssetId> for AtokenAccountDuster {
 			return Err(DispatchError::Token(TokenError::UnknownAsset));
 		};
 
-		//TODO: it might be enough to pass the currency id as that is the atoken id, so we dont need to do it inside
 		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, &account, &dust_dest_account)?;
 
 		Ok(())
