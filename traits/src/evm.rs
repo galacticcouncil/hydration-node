@@ -102,7 +102,6 @@ pub trait Erc20Mapping<AssetId> {
 pub trait ATokenDuster<AccountId, CurrencyId> {
 	fn is_atoken(asset_id: CurrencyId) -> bool;
 
-	//TODO: in its imlementation, we should check if it is equal to dust we have from duster?!
 	fn dust_account(
 		account: &AccountId,
 		dust_dest_account: &AccountId,
