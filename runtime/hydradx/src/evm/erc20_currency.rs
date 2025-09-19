@@ -272,25 +272,15 @@ where
 	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
 
-		// let's construct standard transfer
-		let erc20_transfer = || -> DispatchResult {
-			<Self as ERC20>::transfer(
-				CallContext {
-					contract,
-					sender,
-					origin: sender,
-				},
-				EvmAccounts::<T>::evm_address(to),
-				amount,
-			)
-		};
-
-		// And handle the transfer according to the token type
-		if AaveTradeExecutor::<T>::is_atoken(contract) {
-			AaveTradeExecutor::<T>::transfer(contract, from, to, amount, erc20_transfer)
-		} else {
-			erc20_transfer()
-		}
+		<Self as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender,
+				origin: sender,
+			},
+			EvmAccounts::<T>::evm_address(to),
+			amount,
+		)
 	}
 
 	fn deposit(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {

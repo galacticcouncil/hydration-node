@@ -4,8 +4,8 @@ use crate::mock::{
 	BOB, DUSTER, KILLED, TREASURY,
 };
 
+use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_noop, assert_ok};
-
 use sp_runtime::traits::BadOrigin;
 
 #[test]
@@ -20,8 +20,6 @@ fn dust_account_works() {
 			for (who, _, _) in orml_tokens::Accounts::<Test>::iter() {
 				assert_ne!(who, *ALICE, "Alice account should have been removed!");
 			}
-
-			assert_eq!(Currencies::free_balance(0, &*DUSTER), 10_000);
 		});
 }
 
@@ -121,9 +119,9 @@ fn dust_account_native_works() {
 			*ALICE,
 			currency_id
 		));
-		assert_eq!(Currencies::free_balance(currency_id, &*TREASURY), 990_500);
+		assert_eq!(Currencies::free_balance(currency_id, &*TREASURY), 1_000_500);
 
-		assert_eq!(Currencies::free_balance(0, &*DUSTER), 110_000);
+		assert_eq!(Currencies::free_balance(0, &*DUSTER), 100_000);
 
 		assert_eq!(KILLED.with(|r| r.borrow().clone()), vec![*ALICE]);
 		for (a, _) in frame_system::Account::<Test>::iter() {
@@ -144,13 +142,6 @@ fn dust_account_native_works() {
 			Event::Dusted {
 				who: *ALICE,
 				amount: 500,
-			}
-			.into(),
-			//reward transfer
-			pallet_balances::Event::Transfer {
-				from: *TREASURY,
-				to: *DUSTER,
-				amount: 10_000,
 			}
 			.into(),
 		]);
@@ -231,13 +222,6 @@ fn native_existential_deposit() {
 				amount: 300,
 			}
 			.into(),
-			//reward transfer
-			pallet_balances::Event::Transfer {
-				from: *TREASURY,
-				to: *DUSTER,
-				amount: 10_000,
-			}
-			.into(),
 		]);
 
 		System::reset_events();
@@ -315,5 +299,61 @@ fn remove_nondustable_account_works() {
 
 			// We can dust again
 			assert_ok!(Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 0),);
+		});
+}
+
+#[test]
+fn failing_dusting_is_payable_transaction() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 1_000_000)
+		.build()
+		.execute_with(|| {
+			let err =
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1).expect_err("Expected the call to fail");
+
+			assert_eq!(err.post_info.pays_fee, frame_support::dispatch::Pays::Yes);
+		});
+}
+
+#[test]
+fn passing_dusting_is_non_payable_transaction() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 5)
+		.build()
+		.execute_with(|| {
+			assert_ok!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				Pays::No.into()
+			);
+		});
+}
+
+#[test]
+fn cannot_spam_with_dust_account() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 5)
+		.build()
+		.execute_with(|| {
+			assert_ok!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				Pays::No.into()
+			);
+
+			let dispatch_info = DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: None,
+					pays_fee: Pays::Yes,
+				},
+				error: Error::<Test>::ZeroBalance.into(),
+			};
+
+			assert_noop!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				dispatch_info
+			);
+			assert_noop!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				dispatch_info
+			);
 		});
 }

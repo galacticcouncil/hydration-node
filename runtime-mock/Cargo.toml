@@ -1,6 +1,6 @@
 [package]
 name = "runtime-mock"
-version = "1.0.6"
+version = "1.0.7"
 description = "Mock of the HydraDX Runtime for testing purposes"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -9,8 +9,8 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-serde = {  workspace = true }
-toml = {  workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
 
 # local dependencies
 hydradx-runtime = { workspace = true }
@@ -32,11 +32,11 @@ pallet-stableswap = { workspace = true }
 pallet-staking = { workspace = true }
 
 orml-tokens = { workspace = true }
-scraper = { workspace = true}
+scraper = { workspace = true }
 
 [features]
 default = ["std"]
 
 std = [
-"hydradx-runtime/std"
+    "hydradx-runtime/std"
 ]

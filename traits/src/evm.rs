@@ -98,3 +98,13 @@ pub trait Erc20Mapping<AssetId> {
 	fn asset_address(asset_id: AssetId) -> EvmAddress;
 	fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
 }
+
+pub trait ATokenDuster<AccountId, CurrencyId> {
+	fn is_atoken(asset_id: CurrencyId) -> bool;
+
+	fn dust_account(
+		account: &AccountId,
+		dust_dest_account: &AccountId,
+		currency_id: CurrencyId,
+	) -> frame_support::dispatch::DispatchResult;
+}

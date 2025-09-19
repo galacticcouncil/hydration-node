@@ -29,8 +29,8 @@ pub mod migration;
 pub mod weights;
 
 pub use crate::weights::WeightInfo;
-
 use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
+use hydradx_traits::evm::ATokenDuster;
 
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
@@ -64,16 +64,6 @@ pub mod pallet {
 	#[pallet::getter(fn blacklisted)]
 	/// Accounts excluded from dusting.
 	pub type AccountBlacklist<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn reward_account)]
-	/// Account to take reward from.
-	pub type RewardAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn dust_dest_account)]
-	/// Account to send dust to.
-	pub type DustAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
@@ -116,10 +106,6 @@ pub mod pallet {
 		/// The minimum amount required to keep an account.
 		type MinCurrencyDeposits: GetByKey<Self::CurrencyId, Self::Balance>;
 
-		/// Reward amount
-		#[pallet::constant]
-		type Reward: Get<Self::Balance>;
-
 		/// Native Asset Id
 		#[pallet::constant]
 		type NativeCurrencyId: Get<Self::CurrencyId>;
@@ -127,7 +113,10 @@ pub mod pallet {
 		/// The origin which can manage whiltelist.
 		type BlacklistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		/// Default account for `reward_account` and `dust_account` in genesis config.
+		/// Duster for accounts with AToken dusts
+		type ATokenDuster: hydradx_traits::evm::ATokenDuster<Self::AccountId, Self::CurrencyId>;
+
+		/// Default account for `dust_account` in genesis config.
 		#[pallet::constant]
 		type TreasuryAccountId: Get<Self::AccountId>;
 
@@ -139,7 +128,6 @@ pub mod pallet {
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub account_blacklist: Vec<T::AccountId>,
-		pub reward_account: Option<T::AccountId>,
 		pub dust_account: Option<T::AccountId>,
 	}
 
@@ -149,9 +137,6 @@ pub mod pallet {
 			self.account_blacklist.iter().for_each(|account_id| {
 				AccountBlacklist::<T>::insert(account_id, ());
 			});
-
-			RewardAccount::<T>::put(self.reward_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
-			DustAccount::<T>::put(self.dust_account.clone().unwrap_or_else(T::TreasuryAccountId::get));
 		}
 	}
 
@@ -168,9 +153,6 @@ pub mod pallet {
 
 		/// The balance is sufficient to keep account open.
 		BalanceSufficient,
-
-		/// Dust account is not set.
-		DustAccountNotSet,
 
 		/// Reserve account is not set.
 		ReserveAccountNotSet,
@@ -195,34 +177,49 @@ pub mod pallet {
 		/// IF account balance is < min. existential deposit of given currency, and account is allowed to
 		/// be dusted, the remaining balance is transferred to selected account (usually treasury).
 		///
-		/// Caller is rewarded with chosen reward in native currency.
+		/// In case of AToken, the dusting is performed via ATokenDuster dependency, which does a wihtdraw all then supply atoken on behalf of the dust receiver
+		///
+		/// The transaction fee is returned back in case of sccessful dusting.
+		///
+		/// Emits `Dusted` event when successful.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::dust_account())]
-		pub fn dust_account(origin: OriginFor<T>, account: T::AccountId, currency_id: T::CurrencyId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+		pub fn dust_account(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+			currency_id: T::CurrencyId,
+		) -> DispatchResultWithPostInfo {
+			ensure_signed(origin)?;
 
 			ensure!(Self::blacklisted(&account).is_none(), Error::<T>::AccountBlacklisted);
 
 			let (dustable, dust) = Self::is_dustable(&account, currency_id);
-
 			ensure!(dust != T::Balance::from(0u32), Error::<T>::ZeroBalance);
 
 			ensure!(dustable, Error::<T>::BalanceSufficient);
 
 			// Error should never occur here
-			let dust_dest_account = Self::dust_dest_account().ok_or(Error::<T>::DustAccountNotSet)?;
+			let dust_dest_account = T::TreasuryAccountId::get();
 
-			Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;
+			if T::ATokenDuster::is_atoken(currency_id) {
+				//Temporarily adding the account to blacklist to prevent ED error when AToken is withdrawn from contract
+				Self::add_account(&account)?;
+				T::ATokenDuster::dust_account(&account, &dust_dest_account, currency_id)?;
+				Self::remove_account(&account)?;
+			} else {
+				Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;
+			}
+
+			//Sanity check that account is fully dusted
+			let leftover = T::MultiCurrency::free_balance(currency_id, &account);
+			ensure!(leftover == T::Balance::from(0u32), Error::<T>::ZeroBalance);
 
 			Self::deposit_event(Event::Dusted {
 				who: account,
 				amount: dust,
 			});
 
-			// Ignore the result, it fails - no problem.
-			let _ = Self::reward_duster(&who, currency_id, dust);
-
-			Ok(())
+			Ok(Pays::No.into())
 		}
 
 		/// Add account to list of non-dustable account. Account whihc are excluded from udsting.
@@ -270,17 +267,6 @@ impl<T: Config> Pallet<T> {
 		(total < ed, total)
 	}
 
-	/// Send reward to account which did the dusting.
-	fn reward_duster(_duster: &T::AccountId, _currency_id: T::CurrencyId, _dust: T::Balance) -> DispatchResult {
-		// Error should never occur here
-		let reserve_account = Self::reward_account().ok_or(Error::<T>::ReserveAccountNotSet)?;
-		let reward = T::Reward::get();
-
-		T::MultiCurrency::transfer(T::NativeCurrencyId::get(), &reserve_account, _duster, reward)?;
-
-		Ok(())
-	}
-
 	/// Transfer dust amount to selected DustAccount ( usually treasury)
 	fn transfer_dust(
 		from: &T::AccountId,
@@ -299,9 +285,7 @@ pub struct DusterWhitelist<T>(PhantomData<T>);
 
 impl<T: Config> OnDust<T::AccountId, T::CurrencyId, T::Balance> for Pallet<T> {
 	fn on_dust(who: &T::AccountId, currency_id: T::CurrencyId, amount: T::Balance) {
-		if let Some(dust_dest_account) = Self::dust_dest_account() {
-			let _ = Self::transfer_dust(who, &dust_dest_account, currency_id, amount);
-		}
+		let _ = Self::transfer_dust(who, &T::TreasuryAccountId::get(), currency_id, amount);
 	}
 }
 
