@@ -19,9 +19,9 @@
 
 use frame_support::pallet_prelude::*;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use sp_std::{convert::TryInto, vec::Vec};
+use sp_std::vec::Vec;
 
-use ethereum::{EIP1559TransactionMessage, TransactionAction};
+use ethereum::{AccessListItem, EIP1559TransactionMessage, TransactionAction};
 use sp_core::{H160, U256};
 
 pub use pallet::*;
@@ -73,13 +73,14 @@ pub mod pallet {
 		/// RLP-encoded transaction data with EIP-2718 type prefix (0x02 for EIP-1559)
 		pub fn build_evm_tx(
 			origin: OriginFor<T>,
-			to_address: Option<Vec<u8>>,
+			to_address: Option<H160>,
 			value: u128,
 			data: Vec<u8>,
 			nonce: u64,
 			gas_limit: u64,
 			max_fee_per_gas: u128,
 			max_priority_fee_per_gas: u128,
+			access_list: Vec<AccessListItem>,
 			chain_id: u64,
 		) -> Result<Vec<u8>, DispatchError> {
 			ensure_signed(origin)?;
@@ -88,10 +89,7 @@ pub mod pallet {
 			ensure!(max_priority_fee_per_gas <= max_fee_per_gas, Error::<T>::InvalidGasPrice);
 
 			let action = match to_address {
-				Some(addr) => {
-					let address: [u8; 20] = addr.as_slice().try_into().map_err(|_| Error::<T>::InvalidAddress)?;
-					TransactionAction::Call(H160::from(address))
-				}
+				Some(addr) => TransactionAction::Call(addr),
 				None => TransactionAction::Create,
 			};
 
@@ -104,7 +102,7 @@ pub mod pallet {
 				action,
 				value: U256::from(value),
 				input: data,
-				access_list: Vec::new(),
+				access_list,
 			};
 
 			let mut output = Vec::new();
