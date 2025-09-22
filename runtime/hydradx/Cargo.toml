@@ -92,7 +92,7 @@ pallet-uniques = { workspace = true }
 pallet-whitelist = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
-pallet-signet = { path = "../../pallets/signet", default-features = false }
+pallet-signet = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }

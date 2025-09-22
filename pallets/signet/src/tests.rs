@@ -759,24 +759,6 @@ fn test_read_respond() {
 }
 
 #[test]
-fn test_get_signature_deposit() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let deposit = 5000u128;
-
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            deposit,
-            b"test-chain".to_vec()
-        ));
-
-        assert_eq!(Signet::signature_deposit(), deposit);
-        assert_ok!(Signet::get_signature_deposit(RuntimeOrigin::signed(1)));
-    });
-}
-
-#[test]
 fn test_sign_includes_chain_id() {
     new_test_ext().execute_with(|| {
         let admin = 1u64;

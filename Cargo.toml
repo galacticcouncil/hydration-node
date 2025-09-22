@@ -161,6 +161,7 @@ liquidation-worker-support = { path = "liquidation-worker-support", default-feat
 pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-build-evm-tx = { path = "pallets/build-evm-tx", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
+pallet-signet = { path = "pallets/signet", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }
