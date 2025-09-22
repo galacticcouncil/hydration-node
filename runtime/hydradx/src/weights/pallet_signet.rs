@@ -40,8 +40,4 @@ impl<T: frame_system::Config> pallet_signet::weights::WeightInfo for HydraWeight
     fn read_respond() -> Weight {
         Weight::from_parts(10_000_000, 0)
     }
-    
-    fn get_signature_deposit() -> Weight {
-        Weight::from_parts(5_000_000, 0)
-    }
 }

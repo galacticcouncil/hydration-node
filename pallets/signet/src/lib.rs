@@ -428,14 +428,6 @@ pub mod pallet {
 
 			Ok(())
 		}
-
-		/// Get the current signature deposit amount
-		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::get_signature_deposit())]
-		pub fn get_signature_deposit(_origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-			// This is just for RPC queries - the getter handles actual retrieval
-			Ok(().into())
-		}
 	}
 
 	// Helper functions
