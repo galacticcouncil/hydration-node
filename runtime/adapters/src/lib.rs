@@ -25,7 +25,7 @@ use frame_support::{
 		ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, FixedPointOperand, FixedU128,
 		SaturatedConversion,
 	},
-	traits::{Contains, LockIdentifier, OriginTrait},
+	traits::{Contains, ExistenceRequirement, LockIdentifier, OriginTrait},
 	weights::{Weight, WeightToFee},
 };
 use hydra_dx_math::{
@@ -510,7 +510,7 @@ where
 	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
 		//TODO: here in future, we will change this to buyback HDX with the lrna amount
 		// for now, simply transfer the amount to treasury
-		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
+		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount, ExistenceRequirement::AllowDeath)?;
 		Ok(Some((amount, ProtocolFeeRecipient::get())))
 	}
 }
@@ -838,7 +838,7 @@ impl<
 			let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 				.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 				.saturated_into();
-			MultiCurrency::withdraw(currency_id, &who, amount).map_err(|e| XcmError::FailedToTransactAsset(e.into()))
+			MultiCurrency::withdraw(currency_id, &who, amount, ExistenceRequirement::AllowDeath).map_err(|e| XcmError::FailedToTransactAsset(e.into()))
 		})?;
 
 		Ok(asset.clone().into())
@@ -864,7 +864,7 @@ impl<
 		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 			.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 			.saturated_into();
-		MultiCurrency::transfer(currency_id, &from_account, &to_account, amount)
+		MultiCurrency::transfer(currency_id, &from_account, &to_account, amount, ExistenceRequirement::AllowDeath)
 			.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 
 		Ok(asset.clone().into())
