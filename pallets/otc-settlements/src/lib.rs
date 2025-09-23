@@ -48,7 +48,7 @@ use frame_support::{
 use hydradx_traits::router::Route;
 
 use frame_system::{
-	offchain::{SendUnsignedTransaction, SigningTypes},
+	offchain::{CreateInherent, SubmitTransaction},
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
 use hydradx_traits::router::{
@@ -66,7 +66,7 @@ use sp_runtime::{
 		storage_lock::{StorageLock, Time},
 		Duration,
 	},
-	traits::{AccountIdConversion, Dispatchable},
+	traits::AccountIdConversion,
 	Perbill,
 };
 use sp_std::vec;
@@ -114,25 +114,17 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_otc::Config + SigningTypes + frame_system::offchain::CreateInherent<Call<Self>> {
+	pub trait Config: frame_system::Config + pallet_otc::Config + CreateInherent<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-		/// The overarching call type.
-		type RuntimeCall: Parameter
-		+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin>
-		+ From<Call<Self>>;
-
-		/// Offchain transaction submitter for unsigned extrinsics.
-		type SubmitTransaction: SendUnsignedTransaction<Self, Call<Self>>;
 
 		/// Named reservable multi currency.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetIdOf<Self>, Balance = Balance>;
 
 		/// Router implementation.
 		type Router: RouteProvider<AssetIdOf<Self>>
-		+ RouterT<Self::RuntimeOrigin, AssetIdOf<Self>, Balance, Trade<AssetIdOf<Self>>, AmountInAndOut<Balance>>
-		+ RouteSpotPriceProvider<AssetIdOf<Self>>;
+			+ RouterT<Self::RuntimeOrigin, AssetIdOf<Self>, Balance, Trade<AssetIdOf<Self>>, AmountInAndOut<Balance>>
+			+ RouteSpotPriceProvider<AssetIdOf<Self>>;
 
 		/// Account who receives the profit.
 		#[pallet::constant]
@@ -558,13 +550,16 @@ impl<T: Config> Pallet<T> {
 						otc_id,
 						sell_amt
 					);
+
 				let call = Call::settle_otc_order {
 					otc_id: *otc_id,
 					amount: sell_amt,
 					route,
 				};
-				let submitter = T::SubmitTransaction {};
-				let _ = submitter.submit_unsigned_transaction(call);
+
+				// Create an unsigned extrinsic
+				let xt = T::create_inherent(call.into());
+				let _ = SubmitTransaction::<T, Call<T>>::submit_transaction(xt);
 			}
 		}
 	}

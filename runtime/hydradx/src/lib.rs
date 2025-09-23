@@ -258,11 +258,12 @@ pub type Address = AccountId;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
-pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+pub type Block = generic::Block<Header, HydraUncheckedExtrinsic>;
 /// A Block signed with a Justification
 pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
+
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
 	frame_system::CheckNonZeroSender<Runtime>,
@@ -278,7 +279,7 @@ pub type SignedExtra = (
 	cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+pub type HydraUncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = fp_self_contained::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra, H160>;
@@ -292,12 +293,21 @@ pub type Executive = frame_executive::Executive<
 	migrations::Migrations,
 >;
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Runtime
 where
-	RuntimeCall: From<C>,
+	RuntimeCall: From<LocalCall>,
 {
-	type OverarchingCall = RuntimeCall;
-	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+	type Extrinsic =  HydraUncheckedExtrinsic;
+}
+
+impl<LocalCall> frame_system::offchain::CreateInherent<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_inherent(call: Self::RuntimeCall) -> HydraUncheckedExtrinsic {
+		HydraUncheckedExtrinsic::new_bare(call)
+	}
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -435,16 +445,16 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 
 pub struct TransactionConverter;
 
-impl fp_rpc::ConvertTransaction<UncheckedExtrinsic> for TransactionConverter {
-	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> UncheckedExtrinsic {
-		UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
+impl fp_rpc::ConvertTransaction<HydraUncheckedExtrinsic> for TransactionConverter {
+	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> HydraUncheckedExtrinsic {
+		HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
 	}
 }
 
 impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConverter {
 	fn convert_transaction(&self, transaction: pallet_ethereum::Transaction) -> sp_runtime::OpaqueExtrinsic {
 		let extrinsic =
-			UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into());
+			HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into());
 		let encoded = extrinsic.encode();
 		sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid")
 	}
@@ -966,7 +976,7 @@ impl_runtime_apis! {
 
 	impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {
 		fn convert_transaction(transaction: EthereumTransaction) -> <Block as BlockT>::Extrinsic {
-			UncheckedExtrinsic::new_unsigned(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
+			HydraUncheckedExtrinsic::new_bare(pallet_ethereum::Call::<Runtime>::transact { transaction }.into())
 		}
 	}
 
