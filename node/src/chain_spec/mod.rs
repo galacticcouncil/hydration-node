@@ -190,7 +190,6 @@ pub fn parachain_genesis(
 	},
 	"duster": {
 		"accountBlacklist": duster.account_blacklist,
-		"dustAccount": duster.dust_account
 	},
 	"omnipoolWarehouseLm": {
 	},

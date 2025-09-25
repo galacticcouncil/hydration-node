@@ -92,7 +92,7 @@ pub mod pallet {
 		/// Duster for accounts with AToken dusts
 		type ATokenDuster: hydradx_traits::evm::ATokenDuster<Self::AccountId, Self::AssetId>;
 
-		/// Default account for `dust_account` in genesis config.
+		/// Treasury account, which receives the dust.
 		#[pallet::constant]
 		type TreasuryAccountId: Get<Self::AccountId>;
 
@@ -104,7 +104,6 @@ pub mod pallet {
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub account_blacklist: Vec<T::AccountId>,
-		pub dust_account: Option<T::AccountId>,
 	}
 
 	#[pallet::genesis_build]
