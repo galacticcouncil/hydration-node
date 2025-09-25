@@ -683,7 +683,6 @@ impl pallet_duster::Config for Runtime {
 	type AssetId = AssetId;
 	type MultiCurrency = FungibleCurrencies<Runtime>;
 	type ExistentialDeposit = AssetRegistry;
-	type NativeCurrencyId = NativeAssetId;
 	type BlacklistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type ATokenDuster = AtokenAccountDuster;
 	type TreasuryAccountId = TreasuryAccount;

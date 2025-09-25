@@ -86,10 +86,6 @@ pub mod pallet {
 		/// Existential deposit required to keep an account.
 		type ExistentialDeposit: GetByKey<Self::AssetId, Balance>;
 
-		/// Native Asset Id
-		#[pallet::constant]
-		type NativeCurrencyId: Get<Self::AssetId>;
-
 		/// The origin which can manage whiltelist.
 		type BlacklistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 

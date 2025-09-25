@@ -130,7 +130,6 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type MultiCurrency = FungibleCurrencies<Test>;
 	type ExistentialDeposit = MinDeposits;
-	type NativeCurrencyId = NativeCurrencyId;
 	type BlacklistUpdateOrigin = EnsureRoot<AccountId>;
 	type ATokenDuster = ATokenDusterMock;
 	type TreasuryAccountId = TreasuryAccount;
