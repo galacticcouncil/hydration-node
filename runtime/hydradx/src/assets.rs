@@ -680,7 +680,6 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 
 impl pallet_duster::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type MultiCurrency = FungibleCurrencies<Runtime>;

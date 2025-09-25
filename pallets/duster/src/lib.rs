@@ -27,7 +27,7 @@ mod tests;
 
 pub mod migration;
 pub mod weights;
-
+use sp_runtime::traits::Zero;
 pub use crate::weights::WeightInfo;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::fungibles::Mutate;
@@ -44,6 +44,8 @@ use sp_std::convert::{TryFrom, TryInto};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+
+type Balance = u128;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -74,19 +76,10 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Balance type
-		type Balance: Parameter
-			+ Member
-			+ AtLeast32BitUnsigned
-			+ Default
-			+ Copy
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
-
 		/// The amount type, should be signed version of `Balance`
 		type Amount: Signed
-			+ TryInto<Self::Balance>
-			+ TryFrom<Self::Balance>
+			+ TryInto<Balance>
+			+ TryFrom<Balance>
 			+ Parameter
 			+ Member
 			+ SimpleArithmetic
@@ -98,11 +91,11 @@ pub mod pallet {
 		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
 
 		/// Currency for transfers
-		type MultiCurrency: Inspect<Self::AccountId, AssetId = Self::CurrencyId, Balance = Self::Balance>
+		type MultiCurrency: Inspect<Self::AccountId, AssetId = Self::CurrencyId, Balance = Balance>
 			+ Mutate<Self::AccountId>;
 
 		/// The minimum amount required to keep an account.
-		type MinCurrencyDeposits: GetByKey<Self::CurrencyId, Self::Balance>;
+		type MinCurrencyDeposits: GetByKey<Self::CurrencyId, Balance>;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -160,7 +153,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Account dusted.
-		Dusted { who: T::AccountId, amount: T::Balance },
+		Dusted { who: T::AccountId, amount: Balance},
 
 		/// Account added to non-dustable list.
 		Added { who: T::AccountId },
@@ -192,7 +185,7 @@ pub mod pallet {
 			ensure!(Self::blacklisted(&account).is_none(), Error::<T>::AccountBlacklisted);
 
 			let (dustable, dust) = Self::is_dustable(&account, currency_id);
-			ensure!(dust != T::Balance::from(0u32), Error::<T>::ZeroBalance);
+			ensure!(!dust.is_zero(), Error::<T>::ZeroBalance);
 
 			ensure!(dustable, Error::<T>::BalanceSufficient);
 
@@ -211,7 +204,7 @@ pub mod pallet {
 			//Sanity check that account is fully dusted
 			let leftover =
 				T::MultiCurrency::reducible_balance(currency_id, &account, Preservation::Expendable, Fortitude::Polite);
-			ensure!(leftover == T::Balance::from(0u32), Error::<T>::ZeroBalance);
+			ensure!(leftover.is_zero(), Error::<T>::ZeroBalance);
 
 			Self::deposit_event(Event::Dusted {
 				who: account,
@@ -258,7 +251,7 @@ pub mod pallet {
 }
 impl<T: Config> Pallet<T> {
 	/// Check is account's balance is below minimum deposit.
-	fn is_dustable(account: &T::AccountId, currency_id: T::CurrencyId) -> (bool, T::Balance) {
+	fn is_dustable(account: &T::AccountId, currency_id: T::CurrencyId) -> (bool, Balance) {
 		let ed = T::MinCurrencyDeposits::get(&currency_id);
 
 		let total = T::MultiCurrency::total_balance(currency_id, account);
@@ -271,7 +264,7 @@ impl<T: Config> Pallet<T> {
 		from: &T::AccountId,
 		dest: &T::AccountId,
 		currency_id: T::CurrencyId,
-		dust: T::Balance,
+		dust: Balance,
 	) -> DispatchResult {
 		T::MultiCurrency::transfer(currency_id, from, dest, dust, Preservation::Expendable).map(|_| Ok(()))?
 	}
@@ -282,8 +275,8 @@ use orml_traits::currency::OnDust;
 use sp_std::marker::PhantomData;
 pub struct DusterWhitelist<T>(PhantomData<T>);
 
-impl<T: Config> OnDust<T::AccountId, T::CurrencyId, T::Balance> for Pallet<T> {
-	fn on_dust(who: &T::AccountId, currency_id: T::CurrencyId, amount: T::Balance) {
+impl<T: Config> OnDust<T::AccountId, T::CurrencyId, Balance> for Pallet<T> {
+	fn on_dust(who: &T::AccountId, currency_id: T::CurrencyId, amount: Balance) {
 		let _ = Self::transfer_dust(who, &T::TreasuryAccountId::get(), currency_id, amount);
 	}
 }
