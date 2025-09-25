@@ -142,6 +142,9 @@ pub mod pallet {
 		/// The balance is zero.
 		ZeroBalance,
 
+		/// The balance was not fully dusted, there is some leftover on the account. Normally, it should never happen.
+		NonZeroBalance,
+
 		/// The balance is sufficient to keep account open.
 		BalanceSufficient,
 
@@ -204,7 +207,7 @@ pub mod pallet {
 			//Sanity check that account is fully dusted
 			let leftover =
 				T::MultiCurrency::reducible_balance(currency_id, &account, Preservation::Expendable, Fortitude::Polite);
-			ensure!(leftover.is_zero(), Error::<T>::ZeroBalance);
+			ensure!(leftover.is_zero(), Error::<T>::NonZeroBalance);
 
 			Self::deposit_event(Event::Dusted {
 				who: account,
