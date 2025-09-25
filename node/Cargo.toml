@@ -49,7 +49,7 @@ ethabi = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
-frame-benchmarking-cli = { workspace = true, optional = true }
+frame-benchmarking-cli = { workspace = true }
 frame-support = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
 sc-basic-authorship = { workspace = true }
@@ -114,11 +114,11 @@ fp-evm = { workspace = true }
 
 [features]
 default = [
-    "frame-benchmarking-cli",
+#    "frame-benchmarking-cli",
 ]
 runtime-benchmarks = [
     "hydradx-runtime/runtime-benchmarks",
-    "frame-benchmarking-cli",
+#    "frame-benchmarking-cli",
     "polkadot-service/runtime-benchmarks",
     "polkadot-cli/runtime-benchmarks",
 ]

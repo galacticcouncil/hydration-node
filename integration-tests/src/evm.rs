@@ -33,7 +33,9 @@ use sp_core::{blake2_256, H160, H256, U256};
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
 use std::{borrow::Cow, cmp::Ordering};
+use rococo_runtime::RuntimeCall::Utility;
 use xcm_emulator::TestExt;
+use crate::utils::accounts::MockAccount;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
@@ -2149,6 +2151,75 @@ fn dispatch_should_work_with_transfer() {
 
 		//Assert
 		assert!(Tokens::free_balance(WETH, &AccountId::from(ALICE)) < balance - 10u128.pow(16));
+	});
+}
+
+#[test]
+fn dispatch_batch_should_increase_nonce_once() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		let account = MockAccount::new(ALICE.into());
+		let signed_origin_account = RuntimeOrigin::signed(account.address());
+
+		assert_ok!(EVMAccounts::bind_evm_address(signed_origin_account.clone()));
+
+		let evm_address = EVMAccounts::evm_address(&account.address());
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			account.address(),
+			WETH,
+			(100 * UNITS * 1_000_000) as i128,
+		));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			signed_origin_account.clone(),
+			WETH,
+		));
+
+		//Arrange
+		// let data = hex!["0d020801000813370100081337"].to_vec(); // two remark calls wrapped in batchAll
+		let nonce = account.nonce();
+
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+		let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address,
+			target: DISPATCH_ADDR,
+			input: hex!["0107081337"].to_vec(),
+			value: U256::from(0),
+			gas_limit: 1000000,
+			max_fee_per_gas: gas_price,
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+
+		let data = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![evm_call.clone(), evm_call],
+		}).encode();
+
+		//Act
+		assert_ok!(EVM::call(
+			signed_origin_account,
+			evm_address,
+			DISPATCH_ADDR,
+			data,
+			U256::from(0),
+			1000000,
+			gas_price * 10,
+			None,
+			Some(U256::zero()),
+			[].into()
+		));
+
+		//Assert
+		assert_eq!(account.nonce(), nonce + 1);
 	});
 }
 
