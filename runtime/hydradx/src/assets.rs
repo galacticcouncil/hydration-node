@@ -680,9 +680,9 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 
 impl pallet_duster::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type CurrencyId = AssetId;
+	type AssetId = AssetId;
 	type MultiCurrency = FungibleCurrencies<Runtime>;
-	type MinCurrencyDeposits = AssetRegistry;
+	type ExistentialDeposit = AssetRegistry;
 	type NativeCurrencyId = NativeAssetId;
 	type BlacklistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type ATokenDuster = AtokenAccountDuster;

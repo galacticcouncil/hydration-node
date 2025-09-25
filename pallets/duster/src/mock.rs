@@ -127,9 +127,9 @@ parameter_type_with_key! {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type CurrencyId = AssetId;
+	type AssetId = AssetId;
 	type MultiCurrency = FungibleCurrencies<Test>;
-	type MinCurrencyDeposits = MinDeposits;
+	type ExistentialDeposit = MinDeposits;
 	type NativeCurrencyId = NativeCurrencyId;
 	type BlacklistUpdateOrigin = EnsureRoot<AccountId>;
 	type ATokenDuster = ATokenDusterMock;

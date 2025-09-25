@@ -77,24 +77,24 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset type
-		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
 
 		/// Currency for transfers
-		type MultiCurrency: Inspect<Self::AccountId, AssetId = Self::CurrencyId, Balance = Balance>
+		type MultiCurrency: Inspect<Self::AccountId, AssetId = Self::AssetId, Balance = Balance>
 			+ Mutate<Self::AccountId>;
 
-		/// The minimum amount required to keep an account.
-		type MinCurrencyDeposits: GetByKey<Self::CurrencyId, Balance>;
+		/// Existential deposit required to keep an account.
+		type ExistentialDeposit: GetByKey<Self::AssetId, Balance>;
 
 		/// Native Asset Id
 		#[pallet::constant]
-		type NativeCurrencyId: Get<Self::CurrencyId>;
+		type NativeCurrencyId: Get<Self::AssetId>;
 
 		/// The origin which can manage whiltelist.
 		type BlacklistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Duster for accounts with AToken dusts
-		type ATokenDuster: hydradx_traits::evm::ATokenDuster<Self::AccountId, Self::CurrencyId>;
+		type ATokenDuster: hydradx_traits::evm::ATokenDuster<Self::AccountId, Self::AssetId>;
 
 		/// Default account for `dust_account` in genesis config.
 		#[pallet::constant]
@@ -170,7 +170,7 @@ pub mod pallet {
 		pub fn dust_account(
 			origin: OriginFor<T>,
 			account: T::AccountId,
-			currency_id: T::CurrencyId,
+			currency_id: T::AssetId,
 		) -> DispatchResultWithPostInfo {
 			ensure_signed(origin)?;
 
@@ -243,8 +243,8 @@ pub mod pallet {
 }
 impl<T: Config> Pallet<T> {
 	/// Check is account's balance is below minimum deposit.
-	fn is_dustable(account: &T::AccountId, currency_id: T::CurrencyId) -> (bool, Balance) {
-		let ed = T::MinCurrencyDeposits::get(&currency_id);
+	fn is_dustable(account: &T::AccountId, currency_id: T::AssetId) -> (bool, Balance) {
+		let ed = T::ExistentialDeposit::get(&currency_id);
 
 		let total = T::MultiCurrency::total_balance(currency_id, account);
 
@@ -255,7 +255,7 @@ impl<T: Config> Pallet<T> {
 	fn transfer_dust(
 		from: &T::AccountId,
 		dest: &T::AccountId,
-		currency_id: T::CurrencyId,
+		currency_id: T::AssetId,
 		dust: Balance,
 	) -> DispatchResult {
 		T::MultiCurrency::transfer(currency_id, from, dest, dust, Preservation::Expendable).map(|_| Ok(()))?
@@ -267,8 +267,8 @@ use orml_traits::currency::OnDust;
 use sp_std::marker::PhantomData;
 pub struct DusterWhitelist<T>(PhantomData<T>);
 
-impl<T: Config> OnDust<T::AccountId, T::CurrencyId, Balance> for Pallet<T> {
-	fn on_dust(who: &T::AccountId, currency_id: T::CurrencyId, amount: Balance) {
+impl<T: Config> OnDust<T::AccountId, T::AssetId, Balance> for Pallet<T> {
+	fn on_dust(who: &T::AccountId, currency_id: T::AssetId, amount: Balance) {
 		let _ = Self::transfer_dust(who, &T::TreasuryAccountId::get(), currency_id, amount);
 	}
 }
