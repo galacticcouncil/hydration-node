@@ -29,9 +29,10 @@ pub mod migration;
 pub mod weights;
 
 pub use crate::weights::WeightInfo;
+use frame_support::traits::fungibles::Inspect;
+use frame_support::traits::fungibles::Mutate;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
 use hydradx_traits::evm::ATokenDuster;
-
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
 	GetByKey, MultiCurrency, MultiCurrencyExtended,
@@ -50,6 +51,7 @@ pub mod pallet {
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+	use frame_support::traits::tokens::{Fortitude, Preservation};
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 	use sp_std::vec::Vec;
 
@@ -96,12 +98,8 @@ pub mod pallet {
 		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
 
 		/// Currency for transfers
-		type MultiCurrency: MultiCurrencyExtended<
-			Self::AccountId,
-			CurrencyId = Self::CurrencyId,
-			Balance = Self::Balance,
-			Amount = Self::Amount,
-		>;
+		type MultiCurrency: Inspect<Self::AccountId, AssetId = Self::CurrencyId, Balance = Self::Balance>
+			+ Mutate<Self::AccountId>;
 
 		/// The minimum amount required to keep an account.
 		type MinCurrencyDeposits: GetByKey<Self::CurrencyId, Self::Balance>;
@@ -211,7 +209,8 @@ pub mod pallet {
 			}
 
 			//Sanity check that account is fully dusted
-			let leftover = T::MultiCurrency::free_balance(currency_id, &account);
+			let leftover =
+				T::MultiCurrency::reducible_balance(currency_id, &account, Preservation::Expendable, Fortitude::Polite);
 			ensure!(leftover == T::Balance::from(0u32), Error::<T>::ZeroBalance);
 
 			Self::deposit_event(Event::Dusted {
@@ -274,7 +273,7 @@ impl<T: Config> Pallet<T> {
 		currency_id: T::CurrencyId,
 		dust: T::Balance,
 	) -> DispatchResult {
-		T::MultiCurrency::transfer(currency_id, from, dest, dust)
+		T::MultiCurrency::transfer(currency_id, from, dest, dust, Preservation::Expendable).map(|_| Ok(()))?
 	}
 }
 
@@ -296,6 +295,7 @@ impl<T: Config> Contains<T::AccountId> for DusterWhitelist<T> {
 }
 
 use frame_support::sp_runtime::DispatchError;
+use frame_support::traits::tokens::Preservation;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 
 impl<T: Config> DustRemovalAccountWhitelist<T::AccountId> for Pallet<T> {

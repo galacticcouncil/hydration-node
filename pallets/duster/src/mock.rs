@@ -19,6 +19,7 @@ use sp_runtime::{
 use frame_support::weights::Weight;
 use frame_system::EnsureRoot;
 use hydradx_traits::evm::ATokenDuster;
+use pallet_currencies::fungibles::FungibleCurrencies;
 use sp_std::cell::RefCell;
 use sp_std::vec::Vec;
 
@@ -129,7 +130,7 @@ impl Config for Test {
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type MultiCurrency = Currencies;
+	type MultiCurrency = FungibleCurrencies<Test>;
 	type MinCurrencyDeposits = MinDeposits;
 	type NativeCurrencyId = NativeCurrencyId;
 	type BlacklistUpdateOrigin = EnsureRoot<AccountId>;
