@@ -76,17 +76,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// The amount type, should be signed version of `Balance`
-		type Amount: Signed
-			+ TryInto<Balance>
-			+ TryFrom<Balance>
-			+ Parameter
-			+ Member
-			+ SimpleArithmetic
-			+ Default
-			+ Copy
-			+ MaybeSerializeDeserialize;
-
 		/// Asset type
 		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
 

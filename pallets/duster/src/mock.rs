@@ -127,7 +127,6 @@ parameter_type_with_key! {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type MultiCurrency = FungibleCurrencies<Test>;
 	type MinCurrencyDeposits = MinDeposits;
