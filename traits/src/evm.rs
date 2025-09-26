@@ -1,7 +1,9 @@
 use codec::{Decode, Encode};
-use frame_support::sp_runtime::app_crypto::sp_core::{H160, U256};
+use frame_support::sp_runtime::app_crypto::sp_core::U256;
 use frame_support::sp_runtime::{DispatchResult, RuntimeDebug};
+use primitives::EvmAddress;
 use sp_std::vec::Vec;
+
 pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the account is EVM truncated account.
 	fn is_evm_account(account_id: AccountId) -> bool;
@@ -25,8 +27,6 @@ pub trait InspectEvmAccounts<AccountId> {
 	/// Returns `True` if the address is allowed to manage balances and tokens.
 	fn is_approved_contract(address: EvmAddress) -> bool;
 }
-
-pub type EvmAddress = H160;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug)]
 pub struct CallContext {

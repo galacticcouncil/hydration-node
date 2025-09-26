@@ -30,7 +30,7 @@ pub type CallResult = (ExitReason, Vec<u8>);
 
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
 use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
-use hydradx_traits::evm::EvmAddress;
+use primitives::EvmAddress;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H256, U256, U512};
 use sp_std::{boxed::Box, ops::BitAnd};
@@ -269,7 +269,13 @@ impl UserData {
 			OriginCaller,
 			RuntimeCall,
 			RuntimeEvent,
-		>(&api_provider, hash, money_market.pool_contract, address, caller)?);
+		>(
+			&api_provider,
+			hash,
+			money_market.pool_contract,
+			address.into(),
+			caller,
+		)?);
 
 		let mut reserves = Vec::new();
 		for (index, reserve) in money_market.reserves.iter().enumerate() {
@@ -279,7 +285,7 @@ impl UserData {
 					.get_user_collateral_in_base_currency::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 						&api_provider,
 						hash,
-						address,
+						address.into(),
 						current_evm_timestamp,
 						caller,
 					)
@@ -288,7 +294,7 @@ impl UserData {
 					.get_user_debt_in_base_currency::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 						&api_provider,
 						hash,
-						address,
+						address.into(),
 						current_evm_timestamp,
 						caller,
 					)
@@ -301,7 +307,7 @@ impl UserData {
 		}
 
 		Ok(Self {
-			address,
+			address: address.into(),
 			configuration,
 			reserves,
 		})
@@ -553,10 +559,10 @@ impl Reserve {
 	/// Get addresses of collateral and debt assets.
 	pub fn get_collateral_and_debt_addresses(&self) -> (EvmAddress, (EvmAddress, EvmAddress)) {
 		(
-			self.reserve_data.a_token_address,
+			self.reserve_data.a_token_address.into(),
 			(
-				self.reserve_data.stable_debt_token_address,
-				self.reserve_data.variable_debt_token_address,
+				self.reserve_data.stable_debt_token_address.into(),
+				self.reserve_data.variable_debt_token_address.into(),
 			),
 		)
 	}
@@ -854,7 +860,7 @@ impl<
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
+			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -875,7 +881,7 @@ impl<
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
+			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -906,7 +912,7 @@ impl<
 			let decoded = decoded[0].clone().into_array().ok_or(ethabi::Error::InvalidData)?;
 			let mut address_arr = Vec::new();
 			for i in decoded.iter() {
-				address_arr.push(i.clone().into_address().ok_or(ethabi::Error::InvalidData)?);
+				address_arr.push(i.clone().into_address().ok_or(ethabi::Error::InvalidData)?.into());
 			}
 
 			Ok(address_arr)

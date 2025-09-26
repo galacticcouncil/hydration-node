@@ -48,7 +48,6 @@ pub use pallet::*;
 pub use crate::types::{AssetDetails, Balance, Name, Symbol};
 use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
-use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	registry::{Create, Inspect, Mutate},
 	AssetKind, BoundErc20, RegisterAssetHook,
@@ -57,6 +56,7 @@ use orml_traits::GetByKey;
 use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
+use primitives::EvmAddress;
 use sp_runtime::TransactionOutcome;
 
 /// Default value of existential deposit. This value is used if existential deposit wasn't

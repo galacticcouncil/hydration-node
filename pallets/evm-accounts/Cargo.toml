@@ -17,6 +17,7 @@ scale-info = { workspace = true }
 codec = { workspace = true }
 
 hydradx-traits = { workspace = true }
+primitives = { workspace = true }
 
 frame-support = { workspace = true }
 frame-system = { workspace = true }

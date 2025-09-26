@@ -51,7 +51,6 @@ use frame_support::{
 	},
 };
 use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
-use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{AssetKind, BoundErc20};
 use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
@@ -61,6 +60,7 @@ use orml_traits::{
 	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
 };
 use orml_utilities::with_transaction_result;
+use primitives::EvmAddress;
 use sp_runtime::{
 	traits::{CheckedSub, MaybeSerializeDeserialize, StaticLookup, Zero},
 	DispatchError, DispatchResult, Saturating,
@@ -92,7 +92,10 @@ pub mod module {
 	>>::ReserveIdentifier;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config
+	where
+		<Self::MultiCurrency as MultiCurrency<Self::AccountId>>::CurrencyId: codec::DecodeWithMemTracking,
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		type MultiCurrency: TransferAll<Self::AccountId>
@@ -1122,7 +1125,9 @@ where
 	}
 }
 
+#[cfg(any(test, feature = "std"))]
 pub struct MockErc20Currency<T>(PhantomData<T>);
+#[cfg(any(test, feature = "std"))]
 impl<T: Config> MultiCurrency<T::AccountId> for MockErc20Currency<T> {
 	type CurrencyId = EvmAddress;
 	type Balance = BalanceOf<T>;
@@ -1183,7 +1188,9 @@ impl<T: Config> MultiCurrency<T::AccountId> for MockErc20Currency<T> {
 	}
 }
 
+#[cfg(any(test, feature = "std"))]
 pub struct MockBoundErc20<T>(PhantomData<T>);
+#[cfg(any(test, feature = "std"))]
 impl<T: Config> hydradx_traits::Inspect for MockBoundErc20<T> {
 	type AssetId = CurrencyIdOf<T>;
 	type Location = ();
@@ -1221,6 +1228,7 @@ impl<T: Config> hydradx_traits::Inspect for MockBoundErc20<T> {
 	}
 }
 
+#[cfg(any(test, feature = "std"))]
 impl<T: Config> BoundErc20 for MockBoundErc20<T> {
 	fn contract_address(_id: Self::AssetId) -> Option<EvmAddress> {
 		None

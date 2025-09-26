@@ -23,6 +23,7 @@ serde = { workspace = true }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 pallet-broadcast = { workspace = true }
+primitives = { workspace = true }
 
 # primitives
 sp-runtime = { workspace = true }

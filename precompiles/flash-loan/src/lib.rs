@@ -30,10 +30,11 @@ use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::Get;
 use frame_support::traits::ConstU32;
 use frame_support::traits::IsType;
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_traits::evm::{CallContext, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use precompile_utils::evm::writer::EvmDataReader;
 use precompile_utils::prelude::*;
+use primitives::EvmAddress;
 use sp_core::crypto::AccountId32;
 use sp_core::{H256, U256};
 use sp_std::vec;
@@ -82,7 +83,7 @@ where
 
 		// ensure that the caller is one of the allowed callers
 		let allowed_callers = AllowedCallers::get();
-		if !allowed_callers.contains(&caller) {
+		if !allowed_callers.contains(&caller.into()) {
 			log::error!(target: "flash", "Caller is not allowed: {:?}", caller);
 			return Err(PrecompileFailure::Revert {
 				exit_status: ExitRevert::Reverted,
@@ -98,10 +99,10 @@ where
 			0 => {
 				// HSM arbitrage action
 				// We only allow the HSM account to use the flash loan for arbitrage opportunities.
-				Self::ensure_allowed_initiator(initiator.0, pallet_hsm::Pallet::<Runtime>::account_id())?;
+				Self::ensure_allowed_initiator(initiator.0.into(), pallet_hsm::Pallet::<Runtime>::account_id())?;
 
 				if let Err(r) = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
-					this,
+					this.into(),
 					amount.as_u128(),
 					data.as_bytes(),
 				) {
@@ -113,25 +114,30 @@ where
 				}
 
 				// Approve the loan repayment
-				Self::approve(token.0, this, caller, amount + fee)?;
+				Self::approve(token.0.into(), this.into(), caller.into(), amount + fee)?;
 
 				Ok(SUCCESS.into())
 			}
 			1 => {
 				// Liquidation action
-				Self::ensure_allowed_initiator(initiator.0, pallet_liquidation::Pallet::<Runtime>::account_id())?;
+				Self::ensure_allowed_initiator(
+					initiator.0.into(),
+					pallet_liquidation::Pallet::<Runtime>::account_id(),
+				)?;
 
 				// Approve the token transfer to the liquidation contract
 				Self::approve(
-					token.0,
-					this,
+					token.0.into(),
+					this.into(),
 					pallet_liquidation::BorrowingContract::<Runtime>::get(),
 					amount,
 				)?;
 
-				if let Err(r) =
-					pallet_liquidation::Pallet::<Runtime>::liquidate_position(this, amount.as_u128(), data.as_bytes())
-				{
+				if let Err(r) = pallet_liquidation::Pallet::<Runtime>::liquidate_position(
+					this.into(),
+					amount.as_u128(),
+					data.as_bytes(),
+				) {
 					log::error!(target: "flash", "liquidate_position failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
@@ -139,7 +145,7 @@ where
 					});
 				}
 				// Approve the loan repayment
-				Self::approve(token.0, this, caller, amount + fee)?;
+				Self::approve(token.0.into(), this.into(), caller.into(), amount + fee)?;
 				Ok(SUCCESS.into())
 			}
 			_ => {

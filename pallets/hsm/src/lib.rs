@@ -46,7 +46,6 @@ use frame_system::offchain::{CreateInherent, SubmitTransaction};
 use frame_system::{pallet_prelude::*, Origin};
 use hex_literal::hex;
 use hydra_dx_math::hsm::{CoefficientRatio, PegType, Price};
-use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
 	registry::BoundErc20,
@@ -56,6 +55,7 @@ use num_traits::One;
 use pallet_stableswap::types::PoolSnapshot;
 use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
+use primitives::EvmAddress;
 use sp_core::{offchain::Duration, Get, H256, U256};
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,

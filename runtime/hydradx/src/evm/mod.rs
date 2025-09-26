@@ -46,7 +46,7 @@ use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressOrigin, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
-use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
+use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId, EvmAddress};
 use sp_arithmetic::FixedU128;
 use sp_core::{crypto::AccountId32, Get, U256};
 
@@ -110,7 +110,6 @@ impl Get<AssetId> for WethAssetId {
 	}
 }
 
-pub type EvmAddress = sp_core::H160;
 type WethCurrency = CurrencyAdapter<Runtime, WethAssetId>;
 
 parameter_types! {

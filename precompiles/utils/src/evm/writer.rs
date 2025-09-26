@@ -293,6 +293,20 @@ impl EvmData for H160 {
 	}
 }
 
+impl EvmData for primitives::EvmAddress {
+	fn read(reader: &mut EvmDataReader) -> EvmResult<Self> {
+		Ok(primitives::EvmAddress(H160::read(reader)?))
+	}
+
+	fn write(writer: &mut EvmDataWriter, value: Self) {
+		H160::write(writer, value.0);
+	}
+
+	fn has_static_size() -> bool {
+		true
+	}
+}
+
 macro_rules! impl_evmdata_for_uints {
 	($($uint:ty, )*) => {
 		$(

@@ -427,7 +427,7 @@ pub mod pallet {
 			let (gas_price, _) = T::EvmPermit::gas_price();
 
 			// Set fee currency for the evm dispatch
-			let account_id = T::InspectEvmAccounts::account_id(from);
+			let account_id = T::InspectEvmAccounts::account_id(from.into());
 
 			let encoded = data.clone();
 			let mut encoded_extrinsic = encoded.as_slice();
@@ -497,7 +497,7 @@ pub mod pallet {
 						}
 
 						// Set fee currency for the evm dispatch
-						let account_id = T::InspectEvmAccounts::account_id(*from);
+						let account_id = T::InspectEvmAccounts::account_id((*from).into());
 
 						let encoded = data.clone();
 						let mut encoded_extrinsic = encoded.as_slice();
