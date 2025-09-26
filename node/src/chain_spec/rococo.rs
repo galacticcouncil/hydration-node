@@ -81,7 +81,7 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 		// duster
 		DusterConfig {
 			// treasury
-			account_blacklist: vec![hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()],
+			account_whitelist: vec![hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()],
 		},
 	);
 

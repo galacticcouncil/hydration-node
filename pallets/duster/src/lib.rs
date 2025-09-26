@@ -58,16 +58,16 @@ pub mod pallet {
 	use sp_std::vec::Vec;
 
 	/// The current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
-	#[pallet::storage]
-	#[pallet::getter(fn blacklisted)]
-	/// Accounts excluded from dusting.
-	pub type AccountBlacklist<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
+		#[pallet::storage]
+		#[pallet::getter(fn whitelisted)]
+		/// Accounts excluded from dusting.
+		pub type AccountWhitelist<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
@@ -103,14 +103,14 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub account_blacklist: Vec<T::AccountId>,
+		pub account_whitelist: Vec<T::AccountId>,
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			self.account_blacklist.iter().for_each(|account_id| {
-				AccountBlacklist::<T>::insert(account_id, ());
+			self.account_whitelist.iter().for_each(|account_id| {
+				AccountWhitelist::<T>::insert(account_id, ());
 			});
 		}
 	}
@@ -118,10 +118,10 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Account is excluded from dusting.
-		AccountBlacklisted,
+		AccountWhitelisted,
 
 		/// Account is not present in the non-dustable list.
-		AccountNotBlacklisted,
+		AccountNotWhitelisted,
 
 		/// The balance is zero.
 		ZeroBalance,
@@ -169,7 +169,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_signed(origin)?;
 
-			ensure!(Self::blacklisted(&account).is_none(), Error::<T>::AccountBlacklisted);
+			ensure!(Self::whitelisted(&account).is_none(), Error::<T>::AccountWhitelisted);
 
 			let (dustable, dust) = Self::is_dustable(&account, currency_id);
 			ensure!(!dust.is_zero(), Error::<T>::ZeroBalance);
@@ -202,14 +202,14 @@ pub mod pallet {
 		}
 
 		/// Add account to list of non-dustable account. Account whihc are excluded from udsting.
-		/// If such account should be dusted - `AccountBlacklisted` error is returned.
+		/// If such account should be dusted - `AccountWhitelisted` error is returned.
 		/// Only root can perform this action.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_nondustable_account())]
 		pub fn add_nondustable_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			T::BlacklistUpdateOrigin::ensure_origin(origin)?;
 
-			AccountBlacklist::<T>::insert(&account, ());
+			AccountWhitelist::<T>::insert(&account, ());
 
 			Self::deposit_event(Event::Added { who: account });
 
@@ -222,8 +222,8 @@ pub mod pallet {
 		pub fn remove_nondustable_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			T::BlacklistUpdateOrigin::ensure_origin(origin)?;
 
-			AccountBlacklist::<T>::mutate(&account, |maybe_account| -> DispatchResult {
-				ensure!(!maybe_account.is_none(), Error::<T>::AccountNotBlacklisted);
+			AccountWhitelist::<T>::mutate(&account, |maybe_account| -> DispatchResult {
+				ensure!(!maybe_account.is_none(), Error::<T>::AccountNotWhitelisted);
 
 				*maybe_account = None;
 
@@ -270,7 +270,7 @@ impl<T: Config> OnDust<T::AccountId, T::AssetId, Balance> for Pallet<T> {
 
 impl<T: Config> Contains<T::AccountId> for DusterWhitelist<T> {
 	fn contains(t: &T::AccountId) -> bool {
-		AccountBlacklist::<T>::contains_key(t)
+		AccountWhitelist::<T>::contains_key(t)
 	}
 }
 
@@ -282,13 +282,13 @@ impl<T: Config> DustRemovalAccountWhitelist<T::AccountId> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn add_account(account: &T::AccountId) -> Result<(), Self::Error> {
-		AccountBlacklist::<T>::insert(account, ());
+		AccountWhitelist::<T>::insert(account, ());
 		Ok(())
 	}
 
 	fn remove_account(account: &T::AccountId) -> Result<(), Self::Error> {
-		AccountBlacklist::<T>::mutate(account, |maybe_account| -> Result<(), DispatchError> {
-			ensure!(!maybe_account.is_none(), Error::<T>::AccountNotBlacklisted);
+		AccountWhitelist::<T>::mutate(account, |maybe_account| -> Result<(), DispatchError> {
+			ensure!(!maybe_account.is_none(), Error::<T>::AccountNotWhitelisted);
 
 			*maybe_account = None;
 

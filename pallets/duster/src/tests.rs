@@ -91,7 +91,7 @@ fn dust_treasury_account_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
 			Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *TREASURY, 1),
-			Error::<Test>::AccountBlacklisted
+			Error::<Test>::AccountWhitelisted
 		);
 	});
 }
@@ -254,15 +254,15 @@ fn add_nondustable_account_works() {
 			BadOrigin
 		);
 
-		assert!(Duster::blacklisted(*ALICE).is_none());
+		assert!(Duster::whitelisted(*ALICE).is_none());
 
 		assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
 
-		assert!(Duster::blacklisted(*ALICE).is_some());
+		assert!(Duster::whitelisted(*ALICE).is_some());
 
 		assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
 
-		assert!(Duster::blacklisted(*ALICE).is_some());
+		assert!(Duster::whitelisted(*ALICE).is_some());
 	});
 }
 
@@ -273,14 +273,14 @@ fn remove_nondustable_account_works() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
-			assert!(Duster::blacklisted(*ALICE).is_some());
+			assert!(Duster::whitelisted(*ALICE).is_some());
 
 			assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
 
 			// Dust dont work now
 			assert_noop!(
 				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
-				Error::<Test>::AccountBlacklisted
+				Error::<Test>::AccountWhitelisted
 			);
 
 			assert_noop!(
@@ -291,11 +291,11 @@ fn remove_nondustable_account_works() {
 			//remove non-existing account
 			assert_noop!(
 				Duster::remove_nondustable_account(RuntimeOrigin::root(), 1234556),
-				Error::<Test>::AccountNotBlacklisted
+				Error::<Test>::AccountNotWhitelisted
 			);
 
 			assert_ok!(Duster::remove_nondustable_account(RuntimeOrigin::root(), *ALICE));
-			assert!(Duster::blacklisted(*ALICE).is_none());
+			assert!(Duster::whitelisted(*ALICE).is_none());
 
 			// We can dust again
 			assert_ok!(Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 0),);

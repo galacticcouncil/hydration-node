@@ -628,7 +628,7 @@ pub mod hydra {
 				account_currencies: vec![],
 			},
 			duster: hydradx_runtime::DusterConfig {
-				account_blacklist: vec![Treasury::account_id()],
+				account_whitelist: vec![Treasury::account_id()],
 			},
 			..Default::default()
 		};
@@ -671,7 +671,7 @@ pub mod para {
 				..Default::default()
 			},
 			duster: hydradx_runtime::DusterConfig {
-				account_blacklist: vec![Treasury::account_id()],
+				account_whitelist: vec![Treasury::account_id()],
 			},
 			..Default::default()
 		};

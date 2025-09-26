@@ -232,7 +232,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		duster::GenesisConfig::<Test> {
-			account_blacklist: vec![*TREASURY],
+			account_whitelist: vec![*TREASURY],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

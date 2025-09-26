@@ -121,7 +121,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			polkadot_xcm: Default::default(),
 			ema_oracle: Default::default(),
 			duster: DusterConfig {
-				account_blacklist: vec![],
+				account_whitelist: vec![],
 			},
 			omnipool_warehouse_lm: Default::default(),
 			omnipool_liquidity_mining: Default::default(),
