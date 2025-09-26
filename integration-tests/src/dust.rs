@@ -118,7 +118,7 @@ fn balance_should_be_dusted_when_token_balance_is_below_ed() {
 				amount: 1,
 			}
 			.into(),
-			orml_tokens::Event::Transfer{
+			orml_tokens::Event::Transfer {
 				currency_id: DAI,
 				from: ALICE.into(),
 				to: BOB.into(),

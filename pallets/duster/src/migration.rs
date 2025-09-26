@@ -82,22 +82,32 @@ pub mod v1 {
 
 pub mod v2 {
 	use super::*;
-	use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion, UncheckedOnRuntimeUpgrade};
-	use frame_support::storage_alias;
-	use frame_support::Blake2_128Concat;
 	use frame_support::migrations::VersionedMigration;
+	use frame_support::storage_alias;
+	use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion, UncheckedOnRuntimeUpgrade};
+	use frame_support::Blake2_128Concat;
 
 	#[storage_alias]
-	type AccountBlacklist<T: Config, P: GetStorageVersion + PalletInfoAccess> = StorageMap<P, Blake2_128Concat, <T as frame_system::Config>::AccountId, (), frame_support::pallet_prelude::OptionQuery>;
+	type AccountBlacklist<T: Config, P: GetStorageVersion + PalletInfoAccess> = StorageMap<
+		P,
+		Blake2_128Concat,
+		<T as frame_system::Config>::AccountId,
+		(),
+		frame_support::pallet_prelude::OptionQuery,
+	>;
 
 	// Private module to hide the migration.
 	mod unversioned {
 		use frame_support::pallet_prelude::{GetStorageVersion, PalletInfoAccess};
 
-		pub struct InnerMigrateV1ToV2<T: crate::Config, P: GetStorageVersion + PalletInfoAccess>(core::marker::PhantomData<(T, P)>);
+		pub struct InnerMigrateV1ToV2<T: crate::Config, P: GetStorageVersion + PalletInfoAccess>(
+			core::marker::PhantomData<(T, P)>,
+		);
 	}
 
-	impl<T: Config, P: GetStorageVersion + PalletInfoAccess> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV1ToV2<T, P> {
+	impl<T: Config, P: GetStorageVersion + PalletInfoAccess> UncheckedOnRuntimeUpgrade
+		for unversioned::InnerMigrateV1ToV2<T, P>
+	{
 		fn on_runtime_upgrade() -> Weight {
 			log::info!(
 				target: "runtime::duster",
@@ -140,7 +150,11 @@ pub mod v2 {
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(_: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
 			// Verify that old storage is empty
-			assert_eq!(AccountBlacklist::<T, P>::iter().count(), 0, "Old AccountBlacklist storage should be empty");
+			assert_eq!(
+				AccountBlacklist::<T, P>::iter().count(),
+				0,
+				"Old AccountBlacklist storage should be empty"
+			);
 
 			// Verify that new storage has the expected entries
 			let whitelist_count = crate::AccountWhitelist::<T>::iter().count();
@@ -153,6 +167,11 @@ pub mod v2 {
 		}
 	}
 
-	pub type MigrateV1ToV2<T> =
-		VersionedMigration<1, 2, unversioned::InnerMigrateV1ToV2<T, crate::Pallet<T>>, crate::Pallet<T>, <T as frame_system::Config>::DbWeight>;
+	pub type MigrateV1ToV2<T> = VersionedMigration<
+		1,
+		2,
+		unversioned::InnerMigrateV1ToV2<T, crate::Pallet<T>>,
+		crate::Pallet<T>,
+		<T as frame_system::Config>::DbWeight,
+	>;
 }

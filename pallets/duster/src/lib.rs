@@ -27,7 +27,6 @@ mod tests;
 
 pub mod migration;
 pub mod weights;
-use sp_runtime::traits::Zero;
 pub use crate::weights::WeightInfo;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::fungibles::Mutate;
@@ -37,6 +36,7 @@ use orml_traits::{
 	arithmetic::{Signed, SimpleArithmetic},
 	GetByKey, MultiCurrency, MultiCurrencyExtended,
 };
+use sp_runtime::traits::Zero;
 
 use frame_system::ensure_signed;
 
@@ -64,10 +64,10 @@ pub mod pallet {
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
-		#[pallet::storage]
-		#[pallet::getter(fn whitelisted)]
-		/// Accounts excluded from dusting.
-		pub type AccountWhitelist<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
+	#[pallet::storage]
+	#[pallet::getter(fn whitelisted)]
+	/// Accounts excluded from dusting.
+	pub type AccountWhitelist<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
@@ -140,7 +140,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Account dusted.
-		Dusted { who: T::AccountId, amount: Balance},
+		Dusted { who: T::AccountId, amount: Balance },
 
 		/// Account added to non-dustable list.
 		Added { who: T::AccountId },
