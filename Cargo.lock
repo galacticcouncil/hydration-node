@@ -4521,7 +4521,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.4.1"
+version = "14.4.2"
 dependencies = [
  "async-trait",
  "clap",
@@ -6129,7 +6129,7 @@ dependencies = [
 
 [[package]]
 name = "liquidation-worker-support"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ethabi",
  "ethereum-types 0.15.1",
@@ -12247,7 +12247,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.52.3"
+version = "1.52.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
