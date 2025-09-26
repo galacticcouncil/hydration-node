@@ -1,6 +1,9 @@
-use crate::polkadot_test_net::{TestNet, ALICE, BOB, HDX, hydra_live_ext, hydradx_run_to_next_block};
 use crate::liquidation::{ORACLE_ADDRESS, ORACLE_CALLER};
-use fp_evm::{ExitReason::Succeed, ExitSucceed::{Stopped, Returned}};
+use crate::polkadot_test_net::{hydra_live_ext, hydradx_run_to_next_block, TestNet, ALICE, BOB, HDX};
+use fp_evm::{
+	ExitReason::Succeed,
+	ExitSucceed::{Returned, Stopped},
+};
 use frame_support::{assert_ok, dispatch::RawOrigin};
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -8,14 +11,13 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, TreasuryAccount,
-	HSM, OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap,
+	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, OriginCaller, Router, Runtime, RuntimeCall,
+	RuntimeEvent, RuntimeOrigin, Stableswap, Tokens, Treasury, TreasuryAccount, HSM,
 };
 use hydradx_traits::{
-	OraclePeriod,
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
 	stableswap::AssetAmount,
-	
+	OraclePeriod,
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
@@ -25,7 +27,7 @@ use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{RuntimeDebug, H256, U256};
-use sp_runtime::{BoundedVec, Perbill, Permill, traits::One};
+use sp_runtime::{traits::One, BoundedVec, Perbill, Permill};
 use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
@@ -1760,14 +1762,22 @@ fn hollar_liquidation_should_work() {
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		crate::liquidation::update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())], ORACLE_ADDRESS, ORACLE_CALLER);
+		crate::liquidation::update_oracle_price(
+			vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())],
+			ORACLE_ADDRESS,
+			ORACLE_CALLER,
+		);
 
 		let (price, timestamp) = crate::liquidation::get_oracle_price("WETH/USD").unwrap();
 		let price = price.as_u128() / 2;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		crate::liquidation::update_oracle_price(vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())], ORACLE_ADDRESS, ORACLE_CALLER);
+		crate::liquidation::update_oracle_price(
+			vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())],
+			ORACLE_ADDRESS,
+			ORACLE_CALLER,
+		);
 
 		// ensure that the health_factor < 1
 		let user_data = crate::liquidation::get_user_account_data(pool_contract, alice_evm_address).unwrap();

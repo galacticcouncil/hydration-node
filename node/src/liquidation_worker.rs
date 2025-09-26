@@ -24,7 +24,13 @@ use sp_blockchain::HeaderBackend;
 use sp_core::{RuntimeDebug, H160};
 use sp_offchain::OffchainWorkerApi;
 use sp_runtime::{traits::Header, transaction_validity::TransactionSource};
-use std::{cmp::Ordering, marker::PhantomData, ops::Deref, sync::{Arc, Mutex, mpsc}, collections::HashMap};
+use std::{
+	cmp::Ordering,
+	collections::HashMap,
+	marker::PhantomData,
+	ops::Deref,
+	sync::{mpsc, Arc, Mutex},
+};
 use threadpool::ThreadPool;
 use xcm_runtime_apis::dry_run::{CallDryRunEffects, DryRunApi, Error as XcmDryRunApiError};
 
@@ -144,7 +150,7 @@ where
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 pub enum TransactionType {
 	OracleUpdate(Vec<(EvmAddress, U256)>), // (asset_address, price)
-	Borrow(EvmAddress, EvmAddress), // borrower, asset_address
+	Borrow(EvmAddress, EvmAddress),        // borrower, asset_address
 }
 
 /// State of the liquidation worker.
@@ -189,14 +195,12 @@ where
 		)));
 
 		// Fetch and sort the list of borrowers.
-		let Some(borrowers_data) = Self::fetch_borrowers_data(config.omniwatch_url.clone()).await
-		else {
+		let Some(borrowers_data) = Self::fetch_borrowers_data(config.omniwatch_url.clone()).await else {
 			tracing::error!("liquidation-worker: fetch_borrowers_data failed");
 			return;
 		};
 
-		let Some(sorted_borrowers_data) = Self::process_borrowers_data(borrowers_data)
-		else {
+		let Some(sorted_borrowers_data) = Self::process_borrowers_data(borrowers_data) else {
 			tracing::error!("liquidation-worker: process_borrowers_data failed");
 			return;
 		};
@@ -412,14 +416,20 @@ where
 			return Err(());
 		};
 
-		match Self::get_transaction_type(transaction.0, &allowed_signers, &allowed_oracle_call_addresses, &header, reserves) {
+		match Self::get_transaction_type(
+			transaction.0,
+			&allowed_signers,
+			&allowed_oracle_call_addresses,
+			&header,
+			reserves,
+		) {
 			// Send the message to the liquidation worker thread.
 			Some(TransactionType::Borrow(borrower, asset_address)) => {
 				let _ = worker_channel_tx.send(TransactionType::Borrow(borrower, asset_address));
-			},
+			}
 			Some(TransactionType::OracleUpdate(oracle_data)) => {
-					let _ = worker_channel_tx.send(TransactionType::OracleUpdate(oracle_data));
-			},
+				let _ = worker_channel_tx.send(TransactionType::OracleUpdate(oracle_data));
+			}
 			None => {}
 		}
 
@@ -438,21 +448,14 @@ where
 		header: &B::Header,
 		reserves: &[Reserve],
 	) -> Option<TransactionType> {
-		if let Some((borrower, asset_address)) =  Self::is_borrow_transaction(&transaction) {
+		if let Some((borrower, asset_address)) = Self::is_borrow_transaction(&transaction) {
 			return Some(TransactionType::Borrow(borrower, asset_address));
 		}
 
-		if let Some(transaction) = Self::verify_oracle_update_transaction(
-			&transaction,
-			allowed_signers,
-			allowed_oracle_call_addresses
-		) {
-
-			if let Some(oracle_data) = Self::process_new_oracle_update(
-				&transaction,
-				header.clone(),
-				reserves,
-			) {
+		if let Some(transaction) =
+			Self::verify_oracle_update_transaction(&transaction, allowed_signers, allowed_oracle_call_addresses)
+		{
+			if let Some(oracle_data) = Self::process_new_oracle_update(&transaction, header.clone(), reserves) {
 				return Some(TransactionType::OracleUpdate(oracle_data));
 			}
 		}
@@ -679,7 +682,8 @@ where
 		let mut money_market = money_market;
 
 		let runtime_api = client.runtime_api();
-		let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash()) else {
+		let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
+		else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: fetch_current_evm_block_timestamp failed");
 			return;
 		};
@@ -704,17 +708,17 @@ where
 				Ok(TransactionType::OracleUpdate(oracle_update_data)) => {
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received OracleUpdate", header.number());
 					current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
-				},
+				}
 				Ok(TransactionType::Borrow(borrower, _asset_address)) => {
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received Borrow", header.number());
-					let _ =  Self::process_new_borrow(borrower, borrowers_m.clone());
-				},
-				Err(mpsc::TryRecvError::Empty) => {},
+					let _ = Self::process_new_borrow(borrower, borrowers_m.clone());
+				}
+				Err(mpsc::TryRecvError::Empty) => {}
 				Err(mpsc::TryRecvError::Disconnected) => {
 					// disconnected, we will not receive any new messages from the channel.
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} exiting worker thread", header.number());
 					return;
-				},
+				}
 			};
 
 			match current_task {
@@ -729,11 +733,11 @@ where
 								current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
 								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} LiquidateAll execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
 								continue 'main_loop;
-							},
+							}
 							Ok(TransactionType::Borrow(borrower, _asset_address)) => {
 								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} LiquidateAll execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
 								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
-								let _ =  Self::process_new_borrow(borrower, borrowers_m.clone());
+								let _ = Self::process_new_borrow(borrower, borrowers_m.clone());
 							}
 							_ => (),
 						}
@@ -761,8 +765,7 @@ where
 					// We iterated over all borrowers, wait for a new oracle update.
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} LiquidateAll processed all borrowers. Execution time: {:?}", header.number(), now.elapsed().as_millis());
 					current_task = LiquidationWorkerTask::WaitForNewTransaction;
-
-				},
+				}
 				LiquidationWorkerTask::OracleUpdate(ref oracle_update_data) => {
 					let now = std::time::Instant::now();
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} starting OracleUpdate", header.number());
@@ -777,75 +780,73 @@ where
 
 					// Iterate over all borrowers and try to liquidate them.
 					for (index, borrower) in borrowers_c.iter().enumerate() {
-							match worker_channel_rx.try_recv() {
-								Ok(TransactionType::OracleUpdate(oracle_update_data)) => {
-									// New oracle update received. Skip the execution and process a new oracle update.
-									current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
-									tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
-									continue 'main_loop;
-								},
-								Ok(TransactionType::Borrow(borrower, _asset_address)) => {
-									// New borrow. Skip the execution, process the new borrower and start processing of oracle update again.
-									tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
-									tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
-									let _ =  Self::process_new_borrow(borrower, borrowers_m.clone());
-								},
-								_ => (),
+						match worker_channel_rx.try_recv() {
+							Ok(TransactionType::OracleUpdate(oracle_update_data)) => {
+								// New oracle update received. Skip the execution and process a new oracle update.
+								current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
+								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
+								continue 'main_loop;
 							}
+							Ok(TransactionType::Borrow(borrower, _asset_address)) => {
+								// New borrow. Skip the execution, process the new borrower and start processing of oracle update again.
+								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
+								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
+								let _ = Self::process_new_borrow(borrower, borrowers_m.clone());
+							}
+							_ => (),
+						}
 
-							match Self::try_liquidate(
-								client.clone(),
-								config.clone(),
-								transaction_pool.clone(),
-								spawner.clone(),
-								header.clone(),
-								current_block_hash,
-								current_evm_timestamp,
-								borrowers_m.clone(),
-								borrower,
-								Some(&updated_assets),
-								tx_waitlist_m.clone(),
-								&mut money_market,
-								&mut liquidated_users,
-							) {
-								Ok(()) => (),
-								Err(()) => return,
-							}
+						match Self::try_liquidate(
+							client.clone(),
+							config.clone(),
+							transaction_pool.clone(),
+							spawner.clone(),
+							header.clone(),
+							current_block_hash,
+							current_evm_timestamp,
+							borrowers_m.clone(),
+							borrower,
+							Some(&updated_assets),
+							tx_waitlist_m.clone(),
+							&mut money_market,
+							&mut liquidated_users,
+						) {
+							Ok(()) => (),
+							Err(()) => return,
+						}
 					}
 
 					// We iterated over all borrowers, wait for a new oracle update.
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate processed all borrowers. Execution time: {:?}", header.number(), now.elapsed().as_millis());
 					current_task = LiquidationWorkerTask::LiquidateAll;
-				},
+				}
 				LiquidationWorkerTask::WaitForNewTransaction => {
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} starting WaitForNewTransaction", header.number());
 
 					match worker_channel_rx.recv() {
 						Err(mpsc::RecvError) => {
 							// disconnected, we will not receive any new messages from the channel.
-							return
-						},
+							return;
+						}
 						Ok(TransactionType::OracleUpdate(oracle_update_data)) => {
 							current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
-						},
+						}
 						Ok(TransactionType::Borrow(borrower, _asset_address)) => {
 							tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
-							let _ =  Self::process_new_borrow(borrower, borrowers_m.clone());
+							let _ = Self::process_new_borrow(borrower, borrowers_m.clone());
 
 							current_task = LiquidationWorkerTask::LiquidateAll;
-						},
+						}
 					}
 
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} exiting WaitForNewTransaction, new task: {:?}", header.number(), current_task.clone());
-				},
+				}
 			}
 		}
 	}
 
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
-	async fn fetch_borrowers_data(
-		url: String,
-	) -> Option<BorrowersData<AccountId>> {
+	async fn fetch_borrowers_data(url: String) -> Option<BorrowersData<AccountId>> {
 		let https = hyper_rustls::HttpsConnectorBuilder::new()
 			.with_native_roots()
 			.https_or_http()
@@ -872,9 +873,7 @@ where
 	/// Returns borrowers sorted by HF.
 	/// The list is sorted in ascending order, starting with borrowers whose HF has not yet been
 	/// calculated (HF==0).
-	pub fn process_borrowers_data(
-		oracle_data: BorrowersData<AccountId>,
-	) -> Option<Vec<Borrower>> {
+	pub fn process_borrowers_data(oracle_data: BorrowersData<AccountId>) -> Option<Vec<Borrower>> {
 		let one = U256::from(10u128.pow(18));
 		let fractional_multiplier = U256::from(10u128.pow(12));
 
@@ -885,8 +884,8 @@ where
 				// I'm not aware of a better way to convert f32 to U256. Use this naive approach and
 				// take the first 6 decimals. That should be enough for our purpose.
 				let integer_part = U256::from(borrower_data_details.health_factor.trunc() as u128).checked_mul(one);
-				let fractional_part =
-					U256::from((borrower_data_details.health_factor.fract() * 1_000_000f32) as u128).checked_mul(fractional_multiplier);
+				let fractional_part = U256::from((borrower_data_details.health_factor.fract() * 1_000_000f32) as u128)
+					.checked_mul(fractional_multiplier);
 
 				// return 0 if the computation failed and recalculate the HF later.
 				let health_factor = integer_part
@@ -894,7 +893,10 @@ where
 					.and_then(|(i, f)| i.checked_add(f))
 					.unwrap_or_default();
 
-				Borrower {user_address: *user_address, health_factor}
+				Borrower {
+					user_address: *user_address,
+					health_factor,
+				}
 			})
 			.collect::<Vec<_>>();
 
@@ -1003,10 +1005,7 @@ where
 	/// Adds a new borrower to the borrower list.
 	/// If the borrower is already in the list, invalidates the HF by setting it to 0 so the HF will be recalculated.
 	/// We don't try to liquidate on new borrows.
-	fn process_new_borrow(
-		user_address: EvmAddress,
-		borrowers_list_mutex: Arc<Mutex<Vec<Borrower>>>,
-	) -> Result<(), ()> {
+	fn process_new_borrow(user_address: EvmAddress, borrowers_list_mutex: Arc<Mutex<Vec<Borrower>>>) -> Result<(), ()> {
 		// lock is automatically dropped at the end of this function
 		let Ok(mut borrowers_data) = borrowers_list_mutex.lock() else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: borrowers_data mutex is poisoned");
@@ -1021,7 +1020,13 @@ where
 			}
 			None => {
 				// add new borrower to the list. HF is set to 0, so we can place it at the beginning and the list will remain sorted.
-				borrowers_data.insert(0, Borrower {user_address, health_factor: U256::zero()});
+				borrowers_data.insert(
+					0,
+					Borrower {
+						user_address,
+						health_factor: U256::zero(),
+					},
+				);
 			}
 		}
 
