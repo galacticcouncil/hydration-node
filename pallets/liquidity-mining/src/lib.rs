@@ -99,7 +99,7 @@ pub use crate::types::{
 	Balance, DefaultPriceAdjustment, DepositData, DepositId, FarmId, FarmMultiplier, FarmState, GlobalFarmData,
 	GlobalFarmId, LoyaltyCurve, YieldFarmData, YieldFarmEntry, YieldFarmId,
 };
-use codec::{Decode, Encode, FullCodec};
+use codec::{Decode, DecodeWithMemTracking, Encode, FullCodec};
 use frame_support::{
 	defensive,
 	pallet_prelude::*,
@@ -322,7 +322,7 @@ pub mod pallet {
 	}
 
 	//NOTE: these errors should never happen.
-	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
 	pub enum InconsistentStateError {
 		/// Yield farm does not exist.
 		YieldFarmNotFound,

@@ -1,4 +1,4 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::dispatch::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use frame_support::traits::ConstU32;
@@ -66,7 +66,7 @@ pub trait RouteProvider<AssetId> {
 	}
 }
 
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum PoolType<AssetId> {
 	XYK,
 	LBP,
@@ -83,7 +83,7 @@ pub enum ExecutorError<E> {
 }
 
 ///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Copy, Clone, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Debug, Eq, PartialEq, Copy, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Trade<AssetId> {
 	pub pool: PoolType<AssetId>,
 	pub asset_in: AssetId,
