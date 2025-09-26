@@ -1700,15 +1700,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crossbeam-channel"
-version = "0.5.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82b8f8f868b36967f9606790d1903570de9ceaf870a7bf9fbbd3016d636a2cb2"
-dependencies = [
- "crossbeam-utils",
-]
-
-[[package]]
 name = "crossbeam-deque"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4534,7 +4525,6 @@ version = "14.4.1"
 dependencies = [
  "async-trait",
  "clap",
- "crossbeam-channel",
  "cumulus-client-cli",
  "cumulus-client-collator",
  "cumulus-client-consensus-aura",
@@ -4560,11 +4550,9 @@ dependencies = [
  "frame-benchmarking-cli",
  "frame-support",
  "futures",
- "hex",
  "hex-literal",
  "hydra-dx-build-script-utils",
  "hydradx-runtime",
- "hydradx-traits",
  "hyper 0.14.31",
  "hyper-rustls 0.24.2",
  "jsonrpsee",
@@ -4574,10 +4562,8 @@ dependencies = [
  "pallet-claims",
  "pallet-ethereum",
  "pallet-liquidation",
- "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
- "parking_lot 0.12.3",
  "polkadot-cli",
  "polkadot-primitives",
  "polkadot-service",
@@ -4600,7 +4586,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-api",
- "sp-arithmetic",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",

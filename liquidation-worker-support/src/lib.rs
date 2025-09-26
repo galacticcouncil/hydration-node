@@ -15,27 +15,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use hydradx_traits::evm::EvmAddress;
 use codec::{Decode, Encode};
-use evm::ExitReason;
-use frame_support::pallet_prelude::*;
-use frame_support::Deserialize;
+use frame_support::{pallet_prelude::*, Deserialize, sp_runtime::traits::{Block as BlockT, CheckedConversion}};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use sp_core::H160;
-use sp_std::vec::Vec;
+use sp_arithmetic::ArithmeticError;
+use sp_core::{RuntimeDebug, H160, H256, U256};
+use sp_std::{vec::Vec, boxed::Box, ops::BitAnd};
 use std::marker::PhantomData;
+use evm::ExitReason;
+use ethabi::ethereum_types::U512;
+use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
+use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
 
 pub type Balance = u128;
 pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
-
-use ethabi::ethereum_types::U512;
-use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
-use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
-use hydradx_traits::evm::EvmAddress;
-use sp_arithmetic::ArithmeticError;
-use sp_core::{RuntimeDebug, H256, U256};
-use sp_std::{boxed::Box, ops::BitAnd};
-use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
 
 #[derive(RuntimeDebug)]
 pub enum LiquidationError {
@@ -76,9 +71,6 @@ impl From<ethabi::Error> for LiquidationError {
 		Self::EthAbiError(e)
 	}
 }
-
-/// maximum number of liquidation we try to execute
-pub const MAX_LIQUIDATIONS: u32 = 5;
 
 /// Default percentage of borrower's debt to be repaid in a liquidation.
 /// Percentage applied when the users health factor is above `CLOSE_FACTOR_HF_THRESHOLD`
@@ -145,30 +137,6 @@ pub struct BorrowersData<AccountId> {
 pub struct Borrower {
 	pub user_address: EvmAddress,
 	pub health_factor: U256,
-	pub assets: Vec<EvmAddress>,
-}
-impl Borrower {
-	pub fn new(user_address: EvmAddress, health_factor: U256) -> Self {
-		Self {
-			user_address,
-			health_factor,
-			assets: vec![],
-		}
-	}
-
-	pub fn new_with_assets(user_address: EvmAddress, health_factor: U256, assets: &[EvmAddress]) -> Self {
-		Self {
-			user_address,
-			health_factor,
-			assets: assets.to_vec(),
-		}
-	}
-
-	pub fn add_asset(&mut self, asset: EvmAddress) {
-		if !self.assets.contains(&asset) {
-			self.assets.push(asset);
-		}
-	}
 }
 
 /// Multiplies two ray, rounding half up to the nearest ray.
@@ -216,7 +184,7 @@ where
 		mm_pool: EvmAddress,
 		data: Vec<u8>,
 		gas_limit: U256,
-	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, frame_support::sp_runtime::DispatchError>, sp_api::ApiError>;
+	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, DispatchError>, sp_api::ApiError>;
 	fn address_to_asset(&self, hash: Block::Hash, address: EvmAddress) -> Result<Option<AssetId>, sp_api::ApiError>;
 	fn dry_run_call(
 		&self,
@@ -244,7 +212,7 @@ pub fn percent_mul(value: U256, percentage: U256) -> Result<U256, LiquidationErr
 	res.try_into().map_err(|_| ArithmeticError::Overflow.into())
 }
 
-/// Collateral and debt amounts of some reserve in the base currency.
+/// Collateral and debt amounts of a reserve in the base currency.
 #[derive(Default, Eq, PartialEq, Clone, RuntimeDebug)]
 pub struct UserReserve {
 	pub collateral: U256,
@@ -253,19 +221,19 @@ pub struct UserReserve {
 
 /// The configuration of the user across all the reserves.
 /// Bitmap of the users collaterals and borrows. It is divided into pairs of bits, one pair per asset.
-/// The first bit indicates if an asset is used as collateral by the user, the second whether an asset is borrowed by the user.
+/// The first bit indicates if the user uses an asset as collateral, the second whether the user borrows an asset.
 /// The corresponding assets are in the same position as `fetch_reserves_list()`.
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 struct UserConfiguration(U256);
 impl UserConfiguration {
-	/// Returns `true` if the asset is used as collateral by the user.
+	/// Returns `true` if the user uses the asset as collateral.
 	/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 	pub fn is_collateral(&self, asset_index: usize) -> bool {
 		let bit_mask = U256::from(2 << (2 * asset_index));
 		!(self.0 & bit_mask).is_zero()
 	}
 
-	/// Returns `true` if the asset is used as debt by the user.
+	/// Returns `true` if the user uses the asset as debt.
 	/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 	pub fn is_debt(&self, asset_index: usize) -> bool {
 		let bit_mask = U256::from(1 << (2 * asset_index));
@@ -338,7 +306,7 @@ impl UserData {
 		})
 	}
 
-	/// Get user's address.
+	/// Get the user's address.
 	pub fn address(&self) -> EvmAddress {
 		self.address
 	}
@@ -348,16 +316,72 @@ impl UserData {
 		&self.reserves
 	}
 
-	/// Returns `true` if the asset is used as collateral by the user.
+	/// Returns `true` if the user uses the asset as collateral.
 	/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 	pub fn is_collateral(&self, asset_index: usize) -> bool {
 		self.configuration.is_collateral(asset_index)
 	}
 
-	/// Returns `true` if the asset is used as debt by the user.
+	/// Returns `true` if the user uses the asset as debt.
 	/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 	pub fn is_debt(&self, asset_index: usize) -> bool {
 		self.configuration.is_debt(asset_index)
+	}
+
+	/// Returns the amount of collateral.
+	/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
+	pub fn collateral(&self, asset_index: usize) -> U256 {
+		if let Some(collateral) = self.reserves.get(asset_index) {
+			collateral.collateral
+		} else {
+			U256::zero()
+		}
+	}
+
+	/// Returns the amount of debt.
+	/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
+	pub fn debt(&self, asset_index: usize) -> U256 {
+		if let Some(debt) = self.reserves.get(asset_index) {
+			debt.debt
+		} else {
+			U256::zero()
+		}
+	}
+
+	/// Returns non-zero collateral assets of the user.
+	pub fn collateral_assets<Block, OriginCaller, RuntimeCall, RuntimeEvent>(
+		&self,
+		money_market: &MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	) -> Vec<(usize, EvmAddress)>
+	where
+		Block: BlockT,
+	{
+		let mut assets = Vec::new();
+		for (index, reserve) in money_market.reserves.iter().enumerate() {
+			if self.is_collateral(index) && !self.collateral(index).is_zero() {
+				assets.push((index, reserve.asset_address()));
+			}
+		}
+
+		assets
+	}
+
+	/// Returns non-zero debt assets of the user.
+	pub fn debt_assets<Block, OriginCaller, RuntimeCall, RuntimeEvent>(
+		&self,
+		money_market: &MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	) -> Vec<(usize, EvmAddress)>
+	where
+		Block: BlockT,
+	{
+		let mut assets = Vec::new();
+		for (index, reserve) in money_market.reserves.iter().enumerate() {
+			if self.is_debt(index) && !self.debt(index).is_zero() {
+				assets.push((index, reserve.asset_address()));
+			}
+		}
+
+		assets
 	}
 
 	/// Update the state of reserve.
@@ -569,17 +593,17 @@ pub struct Reserve {
 	price: U256,
 }
 impl Reserve {
-	/// Get price of the reserve.
+	/// Get the price of the reserve.
 	pub fn price(&self) -> U256 {
 		self.price
 	}
 
-	/// Get asset symbol of the reserve.
+	/// Get the asset symbol of the reserve.
 	pub fn symbol(&self) -> &Vec<u8> {
 		&self.symbol
 	}
 
-	/// Get address of the reserve.
+	/// Get the address of the reserve.
 	pub fn asset_address(&self) -> EvmAddress {
 		self.asset_address
 	}
@@ -863,7 +887,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		self.oracle_contract
 	}
 
-	/// Get list of the reserves.
+	/// Get the list of the reserves.
 	pub fn reserves(&self) -> &Vec<Reserve> {
 		&self.reserves
 	}
@@ -1011,7 +1035,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		}
 	}
 
-	/// Get price of an asset.
+	/// Get the price of an asset.
 	/// Calls Runtime API.
 	pub fn fetch_asset_price<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
@@ -1047,11 +1071,11 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 
 	/// Change the stored price of some reserve asset.
 	/// Reserves are not recalculated.
-	pub fn update_reserve_price(&mut self, asset_address: EvmAddress, new_price: U256) {
+	pub fn update_reserve_price(&mut self, asset_address: EvmAddress, new_price: &U256) {
 		let maybe_reserve = self.reserves.iter_mut().find(|x| x.asset_address == asset_address);
 
 		if let Some(reserve) = maybe_reserve {
-			reserve.price = new_price;
+			reserve.price = *new_price;
 		}
 	}
 
@@ -1094,9 +1118,10 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 	///    `LB` - liquidation bonus of the collateral asset
 	///    `LTc` - liquidity threshold of collateral asset
 	///
-	/// `user_address` - Address of the user that will be liquidated
+	/// `user_data` - User's data, generated from the ` MoneyMarketData ` struct with updated price.
 	/// `target_health_factor` - 18 decimal places
-	/// `caller` - Account executing runtime RPC call, needs to have some WETH balance.
+	/// `collateral_asset_address` - The address of the collateral asset.
+	/// `debt_asset_address` - The address of the debt asset.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
 	pub fn calculate_debt_to_liquidate<
@@ -1329,11 +1354,12 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		})
 	}
 
-	/// Calculate liquidation options based on user's reserve, price update and target health factor.
+	/// Calculate liquidation options based on the user's reserve, price update and target health factor.
 	/// Liquidation options are calculated for all collateral/debt asset pairs.
-	/// `user_data` - User's data, generated from `MoneyMarketData` struct with updated price.
+	/// `user_data` - User's data, generated from the ` MoneyMarketData ` struct with updated price.
 	/// `target_health_factor` - 18 decimal places.
-	/// `new_price` - Price update.
+	/// `updated_assets` - Skips the calculation if none of the assets is user's collateral or borrow asset.
+	///     Use `None` to disable this check.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`
 	pub fn calculate_liquidation_options<
@@ -1342,38 +1368,20 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		&mut self,
 		user_data: &UserData,
 		target_health_factor: U256,
-		new_price: (EvmAddress, U256),
+		updated_assets: Option<&Vec<EvmAddress>>,
 	) -> Result<Vec<LiquidationOption>, LiquidationError> {
 		let mut liquidation_options = Vec::new();
-		let mut collateral_assets = Vec::new();
-		let mut debt_assets = Vec::new();
 
-		for (index, reserve) in self.reserves().iter().enumerate() {
-			if user_data.is_collateral(index) {
-				collateral_assets.push((index, reserve.asset_address()));
-			}
+		let collateral_assets = user_data.collateral_assets(self);
+		let debt_assets = user_data.debt_assets(self);
 
-			if user_data.is_debt(index) {
-				debt_assets.push((index, reserve.asset_address()));
+		// Early return if assets from `asset_addresses` are not in the user's collateral/debt assets.
+		if let Some(updated_assets) = updated_assets {
+			let user_assets: Vec<_> = collateral_assets.iter().chain(debt_assets.iter()).collect();
+			if !user_assets.iter().any(|(_index, asset)| updated_assets.contains(asset)) {
+				return Ok(Vec::new());
 			}
 		}
-
-		// update the price
-		let reserve_index = self
-			.reserves()
-			.iter()
-			.position(|x| x.asset_address() == new_price.0)
-			.ok_or(LiquidationError::ReserveNotFound)?;
-
-		let reserve = self
-			.reserves()
-			.get(reserve_index)
-			.ok_or(LiquidationError::ReserveNotFound)?;
-
-		let old_price = reserve.price();
-		self.update_reserve_price(new_price.0, new_price.1);
-
-		// TODO: continue if the price of collateral decreased/debt increased (the cases when HF decreases)
 
 		// Calculate the amount of debt that needs to be liquidated to get the HF closer
 		// to `target_health_factor`. Calculated for all combinations of collateral and debt assets.
@@ -1414,16 +1422,14 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			}
 		}
 
-		// revert the price back
-		self.update_reserve_price(new_price.0, old_price);
-
 		Ok(liquidation_options)
 	}
 
 	/// Evaluates all liquidation options and returns one that is closest to the `target_health_factor`.
-	/// `user_data` - User's data, generated from `MoneyMarketData` struct with updated price.
+	/// `user_data` - User's data, generated from the ` MoneyMarketData ` struct with updated price.
 	/// `target_health_factor` - 18 decimal places.
-	/// `new_price` - Price update.
+	/// `updated_assets` - Skips the calculation if none of the assets is user's collateral or borrow asset.
+	///     Use `None` to disable this check.
 	///
 	/// Return the amount of debt asset that needs to be liquidated to get the HF to `target_health_factor`.
 	pub fn get_best_liquidation_option<
@@ -1432,12 +1438,11 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		&mut self,
 		user_data: &UserData,
 		target_health_factor: U256,
-		new_price: (EvmAddress, U256),
+		updated_assets: Option<&Vec<EvmAddress>>,
 	) -> Result<Option<LiquidationOption>, LiquidationError> {
 		let mut liquidation_options =
-			self.calculate_liquidation_options::<ApiProvider>(user_data, target_health_factor, new_price)?;
+			self.calculate_liquidation_options::<ApiProvider>(user_data, target_health_factor, updated_assets)?;
 
-		// TODO: find better criteria for determining which liquidation option to choose as the best one
 		// choose liquidation option with the highest HF. All HFs should be less or close to the target HF.
 		liquidation_options.sort_by(|a, b| a.health_factor.cmp(&b.health_factor));
 
