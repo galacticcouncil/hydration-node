@@ -275,18 +275,18 @@ substrate-state-trie-migration-rpc = { git = "https://github.com/galacticcouncil
 
 #TODO: We use our custom ORML as it contains the fix of bug for reducible_balance check, for Preserve mode. Once the official ORML pushes a new version with the fix, we can use that again
 # ORML dependencies
-orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
-orml-currencies = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
-orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
-orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
-orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
-orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
+orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
+orml-currencies = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
+orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
+orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
+orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
+orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
 
 # orml XCM support
-orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
-orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
-orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
-orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412", default-features = false }
+orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
+orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
+orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
+orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503", default-features = false }
 
 # Cumulus dependencies
 cumulus-client-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2503-patch-pr", default-features = false }
@@ -317,29 +317,29 @@ xcm-runtime-apis = { git = "https://github.com/galacticcouncil/polkadot-sdk", br
 parachains-common = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2503-patch-pr", default-features = false }
 
 # Frontier
-fc-consensus = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-fc-db = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-fc-mapping-sync = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-fc-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-fc-rpc-core = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
+fc-consensus = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+fc-db = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+fc-mapping-sync = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+fc-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+fc-rpc-core = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
 
-fp-consensus = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-fp-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-fp-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-fp-self-contained = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-fp-storage = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
+fp-consensus = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+fp-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+fp-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+fp-self-contained = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+fp-storage = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
 
-pallet-ethereum = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-pallet-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-pallet-evm-chain-id = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-pallet-evm-precompile-dispatch = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-pallet-evm-precompile-simple = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-pallet-evm-precompile-modexp = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-pallet-evm-precompile-bn128 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-pallet-evm-precompile-blake2 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2412", default-features = false }
-evm = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2412", default-features = false }
-evm-gasometer = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2412", default-features = false }
-evm-runtime = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2412", default-features = false }
+pallet-ethereum = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+pallet-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+pallet-evm-chain-id = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+pallet-evm-precompile-dispatch = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+pallet-evm-precompile-simple = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+pallet-evm-precompile-modexp = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+pallet-evm-precompile-bn128 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+pallet-evm-precompile-blake2 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2503", default-features = false }
+evm = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2503", default-features = false }
+evm-gasometer = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2503", default-features = false }
+evm-runtime = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2503", default-features = false }
 
 # EVM from acala
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false }
@@ -383,15 +383,15 @@ cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/
 
 [patch."https://github.com/moonbeam-foundation/open-runtime-module-library"]
 # ORML dependencies
-orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
-orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
-orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
-orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
-orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
-orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
-orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
-orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
-orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2412" }
+orml-benchmarking = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-traits = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-utilities = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-vesting = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-unknown-tokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-xcm = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-xcm-support = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
+orml-xtokens = { git = "https://github.com/galacticcouncil/open-runtime-module-library", branch = "polkadot-stable2503" }
 
 [patch."https://github.com/moonbeam-foundation/polkadot-sdk"]
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2503-patch-pr" }
