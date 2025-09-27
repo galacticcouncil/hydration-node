@@ -162,7 +162,7 @@ pub mod pallet {
 					// receiving unsigned transaction from network - disallow
 					return InvalidTransaction::Call.into();
 				}
-				TransactionSource::Local => {}   // produced by off-chain worker
+				TransactionSource::Local => {}   // produced by offchain worker
 				TransactionSource::InBlock => {} // some other node included it in a block
 			};
 

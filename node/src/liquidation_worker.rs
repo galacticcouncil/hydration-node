@@ -69,9 +69,9 @@ type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpCon
 /// By default, the worker is enabled and uses `PAP_CONTRACT`, `RUNTIME_API_CALLER`, `ORACLE_UPDATE_SIGNER`, `ORACLE_UPDATE_CALL_ADDRESS` and `TARGET_HF` values if not specified.
 #[derive(Clone, Debug, clap::Parser)]
 pub struct LiquidationWorkerConfig {
-	/// Disable liquidation worker.
-	#[clap(long, default_value = "false")]
-	pub disable_liquidation_worker: bool,
+	/// Enable/disable execution of the liquidation worker.
+	#[clap(long)]
+	pub liquidation_worker: Option<bool>,
 
 	/// Address of the Pool Address Provider contract.
 	#[clap(long)]
@@ -275,6 +275,7 @@ where
 
 		// We can ignore the result because it's not important for us.
 		// All we want is to have some upper bound for execution time of this task.
+		// TODO: this should be terminated when new on_block_imported
 		let _ = tokio::time::timeout(std::time::Duration::from_secs(6), async {
 			let runtime_api = client.runtime_api();
 			let hash = header.hash();
@@ -627,6 +628,7 @@ where
 				return Ok(());
 			};
 
+			// TODO: remove dry_run because it runs on "old" state
 			// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
 			let dry_run_result = ApiProvider::<&C::Api>(runtime_api.deref()).dry_run_call(
 				hash,
@@ -806,7 +808,7 @@ where
 							current_evm_timestamp,
 							borrowers_m.clone(),
 							borrower,
-							Some(&updated_assets),
+							Some(&updated_assets),// TODO: if DOT, also check GDOT		// TODO: partial matching of strings
 							tx_waitlist_m.clone(),
 							&mut money_market,
 							&mut liquidated_users,
@@ -963,6 +965,7 @@ where
 			hydradx_runtime::SignedExtra,
 		>,
 	) -> Option<(H160, EvmAddress)> {
+		// TODO: can be hidden in batch. Check events instead (from previous block)
 		if let RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction }) = extrinsic.function.clone() {
 			let (action, input) = match transaction {
 				Transaction::Legacy(legacy_transaction) => (legacy_transaction.action, legacy_transaction.input),
