@@ -28,7 +28,9 @@ use scale_info::TypeInfo;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, Default, Debug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone, Copy, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, Default, Debug, TypeInfo, MaxEncodedLen,
+)]
 pub struct EthereumAddress(pub [u8; 20]);
 
 impl Serialize for EthereumAddress {
