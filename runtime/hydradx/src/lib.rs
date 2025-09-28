@@ -234,6 +234,7 @@ construct_runtime!(
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
 		// 113 was used by DmpQueue which is now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 114,
+		WeightReclaim: cumulus_pallet_weight_reclaim = 115,
 
 		// ORML XCM
 		OrmlXcm: orml_xcm = 135,
@@ -264,8 +265,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
 
-/// The SignedExtension to the basic transaction logic.
-pub type SignedExtra = (
+pub type InnerSignedExtra = (
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -276,8 +276,11 @@ pub type SignedExtra = (
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 	pallet_claims::ValidateClaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
-	cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
 );
+
+/// Wrap the tuple with `StorageWeightReclaim`.
+pub type SignedExtra = cumulus_pallet_weight_reclaim::StorageWeightReclaim<Runtime, InnerSignedExtra>;
+
 /// Unchecked extrinsic type as expected by this runtime.
 pub type HydraUncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 

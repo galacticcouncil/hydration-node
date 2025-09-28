@@ -352,7 +352,7 @@ where
 			return Err(());
 		};
 		let opaque_tx_encoded = pool_tx.data().encode();
-		let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
+		let tx = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
 
 		let Ok(transaction) = tx else {
 			tracing::info!(target: LOG_TARGET, "transaction decoding failed");

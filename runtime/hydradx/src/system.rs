@@ -695,3 +695,8 @@ impl pallet_state_trie_migration::Config for Runtime {
 	type SignedDepositBase = MigrationSignedDepositBase;
 	type WeightInfo = weights::pallet_state_trie_migration::HydraWeight<Runtime>;
 }
+
+impl cumulus_pallet_weight_reclaim::Config for Runtime {
+	// TODO: add weights
+	type WeightInfo = ();
+}

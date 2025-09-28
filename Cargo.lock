@@ -2619,6 +2619,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "cumulus-pallet-weight-reclaim"
+version = "0.2.0"
+source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2503-patch-pr#b9504a4f904a0aa8a130507d626bcb35bc943192"
+dependencies = [
+ "cumulus-primitives-storage-weight-reclaim",
+ "derive-where",
+ "docify",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-trie",
+]
+
+[[package]]
 name = "cumulus-pallet-xcm"
 version = "0.19.1"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2503-patch-pr#b9504a4f904a0aa8a130507d626bcb35bc943192"
