@@ -34,7 +34,7 @@ pub mod v1 {
 	}
 
 	pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>(
-		account_blacklist: Vec<T::AccountId>,
+		account_whitelist: Vec<T::AccountId>,
 		reward_account: T::AccountId,
 		dust_account: T::AccountId,
 	) -> Weight {
@@ -52,7 +52,7 @@ pub mod v1 {
 			"Updating AccountBlacklist"
 		);
 		reads += 1;
-		account_blacklist.iter().for_each(|account_id| {
+		account_whitelist.iter().for_each(|account_id| {
 			crate::AccountWhitelist::<T>::insert(account_id, ());
 			writes += 1;
 		});
