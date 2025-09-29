@@ -7,10 +7,55 @@ use frame_support::{
 };
 use frame_system as system;
 use sp_core::H256;
+use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
+
+#[frame_support::pallet]
+pub mod pallet_mock_caller {
+	use frame_support::{pallet_prelude::*, PalletId};
+	use frame_system::pallet_prelude::*;
+    use sp_runtime::traits::AccountIdConversion;
+    use crate::{self as pallet_signet};
+
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
+
+	#[pallet::config]
+	pub trait Config: frame_system::Config + pallet_signet::Config {
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
+	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::from_parts(10_000, 0))]
+		pub fn call_signet(origin: OriginFor<T>) -> DispatchResult {
+			// This pallet will call signet with ITS OWN account as the sender
+			let _who = ensure_signed(origin)?;
+
+			// Get this pallet's derived account (use fully-qualified syntax)
+			let pallet_account: T::AccountId =
+				<T as Config>::PalletId::get().into_account_truncating();
+
+			// Call signet from this pallet's account
+			pallet_signet::Pallet::<T>::sign(
+				frame_system::RawOrigin::Signed(pallet_account).into(),
+				[99u8; 32],
+				1,
+				b"from_pallet".to_vec(),
+				b"ecdsa".to_vec(),
+				b"".to_vec(),
+				b"{}".to_vec(),
+			)?;
+
+			Ok(())
+		}
+	}
+}
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -20,6 +65,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Balances: pallet_balances,
 		Signet: pallet_signet,
+		MockCaller: pallet_mock_caller,
 	}
 );
 
@@ -91,6 +137,14 @@ impl pallet_signet::Config for Test {
 	type PalletId = SignetPalletId;
 	type MaxChainIdLength = MaxChainIdLength;
 	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MockCallerPalletId: PalletId = PalletId(*b"py/mockc");
+}
+
+impl pallet_mock_caller::Config for Test {
+	type PalletId = MockCallerPalletId;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -180,8 +234,8 @@ fn test_cannot_use_before_initialization() {
 fn test_any_signed_can_initialize_once() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Signet::initialize(
-			RuntimeOrigin::signed(2), 
-			1,                        
+			RuntimeOrigin::signed(2),
+			1,
 			1000,
 			b"test-chain".to_vec()
 		));
@@ -190,12 +244,7 @@ fn test_any_signed_can_initialize_once() {
 		assert_eq!(Signet::signature_deposit(), 1000);
 
 		assert_noop!(
-			Signet::initialize(
-				RuntimeOrigin::signed(1),
-				3,
-				2000,
-				b"other-chain".to_vec()
-			),
+			Signet::initialize(RuntimeOrigin::signed(1), 3, 2000, b"other-chain".to_vec()),
 			Error::<Test>::AlreadyInitialized
 		);
 
@@ -211,77 +260,77 @@ fn test_any_signed_can_initialize_once() {
 
 #[test]
 fn test_initialize_sets_deposit() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let initial_deposit = 1000u128;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let initial_deposit = 1000u128;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            initial_deposit,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			initial_deposit,
+			b"test-chain".to_vec()
+		));
 
-        assert_eq!(Signet::signature_deposit(), initial_deposit);
+		assert_eq!(Signet::signature_deposit(), initial_deposit);
 
-        System::assert_last_event(
-            Event::Initialized {
-                admin,
-                signature_deposit: initial_deposit,
-                chain_id: b"test-chain".to_vec(),
-            }
-            .into(),
-        );
-    });
+		System::assert_last_event(
+			Event::Initialized {
+				admin,
+				signature_deposit: initial_deposit,
+				chain_id: b"test-chain".to_vec(),
+			}
+			.into(),
+		);
+	});
 }
 
 #[test]
 fn test_update_deposit_as_admin() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let initial_deposit = 1000u128;
-        let new_deposit = 2000u128;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let initial_deposit = 1000u128;
+		let new_deposit = 2000u128;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            initial_deposit,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			initial_deposit,
+			b"test-chain".to_vec()
+		));
 
-        assert_ok!(Signet::update_deposit(RuntimeOrigin::signed(admin), new_deposit));
-        assert_eq!(Signet::signature_deposit(), new_deposit);
+		assert_ok!(Signet::update_deposit(RuntimeOrigin::signed(admin), new_deposit));
+		assert_eq!(Signet::signature_deposit(), new_deposit);
 
-        System::assert_last_event(
-            Event::DepositUpdated {
-                old_deposit: initial_deposit,
-                new_deposit,
-            }
-            .into(),
-        );
-    });
+		System::assert_last_event(
+			Event::DepositUpdated {
+				old_deposit: initial_deposit,
+				new_deposit,
+			}
+			.into(),
+		);
+	});
 }
 
 #[test]
 fn test_non_admin_cannot_update_deposit() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let non_admin = 2u64;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let non_admin = 2u64;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            1000,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			1000,
+			b"test-chain".to_vec()
+		));
 
-        assert_noop!(
-            Signet::update_deposit(RuntimeOrigin::signed(non_admin), 2000),
-            Error::<Test>::Unauthorized
-        );
+		assert_noop!(
+			Signet::update_deposit(RuntimeOrigin::signed(non_admin), 2000),
+			Error::<Test>::Unauthorized
+		);
 
-        assert_eq!(Signet::signature_deposit(), 1000);
-    });
+		assert_eq!(Signet::signature_deposit(), 1000);
+	});
 }
 
 #[test]
@@ -296,76 +345,76 @@ fn test_cannot_update_deposit_before_initialization() {
 
 #[test]
 fn test_withdraw_funds_as_admin() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let recipient = 2u64;
-        let amount = 5000u128;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let recipient = 2u64;
+		let amount = 5000u128;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            1000,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			1000,
+			b"test-chain".to_vec()
+		));
 
-        let pallet_account = Signet::account_id();
-        let _ = Balances::deposit_creating(&pallet_account, 10_000);
+		let pallet_account = Signet::account_id();
+		let _ = Balances::deposit_creating(&pallet_account, 10_000);
 
-        let recipient_balance_before = Balances::free_balance(&recipient);
-        assert_eq!(Balances::free_balance(&pallet_account), 10_000);
+		let recipient_balance_before = Balances::free_balance(&recipient);
+		assert_eq!(Balances::free_balance(&pallet_account), 10_000);
 
-        assert_ok!(Signet::withdraw_funds(RuntimeOrigin::signed(admin), recipient, amount));
+		assert_ok!(Signet::withdraw_funds(RuntimeOrigin::signed(admin), recipient, amount));
 
-        assert_eq!(Balances::free_balance(&pallet_account), 5_000);
-        assert_eq!(Balances::free_balance(&recipient), recipient_balance_before + amount);
+		assert_eq!(Balances::free_balance(&pallet_account), 5_000);
+		assert_eq!(Balances::free_balance(&recipient), recipient_balance_before + amount);
 
-        System::assert_last_event(Event::FundsWithdrawn { amount, recipient }.into());
-    });
+		System::assert_last_event(Event::FundsWithdrawn { amount, recipient }.into());
+	});
 }
 
 #[test]
 fn test_non_admin_cannot_withdraw() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let non_admin = 2u64;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let non_admin = 2u64;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            1000,
-            b"test-chain".to_vec()
-        ));
-        
-        let pallet_account = Signet::account_id();
-        let _ = Balances::deposit_creating(&pallet_account, 10_000);
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			1000,
+			b"test-chain".to_vec()
+		));
 
-        assert_noop!(
-            Signet::withdraw_funds(RuntimeOrigin::signed(non_admin), non_admin, 5000),
-            Error::<Test>::Unauthorized
-        );
-    });
+		let pallet_account = Signet::account_id();
+		let _ = Balances::deposit_creating(&pallet_account, 10_000);
+
+		assert_noop!(
+			Signet::withdraw_funds(RuntimeOrigin::signed(non_admin), non_admin, 5000),
+			Error::<Test>::Unauthorized
+		);
+	});
 }
 
 #[test]
 fn test_cannot_withdraw_more_than_balance() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            1000,
-            b"test-chain".to_vec()
-        ));
-        
-        let pallet_account = Signet::account_id();
-        let _ = Balances::deposit_creating(&pallet_account, 10_000);
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			1000,
+			b"test-chain".to_vec()
+		));
 
-        assert_noop!(
-            Signet::withdraw_funds(RuntimeOrigin::signed(admin), admin, 20_000),
-            Error::<Test>::InsufficientFunds
-        );
-    });
+		let pallet_account = Signet::account_id();
+		let _ = Balances::deposit_creating(&pallet_account, 10_000);
+
+		assert_noop!(
+			Signet::withdraw_funds(RuntimeOrigin::signed(admin), admin, 20_000),
+			Error::<Test>::InsufficientFunds
+		);
+	});
 }
 
 #[test]
@@ -382,84 +431,84 @@ fn test_pallet_account_id_is_deterministic() {
 
 #[test]
 fn test_sign_request_works() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let requester = 2u64;
-        let deposit = 1000u128;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let requester = 2u64;
+		let deposit = 1000u128;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            deposit,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			deposit,
+			b"test-chain".to_vec()
+		));
 
-        let balance_before = Balances::free_balance(&requester);
-        let payload = [42u8; 32];
-        let key_version = 1u32;
-        let path = b"path".to_vec();
-        let algo = b"ecdsa".to_vec();
-        let dest = b"callback_contract".to_vec();
-        let params = b"{}".to_vec();
+		let balance_before = Balances::free_balance(&requester);
+		let payload = [42u8; 32];
+		let key_version = 1u32;
+		let path = b"path".to_vec();
+		let algo = b"ecdsa".to_vec();
+		let dest = b"callback_contract".to_vec();
+		let params = b"{}".to_vec();
 
-        assert_ok!(Signet::sign(
-            RuntimeOrigin::signed(requester),
-            payload,
-            key_version,
-            path.clone(),
-            algo.clone(),
-            dest.clone(),
-            params.clone()
-        ));
+		assert_ok!(Signet::sign(
+			RuntimeOrigin::signed(requester),
+			payload,
+			key_version,
+			path.clone(),
+			algo.clone(),
+			dest.clone(),
+			params.clone()
+		));
 
-        assert_eq!(Balances::free_balance(&requester), balance_before - deposit);
-        let pallet_account = Signet::account_id();
-        assert_eq!(Balances::free_balance(&pallet_account), deposit);
+		assert_eq!(Balances::free_balance(&requester), balance_before - deposit);
+		let pallet_account = Signet::account_id();
+		assert_eq!(Balances::free_balance(&pallet_account), deposit);
 
-        System::assert_last_event(
-            Event::SignatureRequested {
-                sender: requester,
-                payload,
-                key_version,
-                deposit,
-                chain_id: b"test-chain".to_vec(),
-                path,
-                algo,
-                dest,
-                params,
-            }
-            .into(),
-        );
-    });
+		System::assert_last_event(
+			Event::SignatureRequested {
+				sender: requester,
+				payload,
+				key_version,
+				deposit,
+				chain_id: b"test-chain".to_vec(),
+				path,
+				algo,
+				dest,
+				params,
+			}
+			.into(),
+		);
+	});
 }
 
 #[test]
 fn test_sign_request_insufficient_balance() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let poor_user = 3u64;
-        let deposit = 1000u128;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let poor_user = 3u64;
+		let deposit = 1000u128;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            deposit,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			deposit,
+			b"test-chain".to_vec()
+		));
 
-        assert_noop!(
-            Signet::sign(
-                RuntimeOrigin::signed(poor_user),
-                [0u8; 32],
-                1,
-                b"path".to_vec(),
-                b"algo".to_vec(),
-                b"dest".to_vec(),
-                b"params".to_vec()
-            ),
-            sp_runtime::TokenError::FundsUnavailable
-        );
-    });
+		assert_noop!(
+			Signet::sign(
+				RuntimeOrigin::signed(poor_user),
+				[0u8; 32],
+				1,
+				b"path".to_vec(),
+				b"algo".to_vec(),
+				b"dest".to_vec(),
+				b"params".to_vec()
+			),
+			sp_runtime::TokenError::FundsUnavailable
+		);
+	});
 }
 
 #[test]
@@ -482,45 +531,45 @@ fn test_sign_request_before_initialization() {
 
 #[test]
 fn test_multiple_sign_requests() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let requester1 = 1u64;
-        let requester2 = 2u64;
-        let deposit = 100u128;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let requester1 = 1u64;
+		let requester2 = 2u64;
+		let deposit = 100u128;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            deposit,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			deposit,
+			b"test-chain".to_vec()
+		));
 
-        let pallet_account = Signet::account_id();
+		let pallet_account = Signet::account_id();
 
-        assert_ok!(Signet::sign(
-            RuntimeOrigin::signed(requester1),
-            [1u8; 32],
-            1,
-            b"path1".to_vec(),
-            b"algo".to_vec(),
-            b"dest".to_vec(),
-            b"params".to_vec()
-        ));
+		assert_ok!(Signet::sign(
+			RuntimeOrigin::signed(requester1),
+			[1u8; 32],
+			1,
+			b"path1".to_vec(),
+			b"algo".to_vec(),
+			b"dest".to_vec(),
+			b"params".to_vec()
+		));
 
-        assert_eq!(Balances::free_balance(&pallet_account), deposit);
+		assert_eq!(Balances::free_balance(&pallet_account), deposit);
 
-        assert_ok!(Signet::sign(
-            RuntimeOrigin::signed(requester2),
-            [2u8; 32],
-            2,
-            b"path2".to_vec(),
-            b"algo".to_vec(),
-            b"dest".to_vec(),
-            b"params".to_vec()
-        ));
+		assert_ok!(Signet::sign(
+			RuntimeOrigin::signed(requester2),
+			[2u8; 32],
+			2,
+			b"path2".to_vec(),
+			b"algo".to_vec(),
+			b"dest".to_vec(),
+			b"params".to_vec()
+		));
 
-        assert_eq!(Balances::free_balance(&pallet_account), deposit * 2);
-    });
+		assert_eq!(Balances::free_balance(&pallet_account), deposit * 2);
+	});
 }
 
 fn create_test_signature() -> Signature {
@@ -536,78 +585,78 @@ fn create_test_signature() -> Signature {
 
 #[test]
 fn test_sign_respond_works() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let requester = 2u64;
-        let deposit = 100u128;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let requester = 2u64;
+		let deposit = 100u128;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            deposit,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			deposit,
+			b"test-chain".to_vec()
+		));
 
-        let tx_data = b"mock_transaction_data".to_vec();
-        let slip44_chain_id = 60u32;
-        let balance_before = Balances::free_balance(&requester);
+		let tx_data = b"mock_transaction_data".to_vec();
+		let slip44_chain_id = 60u32;
+		let balance_before = Balances::free_balance(&requester);
 
-        assert_ok!(Signet::sign_respond(
-            RuntimeOrigin::signed(requester),
-            tx_data.clone(),
-            slip44_chain_id,
-            1,
-            b"path".to_vec(),
-            b"ecdsa".to_vec(),
-            b"callback".to_vec(),
-            b"{}".to_vec(),
-            SerializationFormat::AbiJson,
-            b"schema1".to_vec(),
-            SerializationFormat::Borsh,
-            b"schema2".to_vec()
-        ));
+		assert_ok!(Signet::sign_respond(
+			RuntimeOrigin::signed(requester),
+			tx_data.clone(),
+			slip44_chain_id,
+			1,
+			b"path".to_vec(),
+			b"ecdsa".to_vec(),
+			b"callback".to_vec(),
+			b"{}".to_vec(),
+			SerializationFormat::AbiJson,
+			b"schema1".to_vec(),
+			SerializationFormat::Borsh,
+			b"schema2".to_vec()
+		));
 
-        assert_eq!(Balances::free_balance(&requester), balance_before - deposit);
+		assert_eq!(Balances::free_balance(&requester), balance_before - deposit);
 
-        let events = System::events();
-        let event_found = events
-            .iter()
-            .any(|e| matches!(&e.event, RuntimeEvent::Signet(Event::SignRespondRequested { .. })));
-        assert!(event_found);
-    });
+		let events = System::events();
+		let event_found = events
+			.iter()
+			.any(|e| matches!(&e.event, RuntimeEvent::Signet(Event::SignRespondRequested { .. })));
+		assert!(event_found);
+	});
 }
 
 #[test]
 fn test_sign_respond_empty_transaction_fails() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let requester = 2u64;
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let requester = 2u64;
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin,
-            100,
-            b"test-chain".to_vec()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			100,
+			b"test-chain".to_vec()
+		));
 
-        assert_noop!(
-            Signet::sign_respond(
-                RuntimeOrigin::signed(requester),
-                vec![],
-                60,
-                1,
-                b"path".to_vec(),
-                b"algo".to_vec(),
-                b"dest".to_vec(),
-                b"params".to_vec(),
-                SerializationFormat::Borsh,
-                vec![],
-                SerializationFormat::Borsh,
-                vec![]
-            ),
-            Error::<Test>::InvalidTransaction
-        );
-    });
+		assert_noop!(
+			Signet::sign_respond(
+				RuntimeOrigin::signed(requester),
+				vec![],
+				60,
+				1,
+				b"path".to_vec(),
+				b"algo".to_vec(),
+				b"dest".to_vec(),
+				b"params".to_vec(),
+				SerializationFormat::Borsh,
+				vec![],
+				SerializationFormat::Borsh,
+				vec![]
+			),
+			Error::<Test>::InvalidTransaction
+		);
+	});
 }
 
 #[test]
@@ -760,41 +809,89 @@ fn test_read_respond() {
 
 #[test]
 fn test_sign_includes_chain_id() {
-    new_test_ext().execute_with(|| {
-        let admin = 1u64;
-        let requester = 2u64;
-        let chain_id = b"hydradx:polkadot:0".to_vec();
+	new_test_ext().execute_with(|| {
+		let admin = 1u64;
+		let requester = 2u64;
+		let chain_id = b"hydradx:polkadot:0".to_vec();
 
-        assert_ok!(Signet::initialize(
-            RuntimeOrigin::signed(1),
-            admin, 
-            100, 
-            chain_id.clone()
-        ));
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			admin,
+			100,
+			chain_id.clone()
+		));
 
-        assert_ok!(Signet::sign(
-            RuntimeOrigin::signed(requester),
-            [42u8; 32],
-            1,
-            b"path".to_vec(),
-            b"algo".to_vec(),
-            b"dest".to_vec(),
-            b"params".to_vec()
-        ));
+		assert_ok!(Signet::sign(
+			RuntimeOrigin::signed(requester),
+			[42u8; 32],
+			1,
+			b"path".to_vec(),
+			b"algo".to_vec(),
+			b"dest".to_vec(),
+			b"params".to_vec()
+		));
 
-        let events = System::events();
-        let sign_event = events.iter().find_map(|e| {
-            if let RuntimeEvent::Signet(Event::SignatureRequested {
-                chain_id: event_chain_id,
-                ..
-            }) = &e.event
-            {
-                Some(event_chain_id.clone())
-            } else {
-                None
-            }
-        });
+		let events = System::events();
+		let sign_event = events.iter().find_map(|e| {
+			if let RuntimeEvent::Signet(Event::SignatureRequested {
+				chain_id: event_chain_id,
+				..
+			}) = &e.event
+			{
+				Some(event_chain_id.clone())
+			} else {
+				None
+			}
+		});
 
-        assert_eq!(sign_event, Some(chain_id));
-    });
+		assert_eq!(sign_event, Some(chain_id));
+	});
+}
+
+#[test]
+fn test_cross_pallet_execution() {
+	new_test_ext().execute_with(|| {
+		// Initialize signet first
+		assert_ok!(Signet::initialize(
+			RuntimeOrigin::signed(1),
+			1,
+			100,
+			b"test-chain".to_vec()
+		));
+
+		// Fund the MockCaller pallet's account
+		let mock_pallet_account: u64 = MockCallerPalletId::get().into_account_truncating();
+		let _ = Balances::deposit_creating(&mock_pallet_account, 10_000);
+
+		// User calls MockCaller, which then calls Signet
+		assert_ok!(MockCaller::call_signet(RuntimeOrigin::signed(2)));
+
+		// Check the event - the sender should be the PALLET's account
+		System::assert_last_event(
+			Event::SignatureRequested {
+				sender: mock_pallet_account,
+				payload: [99u8; 32],
+				key_version: 1,
+				deposit: 100,
+				chain_id: b"test-chain".to_vec(),
+				path: b"from_pallet".to_vec(),
+				algo: b"ecdsa".to_vec(),
+				dest: b"".to_vec(),
+				params: b"{}".to_vec(),
+			}
+			.into(),
+		);
+
+		// Verify the deposit was taken from the pallet's account
+		assert_eq!(Balances::free_balance(&mock_pallet_account), 10_000 - 100);
+
+		println!("✅ Cross-pallet test passed!");
+		println!("   User 2 called MockCaller");
+		println!("   MockCaller called Signet");
+		println!(
+			"   Signet saw sender as: {:?} (the pallet account)",
+			mock_pallet_account
+		);
+		println!("   NOT as: 2 (the original user)");
+	});
 }
