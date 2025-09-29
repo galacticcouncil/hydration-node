@@ -118,20 +118,21 @@ pub mod v2 {
 			let mut writes: u64 = 0;
 
 			// Iterate over all entries in the old AccountBlacklist storage
-			let blacklisted_accounts: Vec<_> = AccountBlacklist::<T, P>::iter().collect();
-			reads += blacklisted_accounts.len() as u64;
+			let mut migrated_count = 0u64;
+
+			// Insert all entries into the new AccountWhitelist storage
+			for (account_id, _) in AccountBlacklist::<T, P>::iter() {
+				crate::AccountWhitelist::<T>::insert(&account_id, ());
+				reads += 1;
+				writes += 1;
+				migrated_count += 1;
+			}
 
 			log::info!(
 				target: "runtime::duster",
 				"Migrating {} accounts from AccountBlacklist to AccountWhitelist",
-				blacklisted_accounts.len()
+				migrated_count
 			);
-
-			// Insert all entries into the new AccountWhitelist storage
-			for (account_id, _) in &blacklisted_accounts {
-				crate::AccountWhitelist::<T>::insert(account_id, ());
-				writes += 1;
-			}
 
 			// Remove all entries from the old storage
 			let removed_keys = AccountBlacklist::<T, P>::drain().count();
@@ -140,7 +141,7 @@ pub mod v2 {
 			log::info!(
 				target: "runtime::duster",
 				"Migration completed: {} accounts migrated, {} old entries removed",
-				blacklisted_accounts.len(),
+				migrated_count,
 				removed_keys
 			);
 
