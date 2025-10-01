@@ -171,10 +171,11 @@ pub mod pallet {
 
 			ensure!(Self::whitelisted(&account).is_none(), Error::<T>::AccountWhitelisted);
 
-			let (dustable, dust) = Self::is_dustable(&account, currency_id);
-			ensure!(!dust.is_zero(), Error::<T>::ZeroBalance);
+			let ed = T::ExistentialDeposit::get(&currency_id);
+			let dust = T::MultiCurrency::total_balance(currency_id, &account.clone().into());
+			ensure!(dust < ed, Error::<T>::BalanceSufficient);
 
-			ensure!(dustable, Error::<T>::BalanceSufficient);
+			ensure!(!dust.is_zero(), Error::<T>::ZeroBalance);
 
 			// Error should never occur here
 			let dust_dest_account = T::TreasuryAccountId::get();
@@ -237,15 +238,6 @@ pub mod pallet {
 	}
 }
 impl<T: Config> Pallet<T> {
-	/// Check is account's balance is below minimum deposit.
-	fn is_dustable(account: &T::AccountId, currency_id: T::AssetId) -> (bool, Balance) {
-		let ed = T::ExistentialDeposit::get(&currency_id);
-
-		let total = T::MultiCurrency::total_balance(currency_id, account);
-
-		(total < ed, total)
-	}
-
 	/// Transfer dust amount to selected DustAccount ( usually treasury)
 	fn transfer_dust(
 		from: &T::AccountId,
