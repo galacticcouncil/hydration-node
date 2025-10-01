@@ -156,15 +156,15 @@ enum MessageType<B: BlockT> {
 /// Messages that are sent to the liquidation worker.
 #[derive(Clone, RuntimeDebug)]
 enum TransactionType {
-	OracleUpdate(Vec<(EvmAddress, U256)>), // (asset_address, price)
-	Borrow(EvmAddress, EvmAddress),        // borrower, asset_address
+	OracleUpdate(Vec<(EvmAddress, Option<U256>)>),  // (asset_address, price)
+	Borrow(EvmAddress, EvmAddress),        			// borrower, asset_address
 }
 
 /// State of the liquidation worker.
 #[derive(Clone, RuntimeDebug)]
 enum LiquidationWorkerTask {
 	LiquidateAll,
-	OracleUpdate(Vec<(EvmAddress, U256)>),
+	OracleUpdate(Vec<(EvmAddress, Option<U256>)>),
 	WaitForNewTransaction,
 }
 
@@ -358,7 +358,7 @@ where
 	fn process_new_oracle_update(
 		transaction: &ethereum::TransactionV2,
 		reserves: &[Reserve],
-	) -> Option<Vec<(EvmAddress, U256)>> {
+	) -> Option<Vec<(EvmAddress, Option<U256>)>> {
 		let Some(oracle_data) = parse_oracle_transaction(transaction) else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: parse_oracle_transaction failed");
 			return None;
@@ -366,24 +366,32 @@ where
 
 		// One DIA oracle update transaction can update the price of multiple assets.
 		// Create a list of (asset_address, price) pairs from the oracle update.
-		let oracle_data = oracle_data
+		let oracle_data: Vec<(EvmAddress, Option<U256>)> = oracle_data
 			.iter()
 			.filter_map(
 				|OracleUpdataData {
 				     base_asset_name, price, ..
 				 }| {
-					// Get the address of the asset whose price is about to be updated. We need only addresses so we don't need updated MM data with updated prices.
-					let asset_reserve = reserves
-						.iter()
-						.find(|asset| *asset.symbol().to_ascii_lowercase() == *base_asset_name.to_ascii_lowercase());
+					if let Ok(base_asset_str) = String::from_utf8(base_asset_name.to_ascii_lowercase()) {
+						let asset_reserves: Vec<&Reserve> = reserves.iter().filter(|asset| {
+							if let Ok(asset) = String::from_utf8(asset.symbol().to_ascii_lowercase().to_vec()) {
+								asset.contains(&base_asset_str)
+							} else { false }
+						}).collect();
 
-					// "base" asset from "base/quote" asset pair updated by the oracle update
-					asset_reserve
-						.map(|reserve| reserve.asset_address())
-						.map(|asset_address| (asset_address, *price))
+						Some(asset_reserves
+							.iter()
+							.map(|reserve| {
+								if reserve.symbol() == base_asset_name {
+									(reserve.asset_address(), Some(*price))
+								} else {
+									(reserve.asset_address(), None)
+								}
+							}).collect::<Vec<_>>())
+					} else { None }
 				},
 			)
-			.collect::<Vec<_>>();
+			.flatten().collect::<Vec<_>>();
 
 		// Skip the execution if assets in the oracle update are not in the money market.
 		if oracle_data.is_empty() {
@@ -698,8 +706,10 @@ where
 					let mut updated_assets = Vec::new();
 					// Iterate over all price updates and aggregate all price updates first.
 					// All oracle updates we use are quoted in USD.
-					for (base_asset_address, new_price) in oracle_update_data.iter() {
-						money_market.update_reserve_price(*base_asset_address, new_price);
+					for (base_asset_address, maybe_new_price) in oracle_update_data.iter() {
+						if let Some(new_price) = maybe_new_price {
+							money_market.update_reserve_price(*base_asset_address, new_price);
+						}
 						updated_assets.push(*base_asset_address);
 					}
 
@@ -755,7 +765,7 @@ where
 							current_evm_timestamp,
 							&mut borrowers,
 							borrower,
-							Some(&updated_assets),// TODO: if DOT, also check GDOT		// TODO: partial matching of strings
+							Some(&updated_assets),
 							&mut tx_waitlist,
 							&mut money_market,
 							&mut liquidated_users,
