@@ -556,11 +556,24 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Returns the effective fee currency for `who`.
+	///
+	/// Behavior:
+	/// - If `get_currency(who)` is set, return that per-account currency.
+	/// - Otherwise, default by account type:
+	///     * EVM account     → `T::EvmAssetId::get()`
+	///     * non-EVM account → `T::NativeAssetId::get()`
 	pub fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
-		Pallet::<T>::get_currency(who).unwrap_or_else(T::NativeAssetId::get)
+		Pallet::<T>::get_currency(who.clone()).unwrap_or_else(|| {
+			if T::InspectEvmAccounts::is_evm_account(who.clone()) {
+				T::EvmAssetId::get()
+			} else {
+				T::NativeAssetId::get()
+			}
+		})
 	}
 
 	fn get_currency_price(currency: AssetIdOf<T>) -> Option<Price>
