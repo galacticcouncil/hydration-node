@@ -4,7 +4,7 @@ use ethabi::ethereum_types::U256;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_self_contained::SelfContainedCall;
 use frame_support::{BoundedVec, __private::sp_tracing::tracing};
-use futures::{future::ready, StreamExt};
+use futures::StreamExt;
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
@@ -29,7 +29,7 @@ use std::{
 	collections::HashMap,
 	marker::PhantomData,
 	ops::Deref,
-	sync::{mpsc, Arc, Mutex},
+	sync::{mpsc, Arc},
 };
 use threadpool::ThreadPool;
 use xcm_runtime_apis::dry_run::{CallDryRunEffects, DryRunApi, Error as XcmDryRunApiError};
@@ -98,7 +98,7 @@ pub struct LiquidationWorkerConfig {
 	pub omniwatch_url: String,
 }
 
-pub struct ApiProvider<C>(C);
+struct ApiProvider<C>(C);
 impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent> for ApiProvider<&C>
 where
 	Block: BlockT,
@@ -147,22 +147,29 @@ where
 }
 
 /// Messages that are sent to the liquidation worker.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
-pub enum TransactionType {
+#[derive(Clone, RuntimeDebug)]
+enum MessageType<B: BlockT> {
+	Block(sc_client_api::client::BlockImportNotification<B>),
+	Transaction(TransactionType),
+}
+
+/// Messages that are sent to the liquidation worker.
+#[derive(Clone, RuntimeDebug)]
+enum TransactionType {
 	OracleUpdate(Vec<(EvmAddress, U256)>), // (asset_address, price)
 	Borrow(EvmAddress, EvmAddress),        // borrower, asset_address
 }
 
 /// State of the liquidation worker.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
-pub enum LiquidationWorkerTask {
+#[derive(Clone, RuntimeDebug)]
+enum LiquidationWorkerTask {
 	LiquidateAll,
 	OracleUpdate(Vec<(EvmAddress, U256)>),
 	WaitForNewTransaction,
 }
 
 #[derive(Hash, Eq, PartialEq, Clone, RuntimeDebug)]
-pub struct TransactionHash(pub [u8; 8]);
+struct TransactionHash(pub [u8; 8]);
 
 pub struct LiquidationTask<B, C, BE, P>(PhantomData<(B, C, BE, P)>);
 
@@ -188,253 +195,136 @@ where
 		spawner: SpawnTaskHandle,
 	) {
 		tracing::info!("liquidation-worker: starting");
-		// liquidation calculations are performed in a separate thread.
-		let thread_pool = Arc::new(Mutex::new(ThreadPool::with_name(
-			"liquidation-worker".into(),
-			num_cpus::get(),
-		)));
+
+		let runtime_api = client.runtime_api();
+		let hash = client.info().best_hash;
+		let Ok(Some(header)) = client.header(hash) else { return };
+
+		let has_api_v2 = runtime_api.has_api_with::<dyn OffchainWorkerApi<B>, _>(hash, |v| v == 2);
+		if let Ok(true) = has_api_v2 {} else {
+			tracing::error!(
+				target: LOG_TARGET,
+				"liquidation-worker: Unsupported Offchain Worker API version. Consider turning off offchain workers if they are not part of your runtime.",
+			);
+			return
+		};
 
 		// Fetch and sort the list of borrowers.
 		let Some(borrowers_data) = Self::fetch_borrowers_data(config.omniwatch_url.clone()).await else {
 			tracing::error!("liquidation-worker: fetch_borrowers_data failed");
 			return;
 		};
-
-		let Some(sorted_borrowers_data) = Self::process_borrowers_data(borrowers_data) else {
+		let Some(sorted_borrowers) = Self::process_borrowers_data(borrowers_data) else {
 			tracing::error!("liquidation-worker: process_borrowers_data failed");
 			return;
 		};
 
-		let borrowers_m = Arc::new(Mutex::from(sorted_borrowers_data));
-
-		// We store the last best block. We use it to stop older tasks from previous blocks if still running.
-		let best_block_m = Arc::new(Mutex::from(B::Hash::default()));
-
-		// List of liquidations that failed and are postponed to not block other possible liquidations.
-		// We store the block number when tx failed.
-		let tx_waitlist_m = Arc::new(Mutex::from(HashMap::<
-			TransactionHash,
-			<<B as BlockT>::Header as Header>::Number,
-		>::new()));
-
-		// new block imported
-		client
-			.import_notification_stream()
-			.for_each(move |n| {
-				if n.is_new_best {
-					spawner.spawn("liquidation-worker-on-block", Some("liquidation-worker"), {
-						{
-							let Ok(mut best_block) = best_block_m.lock() else {
-								tracing::error!(target: LOG_TARGET, "liquidation-worker: best_block mutex is poisoned");
-								// return if the mutex is poisoned
-								return ready(());
-							};
-							*best_block = n.hash;
-						}
-						let client_c = client.clone();
-						Self::on_block_imported(
-							client_c.clone(),
-							config.clone(),
-							transaction_pool.clone(),
-							spawner.clone(),
-							thread_pool.clone(),
-							n.header,
-							n.hash,
-							best_block_m.clone(),
-							borrowers_m.clone(),
-							tx_waitlist_m.clone(),
-						)
-					});
-				} else {
-					tracing::info!(target: LOG_TARGET, "liquidation-worker: Skipping liquidation worker for non-canon block.")
-				}
-
-				ready(())
-			})
-			.await;
-	}
-
-	#[allow(clippy::too_many_arguments)]
-	#[allow(clippy::type_complexity)]
-	/// The main function of the liquidation worker, executed on each new block.
-	/// The execution time of this function is limited to 4 seconds.
-	/// Listens to new transactions and executes `on_new_transaction` on each new transaction.
-	async fn on_block_imported(
-		client: Arc<C>,
-		config: LiquidationWorkerConfig,
-		transaction_pool: Arc<P>,
-		spawner: SpawnTaskHandle,
-		thread_pool: Arc<Mutex<ThreadPool>>,
-		header: B::Header,
-		current_block_hash: B::Hash,
-		best_block_hash_m: Arc<Mutex<B::Hash>>,
-		borrowers_m: Arc<Mutex<Vec<Borrower>>>,
-		tx_waitlist_m: Arc<Mutex<HashMap<TransactionHash, <<B as BlockT>::Header as Header>::Number>>>,
-	) {
-		let now = std::time::Instant::now();
-
-		// We can ignore the result because it's not important for us.
-		// All we want is to have some upper bound for execution time of this task.
-		// TODO: this should be terminated when new on_block_imported
-		let _ = tokio::time::timeout(std::time::Duration::from_secs(6), async {
-			let runtime_api = client.runtime_api();
-			let hash = header.hash();
-			let has_api_v2 = runtime_api.has_api_with::<dyn OffchainWorkerApi<B>, _>(hash, |v| v == 2);
-
-			if let Ok(true) = has_api_v2 {} else {
-				tracing::error!(
-							target: LOG_TARGET,
-							"liquidation-worker: Unsupported Offchain Worker API version. Consider turning off offchain workers if they are not part of your runtime.",
-						);
-				return
-			};
-
-			// Sort the borrowers by the health factor.
-			{
-				let Ok(mut borrowers) = borrowers_m.lock() else {
-					tracing::error!(target: LOG_TARGET, "liquidation-worker: borrowers mutex is poisoned");
-					// return if the mutex is poisoned
-					return;
-				};
-				borrowers.sort_by(|a, b| a.health_factor.partial_cmp(&b.health_factor).unwrap_or(Ordering::Equal));
-				drop(borrowers);
-			}
-
-			let current_block_number = *header.number();
-
-			// `tx_waitlist` maintenance.
-			// Remove all transactions that are older than WAIT_PERIOD blocks and can be executed again.
-			{
-				let Ok(mut waitlist) = tx_waitlist_m.lock() else {
-					tracing::error!(target: LOG_TARGET, "liquidation-worker: tx_waitlist mutex is poisoned");
-					// return if the mutex is poisoned
-					return
-				};
-
-				waitlist.retain(|_, block_num| {
-					current_block_number < *block_num + WAIT_PERIOD.into()
-				});
-			}
-
-			// Accounts that sign the DIA oracle update transactions.
-			let allowed_signers = config.clone().oracle_update_signer.unwrap_or(ORACLE_UPDATE_SIGNER.to_vec());
-			// Addresses of the DIA oracle contract.
-			let allowed_oracle_call_addresses = config.clone().oracle_update_call_address.unwrap_or(ORACLE_UPDATE_CALL_ADDRESS.to_vec());
-
-			// Use one instance of `MoneyMarketData` per block to aggregate price updates.
-			let Ok(money_market) =
-				MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
-					ApiProvider::<&C::Api>(runtime_api.deref()),
-					hash,
-					config.pap_contract.unwrap_or(PAP_CONTRACT),
-					config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
-				)
-			else {
-				tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
-				return
-			};
-
-			let reserves = money_market.reserves().clone();
-
-			let (worker_channel_tx, worker_channel_rx) = mpsc::channel();
-
-			let client_c = client.clone();
-			let spawner_c = spawner.clone();
-			let header_c = header.clone();
-			let current_block_hash_c = current_block_hash;
-			let transaction_pool_c = transaction_pool.clone();
-			let config_c = config.clone();
-
-			// Start the liquidation worker thread.
-			Self::spawn_worker(thread_pool.clone(), move || {
-				Self::liquidation_worker(
-					client_c,
-					config_c,
-					transaction_pool_c,
-					spawner_c,
-					header_c,
-					current_block_hash_c,
-					borrowers_m,
-					tx_waitlist_m,
-					money_market.clone(),
-					worker_channel_rx,
-				)
-			});
-
-            // New transaction in the transaction pool.
-            let mut notification_st = transaction_pool.clone().import_notification_stream();
-            while let Some(notification) = notification_st.next().await {
-				// If `current_block_hash != best_block_hash`, this task is most probably from the previous block.
-				let Ok(m_best_block_hash) = best_block_hash_m.lock() else {
-					tracing::error!(target: LOG_TARGET, "liquidation-worker: best_block_hash mutex is poisoned");
-					// return if the mutex is poisoned
-					return
-				};
-				if current_block_hash != *m_best_block_hash {
-					// Break from the loop and end the task.
-					return
-				}
-				drop(m_best_block_hash);
-
-				let Some(pool_tx) = transaction_pool.clone().ready_transaction(&notification) else {
-					tracing::error!(target: LOG_TARGET, "liquidation-worker: ready_transaction failed");
-					continue
-				};
-
-				match Self::on_new_transaction(
-					pool_tx.clone(),
-					header.clone(),
-					allowed_signers.clone(),
-					allowed_oracle_call_addresses.clone(),
-					worker_channel_tx.clone(),
-					&reserves,
-				) {
-					Ok(()) => continue,
-					Err(()) => return,
-				}
-			}
-		}).await;
-
-		tracing::info!(target: LOG_TARGET, "liquidation-worker: {:?} on_block_imported execution time: {:?}", header.number(), now.elapsed().as_millis());
-	}
-
-	#[allow(clippy::type_complexity)]
-	/// Executes when a new transaction is added to the transaction pool.
-	/// Listens to borrow and DIA oracle update transactions.
-	fn on_new_transaction(
-		pool_tx: Arc<P::InPoolTransaction>,
-		header: B::Header,
-		allowed_signers: Vec<EvmAddress>,
-		allowed_oracle_call_addresses: Vec<EvmAddress>,
-		worker_channel_tx: mpsc::Sender<TransactionType>,
-		reserves: &[Reserve],
-	) -> Result<(), ()> {
-		let opaque_tx_encoded = pool_tx.data().encode();
-		let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
-
-		let Ok(transaction) = tx else {
-			tracing::error!(target: LOG_TARGET, "liquidation-worker: transaction decoding failed");
-			return Err(());
+		// Use `MoneyMarketData` to get the list of reserves.
+		let Ok(mut money_market) =
+			MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+				ApiProvider::<&C::Api>(runtime_api.deref()),
+				hash,
+				config.pap_contract.unwrap_or(PAP_CONTRACT),
+				config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+			)
+		else {
+			tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
+			return
 		};
 
-		match Self::get_transaction_type(
-			transaction.0,
-			&allowed_signers,
-			&allowed_oracle_call_addresses,
-			&header,
-			reserves,
-		) {
-			// Send the message to the liquidation worker thread.
-			Some(TransactionType::Borrow(borrower, asset_address)) => {
-				let _ = worker_channel_tx.send(TransactionType::Borrow(borrower, asset_address));
-			}
-			Some(TransactionType::OracleUpdate(oracle_data)) => {
-				let _ = worker_channel_tx.send(TransactionType::OracleUpdate(oracle_data));
-			}
-			None => {}
-		}
+		let mut reserves = money_market.reserves().clone();
 
-		Ok(())
+		// Channel used to communicate new blocks and transactions to the liquidation worker thread.
+		let (worker_channel_tx, worker_channel_rx) = mpsc::channel();
+
+		let client_c = client.clone();
+		let spawner_c = spawner.clone();
+		let transaction_pool_c = transaction_pool.clone();
+		let config_c = config.clone();
+
+		// Start the liquidation worker thread.
+		let thread_pool = ThreadPool::with_name(
+			"liquidation-worker".into(),
+			num_cpus::get(),
+		);
+		thread_pool.execute(move || {
+			Self::liquidation_worker(
+				client_c,
+				config_c,
+				transaction_pool_c,
+				spawner_c,
+				header,
+				sorted_borrowers.clone(),
+				money_market.clone(),
+				worker_channel_rx,
+			)
+		});
+
+		// Accounts that sign the DIA oracle update transactions.
+		let allowed_signers = config.clone().oracle_update_signer.unwrap_or(ORACLE_UPDATE_SIGNER.to_vec());
+		// Addresses of the DIA oracle contract.
+		let allowed_oracle_call_addresses = config.clone().oracle_update_call_address.unwrap_or(ORACLE_UPDATE_CALL_ADDRESS.to_vec());
+
+		// Combine block and transaction notifications and process them sequentially.
+		let mut block_notification_stream = client.import_notification_stream();
+		let mut transaction_notification_stream = transaction_pool.import_notification_stream();
+		loop {
+			tokio::select! {
+				Some(new_block) = block_notification_stream.next() => {
+					if new_block.is_new_best {
+						let _ = worker_channel_tx.send(MessageType::Block(new_block));
+						// Get a new list of reserves. // TODO: use events to update existing list
+						if let Ok(new_money_market) =
+							MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+								ApiProvider::<&C::Api>(runtime_api.deref()),
+								hash,
+								config.pap_contract.unwrap_or(PAP_CONTRACT),
+								config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+							) {
+							money_market = new_money_market;
+						}
+						else {
+							tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
+							return
+						};
+
+						reserves = money_market.reserves().clone();
+					} else {
+						tracing::info!(target: LOG_TARGET, "liquidation-worker: Skipping liquidation worker for non-canon block.")
+					}
+				}
+				Some(new_transaction_notification) = transaction_notification_stream.next() => {
+					let Some(pool_tx) = transaction_pool.clone().ready_transaction(&new_transaction_notification) else {
+						continue
+					};
+
+					let opaque_tx_encoded = pool_tx.data().encode();
+					let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded);
+
+					let Ok(transaction) = tx else {
+						tracing::error!(target: LOG_TARGET, "liquidation-worker: transaction decoding failed");
+						continue
+					};
+
+					// We watch for borrow and DIA oracle update transactions.
+					match Self::get_transaction_type(
+						transaction.0,
+						&allowed_signers,
+						&allowed_oracle_call_addresses,
+						&reserves,
+					) {
+						// Send a message to the liquidation worker thread.
+						Some(TransactionType::Borrow(borrower, asset_address)) => {
+							let _ = worker_channel_tx.send(MessageType::Transaction(TransactionType::Borrow(borrower, asset_address)));
+						}
+						Some(TransactionType::OracleUpdate(oracle_data)) => {
+							let _ = worker_channel_tx.send(MessageType::Transaction(TransactionType::OracleUpdate(oracle_data)));
+						}
+						None => {}
+					}
+				}
+			}
+		}
 	}
 
 	fn get_transaction_type(
@@ -446,7 +336,6 @@ where
 		>,
 		allowed_signers: &[EvmAddress],
 		allowed_oracle_call_addresses: &[EvmAddress],
-		header: &B::Header,
 		reserves: &[Reserve],
 	) -> Option<TransactionType> {
 		if let Some((borrower, asset_address)) = Self::is_borrow_transaction(&transaction) {
@@ -456,7 +345,7 @@ where
 		if let Some(transaction) =
 			Self::verify_oracle_update_transaction(&transaction, allowed_signers, allowed_oracle_call_addresses)
 		{
-			if let Some(oracle_data) = Self::process_new_oracle_update(&transaction, header.clone(), reserves) {
+			if let Some(oracle_data) = Self::process_new_oracle_update(&transaction, reserves) {
 				return Some(TransactionType::OracleUpdate(oracle_data));
 			}
 		}
@@ -464,10 +353,10 @@ where
 		None
 	}
 
-	/// Executes when a new DIA oracle update transaction is added to the transaction pool.
+	/// Parse a new DIA oracle update transaction and return the list of oracle updates.
+	/// Updates of assets that are not used by the MM are omitted from the returned list.
 	fn process_new_oracle_update(
 		transaction: &ethereum::TransactionV2,
-		header: B::Header,
 		reserves: &[Reserve],
 	) -> Option<Vec<(EvmAddress, U256)>> {
 		let Some(oracle_data) = parse_oracle_transaction(transaction) else {
@@ -498,10 +387,8 @@ where
 
 		// Skip the execution if assets in the oracle update are not in the money market.
 		if oracle_data.is_empty() {
-			tracing::info!(target: LOG_TARGET, "liquidation-worker: {:?} processing new oracle update: asset not in MM, skipping execution", header.number());
 			None
 		} else {
-			tracing::info!(target: LOG_TARGET, "liquidation-worker: {:?} processing new oracle update: sending message {:?}", header.number(), oracle_data);
 			Some(oracle_data)
 		}
 	}
@@ -516,24 +403,17 @@ where
 		transaction_pool: Arc<P>,
 		spawner: SpawnTaskHandle,
 		header: B::Header,
-		current_block_hash: B::Hash,
 		current_evm_timestamp: u64,
-		borrowers_m: Arc<Mutex<Vec<Borrower>>>,
+		borrowers: &mut [Borrower],
 		borrower: &Borrower,
 		updated_assets: Option<&Vec<EvmAddress>>,
-		tx_waitlist_m: Arc<Mutex<HashMap<TransactionHash, <<B as BlockT>::Header as Header>::Number>>>,
+		tx_waitlist: &mut HashMap<TransactionHash, <<B as BlockT>::Header as Header>::Number>,
 		money_market: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
 		liquidated_users: &mut Vec<EvmAddress>,
 	) -> Result<(), ()> {
 		let current_block_number = *header.number();
 		let runtime_api = client.runtime_api();
 		let hash = header.hash();
-
-		let Ok(mut borrowers) = borrowers_m.lock() else {
-			tracing::error!(target: LOG_TARGET, "liquidation-worker: borrowers mutex is poisoned");
-			// return if the mutex is poisoned
-			return Err(());
-		};
 
 		let Some(ref mut borrower) = borrowers
 			.iter_mut()
@@ -615,14 +495,8 @@ where
 
 			let tx_hash = TransactionHash(sp_core::blake2_64(&encoded));
 
-			let Ok(mut waitlist) = tx_waitlist_m.lock() else {
-				tracing::error!(target: LOG_TARGET, "liquidation-worker: tx_waitlist mutex is poisoned");
-				// return if the mutex is poisoned
-				return Err(());
-			};
-
 			// skip the execution if the transaction is in the waitlist
-			if waitlist.iter().any(|(key, _)| *key == tx_hash) {
+			if tx_waitlist.iter().any(|(key, _)| *key == tx_hash) {
 				// TX is still on hold, skip the execution
 				tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} transaction is still on hold", header.number());
 				return Ok(());
@@ -641,7 +515,7 @@ where
 					tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} Dry running liquidation failed for user {:?} ,assets {:?} {:?} and debt amount {:?} with reason: {:?}", header.number(), borrower.user_address, collateral_asset_id, debt_asset_id, debt_to_liquidate, error);
 
 					// put the failed tx on hold for `WAIT_PERIOD` number of blocks
-					waitlist.insert(tx_hash, current_block_number);
+					tx_waitlist.insert(tx_hash, current_block_number);
 					return Ok(());
 				}
 			}
@@ -658,7 +532,7 @@ where
 			spawner.spawn("liquidation-worker-on-submit", Some("liquidation-worker"), async move {
 				tracing::info!(target: LOG_TARGET, "liquidation-worker: {:?} Submitting liquidation extrinsic {opaque_tx:?}", header.number());
 				let _ = tx_pool_cc
-					.submit_one(current_block_hash, TransactionSource::Local, opaque_tx.into())
+					.submit_one(hash, TransactionSource::Local, opaque_tx.into())
 					.await;
 			});
 		} else {
@@ -675,16 +549,18 @@ where
 		transaction_pool: Arc<P>,
 		spawner: SpawnTaskHandle,
 		header: B::Header,
-		current_block_hash: B::Hash,
-		borrowers_m: Arc<Mutex<Vec<Borrower>>>,
-		tx_waitlist_m: Arc<Mutex<HashMap<TransactionHash, <<B as BlockT>::Header as Header>::Number>>>,
+		sorted_borrowers: Vec<Borrower>,
 		money_market: MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
-		worker_channel_rx: mpsc::Receiver<TransactionType>,
+		worker_channel_rx: mpsc::Receiver<MessageType<B>>,
 	) {
 		let mut money_market = money_market;
+		let mut reserves = money_market.reserves().clone();
+		let mut borrowers = sorted_borrowers;
+		// We need two borrowers lists. One mutable that we can update and one we can iterate over.
+		let mut borrowers_c = borrowers.clone();
 
 		let runtime_api = client.runtime_api();
-		let Some(current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
+		let Some(mut current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
 		else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: fetch_current_evm_block_timestamp failed");
 			return;
@@ -694,31 +570,54 @@ where
 		// We don't try to liquidate a user more than once in a block.
 		let mut liquidated_users = Vec::<EvmAddress>::new();
 
-		let Ok(borrowers) = borrowers_m.lock() else {
-			tracing::error!(target: LOG_TARGET, "liquidation-worker: borrowers_data mutex is poisoned");
-			// return if the mutex is poisoned
-			return;
-		};
+		// List of liquidations that failed and are postponed to not block other possible liquidations.
+		// We stored the block number when tx failed.
+		let mut tx_waitlist = HashMap::<
+			TransactionHash,
+			<<B as BlockT>::Header as Header>::Number,
+		>::new();
 
-		let borrowers_c = borrowers.clone();
-		drop(borrowers);
+		let mut header = header;
 
-		let mut current_task = LiquidationWorkerTask::LiquidateAll;
+		let mut current_task = LiquidationWorkerTask::WaitForNewTransaction;
 
 		'main_loop: loop {
 			match worker_channel_rx.try_recv() {
-				Ok(TransactionType::OracleUpdate(oracle_update_data)) => {
-					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received OracleUpdate", header.number());
-					current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
+				Ok(MessageType::Block(block)) => {
+					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received NewBlock", block.header.number());
+					// Update variables.
+					let _ = Self::process_new_block(
+						&block,
+						&mut header,
+						client.clone(),
+						&config,
+						&mut money_market,
+						&mut borrowers,
+						&mut borrowers_c,
+						&mut tx_waitlist,
+						&mut liquidated_users,
+						&mut reserves,
+						&mut current_evm_timestamp,
+					);
+					current_task = LiquidationWorkerTask::LiquidateAll;
 				}
-				Ok(TransactionType::Borrow(borrower, _asset_address)) => {
-					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received Borrow", header.number());
-					let _ = Self::process_new_borrow(borrower, borrowers_m.clone());
+				Ok(MessageType::Transaction(transaction)) => {
+					match transaction {
+						TransactionType::OracleUpdate(oracle_update_data) => {
+							tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received OracleUpdate", header.number());
+							current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
+						}
+						TransactionType::Borrow(borrower, _asset_address) => {
+							// Process new borrow without changing `current_task`.
+							tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received Borrow", header.number());
+							let _ = Self::process_new_borrow(borrower, &mut borrowers);
+						}
+					}
 				}
 				Err(mpsc::TryRecvError::Empty) => {}
 				Err(mpsc::TryRecvError::Disconnected) => {
 					// disconnected, we will not receive any new messages from the channel.
-					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} exiting worker thread", header.number());
+					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: exiting worker thread");
 					return;
 				}
 			};
@@ -731,15 +630,40 @@ where
 					// Iterate over all borrowers and try to liquidate them.
 					for (index, borrower) in borrowers_c.iter().enumerate() {
 						match worker_channel_rx.try_recv() {
-							Ok(TransactionType::OracleUpdate(oracle_update_data)) => {
-								current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
-								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} LiquidateAll execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
+							Ok(MessageType::Block(block)) => {
+								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received NewBlock", block.header.number());
+								let _ = Self::process_new_block(
+									&block,
+									&mut header,
+									client.clone(),
+									&config,
+									&mut money_market,
+									&mut borrowers,
+									&mut borrowers_c,
+									&mut tx_waitlist,
+									&mut liquidated_users,
+									&mut reserves,
+									&mut current_evm_timestamp,
+								);
+
+								// Restart `LiquidateAll` task.
 								continue 'main_loop;
 							}
-							Ok(TransactionType::Borrow(borrower, _asset_address)) => {
-								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} LiquidateAll execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
-								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
-								let _ = Self::process_new_borrow(borrower, borrowers_m.clone());
+							Ok(MessageType::Transaction(transaction)) => {
+								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received NewTransaction", header.number());
+								match transaction {
+									TransactionType::OracleUpdate(oracle_update_data) => {
+										current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
+										tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} LiquidateAll execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
+										continue 'main_loop;
+									}
+									TransactionType::Borrow(borrower, _asset_address) => {
+										// Process new borrow without changing `current_task`.
+										tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} LiquidateAll execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
+										tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
+										let _ = Self::process_new_borrow(borrower, &mut borrowers);
+									}
+								}
 							}
 							_ => (),
 						}
@@ -750,12 +674,11 @@ where
 							transaction_pool.clone(),
 							spawner.clone(),
 							header.clone(),
-							current_block_hash,
 							current_evm_timestamp,
-							borrowers_m.clone(),
+							&mut borrowers,
 							borrower,
 							None,
-							tx_waitlist_m.clone(),
+							&mut tx_waitlist,
 							&mut money_market,
 							&mut liquidated_users,
 						) {
@@ -783,17 +706,42 @@ where
 					// Iterate over all borrowers and try to liquidate them.
 					for (index, borrower) in borrowers_c.iter().enumerate() {
 						match worker_channel_rx.try_recv() {
-							Ok(TransactionType::OracleUpdate(oracle_update_data)) => {
-								// New oracle update received. Skip the execution and process a new oracle update.
-								current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
-								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
+							Ok(MessageType::Block(block)) => {
+								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received NewBlock", block.header.number());
+								let _ = Self::process_new_block(
+									&block,
+									&mut header,
+									client.clone(),
+									&config,
+									&mut money_market,
+									&mut borrowers,
+									&mut borrowers_c,
+									&mut tx_waitlist,
+									&mut liquidated_users,
+									&mut reserves,
+									&mut current_evm_timestamp,
+								);
+
+								current_task = LiquidationWorkerTask::LiquidateAll;
+								// Restart `LiquidateAll` task.
 								continue 'main_loop;
 							}
-							Ok(TransactionType::Borrow(borrower, _asset_address)) => {
-								// New borrow. Skip the execution, process the new borrower and start processing of oracle update again.
-								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
-								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
-								let _ = Self::process_new_borrow(borrower, borrowers_m.clone());
+							Ok(MessageType::Transaction(transaction)) => {
+								tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received NewTransaction", header.number());
+								match transaction {
+									TransactionType::OracleUpdate(oracle_update_data) => {
+										// New oracle update received. Skip the execution and process a new oracle update.
+										current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
+										tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
+										continue 'main_loop;
+									}
+									TransactionType::Borrow(borrower, _asset_address) => {
+										// New borrow. Skip the execution, process the new borrower and start processing of oracle update again.
+										tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} OracleUpdate execution time: {:?}, borrowers processed: {:?}", header.number(), now.elapsed().as_millis(), index);
+										tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
+										let _ = Self::process_new_borrow(borrower, &mut borrowers);
+									}
+								}
 							}
 							_ => (),
 						}
@@ -804,12 +752,11 @@ where
 							transaction_pool.clone(),
 							spawner.clone(),
 							header.clone(),
-							current_block_hash,
 							current_evm_timestamp,
-							borrowers_m.clone(),
+							&mut borrowers,
 							borrower,
 							Some(&updated_assets),// TODO: if DOT, also check GDOT		// TODO: partial matching of strings
-							tx_waitlist_m.clone(),
+							&mut tx_waitlist,
 							&mut money_market,
 							&mut liquidated_users,
 						) {
@@ -826,25 +773,103 @@ where
 					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} starting WaitForNewTransaction", header.number());
 
 					match worker_channel_rx.recv() {
+						Ok(MessageType::Block(block)) => {
+							tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received NewBlock", block.header.number());
+							let _ = Self::process_new_block(
+								&block,
+								&mut header,
+								client.clone(),
+								&config,
+								&mut money_market,
+								&mut borrowers,
+								&mut borrowers_c,
+								&mut tx_waitlist,
+								&mut liquidated_users,
+								&mut reserves,
+								&mut current_evm_timestamp,
+							);
+
+							current_task = LiquidationWorkerTask::LiquidateAll;
+						}
+						Ok(MessageType::Transaction(transaction)) => {
+							tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received NewTransaction", header.number());
+							match transaction {
+								TransactionType::OracleUpdate(oracle_update_data) => {
+									tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received OracleUpdate", header.number());
+									current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
+								}
+								TransactionType::Borrow(borrower, _asset_address) => {
+									// Process new borrow without changing `current_task`.
+									tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} received Borrow", header.number());
+									let _ = Self::process_new_borrow(borrower, &mut borrowers);
+								}
+							}
+						}
 						Err(mpsc::RecvError) => {
 							// disconnected, we will not receive any new messages from the channel.
 							return;
 						}
-						Ok(TransactionType::OracleUpdate(oracle_update_data)) => {
-							current_task = LiquidationWorkerTask::OracleUpdate(oracle_update_data);
-						}
-						Ok(TransactionType::Borrow(borrower, _asset_address)) => {
-							tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} processing new Borrow", header.number());
-							let _ = Self::process_new_borrow(borrower, borrowers_m.clone());
-
-							current_task = LiquidationWorkerTask::LiquidateAll;
-						}
 					}
-
-					tracing::info!(target: LOG_TARGET, "liquidation-worker-state: {:?} exiting WaitForNewTransaction, new task: {:?}", header.number(), current_task.clone());
 				}
 			}
 		}
+	}
+
+	#[allow(clippy::too_many_arguments)]
+	fn process_new_block(
+		new_block: &sc_client_api::client::BlockImportNotification<B>,
+		header: &mut B::Header,
+		client: Arc<C>,
+		config: &LiquidationWorkerConfig,
+		money_market: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
+		borrowers: &mut [Borrower],
+		borrowers_c: &mut Vec<Borrower>,
+		tx_waitlist: &mut HashMap<TransactionHash, <<B as BlockT>::Header as Header>::Number>,
+		liquidated_users: &mut Vec<EvmAddress>,
+		reserves: &mut Vec<Reserve>,
+		current_evm_timestamp: &mut u64,
+	) -> Result<(), ()> {
+		*header = new_block.header.clone();
+
+		let runtime_api = client.runtime_api();
+
+		let Ok(new_money_market) =
+			MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+				ApiProvider::<&C::Api>(runtime_api.deref()),
+				new_block.hash,
+				config.pap_contract.unwrap_or(PAP_CONTRACT),
+				config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+			)
+		else {
+			tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
+			return Err(())
+		};
+
+		*money_market = new_money_market;
+		*reserves = money_market.reserves().clone();
+
+		// Sort the borrowers by the health factor.
+		borrowers.sort_by(|a, b| a.health_factor.partial_cmp(&b.health_factor).unwrap_or(Ordering::Equal));
+		*borrowers_c = borrowers.to_owned();
+
+		let current_block_number = *new_block.header.number();
+
+		// `tx_waitlist` maintenance.
+		// Remove all transactions that are older than WAIT_PERIOD blocks and can be executed again.
+		tx_waitlist.retain(|_, block_num| {
+			current_block_number < *block_num + WAIT_PERIOD.into()
+		});
+
+		liquidated_users.clear();
+
+		let Some(new_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(new_block.header.hash())
+		else {
+			tracing::error!(target: LOG_TARGET, "liquidation-worker: fetch_current_evm_block_timestamp failed");
+			return Err(())
+		};
+		*current_evm_timestamp = new_evm_timestamp;
+
+		Ok(())
 	}
 
 	/// Fetch the preprocessed data used to evaluate possible candidates for liquidation.
@@ -875,7 +900,7 @@ where
 	/// Returns borrowers sorted by HF.
 	/// The list is sorted in ascending order, starting with borrowers whose HF has not yet been
 	/// calculated (HF==0).
-	pub fn process_borrowers_data(oracle_data: BorrowersData<AccountId>) -> Option<Vec<Borrower>> {
+	fn process_borrowers_data(oracle_data: BorrowersData<AccountId>) -> Option<Vec<Borrower>> {
 		let one = U256::from(10u128.pow(18));
 		let fractional_multiplier = U256::from(10u128.pow(12));
 
@@ -906,18 +931,6 @@ where
 		borrowers.sort_by(|a, b| a.health_factor.partial_cmp(&b.health_factor).unwrap_or(Ordering::Equal));
 
 		Some(borrowers)
-	}
-
-	/// Spawns a new thread for liquidation worker.
-	///
-	/// We spawn liquidation workers for each oracle update in a separate thread,
-	/// since they can run for a significant amount of time
-	/// in a blocking fashion and we don't want to block the runtime.
-	fn spawn_worker(thread_pool: Arc<Mutex<ThreadPool>>, f: impl FnOnce() + Send + 'static) {
-		match thread_pool.lock() {
-			Ok(pool) => pool.execute(f),
-			_ => tracing::error!(target: LOG_TARGET, "liquidation-worker: thread_pool mutex is poisoned"),
-		}
 	}
 
 	/// Check if the provided transaction is a valid DIA oracle update.
@@ -1008,22 +1021,15 @@ where
 	/// Adds a new borrower to the borrower list.
 	/// If the borrower is already in the list, invalidates the HF by setting it to 0 so the HF will be recalculated.
 	/// We don't try to liquidate on new borrows.
-	fn process_new_borrow(user_address: EvmAddress, borrowers_list_mutex: Arc<Mutex<Vec<Borrower>>>) -> Result<(), ()> {
-		// lock is automatically dropped at the end of this function
-		let Ok(mut borrowers_data) = borrowers_list_mutex.lock() else {
-			tracing::error!(target: LOG_TARGET, "liquidation-worker: borrowers_data mutex is poisoned");
-			// return if the mutex is poisoned
-			return Err(());
-		};
-
-		match borrowers_data.iter_mut().find(|b| b.user_address == user_address) {
+	fn process_new_borrow(user_address: EvmAddress, borrowers: &mut Vec<Borrower>) -> Result<(), ()> {
+		match borrowers.iter_mut().find(|b| b.user_address == user_address) {
 			Some(b) => {
 				// Borrower is already on the list. Invalidate the HF by setting it to 0 and adding an asset to the list.
 				b.health_factor = U256::zero();
 			}
 			None => {
 				// add new borrower to the list. HF is set to 0, so we can place it at the beginning and the list will remain sorted.
-				borrowers_data.insert(
+				borrowers.insert(
 					0,
 					Borrower {
 						user_address,
@@ -1039,7 +1045,7 @@ where
 
 /// The data from DIA oracle update transaction.
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
-pub struct OracleUpdataData {
+struct OracleUpdataData {
 	base_asset_name: Vec<u8>,
 	quote_asset: Vec<u8>,
 	price: U256,
@@ -1059,7 +1065,7 @@ impl OracleUpdataData {
 /// Parse DIA oracle update transaction.
 /// All Ethereum transaction types are supported.
 /// Returns a list of `OracleUpdateData`.
-pub fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData>> {
+fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData>> {
 	let transaction_input = match eth_tx {
 		Transaction::Legacy(legacy_transaction) => &legacy_transaction.input,
 		Transaction::EIP2930(eip2930_transaction) => &eip2930_transaction.input,
