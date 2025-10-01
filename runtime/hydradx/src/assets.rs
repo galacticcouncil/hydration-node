@@ -683,7 +683,7 @@ impl pallet_duster::Config for Runtime {
 	type AssetId = AssetId;
 	type MultiCurrency = FungibleCurrencies<Runtime>;
 	type ExistentialDeposit = AssetRegistry;
-	type BlacklistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type WhitelistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type ATokenDuster = AtokenAccountDuster;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;

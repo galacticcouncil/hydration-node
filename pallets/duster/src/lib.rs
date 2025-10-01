@@ -87,7 +87,7 @@ pub mod pallet {
 		type ExistentialDeposit: GetByKey<Self::AssetId, Balance>;
 
 		/// The origin which can manage whiltelist.
-		type BlacklistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type WhitelistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Duster for accounts with AToken dusts
 		type ATokenDuster: hydradx_traits::evm::ATokenDuster<Self::AccountId, Self::AssetId>;
@@ -207,7 +207,7 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_nondustable_account())]
 		pub fn add_nondustable_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
-			T::BlacklistUpdateOrigin::ensure_origin(origin)?;
+			T::WhitelistUpdateOrigin::ensure_origin(origin)?;
 
 			AccountWhitelist::<T>::insert(&account, ());
 
@@ -220,7 +220,7 @@ pub mod pallet {
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_nondustable_account())]
 		pub fn remove_nondustable_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
-			T::BlacklistUpdateOrigin::ensure_origin(origin)?;
+			T::WhitelistUpdateOrigin::ensure_origin(origin)?;
 
 			AccountWhitelist::<T>::mutate(&account, |maybe_account| -> DispatchResult {
 				ensure!(!maybe_account.is_none(), Error::<T>::AccountNotWhitelisted);
