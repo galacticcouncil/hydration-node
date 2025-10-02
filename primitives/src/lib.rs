@@ -17,9 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::sp_runtime::FixedU128;
-use sp_core::RuntimeDebug;
 
 /// Opaque, encoded, unchecked extrinsic.
 pub use frame_support::sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
@@ -63,6 +61,8 @@ pub type Signature = MultiSignature;
 /// to the public key of our transaction signing scheme.
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
+pub type EvmAddress = H160;
+
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
 pub type AccountIndex = u32;
@@ -78,62 +78,3 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 
 /// Block type.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
-
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	MaxEncodedLen,
-	Clone,
-	Copy,
-	Eq,
-	PartialEq,
-	Ord,
-	PartialOrd,
-	RuntimeDebug,
-	scale_info::TypeInfo,
-)]
-pub struct EvmAddress(pub H160);
-
-impl Default for EvmAddress {
-	fn default() -> Self {
-		EvmAddress(H160::default())
-	}
-}
-
-impl From<H160> for EvmAddress {
-	fn from(value: H160) -> Self {
-		EvmAddress(value)
-	}
-}
-
-impl From<EvmAddress> for H160 {
-	fn from(value: EvmAddress) -> Self {
-		value.0
-	}
-}
-
-impl From<[u8; 20]> for EvmAddress {
-	fn from(value: [u8; 20]) -> Self {
-		EvmAddress(H160::from(value))
-	}
-}
-
-impl From<EvmAddress> for [u8; 20] {
-	fn from(value: EvmAddress) -> Self {
-		value.0.into()
-	}
-}
-
-impl From<EvmAddress> for sp_core::H256 {
-	fn from(value: EvmAddress) -> Self {
-		value.0.into()
-	}
-}
-
-impl EvmAddress {
-	pub fn from_slice(input: &[u8]) -> Self {
-		EvmAddress(H160::from_slice(input))
-	}
-}

@@ -19,7 +19,6 @@
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::evm::EvmAddress;
 use crate::{AssetLocation, Runtime};
 use hex_literal::hex;
 use hydradx_traits::evm::Erc20Mapping;
@@ -29,6 +28,7 @@ use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
 use primitive_types::{H160, H256};
 use primitives::AssetId;
+use primitives::EvmAddress;
 
 pub struct HydraErc20Mapping;
 
@@ -38,7 +38,7 @@ impl Erc20Mapping<AssetId> for HydraErc20Mapping {
 			.unwrap_or_else(|| HydraErc20Mapping::encode_evm_address(asset_id))
 	}
 
-	fn address_to_asset(address: hydradx_traits::evm::EvmAddress) -> Option<AssetId> {
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
 		Self::decode_evm_address(address).or_else(|| {
 			pallet_asset_registry::Pallet::<Runtime>::location_to_asset(AssetLocation(MultiLocation::new(
 				0,
@@ -59,7 +59,7 @@ sp_api::decl_runtime_apis! {
 		fn asset_address(asset_id: AssetId) -> EvmAddress;
 
 		/// Get the asset id corresponding to EVM address. If not found, returns `None`.
-		fn address_to_asset(address: hydradx_traits::evm::EvmAddress) -> Option<AssetId>;
+		fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
 	}
 }
 

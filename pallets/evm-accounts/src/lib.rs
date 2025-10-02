@@ -162,7 +162,7 @@ pub mod pallet {
 			// implementation of this pallet expects that EvmAddress is 20 bytes and AccountId is 32 bytes long.
 			// If this is not true, `copy_from_slice` might panic.
 			assert_eq!(
-				sp_core::H160::len_bytes(),
+				EvmAddress::len_bytes(),
 				20,
 				"EVM Address is expected to be 20 bytes long."
 			);
@@ -207,7 +207,7 @@ pub mod pallet {
 				Error::<T>::AddressAlreadyBound
 			);
 
-			let nonce = T::EvmNonceProvider::get_nonce(evm_address.into());
+			let nonce = T::EvmNonceProvider::get_nonce(evm_address);
 			ensure!(nonce.is_zero(), Error::<T>::TruncatedAccountAlreadyUsed);
 
 			let mut last_12_bytes: [u8; 12] = [0; 12];
@@ -347,7 +347,7 @@ where
 	fn truncated_account_id(evm_address: EvmAddress) -> T::AccountId {
 		let mut data: [u8; 32] = [0u8; 32];
 		data[0..4].copy_from_slice(b"ETH\0");
-		data[4..24].copy_from_slice(&evm_address.0[..]);
+		data[4..24].copy_from_slice(&evm_address[..]);
 		AccountId32::from(data).into()
 	}
 

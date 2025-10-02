@@ -83,7 +83,7 @@ where
 
 		// ensure that the caller is one of the allowed callers
 		let allowed_callers = AllowedCallers::get();
-		if !allowed_callers.contains(&caller.into()) {
+		if !allowed_callers.contains(&caller) {
 			log::error!(target: "flash", "Caller is not allowed: {:?}", caller);
 			return Err(PrecompileFailure::Revert {
 				exit_status: ExitRevert::Reverted,
@@ -99,10 +99,10 @@ where
 			0 => {
 				// HSM arbitrage action
 				// We only allow the HSM account to use the flash loan for arbitrage opportunities.
-				Self::ensure_allowed_initiator(initiator.0.into(), pallet_hsm::Pallet::<Runtime>::account_id())?;
+				Self::ensure_allowed_initiator(initiator.0, pallet_hsm::Pallet::<Runtime>::account_id())?;
 
 				if let Err(r) = pallet_hsm::Pallet::<Runtime>::execute_arbitrage_with_flash_loan(
-					this.into(),
+					this,
 					amount.as_u128(),
 					data.as_bytes(),
 				) {
@@ -114,27 +114,24 @@ where
 				}
 
 				// Approve the loan repayment
-				Self::approve(token.0.into(), this.into(), caller.into(), amount + fee)?;
+				Self::approve(token.0, this, caller, amount + fee)?;
 
 				Ok(SUCCESS.into())
 			}
 			1 => {
 				// Liquidation action
-				Self::ensure_allowed_initiator(
-					initiator.0.into(),
-					pallet_liquidation::Pallet::<Runtime>::account_id(),
-				)?;
+				Self::ensure_allowed_initiator(initiator.0, pallet_liquidation::Pallet::<Runtime>::account_id())?;
 
 				// Approve the token transfer to the liquidation contract
 				Self::approve(
-					token.0.into(),
-					this.into(),
+					token.0,
+					this,
 					pallet_liquidation::BorrowingContract::<Runtime>::get(),
 					amount,
 				)?;
 
 				if let Err(r) = pallet_liquidation::Pallet::<Runtime>::liquidate_position(
-					this.into(),
+					this,
 					amount.as_u128(),
 					data.as_bytes(),
 				) {
@@ -145,7 +142,7 @@ where
 					});
 				}
 				// Approve the loan repayment
-				Self::approve(token.0.into(), this.into(), caller.into(), amount + fee)?;
+				Self::approve(token.0, this, caller, amount + fee)?;
 				Ok(SUCCESS.into())
 			}
 			_ => {

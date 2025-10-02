@@ -269,7 +269,7 @@ impl EvmData for Address {
 	}
 }
 
-impl EvmData for H160 {
+impl EvmData for primitives::EvmAddress {
 	fn read(reader: &mut EvmDataReader) -> EvmResult<Self> {
 		let range = reader.move_cursor(32)?;
 

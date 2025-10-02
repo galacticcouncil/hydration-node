@@ -272,7 +272,7 @@ impl EvmData for Address {
 	}
 }
 
-impl EvmData for H160 {
+impl EvmData for primitives::EvmAddress {
 	fn read(reader: &mut EvmDataReader) -> EvmResult<Self> {
 		let range = reader.move_cursor(32)?;
 
@@ -286,20 +286,6 @@ impl EvmData for H160 {
 
 	fn write(writer: &mut EvmDataWriter, value: Self) {
 		H256::write(writer, value.into());
-	}
-
-	fn has_static_size() -> bool {
-		true
-	}
-}
-
-impl EvmData for primitives::EvmAddress {
-	fn read(reader: &mut EvmDataReader) -> EvmResult<Self> {
-		Ok(primitives::EvmAddress(H160::read(reader)?))
-	}
-
-	fn write(writer: &mut EvmDataWriter, value: Self) {
-		H160::write(writer, value.0);
 	}
 
 	fn has_static_size() -> bool {

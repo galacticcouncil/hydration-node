@@ -269,13 +269,7 @@ impl UserData {
 			OriginCaller,
 			RuntimeCall,
 			RuntimeEvent,
-		>(
-			&api_provider,
-			hash,
-			money_market.pool_contract,
-			address.into(),
-			caller,
-		)?);
+		>(&api_provider, hash, money_market.pool_contract, address, caller)?);
 
 		let mut reserves = Vec::new();
 		for (index, reserve) in money_market.reserves.iter().enumerate() {
@@ -285,7 +279,7 @@ impl UserData {
 					.get_user_collateral_in_base_currency::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 						&api_provider,
 						hash,
-						address.into(),
+						address,
 						current_evm_timestamp,
 						caller,
 					)
@@ -294,7 +288,7 @@ impl UserData {
 					.get_user_debt_in_base_currency::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 						&api_provider,
 						hash,
-						address.into(),
+						address,
 						current_evm_timestamp,
 						caller,
 					)
@@ -307,7 +301,7 @@ impl UserData {
 		}
 
 		Ok(Self {
-			address: address.into(),
+			address: address,
 			configuration,
 			reserves,
 		})
@@ -559,10 +553,10 @@ impl Reserve {
 	/// Get addresses of collateral and debt assets.
 	pub fn get_collateral_and_debt_addresses(&self) -> (EvmAddress, (EvmAddress, EvmAddress)) {
 		(
-			self.reserve_data.a_token_address.into(),
+			self.reserve_data.a_token_address,
 			(
-				self.reserve_data.stable_debt_token_address.into(),
-				self.reserve_data.variable_debt_token_address.into(),
+				self.reserve_data.stable_debt_token_address,
+				self.reserve_data.variable_debt_token_address,
 			),
 		)
 	}
@@ -881,7 +875,7 @@ impl<
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
+			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -912,7 +906,7 @@ impl<
 			let decoded = decoded[0].clone().into_array().ok_or(ethabi::Error::InvalidData)?;
 			let mut address_arr = Vec::new();
 			for i in decoded.iter() {
-				address_arr.push(i.clone().into_address().ok_or(ethabi::Error::InvalidData)?.into());
+				address_arr.push(i.clone().into_address().ok_or(ethabi::Error::InvalidData)?);
 			}
 
 			Ok(address_arr)
