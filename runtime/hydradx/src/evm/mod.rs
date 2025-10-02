@@ -50,6 +50,7 @@ use polkadot_xcm::v5::prelude::*;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId, EvmAddress};
 use sp_arithmetic::FixedU128;
 use sp_core::{crypto::AccountId32, Get, U256};
+use sp_std::sync::Arc;
 
 pub mod aave_trade_executor;
 mod accounts_conversion;
@@ -87,24 +88,27 @@ parameter_types! {
 }
 
 const MOONBEAM_PARA_ID: u32 = 2004;
-pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(Location {
-	parents: 1,
-	interior: Junctions::X3(
-		Junction::Parachain(MOONBEAM_PARA_ID),
-		Junction::PalletInstance(110),
-		Junction::AccountKey20 {
-			network: None,
-			key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
-		},
-	),
-});
+
+fn weth_asset_location() -> AssetLocation {
+	AssetLocation(Location {
+		parents: 1,
+		interior: Junctions::X3(Arc::new([
+			Junction::Parachain(MOONBEAM_PARA_ID),
+			Junction::PalletInstance(110),
+			Junction::AccountKey20 {
+				network: None,
+				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
+			},
+		])),
+	})
+}
 
 pub struct WethAssetId;
 impl Get<AssetId> for WethAssetId {
 	fn get() -> AssetId {
 		let invalid_id = pallet_asset_registry::Pallet::<Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
 
-		match pallet_asset_registry::Pallet::<Runtime>::location_to_asset(WETH_ASSET_LOCATION) {
+		match pallet_asset_registry::Pallet::<Runtime>::location_to_asset(weth_asset_location()) {
 			Some(asset_id) => asset_id,
 			None => invalid_id,
 		}

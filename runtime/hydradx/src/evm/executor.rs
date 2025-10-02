@@ -69,13 +69,14 @@ where
 		let gas_limit = gas.saturating_add(extra_gas);
 		log::trace!(target: "evm::executor", "Call with extra gas {:?}", extra_gas);
 
-		let source_account_id = T::AddressMapping::into_account_id(context.sender);
+		let source_evm_address = context.sender;
+		let source_account_id = T::AddressMapping::into_account_id(source_evm_address);
 		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
 
 		let evm_config = <T as pallet_evm::Config>::config();
 
 		let call_info_result = T::Runner::call(
-			source_account_id.clone(),
+			source_evm_address,
 			context.contract,
 			data,
 			value,

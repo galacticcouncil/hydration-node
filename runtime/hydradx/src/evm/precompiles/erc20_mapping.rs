@@ -29,6 +29,7 @@ use polkadot_xcm::v5::Location;
 use primitive_types::{H160, H256};
 use primitives::AssetId;
 use primitives::EvmAddress;
+use sp_std::sync::Arc;
 
 pub struct HydraErc20Mapping;
 
@@ -42,10 +43,10 @@ impl Erc20Mapping<AssetId> for HydraErc20Mapping {
 		Self::decode_evm_address(address).or_else(|| {
 			pallet_asset_registry::Pallet::<Runtime>::location_to_asset(AssetLocation(Location::new(
 				0,
-				X1(AccountKey20 {
+				X1(Arc::new([AccountKey20 {
 					network: None,
 					key: address.into(),
-				}),
+				}])),
 			)))
 		})
 	}
