@@ -95,6 +95,17 @@ parameter_types! {
 	pub const NativeTokenDecimals: u8 = NATIVE_DECIMALS;
 }
 
+pub struct TokenGatewayEvmToSubstrateAdapter<T, EI>(sp_std::marker::PhantomData<(T, EI)>);
+impl<T, EI> EvmToSubstrate<T> for TokenGatewayEvmToSubstrateAdapter<T, EI>
+where
+	T: frame_system::Config + pallet_evm_accounts::Config,
+	EI: InspectEvmAccounts<T::AccountId>,
+{
+	fn convert(addr: H160) -> T::AccountId {
+		EI::account_id(addr)
+	}
+}
+
 impl pallet_token_gateway::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Dispatcher = Ismp;
@@ -107,6 +118,6 @@ impl pallet_token_gateway::Config for Runtime {
 	type Assets = FungibleCurrencies<Runtime>;
 	type NativeAssetId = NativeAssetId;
 	type Decimals = NativeTokenDecimals;
-	type EvmToSubstrate = ();
+	type EvmToSubstrate = TokenGatewayEvmToSubstrateAdapter<Runtime, EVMAccounts>;
 	type WeightInfo = ();
 }
