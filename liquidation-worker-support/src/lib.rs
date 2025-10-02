@@ -29,7 +29,7 @@ pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
-use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
+use frame_support::sp_runtime::traits::Block as BlockT;
 use primitives::EvmAddress;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H256, U256, U512};

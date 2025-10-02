@@ -4,6 +4,7 @@ use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::Executor;
 use crate::evm::{Erc20Currency, EvmAccounts};
 use crate::{Runtime, Vec};
+use alloc::format;
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
@@ -29,7 +30,6 @@ use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_arithmetic::FixedU128;
 use sp_core::crypto::AccountId32;
-use sp_runtime::format;
 use sp_runtime::traits::CheckedConversion;
 use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::boxed::Box;
@@ -584,8 +584,6 @@ pub struct PoolData<Balance> {
 }
 
 pub mod runtime_api {
-	#![cfg_attr(not(feature = "std"), no_std)]
-
 	use super::AssetId;
 	use super::PoolData;
 	use crate::Vec;

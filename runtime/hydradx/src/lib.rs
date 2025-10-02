@@ -40,7 +40,13 @@ mod system;
 pub mod types;
 pub mod xcm;
 
-pub use assets::*;
+extern crate alloc;
+
+use alloc::borrow::Cow;
+pub use assets::{
+	AssetKind, BondsPalletId, DotAssetId, FeePriceOracle, Liquidity, NativePriceOracle, OraclePeriod, PoolType,
+	ReferralsPalletId, RegistryStrLimit, RouterWeightInfo, Source, VestingPalletId, XykPaymentAssetSupport, LRNA,
+};
 pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
 pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
 pub use frame_system::RawOrigin;
@@ -54,11 +60,13 @@ pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
-use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
+use hydradx_traits::evm::InspectEvmAccounts;
+use hydradx_traits::registry::Inspect as RegistryInspect;
+use primitives::EvmAddress;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	generic, impl_opaque_keys,
 	traits::{
 		AccountIdConversion, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, PostDispatchInfoOf,
 		UniqueSaturatedInto,
@@ -72,6 +80,8 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
+use ethereum::AuthorizationList;
+use frame_metadata_hash_extension;
 use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
@@ -80,13 +90,13 @@ pub use pallet_claims;
 use pallet_ethereum::{Transaction as EthereumTransaction, TransactionStatus};
 use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
 pub use pallet_genesis_history::Chain;
+use polkadot_xcm::prelude::XcmVersion;
 pub use primitives::{
 	constants::time::SLOT_DURATION, AccountId, Amount, AssetId, Balance, BlockNumber, CollectionId, Hash, Index,
 	ItemId, Price, Signature,
 };
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use polkadot_xcm::prelude::XcmVersion;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -118,14 +128,14 @@ pub mod opaque {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("hydradx"),
-	impl_name: create_runtime_str!("hydradx"),
+	spec_name: Cow::Borrowed("hydradx"),
+	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
 	spec_version: 347,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 1,
+	system_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -302,7 +312,7 @@ where
 	RuntimeCall: From<LocalCall>,
 {
 	type RuntimeCall = RuntimeCall;
-	type Extrinsic =  HydraUncheckedExtrinsic;
+	type Extrinsic = HydraUncheckedExtrinsic;
 }
 
 impl<LocalCall> frame_system::offchain::CreateInherent<LocalCall> for Runtime
@@ -1035,7 +1045,7 @@ impl_runtime_apis! {
 			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter_keys().collect();
 			asset_locations.append(&mut asset_registry_locations);
 
-			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V5(polkadot_xcm::v5::AssetId::Concrete(loc.0)));
+			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V5(polkadot_xcm::v5::AssetId(loc.0.clone())));
 
 			Ok(versioned_locations
 				.filter_map(|asset| asset.into_version(xcm_version).ok())
@@ -1094,7 +1104,7 @@ impl_runtime_apis! {
 						origin_location: VersionedLocation,
 						xcm: VersionedXcm<RuntimeCall>
 					) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-						PolkadotXcm::dry_run_xcm::<xcm::XcmRouter>(origin_location, xcm)
+						PolkadotXcm::dry_run_xcm::<Runtime, xcm::XcmRouter, RuntimeCall, xcm::XcmConfig>(origin_location, xcm)
 					}
 				}
 

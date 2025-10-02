@@ -82,7 +82,7 @@ impl TransactionDetailProvider for TxDetailProvider {
 
 	fn get_transaction_detail(&self, tx: &<Self::Block as BlockT>::Extrinsic) -> Option<TransactionDetail> {
 		let opaque_tx_encoded = tx.encode();
-		let tx = hydradx_runtime::UncheckedExtrinsic::decode(&mut &*opaque_tx_encoded).ok()?;
+		let tx = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &*opaque_tx_encoded).ok()?;
 		let call_metadata = tx.0.function.get_call_metadata();
 
 		match tx.0.function {

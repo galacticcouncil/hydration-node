@@ -56,8 +56,7 @@ impl TryFrom<Location> for AssetLocation {
 	type Error = ();
 
 	fn try_from(value: Location) -> Result<Self, Self::Error> {
-		let loc: Location = value.try_into()?;
-		Ok(AssetLocation(loc))
+		Ok(AssetLocation(value))
 	}
 }
 
@@ -232,6 +231,7 @@ impl Config for XcmConfig {
 	type HrmpChannelClosingHandler = ();
 	type HrmpChannelAcceptedHandler = ();
 	type XcmRecorder = PolkadotXcm;
+	type XcmEventEmitter = PolkadotXcm;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -300,6 +300,19 @@ impl<Inner: ExecuteXcm<<XcmConfig as Config>::RuntimeCall>> XcmAssetTransfers fo
 	type IsReserve = <XcmConfig as Config>::IsReserve;
 	type IsTeleporter = <XcmConfig as Config>::IsTeleporter;
 	type AssetTransactor = <XcmConfig as Config>::AssetTransactor;
+}
+
+impl<Inner> FeeManager for WithUnifiedEventSupport<Inner>
+where
+	Inner: FeeManager,
+{
+	fn is_waived(origin: Option<&Location>, r: FeeReason) -> bool {
+		Inner::is_waived(origin, r)
+	}
+
+	fn handle_fee(fee: Assets, context: Option<&XcmContext>, r: FeeReason) {
+		Inner::handle_fee(fee, context, r)
+	}
 }
 
 parameter_types! {
@@ -384,6 +397,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = ();
 }
 
 parameter_types! {
@@ -514,7 +528,7 @@ pub type LocationToAccountId = (
 	GlobalConsensusConvertsFor<UniversalLocation, AccountId>,
 );
 use pallet_broadcast::types::ExecutionType;
-use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
+use xcm_executor::traits::{ConvertLocation, FeeManager, FeeReason, XcmAssetTransfers};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);

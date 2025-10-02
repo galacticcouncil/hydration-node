@@ -1188,9 +1188,7 @@ impl<T: Config> MultiCurrency<T::AccountId> for MockErc20Currency<T> {
 	}
 }
 
-#[cfg(any(test, feature = "std"))]
 pub struct MockBoundErc20<T>(PhantomData<T>);
-#[cfg(any(test, feature = "std"))]
 impl<T: Config> hydradx_traits::Inspect for MockBoundErc20<T> {
 	type AssetId = CurrencyIdOf<T>;
 	type Location = ();
@@ -1228,7 +1226,6 @@ impl<T: Config> hydradx_traits::Inspect for MockBoundErc20<T> {
 	}
 }
 
-#[cfg(any(test, feature = "std"))]
 impl<T: Config> BoundErc20 for MockBoundErc20<T> {
 	fn contract_address(_id: Self::AssetId) -> Option<EvmAddress> {
 		None

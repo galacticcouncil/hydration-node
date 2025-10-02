@@ -1,5 +1,6 @@
 use crate::evm::precompiles;
 use crate::ExtrinsicBaseWeight;
+use alloc::vec;
 use evm::ExitReason;
 use fp_evm::FeeCalculator;
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo, RawOrigin};

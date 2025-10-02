@@ -226,6 +226,8 @@ impl frame_system::Config for Runtime {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	// TODO: weights
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_types! {
@@ -263,6 +265,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 	type ConsensusHook = ConsensusHook;
+	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
 }
 
 parameter_types! {
@@ -345,6 +348,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
 	type Preimages = Preimage;
+	type BlockNumberProvider = System;
 }
 
 /// Used the compare the privilege of an origin inside the scheduler.
@@ -383,6 +387,7 @@ impl pallet_session::Config for Runtime {
 	type SessionHandler = <opaque::SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
 	type WeightInfo = ();
+	type DisablingStrategy = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -419,6 +424,7 @@ parameter_types! {
 	pub const PendingUserNameExpiration: u32 = 7 * DAYS;
 	pub const MaxSuffixLength: u32 = 7;
 	pub const MaxUsernameLength: u32 = 32;
+	pub const UsernameDeposit: Balance = 5 * DOLLARS;
 }
 
 impl pallet_identity::Config for Runtime {
@@ -440,6 +446,8 @@ impl pallet_identity::Config for Runtime {
 	type MaxSuffixLength = MaxSuffixLength;
 	type MaxUsernameLength = MaxUsernameLength;
 	type WeightInfo = weights::pallet_identity::HydraWeight<Runtime>;
+	type UsernameDeposit = UsernameDeposit;
+	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
 }
 
 /// The type used to represent the kinds of proxying allowed.
@@ -540,6 +548,7 @@ impl pallet_proxy::Config for Runtime {
 	type CallHasher = BlakeTwo256;
 	type AnnouncementDepositBase = AnnouncementDepositBase;
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -556,6 +565,7 @@ impl pallet_multisig::Config for Runtime {
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
 	type WeightInfo = weights::pallet_multisig::HydraWeight<Runtime>;
+	type BlockNumberProvider = System;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
@@ -613,11 +623,13 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Currencies, DepositAll<Runtime>, TreasuryAccount>;
+	type OnChargeTransaction = TransferFees<Runtime, Currencies, DepositAll<Runtime>, TreasuryAccount>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
+	// TODO: weights
+	type WeightInfo = ();
 }
 
 impl pallet_transaction_multi_payment::Config for Runtime {

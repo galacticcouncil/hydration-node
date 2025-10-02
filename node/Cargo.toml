@@ -28,7 +28,7 @@ serde_json = { workspace = true }
 clap = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
-hyperv14 = { package = "hyper", features = ["http2", "stream"], version = "0.14.29", default-features = true }
+hyperv14 = { package = "hyper", features = ["http2", "stream", "tcp"], version = "0.14.29", default-features = true }
 hyper-rustls = { version = "0.24.2", features = ["http2"], default-features = false }
 tokio = { workspace = true, default-features = true }
 threadpool = { version = "1.7" }

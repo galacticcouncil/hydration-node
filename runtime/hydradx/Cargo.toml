@@ -176,7 +176,10 @@ precompile-utils = { workspace = true }
 module-evm-utility-macro = { workspace = true }
 ethabi = { workspace = true }
 hex = { workspace = true }
-serde_json = { workspace = true, default-features = false }
+serde_json = { workspace = true, default-features = false, features = [
+    "alloc",
+] }
+ethereum = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

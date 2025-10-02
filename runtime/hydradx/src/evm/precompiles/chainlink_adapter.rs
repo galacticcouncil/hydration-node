@@ -321,8 +321,6 @@ pub fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, Ass
 
 /// Runtime API definition for the Chainlink adapter.
 pub mod runtime_api {
-	#![cfg_attr(not(feature = "std"), no_std)]
-
 	use super::{AssetId, OraclePeriod, Source};
 	use codec::Codec;
 
