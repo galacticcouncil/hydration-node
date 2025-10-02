@@ -15,21 +15,21 @@
 
 use super::*;
 use frame_support::traits::OnRuntimeUpgrade;
-use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_conviction_voting::{pallet, Voting};
-use sp_runtime::Saturating;
+use sp_runtime::{traits::BlockNumberProvider, Saturating};
 
 pub struct MigrateConvictionVotingTo6sBlocks<T: pallet::Config>(sp_std::marker::PhantomData<T>);
 impl<T: pallet::Config> OnRuntimeUpgrade for MigrateConvictionVotingTo6sBlocks<T> {
 	fn on_runtime_upgrade() -> Weight {
-		let calculate_new_block =
-			|current_block: BlockNumberFor<T>, unlock_block: BlockNumberFor<T>| -> BlockNumberFor<T> {
-				let old_spread = unlock_block.saturating_sub(current_block);
-				let new_spread = old_spread.saturating_mul(2u32.into());
-				current_block.saturating_add(new_spread)
-			};
+		type BlockNumber<T> = <<T as pallet::Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
 
-		let current_block = frame_system::Pallet::<T>::block_number();
+		let calculate_new_block = |current_block: BlockNumber<T>, unlock_block: BlockNumber<T>| -> BlockNumber<T> {
+			let old_spread = unlock_block.saturating_sub(current_block);
+			let new_spread = old_spread.saturating_mul(2u32.into());
+			current_block.saturating_add(new_spread)
+		};
+
+		let current_block = T::BlockNumberProvider::current_block_number();
 		let mut reads: u64 = 0;
 		let mut writes: u64 = 0;
 

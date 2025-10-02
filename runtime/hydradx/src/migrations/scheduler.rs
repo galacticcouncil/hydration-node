@@ -15,7 +15,6 @@
 
 use crate::Vec;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec};
-use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_scheduler::{pallet, ScheduledOf};
 use sp_core::Get;
 use sp_runtime::{traits::BlockNumberProvider, Saturating};
@@ -28,9 +27,11 @@ use sp_runtime::{traits::BlockNumberProvider, Saturating};
 pub struct MigrateSchedulerTo6sBlocks<T: pallet::Config>(sp_std::marker::PhantomData<T>);
 impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo6sBlocks<T> {
 	fn on_runtime_upgrade() -> Weight {
-		let current_block = frame_system::Pallet::<T>::current_block_number();
+		type BlockNumber<T> = <<T as pallet::Config>::BlockNumberProvider as BlockNumberProvider>::BlockNumber;
+
+		let current_block = T::BlockNumberProvider::current_block_number();
 		let agenda: Vec<(
-			BlockNumberFor<T>,
+			BlockNumber<T>,
 			BoundedVec<Option<ScheduledOf<T>>, T::MaxScheduledPerBlock>,
 		)> = pallet_scheduler::Agenda::<T>::iter().collect();
 		let agenda_len = agenda.len() as u64;
