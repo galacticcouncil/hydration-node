@@ -1,15 +1,17 @@
 use crate::origins::GeneralAdmin;
 use crate::{
-	Balances, Ismp, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent, TechCommitteeSuperMajority, Timestamp,
-	TokenGateway, TreasuryAccount,
+	weights, Balances, EVMAccounts, Ismp, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent,
+	TechCommitteeSuperMajority, Timestamp, TokenGateway, TreasuryAccount,
 };
 use frame_support::parameter_types;
 use frame_support::traits::fungible::ItemOf;
 use frame_support::traits::EitherOf;
 use frame_system::EnsureRoot;
+use hydradx_traits::evm::InspectEvmAccounts;
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_genesis_history::migration::Weight;
+use pallet_token_gateway::types::EvmToSubstrate;
+use primitive_types::H160;
 use primitives::constants::currency::NATIVE_DECIMALS;
 use primitives::{AccountId, AssetId, Balance};
 use sp_std::{boxed::Box, vec::Vec};
@@ -52,7 +54,7 @@ impl pallet_ismp::Config for Runtime {
 	type Router = IsmpRouterStruct;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,);
-	type WeightProvider = ();
+	type WeightProvider = (); // FIXME: implement
 	type OffchainDB = ();
 }
 
@@ -73,22 +75,7 @@ impl ismp_parachain::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	// pallet-ismp implements the IsmpHost
 	type IsmpHost = Ismp;
-	type WeightInfo = IsmpWeights;
-}
-
-pub struct IsmpWeights;
-impl ismp_parachain::weights::WeightInfo for IsmpWeights {
-	fn add_parachain(_n: u32) -> Weight {
-		Weight::from_parts(10_000, 0u64)
-	}
-
-	fn remove_parachain(_n: u32) -> Weight {
-		Weight::from_parts(10_000, 0u64)
-	}
-
-	fn update_parachain_consensus() -> Weight {
-		Weight::from_parts(10_000, 0u64)
-	}
+	type WeightInfo = weights::ismp_parachain::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -119,5 +106,5 @@ impl pallet_token_gateway::Config for Runtime {
 	type NativeAssetId = NativeAssetId;
 	type Decimals = NativeTokenDecimals;
 	type EvmToSubstrate = TokenGatewayEvmToSubstrateAdapter<Runtime, EVMAccounts>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_token_gateway::HydraWeight<Runtime>;
 }
