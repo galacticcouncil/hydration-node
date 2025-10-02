@@ -131,7 +131,7 @@ impl Config for Test {
 	type MultiCurrency = FungibleCurrencies<Test>;
 	type ExistentialDeposit = MinDeposits;
 	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
-	type Erc20Support =  ATokenDusterMock;
+	type Erc20Support = ATokenDusterMock;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
 }
@@ -149,7 +149,6 @@ impl Erc20Inspect<AssetId> for ATokenDusterMock {
 }
 
 impl Erc20OnDust<AccountId, AssetId> for ATokenDusterMock {
-
 	fn on_dust(
 		_account: &AccountId,
 		_dust_dest_account: &AccountId,

@@ -2075,9 +2075,12 @@ impl Erc20Inspect<AssetId> for ATokenAccountDuster {
 	}
 }
 
-
 impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
-	fn on_dust(account: &AccountId, dust_dest_account: &AccountId, currency_id: AssetId) -> frame_support::dispatch::DispatchResult {
+	fn on_dust(
+		account: &AccountId,
+		dust_dest_account: &AccountId,
+		currency_id: AssetId,
+	) -> frame_support::dispatch::DispatchResult {
 		let Some(contract) = AssetRegistry::contract_address(currency_id) else {
 			return Err(DispatchError::Token(TokenError::UnknownAsset));
 		};

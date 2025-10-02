@@ -31,16 +31,14 @@ pub use crate::weights::WeightInfo;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
-use orml_traits::{
-	GetByKey,
-};
-use hydradx_traits::evm::Erc20OnDust;
 use hydradx_traits::evm::Erc20Inspect;
+use hydradx_traits::evm::Erc20OnDust;
+use orml_traits::GetByKey;
 use sp_runtime::traits::Zero;
 
 use frame_system::ensure_signed;
 
-use sp_std::convert::{TryInto};
+use sp_std::convert::TryInto;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -89,7 +87,8 @@ pub mod pallet {
 		type WhitelistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Erc20 support to dust AToken balances
-		type Erc20Support: hydradx_traits::evm::Erc20Inspect<Self::AssetId> + hydradx_traits::evm::Erc20OnDust<Self::AccountId, Self::AssetId>;
+		type Erc20Support: hydradx_traits::evm::Erc20Inspect<Self::AssetId>
+			+ hydradx_traits::evm::Erc20OnDust<Self::AccountId, Self::AssetId>;
 
 		/// Duster for accounts with AToken dusts
 
