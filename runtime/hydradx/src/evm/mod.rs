@@ -189,7 +189,6 @@ impl pallet_evm::Config for Runtime {
 			FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
 			FungibleCurrencies<Runtime>,  // Account balance inspector
 		>,
-		EvmAccounts<Runtime>,
 	>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,

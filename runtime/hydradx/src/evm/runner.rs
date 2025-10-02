@@ -24,22 +24,23 @@
 //!
 //! Shamelessly copied from pallet-evm and modified to support multi-currency fees.
 use crate::evm::WethAssetId;
+use crate::RuntimeCall;
+use codec::Decode;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
-use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
 use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
-use sp_arithmetic::traits::Saturating;
 use primitives::{AssetId, Balance};
+use sp_arithmetic::traits::Saturating;
 use sp_runtime::traits::{One, UniqueSaturatedInto};
 use sp_std::vec::Vec;
 
-pub struct WrapRunner<T, R, B, EA>(sp_std::marker::PhantomData<(T, R, B, EA)>);
+pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
 
-impl<T, R, B, EA> Runner<T> for WrapRunner<T, R, B, EA>
+impl<T, R, B> Runner<T> for WrapRunner<T, R, B>
 where
 	T: Config + pallet_dispatcher::Config,
 	R: Runner<T>,
@@ -47,7 +48,6 @@ where
 	B: AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
-	EA: InspectEvmAccounts<T::AccountId>,
 {
 	type Error = R::Error;
 
@@ -146,11 +146,6 @@ where
 			)?;
 		}
 
-		// Dispatching permit should not increase account nonce, as TX is not signed by the account.
-		// Therefore, we need to manually reset it back to the current value after execution.
-		let account_id = T::AddressMapping::into_account_id(source);
-		let source_nonce = frame_system::Account::<T>::get(&account_id).nonce;
-
 		// Validated, flag set to false
 		let result = R::call(
 			source,
@@ -168,22 +163,6 @@ where
 			proof_size_base_cost,
 			config,
 		)?;
-
-		let account_source_nonce = frame_system::Account::<T>::get(&account_id).nonce;
-		// debug_assert_eq!(
-		// 	account_source_nonce,
-		// 	source_nonce + <T as frame_system::Config>::Nonce::one()
-		// );
-
-		let is_success_or_error = result.exit_reason.is_error() || result.exit_reason.is_succeed();
-		let is_evm_account = EA::is_evm_account(account_id.clone());
-
-		if !is_success_or_error || !is_evm_account {
-			frame_system::Account::<T>::mutate(account_id, |a| a.nonce = source_nonce);
-		} else {
-			let new_nonce = source_nonce.saturating_add(<T as frame_system::Config>::Nonce::one());
-			frame_system::Account::<T>::mutate(account_id, |a| a.nonce = new_nonce);
-		}
 
 		// Store the exit reason for the last EVM call
 		pallet_dispatcher::Pallet::<T>::set_last_evm_call_exit_reason(&result.exit_reason);
