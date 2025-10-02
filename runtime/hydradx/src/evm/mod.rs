@@ -46,6 +46,7 @@ use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressOrigin, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
+use polkadot_xcm::v5::prelude::*;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId, EvmAddress};
 use sp_arithmetic::FixedU128;
 use sp_core::{crypto::AccountId32, Get, U256};
@@ -86,12 +87,12 @@ parameter_types! {
 }
 
 const MOONBEAM_PARA_ID: u32 = 2004;
-pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation {
+pub const WETH_ASSET_LOCATION: AssetLocation = AssetLocation(Location {
 	parents: 1,
-	interior: polkadot_xcm::v3::prelude::X3(
-		polkadot_xcm::v3::prelude::Parachain(MOONBEAM_PARA_ID),
-		polkadot_xcm::v3::prelude::PalletInstance(110),
-		polkadot_xcm::v3::prelude::AccountKey20 {
+	interior: Junctions::X3(
+		Junction::Parachain(MOONBEAM_PARA_ID),
+		Junction::PalletInstance(110),
+		Junction::AccountKey20 {
 			network: None,
 			key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
 		},

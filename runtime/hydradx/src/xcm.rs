@@ -25,8 +25,7 @@ pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::Sibling;
-use polkadot_xcm::v3::MultiLocation;
-use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
+use polkadot_xcm::v5::{prelude::*, InteriorLocation, Location, Weight as XcmWeight};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
@@ -38,8 +37,8 @@ use xcm_builder::{
 };
 use xcm_executor::{Config, XcmExecutor};
 
-pub struct AssetLocation(pub polkadot_xcm::v3::Location);
 #[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub struct AssetLocation(pub Location);
 
 impl From<AssetLocation> for Option<Location> {
 	fn from(location: AssetLocation) -> Option<Location> {
@@ -47,7 +46,7 @@ impl From<AssetLocation> for Option<Location> {
 	}
 }
 
-impl From<AssetLocation> for MultiLocation {
+impl From<AssetLocation> for Location {
 	fn from(location: AssetLocation) -> Self {
 		location.0
 	}
@@ -57,7 +56,7 @@ impl TryFrom<Location> for AssetLocation {
 	type Error = ();
 
 	fn try_from(value: Location) -> Result<Self, Self::Error> {
-		let loc: MultiLocation = value.try_into()?;
+		let loc: Location = value.try_into()?;
 		Ok(AssetLocation(loc))
 	}
 }
@@ -86,7 +85,7 @@ parameter_types! {
 
 use sp_std::sync::Arc;
 parameter_types! {
-	pub SelfLocation: Location = Location::new(1, cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::Parachain(ParachainInfo::get().into());1])));
+	pub SelfLocation: Location = Location::new(1, X1(Arc::new([Parachain(ParachainInfo::get().into());1])));
 }
 
 parameter_types! {
@@ -338,7 +337,7 @@ impl orml_xtokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type CurrencyIdConvert = CurrencyIdConvert;
-	type AccountIdToLocation = AccountIdToMultiLocation;
+	type AccountIdToLocation = AccountIdToLocation;
 	type SelfLocation = SelfLocation;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
 	type Weigher = DynamicWeigher<RuntimeCall>;
@@ -476,8 +475,8 @@ impl Convert<VersionedLocation, Option<AssetId>> for CurrencyIdConvert {
 	}
 }
 
-pub struct AccountIdToMultiLocation;
-impl Convert<AccountId, Location> for AccountIdToMultiLocation {
+pub struct AccountIdToLocation;
+impl Convert<AccountId, Location> for AccountIdToLocation {
 	fn convert(account: AccountId) -> Location {
 		[AccountId32 {
 			network: None,
@@ -496,7 +495,7 @@ pub type XcmRouter = WithUniqueTopic<(
 	XcmpQueue,
 )>;
 
-/// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
+/// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
 /// `Transact` in order to determine the dispatch Origin.
 pub type LocationToAccountId = (

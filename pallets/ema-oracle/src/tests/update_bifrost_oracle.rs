@@ -28,7 +28,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 use crate::tests::mock::ALICE;
-use polkadot_xcm::v3::Junction::GeneralIndex;
+use polkadot_xcm::v5::prelude::*;
 use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
@@ -36,7 +36,7 @@ fn add_oracle_should_add_entry_to_storage() {
 	new_test_ext().execute_with(|| {
 		//Arrange
 		let hdx =
-			polkadot_xcm::v3::MultiLocation::new(0, polkadot_xcm::v3::Junctions::X1(GeneralIndex(0))).into_versioned();
+			polkadot_xcm::v5::Location::new(0, polkadot_xcm::v5::Junctions::X1(GeneralIndex(0))).into_versioned();
 
 		let dot = polkadot_xcm::v3::MultiLocation::parent().into_versioned();
 

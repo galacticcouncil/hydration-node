@@ -26,9 +26,9 @@ use sp_core::bounded_vec::BoundedVec;
 
 use hex_literal::hex;
 use pallet_evm_accounts::EvmNonceProvider;
-use polkadot_xcm::v3::Junction::AccountKey20;
-use polkadot_xcm::v3::Junctions::X1;
-use polkadot_xcm::v3::MultiLocation;
+use polkadot_xcm::v5::Junction::AccountKey20;
+use polkadot_xcm::v5::Junctions::X1;
+use polkadot_xcm::v5::Location;
 use primitives::AccountId;
 use sp_core::keccak_256;
 use sp_core::Encode;
@@ -55,7 +55,7 @@ pub fn bind_erc20(contract: EvmAddress) -> AssetId {
 			1,
 			Some(Erc20Currency::<Runtime>::symbol(token).unwrap().try_into().unwrap()),
 			Some(Erc20Currency::<Runtime>::decimals(token).unwrap()),
-			Some(AssetLocation(MultiLocation::new(
+			Some(AssetLocation(Location::new(
 				0,
 				X1(AccountKey20 {
 					key: contract.into(),

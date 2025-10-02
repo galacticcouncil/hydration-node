@@ -23,9 +23,9 @@ use crate::{AssetLocation, Runtime};
 use hex_literal::hex;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{evm::Erc20Encoding, BoundErc20, RegisterAssetHook};
-use polkadot_xcm::v3::Junction::AccountKey20;
-use polkadot_xcm::v3::Junctions::X1;
-use polkadot_xcm::v3::MultiLocation;
+use polkadot_xcm::v5::Junction::AccountKey20;
+use polkadot_xcm::v5::Junctions::X1;
+use polkadot_xcm::v5::Location;
 use primitive_types::{H160, H256};
 use primitives::AssetId;
 use primitives::EvmAddress;
@@ -40,7 +40,7 @@ impl Erc20Mapping<AssetId> for HydraErc20Mapping {
 
 	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
 		Self::decode_evm_address(address).or_else(|| {
-			pallet_asset_registry::Pallet::<Runtime>::location_to_asset(AssetLocation(MultiLocation::new(
+			pallet_asset_registry::Pallet::<Runtime>::location_to_asset(AssetLocation(Location::new(
 				0,
 				X1(AccountKey20 {
 					network: None,

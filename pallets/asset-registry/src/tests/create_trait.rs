@@ -4,10 +4,10 @@ use hydradx_traits::registry::Create;
 use mock::Registry;
 
 use frame_support::storage::with_transaction;
-use polkadot_xcm::v3::{
+use polkadot_xcm::v5::{
 	Junction::{self, Parachain},
 	Junctions::X2,
-	MultiLocation,
+	Location,
 };
 use sp_runtime::{DispatchResult, TransactionOutcome};
 

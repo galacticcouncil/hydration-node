@@ -86,7 +86,7 @@ pub use primitives::{
 };
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use ethereum::AuthorizationList;
+use polkadot_xcm::prelude::XcmVersion;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -1016,18 +1016,18 @@ impl_runtime_apis! {
 			}
 
 			let mut asset_locations = vec![
-		AssetLocation(polkadot_xcm::v3::MultiLocation {
+		AssetLocation(polkadot_xcm::v5::Location {
 				parents: 1,
 				interior: [
-					polkadot_xcm::v3::Junction::Parachain(ParachainInfo::get().into()),
-					polkadot_xcm::v3::Junction::GeneralIndex(CORE_ASSET_ID.into()),
+					polkadot_xcm::v5::Junction::Parachain(ParachainInfo::get().into()),
+					polkadot_xcm::v5::Junction::GeneralIndex(CORE_ASSET_ID.into()),
 				]
 				.into(),
 			}),
-			AssetLocation(polkadot_xcm::v3::MultiLocation {
+			AssetLocation(polkadot_xcm::v5::Location {
 				parents: 0,
 				interior: [
-					polkadot_xcm::v3::Junction::GeneralIndex(CORE_ASSET_ID.into()),
+					polkadot_xcm::v5::Junction::GeneralIndex(CORE_ASSET_ID.into()),
 				]
 				.into(),
 			})];
@@ -1035,7 +1035,7 @@ impl_runtime_apis! {
 			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter_keys().collect();
 			asset_locations.append(&mut asset_registry_locations);
 
-			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V3(polkadot_xcm::v3::AssetId::Concrete(loc.0)));
+			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V5(polkadot_xcm::v5::AssetId::Concrete(loc.0)));
 
 			Ok(versioned_locations
 				.filter_map(|asset| asset.into_version(xcm_version).ok())
@@ -1046,7 +1046,7 @@ impl_runtime_apis! {
 			let v4_xcm_asset_id = asset.into_version(4).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
 
 			// get nested polkadot_xcm::AssetId type
-			let xcm_asset_id: &polkadot_xcm::v4::AssetId = v4_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
+			let xcm_asset_id: &polkadot_xcm::v5::AssetId = v4_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
 
 			let asset_id: AssetId = CurrencyIdConvert::convert(xcm_asset_id.clone().0).ok_or(XcmPaymentApiError::AssetNotFound)?;
 
@@ -1078,14 +1078,25 @@ impl_runtime_apis! {
 	}
 
 	impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
-		fn dry_run_call(origin: OriginCaller, call: RuntimeCall) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_call::<Runtime, xcm::XcmRouter, OriginCaller, RuntimeCall>(origin, call)
-		}
+					fn dry_run_call(
+						origin: OriginCaller,
+						call: RuntimeCall,
+						result_xcms_version: XcmVersion
+					) -> Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+						PolkadotXcm::dry_run_call::<
+							Runtime,
+							xcm::XcmRouter,
+							OriginCaller,
+							RuntimeCall>(origin, call, result_xcms_version)
+					}
 
-		fn dry_run_xcm(origin_location: VersionedLocation, xcm: VersionedXcm<RuntimeCall>) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-			PolkadotXcm::dry_run_xcm::<Runtime, xcm::XcmRouter, RuntimeCall, xcm::XcmConfig>(origin_location, xcm)
-		}
-	}
+					fn dry_run_xcm(
+						origin_location: VersionedLocation,
+						xcm: VersionedXcm<RuntimeCall>
+					) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
+						PolkadotXcm::dry_run_xcm::<xcm::XcmRouter>(origin_location, xcm)
+					}
+				}
 
 	impl xcm_runtime_apis::conversions::LocationToAccountApi<Block, AccountId> for Runtime {
 		fn convert_location(location: VersionedLocation) -> Result<
@@ -1500,22 +1511,13 @@ fn init_omnipool(amount_to_sell: Balance) -> Balance {
 	//			polkadot_xcm::opaque::lts::Junctions::X1(Arc::new([polkadot_xcm::opaque::lts::Junction::GeneralIndex(dai.into())]))
 
 	use frame_support::assert_ok;
-	use polkadot_xcm::v3::Junction::GeneralIndex;
-	use polkadot_xcm::v3::Junctions::X1;
-	use polkadot_xcm::v3::MultiLocation;
+	use polkadot_xcm::v5::Junction::GeneralIndex;
+	use polkadot_xcm::v5::Junctions::X1;
+	use polkadot_xcm::v5::Location;
 	assert_ok!(AssetRegistry::set_location(
 		dai,
-		AssetLocation(MultiLocation::new(0, X1(GeneralIndex(dai.into()))))
+		AssetLocation(Location::new(0, X1(GeneralIndex(dai.into()))))
 	));
-	/*
-		assert_ok!(AssetRegistry::set_location(
-		dai,
-		AssetLocation(MultiLocation::new(
-			0,
-			cumulus_primitives_core::Junctions::X1(Arc::new([cumulus_primitives_core::Junction::GeneralIndex(dai.into());1]))
-		))
-	));
-	*/
 
 	Currencies::update_balance(
 		RuntimeOrigin::root(),

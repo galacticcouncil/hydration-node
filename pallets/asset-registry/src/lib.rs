@@ -53,9 +53,9 @@ use hydradx_traits::{
 	AssetKind, BoundErc20, RegisterAssetHook,
 };
 use orml_traits::GetByKey;
-use polkadot_xcm::v3::Junction::AccountKey20;
-use polkadot_xcm::v3::Junctions::X1;
-use polkadot_xcm::v3::MultiLocation;
+use polkadot_xcm::v5::Junction::AccountKey20;
+use polkadot_xcm::v5::Junctions::X1;
+use polkadot_xcm::v5::Location;
 use primitives::EvmAddress;
 use sp_runtime::TransactionOutcome;
 
@@ -770,18 +770,25 @@ impl<T: Config> Create<Balance> for Pallet<T> {
 impl<T> BoundErc20 for Pallet<T>
 where
 	T: Config,
-	T::AssetNativeLocation: Into<MultiLocation>,
+	T::AssetNativeLocation: Into<Location>,
 {
 	fn contract_address(id: Self::AssetId) -> Option<EvmAddress> {
-		if Self::asset_type(id)? == AssetKind::Erc20 {
-			let location: MultiLocation = Self::asset_to_location(id).unwrap_or_default().into();
-			if let X1(AccountKey20 { key, .. }) = location.interior {
-				Some(key.into())
-			} else {
-				Some(Default::default())
+		// Only ERC20 assets can have an EVM contract address
+		if Self::asset_type(id)? != AssetKind::Erc20 {
+			return None;
+		}
+
+		let location: Location = Self::asset_to_location(id).unwrap_or_default().into();
+
+		match &location.interior {
+			X1(junctions) => {
+				if let [AccountKey20 { key, .. }] = junctions.as_ref() {
+					Some((*key).into())
+				} else {
+					None
+				}
 			}
-		} else {
-			None
+			_ => None,
 		}
 	}
 }

@@ -22,7 +22,7 @@ use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
-use polkadot_xcm::v3::MultiLocation;
+use polkadot_xcm::v5::Location;
 use primitive_types::{H256, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use scale_info::prelude::string::String;
@@ -124,7 +124,7 @@ where
 		+ pallet_broadcast::Config
 		+ pallet_dispatcher::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
-	T::AssetNativeLocation: Into<MultiLocation>,
+	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
@@ -429,7 +429,7 @@ where
 		+ pallet_broadcast::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>
 		+ pallet_dispatcher::Config,
-	T::AssetNativeLocation: Into<MultiLocation>,
+	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
