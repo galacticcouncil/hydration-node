@@ -886,14 +886,6 @@ impl Get<AssetId> for DotAssetId {
 	}
 }
 
-pub struct HollarAssetLocation;
-impl Get<AssetLocation> for HollarAssetLocation {
-	fn get() -> AssetLocation {
-		pallet_asset_registry::Pallet::<Runtime>::asset_to_location(HOLLAR)
-			.defensive_unwrap_or(AssetId::MAX)
-	}
-}
-
 parameter_types! {
 	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
 	pub MaxSchedulesPerBlock: u32 = 6;
