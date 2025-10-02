@@ -184,6 +184,13 @@ pub type Reserves = (
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
 
+parameter_types! {
+    pub HollarAssetFilter: AssetFilter = Wild(AllOf { fun: WildFungible, id: HollarAssetLocation::get().into() });
+    pub AssetHubTrustedTeleporter: (AssetFilter, Location) = (HollarAssetFilter::get(), AssetHubLocation::get());
+}
+
+pub type TrustedTeleporters = (xcm_builder::Case<AssetHubTrustedTeleporter>,);
+
 pub type DynamicWeigher<RuntimeCall> =
 	WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
 
@@ -196,7 +203,7 @@ impl Config for XcmConfig {
 	type OriginConverter = XcmOriginToCallOrigin;
 	type IsReserve = Reserves;
 
-	type IsTeleporter = (); // disabled
+	type IsTeleporter = TrustedTeleporters;
 	type UniversalLocation = UniversalLocation;
 
 	type Barrier = Barrier;
