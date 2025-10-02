@@ -156,8 +156,8 @@ enum MessageType<B: BlockT> {
 /// Messages that are sent to the liquidation worker.
 #[derive(Clone, RuntimeDebug)]
 enum TransactionType {
-	OracleUpdate(Vec<(EvmAddress, Option<U256>)>),  // (asset_address, price)
-	Borrow(EvmAddress, EvmAddress),        			// borrower, asset_address
+	OracleUpdate(Vec<(EvmAddress, Option<U256>)>), // (asset_address, price)
+	Borrow(EvmAddress, EvmAddress),                // borrower, asset_address
 }
 
 /// State of the liquidation worker.
@@ -201,12 +201,13 @@ where
 		let Ok(Some(header)) = client.header(hash) else { return };
 
 		let has_api_v2 = runtime_api.has_api_with::<dyn OffchainWorkerApi<B>, _>(hash, |v| v == 2);
-		if let Ok(true) = has_api_v2 {} else {
+		if let Ok(true) = has_api_v2 {
+		} else {
 			tracing::error!(
 				target: LOG_TARGET,
 				"liquidation-worker: Unsupported Offchain Worker API version. Consider turning off offchain workers if they are not part of your runtime.",
 			);
-			return
+			return;
 		};
 
 		// Fetch and sort the list of borrowers.
@@ -229,7 +230,7 @@ where
 			)
 		else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
-			return
+			return;
 		};
 
 		let mut reserves = money_market.reserves().clone();
@@ -243,10 +244,7 @@ where
 		let config_c = config.clone();
 
 		// Start the liquidation worker thread.
-		let thread_pool = ThreadPool::with_name(
-			"liquidation-worker".into(),
-			num_cpus::get(),
-		);
+		let thread_pool = ThreadPool::with_name("liquidation-worker".into(), num_cpus::get());
 		thread_pool.execute(move || {
 			Self::liquidation_worker(
 				client_c,
@@ -261,9 +259,15 @@ where
 		});
 
 		// Accounts that sign the DIA oracle update transactions.
-		let allowed_signers = config.clone().oracle_update_signer.unwrap_or(ORACLE_UPDATE_SIGNER.to_vec());
+		let allowed_signers = config
+			.clone()
+			.oracle_update_signer
+			.unwrap_or(ORACLE_UPDATE_SIGNER.to_vec());
 		// Addresses of the DIA oracle contract.
-		let allowed_oracle_call_addresses = config.clone().oracle_update_call_address.unwrap_or(ORACLE_UPDATE_CALL_ADDRESS.to_vec());
+		let allowed_oracle_call_addresses = config
+			.clone()
+			.oracle_update_call_address
+			.unwrap_or(ORACLE_UPDATE_CALL_ADDRESS.to_vec());
 
 		// Combine block and transaction notifications and process them sequentially.
 		let mut block_notification_stream = client.import_notification_stream();
@@ -373,25 +377,36 @@ where
 				     base_asset_name, price, ..
 				 }| {
 					if let Ok(base_asset_str) = String::from_utf8(base_asset_name.to_ascii_lowercase()) {
-						let asset_reserves: Vec<&Reserve> = reserves.iter().filter(|asset| {
-							if let Ok(asset) = String::from_utf8(asset.symbol().to_ascii_lowercase().to_vec()) {
-								asset.contains(&base_asset_str)
-							} else { false }
-						}).collect();
-
-						Some(asset_reserves
+						let asset_reserves: Vec<&Reserve> = reserves
 							.iter()
-							.map(|reserve| {
-								if reserve.symbol() == base_asset_name {
-									(reserve.asset_address(), Some(*price))
+							.filter(|asset| {
+								if let Ok(asset) = String::from_utf8(asset.symbol().to_ascii_lowercase().to_vec()) {
+									asset.contains(&base_asset_str)
 								} else {
-									(reserve.asset_address(), None)
+									false
 								}
-							}).collect::<Vec<_>>())
-					} else { None }
+							})
+							.collect();
+
+						Some(
+							asset_reserves
+								.iter()
+								.map(|reserve| {
+									if reserve.symbol() == base_asset_name {
+										(reserve.asset_address(), Some(*price))
+									} else {
+										(reserve.asset_address(), None)
+									}
+								})
+								.collect::<Vec<_>>(),
+						)
+					} else {
+						None
+					}
 				},
 			)
-			.flatten().collect::<Vec<_>>();
+			.flatten()
+			.collect::<Vec<_>>();
 
 		// Skip the execution if assets in the oracle update are not in the money market.
 		if oracle_data.is_empty() {
@@ -568,7 +583,8 @@ where
 		let mut borrowers_c = borrowers.clone();
 
 		let runtime_api = client.runtime_api();
-		let Some(mut current_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
+		let Some(mut current_evm_timestamp) =
+			ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
 		else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: fetch_current_evm_block_timestamp failed");
 			return;
@@ -580,10 +596,7 @@ where
 
 		// List of liquidations that failed and are postponed to not block other possible liquidations.
 		// We stored the block number when tx failed.
-		let mut tx_waitlist = HashMap::<
-			TransactionHash,
-			<<B as BlockT>::Header as Header>::Number,
-		>::new();
+		let mut tx_waitlist = HashMap::<TransactionHash, <<B as BlockT>::Header as Header>::Number>::new();
 
 		let mut header = header;
 
@@ -852,7 +865,7 @@ where
 			)
 		else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
-			return Err(())
+			return Err(());
 		};
 
 		*money_market = new_money_market;
@@ -866,16 +879,15 @@ where
 
 		// `tx_waitlist` maintenance.
 		// Remove all transactions that are older than WAIT_PERIOD blocks and can be executed again.
-		tx_waitlist.retain(|_, block_num| {
-			current_block_number < *block_num + WAIT_PERIOD.into()
-		});
+		tx_waitlist.retain(|_, block_num| current_block_number < *block_num + WAIT_PERIOD.into());
 
 		liquidated_users.clear();
 
-		let Some(new_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(new_block.header.hash())
+		let Some(new_evm_timestamp) =
+			ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(new_block.header.hash())
 		else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: fetch_current_evm_block_timestamp failed");
-			return Err(())
+			return Err(());
 		};
 		*current_evm_timestamp = new_evm_timestamp;
 

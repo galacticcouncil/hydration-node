@@ -333,8 +333,9 @@ async fn start_node_impl(
 	}
 
 	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
-	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false))) ||
-		(!validator && liquidation_worker_config.liquidation_worker == Some(true)) {
+	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
+		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
+	{
 		task_manager.spawn_handle().spawn(
 			"liquidation-worker",
 			None,
