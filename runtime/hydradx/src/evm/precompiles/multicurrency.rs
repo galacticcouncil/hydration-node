@@ -34,7 +34,7 @@ use crate::{
 	Currencies,
 };
 use codec::EncodeLike;
-use frame_support::traits::{IsType, OriginTrait};
+use frame_support::traits::{ExistenceRequirement, IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
@@ -229,6 +229,7 @@ where
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(origin)),
 			&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 			amount,
+			ExistenceRequirement::KeepAlive,
 		)
 		.map_err(|e| PrecompileFailure::Revert {
 			exit_status: ExitRevert::Reverted,
@@ -286,6 +287,7 @@ where
 				&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(from)),
 				&(<sp_runtime::AccountId32 as Into<Runtime::AccountId>>::into(to)),
 				amount,
+				ExistenceRequirement::KeepAlive,
 			)
 			.map_err(|e| PrecompileFailure::Revert {
 				exit_status: ExitRevert::Reverted,

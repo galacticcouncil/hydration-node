@@ -269,6 +269,7 @@ where
 		from: &AccountId,
 		to: &AccountId,
 		amount: Self::Balance,
+		_existence_requirement: frame_support::traits::ExistenceRequirement,
 	) -> sp_runtime::DispatchResult {
 		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(from);
 
@@ -297,7 +298,12 @@ where
 		fail!(Error::<T>::NotSupported)
 	}
 
-	fn withdraw(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
+	fn withdraw(
+		_contract: Self::CurrencyId,
+		_who: &AccountId,
+		_amount: Self::Balance,
+		_existence_requirement: frame_support::traits::ExistenceRequirement,
+	) -> sp_runtime::DispatchResult {
 		fail!(Error::<T>::NotSupported)
 	}
 

@@ -247,6 +247,7 @@ impl SufficiencyCheck {
 					paying_account,
 					&TreasuryAccount::get(),
 					ed_in_fee_asset,
+					ExistenceRequirement::KeepAlive,
 				)
 				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
@@ -368,6 +369,7 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			&TreasuryAccount::get(),
 			who,
 			ed_to_refund,
+			ExistenceRequirement::AllowDeath,
 		);
 
 		frame_system::Pallet::<Runtime>::dec_sufficients(who);
