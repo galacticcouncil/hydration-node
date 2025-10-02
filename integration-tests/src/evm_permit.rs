@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use crate::evm::set_evm_account_currency;
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
 use frame_support::dispatch::GetDispatchInfo;
@@ -40,6 +41,7 @@ use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
+
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 #[test]
@@ -53,6 +55,11 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 
 	Hydra::execute_with(|| {
 		let fee_currency = HDX;
+		set_evm_account_currency(fee_currency);
+		assert_eq!(
+			MultiTransactionPayment::account_currency(&user_acc.address()),
+			fee_currency
+		);
 
 		init_omnipool_with_oracle_for_block_10();
 
@@ -159,6 +166,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 }
 
 #[test]
+// FIXME: should not now?
 fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 	TestNet::reset();
 
@@ -265,6 +273,7 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -368,6 +377,7 @@ fn evm_permit_should_validate_unsigned_correctly() {
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -475,6 +485,7 @@ fn evm_permit_should_validate_unsigned_correctly_and_return_error_if_inner_call_
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -691,10 +702,11 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 			)
 			.unwrap();
 
+			set_evm_account_currency(HDX);
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				user_acc.address(),
-				0,
+				HDX,
 				100_000_000_000_000_000_000i128,
 			));
 
@@ -866,10 +878,11 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			)
 			.unwrap();
 
+			set_evm_account_currency(HDX);
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				user_acc.address(),
-				0,
+				HDX,
 				100_000_000_000_000_000_000i128,
 			));
 
@@ -998,10 +1011,11 @@ fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() 
 			)
 			.unwrap();
 
+			set_evm_account_currency(HDX);
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				user_acc.address(),
-				0,
+				HDX,
 				100_000_000_000_000_000_000i128,
 			));
 
@@ -1077,10 +1091,11 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 			)
 			.unwrap();
 
+			set_evm_account_currency(HDX);
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				user_acc.address(),
-				0,
+				HDX,
 				100_000_000_000_000_000_000i128,
 			));
 
@@ -1191,6 +1206,7 @@ fn evm_permit_dispatch_flow_should_work() {
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -1322,6 +1338,7 @@ fn evm_permit_should_fail_when_replayed() {
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -1461,6 +1478,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -1588,6 +1606,7 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -1679,6 +1698,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -1886,6 +1906,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		);
 
 		// Prepare user evm account - bind and fund
+		set_evm_account_currency(HDX);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
