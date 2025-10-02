@@ -177,16 +177,15 @@ fn decode_integer(value: Vec<u8>) -> Option<U256> {
 	if value.len() != 32 {
 		return None;
 	}
-	U256::checked_from(value.as_slice())
+	Some(U256::from_big_endian(value.as_slice()))
 }
 
 fn decode_bool(value: Vec<u8>) -> Option<bool> {
 	if value.len() != 32 {
 		return None;
 	}
-	let mut bytes = [0u8; 32];
-	U256::from(1).to_big_endian(&mut bytes);
-	Some(value == bytes)
+	let bytes = U256::from(1).to_big_endian();
+	Some(value.as_slice() == bytes)
 }
 
 fn handle_result(result: CallResult) -> DispatchResult {

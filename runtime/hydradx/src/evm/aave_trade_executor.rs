@@ -275,7 +275,7 @@ where
 			matches!(res, Succeed(_)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
 		);
-		U256::checked_from(value.as_slice()).ok_or(ExecutorError::Error("Failed to decode scaled total supply".into()))
+		Ok(U256::from_big_endian(value.as_slice()))
 	}
 
 	fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
