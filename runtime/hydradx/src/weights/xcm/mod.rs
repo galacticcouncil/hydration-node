@@ -20,7 +20,7 @@ use crate::{BaseXcmWeight, MaxAssetsIntoHolding, RouterWeightInfo, Runtime};
 use frame_support::weights::Weight;
 use pallet_xcm_benchmarks_generic::WeightInfo as XcmGeneric;
 use polkadot_xcm::latest::InteriorLocation;
-use polkadot_xcm::v4::{QueryId, Response, WeightLimit, WildFungibility, Xcm, XcmWeightInfo};
+use polkadot_xcm::v5::{QueryId, Response, WeightLimit, WildFungibility, Xcm, XcmWeightInfo};
 use polkadot_xcm::DoubleEncoded;
 use sp_std::vec;
 use sp_std::vec::Vec;

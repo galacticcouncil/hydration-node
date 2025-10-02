@@ -361,7 +361,7 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 	/// Proof: `Identity::PendingUsernames` (`max_values`: None, `max_size`: Some(85), added: 2560, mode: `MaxEncodedLen`)
 	/// Storage: `Identity::IdentityOf` (r:1 w:1)
 	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7572), added: 10047, mode: `MaxEncodedLen`)
-	fn set_username_for() -> Weight {
+	fn set_username_for(_s: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `80`
 		//  Estimated: `11037`
@@ -387,7 +387,7 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 	}
 	/// Storage: `Identity::PendingUsernames` (r:1 w:1)
 	/// Proof: `Identity::PendingUsernames` (`max_values`: None, `max_size`: Some(85), added: 2560, mode: `MaxEncodedLen`)
-	fn remove_expired_approval() -> Weight {
+	fn remove_expired_approval(_s: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `115`
 		//  Estimated: `3550`
@@ -406,19 +406,6 @@ impl<T: frame_system::Config> pallet_identity::WeightInfo for HydraWeight<T> {
 		//  Estimated: `11037`
 		// Minimum execution time: 25_442_000 picoseconds.
 		Weight::from_parts(25_805_000, 11037)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	/// Storage: `Identity::AccountOfUsername` (r:1 w:1)
-	/// Proof: `Identity::AccountOfUsername` (`max_values`: None, `max_size`: Some(81), added: 2556, mode: `MaxEncodedLen`)
-	/// Storage: `Identity::IdentityOf` (r:1 w:0)
-	/// Proof: `Identity::IdentityOf` (`max_values`: None, `max_size`: Some(7572), added: 10047, mode: `MaxEncodedLen`)
-	fn remove_dangling_username() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `98`
-		//  Estimated: `11037`
-		// Minimum execution time: 18_056_000 picoseconds.
-		Weight::from_parts(18_405_000, 11037)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
