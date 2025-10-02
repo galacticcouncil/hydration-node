@@ -17,7 +17,7 @@ pub trait RouteSpotPriceProvider<AssetId> {
 	fn spot_price_with_fee(route: &[Trade<AssetId>]) -> Option<FixedU128>;
 }
 
-#[derive(Debug, Encode, Decode, Copy, Clone, PartialOrd, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Encode, Decode, DecodeWithMemTracking, Copy, Clone, PartialOrd, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
 pub struct AssetPair<AssetId> {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,

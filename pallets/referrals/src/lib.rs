@@ -134,7 +134,7 @@ pub struct FeeDistribution {
 	pub external: Permill,
 }
 
-#[derive(Clone, Debug, PartialEq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct AssetAmount<AssetId> {
 	asset_id: AssetId,
 	amount: Balance,

@@ -155,7 +155,7 @@ pub type PegType = (Balance, Balance);
 
 pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum PegSource<AssetId = ()> {
 	Value(PegType),
 	Oracle((Source, OraclePeriod, AssetId)),
@@ -164,7 +164,7 @@ pub enum PegSource<AssetId = ()> {
 
 pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct PoolPegInfo<AssetId = ()> {
 	pub source: BoundedPegSources<AssetId>,
 	pub max_peg_update: Perbill,
