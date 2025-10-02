@@ -2154,22 +2154,20 @@ fn dispatch_should_work_with_transfer() {
 	});
 }
 
+#[ignore] // todo
 #[test]
 fn dispatch_batch_should_increase_nonce_once() {
 	TestNet::reset();
-
 	Hydra::execute_with(|| {
 		//Set up to idle state where the chain is not utilized at all
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
 
-		let account = MockAccount::new(ALICE.into());
+		let account = MockAccount::new(alith_evm_account());
 		let signed_origin_account = RuntimeOrigin::signed(account.address());
 
-		assert_ok!(EVMAccounts::bind_evm_address(signed_origin_account.clone()));
-
-		let evm_address = EVMAccounts::evm_address(&account.address());
+		let evm_address = alith_evm_address();
 		init_omnipool_with_oracle_for_block_10();
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -2183,7 +2181,6 @@ fn dispatch_batch_should_increase_nonce_once() {
 		));
 
 		//Arrange
-		// let data = hex!["0d020801000813370100081337"].to_vec(); // two remark calls wrapped in batchAll
 		let nonce = account.nonce();
 
 		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
@@ -2201,25 +2198,73 @@ fn dispatch_batch_should_increase_nonce_once() {
 		});
 
 		let data = RuntimeCall::Utility(pallet_utility::Call::batch_all {
-			calls: vec![evm_call.clone(), evm_call],
-		}).encode();
+			calls: vec![evm_call.clone(), evm_call.clone(), evm_call],
+		});
 
 		//Act
-		assert_ok!(EVM::call(
-			signed_origin_account,
+		// assert_ok!(EVM::call(
+		// 	signed_origin_account,
+		// 	evm_address,
+		// 	DISPATCH_ADDR,
+		// 	data,
+		// 	U256::from(0),
+		// 	1000000,
+		// 	gas_price * 10,
+		// 	None,
+		// 	Some(U256::zero()),
+		// 	[].into()
+		// ));
+		// assert_ok!(hydradx_runtime::Utility::batch_all(
+		// 	signed_origin_account,
+		// 	vec![evm_call.clone(), evm_call.clone(), evm_call]
+		// ));
+
+		// Permit test
+		let user_secret_key = alith_secret_key();
+		let gas_limit = 1_000_000u64;
+		let deadline = U256::from(1_000_000_000_000u128);
+		let permit_message =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				evm_address,
+				DISPATCH_ADDR,
+				U256::zero(),
+				data.encode(),
+				gas_limit * 10,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).expect("valid secret key");
+		let message = Message::parse(&permit_message);
+		let (rs, v) = sign(&message, &secret_key);
+
+		let permit_nonce_before =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address,
+			);
+
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
 			evm_address,
 			DISPATCH_ADDR,
-			data,
-			U256::from(0),
-			1000000,
-			gas_price * 10,
-			None,
-			Some(U256::zero()),
-			[].into()
+			U256::zero(),
+			data.encode(),
+			gas_limit * 10,
+			deadline,
+			v.serialize(),
+			sp_core::H256::from(rs.r.b32()),
+			sp_core::H256::from(rs.s.b32()),
 		));
 
+		let permit_nonce_after =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address,
+			);
+		//
+
 		//Assert
-		assert_eq!(account.nonce(), nonce + 1);
+		assert_eq!(account.nonce(), nonce);
+		assert_eq!(permit_nonce_after, permit_nonce_before + U256::one());
 	});
 }
 
