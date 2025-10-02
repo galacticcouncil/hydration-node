@@ -684,7 +684,7 @@ impl pallet_duster::Config for Runtime {
 	type MultiCurrency = FungibleCurrencies<Runtime>;
 	type ExistentialDeposit = AssetRegistry;
 	type WhitelistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
-	type ATokenDuster = AtokenAccountDuster;
+	type Erc20Support = ATokenAccountDuster;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
@@ -1386,7 +1386,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_traits::evm::ATokenDuster;
+use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -2059,9 +2059,13 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 	}
 }
 
-pub struct AtokenAccountDuster;
+pub struct ATokenAccountDuster;
 
-impl ATokenDuster<AccountId, AssetId> for AtokenAccountDuster {
+impl Erc20Inspect<AssetId> for ATokenAccountDuster {
+	fn contract_address(id: AssetId) -> Option<EvmAddress> {
+		pallet_asset_registry::Pallet::<Runtime>::contract_address(id)
+	}
+
 	fn is_atoken(asset_id: AssetId) -> bool {
 		let Some(contract) = AssetRegistry::contract_address(asset_id) else {
 			return false;
@@ -2069,12 +2073,11 @@ impl ATokenDuster<AccountId, AssetId> for AtokenAccountDuster {
 
 		AaveTradeExecutor::<Runtime>::is_atoken(contract)
 	}
+}
 
-	fn dust_account(
-		account: &AccountId,
-		dust_dest_account: &AccountId,
-		currency_id: AssetId,
-	) -> frame_support::dispatch::DispatchResult {
+
+impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
+	fn on_dust(account: &AccountId, dust_dest_account: &AccountId, currency_id: AssetId) -> frame_support::dispatch::DispatchResult {
 		let Some(contract) = AssetRegistry::contract_address(currency_id) else {
 			return Err(DispatchError::Token(TokenError::UnknownAsset));
 		};

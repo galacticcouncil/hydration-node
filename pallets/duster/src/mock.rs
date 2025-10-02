@@ -18,7 +18,7 @@ use sp_runtime::{
 
 use frame_support::weights::Weight;
 use frame_system::EnsureRoot;
-use hydradx_traits::evm::ATokenDuster;
+use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust, EvmAddress};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use sp_std::cell::RefCell;
 use sp_std::vec::Vec;
@@ -131,19 +131,26 @@ impl Config for Test {
 	type MultiCurrency = FungibleCurrencies<Test>;
 	type ExistentialDeposit = MinDeposits;
 	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
-	type ATokenDuster = ATokenDusterMock;
+	type Erc20Support =  ATokenDusterMock;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
 }
 
 pub struct ATokenDusterMock;
 
-impl ATokenDuster<AccountId, AssetId> for ATokenDusterMock {
+impl Erc20Inspect<AssetId> for ATokenDusterMock {
+	fn contract_address(id: AssetId) -> Option<EvmAddress> {
+		todo!()
+	}
+
 	fn is_atoken(_asset_id: AssetId) -> bool {
 		false
 	}
+}
 
-	fn dust_account(
+impl Erc20OnDust<AccountId, AssetId> for ATokenDusterMock {
+
+	fn on_dust(
 		_account: &AccountId,
 		_dust_dest_account: &AccountId,
 		_currency_id: AssetId,

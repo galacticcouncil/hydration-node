@@ -14,7 +14,7 @@ use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::MathError;
-use hydradx_traits::evm::{ATokenDuster, CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
+use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::{BoundErc20, Inspect};
 use num_enum::{IntoPrimitive, TryFromPrimitive};

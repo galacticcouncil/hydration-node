@@ -31,16 +31,16 @@ pub use crate::weights::WeightInfo;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
-use hydradx_traits::evm::ATokenDuster;
 use orml_traits::{
-	arithmetic::{Signed, SimpleArithmetic},
-	GetByKey, MultiCurrency, MultiCurrencyExtended,
+	GetByKey,
 };
+use hydradx_traits::evm::Erc20OnDust;
+use hydradx_traits::evm::Erc20Inspect;
 use sp_runtime::traits::Zero;
 
 use frame_system::ensure_signed;
 
-use sp_std::convert::{TryFrom, TryInto};
+use sp_std::convert::{TryInto};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -52,7 +52,6 @@ pub mod pallet {
 	use super::*;
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
-	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 	use frame_support::traits::tokens::{Fortitude, Preservation};
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
 	use sp_std::vec::Vec;
@@ -89,8 +88,10 @@ pub mod pallet {
 		/// The origin which can manage whiltelist.
 		type WhitelistUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Erc20 support to dust AToken balances
+		type Erc20Support: hydradx_traits::evm::Erc20Inspect<Self::AssetId> + hydradx_traits::evm::Erc20OnDust<Self::AccountId, Self::AssetId>;
+
 		/// Duster for accounts with AToken dusts
-		type ATokenDuster: hydradx_traits::evm::ATokenDuster<Self::AccountId, Self::AssetId>;
 
 		/// Treasury account, which receives the dust.
 		#[pallet::constant]
@@ -180,10 +181,10 @@ pub mod pallet {
 			// Error should never occur here
 			let dust_dest_account = T::TreasuryAccountId::get();
 
-			if T::ATokenDuster::is_atoken(currency_id) {
+			if T::Erc20Support::is_atoken(currency_id) {
 				//Temporarily adding the account to blacklist to prevent ED error when AToken is withdrawn from contract
 				Self::add_account(&account)?;
-				T::ATokenDuster::dust_account(&account, &dust_dest_account, currency_id)?;
+				T::Erc20Support::on_dust(&account, &dust_dest_account, currency_id)?;
 				Self::remove_account(&account)?;
 			} else {
 				Self::transfer_dust(&account, &dust_dest_account, currency_id, dust)?;

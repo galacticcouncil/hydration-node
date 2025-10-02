@@ -3,7 +3,7 @@ use crate::mock::{
 	AssetId, Currencies, Duster, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System, Test, Tokens, ALICE,
 	BOB, DUSTER, KILLED, TREASURY,
 };
-
+use orml_traits::MultiCurrency;
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::traits::BadOrigin;
