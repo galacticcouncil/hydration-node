@@ -373,6 +373,20 @@ impl orml_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type SovereignOrigin = EnsureRoot<Self::AccountId>;
 }
+pub struct OnlyTeleportHollar;
+impl Contains<(Location, Vec<Asset>)> for OnlyTeleportHollar {
+	fn contains(t: &(Location, Vec<Asset>)) -> bool {
+		let hollar = HollarAssetLocation::get();
+		t.1.iter().all(|asset| {
+			log::trace!(target: "xcm::OnlyTeleportHollar", "Asset to be teleported: {:?}", asset);
+			if let Asset { id: asset_id, fun: Fungible(_) } = asset {
+				asset_id.0 == hollar
+			} else {
+				false
+			}
+		})
+	}
+}
 
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -383,7 +397,7 @@ impl pallet_xcm::Config for Runtime {
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmExecuteFilter = Everything;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
-	type XcmTeleportFilter = Nothing;
+	type XcmTeleportFilter = OnlyTeleportHollar;
 	type XcmReserveTransferFilter = Everything;
 	type Weigher = DynamicWeigher<RuntimeCall>;
 	type UniversalLocation = UniversalLocation;
