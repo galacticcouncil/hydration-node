@@ -32,21 +32,21 @@ hyper-rustls = { version = "0.24.2", features = ["http2"], default-features = fa
 tokio = { workspace = true, default-features = true }
 threadpool = { version = "1.7" }
 num_cpus = { version = "1.13.1" }
+ethereum = { workspace = true }
+ethabi = { workspace = true }
 
 # local dependencies
 hydradx-runtime = { workspace = true, features = ["std"] }
 primitives = { workspace = true }
 pallet-claims = { workspace = true }
-pallet-ethereum = { workspace = true }
-ethereum = { workspace = true }
 pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
-ethabi = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
 frame-benchmarking-cli = { workspace = true, optional = true }
 frame-support = { workspace = true }
+frame-system = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
 sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
@@ -106,6 +106,8 @@ fp-rpc = { workspace = true }
 fp-consensus = { workspace = true }
 fp-self-contained = { workspace = true }
 fp-evm = { workspace = true }
+pallet-ethereum = { workspace = true }
+pallet-evm = { workspace = true }
 
 [features]
 default = [

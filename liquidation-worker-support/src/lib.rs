@@ -591,10 +591,10 @@ impl ReserveData {
 /// State of asset reserve.
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 pub struct Reserve {
-	reserve_data: ReserveData,
-	asset_address: EvmAddress,
-	symbol: Vec<u8>,
-	price: U256,
+	pub reserve_data: ReserveData,
+	pub asset_address: EvmAddress,
+	pub symbol: Vec<u8>,
+	pub price: U256,
 }
 impl Reserve {
 	/// Get the price of the reserve.
@@ -1016,7 +1016,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 	}
 
 	/// Calls Runtime API.
-	fn fetch_asset_symbol<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
+	pub fn fetch_asset_symbol<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
 		hash: Block::Hash,
 		asset_address: &EvmAddress,
