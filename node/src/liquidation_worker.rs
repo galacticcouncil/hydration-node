@@ -16,7 +16,7 @@ use liquidation_worker_support::*;
 use pallet_ethereum::Transaction;
 use polkadot_primitives::EncodeAs;
 use primitives::{AccountId, BlockNumber};
-use sc_client_api::{Backend, BlockchainEvents, StorageProvider, StorageKey};
+use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
 use sp_api::{ApiExt, ProvideRuntimeApi};
@@ -46,10 +46,11 @@ const RUNTIME_API_CALLER: EvmAddress = H160(hex!("33a5e905fB83FcFB62B0Dd1595DfBc
 const BORROW_CALL_ADDRESS: EvmAddress = H160(hex!("1b02E051683b5cfaC5929C25E84adb26ECf87B38"));
 const POOL_CONFIGURATOR_ADDRESS: EvmAddress = H160(hex!("e64c38e2fa00dfe4f1d0b92f75b8e44ebdf292e4"));
 mod events {
-	use super::{H256, hex};
+	use super::{hex, H256};
 
 	pub const BORROW: H256 = H256(hex!("b3d084820fb1a9decffb176436bd02558d15fac9b0ddfed8c465bc7359d7dce0"));
-	pub const COLLATERAL_CONFIGURATION_CHANGED: H256 = H256(hex!("637febbda9275aea2e85c0ff690444c8d87eb2e8339bbede9715abcc89cb0995"));
+	pub const COLLATERAL_CONFIGURATION_CHANGED: H256 =
+		H256(hex!("637febbda9275aea2e85c0ff690444c8d87eb2e8339bbede9715abcc89cb0995"));
 }
 
 // Account that signs the DIA oracle update transactions.
@@ -209,7 +210,9 @@ where
 
 		let runtime_api = client.runtime_api();
 		let mut current_hash = client.info().best_hash;
-		let Ok(Some(header)) = client.header(current_hash) else { return };
+		let Ok(Some(header)) = client.header(current_hash) else {
+			return;
+		};
 
 		let has_api_v2 = runtime_api.has_api_with::<dyn OffchainWorkerApi<B>, _>(current_hash, |v| v == 2);
 		if let Ok(true) = has_api_v2 {
@@ -232,19 +235,21 @@ where
 		};
 
 		// Use `MoneyMarketData` to get the list of reserves.
-		let Ok(money_market) =
-			MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
-				ApiProvider::<&C::Api>(runtime_api.deref()),
-				current_hash,
-				config.pap_contract.unwrap_or(PAP_CONTRACT),
-				config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
-			)
-		else {
+		let Ok(money_market) = MoneyMarketData::<B, OriginCaller, RuntimeCall, RuntimeEvent>::new::<ApiProvider<&C::Api>>(
+			ApiProvider::<&C::Api>(runtime_api.deref()),
+			current_hash,
+			config.pap_contract.unwrap_or(PAP_CONTRACT),
+			config.runtime_api_caller.unwrap_or(RUNTIME_API_CALLER),
+		) else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: MoneyMarketData initialization failed");
 			return;
 		};
 
-		let mut reserves: HashMap<AssetAddress, AssetSymbol> = money_market.reserves().iter().map(|r| (r.asset_address, r.symbol.clone())).collect();
+		let mut reserves: HashMap<AssetAddress, AssetSymbol> = money_market
+			.reserves()
+			.iter()
+			.map(|r| (r.asset_address, r.symbol.clone()))
+			.collect();
 
 		// Channel used to communicate new blocks and transactions to the liquidation worker thread.
 		let (worker_channel_tx, worker_channel_rx) = mpsc::channel();
@@ -810,9 +815,17 @@ where
 		}
 	}
 
-	fn get_events(client: Arc<C>, block_hash: B::Hash) -> Result<Vec<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>, ()> {
-		if let Ok(Some(encoded_events)) = client.storage(block_hash, &StorageKey(hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec())) {
-			if let Ok(events) = Vec::<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>::decode(&mut encoded_events.0.as_slice()) {
+	fn get_events(
+		client: Arc<C>,
+		block_hash: B::Hash,
+	) -> Result<Vec<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>, ()> {
+		if let Ok(Some(encoded_events)) = client.storage(
+			block_hash,
+			&StorageKey(hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec()),
+		) {
+			if let Ok(events) = Vec::<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>::decode(
+				&mut encoded_events.0.as_slice(),
+			) {
 				return Ok(events);
 			}
 		}
@@ -820,16 +833,20 @@ where
 		Err(())
 	}
 
-	fn filter_events(events: Vec<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>) -> Option<(Vec<UserAddress>, Vec<AssetAddress>)> {
+	fn filter_events(
+		events: Vec<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>,
+	) -> Option<(Vec<UserAddress>, Vec<AssetAddress>)> {
 		let mut new_borrows: Vec<UserAddress> = Vec::new();
 		let mut new_assets = Vec::<AssetAddress>::new();
 		for event in events {
-			if let RuntimeEvent::EVM(pallet_evm::Event::Log {log}) = &event.event  {
+			if let RuntimeEvent::EVM(pallet_evm::Event::Log { log }) = &event.event {
 				if log.address == BORROW_CALL_ADDRESS && log.topics[0] == events::BORROW {
 					if let Some(&borrower) = log.topics.get(2) {
 						new_borrows.push(UserAddress::from(borrower));
 					}
-				} else if log.address == POOL_CONFIGURATOR_ADDRESS && log.topics[0] == events::COLLATERAL_CONFIGURATION_CHANGED {
+				} else if log.address == POOL_CONFIGURATOR_ADDRESS
+					&& log.topics[0] == events::COLLATERAL_CONFIGURATION_CHANGED
+				{
 					if let Some(&asset) = log.topics.get(1) {
 						new_assets.push(AssetAddress::from(asset));
 					}
@@ -879,8 +896,7 @@ where
 
 		liquidated_users.clear();
 
-		let Some(new_evm_timestamp) =
-			ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
+		let Some(new_evm_timestamp) = ApiProvider::<&C::Api>(runtime_api.deref()).current_timestamp(header.hash())
 		else {
 			tracing::error!(target: LOG_TARGET, "liquidation-worker: fetch_current_evm_block_timestamp failed");
 			return;
