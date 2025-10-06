@@ -182,7 +182,7 @@ export class SignetClient {
 
     const expectedAddress =
       "0x" +
-      keccak256(Buffer.from(derivedPublicKey.slice(2), "hex")).slice(-40);
+      keccak256(Buffer.from(derivedPublicKey.slice(4), "hex")).slice(-40);
 
     console.log("       Recovered:", recoveredAddress);
     console.log("       Expected: ", expectedAddress);
@@ -209,7 +209,7 @@ export class SignetClient {
 
     const expectedAddress =
       "0x" +
-      keccak256(Buffer.from(derivedPublicKey.slice(2), "hex")).slice(-40);
+      keccak256(Buffer.from(derivedPublicKey.slice(4), "hex")).slice(-40);
 
     console.log("       Recovered:", recoveredAddress);
     console.log("       Expected: ", expectedAddress);

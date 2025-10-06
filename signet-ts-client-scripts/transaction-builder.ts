@@ -1,4 +1,3 @@
-// transaction-builder.ts
 import { ethers } from "ethers";
 
 export class TransactionBuilder {
@@ -12,15 +11,18 @@ export class TransactionBuilder {
     value: bigint;
     data: string;
     accessList: any[];
-  }): { transaction: ethers.Transaction; serialized: number[] } {
+  }): { transaction: ethers.Transaction; serialized: number[]; unwrapped: number[] } {
     const transaction = ethers.Transaction.from({
       type: 2,
       ...params
     });
     
+    const fullSerialized = Array.from(ethers.getBytes(transaction.unsignedSerialized));
+    
     return {
       transaction,
-      serialized: Array.from(ethers.getBytes(transaction.unsignedSerialized))
+      serialized: fullSerialized,
+      unwrapped: fullSerialized.slice(1)
     };
   }
 }

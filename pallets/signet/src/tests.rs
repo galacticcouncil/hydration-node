@@ -12,13 +12,33 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
+use sp_std::vec::Vec;
 
+fn bounded_u8<const N: u32>(v: Vec<u8>) -> BoundedVec<u8, ConstU32<N>> {
+	BoundedVec::try_from(v).unwrap()
+}
+
+fn bounded_array<const N: u32>(v: Vec<[u8; 32]>) -> BoundedVec<[u8; 32], ConstU32<N>> {
+	BoundedVec::try_from(v).unwrap()
+}
+
+fn bounded_sig<const N: u32>(v: Vec<Signature>) -> BoundedVec<Signature, ConstU32<N>> {
+	BoundedVec::try_from(v).unwrap()
+}
+
+fn bounded_err<const N: u32>(v: Vec<ErrorResponse>) -> BoundedVec<ErrorResponse, ConstU32<N>> {
+	BoundedVec::try_from(v).unwrap()
+}
+
+fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, MaxChainIdLength> {
+	BoundedVec::try_from(v).unwrap()
+}
 #[frame_support::pallet]
 pub mod pallet_mock_caller {
+	use crate::{self as pallet_signet, tests::bounded_u8};
 	use frame_support::{pallet_prelude::*, PalletId};
 	use frame_system::pallet_prelude::*;
-    use sp_runtime::traits::AccountIdConversion;
-    use crate::{self as pallet_signet};
+	use sp_runtime::traits::AccountIdConversion;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -38,18 +58,17 @@ pub mod pallet_mock_caller {
 			let _who = ensure_signed(origin)?;
 
 			// Get this pallet's derived account (use fully-qualified syntax)
-			let pallet_account: T::AccountId =
-				<T as Config>::PalletId::get().into_account_truncating();
+			let pallet_account: T::AccountId = <T as Config>::PalletId::get().into_account_truncating();
 
 			// Call signet from this pallet's account
 			pallet_signet::Pallet::<T>::sign(
 				frame_system::RawOrigin::Signed(pallet_account).into(),
 				[99u8; 32],
 				1,
-				b"from_pallet".to_vec(),
-				b"ecdsa".to_vec(),
-				b"".to_vec(),
-				b"{}".to_vec(),
+				bounded_u8::<256>(b"from_pallet".to_vec()),
+				bounded_u8::<32>(b"ecdsa".to_vec()),
+				bounded_u8::<64>(b"".to_vec()),
+				bounded_u8::<1024>(b"{}".to_vec()),
 			)?;
 
 			Ok(())
@@ -169,7 +188,7 @@ fn test_initialize_works() {
 	new_test_ext().execute_with(|| {
 		let admin_account = 1u64;
 		let deposit = 1000u128;
-		let chain_id = b"test-chain".to_vec();
+		let chain_id = bounded_chain_id(b"test-chain".to_vec());
 
 		assert_eq!(Signet::admin(), None);
 
@@ -188,7 +207,7 @@ fn test_initialize_works() {
 			Event::Initialized {
 				admin: admin_account,
 				signature_deposit: deposit,
-				chain_id,
+				chain_id: chain_id.to_vec(),
 			}
 			.into(),
 		);
@@ -202,11 +221,16 @@ fn test_cannot_initialize_twice() {
 			RuntimeOrigin::signed(1),
 			1,
 			1000,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		assert_noop!(
-			Signet::initialize(RuntimeOrigin::signed(2), 2, 2000, b"test-chain".to_vec()),
+			Signet::initialize(
+				RuntimeOrigin::signed(2),
+				2,
+				2000,
+				bounded_chain_id(b"test-chain".to_vec())
+			),
 			Error::<Test>::AlreadyInitialized
 		);
 	});
@@ -220,10 +244,10 @@ fn test_cannot_use_before_initialization() {
 				RuntimeOrigin::signed(1),
 				[0u8; 32],
 				1,
-				b"path".to_vec(),
-				b"algo".to_vec(),
-				b"dest".to_vec(),
-				b"params".to_vec()
+				bounded_u8::<256>(b"path".to_vec()),
+				bounded_u8::<32>(b"algo".to_vec()),
+				bounded_u8::<64>(b"dest".to_vec()),
+				bounded_u8::<1024>(b"params".to_vec())
 			),
 			Error::<Test>::NotInitialized
 		);
@@ -237,19 +261,29 @@ fn test_any_signed_can_initialize_once() {
 			RuntimeOrigin::signed(2),
 			1,
 			1000,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		assert_eq!(Signet::admin(), Some(1));
 		assert_eq!(Signet::signature_deposit(), 1000);
 
 		assert_noop!(
-			Signet::initialize(RuntimeOrigin::signed(1), 3, 2000, b"other-chain".to_vec()),
+			Signet::initialize(
+				RuntimeOrigin::signed(1),
+				3,
+				2000,
+				bounded_chain_id(b"test-chain".to_vec())
+			),
 			Error::<Test>::AlreadyInitialized
 		);
 
 		assert_noop!(
-			Signet::initialize(RuntimeOrigin::signed(3), 3, 2000, b"other-chain".to_vec()),
+			Signet::initialize(
+				RuntimeOrigin::signed(3),
+				3,
+				2000,
+				bounded_chain_id(b"test-chain".to_vec())
+			),
 			Error::<Test>::AlreadyInitialized
 		);
 
@@ -268,7 +302,7 @@ fn test_initialize_sets_deposit() {
 			RuntimeOrigin::signed(1),
 			admin,
 			initial_deposit,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		assert_eq!(Signet::signature_deposit(), initial_deposit);
@@ -277,7 +311,7 @@ fn test_initialize_sets_deposit() {
 			Event::Initialized {
 				admin,
 				signature_deposit: initial_deposit,
-				chain_id: b"test-chain".to_vec(),
+				chain_id: bounded_chain_id(b"test-chain".to_vec()).to_vec(),
 			}
 			.into(),
 		);
@@ -295,7 +329,7 @@ fn test_update_deposit_as_admin() {
 			RuntimeOrigin::signed(1),
 			admin,
 			initial_deposit,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		assert_ok!(Signet::update_deposit(RuntimeOrigin::signed(admin), new_deposit));
@@ -321,7 +355,7 @@ fn test_non_admin_cannot_update_deposit() {
 			RuntimeOrigin::signed(1),
 			admin,
 			1000,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		assert_noop!(
@@ -354,7 +388,7 @@ fn test_withdraw_funds_as_admin() {
 			RuntimeOrigin::signed(1),
 			admin,
 			1000,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		let pallet_account = Signet::account_id();
@@ -382,7 +416,7 @@ fn test_non_admin_cannot_withdraw() {
 			RuntimeOrigin::signed(1),
 			admin,
 			1000,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		let pallet_account = Signet::account_id();
@@ -404,7 +438,7 @@ fn test_cannot_withdraw_more_than_balance() {
 			RuntimeOrigin::signed(1),
 			admin,
 			1000,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		let pallet_account = Signet::account_id();
@@ -440,16 +474,16 @@ fn test_sign_request_works() {
 			RuntimeOrigin::signed(1),
 			admin,
 			deposit,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		let balance_before = Balances::free_balance(&requester);
 		let payload = [42u8; 32];
 		let key_version = 1u32;
-		let path = b"path".to_vec();
-		let algo = b"ecdsa".to_vec();
-		let dest = b"callback_contract".to_vec();
-		let params = b"{}".to_vec();
+		let path = bounded_u8::<256>(b"path".to_vec());
+		let algo = bounded_u8::<32>(b"ecdsa".to_vec());
+		let dest = bounded_u8::<64>(b"callback_contract".to_vec());
+		let params = bounded_u8::<1024>(b"{}".to_vec());
 
 		assert_ok!(Signet::sign(
 			RuntimeOrigin::signed(requester),
@@ -471,11 +505,11 @@ fn test_sign_request_works() {
 				payload,
 				key_version,
 				deposit,
-				chain_id: b"test-chain".to_vec(),
-				path,
-				algo,
-				dest,
-				params,
+				chain_id: bounded_chain_id(b"test-chain".to_vec()).to_vec(),
+				path: path.to_vec(),
+				algo: algo.to_vec(),
+				dest: dest.to_vec(),
+				params: params.to_vec(),
 			}
 			.into(),
 		);
@@ -493,7 +527,7 @@ fn test_sign_request_insufficient_balance() {
 			RuntimeOrigin::signed(1),
 			admin,
 			deposit,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		assert_noop!(
@@ -501,10 +535,10 @@ fn test_sign_request_insufficient_balance() {
 				RuntimeOrigin::signed(poor_user),
 				[0u8; 32],
 				1,
-				b"path".to_vec(),
-				b"algo".to_vec(),
-				b"dest".to_vec(),
-				b"params".to_vec()
+				bounded_u8::<256>(b"path".to_vec()),
+				bounded_u8::<32>(b"algo".to_vec()),
+				bounded_u8::<64>(b"dest".to_vec()),
+				bounded_u8::<1024>(b"params".to_vec())
 			),
 			sp_runtime::TokenError::FundsUnavailable
 		);
@@ -519,10 +553,10 @@ fn test_sign_request_before_initialization() {
 				RuntimeOrigin::signed(1),
 				[0u8; 32],
 				1,
-				b"path".to_vec(),
-				b"algo".to_vec(),
-				b"dest".to_vec(),
-				b"params".to_vec()
+				bounded_u8::<256>(b"path".to_vec()),
+				bounded_u8::<32>(b"algo".to_vec()),
+				bounded_u8::<64>(b"dest".to_vec()),
+				bounded_u8::<1024>(b"params".to_vec())
 			),
 			Error::<Test>::NotInitialized
 		);
@@ -541,7 +575,7 @@ fn test_multiple_sign_requests() {
 			RuntimeOrigin::signed(1),
 			admin,
 			deposit,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		let pallet_account = Signet::account_id();
@@ -550,10 +584,10 @@ fn test_multiple_sign_requests() {
 			RuntimeOrigin::signed(requester1),
 			[1u8; 32],
 			1,
-			b"path1".to_vec(),
-			b"algo".to_vec(),
-			b"dest".to_vec(),
-			b"params".to_vec()
+			bounded_u8::<256>(b"path1".to_vec()),
+			bounded_u8::<32>(b"algo".to_vec()),
+			bounded_u8::<64>(b"dest".to_vec()),
+			bounded_u8::<1024>(b"params".to_vec())
 		));
 
 		assert_eq!(Balances::free_balance(&pallet_account), deposit);
@@ -562,10 +596,10 @@ fn test_multiple_sign_requests() {
 			RuntimeOrigin::signed(requester2),
 			[2u8; 32],
 			2,
-			b"path2".to_vec(),
-			b"algo".to_vec(),
-			b"dest".to_vec(),
-			b"params".to_vec()
+			bounded_u8::<256>(b"path2".to_vec()),
+			bounded_u8::<32>(b"algo".to_vec()),
+			bounded_u8::<64>(b"dest".to_vec()),
+			bounded_u8::<1024>(b"params".to_vec())
 		));
 
 		assert_eq!(Balances::free_balance(&pallet_account), deposit * 2);
@@ -594,7 +628,7 @@ fn test_sign_respond_works() {
 			RuntimeOrigin::signed(1),
 			admin,
 			deposit,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		let tx_data = b"mock_transaction_data".to_vec();
@@ -603,17 +637,17 @@ fn test_sign_respond_works() {
 
 		assert_ok!(Signet::sign_respond(
 			RuntimeOrigin::signed(requester),
-			tx_data.clone(),
+			bounded_u8::<65536>(tx_data.clone()),
 			slip44_chain_id,
 			1,
-			b"path".to_vec(),
-			b"ecdsa".to_vec(),
-			b"callback".to_vec(),
-			b"{}".to_vec(),
+			bounded_u8::<256>(b"path".to_vec()),
+			bounded_u8::<32>(b"ecdsa".to_vec()),
+			bounded_u8::<64>(b"callback".to_vec()),
+			bounded_u8::<1024>(b"{}".to_vec()),
 			SerializationFormat::AbiJson,
-			b"schema1".to_vec(),
+			bounded_u8::<4096>(b"schema1".to_vec()),
 			SerializationFormat::Borsh,
-			b"schema2".to_vec()
+			bounded_u8::<4096>(b"schema2".to_vec())
 		));
 
 		assert_eq!(Balances::free_balance(&requester), balance_before - deposit);
@@ -636,23 +670,23 @@ fn test_sign_respond_empty_transaction_fails() {
 			RuntimeOrigin::signed(1),
 			admin,
 			100,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		assert_noop!(
 			Signet::sign_respond(
 				RuntimeOrigin::signed(requester),
-				vec![],
+				bounded_u8::<65536>(vec![]),
 				60,
 				1,
-				b"path".to_vec(),
-				b"algo".to_vec(),
-				b"dest".to_vec(),
-				b"params".to_vec(),
+				bounded_u8::<256>(b"path".to_vec()),
+				bounded_u8::<32>(b"algo".to_vec()),
+				bounded_u8::<64>(b"dest".to_vec()),
+				bounded_u8::<1024>(b"params".to_vec()),
 				SerializationFormat::Borsh,
-				vec![],
+				bounded_u8::<4096>(vec![]),
 				SerializationFormat::Borsh,
-				vec![]
+				bounded_u8::<4096>(vec![])
 			),
 			Error::<Test>::InvalidTransaction
 		);
@@ -668,8 +702,8 @@ fn test_respond_single() {
 
 		assert_ok!(Signet::respond(
 			RuntimeOrigin::signed(responder),
-			vec![request_id],
-			vec![signature.clone()]
+			bounded_array::<100>(vec![request_id]),
+			bounded_sig::<100>(vec![signature.clone()])
 		));
 
 		System::assert_last_event(
@@ -696,8 +730,8 @@ fn test_respond_batch() {
 
 		assert_ok!(Signet::respond(
 			RuntimeOrigin::signed(responder),
-			request_ids.clone(),
-			signatures.clone()
+			bounded_array::<100>(request_ids.clone()),
+			bounded_sig::<100>(signatures.clone())
 		));
 
 		let events = System::events();
@@ -717,12 +751,12 @@ fn test_respond_mismatched_arrays_fails() {
 		assert_noop!(
 			Signet::respond(
 				RuntimeOrigin::signed(responder),
-				vec![[1u8; 32], [2u8; 32]],
-				vec![
+				bounded_array::<100>(vec![[1u8; 32], [2u8; 32]]),
+				bounded_sig::<100>(vec![
 					create_test_signature(),
 					create_test_signature(),
 					create_test_signature(),
-				]
+				])
 			),
 			Error::<Test>::InvalidInputLength
 		);
@@ -735,12 +769,12 @@ fn test_respond_error_single() {
 		let responder = 1u64;
 		let error_response = ErrorResponse {
 			request_id: [99u8; 32],
-			error_message: b"Signature generation failed".to_vec(),
+			error_message: bounded_u8::<1024>(b"Signature generation failed".to_vec()),
 		};
 
 		assert_ok!(Signet::respond_error(
 			RuntimeOrigin::signed(responder),
-			vec![error_response]
+			bounded_err::<100>(vec![error_response])
 		));
 
 		System::assert_last_event(
@@ -761,15 +795,18 @@ fn test_respond_error_batch() {
 		let errors = vec![
 			ErrorResponse {
 				request_id: [1u8; 32],
-				error_message: b"Error 1".to_vec(),
+				error_message: bounded_u8::<1024>(b"Error 1".to_vec()),
 			},
 			ErrorResponse {
 				request_id: [2u8; 32],
-				error_message: b"Error 2".to_vec(),
+				error_message: bounded_u8::<1024>(b"Error 2".to_vec()),
 			},
 		];
 
-		assert_ok!(Signet::respond_error(RuntimeOrigin::signed(responder), errors));
+		assert_ok!(Signet::respond_error(
+			RuntimeOrigin::signed(responder),
+			bounded_err::<100>(errors)
+		));
 
 		let events = System::events();
 		let error_events = events
@@ -791,7 +828,7 @@ fn test_read_respond() {
 		assert_ok!(Signet::read_respond(
 			RuntimeOrigin::signed(responder),
 			request_id,
-			output.clone(),
+			bounded_u8::<65536>(output.clone()),
 			signature.clone()
 		));
 
@@ -812,7 +849,7 @@ fn test_sign_includes_chain_id() {
 	new_test_ext().execute_with(|| {
 		let admin = 1u64;
 		let requester = 2u64;
-		let chain_id = b"hydradx:polkadot:0".to_vec();
+		let chain_id = bounded_chain_id(b"hydradx:polkadot:0".to_vec());
 
 		assert_ok!(Signet::initialize(
 			RuntimeOrigin::signed(1),
@@ -825,10 +862,10 @@ fn test_sign_includes_chain_id() {
 			RuntimeOrigin::signed(requester),
 			[42u8; 32],
 			1,
-			b"path".to_vec(),
-			b"algo".to_vec(),
-			b"dest".to_vec(),
-			b"params".to_vec()
+			bounded_u8::<256>(b"path".to_vec()),
+			bounded_u8::<32>(b"algo".to_vec()),
+			bounded_u8::<64>(b"dest".to_vec()),
+			bounded_u8::<1024>(b"params".to_vec())
 		));
 
 		let events = System::events();
@@ -844,7 +881,7 @@ fn test_sign_includes_chain_id() {
 			}
 		});
 
-		assert_eq!(sign_event, Some(chain_id));
+		assert_eq!(sign_event, Some(chain_id.to_vec()));
 	});
 }
 
@@ -856,7 +893,7 @@ fn test_cross_pallet_execution() {
 			RuntimeOrigin::signed(1),
 			1,
 			100,
-			b"test-chain".to_vec()
+			bounded_chain_id(b"test-chain".to_vec())
 		));
 
 		// Fund the MockCaller pallet's account
@@ -873,7 +910,7 @@ fn test_cross_pallet_execution() {
 				payload: [99u8; 32],
 				key_version: 1,
 				deposit: 100,
-				chain_id: b"test-chain".to_vec(),
+				chain_id: bounded_chain_id(b"test-chain".to_vec()).to_vec(),
 				path: b"from_pallet".to_vec(),
 				algo: b"ecdsa".to_vec(),
 				dest: b"".to_vec(),

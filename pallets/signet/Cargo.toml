@@ -1,7 +1,7 @@
 [package]
 name = "pallet-signet"
 version = "1.0.0"
-authors = ["GalacticCouncil"]
+authors = ["Signet"]
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/galacticcouncil/hydradx-node"
