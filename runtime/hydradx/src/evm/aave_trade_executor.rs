@@ -134,48 +134,6 @@ where
 	NonceIdOf<T>: Into<T::Nonce>,
 	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
 {
-	pub fn transfer(
-		contract: EvmAddress,
-		from: &AccountId,
-		to: &AccountId,
-		amount: Balance,
-		erc20_transfer: impl FnOnce() -> DispatchResult,
-	) -> DispatchResult {
-		let Some(atoken) = HydraErc20Mapping::address_to_asset(contract) else {
-			return Err(DispatchError::Other("Not an Aave token"));
-		};
-		let Some(underlying_asset) = Self::get_underlying_asset(atoken) else {
-			return Err(DispatchError::Other("Not an Aave token"));
-		};
-		let ed = pallet_asset_registry::Pallet::<T>::existential_deposit(atoken).unwrap_or_default();
-		let atoken_balance = <Erc20Currency<T> as ERC20>::balance_of(
-			CallContext::new_view(contract),
-			EvmAccounts::<T>::evm_address(from),
-		);
-		let diff = atoken_balance.saturating_sub(amount);
-		if diff <= ed {
-			//We withdraw all AToken and supply underlying asset amount on behalf of the receiver
-			//We need to do this as Aave ScaledBalanceTokenBase.sol has rounding in transfer method so we can't always transfer total balance
-			let underlying_balance_before = <Erc20Currency<T> as ERC20>::balance_of(
-				CallContext::new_view(underlying_asset),
-				EvmAccounts::<T>::evm_address(from),
-			);
-
-			AaveTradeExecutor::<T>::do_withdraw_all(from, underlying_asset)?;
-
-			let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
-				CallContext::new_view(underlying_asset),
-				EvmAccounts::<T>::evm_address(from),
-			);
-
-			let amount_to_supply = underlying_balance_after.saturating_sub(underlying_balance_before);
-			Self::do_supply_on_behalf_of(from, to, underlying_asset, amount_to_supply)
-		} else {
-			//When we don't transfer total balance of atokens
-			erc20_transfer()
-		}
-	}
-
 	pub fn is_atoken(address: EvmAddress) -> bool {
 		let Some(atoken) = HydraErc20Mapping::address_to_asset(address) else {
 			return false;
