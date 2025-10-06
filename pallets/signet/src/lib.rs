@@ -14,6 +14,23 @@ pub use pallet::*;
 // Type alias for cleaner code
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+/// Maximum length for paths, algorithms, destinations, and parameters
+const MAX_PATH_LENGTH: u32 = 256;
+const MAX_ALGO_LENGTH: u32 = 32;
+const MAX_DEST_LENGTH: u32 = 64;
+const MAX_PARAMS_LENGTH: u32 = 1024;
+
+/// Maximum length for transaction data and serialized outputs
+const MAX_TRANSACTION_LENGTH: u32 = 65536; // 64 KB
+const MAX_SERIALIZED_OUTPUT_LENGTH: u32 = 65536; // 64 KB
+
+/// Maximum length for schemas and error messages
+const MAX_SCHEMA_LENGTH: u32 = 4096; // 4 KB
+const MAX_ERROR_MESSAGE_LENGTH: u32 = 1024;
+
+/// Maximum batch sizes
+const MAX_BATCH_SIZE: u32 = 100;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
 
@@ -78,7 +95,7 @@ pub mod pallet {
 	#[derive(Encode, Decode, TypeInfo, Debug, Clone, PartialEq, Eq)]
 	pub struct ErrorResponse {
 		pub request_id: [u8; 32],
-		pub error_message: Vec<u8>,
+		pub error_message: BoundedVec<u8, ConstU32<MAX_ERROR_MESSAGE_LENGTH>>,
 	}
 
 	// ========================================
@@ -214,7 +231,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			admin: T::AccountId,
 			signature_deposit: BalanceOf<T>,
-			chain_id: Vec<u8>,
+			chain_id: BoundedVec<u8, T::MaxChainIdLength>,
 		) -> DispatchResult {
 			let _initializer = ensure_signed(origin)?;
 			ensure!(Admin::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
@@ -229,7 +246,7 @@ pub mod pallet {
 			Self::deposit_event(Event::Initialized {
 				admin,
 				signature_deposit,
-				chain_id,
+				chain_id: chain_id.to_vec(),
 			});
 
 			Ok(())
@@ -280,10 +297,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			payload: [u8; 32],
 			key_version: u32,
-			path: Vec<u8>,
-			algo: Vec<u8>,
-			dest: Vec<u8>,
-			params: Vec<u8>,
+			path: BoundedVec<u8, ConstU32<MAX_PATH_LENGTH>>,
+			algo: BoundedVec<u8, ConstU32<MAX_ALGO_LENGTH>>,
+			dest: BoundedVec<u8, ConstU32<MAX_DEST_LENGTH>>,
+			params: BoundedVec<u8, ConstU32<MAX_PARAMS_LENGTH>>,
 		) -> DispatchResult {
 			let requester = ensure_signed(origin)?;
 
@@ -307,10 +324,10 @@ pub mod pallet {
 				key_version,
 				deposit,
 				chain_id,
-				path,
-				algo,
-				dest,
-				params,
+				path: path.to_vec(),
+				algo: algo.to_vec(),
+				dest: dest.to_vec(),
+				params: params.to_vec(),
 			});
 
 			Ok(())
@@ -321,17 +338,17 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::sign_respond())]
 		pub fn sign_respond(
 			origin: OriginFor<T>,
-			serialized_transaction: Vec<u8>,
+			serialized_transaction: BoundedVec<u8, ConstU32<MAX_TRANSACTION_LENGTH>>,
 			slip44_chain_id: u32,
 			key_version: u32,
-			path: Vec<u8>,
-			algo: Vec<u8>,
-			dest: Vec<u8>,
-			params: Vec<u8>,
+			path: BoundedVec<u8, ConstU32<MAX_PATH_LENGTH>>,
+			algo: BoundedVec<u8, ConstU32<MAX_ALGO_LENGTH>>,
+			dest: BoundedVec<u8, ConstU32<MAX_DEST_LENGTH>>,
+			params: BoundedVec<u8, ConstU32<MAX_PARAMS_LENGTH>>,
 			explorer_deserialization_format: SerializationFormat,
-			explorer_deserialization_schema: Vec<u8>,
+			explorer_deserialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>>,
 			callback_serialization_format: SerializationFormat,
-			callback_serialization_schema: Vec<u8>,
+			callback_serialization_schema: BoundedVec<u8, ConstU32<MAX_SCHEMA_LENGTH>>,
 		) -> DispatchResult {
 			let requester = ensure_signed(origin)?;
 
@@ -351,18 +368,18 @@ pub mod pallet {
 			// Emit event
 			Self::deposit_event(Event::SignRespondRequested {
 				sender: requester,
-				transaction_data: serialized_transaction,
+				transaction_data: serialized_transaction.to_vec(),
 				slip44_chain_id,
 				key_version,
 				deposit,
-				path,
-				algo,
-				dest,
-				params,
+				path: path.to_vec(),
+				algo: algo.to_vec(),
+				dest: dest.to_vec(),
+				params: params.to_vec(),
 				explorer_deserialization_format: explorer_deserialization_format as u8,
-				explorer_deserialization_schema,
+				explorer_deserialization_schema: explorer_deserialization_schema.to_vec(),
 				callback_serialization_format: callback_serialization_format as u8,
-				callback_serialization_schema,
+				callback_serialization_schema: callback_serialization_schema.to_vec(),
 			});
 
 			Ok(())
@@ -371,7 +388,11 @@ pub mod pallet {
 		/// Respond to signature requests (batch support)
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::respond(request_ids.len() as u32))]
-		pub fn respond(origin: OriginFor<T>, request_ids: Vec<[u8; 32]>, signatures: Vec<Signature>) -> DispatchResult {
+		pub fn respond(
+			origin: OriginFor<T>,
+			request_ids: BoundedVec<[u8; 32], ConstU32<MAX_BATCH_SIZE>>,
+			signatures: BoundedVec<Signature, ConstU32<MAX_BATCH_SIZE>>,
+		) -> DispatchResult {
 			let responder = ensure_signed(origin)?;
 
 			// Validate input lengths
@@ -392,7 +413,10 @@ pub mod pallet {
 		/// Report signature generation errors (batch support)
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::respond_error(errors.len() as u32))]
-		pub fn respond_error(origin: OriginFor<T>, errors: Vec<ErrorResponse>) -> DispatchResult {
+		pub fn respond_error(
+			origin: OriginFor<T>,
+			errors: BoundedVec<ErrorResponse, ConstU32<MAX_BATCH_SIZE>>,
+		) -> DispatchResult {
 			let responder = ensure_signed(origin)?;
 
 			// Emit error events
@@ -400,7 +424,7 @@ pub mod pallet {
 				Self::deposit_event(Event::SignatureError {
 					request_id: error.request_id,
 					responder: responder.clone(),
-					error: error.error_message,
+					error: error.error_message.to_vec(),
 				});
 			}
 
@@ -413,16 +437,16 @@ pub mod pallet {
 		pub fn read_respond(
 			origin: OriginFor<T>,
 			request_id: [u8; 32],
-			serialized_output: Vec<u8>,
+			serialized_output: BoundedVec<u8, ConstU32<MAX_SERIALIZED_OUTPUT_LENGTH>>,
 			signature: Signature,
 		) -> DispatchResult {
 			let responder = ensure_signed(origin)?;
 
-			// Just emit event 
+			// Just emit event
 			Self::deposit_event(Event::ReadResponded {
 				request_id,
 				responder,
-				serialized_output,
+				serialized_output: serialized_output.to_vec(),
 				signature,
 			});
 
