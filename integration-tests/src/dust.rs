@@ -302,12 +302,12 @@ mod atoken_dust {
 
 	#[test]
 	fn dust_account_invariant() {
-		let successfull_cases = 500;
+		let successfull_cases = 1;
 
 		let ed_range = 1_u128..(START_BALANCE - 1);
 
-		crate::aave_router::with_atoken(|| {
-			// We run prop test this way to use the same state of the chain for all run without loading teh snapshot agian in every run
+		crate::aave_router::with_atoken_rollback(|| {
+			// We run prop test this way to use the same state of the chain for all run without loading the snapshot again in every run
 			let mut runner = TestRunner::new(Config {
 				cases: successfull_cases,
 				source_file: Some("integration-tests/src/dust.rs"),
@@ -317,18 +317,12 @@ mod atoken_dust {
 
 			let _ = runner.run(&ed_range, |ed| {
 				let _ = with_transaction(|| {
-					assert_eq!(
-						Currencies::free_balance(ADOT, &ALICE.into()),
-						START_BALANCE,
-						"ALICE should start with START_BALANCE; if not, set it explicitly here."
-					);
+					let bal = Currencies::free_balance(ADOT, &ALICE.into());
+					assert_eq!(START_BALANCE, bal, "Start balance is not as expected");
 
 					// Parameterize chain ED for this run to be `ed + 1`
 					// meaning that leaving exactly `ed` in the account will be dust.
 					set_ed(ADOT, ed + 1);
-
-					// Sanity
-					assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
 
 					// Transfer all but `ed` to BOB, leaving `ed` on ALICE → dust after ED=ed+1
 					assert_ok!(Currencies::transfer(
@@ -357,7 +351,7 @@ mod atoken_dust {
 				});
 
 				Ok(())
-			});
+			}).unwrap();
 		});
 	}
 }

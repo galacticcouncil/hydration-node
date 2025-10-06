@@ -46,6 +46,19 @@ pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
 
 pub fn with_aave(execution: impl FnOnce()) {
+	with_aave_of_transaction_outcome(execution, TransactionOutcome::Commit(Ok::<(),DispatchError>(())))
+}
+
+
+// We need this for invariant tests, where we set up the base once (as it takes time to load snapshot),
+// then not sharing state between prop test runs
+pub fn with_aave_rollback(execution: impl FnOnce()) {
+	with_aave_of_transaction_outcome(execution, TransactionOutcome::Rollback(Ok::<(),DispatchError>(())))
+}
+
+pub fn with_aave_of_transaction_outcome<T, U>(execution: impl FnOnce(), outcome: TransactionOutcome<Result<T, U>>)
+where U: From<DispatchError>
+{
 	TestNet::reset();
 	// Snapshot contains the storage of EVM, AssetRegistry, Timestamp, Omnipool and Tokens pallets
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
@@ -66,7 +79,7 @@ pub fn with_aave(execution: impl FnOnce()) {
 			pap_contract,
 			RUNTIME_API_CALLER,
 		)
-		.unwrap();
+			.unwrap();
 		assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
@@ -77,10 +90,11 @@ pub fn with_aave(execution: impl FnOnce()) {
 
 		let _ = with_transaction(|| {
 			execution();
-			TransactionOutcome::Commit(DispatchResult::Ok(()))
+			outcome
 		});
 	});
 }
+
 
 #[test]
 fn transfer_all() {
@@ -124,6 +138,26 @@ fn transfer_all() {
 
 pub fn with_atoken(execution: impl FnOnce()) {
 	with_aave(|| {
+		assert_ok!(Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			BAG,
+			BAG + 2, //Tiny we charge due token-atoken is not always 1:1,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+		execution();
+	})
+}
+
+pub fn with_atoken_rollback(execution: impl FnOnce()) {
+	with_aave_rollback(|| {
 		assert_ok!(Router::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			DOT,
