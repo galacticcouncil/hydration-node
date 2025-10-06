@@ -194,6 +194,7 @@ construct_runtime!(
 		Parameters: pallet_parameters = 83,
 		BuildEvmTx: pallet_build_evm_tx = 86,
 		Signet: pallet_signet = 84,
+		Erc20Vault: pallet_erc20_vault = 85,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -348,6 +349,7 @@ mod benches {
 		[ismp_parachain, IsmpParachain]
 		[pallet_token_gateway, TokenGateway]
 		[pallet_signet, Signet]
+		[pallet_erc20_vault, Erc20Vault]
 	);
 }
 

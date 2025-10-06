@@ -1853,6 +1853,15 @@ impl pallet_signet::Config for Runtime {
 	type WeightInfo = weights::pallet_signet::HydraWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const Erc20VaultPalletId: PalletId = PalletId(*b"py/erc20");
+}
+
+impl pallet_erc20_vault::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type VaultPalletId = Erc20VaultPalletId;
+}
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where

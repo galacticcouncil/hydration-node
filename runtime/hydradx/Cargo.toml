@@ -93,6 +93,7 @@ pallet-whitelist = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 pallet-signet = { workspace = true }
+pallet-erc20-vault = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -260,6 +261,7 @@ runtime-benchmarks = [
     "ismp-parachain/runtime-benchmarks",
     "pallet-token-gateway/runtime-benchmarks",
     "pallet-signet/runtime-benchmarks",
+    "pallet-erc20-vault/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -396,6 +398,7 @@ std = [
     "ismp-parachain/std",
     "ismp-parachain-runtime-api/std",
     "pallet-signet/std",
+    "pallet-erc20-vault/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -476,6 +479,7 @@ try-runtime = [
     "pallet-broadcast/try-runtime",
     "pallet-dispatcher/try-runtime",
     "pallet-signet/try-runtime",
+    "pallet-erc20-vault/try-runtime",
 ]
 
 metadata-hash = [

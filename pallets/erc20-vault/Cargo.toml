@@ -1,0 +1,73 @@
+[package]
+name = "pallet-erc20-vault"
+version = "1.0.0"
+authors = ["Signet"]
+edition = "2021"
+license = "Apache-2.0"
+description = "ERC20 vault pallet for cross-chain token deposits via MPC"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true }
+scale-info = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+
+# Ethereum ABI encoding
+alloy-sol-types = { version = "=0.7.6", default-features = false, features = ["json"] }
+alloy-primitives = { version = "=0.7.7", default-features = false }
+
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+
+pallet-build-evm-tx = { path = "../build-evm-tx", default-features = false }
+pallet-signet = { path = "../signet", default-features = false }
+
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+pallet-balances = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+secp256k1 = { version = "0.27", features = ["recovery", "global-context"] }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-core/std",
+    "sp-io/std",
+    "frame-benchmarking?/std",
+    "alloy-sol-types/std",
+    "alloy-primitives/std",
+    "serde/std",
+    "serde_json/std",
+    "pallet-build-evm-tx/std",
+    "pallet-signet/std",
+    "hex/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]
+
+[target.'cfg(not(feature = "std"))'.dependencies]
+borsh = { version = "1.5", default-features = false, features = ["derive", "hashbrown"] }
+
+[target.'cfg(feature = "std")'.dependencies]
+borsh = { version = "1.5", default-features = false, features = ["derive", "std"] }
