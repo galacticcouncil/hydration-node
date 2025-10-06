@@ -319,7 +319,7 @@ where
 					} else {
 						tracing::info!(target: LOG_TARGET, "liquidation-worker: Skipping liquidation worker for non-canon block.")
 					}
-				}
+				},
 				Some(new_transaction_notification) = transaction_notification_stream.next() => {
 					let Some(pool_tx) = transaction_pool.clone().ready_transaction(&new_transaction_notification) else {
 						continue
@@ -342,7 +342,10 @@ where
 						// Send the message to the liquidation worker thread.
 						let _ = worker_channel_tx.send(MessageType::Transaction(TransactionType::OracleUpdate(oracle_data)));
 					}
-				}
+				},
+				// Streams are "fused" and return `None` when they are exhausted.
+				// We don't expect to get here, but if we do, we want to exit the loop and prevent panic.
+				else => break
 			}
 		}
 	}
