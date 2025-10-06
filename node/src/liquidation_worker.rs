@@ -15,7 +15,7 @@ use hyperv14 as hyper;
 use liquidation_worker_support::*;
 use pallet_ethereum::Transaction;
 use polkadot_primitives::EncodeAs;
-use primitives::{AccountId, BlockNumber};
+use primitives::AccountId;
 use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
@@ -67,8 +67,6 @@ const ORACLE_UPDATE_CALL_ADDRESS: &[EvmAddress] = &[
 // Target value of HF we try to liquidate to.
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 
-// Failed liquidations are suspended for this number of blocks before we try to execute them again.
-const WAIT_PERIOD: BlockNumber = 10;
 const OMNIWATCH_URL: &str = "https://omniwatch.play.hydration.cloud/api/borrowers/by-health";
 
 type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
@@ -180,9 +178,6 @@ enum LiquidationWorkerTask {
 	WaitForNewTransaction,
 }
 
-#[derive(Hash, Eq, PartialEq, Clone, RuntimeDebug)]
-struct TransactionHash(pub [u8; 8]);
-
 pub struct LiquidationTask<B, C, BE, P>(PhantomData<(B, C, BE, P)>);
 
 impl<B, C, BE, P> LiquidationTask<B, C, BE, P>
@@ -199,7 +194,6 @@ where
 	/// Starting point for the liquidation worker.
 	/// Executes `on_block_imported` on every block.
 	/// The initial list of borrowers is fetched and sorted by the HF.
-	/// `tx_waitlist` is initialized here because it's persistent between liquidation runs.
 	pub async fn run(
 		client: Arc<C>,
 		config: LiquidationWorkerConfig,
@@ -445,11 +439,9 @@ where
 		borrowers: &mut [Borrower],
 		borrower: &Borrower,
 		updated_assets: Option<&Vec<AssetAddress>>,
-		tx_waitlist: &mut HashMap<TransactionHash, <<B as BlockT>::Header as Header>::Number>,
 		money_market: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
 		liquidated_users: &mut Vec<UserAddress>,
 	) -> Result<(), ()> {
-		let current_block_number = *header.number();
 		let runtime_api = client.runtime_api();
 		let hash = header.hash();
 
@@ -531,33 +523,6 @@ where
 			let opaque_tx =
 				sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
 
-			let tx_hash = TransactionHash(sp_core::blake2_64(&encoded));
-
-			// skip the execution if the transaction is in the waitlist
-			if tx_waitlist.iter().any(|(key, _)| *key == tx_hash) {
-				// TX is still on hold, skip the execution
-				tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} transaction is still on hold", header.number());
-				return Ok(());
-			};
-
-			// TODO: remove dry_run because it runs on "old" state
-			// dry run to prevent spamming with extrinsics that will fail (e.g. because of not being profitable)
-			let dry_run_result = ApiProvider::<&C::Api>(runtime_api.deref()).dry_run_call(
-				hash,
-				hydradx_runtime::RuntimeOrigin::none().caller,
-				liquidation_tx,
-			);
-
-			if let Ok(Ok(call_result)) = dry_run_result {
-				if let Err(error) = call_result.execution_result {
-					tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} Dry running liquidation failed for user {:?} ,assets {:?} {:?} and debt amount {:?} with reason: {:?}", header.number(), borrower.user_address, collateral_asset_id, debt_asset_id, debt_to_liquidate, error);
-
-					// put the failed tx on hold for `WAIT_PERIOD` number of blocks
-					tx_waitlist.insert(tx_hash, current_block_number);
-					return Ok(());
-				}
-			}
-
 			// There is no guarantee that the TX will be executed and with the result we expect. The HF after the execution can be slightly different than what we can predict.
 			// Reset the HF to 0 so it will be recalculated again.
 			borrower.health_factor = U256::zero();
@@ -611,10 +576,6 @@ where
 		// We don't try to liquidate a user more than once in a block.
 		let mut liquidated_users = Vec::<UserAddress>::new();
 
-		// List of liquidations that failed and are postponed to not block other possible liquidations.
-		// We stored the block number when tx failed.
-		let mut tx_waitlist = HashMap::<TransactionHash, <<B as BlockT>::Header as Header>::Number>::new();
-
 		let mut current_task = LiquidationWorkerTask::WaitForNewTransaction;
 
 		'main_loop: loop {
@@ -632,7 +593,6 @@ where
 						&mut money_market,
 						&mut borrowers,
 						&mut borrowers_c,
-						&mut tx_waitlist,
 						&mut liquidated_users,
 						&mut current_evm_timestamp,
 					);
@@ -670,7 +630,6 @@ where
 									&mut money_market,
 									&mut borrowers,
 									&mut borrowers_c,
-									&mut tx_waitlist,
 									&mut liquidated_users,
 									&mut current_evm_timestamp,
 								);
@@ -697,7 +656,6 @@ where
 							&mut borrowers,
 							borrower,
 							None,
-							&mut tx_waitlist,
 							&mut money_market,
 							&mut liquidated_users,
 						) {
@@ -739,7 +697,6 @@ where
 									&mut money_market,
 									&mut borrowers,
 									&mut borrowers_c,
-									&mut tx_waitlist,
 									&mut liquidated_users,
 									&mut current_evm_timestamp,
 								);
@@ -768,7 +725,6 @@ where
 							&mut borrowers,
 							borrower,
 							Some(&updated_assets),
-							&mut tx_waitlist,
 							&mut money_market,
 							&mut liquidated_users,
 						) {
@@ -797,7 +753,6 @@ where
 								&mut money_market,
 								&mut borrowers,
 								&mut borrowers_c,
-								&mut tx_waitlist,
 								&mut liquidated_users,
 								&mut current_evm_timestamp,
 							);
@@ -869,7 +824,6 @@ where
 		money_market: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
 		borrowers: &mut [Borrower],
 		borrowers_c: &mut Vec<Borrower>,
-		tx_waitlist: &mut HashMap<TransactionHash, <<B as BlockT>::Header as Header>::Number>,
 		liquidated_users: &mut Vec<UserAddress>,
 		current_evm_timestamp: &mut u64,
 	) {
@@ -892,10 +846,6 @@ where
 		*money_market = new_money_market;
 
 		*borrowers_c = borrowers.to_owned();
-
-		// `tx_waitlist` maintenance.
-		// Remove all transactions that are older than WAIT_PERIOD blocks and can be executed again.
-		tx_waitlist.retain(|_, block_num| *header.number() < *block_num + WAIT_PERIOD.into());
 
 		liquidated_users.clear();
 
