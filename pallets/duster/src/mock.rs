@@ -11,15 +11,15 @@ use frame_system as system;
 
 use sp_core::H256;
 
+use frame_support::weights::Weight;
+use frame_system::EnsureRoot;
+use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust, EvmAddress};
+use orml_traits::MultiCurrency;
+use pallet_currencies::fungibles::FungibleCurrencies;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-use orml_traits::MultiCurrency;
-use frame_support::weights::Weight;
-use frame_system::EnsureRoot;
-use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust, EvmAddress};
-use pallet_currencies::fungibles::FungibleCurrencies;
 use sp_std::cell::RefCell;
 use sp_std::vec::Vec;
 
@@ -28,8 +28,8 @@ pub type AssetId = u32;
 type Balance = u128;
 type Amount = i128;
 
-pub const ATOKEN : u32 = 1005u32;
-pub const ATOKEN_ED : u128 = 1000u128;
+pub const ATOKEN: u32 = 1005u32;
+pub const ATOKEN_ED: u128 = 1000u128;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -175,7 +175,12 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenDusterMock {
 		// Simulate the AToken withdraw and supply by transferring the balance
 		let balance = Tokens::free_balance(currency_id, account);
 		if balance < ATOKEN_ED {
-			Tokens::transfer(RuntimeOrigin::signed(*account), *dust_dest_account, currency_id, balance)?;
+			Tokens::transfer(
+				RuntimeOrigin::signed(*account),
+				*dust_dest_account,
+				currency_id,
+				balance,
+			)?;
 		}
 
 		Ok(())

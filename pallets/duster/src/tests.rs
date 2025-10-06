@@ -1,7 +1,7 @@
 use super::*;
 use crate::mock::{
-	AssetId, ATokenDusterMock, Currencies, Duster, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System,
-	Test, Tokens, ALICE, BOB, DUSTER, KILLED, TREASURY,
+	ATokenDusterMock, AssetId, Currencies, Duster, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System, Test,
+	Tokens, ALICE, BOB, DUSTER, KILLED, TREASURY,
 };
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_noop, assert_ok};
@@ -359,11 +359,11 @@ fn cannot_spam_with_dust_account() {
 }
 
 mod atoken {
-	use crate::mock::ATOKEN;
 	use super::*;
+	use crate::mock::ATOKEN;
 
 	#[test]
-	fn 	dusting_atoken_should_work() {
+	fn dusting_atoken_should_work() {
 		ExtBuilder::default()
 			.with_balance(*ALICE, ATOKEN, 100)
 			.build()
@@ -373,7 +373,10 @@ mod atoken {
 				ATokenDusterMock::set_atoken(ATOKEN);
 
 				let dust = 100;
-				assert_eq!(Tokens::set_balance(RuntimeOrigin::root(), *ALICE, ATOKEN, dust, 0), Ok(()));
+				assert_eq!(
+					Tokens::set_balance(RuntimeOrigin::root(), *ALICE, ATOKEN, dust, 0),
+					Ok(())
+				);
 
 				assert_eq!(Tokens::free_balance(ATOKEN, &*TREASURY), 0);
 
@@ -395,7 +398,7 @@ mod atoken {
 	}
 
 	#[test]
-	fn 	dusting_atoken_should_not_work_when_not_dustable() {
+	fn dusting_atoken_should_not_work_when_not_dustable() {
 		ExtBuilder::default()
 			.with_balance(*ALICE, ATOKEN, 100)
 			.build()
@@ -405,12 +408,18 @@ mod atoken {
 				ATokenDusterMock::set_atoken(ATOKEN);
 
 				let dust = 1000;
-				assert_eq!(Tokens::set_balance(RuntimeOrigin::root(), *ALICE, ATOKEN, dust, 0), Ok(()));
+				assert_eq!(
+					Tokens::set_balance(RuntimeOrigin::root(), *ALICE, ATOKEN, dust, 0),
+					Ok(())
+				);
 
 				assert_eq!(Tokens::free_balance(ATOKEN, &*TREASURY), 0);
 
 				// Act and assert
-				assert_noop!(Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, ATOKEN), Error::<Test>::BalanceSufficient);
+				assert_noop!(
+					Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, ATOKEN),
+					Error::<Test>::BalanceSufficient
+				);
 			});
 	}
 }

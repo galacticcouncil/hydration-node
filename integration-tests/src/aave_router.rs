@@ -34,13 +34,13 @@ use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
+use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::Balance;
 use sp_runtime::traits::Zero;
-use sp_runtime::{DispatchError, DispatchResult};
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
-use pallet_stableswap::MAX_ASSETS_IN_POOL;
+use sp_runtime::{DispatchError, DispatchResult};
 
 pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
@@ -909,8 +909,8 @@ mod transfer_atoken {
 }
 
 pub mod stableswap_with_atoken {
-	use hydradx_runtime::{RuntimeOrigin, Stableswap};
 	use super::*;
+	use hydradx_runtime::{RuntimeOrigin, Stableswap};
 
 	#[test]
 	fn add_liquidity_shares_should_not_work_when_user_has_not_enough_atoken_balance() {
@@ -928,18 +928,27 @@ pub mod stableswap_with_atoken {
 				None,
 				None,
 			)
-				.unwrap();
+			.unwrap();
 
 			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
 			let adot_asset_id = HydraErc20Mapping::asset_address(crate::aave_router::ADOT);
 
-			let (pool_id, _,_) = init_stableswap_with_atoken().unwrap();
+			let (pool_id, _, _) = init_stableswap_with_atoken().unwrap();
 
 			let alice_adot_balance = Currencies::free_balance(ADOT, &ALICE.into());
 			assert_eq!(alice_adot_balance, 1001);
 
 			//Should fail as alice has not enough asset to provide liquidity
-			assert_noop!(Stableswap::add_liquidity_shares(RuntimeOrigin::signed(ALICE.into()),pool_id, 666_000_000_000_000_000_000,ADOT, u128::MAX),  Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"));
+			assert_noop!(
+				Stableswap::add_liquidity_shares(
+					RuntimeOrigin::signed(ALICE.into()),
+					pool_id,
+					666_000_000_000_000_000_000,
+					ADOT,
+					u128::MAX
+				),
+				Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011")
+			);
 		})
 	}
 }
@@ -976,8 +985,13 @@ pub fn init_stableswap_with_atoken() -> Result<(AssetId, AssetId, AssetId), Disp
 	let initial_adot_liquidity = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()) - 1001;
 	//assert_eq!(initial_adot_liquidity, 999999999990000);
 	initial.push(AssetAmount::new(ADOT, initial_adot_liquidity));
-	Currencies::transfer(RuntimeOrigin::signed(ALICE.into()), AccountId::from(BOB), ADOT, initial_adot_liquidity)?;
-	assert_eq!( Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()), 1001);
+	Currencies::transfer(
+		RuntimeOrigin::signed(ALICE.into()),
+		AccountId::from(BOB),
+		ADOT,
+		initial_adot_liquidity,
+	)?;
+	assert_eq!(Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()), 1001);
 
 	//
 	let pool_id = AssetRegistry::register_sufficient_asset(

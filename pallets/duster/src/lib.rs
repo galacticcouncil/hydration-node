@@ -28,15 +28,17 @@ mod tests;
 pub mod migration;
 pub mod weights;
 pub use crate::weights::WeightInfo;
+use frame_support::sp_runtime::DispatchError;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::fungibles::Mutate;
+use frame_support::traits::tokens::Preservation;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
+use frame_system::ensure_signed;
 use hydradx_traits::evm::Erc20Inspect;
 use hydradx_traits::evm::Erc20OnDust;
+use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use orml_traits::GetByKey;
 use sp_runtime::traits::Zero;
-
-use frame_system::ensure_signed;
 
 use sp_std::convert::TryInto;
 
@@ -265,10 +267,6 @@ impl<T: Config> Contains<T::AccountId> for DusterWhitelist<T> {
 		AccountWhitelist::<T>::contains_key(t)
 	}
 }
-
-use frame_support::sp_runtime::DispatchError;
-use frame_support::traits::tokens::Preservation;
-use hydradx_traits::pools::DustRemovalAccountWhitelist;
 
 impl<T: Config> DustRemovalAccountWhitelist<T::AccountId> for Pallet<T> {
 	type Error = DispatchError;
