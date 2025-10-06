@@ -380,7 +380,7 @@ impl Contains<(Location, Vec<Asset>)> for OnlyTeleportHollar {
 		t.1.iter().all(|asset| {
 			log::trace!(target: "xcm::OnlyTeleportHollar", "Asset to be teleported: {:?}", asset);
 			if let Asset { id: asset_id, fun: Fungible(_) } = asset {
-				asset_id.0 == hollar
+				*asset_id == AssetId(hollar.clone())
 			} else {
 				false
 			}
