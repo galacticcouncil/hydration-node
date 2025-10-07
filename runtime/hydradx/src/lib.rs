@@ -1233,6 +1233,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 			orml_list_benchmark!(list, extra, pallet_ema_oracle, benchmarking::ema_oracle);
+			orml_list_benchmark!(list, extra, pallet_token_gateway_ismp, benchmarking::token_gateway_ismp);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1519,6 +1520,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 			orml_add_benchmark!(params, batches, pallet_ema_oracle, benchmarking::ema_oracle);
+			orml_add_benchmark!(params, batches, pallet_token_gateway_ismp, benchmarking::token_gateway_ismp);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

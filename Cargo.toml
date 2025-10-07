@@ -60,6 +60,9 @@ serde = { version = "1.0.209", default-features = false }
 primitive-types = { version = "0.12.2", default-features = false }
 
 affix = "0.1.2"
+alloy-primitives = { version = "0.7", default-features = false }
+alloy-sol-types = { version = "0.7", default-features = false }
+anyhow = { version = "1.0", default-features = false }
 approx = "0.5.1"
 async-trait = "0.1"
 bitflags = "1.3.2"
@@ -380,8 +383,6 @@ cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacti
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "stable2409-patch6" }
 
 # Hyperbridge
-anyhow = { version = "1.0", default-features = false }
-
 pallet-hyperbridge = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
 pallet-token-gateway = { git = "https://github.com/polytope-labs/hyperbridge", branch = "polkadot-stable2409", default-features = false }
 

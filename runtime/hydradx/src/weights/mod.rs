@@ -42,6 +42,7 @@ pub mod pallet_stableswap;
 pub mod pallet_staking;
 pub mod pallet_state_trie_migration;
 pub mod pallet_timestamp;
+pub mod pallet_token_gateway_ismp;
 pub mod pallet_token_gateway;
 pub mod pallet_transaction_multi_payment;
 pub mod pallet_transaction_pause;

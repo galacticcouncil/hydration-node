@@ -21,6 +21,8 @@ smallvec = { workspace = true }
 log = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 evm = { workspace = true, features = ["with-codec"] }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
 
 # local dependencies
 primitives = { workspace = true }
