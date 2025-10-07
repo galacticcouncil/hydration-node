@@ -173,7 +173,10 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_signed(origin)?;
 
-			ensure!(Self::whitelisted(&account).is_none() && account != T::TreasuryAccountId::get(), Error::<T>::AccountWhitelisted);
+			ensure!(
+				Self::whitelisted(&account).is_none() && account != T::TreasuryAccountId::get(),
+				Error::<T>::AccountWhitelisted
+			);
 
 			let ed = T::ExistentialDeposit::get(&currency_id);
 			let dust = T::MultiCurrency::total_balance(currency_id, &account.clone());

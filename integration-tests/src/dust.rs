@@ -315,43 +315,45 @@ mod atoken_dust {
 				..Config::default()
 			});
 
-			let _ = runner.run(&ed_range, |ed| {
-				let _ = with_transaction(|| {
-					let bal = Currencies::free_balance(ADOT, &ALICE.into());
-					assert_eq!(START_BALANCE, bal, "Start balance is not as expected");
+			let _ = runner
+				.run(&ed_range, |ed| {
+					let _ = with_transaction(|| {
+						let bal = Currencies::free_balance(ADOT, &ALICE.into());
+						assert_eq!(START_BALANCE, bal, "Start balance is not as expected");
 
-					// Parameterize chain ED for this run to be `ed + 1`
-					// meaning that leaving exactly `ed` in the account will be dust.
-					set_ed(ADOT, ed + 1);
+						// Parameterize chain ED for this run to be `ed + 1`
+						// meaning that leaving exactly `ed` in the account will be dust.
+						set_ed(ADOT, ed + 1);
 
-					// Transfer all but `ed` to BOB, leaving `ed` on ALICE → dust after ED=ed+1
-					assert_ok!(Currencies::transfer(
-						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-						BOB.into(),
-						ADOT,
-						START_BALANCE - ed
-					));
+						// Transfer all but `ed` to BOB, leaving `ed` on ALICE → dust after ED=ed+1
+						assert_ok!(Currencies::transfer(
+							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+							BOB.into(),
+							ADOT,
+							START_BALANCE - ed
+						));
 
-					// Dust it
-					assert_ok!(Duster::dust_account(
-						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-						ALICE.into(),
-						ADOT,
-					));
+						// Dust it
+						assert_ok!(Duster::dust_account(
+							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+							ALICE.into(),
+							ADOT,
+						));
 
-					// Assert: ALICE should have been dusted to 0
-					assert_eq!(
-						Currencies::free_balance(ADOT, &ALICE.into()),
-						0,
-						"After dusting with ED={ed}+1, remaining `ed` should be reaped."
-					);
-					assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), ed);
+						// Assert: ALICE should have been dusted to 0
+						assert_eq!(
+							Currencies::free_balance(ADOT, &ALICE.into()),
+							0,
+							"After dusting with ED={ed}+1, remaining `ed` should be reaped."
+						);
+						assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), ed);
 
-					TransactionOutcome::Rollback(DispatchResult::Ok(()))
-				});
+						TransactionOutcome::Rollback(DispatchResult::Ok(()))
+					});
 
-				Ok(())
-			}).unwrap();
+					Ok(())
+				})
+				.unwrap();
 		});
 	}
 }
