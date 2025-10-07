@@ -69,7 +69,7 @@ impl<T: frame_system::Config> WeightInfo<T> {
 	/// Proof: `TokenGateway::NativeAssets` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// Storage: `System::Account` (r:1 w:0)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn on_accept() -> Weight {
+	pub fn on_accept() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1752`
 		//  Estimated: `5217`
@@ -77,7 +77,7 @@ impl<T: frame_system::Config> WeightInfo<T> {
 		Weight::from_parts(43_000_000, 5217)
 			.saturating_add(T::DbWeight::get().reads(5_u64))
 	}
-	fn on_response() -> Weight {
+	pub fn on_response() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
@@ -92,7 +92,7 @@ impl<T: frame_system::Config> WeightInfo<T> {
 	/// Proof: `TokenGateway::NativeAssets` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// Storage: `System::Account` (r:1 w:0)
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn on_timeout() -> Weight {
+	pub fn on_timeout() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1695`
 		//  Estimated: `5160`

@@ -8,8 +8,12 @@ use frame_support::traits::fungible::ItemOf;
 use frame_support::traits::EitherOf;
 use frame_system::EnsureRoot;
 use hydradx_traits::evm::InspectEvmAccounts;
+use ismp::router::{PostRequest, Response, Timeout};
 use ismp::{host::StateMachine, module::IsmpModule, router::IsmpRouter};
 use pallet_currencies::fungibles::FungibleCurrencies;
+use pallet_genesis_history::migration::Weight;
+use pallet_ismp::weights::{IsmpModuleWeight, WeightProvider};
+use pallet_ismp::ModuleId;
 use pallet_token_gateway::types::EvmToSubstrate;
 use primitive_types::H160;
 use primitives::constants::currency::NATIVE_DECIMALS;
@@ -54,7 +58,7 @@ impl pallet_ismp::Config for Runtime {
 	type Router = IsmpRouterStruct;
 	// A tuple of types implementing the ConsensusClient interface, which defines all consensus algorithms supported by this protocol deployment
 	type ConsensusClients = (ismp_parachain::ParachainConsensusClient<Runtime, IsmpParachain>,);
-	type WeightProvider = (); // FIXME: implement
+	type WeightProvider = IsmpWeightProvider;
 	type OffchainDB = ();
 }
 
@@ -82,17 +86,6 @@ parameter_types! {
 	pub const NativeTokenDecimals: u8 = NATIVE_DECIMALS;
 }
 
-pub struct TokenGatewayEvmToSubstrateAdapter<T, EI>(sp_std::marker::PhantomData<(T, EI)>);
-impl<T, EI> EvmToSubstrate<T> for TokenGatewayEvmToSubstrateAdapter<T, EI>
-where
-	T: frame_system::Config + pallet_evm_accounts::Config,
-	EI: InspectEvmAccounts<T::AccountId>,
-{
-	fn convert(addr: H160) -> T::AccountId {
-		EI::account_id(addr)
-	}
-}
-
 impl pallet_token_gateway::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Dispatcher = Ismp;
@@ -107,4 +100,40 @@ impl pallet_token_gateway::Config for Runtime {
 	type Decimals = NativeTokenDecimals;
 	type EvmToSubstrate = TokenGatewayEvmToSubstrateAdapter<Runtime, EVMAccounts>;
 	type WeightInfo = weights::pallet_token_gateway::HydraWeight<Runtime>;
+}
+
+pub struct TokenGatewayEvmToSubstrateAdapter<T, EI>(sp_std::marker::PhantomData<(T, EI)>);
+impl<T, EI> EvmToSubstrate<T> for TokenGatewayEvmToSubstrateAdapter<T, EI>
+where
+	T: frame_system::Config + pallet_evm_accounts::Config,
+	EI: InspectEvmAccounts<T::AccountId>,
+{
+	fn convert(addr: H160) -> T::AccountId {
+		EI::account_id(addr)
+	}
+}
+
+pub struct IsmpWeightProvider;
+impl WeightProvider for IsmpWeightProvider {
+	fn module_callback(dest_module: ModuleId) -> Option<Box<dyn IsmpModuleWeight>> {
+		match dest_module.to_bytes() {
+			id if TokenGateway::is_token_gateway(&id) => Some(Box::new(TokenGatewayIsmpModuleWeight)),
+			_ => None,
+		}
+	}
+}
+
+pub struct TokenGatewayIsmpModuleWeight;
+impl IsmpModuleWeight for TokenGatewayIsmpModuleWeight {
+	fn on_accept(&self, _request: &PostRequest) -> Weight {
+		weights::pallet_token_gateway_ismp::WeightInfo::on_accept()
+	}
+
+	fn on_timeout(&self, _request: &Timeout) -> Weight {
+		weights::pallet_token_gateway_ismp::WeightInfo::on_timeout()
+	}
+
+	fn on_response(&self, _response: &Response) -> Weight {
+		weights::pallet_token_gateway_ismp::WeightInfo::on_response()
+	}
 }
