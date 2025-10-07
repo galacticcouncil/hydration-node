@@ -126,14 +126,14 @@ impl WeightProvider for IsmpWeightProvider {
 pub struct TokenGatewayIsmpModuleWeight;
 impl IsmpModuleWeight for TokenGatewayIsmpModuleWeight {
 	fn on_accept(&self, _request: &PostRequest) -> Weight {
-		weights::pallet_token_gateway_ismp::WeightInfo::on_accept()
+		weights::pallet_token_gateway_ismp::IsmpWeight::<Runtime>::on_accept()
 	}
 
 	fn on_timeout(&self, _request: &Timeout) -> Weight {
-		weights::pallet_token_gateway_ismp::WeightInfo::on_timeout()
+		weights::pallet_token_gateway_ismp::IsmpWeight::<Runtime>::on_timeout()
 	}
 
 	fn on_response(&self, _response: &Response) -> Weight {
-		weights::pallet_token_gateway_ismp::WeightInfo::on_response()
+		weights::pallet_token_gateway_ismp::IsmpWeight::<Runtime>::on_response()
 	}
 }
