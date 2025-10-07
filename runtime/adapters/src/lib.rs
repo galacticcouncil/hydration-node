@@ -869,6 +869,53 @@ impl<
 
 		Ok(asset.clone().into())
 	}
+
+	fn can_check_in(dest: &Location, asset: &Asset, _context: &XcmContext) -> XcmResult {
+		let currency_id = CurrencyIdConvert::convert(asset.clone())
+			.ok_or_else(|| XcmError::AssetNotFound)?;
+
+		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
+			.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
+			.saturated_into();
+
+		log::trace!(
+            target: "xcm::can_check_in",
+            "Asset {:?} (amount {:?}) dest {:?}",
+            currency_id,
+            amount,
+            dest
+        );
+
+		Ok(())
+	}
+
+	fn check_in(_origin: &Location, _what: &Asset, _context: &XcmContext) {
+		// no-op
+	}
+
+	fn can_check_out(dest: &Location, asset: &Asset, _context: &XcmContext) -> XcmResult {
+		let currency_id = CurrencyIdConvert::convert(asset.clone())
+			.ok_or_else(|| XcmError::AssetNotFound)?;
+
+		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
+			.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
+			.saturated_into();
+
+        log::trace!(
+            target: "xcm::can_check_out",
+            "Asset {:?} (amount {:?}) dest {:?}",
+            currency_id,
+            amount,
+            dest
+        );
+
+		Ok(())
+	}
+
+	fn check_out(_dest: &Location, _asset: &Asset, _context: &XcmContext) {
+		// No-op
+	}
+
 }
 
 // Dynamic fees volume adapter
