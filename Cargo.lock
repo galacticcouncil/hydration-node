@@ -5481,7 +5481,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.9.1"
+version = "1.9.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5537,7 +5537,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "347.0.0"
+version = "348.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -8906,7 +8906,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9153,7 +9153,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "3.2.1"
+version = "3.3.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9184,7 +9184,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.9.4"
+version = "1.9.5"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9311,7 +9311,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.2.9"
+version = "3.2.10"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9335,7 +9335,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-evm-fee"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9917,7 +9917,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.4.1"
+version = "1.4.2"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -10343,7 +10343,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.1.7"
+version = "2.1.8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10366,7 +10366,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10706,7 +10706,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "2.10.1"
+version = "2.10.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11066,7 +11066,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.1.6"
+version = "10.1.7"
 dependencies = [
  "frame-support",
  "frame-system",
