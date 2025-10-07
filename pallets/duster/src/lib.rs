@@ -174,7 +174,7 @@ pub mod pallet {
 			ensure_signed(origin)?;
 
 			ensure!(Self::whitelisted(&account).is_none(), Error::<T>::AccountWhitelisted);
-			ensure!(account != T::TreasuryAccountId::get(), Error::<T>::AccountWhitelisted);//In case if treasury account get dewhitelisted for some reason
+			ensure!(account != T::TreasuryAccountId::get(), Error::<T>::AccountWhitelisted); //In case if treasury account get dewhitelisted for some reason
 
 			let ed = T::ExistentialDeposit::get(&currency_id);
 			let dust = T::MultiCurrency::total_balance(currency_id, &account.clone().into());

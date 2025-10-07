@@ -1,7 +1,7 @@
 use super::*;
 use crate::mock::{
 	ATokenDusterMock, AssetId, Currencies, Duster, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System, Test,
-	Tokens, ALICE, BOB, DUSTER, KILLED, TREASURY, TOKEN
+	Tokens, ALICE, BOB, DUSTER, KILLED, TOKEN, TREASURY,
 };
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_noop, assert_ok};
@@ -364,19 +364,14 @@ fn treasury_account_cannot_be_dusted() {
 		.with_balance(*ALICE, 1, 100)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Duster::remove_nondustable_account(
-					RuntimeOrigin::root(),
-					*TREASURY
-				));
+			assert_ok!(Duster::remove_nondustable_account(RuntimeOrigin::root(), *TREASURY));
 
-			assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
-					*TREASURY,
-					TOKEN,
-					99
-				));
+			assert_ok!(Currencies::update_balance(RuntimeOrigin::root(), *TREASURY, TOKEN, 99));
 
-			assert_noop!(Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *TREASURY, TOKEN), Error::<Test>::AccountWhitelisted);
+			assert_noop!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *TREASURY, TOKEN),
+				Error::<Test>::AccountWhitelisted
+			);
 
 			assert_eq!(Currencies::free_balance(TOKEN, &*TREASURY), 99);
 		});
