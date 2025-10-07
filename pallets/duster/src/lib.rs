@@ -173,20 +173,18 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_signed(origin)?;
 
-			ensure!(Self::whitelisted(&account).is_none(), Error::<T>::AccountWhitelisted);
-			ensure!(account != T::TreasuryAccountId::get(), Error::<T>::AccountWhitelisted); //In case if treasury account get dewhitelisted for some reason
+			ensure!(Self::whitelisted(&account).is_none() && account != T::TreasuryAccountId::get(), Error::<T>::AccountWhitelisted);
 
 			let ed = T::ExistentialDeposit::get(&currency_id);
-			let dust = T::MultiCurrency::total_balance(currency_id, &account.clone().into());
+			let dust = T::MultiCurrency::total_balance(currency_id, &account.clone());
 			ensure!(dust < ed, Error::<T>::BalanceSufficient);
 
 			ensure!(!dust.is_zero(), Error::<T>::ZeroBalance);
 
-			// Error should never occur here
 			let dust_dest_account = T::TreasuryAccountId::get();
 
 			if T::Erc20Support::is_atoken(currency_id) {
-				//Temporarily adding the account to blacklist to prevent ED error when AToken is withdrawn from contract
+				//Temporarily adding the account to whitelist to prevent ED error when AToken is withdrawn from contract
 				Self::add_account(&account)?;
 				T::Erc20Support::on_dust(&account, &dust_dest_account, currency_id)?;
 				Self::remove_account(&account)?;
