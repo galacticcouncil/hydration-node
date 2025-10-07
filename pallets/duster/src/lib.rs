@@ -155,11 +155,13 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Dust specified account.
 		/// IF account balance is < min. existential deposit of given currency, and account is allowed to
-		/// be dusted, the remaining balance is transferred to selected account (usually treasury).
+		/// be dusted, the remaining balance is transferred to treasury account.
 		///
-		/// In case of AToken, the dusting is performed via ATokenDuster dependency, which does a wihtdraw all then supply atoken on behalf of the dust receiver
+		/// In case of AToken, we perform an erc20 dust, which does a wihtdraw all then supply atoken on behalf of the dust receiver
 		///
-		/// The transaction fee is returned back in case of sccessful dusting.
+		/// The transaction fee is returned back in case of successful dusting.
+		///
+		/// Treasury account can never be dusted.
 		///
 		/// Emits `Dusted` event when successful.
 		#[pallet::call_index(0)]
@@ -172,6 +174,7 @@ pub mod pallet {
 			ensure_signed(origin)?;
 
 			ensure!(Self::whitelisted(&account).is_none(), Error::<T>::AccountWhitelisted);
+			ensure!(account != T::TreasuryAccountId::get(), Error::<T>::AccountWhitelisted);//In case if treasury account get dewhitelisted for some reason
 
 			let ed = T::ExistentialDeposit::get(&currency_id);
 			let dust = T::MultiCurrency::total_balance(currency_id, &account.clone().into());

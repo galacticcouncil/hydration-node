@@ -28,6 +28,7 @@ pub type AssetId = u32;
 type Balance = u128;
 type Amount = i128;
 
+pub const TOKEN: u32 = 10u32;
 pub const ATOKEN: u32 = 1005u32;
 pub const ATOKEN_ED: u128 = 1000u128;
 
@@ -127,6 +128,7 @@ parameter_type_with_key! {
 		match currency_id {
 			0 => 1000,
 			1 => 100_000,
+			&TOKEN => 1000,
 			&ATOKEN => 1000,
 			_ => 0
 		}
