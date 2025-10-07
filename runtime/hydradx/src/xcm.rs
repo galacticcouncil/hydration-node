@@ -447,45 +447,40 @@ use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 	fn convert(id: AssetId) -> Option<Location> {
-		match id {
-			CORE_ASSET_ID => Some(Location {
-				parents: 1,
-				interior: [Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())].into(),
-			}),
-			_ => {
-				let loc = AssetRegistry::asset_to_location(id);
-				if let Some(location) = loc {
-					location.into()
-				} else {
-					None
-				}
-			}
+		let loc = AssetRegistry::asset_to_location(id);
+		if let Some(stored_location) = loc {
+			if(stored_location.0.parents == 0) {
+				// For local assets we use GeneralIndex as AssetId
+				Some(Location {
+					parents: 0,
+					interior: X1(Arc::new([GeneralIndex(id.into())])),
+				})
+			} else {
+				// For foreign assets we use the stored location
+				stored_location.into()
+            }
+		} else {
+			None
 		}
 	}
 }
 
 impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 	fn convert(location: Location) -> Option<AssetId> {
-		let Location { parents, interior } = location.clone();
+		let Location { parents, ref interior } = location;
 
-		match interior {
-			Junctions::X2(a)
-				if parents == 1
-					&& a.contains(&GeneralIndex(CORE_ASSET_ID.into()))
-					&& a.contains(&Parachain(ParachainInfo::get().into())) =>
-			{
-				Some(CORE_ASSET_ID)
-			}
-			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => Some(CORE_ASSET_ID),
-			_ => {
-				let location: Option<AssetLocation> = location.try_into().ok();
-				if let Some(location) = location {
-					AssetRegistry::location_to_asset(location)
-				} else {
-					None
+		// For local assets we use GeneralIndex as AssetId
+		if parents == 0 {
+			if let X1(junctions) = interior {
+				if let Some(GeneralIndex(index)) = junctions.as_ref().first() {
+					return Some(*index as AssetId);
 				}
 			}
 		}
+
+		// For foreign assets we use the stored location
+		let maybe_asset_loc: Option<AssetLocation> = location.try_into().ok();
+		maybe_asset_loc.and_then(|loc| AssetRegistry::location_to_asset(loc))
 	}
 }
 
