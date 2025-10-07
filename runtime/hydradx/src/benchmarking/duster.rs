@@ -57,7 +57,7 @@ runtime_benchmarks! {
 	add_nondustable_account{
 		let caller: AccountId = account("caller", 0, SEED);
 		let nondustable_account: AccountId = account("dust", 0, SEED);
-	}: { pallet_duster::Pallet::<Runtime>::add_nondustable_account(RawOrigin::Root.into(), nondustable_account.clone())? }
+	}: { pallet_duster::Pallet::<Runtime>::whitelist_account(RawOrigin::Root.into(), nondustable_account.clone())? }
 	verify {
 		assert!(pallet_duster::Pallet::<Runtime>::blacklisted(&nondustable_account).is_some());
 	}
@@ -65,9 +65,9 @@ runtime_benchmarks! {
 	remove_nondustable_account{
 		let caller: AccountId = account("caller", 0, SEED);
 		let nondustable_account: AccountId = account("dust", 0, SEED);
-		pallet_duster::Pallet::<Runtime>::add_nondustable_account(RawOrigin::Root.into(), nondustable_account.clone())?;
+		pallet_duster::Pallet::<Runtime>::whitelist_account(RawOrigin::Root.into(), nondustable_account.clone())?;
 
-	}: { pallet_duster::Pallet::<Runtime>::remove_nondustable_account(RawOrigin::Root.into(), nondustable_account.clone())? }
+	}: { pallet_duster::Pallet::<Runtime>::remove_from_whitelist(RawOrigin::Root.into(), nondustable_account.clone())? }
 	verify {
 		assert!(pallet_duster::Pallet::<Runtime>::blacklisted(&nondustable_account).is_none());
 	}

@@ -250,17 +250,17 @@ fn native_existential_deposit() {
 fn add_nondustable_account_works() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			Duster::add_nondustable_account(RuntimeOrigin::signed(*DUSTER), *ALICE),
+			Duster::whitelist_account(RuntimeOrigin::signed(*DUSTER), *ALICE),
 			BadOrigin
 		);
 
 		assert!(Duster::whitelisted(*ALICE).is_none());
 
-		assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
+		assert_ok!(Duster::whitelist_account(RuntimeOrigin::root(), *ALICE));
 
 		assert!(Duster::whitelisted(*ALICE).is_some());
 
-		assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
+		assert_ok!(Duster::whitelist_account(RuntimeOrigin::root(), *ALICE));
 
 		assert!(Duster::whitelisted(*ALICE).is_some());
 	});
@@ -272,10 +272,10 @@ fn remove_nondustable_account_works() {
 		.with_native_balance(*ALICE, 500)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
+			assert_ok!(Duster::whitelist_account(RuntimeOrigin::root(), *ALICE));
 			assert!(Duster::whitelisted(*ALICE).is_some());
 
-			assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
+			assert_ok!(Duster::whitelist_account(RuntimeOrigin::root(), *ALICE));
 
 			// Dust dont work now
 			assert_noop!(
@@ -284,17 +284,17 @@ fn remove_nondustable_account_works() {
 			);
 
 			assert_noop!(
-				Duster::remove_nondustable_account(RuntimeOrigin::signed(*DUSTER), *ALICE),
+				Duster::remove_from_whitelist(RuntimeOrigin::signed(*DUSTER), *ALICE),
 				BadOrigin
 			);
 
 			//remove non-existing account
 			assert_noop!(
-				Duster::remove_nondustable_account(RuntimeOrigin::root(), 1234556),
+				Duster::remove_from_whitelist(RuntimeOrigin::root(), 1234556),
 				Error::<Test>::AccountNotWhitelisted
 			);
 
-			assert_ok!(Duster::remove_nondustable_account(RuntimeOrigin::root(), *ALICE));
+			assert_ok!(Duster::remove_from_whitelist(RuntimeOrigin::root(), *ALICE));
 			assert!(Duster::whitelisted(*ALICE).is_none());
 
 			// We can dust again
@@ -364,7 +364,7 @@ fn treasury_account_cannot_be_dusted() {
 		.with_balance(*ALICE, 1, 100)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Duster::remove_nondustable_account(RuntimeOrigin::root(), *TREASURY));
+			assert_ok!(Duster::remove_from_whitelist(RuntimeOrigin::root(), *TREASURY));
 
 			assert_ok!(Currencies::update_balance(RuntimeOrigin::root(), *TREASURY, TOKEN, 99));
 

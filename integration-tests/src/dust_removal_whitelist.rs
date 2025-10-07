@@ -37,7 +37,7 @@ fn add_nondustable_account_should_work_with_dust_removal_whitelist() {
 		assert!(!hydradx_runtime::DustRemovalWhitelist::contains(&ALICE.into()));
 
 		//Act add account to whitelist
-		assert_ok!(hydradx_runtime::Duster::add_nondustable_account(
+		assert_ok!(hydradx_runtime::Duster::whitelist_account(
 			RuntimeOrigin::root(),
 			ALICE.into()
 		));
@@ -56,7 +56,7 @@ fn remove_nondustable_account_should_work_with_dust_removal_whitelist() {
 		assert!(hydradx_runtime::DustRemovalWhitelist::contains(&ALICE.into()));
 
 		//Act
-		assert_ok!(hydradx_runtime::Duster::remove_nondustable_account(
+		assert_ok!(hydradx_runtime::Duster::remove_from_whitelist(
 			RuntimeOrigin::root(),
 			ALICE.into()
 		));

@@ -205,12 +205,15 @@ pub mod pallet {
 			Ok(Pays::No.into())
 		}
 
-		/// Add account to list of non-dustable account. Account whihc are excluded from udsting.
+		/// Add account to list of whitelist accounts. Account which are excluded from dusting.
 		/// If such account should be dusted - `AccountWhitelisted` error is returned.
 		/// Only root can perform this action.
+		///
+		/// Emits `Added` event when successful.
+		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_nondustable_account())]
-		pub fn add_nondustable_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
+		pub fn whitelist_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			T::WhitelistUpdateOrigin::ensure_origin(origin)?;
 
 			AccountWhitelist::<T>::insert(&account, ());
@@ -220,10 +223,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Remove account from list of non-dustable accounts. That means account can be dusted again.
+		/// Remove account from list of whitelist accounts. That means account can be dusted again.
+		///
+		/// Emits `Removed` event when successful.
+		///
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_nondustable_account())]
-		pub fn remove_nondustable_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
+		pub fn remove_from_whitelist(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			T::WhitelistUpdateOrigin::ensure_origin(origin)?;
 
 			AccountWhitelist::<T>::mutate(&account, |maybe_account| -> DispatchResult {
