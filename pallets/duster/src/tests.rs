@@ -247,7 +247,7 @@ fn native_existential_deposit() {
 }
 
 #[test]
-fn add_nondustable_account_works() {
+fn whitelist_account_works() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
 			Duster::whitelist_account(RuntimeOrigin::signed(*DUSTER), *ALICE),
@@ -267,7 +267,7 @@ fn add_nondustable_account_works() {
 }
 
 #[test]
-fn remove_nondustable_account_works() {
+fn remove_from_whitelist_works() {
 	ExtBuilder::default()
 		.with_native_balance(*ALICE, 500)
 		.build()

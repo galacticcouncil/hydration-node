@@ -95,7 +95,7 @@ impl<T: frame_system::Config> pallet_duster::WeightInfo for HydraWeight<T> {
 	}
 	/// Storage: `Duster::AccountWhitelist` (r:0 w:1)
 	/// Proof: `Duster::AccountWhitelist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	fn add_nondustable_account() -> Weight {
+	fn whitelist_account() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1012`
 		//  Estimated: `0`
@@ -105,7 +105,7 @@ impl<T: frame_system::Config> pallet_duster::WeightInfo for HydraWeight<T> {
 	}
 	/// Storage: `Duster::AccountWhitelist` (r:1 w:1)
 	/// Proof: `Duster::AccountWhitelist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	fn remove_nondustable_account() -> Weight {
+	fn remove_from_whitelist() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1332`
 		//  Estimated: `3513`

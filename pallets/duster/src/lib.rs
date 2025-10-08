@@ -215,7 +215,7 @@ pub mod pallet {
 		/// Emits `Added` event when successful.
 		///
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_nondustable_account())]
+		#[pallet::weight(<T as Config>::WeightInfo::whitelist_account())]
 		pub fn whitelist_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			T::WhitelistUpdateOrigin::ensure_origin(origin)?;
 
@@ -231,7 +231,7 @@ pub mod pallet {
 		/// Emits `Removed` event when successful.
 		///
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_nondustable_account())]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_from_whitelist())]
 		pub fn remove_from_whitelist(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			T::WhitelistUpdateOrigin::ensure_origin(origin)?;
 

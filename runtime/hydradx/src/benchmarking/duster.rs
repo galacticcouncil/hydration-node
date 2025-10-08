@@ -54,7 +54,7 @@ runtime_benchmarks! {
 		assert_eq!(crate::Currencies::free_balance(asset_id, &dest_account), current_balance + dust_amount);
 	}
 
-	add_nondustable_account{
+	whitelist_account{
 		let caller: AccountId = account("caller", 0, SEED);
 		let nondustable_account: AccountId = account("dust", 0, SEED);
 	}: { pallet_duster::Pallet::<Runtime>::whitelist_account(RawOrigin::Root.into(), nondustable_account.clone())? }
@@ -62,7 +62,7 @@ runtime_benchmarks! {
 		assert!(pallet_duster::Pallet::<Runtime>::whitelisted(&nondustable_account).is_some());
 	}
 
-	remove_nondustable_account{
+	remove_from_whitelist{
 		let caller: AccountId = account("caller", 0, SEED);
 		let nondustable_account: AccountId = account("dust", 0, SEED);
 		pallet_duster::Pallet::<Runtime>::whitelist_account(RawOrigin::Root.into(), nondustable_account.clone())?;

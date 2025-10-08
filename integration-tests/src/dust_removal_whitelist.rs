@@ -29,7 +29,7 @@ fn dust_removal_whitelist_should_work_with_duster() {
 }
 
 #[test]
-fn add_nondustable_account_should_work_with_dust_removal_whitelist() {
+fn whitelist_account_should_work_with_dust_removal_whitelist() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -47,7 +47,7 @@ fn add_nondustable_account_should_work_with_dust_removal_whitelist() {
 }
 
 #[test]
-fn remove_nondustable_account_should_work_with_dust_removal_whitelist() {
+fn remove_from_whitelist_should_work_with_dust_removal_whitelist() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
