@@ -196,6 +196,8 @@ where
 		let decoded = decode(&param_types, reserves_data.as_ref())
 			.map_err(|_| ExecutorError::Error("Failed to decode reserves list".into()))?;
 
+		debug_assert!(decoded.len() == param_types.len(), "Invalid length");
+
 		// ensure sufficient length
 		ensure!(decoded.len() >= 1, ExecutorError::Error("Empty reserve list".into()));
 
@@ -243,6 +245,8 @@ where
 
 		let decoded = decode(&param_types, reserve_data.as_ref())
 			.map_err(|_| ExecutorError::Error("Failed to decode reserve data".into()))?;
+
+		debug_assert!(decoded.len() == param_types.len(), "Invalid length");
 
 		// Ensure sufficient length
 		ensure!(
