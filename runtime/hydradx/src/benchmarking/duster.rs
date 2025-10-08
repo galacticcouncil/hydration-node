@@ -59,7 +59,7 @@ runtime_benchmarks! {
 		let nondustable_account: AccountId = account("dust", 0, SEED);
 	}: { pallet_duster::Pallet::<Runtime>::whitelist_account(RawOrigin::Root.into(), nondustable_account.clone())? }
 	verify {
-		assert!(pallet_duster::Pallet::<Runtime>::blacklisted(&nondustable_account).is_some());
+		assert!(pallet_duster::Pallet::<Runtime>::whitelisted(&nondustable_account).is_some());
 	}
 
 	remove_nondustable_account{
@@ -69,7 +69,7 @@ runtime_benchmarks! {
 
 	}: { pallet_duster::Pallet::<Runtime>::remove_from_whitelist(RawOrigin::Root.into(), nondustable_account.clone())? }
 	verify {
-		assert!(pallet_duster::Pallet::<Runtime>::blacklisted(&nondustable_account).is_none());
+		assert!(pallet_duster::Pallet::<Runtime>::whitelisted(&nondustable_account).is_none());
 	}
 
 }

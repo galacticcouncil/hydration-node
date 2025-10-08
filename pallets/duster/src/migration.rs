@@ -84,7 +84,7 @@ pub mod v2 {
 	use super::*;
 	use frame_support::migrations::VersionedMigration;
 	use frame_support::storage_alias;
-	use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion, UncheckedOnRuntimeUpgrade};
+	use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, UncheckedOnRuntimeUpgrade};
 	use frame_support::Blake2_128Concat;
 
 	#[storage_alias]
