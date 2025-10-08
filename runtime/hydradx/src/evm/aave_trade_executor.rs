@@ -199,7 +199,7 @@ where
 		debug_assert!(decoded.len() == param_types.len(), "Invalid length");
 
 		// ensure sufficient length
-		ensure!(decoded.len() >= 1, ExecutorError::Error("Empty reserve list".into()));
+		ensure!(decoded.len() == param_types.len(), ExecutorError::Error("Empty reserve list".into()));
 
 		// Convert decoded addresses to EvmAddress format
 		let addresses = decoded[0]
@@ -250,7 +250,7 @@ where
 
 		// Ensure sufficient length
 		ensure!(
-			decoded.len() >= param_types.len(),
+			decoded.len() == param_types.len(),
 			ExecutorError::Error("Invalid reserve data format".into())
 		);
 
