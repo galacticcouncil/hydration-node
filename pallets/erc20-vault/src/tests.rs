@@ -189,6 +189,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			100, // deposit
 			bounded_chain_id(b"test-chain".to_vec()),
 		);
+		let pallet_account = Erc20Vault::account_id();
+		let _ = <Balances as CurrencyTrait<_>>::deposit_creating(&pallet_account, 10_000);
 	});
 	ext
 }
@@ -257,10 +259,10 @@ fn compute_request_id(
 	)
 	.expect("build_evm_tx should succeed");
 
-	// CHANGE THIS PART - use PALLET account, not requester
-	let pallet_account = Erc20Vault::account_id(); // <-- Changed from requester
+	// Use PALLET account as sender (not requester)
+	let pallet_account = Erc20Vault::account_id();
 
-	let encoded = pallet_account.encode(); // <-- Changed from requester.encode()
+	let encoded = pallet_account.encode();
 	let mut account_bytes = [0u8; 32];
 	let len = encoded.len().min(32);
 	account_bytes[..len].copy_from_slice(&encoded[..len]);
@@ -268,7 +270,7 @@ fn compute_request_id(
 	let account_id32 = sp_runtime::AccountId32::from(account_bytes);
 	let sender_ss58 = account_id32.to_ss58check_with_version(sp_core::crypto::Ss58AddressFormat::custom(0));
 
-	// Path still uses requester (this is correct)
+	// Path uses requester (this is correct)
 	let path = format!("0x{}", hex::encode(requester.encode()));
 
 	let encoded = (
@@ -457,7 +459,7 @@ fn test_deposit_erc20_success() {
 		// Check deposit was taken (signet deposit)
 		assert_eq!(
 			<Balances as CurrencyTrait<_>>::free_balance(&requester),
-			balance_before - 101 // 100 for signet + 1 for ED
+			balance_before - 100 // 100 for signet deposit
 		);
 	});
 }

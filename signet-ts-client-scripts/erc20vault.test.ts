@@ -17,12 +17,103 @@ const SEPOLIA_RPC =
 
 function getPalletAccountId(): Uint8Array {
   const palletId = new TextEncoder().encode("py/erc20");
-  // Substrate's into_account_truncating: "modl" + pallet_id + padding
   const modl = new TextEncoder().encode("modl");
   const data = new Uint8Array(32);
   data.set(modl, 0);
   data.set(palletId, 4);
   return data;
+}
+
+async function submitWithRetry(
+  tx: any,
+  signer: any,
+  api: ApiPromise,
+  label: string,
+  maxRetries: number = 1,
+  timeoutMs: number = 60000 // 60 seconds
+): Promise<{ events: any[] }> {
+  let attempt = 0;
+
+  while (attempt <= maxRetries) {
+    try {
+      console.log(`${label} - Attempt ${attempt + 1}/${maxRetries + 1}`);
+
+      const result = await new Promise<{ events: any[] }>((resolve, reject) => {
+        let unsubscribe: any;
+
+        const timer = setTimeout(() => {
+          if (unsubscribe) unsubscribe();
+          console.log(`⏱️  ${label} timed out after ${timeoutMs}ms`);
+          reject(new Error("TIMEOUT"));
+        }, timeoutMs);
+
+        tx.signAndSend(signer, (result: ISubmittableResult) => {
+          const { status, events, dispatchError } = result;
+
+          if (status.isInBlock) {
+            clearTimeout(timer);
+            if (unsubscribe) unsubscribe();
+
+            console.log(
+              `✅ ${label} included in block ${status.asInBlock.toHex()}`
+            );
+
+            // Check for dispatch errors
+            if (dispatchError) {
+              if (dispatchError.isModule) {
+                const decoded = api.registry.findMetaError(
+                  dispatchError.asModule
+                );
+                reject(
+                  new Error(
+                    `${decoded.section}.${decoded.name}: ${decoded.docs.join(
+                      " "
+                    )}`
+                  )
+                );
+              } else {
+                reject(new Error(dispatchError.toString()));
+              }
+              return;
+            }
+
+            resolve({ events: Array.from(events) });
+          } else if (status.isInvalid) {
+            clearTimeout(timer);
+            if (unsubscribe) unsubscribe();
+            console.log(`⚠️  ${label} marked as Invalid`);
+            reject(new Error("INVALID_TX"));
+          } else if (status.isDropped) {
+            clearTimeout(timer);
+            if (unsubscribe) unsubscribe();
+            reject(new Error(`${label} dropped`));
+          }
+        })
+          .then((unsub: any) => {
+            unsubscribe = unsub;
+          })
+          .catch((error: any) => {
+            clearTimeout(timer);
+            reject(error);
+          });
+      });
+
+      return result;
+    } catch (error: any) {
+      if (
+        (error.message === "INVALID_TX" || error.message === "TIMEOUT") &&
+        attempt < maxRetries
+      ) {
+        console.log(`🔄 Retrying ${label}...`);
+        attempt++;
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2s before retry
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(`${label} failed after ${maxRetries + 1} attempts`);
 }
 
 describe("ERC20 Vault Integration", () => {
@@ -55,25 +146,30 @@ describe("ERC20 Vault Integration", () => {
     if (bobBalance.free.toBigInt() < 1000000000000n) {
       console.log("Funding Bob's account for server responses...");
 
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Bob funding timeout"));
-        }, 30000);
+      const bobFundTx = api.tx.balances.transferKeepAlive(
+        bob.address,
+        100000000000000n
+      );
+      await submitWithRetry(bobFundTx, alice, api, "Fund Bob account");
+    }
 
-        api.tx.balances
-          .transferKeepAlive(bob.address, 100000000000000n)
-          .signAndSend(alice, (result: ISubmittableResult) => {
-            if (result.dispatchError) {
-              clearTimeout(timeout);
-              reject(result.dispatchError);
-            } else if (result.status.isInBlock) {
-              // Changed from isFinalized
-              clearTimeout(timeout);
-              console.log("Bob's account funded!");
-              resolve(result.status.asInBlock);
-            }
-          });
-      });
+    const palletAccountId = getPalletAccountId();
+    const palletSS58 = encodeAddress(palletAccountId, 0);
+
+    const { data: palletBalance } = (await api.query.system.account(
+      palletSS58
+    )) as any;
+
+    const fundingAmount = 10000000000000n;
+
+    if (palletBalance.free.toBigInt() < fundingAmount) {
+      console.log(`Funding ERC20 vault pallet account ${palletSS58}...`);
+
+      const fundTx = api.tx.balances.transferKeepAlive(
+        palletSS58,
+        fundingAmount
+      );
+      await submitWithRetry(fundTx, alice, api, "Fund pallet account");
     }
 
     signetClient = new SignetClient(api, alice);
@@ -81,13 +177,9 @@ describe("ERC20 Vault Integration", () => {
 
     await signetClient.ensureInitialized(CHAIN_ID);
 
-    const palletAccountId = getPalletAccountId();
-    const palletSS58 = encodeAddress(palletAccountId, 0);
-
     const aliceAccountId = keyring.decodeAddress(alice.address);
     const aliceHexPath = "0x" + u8aToHex(aliceAccountId).slice(2);
 
-    // Derive using PALLET account but ALICE's path
     derivedPubKey = KeyDerivation.derivePublicKey(
       ROOT_PUBLIC_KEY,
       palletSS58,
@@ -99,7 +191,7 @@ describe("ERC20 Vault Integration", () => {
 
     console.log(`\n🔑 Derived Ethereum Address: ${derivedEthAddress}`);
     await checkFunding();
-  }, 30000);
+  }, 120000);
 
   afterAll(async () => {
     if (api) {
@@ -110,7 +202,6 @@ describe("ERC20 Vault Integration", () => {
   async function checkFunding() {
     const ethBalance = await sepoliaProvider.getBalance(derivedEthAddress);
 
-    // Check USDC balance
     const usdcContract = new ethers.Contract(
       USDC_SEPOLIA,
       ["function balanceOf(address) view returns (uint256)"],
@@ -118,7 +209,6 @@ describe("ERC20 Vault Integration", () => {
     );
     const usdcBalance = await usdcContract.balanceOf(derivedEthAddress);
 
-    // Estimate gas needed (conservative estimate)
     const feeData = await sepoliaProvider.getFeeData();
     const gasLimit = 100000n;
     const estimatedGas = (feeData.maxFeePerGas || 30000000000n) * gasLimit;
@@ -153,14 +243,20 @@ describe("ERC20 Vault Integration", () => {
 
   it("should complete full deposit and claim flow", async () => {
     const mpcEthAddress = ethAddressFromPubKey(ROOT_PUBLIC_KEY);
-    console.log("Initializing vault with MPC address:", mpcEthAddress);
+    console.log("Checking vault initialization...");
     const mpcAddressBytes = Array.from(ethers.getBytes(mpcEthAddress));
 
-    const initTx = api.tx.erc20Vault.initialize(mpcAddressBytes);
-    await initTx.signAndSend(alice);
-    await sleep(6000);
+    const existingConfig = await api.query.erc20Vault.vaultConfig();
+    const configJson = existingConfig.toJSON();
 
-    console.log("✅ Vault initialized\n");
+    if (configJson !== null) {
+      console.log("⚠️  Vault already initialized, skipping initialization");
+      console.log("   Existing config:", existingConfig.toHuman());
+    } else {
+      console.log("Initializing vault with MPC address:", mpcEthAddress);
+      const initTx = api.tx.erc20Vault.initialize(mpcAddressBytes);
+      await submitWithRetry(initTx, alice, api, "Initialize vault");
+    }
 
     const amount = ethers.parseUnits("0.01", 6);
     const feeData = await sepoliaProvider.getFeeData();
@@ -222,45 +318,41 @@ describe("ERC20 Vault Integration", () => {
 
     console.log(`📋 Request ID: ${ethers.hexlify(requestId)}\n`);
 
-    // Convert requestId to bytes if it's a hex string
     const requestIdBytes =
       typeof requestId === "string" ? ethers.getBytes(requestId) : requestId;
 
     const depositTx = api.tx.erc20Vault.depositErc20(
-      Array.from(requestIdBytes), // Use the bytes version
+      Array.from(requestIdBytes),
       Array.from(ethers.getBytes(USDC_SEPOLIA)),
       amount.toString(),
       txParams
     );
 
     console.log("🚀 Submitting deposit_erc20 transaction...");
+    const depositResult = await submitWithRetry(
+      depositTx,
+      alice,
+      api,
+      "Deposit ERC20"
+    );
 
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(
-          new Error(
-            "Deposit transaction timeout - Chopsticks may have flaked, retry test"
-          )
-        );
-      }, 15000);
+    const signetEvents = depositResult.events.filter(
+      (record: any) =>
+        record.event.section === "signet" &&
+        record.event.method === "SignRespondRequested"
+    );
 
-      depositTx.signAndSend(alice, (result: ISubmittableResult) => {
-        if (result.dispatchError) {
-          clearTimeout(timeout);
-          if (result.dispatchError.isModule) {
-            const decoded = api.registry.findMetaError(
-              result.dispatchError.asModule
-            );
-            reject(new Error(`${decoded.section}.${decoded.name}`));
-          } else {
-            reject(new Error(result.dispatchError.toString()));
-          }
-        } else if (result.status.isInBlock) {
-          clearTimeout(timeout);
-          resolve();
-        }
-      });
-    });
+    console.log(
+      `📊 Found ${signetEvents.length} SignRespondRequested event(s)`
+    );
+
+    if (signetEvents.length > 0) {
+      console.log(
+        "✅ SignRespondRequested event emitted - MPC should pick it up!"
+      );
+    } else {
+      console.log("⚠️  No SignRespondRequested event found!");
+    }
 
     console.log("⏳ Waiting for MPC signature...");
 
@@ -347,11 +439,11 @@ describe("ERC20 Vault Integration", () => {
     if (outputBytes.length > 0) {
       const mode = outputBytes[0] & 0b11;
       if (mode === 0) {
-        outputBytes = outputBytes.slice(1); // Remove 1-byte SCALE prefix
+        outputBytes = outputBytes.slice(1);
       } else if (mode === 1) {
-        outputBytes = outputBytes.slice(2); // Remove 2-byte SCALE prefix
+        outputBytes = outputBytes.slice(2);
       } else if (mode === 2) {
-        outputBytes = outputBytes.slice(4); // Remove 4-byte SCALE prefix
+        outputBytes = outputBytes.slice(4);
       }
     }
 
@@ -371,26 +463,8 @@ describe("ERC20 Vault Integration", () => {
       readResponse.signature
     );
 
-    await new Promise<void>((resolve, reject) => {
-      claimTx.signAndSend(alice, (result: ISubmittableResult) => {
-        if (result.dispatchError) {
-          if (result.dispatchError.isModule) {
-            const decoded = api.registry.findMetaError(
-              result.dispatchError.asModule
-            );
-            reject(
-              new Error(`Claim failed: ${decoded.section}.${decoded.name}`)
-            );
-          } else {
-            reject(new Error(result.dispatchError.toString()));
-          }
-        } else if (result.status.isInBlock) {
-          resolve();
-        }
-      });
-    });
-
-    console.log("✅ Claim transaction confirmed\n");
+    console.log("🚀 Submitting claim transaction...");
+    await submitWithRetry(claimTx, alice, api, "Claim ERC20");
 
     const balanceAfter = await api.query.erc20Vault.userBalances(
       alice.address,
@@ -475,9 +549,5 @@ describe("ERC20 Vault Integration", () => {
   function ethAddressFromPubKey(pubKey: string): string {
     const hash = ethers.keccak256("0x" + pubKey.slice(4));
     return "0x" + hash.slice(-40);
-  }
-
-  function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 });
