@@ -25,7 +25,7 @@ pub const SEPOLIA_VAULT_ADDRESS: [u8; 20] = [
 	0xEf,
 ];
 
-// ERC20 ABI definition (exactly like Solana)
+// ERC20 ABI definition
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::{sol, SolCall};
 
@@ -100,7 +100,7 @@ pub mod pallet {
 
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq)]
 	pub struct EvmTransactionParams {
-		pub value: u128, // ETH value (0 for ERC20)
+		pub value: u128,
 		pub gas_limit: u64,
 		pub max_fee_per_gas: u128,
 		pub max_priority_fee_per_gas: u128,
@@ -113,21 +113,16 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Vault initialized with MPC configuration
 		VaultInitialized {
 			mpc_address: [u8; 20],
 			initialized_by: T::AccountId,
 		},
-
-		/// ERC20 deposit requested
 		DepositRequested {
 			request_id: [u8; 32],
 			requester: T::AccountId,
 			erc20_address: [u8; 20],
 			amount: u128,
 		},
-
-		/// ERC20 deposit successfully claimed
 		DepositClaimed {
 			request_id: [u8; 32],
 			claimer: T::AccountId,
@@ -153,6 +148,7 @@ pub mod pallet {
 		InvalidAbi,
 		SerializationError,
 		PathTooLong,
+		PalletAccountNotFunded,
 	}
 
 	// ========================= Hooks =========================
@@ -165,12 +161,10 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Initialize the vault with MPC signer address
-		/// Can be called by anyone, but only once
 		#[pallet::call_index(0)]
 		#[pallet::weight(Weight::from_parts(10_000, 0))]
 		pub fn initialize(origin: OriginFor<T>, mpc_root_signer_address: [u8; 20]) -> DispatchResult {
 			let initializer = ensure_signed(origin)?;
-
 			ensure!(VaultConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
 			VaultConfig::<T>::put(VaultConfigData {
@@ -186,6 +180,7 @@ pub mod pallet {
 		}
 
 		/// Request to deposit ERC20 tokens
+		/// Note: The pallet account must be funded before calling this
 		#[pallet::call_index(1)]
 		#[pallet::weight(Weight::from_parts(100_000, 0))]
 		pub fn deposit_erc20(
@@ -206,33 +201,26 @@ pub mod pallet {
 				Error::<T>::InvalidRequestId
 			);
 
-			// Get the signet deposit and pallet account
+			// Get signet deposit amount and pallet account
 			let signet_deposit = pallet_signet::Pallet::<T>::signature_deposit();
 			let pallet_account = Self::account_id();
 			let existential_deposit = <T as pallet_signet::Config>::Currency::minimum_balance();
 
-			// Check if pallet account exists, if not, create it with existential deposit
-			if <T as pallet_signet::Config>::Currency::total_balance(&pallet_account).is_zero() {
-				// First time - need to create the account with ED + signet deposit
-				let total_needed = existential_deposit.saturating_add(signet_deposit);
-				let imbalance = <T as pallet_signet::Config>::Currency::withdraw(
-					&requester,
-					total_needed,
-					frame_support::traits::WithdrawReasons::TRANSFER,
-					frame_support::traits::ExistenceRequirement::AllowDeath,
-				)?;
-				<T as pallet_signet::Config>::Currency::resolve_creating(&pallet_account, imbalance);
-			} else {
-				// Account exists, just add the signet deposit
-				<T as pallet_signet::Config>::Currency::transfer(
-					&requester,
-					&pallet_account,
-					signet_deposit,
-					frame_support::traits::ExistenceRequirement::AllowDeath,
-				)?;
-			}
+			// Ensure pallet account has sufficient balance
+			// It needs at least ED + signet_deposit to transfer signet_deposit while staying alive
+			let pallet_balance = <T as pallet_signet::Config>::Currency::free_balance(&pallet_account);
+			let required_balance = existential_deposit.saturating_add(signet_deposit);
+			ensure!(pallet_balance >= required_balance, Error::<T>::PalletAccountNotFunded);
 
-			// Use requester account as path (like Solana's requester.to_string())
+			// Transfer signet deposit from requester to pallet account
+			<T as pallet_signet::Config>::Currency::transfer(
+				&requester,
+				&pallet_account,
+				signet_deposit,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
+			)?;
+
+			// Use requester account as path
 			let path = {
 				let encoded = requester.encode();
 				format!("0x{}", hex::encode(encoded)).into_bytes()
@@ -254,7 +242,7 @@ pub mod pallet {
 				tx_params.gas_limit,
 				tx_params.max_fee_per_gas,
 				tx_params.max_priority_fee_per_gas,
-				vec![], // Empty access list
+				vec![],
 				tx_params.chain_id,
 			)?;
 
@@ -296,6 +284,7 @@ pub mod pallet {
 			let callback_schema =
 				serde_json::to_vec(&serde_json::json!("bool")).map_err(|_| Error::<T>::SerializationError)?;
 
+			// Call sign_respond from the pallet account
 			pallet_signet::Pallet::<T>::sign_respond(
 				frame_system::RawOrigin::Signed(Self::account_id()).into(),
 				BoundedVec::try_from(rlp_encoded).map_err(|_| Error::<T>::SerializationError)?,
@@ -345,11 +334,11 @@ pub mod pallet {
 			let message_hash = Self::hash_message(&request_id, &serialized_output);
 			Self::verify_signature_from_address(&message_hash, &signature, &config.mpc_root_signer_address)?;
 
-			// Check for error magic prefix (matching Solana)
+			// Check for error magic prefix
 			const ERROR_PREFIX: [u8; 4] = [0xDE, 0xAD, 0xBE, 0xEF];
 
 			let success = if serialized_output.len() >= 4 && &serialized_output[..4] == ERROR_PREFIX {
-				false // Error response
+				false
 			} else {
 				// Decode boolean (Borsh serialized)
 				use borsh::BorshDeserialize;
@@ -394,13 +383,11 @@ pub mod pallet {
 			use alloy_sol_types::SolValue;
 			use sp_core::crypto::Ss58Codec;
 
-			// Convert AccountId to bytes and pad to 32 bytes
 			let encoded = sender.encode();
 			let mut account_bytes = [0u8; 32];
 			let len = encoded.len().min(32);
 			account_bytes[..len].copy_from_slice(&encoded[..len]);
 
-			// Convert to AccountId32 and then to SS58 string
 			let account_id32 = sp_runtime::AccountId32::from(account_bytes);
 			let sender_ss58 = account_id32.to_ss58check_with_version(sp_core::crypto::Ss58AddressFormat::custom(0));
 
@@ -419,7 +406,6 @@ pub mod pallet {
 			sp_io::hashing::keccak_256(&encoded)
 		}
 
-		/// Hash message for signature verification
 		fn hash_message(request_id: &[u8; 32], output: &[u8]) -> [u8; 32] {
 			let mut data = Vec::with_capacity(32 + output.len());
 			data.extend_from_slice(request_id);
@@ -427,28 +413,23 @@ pub mod pallet {
 			hashing::keccak_256(&data)
 		}
 
-		/// Verify signature by recovering address
 		fn verify_signature_from_address(
 			message_hash: &[u8; 32],
 			signature: &pallet_signet::Signature,
 			expected_address: &[u8; 20],
 		) -> DispatchResult {
-			// Validate recovery ID
 			ensure!(signature.recovery_id < 4, Error::<T>::InvalidSignature);
 
-			// Prepare signature bytes (r || s || v)
 			let mut sig_bytes = [0u8; 65];
 			sig_bytes[..32].copy_from_slice(&signature.big_r.x);
 			sig_bytes[32..64].copy_from_slice(&signature.s);
 			sig_bytes[64] = signature.recovery_id;
 
-			// Recover public key (returns 64 bytes without 0x04 prefix)
 			let pubkey = sp_io::crypto::secp256k1_ecdsa_recover(&sig_bytes, message_hash)
 				.map_err(|_| Error::<T>::InvalidSignature)?;
 
-			// Hash all 64 bytes (no prefix to skip)
 			let pubkey_hash = hashing::keccak_256(&pubkey);
-			let recovered_address = &pubkey_hash[12..]; // Last 20 bytes
+			let recovered_address = &pubkey_hash[12..];
 
 			ensure!(recovered_address == expected_address, Error::<T>::InvalidSigner);
 
