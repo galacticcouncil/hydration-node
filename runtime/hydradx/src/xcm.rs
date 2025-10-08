@@ -190,13 +190,6 @@ pub type Reserves = (
 	MultiNativeAsset<AbsoluteReserveProvider>,
 );
 
-parameter_types! {
-    pub HollarAssetFilter: AssetFilter = Wild(AllOf { fun: WildFungible, id: AssetId(HollarAssetLocation::get()) });
-    pub AssetHubTrustedTeleporter: (AssetFilter, Location) = (HollarAssetFilter::get(), AssetHubLocation::get());
-}
-
-pub type TrustedTeleporters = (xcm_builder::Case<AssetHubTrustedTeleporter>,);
-
 pub type DynamicWeigher<RuntimeCall> =
 	WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
 
@@ -209,7 +202,7 @@ impl Config for XcmConfig {
 	type OriginConverter = XcmOriginToCallOrigin;
 	type IsReserve = Reserves;
 
-	type IsTeleporter = TrustedTeleporters;
+	type IsTeleporter = (); // disabled
 	type UniversalLocation = UniversalLocation;
 
 	type Barrier = Barrier;
@@ -373,20 +366,6 @@ impl orml_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type SovereignOrigin = EnsureRoot<Self::AccountId>;
 }
-pub struct OnlyTeleportHollar;
-impl Contains<(Location, Vec<Asset>)> for OnlyTeleportHollar {
-	fn contains(t: &(Location, Vec<Asset>)) -> bool {
-		let hollar = HollarAssetLocation::get();
-		t.1.iter().all(|asset| {
-			log::trace!(target: "xcm::OnlyTeleportHollar", "Asset to be teleported: {:?}", asset);
-			if let Asset { id: asset_id, fun: Fungible(_) } = asset {
-				*asset_id == AssetId(hollar.clone())
-			} else {
-				false
-			}
-		})
-	}
-}
 
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -397,7 +376,7 @@ impl pallet_xcm::Config for Runtime {
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmExecuteFilter = Everything;
 	type XcmExecutor = WithUnifiedEventSupport<XcmExecutor<XcmConfig>>;
-	type XcmTeleportFilter = OnlyTeleportHollar;
+	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
 	type Weigher = DynamicWeigher<RuntimeCall>;
 	type UniversalLocation = UniversalLocation;
