@@ -264,7 +264,7 @@ jobs:
           export HYDRADX_RUNTIME_WASM_PATH="$PWD/hydradx_runtime.compact.compressed.wasm"
 
           # Run specific tests doing XCM between hydradx and other parachains
-          yarn install
-          yarn test -- packages/hydration/tests
+          npm install
+          npm test -- packages/hydration/tests
         env:
           HYDRADX_RUNTIME_WASM_PATH: ${{ env.HYDRADX_RUNTIME_WASM_PATH }}
