@@ -6106,7 +6106,7 @@ checksum = "f8478577c03552c21db0e2724ffb8986a5ce7af88107e6be5d2ee6e158c12800"
 [[package]]
 name = "ismp"
 version = "0.2.2"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "anyhow",
  "derive_more 1.0.0",
@@ -6123,7 +6123,7 @@ dependencies = [
 [[package]]
 name = "ismp-parachain"
 version = "16.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "hex",
  "hex-literal",
@@ -6141,7 +6141,7 @@ dependencies = [
 [[package]]
 name = "ismp-parachain-inherent"
 version = "16.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6157,7 +6157,7 @@ dependencies = [
 [[package]]
 name = "ismp-parachain-runtime-api"
 version = "16.0.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "polkadot-sdk",
 ]
@@ -9764,7 +9764,7 @@ dependencies = [
 [[package]]
 name = "pallet-hyperbridge"
 version = "16.0.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "anyhow",
  "ismp",
@@ -9842,7 +9842,7 @@ dependencies = [
 [[package]]
 name = "pallet-ismp"
 version = "16.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "anyhow",
  "fortuples",
@@ -9858,7 +9858,7 @@ dependencies = [
 [[package]]
 name = "pallet-ismp-rpc"
 version = "16.0.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "anyhow",
  "hash-db",
@@ -9879,7 +9879,7 @@ dependencies = [
 [[package]]
 name = "pallet-ismp-runtime-api"
 version = "16.0.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "ismp",
  "pallet-ismp",
@@ -11047,7 +11047,7 @@ dependencies = [
 [[package]]
 name = "pallet-token-gateway"
 version = "16.2.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-macro 0.7.7",
@@ -16602,7 +16602,7 @@ dependencies = [
 [[package]]
 name = "serde-hex-utils"
 version = "0.1.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "anyhow",
  "hex",
@@ -18546,7 +18546,7 @@ dependencies = [
 [[package]]
 name = "substrate-state-machine"
 version = "16.0.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "hash-db",
  "ismp",
@@ -18994,7 +18994,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "token-gateway-primitives"
 version = "16.0.0"
-source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#d46e41c741b28ac0dbe6af4eb6b4da0a287d9e85"
+source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-macro 0.7.7",
