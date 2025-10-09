@@ -79,10 +79,10 @@ impl<T: frame_system::Config> pallet_token_gateway::WeightInfo for HydraWeight<T
 		// Proof Size summary in bytes:
 		//  Measured:  `557`
 		//  Estimated: `4022`
-		// Minimum execution time: 46_207_000 picoseconds.
-		Weight::from_parts(46_567_334, 4022)
-			// Standard Error: 1_322
-			.saturating_add(Weight::from_parts(1_941_435, 0).saturating_mul(x.into()))
+		// Minimum execution time: 47_110_000 picoseconds.
+		Weight::from_parts(46_572_966, 4022)
+			// Standard Error: 1_896
+			.saturating_add(Weight::from_parts(2_034_689, 0).saturating_mul(x.into()))
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(5_u64))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(x.into())))
@@ -103,22 +103,20 @@ impl<T: frame_system::Config> pallet_token_gateway::WeightInfo for HydraWeight<T
 		// Proof Size summary in bytes:
 		//  Measured:  `940`
 		//  Estimated: `4405`
-		// Minimum execution time: 105_650_000 picoseconds.
-		Weight::from_parts(106_354_000, 4405)
+		// Minimum execution time: 107_194_000 picoseconds.
+		Weight::from_parts(108_150_000, 4405)
 			.saturating_add(T::DbWeight::get().reads(6_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
 	/// Storage: `TokenGateway::TokenGatewayAddresses` (r:0 w:1)
 	/// Proof: `TokenGateway::TokenGatewayAddresses` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// The range of component `x` is `[1, 100]`.
-	fn set_token_gateway_addresses(x: u32, ) -> Weight {
+	fn set_token_gateway_addresses(_x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 6_292_000 picoseconds.
-		Weight::from_parts(6_574_797, 0)
-			// Standard Error: 85
-			.saturating_add(Weight::from_parts(769, 0).saturating_mul(x.into()))
+		// Minimum execution time: 6_402_000 picoseconds.
+		Weight::from_parts(6_708_678, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	/// Storage: `Hyperbridge::HostParams` (r:1 w:0)
@@ -131,8 +129,8 @@ impl<T: frame_system::Config> pallet_token_gateway::WeightInfo for HydraWeight<T
 		// Proof Size summary in bytes:
 		//  Measured:  `723`
 		//  Estimated: `4188`
-		// Minimum execution time: 40_498_000 picoseconds.
-		Weight::from_parts(41_038_000, 4188)
+		// Minimum execution time: 40_863_000 picoseconds.
+		Weight::from_parts(41_363_000, 4188)
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
@@ -143,10 +141,10 @@ impl<T: frame_system::Config> pallet_token_gateway::WeightInfo for HydraWeight<T
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 6_536_000 picoseconds.
-		Weight::from_parts(4_535_850, 0)
-			// Standard Error: 1_257
-			.saturating_add(Weight::from_parts(1_951_367, 0).saturating_mul(x.into()))
+		// Minimum execution time: 6_513_000 picoseconds.
+		Weight::from_parts(4_534_536, 0)
+			// Standard Error: 1_074
+			.saturating_add(Weight::from_parts(2_030_165, 0).saturating_mul(x.into()))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(x.into())))
 	}
 }
