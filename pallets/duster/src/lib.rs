@@ -197,7 +197,7 @@ pub mod pallet {
 
 			//Sanity check that account is fully dusted
 			let leftover =
-				T::MultiCurrency::reducible_balance(currency_id, &account, Preservation::Expendable, Fortitude::Polite);
+				T::MultiCurrency::total_balance(currency_id, &account);
 			ensure!(leftover.is_zero(), Error::<T>::NonZeroBalance);
 
 			Self::deposit_event(Event::Dusted {
