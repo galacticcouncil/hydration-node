@@ -91,10 +91,7 @@ impl pallet_token_gateway::Config for Runtime {
 	type Dispatcher = Ismp;
 	type NativeCurrency = Balances;
 	type AssetAdmin = TreasuryAccount;
-	#[cfg(not(feature = "runtime-benchmarks"))]
 	type CreateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type CreateOrigin = frame_system::EnsureSigned<Self::AccountId>;
 	type Assets = FungibleCurrencies<Runtime>;
 	type NativeAssetId = NativeAssetId;
 	type Decimals = NativeTokenDecimals;
