@@ -7,6 +7,7 @@ use crate::{Runtime, Vec};
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
+use evm::ExitSucceed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_support::pallet_prelude::TypeInfo;
@@ -181,7 +182,7 @@ where
 		let (res, reserves_data) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
 		ensure!(
-			matches!(res, Succeed(_)),
+			matches!(res, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get reserves list".into())
 		);
 
@@ -190,6 +191,14 @@ where
 
 		let decoded = decode(&param_types, reserves_data.as_ref())
 			.map_err(|_| ExecutorError::Error("Failed to decode reserves list".into()))?;
+
+		debug_assert!(decoded.len() == param_types.len(), "Invalid length");
+
+		// ensure sufficient length
+		ensure!(
+			decoded.len() == param_types.len(),
+			ExecutorError::Error("Empty reserve list".into())
+		);
 
 		// Convert decoded addresses to EvmAddress format
 		let addresses = decoded[0]
@@ -213,7 +222,7 @@ where
 		let (res, reserve_data) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
 		ensure!(
-			matches!(res, Succeed(_)),
+			matches!(res, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get reserve data".into())
 		);
 
@@ -235,6 +244,14 @@ where
 
 		let decoded = decode(&param_types, reserve_data.as_ref())
 			.map_err(|_| ExecutorError::Error("Failed to decode reserve data".into()))?;
+
+		debug_assert!(decoded.len() == param_types.len(), "Invalid length");
+
+		// Ensure sufficient length
+		ensure!(
+			decoded.len() == param_types.len(),
+			ExecutorError::Error("Invalid reserve data format".into())
+		);
 
 		Ok(ReserveData {
 			configuration: decoded[0].clone().into_uint().unwrap_or_default(),
@@ -268,7 +285,7 @@ where
 		let data = EvmDataWriter::new_with_selector(Function::ScaledTotalSupply).build();
 		let (res, value) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 		ensure!(
-			matches!(res, Succeed(_)),
+			matches!(res, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
 		);
 		U256::checked_from(value.as_slice()).ok_or(ExecutorError::Error("Failed to decode scaled total supply".into()))
@@ -287,7 +304,7 @@ where
 
 		let (res, value) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
-		if !matches!(res, Succeed(_)) {
+		if !matches!(res, Succeed(ExitSucceed::Returned)) {
 			// not a token
 			return None;
 		}
