@@ -2,6 +2,7 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
+use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_ok, sp_runtime::traits::Zero};
 use hex_literal::hex;
@@ -321,9 +322,6 @@ mod atoken_dust {
 			let _ = runner
 				.run(&ed_range, |ed| {
 					let _ = with_transaction(|| {
-						let bal = Currencies::free_balance(ADOT, &ALICE.into());
-						assert_eq!(START_BALANCE, bal, "Start balance is not as expected");
-
 						// Parameterize chain ED for this run to be `ed + 1`
 						// meaning that leaving exactly `ed` in the account will be dust.
 						set_ed(ADOT, ed + 1);
@@ -349,8 +347,19 @@ mod atoken_dust {
 							0,
 							"After dusting with ED={ed}+1, remaining `ed` should be reaped."
 						);
-						assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), ed);
 
+						// Double check if the account is really dusted by trying to transfer 1 unit
+						// This double check is neeeded if free balance would lead to off-by-one error
+						let sanity_transfer = Currencies::transfer(
+							hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+							BOB.into(),
+							ADOT,
+							1,
+						);
+						assert_noop!(
+							sanity_transfer,
+							Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"),
+						);
 						TransactionOutcome::Rollback(DispatchResult::Ok(()))
 					});
 

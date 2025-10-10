@@ -801,8 +801,8 @@ fn buy_in_stable_after_rebase() {
 }
 
 mod transfer_atoken {
-
 	use super::*;
+	use frame_support::assert_ok;
 	#[test]
 	fn transfer_almost_all_atoken_but_ed_should_leave_ed() {
 		crate::aave_router::with_atoken(|| {
@@ -925,9 +925,11 @@ mod transfer_atoken {
 			)
 			.unwrap();
 
+			let leftover = ed + 1;
+
 			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
 			let adot_asset_id = HydraErc20Mapping::asset_address(crate::aave_router::ADOT);
-			let amount = alice_all_balance - ed - 1;
+			let amount = alice_all_balance - leftover;
 			assert_ok!(<Erc20Currency<Runtime> as MultiCurrency<AccountId>>::transfer(
 				adot_asset_id,
 				&AccountId::from(ALICE),
@@ -936,8 +938,49 @@ mod transfer_atoken {
 			));
 			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
 
+			let alice_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			assert_eq!(leftover, alice_new_balance);
 			assert_eq!(bob_new_balance, amount);
 		})
+	}
+
+	#[test]
+	fn transfer_some_specific_amount_leads_to_aave_rounding_issue() {
+		TestNet::reset();
+
+		crate::aave_router::with_atoken(|| {
+			let start_balance: u128 = 1_000_000_000_000_000;
+
+			let leftover = 737922657087018_u128;
+
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)));
+
+			let alice_balance_before = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
+			assert_eq!(alice_balance_before, start_balance, "Start balance is not as expected");
+
+			let alice_dot_balance_before = Currencies::free_balance(crate::aave_router::DOT, &ALICE.into());
+
+			// Transfer all but `ed` to BOB, leaving `ed` on ALICE → dust after ED=ed+1
+			assert_ok!(Currencies::transfer(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				BOB.into(),
+				ADOT,
+				start_balance - leftover
+			));
+
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into()),
+				leftover - 1
+			);
+
+			//Free balance leads to off-by-one due to Aave rounding issue
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::ADOT, &BOB.into()),
+				start_balance - leftover
+			);
+		});
 	}
 }
 
