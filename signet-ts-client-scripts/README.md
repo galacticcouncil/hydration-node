@@ -13,7 +13,7 @@ Test client for the Signet pallet on Substrate/Polkadot. Validates signature gen
 
 ### 1. Start the Signature Server
 
-Clone and run the signature server that responds to Substrate signature requests:
+Clone and run the signature server that responds to Substrate signature requests. Add .env to the root of the repository:
 
 ```bash
 # Clone the server repository
