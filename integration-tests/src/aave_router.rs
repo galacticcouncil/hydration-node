@@ -221,7 +221,7 @@ fn with_stablepool(execution: impl FnOnce(AssetId)) {
 
 const HDX: AssetId = 0;
 const DAI: AssetId = 1;
-const DOT: AssetId = 5;
+pub const DOT: AssetId = 5;
 pub const ADOT: AssetId = 1_000_037;
 const ONE: u128 = 10_u128.pow(10);
 pub const BAG: u128 = 100000 * ONE;

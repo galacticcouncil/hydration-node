@@ -237,7 +237,15 @@ mod atoken_dust {
 		crate::aave_router::with_atoken(|| {
 			let ed = 10000;
 			set_ed(ADOT, ed);
+			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				ALICE.into()
+			)));
 
+			let alice_dot_balance_before = 8999999999999998;
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
 			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), START_BALANCE);
 
 			//Make acocunt fall below ED
@@ -248,19 +256,10 @@ mod atoken_dust {
 				START_BALANCE - 1
 			),);
 
-			assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-				ALICE.into()
-			)));
-
 			assert_eq!(
 				hydradx_runtime::Currencies::free_balance(ADOT, &Treasury::account_id()),
 				0
 			);
-
-			//We set some AToken underlying balance to be sure it wont change after dusting
-			let initial_underlying_balance = 3 * UNITS;
-			assert_ok!(Currencies::deposit(DOT, &ALICE.into(), initial_underlying_balance));
-			assert_eq!(Currencies::free_balance(DOT, &ALICE.into()), initial_underlying_balance);
 
 			assert_ok!(Duster::dust_account(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -270,7 +269,11 @@ mod atoken_dust {
 
 			assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), 0);
 			assert_eq!(Currencies::free_balance(ADOT, &Treasury::account_id()), 1);
-			assert_ok!(Currencies::deposit(DOT, &ALICE.into(), initial_underlying_balance));
+			//Alice DOT (adot underlying asset) balance should remain the same after dusting
+			assert_eq!(
+				Currencies::free_balance(crate::aave_router::DOT, &ALICE.into()),
+				alice_dot_balance_before
+			);
 		});
 	}
 
