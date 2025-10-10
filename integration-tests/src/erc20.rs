@@ -445,30 +445,40 @@ fn insufficient_balance_should_fail_transfer() {
 }
 
 #[test]
-fn deposit_is_not_supported() {
+fn deposit_fails_when_unsufficient_funds_in_hold() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
 
-		assert_noop!(
+		assert_eq!(
 			Currencies::deposit(asset, &ALICE.into(), 100),
-			pallet_currencies::Error::<Runtime>::NotSupported
+			Err(Other("evm:0xe450d38c000000000000000000000000ffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000064"))
 		);
 	});
 }
 
 #[test]
-fn withdraw_is_not_supported() {
+fn withdraw() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let contract = deploy_token_contract();
 		let asset = bind_erc20(contract);
 
-		assert_noop!(
-			Currencies::withdraw(asset, &ALICE.into(), 100),
-			pallet_currencies::Error::<Runtime>::NotSupported
-		);
+		assert_ok!(Currencies::withdraw(asset, &ALICE.into(), 100));
+	});
+}
+
+#[test]
+fn deposit() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		let contract = deploy_token_contract();
+		let asset = bind_erc20(contract);
+		assert_ok!(Currencies::withdraw(asset, &ALICE.into(), 100));
+
+		assert_ok!(Currencies::deposit(asset, &BOB.into(), 100));
+		assert_eq!(Currencies::free_balance(asset, &BOB.into()), 100);
 	});
 }
 

@@ -8,6 +8,7 @@ mod call_filter;
 mod circuit_breaker;
 mod contracts;
 mod cross_chain_transfer;
+mod currency_id_convert;
 mod dca;
 mod deposit_limiter;
 mod dispatcher;
