@@ -428,7 +428,7 @@ impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 	fn convert(id: AssetId) -> Option<Location> {
 		let loc = AssetRegistry::asset_to_location(id);
 		if let Some(stored_location) = loc {
-			if(stored_location.0.parents == 0) {
+			if stored_location.0.parents == 0 {
 				// For local assets we use GeneralIndex as AssetId
 				Some(Location {
 					parents: 0,
