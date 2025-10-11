@@ -6,14 +6,10 @@ use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
 use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{
-	evm::{
-		precompiles::{handle::EvmDataWriter, Bytes},
-		Executor,
-	},
-	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, TreasuryAccount,
-	HSM,
-};
+use hydradx_runtime::{evm::{
+	precompiles::{handle::EvmDataWriter, Bytes},
+	Executor,
+}, AccountId, BorrowingTreasuryAccount, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, TreasuryAccount, HSM};
 use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use hydradx_traits::stableswap::AssetAmount;
@@ -1648,6 +1644,7 @@ const ALICE_INITIAL_DOT_BALANCE: Balance = 10_000 * DOT_UNIT;
 
 use hydradx_traits::evm::Erc20Encoding;
 use sp_runtime::traits::CheckedConversion;
+use pallet_liquidation::Config;
 
 #[test]
 fn hollar_liquidation_should_work() {
@@ -1698,7 +1695,7 @@ fn hollar_liquidation_should_work() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
 		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
 
-		let treasury_hollar_initial_balance = Currencies::free_balance(222, &Treasury::account_id());
+		let treasury_hollar_initial_balance = Currencies::free_balance(222, &BorrowingTreasuryAccount::get());
 
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
@@ -1800,7 +1797,7 @@ fn hollar_liquidation_should_work() {
 		std::assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
 		std::assert_eq!(Currencies::free_balance(222, &pallet_acc), 0);
 
-		assert!(Currencies::free_balance(222, &Treasury::account_id()) > treasury_hollar_initial_balance);
+		assert!(Currencies::free_balance(222, &&BorrowingTreasuryAccount::get()) > treasury_hollar_initial_balance);
 
 		std::assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 		std::assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);
