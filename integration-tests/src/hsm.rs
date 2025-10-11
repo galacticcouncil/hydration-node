@@ -1644,7 +1644,6 @@ const ALICE_INITIAL_DOT_BALANCE: Balance = 10_000 * DOT_UNIT;
 
 use hydradx_traits::evm::Erc20Encoding;
 use sp_runtime::traits::CheckedConversion;
-use pallet_liquidation::Config;
 
 #[test]
 fn hollar_liquidation_should_work() {
@@ -1797,7 +1796,7 @@ fn hollar_liquidation_should_work() {
 		std::assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
 		std::assert_eq!(Currencies::free_balance(222, &pallet_acc), 0);
 
-		assert!(Currencies::free_balance(222, &&BorrowingTreasuryAccount::get()) > treasury_hollar_initial_balance);
+		assert!(Currencies::free_balance(222, &BorrowingTreasuryAccount::get()) > treasury_hollar_initial_balance);
 
 		std::assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 		std::assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);
