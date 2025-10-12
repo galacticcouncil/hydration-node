@@ -18,10 +18,10 @@ fn convert_asset_id_to_location_should_work_for_native_asset() {
 		// Arrange
 		let asset_id: AssetId = HDX;
 
-		// Act - Convert CORE_ASSET_ID to location
+		// Act
 		let location = hydradx_runtime::CurrencyIdConvert::convert(asset_id);
 
-		// Assert - Should return local location with GeneralIndex(0)
+		// Assert
 		assert!(location.is_some());
 		let loc = location.unwrap();
 		assert_eq!(loc.parents, 0);
@@ -43,7 +43,7 @@ fn convert_location_to_asset_id_should_work_for_native_asset() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		// Arrange - Create location with X1(GeneralIndex(0)) and parents=0
+		// Arrange
 		// For local assets, GeneralIndex directly maps to AssetId
 		let location = Location {
 			parents: 0,
@@ -160,7 +160,7 @@ fn roundtrip_conversion_should_work_for_local_assets() {
 		let _: Result<(), sp_runtime::DispatchError> = with_transaction(|| {
 			assert_ok!(hydradx_runtime::AssetRegistry::register_sufficient_asset(
 				Some(original_asset_id),
-				Some(b"TST".to_vec().try_into().unwrap()),
+				Some(b"TKN".to_vec().try_into().unwrap()),
 				AssetKind::Token,
 				1_000_000,
 				None,
@@ -186,6 +186,35 @@ fn roundtrip_conversion_should_work_for_local_assets() {
 		// It should get back the original asset ID
 		assert!(converted_asset_id.is_some());
 		assert_eq!(converted_asset_id.unwrap(), original_asset_id);
+	});
+}
+
+#[test]
+fn convert_asset_id_to_location_should_work_for_asset_without_stored_location() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		// Use an unregistered asset ID
+		let asset_id: AssetId = 9999;
+
+		// Act
+		let location = hydradx_runtime::CurrencyIdConvert::convert(asset_id);
+
+		// Assert
+		assert!(location.is_some());
+		let loc = location.unwrap();
+		assert_eq!(loc.parents, 0);
+
+		match loc.interior {
+			Junctions::X1(ref junctions) => {
+				assert!(matches!(
+					junctions.as_ref()[0],
+					GeneralIndex(9999)
+				));
+			}
+			_ => panic!("Expected X1 junction with GeneralIndex"),
+		}
 	});
 }
 
@@ -258,23 +287,6 @@ fn convert_location_to_asset_id_should_work_for_foreign_assets() {
 		// Assert
 		assert!(result.is_some());
 		assert_eq!(result.unwrap(), asset_id);
-	});
-}
-
-#[test]
-fn convert_asset_id_to_location_should_return_none_for_unregistered_foreign_asset() {
-	TestNet::reset();
-
-	Hydra::execute_with(|| {
-		// Arrange
-		// Use an unregistered asset ID
-		let asset_id: AssetId = 9999;
-
-		// Act
-		let location = hydradx_runtime::CurrencyIdConvert::convert(asset_id);
-
-		// Assert
-		assert!(location.is_none());
 	});
 }
 

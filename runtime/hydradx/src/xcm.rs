@@ -426,20 +426,19 @@ use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 	fn convert(id: AssetId) -> Option<Location> {
-		let loc = AssetRegistry::asset_to_location(id);
-		if let Some(stored_location) = loc {
-			if stored_location.0.parents == 0 {
-				// For local assets we use GeneralIndex as AssetId
+		match AssetRegistry::asset_to_location(id) {
+			Some(stored_location) if stored_location.0.parents != 0 => {
+				// Return stored location if the asset is stored as foreign (parents: 1)
+				stored_location.into()
+			}
+			_ => {
+				// Return default location with GeneralIndex for local assets or
+				// assets without stored location
 				Some(Location {
 					parents: 0,
 					interior: X1(Arc::new([GeneralIndex(id.into())])),
 				})
-			} else {
-				// For foreign assets we use the stored location
-				stored_location.into()
-            }
-		} else {
-			None
+			}
 		}
 	}
 }
@@ -448,7 +447,7 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 	fn convert(location: Location) -> Option<AssetId> {
 		let Location { parents, ref interior } = location;
 
-		// For local assets we use GeneralIndex as AssetId
+		// Return GeneralIndex as AssetId for local assets
 		if parents == 0 {
 			if let X1(junctions) = interior {
 				if let Some(GeneralIndex(index)) = junctions.as_ref().first() {
@@ -457,7 +456,7 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 			}
 		}
 
-		// For foreign assets we use the stored location
+		// Return AssetId from the stored location for foreign assets
 		let maybe_asset_loc: Option<AssetLocation> = location.try_into().ok();
 		maybe_asset_loc.and_then(|loc| AssetRegistry::location_to_asset(loc))
 	}
