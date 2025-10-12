@@ -65,7 +65,7 @@ use sp_runtime::{
 	offchain::storage_lock::{StorageLock, Time},
 	traits::{AccountIdConversion, Zero},
 	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
-	AccountId32, ArithmeticError, DispatchError, FixedU128, Perbill, Permill, Rounding, RuntimeDebug,
+	AccountId32, ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Perbill, Permill, Rounding, RuntimeDebug,
 	SaturatedConversion,
 };
 use sp_std::vec::Vec;
@@ -1485,8 +1485,6 @@ where
 				// just to be safe
 				return None;
 			}
-			let after_spot = FixedU128::one().div(after_spot);
-
 			if after_spot > sell_price {
 				return Some(());
 			}
