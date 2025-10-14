@@ -322,7 +322,9 @@ pub mod pallet {
 	}
 
 	//NOTE: these errors should never happen.
-	#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+	#[derive(
+		Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug,
+	)]
 	pub enum InconsistentStateError {
 		/// Yield farm does not exist.
 		YieldFarmNotFound,

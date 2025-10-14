@@ -36,7 +36,6 @@ use sc_client_api::{
 use sc_network::service::traits::NetworkService;
 use sc_network_sync::SyncingService;
 use sc_rpc::SubscriptionTaskExecutor;
-use sc_transaction_pool::{ChainApi, Pool};
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;

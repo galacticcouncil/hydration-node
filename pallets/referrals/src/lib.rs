@@ -83,7 +83,20 @@ pub type ReferralCode<S> = BoundedVec<u8, S>;
 
 /// Referrer level.
 /// Indicates current level of the referrer to determine which reward percentages are used.
-#[derive(Hash, Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Hash,
+	Clone,
+	Copy,
+	Default,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 pub enum Level {
 	None,
 	#[default]
@@ -124,7 +137,9 @@ impl Level {
 	}
 }
 
-#[derive(Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Clone, Copy, Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct FeeDistribution {
 	/// Percentage of the fee that goes to the referrer.
 	pub referrer: Permill,

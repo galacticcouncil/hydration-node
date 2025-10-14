@@ -1,9 +1,9 @@
+use frame_support::traits::ExistenceRequirement;
 use hydradx_traits::router::{AssetPair, RouteProvider};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse;
 use polkadot_xcm::v5::prelude::*;
-use frame_support::traits::ExistenceRequirement;
 use sp_core::Get;
 use sp_runtime::traits::{Convert, Zero};
 use sp_runtime::BoundedVec;

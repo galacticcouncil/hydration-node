@@ -301,19 +301,18 @@ async fn start_node_impl(
 	let transaction_pool = params.transaction_pool.clone();
 	let import_queue_service = params.import_queue.service();
 
-	let (network, system_rpc_tx, tx_handler_controller, sync_service) =
-		build_network(BuildNetworkParams {
-			parachain_config: &parachain_config,
-			client: client.clone(),
-			transaction_pool: transaction_pool.clone(),
-			para_id,
-			spawn_handle: task_manager.spawn_handle(),
-			relay_chain_interface: relay_chain_interface.clone(),
-			import_queue: params.import_queue,
-			net_config,
-			sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
-		})
-		.await?;
+	let (network, system_rpc_tx, tx_handler_controller, sync_service) = build_network(BuildNetworkParams {
+		parachain_config: &parachain_config,
+		client: client.clone(),
+		transaction_pool: transaction_pool.clone(),
+		para_id,
+		spawn_handle: task_manager.spawn_handle(),
+		relay_chain_interface: relay_chain_interface.clone(),
+		import_queue: params.import_queue,
+		net_config,
+		sybil_resistance_level: CollatorSybilResistance::Resistant, // because of Aura
+	})
+	.await?;
 
 	if parachain_config.offchain_worker.enabled {
 		use futures::FutureExt;

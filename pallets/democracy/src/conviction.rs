@@ -28,7 +28,19 @@ use sp_std::{prelude::*, result::Result};
 
 /// A value denoting the strength of conviction of a vote.
 #[derive(
-	Default, Encode, MaxEncodedLen, Decode, DecodeWithMemTracking, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo,
+	Default,
+	Encode,
+	MaxEncodedLen,
+	Decode,
+	DecodeWithMemTracking,
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	RuntimeDebug,
+	TypeInfo,
 )]
 pub enum Conviction {
 	/// 0.1x votes, unlocked.

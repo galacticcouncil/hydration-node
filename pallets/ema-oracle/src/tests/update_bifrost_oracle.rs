@@ -35,8 +35,7 @@ use sp_runtime::DispatchError::BadOrigin;
 fn add_oracle_should_add_entry_to_storage() {
 	new_test_ext().execute_with(|| {
 		//Arrange
-		let hdx =
-			polkadot_xcm::v5::Location::new(0, polkadot_xcm::v5::Junctions::X1(GeneralIndex(0))).into_versioned();
+		let hdx = polkadot_xcm::v5::Location::new(0, polkadot_xcm::v5::Junctions::X1(GeneralIndex(0))).into_versioned();
 
 		let dot = polkadot_xcm::v3::MultiLocation::parent().into_versioned();
 

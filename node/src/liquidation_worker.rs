@@ -6,10 +6,7 @@ use fp_self_contained::SelfContainedCall;
 use frame_support::{BoundedVec, __private::sp_tracing::tracing};
 use futures::{future::ready, StreamExt};
 use hex_literal::hex;
-use hydradx_runtime::{
-	evm::precompiles::erc20_mapping::Erc20MappingApi,
-	OriginCaller, RuntimeCall, RuntimeEvent,
-};
+use hydradx_runtime::{evm::precompiles::erc20_mapping::Erc20MappingApi, OriginCaller, RuntimeCall, RuntimeEvent};
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use liquidation_worker_support::*;

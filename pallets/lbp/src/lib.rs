@@ -75,7 +75,9 @@ type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<<T as frame_s
 type PoolId<T> = <T as frame_system::Config>::AccountId;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Default, RuntimeDebug, Encode, Decode, DecodeWithMemTracking, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Default, RuntimeDebug, Encode, Decode, DecodeWithMemTracking, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen,
+)]
 pub enum WeightCurveType {
 	#[default]
 	Linear,

@@ -130,11 +130,9 @@ where
 					amount,
 				)?;
 
-				if let Err(r) = pallet_liquidation::Pallet::<Runtime>::liquidate_position(
-					this,
-					amount.as_u128(),
-					data.as_bytes(),
-				) {
+				if let Err(r) =
+					pallet_liquidation::Pallet::<Runtime>::liquidate_position(this, amount.as_u128(), data.as_bytes())
+				{
 					log::error!(target: "flash", "liquidate_position failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
