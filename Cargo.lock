@@ -5537,7 +5537,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "349.0.0"
+version = "350.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9311,7 +9311,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.3.0"
+version = "3.3.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14760,7 +14760,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
