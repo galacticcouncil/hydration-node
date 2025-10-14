@@ -1,4 +1,3 @@
-use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::executor::{BalanceOf, CallResult, Executor, NonceIdOf};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;

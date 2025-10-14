@@ -45,7 +45,6 @@ use hydradx_adapters::{
 };
 use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 pub use hydradx_traits::{
-	evm::CallContext,
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},

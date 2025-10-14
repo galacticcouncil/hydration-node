@@ -40,7 +40,10 @@ mod system;
 pub mod types;
 pub mod xcm;
 
-pub use assets::*;
+pub use assets::{
+	AssetKind, BondsPalletId, DotAssetId, FeePriceOracle, Liquidity, NativePriceOracle, OraclePeriod, PoolType,
+	ReferralsPalletId, RegistryStrLimit, RouterWeightInfo, Source, VestingPalletId, XykPaymentAssetSupport, LRNA,
+};
 pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
 pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
 pub use frame_system::RawOrigin;
@@ -54,7 +57,10 @@ pub use system::*;
 pub use xcm::*;
 
 use codec::{Decode, Encode};
-use hydradx_traits::evm::{EvmAddress, InspectEvmAccounts};
+use hydradx_traits::{
+	evm::{EvmAddress, InspectEvmAccounts},
+	Inspect,
+};
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;
 pub use sp_runtime::{
