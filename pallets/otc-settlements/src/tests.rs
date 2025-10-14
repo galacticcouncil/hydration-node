@@ -744,9 +744,9 @@ fn test_offchain_worker_unsigned_transaction_submission() {
 		let tx = pool_state.write().transactions.pop().unwrap();
 		assert!(pool_state.read().transactions.is_empty());
 		let tx = Extrinsic::decode(&mut &*tx).unwrap();
-		assert_eq!(tx.signature, None); // unsigned
+		assert_eq!(tx.preamble, ()); // unsigned
 		assert_eq!(
-			tx.call,
+			tx.function,
 			crate::mock::RuntimeCall::OtcSettlements(crate::Call::settle_otc_order {
 				otc_id: 0,
 				amount: 2_413_749_694_825_193,

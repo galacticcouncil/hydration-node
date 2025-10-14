@@ -17,7 +17,7 @@ use crate::tests::mock::*;
 use crate::{Error, HollarAmountReceived};
 use frame_support::traits::Hooks;
 use frame_support::{assert_err, assert_ok, BoundedVec};
-use hydradx_traits::evm::EvmAddress;
+use primitives::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};

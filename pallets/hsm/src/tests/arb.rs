@@ -3,7 +3,7 @@ use crate::ARBITRAGE_DIRECTION_BUY;
 use frame_support::assert_ok;
 use hex_literal::hex;
 use hydra_dx_math::hsm::PegType;
-use hydradx_traits::evm::EvmAddress;
+use primitives::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
 use orml_traits::MultiCurrency;

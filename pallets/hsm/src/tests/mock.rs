@@ -37,10 +37,11 @@ use frame_system::EnsureRoot;
 use hydra_dx_math::hsm::CoefficientRatio;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
-	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
+	evm::{CallContext, InspectEvmAccounts, EVM},
 	stableswap::AssetAmount,
 	AssetKind, BoundErc20, Inspect,
 };
+use primitives::EvmAddress;
 use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
@@ -133,19 +134,11 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl pallet_broadcast::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-}
-
-pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
-where
-	RuntimeCall: From<C>,
-{
-	type OverarchingCall = RuntimeCall;
-	type Extrinsic = Extrinsic;
 }
 
 parameter_type_with_key! {
@@ -586,6 +579,25 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 	}
 	fn weight_to_gas(_weight: Weight) -> u64 {
 		0
+	}
+}
+
+pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type RuntimeCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+}
+
+impl<LocalCall> frame_system::offchain::CreateInherent<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_inherent(call: Self::RuntimeCall) -> Extrinsic {
+		Extrinsic::new_bare(call)
 	}
 }
 

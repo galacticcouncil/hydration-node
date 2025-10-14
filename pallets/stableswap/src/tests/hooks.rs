@@ -46,7 +46,7 @@ fn add_liquidity_should_provide_correct_values_in_the_hook() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -116,7 +116,7 @@ fn add_liquidity_shares_should_provide_correct_values_in_the_hook() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
 			let desired_shares = 1947597621401945851;
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
@@ -189,7 +189,7 @@ fn removing_liquidity_should_provide_correct_values_in_the_hook() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
 			let desired_shares = 1947597621401945851;
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
@@ -271,7 +271,7 @@ fn withdraw_asset_amount_should_provide_correct_values_in_the_hook() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
 			let desired_shares = 1947597621401945851;
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
@@ -352,7 +352,7 @@ fn sell_should_provide_correct_values_in_the_hook() {
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
 			// ACT
 			assert_ok!(Stableswap::sell(
 				RuntimeOrigin::signed(BOB),
@@ -428,7 +428,7 @@ fn buy_should_provide_correct_values_in_the_hook() {
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283).unwrap();
+			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
 			// ACT
 			assert_ok!(Stableswap::buy(
 				RuntimeOrigin::signed(BOB),

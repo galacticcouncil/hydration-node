@@ -388,7 +388,7 @@ fn rate_limit_should_not_be_bypassed_by_burning_tokens() {
 			// Act 1: The attacker burns the newly created tokens to reset the *total supply*.
 			// This tricks the circuit breaker which only measures net supply change.
 			System::set_block_number(3);
-			assert_ok!(Tokens::withdraw(ASSET_ID, &ALICE, 90));
+			assert_ok!(Tokens::withdraw(ASSET_ID, &ALICE, 90, frame_support::traits::ExistenceRequirement::AllowDeath));
 			assert_balance!(ALICE, ASSET_ID, 0);
 
 			// Act 2: The attacker mints another 90 tokens. The gross issuance in this period
