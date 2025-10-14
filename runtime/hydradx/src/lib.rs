@@ -42,9 +42,10 @@ pub mod xcm;
 
 pub use assets::{
 	bifrost_account, AssetKind, AssetPairAccountIdFor, BondsPalletId, DotAssetId, DustRemovalWhitelist, FeePriceOracle,
-	Inspect, InsufficientEDinHDX, Liquidity, MinTradingLimit, NamedReserveId, NativeExistentialDeposit,
-	NativePriceOracle, OmnipoolCollectionId, OmnipoolLMCollectionId, OmnipoolLmOracle, OraclePeriod, PoolType,
-	ReferralsPalletId, RegistryStrLimit, RouterWeightInfo, Source, VestingPalletId, XYKLmCollectionId,
+	Inspect, InsufficientEDinHDX, Liquidity, MaxSchedulesPerBlock, MinTradingLimit, NamedReserveId,
+	NativeExistentialDeposit, NativePriceOracle, OmnipoolCollectionId, OmnipoolLMCollectionId,
+	OmnipoolLiquidityMiningInstance, OmnipoolLmOracle, OraclePeriod, PoolType, ReferralsPalletId, RegistryStrLimit,
+	RouterWeightInfo, Source, Trade, VestingPalletId, XYKLiquidityMiningInstance, XYKLmCollectionId,
 	XykPaymentAssetSupport, DOT_ASSET_LOCATION, LRNA, SUFFICIENCY_LOCK,
 };
 pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
