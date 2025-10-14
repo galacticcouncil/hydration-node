@@ -5095,7 +5095,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.4.1"
+version = "14.4.2"
 dependencies = [
  "async-trait",
  "clap",
@@ -5241,7 +5241,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "347.0.0"
+version = "349.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5396,7 +5396,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -8698,7 +8698,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.2.9"
+version = "3.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12921,7 +12921,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.52.3"
+version = "1.52.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12970,6 +12970,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dca",
  "pallet-dispatcher",
+ "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
@@ -13046,7 +13047,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
