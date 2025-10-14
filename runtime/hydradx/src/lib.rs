@@ -41,11 +41,15 @@ pub mod types;
 pub mod xcm;
 
 extern crate alloc;
-
 use alloc::borrow::Cow;
+
 pub use assets::{
-	AssetKind, BondsPalletId, DotAssetId, FeePriceOracle, Liquidity, NativePriceOracle, OraclePeriod, PoolType,
-	ReferralsPalletId, RegistryStrLimit, RouterWeightInfo, Source, VestingPalletId, XykPaymentAssetSupport, LRNA,
+	bifrost_account, AssetKind, AssetPairAccountIdFor, BondsPalletId, DotAssetId, DustRemovalWhitelist, FeePriceOracle,
+	Inspect, InsufficientEDinHDX, Liquidity, MaxSchedulesPerBlock, MinTradingLimit, NamedReserveId,
+	NativeExistentialDeposit, NativePriceOracle, OmnipoolCollectionId, OmnipoolLMCollectionId,
+	OmnipoolLiquidityMiningInstance, OmnipoolLmOracle, OraclePeriod, PoolType, ReferralsPalletId, RegistryStrLimit,
+	RouterWeightInfo, Source, Trade, VestingPalletId, XYKLiquidityMiningInstance, XYKLmCollectionId,
+	XykPaymentAssetSupport, DOT_ASSET_LOCATION, LRNA, SUFFICIENCY_LOCK,
 };
 pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
 pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
@@ -131,7 +135,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 349,
+	spec_version: 350,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,

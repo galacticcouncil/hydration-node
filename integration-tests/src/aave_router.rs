@@ -34,13 +34,12 @@ use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use primitives::Balance;
 use sp_runtime::traits::Zero;
+use sp_runtime::DispatchError;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{DispatchError, DispatchResult};
 
 pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/SNAPSHOT";
 const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
@@ -960,8 +959,6 @@ mod transfer_atoken {
 			let alice_balance_before = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
 			assert_eq!(alice_balance_before, start_balance, "Start balance is not as expected");
 
-			let alice_dot_balance_before = Currencies::free_balance(crate::aave_router::DOT, &ALICE.into());
-
 			// Transfer all but `ed` to BOB, leaving `ed` on ALICE → dust after ED=ed+1
 			assert_ok!(Currencies::transfer(
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1005,9 +1002,6 @@ pub mod stableswap_with_atoken {
 				None,
 			)
 			.unwrap();
-
-			let alice_all_balance = Currencies::free_balance(crate::aave_router::ADOT, &ALICE.into());
-			let adot_asset_id = HydraErc20Mapping::asset_address(crate::aave_router::ADOT);
 
 			let (pool_id, _, _) = init_stableswap_with_atoken().unwrap();
 

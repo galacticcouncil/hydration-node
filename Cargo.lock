@@ -5073,7 +5073,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "10.4.0"
+version = "10.4.1"
 dependencies = [
  "approx",
  "criterion",
@@ -5241,7 +5241,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "349.0.0"
+version = "350.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -8428,7 +8428,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8698,7 +8698,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.3.0"
+version = "3.3.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9863,7 +9863,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "5.5.0"
+version = "5.5.1"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -12921,7 +12921,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.52.4"
+version = "1.52.5"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -13047,7 +13047,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
@@ -14740,7 +14740,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "clap",
  "fp-rpc",
