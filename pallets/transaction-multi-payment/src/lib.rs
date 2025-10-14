@@ -567,7 +567,7 @@ impl<T: Config> Pallet<T> {
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
-		Pallet::<T>::get_currency(who.clone()).unwrap_or_else(|| {
+		Pallet::<T>::get_currency(who).unwrap_or_else(|| {
 			if T::InspectEvmAccounts::is_evm_account(who.clone()) {
 				T::EvmAssetId::get()
 			} else {
