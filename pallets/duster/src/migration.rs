@@ -33,11 +33,7 @@ pub mod v1 {
 		);
 	}
 
-	pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>(
-		account_whitelist: Vec<T::AccountId>,
-		reward_account: T::AccountId,
-		dust_account: T::AccountId,
-	) -> Weight {
+	pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>(account_whitelist: Vec<T::AccountId>) -> Weight {
 		//offset of storage version updated
 		let mut reads: u64 = 1;
 		let mut writes: u64 = 1;
