@@ -33,7 +33,11 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	sp_runtime::DispatchError,
-	traits::{Contains, ExistenceRequirement, fungibles::{Inspect, Mutate}, Get, tokens::Preservation},
+	traits::{
+		fungibles::{Inspect, Mutate},
+		tokens::Preservation,
+		Contains, ExistenceRequirement, Get,
+	},
 };
 
 use frame_system::ensure_signed;

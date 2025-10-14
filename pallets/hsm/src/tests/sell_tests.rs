@@ -19,12 +19,12 @@ use crate::tests::mock::*;
 use crate::{Error, HollarAmountReceived};
 use frame_support::traits::Hooks;
 use frame_support::{assert_err, assert_noop, assert_ok, BoundedVec};
-use primitives::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use pallet_broadcast::types::{Asset, Filler, TradeOperation};
 use pallet_stableswap::types::PegSource;
+use primitives::EvmAddress;
 use sp_runtime::FixedU128;
 use sp_runtime::{Perbill, Permill};
 

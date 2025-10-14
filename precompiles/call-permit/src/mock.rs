@@ -189,7 +189,11 @@ impl ExtBuilder {
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| {
 			System::set_block_number(1);
-			pallet_evm::Pallet::<Runtime>::create_account(Revert.into(), hex_literal::hex!("1460006000fd").to_vec(), None);
+			pallet_evm::Pallet::<Runtime>::create_account(
+				Revert.into(),
+				hex_literal::hex!("1460006000fd").to_vec(),
+				None,
+			);
 		});
 		ext
 	}

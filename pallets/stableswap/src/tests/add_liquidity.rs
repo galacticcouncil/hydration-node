@@ -246,7 +246,13 @@ fn add_liquidity_should_emit_swapped_events() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -747,7 +753,13 @@ fn add_liquidity_should_work_correctly() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -797,7 +809,13 @@ fn add_liquidity_should_work_correctly_when_fee_is_applied() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -847,7 +865,13 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
 			let amount = 2_000_000_000_000_000_000;
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
 				pool_id,
@@ -916,7 +940,13 @@ fn add_liquidity_should_apply_fee_when_providing_exact_amount_of_shares() {
 		.build()
 		.execute_with(|| {
 			let pool_id = get_pool_id_at(0);
-			Tokens::withdraw(pool_id, &ALICE, 5906657405945079804575283, orml_traits::currency::TransferExistenceRequirement::AllowDeath).unwrap();
+			Tokens::withdraw(
+				pool_id,
+				&ALICE,
+				5906657405945079804575283,
+				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+			)
+			.unwrap();
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
 				pool_id,

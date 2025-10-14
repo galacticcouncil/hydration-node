@@ -41,12 +41,12 @@ use hydradx_traits::{
 	stableswap::AssetAmount,
 	AssetKind, BoundErc20, Inspect,
 };
-use primitives::EvmAddress;
 use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
+use primitives::EvmAddress;
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::{BoundedVec, Perbill};
