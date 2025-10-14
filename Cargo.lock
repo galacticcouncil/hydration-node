@@ -5537,7 +5537,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "348.0.0"
+version = "349.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -5700,7 +5700,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -9311,7 +9311,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.2.10"
+version = "3.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14634,7 +14634,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.52.3"
+version = "1.52.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -14683,6 +14683,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dca",
  "pallet-dispatcher",
+ "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
