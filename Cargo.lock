@@ -5465,6 +5465,7 @@ dependencies = [
  "rustls 0.21.10",
  "tokio",
  "tokio-rustls 0.24.1",
+ "webpki-roots",
 ]
 
 [[package]]

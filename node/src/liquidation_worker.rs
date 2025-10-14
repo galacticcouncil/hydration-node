@@ -7,7 +7,7 @@ use frame_support::{BoundedVec, __private::sp_tracing::tracing};
 use futures::{future::ready, StreamExt};
 use hex_literal::hex;
 use hydradx_runtime::{
-	evm::{precompiles::erc20_mapping::Erc20MappingApi, EvmAddress},
+	evm::precompiles::erc20_mapping::Erc20MappingApi,
 	OriginCaller, RuntimeCall, RuntimeEvent,
 };
 use hyper::{body::Body, Client, StatusCode};
@@ -16,7 +16,7 @@ use liquidation_worker_support::*;
 use pallet_ethereum::Transaction;
 use parking_lot::Mutex;
 use polkadot_primitives::EncodeAs;
-use primitives::{AccountId, BlockNumber};
+use primitives::{AccountId, BlockNumber, EvmAddress};
 use sc_client_api::{Backend, BlockchainEvents, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
@@ -122,6 +122,7 @@ where
 			None,
 			true,
 			None,
+			None, // authorization_list
 		)
 	}
 	fn address_to_asset(&self, hash: Block::Hash, address: EvmAddress) -> Result<Option<AssetId>, sp_api::ApiError> {
@@ -133,7 +134,7 @@ where
 		origin: OriginCaller,
 		call: RuntimeCall,
 	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError> {
-		self.0.dry_run_call(hash, origin, call)
+		self.0.dry_run_call(hash, origin, call, 4)
 	}
 }
 
@@ -168,10 +169,9 @@ where
 
 		// initialize the client once and reuse it.
 		let https = hyper_rustls::HttpsConnectorBuilder::new()
-			.with_native_roots()
+			.with_webpki_roots()
 			.https_or_http()
 			.enable_http1()
-			.enable_http2()
 			.build();
 		let http_client: HttpClient = Arc::new(Client::builder().build(https));
 
@@ -404,7 +404,7 @@ where
 	/// Executes when a new DIA oracle update transaction is added to the transaction pool.
 	/// Tries to find liquidation opportunities and execute them.
 	fn process_new_oracle_update(
-		transaction: ethereum::TransactionV2,
+		transaction: Transaction,
 		client: Arc<C>,
 		spawner: SpawnTaskHandle,
 		header: B::Header,
@@ -582,7 +582,7 @@ where
 				RuntimeCall,
 				hydradx_runtime::Signature,
 				hydradx_runtime::SignedExtra,
-			> = fp_self_contained::UncheckedExtrinsic::new_unsigned(liquidation_tx.clone());
+			> = fp_self_contained::UncheckedExtrinsic::new_bare(liquidation_tx.clone());
 			let encoded = encoded_tx.encode();
 			let opaque_tx =
 				sp_runtime::OpaqueExtrinsic::decode(&mut &encoded[..]).expect("Encoded extrinsic is always valid");
@@ -714,6 +714,7 @@ where
 				Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
 				Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
 				Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+				Transaction::EIP7702(eip7702_transaction) => eip7702_transaction.destination,
 			};
 
 			// check if the transaction is DIA oracle update
@@ -747,6 +748,7 @@ where
 				Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
 				Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
 				Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+				Transaction::EIP7702(eip7702_transaction) => eip7702_transaction.destination,
 			};
 
 			// check if the transaction is MM borrow
@@ -815,6 +817,7 @@ pub fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdata
 		Transaction::Legacy(legacy_transaction) => &legacy_transaction.input,
 		Transaction::EIP2930(eip2930_transaction) => &eip2930_transaction.input,
 		Transaction::EIP1559(eip1559_transaction) => &eip1559_transaction.input,
+		Transaction::EIP7702(eip7702_transaction) => &eip7702_transaction.data,
 	};
 
 	let mut dia_oracle_data = Vec::new();

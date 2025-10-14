@@ -87,6 +87,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			},
 			balances: BalancesConfig {
 				balances: native_endowed_accounts,
+				dev_accounts: None,
 			},
 			technical_committee: TechnicalCommitteeConfig {
 				members: get_technical_committee(),

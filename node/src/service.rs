@@ -92,6 +92,7 @@ impl TransactionDetailProvider for TxDetailProvider {
 						pallet_ethereum::Transaction::Legacy(legacy_transaction) => legacy_transaction.action,
 						pallet_ethereum::Transaction::EIP2930(eip2930_transaction) => eip2930_transaction.action,
 						pallet_ethereum::Transaction::EIP1559(eip1559_transaction) => eip1559_transaction.action,
+						pallet_ethereum::Transaction::EIP7702(eip7702_transaction) => eip7702_transaction.destination,
 					};
 					let maybe_call_address = match action {
 						pallet_ethereum::TransactionAction::Call(call_address) => Some(call_address),
@@ -132,7 +133,7 @@ pub fn new_partial(
 		ParachainBackend,
 		(),
 		sc_consensus::DefaultImportQueue<Block>,
-		sc_transaction_pool::FullPool<Block, ParachainClient>,
+		sc_transaction_pool::TransactionPoolHandle<Block, ParachainClient>,
 		(
 			evm::BlockImport<Block, ParachainBlockImport, ParachainClient>,
 			Option<Telemetry>,
@@ -198,12 +199,15 @@ pub fn new_partial(
 		telemetry
 	});
 
-	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
-		config.transaction_pool.clone(),
-		config.role.is_authority().into(),
-		config.prometheus_registry(),
-		task_manager.spawn_essential_handle(),
-		client.clone(),
+	let transaction_pool = Arc::from(
+		sc_transaction_pool::Builder::new(
+			task_manager.spawn_essential_handle(),
+			client.clone(),
+			config.role.is_authority().into(),
+		)
+		.with_options(config.transaction_pool.clone())
+		.with_prometheus(config.prometheus_registry())
+		.build(),
 	);
 
 	let frontier_backend = Arc::new(FrontierBackend::open(
@@ -297,7 +301,7 @@ async fn start_node_impl(
 	let transaction_pool = params.transaction_pool.clone();
 	let import_queue_service = params.import_queue.service();
 
-	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
+	let (network, system_rpc_tx, tx_handler_controller, sync_service) =
 		build_network(BuildNetworkParams {
 			parachain_config: &parachain_config,
 			client: client.clone(),
@@ -327,6 +331,7 @@ async fn start_node_impl(
 				enable_http_requests: false,
 				custom_extensions: move |_| vec![],
 			})
+			.expect("Failed to create offchain workers")
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),
 		);
@@ -389,7 +394,7 @@ async fn start_node_impl(
 			let eth_deps = rpc::Deps {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
-				graph: transaction_pool.pool().clone(),
+				graph: transaction_pool.clone(),
 				converter: Some(hydradx_runtime::TransactionConverter),
 				is_authority,
 				enable_dev_signer: ethereum_config.enable_dev_signer,
@@ -489,8 +494,6 @@ async fn start_node_impl(
 		)?;
 	}
 
-	start_network.start_network();
-
 	Ok((task_manager, client))
 }
 
@@ -531,7 +534,7 @@ fn start_consensus(
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
 	relay_chain_interface: Arc<dyn RelayChainInterface>,
-	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient>>,
+	transaction_pool: Arc<sc_transaction_pool::TransactionPoolHandle<Block, ParachainClient>>,
 	keystore: KeystorePtr,
 	relay_chain_slot_duration: Duration,
 	para_id: ParaId,
@@ -577,6 +580,7 @@ fn start_consensus(
 		collator_service,
 		authoring_duration: Duration::from_millis(1500),
 		reinitialize: false,
+		max_pov_percentage: None, // Defaults to 85% of max PoV size (safe default)
 	};
 
 	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(params);
