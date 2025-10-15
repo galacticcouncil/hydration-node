@@ -347,9 +347,10 @@ mod atoken_dust {
 							ADOT,
 							1,
 						);
-						assert_noop!(
-							sanity_transfer,
-							Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"),
+						let err = sanity_transfer.unwrap_err();
+						assert_eq!(
+							err,
+							pallet_dispatcher::Error::<hydradx_runtime::Runtime>::EvmArithmeticOverflowOrUnderflow.into()
 						);
 						TransactionOutcome::Rollback(DispatchResult::Ok(()))
 					});
