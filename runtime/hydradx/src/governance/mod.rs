@@ -258,6 +258,7 @@ impl pallet_dispatcher::Config for Runtime {
 	type AaveManagerOrigin = EitherOf<EnsureRoot<AccountId>, EconomicParameters>;
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = AaveManagerAccount;
+	type BorrowingContract = Liquidation;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type WeightInfo = weights::pallet_dispatcher::HydraWeight<Runtime>;
 }

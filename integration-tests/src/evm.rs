@@ -1956,7 +1956,7 @@ mod chainlink_precompile {
 				ChainlinkOraclePrecompile::<hydradx_runtime::Runtime>::execute(&mut handle).unwrap();
 			let precompile_price = U256::from(output.as_slice());
 
-			let (.., output) = Executor::<Runtime>::view(
+			let call_result = Executor::<Runtime>::view(
 				CallContext {
 					contract: reference_oracle,
 					sender: Default::default(),
@@ -1965,7 +1965,7 @@ mod chainlink_precompile {
 				input,
 				100_000,
 			);
-			let dia_price = U256::from(output.as_slice());
+			let dia_price = U256::from(call_result.value.as_slice());
 
 			// Prices doesn't need to be exactly same, but comparable within 5%
 			let tolerance = dia_price

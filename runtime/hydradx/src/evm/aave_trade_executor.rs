@@ -1,4 +1,4 @@
-use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
+use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::Executor;
@@ -18,6 +18,7 @@ use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::{BoundErc20, Inspect};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_broadcast::types::Asset;
+use pallet_dispatcher::evm::CallResult;
 use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
@@ -182,16 +183,17 @@ where
 		let context = CallContext::new_view(pool);
 		let data = EvmDataWriter::new_with_selector(Function::GetReservesList).build();
 
-		let (res, reserves_data) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
 		ensure!(
-			matches!(res, Succeed(_)),
+			matches!(call_result.exit_reason, Succeed(_)),
 			ExecutorError::Error("Failed to get reserves list".into())
 		);
 
 		// The return value is an array of addresses, so we need to decode it
 		let param_types = vec![ParamType::Array(Box::new(ParamType::Address))];
 
+		let reserves_data = call_result.value;
 		let decoded = decode(&param_types, reserves_data.as_ref())
 			.map_err(|_| ExecutorError::Error("Failed to decode reserves list".into()))?;
 
@@ -214,10 +216,10 @@ where
 			.write(asset)
 			.build();
 
-		let (res, reserve_data) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
 		ensure!(
-			matches!(res, Succeed(_)),
+			matches!(call_result.exit_reason, Succeed(_)),
 			ExecutorError::Error("Failed to get reserve data".into())
 		);
 
@@ -237,6 +239,7 @@ where
 			ParamType::Uint(256), // accruedToTreasury
 		];
 
+		let reserve_data = call_result.value;
 		let decoded = decode(&param_types, reserve_data.as_ref())
 			.map_err(|_| ExecutorError::Error("Failed to decode reserve data".into()))?;
 
@@ -270,12 +273,13 @@ where
 	fn get_scaled_total_supply(atoken: EvmAddress) -> Result<U256, ExecutorError<DispatchError>> {
 		let context = CallContext::new_view(atoken);
 		let data = EvmDataWriter::new_with_selector(Function::ScaledTotalSupply).build();
-		let (res, value) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 		ensure!(
-			matches!(res, Succeed(_)),
+			matches!(call_result.exit_reason, Succeed(_)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
 		);
-		U256::checked_from(value.as_slice()).ok_or(ExecutorError::Error("Failed to decode scaled total supply".into()))
+		U256::checked_from(call_result.value.as_slice())
+			.ok_or(ExecutorError::Error("Failed to decode scaled total supply".into()))
 	}
 
 	fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
@@ -289,14 +293,14 @@ where
 			.to_be_bytes()
 			.to_vec();
 
-		let (res, value) = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
-		if !matches!(res, Succeed(_)) {
+		if !matches!(call_result.exit_reason, Succeed(_)) {
 			// not a token
 			return None;
 		}
 
-		Some(EvmAddress::from(H256::from_slice(&value)))
+		Some(EvmAddress::from(H256::from_slice(&call_result.value)))
 	}
 
 	fn supply(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
@@ -404,12 +408,12 @@ where
 }
 
 fn handle_result(result: CallResult) -> DispatchResult {
-	let (exit_reason, value) = result;
-	match exit_reason {
+	let call_result = result;
+	match call_result.exit_reason {
 		Succeed(_) => Ok(()),
 		e => {
-			let hex_value = hex::encode(&value);
-			log::error!(target: "evm", "evm call failed with : {:?}, value: 0x{}, decoded: {:?}", e, hex_value, String::from_utf8_lossy(&value).into_owned());
+			let hex_value = hex::encode(&call_result.value);
+			log::error!(target: "evm", "evm call failed with : {:?}, value: 0x{}, decoded: {:?}", e, hex_value, String::from_utf8_lossy(&call_result.value).into_owned());
 			Err(DispatchError::Other(&*Box::leak(
 				format!("evm:0x{}", hex_value).into_boxed_str(),
 			)))

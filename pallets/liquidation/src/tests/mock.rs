@@ -105,7 +105,11 @@ impl EVM<CallResult> for EvmMock {
 				let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
 
 				if collateral_asset.is_none() || debt_asset.is_none() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+					};
 				};
 
 				let collateral_asset = collateral_asset.unwrap();
@@ -129,13 +133,27 @@ impl EVM<CallResult> for EvmMock {
 				);
 
 				if first_transfer_result.is_err() || second_transfer_result.is_err() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+					};
 				}
 			}
-			None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]),
+			None => {
+				return CallResult {
+					exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+					value: vec![],
+					contract: context.contract,
+				}
+			}
 		}
 
-		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
+		CallResult {
+			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {

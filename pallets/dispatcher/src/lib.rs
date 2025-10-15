@@ -36,9 +36,11 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod evm;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
+use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::evm::MaybeEvmCall;
 use pallet_evm::{ExitReason, GasWeightMapping};
 use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
@@ -46,6 +48,7 @@ pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::pallet_prelude::Weight;
+use frame_support::traits::Get;
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -87,6 +90,8 @@ pub mod pallet {
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
 
+		type BorrowingContract: Get<EvmAddress>;
+
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
 
@@ -119,6 +124,16 @@ pub mod pallet {
 		EvmCallFailed,
 		/// The provided call is not an EVM call. This extrinsic only accepts `pallet_evm::Call::call`.
 		NotEvmCall,
+		/// The EVM call ran out of gas.
+		EvmOutOfGas,
+		/// The EVM call resulted in an arithmetic overflow or underflow.
+		EvmArithmeticOverflowOrUnderflow,
+		/// Aave supply cap has been exceeded.
+		AaveSupplyCapExceeded,
+		/// Aave borrow cap has been exceeded.
+		AaveBorrowCapExceeded,
+		///Aave health factor is not below the threshold.
+		AaveHealthFactorNotBelowThreshold,
 	}
 
 	#[pallet::event]

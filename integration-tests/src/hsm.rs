@@ -67,19 +67,29 @@ fn balance_of(address: EvmAddress) -> U256 {
 		.write(address)
 		.build();
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
-	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
-	sp_core::U256::from(value.as_slice())
+	let call_result = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
+	std::assert_eq!(
+		call_result.exit_reason,
+		Succeed(Returned),
+		"{:?}",
+		hex::encode(call_result.value)
+	);
+	sp_core::U256::from(call_result.value.as_slice())
 }
 
 fn list_facilitators() -> Vec<EvmAddress> {
 	let data = Into::<u32>::into(Function::ListFacilitator).to_be_bytes().to_vec();
 	let context = CallContext::new_view(hollar_contract_address());
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
-	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
+	let call_result = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
+	std::assert_eq!(
+		call_result.exit_reason,
+		Succeed(Returned),
+		"{:?}",
+		hex::encode(call_result.value)
+	);
 
 	let mut r = vec![];
-	for c in value.chunks(32) {
+	for c in call_result.value.chunks(32) {
 		r.push(EvmAddress::from(H256::from_slice(c)));
 	}
 	r
@@ -93,8 +103,13 @@ fn add_facilitator(facilitator: EvmAddress, label: &str, capacity: u128) {
 		.write(capacity)
 		.build();
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
-	std::assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
+	let call_result = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
+	std::assert_eq!(
+		call_result.exit_reason,
+		Succeed(Stopped),
+		"{:?}",
+		hex::encode(call_result.value)
+	);
 }
 
 fn add_flash_borrower(borrower: EvmAddress) {
@@ -104,8 +119,13 @@ fn add_flash_borrower(borrower: EvmAddress) {
 		.write(borrower)
 		.build();
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
-	std::assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
+	let call_result = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 5_000_000);
+	std::assert_eq!(
+		call_result.exit_reason,
+		Succeed(Stopped),
+		"{:?}",
+		hex::encode(call_result.value)
+	);
 }
 
 fn check_flash_borrower(borrower: EvmAddress) -> bool {
@@ -114,9 +134,14 @@ fn check_flash_borrower(borrower: EvmAddress) -> bool {
 		.write(borrower)
 		.build();
 	let context = CallContext::new_view(acl_manager);
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
-	std::assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
-	!value.is_empty() && value.iter().any(|&x| x != 0)
+	let call_result = Executor::<hydradx_runtime::Runtime>::view(context, data, 100_000);
+	std::assert_eq!(
+		call_result.exit_reason,
+		Succeed(Returned),
+		"{:?}",
+		hex::encode(call_result.value)
+	);
+	!call_result.value.is_empty() && call_result.value.iter().any(|&x| x != 0)
 }
 
 fn mint(facilitator: EvmAddress, to: EvmAddress, amount: u128) {
@@ -126,8 +151,13 @@ fn mint(facilitator: EvmAddress, to: EvmAddress, amount: u128) {
 		.write(amount)
 		.build();
 
-	let (res, value) = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 4_000_000);
-	std::assert_eq!(res, Succeed(Stopped), "{:?}", hex::encode(value));
+	let call_result = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 4_000_000);
+	std::assert_eq!(
+		call_result.exit_reason,
+		Succeed(Stopped),
+		"{:?}",
+		hex::encode(call_result.value)
+	);
 }
 
 #[test]

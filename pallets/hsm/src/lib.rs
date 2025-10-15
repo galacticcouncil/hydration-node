@@ -56,6 +56,7 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::One;
+use pallet_dispatcher::evm::CallResult;
 use pallet_stableswap::types::PoolSnapshot;
 use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
@@ -145,7 +146,7 @@ pub mod pallet {
 		type Currency: Mutate<Self::AccountId, Balance = Balance, AssetId = Self::AssetId>;
 
 		/// EVM handler
-		type Evm: EVM<types::CallResult>;
+		type Evm: EVM<CallResult>;
 
 		/// EVM address converter
 		type EvmAccounts: InspectEvmAccounts<Self::AccountId>;
@@ -856,10 +857,10 @@ pub mod pallet {
 				.write(Bytes(arb_data))
 				.build();
 
-			let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+			let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-			if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
+			if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
 				return Err(Error::<T>::InvalidEVMInteraction.into());
 			}
 
@@ -1146,11 +1147,11 @@ where
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 
 		// Execute the EVM call
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", exit_reason, value);
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
 			return Err(Error::<T>::InvalidEVMInteraction.into());
 		}
 
@@ -1175,11 +1176,11 @@ where
 		data.extend_from_slice(H256::from_uint(&U256::from(amount)).as_bytes());
 
 		// Execute the EVM call
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 		// Check if the call was successful
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
-			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", exit_reason, value);
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
+			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", call_result.exit_reason, call_result.value);
 			return Err(Error::<T>::InvalidEVMInteraction.into());
 		}
 

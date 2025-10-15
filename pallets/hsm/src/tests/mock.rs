@@ -19,7 +19,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate as pallet_hsm;
-use crate::types::CallResult;
 use crate::Config;
 use crate::ERC20Function;
 use core::ops::RangeInclusive;
@@ -44,6 +43,7 @@ use hydradx_traits::{
 use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
+use pallet_dispatcher::evm::CallResult;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};
@@ -317,7 +317,11 @@ impl EVM<CallResult> for MockEvm {
 		// Check if the call has a pre-defined result in our mock
 		let maybe_predefined = EVM_CALL_RESULTS.with(|v| v.borrow().get(&data).cloned());
 		if let Some(result) = maybe_predefined {
-			return (ExitReason::Succeed(ExitSucceed::Stopped), result);
+			return CallResult {
+				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+				value: vec![],
+				contract: context.contract,
+			};
 		}
 
 		// Handle the EVM functions
@@ -346,7 +350,11 @@ impl EVM<CallResult> for MockEvm {
 								// Increase the balance of the recipient
 								let _ = Tokens::update_balance(hollar_id, &recipient, amount as i128);
 
-								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+								return CallResult {
+									exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+									value: vec![],
+									contract: context.contract,
+								};
 							}
 						}
 					}
@@ -366,7 +374,11 @@ impl EVM<CallResult> for MockEvm {
 								// Decrease the balance of the caller
 								let _ = Tokens::update_balance(hollar_id, &account_id, -(amount as i128));
 
-								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+								return CallResult {
+									exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+									value: vec![],
+									contract: context.contract,
+								};
 							}
 						}
 					}
@@ -402,7 +414,11 @@ impl EVM<CallResult> for MockEvm {
 							.unwrap();
 
 							crate::Pallet::<Test>::burn_hollar(amount.as_u128()).unwrap();
-							return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+							return CallResult {
+								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+								value: vec![],
+								contract: context.contract,
+							};
 						} else {
 							panic!("incorrect data len");
 						}
@@ -411,8 +427,11 @@ impl EVM<CallResult> for MockEvm {
 			}
 		}
 
-		// Default failure for unrecognized calls
-		(ExitReason::Error(ExitError::DesignatedInvalid), vec![])
+		CallResult {
+			exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {

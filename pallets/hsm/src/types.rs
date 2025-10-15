@@ -8,13 +8,10 @@ use evm::ExitReason;
 use hydra_dx_math::hsm::CoefficientRatio;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{DispatchError, Perbill, Permill};
 use sp_std::vec::Vec;
 
 pub type Balance = u128;
-
-/// Type for EVM call result
-pub type CallResult = (ExitReason, Vec<u8>);
 
 /// Information about a collateral asset
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]

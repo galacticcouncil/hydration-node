@@ -34,6 +34,7 @@ pallet-lbp = { workspace = true }
 pallet-asset-registry = { workspace = true }
 pallet-bonds = { workspace = true }
 pallet-broadcast = { workspace = true }
+pallet-dispatcher = { workspace = true }
 
 # Evm
 num_enum = { workspace = true, default-features = false }

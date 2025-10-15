@@ -1397,6 +1397,7 @@ use hydradx_traits::price::PriceProvider;
 use hydradx_traits::registry::Create;
 use pallet_asset_registry::XcmRateLimitsInRegistry;
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
+use pallet_dispatcher::evm::{CallResult, EvmErrorMapperAdapter};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1742,19 +1743,21 @@ parameter_types! {
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummyEvm;
 #[cfg(feature = "runtime-benchmarks")]
-impl hydradx_traits::evm::EVM<pallet_liquidation::CallResult> for DummyEvm {
-	fn call(_context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_liquidation::CallResult {
-		(
-			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
-			vec![],
-		)
+impl hydradx_traits::evm::EVM<pallet_dispatcher::evm::CallResult> for DummyEvm {
+	fn call(context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_dispatcher::evm::CallResult {
+		CallResult {
+			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 
-	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_liquidation::CallResult {
-		(
-			pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
-			vec![],
-		)
+	fn view(context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_dispatcher::evm::CallResult {
+		CallResult {
+			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 }
 
@@ -1778,6 +1781,7 @@ impl pallet_liquidation::Config for Runtime {
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 	type HollarId = HOLLAR;
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
+	type EvmErrorMapper = EvmErrorMapperAdapter<Runtime>;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 }
 

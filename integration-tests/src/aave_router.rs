@@ -4,6 +4,7 @@ use crate::dca::create_schedule;
 use crate::dca::schedule_fake_with_sell_order;
 use crate::liquidation::supply;
 use crate::polkadot_test_net::*;
+use ethabi::ethereum_types::U256;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
@@ -12,15 +13,19 @@ use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_runtime::evm::Erc20Currency;
+use hydradx_runtime::evm::precompiles::handle::EvmDataWriter;
+use hydradx_runtime::evm::{Erc20Currency, Executor};
 use hydradx_runtime::{
 	AssetId, Block, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall, RuntimeEvent,
 	RuntimeOrigin,
 };
+use pallet_dispatcher::evm::EvmErrorMapper;
+use pallet_dispatcher::evm::EvmErrorMapperAdapter;
 use hydradx_runtime::{AssetRegistry, Stableswap};
-use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::evm::EvmAddress;
+use hydradx_traits::evm::EVM;
+use hydradx_traits::evm::{CallContext, Erc20Encoding};
 use hydradx_traits::router::ExecutorError;
 use hydradx_traits::router::PoolType::{Aave, XYK};
 use hydradx_traits::router::RouteProvider;
@@ -29,6 +34,7 @@ use hydradx_traits::router::{AssetPair, PoolType};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
+use liquidation_worker_support::Function;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
@@ -114,9 +120,7 @@ fn transfer_all() {
 				//max_asset_amount
 				u128::MAX - 1u128,
 			),
-			Err(Other(
-				"evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011"
-			))
+			Err(pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow.into())
 		);
 	});
 }
@@ -214,6 +218,99 @@ fn alice_can_supply() {
 			EVMAccounts::evm_address(&AccountId::from(ALICE)),
 			HydraErc20Mapping::encode_evm_address(DOT),
 			100 * 10_u128.pow(10),
+		);
+	})
+}
+
+#[test]
+fn alice_cannot_supply_when_supply_cap_exceeded() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let asset = HydraErc20Mapping::encode_evm_address(DOT);
+		let amount = 10000000 * 10_u128.pow(10);
+
+		let context = CallContext::new_call(mm_pool, user);
+		let data = EvmDataWriter::new_with_selector(Function::Supply)
+			.write(asset)
+			.write(amount)
+			.write(user)
+			.write(0u32)
+			.build();
+
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
+
+		assert_eq!(
+			EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+			pallet_dispatcher::Error::<Runtime>::AaveSupplyCapExceeded.into()
+		);
+	})
+}
+
+#[test]
+fn alice_cannot_borrow_when_borrow_cap_exceeded() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let asset = HydraErc20Mapping::encode_evm_address(DOT);
+		let amount = 10000000 * 10_u128.pow(10);
+
+		let interest_rate_mode: u8 = 2;
+		let referral_code: u16 = 0;
+
+		let context = CallContext::new_call(mm_pool, user);
+
+		let data = EvmDataWriter::new_with_selector(Function::Borrow)
+			.write(asset)               // address asset
+			.write(amount)              // uint256 amount
+			.write(interest_rate_mode)  // uint256 interestRateMode (any int type encodes fine)
+			.write(referral_code)       // uint16 referralCode
+			.write(user)                // address onBehalfOf
+			.build();
+
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
+
+		assert_eq!(
+			EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+			pallet_dispatcher::Error::<Runtime>::AaveBorrowCapExceeded.into()
+		);
+	})
+}
+
+#[test]
+fn alice_cannot_supply_when_not_enough_balance() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let free_balance = Currencies::free_balance(DOT, &ALICE.into());
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			DOT,
+			free_balance
+		));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let asset = HydraErc20Mapping::encode_evm_address(DOT);
+		let amount = 100 * 10_u128.pow(10);
+		let context = CallContext::new_call(mm_pool, user);
+		let data = EvmDataWriter::new_with_selector(Function::Supply)
+			.write(asset)
+			.write(amount)
+			.write(user)
+			.write(0u32)
+			.build();
+
+		let call_result = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
+
+		assert_eq!(
+			EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+			orml_tokens::Error::<Runtime>::BalanceTooLow.into()
 		);
 	})
 }
