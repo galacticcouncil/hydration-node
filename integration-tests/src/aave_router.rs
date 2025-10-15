@@ -1114,7 +1114,7 @@ pub mod stableswap_with_atoken {
 					ADOT,
 					u128::MAX
 				),
-				Other("evm:0x4e487b710000000000000000000000000000000000000000000000000000000000000011")
+				pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow
 			);
 		})
 	}
