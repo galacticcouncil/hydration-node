@@ -106,6 +106,8 @@ pub enum Function {
 	GetReserveData = "getReserveData(address)",
 	GetConfiguration = "getConfiguration(address)",
 	GetUserConfiguration = "getUserConfiguration(address)",
+	GetUserEMode = "getUserEMode(address)",
+	GetEModeCategoryData = "getEModeCategoryData(uint8)",
 	ScaledBalanceOf = "scaledBalanceOf(address)",
 	BalanceOf = "balanceOf(address)",
 	SetValue = "setValue(string,uint128,uint128)",
@@ -245,12 +247,34 @@ impl UserConfiguration {
 	}
 }
 
+#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+pub struct EModeCategory {
+	// ltv: u16,
+	liquidation_threshold: u16,
+	liquidation_bonus: u16,
+	// address priceSource;
+	// string label;
+}
+
+impl EModeCategory {
+	pub fn new(data: &[ethabi::Token]) -> Option<Self> {
+		let data_tuple = data.get(0)?.clone().into_tuple()?;
+
+		Some(Self {
+			#[allow(clippy::get_first)]
+			liquidation_threshold: data_tuple.get(1)?.clone().into_uint()?.try_into().ok()?,
+			liquidation_bonus: data_tuple.get(2)?.clone().into_uint()?.try_into().ok()?,
+		})
+	}
+}
+
 /// User's data. The state is not automatically updated. Any change in the chain can invalidate the data stored in the struct.
 #[derive(Eq, PartialEq, Clone, RuntimeDebug)]
 pub struct UserData {
 	address: EvmAddress,
 	configuration: UserConfiguration,
 	reserves: Vec<UserReserve>, // the order of reserves is given by fetch_reserves_list()
+	emode_id: U256,
 }
 impl UserData {
 	/// Calls Runtime API.
@@ -303,10 +327,19 @@ impl UserData {
 			reserves.push(UserReserve { collateral, debt });
 		}
 
+		let emode_id = Self::fetch_user_emode_id::<
+			Block,
+			ApiProvider,
+			OriginCaller,
+			RuntimeCall,
+			RuntimeEvent,
+		>(&api_provider, hash, money_market.pool_contract, address, caller)?;
+
 		Ok(Self {
 			address,
 			configuration,
 			reserves,
+			emode_id,
 		})
 	}
 
@@ -400,6 +433,18 @@ impl UserData {
 		}
 	}
 
+	/// Get the user's address.
+	pub fn emode_id(&self) -> U256 {
+		self.emode_id
+	}
+	/// Returns `true` if eMode is active and the reserve belongs to the eMode category chosen by the user, `false` otherwise.
+	pub fn is_in_emode_category(
+		user_emode_id: U256,
+		reserve_emode_id: U256,
+	) -> bool {
+		!user_emode_id.is_zero() && reserve_emode_id == user_emode_id
+	}
+
 	/// Calculates user's health factor.
 	pub fn health_factor<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
 		&self,
@@ -420,12 +465,14 @@ impl UserData {
 				&Default::default()
 			};
 
+			let is_in_emode = Self::is_in_emode_category(self.emode_id, reserve.emode_id());
+
 			let partial_collateral = user_reserve.collateral;
 
 			avg_liquidation_threshold = avg_liquidation_threshold
 				.checked_add(
 					partial_collateral
-						.checked_mul(U256::from(reserve.liquidation_threshold()))
+						.checked_mul(U256::from(reserve.liquidation_threshold(is_in_emode)))
 						.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?,
 				)
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
@@ -440,7 +487,7 @@ impl UserData {
 		}
 
 		avg_liquidation_threshold = avg_liquidation_threshold
-			.checked_div(total_collateral)
+			.checked_div(total_collateral) // TODO: .unwrap_or_default();
 			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
 		let nominator = percent_mul(total_collateral, avg_liquidation_threshold)?;
@@ -467,6 +514,35 @@ impl UserData {
 		data.extend_from_slice(H256::from(user).as_bytes());
 
 		let gas_limit = U256::from(500_000);
+		let call_info = ApiProvider::call(api_provider, hash, caller, mm_pool, data, gas_limit)
+			.map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
+
+		if call_info.exit_reason == Succeed(Returned) {
+			Ok(U256::checked_from(&call_info.value[0..32])
+				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+		} else {
+			Err(LiquidationError::EvmError(call_info.exit_reason))
+		}
+	}
+
+	/// Returns eMode the user is using. 0 is a non-eMode category.
+	/// Calls Runtime API.
+	pub fn fetch_user_emode_id<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
+		api_provider: &ApiProvider,
+		hash: Block::Hash,
+		mm_pool: EvmAddress,
+		user: EvmAddress,
+		caller: EvmAddress,
+	) -> Result<U256, LiquidationError>
+	where
+		Block: BlockT,
+		ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>,
+	{
+		let mut data = Into::<u32>::into(Function::GetUserEMode).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from(user).as_bytes());
+
+		let gas_limit = U256::from(200_000);
 		let call_info = ApiProvider::call(api_provider, hash, caller, mm_pool, data, gas_limit)
 			.map_err(LiquidationError::ApiError)?
 			.map_err(LiquidationError::DispatchError)?;
@@ -586,6 +662,12 @@ impl ReserveData {
 			variable_debt_token_address: data.get(10)?.clone().into_address()?,
 		})
 	}
+
+	/// Get eMode category of the reserve.
+	pub fn emode_id(&self) -> u8 {
+		// bits [168..175]
+		self.configuration.byte(21)
+	}
 }
 
 /// State of asset reserve.
@@ -595,6 +677,7 @@ pub struct Reserve {
 	pub asset_address: EvmAddress,
 	pub symbol: Vec<u8>,
 	pub price: U256,
+	pub emode: Option<EModeCategory>,
 }
 impl Reserve {
 	/// Get the price of the reserve.
@@ -652,27 +735,46 @@ impl Reserve {
 	}
 
 	/// Get liquidation threshold of the reserve.
-	pub fn liquidation_threshold(&self) -> u128 {
+	pub fn liquidation_threshold(&self, is_emode: bool) -> u128 {
+		if is_emode {
+			if let Some(emode_category) = self.emode.clone() {
+				return emode_category.liquidation_threshold.into()
+			}
+		}
+
 		// bits [16..31]
-		let res = self.reserve_data.configuration.low_u32() >> 16;
-		res.into()
+		(self.reserve_data.configuration.low_u32() >> 16).into()
 	}
 
 	/// Get the number of decimals of the reserve.
 	pub fn decimals(&self) -> u8 {
-		let config = self.reserve_data.configuration;
 		// bits [48..55]
-		let res = config >> 48;
-		res.byte(0)
+		self.reserve_data.configuration.byte(6)
 	}
 
 	/// Get liquidation bonus of the reserve.
-	pub fn liquidation_bonus(&self) -> U256 {
+	pub fn liquidation_bonus(&self, is_emode: bool) -> U256 {
+		if is_emode {
+			if let Some(emode_category) = self.emode.clone() {
+				return emode_category.liquidation_bonus.into()
+			}
+		}
+
 		// bits [32..47]
 		let shifted_config = self.reserve_data.configuration >> 32;
 
 		let bit_mask: u32 = 0b0000_0000_0000_0000_1111_1111_1111_1111;
 		shifted_config.low_u32().bitand(bit_mask).into()
+	}
+
+	/// Get eMode category of the reserve.
+	pub fn emode_id(&self) -> U256 {
+		U256::from(self.reserve_data.emode_id())
+	}
+
+	/// Get eMode category of the reserve.
+	pub fn emode(&self) -> Option<EModeCategory> {
+		self.emode.clone()
 	}
 
 	/// Get user's collateral in base currency.
@@ -866,6 +968,14 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		let mut reserves = Vec::new();
 		for asset_address in Self::fetch_reserves_list(&api_provider, hash, pool_contract, caller)?.into_iter() {
 			let reserve_data = Self::fetch_reserve_data(&api_provider, hash, pool_contract, asset_address, caller)?;
+
+			let emode_id = reserve_data.emode_id();
+			let emode = if emode_id == 0 {
+				None
+			} else {
+				Some(Self::fetch_emode_category_data(&api_provider, hash, pool_contract, emode_id, caller)?)
+			};
+
 			let symbol = Self::fetch_asset_symbol(&api_provider, hash, &asset_address, caller)?;
 			let price = Self::fetch_asset_price(&api_provider, hash, oracle_contract, asset_address, caller)?;
 			reserves.push(Reserve {
@@ -873,6 +983,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 				asset_address,
 				symbol,
 				price,
+				emode,
 			});
 		}
 
@@ -1016,6 +1127,43 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 	}
 
 	/// Calls Runtime API.
+	fn fetch_emode_category_data<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
+		api_provider: &ApiProvider,
+		hash: Block::Hash,
+		mm_pool: EvmAddress,
+		emode_category_id: u8,
+		caller: EvmAddress,
+	) -> Result<EModeCategory, LiquidationError> {
+		let mut data = Into::<u32>::into(Function::GetEModeCategoryData).to_be_bytes().to_vec();
+		data.extend_from_slice(H256::from_low_u64_be(emode_category_id as u64).as_bytes());
+
+		let gas_limit = U256::from(200_000);
+		let call_info = ApiProvider::call(api_provider, hash, caller, mm_pool, data, gas_limit);
+		let call_info = call_info
+			.map_err(LiquidationError::ApiError)?
+			.map_err(LiquidationError::DispatchError)?;
+
+		if call_info.exit_reason == Succeed(Returned) {
+			let decoded = ethabi::decode(
+				&[
+					ethabi::ParamType::Tuple(vec![
+						ethabi::ParamType::Uint(2),	// ltv
+						ethabi::ParamType::Uint(2), // liquidationThreshold
+						ethabi::ParamType::Uint(2), // liquidationBonus
+						ethabi::ParamType::Address, // priceSource
+						ethabi::ParamType::String	// label
+					])
+				],
+				&call_info.value,
+			)?;
+
+			Ok(EModeCategory::new(&decoded).ok_or(ethabi::Error::InvalidData)?)
+		} else {
+			Err(LiquidationError::EvmError(call_info.exit_reason))
+		}
+	}
+
+	/// Calls Runtime API.
 	pub fn fetch_asset_symbol<ApiProvider: RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent>>(
 		api_provider: &ApiProvider,
 		hash: Block::Hash,
@@ -1152,7 +1300,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		let oracle_price_decimals = 8;
 		let unit_price = U256::from(10u128.pow(oracle_price_decimals as u32));
 
-		// Iterate through all reserves to calculate total collateral and debt in base currency, and weighted total collateral
+		// Iterate through all reserves to calculate total collateral and debt in base currency and weighted total collateral
 		for (index, reserve) in self.reserves().iter().enumerate() {
 			let user_balances = if let Some(maybe_reserve) = user_data.reserves().get(index) {
 				maybe_reserve.clone()
@@ -1160,11 +1308,13 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 				Default::default()
 			};
 
+			let is_in_emode = UserData::is_in_emode_category(user_data.emode_id, reserve.emode_id());
+
 			weighted_total_collateral = weighted_total_collateral
 				.checked_add(
 					user_balances
 						.collateral
-						.checked_mul(U256::from(reserve.liquidation_threshold()))
+						.checked_mul(U256::from(reserve.liquidation_threshold(is_in_emode)))
 						.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?,
 				)
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
@@ -1175,9 +1325,9 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 
 			if reserve.asset_address() == collateral_asset_address {
 				// Get liquidation threshold of the collateral asset
-				collateral_liquidation_threshold = reserve.liquidation_threshold().into();
+				collateral_liquidation_threshold = reserve.liquidation_threshold(is_in_emode).into();
 				// Get liquidation bonus of the collateral asset
-				liquidation_bonus = reserve.liquidation_bonus();
+				liquidation_bonus = reserve.liquidation_bonus(is_in_emode);
 				// Get price of the collateral asset
 				collateral_price = reserve.price();
 				collateral_decimals = reserve.decimals();
@@ -1192,7 +1342,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			}
 		}
 
-		// convert percentage to decimal number
+		// Convert percentage to decimal number
 		weighted_total_collateral = weighted_total_collateral
 			.checked_div(percentage_factor)
 			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
@@ -1222,12 +1372,12 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 
 		let d = percent_mul(debt_price, d)?;
 
-		// in debt asset
+		// In debt asset
 		let debt_to_liquidate = n
 			.checked_div(d)
 			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
 
-		// adjust decimals from `oracle_price_decimals` to `debt_decimals`
+		// Adjust decimals from `oracle_price_decimals` to `debt_decimals`
 		let debt_to_liquidate = if debt_decimals > oracle_price_decimals {
 			debt_to_liquidate
 				.checked_mul(U256::from(10).pow((debt_decimals - oracle_price_decimals).into()))
@@ -1238,7 +1388,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 		};
 
-		// Our calculation provides theoretical amount that needs to be liquidated to get the HF close to `target_health_factor`.
+		// Our calculation provides a theoretical amount that needs to be liquidated to get the HF close to `target_health_factor`.
 		// But there is no guarantee that user has required amount of debt and collateral assets.
 		// Adjust these amounts based on how much can be actually liquidated.
 
@@ -1251,7 +1401,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		}
 		.into();
 
-		// in debt asset
+		// In debt asset
 		user_debt_amount = user_debt_amount
 			.full_mul(U256::from(10u128.pow(debt_decimals.into())))
 			.checked_div(debt_price.into())
@@ -1269,7 +1419,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			debt_to_liquidate
 		};
 
-		// in collateral asset without the bonus
+		// In collateral asset without the bonus
 		let mut base_collateral_amount: U256 = actual_debt_to_liquidate
 			.full_mul(debt_price)
 			.checked_div(collateral_price.into())
@@ -1286,7 +1436,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 		};
 
-		// in collateral asset
+		// In collateral asset
 		let mut collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
 
 		let mut collateral_in_base_currency: U256 = collateral_amount
@@ -1305,7 +1455,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 
 		// Adjust the liquidation amounts if user doesn't have expected amount of the collateral asset.
 		if collateral_in_base_currency > user_collateral_amount {
-			// in debt asset
+			// In debt asset
 			actual_debt_to_liquidate = user_collateral_amount
 				.full_mul(percentage_factor)
 				.checked_div(liquidation_bonus.into())
@@ -1315,7 +1465,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 				.try_into()
 				.map_err(|_| ArithmeticError::Overflow)?;
 
-			// in collateral asset without the bonus
+			// In collateral asset without the bonus
 			base_collateral_amount = actual_debt_to_liquidate
 				.full_mul(debt_price)
 				.checked_div(collateral_price.into())
@@ -1332,7 +1482,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 					.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 			};
 
-			// in collateral asset
+			// In collateral asset
 			collateral_amount = percent_mul(base_collateral_amount, liquidation_bonus)?;
 
 			debt_in_base_currency = actual_debt_to_liquidate

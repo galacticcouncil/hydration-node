@@ -530,13 +530,14 @@ where
 			// add user to the list of borrowers that are liquidated in this run.
 			liquidated_users.push(borrower.user_address);
 
-			let tx_pool_cc = transaction_pool.clone();
+			let tx_pool_c = transaction_pool.clone();
+			let borrower_c = borrower.clone();
 			// `tx_pool::submit_one()` returns a Future type, so we need to spawn a new task
 			spawner.spawn("liquidation-worker-on-submit", Some("liquidation-worker"), async move {
-				tracing::info!(target: LOG_TARGET, "liquidation-worker: {:?} Submitting liquidation extrinsic {opaque_tx:?}", header.number());
-				let _ = tx_pool_cc
+				let submit_result = tx_pool_c
 					.submit_one(hash, TransactionSource::Local, opaque_tx.into())
 					.await;
+				tracing::info!(target: LOG_TARGET, "liquidation-worker: {:?} Submit result for user {:?}: {:?}", header.number(), borrower_c.user_address, submit_result);
 			});
 		} else {
 			tracing::debug!(target: LOG_TARGET, "liquidation-worker: {:?} failed to get liquidation option for user {:?}", header.number(), borrower.user_address);
