@@ -327,13 +327,13 @@ impl UserData {
 			reserves.push(UserReserve { collateral, debt });
 		}
 
-		let emode_id = Self::fetch_user_emode_id::<
-			Block,
-			ApiProvider,
-			OriginCaller,
-			RuntimeCall,
-			RuntimeEvent,
-		>(&api_provider, hash, money_market.pool_contract, address, caller)?;
+		let emode_id = Self::fetch_user_emode_id::<Block, ApiProvider, OriginCaller, RuntimeCall, RuntimeEvent>(
+			&api_provider,
+			hash,
+			money_market.pool_contract,
+			address,
+			caller,
+		)?;
 
 		Ok(Self {
 			address,
@@ -438,10 +438,7 @@ impl UserData {
 		self.emode_id
 	}
 	/// Returns `true` if eMode is active and the reserve belongs to the eMode category chosen by the user, `false` otherwise.
-	pub fn is_in_emode_category(
-		user_emode_id: U256,
-		reserve_emode_id: U256,
-	) -> bool {
+	pub fn is_in_emode_category(user_emode_id: U256, reserve_emode_id: U256) -> bool {
 		!user_emode_id.is_zero() && reserve_emode_id == user_emode_id
 	}
 
@@ -738,7 +735,7 @@ impl Reserve {
 	pub fn liquidation_threshold(&self, is_emode: bool) -> u128 {
 		if is_emode {
 			if let Some(emode_category) = self.emode.clone() {
-				return emode_category.liquidation_threshold.into()
+				return emode_category.liquidation_threshold.into();
 			}
 		}
 
@@ -756,7 +753,7 @@ impl Reserve {
 	pub fn liquidation_bonus(&self, is_emode: bool) -> U256 {
 		if is_emode {
 			if let Some(emode_category) = self.emode.clone() {
-				return emode_category.liquidation_bonus.into()
+				return emode_category.liquidation_bonus.into();
 			}
 		}
 
@@ -973,7 +970,13 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			let emode = if emode_id == 0 {
 				None
 			} else {
-				Some(Self::fetch_emode_category_data(&api_provider, hash, pool_contract, emode_id, caller)?)
+				Some(Self::fetch_emode_category_data(
+					&api_provider,
+					hash,
+					pool_contract,
+					emode_id,
+					caller,
+				)?)
 			};
 
 			let symbol = Self::fetch_asset_symbol(&api_provider, hash, &asset_address, caller)?;
@@ -1145,15 +1148,13 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 
 		if call_info.exit_reason == Succeed(Returned) {
 			let decoded = ethabi::decode(
-				&[
-					ethabi::ParamType::Tuple(vec![
-						ethabi::ParamType::Uint(2),	// ltv
-						ethabi::ParamType::Uint(2), // liquidationThreshold
-						ethabi::ParamType::Uint(2), // liquidationBonus
-						ethabi::ParamType::Address, // priceSource
-						ethabi::ParamType::String	// label
-					])
-				],
+				&[ethabi::ParamType::Tuple(vec![
+					ethabi::ParamType::Uint(2), // ltv
+					ethabi::ParamType::Uint(2), // liquidationThreshold
+					ethabi::ParamType::Uint(2), // liquidationBonus
+					ethabi::ParamType::Address, // priceSource
+					ethabi::ParamType::String,  // label
+				])],
 				&call_info.value,
 			)?;
 
