@@ -18,7 +18,7 @@
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
-use crate::origins::{GeneralAdmin, OmnipoolAdmin};
+use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
@@ -672,7 +672,9 @@ pub struct DustRemovalWhitelist;
 
 impl Contains<AccountId> for DustRemovalWhitelist {
 	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a) || pallet_duster::DusterWhitelist::<Runtime>::contains(a)
+		get_all_module_accounts().contains(a)
+			|| HSM::is_flash_loan_account(a)
+			|| pallet_duster::DusterWhitelist::<Runtime>::contains(a)
 	}
 }
 
@@ -1799,8 +1801,9 @@ impl pallet_hsm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type HollarId = HOLLAR;
 	type PalletId = HsmPalletId;
-	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<EconomicParameters, GeneralAdmin>>;
 	type GhoContractAddress = AssetRegistry;
+	type ArbitrageProfitReceiver = TreasuryAccount;
 	type Currency = FungibleCurrencies<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type Evm = helpers::benchmark_helpers::DummyEvmForHsm;

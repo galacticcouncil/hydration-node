@@ -7,6 +7,7 @@ use crate::{Runtime, Vec};
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
+use evm::ExitSucceed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_support::pallet_prelude::TypeInfo;
@@ -186,7 +187,7 @@ where
 		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
 		ensure!(
-			matches!(call_result.exit_reason, Succeed(_)),
+			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get reserves list".into())
 		);
 
@@ -196,6 +197,14 @@ where
 		let reserves_data = call_result.value;
 		let decoded = decode(&param_types, reserves_data.as_ref())
 			.map_err(|_| ExecutorError::Error("Failed to decode reserves list".into()))?;
+
+		debug_assert!(decoded.len() == param_types.len(), "Invalid length");
+
+		// ensure sufficient length
+		ensure!(
+			decoded.len() == param_types.len(),
+			ExecutorError::Error("Empty reserve list".into())
+		);
 
 		// Convert decoded addresses to EvmAddress format
 		let addresses = decoded[0]
@@ -219,7 +228,7 @@ where
 		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
 		ensure!(
-			matches!(call_result.exit_reason, Succeed(_)),
+			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get reserve data".into())
 		);
 
@@ -242,6 +251,14 @@ where
 		let reserve_data = call_result.value;
 		let decoded = decode(&param_types, reserve_data.as_ref())
 			.map_err(|_| ExecutorError::Error("Failed to decode reserve data".into()))?;
+
+		debug_assert!(decoded.len() == param_types.len(), "Invalid length");
+
+		// Ensure sufficient length
+		ensure!(
+			decoded.len() == param_types.len(),
+			ExecutorError::Error("Invalid reserve data format".into())
+		);
 
 		Ok(ReserveData {
 			configuration: decoded[0].clone().into_uint().unwrap_or_default(),
@@ -275,7 +292,7 @@ where
 		let data = EvmDataWriter::new_with_selector(Function::ScaledTotalSupply).build();
 		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 		ensure!(
-			matches!(call_result.exit_reason, Succeed(_)),
+			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
 		);
 		U256::checked_from(call_result.value.as_slice())
@@ -295,7 +312,7 @@ where
 
 		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
 
-		if !matches!(call_result.exit_reason, Succeed(_)) {
+		if !matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)) {
 			// not a token
 			return None;
 		}
