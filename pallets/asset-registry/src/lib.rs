@@ -785,10 +785,12 @@ where
 				if let [AccountKey20 { key, .. }] = junctions.as_ref() {
 					Some((*key).into())
 				} else {
-					None
+					// Invalid location for ERC20 - return zero address
+					Some(EvmAddress::default())
 				}
 			}
-			_ => None,
+			// Invalid location for ERC20 - return zero address
+			_ => Some(EvmAddress::default()),
 		}
 	}
 }

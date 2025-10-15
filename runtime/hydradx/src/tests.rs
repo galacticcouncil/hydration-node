@@ -206,7 +206,7 @@ mod xcm_fee_payment_api_tests {
 			));
 
 			assert_eq!(
-				Runtime::query_acceptable_payment_assets(4u32),
+				Runtime::query_acceptable_payment_assets(5u32),
 				Ok(vec![
 					// HDX locations
 					V5(AssetId(Location {
@@ -262,7 +262,7 @@ mod xcm_fee_payment_api_tests {
 			));
 			MultiTransactionPayment::on_initialize(1);
 
-			let expected_fee = 155655590214;
+			let expected_fee = 154096976308;
 			// HDX fee
 			assert_eq!(
 				Runtime::query_weight_to_asset_fee(

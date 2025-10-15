@@ -1023,7 +1023,7 @@ impl_runtime_apis! {
 
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: polkadot_xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {
-			if !matches!(xcm_version, 3 | 4) {
+			if !matches!(xcm_version, 3 | 4 | 5) {
 				return Err(XcmPaymentApiError::UnhandledXcmVersion);
 			}
 
@@ -1055,10 +1055,10 @@ impl_runtime_apis! {
 		}
 
 		fn query_weight_to_asset_fee(weight: Weight, asset: VersionedAssetId) -> Result<u128, XcmPaymentApiError> {
-			let v4_xcm_asset_id = asset.into_version(4).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
+			let v5_xcm_asset_id = asset.into_version(5).map_err(|_| XcmPaymentApiError::VersionedConversionFailed)?;
 
 			// get nested polkadot_xcm::AssetId type
-			let xcm_asset_id: &polkadot_xcm::v5::AssetId = v4_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
+			let xcm_asset_id: &polkadot_xcm::v5::AssetId = v5_xcm_asset_id.try_as().map_err(|_| XcmPaymentApiError::WeightNotComputable)?;
 
 			let asset_id: AssetId = CurrencyIdConvert::convert(xcm_asset_id.clone().0).ok_or(XcmPaymentApiError::AssetNotFound)?;
 
