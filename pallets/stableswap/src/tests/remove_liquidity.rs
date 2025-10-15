@@ -611,7 +611,7 @@ fn specific_scenario_to_verify_remove_liquidity() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let to_withdraw = 599540994996813062914899;
@@ -670,7 +670,7 @@ fn specific_scenario_to_verify_withdrawal_exact_amount() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let expected_shares_to_use = 599540994996813062914899;
@@ -731,7 +731,7 @@ fn specific_scenario_to_verify_difference() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let to_withdraw = 1986695389615175;
@@ -790,7 +790,7 @@ fn scenario_3_trade() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			assert_ok!(Stableswap::sell(
@@ -849,7 +849,7 @@ fn removing_liquidity_with_exact_amount_should_work() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let desired_shares = 1947597621401945851;
@@ -925,7 +925,7 @@ fn removing_liquidity_with_exact_amount_should_work_when_dust_left() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let desired_shares = 1947597621401945851;
@@ -1001,7 +1001,7 @@ fn removing_liquidity_should_not_give_more_assets() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let desired_shares = 1947597621401945851;
@@ -1076,7 +1076,7 @@ fn removing_liquidity_with_exact_amount_should_apply_fee() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let desired_shares = 1947597621401945851;
@@ -1152,7 +1152,7 @@ fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let desired_shares = 1947597621401945851;

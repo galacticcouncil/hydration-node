@@ -913,7 +913,7 @@ mod tests {
 				744254432f555344000000000000000000000000000000000000000000000000"
 			)
 			.encode_as(),
-			signature: ethereum::TransactionSignature::new(
+			signature: ethereum::legacy::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),
@@ -950,7 +950,7 @@ mod tests {
                 000000000000000000000005939a32ea00000000000000000000000067acbce5"
 			)
 			.encode_as(),
-			signature: ethereum::TransactionSignature::new(
+			signature: ethereum::legacy::TransactionSignature::new(
 				444480,
 				H256::from_slice(hex!("6fd26272de1d95aea3df6d0a5eb554bb6a16bf2bff563e2216661f1a49ed3f8a").as_slice()),
 				H256::from_slice(hex!("4bf0c9b80cc75a3860f0ae2fcddc9154366ddb010e6d70b236312299862e525c").as_slice()),

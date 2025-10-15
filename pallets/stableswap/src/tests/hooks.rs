@@ -50,7 +50,7 @@ fn add_liquidity_should_provide_correct_values_in_the_hook() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			assert_ok!(Stableswap::add_liquidity(
@@ -126,7 +126,7 @@ fn add_liquidity_shares_should_provide_correct_values_in_the_hook() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let desired_shares = 1947597621401945851;
@@ -205,7 +205,7 @@ fn removing_liquidity_should_provide_correct_values_in_the_hook() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let desired_shares = 1947597621401945851;
@@ -293,7 +293,7 @@ fn withdraw_asset_amount_should_provide_correct_values_in_the_hook() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			let desired_shares = 1947597621401945851;
@@ -380,7 +380,7 @@ fn sell_should_provide_correct_values_in_the_hook() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			// ACT
@@ -462,7 +462,7 @@ fn buy_should_provide_correct_values_in_the_hook() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			// ACT

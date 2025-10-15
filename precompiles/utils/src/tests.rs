@@ -31,7 +31,7 @@ use {
 	pallet_evm::Context,
 	sp_core::{H160, H256, U256},
 	sp_std::convert::TryInto,
-	xcm::v3::{Junction, Junctions, NetworkId},
+	xcm::v5::{Junction, Junctions, NetworkId},
 };
 
 fn u256_repeat_byte(byte: u8) -> U256 {
@@ -125,8 +125,7 @@ fn write_u256() {
 
 	let writer_output = Writer::new().write(value).build();
 
-	let mut expected_output = [0u8; 32];
-	value.to_big_endian(&mut expected_output);
+	let expected_output = value.to_big_endian();
 
 	assert_eq!(writer_output, expected_output);
 }
@@ -355,7 +354,7 @@ fn read_address_array_size_too_big() {
 	];
 	let mut writer_output = Writer::new().write(array).build();
 
-	U256::from(6u32).to_big_endian(&mut writer_output[0x20..0x40]);
+	writer_output[0x20..0x40].copy_from_slice(&U256::from(6u32).to_big_endian());
 
 	let mut reader = Reader::new(&writer_output);
 
@@ -708,28 +707,19 @@ fn read_complex_solidity_function() {
 
 #[test]
 fn junctions_decoder_works() {
-	let writer_output = Writer::new().write(Junctions::X1(Junction::OnlyChild)).build();
-
-	let mut reader = Reader::new(&writer_output);
-	let parsed: Junctions = reader.read::<Junctions>().expect("to correctly parse Junctions");
-
-	assert_eq!(parsed, Junctions::X1(Junction::OnlyChild));
+	use sp_std::sync::Arc;
 
 	let writer_output = Writer::new()
-		.write(Junctions::X2(Junction::OnlyChild, Junction::OnlyChild))
+		.write(Junctions::X1(Arc::new([Junction::OnlyChild])))
 		.build();
 
 	let mut reader = Reader::new(&writer_output);
 	let parsed: Junctions = reader.read::<Junctions>().expect("to correctly parse Junctions");
 
-	assert_eq!(parsed, Junctions::X2(Junction::OnlyChild, Junction::OnlyChild));
+	assert_eq!(parsed, Junctions::X1(Arc::new([Junction::OnlyChild])));
 
 	let writer_output = Writer::new()
-		.write(Junctions::X3(
-			Junction::OnlyChild,
-			Junction::OnlyChild,
-			Junction::OnlyChild,
-		))
+		.write(Junctions::X2(Arc::new([Junction::OnlyChild, Junction::OnlyChild])))
 		.build();
 
 	let mut reader = Reader::new(&writer_output);
@@ -737,7 +727,27 @@ fn junctions_decoder_works() {
 
 	assert_eq!(
 		parsed,
-		Junctions::X3(Junction::OnlyChild, Junction::OnlyChild, Junction::OnlyChild),
+		Junctions::X2(Arc::new([Junction::OnlyChild, Junction::OnlyChild]))
+	);
+
+	let writer_output = Writer::new()
+		.write(Junctions::X3(Arc::new([
+			Junction::OnlyChild,
+			Junction::OnlyChild,
+			Junction::OnlyChild,
+		])))
+		.build();
+
+	let mut reader = Reader::new(&writer_output);
+	let parsed: Junctions = reader.read::<Junctions>().expect("to correctly parse Junctions");
+
+	assert_eq!(
+		parsed,
+		Junctions::X3(Arc::new([
+			Junction::OnlyChild,
+			Junction::OnlyChild,
+			Junction::OnlyChild
+		])),
 	);
 }
 

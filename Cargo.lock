@@ -8711,6 +8711,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "parity-scale-codec",
+ "primitives",
  "scale-info",
  "serde",
  "sp-core",

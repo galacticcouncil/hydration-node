@@ -41,6 +41,7 @@ sp-core = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-currencies = { workspace = true }
 orml-tokens = { workspace = true }
+primitives = { workspace = true }
 
 [features]
 default = ["std"]

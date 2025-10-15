@@ -31,7 +31,6 @@ use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_arithmetic::{ArithmeticError, FixedU128};
 use sp_core::crypto::AccountId32;
-use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::boxed::Box;

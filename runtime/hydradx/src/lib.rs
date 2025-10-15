@@ -65,7 +65,6 @@ pub use xcm::*;
 
 use codec::{Decode, Encode};
 use hydradx_traits::evm::InspectEvmAccounts;
-use hydradx_traits::registry::Inspect as RegistryInspect;
 use primitives::EvmAddress;
 use sp_core::{ConstU128, Get, H160, H256, U256};
 use sp_genesis_builder::PresetId;

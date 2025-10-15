@@ -250,7 +250,7 @@ fn add_liquidity_should_emit_swapped_events() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			assert_ok!(Stableswap::add_liquidity(
@@ -757,7 +757,7 @@ fn add_liquidity_should_work_correctly() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			assert_ok!(Stableswap::add_liquidity(
@@ -813,7 +813,7 @@ fn add_liquidity_should_work_correctly_when_fee_is_applied() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			assert_ok!(Stableswap::add_liquidity(
@@ -869,7 +869,7 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			assert_ok!(Stableswap::add_liquidity_shares(
@@ -944,7 +944,7 @@ fn add_liquidity_should_apply_fee_when_providing_exact_amount_of_shares() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 			assert_ok!(Stableswap::add_liquidity_shares(

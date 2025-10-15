@@ -744,7 +744,8 @@ fn test_offchain_worker_unsigned_transaction_submission() {
 		let tx = pool_state.write().transactions.pop().unwrap();
 		assert!(pool_state.read().transactions.is_empty());
 		let tx = Extrinsic::decode(&mut &*tx).unwrap();
-		assert_eq!(tx.preamble, ()); // unsigned
+		// unsigned transactions have a bare preamble with no signature
+		assert!(matches!(tx.preamble, sp_runtime::generic::Preamble::Bare(_)));
 		assert_eq!(
 			tx.function,
 			crate::mock::RuntimeCall::OtcSettlements(crate::Call::settle_otc_order {

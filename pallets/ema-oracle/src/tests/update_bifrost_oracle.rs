@@ -87,11 +87,7 @@ fn successful_oracle_update_shouldnt_pay_fee() {
 fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 	new_test_ext().execute_with(|| {
 		//Arrange
-		let hdx = polkadot_xcm::v3::MultiLocation::new(
-			0,
-			polkadot_xcm::v3::Junctions::X1(polkadot_xcm::v3::Junction::GeneralIndex(0)),
-		)
-		.into_versioned();
+		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
 
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
 
@@ -125,11 +121,7 @@ fn add_oracle_should_add_entry_to_storage_with_inversed_pair() {
 fn bitfrost_oracle_should_not_be_updated_by_nonpriviliged_account() {
 	new_test_ext().execute_with(|| {
 		//Arrange
-		let hdx = polkadot_xcm::v3::MultiLocation::new(
-			0,
-			polkadot_xcm::v3::Junctions::X1(polkadot_xcm::v3::Junction::GeneralIndex(0)),
-		)
-		.into_versioned();
+		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
 
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
 
@@ -150,11 +142,7 @@ fn bitfrost_oracle_should_not_be_updated_by_nonpriviliged_account() {
 fn should_fail_when_new_price_is_bigger_than_allowed() {
 	new_test_ext().execute_with(|| {
 		//Arrange
-		let hdx = polkadot_xcm::v3::MultiLocation::new(
-			0,
-			polkadot_xcm::v3::Junctions::X1(polkadot_xcm::v3::Junction::GeneralIndex(0)),
-		)
-		.into_versioned();
+		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
 
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
 
@@ -194,11 +182,7 @@ fn should_fail_when_new_price_is_bigger_than_allowed() {
 fn should_pass_when_new_price_is_still_within_range() {
 	new_test_ext().execute_with(|| {
 		//Arrange
-		let hdx = polkadot_xcm::v3::MultiLocation::new(
-			0,
-			polkadot_xcm::v3::Junctions::X1(polkadot_xcm::v3::Junction::GeneralIndex(0)),
-		)
-		.into_versioned();
+		let hdx = polkadot_xcm::v5::Location::new(0, [polkadot_xcm::v5::Junction::GeneralIndex(0)]).into_versioned();
 
 		let dot = polkadot_xcm::v5::Location::parent().into_versioned();
 

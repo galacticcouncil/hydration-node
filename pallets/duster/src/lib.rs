@@ -36,7 +36,7 @@ use frame_support::{
 	traits::{
 		fungibles::{Inspect, Mutate},
 		tokens::Preservation,
-		Contains, ExistenceRequirement, Get,
+		Contains, Get,
 	},
 };
 

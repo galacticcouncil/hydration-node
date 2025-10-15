@@ -50,7 +50,7 @@ fn test_spot_price_in_sell() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 
@@ -123,7 +123,7 @@ fn test_spot_price_in_buy() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 
@@ -192,7 +192,7 @@ fn test_share_price_in_add_remove_liquidity() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 
@@ -271,7 +271,7 @@ fn test_share_price_in_add_shares_remove_liquidity() {
 				pool_id,
 				&ALICE,
 				5906657405945079804575283,
-				orml_traits::currency::TransferExistenceRequirement::AllowDeath,
+				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.unwrap();
 

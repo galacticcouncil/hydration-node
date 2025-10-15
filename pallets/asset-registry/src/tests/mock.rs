@@ -27,7 +27,7 @@ use sp_runtime::{
 	BuildStorage,
 };
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 use frame_support::traits::Everything;
@@ -96,9 +96,10 @@ impl system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
-#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Default, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub Location);
 
 impl From<AssetLocation> for Location {

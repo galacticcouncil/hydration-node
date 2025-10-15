@@ -1,20 +1,21 @@
 use super::*;
 use frame_support::storage::with_transaction;
 use hex_literal::hex;
-use polkadot_xcm::v3::Junction::{AccountKey20, Parachain};
-use polkadot_xcm::v3::Junctions::{Here, X1, X2};
-use polkadot_xcm::v3::{Junction, MultiLocation};
+use polkadot_xcm::v5::Junction::{AccountKey20, Parachain};
+use polkadot_xcm::v5::Junctions::{Here, X1, X2};
+use polkadot_xcm::v5::{Junction, Location};
 use sp_runtime::{DispatchResult, TransactionOutcome};
+use sp_std::sync::Arc;
 
 use mock::Registry;
 
 fn create_evm_location(address: EvmAddress) -> Option<AssetLocation> {
-	Some(AssetLocation(MultiLocation::new(
+	Some(AssetLocation(Location::new(
 		0,
-		X1(AccountKey20 {
+		X1(Arc::new([AccountKey20 {
 			key: address.into(),
 			network: None,
-		}),
+		}])),
 	)))
 }
 
@@ -75,14 +76,14 @@ fn contract_address_should_be_none_when_asset_is_not_erc20() {
 fn contract_address_should_be_zero_when_erc20_has_wrong_location() {
 	let locations = vec![
 		None,
-		Some(AssetLocation(MultiLocation::new(
+		Some(AssetLocation(Location::new(
 			0,
-			X2(
+			X2(Arc::new([
 				Parachain(200),
 				Junction::from(BoundedVec::try_from(1_000.encode()).unwrap()),
-			),
+			])),
 		))),
-		Some(AssetLocation(MultiLocation::new(0, Here))),
+		Some(AssetLocation(Location::new(0, Here))),
 	];
 
 	for location in locations {
