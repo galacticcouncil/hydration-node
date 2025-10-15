@@ -234,8 +234,8 @@ impl Config for Test {
 
 pub struct EvmErrorDecodeMock;
 
-impl EvmErrorMapper for EvmErrorDecodeMock {
-	fn map_to_dispatch_error(call_result: CallResult) -> DispatchError {
+impl EvmErrorDecoder for EvmErrorDecodeMock {
+	fn decode(call_result: CallResult) -> DispatchError {
 		DispatchError::Other("Call failed")
 	}
 }

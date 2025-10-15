@@ -19,8 +19,8 @@ use hydradx_runtime::{
 	AssetId, Block, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall, RuntimeEvent,
 	RuntimeOrigin,
 };
-use pallet_dispatcher::evm::EvmErrorMapper;
-use pallet_dispatcher::evm::EvmErrorMapperAdapter;
+use pallet_dispatcher::evm::EvmErrorDecoder;
+use pallet_dispatcher::evm::EvmErrorDecoderAdapter;
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::evm::EvmAddress;
@@ -276,7 +276,7 @@ fn alice_cannot_supply_when_supply_cap_exceeded() {
 		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
 
 		assert_eq!(
-			EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+			EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
 			pallet_dispatcher::Error::<Runtime>::AaveSupplyCapExceeded.into()
 		);
 	})
@@ -308,7 +308,7 @@ fn alice_cannot_borrow_when_borrow_cap_exceeded() {
 		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
 
 		assert_eq!(
-			EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+			EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
 			pallet_dispatcher::Error::<Runtime>::AaveBorrowCapExceeded.into()
 		);
 	})
@@ -342,7 +342,7 @@ fn alice_cannot_supply_when_not_enough_balance() {
 		let call_result = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
 
 		assert_eq!(
-			EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+			EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
 			orml_tokens::Error::<Runtime>::BalanceTooLow.into()
 		);
 	})

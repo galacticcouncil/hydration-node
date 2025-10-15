@@ -1396,7 +1396,7 @@ use hydradx_traits::registry::Create;
 use hydradx_traits::BoundErc20;
 use pallet_asset_registry::XcmRateLimitsInRegistry;
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
-use pallet_dispatcher::evm::{CallResult, EvmErrorMapperAdapter};
+use pallet_dispatcher::evm::{CallResult, EvmErrorDecoderAdapter};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1781,7 +1781,7 @@ impl pallet_liquidation::Config for Runtime {
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 	type HollarId = HOLLAR;
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
-	type EvmErrorMapper = EvmErrorMapperAdapter<Runtime>;
+	type EvmErrorMapper = EvmErrorDecoderAdapter<Runtime>;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 }
 

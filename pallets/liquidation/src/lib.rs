@@ -40,7 +40,6 @@ use frame_support::{
 	},
 	PalletId,
 };
-use pallet_dispatcher::evm::EvmErrorMapper;
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
@@ -133,7 +132,7 @@ pub mod pallet {
 		/// Flash minter contract address and flash loan receiver address.
 		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
 
-		type EvmErrorMapper : pallet_dispatcher::evm::EvmErrorMapper;
+		type EvmErrorMapper : pallet_dispatcher::evm::EvmErrorDecoder;
 
 		/// The origin which can update transaction priorities, allowed signers and call addresses
 		/// for the liquidation worker.

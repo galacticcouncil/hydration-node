@@ -9,8 +9,8 @@ use sp_std::boxed::Box;
 use sp_std::vec::Vec;
 
 //TODO: rename to decoder, also the adapter
-pub trait EvmErrorMapper {
-	fn map_to_dispatch_error(call_result : CallResult) -> sp_runtime::DispatchError;
+pub trait EvmErrorDecoder {
+	fn decode(call_result : CallResult) -> sp_runtime::DispatchError;
 }
 
 #[derive(Clone, Debug)]
@@ -23,10 +23,10 @@ pub struct CallResult {
 const ERROR_STRING: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0]; // Error(string)
 const PANIC: [u8; 4] = [0x4E, 0x48, 0x7B, 0x71]; // Panic(uint256)
 
-pub struct EvmErrorMapperAdapter<T>(core::marker::PhantomData<T>) where T: Config;
+pub struct EvmErrorDecoderAdapter<T>(core::marker::PhantomData<T>) where T: Config;
 
-impl<T: Config> EvmErrorMapper for EvmErrorMapperAdapter<T> {
-	fn map_to_dispatch_error(call_result : CallResult) -> DispatchError {
+impl<T: Config> EvmErrorDecoder for EvmErrorDecoderAdapter<T> {
+	fn decode(call_result : CallResult) -> DispatchError {
 		if let ExitReason::Error(ExitError::OutOfGas) = call_result.exit_reason {
 			return crate::Error::<T>::EvmOutOfGas.into();
 		}

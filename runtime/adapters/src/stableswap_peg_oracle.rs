@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{vec, Vec};
+use crate::{vec};
 use ethabi::{decode, ParamType};
 use evm::{ExitReason, ExitSucceed};
 use frame_support::traits::UnixTime;

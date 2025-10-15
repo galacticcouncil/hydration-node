@@ -36,8 +36,8 @@ use sp_core::{H256, U256};
 use sp_runtime::{Permill, TransactionOutcome};
 use std::fmt::Write;
 use xcm_emulator::TestExt;
-use pallet_dispatcher::evm::EvmErrorMapperAdapter;
-use pallet_dispatcher::evm::EvmErrorMapper;
+use pallet_dispatcher::evm::EvmErrorDecoderAdapter;
+use pallet_dispatcher::evm::EvmErrorDecoder;
 pub fn deployer() -> EvmAddress {
 	EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))
 }
@@ -607,7 +607,7 @@ mod error_handling {
 			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
 
 			assert_eq!(
-				EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+				EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
 				pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow.into()
 			);
 		});
@@ -636,7 +636,7 @@ mod error_handling {
 			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
 
 			assert_eq!(
-				EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+				EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
 				pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow.into()
 			);
 		});
@@ -671,7 +671,7 @@ mod error_handling {
 
 			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
 			assert_eq!(
-				EvmErrorMapperAdapter::<Runtime>::map_to_dispatch_error(call_result),
+				EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
 				orml_tokens::Error::<Runtime>::BalanceTooLow.into()
 			);
 		});

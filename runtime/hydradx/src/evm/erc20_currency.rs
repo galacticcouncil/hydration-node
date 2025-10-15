@@ -9,7 +9,7 @@ use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
-use pallet_dispatcher::evm::{CallResult, EvmErrorMapper, EvmErrorMapperAdapter};
+use pallet_dispatcher::evm::{CallResult, EvmErrorDecoder, EvmErrorDecoderAdapter};
 use polkadot_xcm::v3::MultiLocation;
 use primitives::{AccountId, Balance};
 use scale_info::prelude::format;
@@ -202,7 +202,7 @@ fn handle_result<T>(result: CallResult) -> DispatchResult where T: pallet_dispat
 		}
 		e => {
 			log::error!(target: "evm", "evm call failed with : {:?}, value {:?}", e, result.clone().value);
-			let dispatch_error = EvmErrorMapperAdapter::<T>::map_to_dispatch_error(result);
+			let dispatch_error = EvmErrorDecoderAdapter::<T>::decode(result);
 			Err(dispatch_error)
 		}
 	}
