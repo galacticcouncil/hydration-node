@@ -60,6 +60,7 @@ pallet-route-executor = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-hsm = { workspace = true }
+pallet-build-evm-tx = { workspace = true }
 pallet-parameters = { workspace = true }
 
 # pallets
@@ -88,6 +89,7 @@ pallet-uniques = { workspace = true }
 pallet-whitelist = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
+pallet-signet = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -228,6 +230,7 @@ runtime-benchmarks = [
     "pallet-lbp/runtime-benchmarks",
     "pallet-xyk/runtime-benchmarks",
     "pallet-hsm/runtime-benchmarks",
+    "pallet-build-evm-tx/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
@@ -240,7 +243,8 @@ runtime-benchmarks = [
     "pallet-whitelist/runtime-benchmarks",
     "pallet-dispatcher/runtime-benchmarks",
     "cumulus-primitives-utility/runtime-benchmarks",
-    "pallet-xcm-benchmarks/runtime-benchmarks"
+    "pallet-xcm-benchmarks/runtime-benchmarks",
+    "pallet-signet/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -320,6 +324,7 @@ std = [
     "pallet-xyk/std",
     "pallet-duster/std",
     "pallet-hsm/std",
+    "pallet-build-evm-tx/std",
     "pallet-parameters/std",
     "warehouse-liquidity-mining/std",
     "sp-api/std",
@@ -365,6 +370,7 @@ std = [
     "pallet-whitelist/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
+    "pallet-signet/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -432,6 +438,7 @@ try-runtime = [
     "pallet-evm-chain-id/try-runtime",
     "pallet-xyk/try-runtime",
     "pallet-hsm/try-runtime",
+    "pallet-build-evm-tx/try-runtime",
     "pallet-referrals/try-runtime",
     "pallet-evm-accounts/try-runtime",
     "pallet-xyk-liquidity-mining/try-runtime",
@@ -443,6 +450,7 @@ try-runtime = [
     "pallet-whitelist/try-runtime",
     "pallet-broadcast/try-runtime",
     "pallet-dispatcher/try-runtime",
+    "pallet-signet/try-runtime",
 ]
 
 metadata-hash = [
