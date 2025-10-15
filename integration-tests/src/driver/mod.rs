@@ -105,7 +105,7 @@ impl HydrationTestDriver {
 		asset_id: AssetId,
 		name: &[u8],
 		decimals: u8,
-		location: Option<polkadot_xcm::v4::Location>,
+		location: Option<polkadot_xcm::v5::Location>,
 	) -> Self {
 		self.execute(|| {
 			let location = location.map(|location| AssetLocation::try_from(location).unwrap());

@@ -272,6 +272,7 @@ fn create_contract_from_evm_pallet_should_be_filtered_by_call_filter() {
 			max_priority_fee_per_gas: None,
 			nonce: None,
 			access_list: [].into(),
+			authorization_list: [].into(),
 		});
 
 		assert!(!hydradx_runtime::CallFilter::contains(&call));
@@ -286,6 +287,7 @@ fn create_contract_from_evm_pallet_should_be_filtered_by_call_filter() {
 			max_fee_per_gas: U256::from(100000u64),
 			max_priority_fee_per_gas: None,
 			nonce: None,
+			authorization_list: [].into(),
 			access_list: [].into(),
 		});
 

@@ -13,7 +13,7 @@ use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use primitives::constants::currency::UNITS;
-use sp_runtime::traits::SignedExtension;
+use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use xcm_emulator::TestExt;
@@ -89,12 +89,13 @@ fn insufficient_asset_can_be_used_as_fee_currency() {
 
 			//Act
 			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-				.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, info_len);
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &omni_sell, &info, info_len, 0);
 			assert_ok!(&pre);
+			let (pre_data, _origin) = pre.unwrap();
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-				Some(pre.unwrap()),
+				pre_data,
 				&info,
-				&default_post_info(),
+				&mut default_post_info(),
 				info_len,
 				&Ok(())
 			));
@@ -229,12 +230,13 @@ fn sufficient_but_not_accepted_asset_can_be_used_as_fee_currency() {
 
 			//Act
 			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-				.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, info_len);
+				.validate_and_prepare(Some(AccountId::from(ALICE)).into(), &omni_sell, &info, info_len, 0);
 			assert_ok!(&pre);
+			let (pre_data, _origin) = pre.unwrap();
 			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
-				Some(pre.unwrap()),
+				pre_data,
 				&info,
-				&default_post_info(),
+				&mut default_post_info(),
 				info_len,
 				&Ok(())
 			));

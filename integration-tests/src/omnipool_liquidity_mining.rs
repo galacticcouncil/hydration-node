@@ -2201,19 +2201,19 @@ fn price_adjustment_adapter_should_use_routed_oracle() {
 
 	const DOT_VDOT_PRICE: (Balance, Balance) = (85473939039997170, 57767685517430457);
 
-	let dot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let dot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(0),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(0),
 		])),
 	);
 
-	let vdot_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
+	let vdot_location: polkadot_xcm::v5::Location = polkadot_xcm::v5::Location::new(
 		1,
-		polkadot_xcm::v4::Junctions::X2(Arc::new([
-			polkadot_xcm::v4::Junction::Parachain(1500),
-			polkadot_xcm::v4::Junction::GeneralIndex(1),
+		polkadot_xcm::v5::Junctions::X2(Arc::new([
+			polkadot_xcm::v5::Junction::Parachain(1500),
+			polkadot_xcm::v5::Junction::GeneralIndex(1),
 		])),
 	);
 

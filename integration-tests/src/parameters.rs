@@ -27,8 +27,9 @@
 
 use crate::polkadot_test_net::*;
 use codec::Encode;
+use pallet_referenda::TracksInfo;
 use primitives::constants::time::{HOURS, MINUTES};
-use sp_core::{storage::StorageKey, Get};
+use sp_core::storage::StorageKey;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -36,16 +37,16 @@ fn is_testnet_sets_correct_referenda_params_when_default() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Assert
-		let tracks = <hydradx_runtime::Runtime as pallet_referenda::Config>::Tracks::get();
+		let tracks: Vec<_> = <hydradx_runtime::Runtime as pallet_referenda::Config>::Tracks::tracks().collect();
 
 		let root_track = tracks
 			.iter()
-			.find(|(id, _info)| *id == 0)
+			.find(|track| track.id == 0)
 			.expect("Root track should exist");
 
-		assert_eq!(root_track.1.prepare_period, HOURS);
-		assert_eq!(root_track.1.confirm_period, 12 * HOURS);
-		assert_eq!(root_track.1.min_enactment_period, 10 * MINUTES);
+		assert_eq!(root_track.info.prepare_period, HOURS);
+		assert_eq!(root_track.info.confirm_period, 12 * HOURS);
+		assert_eq!(root_track.info.min_enactment_period, 10 * MINUTES);
 	});
 }
 
@@ -59,14 +60,14 @@ fn is_testnet_sets_correct_referenda_params_when_testnet() {
 		sp_io::storage::set(&key.0, &value);
 
 		// Assert
-		let tracks = <hydradx_runtime::Runtime as pallet_referenda::Config>::Tracks::get();
+		let tracks: Vec<_> = <hydradx_runtime::Runtime as pallet_referenda::Config>::Tracks::tracks().collect();
 		let root_track = tracks
 			.iter()
-			.find(|(id, _info)| *id == 0)
+			.find(|track| track.id == 0)
 			.expect("Root track should exist");
 
-		assert_eq!(root_track.1.prepare_period, 1);
-		assert_eq!(root_track.1.confirm_period, 1);
-		assert_eq!(root_track.1.min_enactment_period, 1);
+		assert_eq!(root_track.info.prepare_period, 1);
+		assert_eq!(root_track.info.confirm_period, 1);
+		assert_eq!(root_track.info.min_enactment_period, 1);
 	});
 }

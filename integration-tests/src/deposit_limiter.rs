@@ -504,8 +504,9 @@ use hydradx_runtime::origins::Origin;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use polkadot_xcm::opaque::lts::WeightLimit;
-use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
+use polkadot_xcm::v5::{Junction, Junctions::X2, Location};
 use primitives::constants::currency::UNITS;
+use sp_std::sync::Arc;
 
 #[test]
 fn hydra_should_block_asset_from_other_chain_when_over_limit() {
@@ -517,10 +518,13 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 	Hydra::execute_with(|| {
 		assert_ok!(AssetRegistry::set_location(
 			ACA,
-			hydradx_runtime::AssetLocation(MultiLocation::new(
-				1,
-				X2(Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0))
-			))
+			hydradx_runtime::AssetLocation(Location {
+				parents: 1,
+				interior: X2(Arc::new([
+					Junction::Parachain(ACALA_PARA_ID),
+					Junction::GeneralIndex(0)
+				]))
+			})
 		));
 
 		update_deposit_limit(ACA, deposit_limit).unwrap();
@@ -552,13 +556,13 @@ fn hydra_should_block_asset_from_other_chain_when_over_limit() {
 			0,
 			deposit_limit + amount_over_limit,
 			Box::new(
-				MultiLocation::new(
-					1,
-					X2(
+				Location {
+					parents: 1,
+					interior: X2(Arc::new([
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 { id: BOB, network: None }
-					)
-				)
+					]))
+				}
 				.into_versioned()
 			),
 			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))

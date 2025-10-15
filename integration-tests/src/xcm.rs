@@ -8,7 +8,7 @@ use crate::assert_operation_stack;
 use frame_support::dispatch::GetDispatchInfo;
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
-use polkadot_xcm::v4::prelude::*;
+use polkadot_xcm::v5::prelude::*;
 use sp_std::sync::Arc;
 use xcm_builder::DescribeAllTerminal;
 use xcm_builder::DescribeFamily;
@@ -90,7 +90,7 @@ fn global_account_derivation_should_work_when_with_other_chain_remote_account() 
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: omni_sell.get_dispatch_info().weight,
+				fallback_max_weight: Some(omni_sell.get_dispatch_info().call_weight),
 				origin_kind: OriginKind::SovereignAccount,
 				call: omni_sell.encode().into(),
 			},
@@ -216,7 +216,7 @@ fn xcm_call_should_populate_unified_event_call_context() {
 				weight_limit: Unlimited,
 			},
 			Transact {
-				require_weight_at_most: omni_sell.get_dispatch_info().weight,
+				fallback_max_weight: Some(omni_sell.get_dispatch_info().call_weight),
 				origin_kind: OriginKind::SovereignAccount,
 				call: omni_sell.encode().into(),
 			},
@@ -308,8 +308,10 @@ fn unified_event_context_should_be_cleared_when_error_happens_in_xcm_prepare() {
 	// Act
 	Acala::execute_with(|| {
 		//We make a big xcm so it results in error
-		const ARRAY_REPEAT_VALUE: cumulus_primitives_core::Instruction<()> = RefundSurplus;
-		let message: cumulus_primitives_core::Xcm<()> = Xcm([ARRAY_REPEAT_VALUE; 10000].to_vec());
+		const ARRAY_REPEAT_VALUE: cumulus_primitives_core::Instruction<()> =
+			cumulus_primitives_core::Instruction::RefundSurplus;
+		let message: cumulus_primitives_core::Xcm<()> =
+			cumulus_primitives_core::Xcm([ARRAY_REPEAT_VALUE; 10000].to_vec());
 
 		let dest_hydradx = Location::new(
 			1,

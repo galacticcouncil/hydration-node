@@ -40,13 +40,14 @@ use hydradx_runtime::{
 	XYKLiquidityMining, XYKWarehouseLM, XYK,
 };
 use pallet_xyk::types::AssetPair;
-use polkadot_xcm::v3::{
+use polkadot_xcm::v5::{
 	Junction::{GeneralIndex, Parachain},
 	Junctions::X2,
-	MultiLocation,
+	Location,
 };
 use pretty_assertions::assert_eq;
 use primitives::constants::time::unix_time::MONTH;
+use sp_std::sync::Arc;
 
 #[test]
 fn create_global_farm_should_work_when_origin_is_root() {
@@ -1443,9 +1444,9 @@ fn create_yield_farm(id: GlobalFarmId, pair: AssetPair, owner: Option<AccountId>
 }
 
 fn register_external_asset(general_index: u128) -> AssetId {
-	let location = hydradx_runtime::AssetLocation(MultiLocation::new(
+	let location = hydradx_runtime::AssetLocation(Location::new(
 		1,
-		X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)),
+		X2(Arc::new([Parachain(MOONBEAM_PARA_ID), GeneralIndex(general_index)])),
 	));
 
 	let next_asset_id = AssetRegistry::next_asset_id().unwrap();

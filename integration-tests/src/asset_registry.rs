@@ -1,16 +1,16 @@
 #![cfg(test)]
 
-use crate::asset_registry::Junction::GeneralIndex;
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::AssetRegistry as Registry;
-use polkadot_xcm::v3::{
-	Junction::{self, Parachain},
+use polkadot_xcm::v5::{
+	Junction::{GeneralIndex, Parachain},
 	Junctions::X2,
-	MultiLocation,
+	Location,
 };
 use pretty_assertions::{assert_eq, assert_ne};
+use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -44,8 +44,10 @@ fn root_should_update_location_when_asset_exists() {
 	Hydra::execute_with(|| {
 		assert!(Registry::locations(LRNA).is_none());
 
-		let loc_1 =
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(MOONBEAM_PARA_ID), GeneralIndex(0))));
+		let loc_1 = hydradx_runtime::AssetLocation(Location {
+			parents: 1,
+			interior: X2(Arc::new([Parachain(MOONBEAM_PARA_ID), GeneralIndex(0)])),
+		});
 
 		//Set location 1-th time.
 		assert_ok!(Registry::update(
@@ -64,8 +66,10 @@ fn root_should_update_location_when_asset_exists() {
 		assert_eq!(Registry::location_assets(loc_1.clone()).unwrap(), LRNA);
 
 		// Update location if it was previously set.
-		let loc_2 =
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(INTERLAY_PARA_ID), GeneralIndex(0))));
+		let loc_2 = hydradx_runtime::AssetLocation(Location {
+			parents: 1,
+			interior: X2(Arc::new([Parachain(INTERLAY_PARA_ID), GeneralIndex(0)])),
+		});
 
 		assert_ok!(Registry::update(
 			RawOrigin::Root.into(),

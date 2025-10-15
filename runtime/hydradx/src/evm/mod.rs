@@ -89,7 +89,7 @@ parameter_types! {
 
 const MOONBEAM_PARA_ID: u32 = 2004;
 
-fn weth_asset_location() -> AssetLocation {
+pub fn weth_asset_location() -> AssetLocation {
 	AssetLocation(Location {
 		parents: 1,
 		interior: Junctions::X3(Arc::new([

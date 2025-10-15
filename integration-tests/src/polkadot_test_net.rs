@@ -16,16 +16,17 @@ use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use frame_support::traits::OnRuntimeUpgrade;
 pub use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeEvent, RuntimeOrigin};
+use hydradx_runtime::{evm::weth_asset_location, Referrals, RuntimeEvent, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 use pallet_referrals::{FeeDistribution, Level};
+use polkadot_primitives::runtime_api::runtime_decl_for_parachain_host::ParachainHostV13;
 pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::storage::Storage;
 use sp_core::H160;
 pub use xcm_emulator::Network;
-use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_chains};
+use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_chains, Parachain};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -148,7 +149,7 @@ decl_test_parachains! {
 			hydradx_runtime::AuraExt::on_initialize(1);
 			// Make sure the prices are up-to-date.
 			hydradx_runtime::MultiTransactionPayment::on_initialize(1);
-			hydradx_runtime::AssetRegistry::set_location(WETH, WETH_ASSET_LOCATION).unwrap();
+			hydradx_runtime::AssetRegistry::set_location(WETH, weth_asset_location()).unwrap();
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -375,6 +376,7 @@ pub mod rococo {
 					(AccountId::from(ALICE), 2_002 * UNITS),
 					(ParaId::from(HYDRA_PARA_ID).into_account_truncating(), 10 * UNITS),
 				],
+				dev_accounts: None,
 			},
 			session: rococo_runtime::SessionConfig {
 				keys: initial_authorities()
@@ -480,6 +482,7 @@ pub mod hydra {
 					(vesting_account(), 10_000 * UNITS),
 					(staking_account, UNITS),
 				],
+				dev_accounts: None,
 			},
 			collator_selection: hydradx_runtime::CollatorSelectionConfig {
 				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
@@ -643,6 +646,7 @@ pub mod para {
 		let genesis_config = hydradx_runtime::RuntimeGenesisConfig {
 			balances: hydradx_runtime::BalancesConfig {
 				balances: vec![(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE)],
+				dev_accounts: None,
 			},
 			collator_selection: hydradx_runtime::CollatorSelectionConfig {
 				invulnerables: collators::invulnerables().iter().cloned().map(|(acc, _)| acc).collect(),
@@ -866,10 +870,11 @@ pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 			let call_p = call.get_call_metadata().pallet_name;
 
 			if pallet_whitelist.contains(&call_p) {
-				let acc = &tx.0.signature.as_ref().unwrap().0;
-				assert_ok!(call
-					.clone()
-					.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
+				if let sp_runtime::generic::Preamble::Signed(ref acc, _, _) = tx.0.preamble {
+					assert_ok!(call
+						.clone()
+						.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
+				}
 			}
 		}
 	}
