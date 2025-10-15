@@ -1,6 +1,6 @@
 [package]
 name = "pallet-duster"
-version = "3.2.9"
+version = "3.3.1"
 description = "Account duster"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -50,14 +50,16 @@ runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
 ]
 std = [
-    "serde",
     "codec/std",
     "frame-support/std",
     "frame-system/std",
+    "sp-runtime/std",
     "sp-std/std",
-    "orml-traits/std",
+    "sp-core/std",
+    "sp-io/std",
     "scale-info/std",
-    "pallet-balances/std",
     "orml-tokens/std",
+    "hydradx-traits/std",
+    "pallet-balances/std"
 ]
 try-runtime = ["frame-support/try-runtime"]
