@@ -43,15 +43,17 @@ use hydradx_adapters::{
 	PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider, StableswapHooksAdapter,
 	VestingInfo,
 };
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::evm::CallContext;
 use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 pub use hydradx_traits::{
-	evm::CallContext,
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 	AMM,
 };
+
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Handler, Happened, NamedMultiReservableCurrency,
@@ -700,7 +702,7 @@ parameter_types! {
 	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
-pub(crate) type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+pub type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
 impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -756,7 +758,7 @@ parameter_types! {
 	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
 }
 
-pub(crate) type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
+pub type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
 impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;

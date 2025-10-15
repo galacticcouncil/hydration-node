@@ -5,11 +5,7 @@ use frame_support::assert_noop;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_ok, sp_runtime::traits::Zero};
-use hex_literal::hex;
-use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, System, Tokens, Treasury};
-use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::BoundErc20;
+use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, Tokens, Treasury};
 use orml_traits::MultiReservableCurrency;
 use orml_traits::{currency::MultiCurrency, GetByKey};
 use sp_runtime::{DispatchResult, TransactionOutcome};
@@ -206,12 +202,7 @@ mod atoken_dust {
 	use hydradx_runtime::EVMAccounts;
 	const START_BALANCE: u128 = 1_000_000_000_000_000;
 
-	use pallet_broadcast::types::Asset;
-	use primitives::constants::currency::UNITS;
-	use proptest::{
-		prelude::*,
-		test_runner::{Config, TestRunner},
-	};
+	use proptest::test_runner::{Config, TestRunner};
 
 	#[test]
 	fn atoken_should_not_be_dusted_when_atoken_balance_is_below_ed_after_transfer() {
