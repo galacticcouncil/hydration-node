@@ -58,7 +58,7 @@ fn insufficient_asset_can_be_used_as_fee_currency() {
 			.unwrap();
 			create_xyk_pool(insufficient_asset, 1000000 * UNITS, DOT, 3000000 * UNITS);
 
-			set_relaychain_block_number(11);
+			go_to_block(11);
 
 			let alice_init_insuff_balance = 10 * UNITS;
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -199,7 +199,7 @@ fn sufficient_but_not_accepted_asset_can_be_used_as_fee_currency() {
 			.unwrap();
 			create_xyk_pool(sufficient_but_not_accepted_asset, 1000000 * UNITS, DOT, 3000000 * UNITS);
 
-			set_relaychain_block_number(11);
+			go_to_block(11);
 
 			let alice_init_suff_balance = 10 * UNITS;
 			assert_ok!(hydradx_runtime::Currencies::update_balance(

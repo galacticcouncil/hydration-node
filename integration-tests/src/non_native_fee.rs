@@ -449,7 +449,7 @@ fn omnipool_spotprice_and_onchain_price_should_be_very_similar() {
 		));
 		do_trade_to_populate_oracle(DAI, DOT, 10 * UNITS);
 
-		set_relaychain_block_number(10);
+		go_to_block(10);
 
 		//Act
 		let spot_price = Omnipool::spot_price(DAI, DOT).unwrap();

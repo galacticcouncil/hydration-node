@@ -145,9 +145,6 @@ decl_test_parachains! {
 		genesis = hydra::genesis(),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::Timestamp::set_timestamp(NOW);
-			hydradx_runtime::AuraExt::on_initialize(1);
-			// Make sure the prices are up-to-date.
 			hydradx_runtime::MultiTransactionPayment::on_initialize(1);
 			hydradx_runtime::AssetRegistry::set_location(WETH, weth_asset_location()).unwrap();
 		},
@@ -167,7 +164,6 @@ decl_test_parachains! {
 		genesis = para::genesis(ACALA_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -185,7 +181,6 @@ decl_test_parachains! {
 		genesis = para::genesis(MOONBEAM_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -203,7 +198,6 @@ decl_test_parachains! {
 		genesis = para::genesis(INTERLAY_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -221,7 +215,6 @@ decl_test_parachains! {
 		genesis = para::genesis(ASSET_HUB_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -239,7 +232,6 @@ decl_test_parachains! {
 		genesis = para::genesis(ZEITGEIST_PARA_ID),
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
-			hydradx_runtime::AuraExt::on_initialize(1);
 		},
 		runtime = hydradx_runtime,
 		core = {
@@ -708,15 +700,52 @@ pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
 	}
 }
 
-pub fn set_relaychain_block_number(number: BlockNumber) {
+use frame_support::traits::OnFinalize;
+
+pub fn go_to_block(number: BlockNumber) {
+	use frame_support::storage::unhashed;
 	use hydradx_runtime::ParachainSystem;
 	use sp_core::{Encode, Get};
 	use xcm_emulator::HeaderT;
 
-	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
-	// how we set the block number with `cumulus-test-relay-sproof-builder` package
-	rococo_run_to_block(number);
+	let current_block = hydradx_runtime::System::block_number();
 
+	// Clear AuraExt storage when starting a new test (block 1) or when resetting
+	// This prevents "Slot moved backwards" errors from previous test runs
+	let aura_key = frame_support::storage::storage_prefix(b"AuraExt", b"RelaySlotInfo");
+
+	if number == 1 || current_block > number {
+		unhashed::kill(&aura_key);
+	} else if let Some(data) = unhashed::get_raw(&aura_key) {
+		// Also check if stored slot exists and is greater than what we're about to set
+		// This indicates storage wasn't properly cleared after previous test
+		use sp_consensus_aura::Slot;
+		use sp_core::Decode;
+		if let Ok((stored_slot, _)) = <(Slot, u32)>::decode(&mut &data[..]) {
+			// If stored slot is greater than or equal to the number we're setting, clear it
+			if u64::from(stored_slot) >= number as u64 {
+				unhashed::kill(&aura_key);
+			}
+		}
+	}
+
+	// Finalize current block if we're advancing
+	if current_block > 0 && current_block < number {
+		hydradx_runtime::System::on_finalize(current_block);
+		hydradx_runtime::Ethereum::on_finalize(current_block);
+		hydradx_runtime::TransactionPayment::on_finalize(current_block);
+		hydradx_runtime::MultiTransactionPayment::on_finalize(current_block);
+		hydradx_runtime::CircuitBreaker::on_finalize(current_block);
+		hydradx_runtime::DCA::on_finalize(current_block);
+		hydradx_runtime::Dispatcher::on_finalize(current_block);
+		hydradx_runtime::EmaOracle::on_finalize(current_block);
+		hydradx_runtime::EVM::on_finalize(current_block);
+		hydradx_runtime::EVMAccounts::on_finalize(current_block);
+		hydradx_runtime::Stableswap::on_finalize(current_block);
+		hydradx_runtime::HSM::on_finalize(current_block);
+	}
+
+	// Set relay chain validation data BEFORE initializing the new block
 	ParachainSystem::on_initialize(number);
 
 	let mut sproof_builder = RelayStateSproofBuilder::default();
@@ -735,6 +764,10 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 	sproof_builder.para_id = hydradx_runtime::ParachainInfo::get();
 	sproof_builder.included_para_head = Some(parent_head_data.clone());
 
+	// Set the relay chain slot based on the block number
+	// This ensures slots always increase with block numbers and reset with TestNet::reset()
+	sproof_builder.current_slot = (number as u64).into();
+
 	let (relay_storage_root, proof) = sproof_builder.into_state_root_and_proof();
 
 	assert_ok!(ParachainSystem::set_validation_data(
@@ -751,50 +784,35 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 			horizontal_messages: Default::default(),
 		}
 	));
+
+	// Now initialize the new block with proper relay chain context
+	hydradx_runtime::System::set_block_number(number);
+	hydradx_runtime::System::on_initialize(number);
+	hydradx_runtime::Ethereum::on_initialize(number);
+	hydradx_runtime::AuraExt::on_initialize(number); // Now AuraExt has proper relay chain data
+	hydradx_runtime::MultiTransactionPayment::on_initialize(number);
+	hydradx_runtime::CircuitBreaker::on_initialize(number);
+	hydradx_runtime::DynamicEvmFee::on_initialize(number);
+	hydradx_runtime::DCA::on_initialize(number);
+	hydradx_runtime::EmaOracle::on_initialize(number);
+	hydradx_runtime::EVM::on_initialize(number);
+	hydradx_runtime::Ethereum::on_initialize(number);
+	hydradx_runtime::EVMAccounts::on_initialize(number);
+	hydradx_runtime::Stableswap::on_initialize(number);
+	hydradx_runtime::HSM::on_initialize(number);
 }
 
 pub fn hydradx_run_to_next_block() {
-	use frame_support::traits::OnFinalize;
-
 	let b = hydradx_runtime::System::block_number();
-	hydradx_runtime::System::on_finalize(b);
-	hydradx_runtime::Ethereum::on_finalize(b);
-	hydradx_runtime::TransactionPayment::on_finalize(b);
-	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-	hydradx_runtime::CircuitBreaker::on_finalize(b);
-	hydradx_runtime::DCA::on_finalize(b);
-	hydradx_runtime::Dispatcher::on_finalize(b);
-	hydradx_runtime::EmaOracle::on_finalize(b);
-	hydradx_runtime::EVM::on_finalize(b);
-	hydradx_runtime::Ethereum::on_finalize(b);
-	hydradx_runtime::EVMAccounts::on_finalize(b);
-	hydradx_runtime::Stableswap::on_finalize(b);
-	hydradx_runtime::HSM::on_finalize(b);
-
-	hydradx_runtime::System::set_block_number(b + 1);
-	hydradx_runtime::System::on_initialize(b + 1);
-	hydradx_runtime::Ethereum::on_initialize(b + 1);
-	hydradx_runtime::AuraExt::on_initialize(b + 1);
-	hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-	hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
-	hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
-	hydradx_runtime::DCA::on_initialize(b + 1);
-	hydradx_runtime::EmaOracle::on_initialize(b + 1);
-	hydradx_runtime::EVM::on_initialize(b + 1);
-	hydradx_runtime::Ethereum::on_initialize(b + 1);
-	hydradx_runtime::EVMAccounts::on_initialize(b + 1);
-	hydradx_runtime::Stableswap::on_initialize(b + 1);
-	hydradx_runtime::HSM::on_initialize(b + 1);
-
-	hydradx_runtime::System::set_block_number(b + 1);
+	go_to_block(b + 1);
 }
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
 	let b = hydradx_runtime::System::block_number();
 	assert!(b <= to, "the current block number {:?} is higher than expected.", b);
 
-	while hydradx_runtime::System::block_number() < to {
-		hydradx_run_to_next_block();
+	if b < to {
+		go_to_block(to);
 	}
 }
 

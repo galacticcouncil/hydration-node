@@ -1467,7 +1467,7 @@ fn ed_should_be_paid_in_insufficient_asset_through_dot() {
 			)
 			.unwrap();
 
-			set_relaychain_block_number(11);
+			go_to_block(11);
 
 			let alice_init_insuff_balance = 10 * UNITS;
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
