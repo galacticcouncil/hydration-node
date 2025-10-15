@@ -43,15 +43,17 @@ use hydradx_adapters::{
 	PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider, StableswapHooksAdapter,
 	VestingInfo,
 };
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::evm::CallContext;
 use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 pub use hydradx_traits::{
-	evm::CallContext,
 	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 	AMM,
 };
+
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Handler, Happened, NamedMultiReservableCurrency,
@@ -678,20 +680,13 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 	}
 }
 
-parameter_types! {
-	pub const DustingReward: u128 = 0;
-}
-
 impl pallet_duster::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-	type Amount = Amount;
-	type CurrencyId = AssetId;
-	type MultiCurrency = Currencies;
-	type MinCurrencyDeposits = AssetRegistry;
-	type Reward = DustingReward;
-	type NativeCurrencyId = NativeAssetId;
-	type BlacklistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type AssetId = AssetId;
+	type MultiCurrency = FungibleCurrencies<Runtime>;
+	type ExistentialDeposit = AssetRegistry;
+	type WhitelistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	type Erc20Support = ATokenAccountDuster;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
@@ -706,7 +701,7 @@ parameter_types! {
 	pub const OmnipoolLmOracle: [u8; 8] = OMNIPOOL_SOURCE;
 }
 
-pub(crate) type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+pub type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
 impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -762,7 +757,7 @@ parameter_types! {
 	pub const XYKLmOracle: [u8; 8] = XYK_SOURCE;
 }
 
-pub(crate) type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
+pub type XYKLiquidityMiningInstance = warehouse_liquidity_mining::Instance2;
 impl warehouse_liquidity_mining::Config<XYKLiquidityMiningInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -1393,10 +1388,12 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::registry::Create;
+use hydradx_traits::BoundErc20;
 use pallet_asset_registry::XcmRateLimitsInRegistry;
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
 use pallet_dispatcher::evm::{CallResult, EvmErrorMapperAdapter};
@@ -1411,6 +1408,7 @@ use pallet_referrals::{FeeDistribution, Level};
 use pallet_stableswap::types::PegType;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
+use sp_runtime::TokenError;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
 
@@ -2064,5 +2062,37 @@ impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for XykPaymentAsse
 			false,
 			dest,
 		)
+	}
+}
+
+pub struct ATokenAccountDuster;
+
+impl Erc20Inspect<AssetId> for ATokenAccountDuster {
+	fn contract_address(id: AssetId) -> Option<EvmAddress> {
+		pallet_asset_registry::Pallet::<Runtime>::contract_address(id)
+	}
+
+	fn is_atoken(asset_id: AssetId) -> bool {
+		let Some(contract) = AssetRegistry::contract_address(asset_id) else {
+			return false;
+		};
+
+		AaveTradeExecutor::<Runtime>::is_atoken(contract)
+	}
+}
+
+impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
+	fn on_dust(
+		account: &AccountId,
+		dust_dest_account: &AccountId,
+		currency_id: AssetId,
+	) -> frame_support::dispatch::DispatchResult {
+		let Some(contract) = AssetRegistry::contract_address(currency_id) else {
+			return Err(DispatchError::Token(TokenError::UnknownAsset));
+		};
+
+		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, &account, &dust_dest_account)?;
+
+		Ok(())
 	}
 }

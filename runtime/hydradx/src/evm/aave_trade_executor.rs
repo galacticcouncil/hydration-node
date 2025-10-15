@@ -16,7 +16,7 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
-use hydradx_traits::{BoundErc20, Inspect};
+use hydradx_traits::BoundErc20;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_broadcast::types::Asset;
 use pallet_dispatcher::evm::CallResult;
@@ -29,10 +29,11 @@ use primitive_types::{H256, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_arithmetic::FixedU128;
+use sp_arithmetic::{ArithmeticError, FixedU128};
 use sp_core::crypto::AccountId32;
 use sp_runtime::format;
 use sp_runtime::traits::CheckedConversion;
+use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
@@ -134,50 +135,44 @@ where
 	NonceIdOf<T>: Into<T::Nonce>,
 	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
 {
-	pub fn transfer(
-		contract: EvmAddress,
-		from: &AccountId,
-		to: &AccountId,
-		amount: Balance,
-		erc20_transfer: impl FnOnce() -> DispatchResult,
-	) -> DispatchResult {
-		let Some(atoken) = HydraErc20Mapping::address_to_asset(contract) else {
+	pub fn is_atoken(address: EvmAddress) -> bool {
+		let Some(atoken) = HydraErc20Mapping::address_to_asset(address) else {
+			return false;
+		};
+		Self::get_underlying_asset(atoken).is_some()
+	}
+
+	pub fn withdraw_all_to(contract_address: EvmAddress, from: &T::AccountId, to: &T::AccountId) -> DispatchResult {
+		let Some(atoken) = HydraErc20Mapping::address_to_asset(contract_address) else {
 			return Err(DispatchError::Other("Not an Aave token"));
 		};
 		let Some(underlying_asset) = Self::get_underlying_asset(atoken) else {
 			return Err(DispatchError::Other("Not an Aave token"));
 		};
-		let ed = pallet_asset_registry::Pallet::<T>::existential_deposit(atoken).unwrap_or_default();
-		let atoken_balance = <Erc20Currency<T> as ERC20>::balance_of(
-			CallContext::new_view(contract),
-			EvmAccounts::<T>::evm_address(from),
+
+		let underlying_balance_before = <Erc20Currency<T> as ERC20>::balance_of(
+			CallContext::new_view(underlying_asset),
+			EvmAccounts::<T>::evm_address(&from),
 		);
-		let diff = atoken_balance.saturating_sub(amount);
-		if diff <= ed {
-			//We withdraw all AToken and supply underlying asset amount on behalf of the receiver
-			//We need to do this as Aave ScaledBalanceTokenBase.sol has rounding in transfer method so we can't always transfer total balance
-			let underlying_balance_before = <Erc20Currency<T> as ERC20>::balance_of(
-				CallContext::new_view(underlying_asset),
-				EvmAccounts::<T>::evm_address(from),
-			);
 
-			AaveTradeExecutor::<T>::do_withdraw_all(from, underlying_asset)?;
+		AaveTradeExecutor::<T>::do_withdraw_all(&from, underlying_asset)?;
 
-			let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
-				CallContext::new_view(underlying_asset),
-				EvmAccounts::<T>::evm_address(from),
-			);
+		let underlying_balance_after = <Erc20Currency<T> as ERC20>::balance_of(
+			CallContext::new_view(underlying_asset),
+			EvmAccounts::<T>::evm_address(&from),
+		);
 
-			let amount_to_supply = underlying_balance_after.saturating_sub(underlying_balance_before);
-			Self::do_supply_on_behalf_of(from, to, underlying_asset, amount_to_supply)
-		} else {
-			//When we don't transfer total balance of atokens
-			erc20_transfer()
-		}
-	}
+		let amount_to_supply = underlying_balance_after
+			.checked_sub(underlying_balance_before)
+			.ok_or(ArithmeticError::Underflow)?;
 
-	pub fn is_atoken(_address: EvmAddress) -> bool {
-		false
+		//Sanity check to be sure that the AAVE rounding error cannot be exploited with zero supply amount, so cannot be spammed by free extrinsics like dust_account
+		ensure!(
+			!amount_to_supply.is_zero(),
+			DispatchError::Other("No underlying asset withdrawn")
+		);
+
+		Self::do_supply_on_behalf_of(from, to, underlying_asset, amount_to_supply)
 	}
 
 	pub fn get_reserves_list(pool: EvmAddress) -> Result<Vec<EvmAddress>, ExecutorError<DispatchError>> {

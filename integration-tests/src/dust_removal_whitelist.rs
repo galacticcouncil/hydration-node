@@ -29,7 +29,7 @@ fn dust_removal_whitelist_should_work_with_duster() {
 }
 
 #[test]
-fn add_nondustable_account_should_work_with_dust_removal_whitelist() {
+fn whitelist_account_should_work_with_dust_removal_whitelist() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -37,7 +37,7 @@ fn add_nondustable_account_should_work_with_dust_removal_whitelist() {
 		assert!(!hydradx_runtime::DustRemovalWhitelist::contains(&ALICE.into()));
 
 		//Act add account to whitelist
-		assert_ok!(hydradx_runtime::Duster::add_nondustable_account(
+		assert_ok!(hydradx_runtime::Duster::whitelist_account(
 			RuntimeOrigin::root(),
 			ALICE.into()
 		));
@@ -47,7 +47,7 @@ fn add_nondustable_account_should_work_with_dust_removal_whitelist() {
 }
 
 #[test]
-fn remove_nondustable_account_should_work_with_dust_removal_whitelist() {
+fn remove_from_whitelist_should_work_with_dust_removal_whitelist() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -56,7 +56,7 @@ fn remove_nondustable_account_should_work_with_dust_removal_whitelist() {
 		assert!(hydradx_runtime::DustRemovalWhitelist::contains(&ALICE.into()));
 
 		//Act
-		assert_ok!(hydradx_runtime::Duster::remove_nondustable_account(
+		assert_ok!(hydradx_runtime::Duster::remove_from_whitelist(
 			RuntimeOrigin::root(),
 			ALICE.into()
 		));
