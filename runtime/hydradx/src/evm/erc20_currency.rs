@@ -1,4 +1,4 @@
-use crate::evm::executor::{BalanceOf, CallResult, Executor, NonceIdOf};
+use crate::evm::executor::{BalanceOf, Executor, NonceIdOf};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;

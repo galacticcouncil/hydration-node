@@ -430,7 +430,11 @@ impl EVM<CallResult> for MockEvm {
 						let mut buf1 = [0u8; 32];
 						max_flash_loan_amount.to_big_endian(&mut buf1);
 						let bytes = Vec::from(buf1);
-						return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+						return CallResult {
+							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+							value: bytes,
+							contract: context.contract,
+						}
 					}
 					ERC20Function::GetFacilitatorBucket => {
 						let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
@@ -442,7 +446,11 @@ impl EVM<CallResult> for MockEvm {
 						let mut bytes = vec![];
 						bytes.extend_from_slice(&buf1);
 						bytes.extend_from_slice(&buf2);
-						return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+						return CallResult {
+							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+							value: bytes,
+							contract: context.contract,
+						}
 					}
 				}
 			}

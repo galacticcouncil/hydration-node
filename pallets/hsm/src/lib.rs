@@ -1731,16 +1731,16 @@ where
 		let data = EvmDataWriter::new_with_selector(ERC20Function::MaxFlashLoan)
 			.write(hollar_address)
 			.build();
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: "hsm", "MaxFlashLoan exit reason: {:?}:{:?}", exit_reason, value);
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "MaxFlashLoan exit reason: {:?}:{:?}", call_result.exit_reason, call_result.value);
 			0
 		} else {
-			if value.len() != 32 {
+			if call_result.value.len() != 32 {
 				return 0;
 			}
-			U256::from_big_endian(&value[..]).try_into().unwrap_or(0)
+			U256::from_big_endian(&call_result.value[..]).try_into().unwrap_or(0)
 		}
 	}
 
@@ -1753,16 +1753,16 @@ where
 		let data = EvmDataWriter::new_with_selector(ERC20Function::GetFacilitatorBucket)
 			.write(hsm_evm_addr)
 			.build();
-		let (exit_reason, value) = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: "hsm", "GetFacilitatorBucket exit reason: {:?}:{:?}", exit_reason, value);
+		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: "hsm", "GetFacilitatorBucket exit reason: {:?}:{:?}", call_result.exit_reason, call_result.value);
 			0
 		} else {
-			if value.len() != 64 {
+			if call_result.value.len() != 64 {
 				return 0;
 			}
-			let capacity: u128 = U256::from_big_endian(&value[0..32]).try_into().unwrap_or(0);
-			let level: u128 = U256::from_big_endian(&value[32..64]).try_into().unwrap_or(0);
+			let capacity: u128 = U256::from_big_endian(&call_result.value[0..32]).try_into().unwrap_or(0);
+			let level: u128 = U256::from_big_endian(&call_result.value[32..64]).try_into().unwrap_or(0);
 			log::trace!(target: "hsm", "Bucket capacity: {:?}", capacity);
 			log::trace!(target: "hsm", "Bucket level: {:?}", level);
 			capacity.saturating_sub(level)

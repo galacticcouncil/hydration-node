@@ -228,7 +228,16 @@ impl Config for Test {
 	type WeightInfo = ();
 	type HollarId = HollarId;
 	type FlashMinter = ();
+	type EvmErrorMapper = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+}
+
+pub struct EvmErrorDecodeMock;
+
+impl EvmErrorMapper for EvmErrorDecodeMock {
+	fn map_to_dispatch_error(call_result: CallResult) -> DispatchError {
+		DispatchError::Other("Call failed")
+	}
 }
 
 parameter_types! {
