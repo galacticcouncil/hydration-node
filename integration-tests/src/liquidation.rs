@@ -384,7 +384,7 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 				borrow_dot_amount,
 				route
 			),
-			pallet_liquidation::Error::<Runtime>::LiquidationCallFailed
+			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorNotBelowThreshold
 		);
 
 		// Assert

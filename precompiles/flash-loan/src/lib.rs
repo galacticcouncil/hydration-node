@@ -23,6 +23,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use core::marker::PhantomData;
+use codec::Encode;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitSucceed;
 use fp_evm::{ExitReason, ExitRevert, PrecompileFailure, PrecompileHandle};
@@ -134,7 +135,7 @@ where
 					log::error!(target: "flash", "liquidate_position failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
-						output: vec![],
+						output: r.encode(),
 					});
 				}
 				// Approve the loan repayment

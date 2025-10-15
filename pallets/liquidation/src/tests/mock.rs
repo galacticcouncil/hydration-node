@@ -228,7 +228,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	type HollarId = HollarId;
 	type FlashMinter = ();
-	type EvmErrorMapper = EvmErrorDecodeMock;
+	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 }
 

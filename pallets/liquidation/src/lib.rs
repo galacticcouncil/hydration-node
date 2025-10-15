@@ -40,6 +40,7 @@ use frame_support::{
 	},
 	PalletId,
 };
+use pallet_dispatcher::evm::EvmErrorDecoder;
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
@@ -132,7 +133,7 @@ pub mod pallet {
 		/// Flash minter contract address and flash loan receiver address.
 		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
 
-		type EvmErrorMapper : pallet_dispatcher::evm::EvmErrorDecoder;
+		type EvmErrorDecoder: pallet_dispatcher::evm::EvmErrorDecoder;
 
 		/// The origin which can update transaction priorities, allowed signers and call addresses
 		/// for the liquidation worker.
@@ -266,7 +267,7 @@ pub mod pallet {
 
 				if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 					log::debug!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
-					return Err(Error::<T>::LiquidationCallFailed.into());
+					return Err(T::EvmErrorDecoder::decode(call_result));
 				}
 			} else {
 				let pallet_acc = Self::account_id();
@@ -356,7 +357,7 @@ impl<T: Config> Pallet<T> {
 		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::debug!(target: "liquidation",
 						"Evm execution failed. Reason: {:?}", call_result.value);
-			return Err(Error::<T>::LiquidationCallFailed.into());
+			return Err(T::EvmErrorDecoder::decode(call_result));
 		}
 
 		// swap collateral if necessary
