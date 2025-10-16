@@ -12,7 +12,7 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, ContainsPair, EitherOf, Everything, Get, Nothing, TransformOrigin},
+	traits::{ConstU32, Contains, ContainsPair, Disabled, EitherOf, Everything, Get, Nothing, TransformOrigin},
 	PalletId,
 };
 use frame_system::unique;
@@ -231,7 +231,7 @@ impl Config for XcmConfig {
 	type HrmpChannelClosingHandler = ();
 	type HrmpChannelAcceptedHandler = ();
 	type XcmRecorder = PolkadotXcm;
-	type XcmEventEmitter = PolkadotXcm;
+	type XcmEventEmitter = ();
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -397,7 +397,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
-	type AuthorizedAliasConsideration = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 parameter_types! {
