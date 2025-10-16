@@ -21,21 +21,21 @@ use hydradx_runtime::{
 	RuntimeEvent, RuntimeOrigin, Treasury,
 };
 use hydradx_traits::{
-	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
+	evm::{CallContext, Erc20Encoding, EVM},
 	router::{AssetPair, RouteProvider},
 };
 use liquidation_worker_support::*;
 use orml_traits::currency::MultiCurrency;
+use primitives::EvmAddress;
 use sp_api::ApiError;
 use sp_core::{H256, U256};
-use sp_runtime::traits::CheckedConversion;
 use xcm_runtime_apis::dry_run::{
 	runtime_decl_for_dry_run_api::DryRunApi, CallDryRunEffects, Error as XcmDryRunApiError,
 };
 
 // ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
 pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/LIQUIDATION_SNAPSHOT";
-const PAP_CONTRACT: hydradx_runtime::evm::EvmAddress = H160(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6"));
+const PAP_CONTRACT: primitives::EvmAddress = H160(hex!("82db570265c37bE24caf5bc943428a6848c3e9a6"));
 
 const DOT: AssetId = 5;
 const DOT_UNIT: Balance = 10_000_000_000;
@@ -88,12 +88,12 @@ pub fn get_user_account_data(mm_pool: EvmAddress, user: EvmAddress) -> Option<Us
 	let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
 	assert_eq!(res, Succeed(Returned), "{:?}", hex::encode(value));
 
-	let total_collateral_base = U256::checked_from(&value[0..32])?;
-	let total_debt_base = U256::checked_from(&value[32..64])?;
-	let available_borrows_base = U256::checked_from(&value[64..96])?;
-	let current_liquidation_threshold = U256::checked_from(&value[96..128])?;
-	let ltv = U256::checked_from(&value[128..160])?;
-	let health_factor = U256::checked_from(&value[160..192])?;
+	let total_collateral_base = U256::from_big_endian(&value[0..32]);
+	let total_debt_base = U256::from_big_endian(&value[32..64]);
+	let available_borrows_base = U256::from_big_endian(&value[64..96]);
+	let current_liquidation_threshold = U256::from_big_endian(&value[96..128]);
+	let ltv = U256::from_big_endian(&value[128..160]);
+	let health_factor = U256::from_big_endian(&value[160..192]);
 
 	Some(UserAccountData {
 		total_collateral_base,
@@ -148,8 +148,8 @@ pub fn get_oracle_price(asset_pair: &str) -> Option<(U256, U256)> {
 
 		let (res, value) = Executor::<Runtime>::call(context, data, U256::zero(), 5_000_000);
 		if res == Succeed(Returned) {
-			let price = U256::checked_from(&value[0..32]).unwrap();
-			let timestamp = U256::checked_from(&value[32..64]).unwrap();
+			let price = U256::from_big_endian(&value[0..32]);
+			let timestamp = U256::from_big_endian(&value[32..64]);
 
 			if !price.is_zero() {
 				return Some((price, timestamp));
@@ -239,14 +239,14 @@ fn liquidation_should_work() {
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
+		update_oracle_price(vec![("DOT/USD", U256::from_big_endian(&data[0..32]))]);
 
 		let (price, timestamp) = get_oracle_price("WETH/USD").unwrap();
 		let price = price.as_u128() / 5;
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		update_oracle_price(vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())]);
+		update_oracle_price(vec![("WETH/USD", U256::from_big_endian(&data[0..32]))]);
 
 		// ensure that the health_factor < 1
 		let user_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
@@ -506,7 +506,7 @@ fn calculate_debt_to_liquidate_with_same_collateral_and_debt_asset() {
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
+		update_oracle_price(vec![("DOT/USD", U256::from_big_endian(&data[0..32]))]);
 
 		// ensure that the health_factor < 1
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
@@ -631,7 +631,7 @@ fn calculate_debt_to_liquidate_with_different_collateral_and_debt_asset_and_debt
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
+		update_oracle_price(vec![("DOT/USD", U256::from_big_endian(&data[0..32]))]);
 
 		// ensure that the health_factor < 1
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
@@ -755,7 +755,7 @@ fn calculate_debt_to_liquidate_collateral_amount_is_not_sufficient_to_reach_targ
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		update_oracle_price(vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())]);
+		update_oracle_price(vec![("WETH/USD", U256::from_big_endian(&data[0..32]))]);
 
 		// ensure that the health_factor < 1
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
@@ -923,7 +923,7 @@ fn calculate_debt_to_liquidate_with_weth_as_debt() {
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		update_oracle_price(vec![("WETH/USD", U256::checked_from(&data[0..32]).unwrap())]);
+		update_oracle_price(vec![("WETH/USD", U256::from_big_endian(&data[0..32]))]);
 
 		// ensure that the health_factor < 1
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
@@ -1044,7 +1044,7 @@ fn calculate_debt_to_liquidate_with_two_different_assets() {
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
+		update_oracle_price(vec![("DOT/USD", U256::from_big_endian(&data[0..32]))]);
 
 		// ensure that the health_factor < 1
 		let usr_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
@@ -1098,6 +1098,7 @@ where
 			None,
 			None,
 			true,
+			None,
 			None,
 		)
 		.map_err(|_| sp_runtime::DispatchError::Other("Calling EthereumRuntimeRPCApi::Call failed.")))
@@ -1251,7 +1252,7 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 		let timestamp = timestamp.as_u128() + 6;
 		let mut data = price.to_be_bytes().to_vec();
 		data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-		update_oracle_price(vec![("DOT/USD", U256::checked_from(&data[0..32]).unwrap())]);
+		update_oracle_price(vec![("DOT/USD", U256::from_big_endian(&data[0..32]))]);
 
 		assert_ok!(Liquidation::liquidate(
 			RuntimeOrigin::signed(BOB.into()),

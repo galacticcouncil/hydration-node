@@ -33,6 +33,7 @@ sp-std = { workspace = true }
 
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
+primitives = { workspace = true }
 
 # Optionals
 frame-benchmarking = { workspace = true, optional = true }

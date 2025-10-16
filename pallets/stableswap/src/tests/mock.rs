@@ -126,6 +126,7 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 parameter_type_with_key! {
@@ -379,7 +380,7 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, RawEntry, Source};
+use hydradx_traits::{AccountIdFor, Inspect, RawEntry};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;

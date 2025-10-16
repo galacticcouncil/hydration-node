@@ -11,9 +11,10 @@ use hydradx_runtime::{
 	},
 	AccountId, EVMAccounts, Runtime, RuntimeEvent, System,
 };
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_traits::evm::{CallContext, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pretty_assertions::assert_eq;
+use primitives::EvmAddress;
 use sp_core::{RuntimeDebug, H256, U256};
 use test_utils::expect_events;
 use xcm_emulator::{Network, TestExt};
@@ -145,6 +146,7 @@ fn contract_check_should_succeed_when_called_from_extrinsic() {
 			hydradx_runtime::DynamicEvmFee::min_gas_price().0 * 10,
 			None,
 			Some(System::account_nonce(AccountId::from(BOB)).into()),
+			[].into(),
 			[].into()
 		));
 

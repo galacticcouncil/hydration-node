@@ -4,6 +4,7 @@ use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::Executor;
 use crate::evm::{Erc20Currency, EvmAccounts};
 use crate::{Runtime, Vec};
+use alloc::format;
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
@@ -23,15 +24,13 @@ use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
-use polkadot_xcm::v3::MultiLocation;
+use polkadot_xcm::v5::Location;
 use primitive_types::{H256, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_arithmetic::{ArithmeticError, FixedU128};
 use sp_core::crypto::AccountId32;
-use sp_runtime::format;
-use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::boxed::Box;
@@ -126,7 +125,7 @@ where
 		+ pallet_broadcast::Config
 		+ pallet_dispatcher::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
-	T::AssetNativeLocation: Into<MultiLocation>,
+	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
@@ -287,7 +286,7 @@ where
 			matches!(res, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
 		);
-		U256::checked_from(value.as_slice()).ok_or(ExecutorError::Error("Failed to decode scaled total supply".into()))
+		Ok(U256::from_big_endian(value.as_slice()))
 	}
 
 	fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
@@ -441,7 +440,7 @@ where
 		+ pallet_broadcast::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>
 		+ pallet_dispatcher::Config,
-	T::AssetNativeLocation: Into<MultiLocation>,
+	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
@@ -596,8 +595,6 @@ pub struct PoolData<Balance> {
 }
 
 pub mod runtime_api {
-	#![cfg_attr(not(feature = "std"), no_std)]
-
 	use super::AssetId;
 	use super::PoolData;
 	use crate::Vec;

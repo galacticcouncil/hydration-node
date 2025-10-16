@@ -18,6 +18,7 @@ pallet-hsm = { workspace = true }
 pallet-stableswap= { workspace = true }
 pallet-liquidation = { workspace = true }
 hydradx-traits = { workspace = true }
+primitives = { workspace = true }
 codec = { workspace = true, features = [ "max-encoded-len" ] }
 sp-core = { workspace = true }
 sp-io = { workspace = true }

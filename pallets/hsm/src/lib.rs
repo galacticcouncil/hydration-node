@@ -42,14 +42,10 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{
-	offchain::{SendTransactionTypes, SubmitTransaction},
-	pallet_prelude::*,
-	Origin,
-};
+use frame_system::offchain::{CreateInherent, SubmitTransaction};
+use frame_system::{pallet_prelude::*, Origin};
 use hex_literal::hex;
 use hydra_dx_math::hsm::{CoefficientRatio, PegType, Price};
-use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
 	registry::BoundErc20,
@@ -59,6 +55,7 @@ use num_traits::One;
 use pallet_stableswap::types::PoolSnapshot;
 use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
+use primitives::EvmAddress;
 use sp_core::{offchain::Duration, Get, H256, U256};
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
@@ -124,7 +121,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + SendTransactionTypes<Call<Self>>
+		frame_system::Config + pallet_stableswap::Config + pallet_broadcast::Config + CreateInherent<Call<Self>>
 	where
 		<Self as frame_system::Config>::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
@@ -1292,10 +1289,13 @@ where
 					flash_amount,
 				};
 
-				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()) {
+				let xt = T::create_inherent(call.into());
+
+				if SubmitTransaction::<T, Call<T>>::submit_transaction(xt).is_err() {
 					log::error!(
 						target: "hsm::offchain_worker",
-						"Failed to submit transaction for asset {:?}: {:?}", selected_collateral, e
+						"Failed to submit unsigned transaction for asset {:?}",
+						selected_collateral,
 					);
 				}
 			};

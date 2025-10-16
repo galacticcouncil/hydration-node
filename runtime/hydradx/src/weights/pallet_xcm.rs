@@ -344,4 +344,14 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(5_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
+	fn add_authorized_alias() -> Weight {
+		Weight::from_parts(10_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn remove_authorized_alias() -> Weight {
+		Weight::from_parts(10_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

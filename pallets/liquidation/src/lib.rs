@@ -43,7 +43,7 @@ use frame_support::{
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
-	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
+	evm::{CallContext, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -52,6 +52,7 @@ use precompile_utils::evm::{
 	writer::{EvmDataReader, EvmDataWriter},
 	Bytes,
 };
+use primitives::EvmAddress;
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
 use sp_std::{vec, vec::Vec};

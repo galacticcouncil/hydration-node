@@ -32,7 +32,7 @@ use primitives::constants::currency::UNITS;
 use primitives::{AssetId, Balance};
 use sp_core::{H256, U256};
 use sp_runtime::traits::Convert;
-use sp_runtime::traits::SignedExtension;
+use sp_runtime::traits::DispatchTransaction;
 use sp_runtime::transaction_validity::InvalidTransaction;
 use sp_runtime::transaction_validity::TransactionValidityError;
 use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
@@ -136,7 +136,13 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let info = omni_sell.get_dispatch_info();
 		let len: usize = 146;
 		let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
-			.pre_dispatch(&AccountId::from(user_acc.address()), &omni_sell, &info, len);
+			.validate_and_prepare(
+				Some(AccountId::from(user_acc.address())).into(),
+				&omni_sell,
+				&info,
+				len,
+				0,
+			);
 		assert_ok!(&pre);
 
 		let alice_currency_balance_pre_dispatch =

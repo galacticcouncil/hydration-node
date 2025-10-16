@@ -31,8 +31,8 @@ use frame_support::{
 	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
-		LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
+		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
 	},
 	BoundedVec, PalletId,
 };
@@ -118,6 +118,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxReserves = MaxReserves;
 	type MaxFreezes = MaxFreezes;
 	type RuntimeFreezeReason = ();
+	type DoneSlashHandler = ();
 }
 
 pub struct CurrencyHooks;
@@ -249,6 +250,7 @@ impl SufficiencyCheck {
 					paying_account,
 					&TreasuryAccount::get(),
 					ed_in_fee_asset,
+					ExistenceRequirement::KeepAlive,
 				)
 				.map_err(|_| orml_tokens::Error::<Runtime>::ExistentialDeposit)?;
 
@@ -370,6 +372,7 @@ impl Happened<(AccountId, AssetId)> for OnKilledTokenAccount {
 			&TreasuryAccount::get(),
 			who,
 			ed_to_refund,
+			ExistenceRequirement::AllowDeath,
 		);
 
 		frame_system::Pallet::<Runtime>::dec_sufficients(who);
@@ -866,7 +869,7 @@ impl SpotPriceProvider<AssetId> for DummySpotPriceProvider {
 	}
 }
 
-pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v3::MultiLocation::parent());
+pub const DOT_ASSET_LOCATION: AssetLocation = AssetLocation(polkadot_xcm::v5::Location::parent());
 
 pub struct DotAssetId;
 impl Get<AssetId> for DotAssetId {

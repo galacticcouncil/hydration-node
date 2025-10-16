@@ -37,7 +37,7 @@ use frame_system::EnsureRoot;
 use hydra_dx_math::hsm::CoefficientRatio;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
-	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
+	evm::{CallContext, InspectEvmAccounts, EVM},
 	stableswap::AssetAmount,
 	AssetKind, BoundErc20, Inspect,
 };
@@ -46,6 +46,7 @@ use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
+use primitives::EvmAddress;
 use sp_core::{ByteArray, H256};
 use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
 use sp_runtime::{BoundedVec, Perbill};
@@ -133,19 +134,11 @@ impl frame_system::Config for Test {
 	type PreInherents = ();
 	type PostInherents = ();
 	type PostTransactions = ();
+	type ExtensionsWeightInfo = ();
 }
 
 impl pallet_broadcast::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-}
-
-pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
-where
-	RuntimeCall: From<C>,
-{
-	type OverarchingCall = RuntimeCall;
-	type Extrinsic = Extrinsic;
 }
 
 parameter_type_with_key! {
@@ -411,18 +404,15 @@ impl EVM<CallResult> for MockEvm {
 					}
 					ERC20Function::MaxFlashLoan => {
 						let max_flash_loan_amount = U256::from(100_000_000_000_000_000_000_000u128);
-						let mut buf1 = [0u8; 32];
-						max_flash_loan_amount.to_big_endian(&mut buf1);
+						let buf1 = max_flash_loan_amount.to_big_endian();
 						let bytes = Vec::from(buf1);
 						return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
 					}
 					ERC20Function::GetFacilitatorBucket => {
 						let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
 						let level = U256::from(0u128);
-						let mut buf1 = [0u8; 32];
-						let mut buf2 = [0u8; 32];
-						capacity.to_big_endian(&mut buf1);
-						level.to_big_endian(&mut buf2);
+						let buf1 = capacity.to_big_endian();
+						let buf2 = level.to_big_endian();
 						let mut bytes = vec![];
 						bytes.extend_from_slice(&buf1);
 						bytes.extend_from_slice(&buf2);
@@ -586,6 +576,25 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 	}
 	fn weight_to_gas(_weight: Weight) -> u64 {
 		0
+	}
+}
+
+pub(crate) type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+
+impl<LocalCall> frame_system::offchain::CreateTransactionBase<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type RuntimeCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+}
+
+impl<LocalCall> frame_system::offchain::CreateInherent<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_inherent(call: Self::RuntimeCall) -> Extrinsic {
+		Extrinsic::new_bare(call)
 	}
 }
 

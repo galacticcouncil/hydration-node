@@ -28,12 +28,11 @@ pub type Balance = u128;
 pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
-use ethabi::ethereum_types::U512;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
-use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
-use hydradx_traits::evm::EvmAddress;
+use frame_support::sp_runtime::traits::Block as BlockT;
+use primitives::EvmAddress;
 use sp_arithmetic::ArithmeticError;
-use sp_core::{RuntimeDebug, H256, U256};
+use sp_core::{RuntimeDebug, H256, U256, U512};
 use sp_std::{boxed::Box, ops::BitAnd};
 use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
 
@@ -302,7 +301,7 @@ impl UserData {
 		}
 
 		Ok(Self {
-			address,
+			address: address,
 			configuration,
 			reserves,
 		})
@@ -414,8 +413,7 @@ impl UserData {
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -465,8 +463,7 @@ where
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -489,8 +486,7 @@ where
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -858,7 +854,7 @@ impl<
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(EvmAddress::from(H256::from_slice(&call_info.value)))
+			Ok(EvmAddress::from(H160::from_slice(&call_info.value[12..32])))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}
@@ -1005,8 +1001,7 @@ impl<
 			.map_err(LiquidationError::DispatchError)?;
 
 		if call_info.exit_reason == Succeed(Returned) {
-			Ok(U256::checked_from(&call_info.value[0..32])
-				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?)
+			Ok(U256::from_big_endian(&call_info.value[0..32]))
 		} else {
 			Err(LiquidationError::EvmError(call_info.exit_reason))
 		}

@@ -60,6 +60,7 @@
 use frame_support::ensure;
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use hydradx_traits::evm::InspectEvmAccounts;
+use primitives::EvmAddress;
 use sp_core::{
 	crypto::{AccountId32, ByteArray},
 	H160, U256,
@@ -77,7 +78,6 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 pub type Balance = u128;
-pub type EvmAddress = H160;
 pub type AccountIdLast12Bytes = [u8; 12];
 
 pub trait EvmNonceProvider {

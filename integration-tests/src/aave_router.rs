@@ -7,7 +7,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
-use frame_support::traits::OnInitialize;
+use frame_support::traits::{ExistenceRequirement, OnInitialize};
 use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
@@ -20,7 +20,6 @@ use hydradx_runtime::{
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::router::ExecutorError;
 use hydradx_traits::router::PoolType::{Aave, XYK};
 use hydradx_traits::router::RouteProvider;
@@ -35,6 +34,7 @@ use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use primitives::Balance;
+use primitives::EvmAddress;
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 use sp_runtime::FixedU128;
@@ -933,7 +933,8 @@ mod transfer_atoken {
 				adot_asset_id,
 				&AccountId::from(ALICE),
 				&AccountId::from(BOB),
-				amount
+				amount,
+				ExistenceRequirement::AllowDeath
 			));
 			let bob_new_balance = Currencies::free_balance(crate::aave_router::ADOT, &BOB.into());
 

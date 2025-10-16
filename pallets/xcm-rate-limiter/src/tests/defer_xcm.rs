@@ -28,7 +28,7 @@ use xcm::VersionedXcm;
 fn deferred_by_should_not_track_or_limit_irrelevant_asset_xcms() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_withdraw_asset(MultiLocation::here(), 2000 * ONE);
+		let versioned_xcm = create_versioned_withdraw_asset(Location::here(), 2000 * ONE);
 		let para_id = 999.into();
 
 		//Act
@@ -36,7 +36,7 @@ fn deferred_by_should_not_track_or_limit_irrelevant_asset_xcms() {
 
 		//Assert
 		assert_eq!(
-			XcmRateLimiter::accumulated_amount(MultiLocation::here()),
+			XcmRateLimiter::accumulated_amount(Location::here()),
 			AccumulatedAmount::default()
 		);
 		assert_eq!(deferred, None);
@@ -47,14 +47,14 @@ fn deferred_by_should_not_track_or_limit_irrelevant_asset_xcms() {
 fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_receive_teleported_asset(MultiLocation::here(), 2000 * ONE);
+		let versioned_xcm = create_versioned_receive_teleported_asset(Location::here(), 2000 * ONE);
 		let para_id = 999.into();
 
 		//Act
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
 
 		//Assert
-		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(Location::here());
 		assert_eq!(accumulated_amount.amount, 2000 * ONE);
 		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(deferred_block_number, Some(10));
@@ -65,14 +65,14 @@ fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
 fn deferred_by_should_defer_xcm_when_limit_exceeded() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::here(), 2000 * ONE);
+		let versioned_xcm = create_versioned_reserve_asset_deposited(Location::here(), 2000 * ONE);
 		let para_id = 999.into();
 
 		//Act
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
 
 		//Assert
-		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(Location::here());
 		assert_eq!(accumulated_amount.amount, 2000 * ONE);
 		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(deferred_block_number, Some(10));
@@ -90,7 +90,7 @@ fn deferred_by_should_defer_xcm_when_v2_can_be_converted() {
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
 
 		//Assert
-		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(Location::here());
 		assert_eq!(accumulated_amount.amount, 2000 * ONE);
 		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(deferred_block_number, Some(10));
@@ -101,14 +101,14 @@ fn deferred_by_should_defer_xcm_when_v2_can_be_converted() {
 fn deferred_by_should_defer_xcm_when_limit_exceeded_double_limit() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::here(), 3000 * ONE);
+		let versioned_xcm = create_versioned_reserve_asset_deposited(Location::here(), 3000 * ONE);
 		let para_id = 999.into();
 
 		//Act
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
 
 		//Assert
-		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(Location::here());
 		assert_eq!(accumulated_amount.amount, 3000 * ONE);
 		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(deferred_block_number, Some(20));
@@ -119,8 +119,8 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded_double_limit() {
 fn deferred_by_should_defer_by_max_of_all_assets_in_xcm() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let other_asset_loc = MultiLocation::new(1, GeneralIndex(42));
-		let assets = vec![(MultiLocation::here(), 2000 * ONE), (other_asset_loc, 3000 * ONE)];
+		let other_asset_loc = Location::new(1, [GeneralIndex(42)]);
+		let assets = vec![(Location::here(), 2000 * ONE), (other_asset_loc, 3000 * ONE)];
 		let versioned_xcm = create_multi_reserve_asset_deposited(assets);
 		let para_id = 999.into();
 
@@ -128,7 +128,7 @@ fn deferred_by_should_defer_by_max_of_all_assets_in_xcm() {
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
 
 		//Assert
-		let accumulated_here = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_here = XcmRateLimiter::accumulated_amount(Location::here());
 		assert_eq!(accumulated_here.amount, 2000 * ONE);
 		assert_eq!(accumulated_here.last_updated, 1);
 
@@ -144,21 +144,21 @@ fn deferred_by_should_defer_by_max_of_all_assets_in_xcm() {
 fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::here(), 2000 * ONE);
+		let versioned_xcm = create_versioned_reserve_asset_deposited(Location::here(), 2000 * ONE);
 		let para_id = 999.into();
 
 		//Act
 		let first_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
 
 		// Transaction should be deferred by 10 blocks because it exceeds the limit by 1000 (1x the limit)
-		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(Location::here());
 		assert_eq!(accumulated_amount.amount, 2000 * ONE);
 		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(first_deferred_block_number, Some(10));
 
 		// Second transaction should be put behind the first one by 20 blocks (2x the limit)
 		let second_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
-		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(Location::here());
 		assert_eq!(accumulated_amount.amount, 4000 * ONE);
 		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(second_deferred_block_number, Some(30));
@@ -169,7 +169,7 @@ fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 fn deferred_by_should_defer_by_max_duration_when_it_is_reached() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::here(), 20_000 * ONE);
+		let versioned_xcm = create_versioned_reserve_asset_deposited(Location::here(), 20_000 * ONE);
 		let para_id = 999.into();
 
 		//Act
@@ -184,14 +184,14 @@ fn deferred_by_should_defer_by_max_duration_when_it_is_reached() {
 fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::here(), 2000 * ONE);
+		let versioned_xcm = create_versioned_reserve_asset_deposited(Location::here(), 2000 * ONE);
 		let para_id = 999.into();
 
 		//Act
 		let first_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
 
 		//Assert
-		let accumulated_liquidity = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_liquidity = XcmRateLimiter::accumulated_amount(Location::here());
 
 		assert_eq!(accumulated_liquidity.amount, 2000 * ONE);
 		assert_eq!(accumulated_liquidity.last_updated, 1);
@@ -200,21 +200,21 @@ fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 		System::set_block_number(6);
 
 		let second_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
-		let accumulated_liquidity = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_liquidity = XcmRateLimiter::accumulated_amount(Location::here());
 		assert_eq!(accumulated_liquidity.amount, 3500 * ONE);
 		assert_eq!(accumulated_liquidity.last_updated, 6);
 		assert_eq!(second_deferred_block_number, Some(25));
 	});
 }
 
-pub fn create_versioned_reserve_asset_deposited(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
+pub fn create_versioned_reserve_asset_deposited(loc: Location, amount: u128) -> VersionedXcm<RuntimeCall> {
 	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
 		Instruction::<RuntimeCall>::ReserveAssetDeposited(multi_assets),
 	]))
 }
 
-pub fn create_multi_reserve_asset_deposited(locs_and_amounts: Vec<(MultiLocation, u128)>) -> VersionedXcm<RuntimeCall> {
+pub fn create_multi_reserve_asset_deposited(locs_and_amounts: Vec<(Location, u128)>) -> VersionedXcm<RuntimeCall> {
 	let locs_and_amounts = locs_and_amounts
 		.into_iter()
 		.map(|(loc, amount)| (loc, amount).into())
@@ -225,14 +225,14 @@ pub fn create_multi_reserve_asset_deposited(locs_and_amounts: Vec<(MultiLocation
 	]))
 }
 
-pub fn create_versioned_receive_teleported_asset(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
+pub fn create_versioned_receive_teleported_asset(loc: Location, amount: u128) -> VersionedXcm<RuntimeCall> {
 	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
 		Instruction::<RuntimeCall>::ReceiveTeleportedAsset(multi_assets),
 	]))
 }
 
-pub fn create_versioned_withdraw_asset(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
+pub fn create_versioned_withdraw_asset(loc: Location, amount: u128) -> VersionedXcm<RuntimeCall> {
 	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![Instruction::<RuntimeCall>::WithdrawAsset(
 		multi_assets,
@@ -241,7 +241,7 @@ pub fn create_versioned_withdraw_asset(loc: MultiLocation, amount: u128) -> Vers
 
 pub fn create_versioned_xcm_v2(amount: u128) -> VersionedXcm<RuntimeCall> {
 	use xcm::v2::prelude::*;
-	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(MultiLocation::here(), amount).into()]).unwrap();
+	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(Location::here(), amount).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
 		Instruction::<RuntimeCall>::ReserveAssetDeposited(multi_assets),
 	]))

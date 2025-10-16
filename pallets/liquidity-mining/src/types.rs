@@ -271,7 +271,7 @@ impl<T: Config<I>, I: 'static> YieldFarmData<T, I> {
 /// `denom = t + scale_coef`
 ///
 /// `loyalty_multiplier = num/denom`
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T, I))]
 pub struct LoyaltyCurve {
 	pub initial_reward_percentage: FixedU128,

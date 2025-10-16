@@ -27,4 +27,4 @@ module-evm-utility-macro = { workspace = true }
 xcm-runtime-apis = { workspace = true }
 
 # Hydration dependencies
-hydradx-traits = { workspace = true }
+primitives = { workspace = true }
