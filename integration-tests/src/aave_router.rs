@@ -2,7 +2,7 @@
 
 use crate::dca::create_schedule;
 use crate::dca::schedule_fake_with_sell_order;
-use crate::liquidation::supply;
+use crate::liquidation::{borrow, supply};
 use crate::polkadot_test_net::*;
 use ethabi::ethereum_types::U256;
 use frame_support::assert_ok;
@@ -1118,6 +1118,73 @@ pub mod stableswap_with_atoken {
 			);
 		})
 	}
+}
+
+#[test]
+fn cannot_borrow_more_than_collateral_allows() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let dot_asset = HydraErc20Mapping::encode_evm_address(DOT);
+
+		// Step 1: Supply collateral
+		let supply_amount = 1_000 * ONE;
+		supply(mm_pool, user, dot_asset, supply_amount);
+
+		// Step 2: Borrow against collateral (borrow close to maximum)
+		let context = CallContext::new_call(mm_pool, user);
+		let data = EvmDataWriter::new_with_selector(Function::Borrow)
+			.write(dot_asset)
+			.write(supply_amount)
+			.write(2u32)
+			.write(0u32)
+			.write(user)
+			.build();
+
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 50_000_000);
+
+		// Assert that withdrawal fails with DispatchError::Other containing the error
+		let error = EvmErrorDecoderAdapter::<Runtime>::decode(call_result);
+		assert_eq!(error, pallet_dispatcher::Error::<Runtime>::CollateralCannotCoverNewBorrow.into());
+	})
+}
+
+
+#[test]
+fn cannot_withdraw_when_debt_increased_health_factor_too_low() {
+	with_aave(|| {
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let mm_pool = EvmAddress::from_slice(hex!("f550bcd9b766843d72fc4c809a839633fd09b643").as_slice());
+		let user = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		let dot_asset = HydraErc20Mapping::encode_evm_address(DOT);
+
+		// Step 1: Supply collateral
+		let supply_amount = 1_000 * ONE;
+		supply(mm_pool, user, dot_asset, supply_amount);
+
+		// Step 2: Borrow against collateral (borrow close to maximum)
+		let borrow_amount = 500 * ONE;
+		borrow(mm_pool, user, dot_asset, borrow_amount);
+
+		// Step 3: Try to withdraw some collateral - this should fail because health factor would drop below threshold
+		let withdraw_amount = 500 * ONE;
+		let context = CallContext::new_call(mm_pool, user);
+		let data = EvmDataWriter::new_with_selector(Function::Withdraw)
+			.write(dot_asset)
+			.write(withdraw_amount)
+			.write(user)
+			.build();
+
+		//Act
+		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
+
+		//Assert
+		let error = EvmErrorDecoderAdapter::<Runtime>::decode(call_result);
+		assert_eq!(error, pallet_dispatcher::Error::<Runtime>::AaveHealthFactorLowerThanLiquidationThreshold.into());
+	})
 }
 
 pub fn init_stableswap_with_atoken() -> Result<(AssetId, AssetId, AssetId), DispatchError> {

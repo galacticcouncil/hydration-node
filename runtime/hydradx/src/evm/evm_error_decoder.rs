@@ -42,6 +42,8 @@ impl<T: pallet_dispatcher::Config> EvmErrorDecoder for EvmErrorDecoderAdapter<T>
 				&& call_result.value[66..68] == [0x00, 0x02] // string length = 2
 			{
 				match &call_result.value[68..70] {
+					b"35" => return pallet_dispatcher::Error::<T>::AaveHealthFactorLowerThanLiquidationThreshold.into(),
+					b"36" => return pallet_dispatcher::Error::<T>::CollateralCannotCoverNewBorrow.into(),
 					b"45" => return pallet_dispatcher::Error::<T>::AaveHealthFactorNotBelowThreshold.into(),
 					b"50" => return pallet_dispatcher::Error::<T>::AaveBorrowCapExceeded.into(),
 					b"51" => return pallet_dispatcher::Error::<T>::AaveSupplyCapExceeded.into(),

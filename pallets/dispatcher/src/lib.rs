@@ -127,12 +127,16 @@ pub mod pallet {
 		EvmOutOfGas,
 		/// The EVM call resulted in an arithmetic overflow or underflow.
 		EvmArithmeticOverflowOrUnderflow,
-		/// Aave supply cap has been exceeded.
+		/// Aave - supply cap has been exceeded.
 		AaveSupplyCapExceeded,
-		/// Aave borrow cap has been exceeded.
+		/// Aave - borrow cap has been exceeded.
 		AaveBorrowCapExceeded,
-		///Aave health factor is not below the threshold.
+		///Aave - health factor is not below the threshold.
 		AaveHealthFactorNotBelowThreshold,
+		///Aave - health factor is lesser than the liquidation threshold
+		AaveHealthFactorLowerThanLiquidationThreshold,
+		///Aave - there is not enough collateral to cover a new borrow
+		CollateralCannotCoverNewBorrow
 	}
 
 	#[pallet::event]
