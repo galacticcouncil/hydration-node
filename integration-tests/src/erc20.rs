@@ -33,11 +33,11 @@ use sp_core::bounded_vec::BoundedVec;
 use sp_core::keccak_256;
 use sp_core::Encode;
 use sp_core::{H256, U256};
+use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoderAdapter;
 use sp_runtime::{Permill, TransactionOutcome};
 use std::fmt::Write;
 use xcm_emulator::TestExt;
-use pallet_dispatcher::evm::EvmErrorDecoderAdapter;
-use pallet_dispatcher::evm::EvmErrorDecoder;
+use hydradx_traits::evm::EvmErrorDecoder;
 pub fn deployer() -> EvmAddress {
 	EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))
 }

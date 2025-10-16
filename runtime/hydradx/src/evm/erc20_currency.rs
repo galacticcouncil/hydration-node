@@ -9,17 +9,16 @@ use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
-use pallet_dispatcher::evm::{CallResult, EvmErrorDecoder, EvmErrorDecoderAdapter};
+use hydradx_traits::evm::{CallResult, EvmErrorDecoder};
 use polkadot_xcm::v3::MultiLocation;
 use primitives::{AccountId, Balance};
-use scale_info::prelude::format;
 use sp_core::crypto::AccountId32;
 use sp_core::{H160, H256, U256};
 use sp_runtime::traits::{CheckedConversion, Zero};
 use sp_runtime::{DispatchError, SaturatedConversion};
-use sp_std::boxed::Box;
 use sp_std::prelude::ToOwned;
 use sp_std::vec::Vec;
+use crate::evm::evm_error_decoder::EvmErrorDecoderAdapter;
 
 /// Execution gas limit.
 const GAS_LIMIT: u64 = 400_000;

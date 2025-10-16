@@ -43,7 +43,7 @@ use hydradx_traits::{
 use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
-use pallet_dispatcher::evm::CallResult;
+use hydradx_traits::evm::CallResult;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};

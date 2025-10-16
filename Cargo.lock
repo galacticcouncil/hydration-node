@@ -4832,6 +4832,7 @@ version = "4.2.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
+ "pallet-evm",
  "parity-scale-codec",
  "primitives",
  "scale-info",

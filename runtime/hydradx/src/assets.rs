@@ -1396,7 +1396,7 @@ use hydradx_traits::registry::Create;
 use hydradx_traits::BoundErc20;
 use pallet_asset_registry::XcmRateLimitsInRegistry;
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
-use pallet_dispatcher::evm::{CallResult, EvmErrorDecoderAdapter};
+use crate::evm::evm_error_decoder::EvmErrorDecoderAdapter;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1743,8 +1743,8 @@ parameter_types! {
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummyEvm;
 #[cfg(feature = "runtime-benchmarks")]
-impl hydradx_traits::evm::EVM<pallet_dispatcher::evm::CallResult> for DummyEvm {
-	fn call(context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> pallet_dispatcher::evm::CallResult {
+impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
+	fn call(context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> hydradx_traits::evm::CallResult {
 		CallResult {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
@@ -1752,7 +1752,7 @@ impl hydradx_traits::evm::EVM<pallet_dispatcher::evm::CallResult> for DummyEvm {
 		}
 	}
 
-	fn view(context: CallContext, _data: Vec<u8>, _gas: u64) -> pallet_dispatcher::evm::CallResult {
+	fn view(context: CallContext, _data: Vec<u8>, _gas: u64) -> hydradx_traits::evm::CallResult {
 		CallResult {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
@@ -1907,7 +1907,6 @@ use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
-
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 

@@ -24,7 +24,7 @@ use hydradx_traits::{
 	RawEntry,
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pallet_dispatcher::evm::CallResult;
+use hydradx_traits::evm::CallResult;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::PegSource;
 use primitives::{constants::time::SECS_PER_BLOCK, AssetId, Balance, BlockNumber};

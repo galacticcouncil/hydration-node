@@ -36,7 +36,6 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-pub mod evm;
 pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;

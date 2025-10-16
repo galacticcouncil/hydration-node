@@ -40,15 +40,15 @@ use frame_support::{
 	},
 	PalletId,
 };
-use pallet_dispatcher::evm::EvmErrorDecoder;
+use hydradx_traits::evm::EvmErrorDecoder;
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
-use hydradx_traits::evm::Erc20Mapping;
+use hydradx_traits::evm::{Erc20Mapping};
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pallet_dispatcher::evm::CallResult;
+use hydradx_traits::evm::CallResult;
 use pallet_evm::GasWeightMapping;
 use precompile_utils::evm::{
 	writer::{EvmDataReader, EvmDataWriter},
@@ -133,7 +133,7 @@ pub mod pallet {
 		/// Flash minter contract address and flash loan receiver address.
 		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
 
-		type EvmErrorDecoder: pallet_dispatcher::evm::EvmErrorDecoder;
+		type EvmErrorDecoder: hydradx_traits::evm::EvmErrorDecoder;
 
 		/// The origin which can update transaction priorities, allowed signers and call addresses
 		/// for the liquidation worker.

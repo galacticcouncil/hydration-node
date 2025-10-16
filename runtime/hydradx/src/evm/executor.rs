@@ -7,8 +7,7 @@ use fp_evm::Vicinity;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Get;
 use frame_system;
-use hydradx_traits::evm::{CallContext, EVM};
-use pallet_dispatcher::evm::CallResult;
+use hydradx_traits::evm::{CallContext, CallResult, EVM};
 use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{
 	self, runner::Runner as EvmRunnerT, AccountProvider as EvmAccountProviderT, AddressMapping as EvmAddressMappingT,

@@ -15,12 +15,12 @@ use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::evm::precompiles::handle::EvmDataWriter;
 use hydradx_runtime::evm::{Erc20Currency, Executor};
+use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoderAdapter;
+use hydradx_traits::evm::EvmErrorDecoder;
 use hydradx_runtime::{
 	AssetId, Block, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall, RuntimeEvent,
 	RuntimeOrigin,
 };
-use pallet_dispatcher::evm::EvmErrorDecoder;
-use pallet_dispatcher::evm::EvmErrorDecoderAdapter;
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::evm::EvmAddress;

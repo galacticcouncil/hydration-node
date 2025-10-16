@@ -56,7 +56,7 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::One;
-use pallet_dispatcher::evm::CallResult;
+use hydradx_traits::evm::CallResult;
 use pallet_stableswap::types::PoolSnapshot;
 use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
