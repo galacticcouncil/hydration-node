@@ -50,7 +50,9 @@ use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
 
 /// Weights for `pallet_xcm_benchmarks::fungible`.
+#[allow(dead_code)]
 pub struct WeightInfo<T>(PhantomData<T>);
+#[allow(dead_code)]
 impl<T: frame_system::Config> WeightInfo<T> {
 	// Storage: `UnknownTokens::ConcreteFungibleBalances` (r:1 w:0)
 	// Proof: `UnknownTokens::ConcreteFungibleBalances` (`max_values`: None, `max_size`: None, mode: `Measured`)
