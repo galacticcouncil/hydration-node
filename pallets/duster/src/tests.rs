@@ -1,11 +1,11 @@
 use super::*;
 use crate::mock::{
-	AssetId, Currencies, Duster, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System, Test, Tokens, ALICE,
-	BOB, DUSTER, KILLED, TREASURY,
+	ATokenDusterMock, AssetId, Currencies, Duster, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System, Test,
+	Tokens, ALICE, BOB, DUSTER, KILLED, TOKEN, TREASURY,
 };
-
+use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
 use frame_support::{assert_noop, assert_ok};
-
+use orml_traits::MultiCurrency;
 use sp_runtime::traits::BadOrigin;
 
 #[test]
@@ -20,8 +20,6 @@ fn dust_account_works() {
 			for (who, _, _) in orml_tokens::Accounts::<Test>::iter() {
 				assert_ne!(who, *ALICE, "Alice account should have been removed!");
 			}
-
-			assert_eq!(Currencies::free_balance(0, &*DUSTER), 10_000);
 		});
 }
 
@@ -93,7 +91,7 @@ fn dust_treasury_account_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
 			Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *TREASURY, 1),
-			Error::<Test>::AccountBlacklisted
+			Error::<Test>::AccountWhitelisted
 		);
 	});
 }
@@ -121,9 +119,9 @@ fn dust_account_native_works() {
 			*ALICE,
 			currency_id
 		));
-		assert_eq!(Currencies::free_balance(currency_id, &*TREASURY), 990_500);
+		assert_eq!(Currencies::free_balance(currency_id, &*TREASURY), 1_000_500);
 
-		assert_eq!(Currencies::free_balance(0, &*DUSTER), 110_000);
+		assert_eq!(Currencies::free_balance(0, &*DUSTER), 100_000);
 
 		assert_eq!(KILLED.with(|r| r.borrow().clone()), vec![*ALICE]);
 		for (a, _) in frame_system::Account::<Test>::iter() {
@@ -144,13 +142,6 @@ fn dust_account_native_works() {
 			Event::Dusted {
 				who: *ALICE,
 				amount: 500,
-			}
-			.into(),
-			//reward transfer
-			pallet_balances::Event::Transfer {
-				from: *TREASURY,
-				to: *DUSTER,
-				amount: 10_000,
 			}
 			.into(),
 		]);
@@ -231,13 +222,6 @@ fn native_existential_deposit() {
 				amount: 300,
 			}
 			.into(),
-			//reward transfer
-			pallet_balances::Event::Transfer {
-				from: *TREASURY,
-				to: *DUSTER,
-				amount: 10_000,
-			}
-			.into(),
 		]);
 
 		System::reset_events();
@@ -263,57 +247,198 @@ fn native_existential_deposit() {
 }
 
 #[test]
-fn add_nondustable_account_works() {
+fn whitelist_account_works() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			Duster::add_nondustable_account(RuntimeOrigin::signed(*DUSTER), *ALICE),
+			Duster::whitelist_account(RuntimeOrigin::signed(*DUSTER), *ALICE),
 			BadOrigin
 		);
 
-		assert!(Duster::blacklisted(*ALICE).is_none());
+		assert!(Duster::whitelisted(*ALICE).is_none());
 
-		assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
+		assert_ok!(Duster::whitelist_account(RuntimeOrigin::root(), *ALICE));
 
-		assert!(Duster::blacklisted(*ALICE).is_some());
+		assert!(Duster::whitelisted(*ALICE).is_some());
 
-		assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
+		assert_ok!(Duster::whitelist_account(RuntimeOrigin::root(), *ALICE));
 
-		assert!(Duster::blacklisted(*ALICE).is_some());
+		assert!(Duster::whitelisted(*ALICE).is_some());
 	});
 }
 
 #[test]
-fn remove_nondustable_account_works() {
+fn remove_from_whitelist_works() {
 	ExtBuilder::default()
 		.with_native_balance(*ALICE, 500)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
-			assert!(Duster::blacklisted(*ALICE).is_some());
+			assert_ok!(Duster::whitelist_account(RuntimeOrigin::root(), *ALICE));
+			assert!(Duster::whitelisted(*ALICE).is_some());
 
-			assert_ok!(Duster::add_nondustable_account(RuntimeOrigin::root(), *ALICE));
+			assert_ok!(Duster::whitelist_account(RuntimeOrigin::root(), *ALICE));
 
 			// Dust dont work now
 			assert_noop!(
 				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
-				Error::<Test>::AccountBlacklisted
+				Error::<Test>::AccountWhitelisted
 			);
 
 			assert_noop!(
-				Duster::remove_nondustable_account(RuntimeOrigin::signed(*DUSTER), *ALICE),
+				Duster::remove_from_whitelist(RuntimeOrigin::signed(*DUSTER), *ALICE),
 				BadOrigin
 			);
 
 			//remove non-existing account
 			assert_noop!(
-				Duster::remove_nondustable_account(RuntimeOrigin::root(), 1234556),
-				Error::<Test>::AccountNotBlacklisted
+				Duster::remove_from_whitelist(RuntimeOrigin::root(), 1234556),
+				Error::<Test>::AccountNotWhitelisted
 			);
 
-			assert_ok!(Duster::remove_nondustable_account(RuntimeOrigin::root(), *ALICE));
-			assert!(Duster::blacklisted(*ALICE).is_none());
+			assert_ok!(Duster::remove_from_whitelist(RuntimeOrigin::root(), *ALICE));
+			assert!(Duster::whitelisted(*ALICE).is_none());
 
 			// We can dust again
 			assert_ok!(Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 0),);
 		});
+}
+
+#[test]
+fn failing_dusting_is_payable_transaction() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 1_000_000)
+		.build()
+		.execute_with(|| {
+			let err =
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1).expect_err("Expected the call to fail");
+
+			assert_eq!(err.post_info.pays_fee, frame_support::dispatch::Pays::Yes);
+		});
+}
+
+#[test]
+fn passing_dusting_is_non_payable_transaction() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 5)
+		.build()
+		.execute_with(|| {
+			assert_ok!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				Pays::No.into()
+			);
+		});
+}
+
+#[test]
+fn cannot_spam_with_dust_account() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 5)
+		.build()
+		.execute_with(|| {
+			assert_ok!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				Pays::No.into()
+			);
+
+			let dispatch_info = DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: None,
+					pays_fee: Pays::Yes,
+				},
+				error: Error::<Test>::ZeroBalance.into(),
+			};
+
+			assert_noop!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				dispatch_info
+			);
+			assert_noop!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, 1),
+				dispatch_info
+			);
+		});
+}
+
+#[test]
+fn treasury_account_cannot_be_dusted() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 100)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Duster::remove_from_whitelist(RuntimeOrigin::root(), *TREASURY));
+
+			assert_ok!(Currencies::update_balance(RuntimeOrigin::root(), *TREASURY, TOKEN, 99));
+
+			assert_noop!(
+				Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *TREASURY, TOKEN),
+				Error::<Test>::AccountWhitelisted
+			);
+
+			assert_eq!(Currencies::free_balance(TOKEN, &*TREASURY), 99);
+		});
+}
+
+mod atoken {
+	use super::*;
+	use crate::mock::ATOKEN;
+
+	#[test]
+	fn dusting_atoken_should_work() {
+		ExtBuilder::default()
+			.with_balance(*ALICE, ATOKEN, 100)
+			.build()
+			.execute_with(|| {
+				System::set_block_number(1);
+
+				ATokenDusterMock::set_atoken(ATOKEN);
+
+				let dust = 100;
+				assert_eq!(
+					Tokens::set_balance(RuntimeOrigin::root(), *ALICE, ATOKEN, dust, 0),
+					Ok(())
+				);
+
+				assert_eq!(Tokens::free_balance(ATOKEN, &*TREASURY), 0);
+
+				// Act
+				assert_ok!(Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, ATOKEN));
+
+				// Assert
+				assert_eq!(Tokens::free_balance(ATOKEN, &*TREASURY), dust);
+				assert_eq!(Tokens::free_balance(ATOKEN, &*ALICE), 0);
+
+				assert!(Duster::whitelisted(*ALICE).is_none());
+
+				expect_events(vec![Event::Dusted {
+					who: *ALICE,
+					amount: dust,
+				}
+				.into()]);
+			});
+	}
+
+	#[test]
+	fn dusting_atoken_should_not_work_when_not_dustable() {
+		ExtBuilder::default()
+			.with_balance(*ALICE, ATOKEN, 100)
+			.build()
+			.execute_with(|| {
+				System::set_block_number(1);
+
+				ATokenDusterMock::set_atoken(ATOKEN);
+
+				let dust = 1000;
+				assert_eq!(
+					Tokens::set_balance(RuntimeOrigin::root(), *ALICE, ATOKEN, dust, 0),
+					Ok(())
+				);
+
+				assert_eq!(Tokens::free_balance(ATOKEN, &*TREASURY), 0);
+
+				// Act and assert
+				assert_noop!(
+					Duster::dust_account(RuntimeOrigin::signed(*DUSTER), *ALICE, ATOKEN),
+					Error::<Test>::BalanceSufficient
+				);
+			});
+	}
 }

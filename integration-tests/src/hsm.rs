@@ -11,8 +11,8 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens, Treasury, TreasuryAccount,
-	HSM,
+	AccountId, BorrowingTreasuryAccount, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens,
+	TreasuryAccount, HSM,
 };
 use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap};
 use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
@@ -1698,7 +1698,7 @@ fn hollar_liquidation_should_work() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
 		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
 
-		let treasury_hollar_initial_balance = Currencies::free_balance(222, &Treasury::account_id());
+		let treasury_hollar_initial_balance = Currencies::free_balance(222, &BorrowingTreasuryAccount::get());
 
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
@@ -1800,7 +1800,7 @@ fn hollar_liquidation_should_work() {
 		std::assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
 		std::assert_eq!(Currencies::free_balance(222, &pallet_acc), 0);
 
-		assert!(Currencies::free_balance(222, &Treasury::account_id()) > treasury_hollar_initial_balance);
+		assert!(Currencies::free_balance(222, &BorrowingTreasuryAccount::get()) > treasury_hollar_initial_balance);
 
 		std::assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 		std::assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);

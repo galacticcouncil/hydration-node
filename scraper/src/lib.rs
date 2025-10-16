@@ -264,7 +264,7 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 }
 use futures::stream::{self};
 use indicatif::{ProgressBar, ProgressStyle};
-use sp_state_machine::{TrieBackend, TrieBackendBuilder};
+use sp_state_machine::TrieBackendBuilder;
 use sp_trie::{HashDBT, PrefixedMemoryDB};
 
 const PAGE_SIZE: u32 = 1000; //Limiting as bigger values lead to error when calling PROD RPCs
