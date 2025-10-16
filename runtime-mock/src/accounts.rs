@@ -28,14 +28,6 @@ pub fn get_technical_committee() -> Vec<AccountId> {
 	(0..3).map(|i| [i; 32].into()).collect()
 }
 
-pub fn get_duster_reward_account() -> AccountId {
-	[0; 32].into()
-}
-
-pub fn get_duster_dest_account() -> AccountId {
-	[0; 32].into()
-}
-
 // Owner of initial positions
 pub fn get_omnipool_position_owner() -> AccountId {
 	[0; 32].into()

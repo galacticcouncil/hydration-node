@@ -50,7 +50,9 @@ use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
 
 /// Weights for `pallet_xcm_benchmarks::generic`.
+#[allow(dead_code)]
 pub struct WeightInfo<T>(PhantomData<T>);
+#[allow(dead_code)]
 impl<T: frame_system::Config> WeightInfo<T> {
 	// Storage: `ParachainInfo::ParachainId` (r:1 w:0)
 	// Proof: `ParachainInfo::ParachainId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)

@@ -111,6 +111,7 @@ impl Config for Runtime {
 	type BoundErc20 = MockBoundErc20<Runtime>;
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type RegistryInspect = MockBoundErc20<Runtime>;
 	type WeightInfo = ();
 }
 pub type NativeCurrency = NativeCurrencyOf<Runtime>;
