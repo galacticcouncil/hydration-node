@@ -31,6 +31,8 @@ use crate::types::{Balance, CollateralInfo};
 pub use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
+use hydradx_traits::evm::EvmErrorDecoder;
+
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -164,6 +166,8 @@ pub mod pallet {
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
+
+		type EvmErrorDecoder : hydradx_traits::evm::EvmErrorDecoder;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -872,7 +876,7 @@ pub mod pallet {
 			);
 			if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
-				return Err(Error::<T>::InvalidEVMInteraction.into());
+				return Err(T::EvmErrorDecoder::decode(call_result));
 			}
 			let receiver_balance_final = <T as crate::pallet::Config>::Currency::total_balance(
 				collateral_asset_id,
@@ -1170,7 +1174,7 @@ where
 		// Check if the call was successful
 		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
 			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
-			return Err(Error::<T>::InvalidEVMInteraction.into());
+			return Err(T::EvmErrorDecoder::decode(call_result));
 		}
 
 		Ok(())
@@ -1199,7 +1203,7 @@ where
 		// Check if the call was successful
 		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
 			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", call_result.exit_reason, call_result.value);
-			return Err(Error::<T>::InvalidEVMInteraction.into());
+			return Err(T::EvmErrorDecoder::decode(call_result));
 		}
 
 		Ok(())

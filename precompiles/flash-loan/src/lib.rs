@@ -108,7 +108,7 @@ where
 					log::error!(target: "flash", "execute_arbitrage_with_flash_loan failed: {:?}", r);
 					return Err(PrecompileFailure::Revert {
 						exit_status: ExitRevert::Reverted,
-						output: vec![],
+						output: r.encode(),
 					});
 				}
 

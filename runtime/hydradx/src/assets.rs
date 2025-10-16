@@ -1810,6 +1810,7 @@ impl pallet_hsm::Config for Runtime {
 	type EvmAccounts = EVMAccounts;
 	type GasLimit = HsmGasLimit;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type EvmErrorDecoder = EvmErrorDecoderAdapter<Runtime>;
 	type WeightInfo = weights::pallet_hsm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;

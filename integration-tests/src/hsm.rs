@@ -29,7 +29,7 @@ use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{RuntimeDebug, H256, U256};
 use sp_runtime::traits::One;
-use sp_runtime::BoundedVec;
+use sp_runtime::{BoundedVec, DispatchError};
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use std::sync::Arc;
@@ -1108,6 +1108,201 @@ fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acqui
 }
 
 #[test]
+fn selling_collateral_for_hollar_should_fail_when_facilitator_bucket_capacity_exceeded() {
+    TestNet::reset();
+    hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+        let hsm_address = hydradx_runtime::HSM::account_id();
+        // Bind HSM EVM address but DO NOT add facilitator intentionally so mint fails
+        assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+            hsm_address.clone()
+        )));
+
+        // Also bind ALICE EVM address (not strictly required, but keeps environment consistent)
+        assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+            ALICE.into()
+        )));
+        let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+        // Mint enough Hollar for ALICE to provide liquidity
+        mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000u128);
+
+        // Setup StableSwap pool containing HOLLAR (222) and a collateral asset (2)
+        let pool_id = 9876u32;
+        let asset_ids = vec![222u32, 2u32];
+
+        assert_ok!(hydradx_runtime::AssetRegistry::register(
+            RawOrigin::Root.into(),
+            Some(pool_id),
+            Some(b"pool".to_vec().try_into().unwrap()),
+            AssetType::StableSwap,
+            Some(1u128),
+            None,
+            None,
+            None,
+            None,
+            true,
+        ));
+
+        let amplification = 100u16;
+        let fee = Permill::from_percent(0);
+        assert_ok!(hydradx_runtime::Stableswap::create_pool(
+            hydradx_runtime::RuntimeOrigin::root(),
+            pool_id,
+            BoundedVec::truncate_from(asset_ids),
+            amplification,
+            fee,
+        ));
+
+        // Endow ALICE with collateral and seed minimal pool liquidity
+        assert_ok!(Tokens::set_balance(
+            RawOrigin::Root.into(),
+            ALICE.into(),
+            2u32,
+            1_000_000_000_000_000_000u128,
+            0,
+        ));
+
+        let initial_liquidity = vec![
+            AssetAmount::new(2u32, 500_000_000_000_000_000u128),
+            AssetAmount::new(222u32, 500_000_000_000_000_000u128),
+        ];
+        assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+            hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+            pool_id,
+            BoundedVec::truncate_from(initial_liquidity),
+            0,
+        ));
+
+        hydradx_run_to_next_block();
+
+        // Approve collateral asset in HSM, but do NOT add the HSM as facilitator on the GHO contract
+        assert_ok!(HSM::add_collateral_asset(
+            hydradx_runtime::RuntimeOrigin::root(),
+            2u32,
+            pool_id,
+            Permill::zero(),
+            FixedU128::one(),
+            Permill::zero(),
+            Perbill::from_percent(100),
+            None,
+        ));
+
+        // Selling collatarel with invalid amount 0, so the mint fails with INVALID_AMOUNT
+        assert_noop!(
+            HSM::sell(
+                hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+                2u32,   // collateral in
+                222u32, // hollar out
+                0,
+                0,
+            ),
+            DispatchError::Other("evm:0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000013494e56414c49445f4d494e545f414d4f554e5400000000000000000000000000")
+        );
+    });
+}
+
+#[test]
+fn selling_hollar_should_fail_when_facilitator_capacity_is_insfuccicient() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone()
+		)));
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		)));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		// Mint Hollar to Alice so she can sell it to HSM
+		mint(minter(), alice_evm_address, 2_000_000_000_000_000_000_000u128);
+
+		// Create StableSwap pool [HOLLAR(222), DAI(2)] with imbalance
+		let pool_id = 9912u32;
+		let asset_ids = vec![222u32, 2u32];
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_percent(0);
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		// Seed pool reserves
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2u32,
+			2_000_000_000_000_000_000_000u128,
+			0,
+		));
+		let initial_liquidity = vec![
+			AssetAmount::new(222u32, 5_000_000_000_000_000_000u128), // 5e18 Hollar (more hollar in pool)
+			AssetAmount::new(2u32, 500_000_000_000_000_000u128),    // 5e17 collateral
+		];
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0,
+		));
+
+		// Give HSM enough collateral to pay out
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			hsm_address.clone(),
+			2u32,
+			5_000_000_000_000_000_000u128,
+			0,
+		));
+
+		hydradx_run_to_next_block();
+
+		let amount_in = 10_000_000_000_000_000u128;
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", amount_in - 1);//we set one less so it fails with underflow in contract
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2u32,
+			pool_id,
+			Permill::zero(),
+			FixedU128::one(),
+			Permill::zero(),
+			Perbill::from_percent(100),
+			None,
+		));
+
+
+		// Selling Hollar (asset_in=222) for collateral should attempt to burn Hollar due to insufficient facilitator capacity
+		assert_noop!(
+			HSM::sell(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				222u32,
+				2u32,
+				amount_in,
+				0,
+			),
+			pallet_dispatcher::Error::<hydradx_runtime::Runtime>::EvmArithmeticOverflowOrUnderflow
+		);
+	});
+}
+
+#[test]
 fn sell_hollar_to_get_yield_bearing_token_should_work() {
 	let collateral_location: polkadot_xcm::v4::Location = polkadot_xcm::v4::Location::new(
 		1,
@@ -1567,6 +1762,110 @@ fn arbitrage_should_work() {
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let traded_amount = hsm_dai_balance - final_hsm_dai_balance;
 		assert_eq!(traded_amount, 999_642_225_291_583_959);
+	});
+}
+
+#[test]
+fn arbitrage_should_fail_when_max_holding_exceeded() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone().into()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 100_000_000_000_000_000_000_000);
+
+		assert!(!check_flash_borrower(hsm_evm_address));
+		add_flash_borrower(hsm_evm_address);
+		assert!(check_flash_borrower(hsm_evm_address));
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 1_500_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1_500_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, 2];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_float(0.002);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		// Give ALICE asset 2 (collateral) for liquidity provision
+		// HOLLAR (222) is handled via EVM minting above
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			1_000_020_000_000_000_000_000_000,
+			0,
+		));
+
+		// Create pool with LESS Hollar than collateral to trigger BUY direction
+		// This will cause HSM to buy more collateral during arbitrage
+		let initial_liquidity = vec![
+			AssetAmount::new(2, 1_000_000_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 700_000_000_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		// Set max_holding to zero - ANY attempt to receive collateral will fail
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(99, 100),
+			Permill::zero(),
+			Perbill::zero(),
+			Some(0) // max_in_holding = 0, no collateral allowed
+		));
+
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+
+		// HSM starts with zero collateral, but max_holding is also zero
+		// When arbitrage tries to buy HOLLAR (giving collateral to HSM), it will fail MaxHoldingExceeded
+		assert_noop!(
+			HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None),
+			pallet_hsm::Error::<hydradx_runtime::Runtime>::MaxHoldingExceeded
+		);
 	});
 }
 

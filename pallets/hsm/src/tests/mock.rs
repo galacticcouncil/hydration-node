@@ -43,7 +43,7 @@ use hydradx_traits::{
 use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
-use hydradx_traits::evm::CallResult;
+use hydradx_traits::evm::{CallResult, EvmErrorDecoder};
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};
@@ -585,6 +585,15 @@ impl Config for Test {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
 	type ArbitrageProfitReceiver = HsmArbProfitReceiver;
+	type EvmErrorDecoder = EvmErrorDecoderStruct;
+}
+
+pub struct EvmErrorDecoderStruct;
+
+impl EvmErrorDecoder for EvmErrorDecoderStruct {
+	fn decode(_call_result: CallResult) -> DispatchError {
+		unimplemented!("We rather test such in integration tests")
+	}
 }
 
 pub struct Whitelist;
