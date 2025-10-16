@@ -426,6 +426,7 @@ impl pallet_currencies::Config for Runtime {
 	type BoundErc20 = AssetRegistry;
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
+	type RegistryInspect = AssetRegistry;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
