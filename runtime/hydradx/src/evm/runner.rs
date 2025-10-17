@@ -26,20 +26,21 @@
 use crate::evm::WethAssetId;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
+use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
 use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
-use primitives::{AssetId, Balance};
-use sp_runtime::traits::UniqueSaturatedInto;
+use primitives::{AccountId, AssetId, Balance};
+use sp_runtime::traits::{One, UniqueSaturatedInto, Zero};
 use sp_std::vec::Vec;
 
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
 
 impl<T, R, B> Runner<T> for WrapRunner<T, R, B>
 where
-	T: Config + pallet_dispatcher::Config,
+	T: Config + pallet_dispatcher::Config + frame_system::Config,
 	R: Runner<T>,
 	<R as pallet_evm::Runner<T>>::Error: core::convert::From<TransactionValidationError>,
 	B: AccountFeeCurrencyBalanceInCurrency<AssetId, T::AccountId, Output = (Balance, Weight)>,
@@ -142,6 +143,10 @@ where
 				config,
 			)?;
 		}
+
+		let source_account_id = T::AddressMapping::into_account_id(source);
+		let original_nonce = frame_system::Pallet::<T>::account_nonce(source_account_id.clone());
+
 		// Validated, flag set to false
 		let result = R::call(
 			source,
@@ -159,6 +164,8 @@ where
 			proof_size_base_cost,
 			config,
 		)?;
+
+		frame_system::Account::<T>::mutate(source_account_id, |a| a.nonce = original_nonce);
 
 		// Store the exit reason for the last EVM call
 		pallet_dispatcher::Pallet::<T>::set_last_evm_call_exit_reason(&result.exit_reason);

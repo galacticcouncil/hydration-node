@@ -98,6 +98,8 @@ mod account_conversion {
 	}
 
 	#[test]
+	// FIXME: will not pass, because nonce is increase by Executive;
+	// 	needs to mock SignedExtra and do UncheckedExtrinsic::new_signed and apply_extrinsic
 	fn bind_address_should_fail_when_nonce_is_not_zero() {
 		use pallet_evm_accounts::EvmNonceProvider;
 		TestNet::reset();
