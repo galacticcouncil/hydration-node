@@ -54,7 +54,7 @@ function bench {
         exit 1
     fi
 
-    local output_file=${4:-weights.rs}
+    local output_file=${4:-"${OUTPUT}${1}.rs"}
     echo "benchmarking '${1}::${2}' --check=${3}, writing results to '${output_file}'"
 
     # Check enabled
@@ -109,7 +109,7 @@ done
 if [[ "${ALL}" -eq 1 ]]; then
     mkdir -p "$OUTPUT"
     # FIXME: This is a temporary solution to handle XCM benchmarks correctly
-    BENCH_EXCLUDE=("pallet_xcm_benchmarks::fungible" "pallet_xcm_benchmarks::generic" "pallet_scheduler")
+    BENCH_EXCLUDE=("pallet_xcm_benchmarks::fungible" "pallet_xcm_benchmarks::generic" "pallet_scheduler", "pallet_token_gateway_ismp")
 
     XCM_ADD=(
       "pallet_xcm_benchmarks::fungible withdraw_asset,transfer_asset,transfer_reserve_asset,reserve_asset_deposited,initiate_reserve_withdraw,receive_teleported_asset,deposit_asset,deposit_reserve_asset pallet_xcm_benchmarks_fungible.rs"
@@ -127,6 +127,11 @@ if [[ "${ALL}" -eq 1 ]]; then
       output_file="${entry[2]}"
 
       bench "$pallet" "$extrinsics" "$CHECK" "${XCM_OUTPUT}${output_file}" "scripts/xcm-weight-template.hbs"
+    done
+
+    ISMP_ADD=("pallet_token_gateway_ismp")
+    for ismp_entry in "${ISMP_ADD[@]}"; do
+      bench "$ismp_entry" "*" "$CHECK" "" "scripts/ismp-module-weight-template.hbs"
     done
 
     # Then process regular pallets (excluding `BENCH_EXCLUDE` ones)
@@ -160,8 +165,8 @@ elif [[ "${ARGS[0]}" == *","* ]]; then
         touch "${_path}" # TODO: Remove this once benchmarking-cli doesn't fail on missing files
         bench "${_pallet_trimmed}" '*' "${CHECK}" "${_path}"
     done
-elif [[ ${#ARGS[@]} -ne 2 ]]; then
+elif [[ ${#ARGS[@]} -ne 2 && ${#ARGS[@]} -ne 3 ]]; then
     choose_and_bench "${CHECK}"
 else
-    bench "${ARGS[0]}" "${ARGS[1]}" "${CHECK}"
+    bench "${ARGS[0]}" "${ARGS[1]}" "${CHECK}" "" "${ARGS[2]}"
 fi

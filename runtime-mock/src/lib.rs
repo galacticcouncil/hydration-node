@@ -6,8 +6,7 @@ mod staking;
 pub mod traits;
 
 use accounts::{
-	get_duster_dest_account, get_duster_reward_account, get_native_endowed_accounts, get_nonnative_endowed_accounts,
-	get_omnipool_position_owner, get_technical_committee,
+	get_native_endowed_accounts, get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
 };
 use hydradx_runtime::Runtime as MockedRuntime;
 use hydradx_runtime::*;
@@ -133,6 +132,7 @@ pub fn hydradx_mocked_runtime() -> TestExternalities {
 			evm: Default::default(),
 			xyk_warehouse_lm: Default::default(),
 			xyk_liquidity_mining: Default::default(),
+			ismp_parachain: Default::default(),
 		}
 		.build_storage()
 		.unwrap()
