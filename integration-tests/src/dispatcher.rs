@@ -1,5 +1,6 @@
 use crate::evm::{create_dispatch_handle, gas_price};
 use crate::polkadot_test_net::*;
+use crate::utils::accounts::MockAccount;
 use fp_evm::PrecompileSet;
 use frame_support::assert_ok;
 use frame_support::dispatch::{
@@ -10,6 +11,7 @@ use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
 use pallet_evm::{ExitReason, ExitSucceed};
+use pallet_transaction_multi_payment::EVMPermit;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use precompile_utils::prelude::PrecompileOutput;
 use primitives::EvmAddress;

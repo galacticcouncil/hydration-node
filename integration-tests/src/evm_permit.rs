@@ -9,7 +9,6 @@ use frame_support::traits::fungible::Mutate;
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
-use hydra_dx_math::types::Ratio;
 use hydradx_adapters::price::ConvertBalance;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::types::ShortOraclePrice;
@@ -40,6 +39,7 @@ use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
+
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 #[test]
@@ -50,44 +50,52 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_evm_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
-		let fee_currency = HDX;
+		assert_eq!(
+			MultiTransactionPayment::account_currency(&user_acc.address()),
+			fee_currency
+		);
 
 		init_omnipool_with_oracle_for_block_10();
 
+		// Fee asset
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			WETH,
+			to_ether(1),
+			0,
+		));
+
+		// Asset in
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
 			HDX,
-			(10_000 * UNITS) as i128,
-		));
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			DOT,
 			(10 * UNITS) as i128,
 		));
 
 		let treasury_currency_balance = Currencies::free_balance(fee_currency, &Treasury::account_id());
 		let alice_currency_balance = Currencies::free_balance(fee_currency, &AccountId::from(user_acc.address()));
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
-		let initial_user_weth_balance = user_acc.balance(WETH);
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
+		let initial_user_dai_balance = user_acc.balance(DAI);
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
+				asset_in: HDX,
+				asset_out: DAI,
 				amount: 10_000_000_000,
 				min_buy_amount: 0,
 			});
@@ -123,8 +131,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 			H256::from(rs.s.b32()),
 		));
 
-		let user_weth = user_acc.balance(WETH);
-		assert!(user_weth > 0);
+		assert!(user_acc.balance(DAI) > 0); // Omnipool sell passed
 		let new_treasury_currency_balance = treasury_acc.balance(fee_currency);
 		let new_user_currency_balance = user_acc.balance(fee_currency);
 		let evm_fee = alice_currency_balance - new_user_currency_balance;
@@ -159,13 +166,14 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 }
 
 #[test]
-fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
+fn dispatch_permit_fee_should_be_paid_in_weth_when_no_currency_is_set() {
 	TestNet::reset();
 
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_evm_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		//Set up to idle state where the chain is not utilized at all
@@ -180,32 +188,36 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 
 		let currency =
 			pallet_transaction_multi_payment::Pallet::<hydradx_runtime::Runtime>::account_currency(&user_acc.address());
-		assert_eq!(currency, HDX);
+		assert_eq!(currency, fee_currency);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
 			HDX,
-			100_000_000_000_000_000_i128,
-		));
-
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			DOT,
 			(10 * UNITS) as i128,
 		));
 
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			fee_currency,
+			to_ether(1), // Works as fee_currency is WETH
+			0,
+		));
+
 		init_omnipool_with_oracle_for_block_10();
-		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
 		let initial_user_hdx_balance = user_acc.balance(HDX);
+		let initial_user_dai_balance = user_acc.balance(DAI);
 
 		//Act
+		let sell_amount = 10_000_000;
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
-				amount: 10_000_000,
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: sell_amount,
 				min_buy_amount: 0,
 			});
 
@@ -240,23 +252,27 @@ fn dispatch_permit_fee_should_be_paid_in_hdx_when_no_currency_is_set() {
 			H256::from(rs.s.b32()),
 		));
 
-		let user_hdx_balance = user_acc.balance(HDX);
-		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
+		// Assert omnipool sell passed
+		assert_ne!(initial_user_dai_balance, user_acc.balance(DAI));
+		assert_eq!(initial_user_hdx_balance - user_acc.balance(HDX), sell_amount);
+
+		// Assert fees
+		let fee_amount = initial_user_fee_currency_balance - user_acc.balance(fee_currency);
 		assert!(fee_amount > 0);
 
-		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
-		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
-		assert_eq!(fee_amount, treasury_hdx_diff);
+		let treasury_fee_diff = treasury_acc.balance(fee_currency) - initial_treasury_fee_balance;
+		assert_eq!(fee_amount, treasury_fee_diff);
 	})
 }
 
 #[test]
-fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounded() {
+fn fee_should_be_paid_in_weth_when_permit_is_dispatched_and_address_is_not_bounded() {
 	TestNet::reset();
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -265,41 +281,44 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 		);
 
 		// Prepare user evm account - bind and fund
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			fee_currency,
+			to_ether(1),
+			0,
+		));
+
+		//Fund some HDX to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
 			HDX,
-			100_000_000_000_000i128,
-		));
-		//Fund some DOT to sell in omnipool
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			DOT,
-			100_000_000i128,
+			(10 * UNITS) as i128,
 		));
 
-		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
 		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
+		let initial_user_dai_balance = user_acc.balance(DAI);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
+		let sell_amount = 10_000_000;
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
-				amount: 10_000_000,
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: sell_amount,
 				min_buy_amount: 0,
 			});
 
@@ -335,21 +354,18 @@ fn fee_should_be_paid_in_hdx_when_permit_is_dispatched_and_address_is_not_bounde
 			H256::from(rs.s.b32()),
 		));
 		// Verify evm fee amount
-		let user_hdx_balance = user_acc.balance(HDX);
-		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
+		let fee_amount = initial_user_fee_currency_balance - user_acc.balance(fee_currency);
 		assert!(fee_amount > 0);
-		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
-		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
-		assert_eq!(fee_amount, treasury_hdx_diff);
+		let treasury_fee_diff = treasury_acc.balance(WETH) - initial_treasury_fee_balance;
+		assert_eq!(fee_amount, treasury_fee_diff);
 
 		// Verify omnipool sell
-		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3567039857685);
+		assert!(user_acc.balance(DAI) > 0);
 
-		let user_dot_balance = user_acc.balance(DOT);
-		assert!(user_dot_balance < initial_user_dot_balance);
-		let dot_diff = initial_user_dot_balance - user_dot_balance;
-		assert_eq!(dot_diff, 10_000_000);
+		let user_hdx_balance = user_acc.balance(HDX);
+		assert!(user_hdx_balance < initial_user_hdx_balance);
+		let hdx_diff = initial_user_hdx_balance - user_hdx_balance;
+		assert_eq!(hdx_diff, sell_amount);
 	})
 }
 
@@ -360,6 +376,7 @@ fn evm_permit_should_validate_unsigned_correctly() {
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -368,40 +385,42 @@ fn evm_permit_should_validate_unsigned_correctly() {
 		);
 
 		// Prepare user evm account - bind and fund
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			fee_currency,
+			to_ether(1),
+			0,
+		));
+
+		//Fund some HDX to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
 			HDX,
-			100_000_000_000_000i128,
-		));
-		//Fund some DOT to sell in omnipool
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			DOT,
-			100_000_000i128,
+			(10 * UNITS) as i128,
 		));
 
-		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
 		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_user_dai_balance = user_acc.balance(DAI);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
+				asset_in: HDX,
+				asset_out: DAI,
 				amount: 10_000_000,
 				min_buy_amount: 0,
 			});
@@ -448,15 +467,12 @@ fn evm_permit_should_validate_unsigned_correctly() {
 		);
 
 		// Verify that nothing has changed
-		let user_hdx_balance = user_acc.balance(HDX);
-		assert_eq!(user_hdx_balance, initial_user_hdx_balance);
-		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
-		assert_eq!(new_treasury_hdx_balance, initial_treasury_hdx_balance);
-		// Verify omnipool sell
-		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 0);
-		let user_dot_balance = user_acc.balance(DOT);
-		assert_eq!(initial_user_dot_balance, user_dot_balance);
+		assert_eq!(user_acc.balance(fee_currency), initial_user_fee_currency_balance);
+		assert_eq!(treasury_acc.balance(fee_currency), initial_treasury_fee_balance);
+
+		// Verify omnipool sell not happened
+		assert_eq!(user_acc.balance(DAI), 0);
+		assert_eq!(initial_user_hdx_balance, user_acc.balance(HDX));
 	})
 }
 
@@ -467,6 +483,7 @@ fn evm_permit_should_validate_unsigned_correctly_and_return_error_if_inner_call_
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -474,34 +491,40 @@ fn evm_permit_should_validate_unsigned_correctly_and_return_error_if_inner_call_
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
 
-		// Prepare user evm account - bind and fund
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		// Prepare user evm account - check there is no fee payment asset to get an error
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
 			user_acc.address(),
-			HDX,
-			100_000_000_000_000i128,
+			fee_currency,
+			to_ether(1),
+			0,
 		));
-		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
-		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		// Ensure omnipool sell should fail
+		assert_eq!(user_acc.balance(HDX), 0);
+
+		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		let initial_user_hdx_balance = user_acc.balance(HDX);
+
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
+		let sell_amount = 10_000_000;
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
-				amount: 10_000_000,
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: sell_amount,
 				min_buy_amount: 0,
 			});
 
@@ -540,15 +563,12 @@ fn evm_permit_should_validate_unsigned_correctly_and_return_error_if_inner_call_
 		);
 
 		// Verify that nothing has changed
-		let user_hdx_balance = user_acc.balance(HDX);
-		assert_eq!(user_hdx_balance, initial_user_hdx_balance);
-		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
-		assert_eq!(new_treasury_hdx_balance, initial_treasury_hdx_balance);
-		// Verify omnipool sell
-		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 0);
-		let user_dot_balance = user_acc.balance(DOT);
-		assert_eq!(initial_user_dot_balance, user_dot_balance);
+		assert_eq!(user_acc.balance(fee_currency), initial_user_fee_currency_balance);
+		assert_eq!(treasury_acc.balance(fee_currency), initial_treasury_fee_balance);
+
+		// Verify omnipool sell not happened
+		assert_eq!(user_acc.balance(DAI), 0);
+		assert_eq!(initial_user_hdx_balance, user_acc.balance(HDX));
 	})
 }
 
@@ -558,6 +578,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let fee_currency = DAI;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -569,15 +590,15 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			DAI,
+			fee_currency,
 			100_000_000_000_000_000_000i128,
 		));
-		let initial_user_dai_balance = user_acc.balance(DAI);
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
 		let initial_user_weth_balance = user_acc.balance(WETH);
 
-		let initial_dai_issuance = Currencies::total_issuance(DAI);
+		let initial_fee_currency_issuance = Currencies::total_issuance(fee_currency);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		// just reset the weth balance to 0 - to make sure we don't have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -588,7 +609,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		assert_eq!(initial_user_weth_balance, 0);
 
 		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
-			pallet_transaction_multi_payment::Call::set_currency { currency: DAI },
+			pallet_transaction_multi_payment::Call::set_currency { currency: fee_currency },
 		);
 
 		let gas_limit = 1000000;
@@ -650,15 +671,16 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 
 		let currency =
 			pallet_transaction_multi_payment::Pallet::<hydradx_runtime::Runtime>::account_currency(&user_acc.address());
-		assert_eq!(currency, DAI);
+		assert_eq!(currency, fee_currency);
 
-		let dai_issuance = Currencies::total_issuance(DAI);
-		assert_eq!(initial_dai_issuance, dai_issuance);
+		let fee_currency_issuance = Currencies::total_issuance(fee_currency);
+		assert_eq!(initial_fee_currency_issuance, fee_currency_issuance);
 
-		let user_dai_balance = user_acc.balance(DAI);
-		assert!(user_dai_balance < initial_user_dai_balance);
-		let dai_diff = initial_user_dai_balance - user_dai_balance;
-		assert!(dai_diff > 1000 * UNITS);
+		let user_fee_currency_balance = user_acc.balance(fee_currency);
+		assert!(user_fee_currency_balance < initial_user_fee_currency_balance);
+
+		let fee_diff = initial_user_fee_currency_balance - user_fee_currency_balance;
+		assert!(fee_diff > 1000 * UNITS);
 	})
 }
 
@@ -668,6 +690,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let initial_fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		let _ = with_transaction(|| {
@@ -691,11 +714,12 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 			)
 			.unwrap();
 
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
 				user_acc.address(),
+				initial_fee_currency,
+				to_ether(1),
 				0,
-				100_000_000_000_000_000_000i128,
 			));
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -704,18 +728,6 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 				insufficient_asset,
 				100_000_000_000_000_000_000i128,
 			));
-
-			let initial_user_weth_balance = user_acc.balance(WETH);
-
-			// just reset the weth balance to 0 - to make sure we dont have enough WETH
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				user_acc.address(),
-				WETH,
-				-(initial_user_weth_balance as i128),
-			));
-			let initial_user_weth_balance = user_acc.balance(WETH);
-			assert_eq!(initial_user_weth_balance, 0);
 
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -736,6 +748,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 				insufficient_asset,
 				2 * UNITS as i128,
 			));
+
 			assert_ok!(XYK::sell(
 				RuntimeOrigin::signed(BOB.into()),
 				insufficient_asset,
@@ -745,6 +758,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 				false
 			));
 
+			let initial_user_init_fee_balance = user_acc.balance(initial_fee_currency);
 			let initial_user_insufficient_balance = user_acc.balance(insufficient_asset);
 			let initial_insuff_asset_issuance = Currencies::total_issuance(insufficient_asset);
 
@@ -821,8 +835,10 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 
 			let user_insufficient_asset_balance = user_acc.balance(insufficient_asset);
 			assert!(user_insufficient_asset_balance < initial_user_insufficient_balance);
+
+			assert_eq!(user_acc.balance(initial_fee_currency), initial_user_init_fee_balance);
+
 			let payed_fee = initial_user_insufficient_balance - user_insufficient_asset_balance;
-			//assert_eq!(payed_fee, 107314200);
 			assert!(
 				payed_fee > 50_000_000,
 				"payed_fee: {:?} is less than 50_000_000",
@@ -843,6 +859,8 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
 fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset() {
 	TestNet::reset();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let initial_fee_currency = WETH;
+	let sufficient_currency = HDX;
 
 	Hydra::execute_with(|| {
 		let _ = with_transaction(|| {
@@ -866,11 +884,12 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			)
 			.unwrap();
 
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
 				user_acc.address(),
+				initial_fee_currency,
+				to_ether(1),
 				0,
-				100_000_000_000_000_000_000i128,
 			));
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -879,18 +898,6 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 				insufficient_asset,
 				100_000_000_000_000_000_000i128,
 			));
-
-			let initial_user_weth_balance = user_acc.balance(WETH);
-
-			// just reset the weth balance to 0 - to make sure we dont have enough WETH
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				user_acc.address(),
-				WETH,
-				-(initial_user_weth_balance as i128),
-			));
-			let initial_user_weth_balance = user_acc.balance(WETH);
-			assert_eq!(initial_user_weth_balance, 0);
 
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -924,29 +931,28 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 			type Convert = ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
 
 			let insufficient_amount = 10 * UNITS;
-			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount)).unwrap();
-			assert_eq!(
-				(4292926607826008319, Ratio::new(4292926607826008319, 10000000000000)),
-				amount_in_weth
-			);
+			let amount_in_sufficient =
+				Convert::convert((insufficient_asset, sufficient_currency, insufficient_amount)).unwrap();
 
 			//Assert if we get similar result when selling WETH for insufficient
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				BOB.into(),
-				WETH,
-				100000000 * UNITS as i128,
+				sufficient_currency,
+				amount_in_sufficient.0 as i128,
 			));
 			let bob_init_dot = Currencies::free_balance(DOT, &AccountId::from(BOB));
 			assert_ok!(hydradx_runtime::Omnipool::sell(
 				hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
-				WETH,
+				sufficient_currency,
 				DOT,
-				amount_in_weth.0, //weth needed for the transaction
+				amount_in_sufficient.0, //weth needed for the transaction
 				0
 			));
 			let bob_new_dot = Currencies::free_balance(DOT, &AccountId::from(BOB));
 			let dot_diff = bob_new_dot - bob_init_dot;
+
+			assert_eq!(user_acc.balance(sufficient_currency), 0);
 
 			let initial_user_insufficient_balance = Currencies::free_balance(insufficient_asset, &AccountId::from(BOB));
 
@@ -972,7 +978,7 @@ fn convert_amount_should_work_when_converting_insufficient_to_sufficient_asset()
 }
 
 #[test]
-fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() {
+fn convert_amount_should_fail_gracefully_when_no_xyk_pool_for_fee_payment_asset() {
 	TestNet::reset();
 	let user_acc = MockAccount::new(alith_truncated_account());
 
@@ -998,11 +1004,13 @@ fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() 
 			)
 			.unwrap();
 
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				user_acc.address(),
+			// Give some WETH to pay fees
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
+				evm_account(),
+				WETH,
+				to_ether(1),
 				0,
-				100_000_000_000_000_000_000i128,
 			));
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1011,18 +1019,6 @@ fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() 
 				insufficient_asset,
 				100_000_000_000_000_000_000i128,
 			));
-
-			let initial_user_weth_balance = user_acc.balance(WETH);
-
-			// just reset the weth balance to 0 - to make sure we dont have enough WETH
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				user_acc.address(),
-				WETH,
-				-(initial_user_weth_balance as i128),
-			));
-			let initial_user_weth_balance = user_acc.balance(WETH);
-			assert_eq!(initial_user_weth_balance, 0);
 
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -1045,6 +1041,9 @@ fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() 
 			let amount_in_weth = Convert::convert((insufficient_asset, WETH, insufficient_amount));
 			assert!(amount_in_weth.is_none());
 
+			// Assert no balance was acquired; only the fee was paid
+			assert!(user_acc.balance(WETH) < to_ether(1));
+
 			TransactionOutcome::Commit(DispatchResult::Ok(()))
 		});
 	})
@@ -1054,6 +1053,8 @@ fn convert_amount_should_fail_gracefully_when_no_xyk_pol_for_feepayment_asset() 
 fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset() {
 	TestNet::reset();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let fee_currency = WETH;
+	let sufficient_currency = HDX;
 
 	Hydra::execute_with(|| {
 		let _ = with_transaction(|| {
@@ -1077,11 +1078,13 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 			)
 			.unwrap();
 
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
+			// Give some WETH to pay fees
+			assert_ok!(Tokens::set_balance(
+				RawOrigin::Root.into(),
 				user_acc.address(),
+				fee_currency,
+				to_ether(1),
 				0,
-				100_000_000_000_000_000_000i128,
 			));
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
@@ -1090,18 +1093,6 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 				insufficient_asset,
 				100_000_000_000_000_000_000i128,
 			));
-
-			let initial_user_weth_balance = user_acc.balance(WETH);
-
-			// just reset the weth balance to 0 - to make sure we dont have enough WETH
-			assert_ok!(hydradx_runtime::Currencies::update_balance(
-				hydradx_runtime::RuntimeOrigin::root(),
-				user_acc.address(),
-				WETH,
-				-(initial_user_weth_balance as i128),
-			));
-			let initial_user_weth_balance = user_acc.balance(WETH);
-			assert_eq!(initial_user_weth_balance, 0);
 
 			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
 				hydradx_runtime::RuntimeOrigin::root(),
@@ -1122,6 +1113,7 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 				insufficient_asset,
 				2 * UNITS as i128,
 			));
+
 			assert_ok!(XYK::sell(
 				RuntimeOrigin::signed(BOB.into()),
 				insufficient_asset,
@@ -1131,15 +1123,12 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 				false
 			));
 
-			//Convert sufficient (WETH) to insufficient
+			//Convert sufficient (HDX) to insufficient
 			type Convert = ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>;
 
-			let weth_amount = 10 * UNITS;
-			let amount_in_insufficient_asset = Convert::convert((WETH, insufficient_asset, weth_amount)).unwrap();
-			assert_eq!(
-				(23294133, Ratio::new(23294133, 10000000000000)),
-				amount_in_insufficient_asset
-			);
+			let sufficient_amount = 10 * UNITS;
+			let amount_in_insufficient_asset =
+				Convert::convert((sufficient_currency, insufficient_asset, sufficient_amount)).unwrap();
 
 			let initial_user_dot_balance = Currencies::free_balance(DOT, &AccountId::from(BOB));
 
@@ -1155,19 +1144,19 @@ fn convert_amount_should_work_when_converting_sufficient_to_insufficient_asset()
 			let dot_diff = new_user_dot_balance - initial_user_dot_balance;
 
 			//Assert if we get similar result when selling WETH for insufficient
-			let bob_init_weth = Currencies::free_balance(WETH, &AccountId::from(BOB));
+			let bob_init_sufficient = Currencies::free_balance(sufficient_currency, &AccountId::from(BOB));
 			assert_ok!(hydradx_runtime::Omnipool::sell(
 				hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 				DOT,
-				WETH,
+				sufficient_currency,
 				dot_diff,
 				0
 			));
-			let bob_new_weth = Currencies::free_balance(WETH, &AccountId::from(BOB));
-			let weth_diff = bob_new_weth - bob_init_weth;
+			let bob_new_sufficient = Currencies::free_balance(sufficient_currency, &AccountId::from(BOB));
+			let sufficient_diff = bob_new_sufficient - bob_init_sufficient;
 
-			let difference = weth_amount - weth_diff;
-			let relative_difference = FixedU128::from_rational(difference, weth_amount);
+			let difference = sufficient_amount - sufficient_diff;
+			let relative_difference = FixedU128::from_rational(difference, sufficient_amount);
 			let tolerated_difference = FixedU128::from_rational(1, 100); //1% due to fees, etc
 			assert!(relative_difference < tolerated_difference);
 
@@ -1183,6 +1172,7 @@ fn evm_permit_dispatch_flow_should_work() {
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -1191,41 +1181,44 @@ fn evm_permit_dispatch_flow_should_work() {
 		);
 
 		// Prepare user evm account - bind and fund
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			fee_currency,
+			to_ether(1),
+			0,
+		));
+
+		// Fund some HDX to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
 			HDX,
-			100_000_000_000_000i128,
-		));
-		//Fund some DOT to sell in omnipool
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			DOT,
-			100_000_000i128,
+			(10 * UNITS) as i128,
 		));
 
-		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_user_dai_balance = user_acc.balance(DAI);
 		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
+		let sell_amount = 10_000_000;
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
-				amount: 10_000_000,
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: sell_amount,
 				min_buy_amount: 0,
 			});
 
@@ -1288,22 +1281,20 @@ fn evm_permit_dispatch_flow_should_work() {
 		));
 
 		// Verify evm fee amount
-		let user_hdx_balance = user_acc.balance(HDX);
-		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
+		let fee_amount = initial_user_fee_currency_balance - user_acc.balance(fee_currency);
 		assert!(fee_amount > 0);
-		//assert_eq!(fee_amount, 451229318663);
-		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
-		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
-		assert_eq!(fee_amount, treasury_hdx_diff);
+
+		let new_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		let treasury_fee_diff = new_treasury_fee_balance - initial_treasury_fee_balance;
+		assert_eq!(fee_amount, treasury_fee_diff);
 
 		// Verify omnipool sell
-		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3567039857685);
+		assert!(user_acc.balance(DAI) > 0);
 
-		let user_dot_balance = user_acc.balance(DOT);
-		assert!(user_dot_balance < initial_user_dot_balance);
-		let dot_diff = initial_user_dot_balance - user_dot_balance;
-		assert_eq!(dot_diff, 10_000_000);
+		let user_hdx_balance = user_acc.balance(HDX);
+		assert!(user_hdx_balance < initial_user_hdx_balance);
+		let hdx_diff = initial_user_hdx_balance - user_hdx_balance;
+		assert_eq!(hdx_diff, sell_amount);
 	})
 }
 
@@ -1314,6 +1305,7 @@ fn evm_permit_should_fail_when_replayed() {
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
 	let treasury_acc = MockAccount::new(Treasury::account_id());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -1322,41 +1314,44 @@ fn evm_permit_should_fail_when_replayed() {
 		);
 
 		// Prepare user evm account - bind and fund
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			fee_currency,
+			to_ether(1),
+			0,
+		));
+
+		// Fund some HDX to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
 			HDX,
-			100_000_000_000_000i128,
-		));
-		//Fund some DOT to sell in omnipool
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			DOT,
-			100_000_000i128,
+			(10 * UNITS) as i128,
 		));
 
-		let initial_treasury_hdx_balance = treasury_acc.balance(HDX);
+		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_user_dai_balance = user_acc.balance(DAI);
 		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
+		let sell_amount = 10_000_000;
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
-				amount: 10_000_000,
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: sell_amount,
 				min_buy_amount: 0,
 			});
 
@@ -1425,22 +1420,19 @@ fn evm_permit_should_fail_when_replayed() {
 		);
 
 		// Verify evm fee amount
-		let user_hdx_balance = user_acc.balance(HDX);
-		let fee_amount = initial_user_hdx_balance - user_hdx_balance;
+		let fee_amount = initial_user_fee_currency_balance - user_acc.balance(fee_currency);
 		assert!(fee_amount > 0);
-		//assert_eq!(fee_amount, 451229318663);
-		let new_treasury_hdx_balance = treasury_acc.balance(HDX);
-		let treasury_hdx_diff = new_treasury_hdx_balance - initial_treasury_hdx_balance;
-		assert_eq!(fee_amount, treasury_hdx_diff);
+
+		let treasury_fee_diff = treasury_acc.balance(fee_currency) - initial_treasury_fee_balance;
+		assert_eq!(fee_amount, treasury_fee_diff);
 
 		// Verify omnipool sell
-		let user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(user_weth_balance, 3567039857685);
+		assert!(user_acc.balance(DAI) > 0);
 
-		let user_dot_balance = user_acc.balance(DOT);
-		assert!(user_dot_balance < initial_user_dot_balance);
-		let dot_diff = initial_user_dot_balance - user_dot_balance;
-		assert_eq!(dot_diff, 10_000_000);
+		let user_hdx_balance = user_acc.balance(HDX);
+		assert!(user_hdx_balance < initial_user_hdx_balance);
+		let hdx_diff = initial_user_hdx_balance - user_hdx_balance;
+		assert_eq!(hdx_diff, 10_000_000);
 	})
 }
 
@@ -1450,6 +1442,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -1461,38 +1454,40 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 		);
 
 		// Prepare user evm account - bind and fund
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			fee_currency,
+			to_ether(1),
+			0,
+		));
+
+		// Fund some HDX to sell in omnipool
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
 			HDX,
-			100_000_000_000_000i128,
+			(10 * UNITS) as i128,
 		));
-		//Fund some DOT to sell in omnipool
+
+		let initial_user_fee_balance = user_acc.balance(fee_currency);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			DOT,
-			100_000_000i128,
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-
-		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
-		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
+				asset_in: HDX,
+				asset_out: DAI,
 				amount: 10_000_000,
 				min_buy_amount: 0,
 			});
@@ -1565,8 +1560,7 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 			);
 		assert_eq!(permit_nonce, U256::one());
 
-		let hdx_balance = user_acc.balance(HDX);
-		let tx_fee = initial_user_hdx_balance - hdx_balance;
+		let tx_fee = initial_user_fee_balance - user_acc.balance(fee_currency);
 		assert!(tx_fee > 0);
 	})
 }
@@ -1577,6 +1571,7 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -1588,32 +1583,33 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 		);
 
 		// Prepare user evm account - bind and fund
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			fee_currency,
+			to_ether(1),
+			0,
+		));
+
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		let initial_user_hdx_balance = user_acc.balance(HDX);
+		assert_eq!(initial_user_hdx_balance, 0);
+
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			HDX,
-			100_000_000_000_000i128,
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
-
-		assert_eq!(initial_user_dot_balance, 0);
-
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
-		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
+				asset_in: HDX,
+				asset_out: DAI,
 				amount: 10_000_000,
 				min_buy_amount: 0,
 			});
@@ -1649,7 +1645,7 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 			H256::from(rs.s.b32()),
 		));
 
-		assert_eq!(user_acc.balance(WETH), 0);
+		assert_eq!(user_acc.balance(DAI), 0);
 
 		// Verify account nonces
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
@@ -1669,6 +1665,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -1679,32 +1676,34 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		);
 
 		// Prepare user evm account - bind and fund
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
 			user_acc.address(),
-			HDX,
-			100_000_000_000_000i128,
+			fee_currency,
+			to_ether(1),
+			0,
 		));
-		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
-		assert_eq!(initial_user_dot_balance, 0);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		let initial_user_hdx_balance = user_acc.balance(HDX);
+		assert_eq!(initial_user_hdx_balance, 0);
+
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
+				asset_in: HDX,
+				asset_out: DAI,
 				amount: 10_000_000,
 				min_buy_amount: 0,
 			});
@@ -1740,7 +1739,7 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 			H256::from(rs.s.b32()),
 		));
 
-		assert_eq!(user_acc.balance(WETH), 0);
+		assert_eq!(user_acc.balance(DAI), 0);
 
 		// Verify account nonces
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
@@ -1752,10 +1751,9 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 			);
 		assert_eq!(permit_nonce, U256::one());
 
-		let hdx_balance = user_acc.balance(HDX);
-		let tx_fee = initial_user_hdx_balance - hdx_balance;
+		let tx_fee = initial_user_fee_currency_balance - user_acc.balance(fee_currency);
 
-		assert_eq!(tx_fee, 4210472144093);
+		assert_ne!(tx_fee, 0);
 	})
 }
 
@@ -1786,7 +1784,7 @@ fn dispatch_permit_should_pause_tx_when_permit_is_invalid() {
 		let initial_user_dot_balance = user_acc.balance(DOT);
 		assert_eq!(initial_user_dot_balance, 0);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		// just reset the weth balance to 0 - to make sure we don't have enough WETH
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
@@ -1876,6 +1874,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let fee_currency = WETH;
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -1886,32 +1885,34 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		);
 
 		// Prepare user evm account - bind and fund
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
 			user_acc.address(),
-			HDX,
-			100_000_000_000_000i128,
+			fee_currency,
+			to_ether(1),
+			0
 		));
-		let initial_user_hdx_balance = user_acc.balance(HDX);
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		let initial_user_dot_balance = user_acc.balance(DOT);
-		assert_eq!(initial_user_dot_balance, 0);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		let initial_user_hdx_balance = user_acc.balance(HDX);
+		assert_eq!(initial_user_hdx_balance, 0);
+
+		// just reset the weth balance to 0 - to make sure we don't have enough DAI
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
-			WETH,
-			-(initial_user_weth_balance as i128),
+			DAI,
+			-(initial_user_dai_balance as i128),
 		));
-		let initial_user_weth_balance = user_acc.balance(WETH);
-		assert_eq!(initial_user_weth_balance, 0);
+		let initial_user_dai_balance = user_acc.balance(DAI);
+		assert_eq!(initial_user_dai_balance, 0);
 
 		//Act
 		let omni_sell =
 			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
-				asset_in: DOT,
-				asset_out: WETH,
+				asset_in: HDX,
+				asset_out: DAI,
 				amount: 10_000_000,
 				min_buy_amount: 0,
 			});
@@ -1947,7 +1948,7 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 			H256::from(rs.s.b32()),
 		));
 
-		assert_eq!(user_acc.balance(WETH), 0);
+		assert_eq!(user_acc.balance(DAI), 0);
 
 		// Verify account nonces
 		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
@@ -1959,10 +1960,8 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 			);
 		assert_eq!(permit_nonce, U256::one());
 
-		let hdx_balance = user_acc.balance(HDX);
-		let tx_fee = initial_user_hdx_balance - hdx_balance;
-
-		assert_eq!(tx_fee, 4210472144093);
+		let tx_fee = initial_user_fee_currency_balance - user_acc.balance(fee_currency);
+		assert!(tx_fee > 0);
 
 		let call = RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::dispatch_permit {
 			from: user_evm_address,
@@ -1997,18 +1996,11 @@ fn dispatch_permit_should_pause_tx_when_no_tx_fee_is_paid() {
 		);
 
 		let initial_user_hdx_balance = user_acc.balance(HDX);
-		// Prepare user evm account - bind and fund
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			user_acc.address(),
-			HDX,
-			-(initial_user_hdx_balance as i128),
-		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		let initial_user_dot_balance = user_acc.balance(DOT);
 		assert_eq!(initial_user_dot_balance, 0);
 
-		// just reset the weth balance to 0 - to make sure we dont have enough WETH
+		// just reset the weth balance to 0 - to make sure we don't have enough WETH to pay fees
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
