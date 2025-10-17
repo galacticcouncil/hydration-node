@@ -251,7 +251,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: galacticcouncil/polkadot-ecosystem-tests
-          ref: hydration-ci
+          ref: hydration-ci-tests
 
       - name: Download WASM artifact
         uses: actions/download-artifact@v4

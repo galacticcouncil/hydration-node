@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "14.4.3"
+version = "14.6.0"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -108,6 +108,11 @@ fp-self-contained = { workspace = true }
 fp-evm = { workspace = true }
 pallet-ethereum = { workspace = true }
 pallet-evm = { workspace = true }
+
+# Hyperbridge
+pallet-ismp-runtime-api = { workspace = true }
+pallet-ismp-rpc = { workspace = true }
+ismp-parachain-inherent = { workspace = true }
 
 [features]
 default = [

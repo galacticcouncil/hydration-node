@@ -426,6 +426,7 @@ impl pallet_currencies::Config for Runtime {
 	type BoundErc20 = AssetRegistry;
 	type ReserveAccount = ReserveAccount;
 	type GetNativeCurrencyId = NativeAssetId;
+	type RegistryInspect = AssetRegistry;
 	type WeightInfo = weights::pallet_currencies::HydraWeight<Runtime>;
 }
 
@@ -1737,6 +1738,7 @@ impl pallet_referrals::Config for Runtime {
 
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 4_000_000;
+	pub BorrowingTreasuryAccount: AccountId = EVMAccounts::account_id(H160::from(hex!["E52567fF06aCd6CBe7BA94dc777a3126e180B6d9"]));
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -1773,7 +1775,7 @@ impl pallet_liquidation::Config for Runtime {
 	type Erc20Mapping = evm::precompiles::erc20_mapping::HydraErc20Mapping;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type GasLimit = LiquidationGasLimit;
-	type ProfitReceiver = TreasuryAccount;
+	type ProfitReceiver = BorrowingTreasuryAccount;
 	type RouterWeightInfo = RouterWeightInfo;
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 	type HollarId = HOLLAR;
