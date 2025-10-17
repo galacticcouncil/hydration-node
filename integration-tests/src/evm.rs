@@ -10,6 +10,7 @@ use frame_system::RawOrigin;
 use hex_literal::hex;
 use sp_core::bounded_vec::BoundedVec;
 
+use crate::utils::accounts::*;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::evm::EvmAddress;
 use hydradx_runtime::evm::ExtendedAddressMapping;
@@ -25,6 +26,7 @@ use hydradx_runtime::{
 use hydradx_traits::router::{PoolType, Trade};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
+use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
@@ -34,6 +36,7 @@ use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
 use std::{borrow::Cow, cmp::Ordering};
 use xcm_emulator::TestExt;
+use pallet_transaction_multi_payment::EVMPermit;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
@@ -2549,6 +2552,118 @@ fn evm_account_always_pays_with_weth_for_evm_call() {
 			to_ether(1),
 			"ether balance should be touched"
 		);
+	});
+}
+
+#[test]
+fn dispatch_batch_should_not_increase_nonce_internally() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		let account = MockAccount::new(alith_evm_account());
+		let signed_origin_account = RuntimeOrigin::signed(account.address());
+
+		let evm_address = alith_evm_address();
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			account.address(),
+			WETH,
+			(100 * UNITS * 1_000_000) as i128,
+		));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			signed_origin_account.clone(),
+			WETH,
+		));
+
+		//Arrange
+		let nonce = account.nonce();
+
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+		let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address,
+			target: DISPATCH_ADDR,
+			input: hex!["0107081337"].to_vec(),
+			value: U256::from(0),
+			gas_limit: 1000000,
+			max_fee_per_gas: gas_price,
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+
+		let data = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![evm_call.clone(), evm_call.clone(), evm_call],
+		});
+
+		//Act
+		// assert_ok!(EVM::call(
+		// 	signed_origin_account,
+		// 	evm_address,
+		// 	DISPATCH_ADDR,
+		// 	data.encode(),
+		// 	U256::from(0),
+		// 	1000000,
+		// 	gas_price * 10,
+		// 	None,
+		// 	Some(U256::zero()),
+		// 	[].into()
+		// ));
+		// assert_ok!(hydradx_runtime::Utility::batch_all(
+		// 	signed_origin_account,
+		// 	vec![evm_call.clone(), evm_call.clone(), evm_call]
+		// ));
+
+		// Permit test
+		let user_secret_key = alith_secret_key();
+		let gas_limit = 1_000_000u64;
+		let deadline = U256::from(1_000_000_000_000u128);
+		let permit_message =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				hydradx_runtime::evm::precompiles::CALLPERMIT,
+				evm_address,
+				DISPATCH_ADDR,
+				U256::zero(),
+				data.encode(),
+				gas_limit * 10,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).expect("valid secret key");
+		let message = Message::parse(&permit_message);
+		let (rs, v) = sign(&message, &secret_key);
+
+		let permit_nonce_before =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address,
+			);
+
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			evm_address,
+			DISPATCH_ADDR,
+			U256::zero(),
+			data.encode(),
+			gas_limit * 10,
+			deadline,
+			v.serialize(),
+			sp_core::H256::from(rs.r.b32()),
+			sp_core::H256::from(rs.s.b32()),
+		));
+
+		let permit_nonce_after =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address,
+			);
+
+		//Assert
+		assert_eq!(account.nonce(), nonce);
+		assert_eq!(permit_nonce_after, permit_nonce_before + U256::one());
 	});
 }
 
