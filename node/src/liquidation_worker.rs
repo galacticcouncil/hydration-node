@@ -13,6 +13,7 @@ use hydradx_runtime::{
 use hyper::{body::Body, Client, StatusCode};
 use hyperv14 as hyper;
 use liquidation_worker_support::*;
+use pallet_currencies_rpc_runtime_api::CurrenciesApi;
 use pallet_ethereum::Transaction;
 use polkadot_primitives::EncodeAs;
 use primitives::{AccountId, AssetId, Balance};
@@ -32,7 +33,6 @@ use std::{
 	sync::{mpsc, Arc},
 };
 use threadpool::ThreadPool;
-use pallet_currencies_rpc_runtime_api::CurrenciesApi;
 
 const LOG_TARGET: &str = "liquidation-worker";
 
@@ -108,9 +108,7 @@ struct ApiProvider<C>(C);
 impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent> for ApiProvider<&C>
 where
 	Block: BlockT,
-	C: EthereumRuntimeRPCApi<Block>
-		+ Erc20MappingApi<Block>
-		+ CurrenciesApi<Block, AssetId, AccountId, Balance>,
+	C: EthereumRuntimeRPCApi<Block> + Erc20MappingApi<Block> + CurrenciesApi<Block, AssetId, AccountId, Balance>,
 {
 	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64> {
 		let block = self.0.current_block(hash).ok()??;
@@ -145,11 +143,7 @@ where
 		self.0.address_to_asset(hash, address)
 	}
 
-	fn minimum_balance(
-		&self,
-		hash: Block::Hash,
-		asset_id: AssetId
-	) -> Result<Balance, sp_api::ApiError> {
+	fn minimum_balance(&self, hash: Block::Hash, asset_id: AssetId) -> Result<Balance, sp_api::ApiError> {
 		self.0.minimum_balance(hash, asset_id)
 	}
 }

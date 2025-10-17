@@ -19,14 +19,18 @@ use codec::{Decode, Encode};
 use ethabi::ethereum_types::U512;
 use evm::ExitReason;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
-use frame_support::{pallet_prelude::*, sp_runtime::traits::{Block as BlockT, CheckedConversion}, Deserialize};
+use frame_support::sp_runtime::TokenError;
+use frame_support::{
+	pallet_prelude::*,
+	sp_runtime::traits::{Block as BlockT, CheckedConversion},
+	Deserialize,
+};
 use hydradx_traits::evm::EvmAddress;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H160, H256, U256};
 use sp_std::{boxed::Box, ops::BitAnd, vec::Vec};
 use std::marker::PhantomData;
-use frame_support::sp_runtime::TokenError;
 
 pub type Balance = u128;
 pub type AssetId = u32;
@@ -475,7 +479,8 @@ impl UserData {
 		}
 
 		avg_liquidation_threshold = avg_liquidation_threshold
-			.checked_div(total_collateral).unwrap_or_default();
+			.checked_div(total_collateral)
+			.unwrap_or_default();
 
 		let nominator = percent_mul(total_collateral, avg_liquidation_threshold)?;
 		wad_div(nominator, total_debt)
@@ -962,8 +967,8 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 				.map_err(LiquidationError::ApiError)?
 				.ok_or(LiquidationError::ReserveNotFound)?;
 
-			let existential_deposit = ApiProvider::minimum_balance(&api_provider, hash, asset_id)
-				.map_err(LiquidationError::ApiError)?;
+			let existential_deposit =
+				ApiProvider::minimum_balance(&api_provider, hash, asset_id).map_err(LiquidationError::ApiError)?;
 
 			let emode_id = reserve_data.emode_id();
 			let emode = if emode_id == 0 {
@@ -1316,10 +1321,14 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		let oracle_price_decimals = 8;
 		let unit_price = U256::from(10u128.pow(oracle_price_decimals as u32));
 
-		let collateral_existential_deposit: U256 = self.existential_deposit(collateral_asset_address)
-			.ok_or(LiquidationError::ReserveNotFound)?.into();
-		let debt_existential_deposit: U256 = self.existential_deposit(debt_asset_address)
-			.ok_or(LiquidationError::ReserveNotFound)?.into();
+		let collateral_existential_deposit: U256 = self
+			.existential_deposit(collateral_asset_address)
+			.ok_or(LiquidationError::ReserveNotFound)?
+			.into();
+		let debt_existential_deposit: U256 = self
+			.existential_deposit(debt_asset_address)
+			.ok_or(LiquidationError::ReserveNotFound)?
+			.into();
 
 		// Iterate through all reserves to calculate total collateral and debt in base currency and weighted total collateral
 		for (index, reserve) in self.reserves().iter().enumerate() {
@@ -1523,7 +1532,9 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 
 		// Ignore tiny positions that can cause issues with the existential deposit.
 		if collateral_amount < collateral_existential_deposit || actual_debt_to_liquidate < debt_existential_deposit {
-			return Err(LiquidationError::DispatchError(DispatchError::Token(TokenError::BelowMinimum)))
+			return Err(LiquidationError::DispatchError(DispatchError::Token(
+				TokenError::BelowMinimum,
+			)));
 		}
 
 		Ok(LiquidationAmounts {
