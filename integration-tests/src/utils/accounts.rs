@@ -1,8 +1,8 @@
 use hex_literal::hex;
-use hydradx_runtime::Currencies;
+use hydradx_runtime::{Currencies, System};
 use hydradx_traits::evm::InspectEvmAccounts;
 use orml_traits::MultiCurrency;
-use primitives::{AccountId, AssetId, Balance};
+use primitives::{AccountId, AssetId, Balance, Index};
 use sp_core::H160;
 
 // Private key: 42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14
@@ -35,4 +35,5 @@ impl MockAccount {
 	pub fn balance(&self, asset: AssetId) -> Balance {
 		Currencies::free_balance(asset, &self.0)
 	}
+	pub fn nonce(&self) -> Index { System::account_nonce(&self.0) }
 }
