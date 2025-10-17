@@ -35,7 +35,6 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::*,
-	require_transactional,
 	traits::{
 		fungibles::{Inspect, Mutate},
 		tokens::Preservation,
@@ -997,7 +996,6 @@ where
 	/// 6. Updating the amount of Hollar received in this block
 	///
 	/// Returns the final Hollar and collateral amounts traded.
-	#[require_transactional]
 	fn do_trade_hollar_in(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
@@ -1116,7 +1114,6 @@ where
 	/// 4. Minting new Hollar to the user
 	///
 	/// Returns the Hollar and collateral amounts traded.
-	#[require_transactional]
 	fn do_trade_hollar_out(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
