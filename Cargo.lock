@@ -4521,7 +4521,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.4.2"
+version = "14.4.3"
 dependencies = [
  "async-trait",
  "clap",
@@ -4561,6 +4561,7 @@ dependencies = [
  "log",
  "num_cpus",
  "pallet-claims",
+ "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
  "pallet-evm",
  "pallet-liquidation",
@@ -4603,7 +4604,6 @@ dependencies = [
  "substrate-state-trie-migration-rpc",
  "threadpool",
  "tokio",
- "xcm-runtime-apis",
 ]
 
 [[package]]
@@ -6131,13 +6131,12 @@ dependencies = [
 
 [[package]]
 name = "liquidation-worker-support"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "ethabi",
  "ethereum-types 0.15.1",
  "evm",
  "fp-evm",
- "fp-rpc",
  "frame-support",
  "hydradx-traits",
  "module-evm-utility-macro",
@@ -6149,7 +6148,6 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-std",
- "xcm-runtime-apis",
 ]
 
 [[package]]
@@ -12249,7 +12247,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.52.5"
+version = "1.52.6"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -12296,6 +12294,7 @@ dependencies = [
  "pallet-collective",
  "pallet-conviction-voting",
  "pallet-currencies",
+ "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
  "pallet-dispatcher",
  "pallet-duster",
@@ -12342,7 +12341,6 @@ dependencies = [
  "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
- "scale-info",
  "scraper",
  "serde_json",
  "sp-api",
@@ -12370,7 +12368,6 @@ dependencies = [
  "test-utils",
  "tokio",
  "xcm-emulator",
- "xcm-runtime-apis",
 ]
 
 [[package]]

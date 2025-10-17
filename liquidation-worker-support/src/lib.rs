@@ -19,18 +19,14 @@ use codec::{Decode, Encode};
 use ethabi::ethereum_types::U512;
 use evm::ExitReason;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
-use frame_support::{
-	pallet_prelude::*,
-	sp_runtime::traits::{Block as BlockT, CheckedConversion},
-	Deserialize,
-};
+use frame_support::{pallet_prelude::*, sp_runtime::traits::{Block as BlockT, CheckedConversion}, Deserialize};
 use hydradx_traits::evm::EvmAddress;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H160, H256, U256};
 use sp_std::{boxed::Box, ops::BitAnd, vec::Vec};
 use std::marker::PhantomData;
-use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
+use frame_support::sp_runtime::TokenError;
 
 pub type Balance = u128;
 pub type AssetId = u32;
@@ -192,12 +188,7 @@ where
 		gas_limit: U256,
 	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, DispatchError>, sp_api::ApiError>;
 	fn address_to_asset(&self, hash: Block::Hash, address: EvmAddress) -> Result<Option<AssetId>, sp_api::ApiError>;
-	fn dry_run_call(
-		&self,
-		hash: Block::Hash,
-		origin: OriginCaller,
-		call: RuntimeCall,
-	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError>;
+	fn minimum_balance(&self, hash: Block::Hash, asset_id: AssetId) -> Result<Balance, sp_api::ApiError>;
 }
 
 /// Executes a percentage multiplication.
@@ -484,8 +475,7 @@ impl UserData {
 		}
 
 		avg_liquidation_threshold = avg_liquidation_threshold
-			.checked_div(total_collateral) // TODO: .unwrap_or_default();
-			.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?;
+			.checked_div(total_collateral).unwrap_or_default();
 
 		let nominator = percent_mul(total_collateral, avg_liquidation_threshold)?;
 		wad_div(nominator, total_debt)
@@ -672,8 +662,10 @@ impl ReserveData {
 pub struct Reserve {
 	pub reserve_data: ReserveData,
 	pub asset_address: EvmAddress,
+	pub asset_id: AssetId,
 	pub symbol: Vec<u8>,
 	pub price: U256,
+	pub existential_deposit: Balance,
 	pub emode: Option<EModeCategory>,
 }
 impl Reserve {
@@ -966,6 +958,13 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		for asset_address in Self::fetch_reserves_list(&api_provider, hash, pool_contract, caller)?.into_iter() {
 			let reserve_data = Self::fetch_reserve_data(&api_provider, hash, pool_contract, asset_address, caller)?;
 
+			let asset_id = ApiProvider::address_to_asset(&api_provider, hash, asset_address)
+				.map_err(LiquidationError::ApiError)?
+				.ok_or(LiquidationError::ReserveNotFound)?;
+
+			let existential_deposit = ApiProvider::minimum_balance(&api_provider, hash, asset_id)
+				.map_err(LiquidationError::ApiError)?;
+
 			let emode_id = reserve_data.emode_id();
 			let emode = if emode_id == 0 {
 				None
@@ -984,8 +983,10 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 			reserves.push(Reserve {
 				reserve_data,
 				asset_address,
+				asset_id,
 				symbol,
 				price,
+				existential_deposit,
 				emode,
 			});
 		}
@@ -1222,6 +1223,20 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		Ok(self.reserves[reserve_index].asset_address)
 	}
 
+	pub fn address_to_asset(&self, address: EvmAddress) -> Option<AssetId> {
+		self.reserves
+			.iter()
+			.find(|x| x.asset_address == address)
+			.map(|x| x.asset_id)
+	}
+
+	pub fn existential_deposit(&self, address: EvmAddress) -> Option<Balance> {
+		self.reserves
+			.iter()
+			.find(|x| x.asset_address == address)
+			.map(|x| x.existential_deposit)
+	}
+
 	/// Change the stored price of some reserve asset.
 	/// Reserves are not recalculated.
 	pub fn update_reserve_price(&mut self, asset_address: EvmAddress, new_price: &U256) {
@@ -1300,6 +1315,11 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 		let hf_one = U256::from(10).pow(18.into());
 		let oracle_price_decimals = 8;
 		let unit_price = U256::from(10u128.pow(oracle_price_decimals as u32));
+
+		let collateral_existential_deposit: U256 = self.existential_deposit(collateral_asset_address)
+			.ok_or(LiquidationError::ReserveNotFound)?.into();
+		let debt_existential_deposit: U256 = self.existential_deposit(debt_asset_address)
+			.ok_or(LiquidationError::ReserveNotFound)?.into();
 
 		// Iterate through all reserves to calculate total collateral and debt in base currency and weighted total collateral
 		for (index, reserve) in self.reserves().iter().enumerate() {
@@ -1499,6 +1519,11 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 				.ok_or::<LiquidationError>(ArithmeticError::Overflow.into())?
 				.try_into()
 				.map_err(|_| ArithmeticError::Overflow)?;
+		}
+
+		// Ignore tiny positions that can cause issues with the existential deposit.
+		if collateral_amount < collateral_existential_deposit || actual_debt_to_liquidate < debt_existential_deposit {
+			return Err(LiquidationError::DispatchError(DispatchError::Token(TokenError::BelowMinimum)))
 		}
 
 		Ok(LiquidationAmounts {

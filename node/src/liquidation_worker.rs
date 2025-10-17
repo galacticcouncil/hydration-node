@@ -15,7 +15,7 @@ use hyperv14 as hyper;
 use liquidation_worker_support::*;
 use pallet_ethereum::Transaction;
 use polkadot_primitives::EncodeAs;
-use primitives::AccountId;
+use primitives::{AccountId, AssetId, Balance};
 use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
@@ -32,7 +32,7 @@ use std::{
 	sync::{mpsc, Arc},
 };
 use threadpool::ThreadPool;
-use xcm_runtime_apis::dry_run::{CallDryRunEffects, DryRunApi, Error as XcmDryRunApiError};
+use pallet_currencies_rpc_runtime_api::CurrenciesApi;
 
 const LOG_TARGET: &str = "liquidation-worker";
 
@@ -110,13 +110,14 @@ where
 	Block: BlockT,
 	C: EthereumRuntimeRPCApi<Block>
 		+ Erc20MappingApi<Block>
-		+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>,
+		+ CurrenciesApi<Block, AssetId, AccountId, Balance>,
 {
 	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64> {
 		let block = self.0.current_block(hash).ok()??;
 		// milliseconds to seconds
 		block.header.timestamp.checked_div(1_000)
 	}
+
 	fn call(
 		&self,
 		hash: Block::Hash,
@@ -139,16 +140,17 @@ where
 			None,
 		)
 	}
+
 	fn address_to_asset(&self, hash: Block::Hash, address: AssetAddress) -> Result<Option<AssetId>, sp_api::ApiError> {
 		self.0.address_to_asset(hash, address)
 	}
-	fn dry_run_call(
+
+	fn minimum_balance(
 		&self,
 		hash: Block::Hash,
-		origin: OriginCaller,
-		call: RuntimeCall,
-	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError> {
-		self.0.dry_run_call(hash, origin, call)
+		asset_id: AssetId
+	) -> Result<Balance, sp_api::ApiError> {
+		self.0.minimum_balance(hash, asset_id)
 	}
 }
 
@@ -184,7 +186,7 @@ impl<B, C, BE, P> LiquidationTask<B, C, BE, P>
 where
 	B: BlockT,
 	C: ProvideRuntimeApi<B>,
-	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller>,
+	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + CurrenciesApi<B, AssetId, AccountId, Balance>,
 	C: BlockchainEvents<B> + 'static,
 	C: HeaderBackend<B> + StorageProvider<B, BE>,
 	BE: Backend<B> + 'static,
@@ -442,7 +444,6 @@ where
 		money_market: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
 		liquidated_users: &mut Vec<UserAddress>,
 	) -> Result<(), ()> {
-		let runtime_api = client.runtime_api();
 		let hash = header.hash();
 
 		let Some(ref mut borrower) = borrowers
@@ -493,9 +494,9 @@ where
 			config.target_hf.into(),
 			updated_assets,
 		) {
-			let (Ok(Some(collateral_asset_id)), Ok(Some(debt_asset_id))) = (
-				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.collateral_asset),
-				ApiProvider::<&C::Api>(runtime_api.deref()).address_to_asset(hash, liquidation_option.debt_asset),
+			let (Some(collateral_asset_id), Some(debt_asset_id)) = (
+				money_market.address_to_asset(liquidation_option.collateral_asset),
+				money_market.address_to_asset(liquidation_option.debt_asset),
 			) else {
 				tracing::error!(target: LOG_TARGET, "liquidation-worker: address_to_asset conversion failed");
 				return Ok(());

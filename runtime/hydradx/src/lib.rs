@@ -686,6 +686,10 @@ impl_runtime_apis! {
 		fn free_balance(asset_id: AssetId, who: AccountId) -> Balance {
 			Currencies::free_balance(asset_id, &who)
 		}
+
+		fn minimum_balance(asset_id: AssetId) -> Balance {
+			Currencies::minimum_balance(asset_id)
+		}
 	}
 
 	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {

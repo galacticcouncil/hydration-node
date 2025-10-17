@@ -1,6 +1,6 @@
 [package]
 name = "liquidation-worker-support"
-version = "1.1.0"
+version = "1.1.1"
 description = "Methods for the liquidation worker"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -18,13 +18,11 @@ frame-support = { workspace = true }
 
 evm = { workspace = true, features = ["with-codec"] }
 fp-evm = { workspace = true }
-fp-rpc = { workspace = true }
 num_enum = { workspace = true, default-features = false }
 ethabi = { workspace = true }
 ethereum-types = { workspace = true }
 primitive-types = { workspace = true }
 module-evm-utility-macro = { workspace = true }
-xcm-runtime-apis = { workspace = true }
 
 # Hydration dependencies
 hydradx-traits = { workspace = true }
