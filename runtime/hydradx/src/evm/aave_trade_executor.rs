@@ -1,11 +1,28 @@
-use crate::evm::executor::{BalanceOf, CallResult, NonceIdOf};
+use crate::evm::executor::{
+	BalanceOf,
+	CallResult,
+	NonceIdOf,
+};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
 use crate::evm::Executor;
-use crate::evm::{Erc20Currency, EvmAccounts};
-use crate::{Runtime, Vec};
-use codec::{Decode, Encode, MaxEncodedLen};
-use ethabi::{decode, ParamType};
+use crate::evm::{
+	Erc20Currency,
+	EvmAccounts,
+};
+use crate::{
+	Runtime,
+	Vec,
+};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
+use ethabi::{
+	decode,
+	ParamType,
+};
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed;
 use frame_support::dispatch::DispatchResult;
@@ -14,26 +31,53 @@ use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::IsType;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, ERC20, EVM};
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::evm::{
+	CallContext,
+	Erc20Mapping,
+	InspectEvmAccounts,
+	ERC20,
+	EVM,
+};
+use hydradx_traits::router::{
+	ExecutorError,
+	PoolType,
+	TradeExecution,
+};
 use hydradx_traits::BoundErc20;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use pallet_broadcast::types::Asset;
 use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
 use polkadot_xcm::v3::MultiLocation;
-use primitive_types::{H256, U256};
-use primitives::{AccountId, AssetId, Balance, EvmAddress};
+use primitive_types::{
+	H256,
+	U256,
+};
+use primitives::{
+	AccountId,
+	AssetId,
+	Balance,
+	EvmAddress,
+};
 use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_arithmetic::{ArithmeticError, FixedU128};
+use sp_arithmetic::{
+	ArithmeticError,
+	FixedU128,
+};
 use sp_core::crypto::AccountId32;
 use sp_runtime::format;
 use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::Zero;
-use sp_runtime::{DispatchError, RuntimeDebug};
+use sp_runtime::{
+	DispatchError,
+	RuntimeDebug,
+};
 use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
 use sp_std::vec;

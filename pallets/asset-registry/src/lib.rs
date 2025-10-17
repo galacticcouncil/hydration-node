@@ -21,7 +21,10 @@
 use frame_support::pallet_prelude::*;
 use frame_support::require_transactional;
 use frame_support::sp_runtime::traits::CheckedAdd;
-use frame_support::traits::tokens::fungibles::{Inspect as FungiblesInspect, Mutate as FungiblesMutate};
+use frame_support::traits::tokens::fungibles::{
+	Inspect as FungiblesInspect,
+	Mutate as FungiblesMutate,
+};
 use frame_support::traits::Contains;
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
@@ -45,13 +48,24 @@ pub use types::AssetType;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-pub use crate::types::{AssetDetails, Balance, Name, Symbol};
+pub use crate::types::{
+	AssetDetails,
+	Balance,
+	Name,
+	Symbol,
+};
 use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
-	registry::{Create, Inspect, Mutate},
-	AssetKind, BoundErc20, RegisterAssetHook,
+	registry::{
+		Create,
+		Inspect,
+		Mutate,
+	},
+	AssetKind,
+	BoundErc20,
+	RegisterAssetHook,
 };
 use orml_traits::GetByKey;
 use polkadot_xcm::v3::Junction::AccountKey20;

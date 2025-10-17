@@ -10,7 +10,12 @@ use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
 use proptest::prelude::*;
-use sp_runtime::{FixedPointNumber, FixedU128, Perbill, Permill};
+use sp_runtime::{
+	FixedPointNumber,
+	FixedU128,
+	Perbill,
+	Permill,
+};
 use test_utils::assert_eq_approx;
 
 #[test]

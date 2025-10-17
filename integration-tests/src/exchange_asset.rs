@@ -8,21 +8,47 @@ use frame_support::{
 	dispatch::GetDispatchInfo,
 	pallet_prelude::*,
 	storage::with_transaction,
-	traits::{fungible::Balanced, tokens::Precision},
+	traits::{
+		fungible::Balanced,
+		tokens::Precision,
+	},
 	weights::Weight,
 };
-use hydradx_runtime::{AssetRegistry, Currencies, Omnipool, Router, RuntimeOrigin, TempAccountForXcmAssetExchange};
-use hydradx_traits::{AssetKind, Create};
+use hydradx_runtime::{
+	AssetRegistry,
+	Currencies,
+	Omnipool,
+	Router,
+	RuntimeOrigin,
+	TempAccountForXcmAssetExchange,
+};
+use hydradx_traits::{
+	AssetKind,
+	Create,
+};
 use orml_traits::currency::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
-use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
-use polkadot_xcm::{v4::prelude::*, VersionedXcm};
+use polkadot_xcm::opaque::v3::{
+	Junction,
+	Junctions::X2,
+	MultiLocation,
+};
+use polkadot_xcm::{
+	v4::prelude::*,
+	VersionedXcm,
+};
 use pretty_assertions::assert_eq;
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::Balance;
 use sp_runtime::{
-	traits::{Convert, Zero},
-	DispatchResult, FixedU128, Permill, TransactionOutcome,
+	traits::{
+		Convert,
+		Zero,
+	},
+	DispatchResult,
+	FixedU128,
+	Permill,
+	TransactionOutcome,
 };
 use sp_std::sync::Arc;
 use xcm_emulator::TestExt;
@@ -400,8 +426,14 @@ fn transfer_and_swap_should_work_with_4_hops() {
 pub mod zeitgeist_use_cases {
 	use super::*;
 	use frame_support::traits::tokens::Precision;
-	use polkadot_xcm::latest::{NetworkId, Parent};
-	use polkadot_xcm::prelude::{Parachain, Unlimited};
+	use polkadot_xcm::latest::{
+		NetworkId,
+		Parent,
+	};
+	use polkadot_xcm::prelude::{
+		Parachain,
+		Unlimited,
+	};
 	use std::sync::Arc;
 
 	use primitives::constants::chain::CORE_ASSET_ID;
@@ -1090,13 +1122,26 @@ mod circuit_breaker {
 	use crate::assert_reserved_balance;
 	use frame_support::assert_ok;
 	use frame_support::storage::with_transaction;
-	use hydradx_runtime::{Currencies, FixedU128, Omnipool};
+	use hydradx_runtime::{
+		Currencies,
+		FixedU128,
+		Omnipool,
+	};
 	use orml_traits::MultiReservableCurrency;
-	use polkadot_xcm::latest::{Asset, Location};
+	use polkadot_xcm::latest::{
+		Asset,
+		Location,
+	};
 	use polkadot_xcm::v3::MultiLocation;
 	use polkadot_xcm::VersionedAssets;
-	use primitives::constants::chain::{Weight, CORE_ASSET_ID};
-	use sp_runtime::{DispatchResult, TransactionOutcome};
+	use primitives::constants::chain::{
+		Weight,
+		CORE_ASSET_ID,
+	};
+	use sp_runtime::{
+		DispatchResult,
+		TransactionOutcome,
+	};
 	use std::sync::Arc;
 
 	#[test]

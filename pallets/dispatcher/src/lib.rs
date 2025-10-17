@@ -40,8 +40,14 @@ pub mod weights;
 
 use frame_support::dispatch::PostDispatchInfo;
 use hydradx_traits::evm::MaybeEvmCall;
-use pallet_evm::{ExitReason, GasWeightMapping};
-use sp_runtime::{traits::Dispatchable, DispatchResultWithInfo};
+use pallet_evm::{
+	ExitReason,
+	GasWeightMapping,
+};
+use sp_runtime::{
+	traits::Dispatchable,
+	DispatchResultWithInfo,
+};
 pub use weights::WeightInfo;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -54,12 +60,21 @@ pub mod pallet {
 	use codec::FullCodec;
 	use frame_support::dispatch::DispatchErrorWithPostInfo;
 	use frame_support::{
-		dispatch::{GetDispatchInfo, PostDispatchInfo},
+		dispatch::{
+			GetDispatchInfo,
+			PostDispatchInfo,
+		},
 		pallet_prelude::*,
 	};
 	use frame_system::pallet_prelude::*;
-	use pallet_evm::{ExitReason, ExitSucceed};
-	use sp_runtime::traits::{Dispatchable, Hash};
+	use pallet_evm::{
+		ExitReason,
+		ExitSucceed,
+	};
+	use sp_runtime::traits::{
+		Dispatchable,
+		Hash,
+	};
 	use sp_std::boxed::Box;
 
 	pub type AccountId = u64;

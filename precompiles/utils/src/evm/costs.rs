@@ -19,7 +19,10 @@
 
 use {
 	crate::EvmResult,
-	fp_evm::{ExitError, PrecompileFailure},
+	fp_evm::{
+		ExitError,
+		PrecompileFailure,
+	},
 	sp_core::U256,
 };
 

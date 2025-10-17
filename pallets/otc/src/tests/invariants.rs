@@ -17,7 +17,10 @@
 
 use crate::tests::mock::*;
 use proptest::prelude::*;
-use sp_runtime::{FixedPointNumber, FixedU128};
+use sp_runtime::{
+	FixedPointNumber,
+	FixedU128,
+};
 use std::cmp::min;
 use test_utils::assert_eq_approx;
 

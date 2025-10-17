@@ -4,7 +4,10 @@ use crate::types::AssetType;
 use mock::Registry;
 use mock::RegistryStringLimit;
 use polkadot_xcm::v3::{
-	Junction::{self, Parachain},
+	Junction::{
+		self,
+		Parachain,
+	},
 	Junctions::X2,
 	MultiLocation,
 };

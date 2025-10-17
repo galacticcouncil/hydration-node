@@ -19,14 +19,30 @@
 use super::*;
 
 use crate::Config;
-use crate::{self as liq_mining, types::DefaultPriceAdjustment};
-use frame_support::{parameter_types, traits::Contains, traits::Everything, PalletId};
+use crate::{
+	self as liq_mining,
+	types::DefaultPriceAdjustment,
+};
+use frame_support::{
+	parameter_types,
+	traits::Contains,
+	traits::Everything,
+	PalletId,
+};
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, registry::Inspect, AssetKind};
+use hydradx_traits::{
+	pools::DustRemovalAccountWhitelist,
+	registry::Inspect,
+	AssetKind,
+};
 use orml_traits::GetByKey;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		BlockNumberProvider,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 
@@ -42,7 +58,10 @@ pub enum ReserveIdentifier {
 	Count,
 }
 
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+	cell::RefCell,
+	collections::HashMap,
+};
 
 pub type Balance = u128;
 pub type AssetId = u32;

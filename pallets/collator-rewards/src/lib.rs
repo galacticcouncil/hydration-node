@@ -27,7 +27,10 @@ mod tests;
 
 pub mod migration;
 
-use frame_support::{traits::Get, BoundedVec};
+use frame_support::{
+	traits::Get,
+	BoundedVec,
+};
 
 use orml_traits::MultiCurrency;
 use pallet_session::SessionManager;

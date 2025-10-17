@@ -24,32 +24,79 @@ use crate::Config;
 use crate::ERC20Function;
 use core::ops::RangeInclusive;
 use ethabi::ethereum_types::U256;
-use evm::{ExitError, ExitReason, ExitSucceed};
-use frame_support::pallet_prelude::{Hooks, Weight};
+use evm::{
+	ExitError,
+	ExitReason,
+	ExitSucceed,
+};
+use frame_support::pallet_prelude::{
+	Hooks,
+	Weight,
+};
 use frame_support::sp_runtime::{
-	traits::{IdentifyAccount, Verify},
+	traits::{
+		IdentifyAccount,
+		Verify,
+	},
 	MultiSignature,
 };
 use frame_support::traits::Contains;
-use frame_support::traits::{ConstU128, ConstU32, ConstU64, Everything};
-use frame_support::{construct_runtime, parameter_types};
+use frame_support::traits::{
+	ConstU128,
+	ConstU32,
+	ConstU64,
+	Everything,
+};
+use frame_support::{
+	construct_runtime,
+	parameter_types,
+};
 use frame_system::EnsureRoot;
 use hydra_dx_math::hsm::CoefficientRatio;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
-	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
+	evm::{
+		CallContext,
+		EvmAddress,
+		InspectEvmAccounts,
+		EVM,
+	},
 	stableswap::AssetAmount,
-	AssetKind, BoundErc20, Inspect,
+	AssetKind,
+	BoundErc20,
+	Inspect,
 };
-use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
+use hydradx_traits::{
+	AccountIdFor,
+	Liquidity,
+	RawEntry,
+	Volume,
+};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::traits::PegRawOracle;
-use pallet_stableswap::types::{BoundedPegSources, PegSource};
-use sp_core::{ByteArray, H256};
-use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
-use sp_runtime::{BoundedVec, Perbill};
-use sp_runtime::{BuildStorage, DispatchError, Permill};
+use pallet_stableswap::types::{
+	BoundedPegSources,
+	PegSource,
+};
+use sp_core::{
+	ByteArray,
+	H256,
+};
+use sp_runtime::traits::{
+	BlakeTwo256,
+	BlockNumberProvider,
+	IdentityLookup,
+};
+use sp_runtime::{
+	BoundedVec,
+	Perbill,
+};
+use sp_runtime::{
+	BuildStorage,
+	DispatchError,
+	Permill,
+};
 use sp_std::num::NonZeroU16;
 use std::cell::RefCell;
 use std::collections::HashMap;

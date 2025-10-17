@@ -34,31 +34,61 @@ mod traits;
 
 pub use crate::traits::*;
 use frame_support::storage::with_transaction;
-use frame_support::traits::{Contains, IsSubType};
+use frame_support::traits::{
+	Contains,
+	IsSubType,
+};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	sp_runtime::{
-		traits::{DispatchInfoOf, One, PostDispatchInfoOf, Saturating, Zero},
-		transaction_validity::{InvalidTransaction, TransactionValidityError},
-		FixedPointNumber, FixedPointOperand, FixedU128,
+		traits::{
+			DispatchInfoOf,
+			One,
+			PostDispatchInfoOf,
+			Saturating,
+			Zero,
+		},
+		transaction_validity::{
+			InvalidTransaction,
+			TransactionValidityError,
+		},
+		FixedPointNumber,
+		FixedPointOperand,
+		FixedU128,
 	},
 	traits::Get,
 	weights::Weight,
 };
-use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::BlockNumberFor,
+};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee::InspectTransactionFeeCurrency;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
-	router::{AssetPair, RouteProvider},
-	AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle,
+	router::{
+		AssetPair,
+		RouteProvider,
+	},
+	AccountFeeCurrency,
+	NativePriceOracle,
+	OraclePeriod,
+	PriceOracle,
 };
-use orml_traits::{GetByKey, Happened, MultiCurrency};
+use orml_traits::{
+	GetByKey,
+	Happened,
+	MultiCurrency,
+};
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_runtime::traits::TryConvert;
-use sp_std::{marker::PhantomData, prelude::*};
+use sp_std::{
+	marker::PhantomData,
+	prelude::*,
+};
 
 pub type AssetIdOf<T> =
 	<<T as Config>::Currencies as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
@@ -80,8 +110,15 @@ pub mod pallet {
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::fee::SwappablePaymentAssetTrader;
-	use sp_core::{H160, H256, U256};
-	use sp_runtime::{ModuleError, TransactionOutcome};
+	use sp_core::{
+		H160,
+		H256,
+		U256,
+	};
+	use sp_runtime::{
+		ModuleError,
+		TransactionOutcome,
+	};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);

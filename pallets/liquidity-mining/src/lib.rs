@@ -96,19 +96,43 @@ mod types;
 pub use pallet::*;
 
 pub use crate::types::{
-	Balance, DefaultPriceAdjustment, DepositData, DepositId, FarmId, FarmMultiplier, FarmState, GlobalFarmData,
-	GlobalFarmId, LoyaltyCurve, YieldFarmData, YieldFarmEntry, YieldFarmId,
+	Balance,
+	DefaultPriceAdjustment,
+	DepositData,
+	DepositId,
+	FarmId,
+	FarmMultiplier,
+	FarmState,
+	GlobalFarmData,
+	GlobalFarmId,
+	LoyaltyCurve,
+	YieldFarmData,
+	YieldFarmEntry,
+	YieldFarmId,
 };
-use codec::{Decode, Encode, FullCodec};
+use codec::{
+	Decode,
+	Encode,
+	FullCodec,
+};
 use frame_support::{
 	defensive,
 	pallet_prelude::*,
 	require_transactional,
 	sp_runtime::{
-		traits::{AccountIdConversion, BlockNumberProvider, MaybeSerializeDeserialize, One, Zero},
+		traits::{
+			AccountIdConversion,
+			BlockNumberProvider,
+			MaybeSerializeDeserialize,
+			One,
+			Zero,
+		},
 		RuntimeDebug,
 	},
-	traits::{Defensive, DefensiveOption},
+	traits::{
+		Defensive,
+		DefensiveOption,
+	},
 	PalletId,
 };
 
@@ -116,16 +140,31 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::ArithmeticError;
 
 use hydra_dx_math::liquidity_mining as math;
-use hydradx_traits::{liquidity_mining::PriceAdjustment, pools::DustRemovalAccountWhitelist, registry::Inspect};
-use orml_traits::{GetByKey, MultiCurrency};
+use hydradx_traits::{
+	liquidity_mining::PriceAdjustment,
+	pools::DustRemovalAccountWhitelist,
+	registry::Inspect,
+};
+use orml_traits::{
+	GetByKey,
+	MultiCurrency,
+};
 use scale_info::TypeInfo;
 use sp_arithmetic::{
 	fixed_point::FixedU128,
-	traits::{CheckedAdd, CheckedDiv, CheckedSub},
+	traits::{
+		CheckedAdd,
+		CheckedDiv,
+		CheckedSub,
+	},
 	Perquintill,
 };
 use sp_std::{
-	convert::{From, Into, TryInto},
+	convert::{
+		From,
+		Into,
+		TryInto,
+	},
 	vec::Vec,
 };
 

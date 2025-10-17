@@ -1,5 +1,13 @@
 use crate::{
-	assets::MaxVestingSchedules, AccountId, AssetId, Balance, BlockNumber, Currencies, NativeAssetId, Runtime, System,
+	assets::MaxVestingSchedules,
+	AccountId,
+	AssetId,
+	Balance,
+	BlockNumber,
+	Currencies,
+	NativeAssetId,
+	Runtime,
+	System,
 	Vesting,
 };
 
@@ -7,7 +15,10 @@ use super::BSX;
 
 use sp_std::prelude::*;
 
-use frame_benchmarking::{account, whitelisted_caller};
+use frame_benchmarking::{
+	account,
+	whitelisted_caller,
+};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
 
@@ -17,7 +28,11 @@ use orml_traits::MultiCurrencyExtended;
 use orml_vesting::VestingSchedule;
 
 use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
-use sp_runtime::traits::{AccountIdConversion, SaturatedConversion, StaticLookup};
+use sp_runtime::traits::{
+	AccountIdConversion,
+	SaturatedConversion,
+	StaticLookup,
+};
 pub type Schedule = VestingSchedule<BlockNumber, Balance>;
 
 const SEED: u32 = 0;

@@ -1,6 +1,9 @@
 #![cfg(test)]
 
-use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
+use crate::{
+	oracle::hydradx_run_to_block,
+	polkadot_test_net::*,
+};
 use frame_support::assert_ok;
 use frame_support::dispatch::DispatchClass;
 use frame_support::dispatch::GetDispatchInfo;
@@ -8,7 +11,10 @@ use frame_support::weights::WeightToFee as WeightToFeeTrait;
 use hydradx_runtime::evm::precompiles::DISPATCH_ADDR;
 use hydradx_runtime::TransactionPayment;
 use hydradx_runtime::EVM;
-use hydradx_runtime::{Runtime, Tokens};
+use hydradx_runtime::{
+	Runtime,
+	Tokens,
+};
 use orml_traits::MultiCurrency;
 use pallet_evm::FeeCalculator;
 use primitives::constants::chain::Weight;
@@ -16,7 +22,10 @@ use primitives::constants::currency::UNITS;
 use primitives::constants::time::HOURS;
 use sp_core::Encode;
 use sp_core::U256;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
 

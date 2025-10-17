@@ -32,7 +32,12 @@ use frame_support::sp_runtime::DispatchError;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
-use frame_support::{dispatch::DispatchResult, ensure, traits::Contains, traits::Get};
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	traits::Contains,
+	traits::Get,
+};
 use frame_system::ensure_signed;
 use hydradx_traits::evm::Erc20Inspect;
 use hydradx_traits::evm::Erc20OnDust;
@@ -52,7 +57,10 @@ pub mod pallet {
 	use super::*;
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+	use frame_system::pallet_prelude::{
+		BlockNumberFor,
+		OriginFor,
+	};
 	use sp_std::vec::Vec;
 
 	/// The current storage version.

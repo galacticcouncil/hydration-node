@@ -2,10 +2,21 @@ use crate::fraction;
 use crate::support::rational::Rounding;
 use crate::to_u128_wrapper;
 use crate::transcendental::saturating_powi_high_precision;
-use crate::types::{Balance, Fraction, Ratio};
+use crate::types::{
+	Balance,
+	Fraction,
+	Ratio,
+};
 
-use num_traits::{One, Zero};
-use primitive_types::{U128, U256, U512};
+use num_traits::{
+	One,
+	Zero,
+};
+use primitive_types::{
+	U128,
+	U256,
+	U512,
+};
 
 /// EmaPrice is a rational number represented by a `u128` for both numerator and denominator.
 pub type EmaPrice = Ratio;

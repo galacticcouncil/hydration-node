@@ -15,7 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::mock::{DOT, HDX};
+use super::mock::{
+	DOT,
+	HDX,
+};
 use super::*;
 
 use pretty_assertions::assert_eq;
@@ -156,7 +159,11 @@ proptest! {
 	}
 }
 
-use hydra_dx_math::ema::{iterated_balance_ema, iterated_price_ema, iterated_volume_ema};
+use hydra_dx_math::ema::{
+	iterated_balance_ema,
+	iterated_price_ema,
+	iterated_volume_ema,
+};
 
 proptest! {
 	#[test]

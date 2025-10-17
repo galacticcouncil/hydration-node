@@ -4,7 +4,13 @@ use num_traits::SaturatingAdd;
 use primitive_types::U128;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Perbill, Permill, Rounding};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+	Perbill,
+	Permill,
+	Rounding,
+};
 
 pub type PegType = (Balance, Balance);
 pub type Price = (Balance, Balance);

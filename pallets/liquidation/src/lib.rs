@@ -29,32 +29,70 @@
 
 use codec::decode_from_bytes;
 use ethabi::ethereum_types::BigEndianHash;
-use evm::{ExitReason, ExitSucceed};
+use evm::{
+	ExitReason,
+	ExitSucceed,
+};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::AccountIdConversion,
 	traits::{
-		fungibles::{Inspect, Mutate},
-		tokens::{Fortitude, Precision, Preservation},
+		fungibles::{
+			Inspect,
+			Mutate,
+		},
+		tokens::{
+			Fortitude,
+			Precision,
+			Preservation,
+		},
 		DefensiveOption,
 	},
 	PalletId,
 };
-use frame_system::{pallet_prelude::OriginFor, RawOrigin};
+use frame_system::{
+	pallet_prelude::OriginFor,
+	RawOrigin,
+};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
-	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
-	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
+	evm::{
+		CallContext,
+		EvmAddress,
+		InspectEvmAccounts,
+		EVM,
+	},
+	router::{
+		AmmTradeWeights,
+		AmountInAndOut,
+		Route,
+		RouteProvider,
+		RouterT,
+		Trade,
+	},
 };
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use pallet_evm::GasWeightMapping;
 use precompile_utils::evm::{
-	writer::{EvmDataReader, EvmDataWriter},
+	writer::{
+		EvmDataReader,
+		EvmDataWriter,
+	},
 	Bytes,
 };
 use sp_arithmetic::ArithmeticError;
-use sp_core::{crypto::AccountId32, H256, U256};
-use sp_std::{vec, vec::Vec};
+use sp_core::{
+	crypto::AccountId32,
+	H256,
+	U256,
+};
+use sp_std::{
+	vec,
+	vec::Vec,
+};
 
 #[cfg(test)]
 mod tests;

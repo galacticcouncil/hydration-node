@@ -20,16 +20,41 @@
 use super::*;
 use crate as pallet_democracy;
 use frame_support::{
-	assert_noop, assert_ok, derive_impl, ord_parameter_types, parameter_types,
-	traits::{ConstU32, ConstU64, Contains, EqualPrivilegeOnly, OnInitialize, SortedMembers, StorePreimage},
+	assert_noop,
+	assert_ok,
+	derive_impl,
+	ord_parameter_types,
+	parameter_types,
+	traits::{
+		ConstU32,
+		ConstU64,
+		Contains,
+		EqualPrivilegeOnly,
+		OnInitialize,
+		SortedMembers,
+		StorePreimage,
+	},
 	weights::Weight,
 };
-use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
-use pallet_balances::{BalanceLock, Error as BalancesError};
+use frame_system::{
+	EnsureRoot,
+	EnsureSigned,
+	EnsureSignedBy,
+};
+use pallet_balances::{
+	BalanceLock,
+	Error as BalancesError,
+};
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BadOrigin, BlakeTwo256, Hash, IdentityLookup},
-	BuildStorage, Perbill,
+	traits::{
+		BadOrigin,
+		BlakeTwo256,
+		Hash,
+		IdentityLookup,
+	},
+	BuildStorage,
+	Perbill,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -318,7 +343,10 @@ fn tally(r: ReferendumIndex) -> Tally<u64> {
 
 /// note a new preimage without registering.
 fn note_preimage(who: u64) -> <Test as frame_system::Config>::Hash {
-	use std::sync::atomic::{AtomicU8, Ordering};
+	use std::sync::atomic::{
+		AtomicU8,
+		Ordering,
+	};
 	// note a new preimage on every function invoke.
 	static COUNTER: AtomicU8 = AtomicU8::new(0);
 	let data = vec![COUNTER.fetch_add(1, Ordering::Relaxed)];

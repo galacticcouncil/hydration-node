@@ -14,7 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
-use sha3::{Digest, Keccak256};
+use sha3::{
+	Digest,
+	Keccak256,
+};
 
 #[test]
 fn test_keccak256() {

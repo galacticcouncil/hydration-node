@@ -1,10 +1,23 @@
 use super::*;
 use frame_support::storage::with_transaction;
 use hex_literal::hex;
-use polkadot_xcm::v3::Junction::{AccountKey20, Parachain};
-use polkadot_xcm::v3::Junctions::{Here, X1, X2};
-use polkadot_xcm::v3::{Junction, MultiLocation};
-use sp_runtime::{DispatchResult, TransactionOutcome};
+use polkadot_xcm::v3::Junction::{
+	AccountKey20,
+	Parachain,
+};
+use polkadot_xcm::v3::Junctions::{
+	Here,
+	X1,
+	X2,
+};
+use polkadot_xcm::v3::{
+	Junction,
+	MultiLocation,
+};
+use sp_runtime::{
+	DispatchResult,
+	TransactionOutcome,
+};
 
 use mock::Registry;
 

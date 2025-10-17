@@ -21,7 +21,12 @@ use sp_std::vec::Vec;
 
 pub mod v1 {
 	use super::*;
-	use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion};
+	use frame_support::traits::{
+		Get,
+		GetStorageVersion,
+		PalletInfoAccess,
+		StorageVersion,
+	};
 
 	pub fn pre_migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() {
 		let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
@@ -80,7 +85,12 @@ pub mod v2 {
 	use super::*;
 	use frame_support::migrations::VersionedMigration;
 	use frame_support::storage_alias;
-	use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, UncheckedOnRuntimeUpgrade};
+	use frame_support::traits::{
+		Get,
+		GetStorageVersion,
+		PalletInfoAccess,
+		UncheckedOnRuntimeUpgrade,
+	};
 	use frame_support::Blake2_128Concat;
 
 	#[storage_alias]
@@ -94,7 +104,10 @@ pub mod v2 {
 
 	// Private module to hide the migration.
 	mod unversioned {
-		use frame_support::pallet_prelude::{GetStorageVersion, PalletInfoAccess};
+		use frame_support::pallet_prelude::{
+			GetStorageVersion,
+			PalletInfoAccess,
+		};
 
 		pub struct InnerMigrateV1ToV2<T: crate::Config, P: GetStorageVersion + PalletInfoAccess>(
 			core::marker::PhantomData<(T, P)>,

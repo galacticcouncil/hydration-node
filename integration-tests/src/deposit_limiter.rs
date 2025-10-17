@@ -2,15 +2,26 @@ use crate::assert_reserved_balance;
 use crate::polkadot_test_net::*;
 use frame_support::pallet_prelude::Pays;
 use frame_support::storage::with_transaction;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use frame_system::RawOrigin;
 use hydradx_runtime::Router;
 use hydradx_runtime::RuntimeOrigin;
-use hydradx_runtime::{AssetRegistry, CircuitBreaker, Currencies, Omnipool};
+use hydradx_runtime::{
+	AssetRegistry,
+	CircuitBreaker,
+	Currencies,
+	Omnipool,
+};
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use primitives::constants::time::DAYS;
-use primitives::{AssetId, Balance};
+use primitives::{
+	AssetId,
+	Balance,
+};
 use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
 use xcm_emulator::TestExt;
@@ -504,7 +515,11 @@ use hydradx_runtime::origins::Origin;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use polkadot_xcm::opaque::lts::WeightLimit;
-use polkadot_xcm::opaque::v3::{Junction, Junctions::X2, MultiLocation};
+use polkadot_xcm::opaque::v3::{
+	Junction,
+	Junctions::X2,
+	MultiLocation,
+};
 use primitives::constants::currency::UNITS;
 
 #[test]

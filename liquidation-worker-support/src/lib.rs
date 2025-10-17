@@ -15,11 +15,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::{Decode, Encode};
+use codec::{
+	Decode,
+	Encode,
+};
 use evm::ExitReason;
 use frame_support::pallet_prelude::*;
 use frame_support::Deserialize;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use sp_core::H160;
 use sp_std::vec::Vec;
 use std::marker::PhantomData;
@@ -29,13 +35,29 @@ pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
 use ethabi::ethereum_types::U512;
-use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
-use frame_support::sp_runtime::traits::{Block as BlockT, CheckedConversion};
+use fp_evm::{
+	ExitReason::Succeed,
+	ExitSucceed::Returned,
+};
+use frame_support::sp_runtime::traits::{
+	Block as BlockT,
+	CheckedConversion,
+};
 use hydradx_traits::evm::EvmAddress;
 use sp_arithmetic::ArithmeticError;
-use sp_core::{RuntimeDebug, H256, U256};
-use sp_std::{boxed::Box, ops::BitAnd};
-use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
+use sp_core::{
+	RuntimeDebug,
+	H256,
+	U256,
+};
+use sp_std::{
+	boxed::Box,
+	ops::BitAnd,
+};
+use xcm_runtime_apis::dry_run::{
+	CallDryRunEffects,
+	Error as XcmDryRunApiError,
+};
 
 #[derive(RuntimeDebug)]
 pub enum LiquidationError {

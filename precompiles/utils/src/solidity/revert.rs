@@ -17,9 +17,18 @@
 //! Utilities to work with revert messages with support for backtraces and
 //! consistent formatting.
 
-use crate::solidity::{self, codec::bytes::UnboundedBytes};
-use alloc::string::{String, ToString};
-use fp_evm::{ExitRevert, PrecompileFailure};
+use crate::solidity::{
+	self,
+	codec::bytes::UnboundedBytes,
+};
+use alloc::string::{
+	String,
+	ToString,
+};
+use fp_evm::{
+	ExitRevert,
+	PrecompileFailure,
+};
 use sp_std::vec::Vec;
 
 /// Represent the result of a computation that can revert.

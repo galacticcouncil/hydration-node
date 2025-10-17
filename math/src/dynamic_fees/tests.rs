@@ -1,7 +1,14 @@
 use super::types::*;
-use crate::dynamic_fees::{compute_dynamic_fee, recalculate_asset_fee, recalculate_protocol_fee};
+use crate::dynamic_fees::{
+	compute_dynamic_fee,
+	recalculate_asset_fee,
+	recalculate_protocol_fee,
+};
 use num_traits::Zero;
-use sp_arithmetic::{FixedU128, Permill};
+use sp_arithmetic::{
+	FixedU128,
+	Permill,
+};
 
 #[test]
 fn asset_fee_should_decrease_when_in_is_greater_than_out() {

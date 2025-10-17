@@ -1,12 +1,29 @@
-use crate::types::{AssetId, AssetPair, Balance};
-use crate::{Config, Error, Pallet};
+use crate::types::{
+	AssetId,
+	AssetPair,
+	Balance,
+};
+use crate::{
+	Config,
+	Error,
+	Pallet,
+};
 use frame_support::ensure;
 use frame_support::traits::Get;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{
+	ExecutorError,
+	PoolType,
+	TradeExecution,
+};
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::{
+	ArithmeticError,
+	DispatchError,
+	FixedPointNumber,
+	FixedU128,
+};
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;

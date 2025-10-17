@@ -1,6 +1,10 @@
 use crate::Config;
 use frame_support::traits::Get;
-use orml_traits::{GetByKey, Handler, Happened};
+use orml_traits::{
+	GetByKey,
+	Handler,
+	Happened,
+};
 use sp_runtime::traits::Bounded;
 use sp_std::marker::PhantomData;
 

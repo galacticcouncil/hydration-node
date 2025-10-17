@@ -6,7 +6,10 @@ mod staking;
 pub mod traits;
 
 use accounts::{
-	get_native_endowed_accounts, get_nonnative_endowed_accounts, get_omnipool_position_owner, get_technical_committee,
+	get_native_endowed_accounts,
+	get_nonnative_endowed_accounts,
+	get_omnipool_position_owner,
+	get_technical_committee,
 };
 use hydradx_runtime::Runtime as MockedRuntime;
 use hydradx_runtime::*;
@@ -14,7 +17,10 @@ use omnipool::omnipool_initial_state;
 use primitives::constants::currency::UNITS;
 use registry::AssetRegistrySetup;
 use sp_io::TestExternalities;
-use sp_runtime::{traits::Dispatchable, Storage};
+use sp_runtime::{
+	traits::Dispatchable,
+	Storage,
+};
 use stableswap::stablepools;
 
 #[cfg(test)]

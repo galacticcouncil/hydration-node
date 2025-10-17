@@ -16,17 +16,35 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::{Error, HollarAmountReceived};
+use crate::{
+	Error,
+	HollarAmountReceived,
+};
 use frame_support::traits::Hooks;
-use frame_support::{assert_err, assert_noop, assert_ok, BoundedVec};
+use frame_support::{
+	assert_err,
+	assert_noop,
+	assert_ok,
+	BoundedVec,
+};
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use pallet_broadcast::types::{Asset, Filler, TradeOperation};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+};
+use pallet_broadcast::types::{
+	Asset,
+	Filler,
+	TradeOperation,
+};
 use pallet_stableswap::types::PegSource;
 use sp_runtime::FixedU128;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{
+	Perbill,
+	Permill,
+};
 
 // Setup helper to create a test environment with DAI as collateral
 fn setup_test_with_dai_collateral() -> sp_io::TestExternalities {

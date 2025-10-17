@@ -16,7 +16,10 @@
 // limitations under the License.
 
 use super::*;
-use crate::types::{AssetFeeConfig, FeeParams};
+use crate::types::{
+	AssetFeeConfig,
+	FeeParams,
+};
 use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
 use sp_runtime::FixedU128;

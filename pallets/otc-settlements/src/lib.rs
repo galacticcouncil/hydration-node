@@ -40,30 +40,58 @@ use frame_system::RawOrigin;
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
-		fungibles::{Inspect, Mutate},
-		tokens::{Fortitude, Precision, Preservation},
+		fungibles::{
+			Inspect,
+			Mutate,
+		},
+		tokens::{
+			Fortitude,
+			Precision,
+			Preservation,
+		},
 	},
-	transactional, PalletId,
+	transactional,
+	PalletId,
 };
 use hydradx_traits::router::Route;
 
 use frame_system::{
-	offchain::{SendTransactionTypes, SubmitTransaction},
-	pallet_prelude::{BlockNumberFor, OriginFor},
+	offchain::{
+		SendTransactionTypes,
+		SubmitTransaction,
+	},
+	pallet_prelude::{
+		BlockNumberFor,
+		OriginFor,
+	},
 };
 use hydradx_traits::router::{
-	AmmTradeWeights, AmountInAndOut, AssetPair, RouteProvider, RouteSpotPriceProvider, RouterT, Trade,
+	AmmTradeWeights,
+	AmountInAndOut,
+	AssetPair,
+	RouteProvider,
+	RouteSpotPriceProvider,
+	RouterT,
+	Trade,
 };
 use pallet_otc::weights::WeightInfo as OtcWeightInfo;
 pub use pallet_otc::OrderId;
 use sp_arithmetic::{
-	traits::{CheckedMul, Saturating},
-	ArithmeticError, FixedPointNumber, FixedU128,
+	traits::{
+		CheckedMul,
+		Saturating,
+	},
+	ArithmeticError,
+	FixedPointNumber,
+	FixedU128,
 };
 use sp_runtime::{
 	offchain::{
 		storage::StorageValueRef,
-		storage_lock::{StorageLock, Time},
+		storage_lock::{
+			StorageLock,
+			Time,
+		},
 		Duration,
 	},
 	traits::AccountIdConversion,

@@ -1,11 +1,22 @@
 #![cfg(test)]
 
-use crate::{assert_balance, polkadot_test_net::*};
-use fp_evm::{Context, Transfer};
+use crate::{
+	assert_balance,
+	polkadot_test_net::*,
+};
+use fp_evm::{
+	Context,
+	Transfer,
+};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
-use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
+use frame_support::{
+	assert_ok,
+	dispatch::GetDispatchInfo,
+	sp_runtime::codec::Encode,
+	traits::Contains,
+};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use sp_core::bounded_vec::BoundedVec;
@@ -17,22 +28,54 @@ use hydradx_runtime::evm::Function;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	evm::precompiles::{
-		handle::EvmDataWriter, multicurrency::MultiCurrencyPrecompile, Address, Bytes, HydraDXPrecompiles,
+		handle::EvmDataWriter,
+		multicurrency::MultiCurrencyPrecompile,
+		Address,
+		Bytes,
+		HydraDXPrecompiles,
 	},
-	AssetRegistry, Balances, CallFilter, Currencies, EVMAccounts, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
-	TransactionPause, EVM,
+	AssetRegistry,
+	Balances,
+	CallFilter,
+	Currencies,
+	EVMAccounts,
+	Omnipool,
+	RuntimeCall,
+	RuntimeOrigin,
+	Tokens,
+	TransactionPause,
+	EVM,
 };
-use hydradx_traits::router::{PoolType, Trade};
+use hydradx_traits::router::{
+	PoolType,
+	Trade,
+};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
 use pretty_assertions::assert_eq;
-use primitives::{AssetId, Balance};
-use sp_core::{blake2_256, H160, H256, U256};
+use primitives::{
+	AssetId,
+	Balance,
+};
+use sp_core::{
+	blake2_256,
+	H160,
+	H256,
+	U256,
+};
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
-use std::{borrow::Cow, cmp::Ordering};
+use sp_runtime::{
+	traits::SignedExtension,
+	DispatchError,
+	FixedU128,
+	Permill,
+};
+use std::{
+	borrow::Cow,
+	cmp::Ordering,
+};
 use xcm_emulator::TestExt;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
@@ -40,7 +83,10 @@ pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 mod account_conversion {
 	use super::*;
 	use fp_evm::ExitSucceed;
-	use frame_support::{assert_noop, assert_ok};
+	use frame_support::{
+		assert_noop,
+		assert_ok,
+	};
 	use pretty_assertions::assert_eq;
 
 	#[test]
@@ -239,7 +285,10 @@ mod account_conversion {
 	#[test]
 	fn bind_evm_address_tx_cost_should_be_increased_by_fee_multiplier() {
 		// the fee multiplier is in the pallet evm accounts config and the desired fee is 10 HDX
-		use pallet_transaction_payment::{Multiplier, NextFeeMultiplier};
+		use pallet_transaction_payment::{
+			Multiplier,
+			NextFeeMultiplier,
+		};
 		use primitives::constants::currency::UNITS;
 		use sp_runtime::FixedPointNumber;
 
@@ -1258,25 +1307,54 @@ mod currency_precompile {
 
 mod chainlink_precompile {
 	use super::*;
-	use ethabi::ethereum_types::{U128, U256};
+	use ethabi::ethereum_types::{
+		U128,
+		U256,
+	};
 	use fp_evm::PrecompileFailure;
 	use frame_support::assert_ok;
-	use frame_support::sp_runtime::{FixedPointNumber, FixedU128};
+	use frame_support::sp_runtime::{
+		FixedPointNumber,
+		FixedU128,
+	};
 	use hex_literal::hex;
-	use hydra_dx_math::support::rational::{round_to_rational, Rounding};
+	use hydra_dx_math::support::rational::{
+		round_to_rational,
+		Rounding,
+	};
 	use hydradx_runtime::evm::precompiles::chainlink_adapter;
 	use hydradx_runtime::evm::Executor;
 	use hydradx_runtime::{
-		evm::precompiles::chainlink_adapter::{encode_oracle_address, AggregatorInterface, ChainlinkOraclePrecompile},
-		EmaOracle, Inspect, Router, Runtime,
+		evm::precompiles::chainlink_adapter::{
+			encode_oracle_address,
+			AggregatorInterface,
+			ChainlinkOraclePrecompile,
+		},
+		EmaOracle,
+		Inspect,
+		Router,
+		Runtime,
 	};
 	use hydradx_traits::evm::EVM;
-	use hydradx_traits::evm::{CallContext, EvmAddress};
-	use hydradx_traits::router::{PoolType, Trade};
-	use hydradx_traits::{router::AssetPair, AggregatedPriceOracle, OraclePeriod};
+	use hydradx_traits::evm::{
+		CallContext,
+		EvmAddress,
+	};
+	use hydradx_traits::router::{
+		PoolType,
+		Trade,
+	};
+	use hydradx_traits::{
+		router::AssetPair,
+		AggregatedPriceOracle,
+		OraclePeriod,
+	};
 	use pallet_ema_oracle::Price;
 	use pallet_lbp::AssetId;
-	use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+	use primitives::constants::chain::{
+		OMNIPOOL_SOURCE,
+		XYK_SOURCE,
+	};
 
 	fn assert_prices_are_same(ema_price: Price, precompile_price: U256, asset_a_decimals: u8, asset_b_decimals: u8) {
 		// EMA price does not take into account decimals of the asset. Adjust the price accordingly.

@@ -1,10 +1,16 @@
-use hydradx_traits::router::{AssetPair, RouteProvider};
+use hydradx_traits::router::{
+	AssetPair,
+	RouteProvider,
+};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::ExecutionType;
 use pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse;
 use polkadot_xcm::v4::prelude::*;
 use sp_core::Get;
-use sp_runtime::traits::{Convert, Zero};
+use sp_runtime::traits::{
+	Convert,
+	Zero,
+};
 use sp_runtime::BoundedVec;
 use sp_std::marker::PhantomData;
 use xcm_executor::traits::AssetExchange;

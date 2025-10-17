@@ -19,7 +19,10 @@
 
 use super::*;
 use frame_support::{
-	storage::{migration, unhashed},
+	storage::{
+		migration,
+		unhashed,
+	},
 	BoundedVec,
 };
 

@@ -23,14 +23,35 @@ pub mod native;
 #[cfg(any(feature = "codec-xcm", test))]
 pub mod xcm;
 
-use crate::solidity::revert::{MayRevert, RevertReason};
-use core::{marker::PhantomData, ops::Range};
-use sp_core::{H256, U256};
-use sp_std::{convert::TryInto, vec, vec::Vec};
+use crate::solidity::revert::{
+	MayRevert,
+	RevertReason,
+};
+use core::{
+	marker::PhantomData,
+	ops::Range,
+};
+use sp_core::{
+	H256,
+	U256,
+};
+use sp_std::{
+	convert::TryInto,
+	vec,
+	vec::Vec,
+};
 
 pub use alloc::string::String;
-pub use bytes::{BoundedBytes, BoundedString, UnboundedBytes, UnboundedString};
-pub use native::{Address, BoundedVec};
+pub use bytes::{
+	BoundedBytes,
+	BoundedString,
+	UnboundedBytes,
+	UnboundedString,
+};
+pub use native::{
+	Address,
+	BoundedVec,
+};
 
 // derive macro
 pub use precompile_utils_macro::Codec;

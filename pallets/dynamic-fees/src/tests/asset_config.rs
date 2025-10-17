@@ -1,9 +1,22 @@
 use super::mock::*;
-use crate::types::{AssetFeeConfig, FeeParams};
-use crate::{AssetFeeConfiguration, Error};
-use frame_support::{assert_noop, assert_ok};
+use crate::types::{
+	AssetFeeConfig,
+	FeeParams,
+};
+use crate::{
+	AssetFeeConfiguration,
+	Error,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use sp_runtime::traits::Zero;
-use sp_runtime::{DispatchError, FixedU128, Perquintill};
+use sp_runtime::{
+	DispatchError,
+	FixedU128,
+	Perquintill,
+};
 
 #[test]
 fn set_fixed_fee_config_should_work() {

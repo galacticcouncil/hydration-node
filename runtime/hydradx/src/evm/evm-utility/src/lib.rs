@@ -9,10 +9,16 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sha3::{Digest, Keccak256};
+use sha3::{
+	Digest,
+	Keccak256,
+};
 
 pub use ethereum;
-pub use evm::{self, backend::Basic as Account};
+pub use evm::{
+	self,
+	backend::Basic as Account,
+};
 pub use evm_gasometer;
 pub use evm_runtime;
 

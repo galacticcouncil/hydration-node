@@ -1,10 +1,18 @@
 use crate as duster;
 
 use frame_support::parameter_types;
-use frame_support::traits::{Everything, Nothing, OnKilledAccount};
+use frame_support::traits::{
+	Everything,
+	Nothing,
+	OnKilledAccount,
+};
 
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_currencies::{
+	BasicCurrencyAdapter,
+	MockBoundErc20,
+	MockErc20Currency,
+};
 
 use crate::Config;
 use frame_system as system;
@@ -13,11 +21,18 @@ use sp_core::H256;
 
 use frame_support::weights::Weight;
 use frame_system::EnsureRoot;
-use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust, EvmAddress};
+use hydradx_traits::evm::{
+	Erc20Inspect,
+	Erc20OnDust,
+	EvmAddress,
+};
 use orml_traits::MultiCurrency;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 use sp_std::cell::RefCell;

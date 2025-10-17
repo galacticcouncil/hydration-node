@@ -2,8 +2,14 @@ use crate::MathError;
 use crate::MathError::Overflow;
 
 use sp_arithmetic::{
-	traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub},
-	FixedPointNumber, FixedU128,
+	traits::{
+		CheckedAdd,
+		CheckedDiv,
+		CheckedMul,
+		CheckedSub,
+	},
+	FixedPointNumber,
+	FixedU128,
 };
 
 use crate::to_balance;

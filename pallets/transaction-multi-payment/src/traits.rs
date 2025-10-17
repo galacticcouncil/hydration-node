@@ -1,9 +1,17 @@
-use crate::{Config, Error, PhantomData};
+use crate::{
+	Config,
+	Error,
+	PhantomData,
+};
 use frame_support::dispatch::PostDispatchInfo;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::sp_runtime::DispatchResult;
 use frame_support::weights::Weight;
-use sp_core::{H160, H256, U256};
+use sp_core::{
+	H160,
+	H256,
+	U256,
+};
 use sp_std::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

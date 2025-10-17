@@ -27,8 +27,14 @@
 
 use crate::polkadot_test_net::*;
 use codec::Encode;
-use primitives::constants::time::{HOURS, MINUTES};
-use sp_core::{storage::StorageKey, Get};
+use primitives::constants::time::{
+	HOURS,
+	MINUTES,
+};
+use sp_core::{
+	storage::StorageKey,
+	Get,
+};
 use xcm_emulator::TestExt;
 
 #[test]

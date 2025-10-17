@@ -38,7 +38,10 @@ pub mod currency {
 }
 
 pub mod time {
-	use crate::{BlockNumber, Moment};
+	use crate::{
+		BlockNumber,
+		Moment,
+	};
 
 	/// BLOCKS will be produced at a minimum duration defined by `SLOT_DURATION`.
 	/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
@@ -67,8 +70,14 @@ pub mod time {
 }
 
 pub mod chain {
-	pub use crate::{AssetId, Balance};
-	pub use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};
+	pub use crate::{
+		AssetId,
+		Balance,
+	};
+	pub use frame_support::weights::{
+		constants::WEIGHT_REF_TIME_PER_SECOND,
+		Weight,
+	};
 
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;
@@ -96,7 +105,14 @@ pub mod chain {
 
 #[cfg(test)]
 mod tests {
-	use super::time::{DAYS, EPOCH_DURATION_IN_BLOCKS, HOURS, MILLISECS_PER_BLOCK, MINUTES, SECS_PER_BLOCK};
+	use super::time::{
+		DAYS,
+		EPOCH_DURATION_IN_BLOCKS,
+		HOURS,
+		MILLISECS_PER_BLOCK,
+		MINUTES,
+		SECS_PER_BLOCK,
+	};
 
 	#[test]
 	// This function tests that time units are set up correctly

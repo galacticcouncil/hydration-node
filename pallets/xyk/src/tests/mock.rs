@@ -22,13 +22,28 @@ use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup, One},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+		One,
+	},
 	BuildStorage,
 };
 
-use crate::types::{AssetId, Balance};
-use frame_support::traits::{Everything, Get, Nothing};
-use hydradx_traits::{AssetPairAccountIdFor, CanCreatePool, Source};
+use crate::types::{
+	AssetId,
+	Balance,
+};
+use frame_support::traits::{
+	Everything,
+	Get,
+	Nothing,
+};
+use hydradx_traits::{
+	AssetPairAccountIdFor,
+	CanCreatePool,
+	Source,
+};
 
 use frame_system::EnsureSigned;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;

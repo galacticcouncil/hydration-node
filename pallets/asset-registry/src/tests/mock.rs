@@ -23,11 +23,18 @@ use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use scale_info::TypeInfo;
 
 use frame_support::traits::Everything;
@@ -35,7 +42,10 @@ use frame_support::traits::Everything;
 use polkadot_xcm::v3::MultiLocation;
 
 use crate as pallet_asset_registry;
-use crate::types::{Name, Symbol};
+use crate::types::{
+	Name,
+	Symbol,
+};
 
 pub type AssetId = u32;
 

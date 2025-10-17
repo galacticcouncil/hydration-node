@@ -1,9 +1,23 @@
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, PegSource};
-use crate::{Error, Event, PoolPegs};
-use frame_support::{assert_noop, assert_ok, BoundedVec};
+use crate::types::{
+	BoundedPegSources,
+	PegSource,
+};
+use crate::{
+	Error,
+	Event,
+	PoolPegs,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	BoundedVec,
+};
 use hydradx_traits::OraclePeriod;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{
+	Perbill,
+	Permill,
+};
 
 #[test]
 fn update_asset_peg_source_should_work() {

@@ -3,7 +3,11 @@ use super::*;
 use crate::fraction;
 use crate::support::rational::Rounding;
 use crate::test_utils::fraction_to_high_precision;
-use crate::test_utils::{assert_approx_eq, assert_rational_approx_eq, assert_rational_relative_approx_eq};
+use crate::test_utils::{
+	assert_approx_eq,
+	assert_rational_approx_eq,
+	assert_rational_relative_approx_eq,
+};
 use crate::transcendental::saturating_powi_high_precision;
 use crate::types::Fraction;
 
@@ -13,9 +17,16 @@ mod test_data;
 use test_data::*;
 
 use num_traits::One;
-use primitive_types::{U128, U256, U512};
+use primitive_types::{
+	U128,
+	U256,
+	U512,
+};
 use rug::Rational;
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+};
 
 pub const TEN_MINUTES_PERIOD: u64 = 100;
 pub const DAY_PERIOD: u64 = 14_400;

@@ -1,10 +1,18 @@
 use crate::traits::ActionData;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;
 use sp_core::Get;
 use sp_runtime::RuntimeDebug;
-use sp_runtime::{traits::Zero, ArithmeticError, FixedU128};
+use sp_runtime::{
+	traits::Zero,
+	ArithmeticError,
+	FixedU128,
+};
 
 pub type Balance = u128;
 pub type Point = u128;

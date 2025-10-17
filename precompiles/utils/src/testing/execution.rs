@@ -17,12 +17,28 @@
 use {
 	crate::{
 		solidity::codec::Codec,
-		testing::{decode_revert_message, MockHandle, PrettyLog, SubcallHandle, SubcallTrait},
+		testing::{
+			decode_revert_message,
+			MockHandle,
+			PrettyLog,
+			SubcallHandle,
+			SubcallTrait,
+		},
 	},
 	fp_evm::{
-		Context, ExitError, ExitSucceed, Log, PrecompileFailure, PrecompileOutput, PrecompileResult, PrecompileSet,
+		Context,
+		ExitError,
+		ExitSucceed,
+		Log,
+		PrecompileFailure,
+		PrecompileOutput,
+		PrecompileResult,
+		PrecompileSet,
 	},
-	sp_core::{H160, U256},
+	sp_core::{
+		H160,
+		U256,
+	},
 	sp_std::boxed::Box,
 };
 

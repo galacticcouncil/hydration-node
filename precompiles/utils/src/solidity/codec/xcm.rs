@@ -18,15 +18,33 @@
 
 use {
 	crate::solidity::{
-		codec::{bytes::*, Codec, Reader, Writer},
-		revert::{BacktraceExt, InjectBacktrace, MayRevert, RevertReason},
+		codec::{
+			bytes::*,
+			Codec,
+			Reader,
+			Writer,
+		},
+		revert::{
+			BacktraceExt,
+			InjectBacktrace,
+			MayRevert,
+			RevertReason,
+		},
 	},
 	alloc::string::String,
-	frame_support::{ensure, traits::ConstU32},
+	frame_support::{
+		ensure,
+		traits::ConstU32,
+	},
 	sp_core::H256,
 	sp_std::vec::Vec,
 	sp_weights::Weight,
-	xcm::v3::{Junction, Junctions, MultiLocation, NetworkId},
+	xcm::v3::{
+		Junction,
+		Junctions,
+		MultiLocation,
+		NetworkId,
+	},
 };
 
 pub const JUNCTION_SIZE_LIMIT: u32 = 2u32.pow(16);

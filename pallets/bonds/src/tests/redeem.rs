@@ -18,7 +18,10 @@
 use crate::tests::mock::*;
 use crate::*;
 pub type Bonds = Pallet<Test>;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 pub use pretty_assertions::assert_eq;
 
 #[test]

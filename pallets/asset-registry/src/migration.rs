@@ -15,9 +15,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License..
 
-use crate::{AssetDetails, AssetType, Assets, Balance, Config, Pallet};
+use crate::{
+	AssetDetails,
+	AssetType,
+	Assets,
+	Balance,
+	Config,
+	Pallet,
+};
 use frame_support::{
-	traits::{Get, StorageVersion},
+	traits::{
+		Get,
+		StorageVersion,
+	},
 	weights::Weight,
 	Twox64Concat,
 };
@@ -26,7 +36,10 @@ use crate::*;
 
 pub mod v1 {
 	use super::*;
-	use codec::{Decode, Encode};
+	use codec::{
+		Decode,
+		Encode,
+	};
 	use frame_support::storage_alias;
 	use scale_info::TypeInfo;
 	use sp_core::RuntimeDebug;

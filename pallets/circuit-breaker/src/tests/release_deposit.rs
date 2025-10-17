@@ -1,8 +1,21 @@
-use crate::tests::mock::{expect_events, CircuitBreaker};
-use crate::tests::mock::{ExtBuilder, System, Test, Tokens, ALICE, BOB};
+use crate::tests::mock::{
+	expect_events,
+	CircuitBreaker,
+};
+use crate::tests::mock::{
+	ExtBuilder,
+	System,
+	Test,
+	Tokens,
+	ALICE,
+	BOB,
+};
 use crate::Error;
 use frame_support::dispatch::RawOrigin;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use orml_traits::MultiCurrency;
 
 pub const ASSET_ID: u32 = 10000;

@@ -25,17 +25,33 @@
 use core::marker::PhantomData;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitSucceed;
-use fp_evm::{ExitReason, ExitRevert, PrecompileFailure, PrecompileHandle};
+use fp_evm::{
+	ExitReason,
+	ExitRevert,
+	PrecompileFailure,
+	PrecompileHandle,
+};
 use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::Get;
 use frame_support::traits::ConstU32;
 use frame_support::traits::IsType;
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use hydradx_traits::evm::{
+	CallContext,
+	EvmAddress,
+	InspectEvmAccounts,
+	EVM,
+};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use precompile_utils::evm::writer::EvmDataReader;
 use precompile_utils::prelude::*;
 use sp_core::crypto::AccountId32;
-use sp_core::{H256, U256};
+use sp_core::{
+	H256,
+	U256,
+};
 use sp_std::vec;
 
 pub const CALL_DATA_LIMIT: u32 = 2u32.pow(16);

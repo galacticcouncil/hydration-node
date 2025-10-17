@@ -14,10 +14,16 @@
 // limitations under the License.
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_traits::{AssetKind, Create};
+use hydradx_traits::{
+	AssetKind,
+	Create,
+};
 use orml_traits::MultiCurrencyExtended;
 use sp_std::vec;
 use sp_std::vec::Vec;

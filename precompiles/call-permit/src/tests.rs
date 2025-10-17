@@ -15,12 +15,32 @@
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-	mock::{CallPermit, ExtBuilder, PCall, Precompiles, PrecompilesValue, Runtime},
+	mock::{
+		CallPermit,
+		ExtBuilder,
+		PCall,
+		Precompiles,
+		PrecompilesValue,
+		Runtime,
+	},
 	CallPermitPrecompile,
 };
-use libsecp256k1::{sign, Message, SecretKey};
-use precompile_utils::{evm::costs::call_cost, prelude::*, solidity::revert::revert_as_bytes, testing::*};
-use sp_core::{H160, H256, U256};
+use libsecp256k1::{
+	sign,
+	Message,
+	SecretKey,
+};
+use precompile_utils::{
+	evm::costs::call_cost,
+	prelude::*,
+	solidity::revert::revert_as_bytes,
+	testing::*,
+};
+use sp_core::{
+	H160,
+	H256,
+	U256,
+};
 
 fn precompiles() -> Precompiles<Runtime> {
 	PrecompilesValue::get()

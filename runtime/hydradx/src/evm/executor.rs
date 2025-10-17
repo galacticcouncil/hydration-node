@@ -1,20 +1,40 @@
 use evm::ExitFatal::Other;
 use evm::{
-	executor::stack::{StackExecutor, StackSubstateMetadata},
-	ExitError, ExitReason,
+	executor::stack::{
+		StackExecutor,
+		StackSubstateMetadata,
+	},
+	ExitError,
+	ExitReason,
 };
 use fp_evm::Vicinity;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Get;
 use frame_system;
-use hydradx_traits::evm::{CallContext, EVM};
+use hydradx_traits::evm::{
+	CallContext,
+	EVM,
+};
 use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{
-	self, runner::Runner as EvmRunnerT, AccountProvider as EvmAccountProviderT, AddressMapping as EvmAddressMappingT,
+	self,
+	runner::Runner as EvmRunnerT,
+	AccountProvider as EvmAccountProviderT,
+	AddressMapping as EvmAddressMappingT,
 };
-use pallet_evm::{AccountProvider, AddressMapping, Config};
-use sp_core::{H160, U256};
-use sp_runtime::{DispatchError, TransactionOutcome};
+use pallet_evm::{
+	AccountProvider,
+	AddressMapping,
+	Config,
+};
+use sp_core::{
+	H160,
+	U256,
+};
+use sp_runtime::{
+	DispatchError,
+	TransactionOutcome,
+};
 use sp_std::vec;
 use sp_std::vec::Vec;
 

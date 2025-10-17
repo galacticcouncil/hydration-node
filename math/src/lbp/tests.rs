@@ -1,8 +1,16 @@
 #![allow(clippy::type_complexity)]
 use crate::lbp::lbp;
 
-use crate::types::{Balance, LBPWeight, HYDRA_ONE};
-use crate::MathError::{Overflow, ZeroDuration, ZeroReserve};
+use crate::types::{
+	Balance,
+	LBPWeight,
+	HYDRA_ONE,
+};
+use crate::MathError::{
+	Overflow,
+	ZeroDuration,
+	ZeroReserve,
+};
 
 use std::vec;
 

@@ -1,4 +1,11 @@
-use crate::tests::mock::{expect_events, ExtBuilder, System, Test, Tokens, ALICE};
+use crate::tests::mock::{
+	expect_events,
+	ExtBuilder,
+	System,
+	Test,
+	Tokens,
+	ALICE,
+};
 use crate::types::LockdownStatus;
 use crate::AssetLockdownState;
 use crate::Event as CircuitBreakerEvent;

@@ -1,6 +1,9 @@
 use crate::tests::mock::*;
 use crate::tests::oracle::SingleValueOracle;
-use sp_runtime::traits::{Bounded, One};
+use sp_runtime::traits::{
+	Bounded,
+	One,
+};
 use sp_runtime::FixedU128;
 
 #[test]

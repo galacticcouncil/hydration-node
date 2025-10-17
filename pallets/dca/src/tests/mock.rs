@@ -16,34 +16,80 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
+use crate::{
+	Config,
+	Error,
+	RandomnessProvider,
+	RelayChainBlockHashProvider,
+};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Everything, Nothing, SortedMembers};
+use frame_support::traits::{
+	Everything,
+	Nothing,
+	SortedMembers,
+};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
-use frame_support::weights::{IdentityFee, Weight};
+use frame_support::weights::{
+	IdentityFee,
+	Weight,
+};
 use frame_support::PalletId;
 
 use frame_support::BoundedVec;
-use frame_support::{assert_ok, parameter_types};
+use frame_support::{
+	assert_ok,
+	parameter_types,
+};
 use frame_system as system;
-use frame_system::{ensure_signed, EnsureRoot};
-use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle};
+use frame_system::{
+	ensure_signed,
+	EnsureRoot,
+};
+use hydradx_traits::{
+	registry::Inspect as InspectRegistry,
+	AssetKind,
+	NativePriceOracle,
+	OraclePeriod,
+	PriceOracle,
+};
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_currencies::{
+	BasicCurrencyAdapter,
+	MockBoundErc20,
+	MockErc20Currency,
+};
 use primitive_types::U128;
 use sp_core::H256;
-use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
+use sp_runtime::traits::{
+	AccountIdConversion,
+	BlockNumberProvider,
+	ConstU32,
+};
 use sp_runtime::Permill;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup, One},
-	BuildStorage, DispatchError,
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+		One,
+	},
+	BuildStorage,
+	DispatchError,
 };
-use sp_runtime::{Perbill, Percent};
+use sp_runtime::{
+	Perbill,
+	Percent,
+};
 
-use hydra_dx_math::support::rational::{round_to_rational, Rounding};
+use hydra_dx_math::support::rational::{
+	round_to_rational,
+	Rounding,
+};
 use sp_runtime::traits::Zero;
-use sp_runtime::{DispatchResult, FixedU128};
+use sp_runtime::{
+	DispatchResult,
+	FixedU128,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -779,14 +825,31 @@ impl RelayChainBlockHashProvider for ParentHashGetterMock {
 	}
 }
 
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
+use frame_support::traits::tokens::nonfungibles::{
+	Create,
+	Inspect,
+	Mutate,
+};
+use frame_support::weights::{
+	WeightToFeeCoefficients,
+	WeightToFeePolynomial,
+};
 use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::fee::{GetDynamicFee, InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
-use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
+use hydradx_traits::fee::{
+	GetDynamicFee,
+	InspectTransactionFeeCurrency,
+	SwappablePaymentAssetTrader,
+};
+use hydradx_traits::router::{
+	ExecutorError,
+	PoolType,
+	RouteProvider,
+	Trade,
+	TradeExecution,
+};
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;

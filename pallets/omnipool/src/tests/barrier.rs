@@ -1,6 +1,14 @@
-use crate::traits::{EnsurePriceWithin, ExternalPriceProvider, ShouldAllow};
+use crate::traits::{
+	EnsurePriceWithin,
+	ExternalPriceProvider,
+	ShouldAllow,
+};
 use frame_support::weights::Weight;
-use frame_support::{assert_err, assert_ok, parameter_types};
+use frame_support::{
+	assert_err,
+	assert_ok,
+	parameter_types,
+};
 use hydra_dx_math::ema::EmaPrice;
 use sp_runtime::Permill;
 use std::cell::RefCell;

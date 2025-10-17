@@ -20,11 +20,18 @@
 use super::*;
 
 use frame_benchmarking::benchmarks;
-use frame_support::{assert_ok, traits::EnsureOrigin};
+use frame_support::{
+	assert_ok,
+	traits::EnsureOrigin,
+};
 use frame_system::RawOrigin;
 
 use orml_traits::MultiCurrency;
-use primitives::{constants::time::unix_time::MONTH, AssetId, Balance};
+use primitives::{
+	constants::time::unix_time::MONTH,
+	AssetId,
+	Balance,
+};
 
 pub const NOW: Moment = 1689844300000; // unix time in milliseconds
 pub const ONE: Balance = 1_000_000_000_000;

@@ -24,15 +24,28 @@ use codec::HasCompact;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
-	traits::{tokens::nonfungibles::*, Get},
+	traits::{
+		tokens::nonfungibles::*,
+		Get,
+	},
 	BoundedVec,
 };
-use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::BlockNumberFor,
+};
 use pallet_uniques::DestroyWitness;
 
-use hydradx_traits::nft::{CreateTypedCollection, ReserveCollectionId};
+use hydradx_traits::nft::{
+	CreateTypedCollection,
+	ReserveCollectionId,
+};
 use sp_runtime::{
-	traits::{AtLeast32BitUnsigned, StaticLookup, Zero},
+	traits::{
+		AtLeast32BitUnsigned,
+		StaticLookup,
+		Zero,
+	},
 	DispatchError,
 };
 use sp_std::boxed::Box;

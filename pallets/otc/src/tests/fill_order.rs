@@ -15,10 +15,20 @@
 use crate as otc;
 use crate::tests::mock::*;
 use crate::Event;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use orml_tokens::Error::BalanceTooLow;
-use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
-use pallet_broadcast::types::{Asset, Destination, Fee};
+use orml_traits::{
+	MultiCurrency,
+	NamedMultiReservableCurrency,
+};
+use pallet_broadcast::types::{
+	Asset,
+	Destination,
+	Fee,
+};
 use pretty_assertions::assert_eq;
 
 #[test]

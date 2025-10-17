@@ -58,15 +58,40 @@
 
 extern crate core;
 
-use frame_support::pallet_prelude::{DispatchResult, Get};
-use frame_support::{ensure, require_transactional, transactional, BoundedVec, PalletId};
+use frame_support::pallet_prelude::{
+	DispatchResult,
+	Get,
+};
+use frame_support::{
+	ensure,
+	require_transactional,
+	transactional,
+	BoundedVec,
+	PalletId,
+};
 use frame_system::ensure_signed;
-use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-use hydradx_traits::{registry::Inspect, stableswap::StableswapAddLiquidity, AccountIdFor};
+use frame_system::pallet_prelude::{
+	BlockNumberFor,
+	OriginFor,
+};
+use hydradx_traits::{
+	registry::Inspect,
+	stableswap::StableswapAddLiquidity,
+	AccountIdFor,
+};
 use num_traits::zero;
 pub use pallet::*;
-use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, Zero};
-use sp_runtime::{ArithmeticError, DispatchError, Permill, SaturatedConversion};
+use sp_runtime::traits::{
+	AccountIdConversion,
+	BlockNumberProvider,
+	Zero,
+};
+use sp_runtime::{
+	ArithmeticError,
+	DispatchError,
+	Permill,
+	SaturatedConversion,
+};
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 use sp_std::vec;
@@ -81,7 +106,15 @@ pub mod weights;
 
 use crate::traits::PegRawOracle;
 use crate::types::{
-	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolSnapshot, PoolState, StableswapHooks,
+	Balance,
+	BoundedPegs,
+	PegSource,
+	PegType,
+	PoolInfo,
+	PoolPegInfo,
+	PoolSnapshot,
+	PoolState,
+	StableswapHooks,
 	Tradability,
 };
 
@@ -89,7 +122,11 @@ use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
 use orml_traits::MultiCurrency;
-use pallet_broadcast::types::{Asset, Destination, Fee};
+use pallet_broadcast::types::{
+	Asset,
+	Destination,
+	Fee,
+};
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
@@ -114,13 +151,19 @@ const Y_ITERATIONS: u8 = hydra_dx_math::stableswap::MAX_Y_ITERATIONS;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::{BoundedPegSources, PoolPegInfo};
+	use crate::types::{
+		BoundedPegSources,
+		PoolPegInfo,
+	};
 	use codec::HasCompact;
 	use core::ops::RangeInclusive;
 	use frame_support::pallet_prelude::*;
 	use hydradx_traits::pools::DustRemovalAccountWhitelist;
 	use pallet_broadcast::types::Fee;
-	use sp_runtime::traits::{BlockNumberProvider, Zero};
+	use sp_runtime::traits::{
+		BlockNumberProvider,
+		Zero,
+	};
 	use sp_runtime::ArithmeticError;
 	use sp_runtime::Perbill;
 	use sp_std::num::NonZeroU16;

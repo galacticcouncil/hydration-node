@@ -1,5 +1,12 @@
 use platforms::*;
-use std::{borrow::Cow, env, fs, io, path, process::Command};
+use std::{
+	borrow::Cow,
+	env,
+	fs,
+	io,
+	path,
+	process::Command,
+};
 
 /// Generate the `cargo:` key output
 pub fn generate_cargo_keys(runtime: &str) -> io::Result<()> {

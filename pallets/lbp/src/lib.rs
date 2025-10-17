@@ -22,31 +22,70 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::manual_inspect)]
 
-pub use crate::types::{Amount, AssetId, AssetPair, Balance};
-use codec::{Decode, Encode, MaxEncodedLen};
+pub use crate::types::{
+	Amount,
+	AssetId,
+	AssetPair,
+	Balance,
+};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use frame_support::sp_runtime::{
-	traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero},
-	DispatchError, RuntimeDebug,
+	traits::{
+		AtLeast32BitUnsigned,
+		BlockNumberProvider,
+		Saturating,
+		Zero,
+	},
+	DispatchError,
+	RuntimeDebug,
 };
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
-	traits::{EnsureOrigin, Get, LockIdentifier},
+	traits::{
+		EnsureOrigin,
+		Get,
+		LockIdentifier,
+	},
 	transactional,
 };
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::types::LBPWeight;
-use hydradx_traits::{AMMTransfer, AssetPairAccountIdFor, CanCreatePool, LockedBalance, AMM};
-use pallet_broadcast::types::{Asset, Destination, Fee};
+use hydradx_traits::{
+	AMMTransfer,
+	AssetPairAccountIdFor,
+	CanCreatePool,
+	LockedBalance,
+	AMM,
+};
+use pallet_broadcast::types::{
+	Asset,
+	Destination,
+	Fee,
+};
 
-use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+	MultiLockableCurrency,
+};
 
 use scale_info::TypeInfo;
 
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-use sp_std::{vec, vec::Vec};
+use serde::{
+	Deserialize,
+	Serialize,
+};
+use sp_std::{
+	vec,
+	vec::Vec,
+};
 
 #[cfg(test)]
 mod mock;

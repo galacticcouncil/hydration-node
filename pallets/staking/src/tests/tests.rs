@@ -1,6 +1,9 @@
 use crate::{
 	integrations::conviction_voting::StakingConvictionVoting,
-	types::{Conviction, Vote},
+	types::{
+		Conviction,
+		Vote,
+	},
 };
 
 use super::*;
@@ -752,7 +755,10 @@ fn process_votes_should_calculate_action_points_corectly_when_referendum_is_fini
 #[test]
 fn conviction_voting_hook_vote_cap_should_work() {
 	//Locks OVERLAY so 1000 tokens lock and 100 tokens lock results in 1000 tokens locked in total.
-	use pallet_conviction_voting::{Conviction as Dconviction, Vote as Dvote};
+	use pallet_conviction_voting::{
+		Conviction as Dconviction,
+		Vote as Dvote,
+	};
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(ALICE, HDX, 150_000 * ONE),

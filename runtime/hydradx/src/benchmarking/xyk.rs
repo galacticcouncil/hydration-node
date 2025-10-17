@@ -1,13 +1,32 @@
-use crate::{AccountId, AssetId, Balance, Currencies, MultiTransactionPayment, Price, Runtime, RuntimeOrigin, XYK};
+use crate::{
+	AccountId,
+	AssetId,
+	Balance,
+	Currencies,
+	MultiTransactionPayment,
+	Price,
+	Runtime,
+	RuntimeOrigin,
+	XYK,
+};
 
 use super::*;
 
-use frame_benchmarking::{account, BenchmarkError};
+use frame_benchmarking::{
+	account,
+	BenchmarkError,
+};
 use frame_system::RawOrigin;
-use hydradx_traits::router::{PoolType, TradeExecution};
+use hydradx_traits::router::{
+	PoolType,
+	TradeExecution,
+};
 use hydradx_traits::AMM;
 use orml_benchmarking::runtime_benchmarks;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+};
 use pallet_xyk::types::AssetPair;
 use sp_std::prelude::*;
 

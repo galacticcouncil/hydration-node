@@ -16,14 +16,24 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::{Collaterals, Error};
-use frame_support::{assert_err, assert_ok, error::BadOrigin};
+use crate::{
+	Collaterals,
+	Error,
+};
+use frame_support::{
+	assert_err,
+	assert_ok,
+	error::BadOrigin,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 
 #[test]
 fn remove_collateral_asset_works() {

@@ -1,4 +1,13 @@
-use crate::{AccountId, AssetId, Balance, Currencies, MultiTransactionPayment, Runtime, Tokens, DOT_ASSET_LOCATION};
+use crate::{
+	AccountId,
+	AssetId,
+	Balance,
+	Currencies,
+	MultiTransactionPayment,
+	Runtime,
+	Tokens,
+	DOT_ASSET_LOCATION,
+};
 
 use sp_std::prelude::*;
 
@@ -14,7 +23,10 @@ use sp_runtime::FixedU128;
 
 use super::*;
 
-use sp_runtime::traits::{SaturatedConversion, StaticLookup};
+use sp_runtime::traits::{
+	SaturatedConversion,
+	StaticLookup,
+};
 
 const SEED: u32 = 0;
 const HDX: AssetId = 0;

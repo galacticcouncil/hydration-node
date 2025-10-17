@@ -22,7 +22,10 @@
 use crate::types::*;
 use frame_support::dispatch::DispatchResult;
 use frame_support::sp_runtime::app_crypto::sp_core;
-use frame_support::sp_runtime::{BoundedVec, DispatchError};
+use frame_support::sp_runtime::{
+	BoundedVec,
+	DispatchError,
+};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::ConstU32;
 use sp_std::vec::Vec;

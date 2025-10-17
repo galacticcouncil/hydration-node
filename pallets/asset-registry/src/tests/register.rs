@@ -4,9 +4,15 @@ use crate::types::AssetType;
 use frame_support::error::BadOrigin;
 use frame_support::traits::tokens::fungibles::Mutate as MutateFungibles;
 use mock::RegistryStringLimit;
-use mock::{AssetId, Registry};
+use mock::{
+	AssetId,
+	Registry,
+};
 use polkadot_xcm::v3::{
-	Junction::{self, Parachain},
+	Junction::{
+		self,
+		Parachain,
+	},
 	Junctions::X2,
 	MultiLocation,
 };

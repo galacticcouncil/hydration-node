@@ -52,7 +52,7 @@ clippatorize:
 
 .PHONY: format
 format:
-	$(cargo) fmt
+	cargo +nightly fmt
 
 .PHONY: try-runtime
 try-runtime:

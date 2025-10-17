@@ -2,30 +2,69 @@
 use frame_support::{
 	assert_ok,
 	sp_runtime::{
-		traits::{AccountIdConversion, Block as BlockT, Dispatchable},
-		BuildStorage, FixedU128, Permill,
+		traits::{
+			AccountIdConversion,
+			Block as BlockT,
+			Dispatchable,
+		},
+		BuildStorage,
+		FixedU128,
+		Permill,
 	},
-	traits::{GetCallMetadata, OnInitialize},
+	traits::{
+		GetCallMetadata,
+		OnInitialize,
+	},
 };
-pub use hydradx_runtime::{AccountId, Currencies, NativeExistentialDeposit, Treasury, VestingPalletId};
+pub use hydradx_runtime::{
+	AccountId,
+	Currencies,
+	NativeExistentialDeposit,
+	Treasury,
+	VestingPalletId,
+};
 use pallet_transaction_multi_payment::Price;
-pub use primitives::{constants::chain::CORE_ASSET_ID, AssetId, Balance, Moment};
+pub use primitives::{
+	constants::chain::CORE_ASSET_ID,
+	AssetId,
+	Balance,
+	Moment,
+};
 
 use cumulus_primitives_core::ParaId;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use frame_support::traits::OnRuntimeUpgrade;
 pub use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{evm::WETH_ASSET_LOCATION, Referrals, RuntimeEvent, RuntimeOrigin};
-pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
-use pallet_referrals::{FeeDistribution, Level};
-pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
+use hydradx_runtime::{
+	evm::WETH_ASSET_LOCATION,
+	Referrals,
+	RuntimeEvent,
+	RuntimeOrigin,
+};
+pub use hydradx_traits::{
+	evm::InspectEvmAccounts,
+	registry::Mutate,
+};
+use pallet_referrals::{
+	FeeDistribution,
+	Level,
+};
+pub use polkadot_primitives::v8::{
+	BlockNumber,
+	MAX_CODE_SIZE,
+	MAX_POV_SIZE,
+};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::storage::Storage;
 use sp_core::H160;
 pub use xcm_emulator::Network;
-use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_chains};
+use xcm_emulator::{
+	decl_test_networks,
+	decl_test_parachains,
+	decl_test_relay_chains,
+};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -289,9 +328,16 @@ pub mod rococo {
 		}
 	}
 
-	use sp_core::{sr25519, Pair, Public};
+	use sp_core::{
+		sr25519,
+		Pair,
+		Public,
+	};
 
-	use polkadot_primitives::{AssignmentId, ValidatorId};
+	use polkadot_primitives::{
+		AssignmentId,
+		ValidatorId,
+	};
 	use sc_consensus_grandpa::AuthorityId as GrandpaId;
 	use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 	use sp_consensus_babe::AuthorityId as BabeId;
@@ -415,9 +461,16 @@ pub mod rococo {
 	}
 }
 
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{
+	sr25519,
+	Pair,
+	Public,
+};
 use sp_runtime::{
-	traits::{IdentifyAccount, Verify},
+	traits::{
+		IdentifyAccount,
+		Verify,
+	},
 	MultiSignature,
 };
 type AccountPublic = <MultiSignature as Verify>::Signer;
@@ -706,7 +759,10 @@ pub fn expect_hydra_events(event: Vec<hydradx_runtime::RuntimeEvent>) {
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
 	use hydradx_runtime::ParachainSystem;
-	use sp_core::{Encode, Get};
+	use sp_core::{
+		Encode,
+		Get,
+	};
 	use xcm_emulator::HeaderT;
 
 	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way

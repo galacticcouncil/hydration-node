@@ -1,4 +1,7 @@
-use primitive_types::{U256, U512};
+use primitive_types::{
+	U256,
+	U512,
+};
 
 /// Enum to specify how to round a rational number.
 /// `Nearest` rounds both numerator and denominator down.

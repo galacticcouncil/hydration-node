@@ -2,14 +2,29 @@
 
 use crate::assert_balance;
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, PegSource};
+use crate::types::{
+	BoundedPegSources,
+	PegSource,
+};
 use hydradx_traits::stableswap::AssetAmount;
 
-use crate::tests::{get_share_price, spot_price, to_bounded_asset_vec};
-use frame_support::{assert_ok, BoundedVec};
+use crate::tests::{
+	get_share_price,
+	spot_price,
+	to_bounded_asset_vec,
+};
+use frame_support::{
+	assert_ok,
+	BoundedVec,
+};
 use hydradx_traits::OraclePeriod;
 use num_traits::One;
-use sp_runtime::{FixedPointNumber, FixedU128, Perbill, Permill};
+use sp_runtime::{
+	FixedPointNumber,
+	FixedU128,
+	Perbill,
+	Permill,
+};
 use test_utils::assert_eq_approx;
 
 #[test]

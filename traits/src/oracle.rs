@@ -2,8 +2,15 @@ use super::*;
 
 use crate::router::Trade;
 use codec::MaxEncodedLen;
-use frame_support::sp_runtime::traits::{AtLeast32BitUnsigned, One};
-use primitives::constants::time::{DAYS, HOURS, MINUTES};
+use frame_support::sp_runtime::traits::{
+	AtLeast32BitUnsigned,
+	One,
+};
+use primitives::constants::time::{
+	DAYS,
+	HOURS,
+	MINUTES,
+};
 use scale_info::TypeInfo;
 
 /// Implementers of this trait provide the price of a given asset compared to the native currency.

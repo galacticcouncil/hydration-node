@@ -25,22 +25,47 @@ use crate::{
 	evm::{
 		precompiles::{
 			erc20_mapping::HydraErc20Mapping,
-			handle::{EvmDataWriter, FunctionModifier, PrecompileHandleExt},
+			handle::{
+				EvmDataWriter,
+				FunctionModifier,
+				PrecompileHandleExt,
+			},
 			substrate::RuntimeHelper,
-			succeed, Address, Output,
+			succeed,
+			Address,
+			Output,
 		},
 		ExtendedAddressMapping,
 	},
 	Currencies,
 };
 use codec::EncodeLike;
-use frame_support::traits::{IsType, OriginTrait};
-use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
+use frame_support::traits::{
+	IsType,
+	OriginTrait,
+};
+use hydradx_traits::evm::{
+	Erc20Encoding,
+	InspectEvmAccounts,
+};
 use hydradx_traits::registry::Inspect as InspectRegistry;
-use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
-use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
+use orml_traits::{
+	MultiCurrency as MultiCurrencyT,
+	MultiCurrency,
+};
+use pallet_evm::{
+	AddressMapping,
+	ExitRevert,
+	Precompile,
+	PrecompileFailure,
+	PrecompileHandle,
+	PrecompileResult,
+};
 use primitive_types::H160;
-use primitives::{AssetId, Balance};
+use primitives::{
+	AssetId,
+	Balance,
+};
 use sp_runtime::traits::Dispatchable;
 use sp_std::marker::PhantomData;
 

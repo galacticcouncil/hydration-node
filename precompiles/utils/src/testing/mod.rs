@@ -25,7 +25,10 @@ pub use {
 	execution::*,
 	handle::*,
 	modifier::*,
-	solidity::{check_precompile_implements_solidity_interfaces, compute_selector},
+	solidity::{
+		check_precompile_implements_solidity_interfaces,
+		compute_selector,
+	},
 };
 
 use fp_evm::Log;

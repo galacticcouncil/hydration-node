@@ -19,11 +19,17 @@ use {
 		solidity::{
 			codec::Reader,
 			modifier::FunctionModifier,
-			revert::{MayRevert, RevertReason},
+			revert::{
+				MayRevert,
+				RevertReason,
+			},
 		},
 		EvmResult,
 	},
-	fp_evm::{Log, PrecompileHandle},
+	fp_evm::{
+		Log,
+		PrecompileHandle,
+	},
 };
 
 pub trait PrecompileHandleExt: PrecompileHandle {

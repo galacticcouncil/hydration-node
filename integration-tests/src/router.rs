@@ -3,8 +3,17 @@
 use super::assert_balance;
 use crate::polkadot_test_net::*;
 use hydradx_runtime::{
-	AssetRegistry, BlockNumber, Currencies, Omnipool, Router, RouterWeightInfo, Runtime, RuntimeOrigin, Stableswap,
-	LBP, XYK,
+	AssetRegistry,
+	BlockNumber,
+	Currencies,
+	Omnipool,
+	Router,
+	RouterWeightInfo,
+	Runtime,
+	RuntimeOrigin,
+	Stableswap,
+	LBP,
+	XYK,
 };
 use sp_core::bounded_vec::BoundedVec;
 
@@ -14,8 +23,12 @@ use hydradx_traits::router::AssetPair as Pair;
 use hydradx_traits::router::RouteSpotPriceProvider;
 use hydradx_traits::{
 	registry::Create,
-	router::{PoolType, Trade},
-	AssetKind, AMM,
+	router::{
+		PoolType,
+		Trade,
+	},
+	AssetKind,
+	AMM,
 };
 use pallet_broadcast::types::Asset;
 use pallet_broadcast::types::ExecutionType;
@@ -29,13 +42,23 @@ use primitives::AssetId;
 use sp_runtime::FixedPointNumber;
 use std::convert::Into;
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use xcm_emulator::TestExt;
 
 use frame_support::storage::with_transaction;
 use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome};
+use sp_runtime::{
+	traits::Zero,
+	DispatchError,
+	DispatchResult,
+	FixedU128,
+	Permill,
+	TransactionOutcome,
+};
 
 use hydradx_runtime::InsufficientEDinHDX;
 use orml_traits::MultiCurrency;
@@ -1036,10 +1059,18 @@ mod router_different_pools_tests {
 mod omnipool_router_tests {
 	use super::*;
 	use frame_support::assert_noop;
-	use hydradx_runtime::{Balances, Omnipool, Treasury, XYK};
+	use hydradx_runtime::{
+		Balances,
+		Omnipool,
+		Treasury,
+		XYK,
+	};
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
-	use pallet_broadcast::types::{Destination, ExecutionType};
+	use pallet_broadcast::types::{
+		Destination,
+		ExecutionType,
+	};
 
 	//TODO: Make LBP work with Router: https://github.com/galacticcouncil/hydration-node/issues/1059
 	#[ignore]
@@ -2669,7 +2700,11 @@ mod omnipool_router_tests {
 mod lbp_router_tests {
 	use super::*;
 	use crate::assert_balance;
-	use pallet_broadcast::types::{Asset, Destination, Fee};
+	use pallet_broadcast::types::{
+		Asset,
+		Destination,
+		Fee,
+	};
 
 	//TODO: Make LBP work with Router: https://github.com/galacticcouncil/hydration-node/issues/1059
 	#[ignore]

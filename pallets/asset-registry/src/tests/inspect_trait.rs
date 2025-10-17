@@ -1,11 +1,17 @@
 use super::*;
 
 use frame_support::storage::with_transaction;
-use hydradx_traits::registry::{AssetKind, Inspect};
+use hydradx_traits::registry::{
+	AssetKind,
+	Inspect,
+};
 use mock::Registry;
 
 use pretty_assertions::assert_eq;
-use sp_runtime::{DispatchResult, TransactionOutcome};
+use sp_runtime::{
+	DispatchResult,
+	TransactionOutcome,
+};
 
 #[test]
 fn is_sufficient_should_work() {

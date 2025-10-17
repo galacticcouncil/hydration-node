@@ -1,7 +1,22 @@
-use crate::tests::mock::{CircuitBreaker, ExtBuilder, RuntimeOrigin, System, Test, Tokens, ALICE};
+use crate::tests::mock::{
+	CircuitBreaker,
+	ExtBuilder,
+	RuntimeOrigin,
+	System,
+	Test,
+	Tokens,
+	ALICE,
+};
 use crate::types::LockdownStatus;
-use crate::{AssetLockdownState, Error, Event};
-use frame_support::{assert_noop, assert_ok};
+use crate::{
+	AssetLockdownState,
+	Error,
+	Event,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use orml_traits::MultiCurrency;
 
 pub const ASSET_ID: u32 = 10000;

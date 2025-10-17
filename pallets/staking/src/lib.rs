@@ -18,25 +18,62 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
-use crate::traits::{ActionData, GetReferendumState, PayablePercentage, VestingDetails};
-use crate::types::{Action, Balance, Period, Point, Position, StakingData};
+use crate::traits::{
+	ActionData,
+	GetReferendumState,
+	PayablePercentage,
+	VestingDetails,
+};
+use crate::types::{
+	Action,
+	Balance,
+	Period,
+	Point,
+	Position,
+	StakingData,
+};
 use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,
 	pallet_prelude::*,
-	traits::nonfungibles::{Create, Inspect, InspectEnumerable, Mutate},
-	traits::{DefensiveOption, LockIdentifier},
+	traits::nonfungibles::{
+		Create,
+		Inspect,
+		InspectEnumerable,
+		Mutate,
+	},
+	traits::{
+		DefensiveOption,
+		LockIdentifier,
+	},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::staking as math;
-use orml_traits::{GetByKey, MultiCurrency, MultiLockableCurrency};
-use sp_core::Get;
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One};
-use sp_runtime::{
-	traits::{BlockNumberProvider, Zero},
-	Perbill, Permill, SaturatedConversion,
+use orml_traits::{
+	GetByKey,
+	MultiCurrency,
+	MultiLockableCurrency,
 };
-use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
+use sp_core::Get;
+use sp_runtime::traits::{
+	AccountIdConversion,
+	CheckedAdd,
+	One,
+};
+use sp_runtime::{
+	traits::{
+		BlockNumberProvider,
+		Zero,
+	},
+	Perbill,
+	Permill,
+	SaturatedConversion,
+};
+use sp_runtime::{
+	DispatchError,
+	FixedPointNumber,
+	FixedU128,
+};
 use sp_std::num::NonZeroU128;
 
 pub mod migrations;
@@ -66,7 +103,10 @@ pub mod pallet {
 	use crate::types::Voting;
 	use codec::HasCompact;
 	use frame_support::PalletId;
-	use frame_system::{ensure_signed, pallet_prelude::*};
+	use frame_system::{
+		ensure_signed,
+		pallet_prelude::*,
+	};
 	use orml_traits::GetByKey;
 	use sp_runtime::traits::AtLeast32BitUnsigned;
 

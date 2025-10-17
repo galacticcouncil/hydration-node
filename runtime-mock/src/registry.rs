@@ -1,5 +1,13 @@
-use hydradx_runtime::{AssetId, AssetRegistryConfig, Balance, RegistryStrLimit};
-use pallet_asset_registry::{Name, Symbol};
+use hydradx_runtime::{
+	AssetId,
+	AssetRegistryConfig,
+	Balance,
+	RegistryStrLimit,
+};
+use pallet_asset_registry::{
+	Name,
+	Symbol,
+};
 use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
 use serde::Deserialize;
 use sp_runtime::BoundedVec;

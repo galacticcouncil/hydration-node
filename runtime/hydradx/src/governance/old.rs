@@ -28,18 +28,30 @@
 use super::*;
 use primitives::constants::{
 	currency::DOLLARS,
-	time::{DAYS, HOURS},
+	time::{
+		DAYS,
+		HOURS,
+	},
 };
 
 use frame_support::{
 	parameter_types,
-	traits::{ConstU32, EitherOfDiverse},
+	traits::{
+		ConstU32,
+		EitherOfDiverse,
+	},
 };
-use frame_system::{EnsureRoot, EnsureSigned};
+use frame_system::{
+	EnsureRoot,
+	EnsureSigned,
+};
 
 #[cfg(test)]
 mod tests {
-	use super::{EnactmentPeriod, VoteLockingPeriod};
+	use super::{
+		EnactmentPeriod,
+		VoteLockingPeriod,
+	};
 
 	#[test]
 	fn democracy_periods() {

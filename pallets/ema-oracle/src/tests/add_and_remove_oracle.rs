@@ -16,9 +16,20 @@
 // limitations under the License.
 
 use super::*;
-pub use mock::{expect_events, EmaOracle, RuntimeOrigin, Test, DOT, HDX, ORACLE_ENTRY_1};
+pub use mock::{
+	expect_events,
+	EmaOracle,
+	RuntimeOrigin,
+	Test,
+	DOT,
+	HDX,
+	ORACLE_ENTRY_1,
+};
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use pretty_assertions::assert_eq;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

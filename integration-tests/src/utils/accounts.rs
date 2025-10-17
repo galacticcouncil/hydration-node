@@ -2,7 +2,11 @@ use hex_literal::hex;
 use hydradx_runtime::Currencies;
 use hydradx_traits::evm::InspectEvmAccounts;
 use orml_traits::MultiCurrency;
-use primitives::{AccountId, AssetId, Balance};
+use primitives::{
+	AccountId,
+	AssetId,
+	Balance,
+};
 use sp_core::H160;
 
 // Private key: 42d8d953e4f9246093a33e9ca6daa078501012f784adfe4bbed57918ff13be14

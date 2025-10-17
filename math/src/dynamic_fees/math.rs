@@ -1,10 +1,17 @@
 use super::types::*;
-use crate::dynamic_fees::types::NetVolumeDirection::{InOut, OutIn};
+use crate::dynamic_fees::types::NetVolumeDirection::{
+	InOut,
+	OutIn,
+};
 use num_traits::One;
 use num_traits::Zero;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::FixedPointNumber;
-use sp_arithmetic::{FixedPointOperand, FixedU128, PerThing};
+use sp_arithmetic::{
+	FixedPointOperand,
+	FixedU128,
+	PerThing,
+};
 
 const MAX_BLOCK_DIFFERENCE: u128 = 20;
 

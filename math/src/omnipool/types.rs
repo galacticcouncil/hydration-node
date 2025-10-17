@@ -1,9 +1,22 @@
 use crate::omnipool::calculate_burn_amount_based_on_fee_taken;
-use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
-use num_traits::{CheckedAdd, CheckedSub, SaturatingAdd};
+use crate::omnipool::types::BalanceUpdate::{
+	Decrease,
+	Increase,
+};
+use num_traits::{
+	CheckedAdd,
+	CheckedSub,
+	SaturatingAdd,
+};
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128};
-use sp_std::ops::{Add, Deref};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+};
+use sp_std::ops::{
+	Add,
+	Deref,
+};
 
 /// Asset state representation including asset pool reserve.
 #[derive(Clone, Default, Debug)]

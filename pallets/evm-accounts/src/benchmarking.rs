@@ -18,7 +18,10 @@
 use super::*;
 use crate::Pallet as EVMAccounts;
 
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
 

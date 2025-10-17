@@ -21,19 +21,33 @@ use hydra_dx_math::types::Ratio;
 use crate as dynamic_evm_fee;
 use frame_support::{
 	parameter_types,
-	traits::{Everything, Get, Nothing},
+	traits::{
+		Everything,
+		Get,
+		Nothing,
+	},
 	weights::Weight,
 };
 use frame_system as system;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_currencies::{
+	BasicCurrencyAdapter,
+	MockBoundErc20,
+	MockErc20Currency,
+};
 use pallet_transaction_payment::Multiplier;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup, One},
-	BuildStorage, FixedPointNumber, FixedU128,
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+		One,
+	},
+	BuildStorage,
+	FixedPointNumber,
+	FixedU128,
 };
 use sp_std::cell::RefCell;
 pub type AccountId = u64;

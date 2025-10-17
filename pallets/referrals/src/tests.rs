@@ -31,21 +31,40 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use frame_support::{
-	assert_noop, assert_ok, construct_runtime, parameter_types,
-	sp_runtime::traits::{BlakeTwo256, ConstU32, ConstU64, IdentityLookup, Zero},
+	assert_noop,
+	assert_ok,
+	construct_runtime,
+	parameter_types,
+	sp_runtime::traits::{
+		BlakeTwo256,
+		ConstU32,
+		ConstU64,
+		IdentityLookup,
+		Zero,
+	},
 	traits::Everything,
 	PalletId,
 };
 use sp_core::H256;
 
-use crate::tests::mock_amm::{Hooks, TradeResult};
+use crate::tests::mock_amm::{
+	Hooks,
+	TradeResult,
+};
 use crate::traits::Convert;
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
 use orml_traits::MultiCurrency;
-use orml_traits::{parameter_type_with_key, MultiCurrencyExtended};
+use orml_traits::{
+	parameter_type_with_key,
+	MultiCurrencyExtended,
+};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::{BuildStorage, DispatchError, Rounding};
+use sp_runtime::{
+	BuildStorage,
+	DispatchError,
+	Rounding,
+};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 

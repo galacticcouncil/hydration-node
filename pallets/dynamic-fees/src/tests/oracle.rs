@@ -1,4 +1,9 @@
-use crate::tests::mock::{AssetId, AssetVolume, Balance, CustomOracle};
+use crate::tests::mock::{
+	AssetId,
+	AssetVolume,
+	Balance,
+	CustomOracle,
+};
 
 const DATA: [(Balance, Balance, Balance); 259] = [
 	(0, 0, 20000000000000000000),

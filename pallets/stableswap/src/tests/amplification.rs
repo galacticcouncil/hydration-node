@@ -1,8 +1,14 @@
 use crate::tests::mock::*;
 use crate::tests::to_bounded_asset_vec;
 use crate::types::PoolInfo;
-use crate::{Error, Pools};
-use frame_support::{assert_noop, assert_ok};
+use crate::{
+	Error,
+	Pools,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::Permill;
 use std::num::NonZeroU16;

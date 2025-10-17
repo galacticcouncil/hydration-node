@@ -3,8 +3,16 @@
 use super::*;
 use codec::MaxEncodedLen;
 use frame_support::pallet_prelude::*;
-use hydra_dx_math::omnipool::types::{AssetReserveState as MathReserveState, AssetStateChange, BalanceUpdate};
-use sp_runtime::{FixedPointNumber, FixedU128, Saturating};
+use hydra_dx_math::omnipool::types::{
+	AssetReserveState as MathReserveState,
+	AssetStateChange,
+	BalanceUpdate,
+};
+use sp_runtime::{
+	FixedPointNumber,
+	FixedU128,
+	Saturating,
+};
 
 /// Balance type used in Omnipool
 pub type Balance = u128;

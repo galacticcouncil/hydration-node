@@ -1,16 +1,34 @@
 #![allow(deprecated)]
 
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, PegSource};
-use crate::{assert_balance, Error, Event};
+use crate::types::{
+	BoundedPegSources,
+	PegSource,
+};
+use crate::{
+	assert_balance,
+	Error,
+	Event,
+};
 use hydradx_traits::stableswap::AssetAmount;
 
 use crate::tests::to_bounded_asset_vec;
-use frame_support::{assert_noop, assert_ok, BoundedVec};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	BoundedVec,
+};
 use hydradx_traits::OraclePeriod;
-use pallet_broadcast::types::{Asset, Destination, Fee};
+use pallet_broadcast::types::{
+	Asset,
+	Destination,
+	Fee,
+};
 use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{
+	Perbill,
+	Permill,
+};
 
 #[test]
 fn sell_with_peg_should_work_as_before_when_all_pegs_are_one() {

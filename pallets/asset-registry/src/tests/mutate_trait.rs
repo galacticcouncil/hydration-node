@@ -4,7 +4,10 @@ use hydradx_traits::registry::Mutate;
 use mock::Registry;
 
 use polkadot_xcm::v3::{
-	Junction::{self, Parachain},
+	Junction::{
+		self,
+		Parachain,
+	},
 	Junctions::X2,
 	MultiLocation,
 };

@@ -15,10 +15,21 @@
 
 use crate::mock::*;
 use crate::{
-	error_to_invalid, Claims, EcdsaSignature, Error, EthereumAddress, SignedExtension, ValidTransaction, ValidateClaim,
+	error_to_invalid,
+	Claims,
+	EcdsaSignature,
+	Error,
+	EthereumAddress,
+	SignedExtension,
+	ValidTransaction,
+	ValidateClaim,
 };
 use frame_support::dispatch::DispatchInfo;
-use frame_support::{assert_err, assert_noop, assert_ok};
+use frame_support::{
+	assert_err,
+	assert_noop,
+	assert_ok,
+};
 use hex_literal::hex;
 use sp_std::marker::PhantomData;
 

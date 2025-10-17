@@ -31,24 +31,48 @@ use crate as pallet_stableswap;
 use crate::Config;
 
 use crate::types::BoundedPegSources;
-use crate::{PegRawOracle, PegSource, PegType};
+use crate::{
+	PegRawOracle,
+	PegSource,
+	PegType,
+};
 use frame_support::__private::Get;
-use frame_support::traits::{Contains, Everything};
+use frame_support::traits::{
+	Contains,
+	Everything,
+};
 use frame_support::weights::Weight;
-use frame_support::{assert_ok, BoundedVec};
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64},
+	assert_ok,
+	BoundedVec,
+};
+use frame_support::{
+	construct_runtime,
+	parameter_types,
+	traits::{
+		ConstU32,
+		ConstU64,
+	},
 };
 use frame_system::EnsureRoot;
 use orml_traits::currency::MutationHooks;
 pub use orml_traits::MultiCurrency;
-use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
+use orml_traits::{
+	parameter_type_with_key,
+	GetByKey,
+	Handler,
+	Happened,
+	NamedMultiReservableCurrency,
+};
 use sp_core::H256;
 use sp_runtime::Perbill;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, DispatchError,
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
+	BuildStorage,
+	DispatchError,
 };
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -376,10 +400,19 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
-use crate::types::{PoolInfo, PoolState, StableswapHooks};
+use crate::types::{
+	PoolInfo,
+	PoolState,
+	StableswapHooks,
+};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, RawEntry, Source};
+use hydradx_traits::{
+	AccountIdFor,
+	Inspect,
+	RawEntry,
+	Source,
+};
 use sp_runtime::traits::Zero;
 
 pub struct DummyRegistry;

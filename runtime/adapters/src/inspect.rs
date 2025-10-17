@@ -1,7 +1,13 @@
 use frame_support::pallet_prelude::Get;
 use frame_support::traits::fungible::Inspect as FungibleInspect;
 use frame_support::traits::fungibles::Inspect as FungiblesInspect;
-use frame_support::traits::tokens::{DepositConsequence, Fortitude, Preservation, Provenance, WithdrawConsequence};
+use frame_support::traits::tokens::{
+	DepositConsequence,
+	Fortitude,
+	Preservation,
+	Provenance,
+	WithdrawConsequence,
+};
 
 /// An adapter to use inspect functionality for both native and multi currency
 pub struct MultiInspectAdapter<AccountId, AssetId, Balance, NativeCurrency, MultiCurrency, GetNativeCurrencyId>(

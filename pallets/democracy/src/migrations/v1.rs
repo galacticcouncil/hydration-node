@@ -20,7 +20,12 @@
 #![allow(clippy::module_inception)]
 
 use crate::*;
-use frame_support::{pallet_prelude::*, storage_alias, traits::OnRuntimeUpgrade, BoundedVec};
+use frame_support::{
+	pallet_prelude::*,
+	storage_alias,
+	traits::OnRuntimeUpgrade,
+	BoundedVec,
+};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::H256;
 
@@ -160,7 +165,10 @@ pub mod v1 {
 mod test {
 	use super::*;
 	use crate::{
-		tests::{Test as T, *},
+		tests::{
+			Test as T,
+			*,
+		},
 		types::*,
 	};
 	use sp_runtime::bounded_vec;

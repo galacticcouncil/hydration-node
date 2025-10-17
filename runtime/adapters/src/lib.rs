@@ -17,47 +17,123 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{EncodeLike, FullCodec};
+use codec::{
+	EncodeLike,
+	FullCodec,
+};
 use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::{
 	sp_runtime::{
-		traits::{AtLeast32BitUnsigned, Convert, Get, MaybeSerializeDeserialize, Saturating, Zero},
-		ArithmeticError, DispatchError, DispatchResult, FixedPointNumber, FixedPointOperand, FixedU128,
+		traits::{
+			AtLeast32BitUnsigned,
+			Convert,
+			Get,
+			MaybeSerializeDeserialize,
+			Saturating,
+			Zero,
+		},
+		ArithmeticError,
+		DispatchError,
+		DispatchResult,
+		FixedPointNumber,
+		FixedPointOperand,
+		FixedU128,
 		SaturatedConversion,
 	},
-	traits::{Contains, LockIdentifier, OriginTrait},
-	weights::{Weight, WeightToFee},
+	traits::{
+		Contains,
+		LockIdentifier,
+		OriginTrait,
+	},
+	weights::{
+		Weight,
+		WeightToFee,
+	},
 };
 use hydra_dx_math::{
 	ema::EmaPrice,
 	ensure,
 	omnipool::types::BalanceUpdate,
-	support::rational::{round_to_rational, round_u512_to_rational, Rounding},
+	support::rational::{
+		round_to_rational,
+		round_u512_to_rational,
+		Rounding,
+	},
 };
-use hydradx_traits::router::{AssetPair, PoolType, RouteProvider, Trade};
+use hydradx_traits::router::{
+	AssetPair,
+	PoolType,
+	RouteProvider,
+	Trade,
+};
 use hydradx_traits::{
-	liquidity_mining::PriceAdjustment, AggregatedPriceOracle, LockedBalance, NativePriceOracle,
-	OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
+	liquidity_mining::PriceAdjustment,
+	AggregatedPriceOracle,
+	LockedBalance,
+	NativePriceOracle,
+	OnLiquidityChangedHandler,
+	OnTradeHandler,
+	OraclePeriod,
+	PriceOracle,
 };
-use orml_traits::{GetByKey, MultiCurrency};
-use orml_xcm_support::{OnDepositFail, UnknownAsset as UnknownAssetT};
+use orml_traits::{
+	GetByKey,
+	MultiCurrency,
+};
+use orml_xcm_support::{
+	OnDepositFail,
+	UnknownAsset as UnknownAssetT,
+};
 use pallet_circuit_breaker::WeightInfo;
-use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
-use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
-use pallet_stableswap::types::{PoolState, StableswapHooks};
+use pallet_ema_oracle::{
+	OnActivityHandler,
+	OracleError,
+	Price,
+};
+use pallet_omnipool::traits::{
+	AssetInfo,
+	ExternalPriceProvider,
+	OmnipoolHooks,
+};
+use pallet_stableswap::types::{
+	PoolState,
+	StableswapHooks,
+};
 use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::v4::prelude::*;
-use primitive_types::{U128, U512};
-use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
-use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
+use primitive_types::{
+	U128,
+	U512,
+};
+use primitives::constants::chain::{
+	STABLESWAP_SOURCE,
+	XYK_SOURCE,
+};
+use primitives::{
+	constants::chain::OMNIPOOL_SOURCE,
+	AccountId,
+	AssetId,
+	Balance,
+	BlockNumber,
+	CollectionId,
+};
 use sp_runtime::traits::BlockNumberProvider;
 use sp_std::vec;
 use sp_std::vec::Vec;
-use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
+use sp_std::{
+	collections::btree_map::BTreeMap,
+	fmt::Debug,
+	marker::PhantomData,
+};
 use warehouse_liquidity_mining::GlobalFarmData;
 use xcm_builder::TakeRevenue;
 use xcm_executor::{
-	traits::{ConvertLocation, MatchesFungible, TransactAsset, WeightTrader},
+	traits::{
+		ConvertLocation,
+		MatchesFungible,
+		TransactAsset,
+		WeightTrader,
+	},
 	AssetsInHolding,
 };
 

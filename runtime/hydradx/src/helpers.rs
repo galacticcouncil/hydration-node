@@ -1,18 +1,45 @@
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmark_helpers {
-	use crate::{AssetRegistry, EVMAccounts, RegistryStrLimit, Runtime, RuntimeOrigin, Tokens};
+	use crate::{
+		AssetRegistry,
+		EVMAccounts,
+		RegistryStrLimit,
+		Runtime,
+		RuntimeOrigin,
+		Tokens,
+	};
 	use evm::ExitRevert::Reverted;
-	use evm::{ExitReason, ExitSucceed};
+	use evm::{
+		ExitReason,
+		ExitSucceed,
+	};
 	use frame_support::storage::with_transaction;
 	use frame_support::BoundedVec;
-	use hydradx_traits::evm::{CallContext, InspectEvmAccounts};
-	use hydradx_traits::{AssetKind, Create};
-	use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+	use hydradx_traits::evm::{
+		CallContext,
+		InspectEvmAccounts,
+	};
+	use hydradx_traits::{
+		AssetKind,
+		Create,
+	};
+	use orml_traits::{
+		MultiCurrency,
+		MultiCurrencyExtended,
+	};
 	use pallet_hsm::ERC20Function;
 	use primitive_types::U256;
-	use primitives::{AccountId, AssetId, Balance, EvmAddress};
+	use primitives::{
+		AccountId,
+		AssetId,
+		Balance,
+		EvmAddress,
+	};
 	use sp_core::crypto::AccountId32;
-	use sp_runtime::{DispatchResult, TransactionOutcome};
+	use sp_runtime::{
+		DispatchResult,
+		TransactionOutcome,
+	};
 	use sp_std::marker::PhantomData;
 	use sp_std::prelude::*;
 

@@ -1,22 +1,45 @@
 use crate::*;
-use cumulus_primitives_core::{Junction::GlobalConsensus, Location, NetworkId::Kusama};
+use cumulus_primitives_core::{
+	Junction::GlobalConsensus,
+	Location,
+	NetworkId::Kusama,
+};
 use primitives::constants::{
-	currency::{CENTS, DOLLARS, MILLICENTS},
-	time::{DAYS, HOURS},
+	currency::{
+		CENTS,
+		DOLLARS,
+		MILLICENTS,
+	},
+	time::{
+		DAYS,
+		HOURS,
+	},
 };
 
 use codec::Encode;
 use frame_support::{
 	assert_err,
-	dispatch::{DispatchClass, GetDispatchInfo},
-	sp_runtime::{traits::Convert, FixedPointNumber},
+	dispatch::{
+		DispatchClass,
+		GetDispatchInfo,
+	},
+	sp_runtime::{
+		traits::Convert,
+		FixedPointNumber,
+	},
 	weights::WeightToFee,
 };
 use pallet_transaction_payment::Multiplier;
 use polkadot_xcm::opaque::VersionedXcm;
-use polkadot_xcm::{VersionedAssets, VersionedLocation};
+use polkadot_xcm::{
+	VersionedAssets,
+	VersionedLocation,
+};
 use sp_core::crypto::Ss58Codec;
-use sp_runtime::{BuildStorage, FixedU128};
+use sp_runtime::{
+	BuildStorage,
+	FixedU128,
+};
 use sp_std::sync::Arc;
 use xcm_builder::GlobalConsensusConvertsFor;
 use xcm_executor::traits::ConvertLocation;
@@ -187,8 +210,14 @@ fn max_multiplier() {
 mod xcm_fee_payment_api_tests {
 	use super::*;
 	use frame_support::assert_ok;
-	use polkadot_xcm::{v4::prelude::*, VersionedAssetId::V4};
-	use xcm_runtime_apis::fees::{runtime_decl_for_xcm_payment_api::XcmPaymentApiV1, Error as XcmPaymentApiError};
+	use polkadot_xcm::{
+		v4::prelude::*,
+		VersionedAssetId::V4,
+	};
+	use xcm_runtime_apis::fees::{
+		runtime_decl_for_xcm_payment_api::XcmPaymentApiV1,
+		Error as XcmPaymentApiError,
+	};
 
 	#[test]
 	fn query_acceptable_payment_assets_should_return_native_and_registered_locations() {

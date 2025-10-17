@@ -1,6 +1,13 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use frame_support::dispatch::DispatchResultWithPostInfo;
-use frame_support::sp_runtime::{DispatchError, DispatchResult};
+use frame_support::sp_runtime::{
+	DispatchError,
+	DispatchResult,
+};
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;

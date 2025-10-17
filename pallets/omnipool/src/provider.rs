@@ -1,8 +1,18 @@
 use crate::pallet::Assets;
-use crate::{Config, Pallet};
+use crate::{
+	Config,
+	Pallet,
+};
 use hydradx_traits::pools::SpotPriceProvider;
-use sp_runtime::traits::{CheckedMul, Get, One};
-use sp_runtime::{FixedPointNumber, FixedU128};
+use sp_runtime::traits::{
+	CheckedMul,
+	Get,
+	One,
+};
+use sp_runtime::{
+	FixedPointNumber,
+	FixedU128,
+};
 
 impl<T: Config> SpotPriceProvider<T::AssetId> for Pallet<T> {
 	type Price = FixedU128;

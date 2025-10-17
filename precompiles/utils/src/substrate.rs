@@ -21,11 +21,21 @@
 use sp_runtime::traits::Dispatchable;
 
 use {
-	crate::{evm::handle::using_precompile_handle, solidity::revert::revert},
+	crate::{
+		evm::handle::using_precompile_handle,
+		solidity::revert::revert,
+	},
 	core::marker::PhantomData,
-	fp_evm::{ExitError, PrecompileFailure, PrecompileHandle},
+	fp_evm::{
+		ExitError,
+		PrecompileFailure,
+		PrecompileHandle,
+	},
 	frame_support::{
-		dispatch::{GetDispatchInfo, PostDispatchInfo},
+		dispatch::{
+			GetDispatchInfo,
+			PostDispatchInfo,
+		},
 		pallet_prelude::*,
 		traits::Get,
 	},

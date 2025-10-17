@@ -20,7 +20,10 @@
 use super::*;
 
 use crate::types::AssetDetails;
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
 use frame_support::traits::tokens::fungibles::Mutate as FungiblesMutate;
 use frame_system::RawOrigin;
 use sp_std::vec;

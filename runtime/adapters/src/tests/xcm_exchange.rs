@@ -1,15 +1,30 @@
 use crate::tests::mock::AccountId;
 use crate::tests::mock::AssetId as CurrencyId;
 use crate::tests::mock::*;
-use crate::tests::mock::{DAI, HDX, NATIVE_AMOUNT};
+use crate::tests::mock::{
+	DAI,
+	HDX,
+	NATIVE_AMOUNT,
+};
 use crate::xcm_exchange::XcmAssetExchanger;
-use frame_support::{assert_noop, assert_ok, parameter_types};
-use hydradx_traits::router::{AssetPair, PoolType, Trade};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	parameter_types,
+};
+use hydradx_traits::router::{
+	AssetPair,
+	PoolType,
+	Trade,
+};
 use orml_traits::MultiCurrency;
 use polkadot_xcm::latest::prelude::*;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::Convert;
-use sp_runtime::{FixedU128, SaturatedConversion};
+use sp_runtime::{
+	FixedU128,
+	SaturatedConversion,
+};
 use xcm_executor::traits::AssetExchange;
 use xcm_executor::AssetsInHolding;
 

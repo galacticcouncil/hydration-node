@@ -1,31 +1,74 @@
 use crate::{
 	assets::LRNA,
 	evm::precompiles::{
-		handle::{FunctionModifier, PrecompileHandleExt},
+		handle::{
+			FunctionModifier,
+			PrecompileHandleExt,
+		},
 		substrate::RuntimeHelper,
-		succeed, Output,
+		succeed,
+		Output,
 	},
 	evm::EvmAddress,
-	EmaOracle, Router,
+	EmaOracle,
+	Router,
 };
-use codec::{Decode, Encode, EncodeLike};
-use frame_support::traits::{IsType, OriginTrait};
+use codec::{
+	Decode,
+	Encode,
+	EncodeLike,
+};
+use frame_support::traits::{
+	IsType,
+	OriginTrait,
+};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hex_literal::hex;
-use hydra_dx_math::support::rational::{round_to_rational, Rounding};
+use hydra_dx_math::support::rational::{
+	round_to_rational,
+	Rounding,
+};
 use hydradx_adapters::OraclePriceProvider;
 use hydradx_traits::{
 	oracle::PriceOracle,
-	router::{AssetPair, RouteProvider},
-	AggregatedPriceOracle, Inspect, OraclePeriod, Source,
+	router::{
+		AssetPair,
+		RouteProvider,
+	},
+	AggregatedPriceOracle,
+	Inspect,
+	OraclePeriod,
+	Source,
 };
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use pallet_ema_oracle::Price;
-use pallet_evm::{ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
-use primitive_types::{H160, U128, U256};
-use primitives::{constants::chain::OMNIPOOL_SOURCE, AssetId};
-use sp_runtime::{traits::Dispatchable, RuntimeDebug};
-use sp_std::{cmp::Ordering, marker::PhantomData};
+use pallet_evm::{
+	ExitRevert,
+	Precompile,
+	PrecompileFailure,
+	PrecompileHandle,
+	PrecompileResult,
+};
+use primitive_types::{
+	H160,
+	U128,
+	U256,
+};
+use primitives::{
+	constants::chain::OMNIPOOL_SOURCE,
+	AssetId,
+};
+use sp_runtime::{
+	traits::Dispatchable,
+	RuntimeDebug,
+};
+use sp_std::{
+	cmp::Ordering,
+	marker::PhantomData,
+};
 
 const EMPTY_SOURCE: Source = [0u8; 8];
 
@@ -323,7 +366,11 @@ pub fn decode_oracle_address(oracle_address: EvmAddress) -> Option<(AssetId, Ass
 pub mod runtime_api {
 	#![cfg_attr(not(feature = "std"), no_std)]
 
-	use super::{AssetId, OraclePeriod, Source};
+	use super::{
+		AssetId,
+		OraclePeriod,
+		Source,
+	};
 	use codec::Codec;
 
 	sp_api::decl_runtime_apis! {

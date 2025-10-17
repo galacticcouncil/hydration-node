@@ -7,17 +7,34 @@ use fp_evm::ExitReason::Succeed;
 use fp_evm::PrecompileSet;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
-use hydradx_runtime::evm::{Erc20Currency, EvmNonceProvider as AccountNonce, Executor, Function};
+use hydradx_runtime::evm::{
+	Erc20Currency,
+	EvmNonceProvider as AccountNonce,
+	Executor,
+	Function,
+};
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeOrigin;
-use hydradx_runtime::{AssetLocation, Currencies};
-use hydradx_runtime::{EVMAccounts, Runtime};
+use hydradx_runtime::{
+	AssetLocation,
+	Currencies,
+};
+use hydradx_runtime::{
+	EVMAccounts,
+	Runtime,
+};
 use hydradx_traits::evm::ERC20;
 use hydradx_traits::evm::EVM;
-use hydradx_traits::evm::{CallContext, EvmAddress};
+use hydradx_traits::evm::{
+	CallContext,
+	EvmAddress,
+};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
@@ -32,8 +49,14 @@ use polkadot_xcm::v3::MultiLocation;
 use primitives::AccountId;
 use sp_core::keccak_256;
 use sp_core::Encode;
-use sp_core::{H256, U256};
-use sp_runtime::{Permill, TransactionOutcome};
+use sp_core::{
+	H256,
+	U256,
+};
+use sp_runtime::{
+	Permill,
+	TransactionOutcome,
+};
 use std::fmt::Write;
 use xcm_emulator::TestExt;
 

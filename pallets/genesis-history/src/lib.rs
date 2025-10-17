@@ -18,12 +18,21 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
-use codec::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use codec::{
+	Decode,
+	Encode,
+};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 use sp_core::RuntimeDebug;
 
 use scale_info::TypeInfo;
-use sp_core::{MaxEncodedLen, H256};
+use sp_core::{
+	MaxEncodedLen,
+	H256,
+};
 
 #[cfg(test)]
 mod mock;

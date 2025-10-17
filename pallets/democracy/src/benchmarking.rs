@@ -19,13 +19,31 @@
 
 use super::*;
 
-use frame_benchmarking::v1::{account, benchmarks, whitelist_account, BenchmarkError};
-use frame_support::{
-	assert_noop, assert_ok,
-	traits::{Currency, EnsureOrigin, Get, OnInitialize, UnfilteredDispatchable},
+use frame_benchmarking::v1::{
+	account,
+	benchmarks,
+	whitelist_account,
+	BenchmarkError,
 };
-use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
-use sp_runtime::{traits::Bounded, BoundedVec};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	traits::{
+		Currency,
+		EnsureOrigin,
+		Get,
+		OnInitialize,
+		UnfilteredDispatchable,
+	},
+};
+use frame_system::{
+	pallet_prelude::BlockNumberFor,
+	RawOrigin,
+};
+use sp_runtime::{
+	traits::Bounded,
+	BoundedVec,
+};
 
 use crate::Pallet as Democracy;
 
@@ -83,7 +101,10 @@ fn assert_has_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 
 // note a new preimage.
 fn note_preimage<T: Config>() -> T::Hash {
-	use core::sync::atomic::{AtomicU8, Ordering};
+	use core::sync::atomic::{
+		AtomicU8,
+		Ordering,
+	};
 	use sp_std::borrow::Cow;
 	// note a new preimage on every function invoke.
 	static COUNTER: AtomicU8 = AtomicU8::new(0);

@@ -18,66 +18,152 @@
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
-use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
+use crate::origins::{
+	EconomicParameters,
+	GeneralAdmin,
+	OmnipoolAdmin,
+};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
-	ensure, parameter_types,
-	sp_runtime::traits::{One, PhantomData},
+	ensure,
+	parameter_types,
+	sp_runtime::traits::{
+		One,
+		PhantomData,
+	},
 	sp_runtime::{
-		app_crypto::sp_core::crypto::UncheckedFrom, traits::Zero, ArithmeticError, DispatchError, DispatchResult,
-		FixedPointNumber, Percent,
+		app_crypto::sp_core::crypto::UncheckedFrom,
+		traits::Zero,
+		ArithmeticError,
+		DispatchError,
+		DispatchResult,
+		FixedPointNumber,
+		Percent,
 	},
-	sp_runtime::{FixedU128, Perbill, Permill},
+	sp_runtime::{
+		FixedU128,
+		Perbill,
+		Permill,
+	},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, Imbalance,
-		LockIdentifier, NeverEnsureOrigin, OnUnbalanced, SortedMembers,
+		AsEnsureOriginWithArg,
+		ConstU32,
+		Contains,
+		Currency,
+		Defensive,
+		EitherOf,
+		EnsureOrigin,
+		Imbalance,
+		LockIdentifier,
+		NeverEnsureOrigin,
+		OnUnbalanced,
+		SortedMembers,
 	},
-	BoundedVec, PalletId,
+	BoundedVec,
+	PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned, RawOrigin};
+use frame_system::{
+	EnsureRoot,
+	EnsureSigned,
+	RawOrigin,
+};
 use hydradx_adapters::{
-	stableswap_peg_oracle::PegOracle, AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT,
-	MultiCurrencyLockedBalance, OmnipoolHookAdapter, OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider,
-	PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider, StableswapHooksAdapter,
+	stableswap_peg_oracle::PegOracle,
+	AssetFeeOraclePriceProvider,
+	EmaOraclePriceAdapter,
+	FreezableNFT,
+	MultiCurrencyLockedBalance,
+	OmnipoolHookAdapter,
+	OmnipoolRawOracleAssetVolumeProvider,
+	OraclePriceProvider,
+	PriceAdjustmentAdapter,
+	RelayChainBlockHashProvider,
+	RelayChainBlockNumberProvider,
+	StableswapHooksAdapter,
 	VestingInfo,
 };
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::evm::CallContext;
 use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 pub use hydradx_traits::{
-	fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader},
+	fee::{
+		InspectTransactionFeeCurrency,
+		SwappablePaymentAssetTrader,
+	},
 	registry::Inspect,
-	router::{inverse_route, PoolType, Trade},
-	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
+	router::{
+		inverse_route,
+		PoolType,
+		Trade,
+	},
+	AccountIdFor,
+	AssetKind,
+	AssetPairAccountIdFor,
+	Liquidity,
+	NativePriceOracle,
+	OnTradeHandler,
+	OraclePeriod,
+	Source,
 	AMM,
 };
 
 use orml_traits::{
-	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
-	GetByKey, Handler, Happened, NamedMultiReservableCurrency,
+	currency::{
+		MultiCurrency,
+		MultiLockableCurrency,
+		MutationHooks,
+		OnDeposit,
+		OnTransfer,
+	},
+	GetByKey,
+	Handler,
+	Happened,
+	NamedMultiReservableCurrency,
 };
-use pallet_currencies::{AssetTotalIssuance, BasicCurrencyAdapter};
+use pallet_currencies::{
+	AssetTotalIssuance,
+	BasicCurrencyAdapter,
+};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
 use pallet_omnipool::{
-	traits::{EnsurePriceWithin, OmnipoolHooks},
+	traits::{
+		EnsurePriceWithin,
+		OmnipoolHooks,
+	},
 	weights::WeightInfo as OmnipoolWeights,
 };
 use pallet_otc::NamedReserveIdentifier;
-use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
+use pallet_route_executor::{
+	weights::WeightInfo as RouterWeights,
+	AmmTradeWeights,
+};
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 
 use pallet_staking::{
-	types::{Action, Point},
+	types::{
+		Action,
+		Point,
+	},
 	SigmoidPercentage,
 };
-use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
+use pallet_transaction_multi_payment::{
+	AddTxAssetOnAccount,
+	RemoveTxAssetOnKilled,
+};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
-	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
+	chain::{
+		CORE_ASSET_ID,
+		OMNIPOOL_SOURCE,
+		XYK_SOURCE,
+	},
+	currency::{
+		NATIVE_EXISTENTIAL_DEPOSIT,
+		UNITS,
+	},
 	time::DAYS,
 };
 use sp_std::num::NonZeroU16;
@@ -1389,7 +1475,10 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
-use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
+use hydradx_traits::evm::{
+	Erc20Inspect,
+	Erc20OnDust,
+};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1403,7 +1492,10 @@ use pallet_ema_oracle::ordered_pair;
 use pallet_ema_oracle::OracleEntry;
 use pallet_hsm::WeightInfo;
 use pallet_referrals::traits::Convert;
-use pallet_referrals::{FeeDistribution, Level};
+use pallet_referrals::{
+	FeeDistribution,
+	Level,
+};
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::types::PegType;
 #[cfg(feature = "runtime-benchmarks")]

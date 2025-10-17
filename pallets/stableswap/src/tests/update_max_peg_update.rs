@@ -1,8 +1,22 @@
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, PegSource};
-use crate::{Error, Event, PoolPegs};
-use frame_support::{assert_noop, assert_ok, BoundedVec};
-use sp_runtime::{Perbill, Permill};
+use crate::types::{
+	BoundedPegSources,
+	PegSource,
+};
+use crate::{
+	Error,
+	Event,
+	PoolPegs,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	BoundedVec,
+};
+use sp_runtime::{
+	Perbill,
+	Permill,
+};
 
 #[test]
 fn update_pool_max_peg_update_should_work() {

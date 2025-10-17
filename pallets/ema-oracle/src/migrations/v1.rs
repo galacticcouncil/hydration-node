@@ -1,6 +1,9 @@
 use crate::*;
 use frame_support::weights::Weight;
-use frame_support::{migrations::VersionedMigration, traits::UncheckedOnRuntimeUpgrade};
+use frame_support::{
+	migrations::VersionedMigration,
+	traits::UncheckedOnRuntimeUpgrade,
+};
 use hydradx_traits::AMM;
 use pallet_xyk::types::AssetPair;
 use primitives::constants::chain::XYK_SOURCE;

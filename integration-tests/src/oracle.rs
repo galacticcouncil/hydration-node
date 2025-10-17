@@ -9,26 +9,38 @@ use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
 use frame_support::{
 	assert_ok,
-	sp_runtime::{FixedU128, Permill},
+	sp_runtime::{
+		FixedU128,
+		Permill,
+	},
 	traits::tokens::fungibles::Mutate,
 };
 use hydra_dx_math::ema::smoothing_from_period;
 use hydradx_runtime::bifrost_account;
 use hydradx_runtime::AssetLocation;
 use hydradx_runtime::AssetRegistry;
-use hydradx_runtime::{EmaOracle, RuntimeOrigin};
+use hydradx_runtime::{
+	EmaOracle,
+	RuntimeOrigin,
+};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use hydradx_traits::{
 	AggregatedPriceOracle,
-	OraclePeriod::{self, *},
+	OraclePeriod::{
+		self,
+		*,
+	},
 };
 use orml_traits::MultiCurrency;
 use pallet_ema_oracle::into_smoothing;
 use pallet_ema_oracle::OracleError;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_transaction_payment::ChargeTransactionPayment;
-use primitives::constants::chain::{OMNIPOOL_SOURCE, XYK_SOURCE};
+use primitives::constants::chain::{
+	OMNIPOOL_SOURCE,
+	XYK_SOURCE,
+};
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::DispatchResult;

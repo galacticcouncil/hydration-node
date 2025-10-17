@@ -15,21 +15,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::{mock::*, Error};
-use crate::{AcceptedCurrencies, AcceptedCurrencyPrice, Event, PaymentInfo, Price};
+pub use crate::{
+	mock::*,
+	Error,
+};
+use crate::{
+	AcceptedCurrencies,
+	AcceptedCurrencyPrice,
+	Event,
+	PaymentInfo,
+	Price,
+};
 
 use frame_support::{
-	assert_noop, assert_ok, assert_storage_noop,
-	dispatch::{DispatchInfo, PostDispatchInfo},
-	sp_runtime::traits::{BadOrigin, SignedExtension},
-	traits::{tokens::Precision, Hooks},
+	assert_noop,
+	assert_ok,
+	assert_storage_noop,
+	dispatch::{
+		DispatchInfo,
+		PostDispatchInfo,
+	},
+	sp_runtime::traits::{
+		BadOrigin,
+		SignedExtension,
+	},
+	traits::{
+		tokens::Precision,
+		Hooks,
+	},
 	weights::Weight,
 };
 use hydradx_traits::evm::InspectEvmAccounts;
 use orml_traits::MultiCurrency;
 use pallet_balances::Call as BalancesCall;
 use pallet_transaction_payment::ChargeTransactionPayment;
-use sp_core::{H256, U256};
+use sp_core::{
+	H256,
+	U256,
+};
 use sp_runtime::traits::ValidateUnsigned;
 use sp_runtime::transaction_validity::TransactionSource;
 

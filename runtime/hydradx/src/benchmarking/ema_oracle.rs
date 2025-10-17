@@ -27,20 +27,37 @@ use scale_info::prelude::string::ToString;
 use sp_std::sync::Arc;
 pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
-use frame_support::{assert_ok, dispatch::RawOrigin};
+use frame_support::{
+	assert_ok,
+	dispatch::RawOrigin,
+};
 use hydradx_traits::AggregatedOracle;
 use hydradx_traits::OnLiquidityChangedHandler;
 #[cfg(test)]
 use pretty_assertions::assert_eq;
-use sp_runtime::{BoundedVec, DispatchError};
+use sp_runtime::{
+	BoundedVec,
+	DispatchError,
+};
 use sp_std::boxed::Box;
 
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::{Liquidity, OnTradeHandler, Source, Volume};
+use hydradx_traits::{
+	Liquidity,
+	OnTradeHandler,
+	Source,
+	Volume,
+};
 use orml_benchmarking::runtime_benchmarks;
-use pallet_ema_oracle::{Accumulator, OracleEntry};
-use sp_core::{ConstU32, Get};
+use pallet_ema_oracle::{
+	Accumulator,
+	OracleEntry,
+};
+use sp_core::{
+	ConstU32,
+	Get,
+};
 
 /// Default oracle source.
 const SOURCE: Source = *b"dummysrc";

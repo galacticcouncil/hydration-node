@@ -78,24 +78,59 @@
 #![allow(clippy::manual_inspect)]
 
 use crate::traits::ShouldAllow;
-use frame_support::pallet_prelude::{DispatchResult, Get};
+use frame_support::pallet_prelude::{
+	DispatchResult,
+	Get,
+};
 use frame_support::require_transactional;
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_support::traits::tokens::nonfungibles::{
+	Create,
+	Inspect,
+	Mutate,
+};
 use frame_support::PalletId;
-use frame_support::{ensure, transactional};
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use frame_support::{
+	ensure,
+	transactional,
+};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::OriginFor,
+};
 use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
+use hydra_dx_math::omnipool::types::{
+	AssetStateChange,
+	BalanceUpdate,
+};
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
 use orml_traits::MultiCurrency;
-use pallet_broadcast::types::{Asset, Destination, ExecutionType, Fee};
+use pallet_broadcast::types::{
+	Asset,
+	Destination,
+	ExecutionType,
+	Fee,
+};
 #[cfg(any(feature = "try-runtime", test))]
 use primitive_types::U256;
 use scale_info::TypeInfo;
-use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
-use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_runtime::traits::{
+	AccountIdConversion,
+	AtLeast32BitUnsigned,
+	One,
+};
+use sp_runtime::traits::{
+	CheckedAdd,
+	CheckedSub,
+	Zero,
+};
+use sp_runtime::{
+	ArithmeticError,
+	DispatchError,
+	FixedPointNumber,
+	FixedU128,
+	Permill,
+};
 use sp_std::prelude::*;
 
 #[cfg(test)]
@@ -108,8 +143,17 @@ pub mod traits;
 pub mod types;
 pub mod weights;
 
-use crate::traits::{AssetInfo, OmnipoolHooks};
-use crate::types::{AssetReserveState, AssetState, Balance, Position, Tradability};
+use crate::traits::{
+	AssetInfo,
+	OmnipoolHooks,
+};
+use crate::types::{
+	AssetReserveState,
+	AssetState,
+	Balance,
+	Position,
+	Tradability,
+};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -120,8 +164,16 @@ pub type NFTCollectionIdOf<T> =
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
-	use crate::types::{Position, Price, Tradability};
+	use crate::traits::{
+		AssetInfo,
+		ExternalPriceProvider,
+		OmnipoolHooks,
+	};
+	use crate::types::{
+		Position,
+		Price,
+		Tradability,
+	};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::DefensiveOption;

@@ -5,15 +5,25 @@
 use super::*;
 use crate as currencies;
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64, Everything, Nothing},
+	construct_runtime,
+	parameter_types,
+	traits::{
+		ConstU32,
+		ConstU64,
+		Everything,
+		Nothing,
+	},
 	PalletId,
 };
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{AccountIdConversion, IdentityLookup},
-	AccountId32, BuildStorage,
+	traits::{
+		AccountIdConversion,
+		IdentityLookup,
+	},
+	AccountId32,
+	BuildStorage,
 };
 
 pub type AccountId = AccountId32;

@@ -6,7 +6,16 @@
 use proc_macro::TokenStream;
 use proc_macro2::Literal;
 use quote::quote;
-use syn::{parse_macro_input, Expr, ExprLit, Ident, ItemEnum, Lit, LitByteStr, LitStr};
+use syn::{
+	parse_macro_input,
+	Expr,
+	ExprLit,
+	Ident,
+	ItemEnum,
+	Lit,
+	LitByteStr,
+	LitStr,
+};
 
 #[proc_macro_attribute]
 pub fn generate_function_selector(_: TokenStream, input: TokenStream) -> TokenStream {

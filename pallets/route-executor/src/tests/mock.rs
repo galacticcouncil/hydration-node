@@ -16,24 +16,46 @@
 // limitations under the License.
 
 use crate as router;
-use crate::{Config, Trade};
+use crate::{
+	Config,
+	Trade,
+};
 use frame_support::PalletId;
 use frame_support::{
 	parameter_types,
-	traits::{Everything, Nothing},
+	traits::{
+		Everything,
+		Nothing,
+	},
 };
 use frame_system::EnsureRoot;
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::OriginFor,
+};
 use hydra_dx_math::ratio::Ratio;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{
+	ExecutorError,
+	PoolType,
+	TradeExecution,
+};
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_currencies::{
+	fungibles::FungibleCurrencies,
+	BasicCurrencyAdapter,
+	MockBoundErc20,
+	MockErc20Currency,
+};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::FixedU128;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, DispatchError,
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
+	BuildStorage,
+	DispatchError,
 };
 use std::cell::RefCell;
 use std::ops::Deref;
@@ -189,7 +211,11 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 	}
 }
 
-use hydradx_traits::{AssetKind, OraclePeriod, PriceOracle};
+use hydradx_traits::{
+	AssetKind,
+	OraclePeriod,
+	PriceOracle,
+};
 pub struct MockedAssetRegistry;
 
 impl hydradx_traits::registry::Inspect for MockedAssetRegistry {

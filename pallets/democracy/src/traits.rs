@@ -1,4 +1,7 @@
-use crate::{AccountVote, ReferendumIndex};
+use crate::{
+	AccountVote,
+	ReferendumIndex,
+};
 use frame_support::dispatch::DispatchResult;
 
 pub trait DemocracyHooks<AccountId, Balance> {

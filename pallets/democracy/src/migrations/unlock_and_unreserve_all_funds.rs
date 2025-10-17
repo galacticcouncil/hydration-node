@@ -18,18 +18,35 @@
 //! A migration that unreserves all deposit and unlocks all stake held in the context of this
 //! pallet.
 
-use crate::{PropIndex, Voting, DEMOCRACY_ID};
+use crate::{
+	PropIndex,
+	Voting,
+	DEMOCRACY_ID,
+};
 use core::iter::Sum;
 use frame_support::{
 	pallet_prelude::ValueQuery,
 	storage_alias,
-	traits::{Currency, LockableCurrency, OnRuntimeUpgrade, ReservableCurrency},
+	traits::{
+		Currency,
+		LockableCurrency,
+		OnRuntimeUpgrade,
+		ReservableCurrency,
+	},
 	weights::RuntimeDbWeight,
-	Parameter, Twox64Concat,
+	Parameter,
+	Twox64Concat,
 };
 use sp_core::Get;
-use sp_runtime::{traits::Zero, BoundedVec, Saturating};
-use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
+use sp_runtime::{
+	traits::Zero,
+	BoundedVec,
+	Saturating,
+};
+use sp_std::{
+	collections::btree_map::BTreeMap,
+	vec::Vec,
+};
 
 const LOG_TARGET: &str = "runtime::democracy::migrations::unlock_and_unreserve_all_funds";
 
@@ -292,12 +309,24 @@ where
 mod test {
 	use super::*;
 	use crate::{
-		tests::{new_test_ext, Balances, Test},
-		DepositOf, Voting, VotingOf,
+		tests::{
+			new_test_ext,
+			Balances,
+			Test,
+		},
+		DepositOf,
+		Voting,
+		VotingOf,
 	};
 	use frame_support::{
-		assert_ok, parameter_types,
-		traits::{Currency, OnRuntimeUpgrade, ReservableCurrency, WithdrawReasons},
+		assert_ok,
+		parameter_types,
+		traits::{
+			Currency,
+			OnRuntimeUpgrade,
+			ReservableCurrency,
+			WithdrawReasons,
+		},
 		BoundedVec,
 	};
 	use frame_system::pallet_prelude::BlockNumberFor;

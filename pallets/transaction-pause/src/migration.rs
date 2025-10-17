@@ -18,7 +18,11 @@
 use super::*;
 use frame_support::{
 	storage_alias,
-	traits::{Get, OnRuntimeUpgrade, StorageVersion},
+	traits::{
+		Get,
+		OnRuntimeUpgrade,
+		StorageVersion,
+	},
 	weights::Weight,
 };
 
@@ -107,7 +111,10 @@ pub mod v1 {
 #[cfg(feature = "try-runtime")]
 mod test {
 	use super::*;
-	use crate::mock::{Runtime as T, *};
+	use crate::mock::{
+		Runtime as T,
+		*,
+	};
 
 	#[test]
 	fn migration_works() {

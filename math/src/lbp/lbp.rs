@@ -1,18 +1,41 @@
-use core::convert::{TryFrom, TryInto};
+use core::convert::{
+	TryFrom,
+	TryInto,
+};
 use primitive_types::U256;
 
-use crate::types::{AssetId, Balance, LBPWeight};
+use crate::types::{
+	AssetId,
+	Balance,
+	LBPWeight,
+};
 use crate::{
-	ensure, to_balance, to_lbp_weight, to_u256, MathError,
-	MathError::{Overflow, ZeroDuration, ZeroReserve},
+	ensure,
+	to_balance,
+	to_lbp_weight,
+	to_u256,
+	MathError,
+	MathError::{
+		Overflow,
+		ZeroDuration,
+		ZeroReserve,
+	},
 };
 
 use core::convert::From;
 use fixed::types::U32F96;
-use num_traits::{CheckedMul, CheckedSub, Zero};
+use num_traits::{
+	CheckedMul,
+	CheckedSub,
+	Zero,
+};
 use sp_arithmetic;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Rounding};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+	Rounding,
+};
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE

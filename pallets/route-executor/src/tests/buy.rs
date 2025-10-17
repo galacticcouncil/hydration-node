@@ -16,8 +16,16 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::{Error, Event, Trade};
-use frame_support::{assert_noop, assert_ok, BoundedVec};
+use crate::{
+	Error,
+	Event,
+	Trade,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	BoundedVec,
+};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use pretty_assertions::assert_eq;

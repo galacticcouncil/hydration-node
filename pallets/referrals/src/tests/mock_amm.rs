@@ -6,7 +6,10 @@ type Balance = u128;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+	use frame_system::{
+		ensure_signed,
+		pallet_prelude::OriginFor,
+	};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);

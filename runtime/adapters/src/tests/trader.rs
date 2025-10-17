@@ -16,9 +16,19 @@
 // limitations under the License.
 
 use crate::*;
-use codec::{Decode, Encode};
-use frame_support::{weights::IdentityFee, BoundedVec};
-use sp_runtime::{traits::One, DispatchResult, FixedU128};
+use codec::{
+	Decode,
+	Encode,
+};
+use frame_support::{
+	weights::IdentityFee,
+	BoundedVec,
+};
+use sp_runtime::{
+	traits::One,
+	DispatchResult,
+	FixedU128,
+};
 use sp_std::cell::RefCell;
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::sync::Arc;

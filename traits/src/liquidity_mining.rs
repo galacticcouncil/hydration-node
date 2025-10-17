@@ -1,4 +1,7 @@
-use sp_arithmetic::{FixedU128, Perquintill};
+use sp_arithmetic::{
+	FixedU128,
+	Perquintill,
+};
 use sp_std::vec::Vec;
 
 pub type YieldFarmId = u32;

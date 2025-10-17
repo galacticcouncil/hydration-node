@@ -1,20 +1,37 @@
 #![allow(dead_code)]
 #![allow(clippy::type_complexity)]
 
-use codec::{Compact, Decode, Encode};
+use codec::{
+	Compact,
+	Decode,
+	Encode,
+};
 use frame_support::__private::log;
-use frame_support::sp_runtime::{traits::Block as BlockT, StateVersion, Storage};
+use frame_support::sp_runtime::{
+	traits::Block as BlockT,
+	StateVersion,
+	Storage,
+};
 use futures::StreamExt;
 use hydradx::chain_spec::hydradx::parachain_config;
 use sc_chain_spec::ChainSpec;
-use sp_core::storage::{StorageData, StorageKey};
+use sp_core::storage::{
+	StorageData,
+	StorageKey,
+};
 use sp_core::H256;
 use sp_io::TestExternalities;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{
+	BTreeMap,
+	HashMap,
+};
 use std::sync::Arc;
 use std::{
 	fs,
-	path::{Path, PathBuf},
+	path::{
+		Path,
+		PathBuf,
+	},
 	str::FromStr,
 };
 use substrate_rpc_client::ws_client;
@@ -262,10 +279,18 @@ pub async fn save_chainspec(at: Option<H256>, path: PathBuf, uri: String) -> Res
 
 	Ok(())
 }
-use futures::stream::{self};
-use indicatif::{ProgressBar, ProgressStyle};
+use futures::stream::{
+	self,
+};
+use indicatif::{
+	ProgressBar,
+	ProgressStyle,
+};
 use sp_state_machine::TrieBackendBuilder;
-use sp_trie::{HashDBT, PrefixedMemoryDB};
+use sp_trie::{
+	HashDBT,
+	PrefixedMemoryDB,
+};
 
 const PAGE_SIZE: u32 = 1000; //Limiting as bigger values lead to error when calling PROD RPCs
 const CONCURRENCY: usize = 1000;

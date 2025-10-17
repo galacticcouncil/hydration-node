@@ -1,6 +1,17 @@
 use crate::types::Balance;
-use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
-use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Perbill, Permill};
+use num_traits::{
+	CheckedAdd,
+	CheckedDiv,
+	CheckedMul,
+	CheckedSub,
+};
+use sp_arithmetic::{
+	traits::Saturating,
+	FixedPointNumber,
+	FixedU128,
+	Perbill,
+	Permill,
+};
 use sp_std::num::NonZeroU128;
 
 type Period = u128;

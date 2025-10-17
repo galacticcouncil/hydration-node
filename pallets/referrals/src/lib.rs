@@ -49,14 +49,28 @@ pub mod migration;
 mod tests;
 pub mod traits;
 
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::pallet_prelude::{DispatchResult, Get};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
+use frame_support::pallet_prelude::{
+	DispatchResult,
+	Get,
+};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::tokens::Preservation;
-use frame_support::{defensive, ensure, transactional};
+use frame_support::{
+	defensive,
+	ensure,
+	transactional,
+};
 use frame_system::{
 	ensure_signed,
-	pallet_prelude::{BlockNumberFor, OriginFor},
+	pallet_prelude::{
+		BlockNumberFor,
+		OriginFor,
+	},
 };
 use hydradx_traits::price::PriceProvider;
 use orml_traits::GetByKey;
@@ -67,8 +81,14 @@ use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Rounding;
 use sp_runtime::{
-	traits::{CheckedAdd, Zero},
-	ArithmeticError, DispatchError, Permill, RuntimeDebug,
+	traits::{
+		CheckedAdd,
+		Zero,
+	},
+	ArithmeticError,
+	DispatchError,
+	Permill,
+	RuntimeDebug,
 };
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -152,7 +172,10 @@ pub mod pallet {
 	use crate::traits::Convert;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::ArithmeticError;
-	use frame_support::traits::fungibles::{Inspect, Mutate};
+	use frame_support::traits::fungibles::{
+		Inspect,
+		Mutate,
+	};
 	use frame_support::PalletId;
 	use hydra_dx_math::ema::EmaPrice;
 	use sp_runtime::traits::Zero;

@@ -18,38 +18,83 @@
 use super::*;
 
 use crate::origins::GeneralAdmin;
-use pallet_transaction_multi_payment::{DepositAll, TransferFees, WeightInfo};
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+use pallet_transaction_multi_payment::{
+	DepositAll,
+	TransferFees,
+	WeightInfo,
+};
+use pallet_transaction_payment::{
+	Multiplier,
+	TargetedFeeAdjustment,
+};
 use primitives::constants::{
 	chain::{
-		BLOCK_PROCESSING_VELOCITY, CORE_ASSET_ID, MAXIMUM_BLOCK_WEIGHT, RELAY_CHAIN_SLOT_DURATION_MILLIS,
+		BLOCK_PROCESSING_VELOCITY,
+		CORE_ASSET_ID,
+		MAXIMUM_BLOCK_WEIGHT,
+		RELAY_CHAIN_SLOT_DURATION_MILLIS,
 		UNINCLUDED_SEGMENT_CAPACITY,
 	},
-	currency::{deposit, CENTS, DOLLARS, MILLICENTS},
-	time::{DAYS, HOURS, SLOT_DURATION},
+	currency::{
+		deposit,
+		CENTS,
+		DOLLARS,
+		MILLICENTS,
+	},
+	time::{
+		DAYS,
+		HOURS,
+		SLOT_DURATION,
+	},
 };
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use core::cmp::Ordering;
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
 	sp_runtime::{
-		traits::{ConstU32, ConstU64, IdentityLookup},
-		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
+		traits::{
+			ConstU32,
+			ConstU64,
+			IdentityLookup,
+		},
+		FixedPointNumber,
+		Perbill,
+		Perquintill,
+		RuntimeDebug,
 	},
 	traits::{
-		fungible::HoldConsideration, ConstBool, Contains, EitherOf, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
+		fungible::HoldConsideration,
+		ConstBool,
+		Contains,
+		EitherOf,
+		InstanceFilter,
+		LinearStoragePrice,
+		PrivilegeCmp,
 		SortedMembers,
 	},
 	weights::{
-		constants::{BlockExecutionWeight, RocksDbWeight},
-		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
+		constants::{
+			BlockExecutionWeight,
+			RocksDbWeight,
+		},
+		ConstantMultiplier,
+		WeightToFeeCoefficient,
+		WeightToFeeCoefficients,
+		WeightToFeePolynomial,
 	},
 	PalletId,
 };
 use frame_system::EnsureRoot;
-use hydradx_adapters::{OraclePriceProvider, RelayChainBlockNumberProvider};
+use hydradx_adapters::{
+	OraclePriceProvider,
+	RelayChainBlockNumberProvider,
+};
 use pallet_broadcast::types::ExecutionType;
 use pallet_utility::BatchHook;
 use scale_info::TypeInfo;

@@ -3,8 +3,14 @@
 #![cfg(test)]
 
 use super::*;
-use frame_support::{assert_noop, assert_ok};
-use mock::{RuntimeEvent, *};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
+use mock::{
+	RuntimeEvent,
+	*,
+};
 use sp_runtime::traits::BadOrigin;
 
 #[test]

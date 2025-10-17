@@ -5,11 +5,17 @@ use mock::Registry;
 
 use frame_support::storage::with_transaction;
 use polkadot_xcm::v3::{
-	Junction::{self, Parachain},
+	Junction::{
+		self,
+		Parachain,
+	},
 	Junctions::X2,
 	MultiLocation,
 };
-use sp_runtime::{DispatchResult, TransactionOutcome};
+use sp_runtime::{
+	DispatchResult,
+	TransactionOutcome,
+};
 
 #[test]
 fn register_asset_should_work() {

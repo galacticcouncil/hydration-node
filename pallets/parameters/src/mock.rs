@@ -26,14 +26,26 @@
 //                  $$$
 
 use crate as parameters;
-use frame_support::{parameter_types, traits::Everything, PalletId};
+use frame_support::{
+	parameter_types,
+	traits::Everything,
+	PalletId,
+};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
-	BuildStorage, Permill,
+	traits::{
+		AccountIdConversion,
+		BlakeTwo256,
+		IdentityLookup,
+	},
+	BuildStorage,
+	Permill,
 };
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+	cell::RefCell,
+	collections::HashMap,
+};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 

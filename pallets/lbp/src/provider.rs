@@ -1,10 +1,22 @@
-use crate::{AssetId, AssetPair, Config, Pallet, PoolData};
+use crate::{
+	AssetId,
+	AssetPair,
+	Config,
+	Pallet,
+	PoolData,
+};
 use hydra_dx_math::types::Price;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;
-use sp_runtime::traits::{BlockNumberProvider, One};
-use sp_runtime::{FixedPointNumber, FixedU128};
+use sp_runtime::traits::{
+	BlockNumberProvider,
+	One,
+};
+use sp_runtime::{
+	FixedPointNumber,
+	FixedU128,
+};
 
 impl<T: Config> SpotPriceProvider<AssetId> for Pallet<T> {
 	type Price = FixedU128;

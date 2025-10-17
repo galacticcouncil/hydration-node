@@ -1,4 +1,8 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
 #[cfg(feature = "runtime-benchmarks")]

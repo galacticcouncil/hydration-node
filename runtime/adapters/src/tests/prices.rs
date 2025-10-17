@@ -1,8 +1,16 @@
 use crate::OraclePriceProvider;
 use frame_support::parameter_types;
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::router::{PoolType, Trade};
-use hydradx_traits::{AggregatedPriceOracle, OraclePeriod, PriceOracle, Source};
+use hydradx_traits::router::{
+	PoolType,
+	Trade,
+};
+use hydradx_traits::{
+	AggregatedPriceOracle,
+	OraclePeriod,
+	PriceOracle,
+	Source,
+};
 use pallet_ema_oracle::OracleError;
 use primitives::constants::chain::Weight;
 

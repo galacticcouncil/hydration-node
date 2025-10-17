@@ -15,28 +15,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::{
-	AccountId, AssetId, Balance, BlockNumber, Currencies, EmaOracle, Runtime, System, XYKLiquidityMining,
-	XYKWarehouseLM, XYK,
+	AccountId,
+	AssetId,
+	Balance,
+	BlockNumber,
+	Currencies,
+	EmaOracle,
+	Runtime,
+	System,
+	XYKLiquidityMining,
+	XYKWarehouseLM,
+	XYK,
 };
 
 use sp_core::Get;
 
 use crate::*;
 
-use frame_benchmarking::{account, BenchmarkError};
+use frame_benchmarking::{
+	account,
+	BenchmarkError,
+};
 use frame_support::{
 	assert_ok,
-	sp_runtime::{traits::One, DispatchResult, FixedU128, Perquintill},
+	sp_runtime::{
+		traits::One,
+		DispatchResult,
+		FixedU128,
+		Perquintill,
+	},
 };
 use frame_system::RawOrigin;
 use hydradx_traits::AMM;
 use orml_benchmarking::runtime_benchmarks;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+};
 use pallet_xyk::types::AssetPair;
 use sp_std::vec;
-use warehouse_liquidity_mining::{GlobalFarmData, GlobalFarmId, LoyaltyCurve};
+use warehouse_liquidity_mining::{
+	GlobalFarmData,
+	GlobalFarmId,
+	LoyaltyCurve,
+};
 type Router<T> = pallet_route_executor::Pallet<T>;
-use crate::benchmarking::{register_asset, register_external_asset, update_deposit_limit};
+use crate::benchmarking::{
+	register_asset,
+	register_external_asset,
+	update_deposit_limit,
+};
 use crate::XYKLiquidityMiningInstance;
 use hydradx_traits::liquidity_mining::PriceAdjustment;
 use hydradx_traits::router::AssetPair as RouteAssetPair;

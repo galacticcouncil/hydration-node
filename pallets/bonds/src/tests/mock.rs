@@ -19,24 +19,43 @@ use crate as pallet_bonds;
 use crate::*;
 
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime,
+	parameter_types,
 	sp_runtime::{
-		traits::{BlakeTwo256, IdentityLookup},
+		traits::{
+			BlakeTwo256,
+			IdentityLookup,
+		},
 		BuildStorage,
 	},
-	traits::{ConstU32, ConstU64, Everything, SortedMembers},
+	traits::{
+		ConstU32,
+		ConstU64,
+		Everything,
+		SortedMembers,
+	},
 };
 use frame_system::EnsureSignedBy;
 use sp_core::H256;
 use sp_runtime::BoundedVec;
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+	cell::RefCell,
+	collections::HashMap,
+};
 
-use hydradx_traits::registry::{Create, Inspect};
+use hydradx_traits::registry::{
+	Create,
+	Inspect,
+};
 use orml_traits::parameter_type_with_key;
 pub use primitives::constants::{
 	currency::NATIVE_EXISTENTIAL_DEPOSIT,
 	time::{
-		unix_time::{DAY, MONTH, WEEK},
+		unix_time::{
+			DAY,
+			MONTH,
+			WEEK,
+		},
 		SLOT_DURATION,
 	},
 };

@@ -20,7 +20,10 @@
 use super::*;
 
 use crate::types::BenchmarkHelper;
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
 use frame_support::traits::Hooks;
 use frame_system::RawOrigin;
 use sp_std::prelude::*;

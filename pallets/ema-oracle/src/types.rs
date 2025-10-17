@@ -15,20 +15,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use frame_support::sp_runtime::RuntimeDebug;
-use hydra_dx_math::ema::{calculate_new_by_integrating_incoming, update_outdated_to_current, EmaPrice};
+use hydra_dx_math::ema::{
+	calculate_new_by_integrating_incoming,
+	update_outdated_to_current,
+	EmaPrice,
+};
 use hydra_dx_math::types::Fraction;
-use hydradx_traits::{AggregatedEntry, Liquidity, Volume};
+use hydradx_traits::{
+	AggregatedEntry,
+	Liquidity,
+	Volume,
+};
 use scale_info::TypeInfo;
-use sp_arithmetic::traits::{AtLeast32BitUnsigned, SaturatedConversion, UniqueSaturatedInto};
+use sp_arithmetic::traits::{
+	AtLeast32BitUnsigned,
+	SaturatedConversion,
+	UniqueSaturatedInto,
+};
 
-pub use hydradx_traits::{OraclePeriod, Source};
+pub use hydradx_traits::{
+	OraclePeriod,
+	Source,
+};
 
 use sp_std::prelude::*;
 
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 
 pub type AssetId = u32;
 pub type Balance = u128;

@@ -4,14 +4,31 @@ use crate::assert_balance;
 use crate::polkadot_test_net::*;
 
 use frame_support::storage::with_transaction;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use frame_system::RawOrigin;
-use hydradx_traits::registry::{AssetKind, Create};
+use hydradx_traits::registry::{
+	AssetKind,
+	Create,
+};
 use orml_traits::MultiCurrency;
-use sp_runtime::{DispatchResult, TransactionOutcome};
+use sp_runtime::{
+	DispatchResult,
+	TransactionOutcome,
+};
 use xcm_emulator::TestExt;
 
-use hydradx_runtime::{AssetRegistry, Bonds, Currencies, MultiTransactionPayment, Runtime, RuntimeOrigin, Tokens};
+use hydradx_runtime::{
+	AssetRegistry,
+	Bonds,
+	Currencies,
+	MultiTransactionPayment,
+	Runtime,
+	RuntimeOrigin,
+	Tokens,
+};
 use primitives::constants::time::unix_time::MONTH;
 
 #[test]

@@ -15,9 +15,20 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::{assert_balance, Error, Event};
-use frame_support::{assert_noop, assert_ok, traits::Hooks};
-use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
+use crate::{
+	assert_balance,
+	Error,
+	Event,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	traits::Hooks,
+};
+use orml_traits::{
+	MultiCurrency,
+	NamedMultiReservableCurrency,
+};
 use pretty_assertions::assert_eq;
 
 #[test]

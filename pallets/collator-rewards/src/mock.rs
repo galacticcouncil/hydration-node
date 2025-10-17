@@ -4,7 +4,10 @@ use std::cell::RefCell;
 
 use frame_support::{
 	parameter_types,
-	traits::{Everything, Nothing},
+	traits::{
+		Everything,
+		Nothing,
+	},
 };
 
 use frame_system as system;
@@ -13,7 +16,10 @@ use pallet_session::SessionManager;
 
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 use sp_staking::SessionIndex;

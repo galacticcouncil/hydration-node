@@ -18,15 +18,37 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use core::marker::PhantomData;
-use fp_evm::{Context, ExitReason, ExitRevert, PrecompileFailure, PrecompileHandle, Transfer};
+use fp_evm::{
+	Context,
+	ExitReason,
+	ExitRevert,
+	PrecompileFailure,
+	PrecompileHandle,
+	Transfer,
+};
 use frame_support::{
 	ensure,
-	storage::types::{StorageMap, ValueQuery},
-	traits::{ConstU32, Get, StorageInstance, Time},
+	storage::types::{
+		StorageMap,
+		ValueQuery,
+	},
+	traits::{
+		ConstU32,
+		Get,
+		StorageInstance,
+		Time,
+	},
 	Blake2_128Concat,
 };
-use precompile_utils::{evm::costs::call_cost, prelude::*};
-use sp_core::{H160, H256, U256};
+use precompile_utils::{
+	evm::costs::call_cost,
+	prelude::*,
+};
+use sp_core::{
+	H160,
+	H256,
+	U256,
+};
 use sp_io::hashing::keccak_256;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;

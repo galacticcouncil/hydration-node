@@ -35,20 +35,35 @@ pub mod tracks;
 use super::*;
 use crate::governance::{
 	origins::{
-		EconomicParameters, GeneralAdmin, ReferendumCanceller, ReferendumKiller, Spender, Treasurer, WhitelistedCaller,
+		EconomicParameters,
+		GeneralAdmin,
+		ReferendumCanceller,
+		ReferendumKiller,
+		Spender,
+		Treasurer,
+		WhitelistedCaller,
 	},
 	tracks::TracksInfo,
 };
 use frame_support::{
 	parameter_types,
 	sp_runtime::Permill,
-	traits::{tokens::UnityAssetBalanceConversion, EitherOf},
+	traits::{
+		tokens::UnityAssetBalanceConversion,
+		EitherOf,
+	},
 	PalletId,
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess};
+use frame_system::{
+	EnsureRoot,
+	EnsureRootWithSuccess,
+};
 use hydradx_traits::evm::MaybeEvmCall;
 use pallet_collective::EnsureProportionAtLeast;
-use primitives::constants::{currency::DOLLARS, time::DAYS};
+use primitives::constants::{
+	currency::DOLLARS,
+	time::DAYS,
+};
 use sp_arithmetic::Perbill;
 use sp_core::ConstU32;
 use sp_runtime::traits::IdentityLookup;
