@@ -22,13 +22,32 @@ use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_support::BoundedVec;
-use hydradx_adapters::{OraclePriceProvider, PriceAdjustmentAdapter};
+use hydradx_adapters::{
+	OraclePriceProvider,
+	PriceAdjustmentAdapter,
+};
 use hydradx_runtime::{
-	AssetRegistry, Balance, Bonds, Currencies, EmaOracle, Omnipool, OraclePeriod, Router, Runtime, RuntimeEvent,
-	RuntimeOrigin, Stableswap, Treasury, TreasuryAccount,
+	AssetRegistry,
+	Balance,
+	Bonds,
+	Currencies,
+	EmaOracle,
+	Omnipool,
+	OraclePeriod,
+	Router,
+	Runtime,
+	RuntimeEvent,
+	RuntimeOrigin,
+	Stableswap,
+	Treasury,
+	TreasuryAccount,
 };
 use hydradx_traits::liquidity_mining::PriceAdjustment;
-use hydradx_traits::router::{AssetPair, PoolType, Trade};
+use hydradx_traits::router::{
+	AssetPair,
+	PoolType,
+	Trade,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
@@ -40,16 +59,35 @@ use pallet_stableswap::types::PegSource;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use pretty_assertions::assert_eq;
 use primitives::constants::time::unix_time::MONTH;
-use primitives::{constants::currency::UNITS, AssetId};
+use primitives::{
+	constants::currency::UNITS,
+	AssetId,
+};
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{
-	traits::{One, Zero},
-	DispatchError, FixedPointNumber, FixedU128, Permill, Perquintill,
+	traits::{
+		One,
+		Zero,
+	},
+	DispatchError,
+	FixedPointNumber,
+	FixedU128,
+	Permill,
+	Perquintill,
 };
-use sp_runtime::{DispatchResult, Perbill};
+use sp_runtime::{
+	DispatchResult,
+	Perbill,
+};
 use std::sync::Arc;
 use warehouse_liquidity_mining::{
-	DefaultPriceAdjustment, DepositData, GlobalFarmData, GlobalFarmId, Instance1, LoyaltyCurve, YieldFarmData,
+	DefaultPriceAdjustment,
+	DepositData,
+	GlobalFarmData,
+	GlobalFarmId,
+	Instance1,
+	LoyaltyCurve,
+	YieldFarmData,
 	YieldFarmEntry,
 };
 use xcm_emulator::TestExt;

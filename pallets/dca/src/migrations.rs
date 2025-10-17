@@ -1,5 +1,10 @@
 use crate::pallet;
-use frame_support::traits::{Get, GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
+use frame_support::traits::{
+	Get,
+	GetStorageVersion,
+	OnRuntimeUpgrade,
+	StorageVersion,
+};
 use sp_runtime::Saturating;
 
 // This migration multiplies the periods of schedules by 2 to account for 2x faster block times
@@ -46,10 +51,19 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy2<T> {
 #[cfg(test)]
 mod test {
 	use super::*;
-	use crate::tests::mock::{RuntimeOrigin, Test, ALICE, DCA};
+	use crate::tests::mock::{
+		RuntimeOrigin,
+		Test,
+		ALICE,
+		DCA,
+	};
 	use crate::tests::schedule::set_block_number;
 	use crate::tests::{
-		mock::{ExtBuilder, HDX, ONE},
+		mock::{
+			ExtBuilder,
+			HDX,
+			ONE,
+		},
 		ScheduleBuilder,
 	};
 	use frame_support::assert_ok;

@@ -30,7 +30,10 @@
 use super::*;
 use primitives::constants::{
 	currency::UNITS,
-	time::{HOURS, MINUTES},
+	time::{
+		HOURS,
+		MINUTES,
+	},
 };
 const fn percent(x: i32) -> sp_arithmetic::FixedI64 {
 	sp_arithmetic::FixedI64::from_rational(x as u128, 100)

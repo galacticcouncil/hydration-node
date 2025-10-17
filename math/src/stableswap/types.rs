@@ -1,6 +1,10 @@
 use crate::ratio::Ratio;
 use crate::types::Balance;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use num_traits::Zero;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;

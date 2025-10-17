@@ -20,7 +20,11 @@ use sp_io::hashing::keccak_256;
 use std::{
 	collections::HashMap,
 	fs::File,
-	io::{BufRead, BufReader, Read},
+	io::{
+		BufRead,
+		BufReader,
+		Read,
+	},
 };
 
 pub fn check_precompile_implements_solidity_interfaces<F>(files: &[&'static str], supports_selector: F)

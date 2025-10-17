@@ -1,10 +1,31 @@
 use super::*;
 use crate::mock::{
-	ATokenDusterMock, AssetId, Currencies, Duster, ExtBuilder, RuntimeEvent as TestEvent, RuntimeOrigin, System, Test,
-	Tokens, ALICE, BOB, DUSTER, KILLED, TOKEN, TREASURY,
+	ATokenDusterMock,
+	AssetId,
+	Currencies,
+	Duster,
+	ExtBuilder,
+	RuntimeEvent as TestEvent,
+	RuntimeOrigin,
+	System,
+	Test,
+	Tokens,
+	ALICE,
+	BOB,
+	DUSTER,
+	KILLED,
+	TOKEN,
+	TREASURY,
 };
-use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo};
-use frame_support::{assert_noop, assert_ok};
+use frame_support::dispatch::{
+	DispatchErrorWithPostInfo,
+	Pays,
+	PostDispatchInfo,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::BadOrigin;
 

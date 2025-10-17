@@ -16,9 +16,16 @@
 // limitations under the License.
 
 use super::*;
-pub use mock::{EmaOracle, RuntimeOrigin, Test};
+pub use mock::{
+	EmaOracle,
+	RuntimeOrigin,
+	Test,
+};
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 
 use crate::tests::mock::BOB;
 use pretty_assertions::assert_eq;

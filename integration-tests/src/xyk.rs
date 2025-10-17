@@ -2,12 +2,21 @@
 
 use crate::polkadot_test_net::*;
 
-use hydradx_runtime::{DustRemovalWhitelist, RuntimeOrigin, LBP, XYK};
+use hydradx_runtime::{
+	DustRemovalWhitelist,
+	RuntimeOrigin,
+	LBP,
+	XYK,
+};
 use hydradx_traits::AMM;
 use pallet_xyk::types::AssetPair;
 use xcm_emulator::TestExt;
 
-use frame_support::{assert_noop, assert_ok, traits::Contains};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	traits::Contains,
+};
 
 fn pair_account(asset_a: AssetId, asset_b: AssetId) -> AccountId {
 	let asset_pair = AssetPair {

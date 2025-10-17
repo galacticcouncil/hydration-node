@@ -13,22 +13,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::traits::{Freeze, VestingDetails};
-use crate::types::{Vote, Voting};
+use crate::traits::{
+	Freeze,
+	VestingDetails,
+};
+use crate::types::{
+	Vote,
+	Voting,
+};
 use crate::*;
 
 use frame_support::traits::Everything;
-use frame_support::{assert_ok, PalletId};
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, ConstU64, NeverEnsureOrigin},
+	assert_ok,
+	PalletId,
+};
+use frame_support::{
+	construct_runtime,
+	parameter_types,
+	traits::{
+		AsEnsureOriginWithArg,
+		ConstU128,
+		ConstU32,
+		ConstU64,
+		NeverEnsureOrigin,
+	},
 	weights::RuntimeDbWeight,
 };
-use frame_system::{EnsureRoot, RawOrigin};
-use orml_traits::{parameter_type_with_key, LockIdentifier, MultiCurrencyExtended};
+use frame_system::{
+	EnsureRoot,
+	RawOrigin,
+};
+use orml_traits::{
+	parameter_type_with_key,
+	LockIdentifier,
+	MultiCurrencyExtended,
+};
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		BlockNumberProvider,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 

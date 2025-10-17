@@ -15,9 +15,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License..
 
-use crate::{Collections, Config, ItemInfoOf, Items, Pallet};
+use crate::{
+	Collections,
+	Config,
+	ItemInfoOf,
+	Items,
+	Pallet,
+};
 use frame_support::{
-	traits::{Get, PalletInfoAccess, StorageVersion},
+	traits::{
+		Get,
+		PalletInfoAccess,
+		StorageVersion,
+	},
 	weights::Weight,
 };
 
@@ -26,8 +36,13 @@ pub mod v1 {
 	use super::*;
 	use frame_support::{
 		migration::move_prefix,
-		storage::{storage_prefix, unhashed, StoragePrefixedMap},
-		storage_alias, Twox64Concat,
+		storage::{
+			storage_prefix,
+			unhashed,
+			StoragePrefixedMap,
+		},
+		storage_alias,
+		Twox64Concat,
 	};
 	use sp_io::hashing::twox_128;
 

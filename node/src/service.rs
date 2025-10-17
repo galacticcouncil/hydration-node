@@ -19,49 +19,99 @@
 
 #![allow(clippy::all)]
 
-use codec::{Decode, Encode};
+use codec::{
+	Decode,
+	Encode,
+};
 use hydradx_runtime::{
-	opaque::{Block, Hash},
+	opaque::{
+		Block,
+		Hash,
+	},
 	RuntimeApi,
 };
-use std::{sync::Arc, time::Duration};
+use std::{
+	sync::Arc,
+	time::Duration,
+};
 
 use cumulus_client_cli::CollatorOptions;
 use cumulus_client_collator::service::CollatorService;
 use cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport;
 use cumulus_client_consensus_proposer::Proposer;
 use cumulus_client_service::{
-	build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks, BuildNetworkParams,
-	CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
+	build_network,
+	build_relay_chain_interface,
+	prepare_node_config,
+	start_relay_chain_tasks,
+	BuildNetworkParams,
+	CollatorSybilResistance,
+	DARecoveryProfile,
+	StartRelayChainTasksParams,
 };
 use cumulus_primitives_core::{
-	relay_chain::{CollatorPair, ValidationCode},
+	relay_chain::{
+		CollatorPair,
+		ValidationCode,
+	},
 	ParaId,
 };
-use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
+use cumulus_relay_chain_interface::{
+	OverseerHandle,
+	RelayChainInterface,
+};
 
 use fc_db::kv::Backend as FrontierBackend;
-use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use fc_rpc_core::types::{
+	FeeHistoryCache,
+	FilterPool,
+};
 use fp_self_contained::SelfContainedCall;
 use frame_support::traits::GetCallMetadata;
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
-use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
+use sc_executor::{
+	HeapAllocStrategy,
+	WasmExecutor,
+	DEFAULT_HEAP_ALLOC_STRATEGY,
+};
 use sc_network::NetworkBlock;
-use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
-use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
+use sc_service::{
+	Configuration,
+	PartialComponents,
+	TFullBackend,
+	TFullClient,
+	TaskManager,
+};
+use sc_telemetry::{
+	Telemetry,
+	TelemetryHandle,
+	TelemetryWorker,
+	TelemetryWorkerHandle,
+};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_blockchain::{
-	EvmTransactionDetail, TransactionDetail, TransactionDetailProvider, TransactionPriorityModifier,
+	EvmTransactionDetail,
+	TransactionDetail,
+	TransactionDetailProvider,
+	TransactionPriorityModifier,
 	TransactionTypeDetail,
 };
 use sp_keystore::KeystorePtr;
 use sp_runtime::traits::Block as BlockT;
-use std::{collections::BTreeMap, sync::Mutex};
+use std::{
+	collections::BTreeMap,
+	sync::Mutex,
+};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, cli, liquidation_worker, rpc};
+use crate::{
+	chain_spec,
+	cli,
+	liquidation_worker,
+	rpc,
+};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -539,7 +589,10 @@ fn start_consensus(
 	overseer_handle: OverseerHandle,
 	announce_block: Arc<dyn Fn(Hash, Option<Vec<u8>>) + Send + Sync>,
 ) -> Result<(), sc_service::Error> {
-	use cumulus_client_consensus_aura::collators::lookahead::{self as aura, Params as AuraParams};
+	use cumulus_client_consensus_aura::collators::lookahead::{
+		self as aura,
+		Params as AuraParams,
+	};
 
 	// NOTE: because we use Aura here explicitly, we can use `CollatorSybilResistance::Resistant`
 	// when starting the network.

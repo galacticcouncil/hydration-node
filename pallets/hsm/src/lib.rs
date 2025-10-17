@@ -27,45 +27,94 @@
 
 pub use pallet::*;
 
-use crate::types::{Balance, CollateralInfo};
+use crate::types::{
+	Balance,
+	CollateralInfo,
+};
 pub use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
-use evm::{ExitReason, ExitSucceed};
+use evm::{
+	ExitReason,
+	ExitSucceed,
+};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::*,
 	require_transactional,
 	traits::{
-		fungibles::{Inspect, Mutate},
+		fungibles::{
+			Inspect,
+			Mutate,
+		},
 		tokens::Preservation,
 	},
 	PalletId,
 };
 use frame_system::{
-	offchain::{SendTransactionTypes, SubmitTransaction},
+	offchain::{
+		SendTransactionTypes,
+		SubmitTransaction,
+	},
 	pallet_prelude::*,
 	Origin,
 };
 use hex_literal::hex;
-use hydra_dx_math::hsm::{CoefficientRatio, PegType, Price};
+use hydra_dx_math::hsm::{
+	CoefficientRatio,
+	PegType,
+	Price,
+};
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
-	evm::{CallContext, InspectEvmAccounts, EVM},
+	evm::{
+		CallContext,
+		InspectEvmAccounts,
+		EVM,
+	},
 	registry::BoundErc20,
 };
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use num_traits::One;
 use pallet_stableswap::types::PoolSnapshot;
-use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
+use precompile_utils::evm::writer::{
+	EvmDataReader,
+	EvmDataWriter,
+};
 use precompile_utils::evm::Bytes;
-use sp_core::{offchain::Duration, Get, H256, U256};
+use sp_core::{
+	offchain::Duration,
+	Get,
+	H256,
+	U256,
+};
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
-	offchain::storage_lock::{StorageLock, Time},
-	traits::{AccountIdConversion, Zero},
-	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
-	AccountId32, ArithmeticError, DispatchError, FixedU128, Perbill, Permill, Rounding, RuntimeDebug,
+	offchain::storage_lock::{
+		StorageLock,
+		Time,
+	},
+	traits::{
+		AccountIdConversion,
+		Zero,
+	},
+	transaction_validity::{
+		InvalidTransaction,
+		TransactionSource,
+		TransactionValidity,
+		ValidTransaction,
+	},
+	AccountId32,
+	ArithmeticError,
+	DispatchError,
+	FixedU128,
+	Perbill,
+	Permill,
+	Rounding,
+	RuntimeDebug,
 	SaturatedConversion,
 };
 use sp_std::vec::Vec;

@@ -1,6 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Codec, Decode, Encode, MaxEncodedLen};
+use codec::{
+	Codec,
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 use sp_std::vec::Vec;

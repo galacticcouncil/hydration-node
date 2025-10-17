@@ -1,14 +1,24 @@
 #![allow(clippy::bad_bit_mask)]
 
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use evm::ExitReason;
 use hydra_dx_math::hsm::CoefficientRatio;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{
+	Perbill,
+	Permill,
+};
 use sp_std::vec::Vec;
 
 pub type Balance = u128;

@@ -2,19 +2,39 @@
 
 use crate::count_dca_event;
 use crate::polkadot_test_net::*;
-use crate::{assert_balance, assert_reserved_balance};
+use crate::{
+	assert_balance,
+	assert_reserved_balance,
+};
 use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::storage::with_transaction;
 use frame_system::RawOrigin;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
-use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
 use hydradx_runtime::{
-	AssetRegistry, Balances, Currencies, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent, RuntimeOrigin,
-	Stableswap, Tokens, Treasury, DCA,
+	AssetPairAccountIdFor,
+	NamedReserveId,
 };
-use hydradx_traits::registry::{AssetKind, Create};
+use hydradx_runtime::{
+	AssetRegistry,
+	Balances,
+	Currencies,
+	InsufficientEDinHDX,
+	Omnipool,
+	Router,
+	Runtime,
+	RuntimeEvent,
+	RuntimeOrigin,
+	Stableswap,
+	Tokens,
+	Treasury,
+	DCA,
+};
+use hydradx_traits::registry::{
+	AssetKind,
+	Create,
+};
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::Trade;
@@ -23,27 +43,51 @@ use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use orml_traits::NamedMultiReservableCurrency;
 use pallet_broadcast::types::*;
-use pallet_dca::types::{Order, Schedule};
+use pallet_dca::types::{
+	Order,
+	Schedule,
+};
 use pallet_omnipool::types::Tradability;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use primitives::{AssetId, Balance};
+use primitives::{
+	AssetId,
+	Balance,
+};
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
 use sp_runtime::Permill;
-use sp_runtime::{BoundedVec, FixedU128};
-use sp_runtime::{DispatchResult, TransactionOutcome};
+use sp_runtime::{
+	BoundedVec,
+	FixedU128,
+};
+use sp_runtime::{
+	DispatchResult,
+	TransactionOutcome,
+};
 use xcm_emulator::TestExt;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
 mod omnipool {
 	use super::*;
 	use frame_support::assert_ok;
-	use hydradx_runtime::{Balances, Currencies, Treasury, DCA, XYK};
-	use hydradx_traits::router::{PoolType, Trade};
+	use hydradx_runtime::{
+		Balances,
+		Currencies,
+		Treasury,
+		DCA,
+		XYK,
+	};
+	use hydradx_traits::router::{
+		PoolType,
+		Trade,
+	};
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::Destination;
-	use sp_runtime::{FixedU128, TransactionOutcome};
+	use sp_runtime::{
+		FixedU128,
+		TransactionOutcome,
+	};
 
 	#[test]
 	fn create_schedule_should_work() {
@@ -2051,7 +2095,10 @@ mod fee {
 	use frame_support::assert_ok;
 	use hydradx_runtime::DCA;
 	use hydradx_traits::AssetKind;
-	use sp_runtime::{FixedU128, TransactionOutcome};
+	use sp_runtime::{
+		FixedU128,
+		TransactionOutcome,
+	};
 
 	#[test]
 	fn sell_tx_fee_should_be_more_for_insufficient_asset() {

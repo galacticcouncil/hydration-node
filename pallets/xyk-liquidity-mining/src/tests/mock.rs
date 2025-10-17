@@ -21,24 +21,49 @@ use super::*;
 use crate as liq_mining;
 use frame_support::weights::RuntimeDbWeight;
 use frame_support::{
-	dispatch, parameter_types,
-	traits::{Everything, Nothing},
+	dispatch,
+	parameter_types,
+	traits::{
+		Everything,
+		Nothing,
+	},
 	PalletId,
 };
 
 use frame_system as system;
-use hydradx_traits::{pools::DustRemovalAccountWhitelist, AMMTransfer, AMM};
+use hydradx_traits::{
+	pools::DustRemovalAccountWhitelist,
+	AMMTransfer,
+	AMM,
+};
 use orml_traits::parameter_type_with_key;
-use pallet_liquidity_mining::{FarmMultiplier, YieldFarmId};
-use pallet_xyk::types::{AssetId, AssetPair, Balance};
-use primitives::{Amount, ItemId};
+use pallet_liquidity_mining::{
+	FarmMultiplier,
+	YieldFarmId,
+};
+use pallet_xyk::types::{
+	AssetId,
+	AssetPair,
+	Balance,
+};
+use primitives::{
+	Amount,
+	ItemId,
+};
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		BlockNumberProvider,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 use sp_std::convert::TryFrom;
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+	cell::RefCell,
+	collections::HashMap,
+};
 
 pub type AccountId = u128;
 pub type BlockNumber = u64;
@@ -352,7 +377,12 @@ impl liq_mining::Config for Test {
 }
 
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::{AggregatedEntry, AggregatedOracle, Liquidity, Volume};
+use hydradx_traits::{
+	AggregatedEntry,
+	AggregatedOracle,
+	Liquidity,
+	Volume,
+};
 pub struct DummyOracle;
 
 impl AggregatedOracle<AssetId, Balance, BlockNumber, EmaPrice> for DummyOracle {
@@ -401,7 +431,10 @@ impl AMMAddLiquidity<AccountId, AssetId, Balance> for DummyAMM {
 	}
 }
 
-use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
+use hydradx_traits::registry::{
+	AssetKind,
+	Inspect as InspectRegistry,
+};
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
@@ -445,7 +478,12 @@ where
 	}
 }
 
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
+use frame_support::traits::tokens::nonfungibles::{
+	Create,
+	Inspect,
+	Mutate,
+	Transfer,
+};
 use hydradx_traits::AMMAddLiquidity;
 
 pub struct DummyNFT;

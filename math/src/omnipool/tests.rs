@@ -1,13 +1,31 @@
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, TradeFee};
+use crate::omnipool::types::{
+	AssetReserveState,
+	BalanceUpdate,
+	Position,
+	TradeFee,
+};
 use crate::omnipool::{
-	calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
-	calculate_cap_difference, calculate_fee_amount_for_buy, calculate_remove_liquidity_state_changes,
-	calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_tvl_cap_difference,
-	calculate_withdrawal_fee, verify_asset_cap,
+	calculate_add_liquidity_state_changes,
+	calculate_buy_for_hub_asset_state_changes,
+	calculate_buy_state_changes,
+	calculate_cap_difference,
+	calculate_fee_amount_for_buy,
+	calculate_remove_liquidity_state_changes,
+	calculate_sell_hub_state_changes,
+	calculate_sell_state_changes,
+	calculate_tvl_cap_difference,
+	calculate_withdrawal_fee,
+	verify_asset_cap,
 };
 use crate::types::Balance;
-use num_traits::{One, Zero};
-use sp_arithmetic::{FixedU128, Permill};
+use num_traits::{
+	One,
+	Zero,
+};
+use sp_arithmetic::{
+	FixedU128,
+	Permill,
+};
 use std::str::FromStr;
 
 const UNIT: Balance = 1_000_000_000_000;

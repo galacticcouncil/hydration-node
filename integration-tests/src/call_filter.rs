@@ -3,11 +3,24 @@
 use crate::polkadot_test_net::*;
 use frame_support::{
 	assert_ok,
-	sp_runtime::{FixedU128, Permill},
-	traits::{Contains, StorePreimage},
+	sp_runtime::{
+		FixedU128,
+		Permill,
+	},
+	traits::{
+		Contains,
+		StorePreimage,
+	},
 };
-use hydradx_runtime::{origins, Preimage};
-use hydradx_traits::router::{AssetPair, PoolType, Trade};
+use hydradx_runtime::{
+	origins,
+	Preimage,
+};
+use hydradx_traits::router::{
+	AssetPair,
+	PoolType,
+	Trade,
+};
 use polkadot_xcm::v3::prelude::*;
 use polkadot_xcm::VersionedXcm;
 use primitives::constants::currency::UNITS;
@@ -257,7 +270,11 @@ fn calling_orml_xcm_extrinsic_should_be_filtered_by_call_filter() {
 
 #[test]
 fn create_contract_from_evm_pallet_should_be_filtered_by_call_filter() {
-	use sp_core::{H160, H256, U256};
+	use sp_core::{
+		H160,
+		H256,
+		U256,
+	};
 
 	TestNet::reset();
 

@@ -19,12 +19,25 @@
 
 use primitives::Amount;
 
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use frame_support::traits::{ConstU128, Contains, Everything};
+use frame_support::traits::tokens::nonfungibles::{
+	Create,
+	Inspect,
+	Mutate,
+};
+use frame_support::traits::{
+	ConstU128,
+	Contains,
+	Everything,
+};
 use frame_support::weights::Weight;
 use frame_support::{
-	assert_ok, construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64},
+	assert_ok,
+	construct_runtime,
+	parameter_types,
+	traits::{
+		ConstU32,
+		ConstU64,
+	},
 };
 use frame_system::EnsureRoot;
 use hydra_dx_math::ema::EmaPrice;
@@ -35,25 +48,53 @@ use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::router::Trade;
 use hydradx_traits::{
-	router::PoolType, AssetKind, AssetPairAccountIdFor, CanCreatePool, Create as CreateRegistry,
-	Inspect as InspectRegistry, OraclePeriod, PriceOracle,
+	router::PoolType,
+	AssetKind,
+	AssetPairAccountIdFor,
+	CanCreatePool,
+	Create as CreateRegistry,
+	Inspect as InspectRegistry,
+	OraclePeriod,
+	PriceOracle,
 };
-use orml_traits::{parameter_type_with_key, GetByKey};
+use orml_traits::{
+	parameter_type_with_key,
+	GetByKey,
+};
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
 use pallet_circuit_breaker::Config;
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_currencies::{
+	BasicCurrencyAdapter,
+	MockBoundErc20,
+	MockErc20Currency,
+};
 use pallet_omnipool;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_omnipool::traits::ExternalPriceProvider;
-use primitive_types::{U128, U256};
-use sp_core::H256;
-use sp_runtime::traits::{Bounded, Zero};
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, DispatchError, DispatchResult, FixedU128,
+use primitive_types::{
+	U128,
+	U256,
 };
-use sp_runtime::{BoundedVec, Permill};
+use sp_core::H256;
+use sp_runtime::traits::{
+	Bounded,
+	Zero,
+};
+use sp_runtime::{
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
+	BuildStorage,
+	DispatchError,
+	DispatchResult,
+	FixedU128,
+};
+use sp_runtime::{
+	BoundedVec,
+	Permill,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;

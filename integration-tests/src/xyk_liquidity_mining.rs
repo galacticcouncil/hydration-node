@@ -17,31 +17,60 @@
 
 #![cfg(test)]
 
-use crate::{assert_nft_owner, omnipool_init::hydra_run_to_block, polkadot_test_net::*};
+use crate::{
+	assert_nft_owner,
+	omnipool_init::hydra_run_to_block,
+	polkadot_test_net::*,
+};
 
 use frame_support::assert_noop;
 use frame_support::assert_ok;
-use hydradx_traits::{liquidity_mining::PriceAdjustment, AMM};
+use hydradx_traits::{
+	liquidity_mining::PriceAdjustment,
+	AMM,
+};
 use pallet_asset_registry::AssetType;
 use warehouse_liquidity_mining::{
-	DefaultPriceAdjustment, DepositData, GlobalFarmData, GlobalFarmId, Instance2, LoyaltyCurve, YieldFarmData,
+	DefaultPriceAdjustment,
+	DepositData,
+	GlobalFarmData,
+	GlobalFarmId,
+	Instance2,
+	LoyaltyCurve,
+	YieldFarmData,
 	YieldFarmEntry,
 };
 
 use orml_traits::MultiCurrency;
 use sp_runtime::{
-	traits::{One, Zero},
-	FixedU128, Perquintill,
+	traits::{
+		One,
+		Zero,
+	},
+	FixedU128,
+	Perquintill,
 };
 use xcm_emulator::TestExt;
 
 use hydradx_runtime::{
-	AssetRegistry, Balance, Bonds, EmaOracle, Runtime, RuntimeOrigin, RuntimeOrigin as hydra_origin, System,
-	XYKLiquidityMining, XYKWarehouseLM, XYK,
+	AssetRegistry,
+	Balance,
+	Bonds,
+	EmaOracle,
+	Runtime,
+	RuntimeOrigin,
+	RuntimeOrigin as hydra_origin,
+	System,
+	XYKLiquidityMining,
+	XYKWarehouseLM,
+	XYK,
 };
 use pallet_xyk::types::AssetPair;
 use polkadot_xcm::v3::{
-	Junction::{GeneralIndex, Parachain},
+	Junction::{
+		GeneralIndex,
+		Parachain,
+	},
 	Junctions::X2,
 	MultiLocation,
 };

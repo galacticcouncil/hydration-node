@@ -19,7 +19,10 @@ use super::*;
 
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
-use frame_support::traits::tokens::fungibles::{Inspect, Mutate};
+use frame_support::traits::tokens::fungibles::{
+	Inspect,
+	Mutate,
+};
 use frame_system::RawOrigin;
 use sp_std::vec;
 

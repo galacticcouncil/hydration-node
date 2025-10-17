@@ -45,35 +45,70 @@ pub mod weights;
 
 use frame_support::{
 	ensure,
-	pallet_prelude::{DispatchError, DispatchResult},
+	pallet_prelude::{
+		DispatchError,
+		DispatchResult,
+	},
 	require_transactional,
-	sp_runtime::traits::{AccountIdConversion, Zero},
+	sp_runtime::traits::{
+		AccountIdConversion,
+		Zero,
+	},
 	traits::DefensiveOption,
 	traits::{
-		tokens::nonfungibles::{Create, Inspect, Mutate, Transfer},
+		tokens::nonfungibles::{
+			Create,
+			Inspect,
+			Mutate,
+			Transfer,
+		},
 		Get,
 	},
 	PalletId,
 };
 use frame_system::{
 	ensure_signed,
-	pallet_prelude::{BlockNumberFor, OriginFor},
+	pallet_prelude::{
+		BlockNumberFor,
+		OriginFor,
+	},
 };
 use hydra_dx_math::ema::EmaPrice as Price;
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::stableswap::StableswapAddLiquidity;
 use hydradx_traits::{
-	liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId},
-	oracle::{AggregatedPriceOracle, OraclePeriod, Source},
+	liquidity_mining::{
+		GlobalFarmId,
+		Mutate as LiquidityMiningMutate,
+		YieldFarmId,
+	},
+	oracle::{
+		AggregatedPriceOracle,
+		OraclePeriod,
+		Source,
+	},
 };
 use orml_traits::MultiCurrency;
 pub use pallet::*;
 use pallet_ema_oracle::OracleError;
-use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
-use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
+use pallet_liquidity_mining::{
+	FarmMultiplier,
+	LoyaltyCurve,
+};
+use pallet_omnipool::{
+	types::Position as OmniPosition,
+	NFTCollectionIdOf,
+};
 use primitive_types::U256;
-use primitives::{Balance, ItemId as DepositId};
-use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
+use primitives::{
+	Balance,
+	ItemId as DepositId,
+};
+use sp_runtime::{
+	ArithmeticError,
+	FixedU128,
+	Perquintill,
+};
 use sp_std::vec;
 pub use weights::WeightInfo;
 

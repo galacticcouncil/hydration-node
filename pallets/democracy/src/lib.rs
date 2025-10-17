@@ -154,22 +154,48 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::manual_inspect)]
 
-use codec::{Decode, Encode};
+use codec::{
+	Decode,
+	Encode,
+};
 use frame_support::{
 	ensure,
 	error::BadOrigin,
 	traits::{
 		defensive_prelude::*,
-		schedule::{v3::Named as ScheduleNamed, DispatchTime},
-		Bounded, Currency, EnsureOrigin, Get, LockIdentifier, LockableCurrency, OnUnbalanced, QueryPreimage,
-		ReservableCurrency, StorePreimage, WithdrawReasons,
+		schedule::{
+			v3::Named as ScheduleNamed,
+			DispatchTime,
+		},
+		Bounded,
+		Currency,
+		EnsureOrigin,
+		Get,
+		LockIdentifier,
+		LockableCurrency,
+		OnUnbalanced,
+		QueryPreimage,
+		ReservableCurrency,
+		StorePreimage,
+		WithdrawReasons,
 	},
 	weights::Weight,
 };
-use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+use frame_system::pallet_prelude::{
+	BlockNumberFor,
+	OriginFor,
+};
 use sp_runtime::{
-	traits::{Bounded as ArithBounded, One, Saturating, StaticLookup, Zero},
-	ArithmeticError, DispatchError, DispatchResult,
+	traits::{
+		Bounded as ArithBounded,
+		One,
+		Saturating,
+		StaticLookup,
+		Zero,
+	},
+	ArithmeticError,
+	DispatchError,
+	DispatchResult,
 };
 use sp_std::prelude::*;
 
@@ -184,10 +210,25 @@ pub use conviction::Conviction;
 pub use pallet::*;
 use sp_std::vec;
 pub use types::{
-	Delegations, MetadataOwner, PropIndex, ReferendumIndex, ReferendumInfo, ReferendumStatus, Tally, UnvoteScope,
+	Delegations,
+	MetadataOwner,
+	PropIndex,
+	ReferendumIndex,
+	ReferendumInfo,
+	ReferendumStatus,
+	Tally,
+	UnvoteScope,
 };
-pub use vote::{AccountVote, PriorLock, Vote, Voting};
-pub use vote_threshold::{Approved, VoteThreshold};
+pub use vote::{
+	AccountVote,
+	PriorLock,
+	Vote,
+	Voting,
+};
+pub use vote_threshold::{
+	Approved,
+	VoteThreshold,
+};
 pub use weights::WeightInfo;
 
 #[cfg(test)]
@@ -209,7 +250,10 @@ type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::{DispatchResult, *};
+	use super::{
+		DispatchResult,
+		*,
+	};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 

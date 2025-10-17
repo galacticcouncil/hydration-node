@@ -1,4 +1,7 @@
-use crate::types::{Conviction, Vote};
+use crate::types::{
+	Conviction,
+	Vote,
+};
 
 use super::*;
 

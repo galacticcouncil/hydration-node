@@ -11,9 +11,18 @@ use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AggregatedPriceOracle;
 use pallet_asset_registry::AssetType;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
-use primitives::constants::chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE};
-use primitives::{AccountId, AssetId};
-use sp_runtime::{FixedU128, Permill};
+use primitives::constants::chain::{
+	OMNIPOOL_SOURCE,
+	STABLESWAP_SOURCE,
+};
+use primitives::{
+	AccountId,
+	AssetId,
+};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 use sp_std::cell::RefCell;
 use xcm_emulator::TestExt;
 

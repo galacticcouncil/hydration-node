@@ -6,7 +6,10 @@ use hydradx_traits::fee::GetDynamicFee;
 use pallet_dynamic_fees::types::FeeEntry;
 use pallet_dynamic_fees::UpdateAndRetrieveFees;
 use primitives::AssetId;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;
 

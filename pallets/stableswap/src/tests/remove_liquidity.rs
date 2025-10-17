@@ -2,13 +2,34 @@
 
 use crate::tests::mock::*;
 use crate::tests::to_bounded_asset_vec;
-use crate::types::{BoundedPegSources, PegSource, PoolInfo};
-use crate::{assert_balance, Error, Event, PoolPegs, Pools};
+use crate::types::{
+	BoundedPegSources,
+	PegSource,
+	PoolInfo,
+};
+use crate::{
+	assert_balance,
+	Error,
+	Event,
+	PoolPegs,
+	Pools,
+};
 use frame_support::traits::Contains;
-use frame_support::{assert_noop, assert_ok, BoundedVec};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	BoundedVec,
+};
 use hydradx_traits::stableswap::AssetAmount;
-use pallet_broadcast::types::{Asset, Destination, Fee};
-use sp_runtime::{Perbill, Permill};
+use pallet_broadcast::types::{
+	Asset,
+	Destination,
+	Fee,
+};
+use sp_runtime::{
+	Perbill,
+	Permill,
+};
 use std::num::NonZeroU16;
 
 #[test]

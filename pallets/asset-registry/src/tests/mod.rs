@@ -1,7 +1,10 @@
 use mock::*;
 
 use crate::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 
 mod create_trait;
 mod evm;

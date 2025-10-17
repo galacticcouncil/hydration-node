@@ -15,13 +15,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use frame_support::{assert_ok, traits::Hooks};
+use frame_support::{
+	assert_ok,
+	traits::Hooks,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 
 use crate::tests::mock::*;
 

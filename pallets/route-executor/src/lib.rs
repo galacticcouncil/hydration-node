@@ -20,7 +20,10 @@
 
 use codec::MaxEncodedLen;
 use frame_support::traits::fungibles::Mutate;
-use frame_support::traits::tokens::{Fortitude, Preservation};
+use frame_support::traits::tokens::{
+	Fortitude,
+	Preservation,
+};
 use frame_support::PalletId;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
@@ -28,25 +31,61 @@ use frame_system::Origin;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
-	traits::{fungibles::Inspect, Get},
+	traits::{
+		fungibles::Inspect,
+		Get,
+	},
 	transactional,
 };
-use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
+use hydra_dx_math::support::rational::{
+	round_u512_to_rational,
+	Rounding,
+};
 use sp_runtime::traits::Zero;
 
 use frame_system::ensure_signed;
-use hydradx_traits::router::{inverse_route, AssetPair, Route, RouteProvider, RouteSpotPriceProvider};
+use hydradx_traits::router::{
+	inverse_route,
+	AssetPair,
+	Route,
+	RouteProvider,
+	RouteSpotPriceProvider,
+};
 pub use hydradx_traits::router::{
-	AmmTradeWeights, AmountInAndOut, ExecutorError, PoolType, RouterT, Trade, TradeExecution,
+	AmmTradeWeights,
+	AmountInAndOut,
+	ExecutorError,
+	PoolType,
+	RouterT,
+	Trade,
+	TradeExecution,
 };
 
-use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use orml_traits::arithmetic::{
+	CheckedAdd,
+	CheckedSub,
+};
 use pallet_broadcast::types::IncrementalIdType;
-pub use pallet_broadcast::types::{ExecutionType, Fee};
+pub use pallet_broadcast::types::{
+	ExecutionType,
+	Fee,
+};
 use sp_core::U512;
-use sp_runtime::traits::{AccountIdConversion, CheckedDiv};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, TokenError};
-use sp_std::{vec, vec::Vec};
+use sp_runtime::traits::{
+	AccountIdConversion,
+	CheckedDiv,
+};
+use sp_runtime::{
+	ArithmeticError,
+	DispatchError,
+	FixedPointNumber,
+	FixedU128,
+	TokenError,
+};
+use sp_std::{
+	vec,
+	vec::Vec,
+};
 
 #[cfg(test)]
 mod tests;
@@ -68,8 +107,15 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydradx_traits::router::ExecutorError;
-	use hydradx_traits::{OraclePeriod, PriceOracle};
-	use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedDiv, Zero};
+	use hydradx_traits::{
+		OraclePeriod,
+		PriceOracle,
+	};
+	use sp_runtime::traits::{
+		AtLeast32BitUnsigned,
+		CheckedDiv,
+		Zero,
+	};
 	use sp_runtime::Saturating;
 
 	#[pallet::pallet]

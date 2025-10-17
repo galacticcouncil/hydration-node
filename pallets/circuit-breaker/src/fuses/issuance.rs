@@ -1,11 +1,18 @@
 use crate::traits::AssetDepositLimiter;
 use crate::types::LockdownStatus;
-use crate::{AssetLockdownState, Config, Pallet};
+use crate::{
+	AssetLockdownState,
+	Config,
+	Pallet,
+};
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::currency::OnDeposit;
 use orml_traits::GetByKey;
-use sp_runtime::{SaturatedConversion, Saturating};
+use sp_runtime::{
+	SaturatedConversion,
+	Saturating,
+};
 use sp_std::marker::PhantomData;
 
 #[derive(Debug)]

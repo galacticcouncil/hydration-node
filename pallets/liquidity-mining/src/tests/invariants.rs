@@ -20,10 +20,19 @@ use crate::tests::test_ext::new_test_ext;
 use pretty_assertions::assert_eq;
 use proptest::{
 	prelude::*,
-	test_runner::{Config, TestRunner},
+	test_runner::{
+		Config,
+		TestRunner,
+	},
 };
-use sp_arithmetic::traits::{CheckedAdd, CheckedMul};
-use std::{cell::RefCell, collections::HashMap};
+use sp_arithmetic::traits::{
+	CheckedAdd,
+	CheckedMul,
+};
+use std::{
+	cell::RefCell,
+	collections::HashMap,
+};
 
 const ONE: Balance = 1_000_000_000_000;
 const TOLERANCE: Balance = 1_000;

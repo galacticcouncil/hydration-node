@@ -44,24 +44,52 @@
 
 use frame_support::{
 	ensure,
-	pallet_prelude::{DispatchResult, Get},
-	sp_runtime::{
-		traits::{AccountIdConversion, AtLeast32BitUnsigned, CheckedAdd, CheckedSub},
-		DispatchError, Permill, Saturating,
+	pallet_prelude::{
+		DispatchResult,
+		Get,
 	},
-	traits::{Contains, Time},
+	sp_runtime::{
+		traits::{
+			AccountIdConversion,
+			AtLeast32BitUnsigned,
+			CheckedAdd,
+			CheckedSub,
+		},
+		DispatchError,
+		Permill,
+		Saturating,
+	},
+	traits::{
+		Contains,
+		Time,
+	},
 	PalletId,
 };
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::OriginFor,
+};
 use sp_core::MaxEncodedLen;
-use sp_std::{mem, vec::Vec};
+use sp_std::{
+	mem,
+	vec::Vec,
+};
 
 use hydradx_traits::{
-	registry::{Create, Inspect},
+	registry::{
+		Create,
+		Inspect,
+	},
 	AssetKind,
 };
-use orml_traits::{GetByKey, MultiCurrency};
-use primitives::{AssetId, Moment};
+use orml_traits::{
+	GetByKey,
+	MultiCurrency,
+};
+use primitives::{
+	AssetId,
+	Moment,
+};
 
 #[cfg(test)]
 mod tests;

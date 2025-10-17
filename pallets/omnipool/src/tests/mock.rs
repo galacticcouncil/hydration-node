@@ -24,19 +24,39 @@ use std::collections::HashMap;
 use crate as pallet_omnipool;
 
 use crate::traits::ExternalPriceProvider;
-use frame_support::traits::{ConstU128, Everything};
+use frame_support::traits::{
+	ConstU128,
+	Everything,
+};
 use frame_support::weights::Weight;
 use frame_support::{
-	assert_ok, construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64},
+	assert_ok,
+	construct_runtime,
+	parameter_types,
+	traits::{
+		ConstU32,
+		ConstU64,
+	},
 };
 use frame_system::EnsureRoot;
-use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind};
-use orml_traits::{parameter_type_with_key, GetByKey};
-use primitive_types::{U128, U256};
+use hydradx_traits::{
+	registry::Inspect as InspectRegistry,
+	AssetKind,
+};
+use orml_traits::{
+	parameter_type_with_key,
+	GetByKey,
+};
+use primitive_types::{
+	U128,
+	U256,
+};
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 
@@ -488,7 +508,11 @@ impl ExtBuilder {
 }
 
 use crate::traits::EnsurePriceWithin;
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_support::traits::tokens::nonfungibles::{
+	Create,
+	Inspect,
+	Mutate,
+};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::to_u128_wrapper;

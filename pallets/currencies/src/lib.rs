@@ -45,28 +45,64 @@ use frame_support::{
 	fail,
 	pallet_prelude::*,
 	traits::{
-		Currency as PalletCurrency, ExistenceRequirement, Get, Imbalance, LockableCurrency as PalletLockableCurrency,
-		NamedReservableCurrency as PalletNamedReservableCurrency, ReservableCurrency as PalletReservableCurrency,
+		Currency as PalletCurrency,
+		ExistenceRequirement,
+		Get,
+		Imbalance,
+		LockableCurrency as PalletLockableCurrency,
+		NamedReservableCurrency as PalletNamedReservableCurrency,
+		ReservableCurrency as PalletReservableCurrency,
 		WithdrawReasons,
 	},
 };
-use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
+use frame_system::{
+	ensure_root,
+	ensure_signed,
+	pallet_prelude::*,
+};
 use hydradx_traits::evm::EvmAddress;
-use hydradx_traits::{AssetKind, BoundErc20};
+use hydradx_traits::{
+	AssetKind,
+	BoundErc20,
+};
 use orml_traits::{
-	arithmetic::{Signed, SimpleArithmetic},
+	arithmetic::{
+		Signed,
+		SimpleArithmetic,
+	},
 	currency::TransferAll,
-	BalanceStatus, BasicCurrency, BasicCurrencyExtended, BasicLockableCurrency, BasicReservableCurrency, GetByKey,
-	LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency, MultiReservableCurrency,
-	NamedBasicReservableCurrency, NamedMultiReservableCurrency,
+	BalanceStatus,
+	BasicCurrency,
+	BasicCurrencyExtended,
+	BasicLockableCurrency,
+	BasicReservableCurrency,
+	GetByKey,
+	LockIdentifier,
+	MultiCurrency,
+	MultiCurrencyExtended,
+	MultiLockableCurrency,
+	MultiReservableCurrency,
+	NamedBasicReservableCurrency,
+	NamedMultiReservableCurrency,
 };
 use orml_utilities::with_transaction_result;
 use sp_runtime::{
-	traits::{CheckedSub, MaybeSerializeDeserialize, StaticLookup, Zero},
-	DispatchError, DispatchResult, Saturating,
+	traits::{
+		CheckedSub,
+		MaybeSerializeDeserialize,
+		StaticLookup,
+		Zero,
+	},
+	DispatchError,
+	DispatchResult,
+	Saturating,
 };
 use sp_std::vec::Vec;
-use sp_std::{fmt::Debug, marker, result};
+use sp_std::{
+	fmt::Debug,
+	marker,
+	result,
+};
 
 pub mod fungibles;
 mod mock;
@@ -983,8 +1019,19 @@ impl<T: Config> TransferAll<T::AccountId> for Pallet<T> {
 	}
 }
 
-use frame_support::traits::fungible::{Dust, Inspect, Mutate, Unbalanced};
-use frame_support::traits::tokens::{DepositConsequence, Fortitude, Preservation, Provenance, WithdrawConsequence};
+use frame_support::traits::fungible::{
+	Dust,
+	Inspect,
+	Mutate,
+	Unbalanced,
+};
+use frame_support::traits::tokens::{
+	DepositConsequence,
+	Fortitude,
+	Preservation,
+	Provenance,
+	WithdrawConsequence,
+};
 
 impl<T: Config, AccountId, Currency, Amount, Moment> Inspect<AccountId>
 	for BasicCurrencyAdapter<T, Currency, Amount, Moment>

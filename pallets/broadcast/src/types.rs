@@ -1,7 +1,14 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 
 pub type AssetId = u32;
 pub type Balance = u128;

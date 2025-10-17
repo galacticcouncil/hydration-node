@@ -23,10 +23,24 @@ mod update_bifrost_oracle;
 use super::*;
 use crate::OraclePeriod::*;
 pub use mock::{
-	BlockNumber, EmaOracle, ExtBuilder, System, Test, ACA, DOT, HDX, INSUFFICIENT_ASSET, ORACLE_ENTRY_1, ORACLE_ENTRY_2,
+	BlockNumber,
+	EmaOracle,
+	ExtBuilder,
+	System,
+	Test,
+	ACA,
+	DOT,
+	HDX,
+	INSUFFICIENT_ASSET,
+	ORACLE_ENTRY_1,
+	ORACLE_ENTRY_2,
 };
 
-use frame_support::{assert_noop, assert_ok, assert_storage_noop};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	assert_storage_noop,
+};
 use pretty_assertions::assert_eq;
 use rug::Rational;
 

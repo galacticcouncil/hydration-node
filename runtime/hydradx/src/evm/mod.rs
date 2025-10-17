@@ -25,30 +25,60 @@ use crate::evm::runner::WrapRunner;
 use crate::origins::GeneralAdmin;
 use crate::types::ShortOraclePrice;
 pub use crate::{
-	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
-	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
+	evm::accounts_conversion::{
+		ExtendedAddressMapping,
+		FindAuthorTruncated,
+	},
+	AssetLocation,
+	Aura,
+	NORMAL_DISPATCH_RATIO,
 };
-use crate::{DotAssetId, FeePriceOracle, Runtime, XykPaymentAssetSupport};
+use crate::{
+	DotAssetId,
+	FeePriceOracle,
+	Runtime,
+	XykPaymentAssetSupport,
+};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	dispatch::RawOrigin,
 	parameter_types,
 	sp_runtime::traits::One,
-	traits::{Defensive, EitherOf, FindAuthor},
-	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
+	traits::{
+		Defensive,
+		EitherOf,
+		FindAuthor,
+	},
+	weights::{
+		constants::WEIGHT_REF_TIME_PER_SECOND,
+		Weight,
+	},
 	ConsensusEngineId,
 };
 use frame_system::EnsureRoot;
 use hex_literal::hex;
 use hydradx_adapters::price::ConvertBalance;
-use hydradx_traits::{evm::InspectEvmAccounts, oracle::OraclePeriod};
+use hydradx_traits::{
+	evm::InspectEvmAccounts,
+	oracle::OraclePeriod,
+};
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_evm::{EnsureAddressOrigin, FrameSystemAccountProvider};
+use pallet_evm::{
+	EnsureAddressOrigin,
+	FrameSystemAccountProvider,
+};
 use pallet_transaction_payment::Multiplier;
-use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId};
+use primitives::{
+	constants::chain::MAXIMUM_BLOCK_WEIGHT,
+	AssetId,
+};
 use sp_arithmetic::FixedU128;
-use sp_core::{crypto::AccountId32, Get, U256};
+use sp_core::{
+	crypto::AccountId32,
+	Get,
+	U256,
+};
 
 pub mod aave_trade_executor;
 mod accounts_conversion;

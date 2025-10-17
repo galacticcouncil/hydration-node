@@ -1,9 +1,15 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use frame_system::RawOrigin;
-use hydradx_runtime::{BlockNumber, Vesting};
+use hydradx_runtime::{
+	BlockNumber,
+	Vesting,
+};
 use orml_vesting::VestingSchedule;
 use sp_core::crypto::AccountId32;
 use sp_runtime::DispatchError::BadOrigin;

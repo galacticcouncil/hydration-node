@@ -1,5 +1,9 @@
 #![allow(unused_imports)]
-use crate::MathError::{InsufficientOutReserve, Overflow, ZeroReserve};
+use crate::MathError::{
+	InsufficientOutReserve,
+	Overflow,
+	ZeroReserve,
+};
 
 use crate::types::Balance;
 use std::vec;

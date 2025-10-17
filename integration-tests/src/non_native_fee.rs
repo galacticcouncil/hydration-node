@@ -4,12 +4,23 @@ use crate::polkadot_test_net::*;
 use frame_support::{
 	assert_ok,
 	dispatch::DispatchInfo,
-	sp_runtime::{traits::SignedExtension, FixedU128, Permill},
+	sp_runtime::{
+		traits::SignedExtension,
+		FixedU128,
+		Permill,
+	},
 	weights::Weight,
 };
 use frame_system::RawOrigin;
 use hydradx_runtime::{
-	Balances, Currencies, EmaOracle, MultiTransactionPayment, Omnipool, Router, RuntimeOrigin, Tokens,
+	Balances,
+	Currencies,
+	EmaOracle,
+	MultiTransactionPayment,
+	Omnipool,
+	Router,
+	RuntimeOrigin,
+	Tokens,
 };
 use orml_traits::currency::MultiCurrency;
 use primitives::Price;
@@ -18,8 +29,12 @@ use hydradx_adapters::OraclePriceProvider;
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
 	pools::SpotPriceProvider,
-	router::{AssetPair, RouteProvider},
-	OraclePeriod, PriceOracle,
+	router::{
+		AssetPair,
+		RouteProvider,
+	},
+	OraclePeriod,
+	PriceOracle,
 };
 use test_utils::assert_eq_approx;
 use xcm_emulator::TestExt;

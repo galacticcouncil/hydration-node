@@ -5,7 +5,10 @@ use frame_support::storage::with_transaction;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::TradeExecution;
-use sp_runtime::{Permill, TransactionOutcome};
+use sp_runtime::{
+	Permill,
+	TransactionOutcome,
+};
 
 #[test]
 fn compare_spot_price_with_and_without_fee_between_two_new_tokens() {

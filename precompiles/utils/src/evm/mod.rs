@@ -17,7 +17,10 @@
 use evm::executor::stack::PrecompileFailure;
 use evm::ExitRevert;
 use sp_core::H160;
-use sp_std::{borrow::ToOwned, vec::Vec};
+use sp_std::{
+	borrow::ToOwned,
+	vec::Vec,
+};
 
 pub mod costs;
 pub mod handle;

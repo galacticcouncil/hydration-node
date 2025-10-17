@@ -1,13 +1,39 @@
-use crate::support::rational::{round_to_rational, Rounding};
+use crate::support::rational::{
+	round_to_rational,
+	Rounding,
+};
 use crate::to_u128_wrapper;
-use codec::{Decode, Encode, MaxEncodedLen};
-use core::cmp::{Ord, Ordering, PartialOrd};
-use num_traits::{SaturatingAdd, SaturatingMul, SaturatingSub, Zero};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
+use core::cmp::{
+	Ord,
+	Ordering,
+	PartialOrd,
+};
+use num_traits::{
+	SaturatingAdd,
+	SaturatingMul,
+	SaturatingSub,
+	Zero,
+};
 use primitive_types::U128;
 use scale_info::TypeInfo;
-use serde::{Deserialize, Serialize};
-use sp_arithmetic::{helpers_128bit, Permill};
-use sp_std::ops::{Add, Mul, Sub};
+use serde::{
+	Deserialize,
+	Serialize,
+};
+use sp_arithmetic::{
+	helpers_128bit,
+	Permill,
+};
+use sp_std::ops::{
+	Add,
+	Mul,
+	Sub,
+};
 
 /// A rational number represented by a `n`umerator and `d`enominator.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Encode, Decode, Serialize, Deserialize, TypeInfo, MaxEncodedLen)]

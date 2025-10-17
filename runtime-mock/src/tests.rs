@@ -1,6 +1,9 @@
 use super::*;
 use hydradx_runtime::RegistryStrLimit;
-use pallet_asset_registry::{AssetDetails, AssetType};
+use pallet_asset_registry::{
+	AssetDetails,
+	AssetType,
+};
 use sp_runtime::BoundedVec;
 
 fn to_bounded_vec(string: String) -> BoundedVec<u8, RegistryStrLimit> {

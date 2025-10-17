@@ -1,21 +1,40 @@
 #![allow(clippy::bad_bit_mask)]
 
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 
-use crate::{Config, Pallet, PoolPegs, MAX_ASSETS_IN_POOL};
-use sp_runtime::{Perbill, Permill};
+use crate::{
+	Config,
+	Pallet,
+	PoolPegs,
+	MAX_ASSETS_IN_POOL,
+};
+use sp_runtime::{
+	Perbill,
+	Permill,
+};
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::num::NonZeroU16;
 use sp_std::prelude::*;
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use frame_support::traits::ConstU32;
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{evm::EvmAddress, OraclePeriod, Source};
+use hydradx_traits::{
+	evm::EvmAddress,
+	OraclePeriod,
+	Source,
+};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;

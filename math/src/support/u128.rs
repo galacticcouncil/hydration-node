@@ -1,4 +1,9 @@
-use crate::support::traits::{CheckedAddInto, CheckedDivInner, CheckedMulInner, CheckedMulInto};
+use crate::support::traits::{
+	CheckedAddInto,
+	CheckedDivInner,
+	CheckedMulInner,
+	CheckedMulInto,
+};
 use primitive_types::U256;
 
 impl CheckedAddInto for u128 {

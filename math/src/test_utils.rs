@@ -1,10 +1,19 @@
 use crate::fraction;
-use crate::types::{Balance, Fraction};
+use crate::types::{
+	Balance,
+	Fraction,
+};
 
 use proptest::prelude::*;
 use rand::Rng;
-use rug::{Integer, Rational};
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use rug::{
+	Integer,
+	Rational,
+};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+};
 
 // ----- Macros
 

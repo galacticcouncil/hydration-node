@@ -26,10 +26,20 @@ use frame_support::BoundedVec;
 use hydradx_traits::liquidity_mining::PriceAdjustment;
 use pallet_omnipool;
 
-use frame_support::traits::{ConstU128, Contains, Everything, SortedMembers};
+use frame_support::traits::{
+	ConstU128,
+	Contains,
+	Everything,
+	SortedMembers,
+};
 use frame_support::{
-	assert_ok, construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64},
+	assert_ok,
+	construct_runtime,
+	parameter_types,
+	traits::{
+		ConstU32,
+		ConstU64,
+	},
 	weights::RuntimeDbWeight,
 };
 use frame_system::EnsureRoot;
@@ -39,14 +49,25 @@ use pallet_liquidity_mining as warehouse_liquidity_mining;
 use sp_core::H256;
 use sp_runtime::FixedU128;
 use sp_runtime::{
-	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
-	BuildStorage, Permill,
+	traits::{
+		BlakeTwo256,
+		BlockNumberProvider,
+		IdentityLookup,
+	},
+	BuildStorage,
+	Permill,
 };
 
-use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
+use warehouse_liquidity_mining::{
+	GlobalFarmData,
+	Instance1,
+};
 
 use hydradx_traits::{
-	oracle::{OraclePeriod, Source},
+	oracle::{
+		OraclePeriod,
+		Source,
+	},
 	pools::DustRemovalAccountWhitelist,
 	stableswap::StableswapAddLiquidity,
 	AssetKind,
@@ -618,7 +639,12 @@ impl ExtBuilder {
 	}
 }
 
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
+use frame_support::traits::tokens::nonfungibles::{
+	Create,
+	Inspect,
+	Mutate,
+	Transfer,
+};
 use hydra_dx_math::ema::EmaPrice;
 
 pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;

@@ -1,21 +1,34 @@
-use crate::evm::{create_dispatch_handle, gas_price};
+use crate::evm::{
+	create_dispatch_handle,
+	gas_price,
+};
 use crate::polkadot_test_net::*;
 use fp_evm::PrecompileSet;
 use frame_support::assert_ok;
 use frame_support::dispatch::{
-	extract_actual_pays_fee, extract_actual_weight, GetDispatchInfo, Pays, PostDispatchInfo,
+	extract_actual_pays_fee,
+	extract_actual_weight,
+	GetDispatchInfo,
+	Pays,
+	PostDispatchInfo,
 };
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
-use pallet_evm::{ExitReason, ExitSucceed};
+use pallet_evm::{
+	ExitReason,
+	ExitSucceed,
+};
 use pallet_transaction_payment::ChargeTransactionPayment;
 use precompile_utils::prelude::PrecompileOutput;
 use primitives::EvmAddress;
 use sp_core::Encode;
 use sp_core::Get;
-use sp_core::{ByteArray, U256};
+use sp_core::{
+	ByteArray,
+	U256,
+};
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchErrorWithPostInfo;
 use test_utils::last_events;

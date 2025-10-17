@@ -36,14 +36,27 @@
 #![allow(clippy::manual_inspect)]
 
 use codec::MaxEncodedLen;
-use frame_support::{pallet_prelude::*, require_transactional};
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use frame_support::{
+	pallet_prelude::*,
+	require_transactional,
+};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::OriginFor,
+};
 use hydradx_traits::Inspect;
-use orml_traits::{GetByKey, MultiCurrency, NamedMultiReservableCurrency};
+use orml_traits::{
+	GetByKey,
+	MultiCurrency,
+	NamedMultiReservableCurrency,
+};
 use pallet_broadcast::types::Destination;
 use pallet_broadcast::types::Fee;
 use sp_core::U256;
-use sp_runtime::traits::{One, Zero};
+use sp_runtime::traits::{
+	One,
+	Zero,
+};
 use sp_runtime::Permill;
 use sp_std::vec;
 

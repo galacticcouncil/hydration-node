@@ -17,7 +17,11 @@
 use super::*;
 use crate::solidity::revert::InjectBacktrace;
 use impl_trait_for_tuples::impl_for_tuples;
-use sp_core::{ConstU32, Get, H160};
+use sp_core::{
+	ConstU32,
+	Get,
+	H160,
+};
 
 impl Codec for () {
 	fn read(_reader: &mut Reader) -> MayRevert<Self> {

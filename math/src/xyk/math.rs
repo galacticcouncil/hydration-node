@@ -1,11 +1,26 @@
 use crate::{
-	ensure, round_up, to_balance, to_u256, MathError,
-	MathError::{InsufficientOutReserve, Overflow, ZeroReserve},
+	ensure,
+	round_up,
+	to_balance,
+	to_u256,
+	MathError,
+	MathError::{
+		InsufficientOutReserve,
+		Overflow,
+		ZeroReserve,
+	},
 };
 use core::convert::TryFrom;
-use num_traits::{CheckedMul, CheckedSub, Zero};
+use num_traits::{
+	CheckedMul,
+	CheckedSub,
+	Zero,
+};
 use primitive_types::U256;
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+};
 
 type Balance = u128;
 

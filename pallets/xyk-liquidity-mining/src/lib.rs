@@ -46,25 +46,68 @@ pub mod weights;
 pub use crate::weights::WeightInfo;
 pub use pallet::*;
 
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
-use frame_support::{ensure, require_transactional, sp_runtime::traits::Zero, PalletId};
+use frame_support::traits::tokens::nonfungibles::{
+	Create,
+	Inspect,
+	Mutate,
+	Transfer,
+};
+use frame_support::{
+	ensure,
+	require_transactional,
+	sp_runtime::traits::Zero,
+	PalletId,
+};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::liquidity_mining::{
-	GlobalFarmId, Inspect as LiquidityMiningInspect, Mutate as LiquidityMiningMutate, YieldFarmId,
+	GlobalFarmId,
+	Inspect as LiquidityMiningInspect,
+	Mutate as LiquidityMiningMutate,
+	YieldFarmId,
 };
-use hydradx_traits::oracle::{AggregatedOracle, OraclePeriod};
-use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
-use pallet_xyk::types::{AssetId, AssetPair, Balance};
+use hydradx_traits::oracle::{
+	AggregatedOracle,
+	OraclePeriod,
+};
+use pallet_liquidity_mining::{
+	FarmMultiplier,
+	LoyaltyCurve,
+};
+use pallet_xyk::types::{
+	AssetId,
+	AssetPair,
+	Balance,
+};
 
-use frame_support::{pallet_prelude::*, sp_runtime::traits::AccountIdConversion};
-use frame_system::{ensure_signed, pallet_prelude::OriginFor};
+use frame_support::{
+	pallet_prelude::*,
+	sp_runtime::traits::AccountIdConversion,
+};
+use frame_system::{
+	ensure_signed,
+	pallet_prelude::OriginFor,
+};
 use hydra_dx_math::ema::EmaPrice;
-use hydradx_traits::{registry::Inspect as RegistryInspect, Source, AMM};
+use hydradx_traits::{
+	registry::Inspect as RegistryInspect,
+	Source,
+	AMM,
+};
 use orml_traits::MultiCurrency;
-use primitives::{CollectionId, ItemId as DepositId};
-use sp_arithmetic::{FixedU128, Perquintill};
+use primitives::{
+	CollectionId,
+	ItemId as DepositId,
+};
+use sp_arithmetic::{
+	FixedU128,
+	Perquintill,
+};
 use sp_std::{
-	convert::{From, Into, TryInto},
+	convert::{
+		From,
+		Into,
+		TryInto,
+	},
 	vec,
 };
 

@@ -16,23 +16,47 @@
 // limitations under the License.
 
 use crate::chain_spec;
-use crate::cli::{Cli, RelayChainCli, Subcommand};
+use crate::cli::{
+	Cli,
+	RelayChainCli,
+	Subcommand,
+};
 use crate::service::new_partial;
 
 use codec::Encode;
 use cumulus_client_service::storage_proof_size::HostFunctions as ReclaimHostFunctions;
 use cumulus_primitives_core::ParaId;
-use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
+use frame_benchmarking_cli::{
+	BenchmarkCmd,
+	SUBSTRATE_REFERENCE_HARDWARE,
+};
 use hydradx_runtime::Block;
 use log::info;
 use sc_cli::{
-	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams, Result,
-	RuntimeVersion, SharedParams, SubstrateCli,
+	ChainSpec,
+	CliConfiguration,
+	DefaultConfigurationValues,
+	ImportParams,
+	KeystoreParams,
+	NetworkParams,
+	Result,
+	RuntimeVersion,
+	SharedParams,
+	SubstrateCli,
 };
-use sc_service::config::{BasePath, PrometheusConfig};
+use sc_service::config::{
+	BasePath,
+	PrometheusConfig,
+};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::{
-	traits::{AccountIdConversion, Block as BlockT, Hash as HashT, Header as HeaderT, Zero},
+	traits::{
+		AccountIdConversion,
+		Block as BlockT,
+		Hash as HashT,
+		Header as HeaderT,
+		Zero,
+	},
 	StateVersion,
 };
 use std::io::Write;

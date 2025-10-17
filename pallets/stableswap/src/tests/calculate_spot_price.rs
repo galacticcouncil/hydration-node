@@ -12,7 +12,10 @@ use proptest::prelude::ProptestConfig;
 use proptest::proptest;
 use proptest::strategy::Strategy;
 use sp_runtime::FixedPointNumber;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 use std::num::NonZeroU16;
 use test_utils::assert_eq_approx;
 

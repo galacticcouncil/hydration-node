@@ -1,9 +1,19 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use frame_system::RawOrigin;
-use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, OmnipoolCollectionId, Tokens, Uniques};
+use hydradx_runtime::{
+	Balances,
+	CircuitBreaker,
+	Omnipool,
+	OmnipoolCollectionId,
+	Tokens,
+	Uniques,
+};
 use orml_traits::MultiCurrency;
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::Balance;

@@ -21,19 +21,38 @@ use sp_std::prelude::*;
 use std::cell::RefCell;
 
 use crate::tests::oracle::Oracle;
-use crate::types::{FeeEntry, FeeParams};
-use crate::{Config, UpdateAndRetrieveFees, Volume, VolumeProvider};
+use crate::types::{
+	FeeEntry,
+	FeeParams,
+};
+use crate::{
+	Config,
+	UpdateAndRetrieveFees,
+	Volume,
+	VolumeProvider,
+};
 
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64},
+	construct_runtime,
+	parameter_types,
+	traits::{
+		ConstU32,
+		ConstU64,
+	},
 };
 use frame_system::EnsureRoot;
 use hydradx_traits::fee::GetDynamicFee;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup, One, Zero},
-	BuildStorage, FixedU128, Perquintill,
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+		One,
+		Zero,
+	},
+	BuildStorage,
+	FixedU128,
+	Perquintill,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;

@@ -6,11 +6,17 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::AssetRegistry as Registry;
 use polkadot_xcm::v3::{
-	Junction::{self, Parachain},
+	Junction::{
+		self,
+		Parachain,
+	},
 	Junctions::X2,
 	MultiLocation,
 };
-use pretty_assertions::{assert_eq, assert_ne};
+use pretty_assertions::{
+	assert_eq,
+	assert_ne,
+};
 use xcm_emulator::TestExt;
 
 #[test]

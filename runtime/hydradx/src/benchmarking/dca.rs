@@ -17,15 +17,31 @@
 #![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use crate::{
-	AccountId, AssetId, Balance, BlockNumber, Currencies, MaxSchedulesPerBlock, NamedReserveId, Runtime, DCA, XYK,
+	AccountId,
+	AssetId,
+	Balance,
+	BlockNumber,
+	Currencies,
+	MaxSchedulesPerBlock,
+	NamedReserveId,
+	Runtime,
+	DCA,
+	XYK,
 };
 
-use crate::benchmarking::{register_asset, set_period, setup_insufficient_asset_with_dot};
+use crate::benchmarking::{
+	register_asset,
+	set_period,
+	setup_insufficient_asset_with_dot,
+};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::{
 	assert_ok,
-	traits::{Hooks, Len},
+	traits::{
+		Hooks,
+		Len,
+	},
 	weights::Weight,
 	BoundedVec,
 };
@@ -33,14 +49,28 @@ use frame_system::RawOrigin;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
 use orml_benchmarking::runtime_benchmarks;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended, NamedMultiReservableCurrency};
-use pallet_dca::types::{Order, Schedule, ScheduleId};
-use pallet_dca::{ScheduleIdsPerBlock, Schedules};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+	NamedMultiReservableCurrency,
+};
+use pallet_dca::types::{
+	Order,
+	Schedule,
+	ScheduleId,
+};
+use pallet_dca::{
+	ScheduleIdsPerBlock,
+	Schedules,
+};
 use pallet_route_executor::Trade;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchResult;
-use sp_runtime::{DispatchError, Permill};
+use sp_runtime::{
+	DispatchError,
+	Permill,
+};
 use sp_std::vec;
 
 pub const HDX: AssetId = 0;

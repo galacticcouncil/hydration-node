@@ -22,13 +22,24 @@
 
 use super::*;
 use frame_support::{
-	construct_runtime, ord_parameter_types, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64, Everything, Nothing},
+	construct_runtime,
+	ord_parameter_types,
+	parameter_types,
+	traits::{
+		ConstU128,
+		ConstU32,
+		ConstU64,
+		Everything,
+		Nothing,
+	},
 };
 use frame_system::EnsureSignedBy;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
-use sp_runtime::{traits::IdentityLookup, BuildStorage};
+use sp_runtime::{
+	traits::IdentityLookup,
+	BuildStorage,
+};
 
 pub type AccountId = u128;
 pub const ALICE: AccountId = 1;

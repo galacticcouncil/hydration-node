@@ -16,9 +16,18 @@
 
 use {
 	crate::EvmResult,
-	pallet_evm::{Log, PrecompileHandle},
-	sp_core::{H160, H256},
-	sp_std::{vec, vec::Vec},
+	pallet_evm::{
+		Log,
+		PrecompileHandle,
+	},
+	sp_core::{
+		H160,
+		H256,
+	},
+	sp_std::{
+		vec,
+		vec::Vec,
+	},
 };
 
 /// Create a 0-topic log.

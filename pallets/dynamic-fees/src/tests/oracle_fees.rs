@@ -1,6 +1,9 @@
 use crate::tests::mock::*;
 use crate::types::FeeEntry;
-use sp_runtime::traits::{One, Zero};
+use sp_runtime::traits::{
+	One,
+	Zero,
+};
 use sp_runtime::FixedU128;
 use std::cmp::Ordering;
 

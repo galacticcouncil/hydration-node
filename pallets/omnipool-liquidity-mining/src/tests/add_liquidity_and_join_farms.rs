@@ -15,7 +15,10 @@
 
 use super::*;
 
-use pallet_liquidity_mining::{DepositData, YieldFarmEntry};
+use pallet_liquidity_mining::{
+	DepositData,
+	YieldFarmEntry,
+};
 use pallet_omnipool::types::AssetReserveState;
 use pallet_omnipool::types::Tradability;
 use pretty_assertions::assert_eq;

@@ -18,12 +18,27 @@
 //! Voting thresholds.
 
 use crate::Tally;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{
+	Decode,
+	Encode,
+	MaxEncodedLen,
+};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-use sp_runtime::traits::{IntegerSquareRoot, Zero};
-use sp_std::ops::{Add, Div, Mul, Rem};
+use serde::{
+	Deserialize,
+	Serialize,
+};
+use sp_runtime::traits::{
+	IntegerSquareRoot,
+	Zero,
+};
+use sp_std::ops::{
+	Add,
+	Div,
+	Mul,
+	Rem,
+};
 
 /// A means of determining if a vote is past pass threshold.
 #[derive(Clone, Copy, PartialEq, Eq, Encode, MaxEncodedLen, Decode, sp_runtime::RuntimeDebug, TypeInfo)]

@@ -18,23 +18,53 @@
 #![allow(unused_assignments)] //Benchmark test leads to unused assignment, which is not true
 
 use crate::{
-	AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System,
-	LBP, XYK,
+	AccountId,
+	AssetId,
+	Balance,
+	Currencies,
+	EmaOracle,
+	InsufficientEDinHDX,
+	Router,
+	Runtime,
+	RuntimeOrigin,
+	System,
+	LBP,
+	XYK,
 };
 
 use super::*;
-use crate::benchmarking::dca::{DAI, HDX};
+use crate::benchmarking::dca::{
+	DAI,
+	HDX,
+};
 use crate::Omnipool;
-use frame_benchmarking::{account, BenchmarkError};
+use frame_benchmarking::{
+	account,
+	BenchmarkError,
+};
 use frame_support::dispatch::DispatchResult;
-use frame_support::{assert_ok, ensure};
+use frame_support::{
+	assert_ok,
+	ensure,
+};
 use frame_system::RawOrigin;
 use hydradx_traits::router::inverse_route;
-use hydradx_traits::router::{AssetPair, RouteProvider, RouteSpotPriceProvider};
-use hydradx_traits::router::{PoolType, RouterT, Trade};
+use hydradx_traits::router::{
+	AssetPair,
+	RouteProvider,
+	RouteSpotPriceProvider,
+};
+use hydradx_traits::router::{
+	PoolType,
+	RouterT,
+	Trade,
+};
 use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+};
 use pallet_ema_oracle::OraclePeriod;
 use primitives::constants::currency::UNITS;
 use primitives::BlockNumber;

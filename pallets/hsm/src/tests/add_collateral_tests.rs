@@ -17,13 +17,24 @@
 
 use crate::tests::mock::*;
 use crate::types::CollateralInfo;
-use crate::{Collaterals, Error};
-use frame_support::{assert_err, assert_noop, assert_ok, error::BadOrigin};
+use crate::{
+	Collaterals,
+	Error,
+};
+use frame_support::{
+	assert_err,
+	assert_noop,
+	assert_ok,
+	error::BadOrigin,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use num_traits::One;
 use pallet_stableswap::types::PegSource;
 use sp_runtime::FixedU128;
-use sp_runtime::{Perbill, Permill};
+use sp_runtime::{
+	Perbill,
+	Permill,
+};
 
 #[test]
 fn add_collateral_asset_works() {

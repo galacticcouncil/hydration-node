@@ -3,9 +3,19 @@ use super::*;
 pub mod v2 {
 	use super::*;
 	use crate::types::Balance;
-	use crate::{Config, Pallet};
+	use crate::{
+		Config,
+		Pallet,
+	};
 	use frame_support::pallet_prelude::{
-		Decode, Encode, Get, MaxEncodedLen, RuntimeDebug, StorageVersion, ValueQuery, Weight,
+		Decode,
+		Encode,
+		Get,
+		MaxEncodedLen,
+		RuntimeDebug,
+		StorageVersion,
+		ValueQuery,
+		Weight,
 	};
 	use frame_support::storage_alias;
 

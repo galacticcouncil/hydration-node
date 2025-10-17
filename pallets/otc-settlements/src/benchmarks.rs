@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use super::*;
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
 use frame_support::assert_ok;
 use frame_support::traits::fungibles::Mutate;
 use frame_system::RawOrigin;

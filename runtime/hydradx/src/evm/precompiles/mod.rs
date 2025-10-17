@@ -22,29 +22,61 @@
 use core::marker::PhantomData;
 
 use crate::evm::precompiles::{
-	chainlink_adapter::{is_oracle_address, ChainlinkOraclePrecompile},
+	chainlink_adapter::{
+		is_oracle_address,
+		ChainlinkOraclePrecompile,
+	},
 	erc20_mapping::is_asset_address,
 	multicurrency::MultiCurrencyPrecompile,
 };
 use codec::Decode;
-use frame_support::dispatch::{GetDispatchInfo, PostDispatchInfo};
+use frame_support::dispatch::{
+	GetDispatchInfo,
+	PostDispatchInfo,
+};
 use pallet_evm::{
-	ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, Precompile, PrecompileFailure, PrecompileHandle,
-	PrecompileOutput, PrecompileResult, PrecompileSet,
+	ExitError,
+	ExitRevert,
+	ExitSucceed,
+	IsPrecompileResult,
+	Precompile,
+	PrecompileFailure,
+	PrecompileHandle,
+	PrecompileOutput,
+	PrecompileResult,
+	PrecompileSet,
 };
 use pallet_evm_precompile_blake2::Blake2F;
-use pallet_evm_precompile_bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
+use pallet_evm_precompile_bn128::{
+	Bn128Add,
+	Bn128Mul,
+	Bn128Pairing,
+};
 use pallet_evm_precompile_modexp::Modexp;
-use pallet_evm_precompile_simple::{ECRecover, Identity, Ripemd160, Sha256};
+use pallet_evm_precompile_simple::{
+	ECRecover,
+	Identity,
+	Ripemd160,
+	Sha256,
+};
 use sp_runtime::traits::Dispatchable;
 
 use codec::alloc;
 use ethabi::Token;
-use frame_support::pallet_prelude::{Get, IsType};
+use frame_support::pallet_prelude::{
+	Get,
+	IsType,
+};
 use hex_literal::hex;
-use primitive_types::{H160, U256};
+use primitive_types::{
+	H160,
+	U256,
+};
 use sp_core::crypto::AccountId32;
-use sp_std::{borrow::ToOwned, vec::Vec};
+use sp_std::{
+	borrow::ToOwned,
+	vec::Vec,
+};
 
 pub mod chainlink_adapter;
 pub mod costs;

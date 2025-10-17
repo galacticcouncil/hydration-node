@@ -5,7 +5,10 @@ use proptest::prelude::*;
 
 use frame_support::assert_ok;
 use primitive_types::U256;
-use sp_runtime::{FixedPointNumber, FixedU128};
+use sp_runtime::{
+	FixedPointNumber,
+	FixedU128,
+};
 
 const TOLERANCE: Balance = 1_000;
 

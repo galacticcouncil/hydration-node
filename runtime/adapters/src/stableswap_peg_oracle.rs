@@ -15,22 +15,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{vec, Vec};
-use ethabi::{decode, ParamType};
-use evm::{ExitReason, ExitSucceed};
+use crate::{
+	vec,
+	Vec,
+};
+use ethabi::{
+	decode,
+	ParamType,
+};
+use evm::{
+	ExitReason,
+	ExitSucceed,
+};
 use frame_support::traits::UnixTime;
 use hydradx_traits::{
-	evm::{CallContext, EVM},
+	evm::{
+		CallContext,
+		EVM,
+	},
 	RawEntry,
 };
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::PegSource;
-use primitives::{constants::time::SECS_PER_BLOCK, AssetId, Balance, BlockNumber};
+use primitives::{
+	constants::time::SECS_PER_BLOCK,
+	AssetId,
+	Balance,
+	BlockNumber,
+};
 use sp_core::U256;
 use sp_runtime::{
-	traits::{BlockNumberProvider, Saturating, Zero},
-	DispatchError, RuntimeDebug, SaturatedConversion,
+	traits::{
+		BlockNumberProvider,
+		Saturating,
+		Zero,
+	},
+	DispatchError,
+	RuntimeDebug,
+	SaturatedConversion,
 };
 use sp_std::marker::PhantomData;
 

@@ -1,9 +1,17 @@
 use crate::tests::mock::*;
-use crate::{Balance, Order, Schedule, ScheduleId};
+use crate::{
+	Balance,
+	Order,
+	Schedule,
+	ScheduleId,
+};
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::Trade;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::{BoundedVec, Permill};
+use sp_runtime::{
+	BoundedVec,
+	Permill,
+};
 
 pub mod mock;
 pub mod on_initialize;

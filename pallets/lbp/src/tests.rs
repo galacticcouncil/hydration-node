@@ -20,18 +20,52 @@
 
 use super::*;
 use crate::mock::{
-	expect_events, generate_trades, run_to_sale_end, run_to_sale_start, AccountId, RuntimeCall as Call, DEFAULT_FEE,
-	EXISTENTIAL_DEPOSIT, HDX_BSX_POOL_ID, INITIAL_BALANCE, INITIAL_ETH_BALANCE, KUSD_BSX_POOL_ID, SALE_END, SALE_START,
-	SAMPLE_AMM_TRANSFER, SAMPLE_POOL_DATA,
+	expect_events,
+	generate_trades,
+	run_to_sale_end,
+	run_to_sale_start,
+	AccountId,
+	RuntimeCall as Call,
+	DEFAULT_FEE,
+	EXISTENTIAL_DEPOSIT,
+	HDX_BSX_POOL_ID,
+	INITIAL_BALANCE,
+	INITIAL_ETH_BALANCE,
+	KUSD_BSX_POOL_ID,
+	SALE_END,
+	SALE_START,
+	SAMPLE_AMM_TRANSFER,
+	SAMPLE_POOL_DATA,
 };
 pub use crate::mock::{
-	set_block_number, Currency, ExtBuilder, LBPPallet, RuntimeOrigin as Origin, Test, ALICE, BOB, BSX, CHARLIE, ETH,
-	HDX, KUSD,
+	set_block_number,
+	Currency,
+	ExtBuilder,
+	LBPPallet,
+	RuntimeOrigin as Origin,
+	Test,
+	ALICE,
+	BOB,
+	BSX,
+	CHARLIE,
+	ETH,
+	HDX,
+	KUSD,
 };
-use frame_support::{assert_err, assert_noop, assert_ok};
-use hydradx_traits::{AMMTransfer, LockedBalance};
+use frame_support::{
+	assert_err,
+	assert_noop,
+	assert_ok,
+};
+use hydradx_traits::{
+	AMMTransfer,
+	LockedBalance,
+};
 use pallet_broadcast::types::Destination;
-use sp_runtime::traits::{BadOrigin, Dispatchable};
+use sp_runtime::traits::{
+	BadOrigin,
+	Dispatchable,
+};
 use sp_std::convert::TryInto;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -3961,7 +3995,10 @@ mod spot_price_calculation {
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::router::TradeExecution;
 	use sp_runtime::FixedPointNumber;
-	use sp_runtime::{FixedU128, TransactionOutcome};
+	use sp_runtime::{
+		FixedU128,
+		TransactionOutcome,
+	};
 	use test_utils::assert_eq_approx;
 
 	pub const ONE: u128 = 1_000_000_000_000u128;

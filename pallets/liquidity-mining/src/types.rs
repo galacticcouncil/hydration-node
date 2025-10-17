@@ -18,7 +18,11 @@
 use super::*;
 
 use hydradx_traits::liquidity_mining::PriceAdjustment;
-pub use hydradx_traits::liquidity_mining::{DepositId, GlobalFarmId, YieldFarmId};
+pub use hydradx_traits::liquidity_mining::{
+	DepositId,
+	GlobalFarmId,
+	YieldFarmId,
+};
 
 pub type FarmId = u32;
 pub type Balance = u128;

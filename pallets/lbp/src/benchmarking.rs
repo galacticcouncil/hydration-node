@@ -19,9 +19,15 @@ use super::*;
 
 use crate::Pallet as LBP;
 
-use hydradx_traits::router::{PoolType, TradeExecution};
+use hydradx_traits::router::{
+	PoolType,
+	TradeExecution,
+};
 
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
 use frame_system::RawOrigin;
 
 const SEED: u32 = 1;
@@ -286,7 +292,10 @@ benchmarks! {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::tests::{new_test_ext, Test};
+	use crate::tests::{
+		new_test_ext,
+		Test,
+	};
 	use frame_support::assert_ok;
 
 	#[test]

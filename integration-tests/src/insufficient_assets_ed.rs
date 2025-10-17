@@ -5,21 +5,39 @@ use crate::assert_event_times;
 use crate::insufficient_assets_ed::v3::Junction::GeneralIndex;
 use crate::polkadot_test_net::*;
 use frame_support::storage::with_transaction;
-use frame_support::{assert_noop, assert_ok, traits::Contains};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	traits::Contains,
+};
 use frame_system::RawOrigin;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::RuntimeOrigin as hydra_origin;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::{
-	origins::Origin, AssetRegistry as Registry, Currencies, DustRemovalWhitelist, InsufficientEDinHDX,
-	MultiTransactionPayment, NativeExistentialDeposit, RuntimeEvent, Tokens, TreasuryAccount, SUFFICIENCY_LOCK,
+	origins::Origin,
+	AssetRegistry as Registry,
+	Currencies,
+	DustRemovalWhitelist,
+	InsufficientEDinHDX,
+	MultiTransactionPayment,
+	NativeExistentialDeposit,
+	RuntimeEvent,
+	Tokens,
+	TreasuryAccount,
+	SUFFICIENCY_LOCK,
 };
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use hydradx_traits::NativePriceOracle;
 use orml_traits::MultiCurrency;
-use polkadot_xcm::v3::{self, Junction::Parachain, Junctions::X2, MultiLocation};
+use polkadot_xcm::v3::{
+	self,
+	Junction::Parachain,
+	Junctions::X2,
+	MultiLocation,
+};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::TransactionOutcome;

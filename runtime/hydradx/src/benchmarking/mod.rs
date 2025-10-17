@@ -17,7 +17,14 @@ pub mod xyk_liquidity_mining;
 
 use crate::evm::Erc20Currency;
 use crate::{
-	AssetLocation, AssetRegistry, EVMAccounts, EmaOracle, MultiTransactionPayment, Runtime, System, DOT_ASSET_LOCATION,
+	AssetLocation,
+	AssetRegistry,
+	EVMAccounts,
+	EmaOracle,
+	MultiTransactionPayment,
+	Runtime,
+	System,
+	DOT_ASSET_LOCATION,
 };
 use evm::ExitReason;
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
@@ -26,28 +33,52 @@ use frame_support::assert_ok;
 use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
 use frame_system::RawOrigin;
-use hydradx_traits::evm::{InspectEvmAccounts, ERC20};
-use hydradx_traits::{registry::Create, AssetKind};
+use hydradx_traits::evm::{
+	InspectEvmAccounts,
+	ERC20,
+};
+use hydradx_traits::{
+	registry::Create,
+	AssetKind,
+};
 use orml_benchmarking::runtime_benchmarks;
 
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use pallet_transaction_multi_payment::Price;
-use primitives::{AccountId, AssetId, BlockNumber};
+use primitives::{
+	AccountId,
+	AssetId,
+	BlockNumber,
+};
 use sp_runtime::traits::One;
 use sp_std::vec;
 use sp_std::vec::Vec;
 pub const BSX: Balance = primitives::constants::currency::UNITS;
-use crate::{Amount, Balance, Currencies, NativeAssetId};
+use crate::{
+	Amount,
+	Balance,
+	Currencies,
+	NativeAssetId,
+};
 use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
 
 use sp_std::prelude::*;
 
-use frame_benchmarking::{account, whitelisted_caller};
-use sp_runtime::traits::{StaticLookup, UniqueSaturatedInto};
+use frame_benchmarking::{
+	account,
+	whitelisted_caller,
+};
+use sp_runtime::traits::{
+	StaticLookup,
+	UniqueSaturatedInto,
+};
 use sp_runtime::SaturatedConversion;
 
-use hydradx_traits::evm::{CallContext, EvmAddress};
+use hydradx_traits::evm::{
+	CallContext,
+	EvmAddress,
+};
 use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
@@ -55,7 +86,10 @@ use primitive_types::U256;
 
 use frame_support::storage::with_transaction;
 use hydradx_traits::Mutate;
-use sp_runtime::{FixedU128, TransactionOutcome};
+use sp_runtime::{
+	FixedU128,
+	TransactionOutcome,
+};
 
 pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 	let n = name.try_into().map_err(|_| ())?;

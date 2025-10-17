@@ -1,10 +1,26 @@
 use crate::types::Balance;
-use crate::{Collaterals, Config, Error, Pallet};
-use frame_support::pallet_prelude::{Get, IsType};
+use crate::{
+	Collaterals,
+	Config,
+	Error,
+	Pallet,
+};
+use frame_support::pallet_prelude::{
+	Get,
+	IsType,
+};
 use hydra_dx_math::stableswap::types::AssetReserve;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{
+	ExecutorError,
+	PoolType,
+	TradeExecution,
+};
 use sp_core::crypto::AccountId32;
-use sp_runtime::{ArithmeticError, DispatchError, FixedU128};
+use sp_runtime::{
+	ArithmeticError,
+	DispatchError,
+	FixedU128,
+};
 
 impl<T: Config> TradeExecution<T::RuntimeOrigin, T::AccountId, T::AssetId, Balance> for Pallet<T>
 where

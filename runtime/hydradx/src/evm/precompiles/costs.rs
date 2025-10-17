@@ -21,7 +21,10 @@
 
 //! Cost calculations.
 use crate::evm::precompiles::EvmResult;
-use pallet_evm::{ExitError, PrecompileFailure};
+use pallet_evm::{
+	ExitError,
+	PrecompileFailure,
+};
 
 // Cost calculation is copied from EVM code that is not publicly exposed by the crates.
 // https://github.com/rust-blockchain/evm/blob/master/gasometer/src/costs.rs#L148

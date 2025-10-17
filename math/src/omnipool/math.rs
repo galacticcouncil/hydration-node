@@ -1,16 +1,40 @@
-use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
+use crate::omnipool::types::BalanceUpdate::{
+	Decrease,
+	Increase,
+};
 use crate::omnipool::types::{
-	AssetReserveState, AssetStateChange, HubTradeStateChange, LiquidityStateChange, Position, TradeFee,
+	AssetReserveState,
+	AssetStateChange,
+	HubTradeStateChange,
+	LiquidityStateChange,
+	Position,
+	TradeFee,
 	TradeStateChange,
 };
 use crate::types::Balance;
 use crate::MathError::Overflow;
-use crate::{to_balance, to_u256};
-use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
+use crate::{
+	to_balance,
+	to_u256,
+};
+use num_traits::{
+	CheckedDiv,
+	CheckedMul,
+	CheckedSub,
+	One,
+	Zero,
+};
 use primitive_types::U256;
 use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
-use sp_std::ops::{Div, Sub};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+	Permill,
+};
+use sp_std::ops::{
+	Div,
+	Sub,
+};
 
 #[inline]
 fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {

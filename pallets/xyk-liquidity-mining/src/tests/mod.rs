@@ -19,7 +19,10 @@ use super::*;
 use mock::*;
 use sp_runtime::traits::One;
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use primitives::Balance;
 use sp_runtime::traits::BadOrigin;
 

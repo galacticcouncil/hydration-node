@@ -7,38 +7,68 @@ use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
 use frame_support::traits::Contains;
-use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	sp_runtime::codec::Encode,
+};
 use frame_system::RawOrigin;
 use hydra_dx_math::types::Ratio;
 use hydradx_adapters::price::ConvertBalance;
-use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
+use hydradx_runtime::evm::precompiles::{
+	CALLPERMIT,
+	DISPATCH_ADDR,
+};
 use hydradx_runtime::types::ShortOraclePrice;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
-	Balances, Currencies, DotAssetId, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
+	Balances,
+	Currencies,
+	DotAssetId,
+	MultiTransactionPayment,
+	Omnipool,
+	RuntimeCall,
+	RuntimeOrigin,
+	Tokens,
 	XykPaymentAssetSupport,
 };
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use hydradx_traits::Mutate as AssetRegistryMutate;
-use libsecp256k1::{sign, Message, SecretKey};
+use libsecp256k1::{
+	sign,
+	Message,
+	SecretKey,
+};
 use orml_traits::MultiCurrency;
 use pallet_evm_accounts::EvmNonceProvider;
 use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::constants::currency::UNITS;
-use primitives::{AssetId, Balance};
-use sp_core::{H256, U256};
+use primitives::{
+	AssetId,
+	Balance,
+};
+use sp_core::{
+	H256,
+	U256,
+};
 use sp_runtime::traits::Convert;
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::transaction_validity::InvalidTransaction;
 use sp_runtime::transaction_validity::TransactionValidityError;
-use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
+use sp_runtime::transaction_validity::{
+	TransactionSource,
+	ValidTransaction,
+};
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 use xcm_emulator::TestExt;
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 

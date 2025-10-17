@@ -1,13 +1,35 @@
-use crate::stableswap::types::{AssetReserve, PegDelta};
+use crate::stableswap::types::{
+	AssetReserve,
+	PegDelta,
+};
 
 use crate::support::rational::round_to_rational;
 use crate::to_u256;
-use crate::types::{AssetId, Balance, Ratio};
-use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, SaturatingAdd, SaturatingMul, SaturatingSub, Zero};
+use crate::types::{
+	AssetId,
+	Balance,
+	Ratio,
+};
+use num_traits::{
+	CheckedDiv,
+	CheckedMul,
+	CheckedSub,
+	One,
+	SaturatingAdd,
+	SaturatingMul,
+	SaturatingSub,
+	Zero,
+};
 use primitive_types::U256;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::per_things::Rounding as PTRounding;
-use sp_arithmetic::{FixedPointNumber, FixedU128, PerThing, Perbill, Permill};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+	PerThing,
+	Perbill,
+	Permill,
+};
 use sp_std::ops::Div;
 use sp_std::prelude::*;
 use sp_std::vec;

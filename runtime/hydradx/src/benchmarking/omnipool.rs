@@ -1,4 +1,14 @@
-use crate::{AccountId, AssetId, Balance, EmaOracle, Omnipool, Referrals, Runtime, RuntimeOrigin, System};
+use crate::{
+	AccountId,
+	AssetId,
+	Balance,
+	EmaOracle,
+	Omnipool,
+	Referrals,
+	Runtime,
+	RuntimeOrigin,
+	System,
+};
 
 use super::*;
 
@@ -8,15 +18,29 @@ use frame_support::dispatch::DispatchResult;
 use frame_support::{
 	assert_ok,
 	sp_runtime::{
-		traits::{One, SaturatedConversion, Zero},
-		FixedU128, Permill,
+		traits::{
+			One,
+			SaturatedConversion,
+			Zero,
+		},
+		FixedU128,
+		Permill,
 	},
-	traits::{OnFinalize, OnInitialize},
+	traits::{
+		OnFinalize,
+		OnInitialize,
+	},
 };
 use frame_system::RawOrigin;
-use hydradx_traits::router::{PoolType, TradeExecution};
+use hydradx_traits::router::{
+	PoolType,
+	TradeExecution,
+};
 use orml_benchmarking::runtime_benchmarks;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+};
 use pallet_omnipool::types::Tradability;
 use pallet_referrals::ReferralCode;
 

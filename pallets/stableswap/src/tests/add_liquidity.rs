@@ -3,10 +3,22 @@
 use crate::tests::mock::*;
 use crate::tests::to_bounded_asset_vec;
 use crate::types::PoolInfo;
-use crate::{assert_balance, to_precision, Error};
-use frame_support::{assert_noop, assert_ok, BoundedVec};
+use crate::{
+	assert_balance,
+	to_precision,
+	Error,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+	BoundedVec,
+};
 use hydradx_traits::stableswap::AssetAmount;
-use pallet_broadcast::types::{Asset, Destination, Fee};
+use pallet_broadcast::types::{
+	Asset,
+	Destination,
+	Fee,
+};
 use sp_runtime::Permill;
 use std::num::NonZeroU16;
 

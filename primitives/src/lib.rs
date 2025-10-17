@@ -23,7 +23,11 @@ use frame_support::sp_runtime::FixedU128;
 pub use frame_support::sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 use frame_support::sp_runtime::{
 	generic,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	traits::{
+		BlakeTwo256,
+		IdentifyAccount,
+		Verify,
+	},
 	MultiSignature,
 };
 use sp_core::H160;

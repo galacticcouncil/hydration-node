@@ -15,7 +15,10 @@
 
 use super::*;
 use frame_support::parameter_types;
-use frame_support::traits::{ConstU32, LockIdentifier};
+use frame_support::traits::{
+	ConstU32,
+	LockIdentifier,
+};
 use frame_system::pallet_prelude::BlockNumberFor;
 
 parameter_types! {

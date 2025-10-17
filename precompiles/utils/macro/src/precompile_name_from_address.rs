@@ -15,7 +15,10 @@
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::*;
-use syn::{GenericArgument, Type};
+use syn::{
+	GenericArgument,
+	Type,
+};
 
 pub fn main(_: TokenStream, input: TokenStream) -> TokenStream {
 	let item = parse_macro_input!(input as ItemType);

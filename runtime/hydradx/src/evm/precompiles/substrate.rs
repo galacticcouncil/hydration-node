@@ -23,18 +23,28 @@
 //! - Substrate call dispatch.
 //! - Substrate DB read and write costs
 
-use crate::evm::precompiles::{revert, EvmResult};
+use crate::evm::precompiles::{
+	revert,
+	EvmResult,
+};
 use smallvec::alloc;
 use {
 	core::marker::PhantomData,
 	frame_support::{
-		dispatch::{GetDispatchInfo, PostDispatchInfo},
+		dispatch::{
+			GetDispatchInfo,
+			PostDispatchInfo,
+		},
 		sp_runtime::traits::Dispatchable,
 		traits::Get,
 		weights::Weight,
 	},
 	pallet_evm::GasWeightMapping,
-	pallet_evm::{ExitError, PrecompileFailure, PrecompileHandle},
+	pallet_evm::{
+		ExitError,
+		PrecompileFailure,
+		PrecompileHandle,
+	},
 };
 
 /// Helper functions requiring a Substrate runtime.

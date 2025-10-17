@@ -68,13 +68,25 @@
 #![allow(clippy::manual_inspect)]
 
 use frame_support::pallet_prelude::*;
-use frame_support::sp_runtime::traits::{BlockNumberProvider, One, Zero};
+use frame_support::sp_runtime::traits::{
+	BlockNumberProvider,
+	One,
+	Zero,
+};
 use frame_support::traits::Contains;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::{
-	AggregatedEntry, AggregatedOracle, AggregatedPriceOracle, Liquidity, OnCreatePoolHandler,
-	OnLiquidityChangedHandler, OnTradeHandler, RawEntry, RawOracle, Volume,
+	AggregatedEntry,
+	AggregatedOracle,
+	AggregatedPriceOracle,
+	Liquidity,
+	OnCreatePoolHandler,
+	OnLiquidityChangedHandler,
+	OnTradeHandler,
+	RawEntry,
+	RawOracle,
+	Volume,
 };
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::FixedU128;
@@ -118,8 +130,14 @@ impl BenchmarkHelper<AssetId> for () {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{BoundedBTreeMap, BoundedBTreeSet};
-	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+	use frame_support::{
+		BoundedBTreeMap,
+		BoundedBTreeSet,
+	};
+	use frame_system::pallet_prelude::{
+		BlockNumberFor,
+		OriginFor,
+	};
 
 	#[pallet::pallet]
 	#[pallet::storage_version(migrations::STORAGE_VERSION)]

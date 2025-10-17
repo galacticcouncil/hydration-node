@@ -2,35 +2,72 @@
 
 use crate::polkadot_test_net::*;
 use ethabi::ethereum_types::H160;
-use ethabi::{encode, Token};
+use ethabi::{
+	encode,
+	Token,
+};
 use fp_evm::{
 	ExitReason::Succeed,
-	ExitSucceed::{Returned, Stopped},
+	ExitSucceed::{
+		Returned,
+		Stopped,
+	},
 };
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::BoundedVec;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use hex_literal::hex;
 use hydradx_runtime::evm::precompiles::erc20_mapping::runtime_decl_for_erc_20_mapping_api::Erc20MappingApi;
 use hydradx_runtime::{
 	evm::{
-		precompiles::{erc20_mapping::HydraErc20Mapping, handle::EvmDataWriter},
+		precompiles::{
+			erc20_mapping::HydraErc20Mapping,
+			handle::EvmDataWriter,
+		},
 		Executor,
 	},
-	AssetId, Balance, Block, BlockT, BorrowingTreasuryAccount, Currencies, EVMAccounts, Liquidation, OriginCaller,
-	Router, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	AssetId,
+	Balance,
+	Block,
+	BlockT,
+	BorrowingTreasuryAccount,
+	Currencies,
+	EVMAccounts,
+	Liquidation,
+	OriginCaller,
+	Router,
+	Runtime,
+	RuntimeCall,
+	RuntimeEvent,
+	RuntimeOrigin,
 };
 use hydradx_traits::{
-	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
-	router::{AssetPair, RouteProvider},
+	evm::{
+		CallContext,
+		Erc20Encoding,
+		EvmAddress,
+		EVM,
+	},
+	router::{
+		AssetPair,
+		RouteProvider,
+	},
 };
 use liquidation_worker_support::*;
 use orml_traits::currency::MultiCurrency;
 use sp_api::ApiError;
-use sp_core::{H256, U256};
+use sp_core::{
+	H256,
+	U256,
+};
 use sp_runtime::traits::CheckedConversion;
 use xcm_runtime_apis::dry_run::{
-	runtime_decl_for_dry_run_api::DryRunApi, CallDryRunEffects, Error as XcmDryRunApiError,
+	runtime_decl_for_dry_run_api::DryRunApi,
+	CallDryRunEffects,
+	Error as XcmDryRunApiError,
 };
 
 // ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443

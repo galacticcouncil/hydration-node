@@ -16,9 +16,22 @@
 
 use {
 	crate::testing::PrettyLog,
-	evm::{ExitRevert, ExitSucceed},
-	fp_evm::{Context, ExitError, ExitReason, Log, PrecompileHandle, Transfer},
-	sp_core::{H160, H256},
+	evm::{
+		ExitRevert,
+		ExitSucceed,
+	},
+	fp_evm::{
+		Context,
+		ExitError,
+		ExitReason,
+		Log,
+		PrecompileHandle,
+		Transfer,
+	},
+	sp_core::{
+		H160,
+		H256,
+	},
 	sp_std::boxed::Box,
 };
 

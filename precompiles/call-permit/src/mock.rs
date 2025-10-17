@@ -18,13 +18,28 @@
 use super::*;
 
 use frame_support::traits::Everything;
-use frame_support::{construct_runtime, pallet_prelude::*, parameter_types};
-use pallet_evm::{EnsureAddressNever, EnsureAddressRoot, FrameSystemAccountProvider};
-use precompile_utils::{mock_account, precompile_set::*, testing::MockAccount};
+use frame_support::{
+	construct_runtime,
+	pallet_prelude::*,
+	parameter_types,
+};
+use pallet_evm::{
+	EnsureAddressNever,
+	EnsureAddressRoot,
+	FrameSystemAccountProvider,
+};
+use precompile_utils::{
+	mock_account,
+	precompile_set::*,
+	testing::MockAccount,
+};
 use sp_core::H256;
 use sp_runtime::BuildStorage;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
 	Perbill,
 };
 

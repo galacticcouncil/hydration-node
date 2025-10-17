@@ -4,11 +4,27 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
-use frame_support::{assert_ok, sp_runtime::traits::Zero};
-use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, Tokens, Treasury};
+use frame_support::{
+	assert_ok,
+	sp_runtime::traits::Zero,
+};
+use hydradx_runtime::{
+	AssetRegistry,
+	Balances,
+	Currencies,
+	Duster,
+	Tokens,
+	Treasury,
+};
 use orml_traits::MultiReservableCurrency;
-use orml_traits::{currency::MultiCurrency, GetByKey};
-use sp_runtime::{DispatchResult, TransactionOutcome};
+use orml_traits::{
+	currency::MultiCurrency,
+	GetByKey,
+};
+use sp_runtime::{
+	DispatchResult,
+	TransactionOutcome,
+};
 use xcm_emulator::TestExt;
 
 #[test]
@@ -198,11 +214,17 @@ fn account_cannot_be_dusted_when_leftover_is_reserved() {
 mod atoken_dust {
 	use super::*;
 	use crate::aave_router::ADOT;
-	use frame_support::{assert_noop, assert_ok};
+	use frame_support::{
+		assert_noop,
+		assert_ok,
+	};
 	use hydradx_runtime::EVMAccounts;
 	const START_BALANCE: u128 = 1_000_000_000_000_000;
 
-	use proptest::test_runner::{Config, TestRunner};
+	use proptest::test_runner::{
+		Config,
+		TestRunner,
+	};
 
 	#[test]
 	fn atoken_should_not_be_dusted_when_atoken_balance_is_below_ed_after_transfer() {

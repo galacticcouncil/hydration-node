@@ -1,38 +1,82 @@
 use crate::polkadot_test_net::hydra_live_ext;
 use crate::polkadot_test_net::hydradx_run_to_next_block;
-use crate::polkadot_test_net::{TestNet, ALICE, BOB, HDX};
+use crate::polkadot_test_net::{
+	TestNet,
+	ALICE,
+	BOB,
+	HDX,
+};
 use fp_evm::ExitSucceed::Returned;
-use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
+use fp_evm::{
+	ExitReason::Succeed,
+	ExitSucceed::Stopped,
+};
 use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{
-		precompiles::{handle::EvmDataWriter, Bytes},
+		precompiles::{
+			handle::EvmDataWriter,
+			Bytes,
+		},
 		Executor,
 	},
-	AccountId, BorrowingTreasuryAccount, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens,
-	TreasuryAccount, HSM,
+	AccountId,
+	BorrowingTreasuryAccount,
+	Currencies,
+	EVMAccounts,
+	FixedU128,
+	Liquidation,
+	Router,
+	Runtime,
+	Tokens,
+	TreasuryAccount,
+	HSM,
 };
-use hydradx_runtime::{OriginCaller, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap};
-use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
+use hydradx_runtime::{
+	OriginCaller,
+	RuntimeCall,
+	RuntimeEvent,
+	RuntimeOrigin,
+	Stableswap,
+};
+use hydradx_traits::evm::{
+	CallContext,
+	EvmAddress,
+	InspectEvmAccounts,
+	EVM,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_stableswap::types::BoundedPegSources;
 use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
-use primitives::{AssetId, Balance};
-use sp_core::{RuntimeDebug, H256, U256};
+use primitives::{
+	AssetId,
+	Balance,
+};
+use sp_core::{
+	RuntimeDebug,
+	H256,
+	U256,
+};
 use sp_runtime::traits::One;
 use sp_runtime::BoundedVec;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use std::sync::Arc;
-use xcm_emulator::{Network, TestExt};
+use xcm_emulator::{
+	Network,
+	TestExt,
+};
 
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
 const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
@@ -1431,7 +1475,11 @@ fn buy_collateral_with_hollar_via_router_should_work() {
 }
 
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
-use hydradx_traits::router::{PoolType, Route, Trade};
+use hydradx_traits::router::{
+	PoolType,
+	Route,
+	Trade,
+};
 
 #[test]
 fn arbitrage_should_work() {

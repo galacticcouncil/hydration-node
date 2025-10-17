@@ -22,7 +22,10 @@ pub type Balance = u128;
 
 use hydradx_traits::AssetKind;
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 
 pub type Name<L> = BoundedVec<u8, L>;
 pub type Symbol<L> = BoundedVec<u8, L>;

@@ -1,13 +1,22 @@
 #![cfg(test)]
 
-use crate::{assert_balance, polkadot_test_net::*};
+use crate::{
+	assert_balance,
+	polkadot_test_net::*,
+};
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::dispatch::PostDispatchInfo;
 use frame_support::storage::with_transaction;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::DOT_ASSET_LOCATION;
-use hydradx_runtime::{AssetRegistry, TreasuryAccount};
+use hydradx_runtime::{
+	AssetRegistry,
+	TreasuryAccount,
+};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;

@@ -18,16 +18,36 @@
 //                  :?Y!                    Licensed under the Apache License, Version 2.0 (the "License");
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
-use crate::{Runtime, TreasuryAccount};
-use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
-use frame_support::traits::{Get, TryDrop};
+use crate::{
+	Runtime,
+	TreasuryAccount,
+};
+use frame_support::traits::tokens::{
+	Fortitude,
+	Precision,
+	Preservation,
+};
+use frame_support::traits::{
+	Get,
+	TryDrop,
+};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::AccountFeeCurrency;
-use pallet_evm::{AddressMapping, Error};
-use pallet_transaction_multi_payment::{DepositAll, DepositFee};
-use primitives::{AccountId, AssetId, Balance};
+use pallet_evm::{
+	AddressMapping,
+	Error,
+};
+use pallet_transaction_multi_payment::{
+	DepositAll,
+	DepositFee,
+};
+use primitives::{
+	AccountId,
+	AssetId,
+	Balance,
+};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::Convert;
 use sp_runtime::Rounding;
@@ -35,7 +55,10 @@ use sp_std::marker::PhantomData;
 use {
 	frame_support::traits::OnUnbalanced,
 	pallet_evm::OnChargeEVMTransaction,
-	sp_core::{H160, U256},
+	sp_core::{
+		H160,
+		U256,
+	},
 	sp_runtime::traits::UniqueSaturatedInto,
 };
 

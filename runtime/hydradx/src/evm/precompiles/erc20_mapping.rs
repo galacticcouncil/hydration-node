@@ -20,14 +20,24 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::evm::EvmAddress;
-use crate::{AssetLocation, Runtime};
+use crate::{
+	AssetLocation,
+	Runtime,
+};
 use hex_literal::hex;
 use hydradx_traits::evm::Erc20Mapping;
-use hydradx_traits::{evm::Erc20Encoding, BoundErc20, RegisterAssetHook};
+use hydradx_traits::{
+	evm::Erc20Encoding,
+	BoundErc20,
+	RegisterAssetHook,
+};
 use polkadot_xcm::v3::Junction::AccountKey20;
 use polkadot_xcm::v3::Junctions::X1;
 use polkadot_xcm::v3::MultiLocation;
-use primitive_types::{H160, H256};
+use primitive_types::{
+	H160,
+	H256,
+};
 use primitives::AssetId;
 
 pub struct HydraErc20Mapping;

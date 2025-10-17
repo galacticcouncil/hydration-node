@@ -1,12 +1,25 @@
 use crate::types::Balance;
-use crate::{Config, Error, Pallet};
+use crate::{
+	Config,
+	Error,
+	Pallet,
+};
 use frame_system::pallet_prelude::OriginFor;
 
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::{
+	ExecutorError,
+	PoolType,
+	TradeExecution,
+};
 use sp_runtime::traits::Get;
 use sp_runtime::DispatchError::Corruption;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::{
+	ArithmeticError,
+	DispatchError,
+	FixedPointNumber,
+	FixedU128,
+};
 
 // dev note: The code is calculate sell and buy is copied from the corresponding functions.
 // This is not ideal and should be refactored to avoid code duplication.

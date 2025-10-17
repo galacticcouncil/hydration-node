@@ -1,4 +1,7 @@
-use frame_support::sp_runtime::{DispatchError, DispatchResult};
+use frame_support::sp_runtime::{
+	DispatchError,
+	DispatchResult,
+};
 
 ///Checking if asset is an accepted transaction fee currency
 pub trait InspectTransactionFeeCurrency<AssetId> {

@@ -18,7 +18,10 @@
 use frame_support::pallet_prelude::*;
 
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 
 use scale_info::TypeInfo;
 

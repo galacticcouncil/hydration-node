@@ -1,15 +1,29 @@
 use crate as pallet_evm_accounts;
-use crate::{Balance, Config, EvmNonceProvider};
+use crate::{
+	Balance,
+	Config,
+	EvmNonceProvider,
+};
 use frame_support::parameter_types;
 use frame_support::sp_runtime::{
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	BuildStorage, MultiSignature,
+	traits::{
+		BlakeTwo256,
+		IdentifyAccount,
+		IdentityLookup,
+		Verify,
+	},
+	BuildStorage,
+	MultiSignature,
 };
 use frame_support::traits::Everything;
 use frame_system::EnsureRoot;
 use hydradx_traits::evm::InspectEvmAccounts;
 use orml_traits::parameter_type_with_key;
-pub use sp_core::{H160, H256, U256};
+pub use sp_core::{
+	H160,
+	H256,
+	U256,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 

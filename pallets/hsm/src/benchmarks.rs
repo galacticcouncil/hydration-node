@@ -15,19 +15,35 @@
 use super::*;
 use crate::traits::BenchmarkHelper;
 use crate::types::Balance;
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
 use frame_support::traits::fungibles::Mutate;
 use frame_support::traits::EnsureOrigin;
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
 use hydra_dx_math::stableswap::types::AssetReserve;
-use hydradx_traits::router::{PoolType, TradeExecution};
+use hydradx_traits::router::{
+	PoolType,
+	TradeExecution,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
-use pallet_stableswap::types::{BoundedPegSources, PegSource};
-use pallet_stableswap::{BenchmarkHelper as HSMBenchmarkHelper, MAX_ASSETS_IN_POOL};
+use pallet_stableswap::types::{
+	BoundedPegSources,
+	PegSource,
+};
+use pallet_stableswap::{
+	BenchmarkHelper as HSMBenchmarkHelper,
+	MAX_ASSETS_IN_POOL,
+};
 use sp_runtime::traits::BlockNumberProvider;
-use sp_runtime::{FixedU128, Perbill, Permill};
+use sp_runtime::{
+	FixedU128,
+	Perbill,
+	Permill,
+};
 use sp_std::vec;
 use sp_std::vec::Vec;
 

@@ -18,14 +18,25 @@
 
 use super::*;
 use crate::{
-	AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, RuntimeCall, System,
+	AccountId,
+	AssetId,
+	Balance,
+	Currencies,
+	EmaOracle,
+	InsufficientEDinHDX,
+	Runtime,
+	RuntimeCall,
+	System,
 	TreasuryAccount,
 };
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
 use frame_support::dispatch::GetDispatchInfo;
-use frame_support::traits::{OnFinalize, OnInitialize};
+use frame_support::traits::{
+	OnFinalize,
+	OnInitialize,
+};
 use frame_system::RawOrigin;
 use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::router::PoolType;
@@ -35,10 +46,16 @@ use hydradx_traits::PriceOracle;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;
 use pallet_transaction_payment::OnChargeTransaction;
-use primitives::{BlockNumber, Price};
+use primitives::{
+	BlockNumber,
+	Price,
+};
 use sp_core::Get;
 use sp_runtime::traits::SaturatedConversion;
-use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidityError};
+use sp_runtime::transaction_validity::{
+	InvalidTransaction,
+	TransactionValidityError,
+};
 use sp_runtime::FixedU128;
 
 type MultiPaymentPallet<T> = pallet_transaction_multi_payment::Pallet<T>;
@@ -47,7 +64,11 @@ type Router<T> = pallet_route_executor::Pallet<T>;
 use hydradx_traits::router::AssetPair;
 use hydradx_traits::router::Trade;
 use hydradx_traits::OraclePeriod;
-use pallet_transaction_multi_payment::{DepositAll, PaymentInfo, TransferFees};
+use pallet_transaction_multi_payment::{
+	DepositAll,
+	PaymentInfo,
+	TransferFees,
+};
 
 const SEED: u32 = 1;
 

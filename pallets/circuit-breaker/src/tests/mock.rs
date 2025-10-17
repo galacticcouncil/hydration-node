@@ -16,22 +16,48 @@
 // limitations under the License.
 
 pub use crate as pallet_circuit_breaker;
-use frame_support::traits::{Contains, Get};
-pub use frame_support::traits::{Everything, OnFinalize};
-pub use frame_support::{assert_noop, assert_ok, parameter_types};
+use frame_support::traits::{
+	Contains,
+	Get,
+};
+pub use frame_support::traits::{
+	Everything,
+	OnFinalize,
+};
+pub use frame_support::{
+	assert_noop,
+	assert_ok,
+	parameter_types,
+};
 
 use frame_support::PalletId;
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, MultiCurrency, NamedMultiReservableCurrency};
+use orml_traits::{
+	parameter_type_with_key,
+	GetByKey,
+	Handler,
+	Happened,
+	MultiCurrency,
+	NamedMultiReservableCurrency,
+};
 use sp_core::H256;
-use sp_runtime::traits::{AccountIdConversion, ConstU128, ConstU32, Zero};
+use sp_runtime::traits::{
+	AccountIdConversion,
+	ConstU128,
+	ConstU32,
+	Zero,
+};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, DispatchError,
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
+	BuildStorage,
+	DispatchError,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -393,7 +419,11 @@ where
 	}
 }
 
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_support::traits::tokens::nonfungibles::{
+	Create,
+	Inspect,
+	Mutate,
+};
 use frame_support::weights::Weight;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::fee::GetDynamicFee;
@@ -447,9 +477,20 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 use crate::traits::AssetDepositLimiter;
 use crate::Config;
-use hydradx_traits::registry::{AssetKind, Inspect as InspectRegistry};
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
-use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
+use hydradx_traits::registry::{
+	AssetKind,
+	Inspect as InspectRegistry,
+};
+use pallet_currencies::{
+	BasicCurrencyAdapter,
+	MockBoundErc20,
+	MockErc20Currency,
+};
+use pallet_omnipool::traits::{
+	AssetInfo,
+	ExternalPriceProvider,
+	OmnipoolHooks,
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;

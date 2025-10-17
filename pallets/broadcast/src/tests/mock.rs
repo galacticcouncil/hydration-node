@@ -21,10 +21,17 @@ pub use crate::*;
 pub use frame_support::{
 	construct_runtime,
 	sp_runtime::{
-		traits::{BlakeTwo256, IdentityLookup},
+		traits::{
+			BlakeTwo256,
+			IdentityLookup,
+		},
 		BuildStorage,
 	},
-	traits::{ConstU32, ConstU64, Everything},
+	traits::{
+		ConstU32,
+		ConstU64,
+		Everything,
+	},
 };
 use sp_core::H256;
 

@@ -18,13 +18,26 @@
 use super::*;
 use crate as pallet_nft;
 
-use frame_support::traits::{AsEnsureOriginWithArg, Everything};
-use frame_support::{parameter_types, weights::Weight};
+use frame_support::traits::{
+	AsEnsureOriginWithArg,
+	Everything,
+};
+use frame_support::{
+	parameter_types,
+	weights::Weight,
+};
 use frame_system::EnsureRoot;
-use sp_core::{crypto::AccountId32, H256};
+use sp_core::{
+	crypto::AccountId32,
+	H256,
+};
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage, Perbill,
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
+	BuildStorage,
+	Perbill,
 };
 
 type AccountId = AccountId32;

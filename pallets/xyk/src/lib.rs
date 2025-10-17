@@ -29,28 +29,59 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::manual_inspect)]
 
-use frame_support::sp_runtime::{traits::Zero, DispatchError};
-use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
+use frame_support::sp_runtime::{
+	traits::Zero,
+	DispatchError,
+};
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	traits::Get,
+	transactional,
+};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::{
-	AMMTransfer, AssetPairAccountIdFor, CanCreatePool, OnCreatePoolHandler, OnLiquidityChangedHandler, OnTradeHandler,
+	AMMTransfer,
+	AssetPairAccountIdFor,
+	CanCreatePool,
+	OnCreatePoolHandler,
+	OnLiquidityChangedHandler,
+	OnTradeHandler,
 	AMM,
 };
-use pallet_broadcast::types::{Asset, Destination, Fee};
+use pallet_broadcast::types::{
+	Asset,
+	Destination,
+	Fee,
+};
 
-use sp_std::{vec, vec::Vec};
+use sp_std::{
+	vec,
+	vec::Vec,
+};
 
-use crate::types::{Amount, AssetId, AssetPair, Balance};
+use crate::types::{
+	Amount,
+	AssetId,
+	AssetPair,
+	Balance,
+};
 use frame_support::require_transactional;
 use hydra_dx_math::ratio::Ratio;
 use hydradx_traits::AMMAddLiquidity;
 use hydradx_traits::{
 	pools::DustRemovalAccountWhitelist,
-	registry::{AssetKind, Create},
+	registry::{
+		AssetKind,
+		Create,
+	},
 	Source,
 };
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+};
 
 #[cfg(test)]
 mod tests;

@@ -19,19 +19,34 @@ use {
 		prelude::*,
 		solidity::{
 			codec::{
-				xcm::{network_id_from_bytes, network_id_to_bytes},
-				Reader, Writer,
+				xcm::{
+					network_id_from_bytes,
+					network_id_to_bytes,
+				},
+				Reader,
+				Writer,
 			},
-			modifier::{check_function_modifier, FunctionModifier},
+			modifier::{
+				check_function_modifier,
+				FunctionModifier,
+			},
 			revert::Backtrace,
 		},
 	},
 	frame_support::traits::ConstU32,
 	hex_literal::hex,
 	pallet_evm::Context,
-	sp_core::{H160, H256, U256},
+	sp_core::{
+		H160,
+		H256,
+		U256,
+	},
 	sp_std::convert::TryInto,
-	xcm::v3::{Junction, Junctions, NetworkId},
+	xcm::v3::{
+		Junction,
+		Junctions,
+		NetworkId,
+	},
 };
 
 fn u256_repeat_byte(byte: u8) -> U256 {

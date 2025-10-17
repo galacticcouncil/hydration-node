@@ -17,9 +17,22 @@
 #![allow(clippy::result_unit_err)]
 
 use core::convert::From;
-use core::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
-use fixed::traits::{FixedUnsigned, ToFixed};
-use num_traits::{One, SaturatingMul, Zero};
+use core::ops::{
+	AddAssign,
+	BitOrAssign,
+	ShlAssign,
+	Shr,
+	ShrAssign,
+};
+use fixed::traits::{
+	FixedUnsigned,
+	ToFixed,
+};
+use num_traits::{
+	One,
+	SaturatingMul,
+	Zero,
+};
 
 /// right-shift with rounding
 fn rs<T>(operand: T) -> T

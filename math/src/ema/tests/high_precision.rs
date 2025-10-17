@@ -1,13 +1,25 @@
 use crate::ema::EmaPrice;
 use crate::fraction;
-use crate::test_utils::{fraction_to_high_precision, into_rounded_integer};
+use crate::test_utils::{
+	fraction_to_high_precision,
+	into_rounded_integer,
+};
 use crate::types::Balance;
 
-use num_traits::{One, Pow};
+use num_traits::{
+	One,
+	Pow,
+};
 use proptest::prelude::*;
 use rug::ops::PowAssign;
-use rug::{Integer, Rational};
-use std::ops::{Mul, ShrAssign};
+use rug::{
+	Integer,
+	Rational,
+};
+use std::ops::{
+	Mul,
+	ShrAssign,
+};
 
 /// Round the given `r` to a close number where numerator and denominator have <= 256 bits.
 pub(crate) fn round(r: &mut Rational) {

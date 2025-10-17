@@ -1,4 +1,7 @@
-use codec::{Decode, Encode};
+use codec::{
+	Decode,
+	Encode,
+};
 use frame_support::__private::DispatchError;
 use frame_support::pallet_prelude::TypeInfo;
 use sp_std::vec::Vec;

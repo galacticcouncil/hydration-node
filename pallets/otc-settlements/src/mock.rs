@@ -16,25 +16,54 @@
 use crate as pallet_otc_settlements;
 use crate::*;
 use frame_support::{
-	assert_ok, parameter_types,
+	assert_ok,
+	parameter_types,
 	sp_runtime::{
-		traits::{BlakeTwo256, IdentityLookup},
-		BuildStorage, Permill,
+		traits::{
+			BlakeTwo256,
+			IdentityLookup,
+		},
+		BuildStorage,
+		Permill,
 	},
 	traits::{
-		tokens::nonfungibles::{Create, Inspect, Mutate},
-		Everything, Nothing,
+		tokens::nonfungibles::{
+			Create,
+			Inspect,
+			Mutate,
+		},
+		Everything,
+		Nothing,
 	},
 };
-use frame_system::{EnsureRoot, EnsureSigned};
-use hydra_dx_math::{ema::EmaPrice, ratio::Ratio};
+use frame_system::{
+	EnsureRoot,
+	EnsureSigned,
+};
+use hydra_dx_math::{
+	ema::EmaPrice,
+	ratio::Ratio,
+};
 use hydradx_traits::fee::GetDynamicFee;
-use hydradx_traits::{router::PoolType, OraclePeriod, PriceOracle};
+use hydradx_traits::{
+	router::PoolType,
+	OraclePeriod,
+	PriceOracle,
+};
 use orml_traits::parameter_type_with_key;
-use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
+use pallet_currencies::{
+	fungibles::FungibleCurrencies,
+	BasicCurrencyAdapter,
+	MockBoundErc20,
+	MockErc20Currency,
+};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use sp_core::offchain::{
-	testing::PoolState, testing::TestOffchainExt, testing::TestTransactionPoolExt, OffchainDbExt, OffchainWorkerExt,
+	testing::PoolState,
+	testing::TestOffchainExt,
+	testing::TestTransactionPoolExt,
+	OffchainDbExt,
+	OffchainWorkerExt,
 	TransactionPoolExt,
 };
 use sp_core::H256;

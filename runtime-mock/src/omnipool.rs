@@ -3,7 +3,10 @@ use crate::AccountId;
 use hydradx_runtime::RuntimeCall;
 use serde::Deserialize;
 use serde::Deserializer;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 use std::fs;
 
 #[derive(Debug, Deserialize)]

@@ -17,13 +17,19 @@
 
 use super::*;
 use crate as claims;
-use crate::{Config, EthereumAddress};
+use crate::{
+	Config,
+	EthereumAddress,
+};
 use frame_support::parameter_types;
 use hex_literal::hex;
 use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 

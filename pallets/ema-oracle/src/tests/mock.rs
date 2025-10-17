@@ -22,22 +22,42 @@ use frame_support::pallet_prelude::ConstU32;
 use frame_support::parameter_types;
 use frame_support::sp_runtime::{
 	bounded_vec,
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
-use frame_support::traits::{Contains, Everything, SortedMembers};
+use frame_support::traits::{
+	Contains,
+	Everything,
+	SortedMembers,
+};
 use frame_support::BoundedVec;
 use frame_system::EnsureRoot;
-use hydradx_traits::OraclePeriod::{self, *};
+use hydradx_traits::OraclePeriod::{
+	self,
+	*,
+};
 use hydradx_traits::Source;
-use hydradx_traits::{Liquidity, Volume};
-use polkadot_xcm::latest::{Junctions, Location};
+use hydradx_traits::{
+	Liquidity,
+	Volume,
+};
+use polkadot_xcm::latest::{
+	Junctions,
+	Location,
+};
 use polkadot_xcm::prelude::GeneralIndex;
 use sp_arithmetic::Permill;
 use sp_core::H256;
 use sp_runtime::traits::Convert;
 
-use crate::types::{AssetId, Balance, Price};
+use crate::types::{
+	AssetId,
+	Balance,
+	Price,
+};
 pub type BlockNumber = u64;
 pub type AccountId = u64;
 

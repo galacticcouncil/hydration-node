@@ -2,12 +2,18 @@
 
 use crate::polkadot_test_net::*;
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 
 use orml_traits::currency::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
 use sp_runtime::FixedPointNumber;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{
+	FixedU128,
+	Permill,
+};
 use xcm_emulator::TestExt;
 
 const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/SNAPSHOT";
@@ -127,7 +133,10 @@ fn omnipool_launch_init_params_should_be_correct() {
 }
 
 pub fn hydra_run_to_block(to: BlockNumber) {
-	use frame_support::traits::{OnFinalize, OnInitialize};
+	use frame_support::traits::{
+		OnFinalize,
+		OnInitialize,
+	};
 	while hydradx_runtime::System::block_number() < to {
 		let b = hydradx_runtime::System::block_number();
 

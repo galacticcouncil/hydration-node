@@ -8,30 +8,54 @@ use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
 use frame_support::traits::OnInitialize;
-use frame_support::{assert_noop, BoundedVec};
+use frame_support::{
+	assert_noop,
+	BoundedVec,
+};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::evm::Erc20Currency;
 use hydradx_runtime::{
-	AssetId, Block, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall, RuntimeEvent,
+	AssetId,
+	Block,
+	Currencies,
+	EVMAccounts,
+	Liquidation,
+	OriginCaller,
+	Router,
+	Runtime,
+	RuntimeCall,
+	RuntimeEvent,
 	RuntimeOrigin,
 };
-use hydradx_runtime::{AssetRegistry, Stableswap};
+use hydradx_runtime::{
+	AssetRegistry,
+	Stableswap,
+};
 use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::router::ExecutorError;
-use hydradx_traits::router::PoolType::{Aave, XYK};
+use hydradx_traits::router::PoolType::{
+	Aave,
+	XYK,
+};
 use hydradx_traits::router::RouteProvider;
 use hydradx_traits::router::Trade;
-use hydradx_traits::router::{AssetPair, PoolType};
+use hydradx_traits::router::{
+	AssetPair,
+	PoolType,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
-use pallet_broadcast::types::{Asset, ExecutionType};
+use pallet_broadcast::types::{
+	Asset,
+	ExecutionType,
+};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 use primitives::Balance;
@@ -983,7 +1007,10 @@ mod transfer_atoken {
 
 pub mod stableswap_with_atoken {
 	use super::*;
-	use hydradx_runtime::{RuntimeOrigin, Stableswap};
+	use hydradx_runtime::{
+		RuntimeOrigin,
+		Stableswap,
+	};
 
 	#[test]
 	fn add_liquidity_shares_should_not_work_when_user_has_not_enough_atoken_balance() {

@@ -22,7 +22,10 @@ use frame_support::traits::Everything;
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{
+		BlakeTwo256,
+		IdentityLookup,
+	},
 	BuildStorage,
 };
 

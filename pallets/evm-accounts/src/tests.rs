@@ -18,7 +18,10 @@
 use super::*;
 use mock::*;
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use hex_literal::hex;
 
 #[test]

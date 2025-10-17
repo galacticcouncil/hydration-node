@@ -14,8 +14,14 @@
 // limitations under the License.
 use crate as otc;
 use crate::tests::mock::*;
-use crate::{Error, Event};
-use frame_support::{assert_noop, assert_ok};
+use crate::{
+	Error,
+	Event,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use orml_tokens::Error::BalanceTooLow;
 use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;

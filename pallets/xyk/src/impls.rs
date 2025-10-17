@@ -1,4 +1,8 @@
-use crate::types::{AssetId, AssetPair, Price};
+use crate::types::{
+	AssetId,
+	AssetPair,
+	Price,
+};
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::AMM;
 use orml_traits::MultiCurrency;

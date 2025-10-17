@@ -1,4 +1,12 @@
-use crate::{AccountId, AssetId, Balance, Duster, NativeAssetId, Runtime, Tokens};
+use crate::{
+	AccountId,
+	AssetId,
+	Balance,
+	Duster,
+	NativeAssetId,
+	Runtime,
+	Tokens,
+};
 
 use super::*;
 
@@ -8,7 +16,11 @@ use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use orml_benchmarking::runtime_benchmarks;
-use orml_traits::{GetByKey, MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{
+	GetByKey,
+	MultiCurrency,
+	MultiCurrencyExtended,
+};
 use sp_runtime::traits::SaturatedConversion;
 
 const SEED: u32 = 1;

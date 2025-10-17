@@ -1,7 +1,16 @@
 pub use super::mock::*;
-use crate::types::{AssetPair, Balance};
-use crate::{Error, Event};
-use frame_support::{assert_noop, assert_ok};
+use crate::types::{
+	AssetPair,
+	Balance,
+};
+use crate::{
+	Error,
+	Event,
+};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
 use hydradx_traits::AMM as AmmPool;
 use orml_traits::MultiCurrency;
 

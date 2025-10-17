@@ -17,13 +17,28 @@
 
 //! The vote datatype.
 
-use crate::{Conviction, Delegations, ReferendumIndex};
-use codec::{Decode, Encode, EncodeLike, Input, MaxEncodedLen, Output};
+use crate::{
+	Conviction,
+	Delegations,
+	ReferendumIndex,
+};
+use codec::{
+	Decode,
+	Encode,
+	EncodeLike,
+	Input,
+	MaxEncodedLen,
+	Output,
+};
 use frame_support::traits::Get;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{Saturating, Zero},
-	BoundedVec, RuntimeDebug,
+	traits::{
+		Saturating,
+		Zero,
+	},
+	BoundedVec,
+	RuntimeDebug,
 };
 use sp_std::prelude::*;
 

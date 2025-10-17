@@ -2,7 +2,10 @@
 
 use crate::polkadot_test_net::*;
 
-use frame_support::{assert_ok, traits::Contains};
+use frame_support::{
+	assert_ok,
+	traits::Contains,
+};
 
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;

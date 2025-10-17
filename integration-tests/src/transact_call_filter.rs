@@ -1,7 +1,10 @@
 #![cfg(test)]
 use crate::polkadot_test_net::*;
 
-use frame_support::{assert_ok, dispatch::GetDispatchInfo};
+use frame_support::{
+	assert_ok,
+	dispatch::GetDispatchInfo,
+};
 use sp_runtime::codec::Encode;
 
 use polkadot_xcm::v4::prelude::*;

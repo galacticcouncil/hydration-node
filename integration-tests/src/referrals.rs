@@ -3,14 +3,26 @@
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use hydradx_runtime::{Currencies, Omnipool, Referrals, Runtime, RuntimeOrigin, Staking, Tokens, Treasury};
+use hydradx_runtime::{
+	Currencies,
+	Omnipool,
+	Referrals,
+	Runtime,
+	RuntimeOrigin,
+	Staking,
+	Tokens,
+	Treasury,
+};
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::Asset;
 use pallet_broadcast::types::Destination;
 use pallet_broadcast::types::Fee;
 use pallet_broadcast::types::Filler;
 use pallet_broadcast::types::TradeOperation;
-use pallet_referrals::{FeeDistribution, ReferralCode};
+use pallet_referrals::{
+	FeeDistribution,
+	ReferralCode,
+};
 use primitives::AccountId;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_runtime::FixedU128;

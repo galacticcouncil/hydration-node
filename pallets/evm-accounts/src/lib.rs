@@ -58,11 +58,18 @@
 #![allow(clippy::manual_inspect)]
 
 use frame_support::ensure;
-use frame_support::pallet_prelude::{DispatchResult, Get};
+use frame_support::pallet_prelude::{
+	DispatchResult,
+	Get,
+};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_core::{
-	crypto::{AccountId32, ByteArray},
-	H160, U256,
+	crypto::{
+		AccountId32,
+		ByteArray,
+	},
+	H160,
+	U256,
 };
 
 #[cfg(test)]

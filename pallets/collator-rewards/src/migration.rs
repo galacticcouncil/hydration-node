@@ -18,7 +18,10 @@
 use super::*;
 use frame_support::{
 	storage_alias,
-	traits::{Get, StorageVersion},
+	traits::{
+		Get,
+		StorageVersion,
+	},
 	weights::Weight,
 };
 
@@ -27,7 +30,10 @@ const TARGET: &str = "runtime::collator-rewards::migration::v1";
 
 pub mod v0 {
 	use super::*;
-	use frame_support::{pallet_prelude::ValueQuery, Twox64Concat};
+	use frame_support::{
+		pallet_prelude::ValueQuery,
+		Twox64Concat,
+	};
 
 	#[storage_alias]
 	pub type Collators<T: Config> =

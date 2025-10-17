@@ -1,11 +1,34 @@
-use crate::pallet::{Positions, Votes, VotesRewarded};
-use crate::traits::{GetReferendumState, VestingDetails};
-use crate::types::{Action, Balance, Conviction, ReferendumIndex, Vote};
-use crate::{Config, Error, Pallet};
+use crate::pallet::{
+	Positions,
+	Votes,
+	VotesRewarded,
+};
+use crate::traits::{
+	GetReferendumState,
+	VestingDetails,
+};
+use crate::types::{
+	Action,
+	Balance,
+	Conviction,
+	ReferendumIndex,
+	Vote,
+};
+use crate::{
+	Config,
+	Error,
+	Pallet,
+};
 use frame_support::defensive;
 use frame_support::dispatch::DispatchResult;
-use frame_support::traits::{PollStatus, Polling};
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use frame_support::traits::{
+	PollStatus,
+	Polling,
+};
+use orml_traits::{
+	MultiCurrency,
+	MultiCurrencyExtended,
+};
 use pallet_conviction_voting::traits::VotingHooks;
 use pallet_conviction_voting::AccountVote;
 use sp_core::Get;

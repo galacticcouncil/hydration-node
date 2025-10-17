@@ -18,9 +18,18 @@
 use crate::tests::schedule::get_fee_for_sell_in_hdx;
 use crate::tests::*;
 use crate::{
-	assert_balance, assert_executed_buy_trades, assert_executed_sell_trades, assert_number_of_executed_buy_trades,
-	assert_number_of_executed_sell_trades, assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages,
-	Error, Event as DcaEvent, Order, Permill, ScheduleId,
+	assert_balance,
+	assert_executed_buy_trades,
+	assert_executed_sell_trades,
+	assert_number_of_executed_buy_trades,
+	assert_number_of_executed_sell_trades,
+	assert_scheduled_ids,
+	assert_that_schedule_has_been_removed_from_storages,
+	Error,
+	Event as DcaEvent,
+	Order,
+	Permill,
+	ScheduleId,
 };
 use frame_support::assert_ok;
 use frame_support::traits::OnInitialize;

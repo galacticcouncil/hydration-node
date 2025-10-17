@@ -16,11 +16,22 @@
 // limitations under the License.
 
 use super::*;
-use crate::{AccountId, AssetId, Balance, Currencies, EmaOracle, Runtime, System};
+use crate::{
+	AccountId,
+	AssetId,
+	Balance,
+	Currencies,
+	EmaOracle,
+	Runtime,
+	System,
+};
 use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::assert_ok;
-use frame_support::traits::{OnFinalize, OnInitialize};
+use frame_support::traits::{
+	OnFinalize,
+	OnInitialize,
+};
 use frame_system::RawOrigin;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrencyExtended;

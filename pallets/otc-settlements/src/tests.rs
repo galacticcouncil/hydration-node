@@ -21,7 +21,10 @@
 
 use super::*;
 pub use crate::mock::*;
-use frame_support::{assert_ok, assert_storage_noop};
+use frame_support::{
+	assert_ok,
+	assert_storage_noop,
+};
 use hydradx_traits::Inspect;
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::Asset;

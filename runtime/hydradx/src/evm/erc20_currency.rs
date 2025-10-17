@@ -1,21 +1,57 @@
-use crate::evm::executor::{BalanceOf, CallResult, Executor, NonceIdOf};
-use crate::evm::{EvmAccounts, EvmAddress};
+use crate::evm::executor::{
+	BalanceOf,
+	CallResult,
+	Executor,
+	NonceIdOf,
+};
+use crate::evm::{
+	EvmAccounts,
+	EvmAddress,
+};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
-use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
-use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use frame_support::{
+	dispatch::DispatchResult,
+	fail,
+	pallet_prelude::*,
+};
+use hydradx_traits::evm::{
+	CallContext,
+	InspectEvmAccounts,
+	ERC20,
+	EVM,
+};
+use num_enum::{
+	IntoPrimitive,
+	TryFromPrimitive,
+};
 use orml_traits::MultiCurrency;
-use pallet_currencies::{Config, Error};
+use pallet_currencies::{
+	Config,
+	Error,
+};
 use polkadot_xcm::v3::MultiLocation;
-use primitives::{AccountId, Balance};
+use primitives::{
+	AccountId,
+	Balance,
+};
 use scale_info::prelude::format;
 use sp_core::crypto::AccountId32;
-use sp_core::{H160, H256, U256};
-use sp_runtime::traits::{CheckedConversion, Zero};
-use sp_runtime::{DispatchError, SaturatedConversion};
+use sp_core::{
+	H160,
+	H256,
+	U256,
+};
+use sp_runtime::traits::{
+	CheckedConversion,
+	Zero,
+};
+use sp_runtime::{
+	DispatchError,
+	SaturatedConversion,
+};
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
 

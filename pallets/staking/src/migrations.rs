@@ -1,5 +1,8 @@
 use crate::pallet;
-use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
+use frame_support::{
+	traits::OnRuntimeUpgrade,
+	weights::Weight,
+};
 use sp_core::Get;
 use sp_runtime::traits::BlockNumberProvider;
 
@@ -26,7 +29,12 @@ impl<T: pallet::Config> OnRuntimeUpgrade for SetSixSecBlocksSince<T> {
 mod test {
 	use super::*;
 	use crate::migrations::SetSixSecBlocksSince;
-	use crate::tests::mock::{set_block_number, ExtBuilder, Staking, Test};
+	use crate::tests::mock::{
+		set_block_number,
+		ExtBuilder,
+		Staking,
+		Test,
+	};
 	use frame_system::pallet_prelude::BlockNumberFor;
 
 	#[test]

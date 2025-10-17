@@ -20,8 +20,15 @@
 use super::*;
 
 use crate as NFT;
-use frame_benchmarking::{account, benchmarks};
-use frame_support::traits::{tokens::nonfungibles::InspectEnumerable, Currency, Get};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
+use frame_support::traits::{
+	tokens::nonfungibles::InspectEnumerable,
+	Currency,
+	Get,
+};
 use frame_system::RawOrigin;
 use pallet_uniques as UNQ;
 use sp_runtime::traits::UniqueSaturatedInto;

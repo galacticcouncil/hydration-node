@@ -1,10 +1,27 @@
-use crate::module::{BalanceOf, CurrencyIdOf};
-use crate::{Config, Error, Pallet};
+use crate::module::{
+	BalanceOf,
+	CurrencyIdOf,
+};
+use crate::{
+	Config,
+	Error,
+	Pallet,
+};
 use frame_support::fail;
 use frame_support::traits::tokens::{
-	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
+	fungible,
+	fungibles,
+	DepositConsequence,
+	Fortitude,
+	Precision,
+	Preservation,
+	Provenance,
+	WithdrawConsequence,
 };
-use hydradx_traits::{BoundErc20, Inspect};
+use hydradx_traits::{
+	BoundErc20,
+	Inspect,
+};
 use orml_traits::MultiCurrency;
 use sp_runtime::traits::Get;
 #[cfg(any(feature = "try-runtime", test))]

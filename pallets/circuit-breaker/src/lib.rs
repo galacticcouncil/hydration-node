@@ -18,19 +18,47 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
 
-use codec::{Decode, Encode};
-use frame_support::traits::{Contains, EnsureOrigin};
+use codec::{
+	Decode,
+	Encode,
+};
+use frame_support::traits::{
+	Contains,
+	EnsureOrigin,
+};
 use frame_support::weights::Weight;
-use frame_support::{dispatch::Pays, ensure, pallet_prelude::DispatchResult, traits::Get};
+use frame_support::{
+	dispatch::Pays,
+	ensure,
+	pallet_prelude::DispatchResult,
+	traits::Get,
+};
 use frame_system::ensure_signed_or_root;
-use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
+use frame_system::pallet_prelude::{
+	BlockNumberFor,
+	OriginFor,
+};
 use orml_traits::Handler;
-use orml_traits::{GetByKey, Happened};
+use orml_traits::{
+	GetByKey,
+	Happened,
+};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
-use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
+use sp_runtime::traits::{
+	AtLeast32BitUnsigned,
+	CheckedAdd,
+	CheckedDiv,
+	CheckedMul,
+	CheckedSub,
+	Zero,
+};
 use sp_runtime::Saturating;
-use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
+use sp_runtime::{
+	ArithmeticError,
+	DispatchError,
+	RuntimeDebug,
+};
 pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]

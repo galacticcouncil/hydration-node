@@ -16,11 +16,22 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::{CollateralInfo, Collaterals, Error};
-use frame_support::{assert_err, assert_ok};
+use crate::{
+	CollateralInfo,
+	Collaterals,
+	Error,
+};
+use frame_support::{
+	assert_err,
+	assert_ok,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::types::PegSource;
-use sp_runtime::{FixedU128, Perbill, Permill};
+use sp_runtime::{
+	FixedU128,
+	Perbill,
+	Permill,
+};
 
 #[test]
 fn update_collateral_asset_works() {

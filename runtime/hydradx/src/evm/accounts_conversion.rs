@@ -20,17 +20,31 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 #![allow(unused_imports)]
 use crate::{
-	evm::{ConsensusEngineId, FindAuthor},
-	AccountId, Aura, EVMAccounts,
+	evm::{
+		ConsensusEngineId,
+		FindAuthor,
+	},
+	AccountId,
+	Aura,
+	EVMAccounts,
 };
-use codec::{Decode, Encode};
+use codec::{
+	Decode,
+	Encode,
+};
 use core::marker::PhantomData;
 use frame_support::traits::IsType;
 use hex_literal::hex;
 use hydradx_traits::evm::InspectEvmAccounts;
 use pallet_evm::AddressMapping;
-use sp_core::{crypto::ByteArray, H160};
-use sp_runtime::{traits::AccountIdConversion, RuntimeAppPublic};
+use sp_core::{
+	crypto::ByteArray,
+	H160,
+};
+use sp_runtime::{
+	traits::AccountIdConversion,
+	RuntimeAppPublic,
+};
 
 pub struct ExtendedAddressMapping;
 

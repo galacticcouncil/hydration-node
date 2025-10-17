@@ -13,10 +13,17 @@
 // limitations under the License.
 
 use super::*;
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{
+	account,
+	benchmarks,
+};
 use frame_support::traits::fungibles::Mutate;
 use frame_system::RawOrigin;
-use hydradx_traits::{router::AssetPair, AssetKind, Create};
+use hydradx_traits::{
+	router::AssetPair,
+	AssetKind,
+	Create,
+};
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -70,7 +77,10 @@ where
 	<T as pallet_asset_registry::Config>::AssetId: From<AssetId>,
 	T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 {
-	use frame_support::{sp_runtime::TransactionOutcome, storage::with_transaction};
+	use frame_support::{
+		sp_runtime::TransactionOutcome,
+		storage::with_transaction,
+	};
 
 	// Register new asset in asset registry
 	let name = b"DOT".to_vec().try_into().map_err(|_| "BoundedConvertionFailed")?;

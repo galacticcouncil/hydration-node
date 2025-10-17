@@ -19,23 +19,50 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::manual_inspect)]
 
-use codec::{Decode, Encode};
+use codec::{
+	Decode,
+	Encode,
+};
 use frame_support::{
-	dispatch::{DispatchClass, DispatchResult, Pays},
+	dispatch::{
+		DispatchClass,
+		DispatchResult,
+		Pays,
+	},
 	ensure,
 	sp_runtime::{
-		traits::{DispatchInfoOf, SignedExtension},
-		transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction},
+		traits::{
+			DispatchInfoOf,
+			SignedExtension,
+		},
+		transaction_validity::{
+			InvalidTransaction,
+			TransactionValidity,
+			TransactionValidityError,
+			ValidTransaction,
+		},
 	},
-	traits::{Currency, Get, Imbalance, IsSubType},
+	traits::{
+		Currency,
+		Get,
+		Imbalance,
+		IsSubType,
+	},
 };
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::Balance;
 use scale_info::TypeInfo;
 use sp_runtime::DispatchError;
-use sp_runtime::{traits::Zero, ModuleError};
-use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
+use sp_runtime::{
+	traits::Zero,
+	ModuleError,
+};
+use sp_std::{
+	marker::PhantomData,
+	prelude::*,
+	vec::Vec,
+};
 pub use weights::WeightInfo;
 
 mod benchmarking;

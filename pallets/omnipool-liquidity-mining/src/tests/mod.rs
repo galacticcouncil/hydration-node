@@ -16,8 +16,15 @@
 use super::*;
 use mock::*;
 
-use frame_support::{assert_noop, assert_ok};
-use sp_runtime::{traits::BadOrigin, traits::One, FixedU128};
+use frame_support::{
+	assert_noop,
+	assert_ok,
+};
+use sp_runtime::{
+	traits::BadOrigin,
+	traits::One,
+	FixedU128,
+};
 
 macro_rules! assert_last_event {
 	( $x:expr ) => {{

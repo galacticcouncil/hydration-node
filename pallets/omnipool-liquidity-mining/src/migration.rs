@@ -15,7 +15,12 @@
 
 use super::*;
 use frame_support::{
-	traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion},
+	traits::{
+		Get,
+		GetStorageVersion,
+		PalletInfoAccess,
+		StorageVersion,
+	},
 	weights::Weight,
 };
 

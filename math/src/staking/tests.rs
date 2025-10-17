@@ -1,5 +1,10 @@
 use num_traits::Zero;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Perbill, Permill};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+	Perbill,
+	Permill,
+};
 use std::num::NonZeroU128;
 
 use crate::staking::*;

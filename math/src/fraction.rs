@@ -1,9 +1,16 @@
-use crate::types::{Balance, Fraction};
+use crate::types::{
+	Balance,
+	Fraction,
+};
 
 use num_traits::One;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::per_things::Rounding;
-use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
+use sp_arithmetic::{
+	FixedPointNumber,
+	FixedU128,
+	Rational128,
+};
 
 /// Smallest representable value via `Fraction`.
 pub const SMALLEST_NON_ZERO: Fraction = Fraction::from_bits(1);
@@ -74,7 +81,11 @@ pub fn multiply_by_fixed(fraction: Fraction, fixed: FixedU128) -> FixedU128 {
 mod tests {
 	use super::*;
 
-	use crate::test_utils::{any_fixed, fixed_to_high_precision, fraction_to_high_precision};
+	use crate::test_utils::{
+		any_fixed,
+		fixed_to_high_precision,
+		fraction_to_high_precision,
+	};
 
 	use num_traits::One;
 	use proptest::prelude::*;

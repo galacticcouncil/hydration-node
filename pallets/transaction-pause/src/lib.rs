@@ -22,12 +22,20 @@
 
 use frame_support::{
 	pallet_prelude::*,
-	traits::{CallMetadata, Contains, GetCallMetadata, PalletInfoAccess},
+	traits::{
+		CallMetadata,
+		Contains,
+		GetCallMetadata,
+		PalletInfoAccess,
+	},
 	BoundedVec,
 };
 use frame_system::pallet_prelude::*;
 use sp_runtime::DispatchResult;
-use sp_std::{prelude::*, vec::Vec};
+use sp_std::{
+	prelude::*,
+	vec::Vec,
+};
 
 mod benchmarking;
 pub mod migration;

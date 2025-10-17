@@ -19,12 +19,18 @@ pub type AssetId = u32;
 pub type Amount = i128;
 pub type Balance = u128;
 
-use codec::{Decode, Encode};
+use codec::{
+	Decode,
+	Encode,
+};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 
 /// Asset Pair representation for AMM trades
 /// `( asset_a, asset_b )` combination where `asset_a` is meant to be exchanged for asset_b

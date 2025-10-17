@@ -1,8 +1,15 @@
 use crate::tests::mock::*;
 use crate::types::FeeParams;
-use hydra_dx_math::dynamic_fees::{recalculate_asset_fee, recalculate_protocol_fee, types::OracleEntry};
+use hydra_dx_math::dynamic_fees::{
+	recalculate_asset_fee,
+	recalculate_protocol_fee,
+	types::OracleEntry,
+};
 use proptest::prelude::*;
-use sp_runtime::traits::{One, Zero};
+use sp_runtime::traits::{
+	One,
+	Zero,
+};
 use sp_runtime::FixedU128;
 
 const MAX_VOLUME: Balance = 100;

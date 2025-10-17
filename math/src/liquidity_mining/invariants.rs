@@ -1,9 +1,18 @@
-use crate::{assert_approx_eq, types::Balance};
+use crate::{
+	assert_approx_eq,
+	types::Balance,
+};
 use proptest::prelude::*;
 use sp_arithmetic::traits::One;
 use sp_arithmetic::{
-	traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub},
-	FixedPointNumber, FixedU128,
+	traits::{
+		CheckedAdd,
+		CheckedDiv,
+		CheckedMul,
+		CheckedSub,
+	},
+	FixedPointNumber,
+	FixedU128,
 };
 
 use crate::types::BASILISK_ONE as ONE;

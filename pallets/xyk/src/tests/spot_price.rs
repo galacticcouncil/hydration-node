@@ -1,7 +1,10 @@
 #![allow(clippy::excessive_precision)]
 
 use super::mock::*;
-use crate::types::{AssetPair, Price};
+use crate::types::{
+	AssetPair,
+	Price,
+};
 use crate::XYKSpotPrice;
 use crate::*;
 use frame_support::assert_ok;

@@ -1,18 +1,41 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{
+	black_box,
+	criterion_group,
+	criterion_main,
+	Criterion,
+};
 
-use fixed::traits::{FixedUnsigned, ToFixed};
+use fixed::traits::{
+	FixedUnsigned,
+	ToFixed,
+};
 use fixed::types::U32F96;
 
 use hydra_dx_math::transcendental::pow;
 
-use num_traits::{One, Zero};
+use num_traits::{
+	One,
+	Zero,
+};
 use rand::distributions::uniform::SampleUniform;
 use rand::{
-	distributions::{Distribution, Standard},
+	distributions::{
+		Distribution,
+		Standard,
+	},
 	Rng,
 };
-use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256Plus};
-use std::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
+use rand_xoshiro::{
+	rand_core::SeedableRng,
+	Xoshiro256Plus,
+};
+use std::ops::{
+	AddAssign,
+	BitOrAssign,
+	ShlAssign,
+	Shr,
+	ShrAssign,
+};
 
 const SEED: u64 = 42_069;
 const DATASET_SIZE: usize = 10;

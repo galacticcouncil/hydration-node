@@ -2,3 +2,4 @@ edition = "2021"
 reorder_imports = true
 hard_tabs = true
 max_width = 120
+imports_layout = "Vertical"

@@ -17,28 +17,64 @@
 
 use super::*;
 pub use crate as multi_payment;
-use crate::{Config, TransferFees};
+use crate::{
+	Config,
+	TransferFees,
+};
 use hydra_dx_math::types::Ratio;
 
-use frame_support::dispatch::{DispatchResultWithPostInfo, PostDispatchInfo};
+use frame_support::dispatch::{
+	DispatchResultWithPostInfo,
+	PostDispatchInfo,
+};
 use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
 	sp_runtime::{
-		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-		BuildStorage, MultiSignature, Perbill,
+		traits::{
+			BlakeTwo256,
+			IdentifyAccount,
+			IdentityLookup,
+			Verify,
+		},
+		BuildStorage,
+		MultiSignature,
+		Perbill,
 	},
-	traits::{Everything, Get, Nothing},
-	weights::{IdentityFee, Weight},
+	traits::{
+		Everything,
+		Get,
+		Nothing,
+	},
+	weights::{
+		IdentityFee,
+		Weight,
+	},
 };
 use frame_system as system;
 use hydradx_traits::{
-	router::{RouteProvider, Trade},
-	AssetKind, OraclePeriod, PriceOracle,
+	router::{
+		RouteProvider,
+		Trade,
+	},
+	AssetKind,
+	OraclePeriod,
+	PriceOracle,
 };
-use orml_traits::{currency::MutationHooks, parameter_type_with_key};
-use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
-use sp_core::{H160, H256, U256};
+use orml_traits::{
+	currency::MutationHooks,
+	parameter_type_with_key,
+};
+use pallet_currencies::{
+	BasicCurrencyAdapter,
+	MockBoundErc20,
+	MockErc20Currency,
+};
+use sp_core::{
+	H160,
+	H256,
+	U256,
+};
 use sp_runtime::DispatchError;
 use sp_std::cell::RefCell;
 

@@ -32,12 +32,24 @@ pub mod stableswap;
 pub use oracle::*;
 pub use registry::*;
 
-use codec::{Decode, Encode};
-use frame_support::dispatch::{self};
-use frame_support::sp_runtime::{traits::Zero, DispatchError, RuntimeDebug};
+use codec::{
+	Decode,
+	Encode,
+};
+use frame_support::dispatch::{
+	self,
+};
+use frame_support::sp_runtime::{
+	traits::Zero,
+	DispatchError,
+	RuntimeDebug,
+};
 use frame_support::traits::LockIdentifier;
 use frame_support::weights::Weight;
-use serde::{Deserialize, Serialize};
+use serde::{
+	Deserialize,
+	Serialize,
+};
 use sp_std::vec::Vec;
 
 /// Hold information to perform amm transfer

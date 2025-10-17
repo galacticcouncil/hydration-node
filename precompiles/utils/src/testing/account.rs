@@ -17,8 +17,17 @@
 use {
 	pallet_evm::AddressMapping,
 	scale_info::TypeInfo,
-	serde::{Deserialize, Serialize},
-	sp_core::{Decode, Encode, MaxEncodedLen, H160, H256},
+	serde::{
+		Deserialize,
+		Serialize,
+	},
+	sp_core::{
+		Decode,
+		Encode,
+		MaxEncodedLen,
+		H160,
+		H256,
+	},
 };
 
 #[derive(

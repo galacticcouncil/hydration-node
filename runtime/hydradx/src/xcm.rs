@@ -4,39 +4,98 @@ use crate::origins::GeneralAdmin;
 use sp_std::marker::PhantomData;
 
 use codec::MaxEncodedLen;
-use hydradx_adapters::{MultiCurrencyTrader, ReroutingMultiCurrencyAdapter, ToFeeReceiver};
+use hydradx_adapters::{
+	MultiCurrencyTrader,
+	ReroutingMultiCurrencyAdapter,
+	ToFeeReceiver,
+};
 use pallet_transaction_multi_payment::DepositAll;
-use primitives::{AssetId, Price};
+use primitives::{
+	AssetId,
+	Price,
+};
 
-use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
+use cumulus_primitives_core::{
+	AggregateMessageOrigin,
+	ParaId,
+};
 use frame_support::{
 	parameter_types,
-	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, ContainsPair, EitherOf, Everything, Get, Nothing, TransformOrigin},
+	sp_runtime::traits::{
+		AccountIdConversion,
+		Convert,
+	},
+	traits::{
+		ConstU32,
+		Contains,
+		ContainsPair,
+		EitherOf,
+		Everything,
+		Get,
+		Nothing,
+		TransformOrigin,
+	},
 	PalletId,
 };
 use frame_system::unique;
 use frame_system::EnsureRoot;
 use hydradx_adapters::xcm_exchange::XcmAssetExchanger;
-use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
-use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiNativeAsset};
+use orml_traits::{
+	location::AbsoluteReserveProvider,
+	parameter_type_with_key,
+};
+use orml_xcm_support::{
+	DepositToAlternative,
+	IsNativeConcrete,
+	MultiNativeAsset,
+};
 use pallet_evm::AddressMapping;
 pub use pallet_xcm::GenesisConfig as XcmGenesisConfig;
 use pallet_xcm::XcmPassthrough;
-use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
+use parachains_common::message_queue::{
+	NarrowOriginToSibling,
+	ParaIdToSibling,
+};
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v3::MultiLocation;
-use polkadot_xcm::v4::{prelude::*, Asset, InteriorLocation, Weight as XcmWeight};
-use scale_info::TypeInfo;
-use sp_runtime::{traits::MaybeEquivalence, Perbill};
-use xcm_builder::{
-	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin, GlobalConsensusConvertsFor, HashedDescription,
-	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
-	WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
+use polkadot_xcm::v4::{
+	prelude::*,
+	Asset,
+	InteriorLocation,
+	Weight as XcmWeight,
 };
-use xcm_executor::{Config, XcmExecutor};
+use scale_info::TypeInfo;
+use sp_runtime::{
+	traits::MaybeEquivalence,
+	Perbill,
+};
+use xcm_builder::{
+	AccountId32Aliases,
+	AllowKnownQueryResponses,
+	AllowSubscriptionsFrom,
+	AllowTopLevelPaidExecutionFrom,
+	DescribeAllTerminal,
+	DescribeFamily,
+	EnsureXcmOrigin,
+	GlobalConsensusConvertsFor,
+	HashedDescription,
+	ParentIsPreset,
+	RelayChainAsNative,
+	SiblingParachainAsNative,
+	SiblingParachainConvertsVia,
+	SignedAccountId32AsNative,
+	SignedToAccountId32,
+	SovereignSignedViaLocation,
+	TakeWeightCredit,
+	TrailingSetTopicAsId,
+	WeightInfoBounds,
+	WithComputedOrigin,
+	WithUniqueTopic,
+};
+use xcm_executor::{
+	Config,
+	XcmExecutor,
+};
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct AssetLocation(pub polkadot_xcm::v3::Location);
@@ -515,7 +574,10 @@ pub type LocationToAccountId = (
 	GlobalConsensusConvertsFor<UniversalLocation, AccountId>,
 );
 use pallet_broadcast::types::ExecutionType;
-use xcm_executor::traits::{ConvertLocation, XcmAssetTransfers};
+use xcm_executor::traits::{
+	ConvertLocation,
+	XcmAssetTransfers,
+};
 
 /// Converts Account20 (ethereum) addresses to AccountId32 (substrate) addresses.
 pub struct EvmAddressConversion<Network>(PhantomData<Network>);

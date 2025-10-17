@@ -18,10 +18,21 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{format_ident, quote, quote_spanned, ToTokens};
-use sha3::{Digest, Keccak256};
+use quote::{
+	format_ident,
+	quote,
+	quote_spanned,
+	ToTokens,
+};
+use sha3::{
+	Digest,
+	Keccak256,
+};
 use std::collections::BTreeMap;
-use syn::{parse_macro_input, spanned::Spanned};
+use syn::{
+	parse_macro_input,
+	spanned::Spanned,
+};
 
 pub mod attr;
 pub mod expand;

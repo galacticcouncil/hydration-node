@@ -2,21 +2,46 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::{
-	assert_noop, assert_ok,
+	assert_noop,
+	assert_ok,
 	dispatch::DispatchResult,
-	traits::{schedule::DispatchTime, Bounded, LockIdentifier, OnInitialize, StorePreimage},
+	traits::{
+		schedule::DispatchTime,
+		Bounded,
+		LockIdentifier,
+		OnInitialize,
+		StorePreimage,
+	},
 };
 use frame_system::RawOrigin;
 use hydradx_runtime::{
-	Balances, BlockNumber, ConvictionVoting, Currencies, Democracy, Omnipool, Preimage, Referenda, Scheduler, Staking,
-	System, Tokens, Vesting,
+	Balances,
+	BlockNumber,
+	ConvictionVoting,
+	Currencies,
+	Democracy,
+	Omnipool,
+	Preimage,
+	Referenda,
+	Scheduler,
+	Staking,
+	System,
+	Tokens,
+	Vesting,
 };
 use orml_traits::currency::MultiCurrency;
 use orml_vesting::VestingSchedule;
-use pallet_conviction_voting::{AccountVote, Conviction, Vote};
+use pallet_conviction_voting::{
+	AccountVote,
+	Conviction,
+	Vote,
+};
 use pallet_referenda::ReferendumIndex;
 use pretty_assertions::assert_eq;
-use primitives::{constants::time::DAYS, AccountId};
+use primitives::{
+	constants::time::DAYS,
+	AccountId,
+};
 use sp_runtime::AccountId32;
 use xcm_emulator::TestExt;
 

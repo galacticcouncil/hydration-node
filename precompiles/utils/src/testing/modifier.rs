@@ -17,10 +17,20 @@
 use {
 	crate::{
 		solidity::codec::Writer,
-		testing::{decode_revert_message, MockHandle},
+		testing::{
+			decode_revert_message,
+			MockHandle,
+		},
 	},
-	fp_evm::{Context, PrecompileFailure, PrecompileSet},
-	sp_core::{H160, U256},
+	fp_evm::{
+		Context,
+		PrecompileFailure,
+		PrecompileSet,
+	},
+	sp_core::{
+		H160,
+		U256,
+	},
 };
 
 pub struct PrecompilesModifierTester<P> {

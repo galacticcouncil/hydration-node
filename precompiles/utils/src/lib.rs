@@ -41,7 +41,11 @@ use fp_evm::PrecompileFailure;
 
 // pub use data::{solidity::Codec, Reader, Writer};
 pub use fp_evm::Precompile;
-pub use precompile_utils_macro::{keccak256, precompile, precompile_name_from_address};
+pub use precompile_utils_macro::{
+	keccak256,
+	precompile,
+	precompile_name_from_address,
+};
 
 /// Alias for Result returning an EVM precompile error.
 pub type EvmResult<T = ()> = Result<T, PrecompileFailure>;
@@ -51,7 +55,14 @@ pub mod prelude {
 		crate::{
 			evm::{
 				handle::PrecompileHandleExt,
-				logs::{log0, log1, log2, log3, log4, LogExt},
+				logs::{
+					log0,
+					log1,
+					log2,
+					log3,
+					log4,
+					LogExt,
+				},
 			},
 			precompile_set::DiscriminantResult,
 			solidity::{
@@ -69,13 +80,31 @@ pub mod prelude {
 					UnboundedBytes,
 					UnboundedString,
 				},
-				revert::{revert, BacktraceExt, InjectBacktrace, MayRevert, Revert, RevertExt, RevertReason},
+				revert::{
+					revert,
+					BacktraceExt,
+					InjectBacktrace,
+					MayRevert,
+					Revert,
+					RevertExt,
+					RevertReason,
+				},
 			},
-			substrate::{RuntimeHelper, TryDispatchError, SYSTEM_ACCOUNT_SIZE},
+			substrate::{
+				RuntimeHelper,
+				TryDispatchError,
+				SYSTEM_ACCOUNT_SIZE,
+			},
 			EvmResult,
 		},
 		alloc::string::String,
-		pallet_evm::{PrecompileHandle, PrecompileOutput},
-		precompile_utils_macro::{keccak256, precompile},
+		pallet_evm::{
+			PrecompileHandle,
+			PrecompileOutput,
+		},
+		precompile_utils_macro::{
+			keccak256,
+			precompile,
+		},
 	};
 }

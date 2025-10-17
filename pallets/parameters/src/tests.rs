@@ -26,7 +26,10 @@
 //                  $$$
 
 use crate::mock::*;
-use crate::{IsTestnet, Pallet as Parameters};
+use crate::{
+	IsTestnet,
+	Pallet as Parameters,
+};
 
 #[test]
 fn is_testnet_false_by_default() {

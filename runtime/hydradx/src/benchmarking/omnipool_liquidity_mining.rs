@@ -15,22 +15,50 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::benchmarking::{register_asset, register_asset_with_decimals, update_deposit_limit};
+use crate::benchmarking::{
+	register_asset,
+	register_asset_with_decimals,
+	update_deposit_limit,
+};
 use crate::*;
-use frame_benchmarking::{account, BenchmarkError};
+use frame_benchmarking::{
+	account,
+	BenchmarkError,
+};
 use frame_support::storage::with_transaction;
 use frame_support::traits::EnsureOrigin;
-use frame_support::traits::{OnFinalize, OnInitialize};
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::traits::{
+	OnFinalize,
+	OnInitialize,
+};
+use frame_support::{
+	assert_ok,
+	BoundedVec,
+};
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::RawOrigin;
-use hydradx_traits::liquidity_mining::{GlobalFarmId, YieldFarmId};
-use hydradx_traits::registry::{AssetKind, Create};
+use hydradx_traits::liquidity_mining::{
+	GlobalFarmId,
+	YieldFarmId,
+};
+use hydradx_traits::registry::{
+	AssetKind,
+	Create,
+};
 use hydradx_traits::stableswap::AssetAmount;
 use orml_benchmarking::runtime_benchmarks;
 use primitives::AssetId;
-use sp_runtime::{traits::One, FixedU128, Permill};
-use sp_runtime::{DispatchError, DispatchResult, Perquintill, TransactionOutcome};
+use sp_runtime::{
+	traits::One,
+	FixedU128,
+	Permill,
+};
+use sp_runtime::{
+	DispatchError,
+	DispatchResult,
+	Perquintill,
+	TransactionOutcome,
+};
 use warehouse_liquidity_mining::LoyaltyCurve;
 type XykPallet<T> = pallet_xyk::Pallet<T>;
 type Router<T> = pallet_route_executor::Pallet<T>;

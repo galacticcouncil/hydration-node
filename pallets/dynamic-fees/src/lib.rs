@@ -60,8 +60,17 @@ use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResult;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_runtime::traits::{BlockNumberProvider, Saturating, Zero};
-use sp_runtime::{FixedPointOperand, FixedU128, PerThing, SaturatedConversion};
+use sp_runtime::traits::{
+	BlockNumberProvider,
+	Saturating,
+	Zero,
+};
+use sp_runtime::{
+	FixedPointOperand,
+	FixedU128,
+	PerThing,
+	SaturatedConversion,
+};
 
 #[cfg(test)]
 mod tests;
@@ -75,10 +84,20 @@ pub mod benchmarks;
 
 pub use pallet::*;
 
-use crate::traits::{Volume, VolumeProvider};
-use crate::types::{AssetFeeConfig, FeeEntry, FeeParams};
+use crate::traits::{
+	Volume,
+	VolumeProvider,
+};
+use crate::types::{
+	AssetFeeConfig,
+	FeeEntry,
+	FeeParams,
+};
 use hydra_dx_math::dynamic_fees::types::OracleEntry;
-use hydra_dx_math::dynamic_fees::{recalculate_asset_fee, recalculate_protocol_fee};
+use hydra_dx_math::dynamic_fees::{
+	recalculate_asset_fee,
+	recalculate_protocol_fee,
+};
 use hydradx_traits::fee::GetDynamicFee;
 
 type Balance = u128;
@@ -89,8 +108,14 @@ pub mod pallet {
 	use crate::traits::VolumeProvider;
 	use crate::types::FeeEntry;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-	use sp_runtime::traits::{BlockNumberProvider, Zero};
+	use frame_system::pallet_prelude::{
+		BlockNumberFor,
+		OriginFor,
+	};
+	use sp_runtime::traits::{
+		BlockNumberProvider,
+		Zero,
+	};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
