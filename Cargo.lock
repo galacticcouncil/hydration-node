@@ -14691,6 +14691,7 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-accounts",
  "pallet-evm-precompile-call-permit",
+ "pallet-hsm",
  "pallet-im-online",
  "pallet-lbp",
  "pallet-liquidation",

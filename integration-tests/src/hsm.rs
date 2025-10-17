@@ -3,8 +3,8 @@ use crate::polkadot_test_net::hydradx_run_to_next_block;
 use crate::polkadot_test_net::{TestNet, ALICE, BOB, HDX};
 use fp_evm::ExitSucceed::Returned;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
-use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
+use frame_support::{assert_noop, assert_ok};
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{
@@ -1493,6 +1493,113 @@ fn arbitrage_should_work() {
 			0,
 		));
 		let initial_liquidity = vec![
+			AssetAmount::new(2, 800_000_000_000_000_000_000u128),
+			AssetAmount::new(222, 1_000_000_000_000_000_000_000u128),
+		];
+
+		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			pool_id,
+			BoundedVec::truncate_from(initial_liquidity),
+			0
+		));
+
+		hydradx_run_to_next_block();
+
+		assert_ok!(HSM::add_collateral_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			2,
+			pool_id,
+			Permill::zero(),
+			FixedU128::from_rational(110, 100),
+			Permill::zero(),
+			Perbill::from_percent(70),
+			None
+		));
+
+		assert_ok!(HSM::set_flash_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			flash_minter,
+		));
+
+		// let's buy some hollar, so hsm holds some collateral
+		assert_ok!(HSM::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			2,
+			222,
+			10_000_000_000_000_000_000,
+			u128::MAX,
+		));
+
+		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
+		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
+		let traded_amount = hsm_dai_balance - final_hsm_dai_balance;
+		//assert_eq!(traded_amount, 999_642_225_291_583_959);
+		assert_eq!(traded_amount, 9_993_121_308_730_776_206);
+	});
+}
+
+#[test]
+fn arbitrage_should_fail_when_min_arb_amount_is_less_than_one_hollar() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+
+		let hsm_address = hydradx_runtime::HSM::account_id();
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			hsm_address.clone()
+		)));
+		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
+		add_facilitator(hsm_evm_address, "hsm", 1_000_000_000_000_000_000_000);
+
+		assert!(!check_flash_borrower(hsm_evm_address));
+		add_flash_borrower(hsm_evm_address);
+		assert!(check_flash_borrower(hsm_evm_address));
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+			ALICE.into()
+		),));
+		let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+		mint(minter(), alice_evm_address, 1_000_000_000_000_000_000_000);
+		let alice_hollar_balance = balance_of(alice_evm_address);
+		assert_eq!(alice_hollar_balance, U256::from(1_000_000_000_000_000_000_000u128));
+
+		let pool_id = 9876;
+		let asset_ids = vec![222, 2];
+
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			RawOrigin::Root.into(),
+			Some(pool_id),
+			Some(b"pool".to_vec().try_into().unwrap()),
+			AssetType::StableSwap,
+			Some(1u128),
+			None,
+			None,
+			None,
+			None,
+			true,
+		));
+
+		let amplification = 100u16;
+		let fee = Permill::from_percent(1);
+
+		assert_ok!(hydradx_runtime::Stableswap::create_pool(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			BoundedVec::truncate_from(asset_ids),
+			amplification,
+			fee,
+		));
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			2,
+			920_000_000_000_000_000_000,
+			0,
+		));
+		let initial_liquidity = vec![
 			AssetAmount::new(2, 900_000_000_000_000_000_000u128),
 			AssetAmount::new(222, 1_000_000_000_000_000_000_000u128),
 		];
@@ -1531,11 +1638,10 @@ fn arbitrage_should_work() {
 			u128::MAX,
 		));
 
-		let hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
-		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
-		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
-		let traded_amount = hsm_dai_balance - final_hsm_dai_balance;
-		assert_eq!(traded_amount, 999_642_225_291_583_959);
+		assert_noop!(
+			HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None),
+			pallet_hsm::Error::<hydradx_runtime::Runtime>::NoArbitrageOpportunity
+		);
 	});
 }
 
