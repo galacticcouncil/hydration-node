@@ -108,7 +108,7 @@ pub const ARBITRAGE_DIRECTION_BUY: u8 = 1;
 /// Direction for sell operations (more Hollar in pool, creates sell opportunities)
 pub const ARBITRAGE_DIRECTION_SELL: u8 = 2;
 
-pub const MIN_ARBITRAGE_AMOUNT: u128 = 100_000_000_000;
+pub const MIN_ARBITRAGE_AMOUNT: u128 = 1_000_000_000_000_000_000; // 1 HOLLAR
 
 /// Offchain Worker lock
 pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
@@ -233,12 +233,14 @@ pub mod pallet {
 		/// - `max_buy_price_coefficient`: New max buy price coefficient if updated (None if not changed)
 		/// - `buy_back_fee`: New buy back fee if updated (None if not changed)
 		/// - `buyback_rate`: New buyback rate if updated (None if not changed)
+		/// - `max_in_holding`: New max collateral holding if updated (None if not changed)
 		CollateralUpdated {
 			asset_id: T::AssetId,
 			purchase_fee: Option<Permill>,
 			max_buy_price_coefficient: Option<CoefficientRatio>,
 			buy_back_fee: Option<Permill>,
 			buyback_rate: Option<Perbill>,
+			max_in_holding: Option<Option<Balance>>,
 		},
 		/// Arbitrage executed successfully
 		///
@@ -343,6 +345,8 @@ pub mod pallet {
 		FlashMinterNotSet,
 		/// Provided arbitrage data is invalid
 		InvalidArbitrageData,
+		/// Given arbitrage parameters, arbitrage cannot be succesfully executed.
+		ArbitrageCannotBeExecuted,
 	}
 
 	#[pallet::hooks]
@@ -597,6 +601,7 @@ pub mod pallet {
 					max_buy_price_coefficient,
 					buy_back_fee,
 					buyback_rate,
+					max_in_holding,
 				});
 				Ok(())
 			})
@@ -668,17 +673,23 @@ pub mod pallet {
 							.ok_or(ArithmeticError::Overflow)?;
 						Ok((hollar_amount, collateral_amount))
 					},
+					false, // dry run flag
 				)?;
 
 				debug_assert_eq!(hollar_in, amount_in);
 				collateral_out
 			} else {
 				// HOLLAR OUT given COLLATERAL IN
-				let (hollar_amount, collateral_amount) = Self::do_trade_hollar_out(&who, asset_in, |purchase_price| {
-					let hollar_amount = hydra_dx_math::hsm::calculate_hollar_amount(amount_in, purchase_price)
-						.ok_or(ArithmeticError::Overflow)?;
-					Ok((hollar_amount, amount_in))
-				})?;
+				let (hollar_amount, collateral_amount) = Self::do_trade_hollar_out(
+					&who,
+					asset_in,
+					|purchase_price| {
+						let hollar_amount = hydra_dx_math::hsm::calculate_hollar_amount(amount_in, purchase_price)
+							.ok_or(ArithmeticError::Overflow)?;
+						Ok((hollar_amount, amount_in))
+					},
+					false,
+				)?;
 				debug_assert_eq!(amount_in, collateral_amount);
 				hollar_amount
 			};
@@ -741,11 +752,17 @@ pub mod pallet {
 
 			let amount_in = if asset_out == hollar_id {
 				// COLLATERAL IN given HOLLAR OUT
-				let (hollar_out, collateral_in) = Self::do_trade_hollar_out(&who, asset_in, |purchase_price| {
-					let collateral_amount = hydra_dx_math::hsm::calculate_collateral_amount(amount_out, purchase_price)
-						.ok_or(ArithmeticError::Overflow)?;
-					Ok((amount_out, collateral_amount))
-				})?;
+				let (hollar_out, collateral_in) = Self::do_trade_hollar_out(
+					&who,
+					asset_in,
+					|purchase_price| {
+						let collateral_amount =
+							hydra_dx_math::hsm::calculate_collateral_amount(amount_out, purchase_price)
+								.ok_or(ArithmeticError::Overflow)?;
+						Ok((amount_out, collateral_amount))
+					},
+					false,
+				)?;
 				debug_assert_eq!(hollar_out, amount_out);
 				collateral_in
 			} else {
@@ -766,6 +783,7 @@ pub mod pallet {
 								.ok_or(ArithmeticError::Overflow)?;
 						Ok((hollar_amount_to_pay, collateral_amount))
 					},
+					false, // dry run flag
 				)?;
 
 				debug_assert_eq!(amount_out, collateral_out);
@@ -985,6 +1003,7 @@ where
 		collateral_asset: T::AssetId,
 		simulate_swap: impl FnOnce(T::AssetId, &PoolSnapshot<T::AssetId>) -> Result<(Balance, Balance), DispatchError>,
 		calculate_final_amounts: impl FnOnce((Balance, Balance), Price) -> Result<(Balance, Balance), DispatchError>,
+		dry_run: bool,
 	) -> Result<(Balance, Balance), DispatchError> {
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
 		let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
@@ -1056,32 +1075,34 @@ where
 			Error::<T>::InsufficientCollateralBalance
 		);
 
-		// Execute the swap
-		// 1. Transfer hollar from user to HSM
-		<T as Config>::Currency::transfer(
-			T::HollarId::get(),
-			who,
-			&Self::account_id(),
-			final_hollar_amount,
-			Preservation::Expendable,
-		)?;
+		if !dry_run {
+			// Execute the swap
+			// 1. Transfer hollar from user to HSM
+			<T as Config>::Currency::transfer(
+				T::HollarId::get(),
+				who,
+				&Self::account_id(),
+				final_hollar_amount,
+				Preservation::Expendable,
+			)?;
 
-		// 2. Transfer collateral from HSM to user
-		<T as Config>::Currency::transfer(
-			collateral_asset,
-			&Self::account_id(),
-			who,
-			final_collateral_amount,
-			Preservation::Expendable,
-		)?;
+			// 2. Transfer collateral from HSM to user
+			<T as Config>::Currency::transfer(
+				collateral_asset,
+				&Self::account_id(),
+				who,
+				final_collateral_amount,
+				Preservation::Expendable,
+			)?;
 
-		// 3. Burn Hollar by calling GHO contract
-		Self::burn_hollar(final_hollar_amount)?;
+			// 3. Burn Hollar by calling GHO contract
+			Self::burn_hollar(final_hollar_amount)?;
 
-		// 5. Update Hollar amount received in this block
-		HollarAmountReceived::<T>::mutate(collateral_asset, |amount| {
-			*amount = amount.saturating_add(final_hollar_amount);
-		});
+			// 5. Update Hollar amount received in this block
+			HollarAmountReceived::<T>::mutate(collateral_asset, |amount| {
+				*amount = amount.saturating_add(final_hollar_amount);
+			});
+		}
 
 		Ok((final_hollar_amount, final_collateral_amount))
 	}
@@ -1100,6 +1121,7 @@ where
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
 		calculate_amounts: impl FnOnce(Price) -> Result<(Balance, Balance), DispatchError>,
+		dry_run: bool,
 	) -> Result<(Balance, Balance), DispatchError> {
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
 		let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
@@ -1115,15 +1137,17 @@ where
 			Error::<T>::MaxHoldingExceeded
 		);
 
-		<T as Config>::Currency::transfer(
-			collateral_asset,
-			who,
-			&Self::account_id(),
-			collateral_amount,
-			Preservation::Expendable,
-		)?;
+		if !dry_run {
+			<T as Config>::Currency::transfer(
+				collateral_asset,
+				who,
+				&Self::account_id(),
+				collateral_amount,
+				Preservation::Expendable,
+			)?;
 
-		Self::mint_hollar(who, hollar_amount)?;
+			Self::mint_hollar(who, hollar_amount)?;
+		}
 
 		Ok((hollar_amount, collateral_amount))
 	}
@@ -1286,6 +1310,8 @@ where
 				} else {
 					None
 				};
+
+				Self::simulate_arbitrage(arb_direction, selected_collateral, amount)?;
 
 				let call = Call::execute_arbitrage {
 					collateral_asset_id: selected_collateral,
@@ -1638,6 +1664,7 @@ where
 						.ok_or(ArithmeticError::Overflow)?;
 					Ok((hollar_amount, collateral_amount))
 				},
+				false, //dry run flag
 			)?;
 			debug_assert_eq!(hollar_amount, loan_amount);
 
@@ -1772,6 +1799,84 @@ where
 		GetFlashMinterSupport::<T>::get().map_or(false, |(_, loan_receiver)| {
 			T::EvmAccounts::account_id(loan_receiver) == *account
 		})
+	}
+
+	pub fn simulate_arbitrage(direction: u8, collateral_asset_id: T::AssetId, loan_amount: Balance) -> DispatchResult {
+		let collateral_info = Collaterals::<T>::get(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
+
+		if direction == ARBITRAGE_DIRECTION_SELL {
+			// when dry running, account is not important.
+			let any_account: T::AccountId = Self::account_id();
+			let (hollar_amount, collateral_received) = Self::do_trade_hollar_in(
+				&any_account,
+				collateral_asset_id,
+				|pool_id, state| {
+					//we need to know how much collateral needs to be paid for given hollar
+					//so we simulate by buying exact amount of hollar
+					let collateral_amount = Self::simulate_in_given_out(
+						pool_id,
+						collateral_asset_id,
+						T::HollarId::get(),
+						loan_amount,
+						Balance::MAX,
+						state,
+					)?;
+					Ok((loan_amount, collateral_amount))
+				},
+				|(hollar_amount, _), price| {
+					let collateral_amount = hydra_dx_math::hsm::calculate_collateral_amount(hollar_amount, price)
+						.ok_or(ArithmeticError::Overflow)?;
+					Ok((hollar_amount, collateral_amount))
+				},
+				true, //dry run flag
+			)?;
+			debug_assert_eq!(hollar_amount, loan_amount);
+
+			let (amount_in_required, _) = pallet_stableswap::Pallet::<T>::simulate_buy(
+				collateral_info.pool_id,
+				collateral_asset_id,
+				T::HollarId::get(),
+				loan_amount,
+				collateral_received,
+				None,
+			)?;
+			if amount_in_required <= collateral_received {
+				return Ok(());
+			} else {
+				return Err(Error::<T>::ArbitrageCannotBeExecuted.into());
+			}
+		} else if direction == ARBITRAGE_DIRECTION_BUY {
+			let (collateral_received, _) = pallet_stableswap::Pallet::<T>::simulate_sell(
+				collateral_info.pool_id,
+				T::HollarId::get(),
+				collateral_asset_id,
+				loan_amount,
+				0,
+				None,
+			)?;
+
+			// when dry running, account is not important.
+			let any_account: T::AccountId = Self::account_id();
+			let (hollar_out, collateral_in) = Self::do_trade_hollar_out(
+				&any_account,
+				collateral_asset_id,
+				|purchase_price| {
+					let collateral_amount =
+						hydra_dx_math::hsm::calculate_collateral_amount(loan_amount, purchase_price)
+							.ok_or(ArithmeticError::Overflow)?;
+					Ok((loan_amount, collateral_amount))
+				},
+				true,
+			)?;
+
+			if hollar_out == loan_amount && collateral_in <= collateral_received {
+				return Ok(());
+			} else {
+				return Err(Error::<T>::ArbitrageCannotBeExecuted.into());
+			}
+		}
+
+		Err(Error::<T>::InvalidArbitrageData.into())
 	}
 }
 
