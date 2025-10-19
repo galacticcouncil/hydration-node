@@ -135,12 +135,6 @@ parameter_types! {
 
 	pub UniversalLocation: InteriorLocation = [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
 	pub AssetHubLocation: Location = (Parent, Parachain(ASSET_HUB_PARA_ID)).into();
-	pub HollarAssetLocation: Location = Location {
-		parents: 0,
-		interior: Junctions::X1(Arc::new([
-			Junction::GeneralIndex(222),
-		])),
-	};
 }
 
 /// Matches foreign assets from a given origin.
