@@ -208,10 +208,7 @@ fn convert_asset_id_to_location_should_work_for_asset_without_stored_location() 
 
 		match loc.interior {
 			Junctions::X1(ref junctions) => {
-				assert!(matches!(
-					junctions.as_ref()[0],
-					GeneralIndex(9999)
-				));
+				assert!(matches!(junctions.as_ref()[0], GeneralIndex(9999)));
 			}
 			_ => panic!("Expected X1 junction with GeneralIndex"),
 		}
@@ -230,10 +227,7 @@ fn convert_asset_id_to_location_should_work_for_foreign_assets() {
 			asset_id,
 			hydradx_runtime::AssetLocation(MultiLocation::new(
 				1,
-				V3Junctions::X2(
-					V3Junction::Parachain(ACALA_PARA_ID),
-					V3Junction::GeneralIndex(0)
-				)
+				V3Junctions::X2(V3Junction::Parachain(ACALA_PARA_ID), V3Junction::GeneralIndex(0))
 			))
 		));
 
