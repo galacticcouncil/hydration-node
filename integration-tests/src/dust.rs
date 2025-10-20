@@ -297,7 +297,7 @@ mod atoken_dust {
 
 	#[test]
 	fn dust_account_invariant() {
-		let successfull_cases = 1;
+		let successfull_cases = 100;
 
 		let ed_range = 1_u128..(START_BALANCE - 1);
 
