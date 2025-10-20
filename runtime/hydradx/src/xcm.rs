@@ -197,7 +197,7 @@ mod remove_when_updating_to_stable2412 {
 	pub struct AliasChildLocation;
 	impl ContainsPair<Location, Location> for AliasChildLocation {
 		fn contains(origin: &Location, target: &Location) -> bool {
-			return target.starts_with(origin)
+			return target.starts_with(origin);
 		}
 	}
 
@@ -214,13 +214,11 @@ mod remove_when_updating_to_stable2412 {
 		fn contains(origin: &Location, target: &Location) -> bool {
 			// check that `origin` is a root location
 			match origin.unpack() {
-				(1, [Parachain(_)]) |
-				(2, [GlobalConsensus(_)]) |
-				(2, [GlobalConsensus(_), Parachain(_)]) => (),
+				(1, [Parachain(_)]) | (2, [GlobalConsensus(_)]) | (2, [GlobalConsensus(_), Parachain(_)]) => (),
 				_ => return false,
 			};
 			// check that `origin` matches `Origin` and `target` matches `Filter`
-			return Origin::get().eq(origin) && Filter::contains(target)
+			return Origin::get().eq(origin) && Filter::contains(target);
 		}
 	}
 }
