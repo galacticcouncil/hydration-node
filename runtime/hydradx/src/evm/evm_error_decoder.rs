@@ -1,22 +1,24 @@
+use crate::Liquidation;
 use codec::Decode;
 use frame_support::traits::Get;
+use hydradx_traits::evm::CallResult;
 use pallet_evm::{ExitError, ExitReason};
 use sp_runtime::format;
+use sp_runtime::traits::Convert;
 use sp_runtime::DispatchError;
 use sp_std::boxed::Box;
 use sp_std::vec::Vec;
-use hydradx_traits::evm::{CallResult, EvmErrorDecoder};
 
 const ERROR_STRING_SELECTOR: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0]; // Error(string)
 const PANIC_SELECTOR: [u8; 4] = [0x4E, 0x48, 0x7B, 0x71]; // Panic(uint256)
 const FUNCTION_SELECTOR_LENGTH: usize = 4;
 
-pub struct EvmErrorDecoderAdapter<T>(core::marker::PhantomData<T>) where T: pallet_dispatcher::Config;
+pub struct EvmErrorDecoder;
 
-impl<T: pallet_dispatcher::Config> EvmErrorDecoder for EvmErrorDecoderAdapter<T> {
-	fn decode(call_result : CallResult) -> DispatchError {
+impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
+	fn convert(call_result: CallResult) -> DispatchError {
 		if let ExitReason::Error(ExitError::OutOfGas) = call_result.exit_reason {
-			return pallet_dispatcher::Error::<T>::EvmOutOfGas.into();
+			return pallet_dispatcher::Error::<crate::Runtime>::EvmOutOfGas.into();
 		}
 
 		if call_result.value.len() < FUNCTION_SELECTOR_LENGTH {
@@ -30,28 +32,28 @@ impl<T: pallet_dispatcher::Config> EvmErrorDecoder for EvmErrorDecoderAdapter<T>
 
 		if call_result.value.starts_with(&PANIC_SELECTOR) && call_result.value.len() >= FUNCTION_SELECTOR_LENGTH + 32 {
 			if call_result.value[35] == 0x11 {
-				return pallet_dispatcher::Error::<T>::EvmArithmeticOverflowOrUnderflow.into();
+				return pallet_dispatcher::Error::<crate::Runtime>::EvmArithmeticOverflowOrUnderflow.into();
 			}
 		}
 
 		// Check for generic Error(string)
 		if call_result.value.starts_with(&ERROR_STRING_SELECTOR) {
 			// Check for AAVE-specific errors if contract matches
-			if call_result.contract == T::BorrowingContract::get()
+			if call_result.contract == crate::Liquidation::get()
 				&& call_result.value.len() >= 70
-				&& call_result.value[66..68] == [0x00, 0x02] // string length = 2
+				&& call_result.value[66..68] == [0x00, 0x02]
+			// string length = 2
 			{
 				match &call_result.value[68..70] {
-					b"35" => return pallet_dispatcher::Error::<T>::AaveHealthFactorLowerThanLiquidationThreshold.into(),
-					b"36" => return pallet_dispatcher::Error::<T>::CollateralCannotCoverNewBorrow.into(),
-					b"45" => return pallet_dispatcher::Error::<T>::AaveHealthFactorNotBelowThreshold.into(),
-					b"50" => return pallet_dispatcher::Error::<T>::AaveBorrowCapExceeded.into(),
-					b"51" => return pallet_dispatcher::Error::<T>::AaveSupplyCapExceeded.into(),
+					b"35" => return pallet_dispatcher::Error::<crate::Runtime>::AaveHealthFactorLowerThanLiquidationThreshold.into(),
+					b"36" => return pallet_dispatcher::Error::<crate::Runtime>::CollateralCannotCoverNewBorrow.into(),
+					b"45" => return pallet_dispatcher::Error::<crate::Runtime>::AaveHealthFactorNotBelowThreshold.into(),
+					b"50" => return pallet_dispatcher::Error::<crate::Runtime>::AaveBorrowCapExceeded.into(),
+					b"51" => return pallet_dispatcher::Error::<crate::Runtime>::AaveSupplyCapExceeded.into(),
 					_ => {},
 				}
 			}
 		}
-
 
 		//TODO:
 		//HEALTH_FACTOR_NOT_BELOW_THRESHOLD
@@ -63,7 +65,5 @@ impl<T: pallet_dispatcher::Config> EvmErrorDecoder for EvmErrorDecoderAdapter<T>
 }
 
 fn dispatch_error_other(value: Vec<u8>) -> DispatchError {
-	DispatchError::Other(&*Box::leak(
-		format!("evm:0x{}", hex::encode(&value)).into_boxed_str(),
-	))
+	DispatchError::Other(&*Box::leak(format!("evm:0x{}", hex::encode(&value)).into_boxed_str()))
 }

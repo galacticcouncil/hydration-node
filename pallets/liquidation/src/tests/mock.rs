@@ -2,7 +2,7 @@ use crate as pallet_liquidation;
 use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
-use frame_support::sp_runtime::traits::CheckedConversion;
+use frame_support::sp_runtime::traits::{CheckedConversion, Convert};
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
@@ -234,8 +234,8 @@ impl Config for Test {
 
 pub struct EvmErrorDecodeMock;
 
-impl EvmErrorDecoder for EvmErrorDecodeMock {
-	fn decode(call_result: CallResult) -> DispatchError {
+impl Convert<CallResult, DispatchError> for EvmErrorDecodeMock {
+	fn convert(call_result: CallResult) -> DispatchError {
 		DispatchError::Other("Call failed")
 	}
 }

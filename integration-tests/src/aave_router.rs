@@ -12,15 +12,16 @@ use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
+use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::evm::precompiles::handle::EvmDataWriter;
 use hydradx_runtime::evm::{Erc20Currency, Executor};
-use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoderAdapter;
-use hydradx_traits::evm::EvmErrorDecoder;
 use hydradx_runtime::{
 	AssetId, Block, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall, RuntimeEvent,
 	RuntimeOrigin,
 };
+use sp_runtime::traits::Convert;
+
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::evm::EvmAddress;
@@ -276,7 +277,7 @@ fn alice_cannot_supply_when_supply_cap_exceeded() {
 		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
 
 		assert_eq!(
-			EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
+			EvmErrorDecoder::convert(call_result),
 			pallet_dispatcher::Error::<Runtime>::AaveSupplyCapExceeded.into()
 		);
 	})
@@ -298,17 +299,17 @@ fn alice_cannot_borrow_when_borrow_cap_exceeded() {
 		let context = CallContext::new_call(mm_pool, user);
 
 		let data = EvmDataWriter::new_with_selector(Function::Borrow)
-			.write(asset)               // address asset
-			.write(amount)              // uint256 amount
-			.write(interest_rate_mode)  // uint256 interestRateMode (any int type encodes fine)
-			.write(referral_code)       // uint16 referralCode
-			.write(user)                // address onBehalfOf
+			.write(asset) // address asset
+			.write(amount) // uint256 amount
+			.write(interest_rate_mode) // uint256 interestRateMode (any int type encodes fine)
+			.write(referral_code) // uint16 referralCode
+			.write(user) // address onBehalfOf
 			.build();
 
 		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
 
 		assert_eq!(
-			EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
+			EvmErrorDecoder::convert(call_result),
 			pallet_dispatcher::Error::<Runtime>::AaveBorrowCapExceeded.into()
 		);
 	})
@@ -342,7 +343,7 @@ fn alice_cannot_supply_when_not_enough_balance() {
 		let call_result = Executor::<hydradx_runtime::Runtime>::call(context, data, U256::zero(), 500_000);
 
 		assert_eq!(
-			EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
+			EvmErrorDecoder::convert(call_result),
 			orml_tokens::Error::<Runtime>::BalanceTooLow.into()
 		);
 	})
@@ -1146,11 +1147,13 @@ fn cannot_borrow_more_than_collateral_allows() {
 		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 50_000_000);
 
 		// Assert that withdrawal fails with DispatchError::Other containing the error
-		let error = EvmErrorDecoderAdapter::<Runtime>::decode(call_result);
-		assert_eq!(error, pallet_dispatcher::Error::<Runtime>::CollateralCannotCoverNewBorrow.into());
+		let error = EvmErrorDecoder::convert(call_result);
+		assert_eq!(
+			error,
+			pallet_dispatcher::Error::<Runtime>::CollateralCannotCoverNewBorrow.into()
+		);
 	})
 }
-
 
 #[test]
 fn cannot_withdraw_when_debt_increased_health_factor_too_low() {
@@ -1182,8 +1185,11 @@ fn cannot_withdraw_when_debt_increased_health_factor_too_low() {
 		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 500_000);
 
 		//Assert
-		let error = EvmErrorDecoderAdapter::<Runtime>::decode(call_result);
-		assert_eq!(error, pallet_dispatcher::Error::<Runtime>::AaveHealthFactorLowerThanLiquidationThreshold.into());
+		let error = EvmErrorDecoder::convert(call_result);
+		assert_eq!(
+			error,
+			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorLowerThanLiquidationThreshold.into()
+		);
 	})
 }
 

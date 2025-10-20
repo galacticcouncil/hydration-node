@@ -22,8 +22,8 @@
 #![allow(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use core::marker::PhantomData;
 use codec::Encode;
+use core::marker::PhantomData;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitSucceed;
 use fp_evm::{ExitReason, ExitRevert, PrecompileFailure, PrecompileHandle};

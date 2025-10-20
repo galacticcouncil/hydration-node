@@ -40,15 +40,15 @@ use frame_support::{
 	},
 	PalletId,
 };
-use hydradx_traits::evm::EvmErrorDecoder;
+
 use frame_system::{pallet_prelude::OriginFor, RawOrigin};
-use hydradx_traits::evm::{Erc20Mapping};
+use hydradx_traits::evm::CallResult;
+use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use hydradx_traits::evm::CallResult;
 use pallet_evm::GasWeightMapping;
 use precompile_utils::evm::{
 	writer::{EvmDataReader, EvmDataWriter},
@@ -56,6 +56,7 @@ use precompile_utils::evm::{
 };
 use sp_arithmetic::ArithmeticError;
 use sp_core::{crypto::AccountId32, H256, U256};
+use sp_runtime::traits::Convert;
 use sp_std::{vec, vec::Vec};
 #[cfg(test)]
 mod tests;
@@ -133,7 +134,7 @@ pub mod pallet {
 		/// Flash minter contract address and flash loan receiver address.
 		type FlashMinter: Get<Option<(EvmAddress, EvmAddress)>>;
 
-		type EvmErrorDecoder: hydradx_traits::evm::EvmErrorDecoder;
+		type EvmErrorDecoder: Convert<CallResult, DispatchError>;
 
 		/// The origin which can update transaction priorities, allowed signers and call addresses
 		/// for the liquidation worker.
@@ -267,7 +268,7 @@ pub mod pallet {
 
 				if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 					log::debug!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
-					return Err(T::EvmErrorDecoder::decode(call_result));
+					return Err(T::EvmErrorDecoder::convert(call_result));
 				}
 			} else {
 				let pallet_acc = Self::account_id();
@@ -357,7 +358,7 @@ impl<T: Config> Pallet<T> {
 		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::debug!(target: "liquidation",
 						"Evm execution failed. Reason: {:?}", call_result.value);
-			return Err(T::EvmErrorDecoder::decode(call_result));
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		// swap collateral if necessary

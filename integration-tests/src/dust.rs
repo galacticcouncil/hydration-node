@@ -350,7 +350,8 @@ mod atoken_dust {
 						let err = sanity_transfer.unwrap_err();
 						assert_eq!(
 							err,
-							pallet_dispatcher::Error::<hydradx_runtime::Runtime>::EvmArithmeticOverflowOrUnderflow.into()
+							pallet_dispatcher::Error::<hydradx_runtime::Runtime>::EvmArithmeticOverflowOrUnderflow
+								.into()
 						);
 						TransactionOutcome::Rollback(DispatchResult::Ok(()))
 					});

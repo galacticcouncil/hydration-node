@@ -10,6 +10,9 @@ use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
 use hex_literal::hex;
+use sp_runtime::traits::Convert;
+
+use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::{Erc20Currency, EvmNonceProvider as AccountNonce, Executor, Function};
 use hydradx_runtime::AssetRegistry;
@@ -33,11 +36,9 @@ use sp_core::bounded_vec::BoundedVec;
 use sp_core::keccak_256;
 use sp_core::Encode;
 use sp_core::{H256, U256};
-use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoderAdapter;
 use sp_runtime::{Permill, TransactionOutcome};
 use std::fmt::Write;
 use xcm_emulator::TestExt;
-use hydradx_traits::evm::EvmErrorDecoder;
 pub fn deployer() -> EvmAddress {
 	EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE))
 }
@@ -421,14 +422,6 @@ fn currencies_should_transfer_bound_erc20() {
 	});
 }
 
-fn error_signature(definition: &str) -> String {
-	let hash = keccak_256(definition.as_bytes());
-	hash[..4].iter().fold(String::new(), |mut acc, b| {
-		write!(&mut acc, "{:02x}", b).unwrap();
-		acc
-	})
-}
-
 #[test]
 fn deposit_is_not_supported() {
 	TestNet::reset();
@@ -607,7 +600,7 @@ mod error_handling {
 			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
 
 			assert_eq!(
-				EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
+				EvmErrorDecoder::convert(call_result),
 				pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow.into()
 			);
 		});
@@ -636,7 +629,7 @@ mod error_handling {
 			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
 
 			assert_eq!(
-				EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
+				EvmErrorDecoder::convert(call_result),
 				pallet_dispatcher::Error::<Runtime>::EvmArithmeticOverflowOrUnderflow.into()
 			);
 		});
@@ -671,7 +664,7 @@ mod error_handling {
 
 			assert!(matches!(call_result.exit_reason, fp_evm::ExitReason::Revert(_)));
 			assert_eq!(
-				EvmErrorDecoderAdapter::<Runtime>::decode(call_result),
+				EvmErrorDecoder::convert(call_result),
 				orml_tokens::Error::<Runtime>::BalanceTooLow.into()
 			);
 		});

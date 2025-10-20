@@ -31,8 +31,6 @@ use crate::types::{Balance, CollateralInfo};
 pub use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
-use hydradx_traits::evm::EvmErrorDecoder;
-
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -51,6 +49,7 @@ use frame_system::{
 };
 use hex_literal::hex;
 use hydra_dx_math::hsm::{CoefficientRatio, PegType, Price};
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::EvmAddress;
 use hydradx_traits::{
 	evm::{CallContext, InspectEvmAccounts, EVM},
@@ -58,11 +57,11 @@ use hydradx_traits::{
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use num_traits::One;
-use hydradx_traits::evm::CallResult;
 use pallet_stableswap::types::PoolSnapshot;
 use precompile_utils::evm::writer::{EvmDataReader, EvmDataWriter};
 use precompile_utils::evm::Bytes;
 use sp_core::{offchain::Duration, Get, H256, U256};
+use sp_runtime::traits::Convert;
 use sp_runtime::{
 	helpers_128bit::multiply_by_rational_with_rounding,
 	offchain::storage_lock::{StorageLock, Time},
@@ -167,7 +166,7 @@ pub mod pallet {
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
 
-		type EvmErrorDecoder : hydradx_traits::evm::EvmErrorDecoder;
+		type EvmErrorDecoder: Convert<CallResult, DispatchError>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -876,7 +875,7 @@ pub mod pallet {
 			);
 			if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
-				return Err(T::EvmErrorDecoder::decode(call_result));
+				return Err(T::EvmErrorDecoder::convert(call_result));
 			}
 			let receiver_balance_final = <T as crate::pallet::Config>::Currency::total_balance(
 				collateral_asset_id,
@@ -1174,7 +1173,7 @@ where
 		// Check if the call was successful
 		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
 			log::error!(target: "hsm", "Mint Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
-			return Err(T::EvmErrorDecoder::decode(call_result));
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		Ok(())
@@ -1203,7 +1202,7 @@ where
 		// Check if the call was successful
 		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Stopped) {
 			log::error!(target: "hsm", "Burn Hollar EVM execution failed. Reason: {:?}, value {:?}", call_result.exit_reason, call_result.value);
-			return Err(T::EvmErrorDecoder::decode(call_result));
+			return Err(T::EvmErrorDecoder::convert(call_result));
 		}
 
 		Ok(())
@@ -1766,7 +1765,9 @@ where
 				return 0;
 			}
 			let capacity: u128 = U256::from_big_endian(&call_result.value[0..32]).try_into().unwrap_or(0);
-			let level: u128 = U256::from_big_endian(&call_result.value[32..64]).try_into().unwrap_or(0);
+			let level: u128 = U256::from_big_endian(&call_result.value[32..64])
+				.try_into()
+				.unwrap_or(0);
 			log::trace!(target: "hsm", "Bucket capacity: {:?}", capacity);
 			log::trace!(target: "hsm", "Bucket level: {:?}", level);
 			capacity.saturating_sub(level)

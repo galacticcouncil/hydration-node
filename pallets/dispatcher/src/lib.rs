@@ -136,7 +136,7 @@ pub mod pallet {
 		///Aave - health factor is lesser than the liquidation threshold
 		AaveHealthFactorLowerThanLiquidationThreshold,
 		///Aave - there is not enough collateral to cover a new borrow
-		CollateralCannotCoverNewBorrow
+		CollateralCannotCoverNewBorrow,
 	}
 
 	#[pallet::event]

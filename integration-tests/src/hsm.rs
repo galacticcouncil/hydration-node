@@ -3,10 +3,10 @@ use crate::polkadot_test_net::hydradx_run_to_next_block;
 use crate::polkadot_test_net::{TestNet, ALICE, BOB, HDX};
 use fp_evm::ExitSucceed::Returned;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Stopped};
+use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::dispatch::RawOrigin;
 use hex_literal::hex;
-use frame_support::assert_noop;
 use hydradx_runtime::{
 	evm::{
 		precompiles::{handle::EvmDataWriter, Bytes},
@@ -29,9 +29,9 @@ use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{RuntimeDebug, H256, U256};
 use sp_runtime::traits::One;
-use sp_runtime::{BoundedVec, DispatchError};
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
+use sp_runtime::{BoundedVec, DispatchError};
 use std::sync::Arc;
 use xcm_emulator::{Network, TestExt};
 
@@ -1109,8 +1109,8 @@ fn sell_collateral_to_get_hollar_via_router_should_work_when_collateral_is_acqui
 
 #[test]
 fn selling_collateral_for_hollar_should_fail_when_facilitator_bucket_capacity_exceeded() {
-    TestNet::reset();
-    hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
         let hsm_address = hydradx_runtime::HSM::account_id();
         // Bind HSM EVM address but DO NOT add facilitator intentionally so mint fails
         assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
@@ -1252,7 +1252,7 @@ fn selling_hollar_should_fail_when_facilitator_capacity_is_insfuccicient() {
 		));
 		let initial_liquidity = vec![
 			AssetAmount::new(222u32, 5_000_000_000_000_000_000u128), // 5e18 Hollar (more hollar in pool)
-			AssetAmount::new(2u32, 500_000_000_000_000_000u128),    // 5e17 collateral
+			AssetAmount::new(2u32, 500_000_000_000_000_000u128),     // 5e17 collateral
 		];
 		assert_ok!(hydradx_runtime::Stableswap::add_assets_liquidity(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
@@ -1274,7 +1274,7 @@ fn selling_hollar_should_fail_when_facilitator_capacity_is_insfuccicient() {
 
 		let amount_in = 10_000_000_000_000_000u128;
 		let hsm_evm_address = EVMAccounts::evm_address(&hsm_address);
-		add_facilitator(hsm_evm_address, "hsm", amount_in - 1);//we set one less so it fails with underflow in contract
+		add_facilitator(hsm_evm_address, "hsm", amount_in - 1); //we set one less so it fails with underflow in contract
 
 		assert_ok!(HSM::add_collateral_asset(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -1286,7 +1286,6 @@ fn selling_hollar_should_fail_when_facilitator_capacity_is_insfuccicient() {
 			Perbill::from_percent(100),
 			None,
 		));
-
 
 		// Selling Hollar (asset_in=222) for collateral should attempt to burn Hollar due to insufficient facilitator capacity
 		assert_noop!(
@@ -2175,7 +2174,7 @@ fn hollar_liquidation_should_fail_when_above_health_factor() {
 			pap_contract,
 			RUNTIME_API_CALLER,
 		)
-			.unwrap();
+		.unwrap();
 		assert_ok!(Liquidation::set_borrowing_contract(
 			RuntimeOrigin::root(),
 			pool_contract
@@ -2263,14 +2262,17 @@ fn hollar_liquidation_should_fail_when_above_health_factor() {
 		}]);
 
 		// Act and assert
-		assert_noop!(Liquidation::liquidate(
-			RuntimeOrigin::signed(BOB.into()),
-			WETH,
-			222,
-			alice_evm_address,
-			hollar_borrow_amount,
-			route
-		), pallet_dispatcher::Error::<Runtime>::AaveHealthFactorNotBelowThreshold);
+		assert_noop!(
+			Liquidation::liquidate(
+				RuntimeOrigin::signed(BOB.into()),
+				WETH,
+				222,
+				alice_evm_address,
+				hollar_borrow_amount,
+				route
+			),
+			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorNotBelowThreshold
+		);
 	});
 }
 

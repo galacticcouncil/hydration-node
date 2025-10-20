@@ -20,6 +20,7 @@ sp-core = { workspace = true }
 sp-io = { workspace = true }
 sp-arithmetic = { workspace = true }
 sp-api = { workspace = true }
+sp-runtime = { workspace = true }
 
 # FRAME
 frame-support = { workspace = true }

@@ -1386,6 +1386,7 @@ use pallet_currencies::fungibles::FungibleCurrencies;
 #[cfg(not(feature = "runtime-benchmarks"))]
 use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
+use crate::evm::evm_error_decoder::EvmErrorDecoder;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
 use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
@@ -1396,7 +1397,6 @@ use hydradx_traits::registry::Create;
 use hydradx_traits::BoundErc20;
 use pallet_asset_registry::XcmRateLimitsInRegistry;
 use pallet_circuit_breaker::traits::AssetDepositLimiter;
-use crate::evm::evm_error_decoder::EvmErrorDecoderAdapter;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_ema_oracle::ordered_pair;
 #[cfg(feature = "runtime-benchmarks")]
@@ -1781,7 +1781,7 @@ impl pallet_liquidation::Config for Runtime {
 	type WeightInfo = weights::pallet_liquidation::HydraWeight<Runtime>;
 	type HollarId = HOLLAR;
 	type FlashMinter = pallet_hsm::GetFlashMinterSupport<Runtime>;
-	type EvmErrorDecoder = EvmErrorDecoderAdapter<Runtime>;
+	type EvmErrorDecoder = EvmErrorDecoder;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
 }
 
@@ -1810,7 +1810,7 @@ impl pallet_hsm::Config for Runtime {
 	type EvmAccounts = EVMAccounts;
 	type GasLimit = HsmGasLimit;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
-	type EvmErrorDecoder = EvmErrorDecoderAdapter<Runtime>;
+	type EvmErrorDecoder = EvmErrorDecoder;
 	type WeightInfo = weights::pallet_hsm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = helpers::benchmark_helpers::HsmBenchmarkHelper;
@@ -1906,10 +1906,10 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 
 use crate::evm::aave_trade_executor::Aave;
 #[cfg(feature = "runtime-benchmarks")]
+use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
 use pallet_referrals::BenchmarkHelper as RefBenchmarkHelper;
 use pallet_xyk::types::AssetPair;
-#[cfg(feature = "runtime-benchmarks")]
-use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct ReferralsBenchmarkHelper;

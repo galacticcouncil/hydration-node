@@ -1,3 +1,4 @@
+use crate::evm::evm_error_decoder::EvmErrorDecoder;
 use crate::evm::executor::{BalanceOf, Executor, NonceIdOf};
 use crate::evm::{EvmAccounts, EvmAddress};
 use ethabi::ethereum_types::BigEndianHash;
@@ -5,20 +6,19 @@ use evm::ExitReason;
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed::Returned;
 use frame_support::{dispatch::DispatchResult, fail, pallet_prelude::*};
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::{CallContext, InspectEvmAccounts, ERC20, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_currencies::{Config, Error};
-use hydradx_traits::evm::{CallResult, EvmErrorDecoder};
 use polkadot_xcm::v3::MultiLocation;
 use primitives::{AccountId, Balance};
 use sp_core::crypto::AccountId32;
 use sp_core::{H160, H256, U256};
-use sp_runtime::traits::{CheckedConversion, Zero};
+use sp_runtime::traits::{CheckedConversion, Convert, Zero};
 use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::prelude::ToOwned;
 use sp_std::vec::Vec;
-use crate::evm::evm_error_decoder::EvmErrorDecoderAdapter;
 
 /// Execution gas limit.
 const GAS_LIMIT: u64 = 400_000;
@@ -189,7 +189,10 @@ fn decode_bool(value: Vec<u8>) -> Option<bool> {
 	Some(value == bytes)
 }
 
-fn handle_result<T>(result: CallResult) -> DispatchResult where T: pallet_dispatcher::Config {
+fn handle_result<T>(result: CallResult) -> DispatchResult
+where
+	T: pallet_dispatcher::Config,
+{
 	match &result.exit_reason {
 		ExitReason::Succeed(_) => {
 			if Some(false) == decode_bool(result.value) {
@@ -201,7 +204,7 @@ fn handle_result<T>(result: CallResult) -> DispatchResult where T: pallet_dispat
 		}
 		e => {
 			log::error!(target: "evm", "evm call failed with : {:?}, value {:?}", e, result.clone().value);
-			let dispatch_error = EvmErrorDecoderAdapter::<T>::decode(result);
+			let dispatch_error = EvmErrorDecoder::convert(result);
 			Err(dispatch_error)
 		}
 	}

@@ -8588,6 +8588,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-io",
+ "sp-runtime",
  "sp-std",
  "test-utils",
 ]

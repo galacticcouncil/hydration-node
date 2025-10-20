@@ -53,13 +53,13 @@ use sp_core::{crypto::AccountId32, Get, U256};
 pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
+pub mod evm_error_decoder;
 mod evm_fee;
 mod executor;
 mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;
 mod runner;
-pub mod evm_error_decoder;
 
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;

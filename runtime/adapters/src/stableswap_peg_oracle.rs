@@ -15,16 +15,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{vec};
+use crate::vec;
 use ethabi::{decode, ParamType};
 use evm::{ExitReason, ExitSucceed};
 use frame_support::traits::UnixTime;
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::{
 	evm::{CallContext, EVM},
 	RawEntry,
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use hydradx_traits::evm::CallResult;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::PegSource;
 use primitives::{constants::time::SECS_PER_BLOCK, AssetId, Balance, BlockNumber};

@@ -34,6 +34,7 @@ use frame_support::traits::{ConstU128, ConstU32, ConstU64, Everything};
 use frame_support::{construct_runtime, parameter_types};
 use frame_system::EnsureRoot;
 use hydra_dx_math::hsm::CoefficientRatio;
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
@@ -43,11 +44,10 @@ use hydradx_traits::{
 use hydradx_traits::{AccountIdFor, Liquidity, RawEntry, Volume};
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrencyExtended;
-use hydradx_traits::evm::{CallResult, EvmErrorDecoder};
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};
-use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
+use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, Convert, IdentityLookup};
 use sp_runtime::{BoundedVec, Perbill};
 use sp_runtime::{BuildStorage, DispatchError, Permill};
 use sp_std::num::NonZeroU16;
@@ -434,7 +434,7 @@ impl EVM<CallResult> for MockEvm {
 							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 							value: bytes,
 							contract: context.contract,
-						}
+						};
 					}
 					ERC20Function::GetFacilitatorBucket => {
 						let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
@@ -450,7 +450,7 @@ impl EVM<CallResult> for MockEvm {
 							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 							value: bytes,
 							contract: context.contract,
-						}
+						};
 					}
 				}
 			}
@@ -590,8 +590,8 @@ impl Config for Test {
 
 pub struct EvmErrorDecoderStruct;
 
-impl EvmErrorDecoder for EvmErrorDecoderStruct {
-	fn decode(_call_result: CallResult) -> DispatchError {
+impl Convert<CallResult, DispatchError> for EvmErrorDecoderStruct {
+	fn convert(_call_result: CallResult) -> DispatchError {
 		unimplemented!("We rather test such in integration tests")
 	}
 }
