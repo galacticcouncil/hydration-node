@@ -1,6 +1,9 @@
 #![cfg(test)]
 use crate::polkadot_test_net::*;
-use polkadot_xcm::v4::prelude::*;
+use frame_support::traits::ContainsPair;
+use hydradx_runtime::XcmConfig;
+use polkadot_xcm::v4::{prelude::*, Junctions::*};
+use xcm_emulator::TestExt;
 
 #[test]
 fn aliasing_child_locations() {
