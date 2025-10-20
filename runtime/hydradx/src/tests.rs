@@ -267,7 +267,10 @@ mod xcm_fee_payment_api_tests {
 			assert_eq!(
 				Runtime::query_weight_to_asset_fee(
 					Weight::from_parts(1_000_000_000, 1_000_000_000),
-					V4(AssetId(Location::new(0, Junctions::X1(Arc::new([GeneralIndex(0)])))))
+					V4(AssetId(Location::new(
+						1,
+						Junctions::X2(Arc::new([Parachain(100), GeneralIndex(0)]))
+					)))
 				),
 				Ok(expected_fee)
 			);
