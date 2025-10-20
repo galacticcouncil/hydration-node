@@ -466,18 +466,18 @@ use primitives::constants::chain::CORE_ASSET_ID;
 
 impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 	fn convert(id: AssetId) -> Option<Location> {
-		match AssetRegistry::asset_to_location(id) {
-			Some(stored_location) if stored_location.0.parents != 0 => {
-				// Return stored location if the asset is stored as foreign (parents: 1)
-				stored_location.into()
-			}
+		match id {
+			CORE_ASSET_ID => Some(Location {
+				parents: 1,
+				interior: [Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())].into(),
+			}),
 			_ => {
-				// Return default location with GeneralIndex for local assets or
-				// assets without stored location
-				Some(Location {
-					parents: 0,
-					interior: X1(Arc::new([GeneralIndex(id.into())])),
-				})
+				let loc = AssetRegistry::asset_to_location(id);
+				if let Some(location) = loc {
+					location.into()
+				} else {
+					None
+				}
 			}
 		}
 	}
@@ -485,20 +485,26 @@ impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 
 impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 	fn convert(location: Location) -> Option<AssetId> {
-		let Location { parents, ref interior } = location;
+		let Location { parents, interior } = location.clone();
 
-		// Return GeneralIndex as AssetId for local assets
-		if parents == 0 {
-			if let X1(junctions) = interior {
-				if let Some(GeneralIndex(index)) = junctions.as_ref().first() {
-					return Some(*index as AssetId);
+		match interior {
+			Junctions::X2(a)
+				if parents == 1
+					&& a.contains(&GeneralIndex(CORE_ASSET_ID.into()))
+					&& a.contains(&Parachain(ParachainInfo::get().into())) =>
+			{
+				Some(CORE_ASSET_ID)
+			}
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => Some(CORE_ASSET_ID),
+			_ => {
+				let location: Option<AssetLocation> = location.try_into().ok();
+				if let Some(location) = location {
+					AssetRegistry::location_to_asset(location)
+				} else {
+					None
 				}
 			}
 		}
-
-		// Return AssetId from the stored location for foreign assets
-		let maybe_asset_loc: Option<AssetLocation> = location.try_into().ok();
-		maybe_asset_loc.and_then(|loc| AssetRegistry::location_to_asset(loc))
 	}
 }
 
