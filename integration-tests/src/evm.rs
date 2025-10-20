@@ -2783,3 +2783,123 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 		amount_b,
 	));
 }
+
+mod evm_error_decoder {
+	use super::*;
+	use sp_core::Get;
+	use sp_runtime::DispatchResult;
+	use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
+	use hydradx_traits::evm::CallResult;
+	use pallet_evm::{ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed};
+	use proptest::prelude::*;
+	use sp_runtime::traits::Convert;
+	use proptest::test_runner::{Config, TestRunner};
+
+	fn arbitrary_value() -> impl Strategy<Value = Vec<u8>> {
+		prop::collection::vec(any::<u8>(), 0..256)
+	}
+
+	fn random_error_string() -> impl Strategy<Value = Vec<u8>> {
+		// Fixed 4-byte prefix for Error(string) solidity error
+		let prefix: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0];
+
+		// Generate the remaining random bytes (0–252)
+		prop::collection::vec(any::<u8>(), 0..252).prop_map(move |mut rest| {
+			let mut bytes = Vec::with_capacity(4 + rest.len());
+			bytes.extend_from_slice(&prefix);
+			bytes.append(&mut rest);
+			bytes
+		})
+	}
+
+	fn arbitrary_contract() -> impl Strategy<Value = sp_core::H160> {
+		prop::array::uniform20(any::<u8>()).prop_map(H160::from)
+	}
+
+	fn arbitrary_exit_reason() -> impl Strategy<Value = ExitReason> {
+		prop_oneof![
+			Just(ExitReason::Succeed(ExitSucceed::Stopped)),
+			Just(ExitReason::Succeed(ExitSucceed::Returned)),
+			Just(ExitReason::Succeed(ExitSucceed::Suicided)),
+			Just(ExitReason::Error(ExitError::StackUnderflow)),
+			Just(ExitReason::Error(ExitError::StackOverflow)),
+			Just(ExitReason::Error(ExitError::InvalidJump)),
+			Just(ExitReason::Revert(ExitRevert::Reverted)),
+			Just(ExitReason::Fatal(ExitFatal::NotSupported)),
+		]
+	}
+
+	/// Property-based test to ensure EvmErrorDecoder never panics
+	/// with arbitrary input values, exit reasons, and contract addresses
+	proptest! {
+		#![proptest_config(ProptestConfig::with_cases(10000))]
+		#[test]
+		fn evm_error_decoder_never_panics(
+			value in arbitrary_value(),
+			exit_reason in arbitrary_exit_reason(),
+			contract in arbitrary_contract(),
+		) {
+			let call_result = CallResult {
+					exit_reason,
+					value,
+					contract,
+				};
+
+			let _result = EvmErrorDecoder::convert(call_result);
+		}
+	}
+
+
+	//We set up prop test like this to share state, so we don't need to load snapshot in every run
+	#[test]
+	fn evm_error_decoder_never_panics_for_borrowing_contract() {
+		let successfull_cases = 10000;
+
+		hydra_live_ext(crate::liquidation::PATH_TO_SNAPSHOT).execute_with(|| {
+			// We run prop test this way to use the same state of the chain for all run without loading the snapshot again in every run
+			let mut runner = TestRunner::new(Config {
+				cases: successfull_cases,
+				source_file: Some("integration-tests/src/evm.rs"),
+				test_name: Some("evm_prop"),
+				..Config::default()
+			});
+
+			let _ = runner
+				.run(&random_error_string(), |value| {
+					let call_result = CallResult {
+						exit_reason: ExitReason::Error(ExitError::Other("Some error".into())),
+						value,
+						contract:  hydradx_runtime::Liquidation::get(),
+					};
+
+					let _result = EvmErrorDecoder::convert(call_result);
+
+					Ok(())
+				})
+				.unwrap();
+		});
+	}
+
+
+	#[test]
+	fn evm_error_decoder_handles_empty_value() {
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: vec![],
+			contract: sp_core::H160::zero(),
+		};
+
+		let _error = EvmErrorDecoder::convert(call_result);
+	}
+
+	#[test]
+	fn evm_error_decoder_handles_values_shorter_than_function_selector_length() {
+		let call_result = CallResult {
+			exit_reason: ExitReason::Revert(ExitRevert::Reverted),
+			value: vec![0x01, 0x02],
+			contract: sp_core::H160::zero(),
+		};
+
+		let _error = EvmErrorDecoder::convert(call_result);
+	}
+}
