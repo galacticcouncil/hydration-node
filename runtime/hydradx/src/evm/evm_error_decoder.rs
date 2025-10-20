@@ -55,11 +55,6 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 			}
 		}
 
-		//TODO:
-		//HEALTH_FACTOR_NOT_BELOW_THRESHOLD
-		//check doc for more
-		//And here too: https://github.com/aave/aave-v3-core/blob/782f51917056a53a2c228701058a6c3fb233684a/contracts/protocol/libraries/helpers/Errors.sol#L54
-
 		dispatch_error_other(call_result.value)
 	}
 }
