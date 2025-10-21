@@ -33,6 +33,7 @@ use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, H160, H256, U256};
+use sp_runtime::traits::Dispatchable;
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
 use std::{borrow::Cow, cmp::Ordering};
@@ -2523,7 +2524,7 @@ fn substrate_account_should_pay_gas_with_payment_currency() {
 }
 
 #[test]
-fn evm_account_always_pays_with_weth_for_evm_call() {
+fn evm_account_pays_with_weth_for_evm_call_if_payment_currency_not_set() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
@@ -2532,7 +2533,7 @@ fn evm_account_always_pays_with_weth_for_evm_call() {
 		assert!(EVMAccounts::is_evm_account(evm_account()));
 		assert_eq!(
 			hydradx_runtime::MultiTransactionPayment::account_currency(&evm_account()),
-			0
+			WETH
 		);
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
@@ -2570,6 +2571,68 @@ fn evm_account_always_pays_with_weth_for_evm_call() {
 			to_ether(1),
 			"ether balance should be touched"
 		);
+	});
+}
+
+#[test]
+fn evm_account_should_pay_gas_with_payment_currency_for_evm_call() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		// Arrange
+		assert!(EVMAccounts::is_evm_account(evm_account()));
+		assert_eq!(
+			hydradx_runtime::MultiTransactionPayment::account_currency(&evm_account()),
+			WETH
+		);
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			evm_account(),
+			WETH,
+			to_ether(1),
+			0,
+		));
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			evm_account(),
+			HDX,
+			1000 * UNITS as i128,
+		));
+
+		set_evm_account_currency(HDX);
+
+		assert_eq!(
+			hydradx_runtime::MultiTransactionPayment::account_currency(&evm_account()),
+			HDX
+		);
+
+		let initial_hdx_balance = Currencies::free_balance(HDX, &evm_account());
+
+		// Act
+		assert_ok!(EVM::call(
+			evm_signed_origin(evm_address()),
+			evm_address(),
+			hydradx_runtime::evm::precompiles::IDENTITY,
+			vec![],
+			U256::zero(),
+			1000000,
+			U256::from(1000000000),
+			None,
+			Some(U256::zero()),
+			[].into()
+		));
+
+		let hdx_balance = Currencies::free_balance(HDX, &evm_account());
+
+		// Assert
+		assert_eq!(
+			Tokens::free_balance(WETH, &evm_account()),
+			to_ether(1),
+			"ether balance shouldn't be touched"
+		);
+
+		assert_ne!(initial_hdx_balance, hdx_balance, "payment asset should be touched");
 	});
 }
 
@@ -2820,6 +2883,23 @@ pub fn native_asset_ethereum_address() -> H160 {
 
 pub fn dai_ethereum_address() -> H160 {
 	H160::from(hex!("0000000000000000000000000000000100000002"))
+}
+
+pub fn set_evm_account_currency(currency: AssetId) {
+	let set_currency_call =
+		RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency { currency })
+			.encode();
+
+	let mut handle = create_dispatch_handle(set_currency_call);
+	let precompiles = HydraDXPrecompiles::<hydradx_runtime::Runtime>::new();
+	let result = precompiles.execute(&mut handle).unwrap();
+	assert_eq!(
+		result,
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Stopped,
+			output: Default::default()
+		})
+	);
 }
 
 pub struct MockHandle {
