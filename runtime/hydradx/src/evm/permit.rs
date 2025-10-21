@@ -128,10 +128,7 @@ where
 		};
 
 		let account_source_nonce = frame_system::Account::<R>::get(&account_id).nonce;
-		debug_assert_eq!(
-			account_source_nonce,
-			source_nonce
-		);
+		debug_assert_eq!(account_source_nonce, source_nonce);
 
 		let permit_nonce = NoncesStorage::get(source);
 		NoncesStorage::insert(source, permit_nonce + U256::one());

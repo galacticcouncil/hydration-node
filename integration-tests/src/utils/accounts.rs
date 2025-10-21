@@ -35,5 +35,7 @@ impl MockAccount {
 	pub fn balance(&self, asset: AssetId) -> Balance {
 		Currencies::free_balance(asset, &self.0)
 	}
-	pub fn nonce(&self) -> Index { System::account_nonce(&self.0) }
+	pub fn nonce(&self) -> Index {
+		System::account_nonce(&self.0)
+	}
 }
