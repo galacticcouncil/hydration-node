@@ -29,6 +29,7 @@ use hydradx_traits::Create;
 use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
+use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
 use sp_core::{blake2_256, H160, H256, U256};
@@ -36,7 +37,6 @@ use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
 use std::{borrow::Cow, cmp::Ordering};
 use xcm_emulator::TestExt;
-use pallet_transaction_multi_payment::EVMPermit;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 
@@ -44,6 +44,7 @@ mod account_conversion {
 	use super::*;
 	use fp_evm::ExitSucceed;
 	use frame_support::{assert_noop, assert_ok};
+	use hydradx_runtime::evm::precompiles::CALLPERMIT;
 	use pretty_assertions::assert_eq;
 
 	#[test]
@@ -98,47 +99,62 @@ mod account_conversion {
 	}
 
 	#[test]
-	// FIXME: will not pass, because nonce is increase by Executive;
-	// 	needs to mock SignedExtra and do UncheckedExtrinsic::new_signed and apply_extrinsic
 	fn bind_address_should_fail_when_nonce_is_not_zero() {
 		use pallet_evm_accounts::EvmNonceProvider;
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			// Arrange
-			let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
-			let truncated_address = EVMAccounts::truncated_account_id(evm_address);
+			let evm_address = alith_evm_address();
+			let truncated_address = alith_truncated_account();
 
 			assert_ok!(hydradx_runtime::Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				truncated_address,
 				WETH,
-				100 * UNITS as i128,
+				1000 * UNITS as i128,
 			));
 
 			let data =
 				hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
 					.to_vec();
 
-			// Act
-			assert_ok!(EVM::call(
-				evm_signed_origin(evm_address),
+			let gas_limit = 1_000_000;
+			let deadline = U256::from(1000000000000u128);
+			let permit =
+				pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+					CALLPERMIT,
+					evm_address,
+					DISPATCH_ADDR,
+					U256::from(0),
+					data.clone(),
+					gas_limit * 10,
+					U256::zero(),
+					deadline,
+				);
+			let secret_key = SecretKey::parse(&alith_secret_key()).unwrap();
+			let message = Message::parse(&permit);
+			let (rs, v) = sign(&message, &secret_key);
+
+			//Execute omnipool via EVM
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::dispatch_permit(
+				hydradx_runtime::RuntimeOrigin::none(),
 				evm_address,
 				DISPATCH_ADDR,
-				data,
 				U256::from(0),
-				1000000,
-				gas_price(),
-				None,
-				Some(U256::zero()),
-				[].into()
+				data,
+				gas_limit * 10,
+				deadline,
+				v.serialize(),
+				H256::from(rs.r.b32()),
+				H256::from(rs.s.b32()),
 			));
 
 			// Assert
 			assert!(hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address) != U256::zero());
 
 			assert_noop!(
-				EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())),
+				EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(alith_evm_account())),
 				pallet_evm_accounts::Error::<hydradx_runtime::Runtime>::TruncatedAccountAlreadyUsed,
 			);
 		});

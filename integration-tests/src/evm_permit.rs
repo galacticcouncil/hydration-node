@@ -29,9 +29,9 @@ use pallet_evm_accounts::EvmNonceProvider;
 use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::constants::currency::UNITS;
-use primitives::{AssetId, Balance};
+use primitives::{AssetId, Balance, Index};
 use sp_core::{H256, U256};
-use sp_runtime::traits::Convert;
+use sp_runtime::traits::{Convert, Zero};
 use sp_runtime::traits::SignedExtension;
 use sp_runtime::transaction_validity::InvalidTransaction;
 use sp_runtime::transaction_validity::TransactionValidityError;
@@ -1454,8 +1454,8 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 
-		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
-		assert_eq!(evm_account_nonce, U256::zero());
+		let evm_account_nonces = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
+		assert_eq!(evm_account_nonces, U256::zero());
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -1556,8 +1556,8 @@ fn dispatch_permit_should_increase_account_nonce_correctly() {
 		));
 
 		// Verify account nonces
-		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
-		assert_eq!(evm_account_nonce, U256::zero());
+		let evm_account_nonce = user_acc.nonce();
+		assert_eq!(evm_account_nonce, Index::zero());
 
 		let permit_nonce =
 			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
@@ -1581,8 +1581,8 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
 
-		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
-		assert_eq!(evm_account_nonce, U256::zero());
+		let evm_account_nonces = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
+		assert_eq!(evm_account_nonces, U256::zero());
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -1652,8 +1652,8 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 		assert_eq!(user_acc.balance(WETH), 0);
 
 		// Verify account nonces
-		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
-		assert_eq!(evm_account_nonce, U256::zero());
+		let evm_account_nonce = user_acc.nonce();
+		assert_eq!(evm_account_nonce, Index::zero());
 
 		let permit_nonce =
 			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
@@ -1672,8 +1672,8 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
-		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
-		assert_eq!(evm_account_nonce, U256::zero());
+		let evm_account_nonces = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
+		assert_eq!(evm_account_nonces, U256::zero());
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -1743,8 +1743,8 @@ fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 		assert_eq!(user_acc.balance(WETH), 0);
 
 		// Verify account nonces
-		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
-		assert_eq!(evm_account_nonce, U256::zero());
+		let evm_account_nonce = user_acc.nonce();
+		assert_eq!(evm_account_nonce, Index::zero());
 
 		let permit_nonce =
 			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
@@ -1879,8 +1879,8 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 
 	Hydra::execute_with(|| {
 		init_omnipool_with_oracle_for_block_10();
-		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
-		assert_eq!(evm_account_nonce, U256::zero());
+		let evm_account_nonces = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
+		assert_eq!(evm_account_nonces, U256::zero());
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
 			hydradx_runtime::MinimumMultiplier::get(),
 		);
@@ -1950,8 +1950,8 @@ fn dispatch_permit_should_not_pause_tx_when_call_execution_fails() {
 		assert_eq!(user_acc.balance(WETH), 0);
 
 		// Verify account nonces
-		let evm_account_nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
-		assert_eq!(evm_account_nonce, U256::zero());
+		let evm_account_nonce = user_acc.nonce();
+		assert_eq!(evm_account_nonce, Index::zero());
 
 		let permit_nonce =
 			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
