@@ -62,6 +62,7 @@ std = [
     "hydradx-traits/std",
     "pallet-omnipool/std",
     "orml-traits/std",
+
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

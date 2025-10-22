@@ -91,6 +91,7 @@ pallet-message-queue = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 pallet-signet = { workspace = true }
 pallet-erc20-vault = { workspace = true }
+pallet-sig-eth-faucet = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -374,6 +375,7 @@ std = [
     "pallet-dispatcher/std",
     "pallet-signet/std",
     "pallet-erc20-vault/std",
+    "pallet-sig-eth-faucet/std",
 ]
 try-runtime = [
     "frame-try-runtime",
@@ -455,6 +457,7 @@ try-runtime = [
     "pallet-dispatcher/try-runtime",
     "pallet-signet/try-runtime",
     "pallet-erc20-vault/try-runtime",
+
 ]
 
 metadata-hash = [

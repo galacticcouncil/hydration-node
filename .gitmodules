@@ -1,0 +1,3 @@
+[submodule "pallets/sig-eth-faucet/contracts/lib/forge-std"]
+	path = pallets/sig-eth-faucet/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

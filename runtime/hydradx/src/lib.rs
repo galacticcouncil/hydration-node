@@ -204,6 +204,7 @@ construct_runtime!(
 		BuildEvmTx: pallet_build_evm_tx = 86,
 		Signet: pallet_signet = 84,
 		Erc20Vault: pallet_erc20_vault = 85,
+		SigEthFaucet: pallet_sig_eth_faucet = 87,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

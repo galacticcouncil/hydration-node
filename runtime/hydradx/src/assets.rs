@@ -17,7 +17,7 @@
 
 use super::*;
 use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
-use crate::evm::Erc20Currency;
+use crate::evm::{Erc20Currency, WethAssetId};
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin};
 use crate::system::NativeAssetId;
 use crate::Stableswap;
@@ -1835,14 +1835,72 @@ impl pallet_signet::Config for Runtime {
 }
 
 parameter_types! {
-	pub const Erc20VaultPalletId: PalletId = PalletId(*b"py/erc20");
+	pub const ERC20VaultPalletId: PalletId = PalletId(*b"py/erc20");
+	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
+
+	pub const SigEthFaucetDispenserFee: u128 = 5_000;
+
+	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000;
+
+	pub const SigEthFaucetMinRequest: u64 = 0;
+
+	pub const SigEthFaucetFeeAssetId: AssetId = 1;
+	pub const SigEthFaucetFaucetAssetId: AssetId = 2;
 }
 
 impl pallet_erc20_vault::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type VaultPalletId = Erc20VaultPalletId;
+	type VaultPalletId = ERC20VaultPalletId;
 }
 
+// Treasury as the fee receiver (reuses the Treasury pallet account)
+pub struct SigEthFaucetTreasuryAccount;
+impl frame_support::traits::Get<AccountId> for SigEthFaucetTreasuryAccount {
+	fn get() -> AccountId {
+		Treasury::account_id()
+	}
+}
+
+pub struct SigEthFaucetContractAddr;
+impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetContractAddr {
+	fn get() -> [u8; 20] {
+		[
+			0xE7, 0xF1, 0x72, 0x5E, 0x77, 0x34, 0xCE, 0x28, 0x8F, 0x83, 0x67, 0xE1, 0xBB, 0x14, 0x3E, 0x90, 0xBB, 0x3F,
+			0x05, 0x12,
+		]
+	}
+}
+
+// MPC “root signer” (Ethereum address expected to sign Signet responses)
+pub struct SigEthFaucetMpcRoot;
+impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
+	fn get() -> [u8; 20] {
+		[
+			0x00, 0xA4, 0x0C, 0x26, 0x61, 0x29, 0x3D, 0x51, 0x34, 0xE5, 0x3D, 0xA5, 0x29, 0x51, 0xA3, 0xF7, 0x76, 0x78,
+			0x36, 0xEF,
+		]
+	}
+}
+
+impl pallet_sig_eth_faucet::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+
+	type Currency = FungibleCurrencies<Runtime>;
+
+	type MinimumRequestAmount = SigEthFaucetMinRequest;
+	type MaxDispenseAmount = SigEthFaucetMaxDispense;
+	type DispenserFee = SigEthFaucetDispenserFee;
+	type FeeAsset = SigEthFaucetFeeAssetId;
+	type FaucetAsset = SigEthFaucetFaucetAssetId;
+
+	// receivers / addresses
+	type TreasuryAddress = SigEthFaucetTreasuryAccount;
+	type FaucetAddress = SigEthFaucetContractAddr;
+	type MPCRootSigner = SigEthFaucetMpcRoot;
+
+	// pallet account to hold faucet liquidity
+	type VaultPalletId = SigEthPalletId;
+}
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where

@@ -7,7 +7,8 @@ use alloy_primitives::{Address, U256};
 use alloy_sol_types::{sol, SolCall};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
-use frame_support::traits::{Currency, fungibles::Mutate, tokens::Preservation};
+use frame_support::traits::{fungibles::Mutate, tokens::Preservation, Currency};
+use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
 use frame_system::pallet_prelude::*;
 use sp_core::H160;
@@ -22,7 +23,7 @@ pub use pallet::*;
 sol! {
 	#[sol(abi)]
 	interface IGasFaucet {
-		function fund(address to, uint256 amount, bytes32 requestId) external;
+		function fund(address to, uint256 amount) external;
 	}
 }
 
@@ -32,7 +33,7 @@ pub type AssetId = u32;
 pub type EvmAddress = [u8; 20];
 
 pub type BalanceOf<T> =
-<<T as pallet_signet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	<<T as pallet_signet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq)]
 pub struct EvmTransactionParams {
@@ -47,6 +48,7 @@ pub struct EvmTransactionParams {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use sp_runtime::traits::AccountIdConversion;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -57,34 +59,51 @@ pub mod pallet {
 
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
-		type MinimumRequestAmount: Get<BalanceOf<Self>>;
+		#[pallet::constant]
+		type MinimumRequestAmount: Get<u64>;
 
+		#[pallet::constant]
 		type MaxDispenseAmount: Get<u128>;
 
+		#[pallet::constant]
 		type DispenserFee: Get<u128>;
 
+		#[pallet::constant]
 		type FeeAsset: Get<AssetId>;
 
+		#[pallet::constant]
 		type FaucetAsset: Get<AssetId>;
 
+		#[pallet::constant]
 		type TreasuryAddress: Get<Self::AccountId>;
 
+		#[pallet::constant]
 		type FaucetAddress: Get<EvmAddress>;
 
+		#[pallet::constant]
 		type MPCRootSigner: Get<EvmAddress>;
 
-		type VaultPalletId: Get<Self::AccountId>;
+		#[pallet::constant]
+		type VaultPalletId: Get<PalletId>;
 	}
 
 	#[pallet::storage]
-	pub type Pending<T: Config> =
-		StorageMap<_, Blake2_128Concat, [u8; 32], PendingData<T::AccountId>, OptionQuery>;
+	#[pallet::getter(fn vault_config)]
+	pub type FaucetConfig<T> = StorageValue<_, FaucetConfigData, OptionQuery>;
+
+	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
+	pub struct FaucetConfigData {
+		pub init: bool,
+	}
+
+	#[pallet::storage]
+	pub type Pending<T: Config> = StorageMap<_, Blake2_128Concat, [u8; 32], PendingData<T::AccountId>, OptionQuery>;
 
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
 	pub struct PendingData<AccountId> {
 		pub requester: AccountId,
 		pub pay_amount: u128,
-		pub to: [u8; 20]
+		pub to: [u8; 20],
 	}
 
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq)]
@@ -123,17 +142,18 @@ pub mod pallet {
 		NotFound,
 		InvalidOutput,
 		InvalidSignature,
-		InvalidSigner
+		InvalidSigner,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(10_000)]
-		pub fn initialize(
-			origin: OriginFor<T>
-		) -> DispatchResult {
+		pub fn initialize(origin: OriginFor<T>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
+			ensure!(FaucetConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
+
+			FaucetConfig::<T>::put(FaucetConfigData { init: true });
 			Self::deposit_event(Event::Initialized);
 			Ok(())
 		}
@@ -170,7 +190,6 @@ pub mod pallet {
 			let call = IGasFaucet::fundCall {
 				to: Address::from_slice(&to),
 				amount: U256::from(amount_wei),
-				requestId: alloy_primitives::FixedBytes([0u8; 32]),
 			};
 
 			let rlp = pallet_build_evm_tx::Pallet::<T>::build_evm_tx(
@@ -265,9 +284,7 @@ pub mod pallet {
 					pending.pay_amount,
 					Preservation::Expendable,
 				)?;
-				Self::deposit_event(Event::FundFailed {
-					request_id,
-				});
+				Self::deposit_event(Event::FundFailed { request_id });
 				Ok(())
 			}
 		}
@@ -345,7 +362,7 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		pub fn account_id() -> T::AccountId {
-			T::VaultPalletId::get()
+			T::VaultPalletId::get().into_account_truncating()
 		}
 	}
 }

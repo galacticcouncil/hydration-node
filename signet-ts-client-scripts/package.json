@@ -14,10 +14,13 @@
       "**/*.test.ts"
     ]
   },
+  "type": "module",
   "dependencies": {
     "@polkadot/api": "^11.2.1",
     "@polkadot/keyring": "^12.6.2",
+    "@polkadot/types": "^16.4.9",
     "@polkadot/util": "^12.6.2",
+    "@polkadot/wasm-crypto": "^7.5.1",
     "elliptic": "^6.6.1",
     "ethers": "^6.15.0",
     "ts-node": "^10.9.2",

@@ -1,5 +1,5 @@
 [package]
-name = "sig-eth-faucet"
+name = "pallet-sig-eth-faucet"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,6 +17,7 @@ sp-core = { workspace = true }
 sp-io = { workspace = true }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 
+
 # Ethereum ABI encoding
 alloy-sol-types = { version = "=0.7.6", default-features = false, features = ["json"] }
 alloy-primitives = { version = "=0.7.7", default-features = false }
@@ -27,6 +28,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 pallet-build-evm-tx = { path = "../build-evm-tx", default-features = false }
 pallet-signet = { path = "../signet", default-features = false }
 
+
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -35,6 +37,7 @@ sp-io = { workspace = true, features = ["std"] }
 sp-core = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
 secp256k1 = { version = "0.27", features = ["recovery", "global-context"] }
+pallet-currencies = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
