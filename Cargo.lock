@@ -9840,6 +9840,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-intent"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-ismp"
 version = "16.1.0"
 source = "git+https://github.com/polytope-labs/hyperbridge?branch=polkadot-stable2409#fded5782645cb5a4bdce3959090f79f0f8a7508f"
