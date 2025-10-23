@@ -50,6 +50,7 @@ members = [
     'liquidation-worker-support',
     'pallets/hsm',
     'pallets/intent',
+    'pallets/ice',
 ]
 
 resolver = "2"
@@ -159,6 +160,7 @@ liquidation-worker-support = { path = "liquidation-worker-support", default-feat
 pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-intent = { path = "pallets/intent", default-features = false }
+pallet-ice = { path = "pallets/ice", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 scraper = { path = "scraper", default-features = false }

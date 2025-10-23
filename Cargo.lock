@@ -9776,6 +9776,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-ice"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "pallet-intent",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-identity"
 version = "38.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=stable2409-patch6#1ed662757b03c4f17dc2429c1df84e975d98513a"
