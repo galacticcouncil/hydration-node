@@ -234,7 +234,7 @@ impl Contains<Location> for RestrictedAssetHubAliases {
 			(1, [GlobalConsensus(Kusama)]) => true,
 
 			// Allow Ethereum consensus
-			(1, [GlobalConsensus(Ethereum { .. })]) => true,
+			(1, [GlobalConsensus(NetworkId::Ethereum { .. })]) => true,
 
 			// Everything else disallowed
 			_ => false,
@@ -246,7 +246,7 @@ impl Contains<Location> for RestrictedAssetHubAliases {
 pub type Aliasers = (
 	// Anyone can alias an interior location, same as `DescendOrigin`.
 	remove_when_updating_to_stable2412::AliasChildLocation,
-	// Asset Hub root can alias anything.
+	// Asset Hub root can alias system chains, Ethereum and Kusama
 	remove_when_updating_to_stable2412::AliasOriginRootUsingFilter<AssetHubLocation, RestrictedAssetHubAliases>,
 );
 
