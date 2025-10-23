@@ -2725,7 +2725,7 @@ fn dispatch_batch_permit_should_only_increment_permit_nonce() {
 }
 
 #[test]
-fn raw_eth_batch_should_increment_evm_nonce_and_keep_system_nonce() {
+fn raw_eth_batch_should_increment_nonce_once() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Set up to idle state where the chain is not utilized at all

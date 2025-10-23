@@ -26,14 +26,13 @@
 use crate::evm::WethAssetId;
 use fp_evm::{Account, TransactionValidationError};
 use frame_support::traits::Get;
-use hydradx_traits::evm::InspectEvmAccounts;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
 use pallet_evm::{AccountProvider, AddressMapping, CallInfo, Config, CreateInfo, FeeCalculator, RunnerError};
 use pallet_genesis_history::migration::Weight;
 use primitive_types::{H160, H256, U256};
-use primitives::{AccountId, AssetId, Balance};
-use sp_runtime::traits::{One, UniqueSaturatedInto, Zero};
+use primitives::{AssetId, Balance};
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
 
 pub struct WrapRunner<T, R, B>(sp_std::marker::PhantomData<(T, R, B)>);
