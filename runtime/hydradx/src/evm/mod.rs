@@ -63,7 +63,6 @@ mod runner;
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;
 pub use executor::Executor;
-use pallet_evm_precompile_call_permit::NoncesStorage;
 pub use primitives::AccountId as AccountIdType;
 
 // Current approximation of the gas per second consumption considering
@@ -221,13 +220,7 @@ impl pallet_ethereum::Config for Runtime {
 pub struct EvmNonceProvider;
 impl pallet_evm_accounts::EvmNonceProvider for EvmNonceProvider {
 	fn get_nonce(evm_address: sp_core::H160) -> U256 {
-		let account_basic_nonce = crate::EVM::account_basic(&evm_address).0.nonce;
-
-		if account_basic_nonce.is_zero() {
-			NoncesStorage::get(evm_address)
-		} else {
-			account_basic_nonce
-		}
+		crate::EVM::account_basic(&evm_address).0.nonce
 	}
 }
 
