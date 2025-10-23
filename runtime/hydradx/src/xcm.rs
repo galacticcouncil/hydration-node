@@ -231,10 +231,10 @@ impl Contains<Location> for RestrictedAssetHubAliases {
 			(1, [Parachain(id)]) if matches!(id, 1001 | 1002 | 1004 | 1005) => true,
 
 			// Allow Kusama relay itself
-			(1, [GlobalConsensus(Kusama)]) => true,
+			(2, [GlobalConsensus(Kusama)]) => true,
 
 			// Allow Ethereum consensus
-			(1, [GlobalConsensus(NetworkId::Ethereum { .. })]) => true,
+			(2, [GlobalConsensus(NetworkId::Ethereum { .. })]) => true,
 
 			// Everything else disallowed
 			_ => false,
