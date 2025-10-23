@@ -91,41 +91,12 @@ fn aliasing_child_locations() {
 }
 
 #[test]
-fn asset_hub_root_aliases_anything() {
+fn asset_hub_root_can_alias_whitelisted_locations() {
 	Hydra::execute_with(|| {
 		// Allows AH root to alias anything.
 		let origin = Location::new(1, X1([Parachain(1000)].into()));
 
-		let target = Location::new(1, X1([Parachain(2000)].into()));
-		assert!(<XcmConfig as xcm_executor::Config>::Aliasers::contains(
-			&origin, &target
-		));
-		let target = Location::new(
-			1,
-			X1([AccountId32 {
-				network: None,
-				id: [1u8; 32],
-			}]
-			.into()),
-		);
-		assert!(<XcmConfig as xcm_executor::Config>::Aliasers::contains(
-			&origin, &target
-		));
-		let target = Location::new(
-			1,
-			X2([
-				Parachain(8),
-				AccountId32 {
-					network: None,
-					id: [1u8; 32],
-				},
-			]
-			.into()),
-		);
-		assert!(<XcmConfig as xcm_executor::Config>::Aliasers::contains(
-			&origin, &target
-		));
-		let target = Location::new(1, X3([Parachain(42), PalletInstance(8), GeneralIndex(9)].into()));
+		let target = Location::new(1, X1([Parachain(1001)].into()));
 		assert!(<XcmConfig as xcm_executor::Config>::Aliasers::contains(
 			&origin, &target
 		));
@@ -133,11 +104,7 @@ fn asset_hub_root_aliases_anything() {
 		assert!(<XcmConfig as xcm_executor::Config>::Aliasers::contains(
 			&origin, &target
 		));
-		let target = Location::new(2, X2([GlobalConsensus(Kusama), Parachain(1000)].into()));
-		assert!(<XcmConfig as xcm_executor::Config>::Aliasers::contains(
-			&origin, &target
-		));
-		let target = Location::new(0, X2([PalletInstance(8), GeneralIndex(9)].into()));
+		let target = Location::new(2, X1([GlobalConsensus(Kusama)].into()));
 		assert!(<XcmConfig as xcm_executor::Config>::Aliasers::contains(
 			&origin, &target
 		));
@@ -194,5 +161,41 @@ fn asset_hub_root_aliases_anything() {
 		assert!(!<XcmConfig as xcm_executor::Config>::Aliasers::contains(
 			&origin, &target
 		));
+	});
+}
+
+#[test]
+fn asset_hub_root_cannot_alias_non_whitelisted_locations() {
+	Hydra::execute_with(|| {
+		// Asset Hub root origin (trusted)
+		let origin = Location::new(1, X1([Parachain(1000)].into()));
+
+		// Non-system parachain
+		let target = Location::new(1, X1([Parachain(2000)].into()));
+		assert!(
+			!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+			"Asset Hub root must NOT alias arbitrary parachain 2000"
+		);
+
+		// Polkadot relay chain
+		let target = Location::new(1, X1([GlobalConsensus(NetworkId::Polkadot)].into()));
+		assert!(
+			!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+			"Asset Hub root must NOT alias Polkadot relay"
+		);
+
+		// Kusama parachain (relay allowed, but parachains not)
+		let target = Location::new(2, X2([GlobalConsensus(NetworkId::Kusama), Parachain(1000)].into()));
+		assert!(
+			!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+			"Asset Hub root must NOT alias Kusama parachains"
+		);
+
+		// Random global consensus (e.g. Westend)
+		let target = Location::new(1, X1([GlobalConsensus(NetworkId::Westend)].into()));
+		assert!(
+			!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+			"Asset Hub root must NOT alias Westend consensus"
+		);
 	});
 }
