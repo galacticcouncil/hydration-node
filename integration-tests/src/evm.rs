@@ -2821,9 +2821,9 @@ fn raw_eth_batch_should_increment_evm_nonce_and_keep_system_nonce() {
 		let transaction = TransactionV2::EIP1559(signed_tx);
 
 		// Act: submit the raw Ethereum transaction via Executive unsigned self-contained extrinsic
-		crate::utils::executive::assert_executive_apply_unsigned_extrinsic(
-			hydradx_runtime::RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction })
-		);
+		crate::utils::executive::assert_executive_apply_unsigned_extrinsic(hydradx_runtime::RuntimeCall::Ethereum(
+			pallet_ethereum::Call::transact { transaction },
+		));
 
 		// Assert
 		assert_eq!(

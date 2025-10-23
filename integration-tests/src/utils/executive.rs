@@ -42,8 +42,7 @@ where
 	frame_support::assert_ok!(ae.unwrap());
 }
 
-pub(crate) fn assert_executive_apply_unsigned_extrinsic(call: hydradx_runtime::RuntimeCall)
-{
+pub(crate) fn assert_executive_apply_unsigned_extrinsic(call: hydradx_runtime::RuntimeCall) {
 	let ue = hydradx_runtime::UncheckedExtrinsic::new_unsigned(call);
 	let ae = hydradx_runtime::Executive::apply_extrinsic(ue);
 	frame_support::assert_ok!(ae);
