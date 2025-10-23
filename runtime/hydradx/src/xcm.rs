@@ -223,12 +223,31 @@ mod remove_when_updating_to_stable2412 {
 	}
 }
 
+pub struct RestrictedAssetHubAliases;
+impl Contains<Location> for RestrictedAssetHubAliases {
+	fn contains(target: &Location) -> bool {
+		match target.unpack() {
+			// Allow system parachains under the Polkadot relay
+			(1, [Parachain(id)]) if matches!(id, 1001 | 1002 | 1004 | 1005) => true,
+
+			// Allow Kusama relay itself
+			(1, [GlobalConsensus(Kusama)]) => true,
+
+			// Allow Ethereum consensus
+			(1, [GlobalConsensus(Ethereum { .. })]) => true,
+
+			// Everything else disallowed
+			_ => false,
+		}
+	}
+}
+
 /// Rules for allowing the usage of `AliasOrigin`.
 pub type Aliasers = (
 	// Anyone can alias an interior location, same as `DescendOrigin`.
 	remove_when_updating_to_stable2412::AliasChildLocation,
 	// Asset Hub root can alias anything.
-	remove_when_updating_to_stable2412::AliasOriginRootUsingFilter<AssetHubLocation, Everything>,
+	remove_when_updating_to_stable2412::AliasOriginRootUsingFilter<AssetHubLocation, RestrictedAssetHubAliases>,
 );
 
 pub struct XcmConfig;
