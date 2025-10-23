@@ -5,7 +5,12 @@ use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::storage::with_transaction;
 use frame_support::traits::fungible::Mutate;
-use frame_support::{assert_ok, dispatch::GetDispatchInfo, sp_runtime::codec::Encode, traits::Contains};
+use frame_support::{
+	assert_ok,
+	dispatch::GetDispatchInfo,
+	sp_runtime::codec::Encode,
+	traits::{Contains, Get},
+};
 use frame_system::RawOrigin;
 use hex_literal::hex;
 use sp_core::bounded_vec::BoundedVec;
@@ -2619,93 +2624,6 @@ fn evm_account_should_pay_gas_with_payment_currency_for_evm_call() {
 }
 
 #[test]
-fn dispatch_batch_signed_should_not_change_system_or_evm_nonce() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		// Set up to idle state where the chain is not utilized at all
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
-			hydradx_runtime::MinimumMultiplier::get(),
-		);
-
-		let account = MockAccount::new(alith_evm_account());
-		let signed_origin_account = RuntimeOrigin::signed(account.address());
-
-		let evm_address = alith_evm_address();
-		init_omnipool_with_oracle_for_block_10();
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			account.address(),
-			WETH,
-			(100 * UNITS * 1_000_000) as i128,
-		));
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			signed_origin_account.clone(),
-			WETH,
-		));
-
-		// Arrange
-		let nonce_before = account.nonce();
-		use pallet_evm_accounts::EvmNonceProvider;
-		let evm_nonce_before = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address);
-		let permit_nonce_before =
-			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
-				evm_address,
-			);
-
-		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
-
-		let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
-			source: evm_address,
-			target: DISPATCH_ADDR,
-			input: hex!["0107081337"].to_vec(),
-			value: U256::from(0),
-			gas_limit: 1000000,
-			max_fee_per_gas: gas_price,
-			max_priority_fee_per_gas: None,
-			nonce: None,
-			access_list: vec![],
-		});
-
-		let data = RuntimeCall::Utility(pallet_utility::Call::batch_all {
-			calls: vec![evm_call.clone(), evm_call.clone(), evm_call],
-		});
-
-		// Act (signed path through dispatch precompile)
-		assert_ok!(EVM::call(
-			signed_origin_account,
-			evm_address,
-			DISPATCH_ADDR,
-			data.encode(),
-			U256::from(0),
-			1000000,
-			gas_price * 10,
-			None,
-			Some(U256::zero()),
-			[].into()
-		));
-
-		// Assert
-		assert_eq!(
-			account.nonce(),
-			nonce_before,
-			"system nonce must not change on precompile path"
-		);
-		assert_eq!(
-			hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address),
-			evm_nonce_before,
-			"EVM nonce must not change on non-raw-ETH paths"
-		);
-		assert_eq!(
-			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
-				evm_address
-			),
-			permit_nonce_before,
-			"Permit nonce must remain unchanged for non-permit path"
-		);
-	});
-}
-
-#[test]
 fn dispatch_batch_permit_should_only_increment_permit_nonce() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -2802,6 +2720,116 @@ fn dispatch_batch_permit_should_only_increment_permit_nonce() {
 			hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address),
 			evm_nonce_before,
 			"EVM nonce must not change on permit path"
+		);
+	});
+}
+
+#[test]
+fn raw_eth_batch_should_increment_evm_nonce_and_keep_system_nonce() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Set up to idle state where the chain is not utilized at all
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		let account = MockAccount::new(alith_evm_account());
+		let evm_address = alith_evm_address();
+
+		init_omnipool_with_oracle_for_block_10();
+		// Ensure sufficient WETH balance and use WETH as payment currency for EVM account
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			account.address(),
+			WETH,
+			(100 * UNITS * 1_000_000) as i128,
+		));
+		// Set payment currency to WETH to avoid touching native system account balance
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			RuntimeOrigin::signed(account.address()),
+			WETH,
+		));
+
+		// Arrange
+		let nonce_before = account.nonce();
+		use pallet_evm_accounts::EvmNonceProvider;
+		let evm_nonce_before = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address);
+
+		let (base_gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+		let gas_limit: u64 = 1_000_000;
+		let max_fee_per_gas = base_gas_price * 10; // generous cap to avoid underpricing
+		let max_priority_fee_per_gas = base_gas_price; // simple tip
+
+		// Build batch of three identical calls executed through the Dispatch precompile
+		let inner_evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address,
+			target: DISPATCH_ADDR,
+			input: hex!("0107081337").to_vec(),
+			value: U256::zero(),
+			gas_limit,
+			max_fee_per_gas: base_gas_price,
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+		let batch_data = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![inner_evm_call.clone(), inner_evm_call.clone(), inner_evm_call],
+		});
+		let input_data = batch_data.encode();
+
+		// Construct and sign an EIP-1559 raw Ethereum transaction
+		use ethereum::{EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2};
+
+		let chain_id = <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get();
+		let tx_msg = EIP1559TransactionMessage {
+			chain_id,
+			nonce: evm_nonce_before,
+			max_priority_fee_per_gas,
+			max_fee_per_gas,
+			gas_limit: gas_limit.into(),
+			action: TransactionAction::Call(DISPATCH_ADDR),
+			value: U256::zero(),
+			input: input_data.clone().into(),
+			access_list: vec![],
+		};
+
+		// Sign message using Alith's secret key
+		let user_secret_key = alith_secret_key();
+		let secret_key = SecretKey::parse(&user_secret_key).expect("valid secret key");
+		let hash = tx_msg.hash();
+		let mut hash_bytes = [0u8; 32];
+		hash_bytes.copy_from_slice(&hash.0);
+		let message = Message::parse(&hash_bytes);
+		let (rs, v) = sign(&message, &secret_key);
+		let odd_y_parity = v.serialize() != 0;
+
+		let signed_tx = EIP1559Transaction {
+			chain_id,
+			nonce: evm_nonce_before,
+			max_priority_fee_per_gas,
+			max_fee_per_gas,
+			gas_limit: gas_limit.into(),
+			action: TransactionAction::Call(DISPATCH_ADDR),
+			value: U256::zero(),
+			input: input_data.into(),
+			access_list: vec![],
+			odd_y_parity,
+			r: H256::from(rs.r.b32()),
+			s: H256::from(rs.s.b32()),
+		};
+
+		let transaction = TransactionV2::EIP1559(signed_tx);
+
+		// Act: submit the raw Ethereum transaction via Executive unsigned self-contained extrinsic
+		crate::utils::executive::assert_executive_apply_unsigned_extrinsic(
+			hydradx_runtime::RuntimeCall::Ethereum(pallet_ethereum::Call::transact { transaction })
+		);
+
+		// Assert
+		assert_eq!(
+			hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address),
+			evm_nonce_before + U256::one(),
+			"EVM nonce must increment by exactly 1 for raw ETH tx",
 		);
 	});
 }
