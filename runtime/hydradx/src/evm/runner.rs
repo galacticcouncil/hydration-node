@@ -165,7 +165,9 @@ where
 			config,
 		)?;
 
-		frame_system::Account::<T>::mutate(source_account_id, |a| a.nonce = original_nonce);
+		if validate && is_transactional && !(nonce.is_some() || max_priority_fee_per_gas.is_some()) {
+			frame_system::Account::<T>::mutate(source_account_id, |a| a.nonce = original_nonce);
+		}
 
 		// Store the exit reason for the last EVM call
 		pallet_dispatcher::Pallet::<T>::set_last_evm_call_exit_reason(&result.exit_reason);
