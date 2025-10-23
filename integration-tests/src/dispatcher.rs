@@ -1,5 +1,6 @@
 use crate::evm::{create_dispatch_handle, gas_price};
 use crate::polkadot_test_net::*;
+use crate::utils::accounts::MockAccount;
 use fp_evm::PrecompileSet;
 use frame_support::assert_ok;
 use frame_support::dispatch::{
@@ -10,6 +11,8 @@ use hydradx_runtime::evm::WethAssetId;
 use hydradx_runtime::*;
 use orml_traits::MultiCurrency;
 use pallet_evm::{ExitReason, ExitSucceed};
+use pallet_evm_accounts::EvmNonceProvider;
+use pallet_transaction_multi_payment::EVMPermit;
 use pallet_transaction_payment::ChargeTransactionPayment;
 use precompile_utils::prelude::PrecompileOutput;
 use primitives::EvmAddress;
@@ -20,8 +23,6 @@ use sp_runtime::traits::SignedExtension;
 use sp_runtime::DispatchErrorWithPostInfo;
 use test_utils::last_events;
 use xcm_emulator::TestExt;
-use pallet_transaction_multi_payment::EVMPermit;
-use crate::utils::accounts::MockAccount;
 
 fn testnet_manager_address() -> EvmAddress {
 	hex!["52341e77341788Ebda44C8BcB4C8BD1B1913B204"].into()
@@ -696,6 +697,13 @@ fn dispatch_evm_call_with_batch_should_not_increase_nonce_internally() {
 		// Record system nonce before dispatch
 		let nonce_before = account.nonce();
 
+		// EVM & permit nonces before
+		let evm_nonce_before = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address());
+		let permit_nonce_before =
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address(),
+			);
+
 		// Encode and execute via the Dispatch precompile entry point
 		let data = batch.encode();
 		let mut handle = create_dispatch_handle(data);
@@ -711,8 +719,20 @@ fn dispatch_evm_call_with_batch_should_not_increase_nonce_internally() {
 			})
 		);
 
-		// Assert that the account system nonce increased exactly once
+		// Assert that the account system nonce DID NOT change (batch runs inside one EVM tx)
 		assert_eq!(account.nonce(), nonce_before);
+		// EVM nonce should also be unchanged (runner restores it for non-raw-ETH paths)
+		assert_eq!(
+			hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address()),
+			evm_nonce_before
+		);
+		// Permit nonce should remain unchanged (no permit used)
+		assert_eq!(
+			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
+				evm_address()
+			),
+			permit_nonce_before
+		);
 	});
 }
 
@@ -789,6 +809,7 @@ fn dispatch_evm_call_batch_via_call_permit_should_increase_permit_nonce_once() {
 			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
 				user_evm_address,
 			);
+		let evm_nonce_before = hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address);
 		let user_acc_nonce_before = user_acc.nonce();
 
 		// Dispatch the permit (unsigned)
@@ -812,5 +833,10 @@ fn dispatch_evm_call_batch_via_call_permit_should_increase_permit_nonce_once() {
 			);
 		assert_eq!(permit_nonce_after, permit_nonce_before + U256::one());
 		assert_eq!(user_acc.nonce(), user_acc_nonce_before);
+		// EVM nonce should not change on the permit path (runner restores it)
+		assert_eq!(
+			hydradx_runtime::evm::EvmNonceProvider::get_nonce(user_evm_address),
+			evm_nonce_before
+		);
 	});
 }
