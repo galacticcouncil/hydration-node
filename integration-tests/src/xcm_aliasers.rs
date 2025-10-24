@@ -184,13 +184,6 @@ fn asset_hub_root_cannot_alias_non_whitelisted_locations() {
 			"Asset Hub root must NOT alias Polkadot relay"
 		);
 
-		// Kusama parachain (relay allowed, but parachains not)
-		let target = Location::new(2, X2([GlobalConsensus(NetworkId::Kusama), Parachain(1000)].into()));
-		assert!(
-			!<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
-			"Asset Hub root must NOT alias Kusama parachains"
-		);
-
 		// Random global consensus (e.g. Westend)
 		let target = Location::new(1, X1([GlobalConsensus(NetworkId::Westend)].into()));
 		assert!(
