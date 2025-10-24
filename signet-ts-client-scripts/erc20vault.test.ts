@@ -10,8 +10,8 @@ import { KeyDerivation } from './key-derivation'
 const ROOT_PUBLIC_KEY =
   '0x049d9031e97dd78ff8c15aa86939de9b1e791066a0224e331bc962a2099a7b1f0464b8bbafe1535f2301c72c2cb3535b172da30b02686ab0393d348614f157fbdb'
 const CHAIN_ID = 'polkadot:2034'
-const USDC_SEPOLIA = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
-const SEPOLIA_RPC = process.env.SEPOLIA_RPC || 'http://localhost:8545'
+const SEPOLIA_RPC = 'http://localhost:8545'
+const FAUCET_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3'
 
 function getPalletAccountId(): Uint8Array {
   const palletId = new TextEncoder().encode('py/fucet')
@@ -135,6 +135,12 @@ describe('ERC20 Vault Integration', () => {
 
     const feeAsset = (api.consts.sigEthFaucet.feeAsset as any).toNumber()
     const faucetAsset = (api.consts.sigEthFaucet.faucetAsset as any).toNumber()
+
+    console.log(
+      'api.consts.sigEthFaucet',
+      api.consts.sigEthFaucet.mpcRootSigner.toString(),
+      api.consts.sigEthFaucet.faucetAddress.toString()
+    )
 
     const keyring = new Keyring({ type: 'sr25519' })
     alice = keyring.addFromUri('//Alice')
@@ -297,7 +303,7 @@ describe('ERC20 Vault Integration', () => {
       maxPriorityFeePerGas: txParams.maxPriorityFeePerGas,
       maxFeePerGas: txParams.maxFeePerGas,
       gasLimit: txParams.gasLimit,
-      to: USDC_SEPOLIA,
+      to: FAUCET_ADDRESS,
       value: 0,
       data: data,
     })
