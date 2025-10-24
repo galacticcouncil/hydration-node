@@ -3,7 +3,7 @@ use cumulus_primitives_core::BlockT;
 use ethabi::ethereum_types::U256;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_self_contained::SelfContainedCall;
-use frame_support::{BoundedVec, dispatch::GetDispatchInfo, __private::sp_tracing::tracing};
+use frame_support::{dispatch::GetDispatchInfo, BoundedVec, __private::sp_tracing::tracing};
 use futures::StreamExt;
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -24,8 +24,7 @@ use sp_api::{ApiError, ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
 use sp_core::{RuntimeDebug, H160, H256};
 use sp_offchain::OffchainWorkerApi;
-use xcm_runtime_apis::dry_run::{CallDryRunEffects, DryRunApi};
-use sp_runtime::{Percent, traits::Header, transaction_validity::TransactionSource};
+use sp_runtime::{traits::Header, transaction_validity::TransactionSource, Percent};
 use std::{
 	cmp::Ordering,
 	collections::HashMap,
@@ -34,6 +33,7 @@ use std::{
 	sync::{mpsc, Arc},
 };
 use threadpool::ThreadPool;
+use xcm_runtime_apis::dry_run::{CallDryRunEffects, DryRunApi};
 
 const LOG_TARGET: &str = "liquidation-worker";
 
@@ -116,7 +116,10 @@ struct ApiProvider<C>(C);
 impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent> for ApiProvider<&C>
 where
 	Block: BlockT,
-	C: EthereumRuntimeRPCApi<Block> + Erc20MappingApi<Block> + DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> + CurrenciesApi<Block, AssetId, AccountId, Balance>,
+	C: EthereumRuntimeRPCApi<Block>
+		+ Erc20MappingApi<Block>
+		+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>
+		+ CurrenciesApi<Block, AssetId, AccountId, Balance>,
 {
 	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64> {
 		let block = self.0.current_block(hash).ok()??;
@@ -155,7 +158,7 @@ where
 		&self,
 		hash: Block::Hash,
 		origin: OriginCaller,
-		call: RuntimeCall
+		call: RuntimeCall,
 	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error>, ApiError> {
 		self.0.dry_run_call(hash, origin, call)
 	}
@@ -197,7 +200,10 @@ impl<B, C, BE, P> LiquidationTask<B, C, BE, P>
 where
 	B: BlockT,
 	C: ProvideRuntimeApi<B>,
-	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller> + CurrenciesApi<B, AssetId, AccountId, Balance>,
+	C::Api: EthereumRuntimeRPCApi<B>
+		+ Erc20MappingApi<B>
+		+ DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller>
+		+ CurrenciesApi<B, AssetId, AccountId, Balance>,
 	C: BlockchainEvents<B> + 'static,
 	C: HeaderBackend<B> + StorageProvider<B, BE>,
 	BE: Backend<B> + 'static,
@@ -541,7 +547,7 @@ where
 			borrower.health_factor = U256::zero();
 
 			if liquidated_users.len() >= max_liquidations {
-				return Ok(())
+				return Ok(());
 			}
 
 			// add user to the list of borrowers that are liquidated in this run.
@@ -797,10 +803,11 @@ where
 		}
 	}
 
-	fn calculate_max_number_of_liquidation_in_block(
-		config: LiquidationWorkerConfig,
-	) -> Option<usize> {
-		let max_block_weight = hydradx_runtime::BlockWeights::get().get(frame_support::dispatch::DispatchClass::Normal).max_total.unwrap_or_default();
+	fn calculate_max_number_of_liquidation_in_block(config: LiquidationWorkerConfig) -> Option<usize> {
+		let max_block_weight = hydradx_runtime::BlockWeights::get()
+			.get(frame_support::dispatch::DispatchClass::Normal)
+			.max_total
+			.unwrap_or_default();
 
 		let liquidation_weight = pallet_liquidation::Call::<hydradx_runtime::Runtime>::liquidate {
 			collateral_asset: Default::default(),
@@ -814,7 +821,9 @@ where
 		let allowed_weight = 100u8.saturating_sub(config.weight_reserve);
 		let max_block_weight = Percent::from_percent(allowed_weight) * max_block_weight;
 
-		max_block_weight.checked_div_per_component(&liquidation_weight).map(|limit| limit as usize)
+		max_block_weight
+			.checked_div_per_component(&liquidation_weight)
+			.map(|limit| limit as usize)
 	}
 
 	fn get_events(

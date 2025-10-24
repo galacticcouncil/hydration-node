@@ -22,17 +22,17 @@ use hydradx_runtime::{
 };
 use hydradx_traits::{
 	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
-	router::{AssetPair, RouteProvider, PoolType, Trade},
+	router::{AssetPair, PoolType, RouteProvider, Trade},
 };
 use liquidation_worker_support::*;
 use orml_traits::currency::MultiCurrency;
+use pallet_currencies_rpc_runtime_api::runtime_decl_for_currencies_api::CurrenciesApi;
 use sp_api::ApiError;
 use sp_core::{H256, U256};
 use sp_runtime::traits::CheckedConversion;
 use xcm_runtime_apis::dry_run::{
 	runtime_decl_for_dry_run_api::DryRunApi, CallDryRunEffects, Error as XcmDryRunApiError,
 };
-use pallet_currencies_rpc_runtime_api::runtime_decl_for_currencies_api::CurrenciesApi;
 
 // ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
 pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/LIQUIDATION_SNAPSHOT";
@@ -1130,11 +1130,7 @@ where
 	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, ApiError> {
 		unimplemented!()
 	}
-	fn minimum_balance(
-		&self,
-		_hash: Block::Hash,
-		asset_id: AssetId,
-	) -> Result<Balance, ApiError> {
+	fn minimum_balance(&self, _hash: Block::Hash, asset_id: AssetId) -> Result<Balance, ApiError> {
 		Ok(C::minimum_balance(asset_id))
 	}
 }

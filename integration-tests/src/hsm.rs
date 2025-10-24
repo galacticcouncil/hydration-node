@@ -11,10 +11,10 @@ use hydradx_runtime::{
 		precompiles::{handle::EvmDataWriter, Bytes},
 		Executor,
 	},
-	AccountId, BorrowingTreasuryAccount, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens,
-	TreasuryAccount, HSM, Stableswap, RuntimeOrigin, RuntimeEvent, RuntimeCall, OriginCaller,
+	AccountId, BorrowingTreasuryAccount, Currencies, EVMAccounts, FixedU128, Liquidation, OriginCaller, Router,
+	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Stableswap, Tokens, TreasuryAccount, HSM,
 };
-use hydradx_traits::evm::{EVM, InspectEvmAccounts, EvmAddress, CallContext};
+use hydradx_traits::evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::OraclePeriod;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
