@@ -1,6 +1,7 @@
 pub mod cumulus_pallet_parachain_system;
 pub mod cumulus_pallet_xcmp_queue;
 pub mod frame_system;
+pub mod ismp_parachain;
 pub mod orml_tokens;
 pub mod orml_vesting;
 pub mod pallet_asset_registry;
@@ -41,6 +42,8 @@ pub mod pallet_stableswap;
 pub mod pallet_staking;
 pub mod pallet_state_trie_migration;
 pub mod pallet_timestamp;
+pub mod pallet_token_gateway;
+pub mod pallet_token_gateway_ismp;
 pub mod pallet_transaction_multi_payment;
 pub mod pallet_transaction_pause;
 pub mod pallet_treasury;

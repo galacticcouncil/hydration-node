@@ -187,13 +187,13 @@ impl pallet_evm::Config for Runtime {
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			Runtime,
 			ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
-			FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<Runtime>>, // Get account's fee payment asset
-			FungibleCurrencies<Runtime>,                                     // Account balance inspector
+			FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
+			FungibleCurrencies<Runtime>,  // Account balance inspector
 		>,
 	>;
 	type OnChargeTransaction = evm_fee::TransferEvmFees<
 		evm_fee::DepositEvmFeeToTreasury,
-		FeeCurrencyOverrideOrDefault<WethAssetId, EvmAccounts<Runtime>>, // Get account's fee payment asset
+		FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
 		WethAssetId,
 		ConvertBalance<ShortOraclePrice, XykPaymentAssetSupport, DotAssetId>,
 		FungibleCurrencies<Runtime>, // Multi currency support

@@ -17,8 +17,8 @@ use hydradx_runtime::{
 		precompiles::{erc20_mapping::HydraErc20Mapping, handle::EvmDataWriter},
 		Executor,
 	},
-	AssetId, Balance, Block, BlockT, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall,
-	RuntimeEvent, RuntimeOrigin, Treasury,
+	AssetId, Balance, Block, BlockT, BorrowingTreasuryAccount, Currencies, EVMAccounts, Liquidation, OriginCaller,
+	Router, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 };
 use hydradx_traits::{
 	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
@@ -197,7 +197,7 @@ fn liquidation_should_work() {
 		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
 		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
 
-		let treasury_dot_initial_balance = Currencies::free_balance(DOT, &Treasury::account_id());
+		let treasury_dot_initial_balance = Currencies::free_balance(DOT, &BorrowingTreasuryAccount::get());
 
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
 		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
@@ -291,7 +291,7 @@ fn liquidation_should_work() {
 		assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
 		assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
 
-		assert!(Currencies::free_balance(DOT, &Treasury::account_id()) > treasury_dot_initial_balance);
+		assert!(Currencies::free_balance(DOT, &BorrowingTreasuryAccount::get()) > treasury_dot_initial_balance);
 
 		assert_eq!(Currencies::free_balance(DOT, &BOB.into()), 0);
 		assert_eq!(Currencies::free_balance(WETH, &BOB.into()), 0);

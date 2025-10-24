@@ -29,9 +29,11 @@ pub use fc_rpc::{EthBlockDataCacheTask, StorageOverride, StorageOverrideHandler}
 pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi};
 use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
+use pallet_ismp_rpc::{IsmpApiServer, IsmpRpcHandler};
 use sc_client_api::{
 	backend::{Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
+	BlockBackend, ProofProvider,
 };
 use sc_network::service::traits::NetworkService;
 use sc_network_sync::SyncingService;
@@ -107,11 +109,12 @@ pub type RpcExtension = jsonrpsee::RpcModule<()>;
 /// Instantiate all full RPC extensions.
 pub fn create_full<C, P, B>(deps: FullDeps<C, P, B>) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
-	C: ProvideRuntimeApi<Block>,
+	C: ProvideRuntimeApi<Block> + BlockBackend<Block> + ProofProvider<Block>,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError>,
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
+	C::Api: pallet_ismp_runtime_api::IsmpRuntimeApi<Block, sp_core::H256>,
 	C::Api: BlockBuilderApi<Block>,
 	P: TransactionPool + Sync + Send + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -126,7 +129,9 @@ where
 
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-	module.merge(StateMigration::new(client, backend).into_rpc())?;
+	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
+
+	module.merge(IsmpRpcHandler::new(client, backend)?.into_rpc())?;
 
 	Ok(module)
 }

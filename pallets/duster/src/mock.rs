@@ -211,6 +211,7 @@ impl pallet_currencies::Config for Test {
 	type BoundErc20 = MockBoundErc20<Test>;
 	type ReserveAccount = ();
 	type GetNativeCurrencyId = NativeCurrencyId;
+	type RegistryInspect = MockBoundErc20<Test>;
 	type WeightInfo = ();
 }
 

@@ -36,18 +36,13 @@ mod assets;
 pub mod evm;
 pub mod governance;
 mod helpers;
+mod hyperbridge;
 mod system;
 pub mod types;
 pub mod xcm;
 
-pub use assets::{
-	bifrost_account, AssetKind, AssetPairAccountIdFor, BondsPalletId, DotAssetId, DustRemovalWhitelist, FeePriceOracle,
-	Inspect, InsufficientEDinHDX, Liquidity, MaxSchedulesPerBlock, MinTradingLimit, NamedReserveId,
-	NativeExistentialDeposit, NativePriceOracle, OmnipoolCollectionId, OmnipoolLMCollectionId,
-	OmnipoolLiquidityMiningInstance, OmnipoolLmOracle, OraclePeriod, PoolType, ReferralsPalletId, RegistryStrLimit,
-	RouterWeightInfo, Source, Trade, VestingPalletId, XYKLiquidityMiningInstance, XYKLmCollectionId,
-	XykPaymentAssetSupport, DOT_ASSET_LOCATION, LRNA, SUFFICIENCY_LOCK,
-};
+// clippy no touch
+pub use assets::*;
 pub use cumulus_primitives_core::{GeneralIndex, Here, Junctions::X1, NetworkId, NonFungible, Response};
 pub use frame_support::{assert_ok, parameter_types, storage::with_transaction, traits::TrackedStorageKey};
 pub use frame_system::RawOrigin;
@@ -127,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 350,
+	spec_version: 352,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -254,6 +249,12 @@ construct_runtime!(
 		Aura: pallet_aura = 167,
 		AuraExt: cumulus_pallet_aura_ext = 169,
 
+		// Hyperbridge
+		Ismp: pallet_ismp = 180,
+		IsmpParachain: ismp_parachain = 181,
+		Hyperbridge: pallet_hyperbridge = 182,
+		TokenGateway: pallet_token_gateway = 183,
+
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		EmaOracle: pallet_ema_oracle = 202,
 		Broadcast: pallet_broadcast = 204,
@@ -352,6 +353,8 @@ mod benches {
 		[pallet_dispatcher, Dispatcher]
 		[pallet_hsm, HSM]
 		[pallet_dynamic_fees, DynamicFees]
+		[ismp_parachain, IsmpParachain]
+		[pallet_token_gateway, TokenGateway]
 	);
 }
 
@@ -460,6 +463,7 @@ impl fp_rpc::ConvertTransaction<sp_runtime::OpaqueExtrinsic> for TransactionConv
 use crate::evm::aave_trade_executor::AaveTradeExecutor;
 use crate::evm::aave_trade_executor::PoolData;
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use cumulus_pallet_parachain_system::RelayChainState;
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	sp_runtime::{
@@ -469,6 +473,10 @@ use frame_support::{
 	weights::WeightToFee as _,
 };
 use hydradx_traits::evm::Erc20Mapping;
+use ismp::{
+	consensus::{ConsensusClientId, StateMachineHeight, StateMachineId},
+	host::StateMachine,
+};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
 pub use polkadot_xcm::latest::Junction;
@@ -1133,6 +1141,62 @@ impl_runtime_apis! {
 		}
 	}
 
+	// Hyperbridge
+	impl pallet_ismp_runtime_api::IsmpRuntimeApi<Block, <Block as BlockT>::Hash> for Runtime {
+		fn host_state_machine() -> StateMachine {
+			<Runtime as pallet_ismp::Config>::HostStateMachine::get()
+		}
+
+		fn challenge_period(state_machine_id: StateMachineId) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::challenge_period(state_machine_id)
+		}
+
+		/// Fetch all ISMP events in the block, should only be called from runtime-api.
+		fn block_events() -> Vec<::ismp::events::Event> {
+			pallet_ismp::Pallet::<Runtime>::block_events()
+		}
+
+		/// Fetch all ISMP events and their extrinsic metadata, should only be called from runtime-api.
+		fn block_events_with_metadata() -> Vec<(::ismp::events::Event, Option<u32>)> {
+			pallet_ismp::Pallet::<Runtime>::block_events_with_metadata()
+		}
+
+		/// Return the scale encoded consensus state
+		fn consensus_state(id: ConsensusClientId) -> Option<Vec<u8>> {
+			pallet_ismp::Pallet::<Runtime>::consensus_states(id)
+		}
+
+		/// Return the timestamp this client was last updated in seconds
+		fn state_machine_update_time(height: StateMachineHeight) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::state_machine_update_time(height)
+		}
+
+		/// Return the latest height of the state machine
+		fn latest_state_machine_height(id: StateMachineId) -> Option<u64> {
+			pallet_ismp::Pallet::<Runtime>::latest_state_machine_height(id)
+		}
+
+		/// Get actual requests
+		fn requests(commitments: Vec<H256>) -> Vec<ismp::router::Request> {
+			pallet_ismp::Pallet::<Runtime>::requests(commitments)
+		}
+
+		/// Get actual requests
+		fn responses(commitments: Vec<H256>) -> Vec<ismp::router::Response> {
+			pallet_ismp::Pallet::<Runtime>::responses(commitments)
+		}
+	}
+
+	impl ismp_parachain_runtime_api::IsmpParachainApi<Block> for Runtime {
+		fn para_ids() -> Vec<u32> {
+			IsmpParachain::para_ids()
+		}
+
+		fn current_relay_chain_state() -> RelayChainState {
+			IsmpParachain::current_relay_chain_state()
+		}
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 
@@ -1170,6 +1234,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 			orml_list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 			orml_list_benchmark!(list, extra, pallet_ema_oracle, benchmarking::ema_oracle);
+			orml_list_benchmark!(list, extra, pallet_token_gateway_ismp, benchmarking::token_gateway_ismp);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1456,6 +1521,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_xyk_liquidity_mining, benchmarking::xyk_liquidity_mining);
 			orml_add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, benchmarking::omnipool_liquidity_mining);
 			orml_add_benchmark!(params, batches, pallet_ema_oracle, benchmarking::ema_oracle);
+			orml_add_benchmark!(params, batches, pallet_token_gateway_ismp, benchmarking::token_gateway_ismp);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
