@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use crate::utils::executive::assert_executive_apply_signed_extrinsic;
 use crate::{assert_balance, polkadot_test_net::*};
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
@@ -34,11 +35,12 @@ use hydradx_traits::Create;
 use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_evm::*;
+use pallet_evm_accounts::EvmNonceProvider;
 use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::{AssetId, Balance};
-use sp_core::{blake2_256, H160, H256, U256};
-use sp_runtime::traits::Dispatchable;
+use sp_core::{blake2_256, Pair, H160, H256, U256};
+use sp_runtime::traits::{Dispatchable, IdentifyAccount};
 use sp_runtime::TransactionOutcome;
 use sp_runtime::{traits::SignedExtension, DispatchError, FixedU128, Permill};
 use std::{borrow::Cow, cmp::Ordering};
@@ -51,6 +53,8 @@ mod account_conversion {
 	use fp_evm::ExitSucceed;
 	use frame_support::{assert_noop, assert_ok};
 	use pretty_assertions::assert_eq;
+	use sp_core::Pair;
+	use sp_runtime::traits::IdentifyAccount;
 
 	#[test]
 	fn eth_address_should_convert_to_truncated_address_when_not_bound() {
@@ -105,7 +109,6 @@ mod account_conversion {
 
 	#[test]
 	fn bind_address_should_fail_when_nonce_is_not_zero() {
-		use pallet_evm_accounts::EvmNonceProvider;
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -2624,7 +2627,7 @@ fn evm_account_should_pay_gas_with_payment_currency_for_evm_call() {
 }
 
 #[test]
-fn dispatch_batch_permit_should_only_increment_permit_nonce() {
+fn permit_with_batch_should_only_increment_permit_nonce() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Set up to idle state where the chain is not utilized at all
@@ -2639,12 +2642,11 @@ fn dispatch_batch_permit_should_only_increment_permit_nonce() {
 			hydradx_runtime::RuntimeOrigin::root(),
 			account.address(),
 			WETH,
-			(100 * UNITS * 1_000_000) as i128,
+			to_ether(1) as i128,
 		));
 
 		// Arrange
 		let nonce_before = account.nonce();
-		use pallet_evm_accounts::EvmNonceProvider;
 		let evm_nonce_before = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address);
 		let permit_nonce_before =
 			<hydradx_runtime::Runtime as pallet_transaction_multi_payment::Config>::EvmPermit::permit_nonce(
@@ -2726,6 +2728,8 @@ fn dispatch_batch_permit_should_only_increment_permit_nonce() {
 
 #[test]
 fn raw_eth_batch_should_increment_nonce_once() {
+	use ethereum::{EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2};
+
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// Set up to idle state where the chain is not utilized at all
@@ -2742,17 +2746,10 @@ fn raw_eth_batch_should_increment_nonce_once() {
 			hydradx_runtime::RuntimeOrigin::root(),
 			account.address(),
 			WETH,
-			(100 * UNITS * 1_000_000) as i128,
-		));
-		// Set payment currency to WETH to avoid touching native system account balance
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			RuntimeOrigin::signed(account.address()),
-			WETH,
+			to_ether(1) as i128,
 		));
 
 		// Arrange
-		let nonce_before = account.nonce();
-		use pallet_evm_accounts::EvmNonceProvider;
 		let evm_nonce_before = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address);
 
 		let (base_gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
@@ -2778,8 +2775,6 @@ fn raw_eth_batch_should_increment_nonce_once() {
 		let input_data = batch_data.encode();
 
 		// Construct and sign an EIP-1559 raw Ethereum transaction
-		use ethereum::{EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2};
-
 		let chain_id = <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get();
 		let tx_msg = EIP1559TransactionMessage {
 			chain_id,
@@ -2830,6 +2825,73 @@ fn raw_eth_batch_should_increment_nonce_once() {
 			hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address),
 			evm_nonce_before + U256::one(),
 			"EVM nonce must increment by exactly 1 for raw ETH tx",
+		);
+	});
+}
+
+#[test]
+fn substrate_signed_evm_with_batch_should_increment_nonce_once() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		// Arrange
+		let (pair, _) = sp_core::sr25519::Pair::generate();
+		let account = MockAccount::new(sp_runtime::MultiSigner::from(pair.public()).into_account());
+
+		Balances::set_balance(&account.address(), 1_000 * UNITS);
+
+		// Bind an EVM address to this Substrate account simple call dispatch
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(account.address())));
+
+		// Prepare a simple nested Substrate call (frame_system::remark) via DISPATCH precompile
+		let evm_address = EVMAccounts::evm_address(&account.address());
+
+		let nonce_before = account.nonce();
+		let evm_nonce_before = hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address);
+
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+		let inner_evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address,
+			target: DISPATCH_ADDR,
+			input: hex!("0107081337").to_vec(),
+			value: U256::zero(),
+			gas_limit: 1_000_000,
+			max_fee_per_gas: gas_price,
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+		let batch_data = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![inner_evm_call.clone(), inner_evm_call.clone(), inner_evm_call],
+		});
+
+		let evm_call = RuntimeCall::EVM(pallet_evm::Call::call {
+			source: evm_address,
+			target: DISPATCH_ADDR,
+			input: batch_data.encode(),
+			value: U256::zero(),
+			gas_limit: 1_000_000,
+			max_fee_per_gas: gas_price,
+			max_priority_fee_per_gas: None,
+			nonce: None,
+			access_list: vec![],
+		});
+
+		// Dispatch the EVM call as a signed extrinsic from the bound Substrate account
+		assert_executive_apply_signed_extrinsic(evm_call, pair);
+
+		// Assert the system nonce increased exactly once for this EVM call
+		assert_eq!(account.nonce(), nonce_before + 1);
+
+		// With the current implementation it should be the same as `account.nonce()`
+		assert_eq!(
+			hydradx_runtime::evm::EvmNonceProvider::get_nonce(evm_address),
+			evm_nonce_before + 1,
 		);
 	});
 }
