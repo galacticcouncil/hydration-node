@@ -19,7 +19,6 @@
 #![allow(clippy::type_complexity)]
 
 use crate as pallet_hsm;
-use crate::types::CallResult;
 use crate::Config;
 use crate::ERC20Function;
 use core::ops::RangeInclusive;
@@ -35,6 +34,7 @@ use frame_support::traits::{ConstU128, ConstU32, ConstU64, Everything};
 use frame_support::{construct_runtime, parameter_types};
 use frame_system::EnsureRoot;
 use hydra_dx_math::hsm::CoefficientRatio;
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
 	evm::{CallContext, EvmAddress, InspectEvmAccounts, EVM},
@@ -47,7 +47,7 @@ use orml_traits::MultiCurrencyExtended;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::{BoundedPegSources, PegSource};
 use sp_core::{ByteArray, H256};
-use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup};
+use sp_runtime::traits::{BlakeTwo256, BlockNumberProvider, Convert, IdentityLookup};
 use sp_runtime::{BoundedVec, Perbill};
 use sp_runtime::{BuildStorage, DispatchError, Permill};
 use sp_std::num::NonZeroU16;
@@ -319,7 +319,11 @@ impl EVM<CallResult> for MockEvm {
 		// Check if the call has a pre-defined result in our mock
 		let maybe_predefined = EVM_CALL_RESULTS.with(|v| v.borrow().get(&data).cloned());
 		if let Some(result) = maybe_predefined {
-			return (ExitReason::Succeed(ExitSucceed::Stopped), result);
+			return CallResult {
+				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+				value: vec![],
+				contract: context.contract,
+			};
 		}
 
 		// Handle the EVM functions
@@ -348,7 +352,11 @@ impl EVM<CallResult> for MockEvm {
 								// Increase the balance of the recipient
 								let _ = Tokens::update_balance(hollar_id, &recipient, amount as i128);
 
-								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+								return CallResult {
+									exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+									value: vec![],
+									contract: context.contract,
+								};
 							}
 						}
 					}
@@ -368,7 +376,11 @@ impl EVM<CallResult> for MockEvm {
 								// Decrease the balance of the caller
 								let _ = Tokens::update_balance(hollar_id, &account_id, -(amount as i128));
 
-								return (ExitReason::Succeed(ExitSucceed::Stopped), vec![]);
+								return CallResult {
+									exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
+									value: vec![],
+									contract: context.contract,
+								};
 							}
 						}
 					}
@@ -404,7 +416,11 @@ impl EVM<CallResult> for MockEvm {
 							.unwrap();
 
 							crate::Pallet::<Test>::burn_hollar(amount.as_u128()).unwrap();
-							return (ExitReason::Succeed(ExitSucceed::Returned), vec![]);
+							return CallResult {
+								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+								value: vec![],
+								contract: context.contract,
+							};
 						} else {
 							panic!("incorrect data len");
 						}
@@ -414,7 +430,11 @@ impl EVM<CallResult> for MockEvm {
 						let mut buf1 = [0u8; 32];
 						max_flash_loan_amount.to_big_endian(&mut buf1);
 						let bytes = Vec::from(buf1);
-						return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+						return CallResult {
+							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+							value: bytes,
+							contract: context.contract,
+						};
 					}
 					ERC20Function::GetFacilitatorBucket => {
 						let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
@@ -426,13 +446,21 @@ impl EVM<CallResult> for MockEvm {
 						let mut bytes = vec![];
 						bytes.extend_from_slice(&buf1);
 						bytes.extend_from_slice(&buf2);
-						return (ExitReason::Succeed(ExitSucceed::Returned), bytes);
+						return CallResult {
+							exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+							value: bytes,
+							contract: context.contract,
+						};
 					}
 				}
 			}
 		}
-		// Default failure for unrecognized calls
-		(ExitReason::Error(ExitError::DesignatedInvalid), vec![])
+
+		CallResult {
+			exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -557,6 +585,15 @@ impl Config for Test {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
 	type ArbitrageProfitReceiver = HsmArbProfitReceiver;
+	type EvmErrorDecoder = EvmErrorDecoderStruct;
+}
+
+pub struct EvmErrorDecoderStruct;
+
+impl Convert<CallResult, DispatchError> for EvmErrorDecoderStruct {
+	fn convert(_call_result: CallResult) -> DispatchError {
+		unimplemented!("We rather test such in integration tests")
+	}
 }
 
 pub struct Whitelist;

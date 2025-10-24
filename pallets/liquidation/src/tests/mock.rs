@@ -2,7 +2,7 @@ use crate as pallet_liquidation;
 use crate::*;
 use ethabi::ethereum_types::H160;
 use evm::{ExitError, ExitSucceed};
-use frame_support::sp_runtime::traits::CheckedConversion;
+use frame_support::sp_runtime::traits::{CheckedConversion, Convert};
 use frame_support::{
 	assert_ok, parameter_types,
 	sp_runtime::{
@@ -105,7 +105,11 @@ impl EVM<CallResult> for EvmMock {
 				let debt_asset = HydraErc20Mapping::decode_evm_address(data.1);
 
 				if collateral_asset.is_none() || debt_asset.is_none() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+					};
 				};
 
 				let collateral_asset = collateral_asset.unwrap();
@@ -129,13 +133,27 @@ impl EVM<CallResult> for EvmMock {
 				);
 
 				if first_transfer_result.is_err() || second_transfer_result.is_err() {
-					return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]);
+					return CallResult {
+						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+						value: vec![],
+						contract: context.contract,
+					};
 				}
 			}
-			None => return (ExitReason::Error(ExitError::DesignatedInvalid), vec![]),
+			None => {
+				return CallResult {
+					exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
+					value: vec![],
+					contract: context.contract,
+				}
+			}
 		}
 
-		(ExitReason::Succeed(ExitSucceed::Returned), vec![])
+		CallResult {
+			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
+			value: vec![],
+			contract: context.contract,
+		}
 	}
 
 	fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> CallResult {
@@ -210,7 +228,16 @@ impl Config for Test {
 	type WeightInfo = ();
 	type HollarId = HollarId;
 	type FlashMinter = ();
+	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
+}
+
+pub struct EvmErrorDecodeMock;
+
+impl Convert<CallResult, DispatchError> for EvmErrorDecodeMock {
+	fn convert(call_result: CallResult) -> DispatchError {
+		DispatchError::Other("Call failed")
+	}
 }
 
 parameter_types! {

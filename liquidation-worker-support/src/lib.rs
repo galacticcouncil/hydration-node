@@ -26,7 +26,6 @@ use std::marker::PhantomData;
 
 pub type Balance = u128;
 pub type AssetId = u32;
-pub type CallResult = (ExitReason, Vec<u8>);
 
 use ethabi::ethereum_types::U512;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};

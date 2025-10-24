@@ -13,6 +13,7 @@ readme = "README.md"
 # parity
 codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 scale-info = { workspace = true }
+hex = {workspace = true}
 
 # primitives
 sp-runtime = { workspace = true }

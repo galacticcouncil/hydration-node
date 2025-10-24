@@ -7,7 +7,7 @@ use fp_evm::Vicinity;
 use frame_support::storage::with_transaction;
 use frame_support::traits::Get;
 use frame_system;
-use hydradx_traits::evm::{CallContext, EVM};
+use hydradx_traits::evm::{CallContext, CallResult, EVM};
 use pallet_evm::runner::stack::SubstrateStackState;
 use pallet_evm::{
 	self, runner::Runner as EvmRunnerT, AccountProvider as EvmAccountProviderT, AddressMapping as EvmAddressMappingT,
@@ -17,8 +17,6 @@ use sp_core::{H160, U256};
 use sp_runtime::{DispatchError, TransactionOutcome};
 use sp_std::vec;
 use sp_std::vec::Vec;
-
-pub type CallResult = (ExitReason, Vec<u8>);
 
 pub type BalanceOf<T> =
 	<<T as pallet_evm::Config>::Currency as frame_support::traits::Currency<pallet_evm::AccountIdOf<T>>>::Balance;
@@ -38,7 +36,7 @@ where
 	where
 		F: for<'precompiles> FnOnce(
 			&mut StackExecutor<'config, 'precompiles, SubstrateStackState<'_, 'config, T>, T::PrecompilesType>,
-		) -> (ExitReason, Vec<u8>),
+		) -> CallResult,
 	{
 		let gas_price = U256::one();
 		let vicinity = Vicinity { gas_price, origin };
@@ -107,17 +105,29 @@ where
 						Err(_) => {
 							log::error!(target: "evm::executor", "Gas value too large to fit into u64");
 							let exit_reason = ExitReason::Error(ExitError::OutOfGas);
-							return (exit_reason, Vec::new());
+							return CallResult {
+								exit_reason,
+								value: Vec::new(),
+								contract: context.contract,
+							};
 						}
 					}
 				}
-				(info.exit_reason, info.value)
+				CallResult {
+					exit_reason: info.exit_reason,
+					value: info.value,
+					contract: context.contract,
+				}
 			}
 			Err(runner_error) => {
 				log::error!(target: "evm_executor", "EVM call failed: {:?}", runner_error.error.into());
 				// Map RunnerError to a generic EVM execution failure
 				let exit_reason = ExitReason::Error(ExitError::Other(sp_std::borrow::Cow::Borrowed("EVM Call failed")));
-				(exit_reason, Vec::new())
+				CallResult {
+					exit_reason: exit_reason,
+					value: Vec::new(),
+					contract: context.contract,
+				}
 			}
 		}
 	}
@@ -137,11 +147,19 @@ where
 					extra_gas_used = executor.used_gas().saturating_sub(gas);
 					log::trace!(target: "evm::executor", "View used extra gas -{:?}", extra_gas_used);
 				}
-				result
+				CallResult {
+					exit_reason: result.0,
+					value: result.1,
+					contract: context.contract,
+				}
 			});
 			TransactionOutcome::Rollback(Ok::<CallResult, DispatchError>(result))
 		})
-		.unwrap_or((ExitReason::Fatal(Other("TransactionalError".into())), Vec::new()));
+		.unwrap_or(CallResult {
+			exit_reason: ExitReason::Fatal(Other("TransactionalError".into())),
+			value: Vec::new(),
+			contract: context.contract,
+		});
 
 		if extra_gas_used > 0 {
 			log::trace!(target: "evm::executor", "Used extra gas -{:?}", extra_gas_used);

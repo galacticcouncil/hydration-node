@@ -20,6 +20,7 @@ primitives = { workspace = true }
 # Substrate dependencies
 frame-support = { workspace = true }
 sp-std = { workspace = true }
+pallet-evm = { workspace = true }
 
 [features]
 default = ["std"]

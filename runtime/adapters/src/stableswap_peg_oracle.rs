@@ -15,10 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{vec, Vec};
+use crate::vec;
 use ethabi::{decode, ParamType};
 use evm::{ExitReason, ExitSucceed};
 use frame_support::traits::UnixTime;
+use hydradx_traits::evm::CallResult;
 use hydradx_traits::{
 	evm::{CallContext, EVM},
 	RawEntry,
@@ -44,8 +45,6 @@ const MM_ORACLE_DENOM: u128 = 100_000_000;
 pub enum AggregatorV3Interface {
 	LatestRound = "latestRoundData()",
 }
-
-pub type CallResult = (ExitReason, Vec<u8>);
 
 pub struct PegOracle<Runtime, Evm, RawOracle>(PhantomData<(Runtime, Evm, RawOracle)>);
 
@@ -82,10 +81,10 @@ where
 				let data = Into::<u32>::into(AggregatorV3Interface::LatestRound)
 					.to_be_bytes()
 					.to_vec();
-				let (r, value) = Evm::view(ctx, data, VIEW_GAS_LIMIT);
-				if r != ExitReason::Succeed(ExitSucceed::Returned) {
+				let call_result = Evm::view(ctx, data, VIEW_GAS_LIMIT);
+				if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 					log::error!(target: "stableswap-peg-oracle",
-						"Failed to get peg oracle value. Contract: {:?}, Reason: {:?}, Response: {:?}", addr, r, value);
+						"Failed to get peg oracle value. Contract: {:?}, Reason: {:?}, Response: {:?}", addr, call_result.exit_reason, call_result.value);
 
 					return Err(DispatchError::Other("PetOracle not available"));
 				}
@@ -98,9 +97,9 @@ where
 					ParamType::Uint(80),  //answeredInRound
 				];
 
-				let decoded = decode(&param_types, value.as_ref()).map_err(|e| {
+				let decoded = decode(&param_types, call_result.value.as_ref()).map_err(|e| {
 					log::error!(target: "stableswap-peg-oracle",
-						"Failed to decode returned value. Contract: {:?}, Value: {:?}, Err: {:?}", addr, value, e);
+						"Failed to decode returned value. Contract: {:?}, Value: {:?}, Err: {:?}", addr, call_result.value, e);
 					DispatchError::Other("PegOracle not available")
 				})?;
 

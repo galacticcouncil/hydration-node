@@ -53,6 +53,7 @@ use sp_core::{crypto::AccountId32, Get, U256};
 pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
+pub mod evm_error_decoder;
 mod evm_fee;
 mod executor;
 mod gas_to_weight_mapping;

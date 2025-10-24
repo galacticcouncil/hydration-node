@@ -28,6 +28,7 @@
 use crate as dispatcher;
 use crate::Config;
 use frame_support::pallet_prelude::Weight;
+use frame_support::traits::Get;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, Nothing},
@@ -35,7 +36,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
-use hydradx_traits::evm::MaybeEvmCall;
+use hydradx_traits::evm::{EvmAddress, MaybeEvmCall};
 use hydradx_traits::{registry::Inspect, AssetKind};
 use orml_tokens::AccountData;
 use orml_traits::parameter_type_with_key;
@@ -122,6 +123,15 @@ impl dispatcher::Config for Test {
 	type WeightInfo = ();
 	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;
+	type BorrowingContract = BorrowingContractMock;
+}
+
+pub struct BorrowingContractMock;
+
+impl Get<EvmAddress> for BorrowingContractMock {
+	fn get() -> EvmAddress {
+		todo!()
+	}
 }
 
 parameter_types! {
