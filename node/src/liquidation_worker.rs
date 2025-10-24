@@ -3,7 +3,7 @@ use cumulus_primitives_core::BlockT;
 use ethabi::ethereum_types::U256;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_self_contained::SelfContainedCall;
-use frame_support::{BoundedVec, __private::sp_tracing::tracing};
+use frame_support::{BoundedVec, dispatch::GetDispatchInfo, __private::sp_tracing::tracing};
 use futures::StreamExt;
 use hex_literal::hex;
 use hydradx_runtime::{
@@ -20,11 +20,12 @@ use primitives::{AccountId, AssetId, Balance};
 use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
-use sp_api::{ApiExt, ProvideRuntimeApi};
+use sp_api::{ApiError, ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
 use sp_core::{RuntimeDebug, H160, H256};
 use sp_offchain::OffchainWorkerApi;
-use sp_runtime::{traits::Header, transaction_validity::TransactionSource};
+use xcm_runtime_apis::dry_run::{CallDryRunEffects, DryRunApi};
+use sp_runtime::{Percent, traits::Header, transaction_validity::TransactionSource};
 use std::{
 	cmp::Ordering,
 	collections::HashMap,
@@ -67,6 +68,9 @@ const ORACLE_UPDATE_CALL_ADDRESS: &[EvmAddress] = &[
 // Target value of HF we try to liquidate to.
 const TARGET_HF: u128 = 1_001_000_000_000_000_000u128; // 1.001
 
+// Percentage of the block weight reserved for other transactions.
+const WEIGHT_RESERVE: u8 = 10u8;
+
 const OMNIWATCH_URL: &str = "https://omniwatch.play.hydration.cloud/api/borrowers/by-health";
 
 type HttpClient = Arc<Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>, Body>>;
@@ -102,13 +106,17 @@ pub struct LiquidationWorkerConfig {
 	/// URL to fetch initial borrowers data from.
 	#[clap(long, default_value = OMNIWATCH_URL)]
 	pub omniwatch_url: String,
+
+	/// Percentage of the block weight reserved for other transactions.
+	#[clap(long, default_value_t = WEIGHT_RESERVE)]
+	pub weight_reserve: u8,
 }
 
 struct ApiProvider<C>(C);
 impl<Block, C> RuntimeApiProvider<Block, OriginCaller, RuntimeCall, RuntimeEvent> for ApiProvider<&C>
 where
 	Block: BlockT,
-	C: EthereumRuntimeRPCApi<Block> + Erc20MappingApi<Block> + CurrenciesApi<Block, AssetId, AccountId, Balance>,
+	C: EthereumRuntimeRPCApi<Block> + Erc20MappingApi<Block> + DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> + CurrenciesApi<Block, AssetId, AccountId, Balance>,
 {
 	fn current_timestamp(&self, hash: Block::Hash) -> Option<u64> {
 		let block = self.0.current_block(hash).ok()??;
@@ -123,7 +131,7 @@ where
 		contract_address: EvmAddress,
 		data: Vec<u8>,
 		gas_limit: U256,
-	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, sp_runtime::DispatchError>, sp_api::ApiError> {
+	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, sp_runtime::DispatchError>, ApiError> {
 		self.0.call(
 			hash,
 			caller,
@@ -139,11 +147,20 @@ where
 		)
 	}
 
-	fn address_to_asset(&self, hash: Block::Hash, address: AssetAddress) -> Result<Option<AssetId>, sp_api::ApiError> {
+	fn address_to_asset(&self, hash: Block::Hash, address: AssetAddress) -> Result<Option<AssetId>, ApiError> {
 		self.0.address_to_asset(hash, address)
 	}
 
-	fn minimum_balance(&self, hash: Block::Hash, asset_id: AssetId) -> Result<Balance, sp_api::ApiError> {
+	fn dry_run_call(
+		&self,
+		hash: Block::Hash,
+		origin: OriginCaller,
+		call: RuntimeCall
+	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error>, ApiError> {
+		self.0.dry_run_call(hash, origin, call)
+	}
+
+	fn minimum_balance(&self, hash: Block::Hash, asset_id: AssetId) -> Result<Balance, ApiError> {
 		self.0.minimum_balance(hash, asset_id)
 	}
 }
@@ -180,7 +197,7 @@ impl<B, C, BE, P> LiquidationTask<B, C, BE, P>
 where
 	B: BlockT,
 	C: ProvideRuntimeApi<B>,
-	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + CurrenciesApi<B, AssetId, AccountId, Balance>,
+	C::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + DryRunApi<B, RuntimeCall, RuntimeEvent, OriginCaller> + CurrenciesApi<B, AssetId, AccountId, Balance>,
 	C: BlockchainEvents<B> + 'static,
 	C: HeaderBackend<B> + StorageProvider<B, BE>,
 	BE: Backend<B> + 'static,
@@ -437,6 +454,7 @@ where
 		updated_assets: Option<&Vec<AssetAddress>>,
 		money_market: &mut MoneyMarketData<B, OriginCaller, RuntimeCall, RuntimeEvent>,
 		liquidated_users: &mut Vec<UserAddress>,
+		max_liquidations: usize,
 	) -> Result<(), ()> {
 		let hash = header.hash();
 
@@ -522,6 +540,10 @@ where
 			// Reset the HF to 0 so it will be recalculated again.
 			borrower.health_factor = U256::zero();
 
+			if liquidated_users.len() >= max_liquidations {
+				return Ok(())
+			}
+
 			// add user to the list of borrowers that are liquidated in this run.
 			liquidated_users.push(borrower.user_address);
 
@@ -559,6 +581,10 @@ where
 		let mut borrowers_c = borrowers.clone();
 
 		let mut money_market = money_market;
+
+		let Some(max_transactions) = Self::calculate_max_number_of_liquidation_in_block(config.clone()) else {
+			return;
+		};
 
 		let runtime_api = client.runtime_api();
 		let Some(mut current_evm_timestamp) =
@@ -654,6 +680,7 @@ where
 							None,
 							&mut money_market,
 							&mut liquidated_users,
+							max_transactions,
 						) {
 							Ok(()) => (),
 							Err(()) => return,
@@ -723,6 +750,7 @@ where
 							Some(&updated_assets),
 							&mut money_market,
 							&mut liquidated_users,
+							max_transactions,
 						) {
 							Ok(()) => (),
 							Err(()) => return,
@@ -769,13 +797,33 @@ where
 		}
 	}
 
+	fn calculate_max_number_of_liquidation_in_block(
+		config: LiquidationWorkerConfig,
+	) -> Option<usize> {
+		let max_block_weight = hydradx_runtime::BlockWeights::get().get(frame_support::dispatch::DispatchClass::Normal).max_total.unwrap_or_default();
+
+		let liquidation_weight = pallet_liquidation::Call::<hydradx_runtime::Runtime>::liquidate {
+			collateral_asset: Default::default(),
+			debt_asset: Default::default(),
+			user: Default::default(),
+			debt_to_cover: Default::default(),
+			route: BoundedVec::new(),
+		};
+		let liquidation_weight = liquidation_weight.get_dispatch_info().weight;
+
+		let allowed_weight = 100u8.saturating_sub(config.weight_reserve);
+		let max_block_weight = Percent::from_percent(allowed_weight) * max_block_weight;
+
+		max_block_weight.checked_div_per_component(&liquidation_weight).map(|limit| limit as usize)
+	}
+
 	fn get_events(
 		client: Arc<C>,
 		block_hash: B::Hash,
 	) -> Result<Vec<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>, ()> {
 		if let Ok(Some(encoded_events)) = client.storage(
 			block_hash,
-			&StorageKey(hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec()),
+			&StorageKey(hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec()), // System::events storage key
 		) {
 			if let Ok(events) = Vec::<frame_system::EventRecord<RuntimeEvent, hydradx_runtime::Hash>>::decode(
 				&mut encoded_events.0.as_slice(),

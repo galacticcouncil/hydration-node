@@ -22,7 +22,7 @@ use hydradx_runtime::{
 };
 use hydradx_traits::{
 	evm::{CallContext, Erc20Encoding, EvmAddress, EVM},
-	router::{AssetPair, RouteProvider},
+	router::{AssetPair, RouteProvider, PoolType, Trade},
 };
 use liquidation_worker_support::*;
 use orml_traits::currency::MultiCurrency;
@@ -32,6 +32,7 @@ use sp_runtime::traits::CheckedConversion;
 use xcm_runtime_apis::dry_run::{
 	runtime_decl_for_dry_run_api::DryRunApi, CallDryRunEffects, Error as XcmDryRunApiError,
 };
+use pallet_currencies_rpc_runtime_api::runtime_decl_for_currencies_api::CurrenciesApi;
 
 // ./target/release/scraper save-storage --pallet EVM AssetRegistry Timestamp Omnipool Tokens --uri wss://rpc.nice.hydration.cloud:443
 pub const PATH_TO_SNAPSHOT: &str = "evm-snapshot/LIQUIDATION_SNAPSHOT";
@@ -80,6 +81,7 @@ pub fn borrow(mm_pool: EvmAddress, user: EvmAddress, asset: EvmAddress, amount: 
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct UserAccountData {
 	pub total_collateral_base: U256,
 	pub total_debt_base: U256,
@@ -138,6 +140,7 @@ pub fn get_oracle_price(asset_pair: &str) -> Option<(U256, U256)> {
 	// contains addresses from mainnet and testnet to support different snapshots
 	let oracle_addresses = [
 		EvmAddress::from_slice(&hex!("dee629af973ebf5bf261ace12ffd1900ac715f5e")),
+		EvmAddress::from_slice(&hex!("48ae7803cd09c48434e3fc5629f15fb76f0b5ce5")),
 		EvmAddress::from_slice(&hex!("C756bD338A97c1d2FAAB4F13B5444a08a1566917")),
 		EvmAddress::from_slice(&hex!("5d8320f3ced9575d8e25b6f437e610fc6a03bf52")),
 	];
@@ -1082,7 +1085,8 @@ where
 	Block: BlockT,
 	C: EthereumRuntimeRPCApi<Block>
 		+ Erc20MappingApi<Block>
-		+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>,
+		+ DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller>
+		+ CurrenciesApi<Block, AssetId, AccountId, Balance>,
 {
 	fn current_timestamp(&self, _hash: Block::Hash) -> Option<u64> {
 		let block = C::current_block()?;
@@ -1096,7 +1100,7 @@ where
 		contract_address: EvmAddress,
 		data: Vec<u8>,
 		gas_limit: U256,
-	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, frame_support::sp_runtime::DispatchError>, sp_api::ApiError> {
+	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, sp_runtime::DispatchError>, ApiError> {
 		Ok(C::call(
 			caller,
 			contract_address,
@@ -1123,8 +1127,15 @@ where
 		_hash: Block::Hash,
 		_origin: OriginCaller,
 		_call: RuntimeCall,
-	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError> {
+	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, ApiError> {
 		unimplemented!()
+	}
+	fn minimum_balance(
+		&self,
+		_hash: Block::Hash,
+		asset_id: AssetId,
+	) -> Result<Balance, ApiError> {
+		Ok(C::minimum_balance(asset_id))
 	}
 }
 

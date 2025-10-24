@@ -92,6 +92,7 @@ xcm-builder = { workspace = true }
 pallet-xcm = { workspace = true }
 xcm-executor = { workspace = true }
 polkadot-xcm = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 # Substrate dependencies
 frame-executive = { workspace = true }

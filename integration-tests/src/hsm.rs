@@ -12,8 +12,11 @@ use hydradx_runtime::{
 		Executor,
 	},
 	AccountId, BorrowingTreasuryAccount, Currencies, EVMAccounts, FixedU128, Liquidation, Router, Runtime, Tokens,
-	TreasuryAccount, HSM,
+	TreasuryAccount, HSM, Stableswap, RuntimeOrigin, RuntimeEvent, RuntimeCall, OriginCaller,
 };
+use hydradx_traits::evm::{EVM, InspectEvmAccounts, EvmAddress, CallContext};
+use hydradx_traits::stableswap::AssetAmount;
+use hydradx_traits::OraclePeriod;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::AssetType;

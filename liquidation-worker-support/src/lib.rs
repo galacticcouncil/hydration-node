@@ -31,6 +31,7 @@ use sp_arithmetic::ArithmeticError;
 use sp_core::{RuntimeDebug, H160, H256, U256};
 use sp_std::{boxed::Box, ops::BitAnd, vec::Vec};
 use std::marker::PhantomData;
+use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
 
 pub type Balance = u128;
 pub type AssetId = u32;
@@ -192,6 +193,12 @@ where
 		gas_limit: U256,
 	) -> Result<Result<fp_evm::ExecutionInfoV2<Vec<u8>>, DispatchError>, sp_api::ApiError>;
 	fn address_to_asset(&self, hash: Block::Hash, address: EvmAddress) -> Result<Option<AssetId>, sp_api::ApiError>;
+	fn dry_run_call(
+		&self,
+		hash: Block::Hash,
+		origin: OriginCaller,
+		call: RuntimeCall,
+	) -> Result<Result<CallDryRunEffects<RuntimeEvent>, XcmDryRunApiError>, sp_api::ApiError>;
 	fn minimum_balance(&self, hash: Block::Hash, asset_id: AssetId) -> Result<Balance, sp_api::ApiError>;
 }
 

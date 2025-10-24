@@ -5467,6 +5467,7 @@ dependencies = [
  "substrate-state-trie-migration-rpc",
  "threadpool",
  "tokio",
+ "xcm-runtime-apis",
 ]
 
 [[package]]
@@ -7090,6 +7091,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-std",
+ "xcm-runtime-apis",
 ]
 
 [[package]]
@@ -14734,6 +14736,7 @@ dependencies = [
  "test-utils",
  "tokio",
  "xcm-emulator",
+ "xcm-runtime-apis",
 ]
 
 [[package]]
