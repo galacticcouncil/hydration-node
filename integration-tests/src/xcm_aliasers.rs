@@ -199,3 +199,55 @@ fn asset_hub_root_cannot_alias_non_whitelisted_locations() {
 		);
 	});
 }
+
+#[test]
+fn asset_hub_root_can_alias_kusama_asset_hub_accounts() {
+	Hydra::execute_with(|| {
+		// Polkadot Asset Hub root
+		let origin = Location::new(1, X1([Parachain(1000)].into()));
+
+		// A specific Kusama Asset Hub account
+		let target = Location::new(
+			2,
+			X3([
+				GlobalConsensus(Kusama),
+				Parachain(1000),
+				AccountId32 {
+					network: None,
+					id: [42u8; 32],
+				},
+			]
+			.into()),
+		);
+
+		// Should be allowed to
+		assert!(<XcmConfig as xcm_executor::Config>::Aliasers::contains(
+			&origin, &target
+		));
+	});
+}
+
+#[test]
+fn asset_hub_root_cannot_alias_other_kusama_parachain_accounts() {
+	Hydra::execute_with(|| {
+		// Polkadot Asset Hub root
+		let origin = Location::new(1, X1([Parachain(1000)].into()));
+
+		// A specific Kusama Asset Hub account
+		let target = Location::new(
+			2,
+			X3([
+				GlobalConsensus(Kusama),
+				Parachain(2000),
+				AccountId32 {
+					network: None,
+					id: [42u8; 32],
+				},
+			]
+			.into()),
+		);
+		assert!(!<XcmConfig as xcm_executor::Config>::Aliasers::contains(
+			&origin, &target
+		),);
+	});
+}
