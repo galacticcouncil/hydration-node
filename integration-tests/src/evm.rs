@@ -2786,14 +2786,14 @@ fn create_xyk_pool_with_amounts(asset_a: u32, amount_a: u128, asset_b: u32, amou
 
 mod evm_error_decoder {
 	use super::*;
-	use sp_core::Get;
-	use sp_runtime::DispatchResult;
 	use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
 	use hydradx_traits::evm::CallResult;
 	use pallet_evm::{ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed};
 	use proptest::prelude::*;
-	use sp_runtime::traits::Convert;
 	use proptest::test_runner::{Config, TestRunner};
+	use sp_core::Get;
+	use sp_runtime::traits::Convert;
+	use sp_runtime::DispatchResult;
 
 	fn arbitrary_value() -> impl Strategy<Value = Vec<u8>> {
 		prop::collection::vec(any::<u8>(), 0..256)
@@ -2849,7 +2849,6 @@ mod evm_error_decoder {
 		}
 	}
 
-
 	//We set up prop test like this to share state, so we don't need to load snapshot in every run
 	#[test]
 	fn evm_error_decoder_never_panics_for_borrowing_contract() {
@@ -2869,7 +2868,7 @@ mod evm_error_decoder {
 					let call_result = CallResult {
 						exit_reason: ExitReason::Error(ExitError::Other("Some error".into())),
 						value,
-						contract:  hydradx_runtime::Liquidation::get(),
+						contract: hydradx_runtime::Liquidation::get(),
 					};
 
 					let _result = EvmErrorDecoder::convert(call_result);
@@ -2879,7 +2878,6 @@ mod evm_error_decoder {
 				.unwrap();
 		});
 	}
-
 
 	#[test]
 	fn evm_error_decoder_handles_empty_value() {
