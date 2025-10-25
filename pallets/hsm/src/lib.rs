@@ -869,7 +869,8 @@ pub mod pallet {
 					arbitrage.into()
 				}
 				Arbitrage::HollarIn(_) => {
-					//TODO: we can simplify instead of trying to find it again
+					//Dev: we can simplify instead of trying to find it again
+					//but we keep for now as it used to be.
 					Self::find_arbitrage_opportunity(collateral_asset_id)
 						.ok_or(Error::<T>::NoArbitrageOpportunity)?
 						.into()
