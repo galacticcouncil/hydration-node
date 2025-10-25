@@ -876,23 +876,6 @@ pub mod pallet {
 				}
 			};
 
-			/*
-			let (arb_direction, flash_loan_amount) = if let Some(arb_amount) = flash_amount {
-				ensure!(arb_amount > 0, Error::<T>::NoArbitrageOpportunity);
-				// if provided, we know what to do, but need to verify the size is ok
-				let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
-				ensure!(
-					Self::check_trade_size(collateral_asset_id, &collateral_info, &pool_state, arb_amount),
-					Error::<T>::NoArbitrageOpportunity
-				);
-
-				(ARBITRAGE_DIRECTION_BUY, arb_amount)
-			} else {
-				Self::find_arbitrage_opportunity(collateral_asset_id).ok_or(Error::<T>::NoArbitrageOpportunity)?
-			};
-
-			 */
-
 			ensure!(flash_loan_amount > 0, Error::<T>::NoArbitrageOpportunity);
 
 			let hsm_address = T::EvmAccounts::evm_address(&Self::account_id());
