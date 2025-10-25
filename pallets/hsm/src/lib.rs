@@ -846,7 +846,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			collateral_asset_id: T::AssetId,
 			arbitrage: Arbitrage,
-			//flash_amount: Option<Balance>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
