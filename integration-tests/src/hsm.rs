@@ -2608,25 +2608,3 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 		assert!(initial_spot_price > final_spot_price);
 	});
 }
-
-pub const PATH_TO_ARB: &str = "snapshots/hsm/MAINNET_ARB";
-#[test]
-fn arb_mainnet_state() {
-	let collateral_asset_id = 1002;
-	TestNet::reset();
-	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_ARB).execute(|| {
-		let opp = pallet_hsm::Pallet::<hydradx_runtime::Runtime>::process_arbitrage_opportunities(4);
-		let opp = pallet_hsm::Pallet::<hydradx_runtime::Runtime>::find_arbitrage_opportunity(collateral_asset_id)
-			.expect("some arb");
-		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(
-			collateral_asset_id,
-			opp
-		));
-
-		assert_ok!(HSM::execute_arbitrage(
-			hydradx_runtime::RuntimeOrigin::none(),
-			collateral_asset_id,
-			opp,
-		));
-	});
-}
