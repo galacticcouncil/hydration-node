@@ -27,7 +27,7 @@
 
 pub use pallet::*;
 
-use crate::types::{Balance, CollateralInfo};
+use crate::types::{Arbitrage, Balance, CollateralInfo};
 pub use crate::weights::WeightInfo;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
@@ -102,22 +102,23 @@ pub enum ERC20Function {
 pub const MAX_COLLATERALS: u32 = 10;
 
 /// Unsigned transaction priority for arbitrage
-pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
+const UNSIGNED_TXS_PRIORITY: u64 = 100;
 
 /// Arbitrage direction constants
 /// Direction for buy operations (less Hollar in pool, creates buy opportunities)
-pub const ARBITRAGE_DIRECTION_BUY: u8 = 1;
+const ARBITRAGE_DIRECTION_BUY: u8 = 1;
 /// Direction for sell operations (more Hollar in pool, creates sell opportunities)
-pub const ARBITRAGE_DIRECTION_SELL: u8 = 2;
+const ARBITRAGE_DIRECTION_SELL: u8 = 2;
 
 /// Offchain Worker lock
-pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
+const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/hsm/arbitrage-lock/";
 /// Lock timeout in milliseconds
-pub const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
+const LOCK_TIMEOUT: u64 = 5_000; // 5 seconds
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::types::Arbitrage;
 	use pallet_broadcast::types::Asset;
 	use pallet_evm::GasWeightMapping;
 	use sp_std::vec;
@@ -844,7 +845,8 @@ pub mod pallet {
 		pub fn execute_arbitrage(
 			origin: OriginFor<T>,
 			collateral_asset_id: T::AssetId,
-			flash_amount: Option<Balance>,
+			arbitrage: Arbitrage,
+			//flash_amount: Option<Balance>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
@@ -853,6 +855,29 @@ pub mod pallet {
 
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 
+			let (arb_direction, flash_loan_amount) = match arbitrage {
+				Arbitrage::Any => Self::find_arbitrage_opportunity(collateral_asset_id)
+					.ok_or(Error::<T>::NoArbitrageOpportunity)?
+					.into(),
+				Arbitrage::HollarOut(arb_amount) => {
+					ensure!(arb_amount > 0, Error::<T>::NoArbitrageOpportunity);
+					// if provided, we know what to do, but need to verify the size is ok
+					let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
+					ensure!(
+						Self::check_trade_size(collateral_asset_id, &collateral_info, &pool_state, arb_amount),
+						Error::<T>::NoArbitrageOpportunity
+					);
+					arbitrage.into()
+				}
+				Arbitrage::HollarIn(_) => {
+					//TODO: we can simplify instead of trying to find it again
+					Self::find_arbitrage_opportunity(collateral_asset_id)
+						.ok_or(Error::<T>::NoArbitrageOpportunity)?
+						.into()
+				}
+			};
+
+			/*
 			let (arb_direction, flash_loan_amount) = if let Some(arb_amount) = flash_amount {
 				ensure!(arb_amount > 0, Error::<T>::NoArbitrageOpportunity);
 				// if provided, we know what to do, but need to verify the size is ok
@@ -866,6 +891,8 @@ pub mod pallet {
 			} else {
 				Self::find_arbitrage_opportunity(collateral_asset_id).ok_or(Error::<T>::NoArbitrageOpportunity)?
 			};
+
+			 */
 
 			ensure!(flash_loan_amount > 0, Error::<T>::NoArbitrageOpportunity);
 
@@ -1290,17 +1317,11 @@ where
 		}
 		let selected_collateral = collaterals[idx];
 
-		if let Some((arb_direction, amount)) = Self::find_arbitrage_opportunity(selected_collateral) {
-			let flash_amount = if arb_direction == ARBITRAGE_DIRECTION_BUY {
-				Some(amount)
-			} else {
-				None
-			};
-
-			if Self::simulate_arbitrage(selected_collateral, flash_amount).is_ok() {
+		if let Some(arb) = Self::find_arbitrage_opportunity(selected_collateral) {
+			if Self::simulate_arbitrage(selected_collateral, arb).is_ok() {
 				return Some(Call::execute_arbitrage {
 					collateral_asset_id: selected_collateral,
-					flash_amount,
+					arbitrage: arb,
 				});
 			}
 		}
@@ -1325,7 +1346,7 @@ where
 	///   - `direction`: ARBITRAGE_DIRECTION_BUY for buy operations, ARBITRAGE_DIRECTION_SELL for sell operations
 	///   - `amount`: The optimal trade size in Hollar units
 	/// - `None` if no profitable arbitrage opportunity is found
-	pub fn find_arbitrage_opportunity(asset_id: T::AssetId) -> Option<(u8, Balance)> {
+	pub fn find_arbitrage_opportunity(asset_id: T::AssetId) -> Option<Arbitrage> {
 		let collateral_info = Self::collaterals(asset_id)?;
 		let pool_id = collateral_info.pool_id;
 
@@ -1352,11 +1373,11 @@ where
 		if imb_sign {
 			// Less HOLLAR in the pool
 			let op = Self::find_ideal_trade_size(asset_id, imbalance, &collateral_info, &pool_state)?;
-			Some((ARBITRAGE_DIRECTION_BUY, op))
+			Some(Arbitrage::HollarOut(op))
 		} else {
 			// More HOLLAR in the pool
 			let op = Self::calculate_ideal_trade_size(asset_id, imbalance, &collateral_info, &pool_state).ok()?;
-			Some((ARBITRAGE_DIRECTION_SELL, op))
+			Some(Arbitrage::HollarIn(op))
 		}
 	}
 
@@ -1769,9 +1790,9 @@ where
 		})
 	}
 
-	pub fn simulate_arbitrage(collateral_asset_id: T::AssetId, loan_amount: Option<Balance>) -> DispatchResult {
+	pub fn simulate_arbitrage(collateral_asset_id: T::AssetId, arb: Arbitrage) -> DispatchResult {
 		with_transaction::<(), DispatchError, _>(|| {
-			let r = Self::execute_arbitrage(T::RuntimeOrigin::none(), collateral_asset_id, loan_amount);
+			let r = Self::execute_arbitrage(T::RuntimeOrigin::none(), collateral_asset_id, arb);
 			TransactionOutcome::Rollback(r)
 		})
 	}

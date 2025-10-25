@@ -280,7 +280,7 @@ benchmarks! {
 		<T as Config>::Currency::set_balance(collateral, &Pallet::<T>::account_id(), 10 * ONE);
 		<pallet_stableswap::Pallet<T> as frame_support::traits::OnFinalize<BlockNumberFor<T>>>::on_finalize(0u32.into()); // should not matter what block number it is
 
-	}: _(RawOrigin::None, collateral, None)
+	}: _(RawOrigin::None, collateral, Arbitrage::Any)
 	verify {
 		let acc_balance = <T as Config>::Currency::balance(collateral, &Pallet::<T>::account_id());
 		assert!(acc_balance < 10 * ONE);
