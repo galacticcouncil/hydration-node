@@ -1536,14 +1536,12 @@ fn arbitrage_should_work() {
 		let opp = pallet_hsm::Pallet::<hydradx_runtime::Runtime>::find_arbitrage_opportunity(2);
 		assert!(opp.is_some());
 		let (d, amount) = opp.unwrap();
-		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(
-			d, 2, amount
-		));
+		let a = if d == 1 { Some(amount) } else { None };
+		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(2, a));
 
 		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let traded_amount = hsm_dai_balance - final_hsm_dai_balance;
-		//assert_eq!(traded_amount, 999_642_225_291_583_959);
 		assert_eq!(traded_amount, 9_993_121_308_730_776_206);
 	});
 }
@@ -1747,9 +1745,8 @@ fn arbitrage_should_work_when_hollar_amount_is_less_in_the_pool() {
 		let opp = pallet_hsm::Pallet::<hydradx_runtime::Runtime>::find_arbitrage_opportunity(2);
 		assert!(opp.is_some());
 		let (d, amount) = opp.unwrap();
-		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(
-			d, 2, amount
-		));
+		let a = if d == 1 { Some(amount) } else { None };
+		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(2, a));
 
 		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
@@ -2072,9 +2069,8 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 		let opp = pallet_hsm::Pallet::<hydradx_runtime::Runtime>::find_arbitrage_opportunity(2);
 		assert!(opp.is_some());
 		let (d, amount) = opp.unwrap();
-		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(
-			d, 2, amount
-		));
+		let a = if d == 1 { Some(amount) } else { None };
+		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(2, a));
 
 		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None));
 
@@ -2223,10 +2219,10 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 		let opp = pallet_hsm::Pallet::<hydradx_runtime::Runtime>::find_arbitrage_opportunity(collateral_asset_id);
 		assert!(opp.is_some());
 		let (d, amount) = opp.unwrap();
+		let a = if d == 1 { Some(amount) } else { None };
 		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(
-			d,
 			collateral_asset_id,
-			amount
+			a
 		));
 
 		assert_ok!(HSM::execute_arbitrage(
@@ -2620,15 +2616,19 @@ fn arb_mainnet_state() {
 	let collateral_asset_id = 1002;
 	TestNet::reset();
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_ARB).execute(|| {
+		let opp = pallet_hsm::Pallet::<hydradx_runtime::Runtime>::process_arbitrage_opportunities(4);
+		dbg!(opp);
 		let opp = pallet_hsm::Pallet::<hydradx_runtime::Runtime>::find_arbitrage_opportunity(collateral_asset_id);
+		dbg!(opp);
 		assert!(opp.is_some());
 		let (d, amount) = opp.unwrap();
 		assert_eq!(d, 1);
+		let a = if d == 1 { Some(amount) } else { None };
 		assert_ok!(pallet_hsm::Pallet::<hydradx_runtime::Runtime>::simulate_arbitrage(
-			d,
 			collateral_asset_id,
-			amount
+			a
 		));
+
 		assert_ok!(HSM::execute_arbitrage(
 			hydradx_runtime::RuntimeOrigin::none(),
 			collateral_asset_id,

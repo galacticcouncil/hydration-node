@@ -1791,6 +1791,7 @@ parameter_types! {
 	pub const HsmGasLimit: u64 = 400_000;
 	pub const HsmPalletId: PalletId = PalletId(*b"py/hsmod");
 	pub const HOLLAR: AssetId = 222;
+	pub const MinArbitrageAmount: Balance = 1_000_000_000_000_000_000; // 1 HOLLAR
 }
 
 impl pallet_hsm::Config for Runtime {
@@ -1806,6 +1807,7 @@ impl pallet_hsm::Config for Runtime {
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Evm = evm::Executor<Runtime>;
 	type EvmAccounts = EVMAccounts;
+	type MinArbitrageAmount = MinArbitrageAmount;
 	type GasLimit = HsmGasLimit;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type WeightInfo = weights::pallet_hsm::HydraWeight<Runtime>;

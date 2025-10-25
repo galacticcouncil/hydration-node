@@ -195,6 +195,7 @@ parameter_types! {
 	pub const GasLimit: u64 = 1_000_000;
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 	pub HsmArbProfitReceiver: AccountId =  PROFIT_RECEIVER.into();
+	pub const MinArbAmount: Balance =  1_000_000_000_000_000_000;
 }
 
 pub struct DummyRegistry;
@@ -553,6 +554,7 @@ impl Config for Test {
 	type EvmAccounts = MockEvmAccounts;
 	type GasLimit = GasLimit;
 	type GasWeightMapping = MockGasWeightMapping;
+	type MinArbitrageAmount = MinArbAmount;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
