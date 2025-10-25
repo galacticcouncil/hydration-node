@@ -310,10 +310,6 @@ pub mod pallet {
 		///
 		/// There is no profitable arbitrage opportunity for the specified collateral.
 		NoArbitrageOpportunity,
-		/// Offchain lock error
-		///
-		/// Failed to acquire the lock for offchain workers, likely because another operation is in progress.
-		OffchainLockError,
 		/// Asset not in the pool
 		///
 		/// The specified asset was not found in the pool.
