@@ -39,10 +39,10 @@ pub struct CollateralInfo<AssetId> {
 pub enum Arbitrage {
 	/// Sell HOLLAR to a pool, buy HOLLAR fro HSM
 	/// Balance parameter - amount of arb amount in HOLLAR
-	HollarOut(Balance) = 1, // Covers state with less HOLLAR in pool
+	HollarOut(Balance), // Covers state with less HOLLAR in pool
 	/// Sell HOLLAR to HSM, buy HOLLAR from a pool
 	/// Balance parameter - amount of arb amount in HOLLAR
-	HollarIn(Balance) = 2, // Covers state with more HOLLAR in pool.
+	HollarIn(Balance), // Covers state with more HOLLAR in pool.
 }
 
 impl From<Arbitrage> for (u8, Balance) {
