@@ -12,7 +12,7 @@
 //! - Managing approved collateral assets for Hollar
 //! - Handling minting and burning of Hollar through integration with the GHO ERC20 token contract
 //! - Providing buy/sell functionality for users to exchange Hollar against collateral assets
-//! - Executing arbitrage opportunities to maintain price stability via offchain workers
+//! - Executing arbitrage opportunities using flash loans to maintain price stability via offchain workers
 //!
 //! ## Interface
 //!
@@ -23,7 +23,8 @@
 //! * `update_collateral_asset` - Update parameters for an existing collateral asset.
 //! * `sell` - Sell Hollar in exchange for collateral, or sell collateral for Hollar.
 //! * `buy` - Buy Hollar with collateral, or buy collateral with Hollar.
-//! * `execute_arbitrage` - Execute arbitrage opportunity between HSM and collateral stable pool (called by offchain worker).
+//! * `set_flash_minter` - Configure the flash loan contract address for arbitrage operations.
+//! * `execute_arbitrage` - Execute arbitrage opportunity between HSM and collateral stable pool using flash loans (called by offchain worker).
 
 pub use pallet::*;
 
@@ -935,6 +936,21 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Set the flash minter contract address
+		///
+		/// Configures the EVM address of the flash loan contract that will be used for arbitrage
+		/// operations. This contract must support the ERC-3156 flash loan standard and be trusted
+		/// to handle flash loans of Hollar tokens.
+		///
+		/// Parameters:
+		/// - `origin`: Must be authorized (governance/root)
+		/// - `flash_minter_addr`: The EVM address of the flash minter contract
+		///
+		/// Emits:
+		/// - `FlashMinterSet` when the address is successfully configured
+		///
+		/// Errors:
+		/// - Authorization errors if origin is not authorized
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_flash_minter())]
 		pub fn set_flash_minter(origin: OriginFor<T>, flash_minter_addr: EvmAddress) -> DispatchResult {
@@ -1295,6 +1311,19 @@ where
 		Ok(amount_in)
 	}
 
+	/// Process arbitrage opportunities for a selected collateral
+	///
+	/// This function is called by the offchain worker to identify and prepare arbitrage
+	/// opportunities. It selects one collateral asset per block (based on block number rotation)
+	/// and checks if a profitable arbitrage exists. If found and the simulation succeeds,
+	/// it returns a Call to execute the arbitrage.
+	///
+	/// Parameters:
+	/// - `block_number`: The current block number, used to rotate through collateral assets
+	///
+	/// Returns:
+	/// - `Some(Call::execute_arbitrage)` if a valid arbitrage opportunity is found
+	/// - `None` if no opportunity exists or simulation fails
 	pub fn process_arbitrage_opportunities(block_number: BlockNumberFor<T>) -> Option<Call<T>> {
 		let collaterals: Vec<T::AssetId> = Collaterals::<T>::iter_keys().collect();
 		if collaterals.is_empty() {
@@ -1601,6 +1630,30 @@ where
 		}
 	}
 
+	/// Execute arbitrage trades using flash loan funds
+	///
+	/// This function is called as part of the flash loan callback to perform the actual arbitrage
+	/// trades. It decodes the arbitrage parameters from the provided data and executes trades
+	/// between HSM and the StableSwap pool based on the direction.
+	///
+	/// Parameters:
+	/// - `account`: The EVM address of the flash loan receiver account
+	/// - `loan_amount`: The amount of Hollar borrowed via flash loan
+	/// - `data`: Encoded arbitrage parameters containing:
+	///   - action (u8): Must be 0 for arbitrage
+	///   - direction (u8): ARBITRAGE_DIRECTION_BUY or ARBITRAGE_DIRECTION_SELL
+	///   - collateral_asset_id (u32): The collateral asset to use
+	///   - stable_pool_id (u32): The StableSwap pool ID
+	///
+	/// Returns:
+	/// - `Ok(())` if arbitrage is executed successfully
+	/// - `Err` if the arbitrage fails
+	///
+	/// Errors:
+	/// - `InvalidArbitrageData` if the data cannot be decoded or is malformed
+	/// - `AssetNotApproved` if the collateral asset is not approved
+	/// - `InvalidPoolState` if the pool ID doesn't match the collateral's configured pool
+	/// - Other errors from trade execution
 	pub fn execute_arbitrage_with_flash_loan(account: EvmAddress, loan_amount: Balance, data: &[u8]) -> DispatchResult
 	where
 		<T as pallet_stableswap::Config>::AssetId: From<u32>,
@@ -1752,6 +1805,18 @@ where
 		}
 	}
 
+	/// Get the free capacity of HSM's facilitator bucket in the GHO contract
+	///
+	/// Queries the GHO (Hollar) ERC20 contract to determine how much Hollar the HSM
+	/// can still mint before reaching its facilitator bucket capacity limit. This is
+	/// calculated as the difference between the bucket's total capacity and current level.
+	///
+	/// The capacity limit controls the maximum amount of Hollar that HSM is authorized
+	/// to mint as a GHO facilitator.
+	///
+	/// Returns:
+	/// - The available capacity (capacity - level) as Balance
+	/// - Returns 0 if the contract address is not configured or the call fails
 	pub fn get_hsm_bucket_free_capacity() -> Balance {
 		let Some(hollar_address) = Self::get_hollar_contract_address().ok() else {
 			return 0;
@@ -1777,12 +1842,37 @@ where
 		}
 	}
 
+	/// Check if an account is the flash loan receiver account
+	///
+	/// Determines whether a given account is the designated flash loan receiver account
+	/// used during arbitrage operations. This is useful for special handling of the
+	/// flash loan account in trade execution logic.
+	///
+	/// Parameters:
+	/// - `account`: The account to check
+	///
+	/// Returns:
+	/// - `true` if the account is the flash loan receiver account
+	/// - `false` if it's not or if flash minter is not configured
 	pub fn is_flash_loan_account(account: &T::AccountId) -> bool {
 		GetFlashMinterSupport::<T>::get().map_or(false, |(_, loan_receiver)| {
 			T::EvmAccounts::account_id(loan_receiver) == *account
 		})
 	}
 
+	/// Simulate an arbitrage execution without committing state changes
+	///
+	/// Executes the arbitrage operation within a database transaction that is always rolled back,
+	/// allowing the caller to test whether an arbitrage would succeed without actually applying
+	/// the changes. This is useful for validation and testing purposes.
+	///
+	/// Parameters:
+	/// - `collateral_asset_id`: The collateral asset to use for arbitrage
+	/// - `arb`: The arbitrage parameters (direction and amount)
+	///
+	/// Returns:
+	/// - `Ok(())` if the arbitrage simulation succeeds (but changes are rolled back)
+	/// - `Err` if the arbitrage would fail
 	pub fn simulate_arbitrage(collateral_asset_id: T::AssetId, arb: Arbitrage) -> DispatchResult {
 		with_transaction::<(), DispatchError, _>(|| {
 			let r = Self::execute_arbitrage(T::RuntimeOrigin::none(), collateral_asset_id, Some(arb));
