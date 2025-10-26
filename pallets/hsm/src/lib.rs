@@ -845,7 +845,7 @@ pub mod pallet {
 		pub fn execute_arbitrage(
 			origin: OriginFor<T>,
 			collateral_asset_id: T::AssetId,
-			arbitrage: Arbitrage,
+			arbitrage: Option<Arbitrage>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
@@ -855,10 +855,7 @@ pub mod pallet {
 			let collateral_info = Self::collaterals(collateral_asset_id).ok_or(Error::<T>::AssetNotApproved)?;
 
 			let (arb_direction, flash_loan_amount) = match arbitrage {
-				Arbitrage::Any => Self::find_arbitrage_opportunity(collateral_asset_id)
-					.ok_or(Error::<T>::NoArbitrageOpportunity)?
-					.into(),
-				Arbitrage::HollarOut(arb_amount) => {
+				Some(Arbitrage::HollarOut(arb_amount)) => {
 					ensure!(arb_amount > 0, Error::<T>::NoArbitrageOpportunity);
 					// if provided, we know what to do, but need to verify the size is ok
 					let pool_state = Self::get_stablepool_state(collateral_info.pool_id)?;
@@ -866,15 +863,18 @@ pub mod pallet {
 						Self::check_trade_size(collateral_asset_id, &collateral_info, &pool_state, arb_amount),
 						Error::<T>::NoArbitrageOpportunity
 					);
-					arbitrage.into()
+					Arbitrage::HollarOut(arb_amount).into()
 				}
-				Arbitrage::HollarIn(_) => {
+				Some(Arbitrage::HollarIn(_)) => {
 					//Dev: we can simplify instead of trying to find it again
 					//but we keep for now as it used to be.
 					Self::find_arbitrage_opportunity(collateral_asset_id)
 						.ok_or(Error::<T>::NoArbitrageOpportunity)?
 						.into()
 				}
+				None => Self::find_arbitrage_opportunity(collateral_asset_id)
+					.ok_or(Error::<T>::NoArbitrageOpportunity)?
+					.into(),
 			};
 
 			ensure!(flash_loan_amount > 0, Error::<T>::NoArbitrageOpportunity);
@@ -1304,7 +1304,7 @@ where
 			if Self::simulate_arbitrage(selected_collateral, arb).is_ok() {
 				return Some(Call::execute_arbitrage {
 					collateral_asset_id: selected_collateral,
-					arbitrage: arb,
+					arbitrage: Some(arb),
 				});
 			}
 		}
@@ -1775,7 +1775,7 @@ where
 
 	pub fn simulate_arbitrage(collateral_asset_id: T::AssetId, arb: Arbitrage) -> DispatchResult {
 		with_transaction::<(), DispatchError, _>(|| {
-			let r = Self::execute_arbitrage(T::RuntimeOrigin::none(), collateral_asset_id, arb);
+			let r = Self::execute_arbitrage(T::RuntimeOrigin::none(), collateral_asset_id, Some(arb));
 			TransactionOutcome::Rollback(r)
 		})
 	}

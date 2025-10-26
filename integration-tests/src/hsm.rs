@@ -1541,7 +1541,11 @@ fn arbitrage_should_work() {
 			2, opp
 		));
 
-		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, opp));
+		assert_ok!(HSM::execute_arbitrage(
+			hydradx_runtime::RuntimeOrigin::none(),
+			2,
+			Some(opp)
+		));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let traded_amount = hsm_dai_balance - final_hsm_dai_balance;
 		assert_eq!(traded_amount, 9_993_121_308_730_776_206);
@@ -1647,7 +1651,7 @@ fn arbitrage_should_fail_when_min_arb_amount_is_less_than_one_hollar() {
 		));
 
 		assert_noop!(
-			HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, Arbitrage::Any),
+			HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None),
 			pallet_hsm::Error::<hydradx_runtime::Runtime>::NoArbitrageOpportunity
 		);
 	});
@@ -1749,7 +1753,11 @@ fn arbitrage_should_work_when_hollar_amount_is_less_in_the_pool() {
 			2, opp
 		));
 
-		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, opp));
+		assert_ok!(HSM::execute_arbitrage(
+			hydradx_runtime::RuntimeOrigin::none(),
+			2,
+			Some(opp)
+		));
 		let final_hsm_dai_balance = Tokens::free_balance(2, &hsm_address);
 		let received = final_hsm_dai_balance - hsm_dai_balance;
 		let treasury_balance_final = Tokens::free_balance(2, &TreasuryAccount::get());
@@ -2069,7 +2077,11 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool() {
 			2, opp
 		));
 
-		assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, opp));
+		assert_ok!(HSM::execute_arbitrage(
+			hydradx_runtime::RuntimeOrigin::none(),
+			2,
+			Some(opp)
+		));
 
 		let state = Stableswap::create_snapshot(pool_id).unwrap();
 		let r = state
@@ -2223,7 +2235,7 @@ fn arb_should_repeg_continuously_when_less_hollar_in_pool_and_collateral_has_12_
 		assert_ok!(HSM::execute_arbitrage(
 			hydradx_runtime::RuntimeOrigin::none(),
 			collateral_asset_id,
-			opp
+			Some(opp)
 		));
 
 		let state = Stableswap::create_snapshot(pool_id).unwrap();
@@ -2371,11 +2383,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool() {
 		let mut last_spot_price = initial_spot_price;
 
 		for block_idx in 0..50 {
-			assert_ok!(HSM::execute_arbitrage(
-				hydradx_runtime::RuntimeOrigin::none(),
-				2,
-				Arbitrage::Any
-			));
+			assert_ok!(HSM::execute_arbitrage(hydradx_runtime::RuntimeOrigin::none(), 2, None,));
 			let state = Stableswap::create_snapshot(pool_id).unwrap();
 			let r = state
 				.assets
@@ -2561,7 +2569,7 @@ fn arb_should_repeg_continuously_when_more_hollar_in_pool_and_collateral_has_12_
 			assert_ok!(HSM::execute_arbitrage(
 				hydradx_runtime::RuntimeOrigin::none(),
 				collateral_asset_id,
-				Arbitrage::Any,
+				None,
 			));
 			let state = Stableswap::create_snapshot(pool_id).unwrap();
 			let r = state

@@ -37,8 +37,6 @@ pub struct CollateralInfo<AssetId> {
 #[derive(Encode, Decode, Eq, PartialEq, Clone, Copy, RuntimeDebug, TypeInfo)]
 #[repr(u8)]
 pub enum Arbitrage {
-	/// Try to find an arbitrage opportunity.
-	Any = 0,
 	/// Sell HOLLAR to a pool, buy HOLLAR fro HSM
 	/// Balance parameter - amount of arb amount in HOLLAR
 	HollarOut(Balance) = 1, // Covers state with less HOLLAR in pool
@@ -50,7 +48,6 @@ pub enum Arbitrage {
 impl From<Arbitrage> for (u8, Balance) {
 	fn from(arb: Arbitrage) -> (u8, Balance) {
 		match arb {
-			Arbitrage::Any => (0, 0),
 			Arbitrage::HollarOut(a) => (1, a),
 			Arbitrage::HollarIn(a) => (2, a),
 		}
@@ -62,7 +59,7 @@ impl From<(u8, Balance)> for Arbitrage {
 		match value.0 {
 			1 => Arbitrage::HollarOut(value.1),
 			2 => Arbitrage::HollarIn(value.1),
-			_ => Arbitrage::Any,
+			_ => Arbitrage::HollarOut(0),
 		}
 	}
 }

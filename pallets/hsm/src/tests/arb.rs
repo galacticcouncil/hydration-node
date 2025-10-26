@@ -58,7 +58,7 @@ fn arbitrage_should_work() {
 			let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
 			let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
 			let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, Arbitrage::Any));
+			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, None));
 
 			let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
 			let arb_amount = pool_balance_dai_after - pool_balance_dai_before;
@@ -110,8 +110,8 @@ fn arbitrage_should_work_when_less_hollar_in_the_pool_and_arb_amount_given() {
 			let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
 			assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
 
-			let opportunity = HSM::find_arbitrage_opportunity(DAI).expect("No arbitrage opportunity");
-			assert_eq!(opportunity, Arbitrage::HollarOut(499994562497366512583));
+			let opportunity = HSM::find_arbitrage_opportunity(DAI);
+			assert_eq!(opportunity, Some(Arbitrage::HollarOut(499994562497366512583)));
 
 			let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
 			let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
@@ -175,7 +175,7 @@ fn arbitrage_should_work_when_less_hollar_in_the_pool() {
 			let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
 			let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
 			let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
-			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, opportunity.unwrap()));
+			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, opportunity));
 			let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
 
 			let arb_amount = pool_balance_dai_before - pool_balance_dai_after;
@@ -259,7 +259,7 @@ proptest! {
 						let pool_acc = pallet_stableswap::Pallet::<Test>::pool_account(pool_id);
 						let pool_balance_dai_before = Tokens::free_balance(DAI, &pool_acc);
 						let hsm_balance_dai_before = Tokens::free_balance(DAI, &HSM::account_id());
-						assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, arb));
+						assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, Some(arb)));
 						let pool_balance_dai_after = Tokens::free_balance(DAI, &pool_acc);
 
 						let arb_amount = pool_balance_dai_before - pool_balance_dai_after;
