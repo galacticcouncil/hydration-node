@@ -162,6 +162,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinArbitrageAmount: Get<Balance>;
 
+		#[pallet::constant]
+		type FlashLoanReceiver: Get<EvmAddress>;
+
 		/// The gas limit for the execution of EVM calls
 		#[pallet::constant]
 		type GasLimit: Get<u64>;
@@ -1889,7 +1892,7 @@ where
 {
 	fn get() -> Option<(EvmAddress, EvmAddress)> {
 		let fm = FlashMinter::<T>::get()?;
-		let loan_receiver: EvmAddress = hex!("000000000000000000000000000000000000090a").into();
+		let loan_receiver: EvmAddress = T::FlashLoanReceiver::get();
 		Some((fm, loan_receiver))
 	}
 }

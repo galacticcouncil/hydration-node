@@ -34,6 +34,7 @@ use frame_support::traits::Contains;
 use frame_support::traits::{ConstU128, ConstU32, ConstU64, Everything};
 use frame_support::{construct_runtime, parameter_types};
 use frame_system::EnsureRoot;
+use hex_literal::hex;
 use hydra_dx_math::hsm::CoefficientRatio;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::{
@@ -196,6 +197,7 @@ parameter_types! {
 	pub AmplificationRange: RangeInclusive<NonZeroU16> = RangeInclusive::new(NonZeroU16::new(2).unwrap(), NonZeroU16::new(10_000).unwrap());
 	pub HsmArbProfitReceiver: AccountId =  PROFIT_RECEIVER.into();
 	pub const MinArbAmount: Balance =  1_000_000_000_000_000_000;
+	pub LoanReceiver: EvmAddress= hex!("000000000000000000000000000000000000090a").into();
 }
 
 pub struct DummyRegistry;
@@ -559,6 +561,7 @@ impl Config for Test {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = for_benchmark_tests::MockHSMBenchmarkHelper;
 	type ArbitrageProfitReceiver = HsmArbProfitReceiver;
+	type FlashLoanReceiver = LoanReceiver;
 }
 
 pub struct Whitelist;

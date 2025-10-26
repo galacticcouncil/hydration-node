@@ -1792,6 +1792,7 @@ parameter_types! {
 	pub const HsmPalletId: PalletId = PalletId(*b"py/hsmod");
 	pub const HOLLAR: AssetId = 222;
 	pub const MinArbitrageAmount: Balance = 1_000_000_000_000_000_000; // 1 HOLLAR
+	pub const HSMLoanReceiver: EvmAddress = evm::precompiles::FLASH_LOAN_RECEIVER;
 }
 
 impl pallet_hsm::Config for Runtime {
@@ -1808,6 +1809,7 @@ impl pallet_hsm::Config for Runtime {
 	type Evm = evm::Executor<Runtime>;
 	type EvmAccounts = EVMAccounts;
 	type MinArbitrageAmount = MinArbitrageAmount;
+	type FlashLoanReceiver = HSMLoanReceiver;
 	type GasLimit = HsmGasLimit;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type WeightInfo = weights::pallet_hsm::HydraWeight<Runtime>;
