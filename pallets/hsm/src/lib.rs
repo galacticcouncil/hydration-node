@@ -346,8 +346,6 @@ pub mod pallet {
 		FlashMinterNotSet,
 		/// Provided arbitrage data is invalid
 		InvalidArbitrageData,
-		/// Given arbitrage parameters, arbitrage cannot be successfully executed.
-		ArbitrageCannotBeExecuted,
 	}
 
 	#[pallet::hooks]
@@ -924,7 +922,9 @@ pub mod pallet {
 				collateral_asset_id,
 				&T::ArbitrageProfitReceiver::get(),
 			);
-			let profit = receiver_balance_final.saturating_sub(receiver_balance_initial);
+			let profit = receiver_balance_final
+				.checked_sub(receiver_balance_initial)
+				.ok_or(Error::<T>::NoArbitrageOpportunity)?;
 
 			Self::deposit_event(Event::<T>::ArbitrageExecuted {
 				arbitrage: arb_direction,
