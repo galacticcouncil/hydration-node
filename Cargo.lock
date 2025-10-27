@@ -5388,7 +5388,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.5.0"
+version = "14.6.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -5416,12 +5416,11 @@ dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-support",
+ "frame-system",
  "futures",
- "hex",
  "hex-literal",
  "hydra-dx-build-script-utils",
  "hydradx-runtime",
- "hydradx-traits",
  "hyper 0.14.31",
  "hyper-rustls 0.24.2",
  "ismp-parachain-inherent",
@@ -5430,14 +5429,14 @@ dependencies = [
  "log",
  "num_cpus",
  "pallet-claims",
+ "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
+ "pallet-evm",
  "pallet-ismp-rpc",
  "pallet-ismp-runtime-api",
  "pallet-liquidation",
- "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
- "parking_lot 0.12.3",
  "polkadot-cli",
  "polkadot-primitives",
  "polkadot-service",
@@ -5460,7 +5459,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-api",
- "sp-arithmetic",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
@@ -5537,7 +5535,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "354.0.0"
+version = "355.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -7083,13 +7081,12 @@ dependencies = [
 
 [[package]]
 name = "liquidation-worker-support"
-version = "1.0.0"
+version = "1.1.1"
 dependencies = [
  "ethabi",
  "ethereum-types 0.15.1",
  "evm",
  "fp-evm",
- "fp-rpc",
  "frame-support",
  "hydradx-traits",
  "module-evm-utility-macro",
@@ -9153,7 +9150,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "3.3.0"
+version = "3.3.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9173,7 +9170,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies-rpc-runtime-api"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -9917,7 +9914,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "1.4.2"
+version = "1.5.0"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -14634,7 +14631,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.53.3"
+version = "1.54.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -14681,6 +14678,7 @@ dependencies = [
  "pallet-collective",
  "pallet-conviction-voting",
  "pallet-currencies",
+ "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
  "pallet-dispatcher",
  "pallet-duster",
@@ -14728,7 +14726,6 @@ dependencies = [
  "proptest",
  "rococo-runtime",
  "sc-consensus-grandpa",
- "scale-info",
  "scraper",
  "serde_json",
  "sp-api",
