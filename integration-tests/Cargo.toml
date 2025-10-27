@@ -53,6 +53,7 @@ pallet-scheduler = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-conviction-voting = { workspace = true }
 pallet-dispatcher = { workspace = true }
+pallet-hsm = { workspace = true }
 
 # collator support
 pallet-collator-selection = { workspace = true }
@@ -222,6 +223,7 @@ std = [
     "pallet-liquidation/std",
     "pallet-broadcast/std",
     "pallet-dispatcher/std",
+    "pallet-hsm/std",
     "ethereum/std",
     "pallet-ethereum/std",
     "fp-self-contained/std",
