@@ -5366,7 +5366,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "10.4.1"
+version = "10.4.2"
 dependencies = [
  "approx",
  "criterion",
@@ -14634,7 +14634,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.53.1"
+version = "1.53.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
