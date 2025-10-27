@@ -226,8 +226,6 @@ mod remove_when_updating_to_stable2412 {
 pub struct RestrictedAssetHubAliases;
 impl Contains<Location> for RestrictedAssetHubAliases {
 	fn contains(target: &Location) -> bool {
-		let kusama_ah_prefix = Location::new(2, Junctions::X2([GlobalConsensus(Kusama), Parachain(1000)].into()));
-
 		match target.unpack() {
 			// Allow system parachains under the Polkadot relay
 			(1, [Parachain(id)]) if id < &2000 => true,
@@ -235,11 +233,11 @@ impl Contains<Location> for RestrictedAssetHubAliases {
 			// Allow Kusama relay itself
 			(2, [GlobalConsensus(Kusama)]) => true,
 
-			// Allow Ethereum consensus
-			(2, [GlobalConsensus(NetworkId::Ethereum { .. })]) => true,
-
 			// Allow Kusama Asset Hub and all its descendants
-			(2, _) if target.starts_with(&kusama_ah_prefix) => true,
+			(2, [GlobalConsensus(Kusama), Parachain(1000), ..]) => true,
+
+			// Allow Ethereum consensus and all its descendants
+			(2, [GlobalConsensus(NetworkId::Ethereum { .. }), ..]) => true,
 
 			// Everything else disallowed
 			_ => false,

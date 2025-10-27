@@ -244,3 +244,67 @@ fn asset_hub_root_cannot_alias_other_kusama_parachain_accounts() {
 		),);
 	});
 }
+
+#[test]
+fn asset_hub_root_can_alias_ethereum_accounts() {
+	Hydra::execute_with(|| {
+		let origin = Location::new(1, X1([Parachain(1000)].into()));
+		let target = Location::new(2, X1([GlobalConsensus(Ethereum { chain_id: 1 })].into()));
+		assert!(
+			<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+			"Asset Hub root must be able to alias Ethereum consensus root"
+		);
+
+		// Ethereum account (AccountKey20)
+		let target = Location::new(
+			2,
+			X2([
+				GlobalConsensus(Ethereum { chain_id: 1 }),
+				AccountKey20 {
+					network: None,
+					key: [0x42u8; 20],
+				},
+			]
+			.into()),
+		);
+		assert!(
+			<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+			"Asset Hub root must be able to alias Ethereum accounts"
+		);
+
+		// Different Ethereum chain
+		let target = Location::new(
+			2,
+			X2([
+				GlobalConsensus(Ethereum { chain_id: 137 }), // Polygon
+				AccountKey20 {
+					network: None,
+					key: [0xAAu8; 20],
+				},
+			]
+			.into()),
+		);
+		assert!(
+			<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+			"Asset Hub root must be able to alias accounts on different Ethereum chains"
+		);
+
+		// Deeper Ethereum location (e.g., with GeneralIndex for token)
+		let target = Location::new(
+			2,
+			X3([
+				GlobalConsensus(Ethereum { chain_id: 1 }),
+				AccountKey20 {
+					network: None,
+					key: [0x42u8; 20],
+				},
+				GeneralIndex(123),
+			]
+			.into()),
+		);
+		assert!(
+			<XcmConfig as xcm_executor::Config>::Aliasers::contains(&origin, &target),
+			"Asset Hub root must be able to alias deeper Ethereum locations"
+		);
+	});
+}
