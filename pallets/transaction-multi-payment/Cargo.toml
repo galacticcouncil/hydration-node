@@ -1,6 +1,6 @@
 [package]
 name = "pallet-transaction-multi-payment"
-version = "10.1.6"
+version = "10.2.6"
 description = "Transaction multi currency payment support module"
 authors = ["GalacticCoucil"]
 edition = "2021"
@@ -61,3 +61,7 @@ std = [
 ]
 try-runtime = ["frame-support/try-runtime"]
 evm = ["pallet-evm"]
+runtime-benchmarks = [
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+]

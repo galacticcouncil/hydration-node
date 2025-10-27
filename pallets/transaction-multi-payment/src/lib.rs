@@ -764,6 +764,18 @@ where
 
 		MC::ensure_can_withdraw(currency.into(), who, fee).map_err(|_| InvalidTransaction::Payment.into())
 	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn endow_account(who: &T::AccountId, amount: Self::Balance) {
+		let currency = Pallet::<T>::account_currency(who);
+		let _ = MC::deposit(currency.into(), who, amount);
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn minimum_balance() -> Self::Balance {
+		// Without any context, return native asset's minimum balance
+		MC::minimum_balance(T::NativeAssetId::get().into())
+	}
 }
 
 // use frame_support::dispatch::IsSubType;

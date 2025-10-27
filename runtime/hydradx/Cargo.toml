@@ -234,6 +234,7 @@ runtime-benchmarks = [
     "pallet-hsm/runtime-benchmarks",
     "pallet-elections-phragmen/runtime-benchmarks",
     "pallet-referrals/runtime-benchmarks",
+    "pallet-transaction-multi-payment/runtime-benchmarks",
     "pallet-evm-accounts/runtime-benchmarks",
     "pallet-message-queue/runtime-benchmarks",
     "pallet-state-trie-migration/runtime-benchmarks",
