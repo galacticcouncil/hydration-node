@@ -9500,6 +9500,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex",
+ "log",
  "pallet-balances",
  "pallet-build-evm-tx",
  "pallet-currencies",

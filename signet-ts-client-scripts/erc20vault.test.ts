@@ -11,7 +11,7 @@ const ROOT_PUBLIC_KEY =
   '0x049d9031e97dd78ff8c15aa86939de9b1e791066a0224e331bc962a2099a7b1f0464b8bbafe1535f2301c72c2cb3535b172da30b02686ab0393d348614f157fbdb'
 const CHAIN_ID = 'polkadot:2034'
 const SEPOLIA_RPC = 'http://localhost:8545'
-const FAUCET_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3'
+const FAUCET_ADDRESS = '0x663F3ad617193148711d28f5334eE4Ed07016602'
 
 function getPalletAccountId(): Uint8Array {
   const palletId = new TextEncoder().encode('py/fucet')
@@ -286,6 +286,10 @@ describe('ERC20 Vault Integration', () => {
     const palletSS58 = encodeAddress(palletAccountId, 0)
     const aliceAccountId = keyring.decodeAddress(alice.address)
     const aliceHexPath = '0x' + u8aToHex(aliceAccountId).slice(2)
+    console.log({
+      aliceAccountId,
+      aliceHexPath,
+    })
 
     // Build transaction to get request ID
     const iface = new ethers.Interface([
@@ -329,6 +333,7 @@ describe('ERC20 Vault Integration', () => {
     const depositTx = api.tx.sigEthFaucet.requestFund(
       Array.from(ethers.getBytes('0x70997970C51812dc3A010C7d01b50e0d17dc79C8')),
       amount.toString(),
+      requestIdBytes,
       txParams
     )
 
@@ -386,55 +391,55 @@ describe('ERC20 Vault Integration', () => {
       }`
     )
 
-    // if (recoveredAddress?.toLowerCase() !== derivedEthAddress.toLowerCase()) {
-    //   throw new Error(
-    //     `❌ Signature verification failed!\n` +
-    //       `   Expected: ${derivedEthAddress}\n` +
-    //       `   Recovered: ${recoveredAddress}\n` +
-    //       `   This means the MPC signed with the wrong key or recovery ID is incorrect.`
-    //   )
-    // }
+    if (recoveredAddress?.toLowerCase() !== derivedEthAddress.toLowerCase()) {
+      throw new Error(
+        `❌ Signature verification failed!\n` +
+          `   Expected: ${derivedEthAddress}\n` +
+          `   Recovered: ${recoveredAddress}\n` +
+          `   This means the MPC signed with the wrong key or recovery ID is incorrect.`
+      )
+    }
 
-    // // Get fresh nonce before broadcasting
-    // const freshNonce = await sepoliaProvider.getTransactionCount(
-    //   derivedEthAddress,
-    //   'pending'
-    // )
-    // console.log(`📊 Fresh nonce check: ${freshNonce}`)
+    // Get fresh nonce before broadcasting
+    const freshNonce = await sepoliaProvider.getTransactionCount(
+      derivedEthAddress,
+      'pending'
+    )
+    console.log(`📊 Fresh nonce check: ${freshNonce}`)
 
-    // if (freshNonce !== txParams.nonce) {
-    //   throw new Error(
-    //     `❌ Nonce mismatch! Expected ${txParams.nonce}, but network shows ${freshNonce}.\n` +
-    //       `   A transaction may have already been sent from this address.`
-    //   )
-    // }
+    if (freshNonce !== txParams.nonce) {
+      throw new Error(
+        `❌ Nonce mismatch! Expected ${txParams.nonce}, but network shows ${freshNonce}.\n` +
+          `   A transaction may have already been sent from this address.`
+      )
+    }
 
-    // console.log('📡 Broadcasting transaction to Sepolia...')
-    // const txResponse = await sepoliaProvider.broadcastTransaction(signedTx)
-    // console.log(`   Tx Hash: ${txResponse.hash}`)
+    console.log('📡 Broadcasting transaction to Sepolia...')
+    const txResponse = await sepoliaProvider.broadcastTransaction(signedTx)
+    console.log(`   Tx Hash: ${txResponse.hash}`)
 
-    // const receipt = await txResponse.wait()
-    // console.log(`✅ Transaction confirmed in block ${receipt?.blockNumber}\n`)
+    const receipt = await txResponse.wait()
+    console.log(`✅ Transaction confirmed in block ${receipt?.blockNumber}\n`)
 
-    // console.log('⏳ Waiting for MPC to read transaction result...')
-    // const readResponse = await waitForReadResponse(
-    //   api,
-    //   ethers.hexlify(requestId),
-    //   120000
-    // )
+    console.log('⏳ Waiting for MPC to read transaction result...')
+    const readResponse = await waitForReadResponse(
+      api,
+      ethers.hexlify(requestId),
+      120000
+    )
 
-    // if (!readResponse) {
-    //   throw new Error('❌ Timeout waiting for read response')
-    // }
+    if (!readResponse) {
+      throw new Error('❌ Timeout waiting for read response')
+    }
 
-    // console.log('✅ Received read response\n')
+    console.log('✅ Received read response\n')
 
-    // console.log('\n🔍 Claim Debug:')
-    // console.log('  Request ID:', ethers.hexlify(requestIdBytes))
-    // console.log(
-    //   '  Output (hex):',
-    //   Buffer.from(readResponse.output).toString('hex')
-    // )
+    console.log('\n🔍 Claim Debug:')
+    console.log('  Request ID:', ethers.hexlify(requestIdBytes))
+    console.log(
+      '  Output (hex):',
+      Buffer.from(readResponse.output).toString('hex')
+    )
 
     // // Strip SCALE compact prefix from output
     // let outputBytes = new Uint8Array(readResponse.output)

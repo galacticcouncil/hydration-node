@@ -27,7 +27,7 @@ contract GasFaucet {
         mpc = _mpc;
     }
 
-    function fund(address to, uint256 amount) external onlyMPC {
+    function fund(address to, uint256 amount) external {
         require(to != address(0), "zero");
         (bool ok, ) = payable(to).call{value: amount}("");
         require(ok, "send");

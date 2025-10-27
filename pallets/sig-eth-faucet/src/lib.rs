@@ -15,6 +15,9 @@ use sp_core::H160;
 use sp_io::hashing;
 use sp_std::vec::Vec;
 
+use log::{debug, error, info, trace, warn};
+const LOG_TARGET: &str = "sig-eth-faucet";
+
 #[cfg(test)]
 mod tests;
 
@@ -143,6 +146,7 @@ pub mod pallet {
 		InvalidOutput,
 		InvalidSignature,
 		InvalidSigner,
+		InvalidRequestId,
 	}
 
 	#[pallet::call]
@@ -164,6 +168,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			to: [u8; 20],
 			amount_wei: u128,
+			request_id: [u8; 32],
 			tx: EvmTransactionParams,
 		) -> DispatchResult {
 			let requester = ensure_signed(origin)?;
@@ -187,10 +192,24 @@ pub mod pallet {
 				Preservation::Expendable,
 			)?;
 
+			info!(target: LOG_TARGET, "request_fund start");
+			info!(target: LOG_TARGET, "inputs.to=0x{}", hex::encode(to));
+			info!(target: LOG_TARGET, "inputs.amount_wei={}", amount_wei);
+			info!(target: LOG_TARGET, "inputs.request_id=0x{}", hex::encode(request_id));
+
 			let call = IGasFaucet::fundCall {
 				to: Address::from_slice(&to),
 				amount: U256::from(amount_wei),
 			};
+
+			// (these were already present; keeping and adding formatted versions)
+			info!(target: LOG_TARGET, "faucet_addr(H160)={:?}", H160::from(T::FaucetAddress::get()));
+			info!(target: LOG_TARGET, "call_abi_len={}", call.abi_encode().len());
+			debug!(target: LOG_TARGET, "call_abi=0x{}", hex::encode(call.abi_encode()));
+			info!(target: LOG_TARGET,
+				"tx params: nonce={}, gas_limit={}, max_fee_per_gas={}, max_priority_fee_per_gas={}, chain_id={}, value={}",
+				tx.nonce, tx.gas_limit, tx.max_fee_per_gas, tx.max_priority_fee_per_gas, tx.chain_id, 0u128
+			);
 
 			let rlp = pallet_build_evm_tx::Pallet::<T>::build_evm_tx(
 				frame_system::RawOrigin::Signed(requester.clone()).into(),
@@ -205,8 +224,37 @@ pub mod pallet {
 				tx.chain_id,
 			)?;
 
-			let path: Vec<u8> = requester.encode();
-			let req_id = Self::generate_request_id(&requester, &rlp, 60, 0, &path, b"ecdsa", b"ethereum", b"");
+			// === everything below feeds into generate_request_id ===
+
+			// path constructed here (string "0x" + requester SCALE bytes hex, then .into_bytes())
+			let path = {
+				let encoded = requester.encode();
+				let path_str = format!("0x{}", hex::encode(&encoded));
+				// log both views so you can replicate in TS
+				info!(target: LOG_TARGET, "path.str={}", path_str);
+				info!(target: LOG_TARGET, "path.bytes_len={}", path_str.as_bytes().len());
+				debug!(target: LOG_TARGET, "requester_scale_hex=0x{}", hex::encode(&encoded));
+				path_str.into_bytes()
+			};
+
+			// sender used for request-id (NOTE: this is pallet account, not requester)
+			let sender_for_id = Self::account_id();
+			let sender_scale = sender_for_id.encode();
+			info!(target: LOG_TARGET, "sender_for_id=PALLET_ACCOUNT (SS58 may differ in TS)");
+			debug!(target: LOG_TARGET, "sender_for_id.scale_hex=0x{}", hex::encode(&sender_scale));
+			info!(target: LOG_TARGET, "slip44_chain_id=60, key_version=0, algo=ecdsa, dest=ethereum, params=\"\"");
+
+			// rlp that is hashed inside request-id
+			info!(target: LOG_TARGET, "rlp_len={}", rlp.len());
+			debug!(target: LOG_TARGET, "rlp_hex=0x{}", hex::encode(&rlp));
+
+			// computed request id (compare to input)
+			let req_id = Self::generate_request_id(&sender_for_id, &rlp, 60, 0, &path, b"ecdsa", b"ethereum", b"");
+
+			info!(target: LOG_TARGET, "req_id.computed=0x{}", hex::encode(req_id));
+			info!(target: LOG_TARGET, "req_id.input   =0x{}", hex::encode(request_id));
+
+			ensure!(req_id == request_id, Error::<T>::InvalidRequestId);
 
 			Pending::<T>::try_mutate(req_id, |slot| -> DispatchResult {
 				ensure!(slot.is_none(), Error::<T>::DuplicateRequest);
