@@ -176,7 +176,11 @@ pub type AssetSymbol = Vec<u8>;
 /// Messages that are sent to the liquidation worker.
 #[derive(Clone, RuntimeDebug)]
 enum MessageType<B: BlockT> {
-	Block(sc_client_api::client::BlockImportNotification<B>, Vec<UserAddress>, Vec<UserAddress>), // (block, new_borrows, liquidated_users_in_previous_block)
+	Block(
+		sc_client_api::client::BlockImportNotification<B>,
+		Vec<UserAddress>,
+		Vec<UserAddress>,
+	), // (block, new_borrows, liquidated_users_in_previous_block)
 	Transaction(TransactionType),
 }
 
@@ -576,7 +580,7 @@ where
 						return Ok(());
 					}
 				} else {
-					return Ok(())
+					return Ok(());
 				}
 			}
 
@@ -897,21 +901,20 @@ where
 				RuntimeEvent::EVM(pallet_evm::Event::Log { log }) => {
 					if log.address == BORROW_CALL_ADDRESS && log.topics[0] == events::BORROW {
 						if let Some(&borrower) = log.topics.get(2) {
-						new_borrows.push(UserAddress::from(borrower));
+							new_borrows.push(UserAddress::from(borrower));
 						}
 					} else if log.address == POOL_CONFIGURATOR_ADDRESS
-					&& log.topics[0] == events::COLLATERAL_CONFIGURATION_CHANGED
+						&& log.topics[0] == events::COLLATERAL_CONFIGURATION_CHANGED
 					{
 						if let Some(&asset) = log.topics.get(1) {
-						new_assets.push(AssetAddress::from(asset));
+							new_assets.push(AssetAddress::from(asset));
+						}
 					}
-					}
-				},
+				}
 				RuntimeEvent::Liquidation(pallet_liquidation::Event::Liquidated { user, .. }) => {
 					liquidated_users.push(user.clone());
 				}
 				_ => {}
-
 			}
 		}
 
