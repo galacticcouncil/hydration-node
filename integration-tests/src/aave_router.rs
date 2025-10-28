@@ -68,11 +68,10 @@ where
 
 		let pool_contract = liquidation_worker_support::MoneyMarketData::<
 			Block,
-			crate::liquidation::ApiProvider<Runtime>,
 			OriginCaller,
 			RuntimeCall,
 			RuntimeEvent,
-		>::fetch_pool(
+		>::fetch_pool::<crate::liquidation::ApiProvider<Runtime>>(
 			&crate::liquidation::ApiProvider::<Runtime>(Runtime),
 			hash,
 			pap_contract,
