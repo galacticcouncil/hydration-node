@@ -823,6 +823,37 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Remove all liquidity from position
+		///
+		/// Limit protection is applied.
+		///
+		/// `remove_liquidity` removes specified shares amount from given PositionId (NFT instance).
+		///
+		/// Asset's tradable state must contain REMOVE_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
+		/// if all shares from given position are removed, position is destroyed and NFT is burned.
+		///
+		/// Remove liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		///
+		/// Dynamic withdrawal fee is applied if withdrawal is not safe. It is calculated using spot price and external price oracle.
+		/// Withdrawal is considered safe when trading is disabled.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of position which liquidity is entirely removed from.
+		///
+		/// Emits `LiquidityRemoved` event when successful.
+		///
+		#[pallet::call_index(15)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
+		#[transactional]
+		pub fn remove_all_liquidity(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
+			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
+
+			Self::remove_liquidity_with_limit(origin, position_id, position.amount, position.amount)?;
+
+			Ok(())
+		}
+
 		/// Sacrifice LP position in favor of pool.
 		///
 		/// A position is destroyed and liquidity owned by LP becomes pool owned liquidity.
