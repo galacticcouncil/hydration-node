@@ -5008,6 +5008,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy 4.3.4",
  "pallet-dispatcher",
+ "pallet-dispenser",
  "pallet-duster",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
@@ -5047,7 +5048,6 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
- "pallet-sig-eth-faucet",
  "pallet-signet",
  "pallet-stableswap",
  "pallet-staking 4.1.5",
@@ -8339,6 +8339,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-dispenser"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "borsh",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-build-evm-tx",
+ "pallet-currencies",
+ "pallet-signet",
+ "parity-scale-codec",
+ "scale-info",
+ "secp256k1 0.27.0",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-duster"
 version = "3.2.9"
 dependencies = [
@@ -9487,33 +9516,6 @@ dependencies = [
  "rand 0.8.5",
  "sp-runtime",
  "sp-session",
-]
-
-[[package]]
-name = "pallet-sig-eth-faucet"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "borsh",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hex",
- "log",
- "pallet-balances",
- "pallet-build-evm-tx",
- "pallet-currencies",
- "pallet-signet",
- "parity-scale-codec",
- "scale-info",
- "secp256k1 0.27.0",
- "serde",
- "serde_json",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]

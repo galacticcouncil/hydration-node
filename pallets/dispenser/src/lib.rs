@@ -16,7 +16,7 @@ use sp_io::hashing;
 use sp_std::vec::Vec;
 
 use log::{debug, error, info, trace, warn};
-const LOG_TARGET: &str = "sig-eth-faucet";
+const LOG_TARGET: &str = "pallet-dispenser";
 
 #[cfg(test)]
 mod tests;
@@ -60,53 +60,48 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_build_evm_tx::Config + pallet_signet::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		// Multi-currency (HDX fees + wETH faucet asset)
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
+		// Minimum/Maximum & Fee (use u128 to match Balance/wei)
 		#[pallet::constant]
-		type MinimumRequestAmount: Get<u64>;
-
+		type MinimumRequestAmount: Get<u128>;
 		#[pallet::constant]
 		type MaxDispenseAmount: Get<u128>;
-
 		#[pallet::constant]
 		type DispenserFee: Get<u128>;
 
+		// fee asset (HDX) & faucet asset (wETH)
 		#[pallet::constant]
 		type FeeAsset: Get<AssetId>;
-
 		#[pallet::constant]
 		type FaucetAsset: Get<AssetId>;
 
+		// Treasury account for fee settlement
 		#[pallet::constant]
 		type TreasuryAddress: Get<Self::AccountId>;
 
+		// Ethereum config
 		#[pallet::constant]
 		type FaucetAddress: Get<EvmAddress>;
-
 		#[pallet::constant]
 		type MPCRootSigner: Get<EvmAddress>;
 
+		// PalletId for internal account
 		#[pallet::constant]
 		type VaultPalletId: Get<PalletId>;
 	}
 
+	/*************************** STORAGE ***************************/
+
 	#[pallet::storage]
-	#[pallet::getter(fn vault_config)]
-	pub type FaucetConfig<T> = StorageValue<_, FaucetConfigData, OptionQuery>;
+	#[pallet::getter(fn dispenser_config)]
+	pub type DispenserConfig<T> = StorageValue<_, DispenserConfigData, OptionQuery>;
 
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
-	pub struct FaucetConfigData {
+	pub struct DispenserConfigData {
 		pub init: bool,
-	}
-
-	#[pallet::storage]
-	pub type Pending<T: Config> = StorageMap<_, Blake2_128Concat, [u8; 32], PendingData<T::AccountId>, OptionQuery>;
-
-	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
-	pub struct PendingData<AccountId> {
-		pub requester: AccountId,
-		pub pay_amount: u128,
-		pub to: [u8; 20],
+		pub paused: bool,
 	}
 
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq)]
@@ -123,6 +118,8 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		Initialized,
+		Paused,
+		Unpaused,
 		FundRequested {
 			request_id: [u8; 32],
 			requester: T::AccountId,
@@ -147,6 +144,10 @@ pub mod pallet {
 		InvalidSignature,
 		InvalidSigner,
 		InvalidRequestId,
+		Paused,
+		AmountTooSmall,
+		AmountTooLarge,
+		InvalidAddress,
 	}
 
 	#[pallet::call]
@@ -155,9 +156,13 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn initialize(origin: OriginFor<T>) -> DispatchResult {
 			let _ = ensure_signed(origin)?;
-			ensure!(FaucetConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
+			ensure!(DispenserConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
-			FaucetConfig::<T>::put(FaucetConfigData { init: true });
+			DispenserConfig::<T>::put(DispenserConfigData {
+				init: true,
+				paused: false,
+			});
+
 			Self::deposit_event(Event::Initialized);
 			Ok(())
 		}
@@ -173,6 +178,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let requester = ensure_signed(origin)?;
 			let pallet_id = Self::account_id();
+
+			ensure!(!DispenserConfig::<T>::get().unwrap().paused, Error::<T>::Paused);
+			ensure!(amount_wei >= T::MinimumRequestAmount::get(), Error::<T>::AmountTooSmall);
+			ensure!(amount_wei <= T::MaxDispenseAmount::get(), Error::<T>::AmountTooLarge);
 
 			// deducting fee
 			<T as Config>::Currency::transfer(
@@ -192,24 +201,10 @@ pub mod pallet {
 				Preservation::Expendable,
 			)?;
 
-			info!(target: LOG_TARGET, "request_fund start");
-			info!(target: LOG_TARGET, "inputs.to=0x{}", hex::encode(to));
-			info!(target: LOG_TARGET, "inputs.amount_wei={}", amount_wei);
-			info!(target: LOG_TARGET, "inputs.request_id=0x{}", hex::encode(request_id));
-
 			let call = IGasFaucet::fundCall {
 				to: Address::from_slice(&to),
 				amount: U256::from(amount_wei),
 			};
-
-			// (these were already present; keeping and adding formatted versions)
-			info!(target: LOG_TARGET, "faucet_addr(H160)={:?}", H160::from(T::FaucetAddress::get()));
-			info!(target: LOG_TARGET, "call_abi_len={}", call.abi_encode().len());
-			debug!(target: LOG_TARGET, "call_abi=0x{}", hex::encode(call.abi_encode()));
-			info!(target: LOG_TARGET,
-				"tx params: nonce={}, gas_limit={}, max_fee_per_gas={}, max_priority_fee_per_gas={}, chain_id={}, value={}",
-				tx.nonce, tx.gas_limit, tx.max_fee_per_gas, tx.max_priority_fee_per_gas, tx.chain_id, 0u128
-			);
 
 			let rlp = pallet_build_evm_tx::Pallet::<T>::build_evm_tx(
 				frame_system::RawOrigin::Signed(requester.clone()).into(),
@@ -224,47 +219,18 @@ pub mod pallet {
 				tx.chain_id,
 			)?;
 
-			// === everything below feeds into generate_request_id ===
-
-			// path constructed here (string "0x" + requester SCALE bytes hex, then .into_bytes())
 			let path = {
 				let encoded = requester.encode();
 				let path_str = format!("0x{}", hex::encode(&encoded));
-				// log both views so you can replicate in TS
-				info!(target: LOG_TARGET, "path.str={}", path_str);
-				info!(target: LOG_TARGET, "path.bytes_len={}", path_str.as_bytes().len());
-				debug!(target: LOG_TARGET, "requester_scale_hex=0x{}", hex::encode(&encoded));
 				path_str.into_bytes()
 			};
 
-			// sender used for request-id (NOTE: this is pallet account, not requester)
 			let sender_for_id = Self::account_id();
 			let sender_scale = sender_for_id.encode();
-			info!(target: LOG_TARGET, "sender_for_id=PALLET_ACCOUNT (SS58 may differ in TS)");
-			debug!(target: LOG_TARGET, "sender_for_id.scale_hex=0x{}", hex::encode(&sender_scale));
-			info!(target: LOG_TARGET, "slip44_chain_id=60, key_version=0, algo=ecdsa, dest=ethereum, params=\"\"");
 
-			// rlp that is hashed inside request-id
-			info!(target: LOG_TARGET, "rlp_len={}", rlp.len());
-			debug!(target: LOG_TARGET, "rlp_hex=0x{}", hex::encode(&rlp));
-
-			// computed request id (compare to input)
 			let req_id = Self::generate_request_id(&sender_for_id, &rlp, 60, 0, &path, b"ecdsa", b"ethereum", b"");
 
-			info!(target: LOG_TARGET, "req_id.computed=0x{}", hex::encode(req_id));
-			info!(target: LOG_TARGET, "req_id.input   =0x{}", hex::encode(request_id));
-
 			ensure!(req_id == request_id, Error::<T>::InvalidRequestId);
-
-			Pending::<T>::try_mutate(req_id, |slot| -> DispatchResult {
-				ensure!(slot.is_none(), Error::<T>::DuplicateRequest);
-				*slot = Some(PendingData {
-					requester: requester.clone(),
-					pay_amount: amount_wei,
-					to,
-				});
-				Ok(())
-			})?;
 
 			let explorer_schema = Vec::<u8>::new();
 			let callback_schema =
@@ -295,46 +261,22 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(2)]
-		#[pallet::weight(50_000)]
-		pub fn respond_fund(
-			origin: OriginFor<T>,
-			request_id: [u8; 32],
-			serialized_output: BoundedVec<u8, ConstU32<65536>>,
-			signature: pallet_signet::Signature,
-		) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
-			let pending = Pending::<T>::take(&request_id).ok_or(Error::<T>::NotFound)?;
+		#[pallet::call_index(3)]
+		#[pallet::weight(10_000)]
+		pub fn pause(origin: OriginFor<T>) -> DispatchResult {
+			// TODO: Check the origin
+			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = true);
+			Self::deposit_event(Event::Paused);
+			Ok(())
+		}
 
-			let hash = Self::hash_message(&request_id, &serialized_output);
-			Self::verify_signature_from_address(&hash, &signature, &T::MPCRootSigner::get())?;
-
-			let ok = {
-				use borsh::BorshDeserialize;
-				bool::try_from_slice(&serialized_output).map_err(|_| Error::<T>::InvalidOutput)?
-			};
-
-			if ok {
-				<T as Config>::Currency::transfer(
-					T::FaucetAsset::get(),
-					&Self::account_id(),
-					&T::TreasuryAddress::get(),
-					pending.pay_amount,
-					Preservation::Expendable,
-				)?;
-				Self::deposit_event(Event::FundSucceeded { request_id });
-				Ok(())
-			} else {
-				<T as Config>::Currency::transfer(
-					T::FaucetAsset::get(),
-					&Self::account_id(),
-					&pending.requester,
-					pending.pay_amount,
-					Preservation::Expendable,
-				)?;
-				Self::deposit_event(Event::FundFailed { request_id });
-				Ok(())
-			}
+		#[pallet::call_index(4)]
+		#[pallet::weight(10_000)]
+		pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
+			// TODO: Check the origin
+			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = true);
+			Self::deposit_event(Event::Unpaused);
+			Ok(())
 		}
 	}
 

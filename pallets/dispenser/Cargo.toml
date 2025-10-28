@@ -1,5 +1,5 @@
 [package]
-name = "pallet-sig-eth-faucet"
+name = "pallet-dispenser"
 version = "0.1.0"
 edition = "2021"
 
@@ -21,16 +21,12 @@ hex = { version = "0.4", default-features = false, features = ["alloc"] }
 # Ethereum ABI encoding
 alloy-sol-types = { version = "=0.7.6", default-features = false, features = ["json"] }
 alloy-primitives = { version = "=0.7.7", default-features = false }
-
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-
 pallet-build-evm-tx = { path = "../build-evm-tx", default-features = false }
 pallet-signet = { path = "../signet", default-features = false }
-
-
+pallet-currencies = { workspace = true, features = ["std"] }
 frame-benchmarking = { workspace = true, optional = true }
-
 log = { version = "0.4", default-features = false }
 
 [dev-dependencies]
@@ -39,7 +35,8 @@ sp-io = { workspace = true, features = ["std"] }
 sp-core = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
 secp256k1 = { version = "0.27", features = ["recovery", "global-context"] }
-pallet-currencies = { workspace = true, features = ["std"] }
+orml-traits = { workspace = true }
+orml-tokens = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
