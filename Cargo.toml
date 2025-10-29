@@ -168,7 +168,7 @@ hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-featu
 scraper = { path = "scraper", default-features = false }
 runtime-mock = { path = "runtime-mock", default-features = false }
 test-utils = { path = "utils/test-utils", default-features = false }
-
+getrandom = { version = "0.2.11", features = ["js"] }
 integration-tests = { path = "integration-tests", default-features = false }
 
 pallet-evm-precompile-call-permit = { path = "precompiles/call-permit", default-features = false }

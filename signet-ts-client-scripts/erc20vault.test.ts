@@ -8,10 +8,10 @@ import { SignetClient } from './signet-client'
 import { KeyDerivation } from './key-derivation'
 
 const ROOT_PUBLIC_KEY =
-  '0x049d9031e97dd78ff8c15aa86939de9b1e791066a0224e331bc962a2099a7b1f0464b8bbafe1535f2301c72c2cb3535b172da30b02686ab0393d348614f157fbdb'
+  '0x047ca560e19ef0fb49f046670e50b6ceb394122ddfed5526802e5e438cdd2bc5347963e633398aa8498e8711c416746d87d49a8860e04967761d0a0cea229a5220'
 const CHAIN_ID = 'polkadot:2034'
-const SEPOLIA_RPC = 'http://localhost:8545'
-const FAUCET_ADDRESS = '0x663F3ad617193148711d28f5334eE4Ed07016602'
+const SEPOLIA_RPC = 'https://ethereum-sepolia-rpc.publicnode.com'
+const FAUCET_ADDRESS = '0xF9E16bEE32f9636B84752275D058436f16F277b9'
 
 function getPalletAccountId(): Uint8Array {
   const palletId = new TextEncoder().encode('py/fucet')
