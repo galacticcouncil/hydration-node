@@ -177,6 +177,14 @@ describe('ERC20 Vault Integration', () => {
     const palletAccountId = getPalletAccountId()
     const palletSS58 = encodeAddress(palletAccountId, 0)
 
+    await transferAssetToBob(
+      api,
+      alice,
+      palletSS58,
+      faucetAsset,
+      ethers.parseEther('100')
+    )
+
     const { data: palletBalance } = (await api.query.system.account(
       palletSS58
     )) as any
@@ -249,7 +257,7 @@ describe('ERC20 Vault Integration', () => {
     console.log('mpcEthAddress -> ', mpcEthAddress)
     const mpcAddressBytes = Array.from(ethers.getBytes(mpcEthAddress))
 
-    const existingConfig = await api.query.sigEthFaucet.faucetConfig()
+    const existingConfig = await api.query.sigEthFaucet.dispenserConfig()
 
     const configJson = existingConfig.toJSON()
     console.log('configJson -> ', configJson)
@@ -263,7 +271,7 @@ describe('ERC20 Vault Integration', () => {
       await submitWithRetry(initTx, alice, api, 'Initialize vault')
     }
 
-    const amount = ethers.parseEther('0.1')
+    const amount = ethers.parseEther('0.005')
     const feeData = await sepoliaProvider.getFeeData()
     const currentNonce = await sepoliaProvider.getTransactionCount(
       derivedEthAddress,
@@ -278,7 +286,7 @@ describe('ERC20 Vault Integration', () => {
       maxFeePerGas: Number(feeData.maxFeePerGas || 30000000000n),
       maxPriorityFeePerGas: Number(feeData.maxPriorityFeePerGas || 2000000000n),
       nonce: currentNonce,
-      chainId: 31337,
+      chainId: 11155111,
     }
 
     const keyring = new Keyring({ type: 'sr25519' })
@@ -296,7 +304,7 @@ describe('ERC20 Vault Integration', () => {
       'function fund(address to, uint256 amount) external',
     ])
     const data = iface.encodeFunctionData('fund', [
-      '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+      '0x7f67681CE8c292BbbeF0cCfa1475d9742b6AB3AC',
       amount,
     ])
 
@@ -331,7 +339,7 @@ describe('ERC20 Vault Integration', () => {
       typeof requestId === 'string' ? ethers.getBytes(requestId) : requestId
 
     const depositTx = api.tx.sigEthFaucet.requestFund(
-      Array.from(ethers.getBytes('0x70997970C51812dc3A010C7d01b50e0d17dc79C8')),
+      Array.from(ethers.getBytes('0x7f67681CE8c292BbbeF0cCfa1475d9742b6AB3AC')),
       amount.toString(),
       requestIdBytes,
       txParams

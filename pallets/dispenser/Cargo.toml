@@ -36,7 +36,7 @@ sp-core = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
 secp256k1 = { version = "0.27", features = ["recovery", "global-context"] }
 orml-traits = { workspace = true }
-orml-tokens = { workspace = true, features = ["std"] }
+orml-tokens = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
@@ -54,10 +54,11 @@ std = [
     "alloy-primitives/std",
     "serde/std",
     "serde_json/std",
+    "pallet-currencies/std",
     "pallet-build-evm-tx/std",
     "pallet-signet/std",
     "hex/std",
-    "pallet-currencies/std",
+
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",

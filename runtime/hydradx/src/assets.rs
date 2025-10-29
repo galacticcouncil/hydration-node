@@ -1840,7 +1840,7 @@ parameter_types! {
 
 	pub const SigEthFaucetDispenserFee: u128 = 5_000;
 
-	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000;
+	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000_000_000_000;
 
 	pub const SigEthFaucetMinRequest: u64 = 0;
 
@@ -1882,7 +1882,7 @@ impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
 	}
 }
 
-impl pallet_sig_eth_faucet::Config for Runtime {
+impl pallet_dispenser::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 
 	type Currency = FungibleCurrencies<Runtime>;
