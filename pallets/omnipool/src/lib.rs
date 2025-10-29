@@ -846,10 +846,10 @@ pub mod pallet {
 		#[pallet::call_index(15)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
-		pub fn remove_all_liquidity(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
+		pub fn remove_all_liquidity(origin: OriginFor<T>, position_id: T::PositionItemId, min_limit: Balance) -> DispatchResult {
 			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
 
-			Self::remove_liquidity_with_limit(origin, position_id, position.amount, position.amount)?;
+			Self::remove_liquidity_with_limit(origin, position_id, position.amount, min_limit)?;
 
 			Ok(())
 		}
