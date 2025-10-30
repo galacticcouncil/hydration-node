@@ -400,7 +400,6 @@ fn remove_all_liquidity_should_fail_when_prices_differ_and_is_lower() {
 		});
 }
 
-// TODO fails because left 1= right
 #[test]
 fn remove_all_liquidity_should_apply_min_fee_when_price_is_the_same() {
 	ExtBuilder::default()
@@ -430,32 +429,25 @@ fn remove_all_liquidity_should_apply_min_fee_when_price_is_the_same() {
 				Balance::MIN
 			));
 
-			assert_pool_state!(11931300000000000, 23862600000000000);
+			assert_pool_state!(11802600000000000, 23862600000000000);
 
-			assert_balance!(LP1, 1_000, 4798000000000000);
+			// expected_free_balance(1000, LP1) = (5000 * ONE) - (400 * WITHDRAWAL_FEE)
+			assert_balance!(LP1, 1_000, 4996000000000000);
 
 			assert_asset_state!(
 				1_000,
 				AssetReserveState {
-					reserve: 2202000000000000,
-					hub_reserve: 1431300000000000,
-					shares: 2400 * ONE - liq_removed,
+					reserve: 2004000000000000,
+					hub_reserve: 1302600000000000,
+					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
 
-			let position = Positions::<Test>::get(current_position_id).unwrap();
-
-			let expected = Position::<Balance, AssetId> {
-				asset_id: 1_000,
-				amount: liq_added - liq_removed,
-				shares: liq_added - liq_removed,
-				price: (1560 * ONE, 2400 * ONE),
-			};
-
-			assert_eq!(position, expected);
+			assert_eq!(Positions::<Test>::get(current_position_id), None);
+			
 		});
 }
 
