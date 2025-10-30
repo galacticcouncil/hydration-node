@@ -4,10 +4,6 @@ use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
 use hydradx_runtime::evm::Erc20Currency;
 
-use hydradx_traits::evm::CallContext;
-use hydradx_traits::evm::ERC20;
-use hydradx_runtime::{FixedU128, Runtime};
-use hydradx_runtime::EVMAccounts;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
@@ -19,12 +15,16 @@ use hydradx_adapters::price::ConvertBalance;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::types::ShortOraclePrice;
 use hydradx_runtime::AssetRegistry;
+use hydradx_runtime::EVMAccounts;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::XYK;
 use hydradx_runtime::{
 	Balances, Currencies, DotAssetId, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
 	XykPaymentAssetSupport,
 };
+use hydradx_runtime::{FixedU128, Runtime};
+use hydradx_traits::evm::CallContext;
+use hydradx_traits::evm::ERC20;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use hydradx_traits::Mutate as AssetRegistryMutate;
@@ -42,8 +42,8 @@ use sp_runtime::transaction_validity::InvalidTransaction;
 use sp_runtime::transaction_validity::TransactionValidityError;
 use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
 use sp_runtime::DispatchResult;
+use sp_runtime::Permill;
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{Permill};
 use xcm_emulator::TestExt;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
@@ -719,20 +719,20 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 			hydradx_runtime::RuntimeOrigin::signed(alith_evm_account()),
 			hydradx_runtime::Omnipool::protocol_account(),
 			asset,
-			erc20_balance /2
+			erc20_balance / 2
 		));
 
 		let alith_balance = Currencies::free_balance(asset, &alith_evm_account().into());
 		assert_eq!(alith_balance, erc20_balance / 2);
 
 		assert_ok!(MultiTransactionPayment::add_currency(
-				hydradx_runtime::RuntimeOrigin::root(),
-				asset,
-				FixedU128::from_rational(1, 2)
+			hydradx_runtime::RuntimeOrigin::root(),
+			asset,
+			FixedU128::from_rational(1, 2)
 		));
 		assert_ok!(MultiTransactionPayment::set_currency(
-				hydradx_runtime::RuntimeOrigin::signed(alith_evm_account()),
-				DAI,
+			hydradx_runtime::RuntimeOrigin::signed(alith_evm_account()),
+			DAI,
 		));
 		let fee_currency = asset;
 
@@ -804,17 +804,18 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 		let (rs, v) = sign(&message, &secret_key);
 
 		// Validate unsigned first
-		let call : pallet_transaction_multi_payment::Call<hydradx_runtime::Runtime> = pallet_transaction_multi_payment::Call::dispatch_permit {
-			from: user_evm_address,
-			to: DISPATCH_ADDR,
-			value: U256::from(0),
-			data: set_currency_call.encode(),
-			gas_limit,
-			deadline,
-			v: v.serialize(),
-			r: H256::from(rs.r.b32()),
-			s: H256::from(rs.s.b32()),
-		};
+		let call: pallet_transaction_multi_payment::Call<hydradx_runtime::Runtime> =
+			pallet_transaction_multi_payment::Call::dispatch_permit {
+				from: user_evm_address,
+				to: DISPATCH_ADDR,
+				value: U256::from(0),
+				data: set_currency_call.encode(),
+				gas_limit,
+				deadline,
+				v: v.serialize(),
+				r: H256::from(rs.r.b32()),
+				s: H256::from(rs.s.b32()),
+			};
 
 		//Commented out as we first we want to have a failing test for the behaviour
 		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
@@ -854,7 +855,6 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 		assert!(user_fee_currency_balance < initial_user_fee_currency_balance);
 	})
 }
-
 
 #[test]
 fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
