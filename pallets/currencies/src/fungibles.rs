@@ -264,7 +264,10 @@ where
 			<T::NativeCurrency as fungible::Mutate<T::AccountId>>::mint_into(who, amount.into()).into()
 		} else {
 			match T::BoundErc20::contract_address(asset) {
-				Some(_) => fail!(Error::<T>::NotSupported),
+				Some(contract) => {
+					let _ = T::Erc20Currency::deposit(contract, who, amount)?;
+					Ok(Self::Balance::default())
+				},
 				None => {
 					<T::MultiCurrency as fungibles::Mutate<T::AccountId>>::mint_into(asset.into(), who, amount.into())
 						.into()
@@ -292,7 +295,10 @@ where
 			.into()
 		} else {
 			match T::BoundErc20::contract_address(asset) {
-				Some(_) => fail!(Error::<T>::NotSupported),
+				Some(contract) => {
+					let _ = T::Erc20Currency::withdraw(contract, who, amount)?;
+					Ok(Self::Balance::default())
+				},
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::burn_from(
 					asset.into(),
 					who,
