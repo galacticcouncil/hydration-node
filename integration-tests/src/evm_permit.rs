@@ -2,6 +2,12 @@
 
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
+use hydradx_runtime::evm::Erc20Currency;
+
+use hydradx_traits::evm::CallContext;
+use hydradx_traits::evm::ERC20;
+use hydradx_runtime::{FixedU128, Runtime};
+use hydradx_runtime::EVMAccounts;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
@@ -37,7 +43,7 @@ use sp_runtime::transaction_validity::TransactionValidityError;
 use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
 use sp_runtime::DispatchResult;
 use sp_runtime::TransactionOutcome;
-use sp_runtime::{FixedU128, Permill};
+use sp_runtime::{Permill};
 use xcm_emulator::TestExt;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
@@ -683,6 +689,172 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_currency() {
 		assert!(fee_diff > 1000 * UNITS);
 	})
 }
+
+#[test]
+fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency() {
+	TestNet::reset();
+
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		//Create new erc20, fund user with it and set it as fee payment currency
+		let contract = crate::erc20::deploy_token_contract();
+		let asset = crate::erc20::bind_erc20(contract);
+		let balance = Currencies::free_balance(asset, &ALICE.into());
+		let erc20_balance = 2000000000000000;
+		assert_eq!(erc20_balance, 2000000000000000);
+		assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
+			CallContext {
+				contract: contract,
+				sender: crate::erc20::deployer(),
+				origin: crate::erc20::deployer()
+			},
+			user_evm_address,
+			erc20_balance
+		));
+
+		assert_ok!(Currencies::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(alith_evm_account()),
+			hydradx_runtime::Omnipool::protocol_account(),
+			asset,
+			erc20_balance /2
+		));
+
+		let alith_balance = Currencies::free_balance(asset, &alith_evm_account().into());
+		assert_eq!(alith_balance, erc20_balance / 2);
+
+		assert_ok!(MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				asset,
+				FixedU128::from_rational(1, 2)
+		));
+		assert_ok!(MultiTransactionPayment::set_currency(
+				hydradx_runtime::RuntimeOrigin::signed(alith_evm_account()),
+				DAI,
+		));
+		let fee_currency = asset;
+
+		//let fee_currency = DAI;
+
+		init_omnipool_with_oracle_for_block_10();
+		//Add new erc20 token to omnipool and populate oracle
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
+			hydradx_runtime::RuntimeOrigin::root(),
+			asset,
+			FixedU128::from_rational(1, 2),
+			Permill::from_percent(100),
+			AccountId::from(alith_evm_account()),
+		));
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(alith_evm_account()),
+			asset,
+			0,
+			erc20_balance / 100,
+			Balance::MIN
+		));
+		hydradx_run_to_next_block();
+
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_user_weth_balance = user_acc.balance(WETH);
+
+		let initial_fee_currency_issuance = Currencies::total_issuance(fee_currency);
+
+		// just reset the weth balance to 0 - to make sure we don't have enough WETH
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address(),
+			WETH,
+			-(initial_user_weth_balance as i128),
+		));
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			user_acc.address(),
+			DAI,
+			10000 * UNITS as i128,
+		));
+		let initial_user_weth_balance = user_acc.balance(WETH);
+		assert_eq!(initial_user_weth_balance, 0);
+
+		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
+			pallet_transaction_multi_payment::Call::set_currency { currency: fee_currency },
+		);
+
+		let gas_limit = 1000000;
+		let deadline = U256::from(1000000000000u128);
+
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				set_currency_call.encode(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		// Validate unsigned first
+		let call : pallet_transaction_multi_payment::Call<hydradx_runtime::Runtime> = pallet_transaction_multi_payment::Call::dispatch_permit {
+			from: user_evm_address,
+			to: DISPATCH_ADDR,
+			value: U256::from(0),
+			data: set_currency_call.encode(),
+			gas_limit,
+			deadline,
+			v: v.serialize(),
+			r: H256::from(rs.r.b32()),
+			s: H256::from(rs.s.b32()),
+		};
+
+		//Commented out as we first we want to have a failing test for the behaviour
+		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
+		assert_eq!(
+			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
+			Ok(ValidTransaction {
+				priority: 0,
+				requires: vec![],
+				provides: vec![tag],
+				longevity: 64,
+				propagate: true,
+			})
+		);
+
+		// And Dispatch
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			set_currency_call.encode(),
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		let currency =
+			pallet_transaction_multi_payment::Pallet::<hydradx_runtime::Runtime>::account_currency(&user_acc.address());
+		assert_eq!(currency, fee_currency);
+
+		let fee_currency_issuance = Currencies::total_issuance(fee_currency);
+		assert_eq!(initial_fee_currency_issuance, fee_currency_issuance);
+
+		let user_fee_currency_balance = user_acc.balance(fee_currency);
+		assert!(user_fee_currency_balance < initial_user_fee_currency_balance);
+	})
+}
+
 
 #[test]
 fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_insufficient_asset() {
