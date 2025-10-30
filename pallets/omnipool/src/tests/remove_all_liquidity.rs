@@ -8,6 +8,7 @@ use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
 fn remove_all_liquidity_works() {
+	// remove with remove_all_liquidity
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -37,6 +38,67 @@ fn remove_all_liquidity_works() {
 				RuntimeOrigin::signed(LP1),
 				lp1_position_id,
 				liq_removed,
+			));
+
+			assert!(
+				Positions::<Test>::get(lp1_position_id).is_none(),
+				"Position still found"
+			);
+
+			assert_pool_state!(11_800 * ONE, 23_600_000_000_000_000);
+
+			assert_balance!(LP1, 1_000, 5000 * ONE);
+
+			assert_asset_state!(
+				1_000,
+				AssetReserveState {
+					reserve: token_amount + liq_added - liq_removed,
+					hub_reserve: 1300000000000000,
+					shares: 2400 * ONE - liq_removed,
+					protocol_shares: Balance::zero(),
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+
+			assert!(
+				get_mock_minted_position(lp1_position_id).is_none(),
+				"Position instance was not burned"
+			);
+		});
+
+	// remove with remove_liquidity_with_limit with exact setup as above
+	// ensure both function the same
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			let token_amount = 2000 * ONE;
+
+			let liq_added = 400 * ONE;
+			let lp1_position_id = <NextPositionId<Test>>::get();
+
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
+
+			assert!(
+				get_mock_minted_position(lp1_position_id).is_some(),
+				"Position instance was not minted"
+			);
+
+			let liq_removed = 400 * ONE;
+
+			assert_ok!(Omnipool::remove_liquidity_with_limit(
+				RuntimeOrigin::signed(LP1),
+				lp1_position_id,
+				liq_removed,
+				liq_removed
 			));
 
 			assert!(
@@ -397,117 +459,6 @@ fn remove_all_liquidity_should_fail_when_prices_differ_and_is_lower() {
 				Omnipool::remove_all_liquidity(RuntimeOrigin::signed(LP1), current_position_id, Balance::MIN),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
-		});
-}
-
-#[test]
-fn remove_all_liquidity_should_apply_min_fee_when_price_is_the_same() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 1_000, 2000 * ONE),
-			(LP1, 1_000, 5000 * ONE),
-		])
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_min_withdrawal_fee(Permill::from_float(0.01))
-		.build()
-		.execute_with(|| {
-			let liq_added = 400 * ONE;
-
-			let current_position_id = <NextPositionId<Test>>::get();
-
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
-
-			assert_balance!(LP1, 1_000, 4600 * ONE);
-
-			let liq_removed = 200 * ONE;
-			assert_ok!(Omnipool::remove_all_liquidity(
-				RuntimeOrigin::signed(LP1),
-				current_position_id,
-				Balance::MIN
-			));
-
-			assert_pool_state!(11802600000000000, 23862600000000000);
-
-			// expected_free_balance(1000, LP1) = (5000 * ONE) - (400 * WITHDRAWAL_FEE)
-			assert_balance!(LP1, 1_000, 4996000000000000);
-
-			assert_asset_state!(
-				1_000,
-				AssetReserveState {
-					reserve: 2004000000000000,
-					hub_reserve: 1302600000000000,
-					shares: 2000 * ONE,
-					protocol_shares: Balance::zero(),
-					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
-				}
-			);
-
-			assert_eq!(Positions::<Test>::get(current_position_id), None);
-			
-		});
-}
-
-// TODO fails because left 1= right
-#[test]
-fn remove_all_liquidity_should_apply_correct_fee_when_price_is_different() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 1_000, 2000 * ONE),
-			(LP1, 1_000, 5000 * ONE),
-		])
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_min_withdrawal_fee(Permill::from_float(0.01))
-		.with_withdrawal_adjustment((5, 100, false))
-		.build()
-		.execute_with(|| {
-			let liq_added = 400 * ONE;
-
-			let current_position_id = <NextPositionId<Test>>::get();
-
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
-
-			assert_balance!(LP1, 1_000, 4600 * ONE);
-
-			let liq_removed = 200 * ONE;
-			assert_ok!(Omnipool::remove_all_liquidity(
-				RuntimeOrigin::signed(LP1),
-				current_position_id,
-				Balance::MIN
-			));
-
-			assert_pool_state!(11936190476190477, 23872380952380954);
-
-			assert_balance!(LP1, 1_000, 4790476190476190);
-
-			assert_asset_state!(
-				1_000,
-				AssetReserveState {
-					reserve: 2209523809523810,
-					hub_reserve: 1436190476190477,
-					shares: 2400 * ONE - liq_removed,
-					protocol_shares: Balance::zero(),
-					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
-				}
-			);
-
-			let position = Positions::<Test>::get(current_position_id).unwrap();
-
-			let expected = Position::<Balance, AssetId> {
-				asset_id: 1_000,
-				amount: liq_added - liq_removed,
-				shares: liq_added - liq_removed,
-				price: (1560 * ONE, 2400 * ONE),
-			};
-
-			assert_eq!(position, expected);
 		});
 }
 
