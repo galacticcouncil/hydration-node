@@ -1237,15 +1237,6 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 			AccountId::from(ALICE),
 		));
 
-		// Do a small trade to populate the oracle for ADOT
-		// assert_ok!(Omnipool::sell(
-		// 	RuntimeOrigin::signed(ALICE.into()),
-		// 	ADOT,
-		// 	HDX,
-		// 	BAG / 100,
-		// 	Balance::MIN
-		// ));
-
 		hydradx_run_to_next_block();
 
 		pallet_transaction_payment::pallet::NextFeeMultiplier::<Runtime>::put(hydradx_runtime::MinimumMultiplier::get());
