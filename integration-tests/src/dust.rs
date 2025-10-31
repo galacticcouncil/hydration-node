@@ -5,7 +5,7 @@ use frame_support::assert_noop;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_ok, sp_runtime::traits::Zero};
-use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, Tokens, Treasury};
+use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, Router, Tokens, Treasury};
 use orml_traits::MultiReservableCurrency;
 use orml_traits::{currency::MultiCurrency, GetByKey};
 use sp_runtime::{DispatchResult, TransactionOutcome};
@@ -191,6 +191,46 @@ fn account_cannot_be_dusted_when_leftover_is_reserved() {
 			hydradx_runtime::Tokens::reserved_balance(DAI, &AccountId::from(ALICE)),
 			1
 		);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
+	});
+}
+
+#[test]
+fn dust_account_should_fail_when_account_is_whitelisted_module_account() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let router_account = Router::router_account();
+
+		// Set ED to 0 to allow setting balance below ED
+		set_ed(DAI, 0);
+
+		// Give the router account some DAI balance
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			router_account.clone(),
+			DAI,
+			100,
+			0,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &router_account), 100);
+
+		// Set ED to 1000 so the router account balance is below ED
+		set_ed(DAI, 1000);
+
+		// Try to dust the router account - should fail because it's a module account
+		assert_noop!(
+			Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				router_account.clone(),
+				DAI,
+			),
+			pallet_duster::Error::<hydradx_runtime::Runtime>::AccountWhitelisted
+		);
+
+		// Verify balance remains unchanged
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &router_account), 100);
 		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
 	});
 }

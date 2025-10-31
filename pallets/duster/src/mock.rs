@@ -142,6 +142,7 @@ impl Config for Test {
 	type ExistentialDeposit = MinDeposits;
 	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
 	type Erc20Support = ATokenDusterMock;
+	type DustRemovalWhitelist = Nothing;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
 }

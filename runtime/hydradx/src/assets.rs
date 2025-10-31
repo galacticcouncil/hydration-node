@@ -688,6 +688,7 @@ impl pallet_duster::Config for Runtime {
 	type ExistentialDeposit = AssetRegistry;
 	type WhitelistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type Erc20Support = ATokenAccountDuster;
+	type DustRemovalWhitelist = DustRemovalWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
