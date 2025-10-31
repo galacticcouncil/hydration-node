@@ -187,6 +187,72 @@ pub type Reserves = (
 pub type DynamicWeigher<RuntimeCall> =
 	WeightInfoBounds<crate::weights::xcm::HydraXcmWeight<RuntimeCall>, RuntimeCall, MaxInstructions>;
 
+// Types that exist in `xcm_builder` from `stable2412` onwards.
+mod remove_when_updating_to_stable2412 {
+	use core::marker::PhantomData;
+	use frame_support::traits::{Contains, ContainsPair, Get};
+	use polkadot_xcm::prelude::*;
+
+	/// Alias a descendant location of the original origin.
+	pub struct AliasChildLocation;
+	impl ContainsPair<Location, Location> for AliasChildLocation {
+		fn contains(origin: &Location, target: &Location) -> bool {
+			return target.starts_with(origin);
+		}
+	}
+
+	/// Alias a location if it passes `Filter` and the original origin is root of `Origin`.
+	///
+	/// This can be used to allow (trusted) system chains root to alias into other locations.
+	/// **Warning**: do not use with untrusted `Origin` chains.
+	pub struct AliasOriginRootUsingFilter<Origin, Filter>(PhantomData<(Origin, Filter)>);
+	impl<Origin, Filter> ContainsPair<Location, Location> for AliasOriginRootUsingFilter<Origin, Filter>
+	where
+		Origin: Get<Location>,
+		Filter: Contains<Location>,
+	{
+		fn contains(origin: &Location, target: &Location) -> bool {
+			// check that `origin` is a root location
+			match origin.unpack() {
+				(1, [Parachain(_)]) | (2, [GlobalConsensus(_)]) | (2, [GlobalConsensus(_), Parachain(_)]) => (),
+				_ => return false,
+			};
+			// check that `origin` matches `Origin` and `target` matches `Filter`
+			return Origin::get().eq(origin) && Filter::contains(target);
+		}
+	}
+}
+
+pub struct RestrictedAssetHubAliases;
+impl Contains<Location> for RestrictedAssetHubAliases {
+	fn contains(target: &Location) -> bool {
+		match target.unpack() {
+			// Allow system parachains under the Polkadot relay
+			(1, [Parachain(id)]) if id < &2000 => true,
+
+			// Allow Kusama relay itself
+			(2, [GlobalConsensus(Kusama)]) => true,
+
+			// Allow Kusama Asset Hub and all its descendants
+			(2, [GlobalConsensus(Kusama), Parachain(1000), ..]) => true,
+
+			// Allow Ethereum consensus and all its descendants
+			(2, [GlobalConsensus(NetworkId::Ethereum { .. }), ..]) => true,
+
+			// Everything else disallowed
+			_ => false,
+		}
+	}
+}
+
+/// Rules for allowing the usage of `AliasOrigin`.
+pub type Aliasers = (
+	// Anyone can alias an interior location, same as `DescendOrigin`.
+	remove_when_updating_to_stable2412::AliasChildLocation,
+	// Asset Hub root can alias system chains, Ethereum and Kusama
+	remove_when_updating_to_stable2412::AliasOriginRootUsingFilter<AssetHubLocation, RestrictedAssetHubAliases>,
+);
+
 pub struct XcmConfig;
 impl Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
@@ -227,7 +293,7 @@ impl Config for XcmConfig {
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = Everything;
-	type Aliasers = Nothing;
+	type Aliasers = Aliasers;
 	type TransactionalProcessor = xcm_builder::FrameTransactionalProcessor;
 	type HrmpNewChannelOpenRequestHandler = ();
 	type HrmpChannelClosingHandler = ();

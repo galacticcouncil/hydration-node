@@ -1,13 +1,14 @@
 #![cfg(test)]
 
+use crate::erc20::{bind_erc20, deploy_token_contract};
 use crate::{assert_balance, polkadot_test_net::*};
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::dispatch::PostDispatchInfo;
 use frame_support::storage::with_transaction;
 use frame_support::{assert_noop, assert_ok};
-use hydradx_runtime::Omnipool;
 use hydradx_runtime::DOT_ASSET_LOCATION;
 use hydradx_runtime::{AssetRegistry, TreasuryAccount};
+use hydradx_runtime::{FixedU128, Omnipool};
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
 use orml_traits::MultiCurrency;
@@ -255,6 +256,64 @@ fn sufficient_but_not_accepted_asset_can_be_used_as_fee_currency() {
 			assert!(
 				treasury_dot_balance > 0,
 				"Treasury should have received DOT swapped from non accepted suff asset"
+			);
+
+			TransactionOutcome::Commit(DispatchResult::Ok(()))
+		});
+	});
+}
+
+#[test]
+fn erc20_can_be_used_as_fee_currency() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let contract = deploy_token_contract();
+		let fee_currency = bind_erc20(contract);
+		let _ = with_transaction(|| {
+			//Arrange
+			let init_balance = hydradx_runtime::Currencies::free_balance(fee_currency, &ALICE.into());
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+				hydradx_runtime::RuntimeOrigin::root(),
+				fee_currency,
+				FixedU128::from_rational(1, 100000),
+			));
+			hydradx_run_to_next_block();
+			assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				fee_currency,
+			));
+
+			let omni_sell =
+				hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+					asset_in: DOT,
+					asset_out: 2,
+					amount: UNITS,
+					min_buy_amount: 0,
+				});
+			let info = omni_sell.get_dispatch_info();
+			let info_len = 146;
+
+			assert_balance!(&Treasury::account_id(), fee_currency, 0);
+
+			//Act
+			let pre = pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0)
+				.pre_dispatch(&AccountId::from(ALICE), &omni_sell, &info, info_len);
+			assert_ok!(&pre);
+			assert_ok!(ChargeTransactionPayment::<hydradx_runtime::Runtime>::post_dispatch(
+				Some(pre.unwrap()),
+				&info,
+				&default_post_info(),
+				info_len,
+				&Ok(())
+			));
+
+			//Assert
+			let after_balance = hydradx_runtime::Currencies::free_balance(fee_currency, &ALICE.into());
+			assert!(after_balance < init_balance);
+			assert_eq!(
+				hydradx_runtime::Currencies::free_balance(fee_currency, &TreasuryAccount::get()),
+				init_balance - after_balance
 			);
 
 			TransactionOutcome::Commit(DispatchResult::Ok(()))

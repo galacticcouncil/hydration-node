@@ -41,6 +41,7 @@ mod utility;
 pub mod utils;
 mod vesting;
 mod xcm;
+mod xcm_aliasers;
 mod xyk;
 mod xyk_liquidity_mining;
 
