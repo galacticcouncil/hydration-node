@@ -4,18 +4,21 @@ use crate::dca::create_schedule;
 use crate::dca::schedule_fake_with_sell_order;
 use crate::liquidation::supply;
 use crate::polkadot_test_net::*;
+use crate::utils::accounts::*;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
+use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
 use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::evm::Erc20Currency;
 use hydradx_runtime::{
-	AssetId, Block, Currencies, EVMAccounts, Liquidation, OriginCaller, Router, Runtime, RuntimeCall, RuntimeEvent,
-	RuntimeOrigin,
+	AssetId, Block, Currencies, EVMAccounts, Liquidation, MultiTransactionPayment, Omnipool, OriginCaller, Router,
+	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, Treasury,
 };
 use hydradx_runtime::{AssetRegistry, Stableswap};
 use hydradx_traits::evm::Erc20Encoding;
@@ -29,13 +32,18 @@ use hydradx_traits::router::{AssetPair, PoolType};
 use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
+use libsecp256k1::{sign, Message, SecretKey};
 use orml_traits::MultiCurrency;
 use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
+use pallet_transaction_multi_payment::EVMPermit;
+use primitives::constants::currency::UNITS;
 use primitives::Balance;
+use sp_core::{H256, U256};
 use sp_runtime::traits::Zero;
+use sp_runtime::transaction_validity::{TransactionSource, ValidTransaction};
 use sp_runtime::DispatchError;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -1095,4 +1103,231 @@ pub fn init_stableswap_with_atoken() -> Result<(AssetId, AssetId, AssetId), Disp
 	)?;
 
 	Ok((pool_id, asset_in, asset_out))
+}
+
+#[test]
+fn transfer_rounging_property_test() {
+	with_aave(|| {
+		//Make some atoken on alice account
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DOT,
+			ADOT,
+			BAG,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+
+		let alice_balance = Currencies::free_balance(ADOT, &ALICE.into());
+		let bob_balance = Currencies::free_balance(ADOT, &BOB.into());
+
+		//Transfer amount to bob, leading to rounding issue
+		let amount = 55108183363806;
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			BOB.into(),
+			ADOT,
+			amount
+		));
+
+		assert_eq!(Currencies::free_balance(ADOT, &BOB.into()), bob_balance + amount + 1);
+
+		//Transfer back to alice the same amount
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(BOB.into()),
+			ALICE.into(),
+			ADOT,
+			bob_balance + amount + 1
+		));
+
+		//Alice should have the original balance back
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), alice_balance);
+	})
+}
+
+
+use sp_runtime::codec::Encode;
+#[test]
+fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+	let treasury_acc = MockAccount::new(Treasury::account_id());
+
+	with_atoken(|| {
+		// ALICE has ADOT from with_atoken setup
+		let fee_currency = ADOT;
+
+		// Initialize omnipool and oracle
+
+		// Transfer some ADOT from ALICE to the EVM user (alith)
+		let adot_transfer_amount = BAG / 3; // Transfer 1 BAG of ADOT
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			alith_evm_account(),
+			ADOT,
+			adot_transfer_amount
+		));
+
+		// Send adot to protocol account so we can add it to ominpool
+		assert_ok!(MultiTransactionPayment::add_currency(
+			RuntimeOrigin::root(),
+			ADOT,
+			FixedU128::from_rational(1, 2)
+		));
+
+		set_ed(ADOT, 1);
+
+		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+				hydradx_runtime::Omnipool::protocol_account()
+			)));
+
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(ALICE.into()),
+			hydradx_runtime::Omnipool::protocol_account(),
+			ADOT,
+			adot_transfer_amount
+		));
+
+		// // Add ADOT to omnipool so fee payment can work
+		assert_ok!(Omnipool::add_token(
+			RuntimeOrigin::root(),
+			ADOT,
+			FixedU128::from_rational(1, 2),
+			Permill::from_percent(100),
+			AccountId::from(ALICE),
+		));
+
+		// Do a small trade to populate the oracle for ADOT
+		// assert_ok!(Omnipool::sell(
+		// 	RuntimeOrigin::signed(ALICE.into()),
+		// 	ADOT,
+		// 	HDX,
+		// 	BAG / 100,
+		// 	Balance::MIN
+		// ));
+
+		hydradx_run_to_next_block();
+
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		//Let's mutate timestamp to accrue some yield on ADOT holdings
+		let current_timestamp = hydradx_runtime::Timestamp::get();
+		let new_timestamp = current_timestamp + (1 * 1000); // milliseconds
+		hydradx_runtime::Timestamp::set_timestamp(new_timestamp);
+
+
+		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
+		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		let initial_fee_currency_issuance = Currencies::total_issuance(fee_currency);
+
+		// Create the set_currency call to set ADOT as fee payment currency
+		let set_currency_call = RuntimeCall::MultiTransactionPayment(
+			pallet_transaction_multi_payment::Call::set_currency { currency: fee_currency },
+		);
+
+		let gas_limit = 1000000;
+		let deadline = U256::from(1000000000000u128);
+
+		// Generate permit
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				set_currency_call.encode(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		// Validate unsigned first
+		let call: pallet_transaction_multi_payment::Call<Runtime> =
+			pallet_transaction_multi_payment::Call::dispatch_permit {
+				from: user_evm_address,
+				to: DISPATCH_ADDR,
+				value: U256::from(0),
+				data: set_currency_call.encode(),
+				gas_limit,
+				deadline,
+				v: v.serialize(),
+				r: H256::from(rs.r.b32()),
+				s: H256::from(rs.s.b32()),
+			};
+
+		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
+		assert_eq!(
+			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
+			Ok(ValidTransaction {
+				priority: 0,
+				requires: vec![],
+				provides: vec![tag],
+				longevity: 64,
+				propagate: true,
+			})
+		);
+
+		// Dispatch the permit
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			RuntimeOrigin::none(),
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			set_currency_call.encode(),
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		// Verify the currency was set to ADOT
+		let currency = pallet_transaction_multi_payment::Pallet::<Runtime>::account_currency(&user_acc.address());
+		assert_eq!(currency, fee_currency);
+
+		// Verify total issuance didn't change (fees are transferred, not burned)
+		let fee_currency_issuance = Currencies::total_issuance(fee_currency);
+		assert_eq!(initial_fee_currency_issuance, fee_currency_issuance);
+
+		// Verify user's ADOT balance decreased (fee was paid)
+		let user_fee_currency_balance = user_acc.balance(fee_currency);
+		assert!(user_fee_currency_balance < initial_user_fee_currency_balance);
+
+		// Verify treasury received the fee
+		let final_treasury_fee_balance = treasury_acc.balance(fee_currency);
+		assert!(final_treasury_fee_balance > initial_treasury_fee_balance);
+
+		// Verify the fee amount matches what treasury received
+		let fee_amount = initial_user_fee_currency_balance - user_fee_currency_balance;
+		let treasury_received = final_treasury_fee_balance - initial_treasury_fee_balance;
+		assert_eq!(fee_amount, treasury_received);
+	})
+}
+
+fn set_ed(asset_id: AssetId, ed: u128) {
+	AssetRegistry::update(
+		hydradx_runtime::RuntimeOrigin::root(),
+		asset_id,
+		None,
+		None,
+		Some(ed),
+		None,
+		None,
+		None,
+		None,
+		None,
+	)
+		.unwrap();
 }
