@@ -7,10 +7,10 @@ use frame_support::traits::tokens::{
 };
 use hydradx_traits::{BoundErc20, Inspect};
 use orml_traits::MultiCurrency;
-use sp_runtime::traits::Get;
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::traits::Zero;
-use sp_runtime::{DispatchError, Saturating};
+use sp_runtime::traits::{CheckedSub, Get};
+use sp_runtime::{DispatchError};
 use sp_std::marker::PhantomData;
 use sp_std::vec::Vec;
 
@@ -269,8 +269,10 @@ where
 					let old_balance = Self::balance(asset, who);
 					T::Erc20Currency::deposit(contract, who, amount)?;
 					let new_balance = Self::balance(asset, who);
-					let actual = new_balance.saturating_sub(old_balance);
-					Ok(actual)
+					let minted = new_balance
+						.checked_sub(&old_balance)
+						.ok_or(crate::Error::<T>::DepositFailed)?;
+					Ok(minted)
 				}
 				None => {
 					<T::MultiCurrency as fungibles::Mutate<T::AccountId>>::mint_into(asset.into(), who, amount.into())
@@ -303,8 +305,11 @@ where
 					let old_balance = Self::balance(asset, who);
 					T::Erc20Currency::withdraw(contract, who, amount)?;
 					let new_balance = Self::balance(asset, who);
-					let actual = old_balance.saturating_sub(new_balance);
-					Ok(actual)
+					let burnt = old_balance
+						.checked_sub(&new_balance)
+						.ok_or(crate::Error::<T>::BalanceTooLow)?;
+
+					Ok(burnt)
 				}
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::burn_from(
 					asset.into(),
