@@ -4,7 +4,6 @@ use frame_support::assert_noop;
 use orml_traits::MultiCurrencyExtended;
 use sp_runtime::traits::One;
 
-
 #[test]
 fn remove_all_liquidity_works() {
 	// remove with remove_all_liquidity
