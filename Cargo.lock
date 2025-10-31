@@ -5535,7 +5535,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "355.0.0"
+version = "356.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9308,7 +9308,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-duster"
-version = "3.3.2"
+version = "3.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14631,7 +14631,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.54.0"
+version = "1.55.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
