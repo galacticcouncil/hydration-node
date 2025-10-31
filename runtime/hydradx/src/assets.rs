@@ -675,13 +675,13 @@ pub struct ExtendedDustRemovalWhitelist;
 
 impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 	fn get() -> Vec<AccountId> {
-		let mut accounts = 	vec![
+		let mut accounts = vec![
 			TreasuryPalletId::get().into_account_truncating(),
 			VestingPalletId::get().into_account_truncating(),
 			ReferralsPalletId::get().into_account_truncating(),
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
-			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS)
+			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
