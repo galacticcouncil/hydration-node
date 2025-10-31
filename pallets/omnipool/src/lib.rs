@@ -854,7 +854,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
 
-			Self::remove_liquidity_with_limit(origin, position_id, position.amount, min_limit)?;
+			Self::remove_liquidity_with_limit(origin, position_id, position.shares, min_limit)?;
 
 			Ok(())
 		}

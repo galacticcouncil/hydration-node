@@ -23,6 +23,7 @@ fn remove_all_liquidity_works() {
 			let liq_added = 400 * ONE;
 			let lp1_position_id = <NextPositionId<Test>>::get();
 
+			// NOTE on add_liquidity initially, shares==amount
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			assert!(
