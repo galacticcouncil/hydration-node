@@ -9150,7 +9150,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "3.3.1"
+version = "3.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
