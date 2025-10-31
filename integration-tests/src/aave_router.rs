@@ -1106,7 +1106,7 @@ pub fn init_stableswap_with_atoken() -> Result<(AssetId, AssetId, AssetId), Disp
 }
 
 #[test]
-fn transfer_rounging_property_test() {
+fn check_atoken_transfer_with_rounding_error() {
 	with_aave(|| {
 		//Make some atoken on alice account
 		assert_ok!(Router::sell(
