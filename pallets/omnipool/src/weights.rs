@@ -25,6 +25,7 @@ pub trait WeightInfo {
 	fn withdraw_protocol_liquidity() -> Weight;
 	fn remove_token() -> Weight;
 	fn calculate_spot_price_with_fee() -> Weight;
+	fn remove_all_liquidity() -> Weight;
 }
 
 /// Weights for pallet_omnipool using the hydraDX node and recommended hardware.
@@ -168,6 +169,11 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(27_u64))
 			.saturating_add(RocksDbWeight::get().writes(16_u64))
 	}
+	
+	fn remove_all_liquidity() -> Weight {
+		Weight::zero()
+	}
+	
 	/// Storage: `AssetRegistry::Assets` (r:4 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:5 w:5)

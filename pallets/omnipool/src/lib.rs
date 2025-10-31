@@ -67,6 +67,7 @@
 //! * `add_token` - Adds token to the pool. Initial liquidity must be transffered to pool account prior to calling add_token.
 //! * `add_liquidity` - Adds liquidity of selected asset to the pool. Mints corresponding position NFT.
 //! * `remove_liquidity` - Removes liquidity of selected position from the pool. Partial withdrawals are allowed.
+//! * `remove_all_liquidity` - Removes all liquidity from a selected position.
 //! * `sell` - Trades an asset in for asset out by selling given amount of asset in.
 //! * `buy` - Trades an asset in for asset out by buying given amount of asset out.
 //! * `set_asset_tradable_state` - Updates asset's tradable state with new flags. This allows/forbids asset operation such SELL,BUY,ADD or  REMOVE liquidtityy.
@@ -844,7 +845,7 @@ pub mod pallet {
 		/// Emits `LiquidityRemoved` event when successful.
 		///
 		#[pallet::call_index(15)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_all_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
 		pub fn remove_all_liquidity(origin: OriginFor<T>, position_id: T::PositionItemId, min_limit: Balance) -> DispatchResult {
 			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;

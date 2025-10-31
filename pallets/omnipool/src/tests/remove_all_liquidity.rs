@@ -3,7 +3,6 @@ use crate::types::Tradability;
 use frame_support::assert_noop;
 use orml_traits::MultiCurrencyExtended;
 use sp_runtime::traits::One;
-use sp_runtime::DispatchError::BadOrigin;
 
 
 #[test]
@@ -485,8 +484,6 @@ fn remove_all_liquidity_safe_withdrawal_should_work_correctly_when_trading_is_di
 				1_000,
 				Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 			));
-
-			let position = Positions::<Test>::get(current_position_id).unwrap();
 
 			assert_ok!(Omnipool::remove_all_liquidity(
 				RuntimeOrigin::signed(LP1),

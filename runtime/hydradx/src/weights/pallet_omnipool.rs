@@ -211,6 +211,11 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(27_u64))
 			.saturating_add(T::DbWeight::get().writes(15_u64))
 	}
+
+	fn remove_all_liquidity() -> Weight {
+		Weight::zero()
+	}
+
 	/// Storage: `AssetRegistry::Assets` (r:3 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `Tokens::Accounts` (r:7 w:7)
