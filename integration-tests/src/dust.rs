@@ -271,6 +271,86 @@ fn dust_account_should_fail_when_account_is_holding_address() {
 	});
 }
 
+#[test]
+fn dust_account_should_fail_when_account_is_treasury() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		let treasury_account = Treasury::account_id();
+
+		set_ed(DAI, 0);
+
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			treasury_account.clone(),
+			DAI,
+			100,
+			0,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &treasury_account), 100);
+
+		set_ed(DAI, 1000);
+
+		// Act
+		assert_noop!(
+			Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				treasury_account.clone(),
+				DAI,
+			),
+			pallet_duster::Error::<hydradx_runtime::Runtime>::AccountWhitelisted
+		);
+
+		// Assert
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &treasury_account), 100);
+	});
+}
+
+#[test]
+fn dust_account_should_fail_when_account_is_manually_whitelisted() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// Arrange
+		let account_to_whitelist: AccountId = BOB.into();
+
+		set_ed(DAI, 0);
+
+		assert_ok!(Tokens::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			account_to_whitelist.clone(),
+			DAI,
+			100,
+			0,
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &account_to_whitelist), 100);
+
+		assert_ok!(Duster::whitelist_account(
+			hydradx_runtime::RuntimeOrigin::root(),
+			account_to_whitelist.clone(),
+		));
+
+		set_ed(DAI, 1000);
+
+		// Act
+		assert_noop!(
+			Duster::dust_account(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				account_to_whitelist.clone(),
+				DAI,
+			),
+			pallet_duster::Error::<hydradx_runtime::Runtime>::AccountWhitelisted
+		);
+
+		// Assert
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &account_to_whitelist), 100);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 0);
+	});
+}
+
 mod atoken_dust {
 	use super::*;
 	use crate::aave_router::ADOT;
