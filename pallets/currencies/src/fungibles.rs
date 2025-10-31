@@ -267,7 +267,7 @@ where
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
 					let old_balance = Self::balance(asset, who);
-					let _ = T::Erc20Currency::deposit(contract, who, amount)?;
+					T::Erc20Currency::deposit(contract, who, amount)?;
 					let new_balance = Self::balance(asset, who);
 					let actual = new_balance.saturating_sub(old_balance);
 					Ok(actual)
@@ -301,7 +301,7 @@ where
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
 					let old_balance = Self::balance(asset, who);
-					let _ = T::Erc20Currency::withdraw(contract, who, amount)?;
+					T::Erc20Currency::withdraw(contract, who, amount)?;
 					let new_balance = Self::balance(asset, who);
 					let actual = old_balance.saturating_sub(new_balance);
 					Ok(actual)
