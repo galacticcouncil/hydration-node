@@ -135,6 +135,15 @@ parameter_type_with_key! {
 	};
 }
 
+pub struct TestDustRemovalWhitelist;
+
+impl frame_support::traits::Contains<AccountId> for TestDustRemovalWhitelist {
+	fn contains(account: &AccountId) -> bool {
+		// Mirror the runtime behavior: include treasury account and accounts in the storage whitelist
+		account == &TreasuryAccount::get() || crate::DusterWhitelist::<Test>::contains(account)
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -142,7 +151,7 @@ impl Config for Test {
 	type ExistentialDeposit = MinDeposits;
 	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
 	type Erc20Support = ATokenDusterMock;
-	type DustRemovalWhitelist = Nothing;
+	type DustRemovalWhitelist = TestDustRemovalWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
 }

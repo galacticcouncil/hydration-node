@@ -174,9 +174,7 @@ pub mod pallet {
 			ensure_signed(origin)?;
 
 			ensure!(
-				Self::whitelisted(&account).is_none()
-					&& !T::DustRemovalWhitelist::contains(&account)
-					&& account != T::TreasuryAccountId::get(),
+				!T::DustRemovalWhitelist::contains(&account),
 				Error::<T>::AccountWhitelisted
 			);
 
