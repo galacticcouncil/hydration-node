@@ -91,8 +91,8 @@ pub mod pallet {
 		type Erc20Support: hydradx_traits::evm::Erc20Inspect<Self::AssetId>
 			+ hydradx_traits::evm::Erc20OnDust<Self::AccountId, Self::AssetId>;
 
-		/// Whitelist for dust removal, used to check if an account should be excluded from dusting
-		type DustRemovalWhitelist: Contains<Self::AccountId>;
+		/// Extended whitelist for dust removal - hardcoded accounts from runtime that cannot be dusted
+		type ExtendedWhitelist: Get<Vec<Self::AccountId>>;
 
 		/// Treasury account, which receives the dust.
 		#[pallet::constant]
@@ -174,7 +174,7 @@ pub mod pallet {
 			ensure_signed(origin)?;
 
 			ensure!(
-				!T::DustRemovalWhitelist::contains(&account),
+				!DusterWhitelist::<T>::contains(&account),
 				Error::<T>::AccountWhitelisted
 			);
 
@@ -273,7 +273,7 @@ impl<T: Config> OnDust<T::AccountId, T::AssetId, Balance> for Pallet<T> {
 
 impl<T: Config> Contains<T::AccountId> for DusterWhitelist<T> {
 	fn contains(t: &T::AccountId) -> bool {
-		AccountWhitelist::<T>::contains_key(t)
+		T::ExtendedWhitelist::get().contains(t) || AccountWhitelist::<T>::contains_key(t)
 	}
 }
 

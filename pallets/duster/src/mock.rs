@@ -135,12 +135,12 @@ parameter_type_with_key! {
 	};
 }
 
-pub struct TestDustRemovalWhitelist;
+pub struct TestExtendedWhitelist;
 
-impl frame_support::traits::Contains<AccountId> for TestDustRemovalWhitelist {
-	fn contains(account: &AccountId) -> bool {
-		// Mirror the runtime behavior: include treasury account and accounts in the storage whitelist
-		account == &TreasuryAccount::get() || crate::DusterWhitelist::<Test>::contains(account)
+impl frame_support::traits::Get<Vec<AccountId>> for TestExtendedWhitelist {
+	fn get() -> Vec<AccountId> {
+		// Return treasury and any other hardcoded accounts that should be whitelisted
+		vec![TreasuryAccount::get()]
 	}
 }
 
@@ -151,7 +151,7 @@ impl Config for Test {
 	type ExistentialDeposit = MinDeposits;
 	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
 	type Erc20Support = ATokenDusterMock;
-	type DustRemovalWhitelist = TestDustRemovalWhitelist;
+	type ExtendedWhitelist = TestExtendedWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
 }
