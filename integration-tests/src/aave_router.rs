@@ -1124,8 +1124,35 @@ fn check_atoken_transfer_with_rounding_error() {
 			.unwrap()
 		));
 
+		Currencies::update_balance(
+			RuntimeOrigin::root(),
+			AccountId::from(BOB),
+			5,
+			10 * BAG as i128,
+		).unwrap();
+
+		let bob_init_balance = Currencies::free_balance(ADOT, &BOB.into());
+
+		let first_transfer_amount = BAG / 100;
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			DOT,
+			ADOT,
+			BAG / 100,
+			0,
+			vec![Trade {
+				pool: Aave,
+				asset_in: DOT,
+				asset_out: ADOT,
+			}]
+			.try_into()
+			.unwrap()
+		));
+
 		let alice_balance = Currencies::free_balance(ADOT, &ALICE.into());
+
 		let bob_balance = Currencies::free_balance(ADOT, &BOB.into());
+		assert_eq!(bob_balance, bob_init_balance + first_transfer_amount);
 
 		//Transfer amount to bob, leading to rounding issue
 		let amount = 55108183363806;
@@ -1143,11 +1170,16 @@ fn check_atoken_transfer_with_rounding_error() {
 			RuntimeOrigin::signed(BOB.into()),
 			ALICE.into(),
 			ADOT,
-			bob_balance + amount + 1
+			amount + 1
 		));
 
 		//Alice should have the original balance back
 		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), alice_balance);
+		assert_eq!(Currencies::free_balance(ADOT, &BOB.into()), first_transfer_amount);
+
+		let adot_contract = HydraErc20Mapping::asset_address(ADOT);
+		assert_ok!(AaveTradeExecutor::<hydradx_runtime::Runtime>::withdraw_all_to(adot_contract, &BOB.into(), &ALICE.into()));
+		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), alice_balance + first_transfer_amount);
 	})
 }
 
