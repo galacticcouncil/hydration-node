@@ -1124,12 +1124,7 @@ fn check_atoken_transfer_with_rounding_error() {
 			.unwrap()
 		));
 
-		Currencies::update_balance(
-			RuntimeOrigin::root(),
-			AccountId::from(BOB),
-			5,
-			10 * BAG as i128,
-		).unwrap();
+		Currencies::update_balance(RuntimeOrigin::root(), AccountId::from(BOB), 5, 10 * BAG as i128).unwrap();
 
 		let bob_init_balance = Currencies::free_balance(ADOT, &BOB.into());
 
@@ -1178,11 +1173,17 @@ fn check_atoken_transfer_with_rounding_error() {
 		assert_eq!(Currencies::free_balance(ADOT, &BOB.into()), first_transfer_amount);
 
 		let adot_contract = HydraErc20Mapping::asset_address(ADOT);
-		assert_ok!(AaveTradeExecutor::<hydradx_runtime::Runtime>::withdraw_all_to(adot_contract, &BOB.into(), &ALICE.into()));
-		assert_eq!(Currencies::free_balance(ADOT, &ALICE.into()), alice_balance + first_transfer_amount);
+		assert_ok!(AaveTradeExecutor::<hydradx_runtime::Runtime>::withdraw_all_to(
+			adot_contract,
+			&BOB.into(),
+			&ALICE.into()
+		));
+		assert_eq!(
+			Currencies::free_balance(ADOT, &ALICE.into()),
+			alice_balance + first_transfer_amount
+		);
 	})
 }
-
 
 use sp_runtime::codec::Encode;
 #[test]
@@ -1217,8 +1218,8 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 		set_ed(ADOT, 1);
 
 		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-				hydradx_runtime::Omnipool::protocol_account()
-			)));
+			hydradx_runtime::Omnipool::protocol_account()
+		)));
 
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(ALICE.into()),
@@ -1247,40 +1248,37 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 
 		hydradx_run_to_next_block();
 
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<Runtime>::put(
-			hydradx_runtime::MinimumMultiplier::get(),
-		);
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<Runtime>::put(hydradx_runtime::MinimumMultiplier::get());
 
 		//Let's mutate timestamp to accrue some yield on ADOT holdings
 		let current_timestamp = hydradx_runtime::Timestamp::get();
 		let new_timestamp = current_timestamp + (1 * 1000); // milliseconds
 		hydradx_runtime::Timestamp::set_timestamp(new_timestamp);
 
-
 		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
 		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
 		let initial_fee_currency_issuance = Currencies::total_issuance(fee_currency);
 
 		// Create the set_currency call to set ADOT as fee payment currency
-		let set_currency_call = RuntimeCall::MultiTransactionPayment(
-			pallet_transaction_multi_payment::Call::set_currency { currency: fee_currency },
-		);
+		let set_currency_call =
+			RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency {
+				currency: fee_currency,
+			});
 
 		let gas_limit = 1000000;
 		let deadline = U256::from(1000000000000u128);
 
 		// Generate permit
-		let permit =
-			pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
-				CALLPERMIT,
-				user_evm_address,
-				DISPATCH_ADDR,
-				U256::from(0),
-				set_currency_call.encode(),
-				gas_limit,
-				U256::zero(),
-				deadline,
-			);
+		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+			CALLPERMIT,
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			set_currency_call.encode(),
+			gas_limit,
+			U256::zero(),
+			deadline,
+		);
 		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
 		let message = Message::parse(&permit);
 		let (rs, v) = sign(&message, &secret_key);
@@ -1361,5 +1359,5 @@ fn set_ed(asset_id: AssetId, ed: u128) {
 		None,
 		None,
 	)
-		.unwrap();
+	.unwrap();
 }
