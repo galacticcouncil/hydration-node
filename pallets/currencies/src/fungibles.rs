@@ -1,6 +1,7 @@
 use crate::module::{BalanceOf, CurrencyIdOf};
 use crate::{Config, Error, Pallet};
 use frame_support::fail;
+use frame_support::traits::fungibles::Inspect as FungibleInspect;
 use frame_support::traits::tokens::{
 	fungible, fungibles, DepositConsequence, Fortitude, Precision, Preservation, Provenance, WithdrawConsequence,
 };
@@ -9,7 +10,7 @@ use orml_traits::MultiCurrency;
 use sp_runtime::traits::Get;
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::traits::Zero;
-use sp_runtime::DispatchError;
+use sp_runtime::{DispatchError, Saturating};
 use sp_std::marker::PhantomData;
 use sp_std::vec::Vec;
 
@@ -265,8 +266,11 @@ where
 		} else {
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
+					let old_balance = Self::balance(asset, who);
 					let _ = T::Erc20Currency::deposit(contract, who, amount)?;
-					Ok(Self::Balance::default())
+					let new_balance = Self::balance(asset, who);
+					let actual = new_balance.saturating_sub(old_balance);
+					Ok(actual)
 				}
 				None => {
 					<T::MultiCurrency as fungibles::Mutate<T::AccountId>>::mint_into(asset.into(), who, amount.into())
@@ -296,8 +300,11 @@ where
 		} else {
 			match T::BoundErc20::contract_address(asset) {
 				Some(contract) => {
+					let old_balance = Self::balance(asset, who);
 					let _ = T::Erc20Currency::withdraw(contract, who, amount)?;
-					Ok(Self::Balance::default())
+					let new_balance = Self::balance(asset, who);
+					let actual = old_balance.saturating_sub(new_balance);
+					Ok(actual)
 				}
 				None => <T::MultiCurrency as fungibles::Mutate<T::AccountId>>::burn_from(
 					asset.into(),

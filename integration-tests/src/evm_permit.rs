@@ -697,12 +697,14 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 	let user_evm_address = alith_evm_address();
 	let user_secret_key = alith_secret_key();
 	let user_acc = MockAccount::new(alith_truncated_account());
+	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	Hydra::execute_with(|| {
 		//Create new erc20, fund user with it and set it as fee payment currency
 		let contract = crate::erc20::deploy_token_contract();
 		let asset = crate::erc20::bind_erc20(contract);
 		let balance = Currencies::free_balance(asset, &ALICE.into());
+		let initial_treasury_fee_balance = treasury_acc.balance(asset);
 		let erc20_balance = 2000000000000000;
 		assert_eq!(erc20_balance, 2000000000000000);
 		assert_ok!(<Erc20Currency<Runtime> as ERC20>::transfer(
@@ -853,6 +855,12 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 
 		let user_fee_currency_balance = user_acc.balance(fee_currency);
 		assert!(user_fee_currency_balance < initial_user_fee_currency_balance);
+		let final_treasury_fee_balance = treasury_acc.balance(asset);
+
+		assert!(final_treasury_fee_balance > initial_treasury_fee_balance);
+		let fee_amount = initial_user_fee_currency_balance - user_fee_currency_balance;
+		let treasury_received = final_treasury_fee_balance - initial_treasury_fee_balance;
+		assert_eq!(fee_amount, treasury_received);
 	})
 }
 
