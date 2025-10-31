@@ -678,6 +678,7 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 		get_all_module_accounts().contains(a)
 			|| HSM::is_flash_loan_account(a)
 			|| pallet_duster::DusterWhitelist::<Runtime>::contains(a)
+			|| a == &EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS)
 	}
 }
 
