@@ -10,7 +10,7 @@ use orml_traits::MultiCurrency;
 #[cfg(any(feature = "try-runtime", test))]
 use sp_runtime::traits::Zero;
 use sp_runtime::traits::{CheckedSub, Get};
-use sp_runtime::{DispatchError};
+use sp_runtime::DispatchError;
 use sp_std::marker::PhantomData;
 use sp_std::vec::Vec;
 
