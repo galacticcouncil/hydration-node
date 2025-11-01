@@ -72,6 +72,7 @@ pub mod chain {
 
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;
+	pub const HOLLAR_ASSET_ID: AssetId = 222;
 
 	/// We allow for 2 seconds of compute with a 6 seconds average block.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
