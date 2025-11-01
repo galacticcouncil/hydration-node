@@ -629,7 +629,7 @@ pub struct TransferFees<MC, DF, FR>(PhantomData<(MC, DF, FR)>);
 
 impl<T, MC, DF, FR> OnChargeTransaction<T> for TransferFees<MC, DF, FR>
 where
-	T: Config + pallet_utility::Config,
+	T: Config + pallet_utility::Config + pallet_dispatcher::Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
 	MC::Balance: FixedPointOperand,
@@ -846,9 +846,11 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 pub struct TryCallCurrency<T>(PhantomData<T>);
 impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for TryCallCurrency<T>
 where
-	T: Config + pallet_utility::Config,
-	<T as frame_system::Config>::RuntimeCall: IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>>,
+	T: Config + pallet_utility::Config + pallet_dispatcher::Config,
+	<T as frame_system::Config>::RuntimeCall:
+		IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>> + IsSubType<pallet_dispatcher::pallet::Call<T>>,
 	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
+	<T as pallet_dispatcher::Config>::RuntimeCall: IsSubType<Call<T>>,
 {
 	fn try_convert(
 		call: &<T as frame_system::Config>::RuntimeCall,
@@ -865,6 +867,13 @@ where
 					Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
 					_ => Err(call),
 				},
+				_ => Err(call),
+			}
+		} else if let Some(pallet_dispatcher::pallet::Call::dispatch_with_extra_gas { call: inner_call, .. }) =
+			call.is_sub_type()
+		{
+			match inner_call.is_sub_type() {
+				Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
 				_ => Err(call),
 			}
 		} else {

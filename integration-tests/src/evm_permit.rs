@@ -753,7 +753,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 			RuntimeOrigin::signed(alith_evm_account()),
 			asset,
 			0,
-			erc20_balance / 100,
+			erc20_balance / 10,
 			Balance::MIN
 		));
 		hydradx_run_to_next_block();
@@ -778,7 +778,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 			hydradx_runtime::RuntimeOrigin::root(),
 			user_acc.address(),
 			DAI,
-			10000 * UNITS as i128,
+			1000000000 * UNITS as i128,
 		));
 		let initial_user_weth_balance = user_acc.balance(WETH);
 		assert_eq!(initial_user_weth_balance, 0);
@@ -786,6 +786,11 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 		let set_currency_call = hydradx_runtime::RuntimeCall::MultiTransactionPayment(
 			pallet_transaction_multi_payment::Call::set_currency { currency: fee_currency },
 		);
+		let dispatch_set_currency_call =
+			hydradx_runtime::RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_with_extra_gas {
+				call: Box::new(set_currency_call.clone()),
+				extra_gas: 100_000,
+			});
 
 		let gas_limit = 1000000;
 		let deadline = U256::from(1000000000000u128);
@@ -796,7 +801,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 				user_evm_address,
 				DISPATCH_ADDR,
 				U256::from(0),
-				set_currency_call.encode(),
+				dispatch_set_currency_call.encode(),
 				gas_limit,
 				U256::zero(),
 				deadline,
@@ -811,7 +816,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 				from: user_evm_address,
 				to: DISPATCH_ADDR,
 				value: U256::from(0),
-				data: set_currency_call.encode(),
+				data: dispatch_set_currency_call.encode(),
 				gas_limit,
 				deadline,
 				v: v.serialize(),
@@ -838,7 +843,7 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 			user_evm_address,
 			DISPATCH_ADDR,
 			U256::from(0),
-			set_currency_call.encode(),
+			dispatch_set_currency_call.encode(),
 			gas_limit,
 			deadline,
 			v.serialize(),

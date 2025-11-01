@@ -32,6 +32,7 @@ sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-utility = { workspace = true }
+pallet-dispatcher = { workspace = true }
 
 pallet-evm = { workspace = true, optional = true }
 
