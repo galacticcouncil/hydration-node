@@ -620,7 +620,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type InspectEvmAccounts = EVMAccounts;
 	type WeightToFee = WeightToFee;
 	type EvmPermit = evm::permit::EvmPermitHandler<Runtime>;
-	type TryCallCurrency<'a> = TryCallCurrency<Runtime>;
+	type TryCallCurrency<'a> = TryCallCurrency;
 	type SwappablePaymentAssetSupport = assets::XykPaymentAssetSupport;
 }
 

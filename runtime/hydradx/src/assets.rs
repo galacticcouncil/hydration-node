@@ -1422,8 +1422,8 @@ use pallet_referrals::{FeeDistribution, Level};
 use pallet_stableswap::types::PegType;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
-use sp_runtime::TokenError;
 use sp_runtime::traits::TryConvert;
+use sp_runtime::TokenError;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
 
@@ -2114,18 +2114,11 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
 	}
 }
 
-pub struct TryCallCurrency<T>(PhantomData<T>);
-impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for TryCallCurrency<T>
-where
-	T: pallet_transaction_multi_payment::Config + pallet_utility::Config + pallet_dispatcher::Config,
-	<T as frame_system::Config>::RuntimeCall:
-	IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>> + IsSubType<pallet_dispatcher::pallet::Call<T>>,
-	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
-	<T as pallet_dispatcher::Config>::RuntimeCall: IsSubType<Call<T>>,
-{
+pub struct TryCallCurrency;
+impl TryConvert<&<Runtime as frame_system::Config>::RuntimeCall, AssetIdOf<Runtime>> for TryCallCurrency {
 	fn try_convert(
-		call: &<T as frame_system::Config>::RuntimeCall,
-	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
+		call: &<Runtime as frame_system::Config>::RuntimeCall,
+	) -> Result<AssetIdOf<Runtime>, &<Runtime as frame_system::Config>::RuntimeCall> {
 		if let Some(pallet_transaction_multi_payment::pallet::Call::set_currency { currency }) = call.is_sub_type() {
 			Ok(*currency)
 		} else if let Some(pallet_utility::pallet::Call::batch { calls })
