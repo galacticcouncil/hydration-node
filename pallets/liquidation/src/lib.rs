@@ -190,7 +190,6 @@ pub mod pallet {
 			user: EvmAddress,
 			collateral_asset: AssetId,
 			debt_asset: AssetId,
-			debt_to_cover: Balance,
 			profit: Balance,
 		},
 	}
@@ -402,7 +401,6 @@ impl<T: Config> Pallet<T> {
 			user,
 			collateral_asset,
 			debt_asset,
-			debt_to_cover,
 			profit,
 		});
 
