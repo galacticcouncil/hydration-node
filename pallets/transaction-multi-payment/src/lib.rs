@@ -629,7 +629,7 @@ pub struct TransferFees<MC, DF, FR>(PhantomData<(MC, DF, FR)>);
 
 impl<T, MC, DF, FR> OnChargeTransaction<T> for TransferFees<MC, DF, FR>
 where
-	T: Config + pallet_utility::Config + pallet_dispatcher::Config,
+	T: Config + pallet_utility::Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	AssetIdOf<T>: Into<MC::CurrencyId>,
 	MC::Balance: FixedPointOperand,
@@ -840,45 +840,6 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 
 	fn get(who: &T::AccountId) -> Self::AssetId {
 		Pallet::<T>::account_currency(who)
-	}
-}
-
-pub struct TryCallCurrency<T>(PhantomData<T>);
-impl<T> TryConvert<&<T as frame_system::Config>::RuntimeCall, AssetIdOf<T>> for TryCallCurrency<T>
-where
-	T: Config + pallet_utility::Config + pallet_dispatcher::Config,
-	<T as frame_system::Config>::RuntimeCall:
-		IsSubType<Call<T>> + IsSubType<pallet_utility::pallet::Call<T>> + IsSubType<pallet_dispatcher::pallet::Call<T>>,
-	<T as pallet_utility::Config>::RuntimeCall: IsSubType<Call<T>>,
-	<T as pallet_dispatcher::Config>::RuntimeCall: IsSubType<Call<T>>,
-{
-	fn try_convert(
-		call: &<T as frame_system::Config>::RuntimeCall,
-	) -> Result<AssetIdOf<T>, &<T as frame_system::Config>::RuntimeCall> {
-		if let Some(crate::pallet::Call::set_currency { currency }) = call.is_sub_type() {
-			Ok(*currency)
-		} else if let Some(pallet_utility::pallet::Call::batch { calls })
-		| Some(pallet_utility::pallet::Call::batch_all { calls })
-		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
-		{
-			// `calls` can be empty Vec
-			match calls.first() {
-				Some(first_call) => match first_call.is_sub_type() {
-					Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
-					_ => Err(call),
-				},
-				_ => Err(call),
-			}
-		} else if let Some(pallet_dispatcher::pallet::Call::dispatch_with_extra_gas { call: inner_call, .. }) =
-			call.is_sub_type()
-		{
-			match inner_call.is_sub_type() {
-				Some(crate::pallet::Call::set_currency { currency }) => Ok(*currency),
-				_ => Err(call),
-			}
-		} else {
-			Err(call)
-		}
 	}
 }
 
