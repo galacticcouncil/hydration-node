@@ -670,6 +670,3 @@ mod error_handling {
 		});
 	}
 }
-
-//TODO: check for error when we call our own preocmpile runtime error then we decode it, so we need teo unvode
-//- also check where else we need this decoder

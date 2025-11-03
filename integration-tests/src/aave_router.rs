@@ -1146,7 +1146,6 @@ fn cannot_borrow_more_than_collateral_allows() {
 
 		let call_result = Executor::<Runtime>::call(context, data, U256::zero(), 50_000_000);
 
-		// Assert that withdrawal fails with DispatchError::Other containing the error
 		let error = EvmErrorDecoder::convert(call_result);
 		assert_eq!(
 			error,
