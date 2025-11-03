@@ -243,14 +243,14 @@ pub mod pallet {
 				tx_params.max_fee_per_gas,
 				tx_params.max_priority_fee_per_gas,
 				vec![],
-				tx_params.chain_id,
+				11155111,
 			)?;
 
 			// Generate and verify request ID
 			let computed_request_id = Self::generate_request_id(
 				&Self::account_id(),
 				&rlp_encoded,
-				60,
+				"eip155:11155111",
 				0,
 				&path,
 				b"ecdsa",
@@ -284,20 +284,19 @@ pub mod pallet {
 			let callback_schema =
 				serde_json::to_vec(&serde_json::json!("bool")).map_err(|_| Error::<T>::SerializationError)?;
 
-			// Call sign_respond from the pallet account
-			pallet_signet::Pallet::<T>::sign_respond(
+			// Call sign_bidirectional from the pallet account
+			pallet_signet::Pallet::<T>::sign_bidirectional(
 				frame_system::RawOrigin::Signed(Self::account_id()).into(),
 				BoundedVec::try_from(rlp_encoded).map_err(|_| Error::<T>::SerializationError)?,
-				60,
-				0,
+				BoundedVec::try_from(b"eip155:11155111".to_vec()).map_err(|_| Error::<T>::SerializationError)?, // CAIP-2 format for Sepolia
+				0,                                                                                              // key_version
 				BoundedVec::try_from(path).map_err(|_| Error::<T>::PathTooLong)?,
 				BoundedVec::try_from(b"ecdsa".to_vec()).map_err(|_| Error::<T>::SerializationError)?,
 				BoundedVec::try_from(b"ethereum".to_vec()).map_err(|_| Error::<T>::SerializationError)?,
 				BoundedVec::try_from(vec![]).map_err(|_| Error::<T>::SerializationError)?,
-				pallet_signet::SerializationFormat::AbiJson,
-				BoundedVec::try_from(explorer_schema).map_err(|_| Error::<T>::SerializationError)?,
-				pallet_signet::SerializationFormat::Borsh,
-				BoundedVec::try_from(callback_schema).map_err(|_| Error::<T>::SerializationError)?,
+				Self::account_id(), // program_id (use pallet account)
+				BoundedVec::try_from(explorer_schema).map_err(|_| Error::<T>::SerializationError)?, // output_deserialization_schema
+				BoundedVec::try_from(callback_schema).map_err(|_| Error::<T>::SerializationError)?, // respond_serialization_schema
 			)?;
 
 			Self::deposit_event(Event::DepositRequested {
@@ -373,7 +372,7 @@ pub mod pallet {
 		fn generate_request_id(
 			sender: &T::AccountId,
 			transaction_data: &[u8],
-			slip44_chain_id: u32,
+			caip2_id: &str,
 			key_version: u32,
 			path: &[u8],
 			algo: &[u8],
@@ -394,7 +393,7 @@ pub mod pallet {
 			let encoded = (
 				sender_ss58.as_str(),
 				transaction_data,
-				slip44_chain_id,
+				caip2_id,
 				key_version,
 				core::str::from_utf8(path).unwrap_or(""),
 				core::str::from_utf8(algo).unwrap_or(""),

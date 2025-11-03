@@ -50,17 +50,19 @@ export class SignetClient {
     serializedTx: number[],
     params: any
   ): Promise<void> {
-    const tx = this.api.tx.signet.signRespond(
+    const caip2Id = params.caip2Id;
+    const caip2Bytes = Array.from(new TextEncoder().encode(caip2Id));
+
+    const tx = this.api.tx.signet.signBidirectional(
       serializedTx,
-      params.slip44ChainId,
+      caip2Bytes,
       params.keyVersion,
       params.path,
       params.algo || "",
       params.dest || "",
       params.params || "",
-      params.schemas.explorer.format,
+      this.signer.address, // program_id
       Array.from(new TextEncoder().encode(params.schemas.explorer.schema)),
-      params.schemas.callback.format,
       Array.from(new TextEncoder().encode(params.schemas.callback.schema))
     );
 
@@ -139,11 +141,13 @@ export class SignetClient {
     params: any
   ): string {
     const txHex = "0x" + Buffer.from(txData).toString("hex");
+    const caip2Id = params.caip2Id;
+
     const encoded = ethers.solidityPacked(
       [
         "string",
         "bytes",
-        "uint32",
+        "string",
         "uint32",
         "string",
         "string",
@@ -153,7 +157,7 @@ export class SignetClient {
       [
         sender,
         txHex,
-        params.slip44ChainId,
+        caip2Id,
         params.keyVersion,
         params.path,
         params.algo || "",

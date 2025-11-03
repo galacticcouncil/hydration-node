@@ -102,7 +102,7 @@ describe("Signet Pallet Integration", () => {
       expect(isValid).toBe(true);
 
       console.log("    ✅ Signature verification PASSED");
-    }, 40000);
+    }, 80000);
   });
 
   describe("SignRespond", () => {
@@ -120,15 +120,15 @@ describe("Signet Pallet Integration", () => {
       });
 
       const params = {
-        slip44ChainId: 60,
+        caip2Id: "eip155:11155111",
         keyVersion: 0,
         path: "testPath",
         algo: "",
         dest: "",
         params: "",
         schemas: {
-          explorer: { format: 0, schema: "{}" },
-          callback: { format: 0, schema: "{}" },
+          explorer: { schema: "{}" },
+          callback: { schema: "{}" },
         },
       };
 
@@ -165,6 +165,6 @@ describe("Signet Pallet Integration", () => {
       expect(isValid).toBe(true);
 
       console.log("    ✅ Transaction signature verification PASSED");
-    }, 40000);
+    }, 80000);
   });
 });

@@ -307,7 +307,7 @@ describe("ERC20 Vault Integration", () => {
       palletSS58,
       Array.from(ethers.getBytes(tx.unsignedSerialized)),
       {
-        slip44ChainId: 60,
+        caip2Id: "eip155:11155111",
         keyVersion: 0,
         path: aliceHexPath,
         algo: "ecdsa",
@@ -339,19 +339,19 @@ describe("ERC20 Vault Integration", () => {
     const signetEvents = depositResult.events.filter(
       (record: any) =>
         record.event.section === "signet" &&
-        record.event.method === "SignRespondRequested"
+        record.event.method === "SignBidirectionalRequested"
     );
 
     console.log(
-      `📊 Found ${signetEvents.length} SignRespondRequested event(s)`
+      `📊 Found ${signetEvents.length} SignBidirectionalRequested event(s)`
     );
 
     if (signetEvents.length > 0) {
       console.log(
-        "✅ SignRespondRequested event emitted - MPC should pick it up!"
+        "✅ SignBidirectionalRequested event emitted - MPC should pick it up!"
       );
     } else {
-      console.log("⚠️  No SignRespondRequested event found!");
+      console.log("⚠️  No SignBidirectionalRequested event found!");
     }
 
     console.log("⏳ Waiting for MPC signature...");
@@ -525,7 +525,7 @@ describe("ERC20 Vault Integration", () => {
             const { event } = record;
             if (
               event.section === "signet" &&
-              event.method === "ReadResponded"
+              event.method === "RespondBidirectionalEvent"
             ) {
               const [reqId, responder, output, signature] = event.data;
               if (ethers.hexlify(reqId.toU8a()) === requestId) {

@@ -618,7 +618,7 @@ fn create_test_signature() -> Signature {
 }
 
 #[test]
-fn test_sign_respond_works() {
+fn test_sign_bidirectional_works() {
 	new_test_ext().execute_with(|| {
 		let admin = 1u64;
 		let requester = 2u64;
@@ -635,18 +635,17 @@ fn test_sign_respond_works() {
 		let slip44_chain_id = 60u32;
 		let balance_before = Balances::free_balance(&requester);
 
-		assert_ok!(Signet::sign_respond(
+		assert_ok!(Signet::sign_bidirectional(
 			RuntimeOrigin::signed(requester),
 			bounded_u8::<65536>(tx_data.clone()),
-			slip44_chain_id,
+			bounded_u8::<64>(b"eip155:60".to_vec()),
 			1,
 			bounded_u8::<256>(b"path".to_vec()),
 			bounded_u8::<32>(b"ecdsa".to_vec()),
 			bounded_u8::<64>(b"callback".to_vec()),
 			bounded_u8::<1024>(b"{}".to_vec()),
-			SerializationFormat::AbiJson,
+			requester,
 			bounded_u8::<4096>(b"schema1".to_vec()),
-			SerializationFormat::Borsh,
 			bounded_u8::<4096>(b"schema2".to_vec())
 		));
 
@@ -655,13 +654,13 @@ fn test_sign_respond_works() {
 		let events = System::events();
 		let event_found = events
 			.iter()
-			.any(|e| matches!(&e.event, RuntimeEvent::Signet(Event::SignRespondRequested { .. })));
+			.any(|e| matches!(&e.event, RuntimeEvent::Signet(Event::SignBidirectionalRequested { .. })));
 		assert!(event_found);
 	});
 }
 
 #[test]
-fn test_sign_respond_empty_transaction_fails() {
+fn test_sign_bidirectional_empty_transaction_fails() {
 	new_test_ext().execute_with(|| {
 		let admin = 1u64;
 		let requester = 2u64;
@@ -674,18 +673,17 @@ fn test_sign_respond_empty_transaction_fails() {
 		));
 
 		assert_noop!(
-			Signet::sign_respond(
+			Signet::sign_bidirectional(
 				RuntimeOrigin::signed(requester),
 				bounded_u8::<65536>(vec![]),
-				60,
+				bounded_u8::<64>(b"eip155:60".to_vec()),
 				1,
 				bounded_u8::<256>(b"path".to_vec()),
 				bounded_u8::<32>(b"algo".to_vec()),
 				bounded_u8::<64>(b"dest".to_vec()),
 				bounded_u8::<1024>(b"params".to_vec()),
-				SerializationFormat::Borsh,
+				requester,
 				bounded_u8::<4096>(vec![]),
-				SerializationFormat::Borsh,
 				bounded_u8::<4096>(vec![])
 			),
 			Error::<Test>::InvalidTransaction
@@ -818,14 +816,14 @@ fn test_respond_error_batch() {
 }
 
 #[test]
-fn test_read_respond() {
+fn test_respond_bidirectional() {
 	new_test_ext().execute_with(|| {
 		let responder = 1u64;
 		let request_id = [99u8; 32];
 		let output = b"read_output_data".to_vec();
 		let signature = create_test_signature();
 
-		assert_ok!(Signet::read_respond(
+		assert_ok!(Signet::respond_bidirectional(
 			RuntimeOrigin::signed(responder),
 			request_id,
 			bounded_u8::<65536>(output.clone()),
@@ -833,7 +831,7 @@ fn test_read_respond() {
 		));
 
 		System::assert_last_event(
-			Event::ReadResponded {
+			Event::RespondBidirectionalEvent {
 				request_id,
 				responder,
 				serialized_output: output,

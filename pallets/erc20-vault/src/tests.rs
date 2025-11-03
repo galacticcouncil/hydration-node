@@ -255,7 +255,7 @@ fn compute_request_id(
 		tx_params.max_fee_per_gas,
 		tx_params.max_priority_fee_per_gas,
 		vec![],
-		tx_params.chain_id,
+		11155111,
 	)
 	.expect("build_evm_tx should succeed");
 
@@ -276,7 +276,7 @@ fn compute_request_id(
 	let encoded = (
 		sender_ss58.as_str(),
 		rlp_encoded.as_slice(),
-		60u32,
+		"eip155:11155111",
 		0u32,
 		path.as_str(),
 		"ecdsa",
@@ -452,7 +452,7 @@ fn test_deposit_erc20_success() {
 		assert!(events.iter().any(|e| {
 			matches!(
 				&e.event,
-				RuntimeEvent::Signet(pallet_signet::Event::SignRespondRequested { .. })
+				RuntimeEvent::Signet(pallet_signet::Event::SignBidirectionalRequested { .. })
 			)
 		}));
 
