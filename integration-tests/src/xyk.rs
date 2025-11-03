@@ -2,12 +2,13 @@
 
 use crate::polkadot_test_net::*;
 
-use hydradx_runtime::{DustRemovalWhitelist, RuntimeOrigin, LBP, XYK};
+use frame_support::{assert_noop, assert_ok, traits::Contains};
+use hydradx_runtime::Duster;
+use hydradx_runtime::{RuntimeOrigin, LBP, XYK};
 use hydradx_traits::AMM;
+use pallet_duster::DusterWhitelist;
 use pallet_xyk::types::AssetPair;
 use xcm_emulator::TestExt;
-
-use frame_support::{assert_noop, assert_ok, traits::Contains};
 
 fn pair_account(asset_a: AssetId, asset_b: AssetId) -> AccountId {
 	let asset_pair = AssetPair {
@@ -35,7 +36,9 @@ fn pair_account_should_be_added_into_whitelist_when_pool_is_created() {
 		));
 
 		//assert
-		assert!(DustRemovalWhitelist::contains(&pair_account(asset_a, asset_b)));
+		assert!(DusterWhitelist::<hydradx_runtime::Runtime>::contains(&pair_account(
+			asset_a, asset_b
+		)));
 	});
 }
 
@@ -55,7 +58,9 @@ fn pair_account_should_be_removed_from_whitelist_when_pool_was_destroyed() {
 			asset_b,
 			200 * UNITS,
 		));
-		assert!(DustRemovalWhitelist::contains(&pair_account(asset_a, asset_b)));
+		assert!(DusterWhitelist::<hydradx_runtime::Runtime>::contains(&pair_account(
+			asset_a, asset_b
+		)));
 
 		//act
 		assert_ok!(XYK::remove_liquidity(
@@ -66,7 +71,9 @@ fn pair_account_should_be_removed_from_whitelist_when_pool_was_destroyed() {
 		));
 
 		//assert
-		assert!(!DustRemovalWhitelist::contains(&pair_account(asset_a, asset_b)));
+		assert!(!DusterWhitelist::<hydradx_runtime::Runtime>::contains(&pair_account(
+			asset_a, asset_b
+		)));
 	});
 }
 
