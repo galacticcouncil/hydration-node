@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 356,
+	spec_version: 358,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -137,17 +137,6 @@ pub fn native_version() -> NativeVersion {
 		can_author_with: Default::default(),
 	}
 }
-
-pub fn get_all_module_accounts() -> Vec<AccountId> {
-	vec![
-		TreasuryPalletId::get().into_account_truncating(),
-		VestingPalletId::get().into_account_truncating(),
-		ReferralsPalletId::get().into_account_truncating(),
-		BondsPalletId::get().into_account_truncating(),
-		pallet_route_executor::Pallet::<Runtime>::router_account(),
-	]
-}
-
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime

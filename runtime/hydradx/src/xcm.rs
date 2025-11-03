@@ -482,12 +482,16 @@ impl pallet_message_queue::Config for Runtime {
 
 pub struct CurrencyIdConvert;
 use crate::evm::ExtendedAddressMapping;
-use primitives::constants::chain::CORE_ASSET_ID;
+use primitives::constants::chain::{CORE_ASSET_ID, HOLLAR_ASSET_ID};
 
 impl Convert<AssetId, Option<Location>> for CurrencyIdConvert {
 	fn convert(id: AssetId) -> Option<Location> {
 		match id {
 			CORE_ASSET_ID => Some(Location {
+				parents: 1,
+				interior: [Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())].into(),
+			}),
+			HOLLAR_ASSET_ID => Some(Location {
 				parents: 1,
 				interior: [Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())].into(),
 			}),
@@ -515,7 +519,17 @@ impl Convert<Location, Option<AssetId>> for CurrencyIdConvert {
 			{
 				Some(CORE_ASSET_ID)
 			}
+			Junctions::X2(a)
+				if parents == 1
+					&& a.contains(&GeneralIndex(HOLLAR_ASSET_ID.into()))
+					&& a.contains(&Parachain(ParachainInfo::get().into())) =>
+			{
+				Some(HOLLAR_ASSET_ID)
+			}
 			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(CORE_ASSET_ID.into())) => Some(CORE_ASSET_ID),
+			Junctions::X1(a) if parents == 0 && a.contains(&GeneralIndex(HOLLAR_ASSET_ID.into())) => {
+				Some(HOLLAR_ASSET_ID)
+			}
 			_ => {
 				let location: Option<AssetLocation> = location.try_into().ok();
 				if let Some(location) = location {
