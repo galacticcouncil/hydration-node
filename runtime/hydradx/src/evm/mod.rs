@@ -63,6 +63,7 @@ mod runner;
 
 pub use erc20_currency::Erc20Currency;
 pub use erc20_currency::Function;
+pub use erc20_currency::HOLDING_ADDRESS;
 pub use executor::Executor;
 pub use primitives::AccountId as AccountIdType;
 

@@ -164,21 +164,21 @@ pub mod pallet {
 					// receiving unsigned transaction from network - disallow
 					return InvalidTransaction::Call.into();
 				}
-				TransactionSource::Local => {}   // produced by off-chain worker
+				TransactionSource::Local => {}   // produced by offchain worker
 				TransactionSource::InBlock => {} // some other node included it in a block
 			};
 
-			let valid_tx = |provide| {
-				ValidTransaction::with_tag_prefix("liquidate_unsigned_call")
+			let valid_tx = |user| {
+				ValidTransaction::with_tag_prefix("liquidate_unsigned")
 					.priority(UNSIGNED_LIQUIDATION_PRIORITY)
-					.and_provides([&provide])
-					.longevity(2)
+					.and_provides([Encode::encode(user)])
+					.longevity(1)
 					.propagate(false)
 					.build()
 			};
 
 			match call {
-				Call::liquidate { .. } => valid_tx(b"liquidate_unsigned".to_vec()),
+				Call::liquidate { user, .. } => valid_tx(user),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -267,7 +267,7 @@ pub mod pallet {
 				let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 
 				if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-					log::debug!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
+					log::info!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
 					return Err(T::EvmErrorDecoder::convert(call_result));
 				}
 			} else {
@@ -356,7 +356,7 @@ impl<T: Config> Pallet<T> {
 
 		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
 		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::debug!(target: "liquidation",
+			log::info!(target: "liquidation",
 						"Evm execution failed. Reason: {:?}", call_result.value);
 			return Err(T::EvmErrorDecoder::convert(call_result));
 		}

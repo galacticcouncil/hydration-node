@@ -40,6 +40,8 @@ pub enum Function {
 
 pub struct Erc20Currency<T>(PhantomData<T>);
 
+pub const HOLDING_ADDRESS: EvmAddress = EvmAddress::repeat_byte(0xFF);
+
 impl<T> ERC20 for Erc20Currency<T>
 where
 	T: pallet_evm::Config + pallet_dispatcher::Config + frame_system::Config,
@@ -284,12 +286,29 @@ where
 		)
 	}
 
-	fn deposit(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
-		fail!(Error::<T>::NotSupported)
+	fn deposit(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+		<Self as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender: HOLDING_ADDRESS,
+				origin: HOLDING_ADDRESS,
+			},
+			EvmAccounts::<T>::evm_address(who),
+			amount,
+		)
 	}
 
-	fn withdraw(_contract: Self::CurrencyId, _who: &AccountId, _amount: Self::Balance) -> sp_runtime::DispatchResult {
-		fail!(Error::<T>::NotSupported)
+	fn withdraw(contract: Self::CurrencyId, who: &AccountId, amount: Self::Balance) -> sp_runtime::DispatchResult {
+		let sender = <pallet_evm_accounts::Pallet<T>>::evm_address(who);
+		<Self as ERC20>::transfer(
+			CallContext {
+				contract,
+				sender,
+				origin: sender,
+			},
+			HOLDING_ADDRESS,
+			amount,
+		)
 	}
 
 	fn can_slash(_contract: Self::CurrencyId, _who: &AccountId, value: Self::Balance) -> bool {

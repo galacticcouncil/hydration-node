@@ -408,7 +408,7 @@ impl orml_tokens::Config for Runtime {
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
-	type DustRemovalWhitelist = DustRemovalWhitelist;
+	type DustRemovalWhitelist = pallet_duster::DusterWhitelist<Runtime>;
 }
 
 parameter_types! {
@@ -671,13 +671,25 @@ impl pallet_ema_oracle::Config for Runtime {
 	type MaxAllowedPriceDifference = MaxAllowedPriceDifferenceForBifrostOracleUpdate;
 }
 
-pub struct DustRemovalWhitelist;
+pub struct ExtendedDustRemovalWhitelist;
 
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a)
-			|| HSM::is_flash_loan_account(a)
-			|| pallet_duster::DusterWhitelist::<Runtime>::contains(a)
+impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
+	fn get() -> Vec<AccountId> {
+		let mut accounts = vec![
+			TreasuryPalletId::get().into_account_truncating(),
+			VestingPalletId::get().into_account_truncating(),
+			ReferralsPalletId::get().into_account_truncating(),
+			BondsPalletId::get().into_account_truncating(),
+			pallet_route_executor::Pallet::<Runtime>::router_account(),
+			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+		];
+
+		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
+			accounts.push(EVMAccounts::account_id(flash_minter));
+			accounts.push(EVMAccounts::account_id(loan_receiver));
+		}
+
+		accounts
 	}
 }
 
@@ -688,6 +700,7 @@ impl pallet_duster::Config for Runtime {
 	type ExistentialDeposit = AssetRegistry;
 	type WhitelistUpdateOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type Erc20Support = ATokenAccountDuster;
+	type ExtendedWhitelist = ExtendedDustRemovalWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = weights::pallet_duster::HydraWeight<Runtime>;
 }
@@ -1795,6 +1808,8 @@ parameter_types! {
 	pub const HsmGasLimit: u64 = 400_000;
 	pub const HsmPalletId: PalletId = PalletId(*b"py/hsmod");
 	pub const HOLLAR: AssetId = 222;
+	pub const MinArbitrageAmount: Balance = 1_000_000_000_000_000_000; // 1 HOLLAR
+	pub const HSMLoanReceiver: EvmAddress = evm::precompiles::FLASH_LOAN_RECEIVER;
 }
 
 impl pallet_hsm::Config for Runtime {
@@ -1810,6 +1825,8 @@ impl pallet_hsm::Config for Runtime {
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Evm = evm::Executor<Runtime>;
 	type EvmAccounts = EVMAccounts;
+	type MinArbitrageAmount = MinArbitrageAmount;
+	type FlashLoanReceiver = HSMLoanReceiver;
 	type GasLimit = HsmGasLimit;
 	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
 	type EvmErrorDecoder = EvmErrorDecoder;

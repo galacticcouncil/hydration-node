@@ -260,7 +260,7 @@ where
 					Error::<T>::InvalidFeeParameters
 				);
 				ensure!(
-					protocol_fee_params.min_fee <= asset_fee_params.max_fee
+					protocol_fee_params.min_fee <= protocol_fee_params.max_fee
 						&& !protocol_fee_params.amplification.is_zero(),
 					Error::<T>::InvalidFeeParameters
 				);
