@@ -738,8 +738,6 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_chosen_erc20_currency(
 		));
 		let fee_currency = asset;
 
-		//let fee_currency = DAI;
-
 		init_omnipool_with_oracle_for_block_10();
 		//Add new erc20 token to omnipool and populate oracle
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
@@ -911,8 +909,6 @@ fn evm_permit_set_currency_dispatch_should_work_when_wrapped_in_dispatch_with_ex
 			DAI,
 		));
 		let fee_currency = asset;
-
-		//let fee_currency = DAI;
 
 		init_omnipool_with_oracle_for_block_10();
 		//Add new erc20 token to omnipool and populate oracle
