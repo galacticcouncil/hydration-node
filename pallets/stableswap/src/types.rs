@@ -23,6 +23,15 @@ use sp_runtime::DispatchResult;
 
 pub(crate) type Balance = u128;
 
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct PegUpateInfo<BlockNumber> {
+	//	block number when pegs was updated
+	pub updated_at: BlockNumber,
+	// updated fee calucalted at `self.updated_at`
+	pub updated_fee: Permill,
+}
+
 /// Pool properties for 2-asset pool (v1)
 /// `assets`: pool assets
 /// `amplification`: amp parameter
@@ -36,6 +45,7 @@ pub struct PoolInfo<AssetId, BlockNumber> {
 	pub initial_block: BlockNumber,
 	pub final_block: BlockNumber,
 	pub fee: Permill,
+	pub pegs_info: Option<PegUpateInfo<BlockNumber>>,
 }
 
 fn has_unique_elements<T>(iter: &mut T) -> bool
@@ -182,16 +192,17 @@ impl<AssetId> PoolPegInfo<AssetId> {
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct PoolSnapshot<AssetId> {
+pub struct PoolSnapshot<AssetId, BlockNumber> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub reserves: BoundedVec<AssetReserve, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub amplification: u128,
 	pub fee: Permill,
 	pub pegs: BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>,
+	pub pegs_info: Option<PegUpateInfo<BlockNumber>>,
 	pub share_issuance: Balance,
 }
 
-impl<AssetId: sp_std::cmp::PartialEq + Copy> PoolSnapshot<AssetId> {
+impl<AssetId: sp_std::cmp::PartialEq + Copy, BlockNumber> PoolSnapshot<AssetId, BlockNumber> {
 	pub fn asset_idx(&self, asset_id: AssetId) -> Option<usize> {
 		self.assets.iter().position(|&asset| asset == asset_id)
 	}

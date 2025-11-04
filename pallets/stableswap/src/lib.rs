@@ -81,8 +81,8 @@ pub mod weights;
 
 use crate::traits::PegRawOracle;
 use crate::types::{
-	Balance, BoundedPegs, PegSource, PegType, PoolInfo, PoolPegInfo, PoolSnapshot, PoolState, StableswapHooks,
-	Tradability,
+	Balance, BoundedPegs, PegSource, PegType, PegUpateInfo, PoolInfo, PoolPegInfo, PoolSnapshot, PoolState,
+	StableswapHooks, Tradability,
 };
 
 use hydra_dx_math::stableswap::types::AssetReserve;
@@ -213,7 +213,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn pool_snapshot)]
 	pub type PoolSnapshots<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, PoolSnapshot<T::AssetId>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, T::AssetId, PoolSnapshot<T::AssetId, BlockNumberFor<T>>, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -1368,7 +1368,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	//  Returns start of the pool at the beginning of the block
-	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
+	pub fn initial_pool_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId, BlockNumberFor<T>>> {
 		if let Some(snapshot) = Self::pool_snapshot(pool_id) {
 			Some(snapshot)
 		} else {
@@ -1376,13 +1376,13 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn create_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId>> {
+	pub fn create_snapshot(pool_id: T::AssetId) -> Option<PoolSnapshot<T::AssetId, BlockNumberFor<T>>> {
 		let pool = Pools::<T>::get(pool_id)?;
 		let pool_account = Self::pool_account(pool_id);
 		let amplification = Self::get_amplification(&pool);
 		let share_issuance = T::Currency::total_issuance(pool_id);
 		let reserves = pool.reserves_with_decimals::<T>(&pool_account)?;
-		let (_, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
+		let (updated_fee, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).ok()?;
 
 		Some(PoolSnapshot {
 			assets: pool.assets,
@@ -1390,6 +1390,14 @@ impl<T: Config> Pallet<T> {
 			fee: pool.fee,
 			reserves: BoundedVec::truncate_from(reserves),
 			pegs: BoundedVec::truncate_from(asset_pegs),
+			pegs_info: if pool.pegs_info.is_some() {
+				Some(PegUpateInfo {
+					updated_at: T::BlockNumberProvider::current_block_number(),
+					updated_fee,
+				})
+			} else {
+				None
+			},
 			share_issuance,
 		})
 	}
@@ -1528,6 +1536,14 @@ impl<T: Config> Pallet<T> {
 			initial_block: block_number,
 			final_block: block_number,
 			fee,
+			pegs_info: if peg_info.is_some() {
+				Some(PegUpateInfo {
+					updated_at: block_number,
+					updated_fee: fee,
+				})
+			} else {
+				None
+			},
 		};
 		ensure!(pool.is_valid(), Error::<T>::IncorrectAssets);
 		ensure!(
@@ -2003,12 +2019,24 @@ impl<T: Config> Pallet<T> {
 			// No pegs for this pool, return default pegs
 			return Ok((pool.fee, vec![(1, 1); pool.assets.len()]));
 		};
+
 		// Move pegs to target pegs if necessary
 		let current_block: u128 = T::BlockNumberProvider::current_block_number().saturated_into();
 		let target_pegs = Self::get_target_pegs(&pool.assets, &peg_info.source)?;
 
+		let (current_fee, current_pegs_updated_at) = if let Some(p) = &pool.pegs_info {
+			(p.updated_fee, p.updated_at.saturated_into::<u128>())
+		} else {
+			(pool.fee, current_block)
+		};
+
+		if current_pegs_updated_at == current_block {
+			return Ok((current_fee, peg_info.current.into()));
+		}
+
 		hydra_dx_math::stableswap::recalculate_pegs(
 			&peg_info.current,
+			current_pegs_updated_at,
 			&target_pegs,
 			current_block,
 			peg_info.max_peg_update,
@@ -2029,7 +2057,18 @@ impl<T: Config> Pallet<T> {
 		if let Some(peg_info) = PoolPegs::<T>::get(pool_id) {
 			let new_info = peg_info.with_new_pegs(&new_pegs);
 			PoolPegs::<T>::insert(pool_id, new_info);
-		};
+
+			Pools::<T>::try_mutate(pool_id, |maybe_pool| -> DispatchResult {
+				let pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+
+				pool.pegs_info = Some(PegUpateInfo {
+					updated_at: T::BlockNumberProvider::current_block_number(),
+					updated_fee: trade_fee,
+				});
+
+				Ok(())
+			})?
+		}
 
 		Ok((trade_fee, new_pegs))
 	}
@@ -2070,8 +2109,8 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount_in: Balance,
 		min_buy_amount: Balance,
-		use_snapshot: Option<PoolSnapshot<T::AssetId>>,
-	) -> Result<(Balance, PoolSnapshot<T::AssetId>), DispatchError> {
+		use_snapshot: Option<PoolSnapshot<T::AssetId, BlockNumberFor<T>>>,
+	) -> Result<(Balance, PoolSnapshot<T::AssetId, BlockNumberFor<T>>), DispatchError> {
 		let snapshot = if let Some(snapshot) = use_snapshot {
 			snapshot
 		} else {
@@ -2118,8 +2157,8 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		amount_out: Balance,
 		max_amount_in: Balance,
-		use_snapshot: Option<PoolSnapshot<T::AssetId>>,
-	) -> Result<(Balance, PoolSnapshot<T::AssetId>), DispatchError> {
+		use_snapshot: Option<PoolSnapshot<T::AssetId, BlockNumberFor<T>>>,
+	) -> Result<(Balance, PoolSnapshot<T::AssetId, BlockNumberFor<T>>), DispatchError> {
 		let snapshot = if let Some(snapshot) = use_snapshot {
 			snapshot
 		} else {
