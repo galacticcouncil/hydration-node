@@ -73,7 +73,7 @@ use pallet_staking::{
 	types::{Action, Point},
 	SigmoidPercentage,
 };
-use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
+use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, Call, Config, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, XYK_SOURCE},
@@ -1402,6 +1402,7 @@ use hydradx_adapters::price::OraclePriceProviderUsingRoute;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
+use frame_support::traits::IsSubType;
 use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
@@ -1421,6 +1422,7 @@ use pallet_referrals::{FeeDistribution, Level};
 use pallet_stableswap::types::PegType;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_stableswap::BenchmarkHelper;
+use sp_runtime::traits::TryConvert;
 use sp_runtime::TokenError;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::TransactionOutcome;
@@ -2109,5 +2111,37 @@ impl Erc20OnDust<AccountId, AssetId> for ATokenAccountDuster {
 		AaveTradeExecutor::<Runtime>::withdraw_all_to(contract, &account, &dust_dest_account)?;
 
 		Ok(())
+	}
+}
+
+pub struct TryCallCurrency;
+impl TryConvert<&<Runtime as frame_system::Config>::RuntimeCall, AssetIdOf<Runtime>> for TryCallCurrency {
+	fn try_convert(
+		call: &<Runtime as frame_system::Config>::RuntimeCall,
+	) -> Result<AssetIdOf<Runtime>, &<Runtime as frame_system::Config>::RuntimeCall> {
+		if let Some(pallet_transaction_multi_payment::pallet::Call::set_currency { currency }) = call.is_sub_type() {
+			Ok(*currency)
+		} else if let Some(pallet_utility::pallet::Call::batch { calls })
+		| Some(pallet_utility::pallet::Call::batch_all { calls })
+		| Some(pallet_utility::pallet::Call::force_batch { calls }) = call.is_sub_type()
+		{
+			// `calls` can be empty Vec
+			match calls.first() {
+				Some(first_call) => match first_call.is_sub_type() {
+					Some(pallet_transaction_multi_payment::pallet::Call::set_currency { currency }) => Ok(*currency),
+					_ => Err(call),
+				},
+				_ => Err(call),
+			}
+		} else if let Some(pallet_dispatcher::pallet::Call::dispatch_with_extra_gas { call: inner_call, .. }) =
+			call.is_sub_type()
+		{
+			match inner_call.is_sub_type() {
+				Some(pallet_transaction_multi_payment::pallet::Call::set_currency { currency }) => Ok(*currency),
+				_ => Err(call),
+			}
+		} else {
+			Err(call)
+		}
 	}
 }
