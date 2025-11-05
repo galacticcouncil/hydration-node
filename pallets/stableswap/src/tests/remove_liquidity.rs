@@ -36,6 +36,7 @@ fn remove_liquidity_should_work_when_withdrawing_all_shares() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -118,6 +119,7 @@ fn remove_liquidity_should_apply_fee_when_withdrawing_all_shares() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -225,6 +227,7 @@ fn remove_liquidity_should_fail_when_requested_asset_not_in_pool() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -281,6 +284,7 @@ fn remove_liquidity_should_pass_when_remaining_shares_below_min_liquidity() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -343,6 +347,7 @@ fn verify_remove_liquidity_against_research_impl() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_float(0.003),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -413,6 +418,7 @@ fn remove_liquidity_fail_when_desired_min_limit_is_not_reached() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -475,6 +481,7 @@ fn scenario_add_remove_with_different_decimals() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_float(0.0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -542,6 +549,7 @@ fn scenario_sell_with_different_decimals() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_float(0.0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -594,6 +602,7 @@ fn specific_scenario_to_verify_remove_liquidity() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -647,6 +656,7 @@ fn specific_scenario_to_verify_withdrawal_exact_amount() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -702,6 +712,7 @@ fn specific_scenario_to_verify_difference() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -754,6 +765,7 @@ fn scenario_3_trade() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_float(0.0001),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -807,6 +819,7 @@ fn removing_liquidity_with_exact_amount_should_work() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -877,6 +890,7 @@ fn removing_liquidity_with_exact_amount_should_work_when_dust_left() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -947,6 +961,7 @@ fn removing_liquidity_should_not_give_more_assets() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -1016,6 +1031,7 @@ fn removing_liquidity_with_exact_amount_should_apply_fee() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -1086,6 +1102,7 @@ fn removing_liquidity_with_exact_amount_should_emit_swapped_event() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -1175,6 +1192,7 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_some_shares() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -1262,6 +1280,7 @@ fn remove_multi_asset_liquidity_should_work_when_withdrawing_all_remaining_share
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -1399,6 +1418,7 @@ fn remove_multi_asset_liquidity_fails_when_min_amounts_length_is_not_correct() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -1472,6 +1492,7 @@ fn remove_multi_asset_liquidity_fails_when_min_amounts_contains_duplicate_assets
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,

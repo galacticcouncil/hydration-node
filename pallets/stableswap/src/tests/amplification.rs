@@ -47,6 +47,7 @@ fn update_amplification_should_work_when_correct_params_are_provided() {
 					initial_block: 10,
 					final_block: 1000,
 					fee: Permill::from_percent(10),
+					pegs_info: None,
 				}
 			);
 		});
@@ -182,6 +183,7 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 					initial_block: 10,
 					final_block: 1000,
 					fee: Permill::from_percent(10),
+					pegs_info: None,
 				}
 			);
 			System::set_block_number(500);
@@ -203,6 +205,7 @@ fn update_amplification_should_work_when_current_change_is_in_progress() {
 					initial_block: 501,
 					final_block: 1000,
 					fee: Permill::from_percent(10),
+					pegs_info: None,
 				}
 			);
 		});

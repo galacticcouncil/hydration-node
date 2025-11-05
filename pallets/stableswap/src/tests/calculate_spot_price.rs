@@ -33,6 +33,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_6_decimals() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -102,6 +103,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_12_decimals() 
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -178,6 +180,7 @@ fn spot_price_calculation_should_work_when_asset_in_is_share_with_18_decimals() 
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -265,6 +268,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_12_decimals()
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(3),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -341,6 +345,7 @@ fn spot_price_calculation_should_work_when_asset_out_is_share_with_18_decimals()
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(3),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -410,6 +415,7 @@ fn spot_price_calculation_should_work_for_two_stableassets() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -484,6 +490,7 @@ fn spot_price_calculation_should_work_for_two_stableassets_on_different_position
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(2),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -568,6 +575,7 @@ mod invariants {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(1),
+				pegs_info: None,
 				},
 				InitialLiquidity {
 					account: ALICE,
@@ -638,6 +646,7 @@ mod invariants {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(0),
+					pegs_info: None,
 				},
 				InitialLiquidity {
 					account: ALICE,
