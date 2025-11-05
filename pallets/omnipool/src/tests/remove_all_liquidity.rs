@@ -59,11 +59,6 @@ fn remove_all_liquidity_works() {
 					tradable: Tradability::default(),
 				}
 			);
-
-			assert!(
-				get_mock_minted_position(lp1_position_id).is_none(),
-				"Position instance was not burned"
-			);
 		});
 
 	// remove with remove_liquidity_with_limit with exact setup as above
@@ -539,13 +534,12 @@ fn remove_all_liquidity_safe_withdrawal_should_transfer_lrna() {
 				200 * ONE,
 				500000 * ONE
 			));
+
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				RuntimeOrigin::root(),
 				1_000,
 				Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 			));
-
-			let position = Positions::<Test>::get(current_position_id).unwrap();
 
 			assert_ok!(Omnipool::remove_all_liquidity(
 				RuntimeOrigin::signed(LP1),

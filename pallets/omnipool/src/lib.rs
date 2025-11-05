@@ -828,13 +828,13 @@ pub mod pallet {
 		///
 		/// Limit protection is applied.
 		///
-		/// `remove_liquidity` removes specified shares amount from given PositionId (NFT instance).
+		/// `remove_all_liquidity` removes all shares amount from given PositionId (NFT instance).
 		///
 		/// Asset's tradable state must contain REMOVE_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
 		///
 		/// if all shares from given position are removed, position is destroyed and NFT is burned.
 		///
-		/// Remove liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
+		/// Remove all liquidity fails if price difference between spot price and oracle price is higher than allowed by `PriceBarrier`.
 		///
 		/// Dynamic withdrawal fee is applied if withdrawal is not safe. It is calculated using spot price and external price oracle.
 		/// Withdrawal is considered safe when trading is disabled.
