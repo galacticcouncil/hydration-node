@@ -190,10 +190,13 @@ pub type DynamicWeigher<RuntimeCall> =
 // Types that exist in `xcm_builder` from `stable2412` onwards.
 mod remove_when_updating_to_stable2412 {
 	use core::marker::PhantomData;
-	use frame_support::{ensure, traits::{Contains, ContainsPair, Get, ProcessMessageError}};
+	use frame_support::{
+		ensure,
+		traits::{Contains, ContainsPair, Get, ProcessMessageError},
+	};
 	use polkadot_xcm::prelude::*;
 	use xcm_builder::{CreateMatcher, MatchXcm};
-	use xcm_executor::traits::{ShouldExecute, Properties};
+	use xcm_executor::traits::{Properties, ShouldExecute};
 
 	/// Alias a descendant location of the original origin.
 	pub struct AliasChildLocation;
@@ -225,7 +228,7 @@ mod remove_when_updating_to_stable2412 {
 	}
 
 	const MAX_ASSETS_FOR_BUY_EXECUTION: usize = 2;
-	
+
 	/// Allows execution from `origin` if it is contained in `T` (i.e. `T::Contains(origin)`) taking
 	/// payments into account.
 	///
@@ -257,32 +260,36 @@ mod remove_when_updating_to_stable2412 {
 			instructions[..end]
 				.matcher()
 				.match_next_inst(|inst| match inst {
-					WithdrawAsset(ref assets) |
-					ReceiveTeleportedAsset(ref assets) |
-					ReserveAssetDeposited(ref assets) |
-					ClaimAsset { ref assets, .. } =>
+					WithdrawAsset(ref assets)
+					| ReceiveTeleportedAsset(ref assets)
+					| ReserveAssetDeposited(ref assets)
+					| ClaimAsset { ref assets, .. } => {
 						if assets.len() <= MAX_ASSETS_FOR_BUY_EXECUTION {
 							Ok(())
 						} else {
 							Err(ProcessMessageError::BadFormat)
-						},
+						}
+					}
 					_ => Err(ProcessMessageError::BadFormat),
 				})?
 				.skip_inst_while(|inst| {
-					matches!(inst, ClearOrigin | AliasOrigin(..)) ||
-						matches!(inst, DescendOrigin(child) if *child != Here)
+					matches!(inst, ClearOrigin | AliasOrigin(..))
+						|| matches!(inst, DescendOrigin(child) if *child != Here)
 				})?
 				.match_next_inst(|inst| match inst {
-					BuyExecution { weight_limit: Limited(ref mut weight), .. }
-						if weight.all_gte(max_weight) =>
-					{
+					BuyExecution {
+						weight_limit: Limited(ref mut weight),
+						..
+					} if weight.all_gte(max_weight) => {
 						*weight = max_weight;
 						Ok(())
-					},
-					BuyExecution { ref mut weight_limit, .. } if weight_limit == &Unlimited => {
+					}
+					BuyExecution {
+						ref mut weight_limit, ..
+					} if weight_limit == &Unlimited => {
 						*weight_limit = Limited(max_weight);
 						Ok(())
-					},
+					}
 					_ => Err(ProcessMessageError::Overweight(max_weight)),
 				})?;
 			Ok(())
