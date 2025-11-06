@@ -63,6 +63,8 @@ pub mod pallet {
 		// Multi-currency (HDX fees + wETH faucet asset)
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
+		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		// Minimum/Maximum & Fee (use u128 to match Balance/wei)
 		#[pallet::constant]
 		type MinimumRequestAmount: Get<u128>;
@@ -90,6 +92,9 @@ pub mod pallet {
 		// PalletId for internal account
 		#[pallet::constant]
 		type VaultPalletId: Get<PalletId>;
+
+		#[pallet::constant]
+		type MinFaucetEthThreshold: Get<u128>;
 	}
 
 	/*************************** STORAGE ***************************/
@@ -98,21 +103,17 @@ pub mod pallet {
 	#[pallet::getter(fn dispenser_config)]
 	pub type DispenserConfig<T> = StorageValue<_, DispenserConfigData, OptionQuery>;
 
+	#[pallet::storage]
+	pub type CurrentFaucetBalanceWei<T> = StorageValue<_, u128, ValueQuery>;
+
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
 	pub struct DispenserConfigData {
 		pub init: bool,
 		pub paused: bool,
 	}
 
-	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq)]
-	pub struct EvmTx {
-		pub value: u128,
-		pub gas_limit: u64,
-		pub max_fee_per_gas: u128,
-		pub max_priority_fee_per_gas: u128,
-		pub nonce: u64,
-		pub chain_id: u64,
-	}
+	#[pallet::storage]
+	pub type UsedRequestIds<T: Config> = StorageMap<_, Blake2_128Concat, [u8; 32], (), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -155,7 +156,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(10_000)]
 		pub fn initialize(origin: OriginFor<T>) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
+			T::UpdateOrigin::ensure_origin(origin)?;
 			ensure!(DispenserConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
 			DispenserConfig::<T>::put(DispenserConfigData {
@@ -179,6 +180,13 @@ pub mod pallet {
 			let requester = ensure_signed(origin)?;
 			let pallet_id = Self::account_id();
 
+			Self::ensure_initialized()?;
+
+			ensure!(
+				UsedRequestIds::<T>::get(request_id).is_none(),
+				Error::<T>::DuplicateRequest
+			);
+
 			ensure!(!DispenserConfig::<T>::get().unwrap().paused, Error::<T>::Paused);
 			ensure!(amount_wei >= T::MinimumRequestAmount::get(), Error::<T>::AmountTooSmall);
 			ensure!(amount_wei <= T::MaxDispenseAmount::get(), Error::<T>::AmountTooLarge);
@@ -196,7 +204,7 @@ pub mod pallet {
 			<T as Config>::Currency::transfer(
 				T::FaucetAsset::get(),
 				&requester,
-				&pallet_id,
+				&T::TreasuryAddress::get(),
 				amount_wei,
 				Preservation::Expendable,
 			)?;
@@ -251,6 +259,8 @@ pub mod pallet {
 				BoundedVec::try_from(callback_schema).map_err(|_| Error::<T>::Serialization)?,
 			)?;
 
+			UsedRequestIds::<T>::insert(request_id, ());
+
 			Self::deposit_event(Event::FundRequested {
 				request_id: req_id,
 				requester,
@@ -264,7 +274,7 @@ pub mod pallet {
 		#[pallet::call_index(3)]
 		#[pallet::weight(10_000)]
 		pub fn pause(origin: OriginFor<T>) -> DispatchResult {
-			// TODO: Check the origin
+			T::UpdateOrigin::ensure_origin(origin)?;
 			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = true);
 			Self::deposit_event(Event::Paused);
 			Ok(())
@@ -273,8 +283,8 @@ pub mod pallet {
 		#[pallet::call_index(4)]
 		#[pallet::weight(10_000)]
 		pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
-			// TODO: Check the origin
-			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = true);
+			T::UpdateOrigin::ensure_origin(origin)?;
+			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = false);
 			Self::deposit_event(Event::Unpaused);
 			Ok(())
 		}
@@ -353,6 +363,14 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		pub fn account_id() -> T::AccountId {
 			T::VaultPalletId::get().into_account_truncating()
+		}
+
+		#[inline]
+		fn ensure_initialized() -> Result<(), Error<T>> {
+			match DispenserConfig::<T>::get() {
+				Some(DispenserConfigData { init: true, .. }) => Ok(()),
+				_ => Err(Error::<T>::NotFound),
+			}
 		}
 	}
 }

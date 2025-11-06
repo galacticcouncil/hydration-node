@@ -162,11 +162,12 @@ parameter_types! {
 
 	pub const SigEthFaucetMaxDispense: u128 = 1_000_000_000;
 
-	pub const SigEthFaucetMinRequest: u64 = 0;
+	pub const SigEthFaucetMinRequest: u128 = 1;
 
 	pub const SigEthFaucetFeeAssetId: AssetId = 1;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 2;
 
+	pub const SigEthMinFaucetThreshold: u128 = 1;
 
 }
 
@@ -179,6 +180,10 @@ impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
 			0x93, 0xbc,
 		]
 	}
+}
+
+parameter_types! {
+	pub const EthRpcUrl: &'static str = "https://rpc.ankr.com/eth"; // placeholder for tests
 }
 
 impl pallet_dispenser::Config for Test {
@@ -202,6 +207,10 @@ impl pallet_dispenser::Config for Test {
 	type FaucetAddress = SigEthFaucetMpcRoot;
 
 	type MPCRootSigner = SigEthFaucetMpcRoot;
+
+	type UpdateOrigin = frame_system::EnsureRoot<u64>;
+
+	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -234,10 +243,10 @@ fn test_cannot_initialize_twice() {
 	new_test_ext().execute_with(|| {
 		let mpc_address = create_test_mpc_address();
 
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::signed(1)));
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
 
 		assert_noop!(
-			Dispenser::initialize(RuntimeOrigin::signed(2)),
+			Dispenser::initialize(RuntimeOrigin::root()),
 			Error::<Test>::AlreadyInitialized
 		);
 
@@ -252,9 +261,135 @@ fn test_cannot_initialize_twice() {
 }
 
 #[test]
+fn test_request_rejected_when_paused() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
+		assert_ok!(Dispenser::pause(RuntimeOrigin::root()));
+
+		let requester = 1u64;
+		let receiver = create_test_receiver_address();
+		let amount = 1_000u128;
+		let tx = create_test_tx_params();
+		let req_id = compute_request_id(requester, receiver, amount, &tx);
+
+		let hdx_before = Currencies::free_balance(1, &requester);
+		let eth_before = Currencies::free_balance(2, &requester);
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
+			Error::<Test>::Paused
+		);
+
+		assert_eq!(Currencies::free_balance(1, &requester), hdx_before);
+		assert_eq!(Currencies::free_balance(2, &requester), eth_before);
+	});
+}
+
+#[test]
+fn test_invalid_request_id_reverts_balances() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
+		let requester = 1u64;
+		let receiver = create_test_receiver_address();
+		let amount = 123_456u128;
+		let tx = create_test_tx_params();
+
+		let bad_req_id = [9u8; 32];
+		let hdx_before = Currencies::free_balance(1, &requester);
+		let eth_before = Currencies::free_balance(2, &requester);
+
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, bad_req_id, tx),
+			Error::<Test>::InvalidRequestId
+		);
+
+		assert_eq!(Currencies::free_balance(1, &requester), hdx_before);
+		assert_eq!(Currencies::free_balance(2, &requester), eth_before);
+	});
+}
+
+#[test]
+fn test_fee_and_asset_routing() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
+		let requester = 1u64;
+		let receiver = create_test_receiver_address();
+		let amount = 10_000u128;
+		let tx = create_test_tx_params();
+		let req_id = compute_request_id(requester, receiver, amount, &tx);
+
+		let fee = <Test as crate::Config>::DispenserFee::get();
+		let treasury = <Test as crate::Config>::TreasuryAddress::get();
+		let pallet_account = Dispenser::account_id();
+
+		let hdx_req_before = Currencies::free_balance(1, &requester);
+		let hdx_treas_before = Currencies::free_balance(1, &treasury);
+		let weth_treas_before = Currencies::free_balance(2, &treasury);
+		let eth_req_before = Currencies::free_balance(2, &requester);
+		let eth_pallet_before = Currencies::free_balance(2, &pallet_account);
+
+		assert_ok!(Dispenser::request_fund(
+			RuntimeOrigin::signed(requester),
+			receiver,
+			amount,
+			req_id,
+			tx
+		));
+
+		assert_eq!(Currencies::free_balance(1, &requester), hdx_req_before - fee);
+		assert_eq!(Currencies::free_balance(1, &treasury), hdx_treas_before + fee);
+		assert_eq!(Currencies::free_balance(2, &treasury), weth_treas_before + amount);
+		assert_eq!(Currencies::free_balance(2, &requester), eth_req_before - amount);
+		assert_eq!(Currencies::free_balance(2, &pallet_account), eth_pallet_before + 0);
+	});
+}
+
+#[test]
+fn test_pause_unpause_state() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
+		assert_ok!(Dispenser::pause(RuntimeOrigin::root()));
+		assert_eq!(Dispenser::dispenser_config().unwrap().paused, true);
+
+		assert_ok!(Dispenser::unpause(RuntimeOrigin::root()));
+		assert_eq!(Dispenser::dispenser_config().unwrap().paused, false);
+	});
+}
+
+#[test]
+fn test_amount_too_small_and_too_large() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
+		let requester = 1u64;
+		let receiver = create_test_receiver_address();
+		let tx = create_test_tx_params();
+
+		let amt_small = (<Test as crate::Config>::MinimumRequestAmount::get() - 1) as u128;
+		let rid_small = compute_request_id(requester, receiver, amt_small, &tx);
+		assert_noop!(
+			Dispenser::request_fund(
+				RuntimeOrigin::signed(requester),
+				receiver,
+				amt_small,
+				rid_small,
+				tx.clone()
+			),
+			Error::<Test>::AmountTooSmall
+		);
+
+		let amt_big = <Test as crate::Config>::MaxDispenseAmount::get() + 1;
+		let rid_big = compute_request_id(requester, receiver, amt_big, &tx);
+		assert_noop!(
+			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amt_big, rid_big, tx),
+			Error::<Test>::AmountTooLarge
+		);
+	});
+}
+
+#[test]
 fn test_deposit_erc20_success() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(Dispenser::initialize(RuntimeOrigin::signed(1)));
+		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
 
 		let requester = 1u64;
 		let receiver_address = create_test_receiver_address();
