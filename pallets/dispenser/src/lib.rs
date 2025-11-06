@@ -15,6 +15,11 @@ use sp_core::H160;
 use sp_io::hashing;
 use sp_std::vec::Vec;
 
+use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
+use sp_runtime::traits::Zero;
+
+const POLL_EVERY_BLOCKS: u32 = 100;
+
 use log::{debug, error, info, trace, warn};
 const LOG_TARGET: &str = "pallet-dispenser";
 
@@ -57,7 +62,12 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_build_evm_tx::Config + pallet_signet::Config {
+	pub trait Config:
+		frame_system::Config
+		+ SendTransactionTypes<Self::RuntimeCall>
+		+ pallet_build_evm_tx::Config
+		+ pallet_signet::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		// Multi-currency (HDX fees + wETH faucet asset)
@@ -104,6 +114,7 @@ pub mod pallet {
 	pub type DispenserConfig<T> = StorageValue<_, DispenserConfigData, OptionQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn current_faucet_balance_wei)]
 	pub type CurrentFaucetBalanceWei<T> = StorageValue<_, u128, ValueQuery>;
 
 	#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, MaxEncodedLen)]
@@ -288,6 +299,14 @@ pub mod pallet {
 			Self::deposit_event(Event::Unpaused);
 			Ok(())
 		}
+
+		#[pallet::call_index(5)]
+		#[pallet::weight(0)]
+		pub fn submit_balance_unsigned(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
+			ensure_none(origin)?;
+			CurrentFaucetBalanceWei::<T>::put(balance_wei);
+			Ok(())
+		}
 	}
 
 	// ========================= Helper Functions =========================
@@ -357,6 +376,43 @@ pub mod pallet {
 			ensure!(recovered_address == expected_address, Error::<T>::InvalidSigner);
 
 			Ok(())
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			use sp_runtime::transaction_validity::{InvalidTransaction, ValidTransaction};
+			match call {
+				Call::submit_balance_unsigned { balance_wei: _ } => Ok(ValidTransaction {
+					priority: 1,
+					requires: vec![],
+					provides: vec![],
+					longevity: 64,
+					propagate: true,
+				}),
+				_ => InvalidTransaction::Call.into(),
+			}
+		}
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+	where
+		// We submit T::RuntimeCall, and we can convert our pallet Call<T> into it
+		<T as SendTransactionTypes<T::RuntimeCall>>::OverarchingCall: From<Call<T>>,
+	{
+		fn offchain_worker(n: BlockNumberFor<T>) {
+			// simple throttle if you want; or remove entirely
+			let balance_wei: u128 = 1_000_000_000_000_000_000; // 1 ETH
+			let call = Call::<T>::submit_balance_unsigned { balance_wei };
+
+			// Submit as RuntimeCall (note the second generic is T::RuntimeCall now)
+			let _ = frame_system::offchain::SubmitTransaction::<T, T::RuntimeCall>::submit_unsigned_transaction(
+				call.into(),
+			);
 		}
 	}
 

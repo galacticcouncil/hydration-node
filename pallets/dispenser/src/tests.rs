@@ -182,6 +182,11 @@ impl frame_support::traits::Get<[u8; 20]> for SigEthFaucetMpcRoot {
 	}
 }
 
+impl frame_system::offchain::SendTransactionTypes<RuntimeCall> for Test {
+	type OverarchingCall = RuntimeCall;
+	type Extrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+}
+
 parameter_types! {
 	pub const EthRpcUrl: &'static str = "https://rpc.ankr.com/eth"; // placeholder for tests
 }
@@ -437,6 +442,14 @@ fn test_deposit_erc20_success() {
 		);
 
 		assert_eq!(Currencies::free_balance(2, &requester), eth_balance_before - amount);
+	});
+}
+
+#[test]
+fn unsigned_call_sets_storage() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Dispenser::submit_balance_unsigned(RuntimeOrigin::none(), 42u128));
+		assert_eq!(Dispenser::current_faucet_balance_wei(), 42u128);
 	});
 }
 
