@@ -21,6 +21,7 @@
 
 use std::sync::Arc;
 
+use crate::liquidation_worker::LiquidationTaskData;
 use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -44,7 +45,6 @@ use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
-use crate::liquidation_worker::LiquidationTaskData;
 
 pub struct HydraDxEthConfig<C, BE>(std::marker::PhantomData<(C, BE)>);
 
@@ -123,13 +123,18 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 {
+	use crate::liquidation_worker::rpc::{LiquidationWorker, LiquidationWorkerApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
-	use crate::liquidation_worker::rpc::{LiquidationWorker, LiquidationWorkerApiServer};
 
 	let mut module = RpcExtension::new(());
-	let FullDeps { client, pool, backend, liquidation_task_data } = deps;
+	let FullDeps {
+		client,
+		pool,
+		backend,
+		liquidation_task_data,
+	} = deps;
 
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;

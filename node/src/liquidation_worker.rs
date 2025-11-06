@@ -209,7 +209,10 @@ impl LiquidationTaskData {
 		Self {
 			borrowers_list: Default::default(),
 			max_transactions: Default::default(),
-			thread_pool: Arc::new(Mutex::new(ThreadPool::with_name("liquidation-worker".into(), num_cpus::get()))),
+			thread_pool: Arc::new(Mutex::new(ThreadPool::with_name(
+				"liquidation-worker".into(),
+				num_cpus::get(),
+			))),
 		}
 	}
 }
@@ -612,7 +615,8 @@ where
 
 		let mut money_market = money_market;
 
-		let mut max_transactions = Self::calculate_max_number_of_liquidations_in_block(config.clone()).unwrap_or_default();
+		let mut max_transactions =
+			Self::calculate_max_number_of_liquidations_in_block(config.clone()).unwrap_or_default();
 
 		let runtime_api = client.runtime_api();
 		let Some(mut current_evm_timestamp) =
@@ -1180,14 +1184,14 @@ fn parse_oracle_transaction(eth_tx: &Transaction) -> Option<Vec<OracleUpdataData
 }
 
 pub mod rpc {
-	use std::sync::Arc;
+	use crate::liquidation_worker::LiquidationTaskData;
 	use jsonrpsee::{
 		core::{async_trait, RpcResult},
 		proc_macros::rpc,
 		types::error::ErrorObject,
 	};
 	use liquidation_worker_support::Borrower;
-	use crate::liquidation_worker::LiquidationTaskData;
+	use std::sync::Arc;
 
 	#[rpc(client, server)]
 	pub trait LiquidationWorkerApi {
@@ -1222,18 +1226,13 @@ pub mod rpc {
 
 	impl LiquidationWorker {
 		pub fn new(liquidation_task_data: Arc<LiquidationTaskData>) -> Self {
-			Self {
-				liquidation_task_data,
-			}
+			Self { liquidation_task_data }
 		}
 	}
 
 	#[async_trait]
-	impl LiquidationWorkerApiServer for LiquidationWorker
-	{
-		async fn get_borrowers(
-			&self,
-		) -> RpcResult<Vec<Borrower>> {
+	impl LiquidationWorkerApiServer for LiquidationWorker {
+		async fn get_borrowers(&self) -> RpcResult<Vec<Borrower>> {
 			if let Ok(borrowers) = self.liquidation_task_data.borrowers_list.lock() {
 				Ok(borrowers.clone())
 			} else {
@@ -1251,9 +1250,7 @@ pub mod rpc {
 			Ok(false)
 		}
 
-		async fn max_transactions_per_block(
-			&self,
-		) -> RpcResult<usize> {
+		async fn max_transactions_per_block(&self) -> RpcResult<usize> {
 			if let Ok(max_transactions) = self.liquidation_task_data.max_transactions.lock() {
 				Ok(*max_transactions)
 			} else {

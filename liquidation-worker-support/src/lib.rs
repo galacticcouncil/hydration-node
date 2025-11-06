@@ -23,7 +23,7 @@ use frame_support::sp_runtime::TokenError;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::{Block as BlockT, CheckedConversion},
-	Serialize, Deserialize,
+	Deserialize, Serialize,
 };
 use hydradx_traits::evm::EvmAddress;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
