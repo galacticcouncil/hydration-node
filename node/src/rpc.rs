@@ -44,6 +44,7 @@ use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
+use crate::liquidation_worker::LiquidationTaskData;
 
 pub struct HydraDxEthConfig<C, BE>(std::marker::PhantomData<(C, BE)>);
 
@@ -64,6 +65,8 @@ pub struct FullDeps<C, P, B> {
 	pub pool: Arc<P>,
 	/// Backend used by the node.
 	pub backend: Arc<B>,
+	/// Data provided from the liquidation worker.
+	pub liquidation_task_data: Arc<LiquidationTaskData>,
 }
 
 /// Extra dependencies for Ethereum compatibility.
@@ -123,15 +126,17 @@ where
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
+	use crate::liquidation_worker::rpc::{LiquidationWorker, LiquidationWorkerApiServer};
 
 	let mut module = RpcExtension::new(());
-	let FullDeps { client, pool, backend } = deps;
+	let FullDeps { client, pool, backend, liquidation_task_data } = deps;
 
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
 
 	module.merge(IsmpRpcHandler::new(client, backend)?.into_rpc())?;
+	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
 
 	Ok(module)
 }

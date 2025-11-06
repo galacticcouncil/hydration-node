@@ -23,7 +23,7 @@ use frame_support::sp_runtime::TokenError;
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::{Block as BlockT, CheckedConversion},
-	Deserialize,
+	Serialize, Deserialize,
 };
 use hydradx_traits::evm::EvmAddress;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -140,7 +140,7 @@ pub struct BorrowersData<AccountId> {
 	pub borrowers: Vec<(H160, BorrowerDataDetails<AccountId>)>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Borrower {
 	pub user_address: EvmAddress,
 	pub health_factor: U256,
