@@ -201,12 +201,14 @@ enum LiquidationWorkerTask {
 /// of running tasks.
 pub struct LiquidationTaskData {
 	pub borrowers_list: Arc<Mutex<Vec<Borrower>>>,
+	pub max_transactions: Arc<Mutex<usize>>,
 	pub thread_pool: Arc<Mutex<ThreadPool>>,
 }
 impl LiquidationTaskData {
 	pub fn new() -> Self {
 		Self {
 			borrowers_list: Default::default(),
+			max_transactions: Default::default(),
 			thread_pool: Arc::new(Mutex::new(ThreadPool::with_name("liquidation-worker".into(), num_cpus::get()))),
 		}
 	}
@@ -610,9 +612,7 @@ where
 
 		let mut money_market = money_market;
 
-		let Some(max_transactions) = Self::calculate_max_number_of_liquidations_in_block(config.clone()) else {
-			return;
-		};
+		let mut max_transactions = Self::calculate_max_number_of_liquidations_in_block(config.clone()).unwrap_or_default();
 
 		let runtime_api = client.runtime_api();
 		let Some(mut current_evm_timestamp) =
@@ -645,6 +645,7 @@ where
 						&mut borrowers_c,
 						&mut liquidated_users,
 						&mut current_evm_timestamp,
+						&mut max_transactions,
 						liquidation_task_data.clone(),
 					);
 					current_task = LiquidationWorkerTask::LiquidateAll;
@@ -683,6 +684,7 @@ where
 									&mut borrowers_c,
 									&mut liquidated_users,
 									&mut current_evm_timestamp,
+									&mut max_transactions,
 									liquidation_task_data.clone(),
 								);
 
@@ -752,6 +754,7 @@ where
 									&mut borrowers_c,
 									&mut liquidated_users,
 									&mut current_evm_timestamp,
+									&mut max_transactions,
 									liquidation_task_data.clone(),
 								);
 
@@ -810,6 +813,7 @@ where
 								&mut borrowers_c,
 								&mut liquidated_users,
 								&mut current_evm_timestamp,
+								&mut max_transactions,
 								liquidation_task_data.clone(),
 							);
 
@@ -905,9 +909,16 @@ where
 		borrowers_c: &mut Vec<Borrower>,
 		liquidated_users: &mut Vec<UserAddress>,
 		current_evm_timestamp: &mut u64,
+		max_transactions: &mut usize,
 		liquidation_task_data: Arc<LiquidationTaskData>,
 	) {
 		*header = new_block.header.clone();
+
+		*max_transactions = Self::calculate_max_number_of_liquidations_in_block(config.clone()).unwrap_or_default();
+		// Set the number of max liquidation calls in a block for the liquidation RPC API.
+		if let Ok(mut max_txs) = liquidation_task_data.max_transactions.lock() {
+			*max_txs = max_transactions.clone();
+		}
 
 		let runtime_api = client.runtime_api();
 
@@ -1173,6 +1184,7 @@ pub mod rpc {
 	use jsonrpsee::{
 		core::{async_trait, RpcResult},
 		proc_macros::rpc,
+		types::error::ErrorObject,
 	};
 	use liquidation_worker_support::Borrower;
 	use crate::liquidation_worker::LiquidationTaskData;
@@ -1184,6 +1196,23 @@ pub mod rpc {
 
 		#[method(name = "liquidation_isRunning")]
 		async fn is_running(&self) -> RpcResult<bool>;
+
+		#[method(name = "liquidation_maxTransactionsPerBlock")]
+		async fn max_transactions_per_block(&self) -> RpcResult<usize>;
+	}
+
+	/// Error type of this RPC api.
+	pub enum Error {
+		/// Getting the lock failed.
+		LockError,
+	}
+
+	impl From<Error> for i32 {
+		fn from(e: Error) -> i32 {
+			match e {
+				Error::LockError => 1,
+			}
+		}
 	}
 
 	/// Provides RPC methods.
@@ -1220,6 +1249,20 @@ pub mod rpc {
 			}
 
 			Ok(false)
+		}
+
+		async fn max_transactions_per_block(
+			&self,
+		) -> RpcResult<usize> {
+			if let Ok(max_transactions) = self.liquidation_task_data.max_transactions.lock() {
+				Ok(*max_transactions)
+			} else {
+				Err(ErrorObject::owned(
+					Error::LockError.into(),
+					"Unable to acquire the max_transactions lock. PEPL probably not running.",
+					None::<String>,
+				))
+			}
 		}
 	}
 }
