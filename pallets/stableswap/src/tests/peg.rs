@@ -2,7 +2,7 @@
 
 use crate::assert_balance;
 use crate::tests::mock::*;
-use crate::types::{BoundedPegSources, PegSource};
+use crate::types::{BoundedPegSources, PegSource, PegUpateInfo, PoolInfo};
 use hydradx_traits::stableswap::AssetAmount;
 
 use crate::tests::{get_share_price, spot_price, to_bounded_asset_vec};
@@ -388,9 +388,8 @@ fn sell_with_drifting_peg_should_work() {
 				])
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
-
-			System::set_block_number(5);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
+			System::set_block_number(2);
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(
@@ -471,9 +470,9 @@ fn sell_with_drifting_peg_should_not_exceed_max_peg_update() {
 				])
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
 
-			System::set_block_number(5);
+			System::set_block_number(2);
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(
@@ -719,8 +718,8 @@ fn add_liquidity_should_work_correctly_with_different_pegs() {
 				])
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
-			System::set_block_number(5);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
+			System::set_block_number(2);
 
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -799,8 +798,8 @@ fn add_liquidity_shares_should_work_correctly_with_different_pegs() {
 				])
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
-			System::set_block_number(5);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
+			System::set_block_number(2);
 
 			assert_ok!(Stableswap::add_liquidity_shares(
 				RuntimeOrigin::signed(BOB),
@@ -881,8 +880,8 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 				])
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
-			System::set_block_number(5);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
+			System::set_block_number(2);
 
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -906,7 +905,8 @@ fn remove_liquidity_for_one_asset_should_work_correctly_with_different_pegs() {
 			let bob_shares = Tokens::free_balance(pool_id, &BOB);
 			assert_eq!(bob_shares, 0);
 			let bob_b_balance = Tokens::free_balance(asset_b, &BOB);
-			assert_eq!(bob_b_balance, 9649832005958); // same as python
+			assert_eq!(bob_b_balance, 9311925821564); // not same as python because fees are not
+			                                 // recalculated in same block
 		});
 }
 
@@ -974,8 +974,8 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 				])
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
-			System::set_block_number(5);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
+			System::set_block_number(2);
 
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -997,9 +997,10 @@ fn remove_liquidity_given_asset_amount_should_work_correctly_with_different_pegs
 			));
 
 			let bob_shares_left = Tokens::free_balance(pool_id, &BOB);
-			assert_eq!(bob_shares_left, 317410783783205889);
+			assert_eq!(bob_shares_left, 163475039151683765);
 			let bob_shares_used = 4713465477960257850u128 - Tokens::free_balance(pool_id, &BOB);
-			assert_eq!(bob_shares_used, 4_396_054_694_177_051_961); //same as python
+			assert_eq!(bob_shares_used, 4_549_990_438_808_574_085); //not same as python becasue fees are
+														   //not recalculated in same block
 			let bob_b_balance = Tokens::free_balance(asset_b, &BOB);
 			assert_eq!(bob_b_balance, 9 * ONE);
 		});
@@ -1069,8 +1070,8 @@ fn remove_liquidity_uniform_should_work_correctly_with_different_pegs() {
 				])
 			));
 
-			set_peg_oracle_value(asset_a, asset_b, (48, 100), 4);
-			System::set_block_number(5);
+			set_peg_oracle_value(asset_a, asset_b, (48, 100), 2);
+			System::set_block_number(2);
 
 			assert_ok!(Stableswap::add_liquidity(
 				RuntimeOrigin::signed(BOB),
@@ -1173,8 +1174,10 @@ fn asset_oracle_peg_should_work() {
 			));
 
 			// Change the oracle price using the oracle_asset instead of first_asset
-			set_peg_oracle_value(oracle_asset, asset_b, (48, 100), 4);
-			System::set_block_number(5);
+			set_peg_oracle_value(oracle_asset, asset_b, (48, 100), 2);
+			System::set_block_number(2);
+
+			let pool_0 = Stableswap::pools(pool_id).expect("pool not found");
 
 			assert_balance!(BOB, asset_b, 0);
 			assert_ok!(Stableswap::sell(
@@ -1185,6 +1188,17 @@ fn asset_oracle_peg_should_work() {
 				100 * ONE,
 				25 * ONE,
 			));
+
+			assert_eq!(
+				Stableswap::pools(pool_id),
+				Some(PoolInfo {
+					pegs_info: Some(PegUpateInfo {
+						updated_at: 2,
+						updated_fee: Permill::from_parts(83333),
+					}),
+					..pool_0
+				})
+			);
 
 			assert_balance!(BOB, asset_a, 900000000000000);
 			assert_balance!(BOB, asset_b, 190961826574751);
