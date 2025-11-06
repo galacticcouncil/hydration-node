@@ -399,6 +399,25 @@ parameter_type_with_key! {
 	};
 }
 
+pub struct CustomReserveProvider;
+impl orml_traits::location::Reserve for CustomReserveProvider {
+	fn reserve(asset: &Asset) -> Option<Location> {
+		if let Asset {
+			id: AssetId(location),
+			fun: Fungible(_),
+		} = asset
+		{
+			if location.parents == 1 && location.interior == Here {
+				// Use Asset Hub as reserve for DOT
+				return Some(AssetHubLocation::get());
+			}
+		}
+
+		// For all other assets, use absolute reserve provider
+		AbsoluteReserveProvider::reserve(asset)
+	}
+}
+
 impl orml_xtokens::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
@@ -411,7 +430,7 @@ impl orml_xtokens::Config for Runtime {
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
 	type LocationsFilter = Everything;
-	type ReserveProvider = AbsoluteReserveProvider;
+	type ReserveProvider = CustomReserveProvider;
 	type MinXcmFee = ParachainMinFee;
 	type UniversalLocation = UniversalLocation;
 	type RateLimiter = (); // do not use rate limiter
