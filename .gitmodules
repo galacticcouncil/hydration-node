@@ -1,3 +1,6 @@
 [submodule "pallets/dispenser/contracts/lib/forge-std"]
 	path = pallets/dispenser/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "pallets/dispenser/contracts/lib/openzeppelin-contracts"]
+	path = pallets/dispenser/contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
