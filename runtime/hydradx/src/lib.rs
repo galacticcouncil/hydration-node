@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 357,
+	spec_version: 358,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1472,7 +1472,10 @@ impl_runtime_apis! {
 				}
 
 				fn alias_origin() -> Result<(Location, Location), BenchmarkError> {
-					Err(BenchmarkError::Skip)
+					Ok((
+						Location::new(1, [Parachain(1000)]),
+						Location::new(1, [Parachain(1000), Junction::AccountId32 { id: [111u8; 32], network: None }]),
+					))
 				}
 			}
 
