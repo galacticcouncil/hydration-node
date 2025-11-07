@@ -35,6 +35,7 @@ use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
 
 pub type Balance = u128;
 pub type AssetId = u32;
+pub type CallResult = (ExitReason, Vec<u8>);
 
 #[derive(RuntimeDebug)]
 pub enum LiquidationError {
