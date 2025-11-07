@@ -134,3 +134,10 @@ impl IsmpModuleWeight for TokenGatewayIsmpModuleWeight {
 		weights::pallet_token_gateway_ismp::IsmpWeight::<Runtime>::on_response()
 	}
 }
+
+impl pallet_ismp_oracle_test::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type IsmpHost = Ismp;
+	type RequestsTimeout = sp_core::ConstU64<3600>;
+}

@@ -243,6 +243,7 @@ construct_runtime!(
 		IsmpParachain: ismp_parachain = 181,
 		Hyperbridge: pallet_hyperbridge = 182,
 		TokenGateway: pallet_token_gateway = 183,
+		IsmpOracleTest: pallet_ismp_oracle_test = 184,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		EmaOracle: pallet_ema_oracle = 202,

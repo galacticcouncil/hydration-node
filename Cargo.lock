@@ -5622,6 +5622,7 @@ dependencies = [
  "pallet-hyperbridge",
  "pallet-identity",
  "pallet-ismp",
+ "pallet-ismp-oracle-test",
  "pallet-ismp-runtime-api",
  "pallet-lbp",
  "pallet-liquidation",
@@ -9850,6 +9851,25 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-io",
+]
+
+[[package]]
+name = "pallet-ismp-oracle-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "hydradx-traits",
+ "ismp",
+ "pallet-ismp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
