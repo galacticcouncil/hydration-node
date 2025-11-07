@@ -135,6 +135,15 @@ parameter_type_with_key! {
 	};
 }
 
+pub struct TestExtendedWhitelist;
+
+impl frame_support::traits::Get<Vec<AccountId>> for TestExtendedWhitelist {
+	fn get() -> Vec<AccountId> {
+		// Return treasury and any other hardcoded accounts that should be whitelisted
+		vec![TreasuryAccount::get()]
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -142,6 +151,7 @@ impl Config for Test {
 	type ExistentialDeposit = MinDeposits;
 	type WhitelistUpdateOrigin = EnsureRoot<AccountId>;
 	type Erc20Support = ATokenDusterMock;
+	type ExtendedWhitelist = TestExtendedWhitelist;
 	type TreasuryAccountId = TreasuryAccount;
 	type WeightInfo = ();
 }
