@@ -16,11 +16,21 @@ use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
+use sp_core::offchain::{
+	testing::{PoolState, TestOffchainExt, TestTransactionPoolExt},
+	OffchainDbExt, OffchainWorkerExt, TransactionPoolExt,
+};
+use sp_std::sync::Arc;
+use sp_std::sync::RwLock;
+
+use sp_core::sr25519::{Public as Sr25519Public, Signature as Sr25519Signature};
 use sp_core::H256;
 use sp_io::hashing::keccak_256;
+use sp_runtime::transaction_validity::{InvalidTransaction, TransactionSource};
+use sp_runtime::{traits::Verify, MultiSignature};
 use sp_runtime::{
-	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	AccountId32, BuildStorage, MultiSignature,
+	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
+	AccountId32, BuildStorage,
 };
 
 extern crate alloc;
@@ -28,8 +38,6 @@ extern crate alloc;
 pub type NamedReserveIdentifier = [u8; 8];
 pub type Amount = i128;
 pub const HDX: AssetId = 0;
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-pub type Signature = MultiSignature;
 
 frame_support::construct_runtime!(
 	pub enum Test {
@@ -58,7 +66,7 @@ impl system::Config for Test {
 	type Nonce = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Block = frame_system::mocking::MockBlock<Test>;
 	type RuntimeEvent = RuntimeEvent;
@@ -110,7 +118,7 @@ parameter_types! {
 
 	pub const HDXAssetId: AssetId = HDX;
 
-  pub const TreasuryAccount: u64 = 99;
+   pub const TreasuryPalletId: PalletId = PalletId(*b"py/treas");
 }
 
 impl pallet_balances::Config for Test {
@@ -129,6 +137,10 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = ();
 }
 
+parameter_types! {
+	pub TreasuryAccount: AccountId32 = TreasuryPalletId::get().into_account_truncating();
+}
+
 impl pallet_currencies::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
@@ -138,6 +150,11 @@ impl pallet_currencies::Config for Test {
 	type ReserveAccount = TreasuryAccount;
 	type GetNativeCurrencyId = HDXAssetId;
 	type WeightInfo = ();
+}
+
+impl frame_system::offchain::SigningTypes for Test {
+	type Public = <MultiSignature as Verify>::Signer;
+	type Signature = MultiSignature;
 }
 
 impl pallet_signet::Config for Test {
@@ -213,27 +230,32 @@ impl pallet_dispenser::Config for Test {
 
 	type MPCRootSigner = SigEthFaucetMpcRoot;
 
-	type UpdateOrigin = frame_system::EnsureRoot<u64>;
+	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
+
+	type AuthorityId = crypto::TestAuthId;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
+	let alice = &acct(1);
+	let bob = &acct(2);
+	let charlie = &acct(3);
 	let t = system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		System::set_block_number(1);
-		let _ = Currencies::deposit(1, &1, 1_000_000_000_000_000_000_000);
-		let _ = Currencies::deposit(1, &2, 1_000_000_000_000_000_000_000);
-		let _ = Currencies::deposit(1, &3, 1_000_000_000_000_000_000_000);
+		let _ = Currencies::deposit(1, alice, 1_000_000_000_000_000_000_000);
+		let _ = Currencies::deposit(1, bob, 1_000_000_000_000_000_000_000);
+		let _ = Currencies::deposit(1, charlie, 1_000_000_000_000_000_000_000);
 
-		let _ = Currencies::deposit(2, &1, 1_000_000_000_000_000_000_000);
-		let _ = Currencies::deposit(2, &2, 1_000_000_000_000_000_000_000);
-		let _ = Currencies::deposit(2, &3, 1_000_000_000_000_000_000_000);
-
+		let _ = Currencies::deposit(2, alice, 1_000_000_000_000_000_000_000);
+		let _ = Currencies::deposit(2, bob, 1_000_000_000_000_000_000_000);
+		let _ = Currencies::deposit(2, charlie, 1_000_000_000_000_000_000_000);
+		let requester = acct(1);
 		let _ = pallet_signet::Pallet::<Test>::initialize(
-			RuntimeOrigin::signed(1),
-			1,
+			RuntimeOrigin::signed(requester.clone()),
+			requester,
 			100,
 			bounded_chain_id(b"test-chain".to_vec()),
 		);
@@ -271,17 +293,17 @@ fn test_request_rejected_when_paused() {
 		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
 		assert_ok!(Dispenser::pause(RuntimeOrigin::root()));
 
-		let requester = 1u64;
+		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let amount = 1_000u128;
 		let tx = create_test_tx_params();
-		let req_id = compute_request_id(requester, receiver, amount, &tx);
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
 
 		let hdx_before = Currencies::free_balance(1, &requester);
 		let eth_before = Currencies::free_balance(2, &requester);
 
 		assert_noop!(
-			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, req_id, tx),
+			Dispenser::request_fund(RuntimeOrigin::signed(requester.clone()), receiver, amount, req_id, tx),
 			Error::<Test>::Paused
 		);
 
@@ -294,7 +316,7 @@ fn test_request_rejected_when_paused() {
 fn test_invalid_request_id_reverts_balances() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
-		let requester = 1u64;
+		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let amount = 123_456u128;
 		let tx = create_test_tx_params();
@@ -304,7 +326,13 @@ fn test_invalid_request_id_reverts_balances() {
 		let eth_before = Currencies::free_balance(2, &requester);
 
 		assert_noop!(
-			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amount, bad_req_id, tx),
+			Dispenser::request_fund(
+				RuntimeOrigin::signed(requester.clone()),
+				receiver,
+				amount,
+				bad_req_id,
+				tx
+			),
 			Error::<Test>::InvalidRequestId
 		);
 
@@ -317,11 +345,11 @@ fn test_invalid_request_id_reverts_balances() {
 fn test_fee_and_asset_routing() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
-		let requester = 1u64;
+		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let amount = 10_000u128;
 		let tx = create_test_tx_params();
-		let req_id = compute_request_id(requester, receiver, amount, &tx);
+		let req_id = compute_request_id(requester.clone(), receiver, amount, &tx);
 
 		let fee = <Test as crate::Config>::DispenserFee::get();
 		let treasury = <Test as crate::Config>::TreasuryAddress::get();
@@ -334,7 +362,7 @@ fn test_fee_and_asset_routing() {
 		let eth_pallet_before = Currencies::free_balance(2, &pallet_account);
 
 		assert_ok!(Dispenser::request_fund(
-			RuntimeOrigin::signed(requester),
+			RuntimeOrigin::signed(requester.clone()),
 			receiver,
 			amount,
 			req_id,
@@ -365,15 +393,15 @@ fn test_pause_unpause_state() {
 fn test_amount_too_small_and_too_large() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
-		let requester = 1u64;
+		let requester = acct(1);
 		let receiver = create_test_receiver_address();
 		let tx = create_test_tx_params();
 
 		let amt_small = (<Test as crate::Config>::MinimumRequestAmount::get() - 1) as u128;
-		let rid_small = compute_request_id(requester, receiver, amt_small, &tx);
+		let rid_small = compute_request_id(requester.clone(), receiver, amt_small, &tx);
 		assert_noop!(
 			Dispenser::request_fund(
-				RuntimeOrigin::signed(requester),
+				RuntimeOrigin::signed(requester.clone()),
 				receiver,
 				amt_small,
 				rid_small,
@@ -383,7 +411,7 @@ fn test_amount_too_small_and_too_large() {
 		);
 
 		let amt_big = <Test as crate::Config>::MaxDispenseAmount::get() + 1;
-		let rid_big = compute_request_id(requester, receiver, amt_big, &tx);
+		let rid_big = compute_request_id(requester.clone(), receiver, amt_big, &tx);
 		assert_noop!(
 			Dispenser::request_fund(RuntimeOrigin::signed(requester), receiver, amt_big, rid_big, tx),
 			Error::<Test>::AmountTooLarge
@@ -396,17 +424,17 @@ fn test_deposit_erc20_success() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Dispenser::initialize(RuntimeOrigin::root()));
 
-		let requester = 1u64;
+		let requester = acct(1);
 		let receiver_address = create_test_receiver_address();
 		let amount = 1_000_000u128;
 		let tx_params = create_test_tx_params();
 
-		let request_id = compute_request_id(requester, receiver_address, amount, &tx_params);
+		let request_id = compute_request_id(requester.clone(), receiver_address, amount, &tx_params);
 		let hdx_balance_before = Currencies::free_balance(1, &requester);
 		let eth_balance_before = Currencies::free_balance(2, &requester);
 
 		assert_ok!(Dispenser::request_fund(
-			RuntimeOrigin::signed(requester),
+			RuntimeOrigin::signed(requester.clone()),
 			receiver_address,
 			amount,
 			request_id,
@@ -534,7 +562,12 @@ fn create_test_mpc_address() -> [u8; 20] {
 	public_key_to_eth_address(&public_key)
 }
 
-fn compute_request_id(requester: u64, to: [u8; 20], amount_wei: u128, tx_params: &EvmTransactionParams) -> [u8; 32] {
+fn compute_request_id(
+	requester: AccountId32,
+	to: [u8; 20],
+	amount_wei: u128,
+	tx_params: &EvmTransactionParams,
+) -> [u8; 32] {
 	use alloy_sol_types::SolValue;
 	use sp_core::crypto::Ss58Codec;
 
@@ -545,7 +578,7 @@ fn compute_request_id(requester: u64, to: [u8; 20], amount_wei: u128, tx_params:
 
 	let faucet_addr = <Test as crate::Config>::FaucetAddress::get();
 	let rlp_encoded = pallet_build_evm_tx::Pallet::<Test>::build_evm_tx(
-		frame_system::RawOrigin::Signed(requester).into(),
+		frame_system::RawOrigin::Signed(requester.clone()).into(),
 		Some(H160::from(faucet_addr)),
 		0u128,
 		call.abi_encode(),
@@ -587,4 +620,8 @@ fn compute_request_id(requester: u64, to: [u8; 20], amount_wei: u128, tx_params:
 		.abi_encode_packed();
 
 	keccak_256(&packed)
+}
+
+fn acct(n: u8) -> AccountId32 {
+	AccountId32::new([n; 32])
 }

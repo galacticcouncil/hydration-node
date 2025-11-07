@@ -66,6 +66,7 @@ use pallet_omnipool::{
 use pallet_otc::NamedReserveIdentifier;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
+use sp_runtime::{traits::Verify, MultiSignature};
 
 use pallet_staking::{
 	types::{Action, Point},
@@ -884,6 +885,11 @@ impl Get<AssetId> for DotAssetId {
 			None => invalid_id,
 		}
 	}
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+	type Public = <MultiSignature as Verify>::Signer;
+	type Signature = MultiSignature;
 }
 
 parameter_types! {
@@ -1846,6 +1852,8 @@ parameter_types! {
 
 	pub const SigEthFaucetFeeAssetId: AssetId = 1;
 	pub const SigEthFaucetFaucetAssetId: AssetId = 2;
+
+	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
 }
 
 impl pallet_erc20_vault::Config for Runtime {
@@ -1900,7 +1908,14 @@ impl pallet_dispenser::Config for Runtime {
 
 	// pallet account to hold faucet liquidity
 	type VaultPalletId = SigEthPalletId;
+
+	type UpdateOrigin = EnsureRoot<AccountId>;
+
+	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
+
+	type AuthorityId = pallet_dispenser::crypto::DispenserAuthId;
 }
+
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);
 impl<SP> Convert<AccountId, AssetId, Balance> for ConvertViaOmnipool<SP>
 where

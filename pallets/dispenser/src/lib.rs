@@ -10,15 +10,23 @@ use frame_support::pallet_prelude::*;
 use frame_support::traits::{fungibles::Mutate, tokens::Preservation, Currency};
 use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
+use frame_system::offchain::{SendTransactionTypes, SigningTypes, SubmitTransaction};
 use frame_system::pallet_prelude::*;
+use sp_core::crypto::KeyTypeId;
 use sp_core::H160;
 use sp_io::hashing;
+use sp_runtime::offchain::storage::StorageValueRef;
+use sp_runtime::offchain::{
+	storage_lock::{BlockAndTime, StorageLock},
+	Duration,
+};
+use sp_runtime::traits::SaturatedConversion;
+use sp_runtime::traits::Zero;
 use sp_std::vec::Vec;
 
-use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
-use sp_runtime::traits::Zero;
-
 const POLL_EVERY_BLOCKS: u32 = 100;
+const THROTTLE_BLOCKS: u32 = 10;
+const OCW_LAST_SEND_KEY: &[u8] = b"gfas/last_send";
 
 use log::{debug, error, info, trace, warn};
 const LOG_TARGET: &str = "pallet-dispenser";
@@ -32,6 +40,24 @@ sol! {
 	#[sol(abi)]
 	interface IGasFaucet {
 		function fund(address to, uint256 amount) external;
+	}
+}
+
+pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"btc!");
+pub mod crypto {
+	use super::KEY_TYPE;
+	use sp_runtime::{
+		app_crypto::{app_crypto, sr25519},
+		MultiSignature, MultiSigner,
+	};
+	app_crypto!(sr25519, KEY_TYPE);
+
+	pub struct DispenserAuthId;
+
+	impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for DispenserAuthId {
+		type RuntimeAppPublic = Public;
+		type GenericSignature = sp_core::sr25519::Signature;
+		type GenericPublic = sp_core::sr25519::Public;
 	}
 }
 
@@ -64,6 +90,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config:
 		frame_system::Config
+		+ SigningTypes
 		+ SendTransactionTypes<Self::RuntimeCall>
 		+ pallet_build_evm_tx::Config
 		+ pallet_signet::Config
@@ -105,6 +132,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MinFaucetEthThreshold: Get<u128>;
+
+		type AuthorityId: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>;
 	}
 
 	/*************************** STORAGE ***************************/
@@ -301,10 +330,12 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(5)]
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000)]
 		pub fn submit_balance_unsigned(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
 			ensure_none(origin)?;
+
 			CurrentFaucetBalanceWei::<T>::put(balance_wei);
+
 			Ok(())
 		}
 	}
@@ -385,14 +416,18 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			use sp_runtime::transaction_validity::{InvalidTransaction, ValidTransaction};
+
 			match call {
-				Call::submit_balance_unsigned { balance_wei: _ } => Ok(ValidTransaction {
-					priority: 1,
-					requires: vec![],
-					provides: vec![],
-					longevity: 64,
-					propagate: true,
-				}),
+				Call::submit_balance_unsigned { balance_wei } => {
+					let now = <frame_system::Pallet<T>>::block_number();
+					Ok(ValidTransaction {
+						priority: 1_000_000,
+						requires: vec![],
+						provides: vec![(b"gfas/bal", now, *balance_wei).encode()],
+						longevity: 64,
+						propagate: true,
+					})
+				}
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -401,18 +436,56 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
 	where
-		// We submit T::RuntimeCall, and we can convert our pallet Call<T> into it
-		<T as SendTransactionTypes<T::RuntimeCall>>::OverarchingCall: From<Call<T>>,
+		<T as frame_system::offchain::SendTransactionTypes<<T as frame_system::Config>::RuntimeCall>>::OverarchingCall:
+			From<Call<T>>,
 	{
 		fn offchain_worker(n: BlockNumberFor<T>) {
-			// simple throttle if you want; or remove entirely
-			let balance_wei: u128 = 1_000_000_000_000_000_000; // 1 ETH
-			let call = Call::<T>::submit_balance_unsigned { balance_wei };
+			log::info!(target: LOG_TARGET, "started offchain worker.....");
 
-			// Submit as RuntimeCall (note the second generic is T::RuntimeCall now)
-			let _ = frame_system::offchain::SubmitTransaction::<T, T::RuntimeCall>::submit_unsigned_transaction(
-				call.into(),
-			);
+			// let mut last_send_ref = StorageValueRef::persistent(OCW_LAST_SEND_KEY);
+
+			let mut should_send = true;
+
+			// if let Ok(Some(last_block)) = last_send_ref.get::<u32>() {
+			// 	let now: u32 = n.saturated_into::<u32>();
+			// 	if now.saturating_sub(last_block) < THROTTLE_BLOCKS {
+			// 		should_send = false;
+			// 	}
+			// }
+
+			if !should_send {
+				return;
+			}
+
+			let next_wei: u128 = Self::mock_balance_for(n);
+
+			let prev_wei = CurrentFaucetBalanceWei::<T>::get();
+			if prev_wei == next_wei {
+				return;
+			}
+
+			let call = Call::<T>::submit_balance_unsigned { balance_wei: next_wei };
+
+			log::info!(target: LOG_TARGET, "wei {:?}", next_wei);
+
+			let _ = frame_system::offchain::SubmitTransaction::<T, <T as frame_system::Config>::RuntimeCall>
+    ::submit_unsigned_transaction(call.into())
+    .map(|_| {
+        let now: u32 = n.saturated_into::<u32>();
+        let mut last_send_ref = StorageValueRef::persistent(OCW_LAST_SEND_KEY);
+        let _ = last_send_ref.set(&now);
+
+			log::info!(target: LOG_TARGET, "signature sent");
+    });
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		#[inline]
+		fn mock_balance_for(n: BlockNumberFor<T>) -> u128 {
+			let seed = (n.encode(), b"gfas/mock").using_encoded(sp_io::hashing::blake2_256);
+			let x = (seed[0] as u128 % 10) + 1;
+			x * 1_000_000_000_000_000_000u128
 		}
 	}
 
