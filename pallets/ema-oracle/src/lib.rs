@@ -98,6 +98,8 @@ pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
 
 pub const BIFROST_SOURCE: [u8; 8] = *b"bifrosto";
 
+pub const HYPERBRIDGE_SOURCE: [u8; 8] = *b"hyperiso";
+
 const LOG_TARGET: &str = "runtime::ema-oracle";
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -137,6 +139,9 @@ pub mod pallet {
 
 		/// Origin that can update bifrost oracle via `update_bifrost_oracle` extrinsic.
 		type BifrostOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// Origin that can update ismp oracles via `update_ismp_oracle` extrinsic.
+		type IsmpOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Provider for the current block number.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = BlockNumberFor<Self>>;
@@ -355,6 +360,52 @@ pub mod pallet {
 			Self::on_entry(BIFROST_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
 
 			Ok(Pays::No.into())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(Weight::from_parts(1_000_000, 0))]
+		pub fn update_ismp_oracle(
+			origin: OriginFor<T>,
+			//NOTE: these must be boxed because of https://github.com/paritytech/polkadot-sdk/blob/6875d36b2dba537f3254aad3db76ac7aa656b7ab/substrate/frame/utility/src/lib.rs#L150
+			asset_a: Box<polkadot_xcm::VersionedLocation>,
+			asset_b: Box<polkadot_xcm::VersionedLocation>,
+			price: (Balance, Balance),
+		) -> DispatchResultWithPostInfo {
+			// TODO:
+			T::IsmpOrigin::ensure_origin(origin)?;
+
+			let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
+			let asset_b = T::LocationToAssetIdConversion::convert(*asset_b).ok_or(Error::<T>::AssetNotFound)?;
+
+			let ordered_pair = ordered_pair(asset_a, asset_b);
+			let entry: OracleEntry<BlockNumberFor<T>> = {
+				let e = OracleEntry::new(
+					EmaPrice::new(price.0, price.1),
+					Volume::default(),
+					Liquidity::default(),
+					None,
+					T::BlockNumberProvider::current_block_number(),
+				);
+				if ordered_pair == (asset_a, asset_b) {
+					e
+				} else {
+					e.inverted()
+				}
+			};
+
+			if let Some(reference_entry) = Self::oracle((HYPERBRIDGE_SOURCE, ordered_pair, OraclePeriod::Hour)) {
+				if !Self::is_within_range(reference_entry.0.price.into(), price) {
+					log::error!(
+						target: LOG_TARGET,
+						"Updating bifrost oracle failed as the price is outside the allowed range"
+					);
+					return Err(Error::<T>::PriceOutsideAllowedRange.into());
+				}
+			}
+
+			Self::on_entry(HYPERBRIDGE_SOURCE, ordered_pair, entry).map_err(|_| Error::<T>::TooManyUniqueEntries)?;
+
+			Ok(().into())
 		}
 	}
 }
