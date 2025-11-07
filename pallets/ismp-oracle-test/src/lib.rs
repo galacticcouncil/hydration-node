@@ -32,14 +32,20 @@ extern crate alloc;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use alloc::string::ToString;
+use codec::Encode;
 use frame_support::pallet_prelude::Weight;
-use ismp::router::{PostRequest, Request, Response, Timeout};
+use frame_support::traits::SortedMembers;
+use frame_support::PalletId;
+use ismp::router::{PostRequest, Request, Response, StorageValue as IsmpStorageValue, Timeout};
 use ismp::{error::Error as IsmpError, module::IsmpModule};
 pub use pallet::*;
 use pallet_ismp::ModuleId;
+use sp_core::keccak_256;
+use sp_runtime::traits::AccountIdConversion;
 use sp_std::vec::Vec;
 
-pub const PALLET_ID: ModuleId = ModuleId::Pallet(frame_support::PalletId(*b"ismporcl"));
+pub(crate) const ISMP_ORACLE_PALLET_ID: PalletId = PalletId(*b"ismporcl");
+pub const ISMP_ORACLE_ID: ModuleId = ModuleId::Pallet(ISMP_ORACLE_PALLET_ID);
 
 // pub const SEPOLIA_EURC_TOTAL_SYPPLY: [u8; 52] = hex!["808456652fdb597867f38412077A9182bf77359Fd9b04db6de40540f30c0cbd90608aadf720bcddf"];
 
@@ -71,15 +77,11 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn last_commitment)]
-	pub type LastSentCommitment<T: Config> = StorageValue<_, T::AccountId>;
+	pub type LastSentCommitment<T: Config> = StorageValue<_, H256, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn responded_commitments)]
 	pub type RespondedCommitments<T: Config> = StorageMap<_, Identity, H256, H256, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn eurc_supply)]
-	pub type LastEURCTotalSupply<T: Config> = StorageValue<_, sp_core::U256>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -89,9 +91,25 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		GetRequestSent { commitment: H256 },
-		GetRequestResponded { commitment: H256 },
-		GetRequestTimedOut { commitment: H256 },
+		GetRequestSent {
+			commitment: H256,
+		},
+		PostRequestSent {
+			commitment: H256,
+		},
+		GetRequestResponded {
+			commitment: H256,
+			storage_values: Vec<IsmpStorageValue>,
+		},
+		PostRequestResponded {
+			commitment: H256,
+		},
+		GetRequestTimedOut {
+			commitment: H256,
+		},
+		PostResponseTimedOut {
+			commitment: H256,
+		},
 	}
 
 	#[pallet::call]
@@ -103,7 +121,7 @@ pub mod pallet {
 
 			let get = ismp::dispatcher::DispatchGet {
 				dest: params.dest,
-				from: PALLET_ID.to_bytes(),
+				from: ISMP_ORACLE_ID.to_bytes(),
 				keys: params.keys,
 				height: params.height,
 				context: Default::default(),
@@ -121,7 +139,38 @@ pub mod pallet {
 				)
 				.map_err(|_| Error::<T>::GetRequestFailed)?;
 
+			LastSentCommitment::<T>::put(hash);
 			Self::deposit_event(Event::<T>::GetRequestSent { commitment: hash });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(1)]
+		#[pallet::weight(Weight::from_parts(1_000_000, 0))]
+		pub fn request_post(origin: OriginFor<T>, params: PostParams) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let post = ismp::dispatcher::DispatchPost {
+				dest: params.dest,
+				from: ISMP_ORACLE_ID.to_bytes(),
+				to: params.to,
+				timeout: T::RequestsTimeout::get(),
+				body: params.body,
+			};
+
+			let dispatcher = T::IsmpHost::default();
+			let hash = dispatcher
+				.dispatch_request(
+					DispatchRequest::Post(post),
+					FeeMetadata {
+						payer: who,
+						fee: Default::default(),
+					},
+				)
+				.map_err(|_| Error::<T>::GetRequestFailed)?;
+
+			LastSentCommitment::<T>::put(hash);
+			Self::deposit_event(Event::<T>::PostRequestSent { commitment: hash });
 
 			Ok(())
 		}
@@ -133,31 +182,45 @@ pub mod pallet {
 		pub height: u64,
 		pub keys: Vec<Vec<u8>>,
 	}
-}
 
-pub struct IsmpModuleCallback<T: Config>(sp_std::marker::PhantomData<T>);
-impl<T: Config> Default for IsmpModuleCallback<T> {
-	fn default() -> Self {
-		Self(core::marker::PhantomData)
+	#[derive(Clone, codec::Encode, codec::Decode, scale_info::TypeInfo, PartialEq, Eq, RuntimeDebug)]
+	pub struct PostParams {
+		pub dest: ismp::host::StateMachine,
+		pub to: Vec<u8>,
+		pub body: Vec<u8>,
+	}
+
+	// Hack for implementing the [`Default`] bound needed for
+	// [`IsmpModule`](ismp::module::IsmpModule)
+	impl<T> Default for Pallet<T> {
+		fn default() -> Self {
+			Self(PhantomData)
+		}
 	}
 }
 
-impl<T: Config> IsmpModule for IsmpModuleCallback<T> {
+impl<T: Config> IsmpModule for Pallet<T> {
 	fn on_accept(&self, _request: PostRequest) -> Result<(), anyhow::Error> {
 		Err(IsmpError::Custom("Module does not accept post requests".to_string()))?
 	}
 
 	fn on_response(&self, response: Response) -> Result<(), anyhow::Error> {
 		match response {
-			Response::Post(_) => Err(IsmpError::Custom("Module does not accept post responses".to_string()))?,
+			Response::Post(post_response) => {
+				let hash = ismp::messaging::hash_request::<pallet_ismp::Pallet<T>>(&Request::Post(post_response.post));
+
+				// RespondedCommitments::<T>::insert(hash, keccak_256(&post_response.response).into());
+				Pallet::<T>::deposit_event(Event::<T>::PostRequestResponded { commitment: hash });
+			}
 			Response::Get(get_response) => {
+				let hash = ismp::messaging::hash_request::<pallet_ismp::Pallet<T>>(&Request::Get(get_response.get));
+
+				RespondedCommitments::<T>::insert(hash, sp_core::H256(keccak_256(&[0])));
 				Pallet::<T>::deposit_event(Event::<T>::GetRequestResponded {
-					commitment: ismp::messaging::hash_request::<pallet_ismp::Pallet<T>>(&Request::Get(get_response.get)),
+					commitment: hash,
+					storage_values: get_response.values.clone(),
 				});
-				for value in get_response.values {
-					match value.key { Vec { .. } => {} }
-				}
-			},
+			}
 		}
 
 		Ok(())
@@ -171,13 +234,29 @@ impl<T: Config> IsmpModule for IsmpModuleCallback<T> {
 
 				Ok(())
 			}
-			_ => Err(IsmpError::Custom("Only Get requests allowed, found Post".to_string()))?,
+			Timeout::Response(res) => {
+				let commitment = ismp::messaging::hash_request::<pallet_ismp::Pallet<T>>(&res.request());
+				Pallet::<T>::deposit_event(Event::<T>::PostResponseTimedOut { commitment });
+
+				Ok(())
+			}
+			_ => Err(IsmpError::Custom(
+				"Only Get requests and Post responses are allowed, found PostRequest".to_string(),
+			))?,
 		}
 	}
 }
 
-// impl<T: Config> Pallet<T> {}
-//
+impl<T: Config> Pallet<T> {
+	pub fn is_ismp_oracle(id: &[u8]) -> bool {
+		id == &ISMP_ORACLE_ID.to_bytes()
+	}
+
+	pub fn pallet_account_id() -> T::AccountId {
+		ISMP_ORACLE_PALLET_ID.into_account_truncating()
+	}
+}
+
 // // PUBLIC API
 // impl<T: Config> Pallet<T> {
 // 	pub fn function_name() {}

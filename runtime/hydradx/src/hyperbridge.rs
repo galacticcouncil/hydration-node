@@ -1,6 +1,6 @@
 use crate::origins::GeneralAdmin;
 use crate::{
-	weights, Balances, EVMAccounts, Ismp, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent,
+	weights, Balances, EVMAccounts, Ismp, IsmpOracleTest, IsmpParachain, NativeAssetId, Runtime, RuntimeEvent,
 	TechCommitteeSuperMajority, Timestamp, TokenGateway, TreasuryAccount,
 };
 use frame_support::parameter_types;
@@ -69,6 +69,7 @@ impl IsmpRouter for IsmpRouterStruct {
 	fn module_for_id(&self, id: Vec<u8>) -> Result<Box<dyn IsmpModule>, anyhow::Error> {
 		match id.as_slice() {
 			id if TokenGateway::is_token_gateway(&id) => Ok(Box::new(TokenGateway::default())),
+			id if IsmpOracleTest::is_ismp_oracle(&id) => Ok(Box::new(IsmpOracleTest::default())),
 			pallet_hyperbridge::PALLET_HYPERBRIDGE_ID => Ok(Box::new(pallet_hyperbridge::Pallet::<Runtime>::default())),
 			_ => Err(ismp::Error::ModuleNotFound(id))?,
 		}
