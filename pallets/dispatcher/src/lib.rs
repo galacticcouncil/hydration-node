@@ -131,11 +131,11 @@ pub mod pallet {
 		AaveSupplyCapExceeded,
 		/// Aave - borrow cap has been exceeded.
 		AaveBorrowCapExceeded,
-		///Aave - health factor is not below the threshold.
+		/// Aave - health factor is not below the threshold.
 		AaveHealthFactorNotBelowThreshold,
-		///Aave - health factor is lesser than the liquidation threshold
+		/// Aave - health factor is lesser than the liquidation threshold
 		AaveHealthFactorLowerThanLiquidationThreshold,
-		///Aave - there is not enough collateral to cover a new borrow
+		/// Aave - there is not enough collateral to cover a new borrow
 		CollateralCannotCoverNewBorrow,
 	}
 
