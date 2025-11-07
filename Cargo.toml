@@ -51,7 +51,6 @@ members = [
     'pallets/hsm',
     'pallets/build-evm-tx',
     "pallets/signet",
-    'pallets/erc20-vault',
     "pallets/dispenser"
 ]
 
@@ -161,7 +160,6 @@ pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-build-evm-tx = { path = "pallets/build-evm-tx", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-signet = { path = "pallets/signet", default-features = false }
-pallet-erc20-vault = { path = "pallets/erc20-vault", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }

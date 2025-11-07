@@ -1841,7 +1841,7 @@ impl pallet_signet::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ERC20VaultPalletId: PalletId = PalletId(*b"py/erc20");
+
 	pub const SigEthPalletId: PalletId = PalletId(*b"py/fucet");
 
 	pub const SigEthFaucetDispenserFee: u128 = 5_000;
@@ -1854,11 +1854,6 @@ parameter_types! {
 	pub const SigEthFaucetFaucetAssetId: AssetId = 2;
 
 	pub const SigEthMinFaucetThreshold: u128 = 50_000_000_000_000_000u128;
-}
-
-impl pallet_erc20_vault::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type VaultPalletId = ERC20VaultPalletId;
 }
 
 // Treasury as the fee receiver (reuses the Treasury pallet account)

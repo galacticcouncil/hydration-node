@@ -5014,7 +5014,6 @@ dependencies = [
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
- "pallet-erc20-vault",
  "pallet-ethereum",
  "pallet-evm",
  "pallet-evm-accounts",
@@ -8517,31 +8516,6 @@ dependencies = [
  "sp-std",
  "staging-xcm",
  "test-utils",
-]
-
-[[package]]
-name = "pallet-erc20-vault"
-version = "1.0.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "borsh",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hex",
- "pallet-balances",
- "pallet-build-evm-tx",
- "pallet-signet",
- "parity-scale-codec",
- "scale-info",
- "secp256k1 0.27.0",
- "serde",
- "serde_json",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]

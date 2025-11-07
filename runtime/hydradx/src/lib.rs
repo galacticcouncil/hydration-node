@@ -203,8 +203,7 @@ construct_runtime!(
 		Parameters: pallet_parameters = 83,
 		BuildEvmTx: pallet_build_evm_tx = 86,
 		Signet: pallet_signet = 84,
-		Erc20Vault: pallet_erc20_vault = 85,
-		SigEthFaucet: pallet_dispenser = 87,
+		EthDispenser: pallet_dispenser = 85,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -351,7 +350,6 @@ mod benches {
 		[pallet_build_evm_tx, BuildEvmTx]
 		[pallet_dynamic_fees, DynamicFees]
 		[pallet_signet, Signet]
-		[pallet_erc20_vault, Erc20Vault]
 	);
 }
 
