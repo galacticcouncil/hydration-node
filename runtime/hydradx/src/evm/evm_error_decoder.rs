@@ -13,6 +13,7 @@ const ERROR_STRING_SELECTOR: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0]; // Error(string
 const PANIC_SELECTOR: [u8; 4] = [0x4E, 0x48, 0x7B, 0x71]; // Panic(uint256)
 const FUNCTION_SELECTOR_LENGTH: usize = 4;
 const MAX_DECODE_DEPTH: u32 = 256; // Used for DispatchError decoding to prevent stack exhaustion attacks
+const MAX_ERROR_DATA_LENGTH: usize = 1024; // Maximum length of EVM error data to prevent DOS attacks
 
 pub struct EvmErrorDecoder;
 
@@ -20,6 +21,18 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 	fn convert(call_result: CallResult) -> DispatchError {
 		if let ExitReason::Error(ExitError::OutOfGas) = call_result.exit_reason {
 			return pallet_dispatcher::Error::<crate::Runtime>::EvmOutOfGas.into();
+		}
+
+		// DOS Prevention: Limit error data size to prevent memory exhaustion attacks
+		if call_result.value.len() > MAX_ERROR_DATA_LENGTH {
+			log::warn!(
+				target: "evm::error_decoder",
+				"EVM error data too large: {} bytes (max: {}). Truncating to prevent DOS.",
+				call_result.value.len(),
+				MAX_ERROR_DATA_	LENGTH
+			);
+			let truncated_value = call_result.value[..MAX_ERROR_DATA_LENGTH].to_vec();
+			return dispatch_error_other(truncated_value);
 		}
 
 		//Check for data without valid function selector
