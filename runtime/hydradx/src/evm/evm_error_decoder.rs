@@ -29,7 +29,7 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 				target: "evm::error_decoder",
 				"EVM error data too large: {} bytes (max: {}). Truncating to prevent DOS.",
 				call_result.value.len(),
-				MAX_ERROR_DATA_	LENGTH
+				MAX_ERROR_DATA_LENGTH
 			);
 			let truncated_value = call_result.value[..MAX_ERROR_DATA_LENGTH].to_vec();
 			return dispatch_error_other(truncated_value);
