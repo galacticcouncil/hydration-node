@@ -7081,7 +7081,7 @@ dependencies = [
 
 [[package]]
 name = "liquidation-worker-support"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "ethabi",
  "ethereum-types 0.15.1",
