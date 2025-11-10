@@ -1,3 +1,4 @@
+use crate::evm::evm_error_decoder::EvmErrorDecoder;
 use crate::evm::executor::{BalanceOf, NonceIdOf};
 use crate::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use crate::evm::precompiles::handle::EvmDataWriter;
@@ -16,6 +17,7 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::evm::EVM;
 use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, ERC20};
+use sp_runtime::traits::Convert;
 
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::BoundErc20;
@@ -422,14 +424,12 @@ where
 
 fn handle_result(result: CallResult) -> DispatchResult {
 	let call_result = result;
-	match call_result.exit_reason {
+	match &call_result.exit_reason {
 		Succeed(_) => Ok(()),
 		e => {
 			let hex_value = hex::encode(&call_result.value);
 			log::error!(target: "evm", "evm call failed with : {:?}, value: 0x{}, decoded: {:?}", e, hex_value, String::from_utf8_lossy(&call_result.value).into_owned());
-			Err(DispatchError::Other(&*Box::leak(
-				format!("evm:0x{}", hex_value).into_boxed_str(),
-			)))
+			Err(EvmErrorDecoder::convert(call_result))
 		}
 	}
 }

@@ -45,8 +45,6 @@ use pallet_asset_registry::Assets;
 use pallet_broadcast::types::{Asset, ExecutionType};
 use pallet_liquidation::BorrowingContract;
 use pallet_route_executor::TradeExecution;
-use pallet_transaction_multi_payment::EVMPermit;
-use primitives::constants::currency::UNITS;
 use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::traits::Zero;
@@ -1195,6 +1193,35 @@ fn cannot_withdraw_when_debt_increased_health_factor_too_low() {
 		assert_eq!(
 			error,
 			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorLowerThanLiquidationThreshold.into()
+		);
+	})
+}
+
+#[test]
+fn router_buy_should_decode_aave_supply_cap_exceeded_error() {
+	with_aave(|| {
+		// Give Alice enough DOT to attempt the purchase
+		let excessive_amount = 10_000_000 * ONE;
+		assert_ok!(Currencies::deposit(DOT, &ALICE.into(), excessive_amount * 2));
+
+		// Try to buy an excessive amount of ADOT that exceeds the supply cap
+		// This should trigger the AaveSupplyCapExceeded error through the Router
+		assert_noop!(
+			Router::buy(
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+				DOT,
+				ADOT,
+				excessive_amount,
+				excessive_amount * 2, // max_amount_in
+				vec![Trade {
+					pool: Aave,
+					asset_in: DOT,
+					asset_out: ADOT,
+				}]
+				.try_into()
+				.unwrap()
+			),
+			pallet_dispatcher::Error::<Runtime>::AaveSupplyCapExceeded
 		);
 	})
 }
