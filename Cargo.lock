@@ -5601,6 +5601,7 @@ dependencies = [
  "pallet-democracy 4.3.4",
  "pallet-dispatcher",
  "pallet-duster",
+ "pallet-duster-rpc-runtime-api",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-elections-phragmen",
@@ -9329,6 +9330,14 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-duster-rpc-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
 ]
 
 [[package]]
@@ -14683,6 +14692,7 @@ dependencies = [
  "pallet-dca",
  "pallet-dispatcher",
  "pallet-duster",
+ "pallet-duster-rpc-runtime-api",
  "pallet-dynamic-evm-fee",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",

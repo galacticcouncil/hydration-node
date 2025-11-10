@@ -295,14 +295,3 @@ impl<T: Config> DustRemovalAccountWhitelist<T::AccountId> for Pallet<T> {
 		})
 	}
 }
-
-sp_api::decl_runtime_apis! {
-	/// Runtime API for the duster pallet.
-	pub trait DusterApi<AccountId> where
-		AccountId: codec::Codec,
-	{
-		/// Check if an account is whitelisted (protected from dusting).
-		/// Returns true if the account is whitelisted, false otherwise.
-		fn is_whitelisted(account: AccountId) -> bool;
-	}
-}

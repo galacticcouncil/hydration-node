@@ -8,10 +8,8 @@ use frame_support::{assert_ok, sp_runtime::traits::Zero};
 use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, EVMAccounts, Router, Tokens, Treasury};
 use orml_traits::MultiReservableCurrency;
 use orml_traits::{currency::MultiCurrency, GetByKey};
-use pallet_duster::runtime_decl_for_duster_api::DusterApi;
 use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
-
 #[test]
 fn balance_should_be_dusted_when_native_balance_is_below_ed() {
 	TestNet::reset();
@@ -522,6 +520,8 @@ pub mod runtime_api {
 	use super::*;
 	use frame_support::assert_ok;
 	use hydradx_runtime::{EVMAccounts, Router, Treasury};
+	use pallet_duster_rpc_runtime_api::runtime_decl_for_duster_api::DusterApiV1;
+
 	#[test]
 	fn dustable_accounts_should_not_be_whitelisted() {
 		TestNet::reset();
@@ -534,8 +534,6 @@ pub mod runtime_api {
 
 	#[test]
 	fn extended_whitelist_entries_should_be_whitelisted() {
-		use pallet_duster::runtime_decl_for_duster_api::DusterApi;
-
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -549,8 +547,6 @@ pub mod runtime_api {
 
 	#[test]
 	fn add_and_remove_from_whitelist_should_effect_is_whitelisted_api() {
-		use pallet_duster::runtime_decl_for_duster_api::DusterApi;
-
 		TestNet::reset();
 
 		Hydra::execute_with(|| {

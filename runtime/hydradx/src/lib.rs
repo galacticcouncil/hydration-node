@@ -990,7 +990,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_duster::DusterApi<Block, AccountId> for Runtime {
+	impl pallet_duster_rpc_runtime_api::DusterApi<Block, AccountId> for Runtime {
 		fn is_whitelisted(account: AccountId) -> bool {
 			pallet_duster::DusterWhitelist::<Runtime>::contains(&account)
 		}
