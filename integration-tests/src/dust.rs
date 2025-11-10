@@ -8,6 +8,7 @@ use frame_support::{assert_ok, sp_runtime::traits::Zero};
 use hydradx_runtime::{AssetRegistry, Balances, Currencies, Duster, EVMAccounts, Router, Tokens, Treasury};
 use orml_traits::MultiReservableCurrency;
 use orml_traits::{currency::MultiCurrency, GetByKey};
+use pallet_duster::runtime_decl_for_duster_api::DusterApi;
 use sp_runtime::{DispatchResult, TransactionOutcome};
 use xcm_emulator::TestExt;
 
@@ -517,52 +518,55 @@ mod atoken_dust {
 	}
 }
 
-#[test]
-fn is_whitelisted_runtime_api_should_not_work_for_dustable_accounts() {
-	use pallet_duster::runtime_decl_for_duster_api::DusterApi;
+pub mod runtime_api {
+	use super::*;
+	use frame_support::assert_ok;
+	use hydradx_runtime::{EVMAccounts, Router, Treasury};
+	#[test]
+	fn dustable_accounts_should_not_be_whitelisted() {
+		TestNet::reset();
 
-	TestNet::reset();
+		Hydra::execute_with(|| {
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(ALICE.into()), false);
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(BOB.into()), false);
+		});
+	}
 
-	Hydra::execute_with(|| {
-		assert_eq!(hydradx_runtime::Runtime::is_whitelisted(ALICE.into()), false);
-		assert_eq!(hydradx_runtime::Runtime::is_whitelisted(BOB.into()), false);
-	});
-}
+	#[test]
+	fn extended_whitelist_entries_should_be_whitelisted() {
+		use pallet_duster::runtime_decl_for_duster_api::DusterApi;
 
-#[test]
-fn is_whitelisted_runtime_api_should_work_for_extended_whitelist_entries() {
-	use pallet_duster::runtime_decl_for_duster_api::DusterApi;
+		TestNet::reset();
 
-	TestNet::reset();
+		Hydra::execute_with(|| {
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(Treasury::account_id()), true);
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(Router::router_account()), true);
 
-	Hydra::execute_with(|| {
-		assert_eq!(hydradx_runtime::Runtime::is_whitelisted(Treasury::account_id()), true);
-		assert_eq!(hydradx_runtime::Runtime::is_whitelisted(Router::router_account()), true);
+			let holding_account = EVMAccounts::account_id(hydradx_runtime::evm::HOLDING_ADDRESS);
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(holding_account), true);
+		});
+	}
 
-		let holding_account = EVMAccounts::account_id(hydradx_runtime::evm::HOLDING_ADDRESS);
-		assert_eq!(hydradx_runtime::Runtime::is_whitelisted(holding_account), true);
-	});
-}
+	#[test]
+	fn add_and_remove_from_whitelist_should_effect_is_whitelisted_api() {
+		use pallet_duster::runtime_decl_for_duster_api::DusterApi;
 
-#[test]
-fn is_whitelisted_runtime_api_should_work_when_add_and_remove_from_whitelist() {
-	use pallet_duster::runtime_decl_for_duster_api::DusterApi;
+		TestNet::reset();
 
-	TestNet::reset();
+		Hydra::execute_with(|| {
+			assert_ok!(Duster::whitelist_account(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+			));
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()), true);
 
-	Hydra::execute_with(|| {
-		assert_ok!(Duster::whitelist_account(
-			hydradx_runtime::RuntimeOrigin::root(),
-			CHARLIE.into(),
-		));
-		assert_eq!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()), true);
-
-		assert_ok!(Duster::remove_from_whitelist(
-			hydradx_runtime::RuntimeOrigin::root(),
-			CHARLIE.into(),
-		));
-		assert_eq!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()), false);
-	});
+			assert_ok!(Duster::remove_from_whitelist(
+				hydradx_runtime::RuntimeOrigin::root(),
+				CHARLIE.into(),
+			));
+			assert_eq!(hydradx_runtime::Runtime::is_whitelisted(CHARLIE.into()), false);
+		});
+	}
 }
 
 fn set_ed(asset_id: AssetId, ed: u128) {
