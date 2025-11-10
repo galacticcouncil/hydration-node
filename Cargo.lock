@@ -5388,7 +5388,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "14.6.0"
+version = "14.6.1"
 dependencies = [
  "async-trait",
  "clap",
@@ -7081,7 +7081,7 @@ dependencies = [
 
 [[package]]
 name = "liquidation-worker-support"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "ethabi",
  "ethereum-types 0.15.1",
