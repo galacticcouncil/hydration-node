@@ -74,7 +74,7 @@ use sp_std::{convert::From, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
-use frame_support::{construct_runtime, pallet_prelude::Hooks, weights::Weight};
+use frame_support::{construct_runtime, pallet_prelude::Hooks, traits::Contains, weights::Weight};
 pub use hex_literal::hex;
 use orml_traits::MultiCurrency;
 /// Import HydraDX pallets
@@ -987,6 +987,12 @@ impl_runtime_apis! {
 		}
 		fn account_id(evm_address: H160) -> AccountId {
 			EVMAccounts::account_id(evm_address)
+		}
+	}
+
+	impl pallet_duster_rpc_runtime_api::DusterApi<Block, AccountId> for Runtime {
+		fn is_whitelisted(account: AccountId) -> bool {
+			pallet_duster::DusterWhitelist::<Runtime>::contains(&account)
 		}
 	}
 

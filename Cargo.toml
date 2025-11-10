@@ -127,6 +127,7 @@ pallet-currencies-rpc-runtime-api = { path = "pallets/currencies/rpc/runtime-api
 pallet-dca = { path = "pallets/dca", default-features = false }
 pallet-dispatcher = { path = "pallets/dispatcher", default-features = false }
 pallet-duster = { path = "pallets/duster", default-features = false }
+pallet-duster-rpc-runtime-api = { path = "pallets/duster/rpc/runtime-api", default-features = false }
 pallet-dynamic-fees = { path = "pallets/dynamic-fees", default-features = false }
 pallet-dynamic-evm-fee = { path = "pallets/dynamic-evm-fee", default-features = false }
 pallet-ema-oracle = { path = "pallets/ema-oracle", default-features = false }
