@@ -1,5 +1,5 @@
 use crate::Liquidation;
-use codec::Decode;
+use codec::{Decode, DecodeLimit};
 use frame_support::traits::Get;
 use hydradx_traits::evm::CallResult;
 use pallet_evm::{ExitError, ExitReason};
@@ -12,6 +12,7 @@ use sp_std::vec::Vec;
 const ERROR_STRING_SELECTOR: [u8; 4] = [0x08, 0xC3, 0x79, 0xA0]; // Error(string)
 const PANIC_SELECTOR: [u8; 4] = [0x4E, 0x48, 0x7B, 0x71]; // Panic(uint256)
 const FUNCTION_SELECTOR_LENGTH: usize = 4;
+const MAX_DECODE_DEPTH: u32 = 256; // Used for DispatchError decoding to prevent stack exhaustion attacks
 
 pub struct EvmErrorDecoder;
 
@@ -27,7 +28,9 @@ impl Convert<CallResult, DispatchError> for EvmErrorDecoder {
 		}
 
 		//Try to decode as SCALE-encoded DispatchError from precompiles
-		if let Ok(dispatch_error) = DispatchError::decode(&mut &call_result.value[..]) {
+		if let Ok(dispatch_error) =
+			DispatchError::decode_with_depth_limit(MAX_DECODE_DEPTH, &mut &call_result.value[..])
+		{
 			return dispatch_error;
 		}
 

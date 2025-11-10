@@ -1,6 +1,8 @@
 #![cfg(test)]
 
 use crate::{assert_balance, polkadot_test_net::*};
+use codec::Decode;
+
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_support::storage::with_transaction;
@@ -2876,7 +2878,7 @@ mod evm_error_decoder {
 	use proptest::test_runner::{Config, TestRunner};
 	use sp_core::Get;
 	use sp_runtime::traits::Convert;
-	use sp_runtime::DispatchResult;
+	use sp_runtime::{DispatchError, DispatchResult};
 
 	fn arbitrary_value() -> impl Strategy<Value = Vec<u8>> {
 		prop::collection::vec(any::<u8>(), 0..256)
@@ -2982,5 +2984,20 @@ mod evm_error_decoder {
 		};
 
 		let _error = EvmErrorDecoder::convert(call_result);
+	}
+
+	#[test]
+	fn decode_should_not_panic_on_deeply_nested_input() {
+		// Test 1: Deeply nested payload (simulating stack exhaustion attack)
+		let mut nested_payload = vec![0x01];
+		for _ in 0..10000 {
+			let mut new_layer = vec![0x01];
+			new_layer.extend_from_slice(&nested_payload);
+			nested_payload = new_layer;
+		}
+
+		let result = DispatchError::decode(&mut &nested_payload[..]).unwrap();
+
+		pretty_assertions::assert_eq!(result, DispatchError::CannotLookup);
 	}
 }
