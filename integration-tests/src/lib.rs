@@ -28,6 +28,7 @@ mod non_native_fee;
 mod omnipool_fixed_fees;
 mod omnipool_init;
 mod omnipool_liquidity_mining;
+mod omnipool_remove_all_liquidity;
 mod oracle;
 mod otc;
 mod parameters;
