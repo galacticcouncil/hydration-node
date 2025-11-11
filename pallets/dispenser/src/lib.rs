@@ -43,24 +43,6 @@ sol! {
 	}
 }
 
-pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"btc!");
-pub mod crypto {
-	use super::KEY_TYPE;
-	use sp_runtime::{
-		app_crypto::{app_crypto, sr25519},
-		MultiSignature, MultiSigner,
-	};
-	app_crypto!(sr25519, KEY_TYPE);
-
-	pub struct DispenserAuthId;
-
-	impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for DispenserAuthId {
-		type RuntimeAppPublic = Public;
-		type GenericSignature = sp_core::sr25519::Signature;
-		type GenericPublic = sp_core::sr25519::Public;
-	}
-}
-
 pub type Balance = u128;
 pub type AssetId = u32;
 
@@ -132,8 +114,6 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MinFaucetEthThreshold: Get<u128>;
-
-		type AuthorityId: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>;
 	}
 
 	/*************************** STORAGE ***************************/
@@ -173,6 +153,10 @@ pub mod pallet {
 		FundFailed {
 			request_id: [u8; 32],
 		},
+		FaucetBalanceUpdated {
+			old_balance_wei: u128,
+			new_balance_wei: u128,
+		},
 	}
 
 	#[pallet::error]
@@ -189,13 +173,14 @@ pub mod pallet {
 		AmountTooSmall,
 		AmountTooLarge,
 		InvalidAddress,
+		FaucetBalanceBelowThreshold,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(10_000)]
-		pub fn initialize(origin: OriginFor<T>) -> DispatchResult {
+		pub fn initialize(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 			ensure!(DispenserConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
 
@@ -203,6 +188,8 @@ pub mod pallet {
 				init: true,
 				paused: false,
 			});
+
+			CurrentFaucetBalanceWei::<T>::put(balance_wei);
 
 			Self::deposit_event(Event::Initialized);
 			Ok(())
@@ -222,9 +209,10 @@ pub mod pallet {
 
 			Self::ensure_initialized()?;
 
+			let observed = CurrentFaucetBalanceWei::<T>::get();
 			ensure!(
-				UsedRequestIds::<T>::get(request_id).is_none(),
-				Error::<T>::DuplicateRequest
+				observed >= (T::MinFaucetEthThreshold::get() + amount_wei),
+				Error::<T>::FaucetBalanceBelowThreshold
 			);
 
 			ensure!(!DispenserConfig::<T>::get().unwrap().paused, Error::<T>::Paused);
@@ -331,11 +319,16 @@ pub mod pallet {
 
 		#[pallet::call_index(5)]
 		#[pallet::weight(10_000)]
-		pub fn submit_balance_unsigned(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
-			ensure_none(origin)?;
+		pub fn set_faucet_balance(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
+			T::UpdateOrigin::ensure_origin(origin)?;
 
+			let old = CurrentFaucetBalanceWei::<T>::get();
 			CurrentFaucetBalanceWei::<T>::put(balance_wei);
 
+			Self::deposit_event(Event::FaucetBalanceUpdated {
+				old_balance_wei: old,
+				new_balance_wei: balance_wei,
+			});
 			Ok(())
 		}
 	}
@@ -407,85 +400,6 @@ pub mod pallet {
 			ensure!(recovered_address == expected_address, Error::<T>::InvalidSigner);
 
 			Ok(())
-		}
-	}
-
-	#[pallet::validate_unsigned]
-	impl<T: Config> ValidateUnsigned for Pallet<T> {
-		type Call = Call<T>;
-
-		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			use sp_runtime::transaction_validity::{InvalidTransaction, ValidTransaction};
-
-			match call {
-				Call::submit_balance_unsigned { balance_wei } => {
-					let now = <frame_system::Pallet<T>>::block_number();
-					Ok(ValidTransaction {
-						priority: 1_000_000,
-						requires: vec![],
-						provides: vec![(b"gfas/bal", now, *balance_wei).encode()],
-						longevity: 64,
-						propagate: true,
-					})
-				}
-				_ => InvalidTransaction::Call.into(),
-			}
-		}
-	}
-
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
-	where
-		<T as frame_system::offchain::SendTransactionTypes<<T as frame_system::Config>::RuntimeCall>>::OverarchingCall:
-			From<Call<T>>,
-	{
-		fn offchain_worker(n: BlockNumberFor<T>) {
-			log::info!(target: LOG_TARGET, "started offchain worker.....");
-
-			// let mut last_send_ref = StorageValueRef::persistent(OCW_LAST_SEND_KEY);
-
-			let mut should_send = true;
-
-			// if let Ok(Some(last_block)) = last_send_ref.get::<u32>() {
-			// 	let now: u32 = n.saturated_into::<u32>();
-			// 	if now.saturating_sub(last_block) < THROTTLE_BLOCKS {
-			// 		should_send = false;
-			// 	}
-			// }
-
-			if !should_send {
-				return;
-			}
-
-			let next_wei: u128 = Self::mock_balance_for(n);
-
-			let prev_wei = CurrentFaucetBalanceWei::<T>::get();
-			if prev_wei == next_wei {
-				return;
-			}
-
-			let call = Call::<T>::submit_balance_unsigned { balance_wei: next_wei };
-
-			log::info!(target: LOG_TARGET, "wei {:?}", next_wei);
-
-			let _ = frame_system::offchain::SubmitTransaction::<T, <T as frame_system::Config>::RuntimeCall>
-    ::submit_unsigned_transaction(call.into())
-    .map(|_| {
-        let now: u32 = n.saturated_into::<u32>();
-        let mut last_send_ref = StorageValueRef::persistent(OCW_LAST_SEND_KEY);
-        let _ = last_send_ref.set(&now);
-
-			log::info!(target: LOG_TARGET, "signature sent");
-    });
-		}
-	}
-
-	impl<T: Config> Pallet<T> {
-		#[inline]
-		fn mock_balance_for(n: BlockNumberFor<T>) -> u128 {
-			let seed = (n.encode(), b"gfas/mock").using_encoded(sp_io::hashing::blake2_256);
-			let x = (seed[0] as u128 % 10) + 1;
-			x * 1_000_000_000_000_000_000u128
 		}
 	}
 
