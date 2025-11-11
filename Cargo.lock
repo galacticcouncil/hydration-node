@@ -10870,6 +10870,7 @@ dependencies = [
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
+ "log",
  "num-traits",
  "orml-tokens",
  "orml-traits",

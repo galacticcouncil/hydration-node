@@ -61,4 +61,5 @@ pub type Migrations = (
 	frame_support::migrations::RemovePallet<TipsPalletName, <Runtime as frame_system::Config>::DbWeight>,
 	// Duster pallet migration to rename AccountBlacklist to AccountWhitelist, at RuntimeVersion 348
 	pallet_duster::migration::v2::MigrateV1ToV2<Runtime>,
+	pallet_stableswap::migrations::v1::MigrateV0ToV1<Runtime>,
 );

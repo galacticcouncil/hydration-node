@@ -93,6 +93,7 @@ use pallet_broadcast::types::{Asset, Destination, Fee};
 use sp_std::collections::btree_map::BTreeMap;
 pub use weights::WeightInfo;
 
+pub mod migrations;
 #[cfg(test)]
 pub(crate) mod tests;
 
@@ -126,6 +127,7 @@ pub mod pallet {
 	use sp_std::num::NonZeroU16;
 
 	#[pallet::pallet]
+	#[pallet::storage_version(migrations::STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
