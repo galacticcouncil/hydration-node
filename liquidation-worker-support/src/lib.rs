@@ -237,14 +237,14 @@ impl UserConfiguration {
 	/// Returns `true` if the user uses the asset as collateral.
 	/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 	pub fn is_collateral(&self, asset_index: usize) -> bool {
-		let bit_mask = U256::from(2 << (2 * asset_index));
+		let bit_mask = U256::from(2) << (2 * asset_index);
 		!(self.0 & bit_mask).is_zero()
 	}
 
 	/// Returns `true` if the user uses the asset as debt.
 	/// The asset index is the position of the asset in the `fetch_reserves_list()` array.
 	pub fn is_debt(&self, asset_index: usize) -> bool {
-		let bit_mask = U256::from(1 << (2 * asset_index));
+		let bit_mask = U256::from(1) << (2 * asset_index);
 		!(self.0 & bit_mask).is_zero()
 	}
 }
