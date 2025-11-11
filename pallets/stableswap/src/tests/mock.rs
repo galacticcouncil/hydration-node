@@ -41,6 +41,7 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
+pub use num_traits::Zero;
 use orml_traits::currency::MutationHooks;
 pub use orml_traits::MultiCurrency;
 use orml_traits::{parameter_type_with_key, GetByKey, Handler, Happened, NamedMultiReservableCurrency};
@@ -361,10 +362,11 @@ impl ExtBuilder {
 				});
 
 				if initial_liquid.assets.len() as u128 > Balance::zero() {
-					assert_ok!(Stableswap::add_liquidity(
+					assert_ok!(Stableswap::add_assets_liquidity(
 						RuntimeOrigin::signed(initial_liquid.account),
 						pool_id,
-						BoundedVec::truncate_from(initial_liquid.assets)
+						BoundedVec::truncate_from(initial_liquid.assets),
+						Balance::zero(),
 					));
 				}
 			}
@@ -379,8 +381,7 @@ use crate::types::BenchmarkHelper;
 use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
-use hydradx_traits::{AccountIdFor, Inspect, RawEntry, Source};
-use sp_runtime::traits::Zero;
+use hydradx_traits::{AccountIdFor, Inspect, RawEntry};
 
 pub struct DummyRegistry;
 

@@ -10862,7 +10862,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "5.5.1"
+version = "6.0.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -14631,7 +14631,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.57.0"
+version = "1.57.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -14659,6 +14659,7 @@ dependencies = [
  "libsecp256k1",
  "liquidation-worker-support",
  "module-evm-utility-macro",
+ "num-traits",
  "num_enum",
  "orml-tokens",
  "orml-traits",
@@ -14758,13 +14759,14 @@ dependencies = [
 
 [[package]]
 name = "runtime-mock"
-version = "1.0.9"
+version = "1.0.10"
 dependencies = [
  "frame-remote-externalities",
  "frame-support",
  "frame-system",
  "hydradx-runtime",
  "hydradx-traits",
+ "num-traits",
  "orml-tokens",
  "pallet-asset-registry",
  "pallet-omnipool",
