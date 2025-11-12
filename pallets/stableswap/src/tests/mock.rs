@@ -378,6 +378,8 @@ impl ExtBuilder {
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::types::BenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
+use hydradx_traits::Source;
 use crate::types::{PoolInfo, PoolState, StableswapHooks};
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use hydradx_traits::stableswap::AssetAmount;
