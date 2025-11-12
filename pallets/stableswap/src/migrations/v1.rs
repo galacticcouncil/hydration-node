@@ -45,7 +45,7 @@ impl<T: crate::Config> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV0
 		let mut writes: u64 = 0;
 
 		let mut migrated_pools: Vec<(T::AssetId, PoolInfo<T::AssetId, BlockNumberFor<T>>)> = Vec::with_capacity(12);
-		let current_block = 100_u32; //T::BlockNumberProvider::current_block_number();
+		let current_block = T::BlockNumberProvider::current_block_number();
 
 		for (k, pool_v0) in v0::Pools::<T>::iter() {
 			reads += 1;
@@ -96,7 +96,7 @@ impl<T: crate::Config> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV0
 				PoolPegs::<T>::insert(k, new_info);
 
 				pool_v1.pegs_info = Some(PegUpateInfo {
-					updated_at: current_block.into(),
+					updated_at: current_block,
 					updated_fee: trade_fee,
 				});
 			}
