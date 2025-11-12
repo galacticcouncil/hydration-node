@@ -1762,7 +1762,7 @@ pub struct DummyEvm;
 #[cfg(feature = "runtime-benchmarks")]
 impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 	fn call(context: CallContext, _data: Vec<u8>, _value: U256, _gas: u64) -> hydradx_traits::evm::CallResult {
-		CallResult {
+		hydradx_traits::evm::CallResult {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
@@ -1770,7 +1770,7 @@ impl hydradx_traits::evm::EVM<hydradx_traits::evm::CallResult> for DummyEvm {
 	}
 
 	fn view(context: CallContext, _data: Vec<u8>, _gas: u64) -> hydradx_traits::evm::CallResult {
-		CallResult {
+		hydradx_traits::evm::CallResult {
 			exit_reason: pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
