@@ -57,7 +57,7 @@ pub mod benchmark_helpers {
 										contract: H160::zero(),
 										exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 										value: vec![],
-									}
+									};
 								}
 							}
 						}
@@ -81,7 +81,7 @@ pub mod benchmark_helpers {
 										contract: H160::zero(),
 										exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
 										value: vec![],
-									}
+									};
 								}
 							}
 						}
@@ -113,12 +113,11 @@ pub mod benchmark_helpers {
 								.unwrap();
 								Tokens::update_balance(hollar_id, &arb_account, -(amount.as_u128() as i128)).unwrap();
 
-								return 	CallResult {
+								return CallResult {
 									contract: H160::zero(),
 									exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 									value: vec![],
-								}
-
+								};
 							}
 						}
 						ERC20Function::MaxFlashLoan => {
@@ -126,11 +125,11 @@ pub mod benchmark_helpers {
 							let mut buf1 = [0u8; 32];
 							max_flash_loan_amount.to_big_endian(&mut buf1);
 							let bytes = Vec::from(buf1);
-							return 	CallResult {
+							return CallResult {
 								contract: H160::zero(),
 								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 								value: bytes,
-							}
+							};
 						}
 						ERC20Function::GetFacilitatorBucket => {
 							let capacity = U256::from(1_000_000_000_000_000_000_000_000u128);
@@ -142,29 +141,29 @@ pub mod benchmark_helpers {
 							let mut bytes = vec![];
 							bytes.extend_from_slice(&buf1);
 							bytes.extend_from_slice(&buf2);
-							return 	CallResult {
+							return CallResult {
 								contract: H160::zero(),
 								exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 								value: bytes,
-							}
+							};
 						}
 					}
 				}
 			}
 
-			return 	CallResult {
+			return CallResult {
 				contract: H160::zero(),
 				exit_reason: ExitReason::Revert(Reverted),
-				value:  vec![],
-			}
+				value: vec![],
+			};
 		}
 
 		fn view(_context: CallContext, _data: Vec<u8>, _gas: u64) -> hydradx_traits::evm::CallResult {
-			return 	CallResult {
+			return CallResult {
 				contract: H160::zero(),
 				exit_reason: ExitReason::Succeed(ExitSucceed::Stopped),
-				value:  vec![],
-			}
+				value: vec![],
+			};
 		}
 	}
 
