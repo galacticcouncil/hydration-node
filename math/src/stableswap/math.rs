@@ -1043,10 +1043,10 @@ fn calculate_peg_deltas(
 	);
 
 	let mut r = vec![];
+	let block_ct = block_no.saturating_sub(current_updated_at).max(1u128);
 	for (current, target) in current.iter().copied().zip(target.iter().copied()) {
 		let c: Ratio = current.into();
 		let t: Ratio = target.0.into();
-		let block_ct = block_no.saturating_sub(current_updated_at).max(1u128);
 
 		let (delta, delta_neg) = if t > c {
 			(t.saturating_sub(&c), false)

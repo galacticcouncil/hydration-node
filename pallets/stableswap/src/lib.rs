@@ -777,7 +777,7 @@ pub mod pallet {
 				who: who.clone(),
 				shares,
 				amounts: vec![AssetAmount { asset_id, amount }],
-				fee: 0u128, //NOTE: ASK_WHY IS THIS 0 ???
+				fee: 0u128,
 			});
 
 			let fees = fees

@@ -575,7 +575,7 @@ mod invariants {
 					initial_block: 0,
 					final_block: 0,
 					fee: Permill::from_percent(1),
-				pegs_info: None,
+					pegs_info: None,
 				},
 				InitialLiquidity {
 					account: ALICE,

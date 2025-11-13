@@ -8,7 +8,6 @@ use hydradx_traits::stableswap::AssetAmount;
 use hydradx_traits::RawEntry;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
-use pallet_dca::pallet;
 use pallet_ema_oracle::BIFROST_SOURCE;
 use pallet_stableswap::traits::PegRawOracle;
 use pallet_stableswap::types::BoundedPegSources;
@@ -21,7 +20,6 @@ use pretty_assertions::assert_ne;
 use primitives::{constants::time::SECS_PER_BLOCK, BlockNumber};
 use sp_runtime::{Perbill, Permill};
 use std::sync::Arc;
-use std::time::SystemTime;
 use test_utils::assert_eq_approx;
 
 pub const DOT: AssetId = 2221;

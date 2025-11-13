@@ -26,7 +26,7 @@ pub(crate) type Balance = u128;
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct PegUpateInfo<BlockNumber> {
-	//	block number when pegs was updated
+	//	block number when pegs were updated
 	pub updated_at: BlockNumber,
 	// updated fee calucalted at `self.updated_at`
 	pub updated_fee: Permill,
