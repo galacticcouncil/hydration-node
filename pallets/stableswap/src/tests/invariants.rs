@@ -99,12 +99,13 @@ proptest! {
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
 					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -173,12 +174,13 @@ proptest! {
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
-					])
+					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -870,12 +872,13 @@ proptest! {
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
-					])
+					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -974,12 +977,13 @@ proptest! {
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
-					])
+					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -1299,12 +1303,13 @@ proptest! {
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
-					])
+					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -1409,12 +1414,13 @@ proptest! {
 				let pool_account = pool_account(pool_id);
 				let asset_pegs= get_pool_asset_pegs(pool_id);
 				let initial_shares = Tokens::free_balance(pool_id, &BOB);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
-					])
+					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::free_balance(pool_id, &BOB);
 				shares_received = final_shares - initial_shares;
@@ -1541,12 +1547,13 @@ proptest! {
 				let pool_account = pool_account(pool_id);
 				let asset_pegs= get_pool_asset_pegs(pool_id);
 				let initial_shares = Tokens::free_balance(pool_id, &BOB);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
-					])
+					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::free_balance(pool_id, &BOB);
 				shares_received = final_shares - initial_shares;
@@ -1685,12 +1692,13 @@ proptest! {
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
 					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;
@@ -1764,12 +1772,13 @@ proptest! {
 
 				let share_price_initial = get_share_price(pool_id, 0);
 				let initial_shares = Tokens::total_issuance(pool_id);
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(BOB),
 					pool_id,
 					BoundedVec::truncate_from(vec![
 						AssetAmount::new(asset_a, added_liquidity),
-					])
+					]),
+					Balance::zero(),
 				));
 				let final_shares = Tokens::total_issuance(pool_id);
 				let delta_s = final_shares - initial_shares;

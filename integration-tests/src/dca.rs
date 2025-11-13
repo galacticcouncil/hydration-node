@@ -2810,13 +2810,14 @@ mod stableswap {
 				set_relaychain_block_number(10);
 
 				//Act
-				assert_ok!(Stableswap::add_liquidity(
+				assert_ok!(Stableswap::add_assets_liquidity(
 					RuntimeOrigin::signed(ALICE.into()),
 					pool_id,
 					BoundedVec::truncate_from(vec![AssetAmount {
 						asset_id: stable_asset_1,
 						amount: amount_to_sell,
 					}]),
+					Balance::zero(),
 				));
 				let alice_pool_id_balance = Currencies::free_balance(pool_id, &AccountId::from(ALICE));
 
@@ -4569,10 +4570,11 @@ pub fn init_stableswap() -> Result<(AssetId, AssetId, AssetId), DispatchError> {
 		fee,
 	)?;
 
-	Stableswap::add_liquidity(
+	Stableswap::add_assets_liquidity(
 		RuntimeOrigin::signed(BOB.into()),
 		pool_id,
 		BoundedVec::truncate_from(initial),
+		Balance::zero(),
 	)?;
 
 	Ok((pool_id, asset_in, asset_out))
@@ -4643,10 +4645,11 @@ pub fn init_stableswap_with_three_assets_having_different_decimals(
 		fee,
 	)?;
 
-	Stableswap::add_liquidity(
+	Stableswap::add_assets_liquidity(
 		RuntimeOrigin::signed(BOB.into()),
 		pool_id,
 		BoundedVec::truncate_from(initial),
+		Balance::zero(),
 	)?;
 
 	Ok((pool_id, asset_in, asset_out))
