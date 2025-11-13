@@ -628,6 +628,9 @@ parameter_types! {
 	pub MaxAllowedPriceDifferenceForBifrostOracleUpdate: Permill = Permill::from_percent(10);
 }
 
+/// Type alias for SupportedPeriods to use in OracleAssetRemover
+pub type SupportedOraclePeriods = SupportedPeriods;
+
 pub struct OracleWhitelist<Runtime>(PhantomData<Runtime>);
 impl Contains<(Source, AssetId, AssetId)> for OracleWhitelist<Runtime>
 where

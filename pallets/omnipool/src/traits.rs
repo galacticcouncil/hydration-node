@@ -73,6 +73,14 @@ where
 		fee_account: AccountId,
 		amount: Balance,
 	) -> Result<Option<(Balance, AccountId)>, Self::Error>;
+
+	/// Called when an asset is removed from the Omnipool.
+	/// Allows cleanup of any related storage (fees, oracle entries, etc.).
+	/// Returns the weight consumed by the cleanup operations.
+	fn on_asset_removed(asset_id: AssetId) -> Weight;
+
+	/// Returns the weight for on_asset_removed hook.
+	fn on_asset_removed_weight() -> Weight;
 }
 
 // Default implementation for no-op hooks.
@@ -120,6 +128,14 @@ where
 		_amount: Balance,
 	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
 		Ok(None)
+	}
+
+	fn on_asset_removed(_asset_id: AssetId) -> Weight {
+		Weight::zero()
+	}
+
+	fn on_asset_removed_weight() -> Weight {
+		Weight::zero()
 	}
 }
 

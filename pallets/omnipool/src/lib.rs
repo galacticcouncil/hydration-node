@@ -111,6 +111,7 @@ pub mod weights;
 
 use crate::traits::{AssetInfo, OmnipoolHooks};
 use crate::types::{AssetReserveState, AssetState, Balance, Position, Tradability};
+pub use pallet::Assets;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -238,7 +239,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// State of an asset in the omnipool
 	#[pallet::getter(fn assets)]
-	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
+	pub type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	// LRNA is only allowed to be sold
 	#[pallet::type_value]
@@ -1600,7 +1601,7 @@ pub mod pallet {
 		///
 		/// Emits `TokenRemoved` event when successful.
 		#[pallet::call_index(12)]
-		#[pallet::weight(<T as Config>::WeightInfo::remove_token())]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_token().saturating_add(T::OmnipoolHooks::on_asset_removed_weight()))]
 		#[transactional]
 		pub fn remove_token(origin: OriginFor<T>, asset_id: T::AssetId, beneficiary: T::AccountId) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
@@ -1615,6 +1616,10 @@ pub mod pallet {
 			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), asset_state.hub_reserve)?;
 			T::Currency::transfer(asset_id, &Self::protocol_account(), &beneficiary, asset_state.reserve)?;
 			<Assets<T>>::remove(asset_id);
+
+			// Clear related storage entries via hooks
+			T::OmnipoolHooks::on_asset_removed(asset_id);
+
 			Self::deposit_event(Event::TokenRemoved {
 				asset_id,
 				amount: asset_state.reserve,

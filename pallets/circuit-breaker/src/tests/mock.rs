@@ -391,6 +391,14 @@ where
 	) -> Result<Option<(Balance, AccountId)>, Self::Error> {
 		Ok(None)
 	}
+
+	fn on_asset_removed(_asset_id: AssetId) -> Weight {
+		Weight::zero()
+	}
+
+	fn on_asset_removed_weight() -> Weight {
+		Weight::zero()
+	}
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};

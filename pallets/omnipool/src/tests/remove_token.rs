@@ -205,3 +205,93 @@ fn remove_token_should_burn_hub_asset() {
 			assert_eq!(lrna_issuance_after, lrna_issuance - state.hub_reserve);
 		});
 }
+
+#[test]
+fn remove_token_should_clear_related_storage() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP2, DAI, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_min_withdrawal_fee(Permill::from_float(0.01))
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+			let current_position_id = <NextPositionId<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				1_000,
+				Tradability::FROZEN
+			));
+			assert_ok!(Omnipool::sacrifice_position(
+				RuntimeOrigin::signed(LP1),
+				current_position_id
+			));
+			assert_ok!(Omnipool::sacrifice_position(
+				RuntimeOrigin::signed(LP2),
+				current_position_id - 1,
+			));
+
+			assert_ok!(Omnipool::remove_token(RuntimeOrigin::root(), 1000, 1234),);
+
+			assert!(Assets::<Test>::get(1000).is_none());
+		});
+}
+
+#[test]
+fn remove_token_should_call_on_asset_removed_hook() {
+	use crate::tests::mock::ASSET_REMOVED_HOOK_CALLED;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP2, DAI, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_min_withdrawal_fee(Permill::from_float(0.01))
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+			let current_position_id = <NextPositionId<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				RuntimeOrigin::root(),
+				1_000,
+				Tradability::FROZEN
+			));
+			assert_ok!(Omnipool::sacrifice_position(
+				RuntimeOrigin::signed(LP1),
+				current_position_id
+			));
+			assert_ok!(Omnipool::sacrifice_position(
+				RuntimeOrigin::signed(LP2),
+				current_position_id - 1,
+			));
+
+			// Clear the hook tracker before testing
+			ASSET_REMOVED_HOOK_CALLED.with(|v| {
+				*v.borrow_mut() = None;
+			});
+
+			assert_ok!(Omnipool::remove_token(RuntimeOrigin::root(), 1000, 1234),);
+
+			// Verify the hook was called with the correct asset ID
+			ASSET_REMOVED_HOOK_CALLED.with(|v| {
+				assert_eq!(
+					*v.borrow(),
+					Some(1000),
+					"on_asset_removed hook should be called with asset_id 1000"
+				);
+			});
+		});
+}

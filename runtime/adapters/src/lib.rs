@@ -339,6 +339,7 @@ where
 	ProtocolFeeRecipient: Get<AccountId>,
 	Runtime: pallet_ema_oracle::Config
 		+ pallet_circuit_breaker::Config
+		+ pallet_dynamic_fees::Config<AssetId = AssetId>
 		+ frame_system::Config<RuntimeOrigin = Origin, AccountId = sp_runtime::AccountId32>
 		+ pallet_staking::Config
 		+ pallet_referrals::Config
@@ -513,8 +514,55 @@ where
 		MC::transfer(Lrna::get(), &fee_account, &ProtocolFeeRecipient::get(), amount)?;
 		Ok(Some((amount, ProtocolFeeRecipient::get())))
 	}
-}
 
+	fn on_asset_removed(asset_id: AssetId) -> Weight {
+		// Clear dynamic fees storage
+		pallet_dynamic_fees::AssetFee::<Runtime>::remove(asset_id);
+		pallet_dynamic_fees::AssetFeeConfiguration::<Runtime>::remove(asset_id);
+
+		// Clear oracle entries for this asset paired with LRNA (hub asset)
+		let hub_asset = Lrna::get();
+		let assets = if asset_id < hub_asset {
+			(asset_id, hub_asset)
+		} else {
+			(hub_asset, asset_id)
+		};
+
+		// Remove from whitelist
+		pallet_ema_oracle::WhitelistedAssets::<Runtime>::mutate(|list| {
+			list.remove(&(OMNIPOOL_SOURCE, assets));
+		});
+
+		// Remove oracle storage entries for all supported periods
+		let supported_periods = <Runtime as pallet_ema_oracle::Config>::SupportedPeriods::get();
+		for period in supported_periods.into_iter() {
+			pallet_ema_oracle::Oracles::<Runtime>::remove((OMNIPOOL_SOURCE, assets, period));
+		}
+
+		// Remove from accumulator if present
+		let _ = pallet_ema_oracle::Accumulator::<Runtime>::mutate(|accumulator| {
+			accumulator.remove(&(OMNIPOOL_SOURCE, assets));
+			Ok::<(), ()>(())
+		});
+
+		Self::on_asset_removed_weight()
+	}
+
+	fn on_asset_removed_weight() -> Weight {
+		// Weight for removing two storage entries from dynamic fees
+		let dynamic_fees_weight = <Runtime as frame_system::Config>::DbWeight::get().reads_writes(0, 2);
+
+		// Weight for oracle cleanup:
+		// - 1 read + 1 write for WhitelistedAssets
+		// - N writes for Oracles (where N is number of supported periods)
+		// - 1 read + 1 write for Accumulator
+		let supported_periods_count = <Runtime as pallet_ema_oracle::Config>::SupportedPeriods::get().len() as u64;
+		let oracle_weight =
+			<Runtime as frame_system::Config>::DbWeight::get().reads_writes(2, 2 + supported_periods_count);
+
+		dynamic_fees_weight.saturating_add(oracle_weight)
+	}
+}
 /// Passes ema oracle price to the omnipool.
 pub struct EmaOraclePriceAdapter<Period, Runtime>(PhantomData<(Period, Runtime)>);
 
@@ -644,8 +692,7 @@ where
 					Some(round_u512_to_rational((nom, den), Rounding::Nearest).into())
 				} else {
 					// Recursive case: chunk and recurse
-					let chunk_results: Vec<EmaPrice> =
-						prices.chunks(4).map(|chunk| inner(chunk)).collect::<Option<Vec<_>>>()?;
+					let chunk_results: Vec<EmaPrice> = prices.chunks(4).map(inner).collect::<Option<Vec<_>>>()?;
 
 					inner(&chunk_results)
 				}
