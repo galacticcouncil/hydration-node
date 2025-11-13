@@ -853,9 +853,10 @@ runtime_benchmarks! {
 		)?;
 
 		// Worst case is adding additional liquidity and not initial liquidity
-		Stableswap::add_liquidity(RawOrigin::Signed(caller).into(),
+		Stableswap::add_assets_liquidity(RawOrigin::Signed(caller).into(),
 			pool_id,
 			initial.try_into().unwrap(),
+			0u128,
 		)?;
 
 		let lp1 = create_funded_account("lp_1", 1, 10 * BTC_ONE, BTC);
