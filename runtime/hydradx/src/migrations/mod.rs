@@ -15,6 +15,4 @@
 
 use super::*;
 
-pub type Migrations = (
-	pallet_stableswap::migrations::v1::MigrateV0ToV1<Runtime>,
-);
+pub type Migrations = (pallet_stableswap::migrations::v1::MigrateV0ToV1<Runtime>,);
