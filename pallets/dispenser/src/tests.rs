@@ -235,6 +235,8 @@ impl pallet_dispenser::Config for Test {
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
+
+	type WeightInfo = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -564,7 +566,7 @@ fn bounded_u8<const N: u32>(v: Vec<u8>) -> BoundedVec<u8, ConstU32<N>> {
 	BoundedVec::try_from(v).unwrap()
 }
 
-fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, MaxChainIdLength> {
+pub fn bounded_chain_id(v: Vec<u8>) -> BoundedVec<u8, MaxChainIdLength> {
 	BoundedVec::try_from(v).unwrap()
 }
 

@@ -26,10 +26,13 @@ use sp_core::{H160, U256};
 
 pub use pallet::*;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 const EIP1559_TX_TYPE: u8 = 0x02;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {

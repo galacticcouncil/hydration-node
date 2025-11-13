@@ -246,6 +246,7 @@ runtime-benchmarks = [
     "cumulus-primitives-utility/runtime-benchmarks",
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "pallet-signet/runtime-benchmarks",
+    "pallet-dispenser/runtime-benchmarks",
 ]
 std = [
     "codec/std",

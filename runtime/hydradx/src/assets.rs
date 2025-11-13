@@ -1908,7 +1908,7 @@ impl pallet_dispenser::Config for Runtime {
 
 	type MinFaucetEthThreshold = SigEthMinFaucetThreshold;
 
-	type AuthorityId = pallet_dispenser::crypto::DispenserAuthId;
+	type WeightInfo = weights::pallet_dispenser::HydraWeight<Runtime>;
 }
 
 pub struct ConvertViaOmnipool<SP>(PhantomData<SP>);

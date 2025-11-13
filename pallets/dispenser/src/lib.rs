@@ -1,35 +1,23 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
-use alloc::{format, string::String, vec};
+use alloc::{string::String, vec};
 
-use alloy_primitives::{Address, U256};
+use alloy_primitives::U256;
 use alloy_sol_types::{sol, SolCall};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
 use frame_support::traits::{fungibles::Mutate, tokens::Preservation, Currency};
 use frame_support::PalletId;
 use frame_support::{dispatch::DispatchResult, BoundedVec};
-use frame_system::offchain::{SendTransactionTypes, SigningTypes, SubmitTransaction};
 use frame_system::pallet_prelude::*;
-use sp_core::crypto::KeyTypeId;
 use sp_core::H160;
 use sp_io::hashing;
-use sp_runtime::offchain::storage::StorageValueRef;
-use sp_runtime::offchain::{
-	storage_lock::{BlockAndTime, StorageLock},
-	Duration,
-};
-use sp_runtime::traits::SaturatedConversion;
-use sp_runtime::traits::Zero;
 use sp_std::vec::Vec;
 
-const POLL_EVERY_BLOCKS: u32 = 100;
-const THROTTLE_BLOCKS: u32 = 10;
-const OCW_LAST_SEND_KEY: &[u8] = b"gfas/last_send";
-
-use log::{debug, error, info, trace, warn};
-const LOG_TARGET: &str = "pallet-dispenser";
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
+pub mod weights;
 
 #[cfg(test)]
 mod tests;
@@ -70,21 +58,11 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config
-		+ SigningTypes
-		+ SendTransactionTypes<Self::RuntimeCall>
-		+ pallet_build_evm_tx::Config
-		+ pallet_signet::Config
-	{
+	pub trait Config: frame_system::Config + pallet_build_evm_tx::Config + pallet_signet::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-		// Multi-currency (HDX fees + wETH faucet asset)
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
-
 		type UpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		// Minimum/Maximum & Fee (use u128 to match Balance/wei)
 		#[pallet::constant]
 		type MinimumRequestAmount: Get<u128>;
 		#[pallet::constant]
@@ -92,28 +70,26 @@ pub mod pallet {
 		#[pallet::constant]
 		type DispenserFee: Get<u128>;
 
-		// fee asset (HDX) & faucet asset (wETH)
 		#[pallet::constant]
 		type FeeAsset: Get<AssetId>;
 		#[pallet::constant]
 		type FaucetAsset: Get<AssetId>;
 
-		// Treasury account for fee settlement
 		#[pallet::constant]
 		type TreasuryAddress: Get<Self::AccountId>;
 
-		// Ethereum config
 		#[pallet::constant]
 		type FaucetAddress: Get<EvmAddress>;
 		#[pallet::constant]
 		type MPCRootSigner: Get<EvmAddress>;
 
-		// PalletId for internal account
 		#[pallet::constant]
 		type VaultPalletId: Get<PalletId>;
 
 		#[pallet::constant]
 		type MinFaucetEthThreshold: Get<u128>;
+
+		type WeightInfo: crate::WeightInfo;
 	}
 
 	/*************************** STORAGE ***************************/
@@ -179,7 +155,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::initialize())]
 		pub fn initialize(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 			ensure!(DispenserConfig::<T>::get().is_none(), Error::<T>::AlreadyInitialized);
@@ -196,7 +172,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(1)]
-		#[pallet::weight(100_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_fund())]
 		pub fn request_fund(
 			origin: OriginFor<T>,
 			to: [u8; 20],
@@ -205,40 +181,29 @@ pub mod pallet {
 			tx: EvmTransactionParams,
 		) -> DispatchResult {
 			let requester = ensure_signed(origin)?;
-			let pallet_id = Self::account_id();
+			let pallet_acc = Self::account_id();
 
 			Self::ensure_initialized()?;
-
-			let observed = CurrentFaucetBalanceWei::<T>::get();
-			ensure!(
-				observed >= (T::MinFaucetEthThreshold::get() + amount_wei),
-				Error::<T>::FaucetBalanceBelowThreshold
-			);
-
-			ensure!(!DispenserConfig::<T>::get().unwrap().paused, Error::<T>::Paused);
+			let cfg = DispenserConfig::<T>::get().ok_or(Error::<T>::NotFound)?;
+			ensure!(!cfg.paused, Error::<T>::Paused);
+			ensure!(to != [0u8; 20], Error::<T>::InvalidAddress);
 			ensure!(amount_wei >= T::MinimumRequestAmount::get(), Error::<T>::AmountTooSmall);
 			ensure!(amount_wei <= T::MaxDispenseAmount::get(), Error::<T>::AmountTooLarge);
 
-			// deducting fee
-			<T as Config>::Currency::transfer(
-				T::FeeAsset::get(),
-				&requester,
-				&T::TreasuryAddress::get(),
-				T::DispenserFee::get(),
-				Preservation::Expendable,
-			)?;
+			let observed = CurrentFaucetBalanceWei::<T>::get();
+			let needed = T::MinFaucetEthThreshold::get()
+				.checked_add(amount_wei)
+				.ok_or(Error::<T>::InvalidOutput)?;
+			ensure!(observed >= needed, Error::<T>::FaucetBalanceBelowThreshold);
 
-			// deducting asset
-			<T as Config>::Currency::transfer(
-				T::FaucetAsset::get(),
-				&requester,
-				&T::TreasuryAddress::get(),
-				amount_wei,
-				Preservation::Expendable,
-			)?;
+			ensure!(tx.gas_limit > 0, Error::<T>::InvalidOutput);
+			ensure!(
+				tx.max_fee_per_gas >= tx.max_priority_fee_per_gas,
+				Error::<T>::InvalidOutput
+			);
 
 			let call = IGasFaucet::fundCall {
-				to: Address::from_slice(&to),
+				to: alloy_primitives::Address::from_slice(&to),
 				amount: U256::from(amount_wei),
 			};
 
@@ -251,29 +216,50 @@ pub mod pallet {
 				tx.gas_limit,
 				tx.max_fee_per_gas,
 				tx.max_priority_fee_per_gas,
-				vec![],
+				Vec::new(),
 				tx.chain_id,
 			)?;
 
-			let path = {
-				let encoded = requester.encode();
-				let path_str = format!("0x{}", hex::encode(&encoded));
-				path_str.into_bytes()
-			};
+			let mut path = Vec::with_capacity(2 + requester.encoded_size() * 2);
+			path.extend_from_slice(b"0x");
+			path.extend_from_slice(hex::encode(requester.encode()).as_bytes());
 
-			let sender_for_id = Self::account_id();
-			let sender_scale = sender_for_id.encode();
-
-			let req_id = Self::generate_request_id(&sender_for_id, &rlp, 60, 0, &path, b"ecdsa", b"ethereum", b"");
+			let req_id = Self::generate_request_id(&pallet_acc, &rlp, 60, 0, &path, b"ecdsa", b"ethereum", b"");
 
 			ensure!(req_id == request_id, Error::<T>::InvalidRequestId);
+			ensure!(
+				UsedRequestIds::<T>::get(request_id).is_none(),
+				Error::<T>::DuplicateRequest
+			);
+
+			let fee = T::DispenserFee::get();
+			let fee_bal = <T as Config>::Currency::balance(T::FeeAsset::get(), &requester);
+			let faucet_bal = <T as Config>::Currency::balance(T::FaucetAsset::get(), &requester);
+			ensure!(fee_bal >= fee, Error::<T>::NotFound);
+			ensure!(faucet_bal >= amount_wei, Error::<T>::NotFound);
+
+			<T as Config>::Currency::transfer(
+				T::FeeAsset::get(),
+				&requester,
+				&T::TreasuryAddress::get(),
+				fee,
+				Preservation::Expendable,
+			)?;
+
+			<T as Config>::Currency::transfer(
+				T::FaucetAsset::get(),
+				&requester,
+				&T::TreasuryAddress::get(),
+				amount_wei,
+				Preservation::Expendable,
+			)?;
 
 			let explorer_schema = Vec::<u8>::new();
 			let callback_schema =
 				serde_json::to_vec(&serde_json::json!("bool")).map_err(|_| Error::<T>::Serialization)?;
 
 			pallet_signet::Pallet::<T>::sign_respond(
-				frame_system::RawOrigin::Signed(pallet_id.clone()).into(),
+				frame_system::RawOrigin::Signed(pallet_acc.clone()).into(),
 				BoundedVec::<u8, ConstU32<65536>>::try_from(rlp).map_err(|_| Error::<T>::Serialization)?,
 				60,
 				0,
@@ -300,7 +286,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(3)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::pause())]
 		pub fn pause(origin: OriginFor<T>) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = true);
@@ -309,7 +295,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(4)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::unpause())]
 		pub fn unpause(origin: OriginFor<T>) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 			DispenserConfig::<T>::mutate_exists(|p| p.as_mut().unwrap().paused = false);
@@ -318,7 +304,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(5)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_faucet_balance())]
 		pub fn set_faucet_balance(origin: OriginFor<T>, balance_wei: u128) -> DispatchResult {
 			T::UpdateOrigin::ensure_origin(origin)?;
 
@@ -336,7 +322,7 @@ pub mod pallet {
 	// ========================= Helper Functions =========================
 
 	impl<T: Config> Pallet<T> {
-		fn generate_request_id(
+		pub fn generate_request_id(
 			sender: &T::AccountId,
 			transaction_data: &[u8],
 			slip44_chain_id: u32,
@@ -416,4 +402,12 @@ pub mod pallet {
 			}
 		}
 	}
+}
+
+pub trait WeightInfo {
+	fn initialize() -> Weight;
+	fn request_fund() -> Weight;
+	fn set_faucet_balance() -> Weight;
+	fn pause() -> Weight;
+	fn unpause() -> Weight;
 }

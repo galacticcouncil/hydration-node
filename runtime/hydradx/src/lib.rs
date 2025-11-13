@@ -350,6 +350,7 @@ mod benches {
 		[pallet_build_evm_tx, BuildEvmTx]
 		[pallet_dynamic_fees, DynamicFees]
 		[pallet_signet, Signet]
+		[pallet_dispenser, EthDispenser]
 	);
 }
 

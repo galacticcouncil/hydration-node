@@ -2,15 +2,15 @@
 
 use super::*;
 use frame_benchmarking::{benchmarks, whitelisted_caller};
-use frame_support::traits::Currency;
+use frame_support::{parameter_types, traits::Currency};
 use frame_system::RawOrigin;
 
 benchmarks! {
 	initialize {
 		let admin: T::AccountId = whitelisted_caller();
 		let deposit = T::Currency::minimum_balance();
-		let chain_id = b"test-chain".to_vec(); 
-	}: _(RawOrigin::Root, admin.clone(), deposit, chain_id) 
+		let chain_id: BoundedVec<u8, <T as pallet::Config>::MaxChainIdLength> =  BoundedVec::try_from(b"test-chain".to_vec()).unwrap();
+	}: _(RawOrigin::Root, admin.clone(), deposit, chain_id)
 	verify {
 		assert_eq!(Admin::<T>::get(), Some(admin));
 		assert_eq!(SignatureDeposit::<T>::get(), deposit);
@@ -19,8 +19,8 @@ benchmarks! {
 	update_deposit {
 		let admin: T::AccountId = whitelisted_caller();
 		let initial_deposit = T::Currency::minimum_balance();
-		let chain_id = b"test-chain".to_vec(); 
-		let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin.clone(), initial_deposit, chain_id); 
+		let chain_id: BoundedVec<u8, <T as pallet::Config>::MaxChainIdLength> =  BoundedVec::try_from(b"test-chain".to_vec()).unwrap();
+		let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin.clone(), initial_deposit, chain_id);
 		let new_deposit = T::Currency::minimum_balance() * 2u32.into();
 	}: _(RawOrigin::Signed(admin), new_deposit)
 	verify {
@@ -29,8 +29,8 @@ benchmarks! {
 
 	withdraw_funds {
 		let admin: T::AccountId = whitelisted_caller();
-		let chain_id = b"test-chain".to_vec(); 
-		let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin.clone(), T::Currency::minimum_balance(), chain_id); 
+		let chain_id: BoundedVec<u8, <T as pallet::Config>::MaxChainIdLength> =  BoundedVec::try_from(b"test-chain".to_vec()).unwrap();
+		let _ = Pallet::<T>::initialize(RawOrigin::Root.into(), admin.clone(), T::Currency::minimum_balance(), chain_id);
 
 		// Fund the pallet account
 		let pallet_account = Pallet::<T>::account_id();
