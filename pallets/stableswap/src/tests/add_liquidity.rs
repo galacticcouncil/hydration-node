@@ -235,6 +235,7 @@ fn add_liquidity_should_emit_swapped_events() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_float(0.0001),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -357,6 +358,7 @@ fn add_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -415,6 +417,7 @@ fn add_liquidity_should_work_when_order_is_not_sorted() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -473,6 +476,7 @@ fn add_liquidity_should_fail_when_providing_insufficient_liquidity() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -530,6 +534,7 @@ fn add_liquidity_should_work_when_providing_one_asset_only() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -586,6 +591,7 @@ fn add_liquidity_should_fail_when_providing_one_asset_not_in_pool() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -640,6 +646,7 @@ fn add_liquidity_should_fail_when_provided_list_contains_same_assets() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -745,6 +752,7 @@ fn add_liquidity_should_work_correctly() {
 				final_block: 0,
 				//fee: Permill::from_float(0.0001),
 				fee: Permill::zero(),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -796,6 +804,7 @@ fn add_liquidity_should_work_correctly_when_fee_is_applied() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_float(0.0001),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -847,6 +856,7 @@ fn add_liquidity_should_work_correctly_when_providing_exact_amount_of_shares() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -917,6 +927,7 @@ fn add_liquidity_should_apply_fee_when_providing_exact_amount_of_shares() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(1),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -971,6 +982,7 @@ fn add_liquidity_shares_should_fail_when_pool_is_empty() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::zero(),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -1017,6 +1029,7 @@ fn add_assets_liquidity_should_work_when_initial_liquidity_has_been_provided() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,
@@ -1075,6 +1088,7 @@ fn add_assets_liquidity_should_fail_when_min_required_amount_is_not_reached() {
 				initial_block: 0,
 				final_block: 0,
 				fee: Permill::from_percent(0),
+				pegs_info: None,
 			},
 			InitialLiquidity {
 				account: ALICE,

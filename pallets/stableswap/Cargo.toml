@@ -1,6 +1,6 @@
 [package]
 name = "pallet-stableswap"
-version = "6.0.0"
+version = "7.0.0"
 description = "AMM for correlated assets"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -40,6 +40,8 @@ hydra-dx-math = { workspace = true }
 # ORML dependencies
 orml-traits = { workspace = true }
 
+log = { workspace = true }
+
 # Optional imports for benchmarking
 frame-benchmarking = { workspace = true, optional = true }
 
@@ -65,6 +67,7 @@ std = [
     "serde/std",
     "codec/std",
     "scale-info/std",
+    "log/std",
     "frame-support/std",
     "frame-system/std",
     "sp-runtime/std",

@@ -1008,7 +1008,7 @@ where
 	///
 	/// Gets the pool snapshot containing assets, reserves, pegs and other pool information.
 	/// Returns an error if the pool doesn't exist or other retrieval errors occur.
-	fn get_stablepool_state(pool_id: T::AssetId) -> Result<PoolSnapshot<T::AssetId>, DispatchError> {
+	fn get_stablepool_state(pool_id: T::AssetId) -> Result<PoolSnapshot<T::AssetId, BlockNumberFor<T>>, DispatchError> {
 		let Some(pool_snapshot) = pallet_stableswap::Pallet::<T>::initial_pool_snapshot(pool_id) else {
 			return Err(pallet_stableswap::Error::<T>::PoolNotFound.into());
 		};
@@ -1048,7 +1048,10 @@ where
 	fn do_trade_hollar_in(
 		who: &T::AccountId,
 		collateral_asset: T::AssetId,
-		simulate_swap: impl FnOnce(T::AssetId, &PoolSnapshot<T::AssetId>) -> Result<(Balance, Balance), DispatchError>,
+		simulate_swap: impl FnOnce(
+			T::AssetId,
+			&PoolSnapshot<T::AssetId, BlockNumberFor<T>>,
+		) -> Result<(Balance, Balance), DispatchError>,
 		calculate_final_amounts: impl FnOnce((Balance, Balance), Price) -> Result<(Balance, Balance), DispatchError>,
 	) -> Result<(Balance, Balance), DispatchError> {
 		let collateral_info = Collaterals::<T>::get(collateral_asset).ok_or(Error::<T>::AssetNotApproved)?;
@@ -1279,8 +1282,8 @@ where
 		asset_out: T::AssetId,
 		amount_in: Balance,
 		min_amount_out: Balance,
-		pool_state: &PoolSnapshot<T::AssetId>,
-	) -> Result<(Balance, PoolSnapshot<T::AssetId>), DispatchError> {
+		pool_state: &PoolSnapshot<T::AssetId, BlockNumberFor<T>>,
+	) -> Result<(Balance, PoolSnapshot<T::AssetId, BlockNumberFor<T>>), DispatchError> {
 		pallet_stableswap::Pallet::<T>::simulate_sell(
 			pool_id,
 			asset_in,
@@ -1301,7 +1304,7 @@ where
 		asset_out: T::AssetId,
 		amount_out: Balance,
 		max_amount_in: Balance,
-		pool_state: &PoolSnapshot<T::AssetId>,
+		pool_state: &PoolSnapshot<T::AssetId, BlockNumberFor<T>>,
 	) -> Result<Balance, DispatchError> {
 		let (amount_in, _) = pallet_stableswap::Pallet::<T>::simulate_buy(
 			pool_id,
@@ -1431,7 +1434,7 @@ where
 		collateral_asset_id: T::AssetId,
 		imbalance: Balance,
 		info: &CollateralInfo<T::AssetId>,
-		state: &PoolSnapshot<T::AssetId>,
+		state: &PoolSnapshot<T::AssetId, BlockNumberFor<T>>,
 	) -> Option<Balance> {
 		let max_flash_loan = Self::get_max_flash_loan_amount();
 		let free_capacity = Self::get_hsm_bucket_free_capacity();
@@ -1479,7 +1482,7 @@ where
 	fn check_trade_size(
 		collateral_asset_id: T::AssetId,
 		info: &CollateralInfo<T::AssetId>,
-		state: &PoolSnapshot<T::AssetId>,
+		state: &PoolSnapshot<T::AssetId, BlockNumberFor<T>>,
 		sell_amount: Balance,
 	) -> bool {
 		(|| -> Option<()> {
@@ -1547,7 +1550,7 @@ where
 		collateral_asset_id: T::AssetId,
 		imbalance: Balance,
 		collateral_info: &CollateralInfo<T::AssetId>,
-		pool_state: &PoolSnapshot<T::AssetId>,
+		pool_state: &PoolSnapshot<T::AssetId, BlockNumberFor<T>>,
 	) -> Result<Balance, DispatchError> {
 		let hollar_id = T::HollarId::get();
 		let buyback_limit = hydra_dx_math::hsm::calculate_buyback_limit(imbalance, collateral_info.buyback_rate);
@@ -1608,7 +1611,7 @@ where
 	fn get_asset_peg(
 		peg_asset: T::AssetId,
 		pool_id: T::AssetId,
-		pool_state: &PoolSnapshot<T::AssetId>,
+		pool_state: &PoolSnapshot<T::AssetId, BlockNumberFor<T>>,
 	) -> Result<PegType, DispatchError> {
 		let collateral_pos = pool_state.asset_idx(peg_asset).ok_or(Error::<T>::AssetNotFound)?;
 

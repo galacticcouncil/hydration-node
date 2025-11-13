@@ -37,6 +37,7 @@ fn create_two_asset_pool_should_work_when_assets_are_registered() {
 					initial_block: 1,
 					final_block: 1,
 					fee: Permill::from_percent(0),
+					pegs_info: None,
 				}
 			);
 		});
@@ -106,6 +107,7 @@ fn create_pool_should_store_assets_correctly_when_input_is_not_sorted() {
 					initial_block: 1,
 					final_block: 1,
 					fee: Permill::from_percent(5),
+					pegs_info: None,
 				}
 			);
 		});
