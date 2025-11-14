@@ -143,6 +143,13 @@ impl SortedMembers<AccountId> for BifrostAcc {
 	}
 }
 
+pub struct IsmpAccount;
+impl SortedMembers<AccountId> for IsmpAccount {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![ALICE]
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
@@ -153,6 +160,7 @@ impl Config for Test {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
+	type IsmpOrigin = frame_system::EnsureSignedBy<IsmpAccount, AccountId>;
 	type WeightInfo = ();
 	type LocationToAssetIdConversion = CurrencyIdConvertMock;
 	type MaxAllowedPriceDifference = PriceDifference;

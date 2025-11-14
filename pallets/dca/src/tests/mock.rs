@@ -148,6 +148,14 @@ impl SortedMembers<AccountId> for BifrostAcc {
 		vec![ALICE]
 	}
 }
+
+pub struct IsmpAccount;
+impl SortedMembers<AccountId> for IsmpAccount {
+	fn sorted_members() -> Vec<AccountId> {
+		vec![BOB]
+	}
+}
+
 impl pallet_ema_oracle::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
@@ -159,6 +167,7 @@ impl pallet_ema_oracle::Config for Test {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 	type BifrostOrigin = frame_system::EnsureSignedBy<BifrostAcc, AccountId>;
+	type IsmpOrigin = frame_system::EnsureSignedBy<IsmpAccount, AccountId>;
 	type MaxAllowedPriceDifference = PriceDifference;
 	type WeightInfo = ();
 }

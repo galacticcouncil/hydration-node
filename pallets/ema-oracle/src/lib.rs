@@ -371,7 +371,6 @@ pub mod pallet {
 			asset_b: Box<polkadot_xcm::VersionedLocation>,
 			price: (Balance, Balance),
 		) -> DispatchResultWithPostInfo {
-			// TODO:
 			T::IsmpOrigin::ensure_origin(origin)?;
 
 			let asset_a = T::LocationToAssetIdConversion::convert(*asset_a).ok_or(Error::<T>::AssetNotFound)?;
