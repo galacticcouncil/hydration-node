@@ -515,7 +515,7 @@ where
 		Ok(Some((amount, ProtocolFeeRecipient::get())))
 	}
 
-	fn on_asset_removed(asset_id: AssetId) -> Weight {
+	fn on_asset_removed(asset_id: AssetId) {
 		// Clear dynamic fees storage
 		pallet_dynamic_fees::AssetFee::<Runtime>::remove(asset_id);
 		pallet_dynamic_fees::AssetFeeConfiguration::<Runtime>::remove(asset_id);
