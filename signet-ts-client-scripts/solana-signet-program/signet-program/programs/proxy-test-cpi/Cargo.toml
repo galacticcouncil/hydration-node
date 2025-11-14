@@ -1,0 +1,23 @@
+[package]
+name = "proxy_test_cpi"
+version = "0.2.0"
+description = "Proxy CPI program to test Signet program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "proxy_test_cpi"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["event-cpi"] }
+chain-signatures = { path = "../signet", features = ["cpi"] }
+
